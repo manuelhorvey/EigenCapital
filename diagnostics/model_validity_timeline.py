@@ -265,14 +265,20 @@ def run_timeline(use_state_machine: bool = True):
     previous_shap = None
 
     # Initialize state machine if enabled
+    # Calibrated parameters based on audit:
+    # - GREEN entry lowered to 0.66 (below raw 95th percentile = 0.6923)
+    # - Inertia increased to 0.85/0.15 for better signal preservation (70% → 85% target)
+    # - Regime lock reduced to 1 year to allow responsiveness
     state_machine = ValidityStateMachine(
-        green_entry_threshold=0.70,
-        green_exit_threshold=0.60,
+        green_entry_threshold=0.66,  # Lowered to 0.66 to be below raw 95th percentile (0.6923)
+        green_exit_threshold=0.56,   # Adjusted to maintain hysteresis band
         yellow_entry_threshold=0.45,
         yellow_exit_threshold=0.40,
         red_entry_threshold=0.40,
         red_exit_threshold=0.50,
-        regime_lock_periods=2,  # Minimum 2 years in state
+        inertia_alpha=0.85,  # Increased from 0.70 for better signal preservation
+        inertia_beta=0.15,   # Decreased from 0.30
+        regime_lock_periods=1,  # Reduced from 2 to allow faster transitions
     ) if use_state_machine else None
 
     for current_year in range(years[0] + 3, years[-1] + 1):

@@ -8,7 +8,7 @@ from models.hybrid_ensemble import HybridRegimeEnsemble
 from signals.signal_generator import RegimeAwareSignalGenerator
 
 
-FEATURE_DRIFT_COLUMNS = [
+STRUCTURAL_PSI_COLUMNS = [
     "ema_spread",
     "adx",
     "rsi",
@@ -19,9 +19,22 @@ FEATURE_DRIFT_COLUMNS = [
     "skew",
     "kurt",
     "tail_ratio",
+]
+
+BEHAVIORAL_PSI_COLUMNS = [
+    "P_trend",
+    "P_range",
+    "P_volatile",
+    "regime_confidence",
+]
+
+INTERACTION_PSI_COLUMNS = [
     "regime_contrast",
     "regime_entropy",
     "transition_risk",
+    "ema_contrast",
+    "slope_contrast",
+    "path_contrast",
 ]
 
 
@@ -90,11 +103,28 @@ def calculate_psi(expected: pd.Series, actual: pd.Series, bins: int = 10) -> flo
     return float(((actual_pct - expected_pct) * np.log(actual_pct / expected_pct)).sum())
 
 
-def feature_psi(train: pd.DataFrame, oos: pd.DataFrame) -> float:
-    cols = [col for col in FEATURE_DRIFT_COLUMNS if col in train.columns and col in oos.columns]
+def column_group_psi(train: pd.DataFrame, oos: pd.DataFrame, columns: list[str]) -> float:
+    cols = [col for col in columns if col in train.columns and col in oos.columns]
     if not cols:
         return 0.0
     return float(np.mean([calculate_psi(train[col], oos[col]) for col in cols]))
+
+
+def grouped_feature_psi(train: pd.DataFrame, oos: pd.DataFrame) -> dict:
+    structural = column_group_psi(train, oos, STRUCTURAL_PSI_COLUMNS)
+    behavioral = column_group_psi(train, oos, BEHAVIORAL_PSI_COLUMNS)
+    interaction = column_group_psi(train, oos, INTERACTION_PSI_COLUMNS)
+    weighted = 0.2 * structural + 0.5 * behavioral + 0.3 * interaction
+    return {
+        "feature_psi": weighted,
+        "structural_psi": structural,
+        "behavioral_psi": behavioral,
+        "interaction_psi": interaction,
+    }
+
+
+def feature_psi(train: pd.DataFrame, oos: pd.DataFrame) -> float:
+    return grouped_feature_psi(train, oos)["feature_psi"]
 
 
 def regime_distribution_drift(train_regimes: pd.Series, oos_regimes: pd.Series) -> float:
@@ -148,10 +178,75 @@ def score_drift(psi: float, regime_drift: float) -> float:
     return 0.5 * psi_score + 0.5 * regime_score
 
 
+def score_regime_drift(regime_drift: float) -> float:
+    return min(regime_drift / 0.50, 1.0)
+
+
+def structural_psi_gate(structural_psi: float) -> float:
+    """
+    Structural features are expected to drift, but large shifts should reduce
+    capital trust. Bands are calibrated to the observed EURUSD daily PSI scale.
+    """
+    if structural_psi <= 0.65:
+        return 1.00
+    if structural_psi <= 0.80:
+        return 0.85
+    if structural_psi <= 1.20:
+        return 0.72
+    return 0.80
+
+
+def behavioral_psi_gate(behavioral_psi: float) -> float:
+    """
+    Behavioral PSI is usually low in this system, so use a small saturating
+    penalty rather than a hard cutoff.
+    """
+    return 1.0 - 0.08 * sigmoid((behavioral_psi - 0.20) / 0.08)
+
+
+def interaction_psi_gate(interaction_psi: float, dominant_regime: str) -> float:
+    """
+    Interaction drift is most important when trend coupling dominates, less so
+    in range-heavy environments where context features are expected to vary.
+    """
+    weights = {
+        "trend": 0.12,
+        "range": 0.05,
+        "volatile": 0.08,
+        "neutral": 0.08,
+    }
+    weight = weights.get(dominant_regime, 0.08)
+    penalty = weight * min(interaction_psi / 0.50, 1.0)
+    return max(0.85, 1.0 - penalty)
+
+
+def psi_gate(structural_psi: float, behavioral_psi: float, interaction_psi: float, dominant_regime: str) -> dict:
+    structural_gate = structural_psi_gate(structural_psi)
+    behavioral_gate = behavioral_psi_gate(behavioral_psi)
+    interaction_gate = interaction_psi_gate(interaction_psi, dominant_regime)
+    combined_gate = structural_gate * behavioral_gate * interaction_gate
+    return {
+        "structural_gate": structural_gate,
+        "behavioral_gate": behavioral_gate,
+        "interaction_gate": interaction_gate,
+        "psi_gate": combined_gate,
+    }
+
+
 def score_performance(expectancy: float, profit_factor: float) -> float:
     expectancy_z = bounded_z(expectancy, center=0.0, scale=0.0005)
     pf_z = bounded_z(profit_factor, center=1.0, scale=0.25)
     return 0.5 * sigmoid(expectancy_z) + 0.5 * sigmoid(pf_z)
+
+
+def score_validity(perf_score: float, regime_drift: float, stability_component: float, gates: dict) -> tuple[float, float]:
+    regime_score = score_regime_drift(regime_drift)
+    pre_gate = (
+        0.4 * perf_score
+        + 0.3 * (1.0 - regime_score)
+        + 0.3 * stability_component
+    )
+    return pre_gate * gates["psi_gate"], pre_gate
 
 
 def classify_era(validity: float) -> str:
@@ -193,9 +288,10 @@ def run_timeline():
         recovery = metrics.get("recovery_factor", 0)
         perf_score = score_performance(expectancy, profit_factor)
 
-        psi = feature_psi(X_train, X_oos)
+        psi_components = grouped_feature_psi(X_train, X_oos)
+        psi = psi_components["feature_psi"]
         regime_drift = regime_distribution_drift(r_train, r_oos)
-        drift_score = score_drift(psi, regime_drift)
+        dominant_regime = r_oos.value_counts().idxmax()
 
         sample = X_oos.tail(min(250, len(X_oos)))
         current_shap = shap_importance(ensemble.global_model, sample)
@@ -206,11 +302,13 @@ def run_timeline():
         consistency_penalty = min(float(np.std(expectancy_history)) / 0.0005, 1.0)
 
         stability_component = max(0.0, 1.0 - 0.5 * shap_drift - 0.5 * consistency_penalty)
-        validity = (
-            0.4 * perf_score
-            + 0.3 * (1.0 - drift_score)
-            + 0.3 * stability_component
+        gates = psi_gate(
+            psi_components["structural_psi"],
+            psi_components["behavioral_psi"],
+            psi_components["interaction_psi"],
+            dominant_regime,
         )
+        validity, pre_gate_validity = score_validity(perf_score, regime_drift, stability_component, gates)
 
         rows.append(
             {
@@ -221,10 +319,19 @@ def run_timeline():
                 "n_trades": metrics.get("n_trades", 0),
                 "perf_score": perf_score,
                 "feature_psi": psi,
+                "structural_psi": psi_components["structural_psi"],
+                "behavioral_psi": psi_components["behavioral_psi"],
+                "interaction_psi": psi_components["interaction_psi"],
+                "dominant_regime": dominant_regime,
                 "regime_drift": regime_drift,
-                "drift_score": drift_score,
+                "regime_drift_score": score_regime_drift(regime_drift),
                 "shap_instability": shap_drift,
                 "consistency_penalty": consistency_penalty,
+                "pre_gate_validity": pre_gate_validity,
+                "structural_gate": gates["structural_gate"],
+                "behavioral_gate": gates["behavioral_gate"],
+                "interaction_gate": gates["interaction_gate"],
+                "psi_gate": gates["psi_gate"],
                 "validity": validity,
                 "era": classify_era(validity),
             }
@@ -242,9 +349,14 @@ def main():
         "profit_factor",
         "n_trades",
         "feature_psi",
+        "structural_psi",
+        "behavioral_psi",
+        "interaction_psi",
+        "dominant_regime",
         "regime_drift",
         "shap_instability",
         "consistency_penalty",
+        "psi_gate",
         "validity",
         "era",
     ]

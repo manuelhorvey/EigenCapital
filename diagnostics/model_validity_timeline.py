@@ -6,6 +6,7 @@ from scipy.stats import spearmanr
 from backtests.expectancy_audit import calculate_expectancy
 from models.hybrid_ensemble import HybridRegimeEnsemble
 from signals.signal_generator import RegimeAwareSignalGenerator
+from monitoring.validity_state_machine import ValidityStateMachine, compute_allocation_statistics
 
 
 STRUCTURAL_PSI_COLUMNS = [
@@ -257,11 +258,22 @@ def classify_era(validity: float) -> str:
     return "RED"
 
 
-def run_timeline():
+def run_timeline(use_state_machine: bool = True):
     X, y, regimes, returns, regime_features = assemble_manifold()
     years = X.index.year.unique()
     rows = []
     previous_shap = None
+
+    # Initialize state machine if enabled
+    state_machine = ValidityStateMachine(
+        green_entry_threshold=0.70,
+        green_exit_threshold=0.60,
+        yellow_entry_threshold=0.45,
+        yellow_exit_threshold=0.40,
+        red_entry_threshold=0.40,
+        red_exit_threshold=0.50,
+        regime_lock_periods=2,  # Minimum 2 years in state
+    ) if use_state_machine else None
 
     for current_year in range(years[0] + 3, years[-1] + 1):
         train_mask = X.index.year <= current_year - 1
@@ -310,6 +322,28 @@ def run_timeline():
         )
         validity, pre_gate_validity = score_validity(perf_score, regime_drift, stability_component, gates)
 
+        # Apply state machine if enabled
+        if state_machine is not None:
+            # Get recent validity for persistence check
+            recent_validity = pd.Series([row["validity"] for row in rows[-state_machine.regime_lock_window:]] + [validity])
+            
+            # Process through state machine
+            timestamp = pd.Timestamp(year=current_year, month=1, day=1)
+            state_result = state_machine.transition(validity, timestamp, recent_validity)
+            
+            state = state_result["state"]
+            exposure = state_result["exposure"]
+            smoothed_validity = state_result["smoothed_validity"]
+            lock_active = state_result["lock_active"]
+            periods_in_state = state_result["periods_in_state"]
+        else:
+            # Use simple classification
+            state = classify_era(validity)
+            exposure = 1.0 if state == "GREEN" else (0.5 if state == "YELLOW" else 0.0)
+            smoothed_validity = validity
+            lock_active = False
+            periods_in_state = 0
+
         rows.append(
             {
                 "window": current_year,
@@ -333,7 +367,11 @@ def run_timeline():
                 "interaction_gate": gates["interaction_gate"],
                 "psi_gate": gates["psi_gate"],
                 "validity": validity,
-                "era": classify_era(validity),
+                "smoothed_validity": smoothed_validity,
+                "era": state,  # Now from state machine
+                "exposure": exposure,
+                "lock_active": lock_active,
+                "periods_in_state": periods_in_state,
             }
         )
 
@@ -341,8 +379,8 @@ def run_timeline():
 
 
 def main():
-    timeline = run_timeline()
-    print("\n" + "=" * 20 + " MODEL VALIDITY TIMELINE " + "=" * 20)
+    timeline = run_timeline(use_state_machine=True)
+    print("\n" + "=" * 20 + " MODEL VALIDITY TIMELINE (WITH STATE MACHINE) " + "=" * 20)
     display_cols = [
         "window",
         "expectancy",
@@ -358,7 +396,11 @@ def main():
         "consistency_penalty",
         "psi_gate",
         "validity",
+        "smoothed_validity",
         "era",
+        "exposure",
+        "lock_active",
+        "periods_in_state",
     ]
     print(timeline[display_cols].round(4).to_string(index=False))
 
@@ -367,6 +409,16 @@ def main():
 
     print("\nMean validity by era")
     print(timeline.groupby("era")["validity"].mean().round(4).to_string())
+    
+    print("\nAllocation statistics")
+    stats = compute_allocation_statistics(timeline)
+    for key, value in stats.items():
+        if isinstance(value, dict):
+            print(f"\n{key}:")
+            for k, v in value.items():
+                print(f"  {k}: {v:.4f}")
+        else:
+            print(f"{key}: {value}")
 
 
 if __name__ == "__main__":

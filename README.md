@@ -18,7 +18,7 @@ The paper-trading engine runs continuously with the following allocation:
 | Asset     | Ticker      | Allocation | Key Features |
 |-----------|-------------|------------|--------------|
 | XLF       | `XLF`       | 40%        | rate_diff, 2y_yield_delta_63, xlf_mom_63, xlf_vs_spy_63 |
-| BTC       | `BTC-USD`   | 35%        | rate_diff, 2y_yield_delta_63, btc_mom_63, btc_vs_spy_63 |
+| BTC       | `BTC-USD`   | 35%        | mom_63, mom_21, dxy_mom_63 |
 | NZDJPY    | `NZDJPY=X`  | 25%        | vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21 |
 
 ### Run
@@ -77,27 +77,24 @@ Additional walk-forward studies completed for: EURUSD, USDJPY, NZDJPY, Gold (GC)
 
 | Module                    | Description |
 |--------------------------|-----------|
-| `HybridRegimeEnsemble`   | Global model + regime-specific experts + protected macro head (fixed 0.45 weight) |
-| `RegimeClassifier`       | TREND / RANGE / VOLATILE / NEUTRAL classification |
-| `MacroExpertHead`        | Dedicated macro-only expert (rates, yields, spreads) |
-| `MeanReversionModel`     | RSI + Bollinger Band logic for RANGE regimes |
-| `BreakoutModel`          | Momentum/breakout logic for VOLATILE regimes |
-
-**Validity State Machine**  
-Hysteresis-based capital allocation with temporal smoothing and regime persistence:
-
-- **GREEN** → 100% exposure  
-- **YELLOW** → 50% exposure  
-- **RED** → 0% exposure (full halt)
+| Module | Description |
+|--------|-------------|
+| MacroExpertHead | Asset-specific XGBoost (depth=2) with protected weight 0.45 — prevents price features drowning macro signal |
+| RegimeClassifier | TREND/RANGE/VOLATILE/NEUTRAL — operates as risk/participation controller, not alpha source |
+| DriverAtlas | Asset-to-feature-cluster routing: carry_fx, yield_equity, momentum_crypto, positioning |
+| ValidityStateMachine | GREEN/YELLOW/RED capital allocation with PSI-gated hysteresis |
+| WalkForwardEngine | 5yr rolling train, 1yr OOS test, bootstrap p<0.05 deployment gate |
 
 ---
 
 ## Key Findings
 
-- Macro features provide valuable regime context but have limited standalone directional power.
-- **Simplicity wins**: The minimal 4-feature model consistently outperforms complex ensembles in walk-forward tests.
-- Feature type matters: Directional (momentum, relative strength) and rate expectation features dominate; pure environment features often degrade performance.
-- 2022 drawdown was primarily a structural regime shift (rapid rate tightening).
+- Simplicity wins: 4-feature model consistently outperforms complex ensembles in walk-forward tests
+- Asset-specific driver features are mandatory: generic macro features fail on 28/30 assets tested; pair-specific features (VIX + bilateral yield spread for NZDJPY) flipped 0/7 → 5/7 positive windows
+- Near-zero portfolio correlation achieved: max pairwise PnL correlation 0.055 across XLF, BTC, NZDJPY — genuine diversification, not just different tickers
+- Feature interference is a real failure mode: macro features drowned by 25 price features until protected weight architecture separated them
+- Macro features describe environment, not price response: yield_slope and real_yield_10y removed from XLF model because they stayed bearish through 2023–2024 rally; 2y_yield_delta_63 (direction, not level) was the fix
+- EURUSD blocked at daily frequency: 8 years walk-forward showed 1.65% CAGR; requires COT positioning data
 
 ---
 
@@ -105,14 +102,26 @@ Hysteresis-based capital allocation with temporal smoothing and regime persisten
 
 ```mermaid
 flowchart TD
-    A[Raw OHLCV + Macro Data] --> B[Feature Engineering]
-    B --> C[Triple Barrier Labeling]
-    C --> D[Model Training & Inference]
-    D --> E[Signal Generation + Confidence]
-    E --> F[Validity State Machine]
-    F --> G[Paper Trading Engine]
-    G --> H[Risk & Portfolio Tracking]
-    H --> I[Web Dashboard]
+    A1[yfinance OHLCV] --> F
+    A2[FRED macro series] --> F
+    A3[Parquet cache] --> F
+
+    F[Driver atlas — asset-specific feature sets]
+    F --> |carry_fx| N1[NZDJPY: VIX + bilateral yield spread]
+    F --> |yield_equity| N2[XLF: rate diff + 2y yield delta]
+    F --> |momentum_crypto| N3[BTC: mom_63 + DXY momentum]
+    F --> |positioning blocked| N4[EURUSD: needs COT data]
+
+    N1 & N2 & N3 --> L[Triple barrier labeling\npt_sl=2.0 · timeout=20 bars]
+    L --> M1[Regime classifier\nTREND/RANGE/VOLATILE/NEUTRAL]
+    L --> M2[Macro expert head\nprotected weight 0.45]
+    L --> M3[Walk-forward engine\n5yr train · 1yr test · bootstrap gate]
+    M1 & M2 & M3 --> S[Signal generator\nprob threshold 0.475]
+    S --> R[Risk engine\nvol-scaled sizing · halt conditions]
+    R --> P1[XLF 40%\nhalt DD −8%]
+    R --> P2[BTC 35%\nhalt DD −15%]
+    R --> P3[NZDJPY 25%\nhalt DD −6%]
+    P1 & P2 & P3 --> Mon[Monitoring\nvalidity state machine · drift · dashboard]
 ```
 
 ---
@@ -121,23 +130,56 @@ flowchart TD
 
 ```text
 QuantForge/
-├── paper_trading/       # Live engine + FastAPI/Flask dashboard
+├── paper_trading/       # Live engine + Flask dashboard
+│   └── models/          # Serialised model pickles
 ├── equity/              # Walk-forward research scripts
 ├── backtests/           # Core validation & metrics engine
 ├── models/              # Ensemble, regime, expert heads
+│   ├── regime/          # Regime classifier
+│   ├── ensemble/        # Model router
+│   ├── mean_reversion/  # RSI + Bollinger for RANGE
+│   ├── trend/           # Trend-following models
+│   └── volatility/      # Volatility models
 ├── features/            # Feature engineering pipeline
-├── labels/              # Triple-barrier & alternative labeling
+├── labels/              # Triple-barrier & meta-labeling
 ├── signals/             # Signal filtering & thresholding
-├── risk/                # Position sizing, exposure, drawdown control
-├── monitoring/          # Drift detection, validity, MLflow
-├── data/                # loaders, raw, processed, live state
+├── risk/                # Position sizing, exposure, drawdown
+├── monitoring/          # Validity state machine, drift, MLflow
+├── data/
+│   ├── loaders/         # Downloaders and macro loaders
+│   ├── raw/             # Raw OHLCV parquet files
+│   ├── processed/       # Feature-engineered datasets
+│   └── live/            # Runtime engine state
 ├── diagnostics/         # Model audits, sweeps, SHAP analysis
 ├── portfolio/           # HRP, risk parity (in progress)
 ├── execution/           # Broker stubs (Alpaca/IBKR)
-├── configs/
-├── tests/
-└── quantforge/
+├── configs/             # YAML configs per asset class
+├── tests/               # Pytest test suite
+├── docs/                # Project documentation
+├── adr/                 # Architecture Decision Records
+├── notebooks/           # Jupyter notebooks
+├── .github/
+│   └── workflows/       # CI pipeline
+├── quantforge/          # Package root (version, logging)
+├── main.py              # Minimal entry point
+├── monitor_all          # Launch script (paper trading)
+├── Makefile             # Dev targets
+├── pyproject.toml       # Project metadata & deps
+└── requirements.txt     # Pinned dependencies
 ```
+
+---
+
+## Documentation
+
+Project documentation and architecture decisions live alongside the code:
+
+| Path | Description |
+|------|-------------|
+| [`docs/`](docs/) | Project documentation — guides, references, deep-dives |
+| [`adr/`](adr/) | Architecture Decision Records — key design decisions and their rationale |
+
+ADR entries follow the standard [Michael Nygard template](https://github.com/joelparkerhenderson/architecture-decision-record) and are numbered sequentially.
 
 ---
 
@@ -186,12 +228,22 @@ python equity/walk_forward_xlf.py
 
 ---
 
+## Research backlog
+
+Assets pending driver analysis: AUDJPY (carry_fx cluster), ETH-USD (momentum_crypto cluster), XLU/XLRE (yield_equity cluster), USDJPY (4/7 — needs BoJ intervention proxy).
+
+Blocked pending data acquisition: EURUSD, GBPUSD (need CFTC COT weekly positioning data).
+
+---
+
 ## Limitations
 
 - Paper trading only (no real capital at risk)
 - Limited number of fully validated assets
 - Weekend data staleness for equities/FX
 - No live execution or order management yet
+- EURUSD and 27 other FX pairs untradeable with current feature set — requires COT/positioning data
+- Model only valid when PSI confirms distribution stability; 2022–2025 produced RED validity on EURUSD system
 
 ---
 

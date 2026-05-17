@@ -55,10 +55,9 @@ def main():
     print('Starting dashboard server...')
 
     # Start HTTP server in background thread
-    server_thread = threading.Thread(target=serve, daemon=True)
+    server_thread = threading.Thread(target=serve, args=(5000, _shutdown), daemon=True)
     server_thread.start()
     time.sleep(1)
-    print(f'  Dashboard: http://127.0.0.1:5000')
     print(f'  State API: http://127.0.0.1:5000/state.json')
     print()
     print(f'Signals refresh every {REFRESH_INTERVAL//60} minutes from live yfinance data.')
@@ -78,6 +77,8 @@ def main():
         except Exception as e:
             print(f'  Error: {e}')
 
+    # Wait for server to cleanly release port
+    server_thread.join(timeout=3)
     print()
     print('Server stopped.')
 

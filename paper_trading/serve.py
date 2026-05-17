@@ -242,10 +242,9 @@ setInterval(function(){
 </body>
 </html>'''
 
-def serve(port=DEFAULT_PORT):
+def serve(port=DEFAULT_PORT, shutdown_event=None):
     import http.server
     import socketserver
-    import signal
 
     class Handler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
@@ -288,13 +287,15 @@ def serve(port=DEFAULT_PORT):
         daemon_threads = True
 
     httpd = ReuseServer(('127.0.0.1', port), Handler)
-    httpd.timeout = 1
+    httpd.timeout = 0.5
 
     print(f'Dashboard: http://127.0.0.1:{port}')
     try:
-        httpd.serve_forever()
+        while not (shutdown_event and shutdown_event.is_set()):
+            httpd.handle_request()
     except KeyboardInterrupt:
-        httpd.shutdown()
+        pass
+    httpd.server_close()
 
 if __name__ == '__main__':
     serve(port=int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT)

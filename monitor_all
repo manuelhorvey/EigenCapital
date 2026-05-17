@@ -13,23 +13,13 @@ echo ""
 
 source .venv/bin/activate
 
-# Kill anything on port 5000 and wait for release
-OLD_PID=$(lsof -ti:5000 2>/dev/null)
-if [ -n "$OLD_PID" ]; then
-    echo "Stopping previous instance (PID $OLD_PID)..."
-    kill $OLD_PID 2>/dev/null || true
-    # Wait up to 5 seconds for port to release
-    for i in $(seq 1 5); do
-        if ! lsof -ti:5000 >/dev/null 2>&1; then
-            break
-        fi
-        sleep 1
-    done
-    # Force kill if still running
-    if lsof -ti:5000 >/dev/null 2>&1; then
-        kill -9 $OLD_PID 2>/dev/null || true
-        sleep 1
-    fi
+# Kill ANY process on port 5000 — including orphaned daemon threads
+fuser -k 5000/tcp 2>/dev/null || true
+sleep 1
+# Verify port is clear
+if fuser 5000/tcp >/dev/null 2>&1; then
+    fuser -k -9 5000/tcp 2>/dev/null || true
+    sleep 1
 fi
 
 python paper_trading/monitor.py

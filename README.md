@@ -186,7 +186,7 @@ ADR entries follow the standard [Michael Nygard template](https://github.com/joe
 ## Setup
 
 ```bash
-git clone <repo_url>
+git clone git@github.com:manuelhorvey/QuantForge.git
 cd QuantForge
 
 python3 -m venv .venv

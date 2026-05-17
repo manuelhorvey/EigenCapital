@@ -223,8 +223,10 @@ function getSession(){
   var now=new Date(),et=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));
   var day=et.getDay(),hour=et.getHours(),min=et.getMinutes(),t=hour*60+min;
   var sessions=[];
-  if(day===0||day===6){
+  if(day===6){
     sessions.push({name:'XLF','open':false});sessions.push({name:'NZDJPY','open':false});sessions.push({name:'BTC','open':true});
+  }else if(day===0){
+    sessions.push({name:'XLF','open':false});sessions.push({name:'NZDJPY','open':t>=1020});sessions.push({name:'BTC','open':true});
   }else{
     sessions.push({name:'XLF','open':t>=570&&t<960});     // 9:30-16:00 ET
     sessions.push({name:'NZDJPY','open':t>=0&&t<1440});    // FX 24h weekdays

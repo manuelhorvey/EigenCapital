@@ -153,13 +153,14 @@ tr:hover td{background:var(--bg-card-hover)}
     <div class="header-title">QuantForge <span>/ Command Center</span></div>
     <span class="header-tag" id="liveBadge">Paper Trading</span>
   </div>
-  <div class="header-right">
+    <div class="header-right">
     <div class="header-status">
       <span class="status-dot" id="statusDot"></span>
       <span class="status-text" id="statusText">Initializing...</span>
     </div>
     <div class="header-time"><span id="currentDate">&mdash;</span> <span id="currentTime">&mdash;</span></div>
     <span class="header-tag" id="daysBadge">0 days</span>
+    <span class="header-tag" id="sessionBadge" style="background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)">Session: --</span>
   </div>
 </div>
 
@@ -217,6 +218,20 @@ function fmt(n,d){if(n==null||n===Infinity||isNaN(n))return'\u2014';return Numbe
 function cssClass(s){if(!s)return'flat';var u=String(s).toUpperCase();return u==='BUY'?'buy':u==='SELL'?'sell':'flat'}
 function fd(d){return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
 function ft(d){return new Date(d).toLocaleTimeString('en-US',{hour12:false})}
+
+function getSession(){
+  var now=new Date(),et=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));
+  var day=et.getDay(),hour=et.getHours(),min=et.getMinutes(),t=hour*60+min;
+  var sessions=[];
+  if(day===0||day===6){
+    sessions.push({name:'XLF','open':false});sessions.push({name:'NZDJPY','open':false});sessions.push({name:'BTC','open':true});
+  }else{
+    sessions.push({name:'XLF','open':t>=570&&t<960});     // 9:30-16:00 ET
+    sessions.push({name:'NZDJPY','open':t>=0&&t<1440});    // FX 24h weekdays
+    sessions.push({name:'BTC','open':true});                // crypto 24/7
+  }
+  return sessions;
+}
 
 function render(state){
   var assets=state.assets||{},p=state.portfolio||{};
@@ -304,17 +319,35 @@ function render(state){
     '<div class="halt-card pass"><div class="halt-icon">&#9650;</div><div class="halt-label">Prob Drift</div><div class="halt-value pass">&lt; '+fmt(hc.prob_drift*100,0)+'%</div></div>';
 
   var today=new Date(),gate=new Date(today);gate.setMonth(gate.getMonth()+6);
+  var sessionInfo=getSession();
+  var openList=sessionInfo.filter(function(s){return s.open}).map(function(s){return s.name}).join(', ');
   document.getElementById('advisoryText').innerHTML=
     '<strong>Next retrain:</strong> '+fd(new Date(today.getFullYear()+1,0,1))+
     ' &middot; <strong>Started:</strong> '+(p.start_date?fd(new Date(p.start_date)):'\u2014')+
     ' &middot; <strong>6-month gate:</strong> '+fd(gate)+
     ' &middot; <strong>Cleared:</strong> '+(p.deployment_cleared?'Yes':'No')+
-    ' &middot; <strong>Refresh:</strong> 30s';
+    ' &middot; <strong>Refresh:</strong> 30s'+
+    ' &middot; <strong>Sessions:</strong> '+openList+' trading';
   document.getElementById('daysBadge').textContent=days+' days';
   var liveCount=0;for(var k in assets){if((assets[k].last_signal||{}).signal)liveCount++}
   document.getElementById('liveBadge').textContent=liveCount+' assets live';
   document.getElementById('statusText').textContent='Live Market Feed Active';
   document.getElementById('statusText').className='status-text';
+
+  var sessionInfo=getSession();
+  var openList=sessionInfo.filter(function(s){return s.open}).map(function(s){return s.name}).join(', ');
+  var closedList=sessionInfo.filter(function(s){return !s.open}).map(function(s){return s.name}).join(', ');
+  var badgeEl=document.getElementById('sessionBadge');
+  if(sessionInfo.every(function(s){return s.open})){
+    badgeEl.textContent='All Markets Open';
+    badgeEl.style.cssText='background:var(--green-bg);color:var(--green);border-color:var(--green-border)';
+  }else if(sessionInfo.every(function(s){return !s.open})){
+    badgeEl.textContent='All Markets Closed';
+    badgeEl.style.cssText='background:var(--red-bg);color:var(--red);border-color:var(--red-border)';
+  }else{
+    badgeEl.textContent='Open: '+openList+' | Closed: '+closedList;
+    badgeEl.style.cssText='background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)';
+  }
 }
 
 async function fetchState(){

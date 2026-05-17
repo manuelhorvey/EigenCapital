@@ -23,6 +23,7 @@ class HybridRegimeEnsemble:
         transition_penalty_weight=0.10,
         macro_weight=0.45,
         macro_feature_names=None,
+        macro_head_config=None,
     ):
         self.global_weight = global_weight
         self.expert_weight = expert_weight
@@ -30,6 +31,7 @@ class HybridRegimeEnsemble:
         self.transition_penalty_weight = transition_penalty_weight
         self.macro_weight = macro_weight
         self.macro_feature_names = macro_feature_names or MACRO_FEATURES
+        self.macro_head_config = macro_head_config or {}
         
         # XGBoost Config (Institutional Specs)
         self.xgb_params = {
@@ -107,9 +109,11 @@ class HybridRegimeEnsemble:
         
         # 3. Train Macro Expert Head
         macro_cols = [c for c in self.macro_feature_names if c in X.columns]
-        if len(macro_cols) >= 5:
+        if len(macro_cols) >= 3:
             print("Training Macro Expert Head...")
-            self.macro_head = MacroExpertHead()
+            mh_features = self.macro_head_config.get('features', self.macro_feature_names)
+            mh_params = self.macro_head_config.get('model_params', {})
+            self.macro_head = MacroExpertHead(features=mh_features, model_params=mh_params)
             self.macro_head.fit(X[macro_cols], y)
             print("Macro Expert Head trained.")
         else:
@@ -174,7 +178,7 @@ class HybridRegimeEnsemble:
         # Blend with macro head if available
         if self.macro_head is not None:
             macro_cols = [c for c in self.macro_feature_names if c in X.columns]
-            if len(macro_cols) >= 5:
+            if len(macro_cols) >= 3:
                 macro_probs = self.macro_head.predict_proba(X[macro_cols])
                 final = (self.macro_weight * macro_probs + 
                          (1.0 - self.macro_weight) * regime_blend)

@@ -12,6 +12,8 @@ logger = logging.getLogger("quantforge.engine")
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
 STATE_PATH = os.path.join(BASE, 'data', 'live', 'state.json')
+TRADE_JOURNAL_PATH = os.path.join(BASE, 'data', 'live', 'trade_journal.parquet')
+CONFIDENCE_BUCKET_PATH = os.path.join(BASE, 'data', 'live', 'confidence_buckets.parquet')
 CONFIG_PATH = os.path.join(BASE, 'configs', 'paper_trading.yaml')
 
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -183,13 +185,15 @@ class AssetEngine:
         entry = self.position['entry']
         ret = (exit_price / entry - 1) if side == 'long' else (entry / exit_price - 1)
         pnl = self.current_value * ret * CONFIG['position_size']
-        self.trade_log.append({
-            'side': side, 'entry': entry, 'exit': exit_price,
+        trade = {
+            'asset': self.name, 'side': side, 'entry': entry, 'exit': exit_price,
             'entry_date': self.position['entry_date'], 'exit_date': exit_date,
             'return': ret, 'pnl': pnl, 'reason': reason,
-        })
+        }
+        self.trade_log.append(trade)
         self.current_value += pnl
         self.position = None
+        self._save_trade_journal(trade)
 
     def refresh_price(self):
         try:
@@ -298,6 +302,7 @@ class AssetEngine:
             'confidence': confidence_pct,
             'close_price': round(float(latest['close']), 4),
         })
+        self._log_confidence_buckets()
 
         entry = self.position['entry'] if self.position else None
         sl = self.position['sl'] if self.position else None
@@ -412,6 +417,9 @@ class AssetEngine:
                 'unrealized_pnl': round(self._position_pnl(self.current_price), 2) if self.position and self.current_price is not None else 0.0,
             }
 
+        mean_pl = np.mean([p['prob_long'] for p in self.prob_history]) if self.prob_history else 0
+        mean_ps = np.mean([p['prob_short'] for p in self.prob_history]) if self.prob_history else 0
+
         return {
             'asset': self.name,
             'current_value': round(self.current_value, 2),
@@ -423,12 +431,35 @@ class AssetEngine:
             'n_signals': len(self.prob_history),
             'signal_distribution': sc,
             'mean_confidence': round(float(mean_conf), 2),
+            'mean_prob_long': round(float(mean_pl), 2),
+            'mean_prob_short': round(float(mean_ps), 2),
             'current_price': round(self.current_price, 4) if self.current_price else None,
             'last_signal_date': str(self.last_signal_date.date()) if self.last_signal_date else None,
             'monthly_pf': round(float(monthly_pf), 2) if monthly_pf else None,
             'position': pos_info,
             'trade_log': self.trade_log[-10:],
         }
+
+    def _save_trade_journal(self, trade):
+        df = pd.DataFrame([trade])
+        if os.path.exists(TRADE_JOURNAL_PATH):
+            existing = pd.read_parquet(TRADE_JOURNAL_PATH)
+            df = pd.concat([existing, df], ignore_index=True)
+        df.to_parquet(TRADE_JOURNAL_PATH)
+
+    def _log_confidence_buckets(self):
+        bucket = {'asset': self.name, 'date': str(datetime.now().date())}
+        for p in self.prob_history[-20:]:
+            conf = p['confidence']
+            bucket.setdefault(f'count_{int(conf/10)*10}_{int(conf/10+1)*10}', 0)
+            bucket[f'count_{int(conf/10)*10}_{int(conf/10+1)*10}'] += 1
+        bucket['mean_conf'] = np.mean([p['confidence'] for p in self.prob_history[-20:]]) if self.prob_history else 0
+        bucket['n_signals'] = min(20, len(self.prob_history))
+        df = pd.DataFrame([bucket])
+        if os.path.exists(CONFIDENCE_BUCKET_PATH):
+            existing = pd.read_parquet(CONFIDENCE_BUCKET_PATH)
+            df = pd.concat([existing, df], ignore_index=True)
+        df.to_parquet(CONFIDENCE_BUCKET_PATH)
 
     def check_halt_conditions(self):
         metrics = self.get_metrics()

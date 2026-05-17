@@ -4,13 +4,18 @@ from features.base_features import generate_base_features
 from features.regime_features import generate_regime_features
 from features.structural_features import generate_structural_features
 from features.interaction_features import generate_interaction_features
+from features.cot_features import build_cot_features, EURUSD_COT_FEATURES
 from labels.triple_barrier import apply_triple_barrier
 from models.regime.regime_classifier import RegimeClassifier
 from data.loaders.macro_loader import MACRO_FEATURES
+from data.loaders.cot_loader import get_contract_series, align_cot_to_daily
+from data.loaders.download_cot import download_all_years
+import os
 
 DAILY_PATH     = "data/raw/EURUSD_1d.parquet"
 WEEKLY_PATH    = "data/raw/EURUSD_1w.parquet"
 LABEL_PARAMS   = {'pt_sl': [2, 2], 'vertical_barrier': 8}
+COT_RAW_PATH   = "data/processed/cot_raw.parquet"
 
 
 def run_weekly_pipeline():
@@ -77,10 +82,32 @@ def run_weekly_pipeline():
     macro_features.to_parquet("data/processed/macro_features_1w.parquet")
     print(f"Macro features: {macro_features.shape}")
 
+    # COT data pipeline
+    if not os.path.exists(COT_RAW_PATH):
+        print("\nDownloading COT data...")
+        download_all_years(path=COT_RAW_PATH)
+
+    cot_raw = pd.read_parquet(COT_RAW_PATH)
+    cot_series = get_contract_series(cot_raw, "EURUSD")
+    if cot_series is not None and len(cot_series) > 0:
+        cot_weekly_feats = build_cot_features(cot_series)
+        cot_weekly_feats.to_parquet("data/processed/EURUSD_cot_features_1w.parquet")
+        print(f"COT features (weekly): {cot_weekly_feats.shape}")
+
+        cot_shifted = cot_weekly_feats.copy()
+        cot_shifted.index = cot_series.index + pd.Timedelta(days=3)
+        daily_cot = cot_shifted.reindex(macro_daily.index, method='ffill')
+        daily_cot.index.name = 'date'
+        daily_cot.to_parquet("data/processed/EURUSD_cot_daily.parquet")
+        print(f"COT features (daily): {len(daily_cot)} rows")
+    else:
+        print("No COT data for EURUSD")
+
     print("\nDone. Files saved:")
     for f in ['EURUSD_labeled_1w', 'EURUSD_features_1w', 'EURUSD_regime_features_1w',
               'EURUSD_structural_features_1w', 'EURUSD_regime_labels_1w',
-              'EURUSD_interaction_features_1w', 'macro_features_1w']:
+              'EURUSD_interaction_features_1w', 'macro_features_1w',
+              'EURUSD_cot_features_1w', 'EURUSD_cot_daily']:
         print(f"  data/processed/{f}.parquet")
 
 

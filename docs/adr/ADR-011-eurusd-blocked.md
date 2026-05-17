@@ -1,6 +1,6 @@
 # ADR-011: EURUSD Blocked Pending COT Data Integration
 
-**Status:** Accepted
+**Status:** Superseded — see ADR-011a for update
 
 ## Context
 

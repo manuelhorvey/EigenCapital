@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
+from features.cot_features import build_cot_features, EURUSD_COT_FEATURES
+
 
 def yf_download_safe(symbol, start='2008-01-01', end='2026-12-31'):
     try:
@@ -42,12 +44,12 @@ def build_nzdjpy_features(price, macro):
     return clean, features
 
 
-def build_eurusd_features(price, macro):
+def build_eurusd_features(price, macro, cot_weekly=None):
     """
-    EURUSD: bilateral rate differential + lagged cross-asset spillover
+    EURUSD: bilateral rate differential + lagged cross-asset spillover + COT positioning
     Primary driver: dxy_mom_21 (stability=2.022)
     Added: lagged DXY (momentum persistence), lagged gold (cross-asset flow),
-           rate change sensitivity
+           rate change sensitivity, COT leveraged fund positioning
     """
     labeled = apply_triple_barrier_caller(price, pt_sl=[2, 2], vertical_barrier=20)
     pi = labeled.index.tz_localize(None) if hasattr(labeled.index, 'tz') and labeled.index.tz is not None else labeled.index
@@ -74,6 +76,18 @@ def build_eurusd_features(price, macro):
     a['us_2y_delta_5_lag1'] = a['us_2y'].diff(5).shift(1)
 
     features = ['dxy_mom_21', 'rate_diff', 'dxy_lag1', 'gc_lag1']
+
+    # COT positioning features
+    if cot_weekly is not None:
+        from data.loaders.cot_loader import get_contract_series, align_cot_to_daily
+        cot_series = get_contract_series(cot_weekly, "EURUSD")
+        if cot_series is not None and len(cot_series) > 0:
+            cot_feats = build_cot_features(cot_series)
+            aligned = align_cot_to_daily(cot_feats, pi)
+            for col in EURUSD_COT_FEATURES:
+                a[col] = aligned[col].reindex(pi, method='ffill').values
+            features = features + EURUSD_COT_FEATURES
+
     clean = a.dropna(subset=features)
     clean['label'] = (labeled.loc[clean.index, 'label'] + 1).astype(int)
     return clean, features

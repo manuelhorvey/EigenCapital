@@ -1,111 +1,85 @@
 import pandas as pd
 import numpy as np
 from models.regime.regime_classifier import RegimeClassifier
-from models.mean_reversion.mr_model import MeanReversionModel
-from models.volatility.vol_model import BreakoutModel
-
-class HeuristicTrendModel:
-    """
-    Simple trend-following heuristic for verification.
-    """
-    def predict(self, features: pd.DataFrame) -> pd.Series:
-        # Use EMA spread and MACD diff
-        # Higher spread/diff -> High probability of continuation
-        spread_prob = (features['ema_spread'] * 100.0).clip(-0.5, 0.5) + 0.5
-        macd_std = features['macd_diff'].rolling(100).std().fillna(0.001)
-        macd_prob = (features['macd_diff'] / (macd_std * 0.5)).clip(-1.0, 1.0) / 2.0 + 0.5
-        return (spread_prob * 0.5 + macd_prob * 0.5)
+from models.hybrid_ensemble import HybridRegimeEnsemble
 
 class RegimeAwareSignalGenerator:
     """
     Institutional Gearbox Signal Engine.
     Routes to specialized models and applies dynamic thresholds/scaling.
+    Uses the Hybrid Expert Ensemble.
     """
-    def __init__(self, trend_model=None):
+    def __init__(self, ensemble: HybridRegimeEnsemble):
         self.regime_classifier = RegimeClassifier(confidence_threshold=0.45)
-        self.mr_model = MeanReversionModel()
-        self.vol_model = BreakoutModel()
-        self.trend_model = trend_model if trend_model is not None else HeuristicTrendModel()
+        self.ensemble = ensemble
 
     def generate_signals(self, 
-                         base_features: pd.DataFrame, 
+                         X_manifold: pd.DataFrame, 
                          regime_features: pd.DataFrame) -> pd.DataFrame:
         """
-        Main routing logic.
+        Main routing logic using the hybrid manifold.
         """
         # 1. Classify Regime
         regime_data = self.regime_classifier.classify(regime_features)
+        regimes = regime_data['regime']
         
-        # 2. Layer 1: Model Selection & Base Probabilities
+        # 2. Layer 1: Hybrid Model Prediction
+        # X_manifold contains the full geometric and interaction space
+        probs = self.ensemble.predict_proba(X_manifold, regimes)
+        
         results = regime_data.copy()
-        results['raw_prob'] = 0.5 # Default neutral probability
+        results['raw_prob_short'] = probs[:, 0]
+        results['raw_prob_neutral'] = probs[:, 1]
+        results['raw_prob_long'] = probs[:, 2]
         
-        # Route to MR Model for RANGE
-        range_mask = (results['regime'] == 'range')
-        if range_mask.any():
-            results.loc[range_mask, 'raw_prob'] = self.mr_model.predict(base_features.loc[range_mask])
-            
-        # Route to Vol Model for VOLATILE
-        vol_mask = (results['regime'] == 'volatile')
-        if vol_mask.any():
-            results.loc[vol_mask, 'raw_prob'] = self.vol_model.predict(base_features.loc[vol_mask])
-            
-        # Route to Trend Model for TREND (and Neutral - with lower weight)
-        trend_mask = (results['regime'] == 'trend') | (results['regime'] == 'neutral')
-        if trend_mask.any():
-            # Support both sklearn-style predict_proba and simple predict
-            if hasattr(self.trend_model, 'predict_proba'):
-                trend_probs = self.trend_model.predict_proba(base_features.loc[trend_mask])
-                results.loc[trend_mask, 'raw_prob'] = trend_probs[:, 2] # Prob of label 1
-            else:
-                results.loc[trend_mask, 'raw_prob'] = self.trend_model.predict(base_features.loc[trend_mask])
-            
-        # 3. Layer 2: Dynamic Signal Thresholding
+        print("\n--- Probability Stats ---")
+        print(results[['raw_prob_short', 'raw_prob_neutral', 'raw_prob_long']].describe().loc[['mean', 'max']])
+        
+        # 3. Layer 2: Fixed signal thresholding.
+        # Regime routing happens once inside the ensemble. Downstream logic is
+        # intentionally stateless to avoid compounding regime decisions.
         results['signal'] = 0
-        
-        # Define thresholds per regime
-        thresholds = {
-            'trend': (0.58, 0.42),
-            'range': (0.60, 0.40),
-            'volatile': (0.62, 0.38),
-            'neutral': (0.75, 0.25)
-        }
-        
-        for regime, (upper, lower) in thresholds.items():
-            mask = (results['regime'] == regime)
-            results.loc[mask & (results['raw_prob'] > upper), 'signal'] = 1
-            results.loc[mask & (results['raw_prob'] < lower), 'signal'] = -1
-            
-        # 4. Layer 3: Risk Scaling Multipliers
-        multipliers = {
-            'trend': 1.0,
-            'range': 0.9,
-            'volatile': 0.5,
-            'neutral': 0.25
-        }
-        results['risk_multiplier'] = results['regime'].map(multipliers)
+
+        threshold = 0.40
+        results.loc[results['raw_prob_long'] > threshold, 'signal'] = 1
+        results.loc[results['raw_prob_short'] > threshold, 'signal'] = -1
+
+        # 4. Fixed risk layer.
+        results['risk_multiplier'] = 1.0
         
         return results
 
 if __name__ == "__main__":
-    # Test routing logic
     try:
+        # Load Manifold
         base = pd.read_parquet("data/processed/EURUSD_features.parquet")
-        regime = pd.read_parquet("data/processed/EURUSD_regime_features.parquet")
+        regime_meta = pd.read_parquet("data/processed/EURUSD_regime_labels.parquet")
+        struct = pd.read_parquet("data/processed/EURUSD_structural_features.parquet")
+        interact = pd.read_parquet("data/processed/EURUSD_interaction_features.parquet")
+        labeled = pd.read_parquet("data/processed/EURUSD_labeled.parquet")
         
-        # Align indices
-        common_idx = base.index.intersection(regime.index)
-        base = base.loc[common_idx]
-        regime = regime.loc[common_idx]
+        common_idx = base.index.intersection(regime_meta.index).intersection(struct.index).intersection(interact.index).intersection(labeled.index)
         
-        generator = RegimeAwareSignalGenerator()
-        signals = generator.generate_signals(base, regime)
+        X = pd.concat([
+            base.loc[common_idx].drop('label', axis=1),
+            regime_meta.loc[common_idx][['P_trend', 'P_range', 'P_volatile', 'regime_confidence']],
+            struct.loc[common_idx],
+            interact.loc[common_idx]
+        ], axis=1)
+        
+        y = labeled.loc[common_idx, 'label'] + 1
+        regimes = regime_meta.loc[common_idx, 'regime']
+        
+        # Train Ensemble (In a real system, this would be a loaded checkpoint)
+        ensemble = HybridRegimeEnsemble()
+        ensemble.train(X, y, regimes)
+        
+        # Generate Signals
+        generator = RegimeAwareSignalGenerator(ensemble)
+        signals = generator.generate_signals(X, regime_meta.loc[common_idx])
         
         print("\nSignal Summary:")
         print(signals['signal'].value_counts())
-        
-        print("\nRegime vs Signal Cross-tab:")
-        print(pd.crosstab(signals['regime'], signals['signal']))
         
         # Save signals
         signals.to_parquet("data/processed/EURUSD_signals.parquet")
@@ -114,4 +88,3 @@ if __name__ == "__main__":
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Signal generation failed: {e}")

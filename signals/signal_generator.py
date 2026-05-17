@@ -40,9 +40,14 @@ class RegimeAwareSignalGenerator:
         # intentionally stateless to avoid compounding regime decisions.
         results['signal'] = 0
 
-        threshold = 0.40
-        results.loc[results['raw_prob_long'] > threshold, 'signal'] = 1
-        results.loc[results['raw_prob_short'] > threshold, 'signal'] = -1
+        long_threshold = 0.387
+        short_threshold = 0.37
+        long_mask = results['raw_prob_long'] > long_threshold
+        short_mask = results['raw_prob_short'] > short_threshold
+        results.loc[long_mask, 'signal'] = 1
+        results.loc[short_mask, 'signal'] = -1
+        both_mask = long_mask & short_mask
+        results.loc[both_mask, 'signal'] = (results.loc[both_mask, 'raw_prob_long'] >= results.loc[both_mask, 'raw_prob_short']).astype(int) * 2 - 1
 
         # 4. Fixed risk layer.
         results['risk_multiplier'] = 1.0

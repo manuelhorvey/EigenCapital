@@ -35,7 +35,7 @@ def verify_signal_integrity():
         
         # 3. Model Probability Mapping Check
         print("\n--- 3. Prob vs Signal Mapping (Sample) ---")
-        print(merged[['raw_prob', 'signal', 'label']].tail(10))
+        print(merged[['raw_prob_long', 'signal', 'label']].tail(10))
 
         # 4. Volatile Regime Zero-Check
         print("\n--- 4. Volatile Regime Check ---")

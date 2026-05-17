@@ -28,7 +28,7 @@ def debug_mr_signals():
 
         # Sample Check
         print("\nSample Rows (RANGE):")
-        print(range_df[['rsi', 'bb_zscore', 'raw_prob', 'signal', 'returns']].tail(10))
+        print(range_df[['rsi', 'bb_zscore', 'raw_prob_long', 'signal', 'returns']].tail(10))
 
     except Exception as e:
         import traceback

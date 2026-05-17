@@ -3,12 +3,17 @@ import numpy as np
 import xgboost as xgb
 from sklearn.metrics import log_loss
 import shap
+from models.macro_expert_head import MacroExpertHead
+from data.loaders.macro_loader import MACRO_FEATURES
 
 class HybridRegimeEnsemble:
     """
     Hybrid Expert Architecture:
-    Global Backbone (shallow) + Regime-Specific Expert Heads.
-    Blends general market behavior with specialized regime expertise.
+    Global Backbone (shallow) + Regime-Specific Expert Heads +
+    Protected Macro Expert Head.
+    
+    The macro head has a fixed blend weight (0.45) so price-driven
+    features cannot drown out macro signal (rate_diff, dxy_mom, etc.).
     """
     def __init__(
         self,
@@ -16,27 +21,32 @@ class HybridRegimeEnsemble:
         expert_weight=0.6,
         directional_prior_weight=0.05,
         transition_penalty_weight=0.10,
+        macro_weight=0.45,
+        macro_feature_names=None,
     ):
         self.global_weight = global_weight
         self.expert_weight = expert_weight
         self.directional_prior_weight = directional_prior_weight
         self.transition_penalty_weight = transition_penalty_weight
+        self.macro_weight = macro_weight
+        self.macro_feature_names = macro_feature_names or MACRO_FEATURES
         
         # XGBoost Config (Institutional Specs)
         self.xgb_params = {
             'n_estimators': 500,
-            'learning_rate': 0.01,
-            'max_delta_step': 1,
+            'learning_rate': 0.03,
+            'max_delta_step': 0,
             'tree_method': 'hist',
-            'min_child_weight': 10,
+            'min_child_weight': 3,
             'objective': 'multi:softprob',
-            'num_class': 3, # 0, 1, 2 for -1, 0, 1 labels
+            'num_class': 3,
             'random_state': 42
         }
         
         self.global_model = None
         self.expert_heads = {} # {regime: model}
         self.feature_names = None
+        self.macro_head = None
 
     def _get_sample_weights(self, n_samples, regime_type=None):
         """Generates weights with recency decay and regime-aware scaling."""
@@ -51,7 +61,7 @@ class HybridRegimeEnsemble:
 
     def train(self, X, y, regimes):
         """
-        Trains the global backbone and regime-specific experts.
+        Trains the global backbone, regime-specific experts, and macro head.
         """
         self.feature_names = X.columns.tolist()
         
@@ -94,6 +104,16 @@ class HybridRegimeEnsemble:
                 verbose=False
             )
             self.expert_heads[r] = expert
+        
+        # 3. Train Macro Expert Head
+        macro_cols = [c for c in self.macro_feature_names if c in X.columns]
+        if len(macro_cols) >= 5:
+            print("Training Macro Expert Head...")
+            self.macro_head = MacroExpertHead()
+            self.macro_head.fit(X[macro_cols], y)
+            print("Macro Expert Head trained.")
+        else:
+            print(f"Skipping macro head (only {len(macro_cols)}/{len(self.macro_feature_names)} columns found in X)")
 
     def _apply_directional_prior(self, X, probs, regimes):
         """
@@ -135,20 +155,33 @@ class HybridRegimeEnsemble:
 
     def predict_proba(self, X, regimes):
         """
-        Generates blended probabilities.
+        Generates blended probabilities with protected macro head weight.
+        final = macro_weight * macro_probs + (1 - macro_weight) * regime_blend
         """
         global_probs = self.global_model.predict_proba(X)
-        final_probs = np.zeros_like(global_probs)
+        regime_blend = np.zeros_like(global_probs)
         
         for i in range(len(X)):
             r = regimes.iloc[i]
             if r in self.expert_heads:
                 expert_prob = self.expert_heads[r].predict_proba(X.iloc[[i]])[0]
-                final_probs[i] = (global_probs[i] * self.global_weight) + (expert_prob * self.expert_weight)
+                regime_blend[i] = (global_probs[i] * self.global_weight) + (expert_prob * self.expert_weight)
             else:
-                final_probs[i] = global_probs[i] # Fallback to global
-                
-        return self._apply_directional_prior(X, final_probs, regimes)
+                regime_blend[i] = global_probs[i] # Fallback to global
+        
+        regime_blend = self._apply_directional_prior(X, regime_blend, regimes)
+        
+        # Blend with macro head if available
+        if self.macro_head is not None:
+            macro_cols = [c for c in self.macro_feature_names if c in X.columns]
+            if len(macro_cols) >= 5:
+                macro_probs = self.macro_head.predict_proba(X[macro_cols])
+                final = (self.macro_weight * macro_probs + 
+                         (1.0 - self.macro_weight) * regime_blend)
+                final = final / final.sum(axis=1, keepdims=True)
+                return final
+        
+        return regime_blend
 
     def explain(self, X_sample, regime_type):
         """Uses SHAP to explain decisions for a specific regime."""

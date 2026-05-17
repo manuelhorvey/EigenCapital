@@ -97,7 +97,7 @@ body{background:var(--bg-primary);color:var(--text-primary);font-family:Inter,-a
 .asset-metric-value{color:var(--text-secondary);font-weight:500;font-variant-numeric:tabular-nums}
 .asset-conf-bar{height:4px;border-radius:2px;margin-top:8px;background:var(--bg-primary);overflow:hidden}
 .asset-conf-fill{height:100%;border-radius:2px;transition:width 0.5s ease}
-.asset-more{font-size:11px;color:var(--text-muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.asset-more{font-size:11px;color:var(--text-muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);white-space:nowrap}
 
 .table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
 table{width:100%;border-collapse:collapse}
@@ -242,7 +242,8 @@ function render(state){
     if(pos){entry=pos.entry;stop=pos.sl;tp=pos.tp;upnl=pos.unrealized_pnl}
     var val=m.current_value||0,ret=m.total_return||0,dd=m.drawdown||0;
     var confColor=conf>=60?'var(--green)':conf>=45?'var(--amber)':'var(--red)';
-    ac+='<div class="asset-card signal-'+cls+'"><div class="asset-header"><span class="asset-name">'+name+'</span><span class="asset-signal">'+sig+'</span></div>';
+    var price=s?s.close_price:null;
+    ac+='<div class="asset-card signal-'+cls+'"><div class="asset-header"><span class="asset-name">'+name+'</span>'+(price!=null?'<span class="asset-price">$'+(price>100?fmt(price,2):fmt(price,4))+'</span>':'')+'<span class="asset-signal">'+sig+'</span></div>';
     ac+='<div class="asset-metrics"><div class="asset-metric"><span class="asset-metric-label">Confidence</span><span class="asset-metric-value" style="color:'+confColor+'">'+fmt(conf,1)+'%</span></div>';
     ac+='<div class="asset-metric"><span class="asset-metric-label">Value</span><span class="asset-metric-value">$'+fmt(val,2)+'</span></div>';
     ac+='<div class="asset-metric"><span class="asset-metric-label">Return</span><span class="asset-metric-value '+(ret>=0?'change-up':'change-down')+'">'+fmt(ret)+'%</span></div>';

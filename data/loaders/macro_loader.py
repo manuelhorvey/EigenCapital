@@ -3,15 +3,20 @@ import numpy as np
 from datetime import datetime
 
 FRED_SERIES = {
-    'fed_funds':     'FEDFUNDS',
-    'ecb_rate':      'ECBDFR',
-    'rate_diff':     None,
-    'us_2y':         'DGS2',
-    'us_10y':        'DGS10',
-    'yield_slope':   None,
-    'breakeven_10y': 'T10YIE',
-    'real_yield_10y':'DFII10',
-    'dxy':           'DTWEXBGS',
+    'fed_funds':      'FEDFUNDS',
+    'ecb_rate':       'ECBDFR',
+    'us_2y':          'DGS2',
+    'us_10y':         'DGS10',
+    'breakeven_10y':  'T10YIE',
+    'real_yield_10y': 'DFII10',
+    'dxy':            'DTWEXBGS',
+    'vix':            'VIXCLS',
+    'baa_spread':     'BAA10Y',
+    'jp_10y':         'IRLTLT01JPM156N',
+    'de_10y':         'IRLTLT01DEM156N',
+    'gb_10y':         'IRLTLT01GBM156N',
+    'ca_10y':         'IRLTLT01CAM156N',
+    'au_10y':         'IRLTLT01AUM156N',
 }
 
 MACRO_FEATURES = [

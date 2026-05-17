@@ -44,8 +44,8 @@ HALT = dict(_cfg.get('halt', {
 }))
 
 XLF_FEATURES = ['rate_diff', '2y_yield_delta_63', 'xlf_mom_63', 'xlf_vs_spy_63']
-EURUSD_FEATURES = ['rate_diff', '2y_yield_delta_63', 'eurusd_mom_63', 'eurusd_vs_dxy_63']
 BTC_FEATURES = ['rate_diff', '2y_yield_delta_63', 'btc_mom_63', 'btc_vs_spy_63']
+NZDJPY_FEATURES = ['vix_ma21', 'vix_delta_5', 'us_jp_10y_spread', 'nzdjpy_mom_21']
 
 
 def load_macro():
@@ -54,6 +54,9 @@ def load_macro():
     m['rate_diff'] = m['fed_funds'] - m['ecb_rate']
     m['2y_yield_delta_63'] = m['us_2y'].diff(63)
     m['dxy_mom_63'] = m['dxy'].pct_change(63)
+    m['vix_ma21'] = m['vix'].rolling(21).mean()
+    m['vix_delta_5'] = m['vix'].diff(5)
+    m['us_jp_10y_spread'] = m['us_10y'] - m['jp_10y']
     return m.iloc[90:]
 
 
@@ -137,6 +140,8 @@ class AssetEngine:
         elif self.name == 'BTC':
             a['btc_mom_63'] = df['close'].pct_change(63)
             a['btc_vs_spy_63'] = a['btc_mom_63'] - ref['close'].pct_change(63)
+        elif self.name == 'NZDJPY':
+            a['nzdjpy_mom_21'] = df['close'].pct_change(21)
 
         a['label'] = (labeled.loc[a.index, 'label'] + 1).astype(int)
         return a.dropna(subset=self.features + ['label'])
@@ -442,10 +447,12 @@ def _build_paper_portfolio():
                         'halt': halt, 'config': config}
         return pf
     return {
-        'XLF': {'ticker': 'XLF', 'features': XLF_FEATURES, 'alloc': 0.60,
+        'XLF': {'ticker': 'XLF', 'features': XLF_FEATURES, 'alloc': 0.40,
                 'halt': HALT, 'config': {}},
-        'BTC': {'ticker': 'BTC-USD', 'features': BTC_FEATURES, 'alloc': 0.40,
-                'halt': {'drawdown': -0.15, 'monthly_pf': 0.70, 'signal_drought': 30, 'prob_drift': 0.15}, 'config': {}},
+        'BTC': {'ticker': 'BTC-USD', 'features': BTC_FEATURES, 'alloc': 0.35,
+                'halt': {'drawdown': -0.15, 'monthly_pf': 0.70, 'signal_drought': 30, 'prob_drift': 0.15}, 'config': {'vol_scalar': True}},
+        'NZDJPY': {'ticker': 'NZDJPY=X', 'features': NZDJPY_FEATURES, 'alloc': 0.25,
+                   'halt': {'drawdown': -0.06, 'monthly_pf': 0.70, 'signal_drought': 30, 'prob_drift': 0.15}, 'config': {}},
     }
 
 

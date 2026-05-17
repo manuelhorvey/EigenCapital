@@ -2,13 +2,13 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import yfinance as yf
-from features.pair_specific import build_gc_features
+from features.pair_specific import build_nzdjpy_features
 
 WF_CONFIG = {'train_years': 5, 'test_years': 1, 'step_years': 1, 'min_trades': 20}
 
 
 def fetch_data(start='2014-01-01', end='2026-12-31'):
-    df = yf.download('GC=F', start=start, end=end, auto_adjust=True)
+    df = yf.download('NZDJPY=X', start=start, end=end, auto_adjust=True)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
     df = df.rename(columns={'Close':'close','High':'high','Low':'low','Open':'open','Volume':'volume'})
@@ -60,13 +60,13 @@ def compute_metrics(trade_rets):
 
 
 def run_walk_forward():
-    print('Fetching GC=F data...')
+    print('Fetching NZDJPY data...')
     price = fetch_data()
     print(f'Price: {len(price)} rows')
     macro = load_macro()
 
-    print('Building gold-specific features...')
-    data, features = build_gc_features(price, macro)
+    print('Building NZDJPY-specific features...')
+    data, features = build_nzdjpy_features(price, macro)
     print(f'Features: {features}')
     print(f'Clean data: {len(data)} rows ({data.index[0].date()} to {data.index[-1].date()})')
 
@@ -117,7 +117,7 @@ def run_walk_forward():
                 print(f'         bootstrap p(PF<1.0)={p_pf:.3f} {sig}  CI=[{ci[0]:.2f}, {ci[1]:.2f}]')
 
     print('\n' + '=' * 60)
-    print('WALK-FORWARD — GC=F (gold-specific: DXY + real yield)')
+    print('WALK-FORWARD — NZDJPY (VIX + carry features)')
     print('=' * 60)
     header = f'{"Year":>6s}  {"Exp":>10s}  {"PF":>6s}  {"Sharpe":>7s}  {"Trades":>7s}  {"L/S":>6s}  {"Train":>6s}  {"Test":>5s}'
     print(header)
@@ -125,10 +125,17 @@ def run_walk_forward():
     for r in results:
         exp_str = f'{r["expectancy"]:.6f}' if r['expectancy'] is not None else '  N/A  '
         pf_str = f'{r["pf"]:.2f}' if r['pf'] is not None else ' N/A '
-        sharpe_str = f'{r["sharpe"]:.2f}' if r['sharpe'] is not None else '  N/A  '
+        sharpe_str = f'{r["sharpe"]:.2f}' if r['sharpe'] is not None else '  N/A '
         ls = f'{r["n_long"]}/{r["n_short"]}' if r['n_long'] + r['n_short'] > 0 else '0/0'
         print(f'{r["year"]:>6s}  {exp_str:>10s}  {pf_str:>6s}  {sharpe_str:>7s}  '
               f'{r["n_trades"]:>7d}  {ls:>6s}  {r["train_rows"]:>6d}  {r["test_rows"]:>5d}')
+
+    pos = sum(1 for r in results if r['expectancy'] is not None and r['expectancy'] > 0)
+    print(f'\nPositive windows: {pos}/{len(results)}')
+    if pos >= 4:
+        print('>>> GATE: 4/7 positive — PASS')
+    else:
+        print('>>> GATE: 4/7 positive — FAIL')
 
     return results
 

@@ -2,13 +2,13 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import yfinance as yf
-from features.pair_specific import build_gc_features
+from features.pair_specific import build_usdjpy_features
 
 WF_CONFIG = {'train_years': 5, 'test_years': 1, 'step_years': 1, 'min_trades': 20}
 
 
 def fetch_data(start='2014-01-01', end='2026-12-31'):
-    df = yf.download('GC=F', start=start, end=end, auto_adjust=True)
+    df = yf.download('USDJPY=X', start=start, end=end, auto_adjust=True)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
     df = df.rename(columns={'Close':'close','High':'high','Low':'low','Open':'open','Volume':'volume'})
@@ -33,9 +33,8 @@ def run_window(X_train, y_train, X_test):
         random_state=42, n_jobs=1, tree_method='hist', verbosity=0,
     )
     model.fit(X_train, y_train)
-    proba = model.predict_proba(X_test)
     preds = model.predict(X_test)
-    return proba, preds
+    return None, preds
 
 
 def simulate_trades(proba, preds, prices):
@@ -60,13 +59,13 @@ def compute_metrics(trade_rets):
 
 
 def run_walk_forward():
-    print('Fetching GC=F data...')
+    print('Fetching USDJPY data...')
     price = fetch_data()
     print(f'Price: {len(price)} rows')
     macro = load_macro()
 
-    print('Building gold-specific features...')
-    data, features = build_gc_features(price, macro)
+    print('Building USDJPY-specific features...')
+    data, features = build_usdjpy_features(price, macro)
     print(f'Features: {features}')
     print(f'Clean data: {len(data)} rows ({data.index[0].date()} to {data.index[-1].date()})')
 
@@ -89,8 +88,6 @@ def run_walk_forward():
         trade_rets = simulate_trades(proba, preds, price['close'].reindex(X_test.index))
         metrics = compute_metrics(trade_rets)
         metrics['year'] = str(ty)
-        metrics['train_rows'] = len(X_train)
-        metrics['test_rows'] = len(X_test)
         metrics['n_long'] = int((preds == 2).sum())
         metrics['n_short'] = int((preds == 0).sum())
         results.append(metrics)
@@ -102,33 +99,19 @@ def run_walk_forward():
                   f'Sharpe={metrics["sharpe"]:.2f}  trades={metrics["n_trades"]}  '
                   f'L={metrics["n_long"]} S={metrics["n_short"]}')
 
-        if metrics['expectancy'] is not None and str(ty) in ('2022', '2023', '2024'):
-            tv = trade_rets[trade_rets != 0].values
-            if len(tv) >= 20:
-                pf_boot = []
-                for _ in range(1000):
-                    b = np.random.choice(tv, size=len(tv), replace=True)
-                    spf = b[b>0].sum()/abs(b[b<0].sum()) if (b<0).any() else float('inf')
-                    pf_boot.append(spf)
-                pf_boot = np.array(pf_boot)
-                p_pf = (pf_boot < 1.0).mean()
-                sig = 'SIGNAL' if p_pf < 0.05 else ('BORDERLINE' if p_pf < 0.10 else 'noise')
-                ci = np.percentile(pf_boot, [5, 95])
-                print(f'         bootstrap p(PF<1.0)={p_pf:.3f} {sig}  CI=[{ci[0]:.2f}, {ci[1]:.2f}]')
-
     print('\n' + '=' * 60)
-    print('WALK-FORWARD — GC=F (gold-specific: DXY + real yield)')
+    print('WALK-FORWARD — USDJPY (yield + carry features)')
     print('=' * 60)
-    header = f'{"Year":>6s}  {"Exp":>10s}  {"PF":>6s}  {"Sharpe":>7s}  {"Trades":>7s}  {"L/S":>6s}  {"Train":>6s}  {"Test":>5s}'
+    header = f'{"Year":>6s}  {"Exp":>10s}  {"PF":>6s}  {"Sharpe":>7s}  {"Trades":>7s}  {"L/S":>6s}'
     print(header)
     print('-' * len(header))
     for r in results:
         exp_str = f'{r["expectancy"]:.6f}' if r['expectancy'] is not None else '  N/A  '
         pf_str = f'{r["pf"]:.2f}' if r['pf'] is not None else ' N/A '
         sharpe_str = f'{r["sharpe"]:.2f}' if r['sharpe'] is not None else '  N/A  '
-        ls = f'{r["n_long"]}/{r["n_short"]}' if r['n_long'] + r['n_short'] > 0 else '0/0'
+        ls = f'{r["n_long"]}/{r["n_short"]}'
         print(f'{r["year"]:>6s}  {exp_str:>10s}  {pf_str:>6s}  {sharpe_str:>7s}  '
-              f'{r["n_trades"]:>7d}  {ls:>6s}  {r["train_rows"]:>6d}  {r["test_rows"]:>5d}')
+              f'{r["n_trades"]:>7d}  {ls:>6s}')
 
     return results
 

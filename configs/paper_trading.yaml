@@ -13,7 +13,7 @@ halt:
 assets:
   XLF:
     ticker: XLF
-    allocation: 0.60
+    allocation: 0.40
     features: [rate_diff, 2y_yield_delta_63, xlf_mom_63, xlf_vs_spy_63]
     halt:
       drawdown: -0.08
@@ -23,10 +23,20 @@ assets:
     config: {}
   BTC:
     ticker: BTC-USD
-    allocation: 0.40
+    allocation: 0.35
     features: [rate_diff, 2y_yield_delta_63, btc_mom_63, btc_vs_spy_63]
     halt:
       drawdown: -0.15
+      monthly_pf: 0.70
+      signal_drought: 30
+      prob_drift: 0.15
+    config: {}
+  NZDJPY:
+    ticker: NZDJPY=X
+    allocation: 0.25
+    features: [vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21]
+    halt:
+      drawdown: -0.06
       monthly_pf: 0.70
       signal_drought: 30
       prob_drift: 0.15

@@ -49,6 +49,7 @@ XLF_FEATURES = ['rate_diff', '2y_yield_delta_63', 'xlf_mom_63', 'xlf_vs_spy_63']
 BTC_FEATURES = ['rate_diff', '2y_yield_delta_63', 'btc_mom_63', 'btc_vs_spy_63']
 NZDJPY_FEATURES = ['vix_ma21', 'vix_delta_5', 'us_jp_10y_spread', 'nzdjpy_mom_21']
 USDCAD_FEATURES = ['rate_diff', 'dxy_mom_21', 'vix_ma21', 'usdcad_mom_21']
+CADJPY_FEATURES = ['ca_jp_spread_mom_5', 'ca_jp_spread_mom_21', 'cadjpy_mom_21', 'vix_ma21']
 
 
 def load_macro():
@@ -134,24 +135,36 @@ class AssetEngine:
         self.current_price = None
 
     def _build_features(self, df, ref, macro):
-        labeled = apply_triple_barrier(df, pt_sl=[2, 2], vertical_barrier=20)
-        pi = pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) for x in labeled.index])
-        a = macro.reindex(pi, method='ffill')
-        a.index = labeled.index
+        if self.name == 'CADJPY':
+            ret = df['close'].pct_change(60).shift(-60)
+            labels = ret.apply(lambda x: 2 if x > 0.02 else (0 if x < -0.02 else 1)).astype(int).dropna()
+            pi = pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) for x in labels.index])
+            a = macro.reindex(pi, method='ffill')
+            a.index = labels.index
+            a['ca_jp_10y_spread'] = a['ca_10y'] - a['jp_10y']
+            a['ca_jp_spread_mom_21'] = a['ca_jp_10y_spread'].diff(21)
+            a['ca_jp_spread_mom_5'] = a['ca_jp_10y_spread'].diff(5)
+            a['cadjpy_mom_21'] = df['close'].pct_change(21)
+            a['label'] = labels
+        else:
+            labeled = apply_triple_barrier(df, pt_sl=[2, 2], vertical_barrier=20)
+            pi = pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) for x in labeled.index])
+            a = macro.reindex(pi, method='ffill')
+            a.index = labeled.index
 
-        if self.name == 'XLF':
-            a['xlf_mom_63'] = df['close'].pct_change(63)
-            a['xlf_vs_spy_63'] = a['xlf_mom_63'] - ref['close'].pct_change(63)
-        elif self.name == 'BTC':
-            a['btc_mom_63'] = df['close'].pct_change(63)
-            a['btc_vs_spy_63'] = a['btc_mom_63'] - ref['close'].pct_change(63)
-        elif self.name == 'NZDJPY':
-            a['nzdjpy_mom_21'] = df['close'].pct_change(21)
-        elif self.name == 'USDCAD':
-            a['dxy_mom_21'] = a['dxy'].pct_change(21)
-            a['usdcad_mom_21'] = df['close'].pct_change(21)
+            if self.name == 'XLF':
+                a['xlf_mom_63'] = df['close'].pct_change(63)
+                a['xlf_vs_spy_63'] = a['xlf_mom_63'] - ref['close'].pct_change(63)
+            elif self.name == 'BTC':
+                a['btc_mom_63'] = df['close'].pct_change(63)
+                a['btc_vs_spy_63'] = a['btc_mom_63'] - ref['close'].pct_change(63)
+            elif self.name == 'NZDJPY':
+                a['nzdjpy_mom_21'] = df['close'].pct_change(21)
+            elif self.name == 'USDCAD':
+                a['dxy_mom_21'] = a['dxy'].pct_change(21)
+                a['usdcad_mom_21'] = df['close'].pct_change(21)
 
-        a['label'] = (labeled.loc[a.index, 'label'] + 1).astype(int)
+            a['label'] = (labeled.loc[a.index, 'label'] + 1).astype(int)
         return a.dropna(subset=self.features + ['label'])
 
     def _vol_scalar(self, df, window=30, target_vol=0.30):
@@ -519,13 +532,15 @@ def _build_paper_portfolio():
                         'halt': halt, 'config': config}
         return pf
     return {
-        'XLF': {'ticker': 'XLF', 'features': XLF_FEATURES, 'alloc': 0.35,
+        'XLF': {'ticker': 'XLF', 'features': XLF_FEATURES, 'alloc': 0.30,
                 'halt': HALT, 'config': {}},
-        'BTC': {'ticker': 'BTC-USD', 'features': BTC_FEATURES, 'alloc': 0.30,
+        'BTC': {'ticker': 'BTC-USD', 'features': BTC_FEATURES, 'alloc': 0.25,
                 'halt': {'drawdown': -0.15, 'monthly_pf': 0.70, 'signal_drought': 30, 'prob_drift': 0.15}, 'config': {'vol_scalar': True}},
-        'NZDJPY': {'ticker': 'NZDJPY=X', 'features': NZDJPY_FEATURES, 'alloc': 0.20,
+        'NZDJPY': {'ticker': 'NZDJPY=X', 'features': NZDJPY_FEATURES, 'alloc': 0.18,
                    'halt': {'drawdown': -0.06, 'monthly_pf': 0.70, 'signal_drought': 30, 'prob_drift': 0.15}, 'config': {}},
-        'USDCAD': {'ticker': 'USDCAD=X', 'features': USDCAD_FEATURES, 'alloc': 0.15,
+        'USDCAD': {'ticker': 'USDCAD=X', 'features': USDCAD_FEATURES, 'alloc': 0.12,
+                   'halt': HALT, 'config': {}},
+        'CADJPY': {'ticker': 'CADJPY=X', 'features': CADJPY_FEATURES, 'alloc': 0.15,
                    'halt': HALT, 'config': {}},
     }
 

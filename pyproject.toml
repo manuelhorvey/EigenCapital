@@ -48,4 +48,4 @@ python_files = ["test_*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = ["tests"]
+source = ["backtests", "diagnostics", "features", "labels", "models", "paper_trading", "signals"]

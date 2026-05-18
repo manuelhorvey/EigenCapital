@@ -2,6 +2,7 @@ import pytest
 from paper_trading.engine import (
     flatten, norm_index, CONFIG, HALT,
     XLF_FEATURES, BTC_FEATURES, PAPER_PORTFOLIO,
+    AssetEngine,
 )
 
 
@@ -57,11 +58,135 @@ class TestConfig:
         assert "rate_diff" in BTC_FEATURES
 
     def test_paper_portfolio_structure(self):
-        assert "XLF" in PAPER_PORTFOLIO
         assert "BTC" in PAPER_PORTFOLIO
         assert "NZDJPY" in PAPER_PORTFOLIO
+        assert "CADJPY" in PAPER_PORTFOLIO
         assert "USDCAD" in PAPER_PORTFOLIO
-        assert PAPER_PORTFOLIO["XLF"]["alloc"] == 0.35
-        assert PAPER_PORTFOLIO["BTC"]["alloc"] == 0.30
-        assert PAPER_PORTFOLIO["NZDJPY"]["alloc"] == 0.20
-        assert PAPER_PORTFOLIO["USDCAD"]["alloc"] == 0.15
+        assert "GC" in PAPER_PORTFOLIO
+        assert "EURAUD" in PAPER_PORTFOLIO
+        assert "XLF" not in PAPER_PORTFOLIO
+        assert PAPER_PORTFOLIO["BTC"]["alloc"] == 0.20
+        assert PAPER_PORTFOLIO["NZDJPY"]["alloc"] == 0.15
+        assert PAPER_PORTFOLIO["CADJPY"]["alloc"] == 0.13
+        assert PAPER_PORTFOLIO["USDCAD"]["alloc"] == 0.10
+        assert PAPER_PORTFOLIO["GC"]["alloc"] == 0.20
+        assert PAPER_PORTFOLIO["EURAUD"]["alloc"] == 0.22
+        assert abs(sum(v['alloc'] for v in PAPER_PORTFOLIO.values()) - 1.0) < 0.01
+
+
+class TestUpdatePnl:
+    @pytest.fixture
+    def engine(self):
+        return AssetEngine("BTC", "BTC", BTC_FEATURES, PAPER_PORTFOLIO["BTC"]["alloc"])
+
+    @pytest.fixture
+    def signal_data(self):
+        import pandas as pd
+        import numpy as np
+        dates = pd.date_range("2026-05-01", periods=5, freq="D")
+        np.random.seed(42)
+        prices = 100 + np.cumsum(np.random.randn(5) * 0.5)
+        return pd.DataFrame({
+            "close": prices,
+            "signal": [2, 2, 0, 0, 2],
+            "position_size": [1.0] * 5,
+        }, index=dates)
+
+    def test_returns_when_no_signal_data(self, engine):
+        engine.signal_data = None
+        engine.update_pnl()
+        assert engine.current_value == engine.initial_capital
+
+    def test_returns_when_fewer_than_two_bars(self, engine):
+        import pandas as pd
+        engine.signal_data = pd.DataFrame({"close": [100]}, index=pd.DatetimeIndex(["2026-05-01"]))
+        engine.update_pnl()
+        assert engine.current_value == engine.initial_capital
+
+    def test_returns_when_last_bar_already_processed(self, engine, signal_data):
+        engine.signal_data = signal_data
+        engine.trades = [{"date": str(signal_data.index[-1].date())}]
+        engine.update_pnl()
+        assert engine.current_value == engine.initial_capital
+
+    def test_signal_based_pnl_when_no_position(self, engine, signal_data):
+        engine.signal_data = signal_data
+        engine.update_pnl()
+        assert engine.current_value != engine.initial_capital
+
+    def test_position_open_skips_signal_pnl(self, engine, signal_data):
+        engine.signal_data = signal_data
+        engine.position = {
+            "side": "long", "entry": 100.0, "sl": 95.0, "tp": 110.0,
+            "entry_date": "2026-05-01", "vol": 0.02,
+        }
+        current_val_before = engine.current_value
+        engine.update_pnl()
+        assert engine.current_value == current_val_before
+
+    def test_sl_hit_closes_position(self, engine, signal_data):
+        import pandas as pd
+        dates = pd.date_range("2026-05-01", periods=5, freq="D")
+        prices = [100.0, 102.0, 98.0, 96.0, 94.0]
+        engine.signal_data = pd.DataFrame({
+            "close": prices,
+            "signal": [2] * 5,
+            "position_size": [1.0] * 5,
+        }, index=dates)
+        engine.position = {
+            "side": "long", "entry": 100.0, "sl": 95.0, "tp": 110.0,
+            "entry_date": "2026-05-01", "vol": 0.02,
+        }
+        engine.update_pnl()
+        assert engine.position is None
+        assert len(engine.trade_log) == 1
+
+    def test_tp_hit_closes_position(self, engine, signal_data):
+        import pandas as pd
+        dates = pd.date_range("2026-05-01", periods=5, freq="D")
+        prices = [100.0, 105.0, 108.0, 112.0, 115.0]
+        engine.signal_data = pd.DataFrame({
+            "close": prices,
+            "signal": [2] * 5,
+            "position_size": [1.0] * 5,
+        }, index=dates)
+        engine.position = {
+            "side": "long", "entry": 100.0, "sl": 95.0, "tp": 110.0,
+            "entry_date": "2026-05-01", "vol": 0.02,
+        }
+        engine.update_pnl()
+        assert engine.position is None
+        assert engine.current_value > engine.initial_capital
+
+    def test_short_sl_hit_closes_short_position(self, engine):
+        import pandas as pd
+        dates = pd.date_range("2026-05-01", periods=5, freq="D")
+        prices = [100.0, 102.0, 105.0, 108.0, 110.0]
+        engine.signal_data = pd.DataFrame({
+            "close": prices,
+            "signal": [0] * 5,
+            "position_size": [1.0] * 5,
+        }, index=dates)
+        engine.position = {
+            "side": "short", "entry": 100.0, "sl": 105.0, "tp": 95.0,
+            "entry_date": "2026-05-01", "vol": 0.02,
+        }
+        engine.update_pnl()
+        assert engine.position is None
+
+    def test_short_tp_hit_closes_short_position(self, engine):
+        import pandas as pd
+        dates = pd.date_range("2026-05-01", periods=5, freq="D")
+        prices = [100.0, 98.0, 96.0, 94.0, 92.0]
+        engine.signal_data = pd.DataFrame({
+            "close": prices,
+            "signal": [0] * 5,
+            "position_size": [1.0] * 5,
+        }, index=dates)
+        engine.position = {
+            "side": "short", "entry": 100.0, "sl": 105.0, "tp": 95.0,
+            "entry_date": "2026-05-01", "vol": 0.02,
+        }
+        engine.update_pnl()
+        assert engine.position is None
+        assert engine.current_value > engine.initial_capital

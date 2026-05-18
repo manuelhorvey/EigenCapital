@@ -3,6 +3,8 @@
 
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Status](https://img.shields.io/badge/status-active%20paper%20trading%20%7C%20research-blue)
+![Assets](https://img.shields.io/badge/assets-6-brightgreen)
+![WalkForward](https://img.shields.io/badge/walk--forward-30%20assets%20validated-success)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **QuantForge** is a modular quantitative research framework focused on **macro-conditioned trading systems** across equities, FX, and crypto. It features a live 24/7 paper-trading engine with a real-time web dashboard and robust walk-forward validation infrastructure.
@@ -13,13 +15,16 @@
 
 ## Live Paper Trading
 
-The paper-trading engine runs continuously with the following allocation:
+The paper-trading engine runs continuously with the following allocation across 6 assets and 5 distinct driver clusters:
 
-| Asset     | Ticker      | Allocation | Key Features |
-|-----------|-------------|------------|--------------|
-| XLF       | `XLF`       | 40%        | rate_diff, 2y_yield_delta_63, xlf_mom_63, xlf_vs_spy_63 |
-| BTC       | `BTC-USD`   | 35%        | mom_63, mom_21, dxy_mom_63 |
-| NZDJPY    | `NZDJPY=X`  | 25%        | vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21 |
+| Asset     | Ticker      | Label    | Cluster       | Alloc | Key Features |
+|-----------|-------------|----------|---------------|-------|------|
+| XLF       | `XLF`       | tb20     | yield_equity  | 22%   | rate_diff, 2y_yield_delta_63, xlf_mom_63, xlf_vs_spy_63 |
+| BTC       | `BTC-USD`   | tb20     | momentum_crypto | 20% | rate_diff, 2y_yield_delta_63, btc_mom_63, btc_vs_spy_63 |
+| NZDJPY    | `NZDJPY=X`  | tb20     | carry_fx      | 15%   | vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21 |
+| CADJPY    | `CADJPY=X`  | fwd60    | oil_carry     | 13%   | ca_jp_spread_mom_5, ca_jp_spread_mom_21, cadjpy_mom_21, vix_ma21 |
+| USDCAD    | `USDCAD=X`  | tb20     | usd_macro     | 10%   | rate_diff, dxy_mom_21, vix_ma21, usdcad_mom_21 |
+| GC=F      | `GC=F`      | fwd60    | real_asset    | 20%   | real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63 |
 
 ### Run
 

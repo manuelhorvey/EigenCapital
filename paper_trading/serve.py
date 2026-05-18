@@ -297,13 +297,15 @@ function getSession(){
   var fxOpen=t>=0&&t<1440;
   var sessions=[];
   if(day===6){
-    sessions.push({name:'XLF','open':false});sessions.push({name:'NZDJPY','open':false});sessions.push({name:'USDCAD','open':false});sessions.push({name:'BTC','open':true});
+    sessions.push({name:'NZDJPY','open':false});sessions.push({name:'USDCAD','open':false});sessions.push({name:'CADJPY','open':false});sessions.push({name:'GC','open':false});sessions.push({name:'EURAUD','open':false});sessions.push({name:'BTC','open':true});
   }else if(day===0){
-    sessions.push({name:'XLF','open':false});sessions.push({name:'NZDJPY','open':t>=1020});sessions.push({name:'USDCAD','open':t>=1020});sessions.push({name:'BTC','open':true});
+    sessions.push({name:'NZDJPY','open':t>=1020});sessions.push({name:'USDCAD','open':t>=1020});sessions.push({name:'CADJPY','open':t>=1020});sessions.push({name:'GC','open':t>=1020});sessions.push({name:'EURAUD','open':t>=1020});sessions.push({name:'BTC','open':true});
   }else{
-    sessions.push({name:'XLF','open':t>=570&&t<960});
     sessions.push({name:'NZDJPY','open':fxOpen});
     sessions.push({name:'USDCAD','open':fxOpen});
+    sessions.push({name:'CADJPY','open':fxOpen});
+    sessions.push({name:'GC','open':fxOpen});
+    sessions.push({name:'EURAUD','open':fxOpen});
     sessions.push({name:'BTC','open':true});
   }
   return sessions;
@@ -499,7 +501,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                         'engine_status': {'initialized': True, 'last_update': None, 'start_time': None},
                         'portfolio': {'total_value': 0, 'total_return': 0, 'days_running': 0,
                                       'start_date': '', 'last_update': None, 'capital': 100000,
-                                      'allocations': {'XLF': 0.6, 'BTC': 0.4},
+                                       'allocations': {'BTC': 0.20, 'NZDJPY': 0.15, 'CADJPY': 0.13, 'USDCAD': 0.10, 'GC': 0.20, 'EURAUD': 0.22},
                                       'deployment_cleared': True},
                         'assets': {}, 'halt_conditions': {'drawdown': -0.08, 'monthly_pf': 0.7, 'signal_drought': 30, 'prob_drift': 0.15},
                     }, indent=2).encode('utf-8'))

@@ -11,7 +11,7 @@ A comprehensive codebase review (2026-05-17) identified two architectural issues
 that cannot be fixed during the paper trade freeze without invalidating the
 performance measurement baseline.
 
-### Issue C3: Dual PnL Accounting in AssetEngine
+### Issue C3: Dual PnL Accounting in AssetEngine (RESOLVED)
 
 **File:** `paper_trading/engine.py` — `update_pnl()` method (lines 340–387)
 
@@ -33,10 +33,13 @@ during open positions. The magnitude depends on position duration and signal
 stability. This does not affect model training or signal generation — only the
 paper trading PnL ledger.
 
-**Resolution plan:** Refactor `update_pnl()` to use a single PnL path:
-- When a position is open, track only position-based PnL (entry price vs current).
-- When no position is open, track signal-based daily PnL.
-- Never sum both.
+**Resolution:** Added an early return in `update_pnl()` after the SL/TP check
+when a position is still open (`paper_trading/engine.py:372`). This prevents the
+signal-based daily PnL path from executing during open positions, ensuring a
+single PnL path:
+- Position open → position-based PnL only (booked on close via `_close_position`).
+- No position open → signal-based daily PnL.
+- Unit tests added in `tests/test_engine.py::TestUpdatePnl`.
 
 ### Issue A1: Research vs Paper Trading Model Architecture Split
 
@@ -81,9 +84,9 @@ during the paper trade freeze (May–November 2026).
 - The paper trade evaluates the simple 4-feature architecture, not the ensemble.
   November evaluation criteria should be interpreted in that context.
 - January 2027 retrain priorities:
-  1. Fix C3 dual PnL accounting
-  2. Retrain with vol-adjusted barriers (ratio diagnostic from weekly report)
-  3. Add unit tests for HybridRegimeEnsemble and RegimeClassifier
-  4. Decide canonical model architecture: simple 4-feature vs ensemble
-  5. Remove unused dependencies (lightgbm, catboost, mlflow, optuna)
-  6. Fix coverage source config in pyproject.toml
+  - ~~Fix C3 dual PnL accounting~~ **Done**
+  - Retrain with vol-adjusted barriers (ratio diagnostic from weekly report)
+  - ~~Add unit tests for HybridRegimeEnsemble and RegimeClassifier~~ **Done**
+  - Decide canonical model architecture: simple 4-feature vs ensemble
+  - ~~Remove unused dependencies (lightgbm, catboost, mlflow, optuna)~~ **Done**
+  - ~~Fix coverage source config in pyproject.toml~~ **Done**

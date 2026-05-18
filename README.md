@@ -17,14 +17,14 @@
 
 The paper-trading engine runs continuously with the following allocation across 6 assets and 5 distinct driver clusters:
 
-| Asset     | Ticker      | Label    | Cluster       | Alloc | Key Features |
-|-----------|-------------|----------|---------------|-------|------|
-| XLF       | `XLF`       | tb20     | yield_equity  | 22%   | rate_diff, 2y_yield_delta_63, xlf_mom_63, xlf_vs_spy_63 |
-| BTC       | `BTC-USD`   | tb20     | momentum_crypto | 20% | rate_diff, 2y_yield_delta_63, btc_mom_63, btc_vs_spy_63 |
-| NZDJPY    | `NZDJPY=X`  | tb20     | carry_fx      | 15%   | vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21 |
-| CADJPY    | `CADJPY=X`  | fwd60    | oil_carry     | 13%   | ca_jp_spread_mom_5, ca_jp_spread_mom_21, cadjpy_mom_21, vix_ma21 |
-| USDCAD    | `USDCAD=X`  | tb20     | usd_macro     | 10%   | rate_diff, dxy_mom_21, vix_ma21, usdcad_mom_21 |
-| GC=F      | `GC=F`      | fwd60    | real_asset    | 20%   | real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63 |
+| Asset   | Ticker      | Label | Cluster         | Alloc | Key Features |
+|---------|-------------|-------|-----------------|-------|------|
+| BTC     | `BTC-USD`   | tb20  | momentum_crypto | 20%   | rate_diff, 2y_yield_delta_63, btc_mom_63, btc_vs_spy_63 |
+| GC=F    | `GC=F`      | fwd60 | real_asset      | 20%   | real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63 |
+| EURAUD  | `EURAUD=X`  | tb20  | eur_cross       | 22%   | rate_diff, dxy_mom_21, vix_ma21, euraud_mom_21 |
+| NZDJPY  | `NZDJPY=X`  | tb20  | carry_fx        | 15%   | vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21 |
+| CADJPY  | `CADJPY=X`  | fwd60 | oil_carry       | 13%   | ca_jp_spread_mom_5, ca_jp_spread_mom_21, cadjpy_mom_21, vix_ma21 |
+| USDCAD  | `USDCAD=X`  | tb20  | usd_macro       | 10%   | rate_diff, dxy_mom_21, vix_ma21, usdcad_mom_21 |
 
 ### Run
 
@@ -50,31 +50,28 @@ The paper-trading engine runs continuously with the following allocation across 
 
 ## Research Track
 
-Primary validated asset: **XLF (Financial Select Sector SPDR ETF)** using a minimal 4-feature XGBoost model.
-
-Additional walk-forward studies completed for: EURUSD, USDJPY, NZDJPY, Gold (GC), and QQQ.
+Primary validated assets across 6 asset classes using walk-forward validation. Two label architectures are deployed: **tb20** (triple-barrier, 20-bar timeout) for mean-reverting/short-term assets, and **fwd60** (60-day forward return) for macro-trend assets. See [ADR-015](docs/adr/ADR-015-asset-specific-label-horizons.md).
 
 ### Model Specifications
 
 - **Type**: XGBoost multiclass classifier (BUY / NEUTRAL / SELL)
 - **Parameters**: 300 trees, max depth 2, learning rate 0.02
-- **Labeling**: Triple-barrier (pt_sl=2.0, vertical barrier=20 bars)
+- **Labeling**: Triple-barrier (pt_sl=2.0, vertical barrier=20 bars) for tb20 assets; 60-day forward return classification for fwd60 assets
 - **Sizing**: Volatility-scaled positions
 - **Validation**: Rolling walk-forward (5yr train / 1yr test / 1yr step)
 
-### Research Results — XLF Walk-Forward (2019–2024)
+### Walk-Forward Results — Portfolio Assets
 
-| Year | Profit Factor | Net Return | Sharpe | Max DD   |
-|------|---------------|------------|--------|----------|
-| 2019 | 1.07          | +3.25%     | 0.41   | -4.8%    |
-| 2020 | 1.03          | +5.12%     | 0.38   | -9.2%    |
-| 2021 | 1.29          | +25.14%    | 1.12   | -6.1%    |
-| 2022 | 0.98          | -6.25%     | -0.22  | -11.4%   |
-| 2023 | 1.23          | +17.24%    | 0.95   | -5.7%    |
-| 2024 | 1.34          | +21.95%    | 1.28   | -4.9%    |
+| Asset  | Label | Windows | Avg PF | Avg Sharpe | Pos Windows | Cumulative Return |
+|--------|-------|---------|--------|------------|-------------|-------------------|
+| CADJPY | fwd60 | 6/6     | 1.47   | 1.07       | 88%         | +34.9%            |
+| GC=F   | fwd60 | 6/6     | 1.37   | 1.02       | 75%         | +96.3%            |
+| EURAUD | tb20  | 6/8     | 2.52   | 0.82       | 75%         | —                 |
+| NZDJPY | tb20  | 5/8     | 1.16   | 0.69       | 62%         | —                 |
+| USDCAD | tb20  | 5/8     | 1.24   | 0.61       | 62%         | —                 |
+| BTC    | tb20  | 4/8     | 1.04   | 0.09       | 50%         | —                 |
 
-**Average Annual Return (2019–2024): +11.08%**  
-**CAGR**: ~10.4% | **Average Sharpe**: 0.65
+See [ADR-015](docs/adr/ADR-015-asset-specific-label-horizons.md) for fwd60 methodology and [ADR-016](docs/adr/ADR-016-gold-validation.md) for GC=F validation.
 
 ---
 
@@ -96,7 +93,7 @@ Additional walk-forward studies completed for: EURUSD, USDJPY, NZDJPY, Gold (GC)
 
 - Simplicity wins: 4-feature model consistently outperforms complex ensembles in walk-forward tests
 - Asset-specific driver features are mandatory: generic macro features fail on 28/30 assets tested; pair-specific features (VIX + bilateral yield spread for NZDJPY) flipped 0/7 → 5/7 positive windows
-- Near-zero portfolio correlation achieved: max pairwise PnL correlation 0.055 across XLF, BTC, NZDJPY — genuine diversification, not just different tickers
+- Genuine diversification across 6 driver clusters: 6-asset portfolio spans momentum_crypto, real_asset, eur_cross, carry_fx, oil_carry, and usd_macro with max |r| < 0.40
 - Feature interference is a real failure mode: macro features drowned by 25 price features until protected weight architecture separated them
 - Macro features describe environment, not price response: yield_slope and real_yield_10y removed from XLF model because they stayed bearish through 2023–2024 rally; 2y_yield_delta_63 (direction, not level) was the fix
 - EURUSD blocked at daily frequency: 8 years walk-forward showed 1.65% CAGR; requires COT positioning data
@@ -113,20 +110,27 @@ flowchart TD
 
     F[Driver atlas — asset-specific feature sets]
     F --> |carry_fx| N1[NZDJPY: VIX + bilateral yield spread]
-    F --> |yield_equity| N2[XLF: rate diff + 2y yield delta]
-    F --> |momentum_crypto| N3[BTC: mom_63 + DXY momentum]
-    F --> |positioning blocked| N4[EURUSD: needs COT data]
+    F --> |real_asset| N2[GC=F: real yield + breakeven + DXY]
+    F --> |momentum_crypto| N3[BTC: mom_63 + rate diff]
+    F --> |eur_cross| N4[EURAUD: rate diff + DXY + VIX]
+    F --> |oil_carry| N5[CADJPY: CA-JP spread + VIX]
+    F --> |usd_macro| N6[USDCAD: rate diff + DXY + VIX]
 
-    N1 & N2 & N3 --> L[Triple barrier labeling\npt_sl=2.0 · timeout=20 bars]
-    L --> M1[Regime classifier\nTREND/RANGE/VOLATILE/NEUTRAL]
-    L --> M2[Macro expert head\nprotected weight 0.45]
-    L --> M3[Walk-forward engine\n5yr train · 1yr test · bootstrap gate]
-    M1 & M2 & M3 --> S[Signal generator\nprob threshold 0.475]
-    S --> R[Risk engine\nvol-scaled sizing · halt conditions]
-    R --> P1[XLF 40%\nhalt DD −8%]
-    R --> P2[BTC 35%\nhalt DD −15%]
-    R --> P3[NZDJPY 25%\nhalt DD −6%]
-    P1 & P2 & P3 --> Mon[Monitoring\nvalidity state machine · drift · dashboard]
+    N1 & N2 & N3 & N4 & N5 & N6 --> L{tb20 vs fwd60}
+    L --> |tb20| TB[Triple barrier\npt_sl=2.0 · 20-bar timeout]
+    L --> |fwd60| FW[60-day forward return\n±2% threshold]
+    TB & FW --> M1[Regime classifier\nTREND/RANGE/VOLATILE/NEUTRAL]
+    TB & FW --> M2[Bootstrap deployment gate\np<0.20 for fwd60 · p<0.10 for tb20]
+    TB & FW --> M3[Walk-forward engine\n5yr train · 1yr test]
+    M1 & M2 & M3 --> S[Signal generator\nprob threshold 0.45]
+    S --> R[Risk engine\nvol-scaled sizing · halt conditions · prob_drift]
+    R --> P1[BTC 20%\nhalt DD −15%]
+    R --> P2[GC=F 20%\nhalt DD −8%]
+    R --> P3[EURAUD 22%\nhalt DD −8%]
+    R --> P4[NZDJPY 15%\nhalt DD −6%]
+    R --> P5[CADJPY 13%\nhalt DD −8%]
+    R --> P6[USDCAD 10%\nhalt DD −8%]
+    P1 & P2 & P3 & P4 & P5 & P6 --> Mon[Monitoring\nvalidity state machine · drift · dashboard]
 ```
 
 ---
@@ -235,7 +239,7 @@ python equity/walk_forward_xlf.py
 
 ## Research backlog
 
-Assets pending driver analysis: AUDJPY (carry_fx cluster), ETH-USD (momentum_crypto cluster), XLU/XLRE (yield_equity cluster), USDJPY (4/7 — needs BoJ intervention proxy).
+Assets pending validation: AUDJPY (deferred post-November — r=0.87 with NZDJPY), GBPUSD (needs COT data), ETH-USD (momentum_crypto cluster), XLU/XLRE (yield_equity cluster).
 
 Blocked pending data acquisition: EURUSD, GBPUSD (need CFTC COT weekly positioning data).
 

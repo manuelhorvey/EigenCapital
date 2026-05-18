@@ -79,14 +79,19 @@ function render(state){
   var totalValue=p.total_value||0,totalReturn=p.total_return||0,capital=p.capital||0,days=p.days_running||0;
   var startDate=p.start_date||null,nTrades=0,maxDD=0,minPF=Infinity;
   for(var k in assets){var m=assets[k].metrics||{};nTrades+=(m.n_trades||0);if(m.drawdown<maxDD)maxDD=m.drawdown;if(m.monthly_pf!=null&&m.monthly_pf<minPF)minPF=m.monthly_pf}
-  var totalPnl=0;for(var k in assets){var pos=(assets[k].metrics||{}).position;if(pos&&pos.unrealized_pnl!=null)totalPnl+=pos.unrealized_pnl}
-  totalPnl=totalPnl/Object.keys(assets).length||0;
+  var totalPnlPct=0;for(var k in assets){var pos=(assets[k].metrics||{}).position;if(pos&&pos.unrealized_pnl!=null)totalPnlPct+=pos.unrealized_pnl}
+  totalPnlPct=totalPnlPct/Object.keys(assets).length||0;
+  var totalPnlDollars=p.unrealized_pnl||0;
+
+  var openPos=p.open_positions||0,closedPos=p.closed_trades||0;
+  var realizedPct=p.realized_return!=null?p.realized_return:0;
+  var runtimeStr=days>0?days+' days':(p.runtime_hours?Math.floor(p.runtime_hours)+'h '+Math.round((p.runtime_hours%1)*60)+'m':'0m');
 
   document.getElementById('portfolioRow').innerHTML=
     '<div class="portfolio-card accent"><div class="portfolio-label">Portfolio Value</div><div class="portfolio-value" style="color:var(--accent)">$'+fmt(totalValue,2)+'</div><div class="portfolio-sub">Capital: $'+fmt(capital,2)+'</div></div>'+
-    '<div class="portfolio-card"><div class="portfolio-label">Total Return</div><div class="portfolio-value '+(totalReturn>=0?'change-up':'change-down')+'">'+fmt(totalReturn)+'%</div><div class="portfolio-sub">Since '+fd(startDate||new Date())+'</div></div>'+
-    '<div class="portfolio-card"><div class="portfolio-label">Unrealized P&amp;L</div><div class="portfolio-value '+(totalPnl>=0?'change-up':'change-down')+'">'+fmt(totalPnl,2)+'%</div><div class="portfolio-sub">Across '+Object.keys(assets).length+' assets</div></div>'+
-    '<div class="portfolio-card"><div class="portfolio-label">Trades Taken</div><div class="portfolio-value" style="color:var(--text-primary)">'+nTrades+'</div><div class="portfolio-sub">Over '+days+' days</div></div>';
+    '<div class="portfolio-card"><div class="portfolio-label">Total Return</div><div class="portfolio-value '+(totalReturn>=0?'change-up':'change-down')+'">'+fmt(totalReturn)+'%</div><div class="portfolio-sub">Run: '+runtimeStr+'</div></div>'+
+    '<div class="portfolio-card"><div class="portfolio-label">Unrealized P&amp;L</div><div class="portfolio-value '+(totalPnlDollars>=0?'change-up':'change-down')+'">$'+fmt(totalPnlDollars,2)+'</div><div class="portfolio-sub">Realized: '+(realizedPct>=0?'+':'')+fmt(realizedPct)+'% &middot; Avg '+fmt(totalPnlPct,2)+'%</div></div>'+
+    '<div class="portfolio-card"><div class="portfolio-label">Positions</div><div class="portfolio-value" style="color:var(--text-primary)">'+openPos+'</div><div class="portfolio-sub">Open: '+openPos+' | Closed: '+closedPos+'</div></div>';
 
   var cnt=0,ac='';
   for(var name in assets){
@@ -178,7 +183,7 @@ function render(state){
     ' &middot; <strong>Cleared:</strong> '+(p.deployment_cleared?'Yes':'No')+
     ' &middot; <strong>Refresh:</strong> 30s'+
     ' &middot; <strong>Sessions:</strong> '+openList+' trading';
-  document.getElementById('daysBadge').textContent=days+' days';
+  document.getElementById('daysBadge').textContent=runtimeStr;
   var liveCount=0;for(var k in assets){if((assets[k].last_signal||{}).signal)liveCount++}
   document.getElementById('liveBadge').textContent=liveCount+' assets live';
   document.getElementById('statusText').textContent='Live Market Feed Active';

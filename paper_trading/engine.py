@@ -628,20 +628,44 @@ class PaperTradingEngine:
                 signal['close_price'] = metrics['current_price']
             ad[name] = {'metrics': metrics, 'halt': halt, 'last_signal': signal}
 
-        tv = sum(a.current_value for a in self.assets.values())
+        realized_total = sum(a.current_value for a in self.assets.values())
         tc = sum(a.initial_capital for a in self.assets.values())
-        tr = (tv - tc) / tc * 100 if tc > 0 else 0
-        dr = (datetime.now(tz=ET) - self.start_date).days
+
+        unrealized_dollars = 0
+        open_positions = 0
+        closed_trades = 0
+        for a in self.assets.values():
+            closed_trades += len(a.trades)
+            if a.position and a.current_price is not None:
+                open_positions += 1
+                pnl_pct = a._position_pnl(a.current_price)
+                unrealized_dollars += a.current_value * (pnl_pct / 100) * CONFIG['position_size']
+
+        mtm_total = realized_total + unrealized_dollars
+        mtm_return = (mtm_total - tc) / tc * 100 if tc > 0 else 0
+        realized_return = (realized_total - tc) / tc * 100 if tc > 0 else 0
+
+        delta = datetime.now(tz=ET) - self.start_date
+        dr = delta.days
+        runtime_hours = delta.total_seconds() / 3600
 
         return {
             'portfolio': {
-                'total_value': round(tv, 2), 'total_return': round(tr, 2),
+                'total_value': round(mtm_total, 2),
+                'mtm_value': round(mtm_total, 2),
+                'total_return': round(mtm_return, 2),
+                'realized_value': round(realized_total, 2),
+                'realized_return': round(realized_return, 2),
+                'unrealized_pnl': round(unrealized_dollars, 2),
                 'days_running': dr,
+                'runtime_hours': round(runtime_hours, 1),
                 'start_date': self.start_date.strftime('%Y-%m-%d'),
                 'last_update': self.last_update.strftime('%Y-%m-%d %H:%M:%S') if self.last_update else None,
                 'capital': CONFIG['capital'],
                 'allocations': {n: a.allocation for n, a in self.assets.items()},
                 'deployment_cleared': True,
+                'open_positions': open_positions,
+                'closed_trades': closed_trades,
             },
             'assets': ad,
             'halt_conditions': HALT,

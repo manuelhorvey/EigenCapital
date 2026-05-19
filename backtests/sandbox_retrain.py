@@ -27,6 +27,7 @@ from backtests.model_comparator import (
 )
 from backtests.forward_test import run_forward_test
 from backtests.mas import compute_mas
+from backtests.model_evolution import append_trajectory, print_equilibrium_report, load_trajectory, compute_mas_velocity
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("quantforge.sandbox_retrain")
@@ -217,6 +218,19 @@ def run_one_asset(
     logger.info("  Computing Model Acceptance Score...")
     mas_result = compute_mas(model_result, signal_result, portfolio_result, shadow_result, forward_result)
 
+    append_trajectory(
+        asset=name,
+        mas=mas_result.get("mas", 0),
+        delta_mas=mas_result.get("delta_mas", 0),
+        decision=mas_result.get("decision", "N/A"),
+        sub_scores=mas_result.get("sub_scores", {}),
+        forward_result=forward_result,
+    )
+    traj = load_trajectory(name)
+    velocities = compute_mas_velocity(traj, window=3)
+    vel_str = f"∇={velocities[-1]:+.4f}" if velocities else ""
+    logger.info("  %s MAS gradient: %s", name, vel_str)
+
     result = {
         "ticker": ticker,
         "name": name,
@@ -343,6 +357,7 @@ def main(force: bool = False, target_assets: Optional[list] = None):
             print(f'  {a["name"]:10s} [{verdict:5s}]  MAS=  REJECTED                '
                   f'acc: {acc_old:.4f}→{acc_new:.4f}  agree: {agree:.4f}')
     print(f"\nResults saved to {summary_path}")
+    print_equilibrium_report()
 
 
 if __name__ == "__main__":

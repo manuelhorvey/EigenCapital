@@ -403,10 +403,111 @@ def main(force: bool = False, target_assets: Optional[list] = None):
     print_equilibrium_report()
 
 
+def run_historical(force: bool = False, target_assets: Optional[list] = None):
+    logger.info("Loading macro data...")
+    macro = load_macro_data()
+    ref = fetch_history("SPY", years=15)
+    targets = target_assets if target_assets else TICKERS
+    now = pd.Timestamp.now()
+    test_years = [now.year - i for i in range(1, 6) if now.year - i >= 2016][::-1]
+
+    all_results = {}
+    for ticker in targets:
+        if ticker not in FEATURE_REGISTRY:
+            continue
+        contract = FEATURE_REGISTRY[ticker]
+        name = contract.name
+        logger.info("=" * 60)
+        logger.info("Historical: %s (%s) — %d yearly windows", ticker, name, len(test_years))
+        logger.info("=" * 60)
+        df = fetch_history(ticker)
+        X, y, _ = compute_training_data(ticker, macro, ref, df)
+        close = df["close"].reindex(X.index).ffill()
+        if len(X) < 200:
+            logger.warning("  %s: insufficient data", ticker)
+            continue
+        predict_fn = lambda m, x: XGBoostModel().predict(m, x)
+        year_results = []
+        for ty in test_years:
+            cutoff = pd.Timestamp(f"{ty}-01-01", tz="US/Eastern")
+            end_of_year = pd.Timestamp(f"{ty}-12-31", tz="US/Eastern")
+            train_mask = X.index < cutoff
+            test_mask = (X.index >= cutoff) & (X.index <= end_of_year)
+            if test_mask.sum() < 30:
+                logger.info("  %s %d: too few test rows (%d), skipping", name, ty, int(test_mask.sum()))
+                continue
+            X_train_hist = X[train_mask]
+            y_train_hist = y[train_mask]
+            X_test = X[test_mask]
+            y_test = y[test_mask]
+            close_test = close[test_mask]
+            if len(X_train_hist) < 200:
+                logger.info("  %s %d: insufficient train data (%d), skipping", name, ty, len(X_train_hist))
+                continue
+            split = int(len(X_train_hist) * 0.8)
+            model = xgb.XGBClassifier(
+                n_estimators=300, max_depth=2, learning_rate=0.02,
+                objective="multi:softprob", num_class=3,
+                random_state=42, n_jobs=1, tree_method="hist", verbosity=0,
+            )
+            model.fit(
+                X_train_hist.iloc[:split], y_train_hist.iloc[:split],
+                eval_set=[(X_train_hist.iloc[split:], y_train_hist.iloc[split:])],
+                verbose=False,
+            )
+            from backtests.forward_test import _forward_metrics, _regime_metrics, _classify_vol_regime
+            from sklearn.metrics import accuracy_score
+            proba = predict_fn(model, X_test)
+            fwd = _forward_metrics(proba, close_test)
+            yr_regime = _classify_vol_regime(close_test)
+            reg = _regime_metrics(proba, close_test, yr_regime)
+            acc = accuracy_score(y_test, proba.argmax(axis=1))
+            year_results.append({
+                "year": ty,
+                "n_train": len(X_train_hist),
+                "n_test": len(X_test),
+                "accuracy": round(float(acc), 4),
+                "sharpe": fwd["sharpe"],
+                "hit_rate": fwd["hit_rate"],
+                "max_drawdown": fwd["max_drawdown"],
+                "stability": fwd["stability"],
+                "regime_metrics": reg,
+            })
+        if year_results:
+            all_results[name] = year_results
+    if not all_results:
+        logger.warning("No historical results generated.")
+        return
+    out_dir = os.path.join(SANDBOX_BASE, "historical")
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "historical_results.json"), "w") as f:
+        json.dump({"test_years": test_years, "assets": all_results}, f, indent=2, default=str)
+    print("\n" + "=" * 100)
+    print("5-YEAR HISTORICAL WALK-FORWARD RESULTS")
+    print("=" * 100)
+    for name, yrs in sorted(all_results.items()):
+        avg_sharpe = float(np.mean([y["sharpe"] for y in yrs]))
+        avg_hit = float(np.mean([y["hit_rate"] for y in yrs]))
+        avg_dd = float(np.mean([y["max_drawdown"] for y in yrs]))
+        avg_acc = float(np.mean([y["accuracy"] for y in yrs]))
+        pos_windows = sum(1 for y in yrs if y["sharpe"] > 0)
+        years_str = "  ".join(f'{y["year"]}: S={y["sharpe"]:.2f} H={y["hit_rate"]:.2f} DD={y["max_drawdown"]:.3f}'
+                              for y in yrs)
+        print(f'\n  {name:10s}  avg(S)={avg_sharpe:.2f}  avg(H)={avg_hit:.2f}  '
+              f'avg(DD)={avg_dd:.3f}  avg(acc)={avg_acc:.4f}  '
+              f'pos_windows={pos_windows}/{len(yrs)}')
+        print(f'  {" " * 10}  {years_str}')
+    print(f'\nResults saved to {os.path.join(out_dir, "historical_results.json")}')
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Sandbox model retraining and comparison")
     parser.add_argument("--force", action="store_true", help="Retrain even if cached model exists")
     parser.add_argument("--assets", nargs="+", help="Specific assets to retrain (default: all)")
+    parser.add_argument("--historical", action="store_true", help="Run 5-year historical walk-forward evaluation")
     args = parser.parse_args()
-    main(force=args.force, target_assets=args.assets)
+    if args.historical:
+        run_historical(force=args.force, target_assets=args.assets)
+    else:
+        main(force=args.force, target_assets=args.assets)

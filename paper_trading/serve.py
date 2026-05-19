@@ -142,6 +142,32 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(data.encode('utf-8'))
+            elif path == '/shadow-actions':
+                snapshot = _STORE.load_snapshot()
+                actions = getattr(snapshot, 'shadow_actions', None) if snapshot else None
+                data = json.dumps(actions or {}, indent=2, default=str)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(data.encode('utf-8'))
+            elif path.startswith('/shadow-actions/') and path.endswith('.json'):
+                asset = path[len('/shadow-actions/'):-len('.json')]
+                snapshot = _STORE.load_snapshot()
+                actions = getattr(snapshot, 'shadow_actions', None) if snapshot else None
+                action = (actions or {}).get(asset)
+                if action is not None:
+                    data = json.dumps(action, indent=2, default=str)
+                    self.send_response(200)
+                else:
+                    data = json.dumps({'error': f'No shadow action for {asset}', 'asset': asset})
+                    self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(data.encode('utf-8'))
             else:
                 self.send_response(404)
                 self.end_headers()

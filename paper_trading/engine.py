@@ -169,12 +169,12 @@ class AssetEngine:
         self.current_price = None
         self.pos_mgr = PositionManager(self.initial_capital, CONFIG['position_size'])
         self.validity_sm = _ValidityStateMachine()
-        _reg = StrategyRegistry.get_instance()
-        self._model_iface = _reg.get_model(self.name)
-        self._signal_strategy = _reg.get_signal(self.name)
-        self._sizing_strategy = _reg.get_sizing(self.name)
-        self._pnl_strategy = _reg.get_pnl(self.name)
-        self._feature_pipeline = _reg.get_features(self.name)
+        self._reg = StrategyRegistry.get_instance()
+        self._model_iface = self._reg.get_model(self.name)
+        self._signal_strategy = self._reg.get_signal(self.name)
+        self._sizing_strategy = self._reg.get_sizing(self.name)
+        self._pnl_strategy = self._reg.get_pnl(self.name)
+        self._feature_pipeline = self._reg.get_features(self.name)
         self._research_mode = _cfg.get("research_mode", False)
         if state_store is not None:
             self.state_store = state_store
@@ -368,7 +368,7 @@ class AssetEngine:
         except Exception:
             pass
 
-        _reg.validate_strategies(self.name, {
+        self._reg.validate_strategies(self.name, {
             "_model": self._model_iface,
             "_signal": self._signal_strategy,
             "_sizing": self._sizing_strategy,

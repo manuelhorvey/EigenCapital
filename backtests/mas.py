@@ -219,22 +219,18 @@ def score_stress(forward_result: dict) -> float:
     bl_reg = forward_result.get("baseline_regime", {})
     nw_reg = forward_result.get("new_regime", {})
 
-    delta_sharpes = []
-    delta_dds = []
+    regime_scores = []
     for r in ["low_vol", "high_vol", "transition"]:
         bl_r = bl_reg.get(r, {})
         nw_r = nw_reg.get(r, {})
         d_sharpe = _safe(nw_r.get("sharpe")) - _safe(bl_r.get("sharpe"))
         d_sharpe = max(-1.0, min(1.0, d_sharpe))
-        delta_sharpes.append(d_sharpe)
         d_dd = _safe(nw_r.get("max_drawdown")) - _safe(bl_r.get("max_drawdown"))
-        d_dd = max(0.0, min(1.0, d_dd))
-        delta_dds.append(d_dd)
+        d_dd = max(-1.0, min(1.0, d_dd))
+        regime_scores.append(d_sharpe - d_dd)
 
-    mean_sharpe_delta = sum(delta_sharpes) / len(delta_sharpes) if delta_sharpes else 0.0
-    mean_dd_penalty = sum(1.0 - d for d in delta_dds) / len(delta_dds) if delta_dds else 1.0
-
-    return _clip01(0.5 * (mean_sharpe_delta + 1.0) / 2.0 + 0.5 * mean_dd_penalty)
+    mean_regime = sum(regime_scores) / len(regime_scores) if regime_scores else 0.0
+    return _clip01(0.5 + mean_regime / 4.0)
 
 
 def compute_mas(

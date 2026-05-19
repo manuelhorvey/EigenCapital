@@ -189,6 +189,8 @@ class AssetEngine:
         if self.name == 'CADJPY' or self.name == 'GC':
             ret = df['close'].pct_change(60).shift(-60)
             labels = ret.apply(lambda x: 2 if x > 0.02 else (0 if x < -0.02 else 1)).astype(int).dropna()
+            if labels.empty:
+                return pd.DataFrame()
             pi = pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) for x in labels.index])
             a = macro.reindex(pi, method='ffill')
             a.index = labels.index
@@ -205,6 +207,8 @@ class AssetEngine:
             a['label'] = labels
         else:
             labeled = apply_triple_barrier(df, pt_sl=[2, 2], vertical_barrier=20)
+            if ref is None or ref.empty:
+                ref = pd.DataFrame({'close': [1.0] * len(df)}, index=df.index)
             pi = pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) for x in labeled.index])
             a = macro.reindex(pi, method='ffill')
             a.index = labeled.index
@@ -232,17 +236,22 @@ class AssetEngine:
         if len(rets) < window:
             return 1.0
         rv = rets.iloc[-window:].std() * np.sqrt(252)
+        if pd.isna(rv) or np.isinf(rv):
+            return 1.0
         scalar = target_vol / (rv + 1e-9)
         return min(scalar, 1.0)
 
     def _tb_vol(self, df):
         returns = np.log(df['close'] / df['close'].shift(1))
         vol = returns.ewm(span=100).std()
-        return vol.iloc[-1] if not vol.isna().all() else 0.01
+        return vol.iloc[-1] if not pd.isna(vol.iloc[-1]) else 0.01
 
     def _open_position(self, side, entry_price, entry_date, df=None):
         data = df if df is not None else self.price_data
         vol = self._tb_vol(data)
+        if pd.isna(vol) or pd.isna(entry_price) or entry_price == 0:
+            logger.error('%s: invalid entry_price=%s or vol=%s', self.name, entry_price, vol)
+            return
         if side == 'long':
             sl = entry_price * (1 - vol * 2)
             tp = entry_price * (1 + vol * 2)
@@ -261,6 +270,9 @@ class AssetEngine:
             return
         side = self.position['side']
         entry = self.position['entry']
+        if pd.isna(entry) or pd.isna(exit_price) or entry == 0 or exit_price == 0:
+            logger.error('%s: invalid close entry=%s exit=%s', self.name, entry, exit_price)
+            return
         ret = (exit_price / entry - 1) if side == 'long' else (entry / exit_price - 1)
         pnl = self.current_value * ret * CONFIG['position_size']
         trade = {
@@ -278,7 +290,8 @@ class AssetEngine:
             df = safe_download(self.ticker, period='5d', auto_adjust=True, progress=False)
             if not df.empty:
                 df = flatten(df)
-                self.current_price = float(df['close'].iloc[-1])
+                close = float(df['close'].ffill().iloc[-1])
+                self.current_price = None if pd.isna(close) else close
         except Exception:
             pass
 
@@ -325,6 +338,8 @@ class AssetEngine:
         df = fetch_live(self.ticker)
         self.price_data = df
         df['close'] = df['close'].ffill()
+        if pd.isna(df['close'].iloc[-1]):
+            raise ValueError(f'All close prices are NaN for {self.name}')
         self.current_price = float(df['close'].iloc[-1])
         ref = fetch_ref('SPY')
         macro = load_macro()
@@ -427,6 +442,8 @@ class AssetEngine:
             side = self.position['side']
             sl = self.position['sl']
             tp = self.position['tp']
+            if pd.isna(sl) or pd.isna(tp) or pd.isna(today_close):
+                return
             hit = None
             if side == 'long':
                 if today_close <= sl:
@@ -454,7 +471,10 @@ class AssetEngine:
         sig = self.signal_data['signal'].iloc[-2]
         direction = 1 if sig == 2 else (-1 if sig == 0 else 0)
         pos_size = float(self.signal_data['position_size'].iloc[-2]) if 'position_size' in self.signal_data.columns else 1.0
-        ret = close.iloc[-1] / close.iloc[-2] - 1 if len(close) >= 2 else 0
+        prev_close = float(close.iloc[-2])
+        ret = (today_close / prev_close - 1) if len(close) >= 2 and prev_close != 0 and not pd.isna(today_close) and not pd.isna(prev_close) else 0
+        if pd.isna(ret) or np.isinf(ret):
+            ret = 0
         pnl = self.current_value * direction * ret * CONFIG['position_size'] * pos_size
         self.current_value += pnl
         if self.current_value > self.peak_value:
@@ -468,8 +488,10 @@ class AssetEngine:
             })
 
     def get_metrics(self):
-        dd = (self.current_value - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
-        total_return = (self.current_value - self.initial_capital) / self.initial_capital if self.initial_capital > 0 else 0
+        cv = self.current_value if not pd.isna(self.current_value) else self.initial_capital
+        pv = self.peak_value if not pd.isna(self.peak_value) else cv
+        dd = (cv - pv) / pv if pv > 0 else 0
+        total_return = (cv - self.initial_capital) / self.initial_capital if self.initial_capital > 0 else 0
 
         monthly_pfs = []
         if self.trade_log:
@@ -490,24 +512,28 @@ class AssetEngine:
         for p in self.prob_history:
             sc[p['signal']] = sc.get(p['signal'], 0) + 1
         mean_conf = np.mean([p['confidence'] for p in self.prob_history]) if self.prob_history else 0
+        mean_conf = 0 if pd.isna(mean_conf) else mean_conf
 
         pos_info = None
         if self.position:
+            upnl = self._position_pnl(self.current_price) if self.current_price is not None and not pd.isna(self.current_price) else 0.0
             pos_info = {
                 'side': self.position['side'],
                 'entry': round(self.position['entry'], 4),
                 'sl': round(self.position['sl'], 4),
                 'tp': round(self.position['tp'], 4),
                 'current_vol': round(self.position['vol'], 6),
-                'unrealized_pnl': round(self._position_pnl(self.current_price), 2) if self.position and self.current_price is not None else 0.0,
+                'unrealized_pnl': round(upnl, 2),
             }
 
-        pnl_pct = self._position_pnl(self.current_price) / 100 if self.position and self.current_price is not None else 0
-        mtm_value = self.current_value + self.current_value * pnl_pct * CONFIG['position_size']
+        pnl_pct = self._position_pnl(self.current_price) / 100 if self.position and self.current_price is not None and not pd.isna(self.current_price) else 0
+        mtm_value = cv + cv * pnl_pct * CONFIG['position_size']
         mtm_return = (mtm_value - self.initial_capital) / self.initial_capital * 100 if self.initial_capital > 0 else 0
 
         mean_pl = np.mean([p['prob_long'] for p in self.prob_history]) if self.prob_history else 0
+        mean_pl = 0 if pd.isna(mean_pl) else mean_pl
         mean_ps = np.mean([p['prob_short'] for p in self.prob_history]) if self.prob_history else 0
+        mean_ps = 0 if pd.isna(mean_ps) else mean_ps
 
         return {
             'asset': self.name,
@@ -556,13 +582,16 @@ class AssetEngine:
 
     def check_halt_conditions(self):
         metrics = self.get_metrics()
-        dd = metrics['drawdown'] / 100
+        dd = metrics.get('drawdown', 0) / 100
+        if pd.isna(dd):
+            dd = 0
         hc = self.halt_config
         reasons = []
         if dd <= hc['drawdown']:
             reasons.append(f'DD {metrics["drawdown"]:.1f}% <= {hc["drawdown"]*100:.0f}%')
-        if metrics['monthly_pf'] is not None and metrics['monthly_pf'] < hc['monthly_pf']:
-            reasons.append(f'PF {metrics["monthly_pf"]:.2f} < {hc["monthly_pf"]:.2f}')
+        mpf = metrics.get('monthly_pf')
+        if mpf is not None and not pd.isna(mpf) and mpf < hc['monthly_pf']:
+            reasons.append(f'PF {mpf:.2f} < {hc["monthly_pf"]:.2f}')
         # Signal drought: halt if no signal generated within threshold days
         drought_ok = True
         drought_days = hc.get('signal_drought', 30)
@@ -576,13 +605,15 @@ class AssetEngine:
         prob_drift_limit = hc.get('prob_drift', 0.15)
         metrics = self.get_metrics()
         mean_conf = metrics.get('mean_confidence', 0) / 100
+        if pd.isna(mean_conf):
+            mean_conf = 0
         drift = abs(mean_conf - self.expected_prob_conf)
         if drift > prob_drift_limit:
             reasons.append(f'Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}')
             drift_ok = False
         return {'halted': len(reasons) > 0, 'reasons': reasons,
                 'drawdown_ok': dd > hc['drawdown'],
-                'monthly_pf_ok': metrics['monthly_pf'] is None or metrics['monthly_pf'] >= hc['monthly_pf'],
+                'monthly_pf_ok': mpf is None or pd.isna(mpf) or mpf >= hc['monthly_pf'],
                 'drought_ok': drought_ok,
                 'drift_ok': drift_ok}
 
@@ -674,7 +705,10 @@ class PaperTradingEngine:
                 signal['close_price'] = metrics['current_price']
             ad[name] = {'metrics': metrics, 'halt': halt, 'last_signal': signal}
 
-        realized_total = sum(a.current_value for a in self.assets.values())
+        realized_total = sum(
+            a.current_value if not pd.isna(a.current_value) else a.initial_capital
+            for a in self.assets.values()
+        )
         tc = sum(a.initial_capital for a in self.assets.values())
 
         unrealized_dollars = 0
@@ -682,10 +716,12 @@ class PaperTradingEngine:
         closed_trades = 0
         for a in self.assets.values():
             closed_trades += len(a.trade_log)
-            if a.position and a.current_price is not None:
+            if a.position and a.current_price is not None and not pd.isna(a.current_price):
                 open_positions += 1
                 pnl_pct = a._position_pnl(a.current_price)
-                unrealized_dollars += a.current_value * (pnl_pct / 100) * CONFIG['position_size']
+                if not pd.isna(pnl_pct):
+                    cv = a.current_value if not pd.isna(a.current_value) else a.initial_capital
+                    unrealized_dollars += cv * (pnl_pct / 100) * CONFIG['position_size']
 
         mtm_total = realized_total + unrealized_dollars
         mtm_return = (mtm_total - tc) / tc * 100 if tc > 0 else 0
@@ -723,7 +759,7 @@ class PaperTradingEngine:
             return {k: self._sanitize(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [self._sanitize(v) for v in obj]
-        elif isinstance(obj, float) and (math.isinf(obj) or math.isnan(obj)):
+        elif isinstance(obj, (float, np.floating)) and (math.isinf(obj) or math.isnan(obj)):
             return None
         return obj
 

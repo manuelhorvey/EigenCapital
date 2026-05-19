@@ -31,10 +31,10 @@ function renderTradeFeed(){
   var html='';
   for(var i=0;i<tradeData.length;i++){
     var t=tradeData[i],ri=resultInfo(t.reason);
-    var ret=t['return']!=null?t['return']:0,retPct=(ret*100).toFixed(2);
+    var ret=t['return']!=null&&!isNaN(t['return'])?t['return']:0,retPct=(ret*100).toFixed(2);
     var side=(t.side||'').toUpperCase(),sideClass=side==='LONG'?'cell-buy':side==='SHORT'?'cell-sell':'';
     var bars='\u2014';
-    if(t.entry_date&&t.exit_date){var d1=new Date(t.entry_date),d2=new Date(t.exit_date);var diff=Math.max(1,Math.round((d2-d1)/(864e5)));bars=diff+'d'}
+    if(t.entry_date&&t.exit_date){var d1=new Date(t.entry_date),d2=new Date(t.exit_date);if(!isNaN(d1.getTime())&&!isNaN(d2.getTime())){var diff=Math.max(1,Math.round((d2-d1)/(864e5)));bars=diff+'d'}}
     html+='<tr><td class="cell-mono">'+(t.exit_date||'\u2014')+'</td>';
     html+='<td><strong>'+(t.asset||'\u2014')+'</strong></td>';
     html+='<td class="cell-signal '+sideClass+'">'+side+'</td>';
@@ -85,8 +85,8 @@ function render(state){
 
   var openPos=p.open_positions||0,closedPos=p.closed_trades||0;
   var realizedPct=p.realized_return!=null?p.realized_return:0;
-  var runtimeStr='0m';
-  if(days>0){runtimeStr=days+' days'}else if(p.start_datetime){var sd=new Date(p.start_datetime);if(!isNaN(sd.getTime())){var elapsedH=(Date.now()-sd.getTime())/36e5;runtimeStr=Math.floor(elapsedH)+'h '+Math.round((elapsedH%1)*60)+'m'}}
+  var runtimeStr='\u2014';
+  if(days>0){runtimeStr=days+' days'}else if(p.start_datetime){var sd=new Date(p.start_datetime);if(!isNaN(sd.getTime())&&sd.getTime()>0){var elapsedH=(Date.now()-sd.getTime())/36e5;runtimeStr=Math.floor(elapsedH)+'h '+Math.round((elapsedH%1)*60)+'m'}}
 
   document.getElementById('portfolioRow').innerHTML=
     '<div class="portfolio-card accent"><div class="portfolio-label">Portfolio Value</div><div class="portfolio-value" style="color:var(--accent)">$'+fmt(totalValue,2)+'</div><div class="portfolio-sub">Capital: $'+fmt(capital,2)+'</div></div>'+
@@ -102,10 +102,10 @@ function render(state){
     var entry=null,stop=null,tp=null,upnl=null;
     var pos=m.position;
     if(pos){entry=pos.entry;stop=pos.sl;tp=pos.tp;upnl=pos.unrealized_pnl}
-    var val=m.current_value||0,ret=m.mtm_return!=null?m.mtm_return:(m.total_return||0),dd=m.drawdown||0;
+    var val=m.current_value||0,ret=m.mtm_return!=null&&!isNaN(m.mtm_return)?m.mtm_return:(m.total_return||0),dd=m.drawdown||0;
     var confColor=conf>=60?'var(--green)':conf>=45?'var(--amber)':'var(--red)';
-    var price=s?s.close_price:null;
-    var prevPos=prevPositions[name],isNewEntry=pos&&pos.entry&&(!prevPos||prevPos.entry!==pos.entry);
+    var price=s&&s.close_price!=null&&!isNaN(s.close_price)?s.close_price:null;
+    var prevPos=prevPositions[name],isNewEntry=pos&&pos.entry!=null&&!isNaN(pos.entry)&&(!prevPos||prevPos.entry!==pos.entry);
     if(isNewEntry){newBadgeTimers[name]=60}
     if(!isNewEntry&&newBadgeTimers[name]>0){newBadgeTimers[name]--}
     prevPositions[name]=pos?{entry:pos.entry}:null;

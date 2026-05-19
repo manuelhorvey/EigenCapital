@@ -1,10 +1,17 @@
-import math
-import numpy as np
 import pandas as pd
+import numpy as np
 from typing import Optional
 
 from features.builder import build_features, compute_macro_derived
 from features.contract import FeatureContract
+from shared.signal import FixedThresholdStrategy
+from shared.sizing import VolTargetSizing
+from shared.pnl import DefaultPnLStrategy
+
+
+_signal_strategy = FixedThresholdStrategy()
+_sizing_strategy = VolTargetSizing()
+_pnl_strategy = DefaultPnLStrategy()
 
 
 def compute_proba(model, X: pd.DataFrame) -> np.ndarray:
@@ -16,17 +23,11 @@ def compute_signals(
     index: pd.Index,
     threshold: float = 0.45,
 ) -> pd.DataFrame:
-    probs_long = proba[:, 2]
-    probs_short = proba[:, 0]
-    signals = pd.Series(0, index=index)
-    signals[probs_long > threshold] = 2
-    signals[probs_short > threshold] = 0
-    return pd.DataFrame({
-        "signal": signals,
-        "prob_long": probs_long,
-        "prob_short": probs_short,
-        "prob_neutral": proba[:, 1],
-    }, index=index)
+    return _signal_strategy.compute(
+        proba, index, threshold,
+        close=pd.Series([0.0], index=index[:1]),
+        position_size=1.0,
+    ).signal_data.drop(columns=["close"], errors="ignore")
 
 
 def signal_type_and_confidence(
@@ -45,14 +46,8 @@ def compute_vol_scalar(
     window: int = 30,
     target_vol: float = 0.30,
 ) -> float:
-    rets = close.pct_change().dropna()
-    if len(rets) < window:
-        return 1.0
-    rv = rets.iloc[-window:].std() * np.sqrt(252)
-    if pd.isna(rv) or np.isinf(rv):
-        return 1.0
-    scalar = target_vol / (rv + 1e-9)
-    return min(scalar, 1.0)
+    config = {"vol_scalar": True} if window == 30 and target_vol == 0.30 else {}
+    return _sizing_strategy.compute(close, config)
 
 
 def compute_tb_vol(close: pd.Series, span: int = 100, floor: float = 0.01) -> float:
@@ -68,7 +63,7 @@ def compute_daily_pnl(
     position_size_fraction: float,
     pos_size: float = 1.0,
 ) -> float:
-    return current_value * direction * ret * position_size_fraction * pos_size
+    return _pnl_strategy.compute_daily(current_value, direction, ret, position_size_fraction, pos_size)
 
 
 def compute_position_return(

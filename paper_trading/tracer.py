@@ -55,16 +55,6 @@ def trace_decision(
     })
 
 
-def trace_model_input(asset: str, feature_names: list, row_sample: dict) -> None:
-    _append({
-        "event": "model_input",
-        "timestamp": datetime.utcnow().isoformat(),
-        "asset": asset,
-        "feature_names": feature_names,
-        "feature_values_sample": row_sample,
-    })
-
-
 def shadow_compare_signal(
     asset: str,
     proba_produced: list,
@@ -83,6 +73,21 @@ def shadow_compare_signal(
             "proba": proba_produced,
             "wrapper": {"signal": wrapper_signal, "confidence": wrapper_confidence},
             "original": {"signal": original_signal, "confidence": original_confidence},
+        })
+
+
+def shadow_compare_pnl(
+    asset: str,
+    wrapper_pnl: float,
+    original_pnl: float,
+) -> None:
+    if abs(wrapper_pnl - original_pnl) > 1e-10:
+        _append({
+            "event": "shadow_pnl_mismatch",
+            "timestamp": datetime.utcnow().isoformat(),
+            "asset": asset,
+            "wrapper_pnl": wrapper_pnl,
+            "original_pnl": original_pnl,
         })
 
 

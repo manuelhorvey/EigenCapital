@@ -14,7 +14,7 @@ from paper_trading.decision import TradeDecision, PositionIntent
 from paper_trading.position_manager import PositionManager
 from monitoring.validity_state_machine import ValidityStateMachine as _ValidityStateMachine, ValidityState as _ValidityState
 from enum import Enum
-from paper_trading.tracer import trace_decision, shadow_compare_signal, shadow_compare_sizing
+from paper_trading.tracer import trace_decision, shadow_compare_signal, shadow_compare_sizing, shadow_compare_pnl
 from paper_trading import wrappers as _w
 from shared.registry import StrategyRegistry
 
@@ -184,16 +184,6 @@ class AssetEngine:
 
     def _build_features(self, df, ref, macro):
         return build_features(df, macro, ref, self.contract)
-
-    def _vol_scalar(self, df, window=30, target_vol=0.30):
-        rets = df['close'].pct_change().dropna()
-        if len(rets) < window:
-            return 1.0
-        rv = rets.iloc[-window:].std() * np.sqrt(252)
-        if pd.isna(rv) or np.isinf(rv):
-            return 1.0
-        scalar = target_vol / (rv + 1e-9)
-        return min(scalar, 1.0)
 
     def _tb_vol(self, df):
         returns = np.log(df['close'] / df['close'].shift(1))
@@ -452,6 +442,11 @@ class AssetEngine:
         if pd.isna(ret) or np.isinf(ret):
             ret = 0
         pnl = self.pos_mgr.compute_daily_pnl(direction, ret, pos_size)
+        _shadow_pnl = _w.compute_daily_pnl(
+            self.pos_mgr.current_value, direction, ret,
+            self.pos_mgr.position_size, pos_size,
+        )
+        shadow_compare_pnl(asset=self.name, wrapper_pnl=_shadow_pnl, original_pnl=pnl)
         self.pos_mgr.apply_pnl(pnl)
         self.current_value = self.pos_mgr.current_value
         self.peak_value = self.pos_mgr.peak_value

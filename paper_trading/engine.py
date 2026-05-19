@@ -21,6 +21,7 @@ from paper_trading.risk_governance import evaluate as _risk_evaluate
 from paper_trading.shadow_actions import compute_shadow_actions as _compute_shadow
 from paper_trading.drift_scoring import get_shadow_intelligence as _get_drift
 from paper_trading.shadow_feedback import record_shadow_feedback as _record_feedback
+from paper_trading.shadow_learning import compile_shadow_learning as _compile_learning
 from paper_trading import wrappers as _w
 from shared.registry import StrategyRegistry
 
@@ -183,6 +184,7 @@ class AssetEngine:
         self._risk_signal = None
         self._shadow_action = None
         self._shadow_drift_intel = None
+        self._shadow_learning = None
         self._research_mode = _cfg.get("research_mode", False)
         if state_store is not None:
             self.state_store = state_store
@@ -389,6 +391,12 @@ class AssetEngine:
                 drift=self._shadow_drift_intel,
                 risk=self._risk_signal,
                 action=self._shadow_action,
+            )
+            self._shadow_learning = _compile_learning(
+                asset=self.name,
+                feedback_logs=None,
+                drift_history=self._shadow_drift_intel,
+                risk_history=self._risk_signal,
             )
         except Exception:
             pass

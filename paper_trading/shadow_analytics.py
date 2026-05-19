@@ -2,7 +2,10 @@ import os
 from collections import Counter
 from typing import Optional
 
+import numpy as np
+
 from paper_trading.shadow_feedback import read_feedback
+from paper_trading.shadow_learning import compile_shadow_learning, load_compiled
 
 
 PAPER_PORTFOLIO = ["BTC", "NZDJPY", "CADJPY", "USDCAD", "GC", "EURAUD"]
@@ -89,3 +92,64 @@ def compare_assets(months: int = 3) -> list:
         }
     except Exception:
         return {"stability_ranking": [], "profiles": []}
+
+
+def compare_learning_profiles() -> dict:
+    try:
+        rankings = []
+        for asset in PAPER_PORTFOLIO:
+            compiled = compile_shadow_learning(asset)
+            profile = compiled.get("learning_profile", {})
+            insights = compiled.get("shadow_insights", {})
+            if compiled.get("event_count", 0) == 0:
+                continue
+            rankings.append({
+                "asset": asset,
+                "stability": profile.get("behavioral_stability", 0.0),
+                "drift_resilience": profile.get("drift_resilience", 0.0),
+                "risk_sensitivity": profile.get("risk_sensitivity", 0.0),
+                "execution_fragility": insights.get("execution_fragility_score", 0.0),
+                "dominant_failure_mode": insights.get("dominant_failure_mode", "unknown"),
+            })
+
+        rankings.sort(key=lambda r: r["stability"], reverse=True)
+        return {"rankings": rankings}
+    except Exception:
+        return {"rankings": []}
+
+
+def detect_systemic_patterns() -> dict:
+    try:
+        all_patterns = Counter()
+        fragility_scores = []
+        risk_signatures = []
+
+        for asset in PAPER_PORTFOLIO:
+            compiled = compile_shadow_learning(asset)
+            for p in compiled.get("latent_patterns", []):
+                all_patterns[p] += 1
+            fragility_scores.append(
+                compiled.get("shadow_insights", {}).get("execution_fragility_score", 0.0)
+            )
+            profile = compiled.get("learning_profile", {})
+            risk_signatures.append(1.0 - profile.get("behavioral_stability", 0.0))
+
+        global_patterns = [
+            p for p, count in all_patterns.most_common()
+            if count >= len(PAPER_PORTFOLIO) * 0.3
+        ]
+
+        if not global_patterns and all_patterns:
+            top = all_patterns.most_common(1)
+            if top:
+                global_patterns = [top[0][0]]
+
+        sys_risk = float(np.mean(risk_signatures)) if risk_signatures else 0.0
+
+        return {
+            "global_patterns": global_patterns,
+            "system_risk_signature": round(sys_risk, 4),
+            "pattern_frequency": dict(all_patterns.most_common(5)),
+        }
+    except Exception:
+        return {"global_patterns": [], "system_risk_signature": 0.0, "pattern_frequency": {}}

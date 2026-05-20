@@ -41,6 +41,8 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
       dist: m.signal_distribution,
       currentValue: m.current_value ?? 0,
       isNew,
+      slMult: asset.sl_mult,
+      tpMult: asset.tp_mult,
     }
   }, [asset, data, name])
 
@@ -97,6 +99,15 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
           </div>
         ))}
       </div>
+
+      {info.slMult != null && info.tpMult != null && (
+        <div className="mt-2.5 bg-panel/30 border border-default/40 rounded-lg px-2.5 py-1.5 flex items-center justify-between text-[11px] text-tertiary">
+          <span className="font-medium text-tertiary">Multipliers</span>
+          <span className="font-mono text-secondary font-semibold">
+            SL <span className="text-red-400">{info.slMult.toFixed(2)}x</span> · TP <span className="text-emerald-400">{info.tpMult.toFixed(2)}x</span>
+          </span>
+        </div>
+      )}
 
       {info.pos && (
         <div className="mt-2 pt-2 border-t border-default space-y-1.5">

@@ -55,6 +55,8 @@ export interface AssetState {
   validity_exposure?: number
   last_signal: LastSignal
   execution_state?: string
+  sl_mult?: number
+  tp_mult?: number
 }
 
 export interface AssetMetrics {

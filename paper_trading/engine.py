@@ -754,15 +754,18 @@ class PaperTradingEngine:
                 asset = self.assets[name]
                 pos_dict = pos_data.get('position')
                 if pos_dict:
-                    asset.position = pos_dict
-                    intent = PositionIntent(
+                    # Dynamically recalculate stop_loss and take_profit based on current configuration multiples to reflect changes
+                    intent = PositionIntent.from_price_and_vol(
                         side=pos_dict['side'],
                         entry_price=pos_dict['entry'],
                         entry_date=pos_dict['entry_date'],
-                        stop_loss=pos_dict['sl'],
-                        take_profit=pos_dict['tp'],
                         vol=pos_dict['vol'],
+                        sl_mult=asset.sl_mult,
+                        tp_mult=asset.tp_mult,
                     )
+                    pos_dict['sl'] = intent.stop_loss
+                    pos_dict['tp'] = intent.take_profit
+                    asset.position = pos_dict
                     asset.pos_mgr.open(intent)
                 cv = pos_data.get('current_value')
                 if cv is not None:
@@ -831,6 +834,8 @@ class PaperTradingEngine:
                 'validity_exposure': validity.get('exposure', 0.5),
                 'last_signal': signal,
                 'execution_state': 'HALTED' if halt['halted'] else 'ACTIVE',
+                'sl_mult': asset.sl_mult,
+                'tp_mult': asset.tp_mult,
             }
         n = len(self.assets) or 1
         exec_state = ExecutionState.HALTED if any_halted else (

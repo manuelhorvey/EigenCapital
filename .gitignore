@@ -13,3 +13,6 @@ paper_trading/models/
 data/live/
 data/shadow_memory/
 data/sandbox/
+paper_trading/dashboard/node_modules/
+paper_trading/dashboard/dist/
+paper_trading/dashboard/tsconfig.tsbuildinfo

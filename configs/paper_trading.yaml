@@ -14,9 +14,9 @@ halt:
 assets:
   BTC:
     ticker: BTC-USD
-    allocation: 0.14
-    sl_mult: 1.5
-    tp_mult: 3.0
+    allocation: 0.05
+    sl_mult: 0.58
+    tp_mult: 1.51
     features: [rate_diff, 2y_yield_delta_63, vix_delta_5, dxy_mom_21, vix_ma21, btc_mom_10, btc_mom_21, btc_vs_spy_21, btc_mom_63, btc_vs_spy_63]
     halt:
       drawdown: -0.15
@@ -27,9 +27,9 @@ assets:
       vol_scalar: true
   EURAUD:
     ticker: EURAUD=X
-    allocation: 0.17
-    sl_mult: 0.75
-    tp_mult: 2.25
+    allocation: 0.20
+    sl_mult: 0.54
+    tp_mult: 1.77
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, euraud_mom_21, euraud_mom_63]
     halt:
       drawdown: -0.08
@@ -40,8 +40,8 @@ assets:
   GC:
     ticker: GC=F
     allocation: 0.15
-    sl_mult: 1.2
-    tp_mult: 4.0
+    sl_mult: 0.51
+    tp_mult: 2.67
     features: [real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63]
     halt:
       drawdown: -0.08
@@ -51,9 +51,9 @@ assets:
     config: {}
   NZDJPY:
     ticker: NZDJPY=X
-    allocation: 0.11
-    sl_mult: 0.75
-    tp_mult: 2.25
+    allocation: 0.13
+    sl_mult: 0.51
+    tp_mult: 2.02
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21]
     halt:
       drawdown: -0.08
@@ -64,8 +64,8 @@ assets:
   CADJPY:
     ticker: CADJPY=X
     allocation: 0.10
-    sl_mult: 0.8
-    tp_mult: 3.5
+    sl_mult: 0.52
+    tp_mult: 1.65
     features: [vix_ma21, ca_jp_spread_mom_21, us_jp_10y_spread, vix_delta_5, ca_jp_10y_spread, dxy_mom_21, cadjpy_mom_10, cadjpy_mom_21, cadjpy_mom_63]
     halt:
       drawdown: -0.08
@@ -76,8 +76,8 @@ assets:
   AUDJPY:
     ticker: AUDJPY=X
     allocation: 0.07
-    sl_mult: 0.75
-    tp_mult: 2.25
+    sl_mult: 0.52
+    tp_mult: 2.01
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, audjpy_mom_21, audjpy_mom_63]
     halt:
       drawdown: -0.08
@@ -88,8 +88,8 @@ assets:
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.07
-    sl_mult: 0.75
-    tp_mult: 2.25
+    sl_mult: 0.52
+    tp_mult: 1.90
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdcad_mom_21, usdcad_mom_63]
     halt:
       drawdown: -0.08
@@ -100,8 +100,8 @@ assets:
   GBPJPY:
     ticker: GBPJPY=X
     allocation: 0.06
-    sl_mult: 1.0
-    tp_mult: 2.5
+    sl_mult: 0.50
+    tp_mult: 2.22
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, gbpjpy_mom_21, gbpjpy_mom_63]
     halt:
       drawdown: -0.08
@@ -112,8 +112,8 @@ assets:
   USDJPY:
     ticker: USDJPY=X
     allocation: 0.05
-    sl_mult: 1.0
-    tp_mult: 2.5
+    sl_mult: 0.52
+    tp_mult: 1.97
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, dxy_mom_21, usdjpy_mom_21, usdjpy_mom_63]
     halt:
       drawdown: -0.08
@@ -124,8 +124,8 @@ assets:
   USDCHF:
     ticker: USDCHF=X
     allocation: 0.04
-    sl_mult: 0.75
-    tp_mult: 2.25
+    sl_mult: 0.52
+    tp_mult: 2.04
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdchf_mom_21, usdchf_mom_63]
     halt:
       drawdown: -0.08
@@ -136,8 +136,8 @@ assets:
   GBPUSD:
     ticker: GBPUSD=X
     allocation: 0.04
-    sl_mult: 1.0
-    tp_mult: 2.5
+    sl_mult: 0.52
+    tp_mult: 1.97
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, gbpusd_mom_21, gbpusd_mom_63]
     halt:
       drawdown: -0.08

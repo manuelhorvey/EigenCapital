@@ -802,6 +802,10 @@ class PaperTradingEngine:
                 results[name] = signal
             except Exception as e:
                 results[name] = {'asset': name, 'error': str(e)}
+        # Update validity-driven exposure multipliers
+        for name, asset in self.assets.items():
+            validity = asset.update_validity()
+            asset.pos_mgr.exposure_multiplier = validity.get('exposure', 1.0)
         self.last_update = datetime.now(tz=ET)
         return results
 

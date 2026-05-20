@@ -20,6 +20,7 @@ class PositionManager:
         self.current_value = initial_capital
         self.peak_value = initial_capital
         self.position_size = position_size
+        self.exposure_multiplier = 1.0
         self.position: Optional[PositionIntent] = None
         self.trade_log: list = []
 
@@ -35,7 +36,7 @@ class PositionManager:
             logger.error("Invalid close entry=%s exit=%s", entry, exit_price)
             return None
         ret = (exit_price / entry - 1) if side == "long" else (entry / exit_price - 1)
-        pnl = self.current_value * ret * self.position_size
+        pnl = self.current_value * ret * self.position_size * self.exposure_multiplier
         trade = {
             "asset": "",
             "side": side,
@@ -89,7 +90,7 @@ class PositionManager:
         return self.position is not None
 
     def compute_daily_pnl(self, direction: int, ret: float, pos_size: float = 1.0) -> float:
-        return self.current_value * direction * ret * self.position_size * pos_size
+        return self.current_value * direction * ret * self.position_size * pos_size * self.exposure_multiplier
 
     def apply_pnl(self, pnl: float) -> None:
         self.current_value += pnl

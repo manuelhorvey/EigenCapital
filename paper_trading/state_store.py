@@ -107,9 +107,12 @@ class StateStore:
 
     def append_confidence_bucket(self, bucket: dict) -> None:
         df = pd.DataFrame([bucket])
-        if os.path.exists(self.confidence_bucket_path):
-            existing = pd.read_parquet(self.confidence_bucket_path)
-            df = pd.concat([existing, df], ignore_index=True)
+        if os.path.exists(self.confidence_bucket_path) and os.path.getsize(self.confidence_bucket_path) > 0:
+            try:
+                existing = pd.read_parquet(self.confidence_bucket_path)
+                df = pd.concat([existing, df], ignore_index=True)
+            except Exception:
+                pass
         df.to_parquet(self.confidence_bucket_path)
 
     def append_equity_history(self, record: dict) -> None:

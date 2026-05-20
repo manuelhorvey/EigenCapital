@@ -15,7 +15,7 @@ source .venv/bin/activate
 
 # Build React dashboard
 echo "  Building dashboard..."
-(cd paper_trading/dashboard && yarn build 2>/dev/null) || echo "  Dashboard build skipped (yarn not available or error)"
+(cd paper_trading/dashboard && yarn build) || echo "  Dashboard build skipped (error above)"
 
 # Check if port 5000 is in use by QuantForge — kill only orphaned processes
 # Avoids killing non-QuantForge services

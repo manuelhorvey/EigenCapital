@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import type { VolRegime } from '../types/portfolio'
 
@@ -22,6 +22,12 @@ function volStatus(ratio: number): VolRegime['status'] {
   return 'red'
 }
 
+const statusConfig = {
+  green: { label: 'NORMAL', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', bar: 'bg-emerald-500' },
+  amber: { label: 'WATCH', bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', bar: 'bg-amber-500' },
+  red: { label: 'ELEVATED', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', bar: 'bg-red-500' },
+}
+
 export default function VolRegimePanel() {
   const { data } = usePortfolioState()
 
@@ -40,35 +46,42 @@ export default function VolRegimePanel() {
   }, [data])
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-      <h2 className="text-sm font-semibold mb-3">Vol Regime</h2>
+    <div className="card-gradient card-border rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-2 h-2 rounded-full bg-amber-500/50" />
+        <h2 className="text-sm font-semibold text-primary">Vol Regime</h2>
+      </div>
       {regimes.length === 0 ? (
-        <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-8">No position data yet</div>
+        <div className="text-xs text-tertiary text-center py-8">No position data yet</div>
       ) : (
         <div className="space-y-2">
-          {regimes.map(r => (
-            <div key={r.asset} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-200 dark:border-gray-800 last:border-0">
-              <span className="font-medium w-16">{r.asset}</span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                r.status === 'green' ? 'bg-emerald-950 text-emerald-400' :
-                r.status === 'amber' ? 'bg-amber-950 text-amber-400' :
-                'bg-red-950 text-red-400'
-              }`}>
-                {r.status.toUpperCase()}
-              </span>
-              <span className="font-mono text-gray-400 dark:text-gray-500">
-                {r.current_vol.toFixed(4)}
-              </span>
-              <span className="font-mono text-gray-500">
-                / {r.training_vol.toFixed(4)}
-              </span>
-              <span className={`font-mono w-12 text-right ${
-                r.status === 'green' ? 'text-emerald-400' : r.status === 'amber' ? 'text-amber-400' : 'text-red-400'
-              }`}>
-                {r.ratio.toFixed(2)}x
-              </span>
-            </div>
-          ))}
+          {regimes.map(r => {
+            const cfg = statusConfig[r.status]
+            const barWidth = Math.min((r.ratio / 1.5) * 100, 100)
+            return (
+              <div key={r.asset} className="bg-panel rounded-lg p-3 transition-colors hover:bg-panel/80">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-primary">{r.asset}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                    {cfg.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] mb-1.5">
+                  <span className="text-tertiary">Current</span>
+                  <span className="font-mono text-secondary">{r.current_vol.toFixed(4)}</span>
+                  <span className="text-tertiary">/ Baseline</span>
+                  <span className="font-mono text-tertiary">{r.training_vol.toFixed(4)}</span>
+                  <span className={`font-mono ml-auto ${cfg.text}`}>{r.ratio.toFixed(2)}x</span>
+                </div>
+                <div className="w-full h-1 bg-panel rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${cfg.bar}`}
+                    style={{ width: `${barWidth}%` }}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

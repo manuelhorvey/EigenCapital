@@ -1,6 +1,22 @@
 import { useHaltStatus } from '../hooks/useHaltStatus'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 
+function CheckIcon() {
+  return (
+    <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+function XIcon() {
+  return (
+    <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
 export default function HaltConditions() {
   const { data } = usePortfolioState()
   const status = useHaltStatus(data)
@@ -36,17 +52,28 @@ export default function HaltConditions() {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map(c => (
-        <div key={c.label} className={`border rounded-xl p-4 ${
-          c.pass
-            ? 'bg-emerald-950/10 border-emerald-800/30'
-            : 'bg-red-950/10 border-red-800/30'
-        }`}>
-          <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">{c.label}</div>
-          <div className={`text-lg font-bold ${c.pass ? 'text-emerald-400' : 'text-red-400'}`}>
+        <div
+          key={c.label}
+          className={`rounded-xl p-4 border transition-all duration-200 ${
+            c.pass
+              ? 'bg-emerald-500/5 border-emerald-500/15'
+              : 'bg-red-500/5 border-red-500/15'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] text-tertiary font-medium tracking-wide">{c.label}</span>
+            <div className={`p-0.5 rounded-full ${c.pass ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+              {c.pass ? <CheckIcon /> : <XIcon />}
+            </div>
+          </div>
+          <div className={`text-lg font-bold tracking-tight metric-value ${c.pass ? 'text-emerald-400' : 'text-red-400'}`}>
             {c.value}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">
-            {c.pass ? '✓' : '✗'} {c.threshold}
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-[11px] text-tertiary">Threshold:</span>
+            <span className={`text-[11px] font-mono ${c.pass ? 'text-secondary' : 'text-red-400/70'}`}>
+              {c.threshold}
+            </span>
           </div>
         </div>
       ))}

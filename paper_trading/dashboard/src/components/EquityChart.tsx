@@ -63,21 +63,27 @@ export default function EquityChart() {
 
   if (chartData.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-        <h2 className="text-sm font-semibold mb-3">Equity Curve</h2>
-        <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-8">Waiting for data...</div>
+      <div className="card-gradient card-border rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
+          <h2 className="text-sm font-semibold text-primary">Equity Curve</h2>
+        </div>
+        <div className="text-xs text-tertiary text-center py-8">Waiting for data...</div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold">Equity Curve</h2>
-        <span className="text-xs text-gray-400 dark:text-gray-500">{chartData.length} points</span>
+    <div className="card-gradient card-border rounded-xl p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
+          <h2 className="text-sm font-semibold text-primary">Equity Curve</h2>
+        </div>
+        <span className="text-[11px] text-tertiary">{chartData.length} data points</span>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-4">
         {['portfolio', ...assetNames].map(name => {
           const active = selected.has(name)
           const color = name === 'portfolio' ? '#34d399' : COLORS[assetNames.indexOf(name) % COLORS.length]
@@ -85,12 +91,16 @@ export default function EquityChart() {
             <button
               key={name}
               onClick={() => toggle(name)}
-              className={`px-1.5 py-0.5 rounded border text-[10px] font-medium transition-colors ${
-                active ? 'text-gray-50 dark:text-gray-900 border-gray-400 dark:border-gray-600' : 'text-gray-500 border-gray-700 hover:border-gray-500'
+              className={`px-2 py-1 rounded-lg border text-[10px] font-medium transition-all duration-200 ${
+                active
+                  ? 'text-primary bg-panel border-strong'
+                  : 'text-tertiary border-default hover:border-strong hover:text-secondary'
               }`}
-              style={active ? { backgroundColor: color + '30', borderColor: color } : {}}
             >
-              {name}
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active ? color : 'var(--color-text-muted)' }} />
+                {name}
+              </span>
             </button>
           )
         })}
@@ -99,19 +109,25 @@ export default function EquityChart() {
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-            <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#6b7280' }} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} domain={['auto', 'auto']} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-panel)" />
+            <XAxis dataKey="t" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} interval="preserveStartEnd" axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
             <Tooltip
-              contentStyle={{ background: '#111827', border: '1px solid #1f2937', borderRadius: '8px', fontSize: '12px' }}
-              labelStyle={{ color: '#9ca3af' }}
+              contentStyle={{
+                background: 'var(--color-card)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '8px',
+                fontSize: '12px',
+                boxShadow: 'var(--shadow-lift)',
+              }}
+              labelStyle={{ color: 'var(--color-text-tertiary)' }}
             />
             {selected.has('portfolio') && (
-              <Area type="monotone" dataKey="portfolio" stroke="#34d399" fill="#34d399" fillOpacity={0.1} strokeWidth={2} name="Portfolio" />
+              <Area type="monotone" dataKey="portfolio" stroke="#34d399" fill="#34d399" fillOpacity={0.08} strokeWidth={2} name="Portfolio" />
             )}
             {assetNames.map((a, i) =>
               selected.has(a) ? (
-                <Area key={a} type="monotone" dataKey={a} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.05} strokeWidth={1.5} name={a} />
+                <Area key={a} type="monotone" dataKey={a} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.04} strokeWidth={1.5} name={a} />
               ) : null
             )}
           </AreaChart>

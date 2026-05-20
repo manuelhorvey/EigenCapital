@@ -12,10 +12,14 @@ import Footer from './components/Footer'
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-app text-secondary">
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03]" style={{
+        backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
+      }} />
       <Header />
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6 relative">
         <PortfolioSummary />
         <AssetGrid />
         <HaltConditions />

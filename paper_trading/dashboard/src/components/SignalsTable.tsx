@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
+import { formatAssetPrice } from '../utils/format'
 
 export default function SignalsTable() {
   const { data } = usePortfolioState()
@@ -18,50 +19,83 @@ export default function SignalsTable() {
   if (rows.length === 0) return null
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
-      <h2 className="text-sm font-semibold mb-3">Signals</h2>
-      <div className="overflow-x-auto">
+    <div className="card-gradient card-border rounded-xl p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
+          <h2 className="text-sm font-semibold text-primary">Signals</h2>
+        </div>
+        <span className="text-[11px] text-tertiary">{rows.length} assets</span>
+      </div>
+      <div className="overflow-x-auto -mx-4 px-4">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-800">
-              <th className="text-left py-2 pr-3">Asset</th>
-              <th className="text-left py-2 pr-3">Direction</th>
-              <th className="text-left py-2 pr-3">Signal</th>
-              <th className="text-right py-2 pr-3">Conf</th>
-              <th className="text-right py-2 pr-3">Price</th>
-              <th className="text-right py-2 pr-3">Alloc</th>
-              <th className="text-right py-2 pr-3">Return</th>
-              <th className="text-right py-2">DD</th>
+            <tr className="border-b border-default">
+              <th className="table-header text-left py-2.5 pr-4">Asset</th>
+              <th className="table-header text-left py-2.5 pr-4">Direction</th>
+              <th className="table-header text-left py-2.5 pr-4">Signal</th>
+              <th className="table-header text-right py-2.5 pr-4">Confidence</th>
+              <th className="table-header text-right py-2.5 pr-4">Price</th>
+              <th className="table-header text-right py-2.5 pr-4">Allocation</th>
+              <th className="table-header text-right py-2.5 pr-4">Return</th>
+              <th className="table-header text-right py-2.5">Drawdown</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ name, sig, m, alloc }) => (
-              <tr key={name} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                <td className="py-2 pr-3 font-medium">{name}</td>
-                <td className="py-2 pr-3 text-gray-400 dark:text-gray-500">
+            {rows.map(({ name, sig, m, alloc }, i) => (
+              <tr
+                key={name}
+                className={`border-b border-default/50 transition-colors hover:bg-panel/50 ${
+                  i % 2 === 0 ? '' : 'bg-panel/30'
+                }`}
+              >
+                <td className="py-2.5 pr-4">
+                  <span className="font-medium text-primary">{name}</span>
+                </td>
+                <td className="py-2.5 pr-4 text-secondary">
                   {sig?.signal === 'BUY' ? 'Bullish' : sig?.signal === 'SELL' ? 'Bearish' : 'Neutral'}
                 </td>
-                <td className={`py-2 pr-3 font-medium ${
-                  sig?.signal === 'BUY' ? 'text-emerald-400' : sig?.signal === 'SELL' ? 'text-red-400' : 'text-amber-400'
-                }`}>
-                  {sig?.signal ?? 'FLAT'}
-                </td>
-                <td className="py-2 pr-3 text-right font-mono">
-                  <span className="inline-block w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden align-middle mr-1.5">
-                    <span className={`block h-full rounded-full ${
-                      (sig?.confidence ?? 0) >= 60 ? 'bg-emerald-500' : (sig?.confidence ?? 0) >= 45 ? 'bg-amber-500' : 'bg-red-500'
-                    }`} style={{ width: `${Math.min(sig?.confidence ?? 0, 100)}%` }} />
+                <td className="py-2.5 pr-4">
+                  <span className={`signal-pill ${
+                    sig?.signal === 'BUY' ? 'signal-pill-buy' : sig?.signal === 'SELL' ? 'signal-pill-sell' : 'signal-pill-flat'
+                  }`}>
+                    {sig?.signal ?? 'FLAT'}
                   </span>
-                  {(sig?.confidence ?? 0).toFixed(1)}%
                 </td>
-                <td className="py-2 pr-3 text-right font-mono">
-                  ${sig?.close_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) ?? '—'}
+                <td className="py-2.5 pr-4">
+                  <div className="flex items-center justify-end gap-2">
+                    <div className="w-16 conf-bar">
+                      <div
+                        className={`conf-bar-fill ${
+                          (sig?.confidence ?? 0) >= 60 ? 'bg-emerald-500' : (sig?.confidence ?? 0) >= 45 ? 'bg-amber-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min(sig?.confidence ?? 0, 100)}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-secondary w-10 text-right tabular-nums">
+                      {(sig?.confidence ?? 0).toFixed(1)}%
+                    </span>
+                  </div>
                 </td>
-                <td className="py-2 pr-3 text-right font-mono">{(alloc * 100).toFixed(0)}%</td>
-                <td className={`py-2 pr-3 text-right font-mono ${(m?.mtm_return ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <td className="py-2.5 pr-4 text-right font-mono text-secondary tabular-nums">
+                  {formatAssetPrice(sig?.close_price)}
+                </td>
+                <td className="py-2.5 pr-4 text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <div className="w-12 conf-bar">
+                      <div className="conf-bar-fill bg-blue-500/50" style={{ width: `${alloc * 100}%` }} />
+                    </div>
+                    <span className="font-mono text-tertiary w-9 text-right tabular-nums">
+                      {(alloc * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </td>
+                <td className={`py-2.5 pr-4 text-right font-mono tabular-nums ${
+                  (m?.mtm_return ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                }`}>
                   {(m?.mtm_return ?? 0).toFixed(2)}%
                 </td>
-                <td className={`py-2 text-right font-mono ${
+                <td className={`py-2.5 text-right font-mono tabular-nums ${
                   (m?.drawdown ?? 0) > -3 ? 'text-emerald-400' : (m?.drawdown ?? 0) > -5 ? 'text-amber-400' : 'text-red-400'
                 }`}>
                   {(m?.drawdown ?? 0).toFixed(2)}%

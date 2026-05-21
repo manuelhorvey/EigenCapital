@@ -26,6 +26,7 @@ from paper_trading import wrappers as _w
 from paper_trading.satellite import HighVolSatellite, SatelliteConfig, SatelliteSnapshot
 from monitoring.importance_tracker import ImportanceStore, StabilityResult
 from shared.meta_labeling import MetaModel, build_meta_training_data, build_inference_features
+from paper_trading.simulation_snapshot import SimulationStore, build_asset_snapshot
 from shared.registry import StrategyRegistry
 
 
@@ -904,6 +905,9 @@ class PaperTradingEngine:
                 name="BTC",
             )
 
+        # ── Simulation snapshot store ──────────────────────────────
+        self._sim_store = SimulationStore(BASE)
+
     def initialize(self):
         from features.registry import ASSET_LABEL_PARAMS
         for name, asset in self.assets.items():
@@ -1190,7 +1194,40 @@ class PaperTradingEngine:
                 }
         self._append_equity_history(state)
         self.state_store.save_snapshot(snapshot)
+        self._capture_simulation_snapshot(state)
         return state
+
+    def _capture_simulation_snapshot(self, state: dict) -> None:
+        """Capture per-asset simulation snapshots for replay."""
+        timestamp = datetime.now(tz=ET).isoformat()
+        portfolio = state.get("portfolio", {})
+        assets_state = state.get("assets", {})
+
+        asset_snapshots = []
+        for name, adata in assets_state.items():
+            metrics = adata.get("metrics", {})
+            snap = build_asset_snapshot(
+                asset_name=name,
+                metrics=metrics,
+                validity_state=adata.get("validity_state", "YELLOW"),
+                validity_exposure=adata.get("validity_exposure", 1.0),
+                meta_inference=metrics.get("meta_inference"),
+                feature_stability=metrics.get("feature_stability"),
+                timestamp=timestamp,
+            )
+            asset_snapshots.append(snap)
+
+        satellite = state.get("satellite", {})
+        satellite_value = satellite.get("current_value", 0.0) if satellite else 0.0
+        cash_buffer = CONFIG["capital"] - portfolio.get("realized_value", 0) - satellite_value
+
+        self._sim_store.capture(
+            portfolio_value=portfolio.get("total_value", 0),
+            total_return=portfolio.get("total_return", 0),
+            cash_buffer=max(0.0, cash_buffer),
+            satellite_value=satellite_value,
+            asset_snapshots=asset_snapshots,
+        )
 
     def _append_equity_history(self, state):
         p = state.get('portfolio', {})

@@ -148,8 +148,9 @@ import numpy as np
 train = pd.read_parquet('data/processed/training_features.parquet')
 
 # Load recent inference features
-from paper_trading.engine import load_macro, fetch_live, fetch_ref
-macro = load_macro()
+from paper_trading.data_fetcher import fetch_live, fetch_ref
+from scripts.train_all_assets import load_macro_data
+macro = load_macro_data()
 df = fetch_live('XLF')
 ref = fetch_ref('SPY')
 

@@ -24,6 +24,7 @@ from paper_trading.shadow_feedback import record_shadow_feedback as _record_feed
 from paper_trading.shadow_learning import compile_shadow_learning as _compile_learning
 from paper_trading import wrappers as _w
 from paper_trading.satellite import HighVolSatellite, SatelliteConfig, SatelliteSnapshot
+from monitoring.importance_tracker import ImportanceStore, StabilityResult
 from shared.registry import StrategyRegistry
 
 
@@ -195,6 +196,12 @@ class AssetEngine:
             self.state_store = None
         else:
             self.state_store = _STORE
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self._importance_store = ImportanceStore(base_dir)
+        self._window_id_counter = 0
+        self._current_window_train_start = ""
+        self._current_window_train_end = ""
+        self._last_stability: StabilityResult | None = None
 
     def _build_features(self, df, ref, macro):
         return build_features(df, macro, ref, self.contract)
@@ -273,6 +280,32 @@ class AssetEngine:
         self._trained = True
         with open(self.model_path, 'wb') as f:
             pickle.dump(model, f)
+
+        # ── Log feature importances ────────────────────────────────
+        self._window_id_counter += 1
+        self._current_window_train_start = start_date.strftime('%Y-%m-%d')
+        self._current_window_train_end = end_date.strftime('%Y-%m-%d')
+        window_id = f"w{self._window_id_counter}_{self._current_window_train_end}"
+        try:
+            self._importance_store.log_snapshot(
+                asset=self.name,
+                feature_names=self.features,
+                importances=model.feature_importances_,
+                window_id=window_id,
+                train_start=self._current_window_train_start,
+                train_end=self._current_window_train_end,
+                model_type="xgboost",
+            )
+            # Compute stability if we have at least 2 windows
+            stability = self._importance_store.compute_stability(self.name)
+            if stability is not None:
+                self._last_stability = stability
+                logger.info(
+                    "%s stability — jaccard=%.3f spearman=%.3f penalty=%.3f",
+                    self.name, stability.jaccard_top_10, stability.spearman_rank_corr, stability.penalty,
+                )
+        except Exception as e:
+            logger.warning("%s: failed to log feature importances: %s", self.name, e)
 
     def generate_signal(self, threshold=0.45):
         return self._generate_and_apply(threshold)
@@ -606,6 +639,12 @@ class AssetEngine:
             'monthly_pf': round(float(monthly_pf), 2) if monthly_pf else None,
             'position': pos_info,
             'trade_log': self.trade_log[-10:],
+            'feature_stability': {
+                'jaccard_top_10': self._last_stability.jaccard_top_10 if self._last_stability else None,
+                'spearman_rank_corr': self._last_stability.spearman_rank_corr if self._last_stability else None,
+                'penalty': self._last_stability.penalty if self._last_stability else 0.0,
+                'window_id': self._last_stability.window_id if self._last_stability else None,
+            },
         }
 
     def _save_trade_journal(self, trade):
@@ -634,8 +673,25 @@ class AssetEngine:
             score -= 0.15
         if not halt['drift_ok']:
             score -= 0.15
+
+        # Apply feature importance stability penalty
+        if self._last_stability is not None:
+            penalty = self._last_stability.penalty
+            if penalty < 0:
+                logger.info(
+                    "%s stability penalty: %.3f (jaccard=%.3f, spearman=%.3f)",
+                    self.name, penalty, self._last_stability.jaccard_top_10,
+                    self._last_stability.spearman_rank_corr,
+                )
+                score += penalty
+
         score = max(0.0, min(1.0, score))
         result = self.validity_sm.transition(score, pd.Timestamp.now())
+        result['feature_stability'] = {
+            'jaccard_top_10': self._last_stability.jaccard_top_10 if self._last_stability else None,
+            'spearman_rank_corr': self._last_stability.spearman_rank_corr if self._last_stability else None,
+            'penalty_applied': self._last_stability.penalty if self._last_stability else 0.0,
+        }
         return result
 
     def check_halt_conditions(self):

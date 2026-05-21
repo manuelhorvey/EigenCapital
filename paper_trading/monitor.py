@@ -8,11 +8,12 @@ import threading
 import time
 import warnings
 
-from paper_trading.engine import LOG_PATH, PaperTradingEngine
-from paper_trading.serve import serve
-from quantforge import setup_logging
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from paper_trading.engine import LOG_PATH, PaperTradingEngine  # noqa: E402
+from paper_trading.serve import serve  # noqa: E402
+from quantforge import setup_logging  # noqa: E402
+
 warnings.filterwarnings("ignore")
 
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)

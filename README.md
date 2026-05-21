@@ -607,6 +607,7 @@ R --> A
 * **SL/TP execution surface** analyzed for all 11 portfolio assets; migrated to plateau-center configs
 * **Full governance pipeline**: validity state machine, drift detection, shadow analytics
 * **Shadow system** continuously accumulating behavioral dataset
+* **245 tests** across 16 test files — zero regressions
 
 ---
 

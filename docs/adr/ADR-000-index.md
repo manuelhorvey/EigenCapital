@@ -30,6 +30,10 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 | 015 | [Asset-Specific Label Horizons (tb20 vs fwd60)](ADR-015-asset-specific-label-horizons.md) | Accepted | 2025-Q1 |
 | 016 | [GC=F Gold Validation](ADR-016-gold-validation.md) | Accepted | 2025-Q2 |
 | 017 | [Inference Path Lookahead Investigation](ADR-017-inference-lookahead-investigation.md) | Accepted | 2026-05 |
+| 018 | [BTC Satellite Isolation With Regime Gate](ADR-018-btc-satellite.md) | Accepted | 2026-05 |
+| 019 | [Feature Importance Stability Tracking as Governance Signal](ADR-019-feature-importance-stability.md) | Accepted | 2026-05 |
+| 020 | [Meta-Labeling Layer as Confidence Filter](ADR-020-meta-labeling.md) | Accepted | 2026-05 |
+| 021 | [Simulation Snapshot System for Deterministic Replay](ADR-021-simulation-snapshot.md) | Accepted | 2026-05 |
 
 ## By Topic
 
@@ -55,6 +59,16 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 
 ### Features
 - ADR-007: Yield slope removed
+
+### Risk & Monitoring
+- ADR-018: BTC satellite isolation
+- ADR-019: Feature importance stability tracking
+
+### Signal Processing
+- ADR-020: Meta-labeling as confidence filter
+
+### Infrastructure
+- ADR-021: Simulation snapshot system
 
 ### Operations
 - ADR-014: Zero manual overrides

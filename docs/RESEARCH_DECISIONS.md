@@ -114,6 +114,30 @@ Expanding window outperforms rolling on every metric. Recency weighting (linear 
 
 **Why it works:** Macro-conditioned models need to experience multiple rate cycles. A 5-year expanding window includes hiking, cutting, and neutral regimes. The recency weighting ensures the model adapts to the current regime shape without discarding relevant historical context.
 
+### High-Vol Asset Satellite Isolation
+
+BTC was removed from the core PAPER_PORTFOLIO and placed in a separate `HighVolSatellite` bucket with independent risk controls (40% vol target, 25% drawdown limit, 5% AUM cap). A five-condition regime gate (correlation, BTC vol, VIX, DXY momentum, CRISIS gap) must all be true to trade. Rolling 63-day ΔSharpe monitoring triggers alerts at -0.5 and auto-reduces allocation at -1.0.
+
+**Why it works:** High-vol assets corrupt portfolio-level Sharpe and drawdown metrics even at modest allocations. Isolating BTC with independent risk limits and a conservative regime gate preserves upside convexity (5% cap) while preventing tail events from dominating core portfolio metrics. The five-condition AND gate ensures BTC only trades when macro conditions are benign across multiple independent axes.
+
+### Feature Importance Stability as Governance Signal
+
+Training-window feature importances are persisted to parquet per asset per retrain cycle. Jaccard top-10 similarity and Spearman rank correlation between consecutive windows feed stability penalties into the ValidityStateMachine (worst-wins aggregation — single low metric triggers full penalty). Jaccard < 0.6 → -0.10, < 0.4 → -0.25; Spearman < 0.7 → -0.08, < 0.5 → -0.20.
+
+**Why it works:** A model whose top predictive features change between retrain cycles is not reinforcing stable patterns — it is chasing noise. Jaccard captures "are the same features important" and Spearman captures "are the shared features in the same order." Tying penalties to position sizing via the existing validity framework creates an automatic circuit breaker without requiring manual review.
+
+### Meta-Labeling as Secondary Confidence Filter
+
+A logistic regression binary classifier (5 features, class_weight='balanced', min 50 trades) learns to distinguish winning from losing primary signals. Three decision bands: FULL (≥0.55, scale=1.0), REDUCED (≥0.40, scale=0.5), SKIP (<0.40, scale=0.0). Scales pos_size in _generate_and_apply() before TradeDecision creation.
+
+**Why it works:** Primary XGBoost models produce well-calibrated probabilities in aggregate but have individual false positives that a secondary filter can catch. Logistic regression is intentionally lightweight — it would underfit if there were no signal, providing a natural guard against overfitting. Class weighting preserves the real trade outcome distribution. The SKIP band removes 30-40% of signals that the meta-model judges unlikely to profit.
+
+### Simulation Snapshot System for Deterministic Replay
+
+Full engine state is captured per asset at each save_state() call to `data/live/snapshots/simulation_history.parquet` — positions, trade_log, prob_history, validity state, meta-model inference, feature stability metrics. Three load modes: exact timestamp, date-prefix, and date listing. Deduplication on (timestamp, asset). Cold state (model pickle paths) stored separately as external references.
+
+**Why it works:** Row-based parquet snapshots enable replay from any historical date without restarting the simulation. Deduplication prevents unbounded growth. External cold state references avoid duplicating large model files into every snapshot. The parquet format enables direct SQL-like analysis: "what was every asset's position on all Mondays in May?"
+
 ---
 
 ## 4. What Remains Blocked and What Data Would Unblock It
@@ -142,9 +166,15 @@ Expanding window outperforms rolling on every metric. Recency weighting (linear 
 
 **Estimated effort:** See execution roadmap in PAPER_TRADING_RUNBOOK.md.
 
+### Bitcoin — Removed From Core Portfolio (see ADR-018)
+
+**Resolution:** BTC was removed from the core portfolio and placed in a `HighVolSatellite` bucket at 5% AUM cap. Marginal contribution analysis confirmed that BTC's 60-80% annualised vol and 77% 2022 drawdown corrupted portfolio-level Sharpe and drawdown metrics even at 20% allocation. The satellite isolation preserves upside convexity while preventing tail events from corrupting core metrics. See [ADR-018](../docs/adr/ADR-018-btc-satellite.md).
+
 ### Risk-Parity Portfolio Allocation — In Progress
 
-**Blocking issue:** The portfolio/ module has HRP and risk parity implementations marked "in progress." Current allocation uses fixed weights across 6 assets (BTC 20%, GC=F 20%, EURAUD 22%, NZDJPY 15%, CADJPY 13%, USDCAD 10%).
+**Blocking issue:** The portfolio/ module has HRP and risk parity implementations marked "in progress." Current allocation uses fixed weights across 6 assets (GC=F 20%, EURAUD 22%, NZDJPY 15%, CADJPY 13%, USDCAD 10%). BTC is excluded.
+
+
 
 **Data needed:** Validated correlation and volatility models for the six-asset portfolio. The current max |r| < 0.40 may be period-specific and needs ongoing monitoring. Requires: a) rolling correlation estimator, b) volatility forecasting, c) rebalancing schedule, d) backtest against fixed-weight baseline.
 

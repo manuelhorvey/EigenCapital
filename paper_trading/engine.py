@@ -25,6 +25,7 @@ from paper_trading.shadow_learning import compile_shadow_learning as _compile_le
 from paper_trading import wrappers as _w
 from paper_trading.satellite import HighVolSatellite, SatelliteConfig, SatelliteSnapshot
 from monitoring.importance_tracker import ImportanceStore, StabilityResult
+from shared.meta_labeling import MetaModel, build_meta_training_data, build_inference_features
 from shared.registry import StrategyRegistry
 
 
@@ -202,6 +203,8 @@ class AssetEngine:
         self._current_window_train_start = ""
         self._current_window_train_end = ""
         self._last_stability: StabilityResult | None = None
+        self._meta_model = MetaModel()
+        self._meta_inference: dict | None = None
 
     def _build_features(self, df, ref, macro):
         return build_features(df, macro, ref, self.contract)
@@ -334,6 +337,32 @@ class AssetEngine:
             raise ValueError(f'Model returned {proba.shape[1]} classes, expected 3')
 
         pos_size = self._sizing_strategy.compute(df['close'], self.config)
+
+        # ── Meta-model: train on accumulated trades if enough data ──
+        self._maybe_train_meta_model(df)
+
+        # ── Meta-model inference (before signal strategy, uses proba proxy) ──
+        if self._meta_model.is_trained:
+            validity_state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
+            periods_in_state = self.validity_sm.periods_in_current_state if self.validity_sm else 0
+            stability_penalty = self._last_stability.penalty if self._last_stability else 0.0
+            # Use max probability from proba as confidence proxy
+            primary_conf = float(max(proba[-1]))
+            inf_features = build_inference_features(
+                primary_confidence=primary_conf,
+                regime_state=validity_state,
+                periods_in_state=periods_in_state,
+                feature_stability_penalty=stability_penalty,
+                close=df['close'],
+            )
+            meta_result = self._meta_model.predict(inf_features)
+            pos_size *= meta_result.scale_factor
+            self._meta_inference = {
+                "meta_confidence": meta_result.meta_confidence,
+                "meta_decision": meta_result.meta_decision,
+            }
+        else:
+            self._meta_inference = None
 
         result = self._signal_strategy.compute(proba, X.index, threshold, df['close'], pos_size)
         self.signal_data = result.signal_data
@@ -645,7 +674,32 @@ class AssetEngine:
                 'penalty': self._last_stability.penalty if self._last_stability else 0.0,
                 'window_id': self._last_stability.window_id if self._last_stability else None,
             },
+            'meta_model': self._meta_model.get_state(),
+            'meta_inference': self._meta_inference,
         }
+
+    def _maybe_train_meta_model(self, df: pd.DataFrame) -> None:
+        """Train meta-model on accumulated trade history if enough data."""
+        if len(self.trade_log) < 50:
+            return
+        if self._meta_model.is_trained:
+            return
+        try:
+            stability_penalty = self._last_stability.penalty if self._last_stability else 0.0
+            validity_history = [
+                t for t in getattr(self.validity_sm, 'state_history', [])
+            ]
+            X, y = build_meta_training_data(
+                trade_log=self.trade_log,
+                prob_history=self.prob_history,
+                validity_history=validity_history,
+                feature_stability_penalty=stability_penalty,
+                close=df['close'],
+            )
+            if X is not None and y is not None:
+                self._meta_model.train(X, y)
+        except Exception as e:
+            logger.warning("%s: meta-model training failed: %s", self.name, e)
 
     def _save_trade_journal(self, trade):
         if self.state_store is not None:

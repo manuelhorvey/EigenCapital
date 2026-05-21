@@ -1,12 +1,26 @@
+import copy
+import json
 import logging
-import pandas as pd
+import os
+import pickle
+
 import numpy as np
-import xgboost as xgb
-import yfinance as yf
-import pickle, os, json, math, yaml, fcntl
-import copy, time
+import pandas as pd
 import pytz
+import xgboost as xgb
+import yaml
 from datetime import datetime
+
+# Re-exported from data_fetcher for backward compatibility
+from paper_trading.data_fetcher import (  # noqa: F401
+    _cache_path,
+    fetch_history,
+    fetch_live,
+    fetch_ref,
+    flatten,
+    norm_index,
+    safe_download,
+)
 from features.builder import compute_macro_derived, build_features, model_path
 from features.registry import FEATURE_REGISTRY
 from paper_trading.state_store import StateStore, EngineSnapshot, _SKIP_JOURNAL, sanitize
@@ -77,80 +91,6 @@ CONFIG = {
 HALT = dict(_cfg.get('halt', {
     'drawdown': -0.08, 'monthly_pf': 0.70, 'signal_drought': 30, 'prob_drift': 0.15,
 }))
-
-
-
-
-def flatten(df):
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [c[0] for c in df.columns]
-    return df.rename(columns={'Close': 'close', 'High': 'high', 'Low': 'low', 'Open': 'open', 'Volume': 'volume'})
-
-
-def norm_index(df):
-    if not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index)
-    idx = df.index
-    if idx.tz is not None:
-        df.index = idx.tz_convert('US/Eastern')
-    else:
-        df.index = idx.tz_localize('US/Eastern')
-    return df
-
-
-def _cache_path(ticker):
-    return _STORE.cache_path(ticker)
-
-
-def safe_download(ticker, **kwargs):
-    delays = [5, 15, 45]
-    for attempt, delay in enumerate(delays, 1):
-        try:
-            df = yf.download(ticker, **kwargs)
-            if not df.empty:
-                _STORE.save_cache(ticker, df)
-                return df
-            logger.warning(f"{ticker} empty response attempt {attempt}/3")
-        except Exception as e:
-            logger.warning(f"{ticker} download error attempt {attempt}/3: {e}")
-        if attempt < len(delays):
-            time.sleep(delay)
-    logger.error(f"{ticker} failed after 3 attempts — using cached data")
-    df = _STORE.load_cache(ticker)
-    if df is not None:
-        logger.info(f"{ticker} using cached data from {_STORE.cache_path(ticker)}")
-        return df
-    logger.error(f"{ticker} no cached data available")
-    return pd.DataFrame()
-
-
-def fetch_live(ticker, min_days=250):
-    end = datetime.now(tz=ET)
-    start = (end - pd.Timedelta(days=min_days)).strftime('%Y-%m-%d')
-    df = safe_download(ticker, start=start, end=end.strftime('%Y-%m-%d'), auto_adjust=True, progress=False)
-    if df.empty:
-        raise ValueError(f'No live data for {ticker}')
-    df = flatten(df)
-    df = norm_index(df)
-    return df
-
-
-def fetch_history(ticker, years=10):
-    end = datetime.now(tz=ET)
-    start = f'{end.year - years}-01-01'
-    df = safe_download(ticker, start=start, end=end.strftime('%Y-%m-%d'), auto_adjust=True, progress=False)
-    if df.empty:
-        raise ValueError(f'No history for {ticker}')
-    df = flatten(df)
-    df = norm_index(df)
-    return df
-
-
-def fetch_ref(ticker):
-    try:
-        return fetch_history(ticker, years=10)
-    except Exception:
-        return None
 
 
 class AssetEngine:

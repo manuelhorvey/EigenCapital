@@ -40,4 +40,6 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ --cov=tests --cov-report=term-missing -v --tb=short
+          PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ \
+            --cov=paper_trading --cov-report=term-missing \
+            --cov-fail-under=40 -v --tb=short

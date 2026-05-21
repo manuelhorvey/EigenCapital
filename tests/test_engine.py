@@ -1,8 +1,15 @@
+import os
+import tempfile
+import yaml
+
 import pytest
 from paper_trading.engine import (
     flatten, norm_index, CONFIG, HALT,
     PAPER_PORTFOLIO,
     AssetEngine, _SKIP_JOURNAL,
+)
+from paper_trading.config_manager import (
+    EngineConfig, load_config, get_config, reset_config,
 )
 from features.registry import FEATURE_REGISTRY
 
@@ -77,6 +84,75 @@ class TestConfig:
         assert "GBPUSD" in PAPER_PORTFOLIO
         assert "XLF" not in PAPER_PORTFOLIO
         assert sum(v['alloc'] for v in PAPER_PORTFOLIO.values()) <= 1.0
+
+
+class TestConfigManager:
+    def teardown_method(self):
+        reset_config()
+
+    def test_default_config(self):
+        cfg = EngineConfig()
+        assert cfg.capital == 100_000
+        assert cfg.position_size == 0.95
+        assert cfg.halt["drawdown"] == -0.08
+        assert cfg.satellite == {}
+
+    def test_from_dict_full(self):
+        data = {
+            "capital": 200_000,
+            "position_size": 0.80,
+            "halt": {"drawdown": -0.05},
+            "satellite": {"BTC": {"max_allocation_pct": 0.10}},
+            "assets": {"FOO": {"ticker": "FOO"}},
+        }
+        cfg = EngineConfig.from_dict(data)
+        assert cfg.capital == 200_000
+        assert cfg.halt["drawdown"] == -0.05
+        assert cfg.halt["signal_drought"] == 30
+        assert cfg.satellite["BTC"]["max_allocation_pct"] == 0.10
+        assert cfg.assets["FOO"]["ticker"] == "FOO"
+
+    def test_load_config_from_file(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump({"capital": 50000, "halt": {"drawdown": -0.12}}, f)
+            tmppath = f.name
+        try:
+            cfg = load_config(tmppath)
+            assert cfg.capital == 50000
+            assert cfg.halt["drawdown"] == -0.12
+        finally:
+            os.unlink(tmppath)
+
+    def test_load_config_missing_file(self):
+        cfg = load_config("/nonexistent/path.yaml")
+        assert cfg.capital == 100_000
+
+    def test_get_config_caching(self):
+        reset_config()
+        cfg1 = get_config()
+        cfg2 = get_config()
+        assert cfg1 is cfg2
+
+    def test_reset_config(self):
+        reset_config()
+        cfg1 = get_config()
+        reset_config()
+        cfg3 = get_config()
+        assert cfg1 is not cfg3
+
+    def test_to_dict_roundtrip(self):
+        cfg = EngineConfig(capital=99999, halt={"drawdown": -0.15})
+        d = cfg.to_dict()
+        assert d["capital"] == 99999
+        assert d["halt"]["drawdown"] == -0.15
+
+    def test_halt_defaults_merge(self):
+        data = {"halt": {"drawdown": -0.15}}
+        cfg = EngineConfig.from_dict(data)
+        assert cfg.halt["drawdown"] == -0.15
+        assert cfg.halt["monthly_pf"] == 0.70
+        assert cfg.halt["signal_drought"] == 30
+        assert cfg.halt["prob_drift"] == 0.15
 
 
 class TestUpdatePnl:

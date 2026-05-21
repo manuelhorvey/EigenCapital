@@ -5,11 +5,28 @@ import xgboost as xgb
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+from features.registry import FEATURE_REGISTRY
+from features.builder import build_features, compute_macro_derived
 from labels.triple_barrier import apply_triple_barrier
-from scripts.train_all_assets import (
-    TICKERS, _slug, ticker_features, compute_features,
-    fetch_history, load_macro, FX_TICKERS,
-)
+from scripts.train_all_assets import fetch_history
+
+TICKERS = list(FEATURE_REGISTRY.keys())
+
+
+def _slug(ticker: str) -> str:
+    return ticker.replace('=', '').replace('-', '_').lower()
+
+
+def compute_features(df, ref, macro, ticker):
+    contract = FEATURE_REGISTRY[ticker]
+    fdf = build_features(df, macro, ref, contract)
+    return fdf, list(contract.features)
+
+
+def load_macro():
+    path = os.path.join(BASE, 'data', 'processed', 'macro_factors.parquet')
+    m = pd.read_parquet(path)
+    return compute_macro_derived(m)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger('walkforward')
@@ -48,6 +65,11 @@ def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_thre
         y_oos = features_df.loc[oos_mask, 'label'].astype(int)
 
         if len(X_oos) == 0 or len(X_train) < 200:
+            continue
+
+        # XGBoost multi:softprob requires all 3 classes present in training
+        if len(np.unique(y_train)) < 3:
+            logger.warning('  %s [%d]: not all 3 label classes in train, skipping', ticker, oos_year)
             continue
 
         model = xgb.XGBClassifier(

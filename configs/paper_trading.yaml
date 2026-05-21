@@ -24,7 +24,7 @@ satellite:
 assets:
   EURAUD:
     ticker: EURAUD=X
-    allocation: 0.20
+    allocation: 0.17
     sl_mult: 0.54
     tp_mult: 1.77
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, euraud_mom_21, euraud_mom_63]
@@ -36,7 +36,7 @@ assets:
     config: {}
   GC:
     ticker: GC=F
-    allocation: 0.15
+    allocation: 0.13
     sl_mult: 0.51
     tp_mult: 2.67
     features: [real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63]
@@ -48,7 +48,7 @@ assets:
     config: {}
   NZDJPY:
     ticker: NZDJPY=X
-    allocation: 0.13
+    allocation: 0.11
     sl_mult: 0.51
     tp_mult: 2.02
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21]
@@ -60,7 +60,7 @@ assets:
     config: {}
   CADJPY:
     ticker: CADJPY=X
-    allocation: 0.10
+    allocation: 0.09
     sl_mult: 0.52
     tp_mult: 1.65
     features: [vix_ma21, ca_jp_spread_mom_21, us_jp_10y_spread, vix_delta_5, ca_jp_10y_spread, dxy_mom_21, cadjpy_mom_10, cadjpy_mom_21, cadjpy_mom_63]
@@ -72,7 +72,7 @@ assets:
     config: {}
   AUDJPY:
     ticker: AUDJPY=X
-    allocation: 0.07
+    allocation: 0.06
     sl_mult: 0.52
     tp_mult: 2.01
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, audjpy_mom_21, audjpy_mom_63]
@@ -84,7 +84,7 @@ assets:
     config: {}
   USDCAD:
     ticker: USDCAD=X
-    allocation: 0.07
+    allocation: 0.06
     sl_mult: 0.52
     tp_mult: 1.90
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdcad_mom_21, usdcad_mom_63]
@@ -96,7 +96,7 @@ assets:
     config: {}
   GBPJPY:
     ticker: GBPJPY=X
-    allocation: 0.06
+    allocation: 0.05
     sl_mult: 0.50
     tp_mult: 2.22
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, gbpjpy_mom_21, gbpjpy_mom_63]
@@ -108,7 +108,7 @@ assets:
     config: {}
   USDJPY:
     ticker: USDJPY=X
-    allocation: 0.05
+    allocation: 0.04
     sl_mult: 0.52
     tp_mult: 1.97
     features: [vix_ma21, vix_delta_5, us_jp_10y_spread, dxy_mom_21, usdjpy_mom_21, usdjpy_mom_63]
@@ -132,10 +132,46 @@ assets:
     config: {}
   GBPUSD:
     ticker: GBPUSD=X
-    allocation: 0.04
+    allocation: 0.03
     sl_mult: 0.52
     tp_mult: 1.97
     features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, gbpusd_mom_21, gbpusd_mom_63]
+    halt:
+      drawdown: -0.08
+      monthly_pf: 0.70
+      signal_drought: 30
+      prob_drift: 0.15
+    config: {}
+  CHFJPY:
+    ticker: CHFJPY=X
+    allocation: 0.07
+    sl_mult: 0.50
+    tp_mult: 1.70
+    features: [vix_ma21, vix_delta_5, us_jp_10y_spread, chfjpy_mom_21, chfjpy_mom_63]
+    halt:
+      drawdown: -0.08
+      monthly_pf: 0.70
+      signal_drought: 30
+      prob_drift: 0.15
+    config: {}
+  EURCAD:
+    ticker: EURCAD=X
+    allocation: 0.07
+    sl_mult: 0.51
+    tp_mult: 1.96
+    features: [rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, eurcad_mom_21, eurcad_mom_63]
+    halt:
+      drawdown: -0.08
+      monthly_pf: 0.70
+      signal_drought: 30
+      prob_drift: 0.15
+    config: {}
+  DJI:
+    ticker: ^DJI
+    allocation: 0.05
+    sl_mult: 0.50
+    tp_mult: 1.91
+    features: [rate_diff, vix_ma21, dxy_mom_21, breakeven_delta_63, dji_mom_21, dji_mom_63, dji_vs_spy_21, dji_vs_spy_63]
     halt:
       drawdown: -0.08
       monthly_pf: 0.70

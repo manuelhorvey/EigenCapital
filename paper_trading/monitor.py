@@ -45,6 +45,8 @@ def main():
         results = engine.run_once()
         engine.save_state()
         for name, r in results.items():
+            if name == 'satellite':
+                continue
             if 'error' in r:
                 logger.error('%s: ERROR - %s', name, r['error'])
             else:

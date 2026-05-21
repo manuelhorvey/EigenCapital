@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, lazy, Suspense } from 'react'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
 import HeroReveal from './components/HeroReveal'
-import FeatureCards from './components/FeatureCards'
 import EnterButton from './components/EnterButton'
+
+const FeatureCards = lazy(() => import('./components/FeatureCards'))
 
 export default function LandingPage() {
   const [entered, setEntered] = useState(false)
@@ -19,7 +20,9 @@ export default function LandingPage() {
   return (
     <div className="bg-gray-950 min-h-screen">
       <HeroReveal />
-      <FeatureCards />
+      <Suspense fallback={null}>
+        <FeatureCards />
+      </Suspense>
       <EnterButton onClick={handleEnter} />
     </div>
   )

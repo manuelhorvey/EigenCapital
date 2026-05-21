@@ -371,15 +371,37 @@ All model components implement abstract base classes via `shared/`:
 
 ### 10.1 System Structure
 
-* `PaperTradingEngine` — Top-level orchestrator, runs signal generation for all assets each tick
-* `AssetEngine` — Per-asset execution engine, owns model, features, position manager, validity state
-* `PositionManager` — Position lifecycle (open, close, SL/TP checks, PnL) — pure state machine
+See [§10.2](#102-module-layout) for the full module tree and [§10.3](#103-core-abstractions) for core types.
+
+### 10.2 Module Layout
+
+```
+paper_trading/
+├── engine.py              # PaperTradingEngine — top-level orchestrator
+├── asset_engine.py        # AssetEngine — per-asset execution engine
+├── config_manager.py      # EngineConfig dataclass, lazy YAML loader
+├── data_fetcher.py        # fetch_live, fetch_history, safe_download, flatten/norm_index
+├── portfolio_builder.py   # build_paper_portfolio() from config or defaults
+├── satellite_runner.py    # Macro context fetch, BTC vol z-score, core returns
+├── satellite.py           # HighVolSatellite — BTC satellite bucket
+├── position_manager.py    # Position lifecycle (open, close, SL/TP, PnL)
+├── decision.py            # TradeDecision / PositionIntent
+├── state_store.py         # Crash-safe snapshot persistence
+├── simulation_snapshot.py # Deterministic replay snapshots
+├── monitor.py             # HTTP observability + dashboard serve
+├── serve.py               # REST API layer
+└── ...                    # shadow_*, risk_governance, drift_scoring, etc.
+```
+
+### 10.3 Core Abstractions
+
+* `PaperTradingEngine` — Orchestrator, runs signal generation for all assets each tick
+* `AssetEngine` — Per-asset engine: model, features, position manager, validity state
+* `PositionManager` — Pure state machine: position lifecycle, SL/TP checks, PnL accounting
 * `PaperBroker` — Simulated fills at Yahoo Finance prices with configurable slippage/fees
-
-### 10.2 Core Abstractions
-
 * `TradeDecision` — Model output intent (signal, confidence, position_size)
 * `PositionIntent` — Execution representation (side, price, SL/TP, vol)
+* `EngineConfig` — Typed config dataclass, loaded from `configs/paper_trading.yaml`
 * Separation enforced between: signal generation, execution logic, accounting
 
 ### 10.3 Per-Asset Risk Multipliers
@@ -397,7 +419,7 @@ The `PositionIntent.from_price_and_vol()` factory computes SL/TP from current vo
 
 ### 10.4 Training Alignment Validation
 
-On startup, `PaperTradingEngine.initialize()` asserts runtime multipliers match training labels in `ASSET_LABEL_PARAMS`. This prevents silent training/execution misalignment.
+On startup, `PaperTradingEngine.initialize()` asserts runtime multipliers match training labels in `ASSET_LABEL_PARAMS`. This prevents silent training/execution misalignment. The config is loaded once at startup via `config_manager.get_config()` and populated into module-level `CONFIG` / `HALT` dicts for backward compatibility.
 
 ### 10.5 Key Configuration
 
@@ -413,9 +435,9 @@ On startup, `PaperTradingEngine.initialize()` asserts runtime multipliers match 
 | `assets.<name>.allocation` | — | Portfolio weight |
 | `assets.<name>.sl_mult` | 1.0 | Stop-loss vol multiplier |
 | `assets.<name>.tp_mult` | 2.5 | Take-profit vol multiplier |
-| `satellite.enabled` | true | BTC satellite active |
-| `satellite.btc_cap_pct` | 0.05 | Max BTC allocation |
-| `satellite.vol_target` | 0.40 | BTC vol target |
+| `satellite.BTC.max_allocation_pct` | 0.05 | Max BTC allocation |
+| `satellite.BTC.vol_target` | 0.40 | BTC vol target |
+| `satellite.BTC.max_drawdown_pct` | -0.25 | BTC drawdown limit |
 
 ---
 
@@ -729,7 +751,7 @@ R --> A
 * **SL/TP execution surface** analyzed for all 14 core portfolio assets; migrated to plateau-center configs
 * **Full governance pipeline**: validity state machine (GREEN/YELLOW/RED), 5D drift detection, feature stability penalties, shadow analytics
 * **Shadow system** continuously accumulating behavioral dataset
-* **245 tests** across 16 test files — zero regressions
+* **253 tests** across 17 test files — zero regressions
 
 ---
 

@@ -14,7 +14,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | State file | `data/live/state.json` |
 | Model pickles | `paper_trading/models/*.pkl` |
 | Logs | stdout (redirect to file as needed) |
-| Refresh interval | 30 minutes (configurable in `monitor.py`) |
+| Refresh interval | 300s / 5 min (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var) |
 | Retrain frequency | Annual (January 1) |
 | Training window | 5-year expanding |
 
@@ -53,10 +53,16 @@ The script:
 2. Downloads fresh OHLCV data via yfinance
 3. Downloads FRED macro data (rate_diff, yields, VIX, DXY)
 4. Computes features
-5. Runs inference on all three assets
+5. Runs inference on all assets
 6. Opens/closes positions based on signal vs current position
 7. Serves dashboard on port 5000
-8. Repeats every 30 minutes
+8. Repeats every refresh interval (default 300s, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
+
+A quick health check via `/ping`:
+```bash
+curl http://127.0.0.1:5000/ping
+# → {"status": "ok"}
+```
 
 **What to verify on the dashboard:**
 

@@ -421,7 +421,26 @@ The `PositionIntent.from_price_and_vol()` factory computes SL/TP from current vo
 
 On startup, `PaperTradingEngine.initialize()` asserts runtime multipliers match training labels in `ASSET_LABEL_PARAMS`. This prevents silent training/execution misalignment. The config is loaded once at startup via `config_manager.get_config()` and populated into module-level `CONFIG` / `HALT` dicts for backward compatibility.
 
-### 10.5 Key Configuration
+### 10.5 REST API
+
+The engine state is served by `serve.py`, an stdlib `http.server`-based REST API with:
+
+- **Per-endpoint TTL cache** — state.json (5s), trades (15s), equity history (30s), confidence/volatility/risk/shadow/health (15-30s). Cache lookup before disk I/O keeps the single-threaded handler responsive.
+- **Gzip compression** — responses > 512 bytes auto-compressed when client sends `Accept-Encoding: gzip`.
+- **`/ping`** — returns `{"status": "ok"}`, useful for health checks.
+- **Paginated `/trades.json`** — accepts `?limit=N&offset=M` (max 200). React TradeFeed shows prev/next controls.
+
+### 10.6 Dashboard
+
+React + TypeScript + Tailwind + react-query frontend in `paper_trading/dashboard/`:
+
+- **Refetch indicator** — animated spinner next to Live/Delayed/Disconnected status badge (visible during background refetches).
+- **TradeFeed** — paginated trade table with prev/next navigation.
+- **SignalsTable** — real-time asset name search filter.
+- **FeatureCards** — landing page mockups lazy-loaded via `React.lazy()` + `Suspense` (separate 11 KB chunk, never loaded in main dashboard).
+- **Theme** — dark/light toggle persisted to localStorage; inline `<script>` in `index.html` prevents theme flash on load.
+
+### 10.7 Key Configuration
 
 | Key | Default | Description |
 | --- | ------- | ----------- |
@@ -435,9 +454,11 @@ On startup, `PaperTradingEngine.initialize()` asserts runtime multipliers match 
 | `assets.<name>.allocation` | — | Portfolio weight |
 | `assets.<name>.sl_mult` | 1.0 | Stop-loss vol multiplier |
 | `assets.<name>.tp_mult` | 2.5 | Take-profit vol multiplier |
+| `vol_baselines.<asset>` | — | Baseline volatility for each asset (can override auto-computed) |
 | `satellite.BTC.max_allocation_pct` | 0.05 | Max BTC allocation |
 | `satellite.BTC.vol_target` | 0.40 | BTC vol target |
 | `satellite.BTC.max_drawdown_pct` | -0.25 | BTC drawdown limit |
+| `QUANTFORGE_REFRESH_INTERVAL` | 300 | Engine loop interval in seconds (env var) |
 
 ---
 
@@ -703,7 +724,11 @@ R --> A
 * Stateless model inference layer
 * Stateful execution engine with crash-safe snapshots
 * Schema-versioned persistence layer (StateStore, EngineSnapshot)
-* Local HTTP observability dashboard with React frontend
+* Local HTTP observability dashboard with React frontend (React + Vite + Tailwind + react-query)
+* In-memory TTL cache on API layer with per-endpoint expiry (5-30s)
+* Gzip compression for responses > 512 bytes
+* `/ping` health check endpoint
+* Configurable refresh interval via `QUANTFORGE_REFRESH_INTERVAL` env var (default 300s)
 * Cached market data subsystem (parquet + memory)
 * Paper broker with simulated fills, slippage, and fees
 * Real-time decision tracing (JSONL trace log)
@@ -751,6 +776,10 @@ R --> A
 * **SL/TP execution surface** analyzed for all 14 core portfolio assets; migrated to plateau-center configs
 * **Full governance pipeline**: validity state machine (GREEN/YELLOW/RED), 5D drift detection, feature stability penalties, shadow analytics
 * **Shadow system** continuously accumulating behavioral dataset
+* **In-memory TTL cache** on serve.py with per-endpoint expiry; gzip compression for large responses; `/ping` health endpoint
+* **Config-driven vol baselines** — `vol_baselines` in `EngineConfig` replaces hardcoded serve.py dict
+* **Dashboard UX**: TradeFeed pagination, SignalsTable search filter, lazy-loaded FeatureCards, refetch indicator spinner
+* **Configurable refresh interval** via `QUANTFORGE_REFRESH_INTERVAL` env var (default 300s)
 * **253 tests** across 17 test files — zero regressions
 
 ---

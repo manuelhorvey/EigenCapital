@@ -143,14 +143,20 @@ Features are computed independently per module and concatenated by common index.
 - Manages 6 AssetEngine instances (BTC, GC=F, EURAUD, NZDJPY, CADJPY, USDCAD)
 - Two label architectures: tb20 (triple-barrier) and fwd60 (60-day forward return)
 - Collects per-asset state into portfolio view
-- Runs every 30 minutes (configurable)
+- Runs every 300s (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
 - Exposes state via JSON for dashboard
 
-**Web Dashboard** (`paper_trading/serve.py`)
-- Zero-dependency (stdlib SimpleHTTPRequestHandler)
-- Single-file HTML/CSS/JS with dark theme
-- Auto-refresh every 30 seconds
-- Displays: portfolio summary, signal cards, PnL, metrics, validity state
+**REST API** (`paper_trading/serve.py`)
+- Zero-dependency stdlib `http.server`-based REST API
+- In-memory TTL cache per endpoint (5-30s), gzip compression for large responses
+- `/ping` health endpoint, paginated `/trades.json?limit=N&offset=M`
+- Auto-refresh every 30 seconds (frontend react-query `refetchInterval`)
+
+**Dashboard** (`paper_trading/dashboard/` — React + Vite + Tailwind + react-query)
+- Full dark/light theme with localStorage persistence
+- TradeFeed with pagination (prev/next), SignalsTable with asset name search
+- Lazy-loaded FeatureCards on landing page (separate chunk, never loaded in main dashboard)
+- Live/Delayed/Disconnected status badge with refetch spinner
 
 ### Validation (`backtests/`)
 

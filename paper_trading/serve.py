@@ -249,8 +249,13 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                 deduped = []
 
                 def _sig(t):
-                    return (t.get("asset"), t.get("exit_date"), t.get("reason"),
-                            round(t.get("entry", 0), 4), round(t.get("exit", 0), 4))
+                    return (
+                        t.get("asset"),
+                        t.get("exit_date"),
+                        t.get("reason"),
+                        round(t.get("entry", 0), 4),
+                        round(t.get("exit", 0), 4),
+                    )
 
                 for t in trades:
                     s = _sig(t)

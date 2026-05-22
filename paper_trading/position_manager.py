@@ -40,9 +40,7 @@ class PositionManager:
         except Exception:
             bars = 0
         risk_pct = (
-            abs(entry - self.position.stop_loss) / entry
-            if self.position and self.position.stop_loss != entry
-            else 0.0
+            abs(entry - self.position.stop_loss) / entry if self.position and self.position.stop_loss != entry else 0.0
         )
         trade = {
             "asset": "",

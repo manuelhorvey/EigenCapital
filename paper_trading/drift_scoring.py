@@ -157,9 +157,15 @@ def compute_signal_drift(
 
     baseline_sig = baseline.get("signal_distribution", {})
     if not baseline_sig:
-        return {"score": 0.0, "mismatch_rate": round(mismatch_rate, 4),
-                "flip_rate": round(flip_rate, 4), "baseline_mismatch_rate": 0.0,
-                "total_signals": total, "mismatches": mismatches, "status": "no_baseline"}
+        return {
+            "score": 0.0,
+            "mismatch_rate": round(mismatch_rate, 4),
+            "flip_rate": round(flip_rate, 4),
+            "baseline_mismatch_rate": 0.0,
+            "total_signals": total,
+            "mismatches": mismatches,
+            "status": "no_baseline",
+        }
 
     baseline_mismatch = baseline_sig.get("mismatch_rate", 0.0)
     score = min(mismatch_rate / baseline_mismatch, 1.0) if baseline_mismatch > 0 else 0.0
@@ -191,8 +197,14 @@ def compute_pnl_drift(
 
     baseline_pnl = baseline.get("pnl_mismatch_stats", {}) if baseline else {}
     if not baseline_pnl:
-        return {"score": 0.0, "mae": round(mae, 10), "rmse": round(rmse, 10),
-                "baseline_mae": 0.0, "event_count": len(diffs), "status": "no_baseline"}
+        return {
+            "score": 0.0,
+            "mae": round(mae, 10),
+            "rmse": round(rmse, 10),
+            "baseline_mae": 0.0,
+            "event_count": len(diffs),
+            "status": "no_baseline",
+        }
 
     baseline_mae = baseline_pnl.get("mean_abs_error", 0.0)
     score = min(mae / baseline_mae, 1.0) if baseline_mae > 0 else 0.0

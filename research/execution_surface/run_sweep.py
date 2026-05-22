@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from features.registry import FEATURE_REGISTRY
 from research.execution_surface import prediction_freeze, monte_carlo, sltp_surface
+from research.execution_surface.trade_outcome_analyzer import run_all as run_outcome_analysis
 
 
 def resolve_tickers(asset_names):
@@ -50,7 +51,7 @@ def resolve_tickers(asset_names):
 
 def main():
     parser = argparse.ArgumentParser(description='Execution surface mapping')
-    parser.add_argument('--stage', choices=['freeze', 'mc', 'analyze', 'all'],
+    parser.add_argument('--stage', choices=['freeze', 'mc', 'analyze', 'outcomes', 'all'],
                         default='all', help='Pipeline stage to run')
     parser.add_argument('--assets', nargs='+', help='Specific assets (e.g. BTC GC CADJPY)')
     parser.add_argument('--force', action='store_true', help='Re-run even if cached results exist')
@@ -77,6 +78,12 @@ def main():
         logger.info('STAGE 3: Surface Analysis')
         logger.info('=' * 60)
         sltp_surface.analyze_all()
+
+    if args.stage in ('outcomes', 'all'):
+        logger.info('=' * 60)
+        logger.info('STAGE 4: Trade Outcome Analysis')
+        logger.info('=' * 60)
+        run_outcome_analysis()
 
     logger.info('Done.')
 

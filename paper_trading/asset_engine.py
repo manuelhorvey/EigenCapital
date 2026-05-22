@@ -652,6 +652,18 @@ class AssetEngine:
         mean_ps = np.mean([p["prob_short"] for p in self.prob_history]) if self.prob_history else 0
         mean_ps = 0 if pd.isna(mean_ps) else mean_ps
 
+        # Exit reason rates from trade_log (paper trading)
+        exit_reasons = {}
+        if self.trade_log:
+            reasons = [t.get("reason", "unknown") for t in self.trade_log]
+            n = len(reasons)
+            exit_reasons = {
+                "tp_rate": round(reasons.count("tp") / n, 4),
+                "sl_rate": round(reasons.count("sl") / n, 4),
+                "signal_flip_rate": round(reasons.count("signal_flip") / n, 4),
+                "avg_r": round(np.mean([t.get("realized_r", 0) for t in self.trade_log]), 4),
+            }
+
         # Current regime-based multipliers (even if no position)
         state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
         geom = self.regime_geometry.get(state, {"sl_mult": self.sl_mult, "tp_mult": self.tp_mult})
@@ -686,6 +698,7 @@ class AssetEngine:
             },
             "meta_model": self._meta_model.get_state(),
             "meta_inference": self._meta_inference,
+            "exit_reasons": exit_reasons,
         }
 
     def _maybe_train_meta_model(self, df: pd.DataFrame) -> None:

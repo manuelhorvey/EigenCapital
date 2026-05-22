@@ -32,6 +32,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from research.execution_surface.replay_engine import replay, replay_regime, replay_meta_geometry, ReplayConfig, ReplayRegimeConfig
 from research.execution_surface.mae_mfe_analyzer import compute_mae_mfe_for_trade
+from research.execution_surface.trade_outcome_analyzer import analyze_trade_outcomes
 from research.risk.execution_physics import (
     ExecutionConfig, VolRegime, degrade_all_paths, apply_deleveraging,
     btc_execution_config,
@@ -388,6 +389,7 @@ def load_asset_data(configs: dict, confidence_threshold: float = 0.0,
                         float(pd.Series(mae_vals).abs().mean() / pd.Series(mfe_vals).mean()), 4
                     ) if pd.Series(mfe_vals).mean() > 0 else 0,
                 },
+                'trade_outcomes': analyze_trade_outcomes(trades, name=name) if len(trades) >= 5 else None,
             }
             indices.append(daily.index)
 

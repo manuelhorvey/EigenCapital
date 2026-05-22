@@ -33,6 +33,7 @@ from paper_trading.tracer import (
     trace_decision,
     trace_diagnostic_report,
 )
+
 from shared.registry import StrategyRegistry
 
 logger = logging.getLogger("quantforge.asset_engine")
@@ -118,6 +119,7 @@ class AssetEngine:
         self._current_window_train_end = ""
         self._last_stability: StabilityResult | None = None
 
+
     def _build_features(self, df, ref, macro):
         return build_features(df, macro, ref, self.contract)
 
@@ -144,12 +146,8 @@ class AssetEngine:
                 "%s: regime-adjusted geometry for %s: sl=%.2f (base %.2f × %.2f), tp=%.2f (base %.2f × %.2f)",
                 self.name,
                 state,
-                sl_mult,
-                self.sl_mult,
-                geom.get("sl_mult", 1.0),
-                tp_mult,
-                self.tp_mult,
-                geom.get("tp_mult", 1.0),
+                sl_mult, self.sl_mult, geom.get("sl_mult", 1.0),
+                tp_mult, self.tp_mult, geom.get("tp_mult", 1.0),
             )
 
         intent = PositionIntent.from_price_and_vol(side, entry_price, entry_date, vol, sl_mult, tp_mult)
@@ -491,13 +489,7 @@ class AssetEngine:
                 if self.signal_data is not None and len(self.signal_data) > 0:
                     last_bar = str(self.signal_data.index[-1].date())
 
-                logger.info(
-                    "%s: SL/TP HIT: %s at %s (Current: %s)",
-                    self.name,
-                    hit[0].upper(),
-                    hit[1],
-                    self.current_price,
-                )
+                logger.info("%s: SL/TP HIT: %s at %s (Current: %s)", self.name, hit[0].upper(), hit[1], self.current_price)
                 self._close_position(hit[1], last_bar, hit[0])
                 if self.current_value > self.peak_value:
                     self.peak_value = self.current_value

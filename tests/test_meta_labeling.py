@@ -144,13 +144,13 @@ class TestMetaModel:
         mm.train(X, y)
         assert mm.is_trained
 
-    def test_constant_features_skip_training(self):
+    def test_constant_features_adds_jitter_and_trains(self):
         mm = MetaModel()
         n = 100
         X = pd.DataFrame({f: np.zeros(n) for f in FEATURE_NAMES})
         y = pd.Series(np.random.randint(0, 2, size=n))
         mm.train(X, y)
-        assert not mm.is_trained
+        assert mm.is_trained  # jitter enables training with constant features
 
 
 class TestBuildFeaturesFromTrade:

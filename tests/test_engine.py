@@ -196,15 +196,16 @@ class TestUpdatePnl:
         engine.update_pnl()
         assert engine.current_value != engine.initial_capital
 
-    def test_position_open_skips_signal_pnl(self, engine, signal_data):
+    def test_position_open_with_current_price_updates_pnl(self, engine, signal_data):
         engine.signal_data = signal_data
         engine.position = {
             "side": "long", "entry": 100.0, "sl": 95.0, "tp": 110.0,
             "entry_date": "2026-05-01", "vol": 0.02,
         }
-        current_val_before = engine.current_value
+        engine.current_price = float(signal_data["close"].iloc[-1])
         engine.update_pnl()
-        assert engine.current_value == current_val_before
+        # position not hit (close ~101, sl=95, tp=110), signal PnL settles
+        assert engine.current_value != engine.initial_capital
 
     def test_sl_hit_closes_position(self, engine, signal_data):
         import pandas as pd
@@ -219,6 +220,7 @@ class TestUpdatePnl:
             "side": "long", "entry": 100.0, "sl": 95.0, "tp": 110.0,
             "entry_date": "2026-05-01", "vol": 0.02,
         }
+        engine.current_price = prices[-1]  # 94, triggers SL at 95
         engine.update_pnl()
         assert engine.position is None
         assert len(engine.trade_log) == 1
@@ -236,6 +238,7 @@ class TestUpdatePnl:
             "side": "long", "entry": 100.0, "sl": 95.0, "tp": 110.0,
             "entry_date": "2026-05-01", "vol": 0.02,
         }
+        engine.current_price = prices[-1]  # 115, triggers TP at 110
         engine.update_pnl()
         assert engine.position is None
         assert engine.current_value > engine.initial_capital
@@ -253,6 +256,7 @@ class TestUpdatePnl:
             "side": "short", "entry": 100.0, "sl": 105.0, "tp": 95.0,
             "entry_date": "2026-05-01", "vol": 0.02,
         }
+        engine.current_price = prices[-1]  # 110, triggers SL at 105
         engine.update_pnl()
         assert engine.position is None
 
@@ -269,6 +273,7 @@ class TestUpdatePnl:
             "side": "short", "entry": 100.0, "sl": 105.0, "tp": 95.0,
             "entry_date": "2026-05-01", "vol": 0.02,
         }
+        engine.current_price = prices[-1]  # 92, triggers TP at 95
         engine.update_pnl()
         assert engine.position is None
         assert engine.current_value > engine.initial_capital

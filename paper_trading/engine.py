@@ -193,7 +193,7 @@ class PaperTradingEngine:
                 # 1. Check SL/TP first using the absolute latest price
                 asset.refresh_price()
                 asset.update_pnl()
-
+                
                 # 2. Then generate new signals
                 signal = asset.generate_signal()
                 results[name] = signal

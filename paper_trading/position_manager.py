@@ -35,6 +35,10 @@ class PositionManager:
             return None
         ret = (exit_price / entry - 1) if side == "long" else (entry / exit_price - 1)
         pnl = self.current_value * ret * self.position_size * self.exposure_multiplier
+        try:
+            bars = (pd.Timestamp(exit_date) - pd.Timestamp(self.position.entry_date)).days
+        except Exception:
+            bars = 0
         trade = {
             "asset": "",
             "side": side,
@@ -42,6 +46,7 @@ class PositionManager:
             "exit": exit_price,
             "entry_date": self.position.entry_date,
             "exit_date": exit_date,
+            "bars": bars,
             "return": ret,
             "pnl": pnl,
             "reason": reason,

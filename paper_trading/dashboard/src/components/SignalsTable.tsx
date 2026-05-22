@@ -70,6 +70,7 @@ export default function SignalsTable() {
               <th className="table-header text-left py-2.5 pr-4">Signal</th>
               <th className="table-header text-right py-2.5 pr-4">Confidence</th>
               <th className="table-header text-right py-2.5 pr-4">Price</th>
+              <th className="table-header text-right py-2.5 pr-4">Exits (SL/TP)</th>
               <th className="table-header text-right py-2.5 pr-4">Allocation</th>
               <th className="table-header text-right py-2.5 pr-4">Return</th>
               <th className="table-header text-right py-2.5">Drawdown</th>
@@ -113,6 +114,11 @@ export default function SignalsTable() {
                 </td>
                 <td className="py-2.5 pr-4 text-right font-mono text-secondary tabular-nums">
                   {formatAssetPrice(sig?.close_price)}
+                </td>
+                <td className="py-2.5 pr-4 text-right">
+                  <span className="font-mono text-secondary tabular-nums">
+                    {m.position?.sl ? `$${formatAssetPrice(m.position.sl)} / $${formatAssetPrice(m.position.tp)}` : '—'}
+                  </span>
                 </td>
                 <td className="py-2.5 pr-4 text-right">
                   <div className="flex items-center justify-end gap-1.5">

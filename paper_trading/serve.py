@@ -243,14 +243,35 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                 limit = max(1, min(int(query.get("limit", 10)), 200))
                 offset = max(0, int(query.get("offset", 0)))
                 trades = _STORE.read_trades(limit + offset)
-                if len(trades) < limit + offset:
+                
+                # De-duplicate using a unique signature with rounded floats
+                seen = set()
+                deduped = []
+                
+                def _sig(t):
+                    return (t.get("asset"), t.get("exit_date"), t.get("reason"),
+                            round(t.get("entry", 0), 4), round(t.get("exit", 0), 4))
+
+                for t in trades:
+                    s = _sig(t)
+                    if s not in seen:
+                        seen.add(s)
+                        deduped.append(t)
+
+                if len(deduped) < limit + offset:
                     snapshot = _STORE.load_snapshot()
                     if snapshot and snapshot.assets:
                         for aname, adata in snapshot.assets.items():
                             for t in adata.get("metrics", {}).get("trade_log", []):
-                                trades.append(t)
-                        trades = sorted(trades, key=lambda x: x.get("exit_date", ""), reverse=True)
-                data = json.dumps(trades[offset : offset + limit], default=str)
+                                if t.get("exit_date") is None:
+                                    continue
+                                s = _sig(t)
+                                if s not in seen:
+                                    seen.add(s)
+                                    deduped.append(t)
+                        deduped = sorted(deduped, key=lambda x: x.get("exit_date", ""), reverse=True)
+                
+                data = json.dumps(deduped[offset : offset + limit], default=str)
                 _cache_set("/trades.json", data)
                 self._send_json(data)
             elif path == "/equity_history.json":

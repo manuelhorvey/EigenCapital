@@ -109,6 +109,7 @@ class PaperTradingEngine:
                 config=spec["config"],
                 sl_mult=spec.get("sl_mult", 1.0),
                 tp_mult=spec.get("tp_mult", 2.5),
+                regime_geometry=spec.get("regime_geometry", {}),
                 state_store=self.state_store,
             )
 
@@ -137,8 +138,8 @@ class PaperTradingEngine:
                 entry_price=pos_dict["entry"],
                 entry_date=pos_dict["entry_date"],
                 vol=pos_dict["vol"],
-                sl_mult=asset.sl_mult,
-                tp_mult=asset.tp_mult,
+                sl_mult=pos_dict.get("sl_mult", asset.sl_mult),
+                tp_mult=pos_dict.get("tp_mult", asset.tp_mult),
             )
             pos_dict["sl"] = intent.stop_loss
             pos_dict["tp"] = intent.take_profit
@@ -189,8 +190,12 @@ class PaperTradingEngine:
         results = {}
         for name, asset in self.assets.items():
             try:
-                signal = asset.generate_signal()
+                # 1. Check SL/TP first using the absolute latest price
+                asset.refresh_price()
                 asset.update_pnl()
+                
+                # 2. Then generate new signals
+                signal = asset.generate_signal()
                 results[name] = signal
             except Exception as e:
                 results[name] = {"asset": name, "error": str(e)}

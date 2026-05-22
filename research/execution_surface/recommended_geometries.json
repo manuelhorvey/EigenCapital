@@ -1,0 +1,41 @@
+{
+  "_description": "Recommended SL/TP geometries from Prong 2 trade quality sweep",
+  "_method": "Swept sl=0.30-1.20 step 0.05, tp=0.50-2.50 step 0.10. Found Pareto frontier between trade quality (TP%-SL%) and Sharpe.",
+  "_summary": "Balanced geometry (sl=0.70, tp=1.60) gives +7pp TP%, -7pp SL% with Sharpe ~1.8. Regime-conditional allows tight in low vol, wider in high vol.",
+
+  "regime_conditional": {
+    "low_vol":    {"sl_mult": 0.52, "tp_mult": 1.96, "label": "tight — maximize Sharpe in calm markets"},
+    "transition": {"sl_mult": 0.65, "tp_mult": 1.65, "label": "balanced — moderate both"},
+    "high_vol":   {"sl_mult": 0.75, "tp_mult": 1.50, "label": "loose SL, close TP — capture volatile moves"}
+  },
+
+  "single_compromise": {
+    "sl_mult": 0.70,
+    "tp_mult": 1.60,
+    "label": "best single geometry balancing TP%/SL% and Sharpe"
+  },
+
+  "per_asset_balanced_6": {
+    "AUDJPY":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.34, "sl_rate": 0.62, "sharpe": 1.9},
+    "CADJPY":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.34, "sl_rate": 0.64, "sharpe": 1.6},
+    "EURAUD":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.36, "sl_rate": 0.61, "sharpe": 2.4},
+    "NZDJPY":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.34, "sl_rate": 0.62, "sharpe": 2.1},
+    "USDCAD":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.33, "sl_rate": 0.60, "sharpe": 2.0},
+    "USDJPY":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.33, "sl_rate": 0.63, "sharpe": 1.3},
+    "GBPUSD":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.35, "sl_rate": 0.62, "sharpe": 2.0},
+    "EURCAD":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.32, "sl_rate": 0.63, "sharpe": 1.2},
+    "CHFJPY":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.32, "sl_rate": 0.64, "sharpe": 1.2},
+    "GBPJPY":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.33, "sl_rate": 0.65, "sharpe": 1.2},
+    "USDCHF":  {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.36, "sl_rate": 0.60, "sharpe": 2.6},
+    "GC":      {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.31, "sl_rate": 0.61, "sharpe": 1.5},
+    "DJI":     {"sl_mult": 0.70, "tp_mult": 1.60, "tp_rate": 0.26, "sl_rate": 0.64, "sharpe": 0.5}
+  },
+
+  "key_findings": [
+    "Current plateau geometry (sl~0.52, tp~1.96): TP=26%, SL=69%, Sharpe=2.5",
+    "Shorten TP only to 1.50: TP=32%, SL=66%, Sharpe=2.5 — no Sharpe cost",
+    "Balanced (sl=0.70, tp=1.60): TP=33%, SL=62%, Sharpe=1.8 — best trade-off",
+    "Extreme (sl=1.20, tp=0.50): TP=60%, SL=37%, Sharpe=-2.5 — not viable",
+    "Regime-conditional is the next step: vary geometry by market regime"
+  ]
+}

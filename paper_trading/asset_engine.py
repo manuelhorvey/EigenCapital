@@ -62,6 +62,7 @@ class AssetEngine:
         journal_path=None,
         sl_mult=1.0,
         tp_mult=2.5,
+        regime_geometry=None,
         initial_capital=None,
         position_size=None,
         retrain_window=None,
@@ -106,6 +107,7 @@ class AssetEngine:
         self._shadow_learning = None
         self.sl_mult = sl_mult
         self.tp_mult = tp_mult
+        self.regime_geometry = regime_geometry or {}
         self._research_mode = engine_cfg.research_mode
         self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
         if state_store is not None:
@@ -137,7 +139,23 @@ class AssetEngine:
         if pd.isna(vol) or pd.isna(entry_price) or entry_price == 0:
             logger.error("%s: invalid entry_price=%s or vol=%s", self.name, entry_price, vol)
             return
-        intent = PositionIntent.from_price_and_vol(side, entry_price, entry_date, vol, self.sl_mult, self.tp_mult)
+
+        # Regime-conditional geometry selection
+        state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
+        geom = self.regime_geometry.get(state, {"sl_mult": self.sl_mult, "tp_mult": self.tp_mult})
+        sl_mult = geom.get("sl_mult", self.sl_mult)
+        tp_mult = geom.get("tp_mult", self.tp_mult)
+
+        if self.regime_geometry:
+            logger.info(
+                "%s: using regime-conditional geometry for %s: sl=%.2f, tp=%.2f",
+                self.name,
+                state,
+                sl_mult,
+                tp_mult,
+            )
+
+        intent = PositionIntent.from_price_and_vol(side, entry_price, entry_date, vol, sl_mult, tp_mult)
         self.pos_mgr.open(intent)
         self.position = {
             "side": intent.side,
@@ -146,6 +164,8 @@ class AssetEngine:
             "tp": intent.take_profit,
             "entry_date": intent.entry_date,
             "vol": intent.vol,
+            "sl_mult": sl_mult,
+            "tp_mult": tp_mult,
         }
 
     def _close_position(self, exit_price, exit_date, reason):
@@ -251,11 +271,15 @@ class AssetEngine:
             self.train()
 
         df = fetch_live(self.ticker)
+
+        # Sync with latest price (same as dashboard) to ensure responsive SL/TP
+        self.refresh_price()
+        if self.current_price is not None:
+            # Update the last row's close with the real-time price
+            df.loc[df.index[-1], "close"] = self.current_price
+
         self.price_data = df
         df["close"] = df["close"].ffill()
-        if pd.isna(df["close"].iloc[-1]):
-            raise ValueError(f"All close prices are NaN for {self.name}")
-        self.current_price = float(df["close"].iloc[-1])
         ref = fetch_ref("SPY")
         macro = self._feature_pipeline.macro_derived(
             pd.read_parquet(os.path.join(BASE, "data/processed/macro_factors.parquet"))
@@ -482,27 +506,32 @@ class AssetEngine:
 
     def update_pnl(self):
         self._ensure_position_synced()
-        if self.signal_data is None or len(self.signal_data) < 2:
-            return
-        last_bar = str(self.signal_data.index[-1].date())
-        if self.trades and self.trades[-1]["date"] == last_bar:
-            return
 
-        close = self.signal_data["close"]
-        today_close = float(close.iloc[-1])
-
-        # Check SL/TP for open position
-        if self.pos_mgr.has_position():
-            hit = self.pos_mgr.check_sl_tp(today_close)
+        # 1. Intraday SL/TP Check - ALWAYS run this on every refresh using real-time price
+        if self.pos_mgr.has_position() and self.current_price is not None:
+            hit = self.pos_mgr.check_sl_tp(self.current_price)
             if hit:
+                last_bar = str(datetime.now(tz=ET).date())
+                if self.signal_data is not None and len(self.signal_data) > 0:
+                    last_bar = str(self.signal_data.index[-1].date())
+
+                logger.info("%s: SL/TP HIT: %s at %s (Current: %s)", self.name, hit[0].upper(), hit[1], self.current_price)
                 self._close_position(hit[1], last_bar, hit[0])
                 if self.current_value > self.peak_value:
                     self.peak_value = self.current_value
                 return
 
-        if self.pos_mgr.has_position():
+        # 2. Daily P&L Settlement - Only run if signal_data is available (historical context)
+        if self.signal_data is None or len(self.signal_data) < 2:
             return
 
+        close = self.signal_data["close"]
+        today_close = float(close.iloc[-1])
+        last_bar = str(self.signal_data.index[-1].date())
+
+        if self.trades and self.trades[-1]["date"] == last_bar:
+            return
+        # (Existing daily pnl logic continues...)
         sig = self.signal_data["signal"].iloc[-2]
         direction = 1 if sig == 2 else (-1 if sig == 0 else 0)
         pos_size = (
@@ -602,6 +631,8 @@ class AssetEngine:
                 "tp": round(self.pos_mgr.position.take_profit, 4),
                 "current_vol": round(self.pos_mgr.position.vol, 6),
                 "unrealized_pnl": round(upnl, 2),
+                "sl_mult": self.position.get("sl_mult") if self.position else None,
+                "tp_mult": self.position.get("tp_mult") if self.position else None,
             }
 
         pnl_pct = (
@@ -617,6 +648,10 @@ class AssetEngine:
         mean_pl = 0 if pd.isna(mean_pl) else mean_pl
         mean_ps = np.mean([p["prob_short"] for p in self.prob_history]) if self.prob_history else 0
         mean_ps = 0 if pd.isna(mean_ps) else mean_ps
+
+        # Current regime-based multipliers (even if no position)
+        state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
+        geom = self.regime_geometry.get(state, {"sl_mult": self.sl_mult, "tp_mult": self.tp_mult})
 
         return {
             "asset": self.name,
@@ -637,6 +672,8 @@ class AssetEngine:
             "last_signal_date": str(self.last_signal_date.date()) if self.last_signal_date else None,
             "monthly_pf": round(float(monthly_pf), 2) if monthly_pf else None,
             "position": pos_info,
+            "current_sl_mult": geom.get("sl_mult", self.sl_mult),
+            "current_tp_mult": geom.get("tp_mult", self.tp_mult),
             "trade_log": self.trade_log[-10:],
             "feature_stability": {
                 "jaccard_top_10": self._last_stability.jaccard_top_10 if self._last_stability else None,

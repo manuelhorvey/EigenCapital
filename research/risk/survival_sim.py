@@ -22,7 +22,7 @@ Output:
     *_{VARIANT}.png                  — charts per variant
 """
 
-import os, sys, json, logging, math, argparse, copy
+import os, sys, json, logging, math, argparse, copy, pickle
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -30,13 +30,15 @@ import pandas as pd
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from research.execution_surface.replay_engine import replay, ReplayConfig
+from research.execution_surface.replay_engine import replay, replay_regime, replay_meta_geometry, ReplayConfig, ReplayRegimeConfig
+from research.execution_surface.mae_mfe_analyzer import compute_mae_mfe_for_trade
 from research.risk.execution_physics import (
     ExecutionConfig, VolRegime, degrade_all_paths, apply_deleveraging,
     btc_execution_config,
     compute_composite_vol_index, classify_regimes, regime_aware_bootstrap,
     compute_exposure_telemetry, TelemetryResult, plot_exposure_telemetry,
 )
+from shared.meta_labeling import MetaModel, encode_regime, compute_vol_zscore
 from research.risk.synthetic_stress import (
     inject_synthetic_blocks,
     validate_tail_statistics,
@@ -123,6 +125,46 @@ STRESS_SCENARIOS = {
 #  I.  Data Loading
 # ══════════════════════════════════════════════════════════════════════
 
+def _apply_confidence_filter(predictions: pd.DataFrame, name: str,
+                               threshold: float) -> tuple[pd.DataFrame, int]:
+    """Override signals to NEUTRAL for bars below calibrated confidence threshold.
+
+    Uses isotonic calibration model from data/sandbox/calibration/{NAME}/isotonic.pkl.
+    Only assets with existing calibration models are filtered; others pass through.
+
+    Args:
+        predictions: predictions DataFrame with 'confidence' and 'signal' columns
+        name: asset name (for model path lookup)
+        threshold: calibrated confidence threshold [0,1]; bars below get signal=1
+
+    Returns:
+        (filtered_predictions, n_filtered_signals)
+    """
+    model_path = os.path.join(SANDBOX_BASE, 'calibration', name, 'isotonic.pkl')
+    if not os.path.exists(model_path):
+        logger.info('%s: no calibration model — skipping confidence filter', name)
+        return predictions, 0
+
+    with open(model_path, 'rb') as f:
+        ir = pickle.load(f)
+
+    conf_raw = predictions['confidence'].values / 100.0
+    conf_calibrated = ir.transform(conf_raw)
+    conf_calibrated = np.clip(conf_calibrated, 0, 1)
+
+    n_dir_before = int((predictions['signal'] != 1).sum())
+    preds = predictions.copy()
+    low_conf = conf_calibrated < threshold
+    preds.loc[low_conf, 'signal'] = 1  # NEUTRAL
+    n_dir_after = int((preds['signal'] != 1).sum())
+    n_filtered = n_dir_before - n_dir_after
+
+    logger.info('%s: confidence filter @ %.2f — %d/%d directional signals filtered (%.1f%%)',
+                name, threshold, n_filtered, n_dir_before,
+                100 * n_filtered / max(1, n_dir_before))
+
+    return preds, n_filtered
+
 def _cap_asset(allocs: dict, asset: str, max_alloc: float) -> dict:
     """Cap a single asset's allocation, scale others proportionally."""
     allocs = dict(allocs)
@@ -184,11 +226,18 @@ def load_allocations() -> dict:
     return {name: acfg['allocation'] for name, acfg in cfg['assets'].items()}
 
 
-def load_asset_data(configs: dict) -> dict:
+def load_asset_data(configs: dict, confidence_threshold: float = 0.0,
+                     regime_config: ReplayRegimeConfig = None,
+                     meta_geometry: bool = False) -> dict:
     """Load OOS predictions and compute daily returns for each asset.
 
     Uses correlated approach: all daily return series are aligned to the
     common date index (intersection of all asset date ranges).
+
+    When meta_geometry is True, a two-pass flow is used:
+      1. Baseline regime replay to generate trades
+      2. Train MetaModel on trade outcomes, then second-pass replay
+         with meta-model SL/TP adjustments
 
     Returns:
         asset_data: {name: {'daily_returns': Series, 'config': ..., ...}}
@@ -205,14 +254,106 @@ def load_asset_data(configs: dict) -> dict:
         predictions = pd.read_parquet(oos_path)
         replay_cfg = ReplayConfig(sl_mult=cfg['sl_mult'], tp_mult=cfg['tp_mult'])
 
+        # Optional: filter low-confidence signals before replay
+        n_filtered = 0
+        if confidence_threshold > 0:
+            predictions, n_filtered = _apply_confidence_filter(
+                predictions, name, confidence_threshold)
+
         try:
-            trades = replay(predictions, replay_cfg)
+            if meta_geometry:
+                # Pass 1: baseline replay to collect trades for meta-model training
+                if regime_config is not None:
+                    trades_pass1 = replay_regime(predictions, regime_config)
+                else:
+                    trades_pass1 = replay(predictions, replay_cfg)
+                if len(trades_pass1) < 50:
+                    logger.warning('%s: %d trades from baseline (< 50), skipping meta-geometry',
+                                   name, len(trades_pass1))
+                    trades = trades_pass1
+                else:
+                    # Train meta-model on pass 1 outcomes with real features
+                    mm = MetaModel()
+                    feature_rows = []
+                    labels = []
+                    close_series = predictions['close']
+                    regime_series = predictions.get('regime', pd.Series(index=predictions.index))
+                    # Pre-compute regime change points for days_since_regime_change
+                    regime_changed = regime_series != regime_series.shift(1)
+                    regime_changed.iloc[0] = False
+                    for idx, (_, tr) in enumerate(trades_pass1.iterrows()):
+                        ret_pct = float(tr.get('return_pct', 0))
+                        conf = float(tr.get('conf_at_entry', 50)) / 100.0
+                        reg = str(tr.get('regime', 'unknown'))
+                        entry_ts = tr.get('entry_time')
+                        if entry_ts is not None and entry_ts in predictions.index:
+                            loc = predictions.index.get_loc(entry_ts)
+                            close_up_to_entry = close_series.iloc[:loc + 1]
+                            vz = compute_vol_zscore(close_up_to_entry)
+                            # Days since last regime change up to entry
+                            if loc > 0:
+                                last_change = regime_changed.iloc[:loc + 1].cumsum().iloc[-1]
+                                change_indices = regime_changed.iloc[:loc + 1].values.nonzero()[0]
+                                days_since = loc - change_indices[-1] if len(change_indices) > 0 else loc
+                            else:
+                                days_since = 0
+                        else:
+                            vz = 0.0
+                            days_since = 1
+                        # Stability penalty: 0 = very stable (many bars since last change),
+                        # approaching 1.0 right after a change, capped at 7 days lookback
+                        stability_penalty = max(0.0, 1.0 - days_since / 7.0)
+                        feature_rows.append({
+                            'primary_confidence': conf,
+                            'regime_state_encoded': encode_regime(reg),
+                            'feature_stability_penalty': stability_penalty,
+                            'vol_zscore': vz,
+                            'days_since_regime_change': float(days_since),
+                        })
+                        labels.append(1 if ret_pct > 0 else 0)
+                    if len(feature_rows) >= 50:
+                        mm.train(pd.DataFrame(feature_rows), pd.Series(labels))
+                    else:
+                        logger.warning('%s: only %d trades for meta training, using full only',
+                                       name, len(feature_rows))
+
+                    # Pass 2: replay with meta-model adjustments
+                    trades = replay_meta_geometry(predictions, regime_config or ReplayRegimeConfig(), mm)
+                    logger.info('%s: meta-geometry enabled (pass1=%d trades)', name, len(trades_pass1))
+            elif regime_config is not None:
+                trades = replay_regime(predictions, regime_config)
+                logger.info('%s: regime-conditional geometry enabled', name)
+            else:
+                trades = replay(predictions, replay_cfg)
             if len(trades) == 0:
                 logger.warning('%s: zero trades, skipping', name)
                 continue
 
             daily = _trades_to_daily(trades, predictions.index)
             _n_trades = len(trades)
+
+            # Compute MAE/MFE and exit reason stats per trade
+            ohlc = pd.DataFrame({
+                'high': predictions['high'],
+                'low': predictions['low'],
+                'close': predictions['close'],
+            })
+            trade_mae_mfe = []
+            exit_reasons = {'tp': 0, 'sl': 0, 'flip': 0, 'expiry': 0}
+            mae_vals, mfe_vals = [], []
+            for _, tr in trades.iterrows():
+                mm = compute_mae_mfe_for_trade(tr, ohlc)
+                trade_mae_mfe.append(mm)
+                mae_vals.append(mm['mae_pct'])
+                mfe_vals.append(mm['mfe_pct'])
+                reason = str(tr.get('reason', 'unknown'))
+                if reason in exit_reasons:
+                    exit_reasons[reason] += 1
+
+            n_tp = exit_reasons['tp']
+            n_sl = exit_reasons['sl']
+            n_flip = exit_reasons['flip']
+            n_expiry = exit_reasons['expiry']
 
             # For BTC-gated variant: also extract regime information
             regime_info = None
@@ -228,6 +369,25 @@ def load_asset_data(configs: dict) -> dict:
                 'config': cfg,
                 'regime_series': regime_series,
                 'predictions': predictions,
+                'n_signals_filtered': n_filtered,
+                'trade_quality': {
+                    'n_trades': _n_trades,
+                    'n_tp': n_tp,
+                    'n_sl': n_sl,
+                    'n_flip': n_flip,
+                    'n_expiry': n_expiry,
+                    'tp_rate': round(n_tp / _n_trades, 4) if _n_trades > 0 else 0,
+                    'sl_rate': round(n_sl / _n_trades, 4) if _n_trades > 0 else 0,
+                    'flip_rate': round(n_flip / _n_trades, 4) if _n_trades > 0 else 0,
+                    'expiry_rate': round(n_expiry / _n_trades, 4) if _n_trades > 0 else 0,
+                    'avg_mae_pct': round(float(pd.Series(mae_vals).mean()), 4) if mae_vals else 0,
+                    'avg_mfe_pct': round(float(pd.Series(mfe_vals).mean()), 4) if mfe_vals else 0,
+                    'med_mae_pct': round(float(pd.Series(mae_vals).median()), 4) if mae_vals else 0,
+                    'med_mfe_pct': round(float(pd.Series(mfe_vals).median()), 4) if mfe_vals else 0,
+                    'mae_mfe_ratio': round(
+                        float(pd.Series(mae_vals).abs().mean() / pd.Series(mfe_vals).mean()), 4
+                    ) if pd.Series(mfe_vals).mean() > 0 else 0,
+                },
             }
             indices.append(daily.index)
 
@@ -825,10 +985,12 @@ def compute_asset_metrics(asset_data: dict, allocations: dict,
         min_dd = dd.min(axis=1)
         terminal = eq[:, -1]
 
+        tq = asset_data[name].get('trade_quality', {})
         results[name] = {
             'allocation': allocations.get(name, 0),
             'config': asset_data[name]['config'],
             'n_trades': asset_data[name]['n_trades'],
+            'n_signals_filtered': asset_data[name].get('n_signals_filtered', 0),
             'daily_return_mean_pct': round(asset_data[name]['mean_daily_return'] * 100, 4),
             'daily_return_std_pct': round(asset_data[name]['std_daily_return'] * 100, 4),
             'sharpe_implied': round(asset_data[name]['sharpe_implied'], 2),
@@ -839,6 +1001,8 @@ def compute_asset_metrics(asset_data: dict, allocations: dict,
             'terminal_equity_p5': round(float(np.percentile(terminal, 5)), 4),
             'terminal_return_p50_pct': round((float(np.median(terminal)) - 1) * 100, 2),
             'terminal_return_p5_pct': round((float(np.percentile(terminal, 5)) - 1) * 100, 2),
+            # Trade quality metrics (from replay, not bootstrap)
+            'trade_quality': tq,
         }
 
     return results
@@ -1349,6 +1513,34 @@ def print_comparison_summary(variant_results: dict, marginal: dict = None):
                 c.get('summary', ''),
             ))
 
+    # Trade quality per asset
+    print('\n  ── Per-Asset Trade Quality (MAE/MFE & Exit Reason) ──')
+    tq_header = '  {:>10s}  {:>5s}  {:>6s}  {:>6s}  {:>6s}  {:>6s}  {:>5s}  {:>8s}  {:>8s}  {:>8s}  {:>8s}'
+    print(tq_header.format('Asset', 'Trades', 'TP%', 'SL%', 'Flip%', 'Exp%',
+                            'Filt', 'AvgMAE%', 'AvgMFE%', 'MedMAE%', 'M/M Rat'))
+    print('  ' + '-' * 100)
+
+    # Use first variant's asset_metrics for trade quality (same for all variants)
+    first_variant = next(iter(variant_results.values()))
+    for name, am in sorted(first_variant['asset_metrics'].items()):
+        tq = am.get('trade_quality', {})
+        if not tq:
+            continue
+        n_filt = am.get('n_signals_filtered', 0)
+        print(tq_header.format(
+            name,
+            str(tq.get('n_trades', 0)),
+            f'{tq.get("tp_rate", 0) * 100:.1f}',
+            f'{tq.get("sl_rate", 0) * 100:.1f}',
+            f'{tq.get("flip_rate", 0) * 100:.1f}',
+            f'{tq.get("expiry_rate", 0) * 100:.1f}',
+            str(n_filt) if n_filt > 0 else '—',
+            f'{tq.get("avg_mae_pct", 0):.2f}',
+            f'{tq.get("avg_mfe_pct", 0):.2f}',
+            f'{tq.get("med_mae_pct", 0):.2f}',
+            f'{tq.get("mae_mfe_ratio", 0):.2f}',
+        ))
+
     print('\n' + '=' * 120 + '\n')
 
 
@@ -1383,6 +1575,13 @@ def main():
                         help=f'Inject synthetic crisis blocks (default rate: {SYNTHETIC_INJECTION_RATE})')
     parser.add_argument('--validate-tails', action='store_true',
                         help='Run tail validation against historical crisis benchmarks')
+    parser.add_argument('--confidence-filter', type=float, default=0.0,
+                        help='Calibrated confidence threshold [0-1]; bars below get signal=NEUTRAL (default: 0.0 = off)')
+    parser.add_argument('--regime-geometry', type=str, default=None, nargs='?',
+                        const='research/execution_surface/recommended_geometries.json',
+                        help='Use regime-conditional SL/TP geometry. Optionally provide custom config JSON path (default: recommended_geometries.json)')
+    parser.add_argument('--meta-geometry', action='store_true',
+                        help='Two-pass meta-labeling: train MetaModel on baseline trades, then adjust SL/TP per trade')
     args = parser.parse_args()
 
     n_paths = args.paths
@@ -1397,7 +1596,33 @@ def main():
     logger.info('Loading configs and allocations...')
     configs = load_best_configs()
     base_allocations = load_allocations()
-    asset_data = load_asset_data(configs)
+
+    # Build regime-conditional geometry config if requested
+    regime_config = None
+    if args.regime_geometry:
+        geom_path = os.path.join(PROJECT_ROOT, args.regime_geometry)
+        if os.path.exists(geom_path):
+            with open(geom_path) as f:
+                geom_data = json.load(f)
+            rc = geom_data.get('regime_conditional', {})
+            regime_config = ReplayRegimeConfig(
+                regime_geom={
+                    'low_vol':    rc.get('low_vol',    {'sl_mult': 0.52, 'tp_mult': 1.96}),
+                    'transition': rc.get('transition', {'sl_mult': 0.65, 'tp_mult': 1.65}),
+                    'high_vol':   rc.get('high_vol',   {'sl_mult': 0.75, 'tp_mult': 1.50}),
+                },
+                default_geom={'sl_mult': 0.65, 'tp_mult': 1.65},
+            )
+            logger.info('Regime-conditional geometry loaded from %s', geom_path)
+            for regime, g in regime_config.regime_geom.items():
+                logger.info('  %s: sl=%.2f, tp=%.2f', regime, g['sl_mult'], g['tp_mult'])
+        else:
+            logger.warning('Regime geometry file not found at %s — using defaults',
+                           geom_path)
+
+    asset_data = load_asset_data(configs, confidence_threshold=args.confidence_filter,
+                                  regime_config=regime_config,
+                                  meta_geometry=args.meta_geometry)
 
     # Compute composite vol index and regimes (for regime-aware bootstrap)
     regimes = None

@@ -6,7 +6,7 @@ function computePrematureStopRate(state: AssetState): number | null {
   if (logs.length === 0) return null
   const premature = logs.filter(
     t =>
-      (t.reason === 'stop_loss' || t.reason === 'sl_hit') &&
+      (t.reason === 'sl' || t.reason === 'stop_loss' || t.reason === 'sl_hit') &&
       t.bars != null &&
       t.bars < LABEL_HORIZON,
   )

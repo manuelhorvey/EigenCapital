@@ -5,6 +5,11 @@ retrain_freq: annual
 retrain_window: 5
 research_mode: false
 
+regime_geometry:
+  GREEN: {sl_mult: 0.52, tp_mult: 1.96, label: "low_vol / tight"}
+  YELLOW: {sl_mult: 0.65, tp_mult: 1.65, label: "transition / balanced"}
+  RED: {sl_mult: 0.75, tp_mult: 1.50, label: "high_vol / loose"}
+
 vol_baselines:
   GC: 0.009129
   NZDJPY: 0.006581
@@ -24,7 +29,20 @@ halt:
   drawdown: -0.08
   monthly_pf: 0.70
   signal_drought: 30
-  prob_drift: 0.15
+  prob_drift: 0.30
+
+# Regime-conditional geometry overrides per-asset sl_mult/tp_mult.
+# Keyed by validity state (GREEN / YELLOW / RED) from the state machine.
+regime_geometry:
+  GREEN:
+    sl_mult: 0.52
+    tp_mult: 1.96
+  YELLOW:
+    sl_mult: 0.65
+    tp_mult: 1.65
+  RED:
+    sl_mult: 0.75
+    tp_mult: 1.50
 
 satellite:
   BTC:

@@ -58,10 +58,10 @@ def _load_cmss(asset: str) -> float | None:
 def _get_validity_score(validity_state: str) -> float:
     mapping = {
         "GREEN": 1.0,
-        "YELLOW": 0.5,
+        "YELLOW": 0.75,
         "RED": 0.0,
     }
-    return mapping.get(validity_state, 0.5)
+    return mapping.get(validity_state, 0.75)
 
 
 def _compute_drift_health(drift_scores: dict) -> float:

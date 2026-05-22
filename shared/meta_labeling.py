@@ -38,11 +38,14 @@ class MetaInferenceResult:
     meta_confidence: float
     meta_decision: str  # FULL / REDUCED / SKIP
     scale_factor: float
+    # Geometry adjustments: multiply base sl_mult/tp_mult by these
+    sl_adjust: float = 1.0
+    tp_adjust: float = 1.0
 
 
 def encode_regime(state: str) -> int:
-    mapping = {"GREEN": 2, "YELLOW": 1, "RED": 0}
-    return mapping.get(state.upper(), 1)
+    mapping = {"GREEN": 2, "YELLOW": 1, "RED": 0, "LOW_VOL": 2, "TRANSITION": 1, "HIGH_VOL": 0}
+    return mapping.get(state.upper().replace(' ', '_'), 1)
 
 
 def compute_vol_zscore(close: pd.Series, window: int = 21) -> float:
@@ -56,24 +59,47 @@ def compute_vol_zscore(close: pd.Series, window: int = 21) -> float:
     return (recent_vol - hist_vol) / hist_vol
 
 
-def decision_from_confidence(confidence: float) -> MetaInferenceResult:
+def decision_from_confidence(confidence: float,
+                              base_sl_mult: float = 1.0,
+                              base_tp_mult: float = 1.0) -> MetaInferenceResult:
+    """Convert meta-model confidence into execution decision with geometry adjustments.
+
+    LOW confidence → SKIP (don't trade)
+    MEDIUM confidence → REDUCED size + tighter SL/TP (cut losses fast, take quick profits)
+    HIGH confidence → FULL size + standard geometry (let winners run)
+
+    Args:
+        confidence: predicted probability of winning trade [0, 1]
+        base_sl_mult: base stop-loss multiplier before adjustment
+        base_tp_mult: base take-profit multiplier before adjustment
+
+    Returns:
+        MetaInferenceResult with scale_factor, sl_adjust, tp_adjust
+    """
     if confidence >= META_CONFIDENCE_THRESHOLD_FULL:
         return MetaInferenceResult(
             meta_confidence=round(confidence, 4),
             meta_decision="FULL",
             scale_factor=1.0,
+            sl_adjust=1.0,
+            tp_adjust=1.0,
         )
     elif confidence >= META_CONFIDENCE_THRESHOLD_REDUCED:
+        # Tighter: reduce SL by 20%, bring TP closer by 20%
         return MetaInferenceResult(
             meta_confidence=round(confidence, 4),
             meta_decision="REDUCED",
             scale_factor=0.5,
+            sl_adjust=0.80,
+            tp_adjust=0.80,
         )
     else:
         return MetaInferenceResult(
             meta_confidence=round(confidence, 4),
             meta_decision="SKIP",
             scale_factor=0.0,
+            sl_adjust=0.0,
+            tp_adjust=0.0,
         )
 
 
@@ -110,11 +136,13 @@ class MetaModel:
         X = features[FEATURE_NAMES].values
         y = labels.values
 
-        # Handle constant features
-        if np.std(X, axis=0).min() < 1e-10:
-            logger.warning("constant features detected in meta-model input")
-            self._trained = False
-            return
+        # Handle constant features by adding tiny jitter so the scaler doesn't choke
+        col_std = np.std(X, axis=0)
+        if col_std.min() < 1e-10:
+            jitter_mask = col_std < 1e-10
+            jitter = np.random.default_rng(42).normal(0, 1e-6, size=(X.shape[0], jitter_mask.sum()))
+            X[:, jitter_mask] += jitter
+            logger.info("added jitter to %d constant features in meta-model input", int(jitter_mask.sum()))
 
         self.scaler = StandardScaler()
         X_scaled = self.scaler.fit_transform(X)

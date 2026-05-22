@@ -110,6 +110,8 @@ function render(state){
     if(!isNewEntry&&newBadgeTimers[name]>0){newBadgeTimers[name]--}
     prevPositions[name]=pos?{entry:pos.entry}:null;
     var newBadge=newBadgeTimers[name]>0?'<span class="new-badge">New</span>':'';
+    var curSLM = m.current_sl_mult, curTPM = m.current_tp_mult;
+    var geomStr = curSLM && curTPM ? ' <span style="font-size:0.8em;opacity:0.6;font-weight:normal">('+fmt(curSLM,2)+'x / '+fmt(curTPM,2)+'x)</span>' : '';
     ac+='<div class="asset-card signal-'+cls+'"><div class="asset-header"><span class="asset-name">'+name+newBadge+'</span>'+(price!=null?'<span class="asset-price">$'+fmtPrice(price)+'</span>':'')+'<span class="asset-signal">'+sig+'</span></div>';
     ac+='<div class="asset-metrics"><div class="asset-metric"><span class="asset-metric-label">Confidence</span><span class="asset-metric-value" style="color:'+confColor+'">'+fmt(conf,1)+'%</span></div>';
     ac+='<div class="asset-metric"><span class="asset-metric-label">Value</span><span class="asset-metric-value">$'+fmt(val,2)+'</span></div>';
@@ -120,13 +122,17 @@ function render(state){
     ac+='<canvas class="asset-spark" width="180" height="24" data-asset="'+name+'"></canvas>';
     if(lt){var lri=resultInfo(lt.reason),lret=lt['return']!=null?(lt['return']*100).toFixed(2):'0.00',lside=(lt.side||'').toUpperCase();ac+='<div class="asset-last-trade">Last: '+lside+' <span class="'+lri.cls+'">'+(lt['return']>=0?'+':'')+lret+'% ('+lri.text+')</span></div>'}
     if(entry||stop||tp||upnl!=null){
+      var pSLM = pos.sl_mult, pTPM = pos.tp_mult;
+      var pGeom = pSLM && pTPM ? ' <span style="opacity:0.6">['+fmt(pSLM,2)+' / '+fmt(pTPM,2)+']</span>' : '';
       ac+='<div class="asset-more">';
       if(entry)ac+='Entry $'+fmtPrice(entry);
       if(stop)ac+=' &middot; SL $'+fmtPrice(stop);
       ac+='</div><div class="asset-more">';
       if(tp)ac+='TP $'+fmtPrice(tp);
-      if(upnl!=null)ac+=' &middot; P&L <span style="color:'+(upnl>=0?'var(--green)':'var(--red)')+'">'+fmt(upnl,2)+'%</span>';
+      if(upnl!=null)ac+=' &middot; P&L <span style="color:'+(upnl>=0?'var(--green)':'var(--red)')+'">'+fmt(upnl,2)+'%</span>'+pGeom;
       ac+='</div>';
+    }else{
+      ac+='<div class="asset-more" style="text-align:center;margin-top:8px;border-top:1px solid var(--surface-elevated);padding-top:4px">Regime Geometry: '+geomStr+'</div>';
     }
     ac+='</div>';
   }
@@ -139,6 +145,9 @@ function render(state){
     var sig=s?s.signal:'FLAT',conf=s?s.confidence||0:0,price=s?s.close_price:0;
     var alloc=p.allocations?p.allocations[name]:0.25;
     var ret=m.total_return||0,dd=m.drawdown||0,pos=m.position;
+    var curSLM = m.current_sl_mult, curTPM = m.current_tp_mult;
+    var geomStr = curSLM && curTPM ? '<br><span style="font-size:0.75em;opacity:0.5">'+fmt(curSLM,2)+'x / '+fmt(curTPM,2)+'x</span>' : '';
+
     tb+='<tr><td><strong>'+name+'</strong></td>';
     tb+='<td style="color:var(--text-muted)">'+(sig==='BUY'?'Bullish':sig==='SELL'?'Bearish':'Neutral')+'</td>';
     tb+='<td class="cell-signal cell-'+cssClass(sig)+'">'+sig+'</td>';

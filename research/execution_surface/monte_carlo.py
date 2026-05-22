@@ -73,8 +73,11 @@ def compute_trade_metrics(trades: pd.DataFrame, sl_mult: float, tp_mult: float) 
     # Avg hold bars
     avg_hold = float(trades['hold_bars'].mean()) if n_trades > 0 else 0.0
 
-    # Stop-hit frequency
+    # Exit reason rates
     stop_hit = float((trades['reason'] == 'sl').mean()) if n_trades > 0 else 0.0
+    tp_hit = float((trades['reason'] == 'tp').mean()) if n_trades > 0 else 0.0
+    flip_rate = float((trades['reason'] == 'flip').mean()) if n_trades > 0 else 0.0
+    expiry_rate = float((trades['reason'] == 'expiry').mean()) if n_trades > 0 else 0.0
 
     # Payoff asymmetry
     avg_win = float(returns[returns > 0].mean()) if n_winners > 0 else 0.0
@@ -106,6 +109,9 @@ def compute_trade_metrics(trades: pd.DataFrame, sl_mult: float, tp_mult: float) 
         'max_dd': max_dd,
         'avg_hold_bars': avg_hold,
         'stop_hit_freq': stop_hit,
+        'tp_hit_freq': tp_hit,
+        'flip_freq': flip_rate,
+        'expiry_freq': expiry_rate,
         'payoff_asym': payoff_asym,
         'top5_concentration': top5_share,
         'sharpe_stability': sharpe_stability,

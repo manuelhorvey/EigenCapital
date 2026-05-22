@@ -82,6 +82,8 @@ export interface AssetMetrics {
   last_signal_date: string
   monthly_pf: number | null
   position: Position | null
+  current_sl_mult?: number
+  current_tp_mult?: number
   trade_log: TradeEntry[]
 }
 
@@ -107,6 +109,8 @@ export interface Position {
   tp: number
   current_vol: number
   unrealized_pnl: number
+  sl_mult?: number
+  tp_mult?: number
 }
 
 export interface AssetHaltConfig {

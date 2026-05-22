@@ -48,8 +48,8 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
       dist: m.signal_distribution,
       currentValue: m.current_value ?? 0,
       isNew,
-      slMult: asset.sl_mult,
-      tpMult: asset.tp_mult,
+      slMult: m.current_sl_mult ?? asset.sl_mult,
+      tpMult: m.current_tp_mult ?? asset.tp_mult,
       sparkValues,
     }
   }, [asset, data, name, eqHistory])

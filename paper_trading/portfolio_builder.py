@@ -9,6 +9,7 @@ logger = logging.getLogger("quantforge.portfolio_builder")
 def build_paper_portfolio(halt_defaults: dict) -> dict:
     cfg = get_config()
     assets = cfg.assets
+    regime_geom = cfg.regime_geometry
     if assets:
         pf = {}
         for name, spec in assets.items():
@@ -32,6 +33,7 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
                 "config": config,
                 "sl_mult": sl_mult,
                 "tp_mult": tp_mult,
+                "regime_geometry": regime_geom,
             }
         return pf
     return {

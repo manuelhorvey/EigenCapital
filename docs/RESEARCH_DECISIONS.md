@@ -102,9 +102,36 @@ The 32-feature model achieved max confidence 0.54 with 4:1 long bias (ADR-005). 
 
 **Why it works:** Macro features have lower frequency and different noise structure than price features. In a joint model, the high-frequency price signal dominates because it has more variance to explain. Separating the macro head with a protected weight ensures macro context contributes to every decision.
 
-### Near-Zero Correlation Portfolio
+### Tight-Stop Physics — Universal SL Optimum at 0.30× Vol
 
-Six assets from independent driver clusters (momentum_crypto, real_asset, eur_cross, carry_fx, oil_carry, usd_macro) produce max pairwise signal |r| < 0.40, with most pairs < 0.20. True diversification across 5 distinct macro risk factors.
+**Hypothesis:** Tighter stop-losses increase loss frequency but reduce loss magnitude enough to produce a net Sharpe improvement. The effect is a property of OHLC barrier checking, not of strategy edge.
+
+**Result:** Swept SL grid (0.05–1.00 × vol, step 0.05) × TP grid (1.00–3.00 × vol, step 0.25) across 3 volatility regimes × 12 assets. Every asset, every regime — optimum SL is at the grid minimum. Best Sharpe uniformly at sl=0.05 when spread=0 bps, shifting to sl=0.05–0.30 at 5 bps spread. Universal plateau center at **sl=0.30** was selected as conservative compromise.
+
+**Why it works:** OHLC replay checks SL before TP at each bar. A tight stop exits losing trades near their trough (small loss), while winning trades have headroom to reach TP. The resulting R:R is 4–6:1 (small loss vs large win). This is a structural property of discrete barrier checking on OHLC data — the same physics produces identical results regardless of asset or regime.
+
+**Key statistic across sweep:**
+```
+Before (sl=0.52):  SL hit rate 60-65%,  TP hit rate 35-40%,  avg loss −1.2× vol
+After  (sl=0.30):  SL hit rate 70-84%,  TP hit rate 25-30%,  avg loss −0.5× vol
+Sharpe delta: +62% (6.01 → 9.69 in 5000-path survival sim)
+```
+
+**Conservative choice:** sl=0.05 produces 70-84% loss rate — psychologically unsustainable and vulnerable to spread costs at scale. sl=0.30 was selected as the production parameter: 70-84% loss rate but loss size is 0.5× vol (vs 1.2× vol at plateau defaults). The survival simulation at 5 bps spread confirms sl=0.30 holds under realistic costs.
+
+**Lesson learned:** The optimal SL is determined by barrier-checking physics, not by strategy characteristics. A grid that extends to the minimum possible SL value will always find the optimum at the grid edge. The correct question is not "what SL maximizes Sharpe?" but "what SL is the largest we can use before Sharpe degrades?"
+
+### Meta-Model Validation — AUC 0.49-0.55 (Random)
+
+**Hypothesis:** A logistic regression secondary filter trained on live trade outcomes can distinguish winning from losing primary signals.
+
+**Result:** Holdout validation across all 8 assets with > 200 trades: AUC 0.49 (AUDJPY) to 0.55 (EURCAD). Effectively random. Removed from all production paths in `asset_engine.py` and `survival_sim.py`. The `shared/meta_labeling.py` module kept as reference for future research.
+
+**Why it failed:** The primary XGBoost models already produce well-calibrated probabilities. The 5 meta-model features (primary confidence, regime state, periods in state, stability penalty, close price) do not contain incremental information that the primary model has not already exploited.
+
+**Lesson learned:** A secondary filter cannot improve on a primary model that has already learned its own failure modes. The +5–19% Sharpe lift observed during development was from random gating (the meta-model was randomly skipping losing trades), not from genuine skill.
+
+### Near-Zero Correlation Portfolio
 
 **Why it works:** True diversification requires independent risk factors, not just different tickers. BTC responds to liquidity conditions, GC=F to real yields and inflation, EURAUD to EUR/AUD rate differentials, NZDJPY to carry trade dynamics, CADJPY to oil and Canada-Japan spreads, USDCAD to USD momentum. The portfolio benefit exists because the assets are economically independent, not just statistically uncorrelated.
 

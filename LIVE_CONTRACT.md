@@ -42,12 +42,20 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 
 | Asset | Ticker | Features | Label type | Label params |
 |---|---|---|---|---|
-| BTC | BTC-USD | `rate_diff, 2y_yield_delta_63, btc_mom_63, btc_vs_spy_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| BTC (satellite) | BTC-USD | `rate_diff, 2y_yield_delta_63, vix_delta_5, dxy_mom_21, vix_ma21, btc_mom_10, btc_mom_21, btc_vs_spy_21, btc_mom_63, btc_vs_spy_63` | tb20 | pt_sl=[2,2], vbar=20 |
 | GC | GC=F | `real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63` | fwd60 | window=60, threshold=0.02 |
-| CADJPY | CADJPY=X | `ca_jp_spread_mom_5, ca_jp_spread_mom_21, vix_ma21, cadjpy_mom_21` | fwd60 | window=60, threshold=0.02 |
+| EURAUD | EURAUD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, euraud_mom_21, euraud_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
 | NZDJPY | NZDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21` | tb20 | pt_sl=[2,2], vbar=20 |
-| USDCAD | USDCAD=X | `rate_diff, dxy_mom_21, vix_ma21, usdcad_mom_21` | tb20 | pt_sl=[2,2], vbar=20 |
-| EURAUD | EURAUD=X | `rate_diff, dxy_mom_21, vix_ma21, euraud_mom_21` | tb20 | pt_sl=[2,2], vbar=20 |
+| CADJPY | CADJPY=X | `vix_ma21, ca_jp_spread_mom_21, us_jp_10y_spread, vix_delta_5, ca_jp_10y_spread, dxy_mom_21, cadjpy_mom_10, cadjpy_mom_21, cadjpy_mom_63` | fwd60 | window=60, threshold=0.02 |
+| AUDJPY | AUDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, audjpy_mom_21, audjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| USDCAD | USDCAD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdcad_mom_21, usdcad_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| GBPJPY | GBPJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, gbpjpy_mom_21, gbpjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| USDJPY | USDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, dxy_mom_21, usdjpy_mom_21, usdjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| USDCHF | USDCHF=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdchf_mom_21, usdchf_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| GBPUSD | GBPUSD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, gbpusd_mom_21, gbpusd_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| CHFJPY | CHFJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, chfjpy_mom_21, chfjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| EURCAD | EURCAD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, eurcad_mom_21, eurcad_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| ^DJI | ^DJI | `rate_diff, vix_ma21, dxy_mom_21, breakeven_delta_63, dji_mom_21, dji_mom_63, dji_vs_spy_21, dji_vs_spy_63` | tb20 | pt_sl=[2,2], vbar=20 |
 
 **tb20 label:** `apply_triple_barrier(df, pt_sl=[2,2], vertical_barrier=20)` → `{-1,0,1}` → `+1` → `{0,1,2}`
 **fwd60 label:** `ret = close.pct_change(60).shift(-60)` → `2 if ret>0.02, 0 if ret<-0.02, 1 else`
@@ -76,11 +84,37 @@ Applied in: `PositionManager.compute_daily_pnl()` → `current_value * direction
 ## 5. SL/TP CONTRACT
 
 **Volatility:** `returns = log(close / close.shift(1)); vol = ewm(span=100).std(); floor = 0.01`
-**Multiplier:** `2.0`
+**Multiplier:** Per-asset from `configs/paper_trading.yaml` `sl_mult`/`tp_mult`, adjusted by model-validity state machine multipliers.
+**Base values (research-optimized via per-regime sweep):**
+
+| Asset | sl_mult | tp_mult | Regime-tuned |
+|-------|---------|---------|--------------|
+| EURAUD | 0.30 | 1.00 | yes |
+| GC | 0.30 | 1.50 | yes |
+| NZDJPY | 0.30 | 1.75 | yes |
+| CADJPY | 0.30 | 1.25 | yes |
+| AUDJPY | 0.30 | 1.75 | yes |
+| USDCAD | 0.30 | 1.50 | yes |
+| GBPJPY | 0.30 | 1.25 | yes |
+| USDJPY | 0.30 | 1.00 | yes |
+| USDCHF | 0.30 | 1.75 | yes |
+| CHFJPY | 0.30 | 1.00 | yes |
+| EURCAD | 0.30 | 1.75 | yes |
+| ^DJI | 0.30 | 1.50 | yes |
+| GBPUSD | 0.52 | 1.97 | no (plateau default) |
+| BTC (satellite) | 0.58 | 1.51 | no (plateau default) |
+
+**Regime-validity adjustment:** When model validity state is YELLOW, TP is multiplied by 0.85; when RED, TP × 0.70. SL stays at base multiplier across all states.
+
 **Formulas:**
 ```
-long:  sl = entry * (1 - vol * 2),  tp = entry * (1 + vol * 2)
-short: sl = entry * (1 + vol * 2),  tp = entry * (1 - vol * 2)
+sl_mult_effective = base_sl_mult × validity_sl_mult
+tp_mult_effective = base_tp_mult × validity_tp_mult
+
+long:  sl = entry × (1 - vol × sl_mult_effective)
+       tp = entry × (1 + vol × tp_mult_effective)
+short: sl = entry × (1 + vol × sl_mult_effective)
+       tp = entry × (1 - vol × tp_mult_effective)
 ```
 
 ---
@@ -111,18 +145,34 @@ short: price >= sl → ("sl", sl);  price <= tp → ("tp", tp)
 
 ## 7. PORTFOLIO ALLOCATION CONTRACT
 
-| Asset | Allocation |
+**Core portfolio (13 assets, cash buffer ~3%):**
+
+| Asset | Ticker | Allocation | Driver cluster |
+|---|---|---|---|
+| EURAUD | EURAUD=X | 0.17 | eur_cross |
+| GC | GC=F | 0.13 | real_asset |
+| NZDJPY | NZDJPY=X | 0.11 | carry_fx |
+| CADJPY | CADJPY=X | 0.09 | oil_carry |
+| CHFJPY | CHFJPY=X | 0.07 | carry_fx |
+| EURCAD | EURCAD=X | 0.07 | eur_cross |
+| AUDJPY | AUDJPY=X | 0.06 | carry_fx |
+| USDCAD | USDCAD=X | 0.06 | usd_macro |
+| GBPJPY | GBPJPY=X | 0.05 | carry_fx |
+| ^DJI | ^DJI | 0.05 | equity_index |
+| USDJPY | USDJPY=X | 0.04 | usd_macro |
+| USDCHF | USDCHF=X | 0.04 | usd_macro |
+| GBPUSD | GBPUSD=X | 0.03 | usd_macro |
+
+**BTC satellite bucket:**
+| Property | Value |
 |---|---|
-| BTC | 0.20 |
-| NZDJPY | 0.15 |
-| CADJPY | 0.13 |
-| USDCAD | 0.10 |
-| GC | 0.20 |
-| EURAUD | 0.22 |
+| Allocation | 5% AUM cap |
+| Vol target | 40% annualised |
+| Drawdown limit | 25% |
+| Regime gate | 5-condition AND logic (correlation, BTC vol, VIX, DXY momentum, CRISIS) |
 
 **Capital:** $100,000
-**Per-asset initial:** `$100,000 * allocation`
-**Sum constraint:** `sum(allocations) == 1.0` (enforced by assertion)
+**Sum constraint:** `sum(core_allocations) ≈ 0.97` (cash buffer of ~3%)
 
 ---
 

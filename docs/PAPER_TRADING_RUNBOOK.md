@@ -20,14 +20,26 @@ Operational procedures for the paper trading system. This document is for the pe
 
 ### Assets
 
-| Asset | Weight | Ticker | Drawdown Limit | Vol Scaling | Label |
-|-------|--------|--------|----------------|-------------|-------|
-| BTC | 20% | BTC-USD | -15% | Yes (target 30%) | tb20 |
-| GC=F | 20% | GC=F | -8% | No | fwd60 |
-| EURAUD | 22% | EURAUD=X | -8% | No | tb20 |
-| NZDJPY | 15% | NZDJPY=X | -6% | No | tb20 |
-| CADJPY | 13% | CADJPY=X | -8% | No | tb20 |
-| USDCAD | 10% | USDCAD=X | -8% | No | tb20 |
+**Core portfolio (13 assets):**
+
+| Asset | Weight | Ticker | sl_mult | tp_mult | R:R | Label | Regime-tuned |
+|-------|--------|--------|---------|---------|:---:|-------|--------------|
+| EURAUD | 17% | EURAUD=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
+| GC | 13% | GC=F | 0.30 | 1.50 | 1:5.0 | fwd60 | yes |
+| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
+| CADJPY | 9% | CADJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes |
+| CHFJPY | 7% | CHFJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
+| EURCAD | 7% | EURCAD=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
+| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
+| USDCAD | 6% | USDCAD=X | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
+| GBPJPY | 5% | GBPJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes |
+| ^DJI | 5% | ^DJI | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
+| USDJPY | 4% | USDJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
+| USDCHF | 4% | USDCHF=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
+| GBPUSD | 3% | GBPUSD=X | 0.52 | 1.97 | 1:3.8 | tb20 | no |
+
+**BTC satellite bucket:** 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate.
+**SL/TP base values:** sl=0.30 universal (research-optimized via sweep across 3 regimes). Model-validity adjustments: YELLOW → tp × 0.85, RED → tp × 0.70. SL unchanged across validity states.
 
 ### Halt Parameters (global defaults, overridable per asset)
 
@@ -76,12 +88,19 @@ curl http://127.0.0.1:5000/ping
 
 After startup, verify log output shows:
 ```
-BTC: BUY  conf=XX%  @ $XX.XX
-GC=F: BUY conf=XX%  @ $XX.XX
-EURAUD: SELL conf=XX%  @ $XX.XX
-NZDJPY: BUY conf=XX%  @ $XX.XX
+EURAUD: BUY conf=XX% @ $XX.XX
+GC: SELL conf=XX% @ $XX.XX
+NZDJPY: BUY conf=XX% @ $XX.XX
 CADJPY: FLAT conf=XX% @ $XX.XX
-USDCAD: BUY conf=XX%  @ $XX.XX
+AUDJPY: BUY conf=XX% @ $XX.XX
+USDCAD: SELL conf=XX% @ $XX.XX
+GBPJPY: BUY conf=XX% @ $XX.XX
+USDJPY: FLAT conf=XX% @ $XX.XX
+USDCHF: SELL conf=XX% @ $XX.XX
+GBPUSD: BUY conf=XX% @ $XX.XX
+CHFJPY: FLAT conf=XX% @ $XX.XX
+EURCAD: SELL conf=XX% @ $XX.XX
+^DJI: BUY conf=XX% @ $XX.XX
 Portfolio: $XXXXX (XX%)
 ```
 
@@ -131,12 +150,19 @@ for name, a in s['assets'].items():
 
 | Asset | Label | BUY/SELL Ratio | Mean Confidence |
 |-------|-------|----------------|-----------------|
-| BTC | tb20 | ~1:1 | 60-80% |
-| GC=F | fwd60 | ~1:1 | 55-75% |
 | EURAUD | tb20 | ~1:1 | 55-75% |
+| GC | fwd60 | ~1:1 | 55-75% |
 | NZDJPY | tb20 | ~1:1 | 55-75% |
 | CADJPY | tb20 | ~1:1 | 55-75% |
+| CHFJPY | tb20 | ~1:1 | 55-75% |
+| EURCAD | tb20 | ~1:1 | 55-75% |
+| AUDJPY | tb20 | ~1:1 | 55-75% |
 | USDCAD | tb20 | ~1:1 | 55-75% |
+| GBPJPY | tb20 | ~1:1 | 55-75% |
+| ^DJI | tb20 | ~1:1 | 55-75% |
+| USDJPY | tb20 | ~1:1 | 55-75% |
+| USDCHF | tb20 | ~1:1 | 55-75% |
+| GBPUSD | tb20 | ~1:1 | 55-75% |
 
 **If ratio exceeds 3:1 in either direction**, investigate macro context. A sustained imbalance may indicate:
 - A structural regime shift (e.g., persistent tightening)
@@ -371,7 +397,7 @@ Items to build after paper trading confirms the system works.
 
 | Item | Description | Depends On |
 |------|-------------|------------|
-| AUDJPY integration | Deferred until post-November (r=0.87 with NZDJPY) | Portfolio evaluation |
+| AUDJPY — RESOLVED | Added to live portfolio (5/5 WF windows, Sharpe 2.62). Correlated with NZDJPY (r=0.87) but diversifies JPY carry exposure at 6% weight. | — |
 | Weekly timeframe models | Lower frequency for macro-only signals | Feature engineering |
 | Meta-labeling filter | Second-stage trade filter to reduce trade count | More training data |
 | Sector rotation extension | Apply driver atlas to other equity sectors | Paper trading results |

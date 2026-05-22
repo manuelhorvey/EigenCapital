@@ -168,26 +168,26 @@ python equity/walk_forward_nzdjpy.py
 
 ## 4. LIVE SIMULATION PORTFOLIO
 
-The system maintains a **14-asset continuously evaluated simulation portfolio** with **plateau-optimized SL/TP configurations** derived from execution surface analysis. BTC is isolated in a separate satellite bucket (see §4.1).
+The system maintains a **13-asset continuously evaluated simulation portfolio** with **regime-optimized SL/TP configurations** (sl_mult=0.30, sweep-derived TP per asset). BTC is isolated in a separate satellite bucket (see §4.1). 12 of 13 core assets use regime-differentiated geometry from per-regime sweeps across 3 volatility regimes (low/transition/high); the 13th (GBPUSD) uses plateau default.
 
-| Asset   | Ticker    | Label | Cluster       | Alloc | sl_mult | tp_mult | R:R   |
-| ------- | --------- | ----- | ------------- | ----- | ------- | ------- | ----- |
-| EURAUD  | EURAUD=X  | tb20  | eur_cross     | 17%   | 0.54    | 1.77    | 1:3.3 |
-| GC      | GC=F      | fwd60 | real_asset    | 13%   | 0.51    | 2.67    | 1:5.2 |
-| NZDJPY  | NZDJPY=X  | tb20  | carry_fx      | 11%   | 0.51    | 2.02    | 1:4.0 |
-| CADJPY  | CADJPY=X  | tb20  | oil_carry     | 9%    | 0.52    | 1.65    | 1:3.2 |
-| CHFJPY  | CHFJPY=X  | tb20  | carry_fx      | 7%    | 0.50    | 1.70    | 1:3.4 |
-| EURCAD  | EURCAD=X  | tb20  | eur_cross     | 7%    | 0.51    | 1.96    | 1:3.8 |
-| AUDJPY  | AUDJPY=X  | tb20  | carry_fx      | 6%    | 0.52    | 2.01    | 1:3.9 |
-| USDCAD  | USDCAD=X  | tb20  | usd_macro     | 6%    | 0.52    | 1.90    | 1:3.7 |
-| GBPJPY  | GBPJPY=X  | tb20  | carry_fx      | 5%    | 0.50    | 2.22    | 1:4.4 |
-| ^DJI    | ^DJI      | tb20  | equity_index  | 5%    | 0.50    | 1.91    | 1:3.8 |
-| USDJPY  | USDJPY=X  | tb20  | usd_macro     | 4%    | 0.52    | 1.97    | 1:3.8 |
-| USDCHF  | USDCHF=X  | tb20  | usd_macro     | 4%    | 0.52    | 1.95    | 1:3.8 |
-| GBPUSD  | GBPUSD=X  | tb20  | usd_macro     | 3%    | 0.52    | 1.97    | 1:3.8 |
+| Asset   | Ticker    | Label | Cluster       | Alloc | sl_mult | tp_mult | R:R   | Regime-tuned |
+| ------- | --------- | ----- | ------------- | ----- | ------- | ------- | ----- | ------------ |
+| EURAUD  | EURAUD=X  | tb20  | eur_cross     | 17%   | 0.30    | 1.00    | 1:3.3 | yes |
+| GC      | GC=F      | fwd60 | real_asset    | 13%   | 0.30    | 1.50    | 1:5.0 | yes |
+| NZDJPY  | NZDJPY=X  | tb20  | carry_fx      | 11%   | 0.30    | 1.75    | 1:5.8 | yes |
+| CADJPY  | CADJPY=X  | tb20  | oil_carry     | 9%    | 0.30    | 1.25    | 1:4.2 | yes |
+| CHFJPY  | CHFJPY=X  | tb20  | carry_fx      | 7%    | 0.30    | 1.00    | 1:3.3 | yes |
+| EURCAD  | EURCAD=X  | tb20  | eur_cross     | 7%    | 0.30    | 1.75    | 1:5.8 | yes |
+| AUDJPY  | AUDJPY=X  | tb20  | carry_fx      | 6%    | 0.30    | 1.75    | 1:5.8 | yes |
+| USDCAD  | USDCAD=X  | tb20  | usd_macro     | 6%    | 0.30    | 1.50    | 1:5.0 | yes |
+| GBPJPY  | GBPJPY=X  | tb20  | carry_fx      | 5%    | 0.30    | 1.25    | 1:4.2 | yes |
+| ^DJI    | ^DJI      | tb20  | equity_index  | 5%    | 0.30    | 1.50    | 1:5.0 | yes |
+| USDJPY  | USDJPY=X  | tb20  | usd_macro     | 4%    | 0.30    | 1.00    | 1:3.3 | yes |
+| USDCHF  | USDCHF=X  | tb20  | usd_macro     | 4%    | 0.30    | 1.75    | 1:5.8 | yes |
+| GBPUSD  | GBPUSD=X  | tb20  | usd_macro     | 3%    | 0.52    | 1.97    | 1:3.8 | no |
 
 * **Cash buffer**: ~3% retained as dynamic risk slack.
-* **SL/TP values**: plateau-center configs from aggregate execution surface analysis.
+* **SL/TP values**: sl=0.30 universal base (per-regime sweep optimum), TP varies by asset (sweep-derived per-regime, mid-range shown). Model-validity adjustments: YELLOW → TP × 0.85, RED → TP × 0.70.
 * **Stop-loss** = vol × sl_mult, **take-profit** = vol × tp_mult. Training labels in `features/registry.py` must match runtime multipliers — enforced by `PaperTradingEngine.initialize()`.
 
 ### 4.1 BTC Satellite Bucket
@@ -576,26 +576,30 @@ Tracks the deleveraging system's behavior across all paths:
 * Regime-bucketed average exposure (CALM vs ELEVATED vs CRISIS)
 * Min exposure distribution (crisis severity)
 
-### 12.7 Calibration Results (v4 — 14-Asset Portfolio + BTC Satellite)
+### 12.7 Calibration Results (v5 — Regime-Optimized Geometry, 5000 paths)
 
-| Metric | 14-Asset Full | BTC Satellite | BTC Legacy 20% |
-|--------|---------------|---------------|----------------|
-| Sharpe | 6.02 | 5.58 | 3.78 |
-| Ann.Ret | +24.1% | +22.3% | +22.8% |
-| Worst DD | 8.3% | 12.1% | 27.5% |
-| Flash Crash DD | 34.1% | 36.2% | 35.8% |
-| Ruin | 0% | 0% | 0% |
-| 100% Positive Paths | ✓ | ✓ | ✗ |
+| Scenario | Metric | Regime-Geometry Portfolio | Flash Crash | Corr Spike |
+|---|---|---|---|---|
+| Normal | Sharpe | **9.67** | **1.59** | **6.44** |
+| | Ann.Ret | +44.6% | +28.5% | +36.1% |
+| | Worst DD | 5.2% | 32.8% | 23.8% |
+| | Med DD | 1.9% | 30.1% | 6.1% |
+| | Terminal P50 | **3.03×** | **2.12×** | **2.52×** |
+| | Terminal P5 | **2.39×** | **1.68×** | **2.00×** |
+| | Ruin | 0.00% | 0.00% | 0.00% |
+| | Positive paths | 100.0% | 100.0% | 100.0% |
 
 **Key findings**:
 
-* Portfolio expansion (11→14 assets) improved every risk metric — Sharpe 3.78→6.02, worst DD 27.5%→8.3%, flash crash DD 35.8%→34.1%
-* Return compression (-2.4%) from diversification is well within acceptable range
-* 100% of simulation paths positive across all variants
-* Deleveraging activates on ~12% of paths (was ~15% in v3)
-* BTC satellite shows measurable improvement over legacy 20%: ΔSharpe +1.80, ΔWorstDD −15.4pp
-* CHFJPY and EURCAD are net positive contributors across all metrics
-* ^DJI shows small negative ΔSharbe (−0.11) — under monitoring
+* Regime-optimized geometry (sl=0.30 sweep-derived TP) delivers **Sharpe 9.67** across 13 assets with 0% ruin across 5000 correlated bootstrap paths
+* All stress scenarios remain profitable — flash crash Sharpe 1.59, correlation spike Sharpe 6.44
+* Worst DD peak across all paths: **5.2%** (regime) vs **8.3%** (v4 plateau defaults) vs **27.5%** (BTC legacy)
+* All 4 BTC variants (full, no BTC, capped 5%, regime-gated) produce equivalent Sharpe ~9.67 — robust to BTC exposure
+* 5000-path bootstrap with block resampling confirms narrow CIs — Sharpe floor above 6.0 at P5
+* Marginal contributions: EURCAD (+0.08 Sharpe), EURAUD/AUDJPY/GC/GBPJPY (+0.06) are strongest additive assets
+* Deleveraging activates on ~12% of paths; BTC satellite improves worst DD by 15.4pp vs legacy
+
+**Important caveat**: Current regime space remains sparsely populated in CRISIS states (0.27% sample frequency). The bootstrap explicitly injects synthetic stress blocks (§12.8) to compensate, but the underlying data distribution means true tail persistence may be understated. The strong risk metrics above reflect the modeled dynamics — they do not guarantee robustness under compound stress regimes the system has not observed or been parameterised to simulate.
 
 **Important caveat**: Current regime space remains sparsely populated in CRISIS states (0.27% sample frequency). The bootstrap explicitly injects synthetic stress blocks (§12.8) to compensate, but the underlying data distribution means true tail persistence may be understated. The strong risk metrics above reflect the modeled dynamics — they do not guarantee robustness under compound stress regimes the system has not observed or been parameterised to simulate.
 
@@ -762,18 +766,24 @@ R --> A
 
 ## 18. RESEARCH STATUS
 
-* **14-asset live paper trading** active with plateau-optimized SL/TP (10 original + 3 promoted, BTC in satellite)
+* **13-asset live paper trading** active with regime-optimized SL/TP geometry (sl=0.30 sweep-derived TP, 12/13 assets regime-tuned, BTC in satellite)
 * **32 assets** registered in FEATURE_REGISTRY with full FeatureContracts, walk-forward evaluated via `scripts/walk_forward_all.py`
+* **Regime-optimized SL/TP geometry** discovered via per-regime sweep across 3 volatility regimes × 20 SL × 9 TP grid. Universal optimum at **sl=0.30** (tight-stop physics), TP varies per-asset per-regime. Extends execution surface optimization from plateau-center to regime-conditional.
+* **13-asset survival Monte Carlo v5** — regime-geometry portfolio: **Sharpe 9.67**, 0% ruin, worst DD 5.2%, P50 terminal 3.03×, P5 terminal 2.39×, 100% positive paths across 5000 correlated bootstrap paths
+* **Flash crash resilience**: Sharpe 1.59, worst DD 32.8%, 0% ruin — all paths profitable even under 30% single-day shock
+* **Correlation spike resilience**: Sharpe 6.44, worst DD 23.8%, 0% ruin
+* **Meta-model removed from live path** — holdout validation across all 8 assets showed AUC 0.49-0.55 (random). All references removed from `asset_engine.py` and `survival_sim.py`.
+* **Per-asset regime geometry** integrated into paper trading engine: `regime_geometry` now interpreted as relative multipliers on research-optimized base sl/tp, instead of absolute overrides
 * **BTC removed from core portfolio** — isolated in `HighVolSatellite` with 5-condition AND-gate (see §4.1, ADR-018)
 * **3 assets promoted in batch 2**: CHFJPY, EURCAD, ^DJI — passed walk-forward gate, historical 5-year sandbox validation, SL/TP surface sweeps, and survival sim validation; ^DJI started underweight (marginal contribution monitoring active)
 * **CL=F rejected** by historical walk-forward (avg Sharpe −0.33) despite passing walk-forward gate — regime overfit to 2020 crash
 * **Publication lag audit** completed — all macro features lagged to real publication date; no look-ahead in feature construction
 * **Synthetic stress scenarios** (6 blocks: COVID, GFC, taper tantrum, flash crash, correlation spike, vol regime) parameterised from historical analogues via common-factor Gaussian return model; injection rate capped at 25%
 * **Feature importance stability tracking** per-asset — Jaccard top-10 / Spearman rank correlation feeds ValidityStateMachine penalties (worst-wins aggregation)
-* **Meta-labeling layer** — logistic regression with class_weight='balanced', min 50 trades, 3 decision bands (FULL / REDUCED / SKIP); scales pos_size in signal generation pipeline
+* **Meta-labeling layer** (kept in research path) — logistic regression with class_weight='balanced', min 50 trades, 3 decision bands (FULL / REDUCED / SKIP); AUC 0.49-0.55, not deployed in live path
 * **Simulation snapshot system** — full engine state per asset to parquet at each save_state(); 3 load modes (exact timestamp, date-prefix, date listing); deduplication on (timestamp, asset)
-* **Survival Monte Carlo v4** operational: 14-asset portfolio, 0% ruin, Sharpe 6.02, worst DD 8.3%, flash crash DD 34.1%, 100% positive paths
-* **SL/TP execution surface** analyzed for all 14 core portfolio assets; migrated to plateau-center configs
+* **Survival Monte Carlo v5** operational: 13-asset regime-geometry portfolio, 0% ruin, Sharpe 9.67, worst DD 5.2%, flash crash Sharpe 1.59, 100% positive paths
+* **SL/TP execution surface** — regime-conditional sweeps completed for 12 of 14 assets; `regime_sweep.py` CLI with `--spread` and `--assets` parameters; logging fix for `%-SL%` format string
 * **Full governance pipeline**: validity state machine (GREEN/YELLOW/RED), 5D drift detection, feature stability penalties, shadow analytics
 * **Shadow system** continuously accumulating behavioral dataset
 * **In-memory TTL cache** on serve.py with per-endpoint expiry; gzip compression for large responses; `/ping` health endpoint

@@ -98,13 +98,20 @@ vol = last_value if not nan else 0.01
 
 **SL/TP formula (decision.py:37-44):**
 ```
+sl_mult_effective = sl_mult * validity_sl_mult
+tp_mult_effective = tp_mult * validity_tp_mult
+
 if side == "long":
-    sl = entry_price * (1 - vol * 2)
-    tp = entry_price * (1 + vol * 2)
+    sl = entry_price * (1 - vol * sl_mult_effective)
+    tp = entry_price * (1 + vol * tp_mult_effective)
 else:  # short
-    sl = entry_price * (1 + vol * 2)
-    tp = entry_price * (1 - vol * 2)
+    sl = entry_price * (1 + vol * sl_mult_effective)
+    tp = entry_price * (1 - vol * tp_mult_effective)
 ```
+
+**Multipliers (from configs/paper_trading.yaml):**
+- Base: sl_mult ≈ 0.30 (research-optimized, sweep-derived), tp_mult per-asset (1.00–1.75)
+- Validity adjustment: GREEN=1.0×, YELLOW=0.85× (TP only), RED=0.70× (TP only)
 
 ## 6. POSITION MANAGEMENT
 

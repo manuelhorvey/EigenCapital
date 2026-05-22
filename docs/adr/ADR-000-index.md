@@ -34,6 +34,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 | 019 | [Feature Importance Stability Tracking as Governance Signal](ADR-019-feature-importance-stability.md) | Accepted | 2026-05 |
 | 020 | [Meta-Labeling Layer as Confidence Filter](ADR-020-meta-labeling.md) | Accepted | 2026-05 |
 | 021 | [Simulation Snapshot System for Deterministic Replay](ADR-021-simulation-snapshot.md) | Accepted | 2026-05 |
+| 022 | [Macro Expert Head Adaptive Weighting](ADR-022-macro-adaptive-weight.md) | Accepted | 2026-05 |
 
 ## By Topic
 
@@ -44,6 +45,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 ### Regime & Model Architecture
 - ADR-002: Regime classifier as router
 - ADR-005: Protected macro expert head
+- ADR-022: Adaptive macro blend weight (online, bounded)
 
 ### Validation Methodology
 - ADR-003: Expanding train window
@@ -59,6 +61,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 
 ### Features
 - ADR-007: Yield slope removed
+- ADR-022 (operational): Lead-lag custom features via `lead_lag_edges.yaml` (see [HARDENING_ROADMAP.md](../HARDENING_ROADMAP.md))
 
 ### Risk & Monitoring
 - ADR-018: BTC satellite isolation
@@ -69,6 +72,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 
 ### Infrastructure
 - ADR-021: Simulation snapshot system
+- HARDENING_ROADMAP: Three-tier isolation, execution physics, extended history
 
 ### Operations
 - ADR-014: Zero manual overrides

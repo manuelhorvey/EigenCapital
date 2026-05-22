@@ -17,6 +17,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | Refresh interval | 300s / 5 min (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var) |
 | Retrain frequency | Annual (January 1) |
 | Training window | 5-year expanding |
+| Hardening guide | `docs/HARDENING_ROADMAP.md` |
 
 ### Assets
 
@@ -26,11 +27,11 @@ Operational procedures for the paper trading system. This document is for the pe
 |-------|--------|--------|---------|---------|:---:|-------|--------------|
 | EURAUD | 17% | EURAUD=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
 | GC | 13% | GC=F | 0.30 | 1.50 | 1:5.0 | fwd60 | yes |
-| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
+| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (adaptive_macro) |
 | CADJPY | 9% | CADJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes |
 | CHFJPY | 7% | CHFJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
 | EURCAD | 7% | EURCAD=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
-| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
+| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (+ lead-lag feature) |
 | USDCAD | 6% | USDCAD=X | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
 | GBPJPY | 5% | GBPJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes |
 | ^DJI | 5% | ^DJI | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
@@ -415,20 +416,54 @@ Items to build after paper trading confirms the system works.
 
 ---
 
+## 6. Execution Physics and Sizing (Hardening)
+
+Live paper trading applies **spread + impact** on entries and exits via `ExecutionBridge` (`paper_trading/execution_bridge.py`). Config is in `configs/paper_trading.yaml`:
+
+```yaml
+execution_defaults:
+  base_spread_bps: 0.5
+  spread_vol_slope: 2.0
+  impact_model: square_root
+  impact_coeff: 0.1
+
+assets:
+  NZDJPY:
+    regime_sizing: true      # vol target scales by regime
+    adaptive_macro: true     # only if model pickle has macro_head (HybridEnsemble)
+    execution_config:
+      base_spread_bps: 2.0
+      avg_daily_volume: 300000000
+```
+
+**Volatility dashboard** (`/volatility.json`) compares live vol to `vol_baselines` in the same YAML file.
+
+**Decision payload** may include `macro_weight` when adaptive macro is active.
+
+**Research / validation:** see `docs/HARDENING_ROADMAP.md` for extended history, lead-lag, and pytest targets.
+
+---
+
 ## Appendix: File Locations
 
 ```
 Project Root/
 ├── configs/
-│   └── paper_trading.yaml        # Asset config, halt conditions, weights
+│   └── paper_trading.yaml        # Assets, halt, vol_baselines, execution_config
 ├── data/
 │   ├── live/
 │   │   └── state.json            # Current portfolio and asset state
+│   ├── research/
+│   │   ├── lead_lag_matrix.parquet
+│   │   ├── lead_lag_edges.yaml
+│   │   └── survival_*.json       # Baseline vs extended survival exports
+│   ├── raw/historical_extended/  # 2000+ OHLCV (after backfill)
 │   └── processed/
 │       ├── macro_factors.parquet # FRED macro data
 │       └── walkforward_summary.csv  # 30-asset walk-forward ranking
 ├── paper_trading/
-│   ├── engine.py                 # AssetEngine, PaperTradingEngine
+│   ├── engine.py                 # PaperTradingEngine + PaperBroker
+│   ├── execution_bridge.py       # Slippage-aware fills for AssetEngine
 │   ├── serve.py                  # HTTP server + dashboard
 │   └── models/
 │       ├── BTC_model.pkl
@@ -438,6 +473,7 @@ Project Root/
 │       ├── CADJPY_model.pkl
 │       └── USDCAD_model.pkl
 ├── scripts/
+│   ├── run_extended_history_pipeline.py  # Backfill + extended_predictions stubs
 │   ├── train_all_assets.py       # 30-asset training pipeline
 │   ├── walk_forward_all.py       # Walk-forward for all assets
 │   ├── cadjpy_walk_forward.py    # CADJPY-specific fwd60 validation

@@ -145,11 +145,21 @@ Dev mode (port 3000, proxies /state.json to port 5000):
 
 ### 3.4 Running Research Simulations
 
-Survival Monte Carlo (v3 — full pipeline):
+Survival Monte Carlo (full pipeline):
 
 ```bash
 python research/risk/survival_sim.py --execution-physics --btc-execution --deleverage --regime-bootstrap --exposure-telemetry
 ```
+
+Extended history (25+ years, after backfill):
+
+```bash
+python scripts/run_extended_history_pipeline.py
+python research/risk/survival_sim.py --extended-history --regime-bootstrap --execution-physics
+python diagnostics/extended_history_report.py
+```
+
+See **[docs/HARDENING_ROADMAP.md](docs/HARDENING_ROADMAP.md)** for tier-by-tier details.
 
 SL/TP execution surface sweep:
 
@@ -235,9 +245,10 @@ data/
 
 All features are enforced via a **FeatureContract** to ensure deterministic train/serve parity:
 
-* `features/contract.py` — `FeatureContract` dataclass (ticker, label_type, macro_filters, price windows)
-* `features/registry.py` — Ordered registry mapping feature categories to compute functions
-* `features/builder.py` — Orchestrates feature computation and triple-barrier label application
+* `features/contract.py` — `FeatureContract` dataclass + `validate_no_cross_asset_leakage()` (prevents foreign asset columns in train/serve frames)
+* `features/registry.py` — `FEATURE_REGISTRY` with per-asset `contract_prefix`; `FEATURE_CONTRACT_VALIDATION` gate
+* `features/builder.py` — Orchestrates feature computation, optional lead-lag columns, and triple-barrier labels
+* `features/lead_lag_features.py` — Curated cross-asset lead-lag edges from `data/research/lead_lag_edges.yaml`
 
 ### 6.2 Feature Categories
 
@@ -252,6 +263,17 @@ All features are enforced via a **FeatureContract** to ensure deterministic trai
 | `cross_asset_features` | Inter-asset correlations, relative strength |
 | `interaction_features` | Regime contrast, EMA contrast, transition risk |
 | `pair_specific` | FX carry, rate differentials |
+| `lead_lag_features` | Optional lagged peer returns (e.g. `nzdjpy_lead_3` on AUDJPY) |
+
+### 6.2.1 Cross-Asset Isolation
+
+Every asset feature frame is validated so columns match:
+
+- Asset prefix: `{contract_prefix}_` (e.g. `nzdjpy=x_mom_21`)
+- Shared macro columns from `KNOWN_MACRO_COLUMNS` or `macro_*` / `spy_*` / `regime_*` prefixes
+- Explicit `custom_features` (lead-lag columns must be declared on the contract)
+
+Foreign asset momentum (e.g. `eurusd=x_mom_21` in an NZDJPY frame) raises `FeatureMismatchError`. See `docs/HARDENING_ROADMAP.md` § Tier 1.
 
 ### 6.3 Driver Atlas
 
@@ -284,7 +306,7 @@ Each asset is mapped to a **driver-specific feature subspace** to prevent cross-
 ### 7.2 Additional Model Types
 
 * `models/hybrid_ensemble.py` — Hybrid ensemble combining XGBoost with auxiliary models
-* `models/macro_expert_head.py` — Macro-economic expert head module for regime-conditioned predictions
+* `models/macro_expert_head.py` — Macro expert head with optional **adaptive blend weight** (`online_weight`, bounds [0.25, 0.65]); see ADR-022
 * `models/regime/` — Regime classification models
 * `models/mean_reversion/` — Mean-reversion specific models
 
@@ -313,7 +335,7 @@ All model components implement abstract base classes via `shared/`:
 1. Feature computation via `FeaturePipeline`
 2. XGBoost inference → probability distribution (BUY / HOLD / SELL)
 3. `FixedThresholdStrategy` converts probabilities to discrete signals
-4. `VolTargetSizing` applies volatility-scaled position sizing (active for BTC)
+4. `VolTargetSizing` applies vol-target sizing when `vol_scalar` is set; **regime_sizing** adjusts target vol by regime (calm/range × 1.2, crisis/volatile × 0.5)
 5. `TradeDecision` encapsulates signal + sizing → `PositionIntent` for execution
 
 ---
@@ -385,6 +407,7 @@ paper_trading/
 ├── satellite_runner.py    # Macro context fetch, BTC vol z-score, core returns
 ├── satellite.py           # HighVolSatellite — BTC satellite bucket
 ├── position_manager.py    # Position lifecycle (open, close, SL/TP, PnL)
+├── execution_bridge.py    # PaperBroker fill prices + impact estimates for AssetEngine
 ├── decision.py            # TradeDecision / PositionIntent
 ├── state_store.py         # Crash-safe snapshot persistence
 ├── simulation_snapshot.py # Deterministic replay snapshots
@@ -398,7 +421,8 @@ paper_trading/
 * `PaperTradingEngine` — Orchestrator, runs signal generation for all assets each tick
 * `AssetEngine` — Per-asset engine: model, features, position manager, validity state
 * `PositionManager` — Pure state machine: position lifecycle, SL/TP checks, PnL accounting
-* `PaperBroker` — Simulated fills at Yahoo Finance prices with configurable slippage/fees
+* `PaperBroker` — Simulated fills with per-asset spread/impact from `ExecutionConfig` (YAML-driven)
+* `ExecutionBridge` — Connects broker physics to `AssetEngine` entry/exit prices and sizing `impact_bps`
 * `TradeDecision` — Model output intent (signal, confidence, position_size)
 * `PositionIntent` — Execution representation (side, price, SL/TP, vol)
 * `EngineConfig` — Typed config dataclass, loaded from `configs/paper_trading.yaml`
@@ -454,11 +478,27 @@ React + TypeScript + Tailwind + react-query frontend in `paper_trading/dashboard
 | `assets.<name>.allocation` | — | Portfolio weight |
 | `assets.<name>.sl_mult` | 1.0 | Stop-loss vol multiplier |
 | `assets.<name>.tp_mult` | 2.5 | Take-profit vol multiplier |
-| `vol_baselines.<asset>` | — | Baseline volatility for each asset (can override auto-computed) |
+| `vol_baselines.<asset>` | — | Annualized vol floor for sizing (see YAML) |
+| `execution_defaults` | — | Default spread/impact model for all assets |
+| `assets.<name>.regime_sizing` | false | Regime-aware vol target (range/calm up, volatile/crisis down) |
+| `assets.<name>.execution_config` | — | Per-asset `base_spread_bps`, `avg_daily_volume`, `impact_model`, etc. |
+| `assets.<name>.adaptive_macro` | false | Enable online macro blend weight (requires hybrid model + `macro_head`) |
 | `satellite.BTC.max_allocation_pct` | 0.05 | Max BTC allocation |
 | `satellite.BTC.vol_target` | 0.40 | BTC vol target |
 | `satellite.BTC.max_drawdown_pct` | -0.25 | BTC drawdown limit |
 | `QUANTFORGE_REFRESH_INTERVAL` | 300 | Engine loop interval in seconds (env var) |
+
+### 10.8 Three-Tier Hardening
+
+See **[docs/HARDENING_ROADMAP.md](docs/HARDENING_ROADMAP.md)** for full procedures. Summary:
+
+| Tier | Capability |
+|------|------------|
+| **1** | Cross-asset feature isolation audit; regime + vol-baseline sizing |
+| **2** | Vol-z spread model, square-root impact, `ExecutionBridge` on live fills |
+| **3A** | Extended history backfill (2000+), survival export, injection-rate tuning |
+| **3B** | Lead-lag matrix, heatmap, optional `custom_features` (AUDJPY ← NZDJPY) |
+| **3C** | Adaptive macro expert weight on trade close (NZDJPY; hybrid models) |
 
 ---
 
@@ -522,16 +562,19 @@ Logistic regression underfits if no signal exists — a natural guard against ov
 
 A multi-layer survival simulation framework at `research/risk/` that evaluates portfolio robustness under extreme market conditions with progressively increasing realism.
 
-### 12.1 Execution Physics (`execution_physics.py`)
+### 12.1 Execution Physics
+
+**Shared config** (`shared/execution_config.py`): `ExecutionConfig`, `compute_slippage_cost()`, `compute_market_impact()`, `build_execution_configs()` — used by live `PaperBroker` and `research/risk/execution_physics.py`.
 
 Models market microstructure degradation:
 
 * **Spread expansion**: Base spread widens proportionally to volatility z-score, capped at max bps
+* **Market impact**: `none`, `linear`, or `square_root` vs average daily volume (per asset in YAML)
 * **Gap risk**: Stop-loss gap-through increases with vol, adding nonlinear downside
 * **Partial fills**: Fill probability decays with vol; unfilled orders truncate returns
 * **Deleveraging feedback**: When portfolio drawdown exceeds threshold (−10%), exposure is linearly reduced (up to 50% max), then recovers at 0.5%/day when above threshold
 
-**Per-asset execution configs**: BTC-specific parameters (wider spreads, larger gaps, lower fill rates) reflect crypto market microstructure vs FX majors.
+**Per-asset execution configs**: Loaded from `configs/paper_trading.yaml` (`execution_defaults` + per-asset overrides). BTC satellite uses wider spreads and lower fill rates.
 
 ### 12.2 Regime-Aware Bootstrap
 
@@ -599,11 +642,26 @@ Tracks the deleveraging system's behavior across all paths:
 * Marginal contributions: EURCAD (+0.08 Sharpe), EURAUD/AUDJPY/GC/GBPJPY (+0.06) are strongest additive assets
 * Deleveraging activates on ~12% of paths; BTC satellite improves worst DD by 15.4pp vs legacy
 
-**Important caveat**: Current regime space remains sparsely populated in CRISIS states (0.27% sample frequency). The bootstrap explicitly injects synthetic stress blocks (§12.8) to compensate, but the underlying data distribution means true tail persistence may be understated. The strong risk metrics above reflect the modeled dynamics — they do not guarantee robustness under compound stress regimes the system has not observed or been parameterised to simulate.
+**Important caveat**: Current regime space remains sparsely populated in CRISIS states (0.27% sample frequency). The bootstrap injects synthetic stress blocks to compensate; with `--extended-history`, `adjust_injection_rate_for_crisis_density()` reduces injection when empirical CRISIS density is already sufficient.
 
-**Important caveat**: Current regime space remains sparsely populated in CRISIS states (0.27% sample frequency). The bootstrap explicitly injects synthetic stress blocks (§12.8) to compensate, but the underlying data distribution means true tail persistence may be understated. The strong risk metrics above reflect the modeled dynamics — they do not guarantee robustness under compound stress regimes the system has not observed or been parameterised to simulate.
+### 12.8 Extended History (25+ years)
 
-### 12.8 SL/TP Execution Surface Optimization
+| Component | Path / command |
+|-----------|----------------|
+| OHLCV backfill | `python data/loaders/backfill_to_2000.py` → `data/raw/historical_extended/` |
+| Prediction stubs | `python scripts/run_extended_history_pipeline.py` |
+| Extended features | `features/builder.compute_training_data_extended()` |
+| Survival sim flag | `python research/risk/survival_sim.py --extended-history ...` |
+| Metrics export | `data/research/survival_extended.json` |
+| 5y vs 25y report | `python diagnostics/extended_history_report.py` |
+
+### 12.9 Lead-Lag Research
+
+* `research/lead_lag/lead_lag_matrix.py` — cross-correlation + Granger causality (lags 1–21)
+* `research/lead_lag/run_lead_lag.py` — matrix parquet + heatmap PNG under `data/research/`
+* Production hook: `data/research/lead_lag_edges.yaml` → `features/builder._attach_lead_lag_features()`
+
+### 12.10 SL/TP Execution Surface Optimization
 
 The `research/execution_surface/` module runs OHLCV-driven replay simulation over SL/TP grids to find plateau-center configurations:
 
@@ -613,7 +671,7 @@ The `research/execution_surface/` module runs OHLCV-driven replay simulation ove
 * `monte_carlo.py` — Monte Carlo validation of selected SL/TP parameters
 * Aggregate reports at `data/sandbox/sltp_analysis/aggregate_report.json`
 
-### 12.10 Limitations of Realism
+### 12.11 Limitations of Realism
 
 The survival simulation is stateful and regime-conditioned, but it is not a full market microstructural model. The following are **not** yet modeled:
 
@@ -759,7 +817,7 @@ R --> A
 
 * Regime detection calibrated on 1,852-day sample (2019–2026); may not generalize to longer horizons
 * CRISIS regime only 0.27% of sample — crisis dynamics rely on synthetic stress injection, not empirical observation
-* Survival simulation does not model funding stress, market impact, endogenous correlation cascades, or exchange outages (see §12.10)
+* Survival simulation does not model funding stress, endogenous correlation cascades, or exchange outages (see §12.11); live path models spread/impact via `ExecutionBridge`
 * Sharpe ratios above 5.0 reflect diversified portfolio construction + deleveraging feedback + regime-aware bootstrap — these are structural features of the simulation architecture, not standalone alpha metrics, and should be interpreted as bounds on modeled dynamics, not predictions of live performance
 
 ---
@@ -787,7 +845,8 @@ R --> A
 * **Full governance pipeline**: validity state machine (GREEN/YELLOW/RED), 5D drift detection, feature stability penalties, shadow analytics
 * **Shadow system** continuously accumulating behavioral dataset
 * **In-memory TTL cache** on serve.py with per-endpoint expiry; gzip compression for large responses; `/ping` health endpoint
-* **Config-driven vol baselines** — `vol_baselines` in `EngineConfig` replaces hardcoded serve.py dict
+* **Three-tier hardening** — feature isolation, `ExecutionBridge` + YAML execution physics, extended history / lead-lag / adaptive macro (see `docs/HARDENING_ROADMAP.md`, ADR-022)
+* **Config-driven vol baselines** — `vol_baselines` in `EngineConfig` wired into `VolTargetSizing` and `/volatility.json`
 * **Dashboard UX**: TradeFeed pagination, SignalsTable search filter, lazy-loaded FeatureCards, refetch indicator spinner
 * **Configurable refresh interval** via `QUANTFORGE_REFRESH_INTERVAL` env var (default 300s)
 * **253 tests** across 17 test files — zero regressions

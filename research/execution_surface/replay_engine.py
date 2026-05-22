@@ -36,6 +36,7 @@ class ReplayRegimeConfig:
 
     Maps regime labels (from predictions['regime']) to (sl_mult, tp_mult).
     Unknown regimes fall back to default_geom.
+    skip_regimes: set of regime labels where new position entry is skipped.
     """
     regime_geom: dict = field(default_factory=lambda: {
         'low_vol':    {'sl_mult': 0.52, 'tp_mult': 1.96},
@@ -43,6 +44,7 @@ class ReplayRegimeConfig:
         'high_vol':   {'sl_mult': 0.75, 'tp_mult': 1.50},
     })
     default_geom: dict = field(default_factory=lambda: {'sl_mult': 0.65, 'tp_mult': 1.65})
+    skip_regimes: set = field(default_factory=set)
 
 
 @dataclass
@@ -283,10 +285,36 @@ def replay_regime(predictions: pd.DataFrame, config: ReplayRegimeConfig) -> pd.D
         else:
             continue
 
-        # 3. Look up geometry for current regime
+        # 3. Check regime gating
+        if regime in config.skip_regimes:
+            if pos is not None and pos.side != desired:
+                # Close existing position but don't open new one (gated)
+                ret = compute_trade_return(pos.side, pos.entry_price, close)
+                trades.append({
+                    'entry_time': pos.entry_time,
+                    'exit_time': timestamp,
+                    'side': pos.side,
+                    'entry_price': pos.entry_price,
+                    'exit_price': close,
+                    'sl_price': pos.sl_price,
+                    'tp_price': pos.tp_price,
+                    'reason': 'flip',
+                    'hold_bars': idx - pos.entry_idx,
+                    'return_pct': ret,
+                    'vol_at_entry': pos.vol_at_entry,
+                    'conf_at_entry': pos.conf_at_entry,
+                    'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                    'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
+                    'year': int(row['year']),
+                    'regime': regime,
+                })
+                pos = None
+            continue
+
+        # 4. Look up geometry for current regime
         geom = _get_geom(regime, config)
 
-        # 4. Position management
+        # 5. Position management
         if pos is None:
             vol = float(row.get('volatility', 0.01))
             if pd.isna(vol) or vol <= 0:
@@ -300,7 +328,6 @@ def replay_regime(predictions: pd.DataFrame, config: ReplayRegimeConfig) -> pd.D
                 entry_idx=idx,
             )
         elif pos.side != desired:
-            # Hard close before reversal
             ret = compute_trade_return(pos.side, pos.entry_price, close)
             trades.append({
                 'entry_time': pos.entry_time,
@@ -421,6 +448,31 @@ def replay_meta_geometry(predictions: pd.DataFrame,
         elif signal == 0:
             desired = 'short'
         else:
+            continue
+
+        # Regime gating check (before meta-inference)
+        if regime in regime_config.skip_regimes:
+            if pos is not None and pos.side != desired:
+                ret = compute_trade_return(pos.side, pos.entry_price, close)
+                trades.append({
+                    'entry_time': pos.entry_time,
+                    'exit_time': timestamp,
+                    'side': pos.side,
+                    'entry_price': pos.entry_price,
+                    'exit_price': close,
+                    'sl_price': pos.sl_price,
+                    'tp_price': pos.tp_price,
+                    'reason': 'flip',
+                    'hold_bars': idx - pos.entry_idx,
+                    'return_pct': ret,
+                    'vol_at_entry': pos.vol_at_entry,
+                    'conf_at_entry': pos.conf_at_entry,
+                    'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                    'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
+                    'year': int(row['year']),
+                    'regime': regime,
+                })
+                pos = None
             continue
 
         base_geom = _get_geom(regime, regime_config)

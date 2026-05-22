@@ -128,6 +128,8 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
                     'return_pct': ret,
                     'vol_at_entry': pos.vol_at_entry,
                     'conf_at_entry': pos.conf_at_entry,
+                    'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                    'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
                     'year': int(row['year']),
                     'regime': str(row['regime']),
                 })
@@ -170,6 +172,8 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
                 'return_pct': ret,
                 'vol_at_entry': pos.vol_at_entry,
                 'conf_at_entry': pos.conf_at_entry,
+                'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
                 'year': int(row['year']),
                 'regime': str(row['regime']),
             })
@@ -203,6 +207,8 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
             'return_pct': ret,
             'vol_at_entry': pos.vol_at_entry,
             'conf_at_entry': pos.conf_at_entry,
+            'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+            'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
             'year': int(last_row['year']),
             'regime': str(last_row['regime']),
         })
@@ -211,7 +217,7 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
         return pd.DataFrame(columns=[
             'entry_time', 'exit_time', 'side', 'entry_price', 'exit_price',
             'sl_price', 'tp_price', 'reason', 'hold_bars', 'return_pct',
-            'vol_at_entry', 'conf_at_entry', 'year', 'regime',
+            'vol_at_entry', 'conf_at_entry', 'initial_risk_pct', 'realized_r', 'year', 'regime',
         ])
     return pd.DataFrame(trades)
 
@@ -262,6 +268,8 @@ def replay_regime(predictions: pd.DataFrame, config: ReplayRegimeConfig) -> pd.D
                     'return_pct': ret,
                     'vol_at_entry': pos.vol_at_entry,
                     'conf_at_entry': pos.conf_at_entry,
+                    'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                    'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
                     'year': int(row['year']),
                     'regime': regime,
                 })
@@ -307,6 +315,8 @@ def replay_regime(predictions: pd.DataFrame, config: ReplayRegimeConfig) -> pd.D
                 'return_pct': ret,
                 'vol_at_entry': pos.vol_at_entry,
                 'conf_at_entry': pos.conf_at_entry,
+                'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
                 'year': int(row['year']),
                 'regime': regime,
             })
@@ -339,6 +349,8 @@ def replay_regime(predictions: pd.DataFrame, config: ReplayRegimeConfig) -> pd.D
             'return_pct': ret,
             'vol_at_entry': pos.vol_at_entry,
             'conf_at_entry': pos.conf_at_entry,
+            'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+            'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
             'year': int(last_row['year']),
             'regime': str(last_row.get('regime', 'unknown')),
         })
@@ -347,7 +359,7 @@ def replay_regime(predictions: pd.DataFrame, config: ReplayRegimeConfig) -> pd.D
         return pd.DataFrame(columns=[
             'entry_time', 'exit_time', 'side', 'entry_price', 'exit_price',
             'sl_price', 'tp_price', 'reason', 'hold_bars', 'return_pct',
-            'vol_at_entry', 'conf_at_entry', 'year', 'regime',
+            'vol_at_entry', 'conf_at_entry', 'initial_risk_pct', 'realized_r', 'year', 'regime',
         ])
     return pd.DataFrame(trades)
 
@@ -397,6 +409,8 @@ def replay_meta_geometry(predictions: pd.DataFrame,
                     'return_pct': ret,
                     'vol_at_entry': pos.vol_at_entry,
                     'conf_at_entry': pos.conf_at_entry,
+                    'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                    'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
                     'year': int(row['year']),
                     'regime': regime,
                 })
@@ -452,6 +466,8 @@ def replay_meta_geometry(predictions: pd.DataFrame,
                 'return_pct': ret,
                 'vol_at_entry': pos.vol_at_entry,
                 'conf_at_entry': pos.conf_at_entry,
+                'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+                'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
                 'year': int(row['year']),
                 'regime': regime,
             })
@@ -483,6 +499,8 @@ def replay_meta_geometry(predictions: pd.DataFrame,
             'return_pct': ret,
             'vol_at_entry': pos.vol_at_entry,
             'conf_at_entry': pos.conf_at_entry,
+            'initial_risk_pct': round(abs(pos.entry_price - pos.sl_price) / pos.entry_price, 6),
+            'realized_r': round(ret / (abs(pos.entry_price - pos.sl_price) / pos.entry_price), 4) if pos.sl_price != pos.entry_price else 0.0,
             'year': int(last_row['year']),
             'regime': str(last_row.get('regime', 'unknown')),
         })
@@ -491,6 +509,6 @@ def replay_meta_geometry(predictions: pd.DataFrame,
         return pd.DataFrame(columns=[
             'entry_time', 'exit_time', 'side', 'entry_price', 'exit_price',
             'sl_price', 'tp_price', 'reason', 'hold_bars', 'return_pct',
-            'vol_at_entry', 'conf_at_entry', 'year', 'regime',
+            'vol_at_entry', 'conf_at_entry', 'initial_risk_pct', 'realized_r', 'year', 'regime',
         ])
     return pd.DataFrame(trades)

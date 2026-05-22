@@ -39,6 +39,7 @@ class PositionManager:
             bars = (pd.Timestamp(exit_date) - pd.Timestamp(self.position.entry_date)).days
         except Exception:
             bars = 0
+        risk_pct = abs(entry - self.position.stop_loss) / entry if self.position and self.position.stop_loss != entry else 0.0
         trade = {
             "asset": "",
             "side": side,
@@ -50,6 +51,10 @@ class PositionManager:
             "return": ret,
             "pnl": pnl,
             "reason": reason,
+            "sl_price": self.position.stop_loss if self.position else None,
+            "tp_price": self.position.take_profit if self.position else None,
+            "vol_at_entry": self.position.vol if self.position else None,
+            "realized_r": round(ret / risk_pct, 4) if risk_pct > 0 else 0.0,
         }
         self.trade_log.append(trade)
         self.current_value += pnl

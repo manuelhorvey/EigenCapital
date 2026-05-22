@@ -173,6 +173,7 @@ class AssetEngine:
         if trade is None:
             return
         trade["asset"] = self.name
+        trade["conf_at_entry"] = self.position.get("confidence") if self.position else None
         self.position = None
         self.current_value = self.pos_mgr.current_value
         self.trade_log = list(self.pos_mgr.trade_log)
@@ -454,6 +455,8 @@ class AssetEngine:
                 self._close_position(decision.close_price, today, "signal_flip")
             if new_side:
                 self._open_position(new_side, decision.close_price, today, df)
+                if self.position is not None:
+                    self.position["confidence"] = decision.confidence
 
         self.prob_history.append(
             {

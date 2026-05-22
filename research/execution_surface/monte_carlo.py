@@ -119,6 +119,8 @@ def compute_trade_metrics(trades: pd.DataFrame, sl_mult: float, tp_mult: float) 
         'avg_loss': avg_loss,
         'n_winners': n_winners,
         'n_losers': n_losers,
+        'avg_r_multiple': float(trades['realized_r'].mean()) if n_trades > 0 else 0.0,
+        'med_r_multiple': float(trades['realized_r'].median()) if n_trades > 0 else 0.0,
     }
 
 

@@ -273,7 +273,9 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                     snapshot = _STORE.load_snapshot()
                     if snapshot and snapshot.assets:
                         for aname, adata in snapshot.assets.items():
-                            for t in adata.get("metrics", {}).get("trade_log", []):
+                            metrics = adata.get("metrics") or {}
+                            trade_log = metrics.get("trade_log") or []
+                            for t in trade_log:
                                 if t.get("exit_date") is None:
                                     continue
                                 s = _sig(t)
@@ -295,7 +297,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                 if snapshot and snapshot.assets:
                     live = {}
                     for name, asset in snapshot.assets.items():
-                        sig = asset.get("last_signal", {})
+                        sig = asset.get("last_signal") or {}
                         conf = sig.get("confidence", 0)
                         bucket_low = min(int(conf // 10) * 10, 90)
                         bucket = f"{bucket_low}-{bucket_low + 10}"
@@ -322,7 +324,8 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                 if snapshot and snapshot.assets:
                     for name, asset in sorted(snapshot.assets.items()):
                         training_vol = vol_baselines.get(name)
-                        pos = asset.get("metrics", {}).get("position", {})
+                        metrics = asset.get("metrics") or {}
+                        pos = metrics.get("position") or {}
                         current_vol = pos.get("current_vol") if pos else None
                         if training_vol is not None and current_vol is not None:
                             ratio = current_vol / training_vol

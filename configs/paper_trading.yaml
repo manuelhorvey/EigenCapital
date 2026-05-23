@@ -37,6 +37,19 @@ execution_defaults:
   impact_coeff: 0.1
   avg_daily_volume: 1000000000 # Default 1B notional
 
+# Global regime geometry: adjusts SL/TP based on validity state
+# GREEN = full confidence, YELLOW = cautious, RED = risk-off
+regime_geometry:
+  GREEN:
+    sl_mult: 1.0
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 0.9
+    tp_mult: 0.8
+  RED:
+    sl_mult: 0.8
+    tp_mult: 0.5
+
 satellite:
   BTC:
     max_allocation_pct: 0.05
@@ -53,6 +66,32 @@ satellite:
       avg_daily_volume: 50000000000 # 50B
       impact_coeff: 0.05
     features: [rate_diff, 2y_yield_delta_63, vix_delta_5, dxy_mom_21, vix_ma21, btc_mom_10, btc_mom_21, btc_vs_spy_21, btc_mom_63, btc_vs_spy_63]
+    config:
+      min_confidence: 50
+      max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 7
+        atr_mult_sl: 2.5
+        atr_mult_tp: 3.0
+        min_rr_ratio: 1.2
+        trailing_activation_mult: 2.0
+        trailing_distance_mult: 3.0
+        use_gap_protection: true
+      meta_labeling:
+        enabled: true
+        threshold: 0.50
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.25
+            multiplier: 0.33
+          - fraction: 0.25
+            multiplier: 0.66
+          - fraction: 0.50
+            multiplier: 1.00
+        activate_breakeven_after: 0
 
 assets:
   EURAUD:
@@ -73,6 +112,30 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.0
+        min_rr_ratio: 1.5
+        trailing_activation_mult: 1.5
+        trailing_distance_mult: 2.0
+        post_adjust_interval_bars: 3
+        use_gap_protection: true
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   GC:
     ticker: GC=F
     allocation: 0.13
@@ -91,6 +154,20 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.5
+        atr_mult_tp: 4.0
+        min_rr_ratio: 1.5
+        trailing_activation_mult: 2.0
+        trailing_distance_mult: 2.5
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: false
   NZDJPY:
     ticker: NZDJPY=X
     allocation: 0.11
@@ -110,6 +187,28 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.5
+        min_rr_ratio: 1.8
+        trailing_activation_mult: 1.5
+        trailing_distance_mult: 2.0
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   CADJPY:
     ticker: CADJPY=X
     allocation: 0.09
@@ -128,6 +227,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 1.8
+        atr_mult_tp: 2.5
+        min_rr_ratio: 1.5
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   AUDJPY:
     ticker: AUDJPY=X
     allocation: 0.06
@@ -146,6 +265,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.5
+        min_rr_ratio: 1.8
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.08
@@ -164,6 +303,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.0
+        min_rr_ratio: 1.5
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   GBPJPY:
     ticker: GBPJPY=X
     allocation: 0.08
@@ -182,6 +341,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 1.8
+        atr_mult_tp: 2.5
+        min_rr_ratio: 1.5
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   USDJPY:
     ticker: USDJPY=X
     allocation: 0.04
@@ -200,6 +379,18 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.5
+        atr_mult_tp: 3.0
+        min_rr_ratio: 2.0
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: false
   USDCHF:
     ticker: USDCHF=X
     allocation: 0.04
@@ -218,6 +409,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.5
+        min_rr_ratio: 1.8
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   GBPUSD:
     ticker: GBPUSD=X
     allocation: 0.05
@@ -236,6 +447,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 1.5
+        atr_mult_tp: 3.0
+        min_rr_ratio: 2.0
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   CHFJPY:
     ticker: CHFJPY=X
     allocation: 0.07
@@ -254,6 +485,18 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 1.8
+        atr_mult_tp: 2.0
+        min_rr_ratio: 1.5
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: false
   EURCAD:
     ticker: EURCAD=X
     allocation: 0.05
@@ -272,6 +515,26 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.5
+        min_rr_ratio: 1.8
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0
   DJI:
     ticker: ^DJI
     allocation: 0.05
@@ -290,3 +553,23 @@ assets:
     config:
       min_confidence: 50
       max_holding_days: 30
+      dynamic_sltp:
+        enabled: true
+        method: atr
+        atr_period: 14
+        atr_mult_sl: 2.0
+        atr_mult_tp: 3.0
+        min_rr_ratio: 1.5
+      meta_labeling:
+        enabled: true
+        threshold: 0.55
+      scale_out:
+        enabled: true
+        tiers:
+          - fraction: 0.33
+            multiplier: 0.50
+          - fraction: 0.33
+            multiplier: 1.00
+          - fraction: 0.34
+            multiplier: 1.50
+        activate_breakeven_after: 0

@@ -1,4 +1,5 @@
 import logging
+from copy import deepcopy
 
 import pandas as pd
 
@@ -9,7 +10,9 @@ logger = logging.getLogger("quantforge.position_manager")
 
 class PositionManager:
     """
-    Owns the position lifecycle: open, close, SL/TP checks, PnL.
+    Owns the position lifecycle: open, close, SL/TP checks, PnL, scale-out,
+    trailing stop, and post-entry adjustment.
+
     Pure state machine — no I/O, no model inference.
     """
 
@@ -22,26 +25,47 @@ class PositionManager:
         self.position: PositionIntent | None = None
         self.trade_log: list = []
 
+        # Scale-out state
+        self._scale_out_active: bool = False
+        self._scale_out_breakeven: float | None = None
+        self._remaining_fraction: float = 1.0
+        self._partial_closes: list[dict] = []
+
+    # ── Position lifecycle ────────────────────────────────────────
+
     def open(self, intent: PositionIntent) -> None:
         self.position = intent
+        self._scale_out_active = False
+        self._scale_out_breakeven = None
+        self._remaining_fraction = 1.0
+        self._partial_closes = []
 
     def close(self, exit_price: float, exit_date: str, reason: str) -> dict | None:
         if self.position is None:
             return None
         side = self.position.side
         entry = self.position.entry_price
+
         if pd.isna(entry) or pd.isna(exit_price) or entry <= 0 or exit_price <= 0:
             logger.error("Invalid close entry=%s exit=%s", entry, exit_price)
             return None
+
+        fraction = self._remaining_fraction
         ret = (exit_price / entry - 1) if side == "long" else (entry / exit_price - 1)
-        pnl = self.current_value * ret * self.position_size * self.exposure_multiplier
+        pnl = self.current_value * ret * self.position_size * self.exposure_multiplier * fraction
+
         try:
             bars = (pd.Timestamp(exit_date) - pd.Timestamp(self.position.entry_date)).days
         except Exception:
             bars = 0
+
         risk_pct = (
-            abs(entry - self.position.stop_loss) / entry if self.position and self.position.stop_loss != entry else 0.0
+            abs(entry - self.position.stop_loss) / entry
+            if self.position and self.position.stop_loss != entry
+            else 0.0
         )
+        total_pnl_realized = pnl + sum(pc.get("pnl", 0.0) for pc in self._partial_closes)
+
         trade = {
             "asset": "",
             "side": side,
@@ -52,27 +76,49 @@ class PositionManager:
             "bars": bars,
             "return": ret,
             "pnl": pnl,
+            "total_pnl": total_pnl_realized,
             "reason": reason,
             "sl_price": self.position.stop_loss if self.position else None,
             "tp_price": self.position.take_profit if self.position else None,
             "vol_at_entry": self.position.vol if self.position else None,
             "realized_r": round(ret / risk_pct, 4) if risk_pct > 0 else 0.0,
+            "partial_closes": list(self._partial_closes),
+            "fraction_closed": fraction,
         }
         self.trade_log.append(trade)
         self.current_value += pnl
         self.position = None
+        self._remaining_fraction = 0.0
         if self.current_value > self.peak_value:
             self.peak_value = self.current_value
+
+        # Re-apply partial close PnLs that may not have been settled yet
+        for pc in self._partial_closes:
+            if not pc.get("settled", False):
+                self.current_value += pc["pnl"]
+                pc["settled"] = True
+
         return trade
+
+    # ── SL/TP checks ──────────────────────────────────────────────
 
     def check_sl_tp(self, current_price: float) -> tuple[str, float] | None:
         if self.position is None:
             return None
+
+        # Check breakeven stop (from scale-out)
+        if self._scale_out_breakeven is not None and self._remaining_fraction > 0:
+            if self.position.side == "long" and current_price <= self._scale_out_breakeven:
+                return ("breakeven", self._scale_out_breakeven)
+            elif self.position.side == "short" and current_price >= self._scale_out_breakeven:
+                return ("breakeven", self._scale_out_breakeven)
+
         sl = self.position.stop_loss
         tp = self.position.take_profit
         side = self.position.side
         if pd.isna(sl) or pd.isna(tp) or pd.isna(current_price):
             return None
+
         if side == "long":
             if current_price <= sl:
                 return ("sl", sl)
@@ -84,6 +130,71 @@ class PositionManager:
             elif current_price <= tp:
                 return ("tp", tp)
         return None
+
+    # ── Dynamic SL/TP adjustment ──────────────────────────────────
+
+    def update_stop_loss(self, new_sl: float) -> bool:
+        """Update the stop-loss level. Returns True if accepted."""
+        if self.position is None:
+            return False
+        self.position = deepcopy(self.position)
+        self.position.stop_loss = new_sl
+        return True
+
+    def update_take_profit(self, new_tp: float) -> bool:
+        """Update the take-profit level. Returns True if accepted."""
+        if self.position is None:
+            return False
+        self.position = deepcopy(self.position)
+        self.position.take_profit = new_tp
+        return True
+
+    # ── Scale-out (partial close) ─────────────────────────────────
+
+    def partial_close(self, fraction: float, fill_price: float, exit_date: str, reason: str) -> dict | None:
+        """Close a fraction of the current position.
+
+        Returns trade dict for the partial close, or None on failure.
+        """
+        if self.position is None or fraction <= 0 or fraction > self._remaining_fraction:
+            return None
+
+        side = self.position.side
+        entry = self.position.entry_price
+        ret = (fill_price / entry - 1) if side == "long" else (entry / fill_price - 1)
+        pnl = self.current_value * ret * self.position_size * self.exposure_multiplier * fraction
+
+        pc = {
+            "fraction": fraction,
+            "fill_price": fill_price,
+            "exit_date": exit_date,
+            "reason": reason,
+            "return": ret,
+            "pnl": pnl,
+            "settled": True,
+        }
+        self._partial_closes.append(pc)
+        self._remaining_fraction -= fraction
+        self.current_value += pnl
+        if self.current_value > self.peak_value:
+            self.peak_value = self.current_value
+
+        logger.info(
+            "Partial close: %.1f%% @ %.4f (reason=%s, pnl=%.2f, remaining=%.1f%%)",
+            fraction * 100, fill_price, reason, pnl, self._remaining_fraction * 100,
+        )
+        return pc
+
+    def activate_breakeven_stop(self) -> bool:
+        """Move the remaining position's effective stop to entry price."""
+        if self.position is None or self._remaining_fraction <= 0:
+            return False
+        self._scale_out_active = True
+        self._scale_out_breakeven = self.position.entry_price
+        logger.info("Breakeven stop activated for remaining %.1f%%", self._remaining_fraction * 100)
+        return True
+
+    # ── Queries ───────────────────────────────────────────────────
 
     def position_pnl(self, current_price: float) -> float:
         if self.position is None:
@@ -113,3 +224,10 @@ class PositionManager:
         self.peak_value = capital
         self.position = None
         self.trade_log = []
+        self._scale_out_active = False
+        self._scale_out_breakeven = None
+        self._remaining_fraction = 1.0
+        self._partial_closes = []
+
+    def get_remaining_fraction(self) -> float:
+        return self._remaining_fraction

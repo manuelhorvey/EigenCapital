@@ -1,4 +1,5 @@
 import threading
+from collections import deque
 from datetime import datetime
 
 from paper_trading.drift_scoring import get_shadow_intelligence
@@ -6,6 +7,9 @@ from paper_trading.drift_scoring import get_shadow_intelligence
 _lock = threading.Lock()
 _cache: dict = {}
 
+# Per-asset SL hit rate tracker
+_sl_hit_rates: dict[str, deque] = {}
+_sl_hit_rate_lock = threading.Lock()
 
 WEIGHTS = {
     "model_drift": 0.25,
@@ -17,6 +21,34 @@ WEIGHTS = {
 
 FLAG_THRESHOLD = 0.3
 
+# SL hit rate monitoring defaults
+SL_HIT_RATE_WINDOW = 20  # last N trades to evaluate
+SL_HIT_RATE_ALERT = 0.40  # alert if SL hit rate exceeds 40%
+SL_HIT_RATE_CRITICAL = 0.55  # halt trading if SL hit rate exceeds 55%
+
+
+def record_trade_outcome(asset: str, reason: str) -> None:
+    """Record a trade exit reason for SL hit rate tracking."""
+    with _sl_hit_rate_lock:
+        if asset not in _sl_hit_rates:
+            _sl_hit_rates[asset] = deque(maxlen=SL_HIT_RATE_WINDOW)
+        _sl_hit_rates[asset].append(1 if reason == "sl" else 0)
+
+
+def get_sl_hit_rate(asset: str) -> float | None:
+    """Return the SL hit rate over the last N trades."""
+    with _sl_hit_rate_lock:
+        dq = _sl_hit_rates.get(asset)
+        if dq is None or len(dq) < 5:
+            return None
+        return sum(dq) / len(dq)
+
+
+def get_sl_hit_rate_all() -> dict[str, float]:
+    """Return SL hit rate for all tracked assets."""
+    with _sl_hit_rate_lock:
+        return {a: sum(dq) / len(dq) for a, dq in _sl_hit_rates.items() if len(dq) >= 5}
+
 
 def evaluate(asset: str) -> dict:
     try:
@@ -25,6 +57,18 @@ def evaluate(asset: str) -> dict:
         details = intelligence.get("details", {})
 
         risk_score = sum(drift_scores.get(k, 0.0) * v for k, v in WEIGHTS.items())
+
+        # Incorporate SL hit rate as an additive risk factor
+        sl_rate = get_sl_hit_rate(asset)
+        if sl_rate is not None:
+            if sl_rate > SL_HIT_RATE_CRITICAL:
+                risk_score += 0.30
+                details["sl_hit_rate_risk"] = "CRITICAL"
+            elif sl_rate > SL_HIT_RATE_ALERT:
+                risk_score += 0.15
+                details["sl_hit_rate_risk"] = "ELEVATED"
+            details["sl_hit_rate"] = round(sl_rate, 4)
+            details["sl_hit_rate_window"] = SL_HIT_RATE_WINDOW
 
         if risk_score < 0.3:
             risk_level = "LOW"
@@ -53,8 +97,14 @@ def evaluate(asset: str) -> dict:
                 }
                 risk_flags.append(flag_map[key])
 
+        if sl_rate is not None:
+            if sl_rate > SL_HIT_RATE_CRITICAL:
+                risk_flags.append("EXCESSIVE_SL_HITS")
+            elif sl_rate > SL_HIT_RATE_ALERT:
+                risk_flags.append("ELEVATED_SL_HITS")
+
         recommended_action = _recommend(risk_level, risk_flags)
-        explanations = _generate_explanations(drift_scores, risk_flags)
+        explanations = _generate_explanations(drift_scores, risk_flags, sl_rate)
 
         signal = {
             "asset": asset,
@@ -86,6 +136,8 @@ def get_latest(asset: str | None = None):
 
 
 def _recommend(risk_level: str, risk_flags: list) -> str:
+    if "EXCESSIVE_SL_HITS" in risk_flags:
+        return "PAUSE"
     if risk_level == "HIGH":
         return "PAUSE"
     elif risk_level == "MEDIUM":
@@ -95,13 +147,15 @@ def _recommend(risk_level: str, risk_flags: list) -> str:
     return "NORMAL"
 
 
-def _generate_explanations(drift_scores: dict, risk_flags: list) -> list:
+def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float | None = None) -> list:
     templates = {
         "MODEL_DRIFT": "Model probability distribution deviates significantly from baseline (KL {score:.2f})",
         "SIGNAL_INSTABILITY": "Signal flip rate increased beyond historical percentile (mismatch rate {score:.2f})",
         "PNL_DEGRADATION": "PnL divergence exceeds expected baseline variance (MAE {score:.2f})",
         "FEATURE_UNSTABLE": "Feature stability declining, Jaccard similarity dropping (stability {score:.2f})",
         "REGIME_SHIFT": "Regime classification mismatch increasing vs historical distribution (consistency {score:.2f})",
+        "ELEVATED_SL_HITS": "SL hit rate elevated ({score:.1%}) — consider wider stops or lower sizing",
+        "EXCESSIVE_SL_HITS": "SL hit rate critical ({score:.1%}) — halting, stops too tight or model broken",
     }
     key_map = {
         "MODEL_DRIFT": "model_drift",
@@ -114,6 +168,8 @@ def _generate_explanations(drift_scores: dict, risk_flags: list) -> list:
     for flag in risk_flags:
         key = key_map.get(flag)
         score = drift_scores.get(key, 0.0) if key else 0.0
+        if flag in ("ELEVATED_SL_HITS", "EXCESSIVE_SL_HITS"):
+            score = sl_rate or 0.0
         template = templates.get(flag, "")
         if template:
             explanations.append(template.format(score=score))

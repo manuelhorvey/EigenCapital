@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from features.registry import FEATURE_REGISTRY
 from research.execution_surface.mae_mfe_analyzer import compute_mae_mfe_for_trade
 from research.execution_surface.replay_engine import ReplayConfig, ReplayRegimeConfig, replay, replay_regime
 from research.execution_surface.trade_outcome_analyzer import analyze_trade_outcomes
@@ -269,10 +270,15 @@ def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_con
     raw = {}
     indices = []
 
+    def _name_to_ticker(n: str) -> str:
+        for t, c in FEATURE_REGISTRY.items():
+            if c.name == n:
+                return t
+        return n
+
     for name, cfg in configs.items():
         if extended_history:
-            ticker = cfg.get("ticker") or name # fallback
-            # sanitize ticker
+            ticker = cfg.get("ticker") or _name_to_ticker(name)
             clean_t = ticker.replace('^', '').replace('=', '')
             path = os.path.join(PROJECT_ROOT, "data", "raw", "historical_extended", f"{clean_t}_2000.parquet")
             if not os.path.exists(path):
@@ -288,12 +294,23 @@ def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_con
             if os.path.exists(pred_path):
                 predictions = pd.read_parquet(pred_path)
             else:
-                logger.warning("%s: extended predictions not found, using raw returns", name)
-                # Fallback: load raw returns and treat as 'neutral' trades
+                logger.warning("%s: extended predictions not found, using raw returns with always-long signal", name)
                 df = pd.read_parquet(path)
                 predictions = df.copy()
-                predictions["signal"] = 1 # Neutral
+                predictions["signal"] = 2
                 predictions["confidence"] = 100
+                for c in ["prob_long", "prob_short", "prob_neutral"]:
+                    if c not in predictions.columns:
+                        predictions[c] = 0.0
+                if "volatility" not in predictions.columns:
+                    predictions["volatility"] = df["close"].pct_change().rolling(21).std()
+                    predictions["volatility"] = predictions["volatility"].fillna(0.01)
+                if "atr" not in predictions.columns:
+                    predictions["atr"] = predictions["volatility"] * df["close"]
+                if "regime" not in predictions.columns:
+                    predictions["regime"] = "neutral"
+                if "year" not in predictions.columns:
+                    predictions["year"] = predictions.index.year
         else:
             oos_path = os.path.join(SANDBOX_BASE, name, "oos_predictions.parquet")
             if not os.path.exists(oos_path):

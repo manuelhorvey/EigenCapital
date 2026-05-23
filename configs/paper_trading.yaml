@@ -5,6 +5,9 @@ retrain_freq: annual
 retrain_window: 5
 research_mode: false
 
+# Portfolio-level circuit breaker: global halt when total equity drawdown hits this threshold
+portfolio_drawdown_limit: -0.15
+
 # Training-window vol baselines (annualized); used for vol-target sizing floors
 vol_baselines:
   NZDJPY: 0.0055

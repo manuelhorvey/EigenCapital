@@ -36,6 +36,7 @@ class EngineConfig:
     vol_baselines: dict = field(default_factory=dict)
     regime_geometry: dict = field(default_factory=dict)
     execution_defaults: dict = field(default_factory=dict)
+    portfolio_drawdown_limit: float = -0.15
 
     @classmethod
     def from_dict(cls, data: dict) -> "EngineConfig":
@@ -57,6 +58,7 @@ class EngineConfig:
             vol_baselines=data.get("vol_baselines", {}),
             regime_geometry=data.get("regime_geometry", {}),
             execution_defaults=data.get("execution_defaults", {}),
+            portfolio_drawdown_limit=data.get("portfolio_drawdown_limit", -0.15),
         )
 
     def to_dict(self) -> dict:
@@ -73,6 +75,7 @@ class EngineConfig:
             "vol_baselines": self.vol_baselines,
             "regime_geometry": self.regime_geometry,
             "execution_defaults": self.execution_defaults,
+            "portfolio_drawdown_limit": self.portfolio_drawdown_limit,
         }
 
 

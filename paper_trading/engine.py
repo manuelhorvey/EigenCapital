@@ -91,6 +91,7 @@ class PaperTradingEngine:
         self.assets = {}
         self.start_date = datetime.now(tz=ET)
         self.last_update = None
+        self.portfolio_peak_value: float | None = None
 
         snapshot = self.state_store.load_snapshot()
         if snapshot is not None and snapshot.engine_status:
@@ -206,19 +207,62 @@ class PaperTradingEngine:
                 logger.error("%s: training FAILED - %s", name, e)
 
     def run_once(self):
+        pd_limit = get_config().portfolio_drawdown_limit
         results = {}
+
+        # Phase 1: Refresh prices and settle P&L for all assets
         for name, asset in self.assets.items():
             try:
-                # 1. Check SL/TP first using the absolute latest price
                 asset.refresh_price()
                 asset.update_pnl()
+            except Exception as e:
+                logger.error("%s: price/pnl refresh failed: %s", name, e)
 
-                # 2. Then generate new signals
+        # Phase 2: Portfolio-level drawdown check
+        tc = sum(a.initial_capital for a in self.assets.values())
+        mtm = sum(
+            a.current_value if not pd.isna(a.current_value) else a.initial_capital
+            for a in self.assets.values()
+        )
+        if self.satellite is not None:
+            mtm += self.satellite.current_value
+        if self.portfolio_peak_value is None or mtm > self.portfolio_peak_value:
+            self.portfolio_peak_value = mtm
+        portfolio_dd = (
+            (mtm - self.portfolio_peak_value) / self.portfolio_peak_value
+            if self.portfolio_peak_value and self.portfolio_peak_value > 0
+            else 0.0
+        )
+
+        if pd_limit is not None and portfolio_dd <= pd_limit:
+            logger.warning(
+                "PORTFOLIO CIRCUIT BREAKER: drawdown %.2f%% <= %.2f%% limit — closing all positions",
+                portfolio_dd * 100, pd_limit * 100,
+            )
+            for name, asset in self.assets.items():
+                if asset.pos_mgr.has_position():
+                    asset._close_position(
+                        asset.current_price,
+                        str(datetime.now(tz=ET).date()),
+                        "portfolio_circuit_breaker",
+                    )
+            results["circuit_breaker"] = {
+                "triggered": True,
+                "portfolio_drawdown": round(portfolio_dd * 100, 2),
+                "limit": round(pd_limit * 100, 2),
+            }
+            self.last_update = datetime.now(tz=ET)
+            return results
+
+        # Phase 3: Generate new signals for each asset
+        for name, asset in self.assets.items():
+            try:
                 signal = asset.generate_signal()
                 results[name] = signal
             except Exception as e:
                 results[name] = {"asset": name, "error": str(e)}
-        # Update validity-driven exposure multipliers
+
+        # Phase 4: Update validity-driven exposure multipliers
         for name, asset in self.assets.items():
             validity = asset.update_validity()
             asset.pos_mgr.exposure_multiplier = validity.get("exposure", 1.0)
@@ -351,6 +395,11 @@ class PaperTradingEngine:
         realized_return = (realized_total - satellite_value - tc) / tc * 100 if tc > 0 else 0
         delta = datetime.now(tz=ET) - self.start_date
 
+        # Track portfolio peak for drawdown
+        if self.portfolio_peak_value is None or mtm_total > self.portfolio_peak_value:
+            self.portfolio_peak_value = mtm_total
+        portfolio_dd = (mtm_total - self.portfolio_peak_value) / self.portfolio_peak_value if self.portfolio_peak_value else 0.0
+
         return {
             "total_value": round(mtm_total, 2),
             "mtm_value": round(mtm_total, 2),
@@ -371,6 +420,8 @@ class PaperTradingEngine:
             "execution_state": exec_state.value,
             "average_validity_exposure": round(overall_validity / n, 4),
             "satellite_allocation_pct": round(satellite_pct, 2),
+            "portfolio_drawdown": round(portfolio_dd * 100, 2),
+            "portfolio_peak_value": round(self.portfolio_peak_value, 2) if self.portfolio_peak_value else None,
         }
 
     def _satellite_snapshot(self) -> dict | None:

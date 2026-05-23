@@ -5,7 +5,8 @@ from research.lead_lag.lead_lag_matrix import build_lead_lag_matrix, plot_lead_l
 
 
 def test_build_lead_lag_matrix_shape():
-    s1 = pd.Series([0.01, -0.01, 0.02, -0.02] * 50)
+    idx = pd.date_range("2020-01-01", periods=200, freq="D")
+    s1 = pd.Series([0.01, -0.01, 0.02, -0.02] * 50, index=idx)
     s2 = s1.shift(2).fillna(0)
     matrix = build_lead_lag_matrix({"A": s1, "B": s2}, max_lag=5)
     assert matrix.shape == (2, 2)

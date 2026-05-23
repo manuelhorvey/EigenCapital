@@ -250,7 +250,7 @@ def load_allocations() -> dict:
     return {name: acfg["allocation"] for name, acfg in cfg["assets"].items()}
 
 
-def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_configs: dict = None, extended_history: bool = False) -> dict:
+def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_configs: dict = None, extended_history: bool = False, ensemble: bool = False) -> dict:
     """Load OOS predictions and compute daily returns for each asset.
 
     Uses correlated approach: all daily return series are aligned to the
@@ -262,6 +262,7 @@ def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_con
         regime_configs: dict mapping asset name -> ReplayRegimeConfig,
                        or None to use fixed plateau geometry
         extended_history: if True, loads from data/raw/historical_extended/
+        ensemble: if True, loads ensemble_oos_predictions.parquet instead
 
     Returns:
         asset_data: {name: {'daily_returns': Series, 'config': ..., ...}}
@@ -312,9 +313,14 @@ def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_con
                 if "year" not in predictions.columns:
                     predictions["year"] = predictions.index.year
         else:
-            oos_path = os.path.join(SANDBOX_BASE, name, "oos_predictions.parquet")
+            oos_name = "ensemble_oos_predictions.parquet" if ensemble else "oos_predictions.parquet"
+            oos_path = os.path.join(SANDBOX_BASE, name, oos_name)
             if not os.path.exists(oos_path):
-                continue
+                if ensemble:
+                    logger.warning("%s: no ensemble predictions at %s, falling back to XGBoost", name, oos_path)
+                    oos_path = os.path.join(SANDBOX_BASE, name, "oos_predictions.parquet")
+                if not os.path.exists(oos_path):
+                    continue
             predictions = pd.read_parquet(oos_path)
         replay_cfg = ReplayConfig(sl_mult=cfg["sl_mult"], tp_mult=cfg["tp_mult"])
 
@@ -1769,6 +1775,9 @@ def main():
     parser.add_argument(
         "--extended-history", action="store_true", help="Use extended history (2000+) for simulation"
     )
+    parser.add_argument(
+        "--ensemble", action="store_true", help="Use HybridRegimeEnsemble predictions instead of XGBoost"
+    )
     args = parser.parse_args()
 
     n_paths = args.paths
@@ -1814,7 +1823,8 @@ def main():
         configs, 
         confidence_threshold=args.confidence_filter, 
         regime_configs=regime_configs,
-        extended_history=args.extended_history
+        extended_history=args.extended_history,
+        ensemble=args.ensemble
     )
 
     synthetic_injection_rate = args.synthetic_stress or 0.0

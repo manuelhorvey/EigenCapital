@@ -30,7 +30,6 @@ def build_lead_lag_features(target_price, other_asset_price, lag=3):
 
 
 def build_nzdjpy_features(price, macro):
-...
     """
     NZDJPY: classic carry trade pair
     Primary driver: VIX (risk appetite, stability=1.11)

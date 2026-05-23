@@ -61,23 +61,41 @@ class HybridRegimeEnsemble:
         
         return recency * regime_scale
 
+    def _ensure_train_classes(self, X, y, sample_weight, split, num_classes):
+        """Ensure training split (first `split` rows) has all `num_classes` by appending zero-weight dummies."""
+        y_train = y.iloc[:split]
+        present = np.unique(y_train)
+        missing = [c for c in range(num_classes) if c not in present]
+        if not missing:
+            return X, y, sample_weight, split
+        dummy = X.iloc[:len(missing)]
+        dy = pd.Series(missing, dtype=y.dtype)
+        dw = np.zeros(len(missing))
+        # Append dummies after training split, then extend split to include them
+        X_aug = pd.concat([X.iloc[:split], dummy, X.iloc[split:]], ignore_index=True)
+        y_aug = pd.concat([y.iloc[:split], dy, y.iloc[split:]], ignore_index=True)
+        sw_aug = np.concatenate([sample_weight[:split], dw, sample_weight[split:]])
+        split_aug = split + len(missing)
+        return X_aug, y_aug, sw_aug, split_aug
+
     def train(self, X, y, regimes):
         """
         Trains the global backbone, regime-specific experts, and macro head.
         """
         self.feature_names = X.columns.tolist()
+        nc = self.xgb_params['num_class']
         
         # 1. Train Global Backbone
         print("Training Global Backbone...")
         self.global_model = xgb.XGBClassifier(**self.xgb_params, max_depth=2, early_stopping_rounds=30)
         weights_global = self._get_sample_weights(len(X))
         
-        # Use simple time-based split for early stopping
         split = int(len(X) * 0.8)
+        X_g, y_g, sw_g, split_g = self._ensure_train_classes(X, y, weights_global, split, nc)
         self.global_model.fit(
-            X.iloc[:split], y.iloc[:split],
-            sample_weight=weights_global[:split],
-            eval_set=[(X.iloc[split:], y.iloc[split:])],
+            X_g.iloc[:split_g], y_g.iloc[:split_g],
+            sample_weight=sw_g[:split_g],
+            eval_set=[(X_g.iloc[split_g:], y_g.iloc[split_g:])],
             verbose=False
         )
         
@@ -97,12 +115,13 @@ class HybridRegimeEnsemble:
             expert = xgb.XGBClassifier(**self.xgb_params, max_depth=3, early_stopping_rounds=20)
             weights_expert = self._get_sample_weights(len(X_r), regime_type=r)
             
-            # Internal split for expert
             split_r = int(len(X_r) * 0.8)
+            X_re, y_re, sw_re, split_re = self._ensure_train_classes(X_r, y_r, weights_expert, split_r, nc)
+            
             expert.fit(
-                X_r.iloc[:split_r], y_r.iloc[:split_r],
-                sample_weight=weights_expert[:split_r],
-                eval_set=[(X_r.iloc[split_r:], y_r.iloc[split_r:])],
+                X_re.iloc[:split_re], y_re.iloc[:split_re],
+                sample_weight=sw_re[:split_re],
+                eval_set=[(X_re.iloc[split_re:], y_re.iloc[split_re:])],
                 verbose=False
             )
             self.expert_heads[r] = expert

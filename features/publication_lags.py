@@ -102,6 +102,9 @@ def apply_lag_to_macro_derived(
 FEATURE_LAG_MATRIX: dict[str, int] = {
     # Map descriptive names to their source lag
     "rate_diff": 1,
+    "rate_diff_delta_3m": 1,
+    "yield_slope": 1,
+    "fed_funds_delta_3m": 1,
     "2y_yield_delta_63": 1,
     "dxy_mom_63": 0,
     "dxy_mom_21": 0,

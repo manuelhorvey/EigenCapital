@@ -104,8 +104,30 @@ class FeatureContract:
             )
 
 
-KNOWN_MACRO_COLUMNS: set[str] = {
+# Raw FRED series carried through compute_macro_derived unchanged.
+# Must stay in sync with data/raw/macro_factors.parquet columns.
+_RAW_MACRO_COLUMNS: set[str] = {
+    "fed_funds",
+    "ecb_rate",
+    "us_2y",
+    "us_10y",
+    "breakeven_10y",
+    "real_yield_10y",
+    "dxy",
+    "vix",
+    "baa_spread",
+    "jp_10y",
+    "de_10y",
+    "gb_10y",
+    "ca_10y",
+    "au_10y",
+}
+
+# Derived macro columns computed in compute_macro_derived().
+# If new derived columns are added to builder.py they must be added here.
+_DERIVED_MACRO_COLUMNS: set[str] = {
     "rate_diff",
+    "rate_diff_delta_3m",
     "2y_yield_delta_63",
     "dxy_mom_63",
     "dxy_mom_21",
@@ -117,7 +139,11 @@ KNOWN_MACRO_COLUMNS: set[str] = {
     "ca_jp_spread_mom_5",
     "real_yield_delta_63",
     "breakeven_delta_63",
+    "yield_slope",
+    "fed_funds_delta_3m",
 }
+
+KNOWN_MACRO_COLUMNS: set[str] = _RAW_MACRO_COLUMNS | _DERIVED_MACRO_COLUMNS
 
 
 def validate_no_cross_asset_leakage(

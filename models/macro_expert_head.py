@@ -24,9 +24,23 @@ class MacroExpertHead:
         self.current_weight = 0.45 # default starting weight
         self.performance_history = [] # track (macro_ret, blend_ret)
 
+    def _ensure_train_classes(self, X, y, split, num_classes):
+        """Ensure training split has all `num_classes` by inserting zero-weight dummies."""
+        y_train = y.iloc[:split]
+        present = np.unique(y_train)
+        missing = [c for c in range(num_classes) if c not in present]
+        if not missing:
+            return X, y, split
+        dummy = X.iloc[:len(missing)]
+        dy = pd.Series(missing, dtype=y.dtype, index=dummy.index)
+        X_aug = pd.concat([X.iloc[:split], dummy, X.iloc[split:]])
+        y_aug = pd.concat([y.iloc[:split], dy, y.iloc[split:]])
+        return X_aug, y_aug, split + len(missing)
+
     def fit(self, X_macro, y):
         X = X_macro[self.features].copy()
         split = int(len(X) * 0.8)
+        X, y, split = self._ensure_train_classes(X, y, split, 3)
         params = {
             'n_estimators': 100,
             'max_depth': 2,

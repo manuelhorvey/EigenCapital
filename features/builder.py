@@ -40,6 +40,10 @@ def compute_macro_derived(macro_df: pd.DataFrame) -> pd.DataFrame:
     m["ca_jp_spread_mom_5"] = m["ca_jp_10y_spread"].diff(5)
     m["real_yield_delta_63"] = m["real_yield_10y"].diff(63)
     m["breakeven_delta_63"] = m["breakeven_10y"].diff(63)
+    # Additional macro columns needed by MacroExpertHead
+    m["rate_diff_delta_3m"] = m["rate_diff"].diff(63)
+    m["yield_slope"] = m["us_10y"] - m["us_2y"]
+    m["fed_funds_delta_3m"] = m["fed_funds"].diff(63)
     return m.iloc[90:]
 
 
@@ -116,7 +120,8 @@ def build_features(
         _attach_lead_lag_features(a, df, contract)
 
     a["label"] = labels
-    result = a.dropna(subset=list(contract.features) + ["label"])
+    drop_cols = [c for c in list(contract.features) + ["label"] if c in a.columns]
+    result = a.dropna(subset=drop_cols)
     if FEATURE_CONTRACT_VALIDATION:
         validate_no_cross_asset_leakage(result, contract, known_slugs=FEATURE_REGISTRY.keys())
     return result

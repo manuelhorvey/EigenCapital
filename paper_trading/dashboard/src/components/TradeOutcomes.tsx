@@ -1,4 +1,8 @@
 import { useTradeOutcomes } from '../hooks/useTradeOutcomes'
+import Panel from './ui/Panel'
+import SectionHeader from './ui/SectionHeader'
+import KpiCard from './ui/KpiCard'
+import { Skeleton } from './ui/Skeleton'
 
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`
@@ -13,27 +17,27 @@ export default function TradeOutcomes() {
 
   if (isPending) {
     return (
-      <div className="card-gradient card-border rounded-xl p-4 animate-pulse">
-        <div className="h-4 bg-gray-800 rounded w-1/3 mb-4" />
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-4">
+      <Panel className="animate-pulse">
+        <SectionHeader title="Trade Outcomes" accent="purple" />
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-12 bg-gray-800 rounded" />
+            <div key={i} className="bg-panel rounded-lg p-3">
+              <Skeleton className="h-3 w-full mb-2 rounded" />
+              <Skeleton className="h-5 w-3/4 rounded" />
+            </div>
           ))}
         </div>
-        <div className="h-24 bg-gray-800 rounded" />
-      </div>
+        <Skeleton className="h-24 w-full rounded" />
+      </Panel>
     )
   }
 
   if (isError || !outcomes) {
     return (
-      <div className="card-gradient card-border rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 rounded-full bg-red-500/50" />
-          <h2 className="text-sm font-semibold text-primary">Trade Outcomes</h2>
-        </div>
+      <Panel>
+        <SectionHeader title="Trade Outcomes" accent="purple" />
         <div className="text-xs text-tertiary text-center py-8">Failed to load outcome data</div>
-      </div>
+      </Panel>
     )
   }
 
@@ -41,59 +45,53 @@ export default function TradeOutcomes() {
   const hasData = byAsset.length > 0
 
   return (
-    <div className="card-gradient card-border rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-        <h2 className="text-sm font-semibold text-primary">Trade Outcomes</h2>
-      </div>
-
+    <Panel padding="lg">
+      <SectionHeader title="Trade Outcomes" accent="purple" border />
       {!hasData ? (
         <div className="text-xs text-tertiary text-center py-8">No trades closed yet</div>
       ) : (
         <>
-          {/* KPI row */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-5">
-            <KpiBox label="TP Hit Rate" value={pct(overall.tp_rate)} color="text-emerald-400" />
-            <KpiBox label="SL Hit Rate" value={pct(overall.sl_rate)} color="text-red-400" />
-            <KpiBox label="Flip Rate" value={pct(overall.signal_flip_rate)} color="text-amber-400" />
-            <KpiBox label="Avg R" value={r2(overall.avg_r)} color={overall.avg_r >= 0 ? 'text-emerald-400' : 'text-red-400'} />
-            <KpiBox label="Win Rate" value={pct(overall.win_rate)} color="text-sky-400" />
-            <KpiBox label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : 'N/A'} color="text-violet-400" />
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 mb-5">
+            <KpiCard label="TP Hit Rate" value={pct(overall.tp_rate)} color="text-gov-green" />
+            <KpiCard label="SL Hit Rate" value={pct(overall.sl_rate)} color="text-gov-red" />
+            <KpiCard label="Flip Rate" value={pct(overall.signal_flip_rate)} color="text-gov-yellow" />
+            <KpiCard label="Avg R" value={r2(overall.avg_r)} color={overall.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'} />
+            <KpiCard label="Win Rate" value={pct(overall.win_rate)} color="text-accent-blue" />
+            <KpiCard label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} color="text-accent-purple" />
           </div>
 
-          {/* Per-asset table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-xs min-w-[520px]">
               <thead>
-                <tr className="text-tertiary border-b border-default">
-                  <th className="text-left py-2 pr-3 font-medium">Asset</th>
-                  <th className="text-right py-2 px-3 font-medium">Trades</th>
-                  <th className="text-right py-2 px-3 font-medium">TP%</th>
-                  <th className="text-right py-2 px-3 font-medium">SL%</th>
-                  <th className="text-right py-2 px-3 font-medium">Flip%</th>
-                  <th className="text-right py-2 px-3 font-medium">Avg R</th>
-                  <th className="text-right py-2 px-3 font-medium">Win%</th>
-                  <th className="text-right py-2 pl-3 font-medium">PF</th>
+                <tr className="border-b border-default">
+                  <th className="table-header text-left py-2 pr-3">Asset</th>
+                  <th className="table-header text-right py-2 px-3">Trades</th>
+                  <th className="table-header text-right py-2 px-3">TP%</th>
+                  <th className="table-header text-right py-2 px-3">SL%</th>
+                  <th className="table-header text-right py-2 px-3">Flip%</th>
+                  <th className="table-header text-right py-2 px-3">Avg R</th>
+                  <th className="table-header text-right py-2 px-3">Win%</th>
+                  <th className="table-header text-right py-2 pl-3">PF</th>
                 </tr>
               </thead>
               <tbody>
                 {byAsset.map((a) => (
-                  <tr key={a.asset} className="border-b border-default/50 hover:bg-panel/50 transition-colors">
-                    <td className="py-2 pr-3 font-medium text-primary">{a.asset}</td>
-                    <td className="text-right py-2 px-3 text-secondary">{a.n_trades}</td>
-                    <td className={`text-right py-2 px-3 ${a.tp_rate >= 0.2 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <tr key={a.asset} className="border-b border-default/40 table-row-hover">
+                    <td className="py-2 pr-3 font-medium text-primary font-mono text-xs">{a.asset}</td>
+                    <td className="text-right py-2 px-3 text-secondary font-mono tabular-nums">{a.n_trades}</td>
+                    <td className={`text-right py-2 px-3 font-mono tabular-nums ${a.tp_rate >= 0.2 ? 'text-gov-green' : 'text-gov-yellow'}`}>
                       {pct(a.tp_rate)}
                     </td>
-                    <td className={`text-right py-2 px-3 ${a.sl_rate <= 0.6 ? 'text-secondary' : 'text-red-400'}`}>
+                    <td className={`text-right py-2 px-3 font-mono tabular-nums ${a.sl_rate <= 0.6 ? 'text-secondary' : 'text-gov-red'}`}>
                       {pct(a.sl_rate)}
                     </td>
-                    <td className="text-right py-2 px-3 text-secondary">{pct(a.signal_flip_rate)}</td>
-                    <td className={`text-right py-2 px-3 ${a.avg_r >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <td className="text-right py-2 px-3 text-tertiary font-mono tabular-nums">{pct(a.signal_flip_rate)}</td>
+                    <td className={`text-right py-2 px-3 font-mono tabular-nums ${a.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
                       {r2(a.avg_r)}
                     </td>
-                    <td className="text-right py-2 px-3 text-secondary">{pct(a.win_rate)}</td>
-                    <td className="text-right py-2 pl-3 text-secondary">
-                      {a.profit_factor !== null ? r2(a.profit_factor) : 'N/A'}
+                    <td className="text-right py-2 px-3 text-secondary font-mono tabular-nums">{pct(a.win_rate)}</td>
+                    <td className="text-right py-2 pl-3 text-secondary font-mono tabular-nums">
+                      {a.profit_factor !== null ? r2(a.profit_factor) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -102,15 +100,6 @@ export default function TradeOutcomes() {
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-function KpiBox({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="bg-panel/50 rounded-lg p-3 text-center">
-      <div className="text-[10px] text-tertiary uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-sm font-bold tabular-nums ${color}`}>{value}</div>
-    </div>
+    </Panel>
   )
 }

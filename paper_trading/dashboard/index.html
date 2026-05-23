@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>QuantForge Dashboard</title>
+    <title>QuantForge — Paper Trading Dashboard</title>
+    <meta name="description" content="Real-time quantitative trading dashboard" />
+    <meta name="color-scheme" content="dark" />
     <script>
       (function() {
         var t = localStorage.getItem('theme');
@@ -11,7 +13,7 @@
       })();
     </script>
   </head>
-  <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50">
+  <body class="bg-app text-primary font-sans antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

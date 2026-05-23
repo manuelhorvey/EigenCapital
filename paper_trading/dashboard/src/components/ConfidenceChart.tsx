@@ -1,8 +1,23 @@
 import { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useQuery } from '@tanstack/react-query'
+import Panel from './ui/Panel'
+import SectionHeader from './ui/SectionHeader'
+import EmptyState from './ui/EmptyState'
+import { Skeleton } from './ui/Skeleton'
+import {
+  CHART_PRIMARY,
+  axisTick,
+  cartesianGridProps,
+  chartMargin,
+  tooltipLabelStyle,
+  tooltipStyle,
+} from './ui/chartTheme'
 
-async function fetchConfidence(): Promise<{ live: Record<string, Record<string, number>>; historical: Record<string, number>[] }> {
+async function fetchConfidence(): Promise<{
+  live: Record<string, Record<string, number>>
+  historical: Record<string, number>[]
+}> {
   const res = await fetch('/confidence.json')
   if (!res.ok) return { live: {}, historical: [] }
   return res.json()
@@ -47,43 +62,39 @@ export default function ConfidenceChart() {
   }, [apiData])
 
   const showHistorical = historicalCount && historicalCount.total > 0
+  const isEmpty = liveBuckets.length === 0 && !showHistorical
 
   return (
-    <div className="card-gradient card-border rounded-xl p-3">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-        <h2 className="text-sm font-semibold text-primary">Confidence</h2>
-      </div>
+    <Panel padding="md">
+      <SectionHeader title="Confidence Distribution" accent="emerald" />
       {isPending ? (
-        <div className="text-xs text-tertiary text-center py-6 animate-pulse">Loading...</div>
-      ) : liveBuckets.length === 0 && !showHistorical ? (
-        <div className="text-xs text-tertiary text-center py-6">No signal data yet</div>
+        <Skeleton className="h-32 w-full rounded-md" />
+      ) : isEmpty ? (
+        <EmptyState message="No signal data yet" compact />
       ) : (
-        <div className="h-32">
+        <div className="h-32 chart-surface rounded-md p-1">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={liveBuckets} margin={{ top: 2, right: 4, left: -8, bottom: 0 }}>
-              <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9, fill: 'var(--color-text-tertiary)' }} allowDecimals={false} axisLine={false} tickLine={false} width={16} />
-              <Tooltip
-                contentStyle={{
-                  background: 'var(--color-card)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '8px',
-                  fontSize: '11px',
-                  boxShadow: 'var(--shadow-lift)',
-                }}
-                labelStyle={{ color: 'var(--color-text-tertiary)' }}
+            <BarChart data={liveBuckets} margin={chartMargin}>
+              <CartesianGrid {...cartesianGridProps} />
+              <XAxis dataKey="range" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis
+                tick={axisTick}
+                allowDecimals={false}
+                axisLine={false}
+                tickLine={false}
+                width={20}
               />
-              <Bar dataKey="count" fill="#34d399" radius={[2, 2, 0, 0]} maxBarSize={24} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11 }} />
+              <Bar dataKey="count" fill={CHART_PRIMARY} radius={[3, 3, 0, 0]} maxBarSize={20} fillOpacity={0.85} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
-      {showHistorical && (
-        <div className="mt-2 pt-2 border-t border-default">
-          <div className="flex items-center justify-between text-[9px] text-tertiary mb-1">
+      {showHistorical && historicalCount && (
+        <div className="mt-3 pt-3 border-t border-default">
+          <div className="flex items-center justify-between text-2xs text-tertiary uppercase tracking-wider mb-1.5">
             <span>Historical</span>
-            <span>{historicalCount.total} signals</span>
+            <span className="font-mono tabular-nums">{historicalCount.total} signals</span>
           </div>
           <div className="flex gap-0.5 h-4">
             {Object.entries(historicalCount.buckets)
@@ -91,17 +102,17 @@ export default function ConfidenceChart() {
               .map(([range, count]) => (
                 <div
                   key={range}
-                  className="flex-1 rounded-sm bg-emerald-500/20 relative overflow-hidden"
+                  className="flex-1 rounded-sm bg-gov-green-muted relative overflow-hidden"
                   title={`${range}: ${count} signals`}
                 >
                   <div
-                    className="absolute bottom-0 left-0 right-0 bg-emerald-500/40 rounded-sm transition-all"
+                    className="absolute bottom-0 left-0 right-0 bg-gov-green/40 rounded-sm transition-all duration-300"
                     style={{ height: `${(count / historicalCount.total) * 100}%` }}
                   />
                 </div>
               ))}
           </div>
-          <div className="flex justify-between text-[8px] text-tertiary mt-0.5">
+          <div className="flex justify-between text-[8px] text-muted mt-1 font-mono">
             {Object.entries(historicalCount.buckets)
               .sort(([a], [b]) => parseInt(a) - parseInt(b))
               .map(([range]) => (
@@ -110,6 +121,6 @@ export default function ConfidenceChart() {
           </div>
         </div>
       )}
-    </div>
+    </Panel>
   )
 }

@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import type { VolRegime } from '../types/portfolio'
+import Panel from './ui/Panel'
+import SectionHeader from './ui/SectionHeader'
+import EmptyState from './ui/EmptyState'
+import { Skeleton } from './ui/Skeleton'
 
 const VOL_BASELINES: Record<string, number> = {
   GC: 0.009129,
@@ -25,9 +29,24 @@ function volStatus(ratio: number): VolRegime['status'] {
 }
 
 const statusConfig = {
-  green: { label: 'OK', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', bar: 'bg-emerald-500' },
-  amber: { label: 'WATCH', bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', bar: 'bg-amber-500' },
-  red: { label: 'HIGH', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', bar: 'bg-red-500' },
+  green: {
+    label: 'OK',
+    badge: 'bg-gov-green-muted text-gov-green border-gov-green/25',
+    ratioText: 'text-gov-green',
+    bar: 'bg-gov-green',
+  },
+  amber: {
+    label: 'WATCH',
+    badge: 'bg-gov-yellow-muted text-gov-yellow border-gov-yellow/25',
+    ratioText: 'text-gov-yellow',
+    bar: 'bg-gov-yellow',
+  },
+  red: {
+    label: 'HIGH',
+    badge: 'bg-gov-red-muted text-gov-red border-gov-red/25',
+    ratioText: 'text-gov-red',
+    bar: 'bg-gov-red',
+  },
 }
 
 export default function VolRegimePanel() {
@@ -50,35 +69,32 @@ export default function VolRegimePanel() {
 
   if (isPending) {
     return (
-      <div className="card-gradient card-border rounded-xl p-4">
-        <div className="h-4 bg-gray-800 rounded w-1/3 mb-3" />
-        <div className="space-y-1.5">
+      <Panel className="p-4">
+        <Skeleton className="h-4 w-24 mb-3 rounded" />
+        <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-8 bg-gray-800/50 rounded animate-pulse" />
+            <Skeleton key={i} className="h-8 rounded" />
           ))}
         </div>
-      </div>
+      </Panel>
     )
   }
 
   return (
-    <div className="card-gradient card-border rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-2 h-2 rounded-full bg-amber-500/50" />
-        <h2 className="text-sm font-semibold text-primary">Vol Regime</h2>
-      </div>
+    <Panel padding="md">
+      <SectionHeader title="Vol Regime" accent="amber" />
       {regimes.length === 0 ? (
-        <div className="text-xs text-tertiary text-center py-8">No position data yet</div>
+        <EmptyState message="No position data yet" compact />
       ) : (
-        <div className="overflow-hidden -mx-4 px-4">
-          <table className="w-full text-[11px]">
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-[11px] min-w-[280px]">
             <thead>
               <tr className="border-b border-default">
-                <th className="table-header text-left py-1 pr-2">Asset</th>
-                <th className="table-header text-right py-1 pr-2">Curr</th>
-                <th className="table-header text-right py-1 pr-2">Base</th>
-                <th className="table-header text-right py-1 pr-2">Ratio</th>
-                <th className="table-header text-right py-1 pr-2">Bar</th>
+                <th className="table-header text-left py-1.5 pr-2">Asset</th>
+                <th className="table-header text-right py-1.5 pr-2">Curr</th>
+                <th className="table-header text-right py-1.5 pr-2">Base</th>
+                <th className="table-header text-right py-1.5 pr-2">Ratio</th>
+                <th className="table-header text-right py-1.5">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -88,26 +104,28 @@ export default function VolRegimePanel() {
                 return (
                   <tr
                     key={r.asset}
-                    className={`border-b border-default/20 transition-colors hover:bg-panel/50 ${i % 2 === 0 ? '' : 'bg-panel/20'}`}
+                    className={`border-b border-default/30 table-row-hover ${
+                      i % 2 === 1 ? 'bg-panel/30' : ''
+                    }`}
                   >
-                    <td className="py-1 pr-2">
-                      <span className="text-xs font-medium text-primary">{r.asset}</span>
+                    <td className="py-1.5 pr-2">
+                      <span className="text-xs font-semibold text-primary font-mono">{r.asset}</span>
                     </td>
-                    <td className="py-1 pr-2 text-right font-mono text-secondary tabular-nums">
+                    <td className="py-1.5 pr-2 text-right font-mono text-secondary tabular-nums">
                       {r.current_vol.toFixed(4)}
                     </td>
-                    <td className="py-1 pr-2 text-right font-mono text-tertiary tabular-nums">
+                    <td className="py-1.5 pr-2 text-right font-mono text-muted tabular-nums">
                       {r.training_vol.toFixed(4)}
                     </td>
-                    <td className="py-1 pr-2 text-right">
-                      <span className={`font-mono ${cfg.text} tabular-nums`}>{r.ratio.toFixed(2)}x</span>
+                    <td className={`py-1.5 pr-2 text-right font-mono tabular-nums ${cfg.ratioText}`}>
+                      {r.ratio.toFixed(2)}x
                     </td>
-                    <td className="py-1 pr-1 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <div className="w-10 h-1 bg-panel rounded-full overflow-hidden">
+                    <td className="py-1.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="w-12 h-1 bg-panel rounded-full overflow-hidden border border-default/50">
                           <div className={`h-full rounded-full ${cfg.bar}`} style={{ width: `${barWidth}%` }} />
                         </div>
-                        <span className={`px-1 py-0.5 rounded text-[9px] font-semibold ${cfg.bg} ${cfg.text}`}>
+                        <span className={`px-1 py-0.5 rounded border text-2xs font-bold tracking-wide ${cfg.badge}`}>
                           {cfg.label}
                         </span>
                       </div>
@@ -119,6 +137,6 @@ export default function VolRegimePanel() {
           </table>
         </div>
       )}
-    </div>
+    </Panel>
   )
 }

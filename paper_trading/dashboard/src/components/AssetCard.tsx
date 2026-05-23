@@ -53,23 +53,23 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
 
   if (!info) {
     return (
-      <div className="card-gradient card-border rounded-xl px-4 py-3">
+      <div className="panel rounded-lg px-4 py-3">
         <div className="text-sm text-secondary font-medium">{name}</div>
         <div className="text-xs text-tertiary mt-1">No data</div>
       </div>
     )
   }
 
-  const confColor = info.confidence >= 60 ? 'text-emerald-400' : info.confidence >= 45 ? 'text-amber-400' : 'text-red-400'
-  const retColor = info.totalReturn >= 0 ? 'text-emerald-400' : 'text-red-400'
-  const ddColor = info.drawdown > -3 ? 'text-emerald-400' : info.drawdown > -5 ? 'text-amber-400' : 'text-red-400'
+  const confColor = info.confidence >= 60 ? 'text-gov-green' : info.confidence >= 45 ? 'text-gov-yellow' : 'text-gov-red'
+  const retColor = info.totalReturn >= 0 ? 'text-gov-green' : 'text-gov-red'
+  const ddColor = info.drawdown > -3 ? 'text-gov-green' : info.drawdown > -5 ? 'text-gov-yellow' : 'text-gov-red'
 
   return (
-    <div className="relative card-gradient card-border rounded-xl px-4 py-3 hover-lift overflow-hidden group">
+    <div className="relative panel rounded-lg px-4 py-3 panel-hover overflow-hidden group">
       <div className="flex items-center gap-2 mb-2">
         <span className="font-semibold text-sm text-primary">{name}</span>
         {(info.isNew || newBadge) && (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 animate-pulse leading-none">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/20 animate-pulse leading-none">
             NEW
           </span>
         )}
@@ -77,7 +77,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
           <span className="text-xs text-tertiary font-mono ml-1">${formatAssetPrice(info.price)}</span>
         )}
         <span className="ml-auto flex items-center gap-2">
-          <span className={`text-xs font-semibold ${info.signal === 'BUY' ? 'text-emerald-400' : info.signal === 'SELL' ? 'text-red-400' : 'text-slate-500'}`}>
+          <span className={`text-xs font-semibold ${info.signal === 'BUY' ? 'text-gov-green' : info.signal === 'SELL' ? 'text-gov-red' : 'text-muted'}`}>
             {info.signal}
           </span>
           <span className={`text-xs font-mono ${confColor}`}>{info.confidence.toFixed(0)}%</span>
@@ -94,9 +94,9 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
 
       {info.slMult != null && info.tpMult != null && (
         <div className="flex items-center gap-2 text-xs text-tertiary mb-1">
-          <span className="text-tertiary">SL <span className="font-mono text-red-400/70">{info.slMult.toFixed(2)}x</span></span>
-          <span className="text-default/50">·</span>
-          <span className="text-tertiary">TP <span className="font-mono text-emerald-400/70">{info.tpMult.toFixed(2)}x</span></span>
+          <span className="text-tertiary">SL <span className="font-mono text-gov-red/80">{info.slMult.toFixed(2)}x</span></span>
+          <span className="text-muted">·</span>
+          <span className="text-tertiary">TP <span className="font-mono text-gov-green/80">{info.tpMult.toFixed(2)}x</span></span>
           <span className="text-default/50">·</span>
           <span className="font-mono text-tertiary">{info.dist ? `${info.dist.BUY ?? 0}B ${info.dist.SELL ?? 0}S ${info.dist.FLAT ?? 0}F` : '—'}</span>
           <span className="ml-auto font-mono text-tertiary">{info.nSignals} sigs · {info.nTrades} trds</span>
@@ -107,12 +107,12 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
         <div className="pt-2 border-t border-default/30">
           <div className="flex items-center justify-between text-xs text-tertiary">
             <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${info.pos.side === 'long' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              <span className={`w-2 h-2 rounded-full ${info.pos.side === 'long' ? 'bg-gov-green' : 'bg-gov-red'}`} />
               {info.pos.side.toUpperCase()} @ ${formatAssetPrice(info.pos.entry)}
             </span>
             <span className="font-mono">
               {info.pos.unrealized_pnl != null && (
-                <span className={`${info.pos.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <span className={`${info.pos.unrealized_pnl >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
                   {info.pos.unrealized_pnl >= 0 ? '+' : ''}{info.pos.unrealized_pnl.toFixed(2)}%
                 </span>
               )}
@@ -132,20 +132,20 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
                 <>
                   {p.tp != null && p.tp !== 0 && (
                     <span className="flex items-center gap-1 text-tertiary">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-gov-green" />
                       TP {formatAssetPrice(p.tp)}
-                      <span className="text-emerald-400 font-mono">↑{tpDist.toFixed(2)}%</span>
+                      <span className="text-gov-green font-mono">↑{tpDist.toFixed(2)}%</span>
                     </span>
                   )}
                   {p.sl != null && p.sl !== 0 && (
                     <span className="flex items-center gap-1 text-tertiary">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-gov-red" />
                       SL {formatAssetPrice(p.sl)}
-                      <span className="font-mono text-red-400">↓{slDist.toFixed(2)}%</span>
+                      <span className="font-mono text-gov-red">↓{slDist.toFixed(2)}%</span>
                     </span>
                   )}
                   {rr > 0 && (
-                    <span className={`ml-auto font-mono font-semibold ${rr >= 2 ? 'text-emerald-400' : rr >= 1 ? 'text-amber-400' : 'text-red-400'}`}>
+                    <span className={`ml-auto font-mono font-semibold ${rr >= 2 ? 'text-gov-green' : rr >= 1 ? 'text-gov-yellow' : 'text-gov-red'}`}>
                       {rr.toFixed(1)}:1
                     </span>
                   )}

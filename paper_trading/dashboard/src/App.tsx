@@ -14,94 +14,55 @@ import GovernancePanel from './components/GovernancePanel'
 import TradeOutcomes from './components/TradeOutcomes'
 import EngineLogs from './components/EngineLogs'
 import Footer from './components/Footer'
-
-function ConnectingScreen() {
-  return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4 px-6">
-      <svg className="w-8 h-8 text-emerald-500 animate-spin" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-      </svg>
-      <div className="text-center">
-        <h2 className="text-white text-lg font-semibold">Connecting to QuantForge Engine</h2>
-        <p className="text-gray-500 text-sm mt-1">Waiting for paper trading data...</p>
-      </div>
-      <div className="flex gap-1.5 mt-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 animate-pulse" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 animate-pulse" style={{ animationDelay: '200ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 animate-pulse" style={{ animationDelay: '400ms' }} />
-      </div>
-    </div>
-  )
-}
+import LoadingScreen from './components/ui/LoadingScreen'
+import ErrorScreen from './components/ui/ErrorScreen'
 
 export default function App() {
   const { isPending, isError } = usePortfolioState()
 
   if (isPending) {
-    return <ConnectingScreen />
+    return <LoadingScreen />
   }
 
   if (isError) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4 px-6">
-        <svg className="w-8 h-8 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-        </svg>
-        <div className="text-center">
-          <h2 className="text-white text-lg font-semibold">Engine Not Reachable</h2>
-          <p className="text-gray-500 text-sm mt-1">Make sure the paper trading engine is running on port 5000</p>
-        </div>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    )
+    return <ErrorScreen />
   }
 
   return (
-    <div className="min-h-screen bg-app text-secondary">
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03]" style={{
-        backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
-        backgroundSize: '32px 32px',
-      }} />
+    <div className="min-h-screen bg-app text-secondary flex flex-col">
+      <div className="fixed inset-0 pointer-events-none opacity-[0.35] dark:opacity-[0.2] grid-dot" />
       <Header />
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6 relative">
+      <main className="flex-1 max-w-[90rem] w-full mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6 relative animate-fade-in">
         <PortfolioSummary />
         <AssetGrid />
         <HaltConditions />
 
         <GovernancePanel />
 
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          <div className="xl:col-span-3 min-w-0 overflow-hidden">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5">
+          <div className="xl:col-span-3 min-w-0">
             <SignalsTable />
           </div>
-          <div className="xl:col-span-2 min-w-0 overflow-hidden">
+          <div className="xl:col-span-2 min-w-0">
             <EquityChart />
           </div>
         </div>
 
         <HealthScores />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className="lg:col-span-2 min-w-0">
             <MetricsGrid />
           </div>
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5 min-w-0">
             <ConfidenceChart />
             <VolRegimePanel />
           </div>
         </div>
 
         <TradeOutcomes />
-
         <TradeFeed />
-
         <EngineLogs />
       </main>
 

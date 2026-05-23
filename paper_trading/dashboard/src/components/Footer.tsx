@@ -7,20 +7,44 @@ export default function Footer() {
   const gateDate = startDate ? new Date(new Date(startDate).getTime() + 180 * 86400000) : null
 
   return (
-    <footer className="border-t border-default px-6 py-2">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-[10px] text-tertiary">
+    <footer className="border-t border-default glass glass-border mt-auto">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-[10px] text-tertiary">
         <span>
-          Next retrain: <span className="text-secondary font-medium">Jan 1, {new Date().getFullYear() + 1}</span>
+          Next retrain{' '}
+          <span className="text-secondary font-medium font-mono">
+            Jan 1, {new Date().getFullYear() + 1}
+          </span>
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4 font-mono">
           <span>
-            Started: <span className="text-secondary font-medium">{startDate ? new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+            Started{' '}
+            <span className="text-secondary">
+              {startDate
+                ? new Date(startDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '—'}
+            </span>
           </span>
           <span>
-            Gate: <span className="text-secondary font-medium">{gateDate ? gateDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+            Gate{' '}
+            <span className="text-secondary">
+              {gateDate
+                ? gateDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '—'}
+            </span>
           </span>
           <span>
-            Cleared: <span className={`font-medium ${p?.deployment_cleared ? 'text-emerald-400' : 'text-amber-400'}`}>{p?.deployment_cleared ? 'Yes' : 'No'}</span>
+            Cleared{' '}
+            <span className={p?.deployment_cleared ? 'text-gov-green font-semibold' : 'text-gov-yellow font-semibold'}>
+              {p?.deployment_cleared ? 'Yes' : 'No'}
+            </span>
           </span>
         </div>
       </div>

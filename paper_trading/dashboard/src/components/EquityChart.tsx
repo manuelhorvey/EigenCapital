@@ -1,18 +1,32 @@
 import { useMemo, useState } from 'react'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
-
-const COLORS = ['#34d399', '#f87171', '#fbbf24', '#60a5fa', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#94a3b8', '#e879f9', '#22d3ee']
+import ChartContainer from './ui/ChartContainer'
+import {
+  CHART_PALETTE,
+  CHART_PRIMARY,
+  axisTick,
+  cartesianGridProps,
+  chartMargin,
+  tooltipLabelStyle,
+  tooltipStyle,
+  ChartGradientDefs,
+  getGradientFill,
+} from './ui/chartTheme'
 
 export default function EquityChart() {
   const { data, isPending } = useEquityHistory()
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
 
-  const chartData = useMemo(() => (data ?? []).map(d => ({
-    t: d.timestamp?.split('T')[0] ?? '',
-    portfolio: d.portfolio_value,
-    ...d.assets,
-  })), [data])
+  const chartData = useMemo(
+    () =>
+      (data ?? []).map(d => ({
+        t: d.timestamp?.split('T')[0] ?? '',
+        portfolio: d.portfolio_value,
+        ...d.assets,
+      })),
+    [data],
+  )
 
   const assetNames = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -28,90 +42,115 @@ export default function EquityChart() {
     })
   }
 
-  if (isPending) {
-    return (
-      <div className="card-gradient card-border rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-          <h2 className="text-sm font-semibold text-primary">Equity Curve</h2>
-        </div>
-        <div className="text-xs text-tertiary text-center py-8 animate-pulse">Loading...</div>
-      </div>
-    )
-  }
+  const firstVal = chartData.length > 0 ? chartData[0].portfolio : 0
+  const lastVal = chartData.length > 0 ? chartData[chartData.length - 1].portfolio : 0
+  const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
 
-  if (chartData.length === 0) {
-    return (
-      <div className="card-gradient card-border rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-          <h2 className="text-sm font-semibold text-primary">Equity Curve</h2>
-        </div>
-        <div className="text-xs text-tertiary text-center py-8">Waiting for data...</div>
-      </div>
-    )
-  }
+  const legend = (
+    <div className="flex flex-wrap gap-1.5 mb-3 -mt-1">
+      {['portfolio', ...assetNames].map(name => {
+        const active = selected.has(name)
+        const color =
+          name === 'portfolio' ? CHART_PRIMARY : CHART_PALETTE[assetNames.indexOf(name) % CHART_PALETTE.length]
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => toggle(name)}
+            className={`px-2 py-1 rounded-md border text-2xs font-medium font-mono transition-all duration-150 ${
+              active
+                ? 'text-primary bg-panel border-strong shadow-inner-subtle'
+                : 'text-muted border-default hover:border-strong hover:text-secondary'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: active ? color : 'var(--color-text-muted)' }}
+              />
+              {name}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
 
   return (
-    <div className="card-gradient card-border rounded-xl p-4">
-      <div className="flex items-center justify-between mb-4">
+    <ChartContainer
+      title="Equity Curve"
+      accent="emerald"
+      meta={
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
-          <h2 className="text-sm font-semibold text-primary">Equity Curve</h2>
+          {chartData.length > 0 && (
+            <span className={`text-2xs font-mono tabular-nums ${pctChange >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+              {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
+            </span>
+          )}
+          <span className="text-2xs text-tertiary font-mono tabular-nums">{chartData.length} pts</span>
         </div>
-        <span className="text-[11px] text-tertiary">{chartData.length} data points</span>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {['portfolio', ...assetNames].map(name => {
-          const active = selected.has(name)
-          const color = name === 'portfolio' ? '#34d399' : COLORS[assetNames.indexOf(name) % COLORS.length]
-          return (
-            <button
-              key={name}
-              onClick={() => toggle(name)}
-              className={`px-2 py-1 rounded-lg border text-[10px] font-medium transition-all duration-200 ${
-                active
-                  ? 'text-primary bg-panel border-strong'
-                  : 'text-tertiary border-default hover:border-strong hover:text-secondary'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: active ? color : 'var(--color-text-muted)' }} />
-                {name}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="h-64 w-full min-w-0 overflow-hidden">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-panel)" />
-            <XAxis dataKey="t" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} interval="preserveStartEnd" axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
-            <Tooltip
-              contentStyle={{
-                background: 'var(--color-card)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                fontSize: '12px',
-                boxShadow: 'var(--shadow-lift)',
-              }}
-              labelStyle={{ color: 'var(--color-text-tertiary)' }}
+      }
+      toolbar={chartData.length > 0 ? legend : undefined}
+      isPending={isPending}
+      isEmpty={chartData.length === 0}
+      emptyMessage="Waiting for equity history…"
+      height="h-56 sm:h-64"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={chartMargin}>
+          <ChartGradientDefs />
+          <CartesianGrid {...cartesianGridProps} />
+          <XAxis
+            dataKey="t"
+            tick={axisTick}
+            interval="preserveStartEnd"
+            axisLine={{ stroke: 'var(--color-border)' }}
+            tickLine={false}
+          />
+          <YAxis
+            tick={axisTick}
+            domain={['auto', 'auto']}
+            axisLine={false}
+            tickLine={false}
+            width={48}
+            tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+          />
+          <Tooltip
+            contentStyle={tooltipStyle}
+            labelStyle={tooltipLabelStyle}
+            itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '1px 0' }}
+          />
+          {selected.has('portfolio') && (
+            <Area
+              type="monotone"
+              dataKey="portfolio"
+              stroke={CHART_PRIMARY}
+              fill={getGradientFill()}
+              fillOpacity={1}
+              strokeWidth={2}
+              name="Portfolio"
+              dot={false}
+              activeDot={{ stroke: CHART_PRIMARY, strokeWidth: 2, r: 4, fill: 'var(--color-card)' }}
             />
-            {selected.has('portfolio') && (
-              <Area type="monotone" dataKey="portfolio" stroke="#34d399" fill="#34d399" fillOpacity={0.08} strokeWidth={2} name="Portfolio" />
-            )}
-            {assetNames.map((a, i) =>
-              selected.has(a) ? (
-                <Area key={a} type="monotone" dataKey={a} stroke={COLORS[i % COLORS.length]} fill={COLORS[i % COLORS.length]} fillOpacity={0.04} strokeWidth={1.5} name={a} />
-              ) : null
-            )}
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+          )}
+          {assetNames.map((a, i) =>
+            selected.has(a) ? (
+              <Area
+                key={a}
+                type="monotone"
+                dataKey={a}
+                stroke={CHART_PALETTE[i % CHART_PALETTE.length]}
+                fill={CHART_PALETTE[i % CHART_PALETTE.length]}
+                fillOpacity={0.04}
+                strokeWidth={1.5}
+                name={a}
+                dot={false}
+                activeDot={{ stroke: CHART_PALETTE[i % CHART_PALETTE.length], strokeWidth: 2, r: 3, fill: 'var(--color-card)' }}
+              />
+            ) : null,
+          )}
+        </AreaChart>
+      </ResponsiveContainer>
+    </ChartContainer>
   )
 }

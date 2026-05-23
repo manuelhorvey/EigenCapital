@@ -1,5 +1,19 @@
 import { useMemo } from 'react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
+import Panel from './ui/Panel'
+import SectionHeader from './ui/SectionHeader'
+import EmptyState from './ui/EmptyState'
+import { Skeleton } from './ui/Skeleton'
+
+function pfColor(v: number | null | undefined): string {
+  if (v != null && !isNaN(v) && v !== Infinity) return v >= 1 ? 'text-gov-green' : 'text-gov-yellow'
+  return 'text-muted'
+}
+
+function monthlyPfColor(v: number | null | undefined): string {
+  if (v != null && !isNaN(v) && v !== Infinity) return v >= 0.7 ? 'text-gov-green' : 'text-gov-yellow'
+  return 'text-muted'
+}
 
 export default function MetricsGrid() {
   const { data, isPending } = usePortfolioState()
@@ -30,16 +44,9 @@ export default function MetricsGrid() {
 
   if (isPending) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="card-gradient card-border rounded-xl p-4 animate-pulse">
-            <div className="h-4 bg-gray-800 rounded w-1/3 mb-3" />
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, j) => (
-                <div key={j} className="h-4 bg-gray-800/50 rounded" />
-              ))}
-            </div>
-          </div>
+          <Skeleton key={i} className="h-36 rounded-lg" />
         ))}
       </div>
     )
@@ -47,82 +54,74 @@ export default function MetricsGrid() {
 
   if (cards.length === 0) {
     return (
-      <div className="card-gradient card-border rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-blue-500/50" />
-          <h2 className="text-sm font-semibold text-primary">Asset Metrics</h2>
-        </div>
-        <div className="text-xs text-tertiary text-center py-8">No metric data available</div>
-      </div>
+      <Panel padding="md">
+        <SectionHeader title="Asset Metrics" accent="blue" />
+        <EmptyState message="No metric data available" compact />
+      </Panel>
     )
   }
 
-  const pfColor = (v: number | null | undefined) =>
-    v != null && !isNaN(v) && v !== Infinity ? (v >= 1 ? 'text-emerald-400' : 'text-amber-400') : 'text-tertiary'
-
-  const monthlyPfColor = (v: number | null | undefined) =>
-    v != null && !isNaN(v) && v !== Infinity ? (v >= 0.7 ? 'text-emerald-400' : 'text-amber-400') : 'text-tertiary'
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {cards.map(c => (
-        <div key={c.name} className="card-gradient card-border rounded-xl px-3.5 py-3 hover-lift">
+        <Panel key={c.name} padding="none" className="px-3.5 py-3 panel-hover">
           <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-primary">{c.name}</span>
-              <span className="text-[10px] text-tertiary bg-panel/60 px-1.5 py-0.5 rounded-full">{c.nTrades} trades</span>
-            </div>
+            <span className="text-sm font-semibold text-primary font-mono">{c.name}</span>
+            <span className="text-2xs text-tertiary font-mono bg-panel px-1.5 py-0.5 rounded border border-default tabular-nums">
+              {c.nTrades} trds
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-2">
               <span className="text-tertiary">PF</span>
               <span className={`font-mono tabular-nums ${pfColor(c.profitFactor)}`}>
-                {c.profitFactor != null && !isNaN(c.profitFactor) && c.profitFactor !== Infinity ? c.profitFactor.toFixed(2) : '—'}
+                {c.profitFactor != null && !isNaN(c.profitFactor) && c.profitFactor !== Infinity
+                  ? c.profitFactor.toFixed(2)
+                  : '—'}
               </span>
             </div>
-
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-2">
               <span className="text-tertiary">Win Rate</span>
               <span className="font-mono tabular-nums text-primary">{c.winRate.toFixed(1)}%</span>
             </div>
-
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-2">
               <span className="text-tertiary">Conf</span>
               <span className="font-mono tabular-nums text-primary">{c.meanConf.toFixed(1)}%</span>
             </div>
-
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-2">
               <span className="text-tertiary">MoPF</span>
               <span className={`font-mono tabular-nums ${monthlyPfColor(c.monthlyPf)}`}>
-                {c.monthlyPf != null && !isNaN(c.monthlyPf) && c.monthlyPf !== Infinity ? c.monthlyPf.toFixed(2) : '—'}
+                {c.monthlyPf != null && !isNaN(c.monthlyPf) && c.monthlyPf !== Infinity
+                  ? c.monthlyPf.toFixed(2)
+                  : '—'}
               </span>
             </div>
-
-            <div className="col-span-2 flex items-baseline justify-between">
+            <div className="col-span-2 flex items-baseline justify-between gap-2">
               <span className="text-tertiary">L/S</span>
               <span className="font-mono tabular-nums text-secondary">
-                {c.meanProbLong.toFixed(0)}<span className="text-tertiary">/</span>{c.meanProbShort.toFixed(0)}%
+                {c.meanProbLong.toFixed(0)}
+                <span className="text-muted mx-0.5">/</span>
+                {c.meanProbShort.toFixed(0)}%
               </span>
             </div>
-
             <div className="col-span-2">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-tertiary">Signal Dist</span>
-                <span className="font-mono text-[10px] text-tertiary tabular-nums">
-                  {c.sigBuy}<span className="text-tertiary mx-0.5">/</span>{c.sigSell}<span className="text-tertiary mx-0.5">/</span>{c.sigFlat}
+                <span className="font-mono text-2xs text-muted tabular-nums">
+                  {c.sigBuy}/{c.sigSell}/{c.sigFlat}
                 </span>
               </div>
               {c.sigTotal > 0 && (
-                <div className="flex h-1.5 bg-panel rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500" style={{ width: `${(c.sigBuy / c.sigTotal) * 100}%` }} />
-                  <div className="h-full bg-red-500" style={{ width: `${(c.sigSell / c.sigTotal) * 100}%` }} />
-                  <div className="h-full bg-amber-500" style={{ width: `${(c.sigFlat / c.sigTotal) * 100}%` }} />
+                <div className="flex h-1.5 bg-panel rounded-full overflow-hidden border border-default/50">
+                  <div className="h-full bg-gov-green transition-all" style={{ width: `${(c.sigBuy / c.sigTotal) * 100}%` }} />
+                  <div className="h-full bg-gov-red transition-all" style={{ width: `${(c.sigSell / c.sigTotal) * 100}%` }} />
+                  <div className="h-full bg-gov-yellow transition-all" style={{ width: `${(c.sigFlat / c.sigTotal) * 100}%` }} />
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </Panel>
       ))}
     </div>
   )

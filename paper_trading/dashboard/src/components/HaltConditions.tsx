@@ -1,38 +1,14 @@
+import { Check, X, AlertTriangle } from 'lucide-react'
 import { useHaltStatus } from '../hooks/useHaltStatus'
 import { usePortfolioState } from '../hooks/usePortfolioState'
-
-function CheckIcon() {
-  return (
-    <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
-
-function XIcon() {
-  return (
-    <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  )
-}
+import { MetricCardSkeleton } from './ui/Skeleton'
 
 export default function HaltConditions() {
   const { data, isPending } = usePortfolioState()
   const status = useHaltStatus(data)
 
   if (isPending) {
-    return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl px-3 py-2.5 bg-panel/50 animate-pulse">
-            <div className="h-3 bg-gray-800 rounded w-1/3 mb-2" />
-            <div className="h-5 bg-gray-800 rounded w-1/2 mb-1" />
-            <div className="h-3 bg-gray-800/50 rounded w-2/3" />
-          </div>
-        ))}
-      </div>
-    )
+    return <MetricCardSkeleton count={4} />
   }
 
   if (!data) return null
@@ -47,7 +23,7 @@ export default function HaltConditions() {
     if (ah?.halted) {
       haltedAny = true
       haltedCount++
-      for (const r of (ah.reasons ?? [])) {
+      for (const r of ah.reasons ?? []) {
         if (r.toLowerCase().includes('drought')) droughtAny = true
         if (r.toLowerCase().includes('drift')) driftAny = true
       }
@@ -63,7 +39,10 @@ export default function HaltConditions() {
     },
     {
       label: 'Monthly PF',
-      value: status.minMonthlyPf === Infinity || isNaN(status.minMonthlyPf) ? '—' : status.minMonthlyPf.toFixed(2),
+      value:
+        status.minMonthlyPf === Infinity || isNaN(status.minMonthlyPf)
+          ? '—'
+          : status.minMonthlyPf.toFixed(2),
       threshold: status.monthlyPfTrigger.toFixed(2),
       pass: status.monthlyPfPass,
     },
@@ -87,24 +66,36 @@ export default function HaltConditions() {
         {cards.map(c => (
           <div
             key={c.label}
-            className={`rounded-xl px-3 py-2.5 border transition-all duration-200 ${
-              c.pass
-                ? 'bg-emerald-500/5 border-emerald-500/15'
-                : 'bg-red-500/5 border-red-500/15'
+            className={`rounded-lg px-3.5 py-3 border transition-colors duration-200 ${
+              c.pass ? 'halt-pass' : 'halt-fail'
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-tertiary font-medium tracking-wide">{c.label}</span>
-              <div className={`p-0.5 rounded-full ${c.pass ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-                {c.pass ? <CheckIcon /> : <XIcon />}
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="metric-label">{c.label}</span>
+              <div
+                className={`p-0.5 rounded-full ${c.pass ? 'bg-gov-green/20' : 'bg-gov-red/20'}`}
+              >
+                {c.pass ? (
+                  <Check className="w-3 h-3 text-gov-green" strokeWidth={2.5} />
+                ) : (
+                  <X className="w-3 h-3 text-gov-red" strokeWidth={2.5} />
+                )}
               </div>
             </div>
-            <div className={`text-base font-bold tracking-tight metric-value ${c.pass ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div
+              className={`text-lg font-semibold tracking-tight metric-value ${
+                c.pass ? 'text-gov-green' : 'text-gov-red'
+              }`}
+            >
               {c.value}
             </div>
-            <div className="flex items-center gap-1 mt-0.5">
-              <span className="text-[10px] text-tertiary">Threshold:</span>
-              <span className={`text-[10px] font-mono ${c.pass ? 'text-secondary' : 'text-red-400/70'}`}>
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-2xs text-muted">Threshold</span>
+              <span
+                className={`text-2xs font-mono tabular-nums ${
+                  c.pass ? 'text-secondary' : 'text-gov-red/80'
+                }`}
+              >
                 {c.threshold}
               </span>
             </div>
@@ -112,11 +103,11 @@ export default function HaltConditions() {
         ))}
       </div>
       {haltedAny && (
-        <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/5 border border-red-500/15 text-[11px] text-red-400">
-          <svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-          <span className="font-medium">{haltedCount} asset{haltedCount > 1 ? 's' : ''} halted</span>
+        <div className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-gov-red-muted border border-gov-red/20 text-[11px] text-gov-red">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+          <span className="font-medium">
+            {haltedCount} asset{haltedCount > 1 ? 's' : ''} halted
+          </span>
         </div>
       )}
     </div>

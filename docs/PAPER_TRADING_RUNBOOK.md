@@ -25,30 +25,43 @@ Operational procedures for the paper trading system. This document is for the pe
 
 | Asset | Weight | Ticker | sl_mult | tp_mult | R:R | Label | Regime-tuned |
 |-------|--------|--------|---------|---------|:---:|-------|--------------|
-| EURAUD | 17% | EURAUD=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
+| EURAUD | 12% | EURAUD=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
 | GC | 13% | GC=F | 0.30 | 1.50 | 1:5.0 | fwd60 | yes |
-| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (adaptive_macro) |
-| CADJPY | 9% | CADJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes |
+| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (adaptive_macro + dji_lead_1) |
+| CADJPY | 9% | CADJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes (+ dji_lead_1) |
+| USDCAD | 8% | USDCAD=X | 0.30 | 1.50 | 1:5.0 | tb20 | yes (+ dji_lead_1) |
+| GBPJPY | 8% | GBPJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes (+ dji_lead_1) |
 | CHFJPY | 7% | CHFJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
-| EURCAD | 7% | EURCAD=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
-| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (+ lead-lag feature) |
-| USDCAD | 6% | USDCAD=X | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
-| GBPJPY | 5% | GBPJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes |
+| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (+ nzdjpy_lead_3 + dji_lead_1) |
+| EURCAD | 5% | EURCAD=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
 | ^DJI | 5% | ^DJI | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
-| USDJPY | 4% | USDJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
-| USDCHF | 4% | USDCHF=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
-| GBPUSD | 3% | GBPUSD=X | 0.52 | 1.97 | 1:3.8 | tb20 | no |
+| GBPUSD | 5% | GBPUSD=X | 0.52 | 1.97 | 1:3.8 | tb20 | no |
+| USDJPY | 4% | USDJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes (+ gc_lead_1) |
+| USDCHF | 4% | USDCHF=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (+ gc_lead_1) |
 
 **BTC satellite bucket:** 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate.
 **SL/TP base values:** sl=0.30 universal (research-optimized via sweep across 3 regimes). Model-validity adjustments: YELLOW → tp × 0.85, RED → tp × 0.70. SL unchanged across validity states.
 
 ### Halt Parameters (global defaults, overridable per asset)
 
+Per-asset:
 ```
 drawdown: -0.08       # Per-asset drawdown limit
 monthly_pf: 0.70      # Minimum monthly profit factor
-signal_drought: 30    # Max days without a signal (future use)
-prob_drift: 0.15       # Max probability distribution drift (future use)
+signal_drought: 30    # Max days without a signal
+prob_drift: 0.15       # Max confidence drift from expected baseline
+```
+
+Portfolio-level:
+```
+portfolio_drawdown_limit: -0.15   # Force-close ALL positions when total equity drawdown ≤ -15%
+```
+
+Per-asset trade quality config (all assets):
+```
+config:
+  min_confidence: 50      # Skip entry if model confidence < 50%
+  max_holding_days: 30    # Force-close after N calendar days (reason: time_stop)
 ```
 
 ---
@@ -80,10 +93,11 @@ curl http://127.0.0.1:5000/ping
 **What to verify on the dashboard:**
 
 - Portfolio total value and daily return are updating
-- All six assets show a signal (BUY/SELL/FLAT) with confidence
+- All 13 core assets show a signal (BUY/SELL/FLAT) with confidence
 - Current price is within ~0.5% of market price
 - No asset is in halt (check asset cards for RED status)
-- Drawdown % is not approaching the per-asset limit
+- Per-asset drawdown % is not approaching per-asset limits
+- Portfolio drawdown value is not approaching -15% circuit breaker threshold
 
 ### Log Check
 
@@ -222,7 +236,7 @@ for name in engine.assets:
 
 ## 3. Halt Condition Responses
 
-The system has two independent halt mechanisms:
+The system has three independent halt mechanisms:
 
 ### 3.1 Validity State Machine (Automatic)
 
@@ -282,7 +296,31 @@ To restart a halted asset, restart the engine:
 ./monitor_all
 ```
 
-### 3.3 Data Feed Failure
+### 3.3 Portfolio-Level Circuit Breaker
+
+The engine tracks portfolio peak value across ticks. On each `run_once()` cycle, before signal generation, the portfolio drawdown is computed:
+
+```
+portfolio_dd = (current_mtm - peak_value) / peak_value
+if portfolio_dd ≤ portfolio_drawdown_limit:
+    force-close ALL positions with reason "portfolio_circuit_breaker"
+    skip signal generation for this cycle
+```
+
+**Parameters:**
+| Setting | Default | Location |
+|---------|---------|----------|
+| `portfolio_drawdown_limit` | -0.15 (-15%) | `configs/paper_trading.yaml` top-level |
+
+**When triggered:**
+1. All open positions are immediately closed at current price
+2. Signal generation is skipped for that cycle
+3. The reason `portfolio_circuit_breaker` appears in the trade journal
+4. The engine continues running — positions may re-enter on subsequent ticks if drawdown recovers
+
+**This is the final safety layer** — it fires only when per-asset halts and validity state machines have already failed to contain losses.
+
+### 3.4 Data Feed Failure
 
 If yfinance returns empty or stale data for any ticker:
 

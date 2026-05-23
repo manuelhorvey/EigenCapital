@@ -41,21 +41,23 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 ## 3. FEATURE CONTRACT (PER ASSET)
 
 | Asset | Ticker | Features | Label type | Label params |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | BTC (satellite) | BTC-USD | `rate_diff, 2y_yield_delta_63, vix_delta_5, dxy_mom_21, vix_ma21, btc_mom_10, btc_mom_21, btc_vs_spy_21, btc_mom_63, btc_vs_spy_63` | tb20 | pt_sl=[2,2], vbar=20 |
 | GC | GC=F | `real_yield_delta_63, breakeven_delta_63, dxy_mom_63, gc_mom_63` | fwd60 | window=60, threshold=0.02 |
-| EURAUD | EURAUD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, euraud_mom_21, euraud_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| NZDJPY | NZDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy_mom_21` | tb20 | pt_sl=[2,2], vbar=20 |
-| CADJPY | CADJPY=X | `vix_ma21, ca_jp_spread_mom_21, us_jp_10y_spread, vix_delta_5, ca_jp_10y_spread, dxy_mom_21, cadjpy_mom_10, cadjpy_mom_21, cadjpy_mom_63` | fwd60 | window=60, threshold=0.02 |
-| AUDJPY | AUDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, audjpy_mom_21, audjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| USDCAD | USDCAD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdcad_mom_21, usdcad_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| GBPJPY | GBPJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, gbpjpy_mom_21, gbpjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| USDJPY | USDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, dxy_mom_21, usdjpy_mom_21, usdjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| USDCHF | USDCHF=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdchf_mom_21, usdchf_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| GBPUSD | GBPUSD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, gbpusd_mom_21, gbpusd_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| CHFJPY | CHFJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, chfjpy_mom_21, chfjpy_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
-| EURCAD | EURCAD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, eurcad_mom_21, eurcad_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| EURAUD | EURAUD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, euraud=x_mom_21, euraud=x_mom_63, dji_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| NZDJPY | NZDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, nzdjpy=x_mom_21, dji_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| CADJPY | CADJPY=X | `vix_ma21, ca_jp_spread_mom_21, us_jp_10y_spread, vix_delta_5, ca_jp_10y_spread, dxy_mom_21, cadjpy=x_mom_10, cadjpy=x_mom_21, cadjpy=x_mom_63, dji_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| AUDJPY | AUDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, audjpy=x_mom_21, audjpy=x_mom_63, nzdjpy_lead_3, dji_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| USDCAD | USDCAD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdcad=x_mom_21, usdcad=x_mom_63, dji_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| GBPJPY | GBPJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, gbpjpy=x_mom_21, gbpjpy=x_mom_63, dji_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| USDJPY | USDJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, dxy_mom_21, usdjpy=x_mom_21, usdjpy=x_mom_63, gc_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| USDCHF | USDCHF=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, usdchf=x_mom_21, usdchf=x_mom_63, gc_lead_1` | tb20 | pt_sl=[2,2], vbar=20 |
+| GBPUSD | GBPUSD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, gbpusd=x_mom_21, gbpusd=x_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| CHFJPY | CHFJPY=X | `vix_ma21, vix_delta_5, us_jp_10y_spread, chfjpy=x_mom_21, chfjpy=x_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
+| EURCAD | EURCAD=X | `rate_diff, dxy_mom_21, vix_ma21, vix_delta_5, eurcad=x_mom_21, eurcad=x_mom_63` | tb20 | pt_sl=[2,2], vbar=20 |
 | ^DJI | ^DJI | `rate_diff, vix_ma21, dxy_mom_21, breakeven_delta_63, dji_mom_21, dji_mom_63, dji_vs_spy_21, dji_vs_spy_63` | tb20 | pt_sl=[2,2], vbar=20 |
+
+**Momentum features** use `{contract_prefix}_mom_{window}` naming (e.g. `euraud=x_mom_21`), derived from the `contract_prefix` field in `features/registry.py`. **Lead-lag features** (`dji_lead_1`, `gc_lead_1`, `nzdjpy_lead_3`) are declared in `custom_features` on each asset's FeatureContract and computed from normalized leader returns shifted by the specified lag.
 
 **tb20 label:** `apply_triple_barrier(df, pt_sl=[2,2], vertical_barrier=20)` → `{-1,0,1}` → `+1` → `{0,1,2}`
 **fwd60 label:** `ret = close.pct_change(60).shift(-60)` → `2 if ret>0.02, 0 if ret<-0.02, 1 else`
@@ -141,6 +143,12 @@ long:  price <= sl → ("sl", sl);  price >= tp → ("tp", tp)
 short: price >= sl → ("sl", sl);  price <= tp → ("tp", tp)
 ```
 
+**Additional exit reasons:**
+```
+time_stop:                force-closed after max_holding_days (default 30) calendar days
+portfolio_circuit_breaker: force-closed by portfolio-level drawdown limit (-15%)
+```
+
 ---
 
 ## 7. PORTFOLIO ALLOCATION CONTRACT
@@ -149,19 +157,19 @@ short: price >= sl → ("sl", sl);  price <= tp → ("tp", tp)
 
 | Asset | Ticker | Allocation | Driver cluster |
 |---|---|---|---|
-| EURAUD | EURAUD=X | 0.17 | eur_cross |
+| EURAUD | EURAUD=X | 0.12 | eur_cross |
 | GC | GC=F | 0.13 | real_asset |
 | NZDJPY | NZDJPY=X | 0.11 | carry_fx |
 | CADJPY | CADJPY=X | 0.09 | oil_carry |
 | CHFJPY | CHFJPY=X | 0.07 | carry_fx |
-| EURCAD | EURCAD=X | 0.07 | eur_cross |
 | AUDJPY | AUDJPY=X | 0.06 | carry_fx |
-| USDCAD | USDCAD=X | 0.06 | usd_macro |
-| GBPJPY | GBPJPY=X | 0.05 | carry_fx |
+| USDCAD | USDCAD=X | 0.08 | usd_macro |
+| GBPJPY | GBPJPY=X | 0.08 | carry_fx |
+| EURCAD | EURCAD=X | 0.05 | eur_cross |
 | ^DJI | ^DJI | 0.05 | equity_index |
+| GBPUSD | GBPUSD=X | 0.05 | usd_macro |
 | USDJPY | USDJPY=X | 0.04 | usd_macro |
 | USDCHF | USDCHF=X | 0.04 | usd_macro |
-| GBPUSD | GBPUSD=X | 0.03 | usd_macro |
 
 **BTC satellite bucket:**
 | Property | Value |
@@ -180,11 +188,24 @@ short: price >= sl → ("sl", sl);  price <= tp → ("tp", tp)
 
 **Default thresholds:**
 ```
-drawdown: -0.08       # halt if drawdown <= -8%
-monthly_pf: 0.70      # halt if monthly profit factor < 0.70
-signal_drought: 30    # halt if no signal in 30 days
-prob_drift: 0.15      # halt if |mean_conf - 0.45| > 0.15
+drawdown: -0.08               # halt if drawdown <= -8%
+monthly_pf: 0.70              # halt if monthly profit factor < 0.70
+signal_drought: 30            # halt if no signal in 30 days
+prob_drift: 0.15              # halt if |mean_conf - 0.45| > 0.15
 ```
+
+**Portfolio-level circuit breaker:**
+```
+portfolio_drawdown_limit: -0.15   # force-close ALL positions when total equity drawdown <= -15%
+```
+Triggered at the start of each `run_once()` cycle, before signal generation. Closes positions with reason `portfolio_circuit_breaker`. Tracks portfolio peak value across engine ticks.
+
+**Per-asset trade quality config (all assets):**
+```
+min_confidence: 50          # skip trade if model confidence < 50%
+max_holding_days: 30        # force-close after N calendar days, reason `time_stop`
+```
+Applied in `asset_engine._apply_decision()` (min_confidence) and `asset_engine.update_pnl()` (max_holding_days).
 
 **Per-asset override:** BTC drawdown = -0.15, NZDJPY drawdown = -0.06
 
@@ -211,7 +232,7 @@ exposure: GREEN=1.0, YELLOW=0.5, RED=0.0
 
 **Execution state derived from validity:**
 ```
-HALTED if any asset halted
+HALTED if any asset halted OR portfolio circuit breaker triggered
 PAUSED if average_validity_exposure < 0.5
 ACTIVE otherwise
 ```
@@ -252,6 +273,10 @@ intra-project:
   labels.triple_barrier
   monitoring.validity_state_machine
   paper_trading.* (own package)
+  execution.paper_broker
+  paper_trading.execution_bridge
+  shared.execution_config
+  shared.registry
   quantforge (setup_logging)
 ```
 
@@ -281,9 +306,9 @@ archive.*, configs.driver_atlas
 
 ## 12. REFRESH CONTRACT
 
-**Interval:** 1800 seconds (30 minutes)
+**Interval:** 300 seconds (5 minutes, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
 **On each refresh:** run_once() → save_state()
-**On startup:** Load cached models or train, run_once(), save_state(), start HTTP server
+**On startup:** Load cached models or train, initialize broker+execution configs, run_once(), save_state(), start HTTP server
 **HTTP server:** port 5000, daemon thread, endpoints:
   `/` → index.html (static)
   `/state.json` → EngineSnapshot JSON

@@ -141,6 +141,23 @@ class DynamicSLTPEngine:
         else:
             return self._static_barriers(entry_price, side, vol or 0.01, sl_mult, tp_mult)
 
+    def calibrate(self, df: pd.DataFrame) -> None:
+        """Auto-calibrate ``atr_mult_sl`` so ATR-based barriers match
+        EWM vol-based barriers in current market conditions.
+
+        Call once per asset at init to set the scale factor.
+        """
+        with np.errstate(all="ignore"):
+            ewm_vol = self._estimate_vol(df)
+        atr_pct = self._compute_atr(df, self.atr_period) / (float(df["close"].iloc[-1]) + 1e-9)
+        if ewm_vol > 0 and atr_pct > 0:
+            ratio = ewm_vol / atr_pct
+            self.atr_mult_sl = ratio
+            logger.info(
+                "ATR calibrated: atr_mult_sl=%.3f (ewm_vol=%.4f, atr_pct=%.4f)",
+                ratio, ewm_vol, atr_pct,
+            )
+
     def compute_trailing_stop(
         self,
         side: str,
@@ -241,15 +258,19 @@ class DynamicSLTPEngine:
         tp_mult: float,
         regime: str,
     ) -> SLTPResult:
-        atr = self._compute_atr(df, self.atr_period)
-        atr_price = atr  # ATR is in price units
+        # Use ATR as a responsive vol estimator.  Convert ATR(price) → %
+        # so it's comparable to EWM vol, then apply config multipliers.
+        atr_price = self._compute_atr(df, self.atr_period)
+        atr_pct = atr_price / (entry_price + 1e-9)
 
         # Regime overlay: widen SL in volatile regimes, narrow in calm
-        reg_sl = self._regime_sl_mult(regime) * sl_mult
-        reg_tp = self._regime_tp_mult(regime) * tp_mult
+        reg_sl = self._regime_sl_mult(regime)
+        reg_tp = self._regime_tp_mult(regime)
 
-        sl_dist = atr_price * reg_sl * self.atr_mult_sl
-        tp_dist = atr_price * reg_tp * self.atr_mult_tp
+        # Effective vol for barrier placement: blend ATR % with config multipliers
+        vol_used = atr_pct * self.atr_mult_sl  # atr_mult_sl calibrates ATR → vol scale
+        sl_dist = entry_price * vol_used * sl_mult * reg_sl
+        tp_dist = entry_price * vol_used * tp_mult * reg_tp
 
         # Enforce minimum RR ratio
         rr = tp_dist / (sl_dist + 1e-9)
@@ -411,10 +432,10 @@ class DynamicSLTPEngine:
             return proposed < current
 
 
-def build_dynamic_sltp_from_config(asset_config: dict) -> DynamicSLTPEngine:
-    """Construct engine from YAML config dict."""
+def build_dynamic_sltp_from_config(asset_config: dict, df: pd.DataFrame | None = None) -> DynamicSLTPEngine:
+    """Construct engine from YAML config dict, optionally calibrating with price data."""
     sltp_cfg = asset_config.get("dynamic_sltp", {})
-    return DynamicSLTPEngine(
+    engine = DynamicSLTPEngine(
         method=sltp_cfg.get("method", "atr"),
         atr_period=sltp_cfg.get("atr_period", 14),
         atr_mult_sl=sltp_cfg.get("atr_mult_sl", 2.0),
@@ -426,3 +447,6 @@ def build_dynamic_sltp_from_config(asset_config: dict) -> DynamicSLTPEngine:
         max_sl_widen_pct=sltp_cfg.get("max_sl_widen_pct", 0.0),
         use_gap_protection=sltp_cfg.get("use_gap_protection", True),
     )
+    if df is not None and sltp_cfg.get("auto_calibrate", True):
+        engine.calibrate(df)
+    return engine

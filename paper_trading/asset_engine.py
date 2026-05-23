@@ -24,6 +24,7 @@ from paper_trading.data_fetcher import fetch_history, fetch_live, fetch_ref, fla
 from paper_trading.decision import PositionIntent, TradeDecision
 from paper_trading.drift_scoring import get_shadow_intelligence as _get_drift
 from paper_trading.dynamic_sltp import build_dynamic_sltp_from_config
+from paper_trading.scale_out import ScaleOutEngine, build_scale_out_from_config
 from paper_trading.position_manager import PositionManager
 from paper_trading.regime_classifier import RegimeClassifier
 from paper_trading.risk_governance import evaluate as _risk_evaluate
@@ -130,6 +131,8 @@ class AssetEngine:
             self._sizing_strategy.regime_aware = True
 
         self._sltp_engine = build_dynamic_sltp_from_config(self.config)
+        self._scale_out_engine = build_scale_out_from_config(self.config)
+        self._scale_out_plan = None
         self._last_adjust_bar = 0
         self._bars_at_entry = 0
         self._entry_vol = None
@@ -191,6 +194,20 @@ class AssetEngine:
         macro_head = getattr(self.model, "macro_head", None)
         if macro_head is not None:
             macro_head.online_weight = True
+
+    def _load_meta_label_model(self) -> None:
+        if not self.config.get("meta_labeling", {}).get("enabled", False):
+            return
+        try:
+            model = MetaLabelModel(
+                threshold=self.config.get("meta_labeling", {}).get("threshold", 0.55),
+            )
+            model._load(model._model_path(self.name))
+            if model._trained:
+                self._meta_label_model = model
+                logger.info("%s: meta-label model loaded from cache", self.name)
+        except Exception as e:
+            logger.debug("%s: no cached meta-label model: %s", self.name, e)
 
     def _tb_vol(self, df):
         returns = np.log(df["close"] / df["close"].shift(1))
@@ -266,6 +283,9 @@ class AssetEngine:
         }
         self._entry_vol = vol
         self._bars_at_entry = 0
+        self._scale_out_plan = None
+        if self._scale_out_engine is not None and intent.take_profit is not None:
+            self._scale_out_plan = self._scale_out_engine.build_plan(side, float(intent.entry_price), float(intent.take_profit))
 
     def _close_position(self, exit_price, exit_date, reason):
         fill_price = exit_price
@@ -313,6 +333,7 @@ class AssetEngine:
                 self.model = pickle.load(f)
                 self._trained = True
             self._enable_adaptive_macro()
+            self._load_meta_label_model()
             return
 
         logger.info("%s: downloading history...", self.name)
@@ -664,6 +685,26 @@ class AssetEngine:
         # 1. Intraday SL/TP Check - ALWAYS run this on every refresh using real-time price
         max_hold = self.config.get("max_holding_days")
         if self.pos_mgr.has_position() and self.current_price is not None:
+            # ── Scale-out tier check ─────────────────────────────
+            if self._scale_out_plan is not None:
+                so_fills = self._scale_out_engine.check_tiers(
+                    self._scale_out_plan,
+                    self.pos_mgr.position.side,
+                    self.current_price,
+                    self.current_value,
+                    self.pos_mgr.position_size,
+                    self.pos_mgr.exposure_multiplier,
+                )
+                for so in so_fills:
+                    if so.get("fraction", 0) > 0:
+                        self.pos_mgr.partial_close(
+                            so["fraction"], so["fill_price"],
+                            str(datetime.now(tz=ET).date()), so["reason"],
+                        )
+                    breakeven = so.get("breakeven_price")
+                    if breakeven is not None:
+                        self.pos_mgr.activate_breakeven_stop()
+
             hit = self.pos_mgr.check_sl_tp(self.current_price)
             if hit:
                 last_bar = str(datetime.now(tz=ET).date())

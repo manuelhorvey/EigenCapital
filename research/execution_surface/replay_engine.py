@@ -25,6 +25,7 @@ class ReplayConfig:
     sl_mult: float = 1.0
     tp_mult: float = 2.5
     spread_bps: float = 0.0  # round-trip spread in basis points (1 bps = 0.01%)
+    sltp_engine: object = None  # DynamicSLTPEngine for dynamic barriers (optional)
 
 
 @dataclass
@@ -152,11 +153,10 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
 
         # 3. Position management
         if pos is None:
+            sl, tp = _compute_barriers(desired, close, config, row, predictions, idx)
             vol = float(row.get('volatility', 0.01))
             if pd.isna(vol) or vol <= 0:
                 vol = 0.01
-            sl = close * (1 - vol * config.sl_mult) if desired == 'long' else close * (1 + vol * config.sl_mult)
-            tp = close * (1 + vol * config.tp_mult) if desired == 'long' else close * (1 - vol * config.tp_mult)
             pos = PositionState(
                 side=desired, entry_price=close, entry_time=timestamp,
                 sl_price=sl, tp_price=tp,
@@ -185,11 +185,10 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
                 'year': int(row['year']),
                 'regime': str(row['regime']),
             })
+            sl, tp = _compute_barriers(desired, close, config, row, predictions, idx)
             vol = float(row.get('volatility', 0.01))
             if pd.isna(vol) or vol <= 0:
                 vol = 0.01
-            sl = close * (1 - vol * config.sl_mult) if desired == 'long' else close * (1 + vol * config.sl_mult)
-            tp = close * (1 + vol * config.tp_mult) if desired == 'long' else close * (1 - vol * config.tp_mult)
             pos = PositionState(
                 side=desired, entry_price=close, entry_time=timestamp,
                 sl_price=sl, tp_price=tp,
@@ -229,6 +228,37 @@ def replay(predictions: pd.DataFrame, config: ReplayConfig) -> pd.DataFrame:
             'vol_at_entry', 'conf_at_entry', 'initial_risk_pct', 'realized_r', 'year', 'regime',
         ])
     return pd.DataFrame(trades)
+
+
+def _compute_barriers(desired: str, close: float, config: ReplayConfig,
+                      row: pd.Series, predictions: pd.DataFrame, idx: int) -> tuple:
+    """Compute SL/TP barriers, optionally using DynamicSLTPEngine."""
+    vol = float(row.get('volatility', 0.01))
+    if pd.isna(vol) or vol <= 0:
+        vol = 0.01
+
+    if config.sltp_engine is not None:
+        regime = str(row.get('regime', 'neutral'))
+        df_slice = predictions.iloc[:idx + 1].copy()
+        result = config.sltp_engine.compute_barriers(
+            entry_price=close,
+            side=desired,
+            df=df_slice,
+            sl_mult=config.sl_mult,
+            tp_mult=config.tp_mult,
+            regime=regime,
+            vol=vol,
+        )
+        return result.stop_loss, result.take_profit
+
+    # Default: static vol-based barriers
+    if desired == 'long':
+        sl = close * (1 - vol * config.sl_mult)
+        tp = close * (1 + vol * config.tp_mult)
+    else:
+        sl = close * (1 + vol * config.sl_mult)
+        tp = close * (1 - vol * config.tp_mult)
+    return sl, tp
 
 
 def _get_geom(regime: str, config: ReplayRegimeConfig) -> dict:

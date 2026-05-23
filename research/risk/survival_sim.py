@@ -38,6 +38,7 @@ from features.registry import FEATURE_REGISTRY
 from research.execution_surface.mae_mfe_analyzer import compute_mae_mfe_for_trade
 from research.execution_surface.replay_engine import ReplayConfig, ReplayRegimeConfig, replay, replay_regime
 from research.execution_surface.trade_outcome_analyzer import analyze_trade_outcomes
+from paper_trading.dynamic_sltp import DynamicSLTPEngine
 from research.risk.execution_physics import (
     ExecutionConfig,
     VolRegime,
@@ -250,7 +251,7 @@ def load_allocations() -> dict:
     return {name: acfg["allocation"] for name, acfg in cfg["assets"].items()}
 
 
-def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_configs: dict = None, extended_history: bool = False, ensemble: bool = False) -> dict:
+def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_configs: dict = None, extended_history: bool = False, ensemble: bool = False, use_dynamic_sltp: bool = False) -> dict:
     """Load OOS predictions and compute daily returns for each asset.
 
     Uses correlated approach: all daily return series are aligned to the
@@ -322,7 +323,11 @@ def load_asset_data(configs: dict, confidence_threshold: float = 0.0, regime_con
                 if not os.path.exists(oos_path):
                     continue
             predictions = pd.read_parquet(oos_path)
-        replay_cfg = ReplayConfig(sl_mult=cfg["sl_mult"], tp_mult=cfg["tp_mult"])
+        sltp_engine = None
+        if use_dynamic_sltp:
+            sltp_engine = DynamicSLTPEngine(method="atr", atr_period=14, atr_mult_sl=2.0, atr_mult_tp=3.0)
+            sltp_engine.calibrate(predictions)
+        replay_cfg = ReplayConfig(sl_mult=cfg["sl_mult"], tp_mult=cfg["tp_mult"], sltp_engine=sltp_engine)
 
         # Optional: filter low-confidence signals before replay
         n_filtered = 0
@@ -1778,6 +1783,10 @@ def main():
     parser.add_argument(
         "--ensemble", action="store_true", help="Use HybridRegimeEnsemble predictions instead of XGBoost"
     )
+    parser.add_argument(
+        "--use-dynamic-sltp", action="store_true",
+        help="Use DynamicSLTPEngine (ATR-based barriers, trailing stops) instead of fixed multipliers"
+    )
     args = parser.parse_args()
 
     n_paths = args.paths
@@ -1824,7 +1833,8 @@ def main():
         confidence_threshold=args.confidence_filter, 
         regime_configs=regime_configs,
         extended_history=args.extended_history,
-        ensemble=args.ensemble
+        ensemble=args.ensemble,
+        use_dynamic_sltp=args.use_dynamic_sltp,
     )
 
     synthetic_injection_rate = args.synthetic_stress or 0.0

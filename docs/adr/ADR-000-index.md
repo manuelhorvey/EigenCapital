@@ -35,6 +35,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 | 020 | [Meta-Labeling Layer as Confidence Filter](ADR-020-meta-labeling.md) | Accepted | 2026-05 |
 | 021 | [Simulation Snapshot System for Deterministic Replay](ADR-021-simulation-snapshot.md) | Accepted | 2026-05 |
 | 022 | [Macro Expert Head Adaptive Weighting](ADR-022-macro-adaptive-weight.md) | Accepted | 2026-05 |
+| 023 | [Fast Scale-Out Profit Taking and Dynamic SL/TP Calibration](ADR-023-fast-scale-out-calibration-scale.md) | Accepted | 2026-05 |
 
 ## By Topic
 
@@ -66,6 +67,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 ### Risk & Monitoring
 - ADR-018: BTC satellite isolation
 - ADR-019: Feature importance stability tracking
+- ADR-023: Fast scale-out and dynamic SL/TP calibration
 
 ### Signal Processing
 - ADR-020: Meta-labeling as confidence filter

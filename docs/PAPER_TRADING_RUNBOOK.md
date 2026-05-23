@@ -26,24 +26,26 @@ Operational procedures for the paper trading system. This document is for the pe
 
 **Core portfolio (13 assets):**
 
-| Asset | Weight | Ticker | sl_mult | tp_mult | R:R | Label | Regime-tuned |
-|-------|--------|--------|---------|---------|:---:|-------|--------------|
-| EURAUD | 12% | EURAUD=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
-| GC | 13% | GC=F | 0.30 | 1.50 | 1:5.0 | fwd60 | yes |
-| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (adaptive_macro + dji_lead_1) |
-| CADJPY | 9% | CADJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes (+ dji_lead_1) |
-| USDCAD | 8% | USDCAD=X | 0.30 | 1.50 | 1:5.0 | tb20 | yes (+ dji_lead_1) |
-| GBPJPY | 8% | GBPJPY=X | 0.30 | 1.25 | 1:4.2 | tb20 | yes (+ dji_lead_1) |
-| CHFJPY | 7% | CHFJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes |
-| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (+ nzdjpy_lead_3 + dji_lead_1) |
-| EURCAD | 5% | EURCAD=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes |
-| ^DJI | 5% | ^DJI | 0.30 | 1.50 | 1:5.0 | tb20 | yes |
-| GBPUSD | 5% | GBPUSD=X | 0.52 | 1.97 | 1:3.8 | tb20 | no |
-| USDJPY | 4% | USDJPY=X | 0.30 | 1.00 | 1:3.3 | tb20 | yes (+ gc_lead_1) |
-| USDCHF | 4% | USDCHF=X | 0.30 | 1.75 | 1:5.8 | tb20 | yes (+ gc_lead_1) |
+| Asset | Weight | Ticker | sl_mult | tp_mult | R:R | Scale-out | Label | Regime-tuned |
+|-------|--------|--------|---------|---------|:---:|-----------|-------|--------------|
+| EURAUD | 12% | EURAUD=X | 0.30 | 1.00 | 1:3.3 | 4-tier | tb20 | yes |
+| GC | 13% | GC=F | 0.30 | 1.50 | 1:5.0 | no | fwd60 | yes |
+| NZDJPY | 11% | NZDJPY=X | 0.30 | 1.75 | 1:5.8 | 4-tier | tb20 | yes (adaptive_macro + dji_lead_1) |
+| CADJPY | 9% | CADJPY=X | 0.30 | 1.25 | 1:4.2 | 4-tier | tb20 | yes (+ dji_lead_1) |
+| USDCAD | 8% | USDCAD=X | 0.30 | 1.50 | 1:5.0 | 4-tier | tb20 | yes (+ dji_lead_1) |
+| GBPJPY | 8% | GBPJPY=X | 0.30 | 1.25 | 1:4.2 | 4-tier | tb20 | yes (+ dji_lead_1) |
+| CHFJPY | 7% | CHFJPY=X | 0.30 | 1.00 | 1:3.3 | no | tb20 | yes |
+| AUDJPY | 6% | AUDJPY=X | 0.30 | 1.75 | 1:5.8 | 4-tier | tb20 | yes (+ nzdjpy_lead_3 + dji_lead_1) |
+| EURCAD | 5% | EURCAD=X | 0.30 | 1.75 | 1:5.8 | 4-tier | tb20 | yes |
+| ^DJI | 5% | ^DJI | 0.30 | 1.50 | 1:5.0 | 4-tier | tb20 | yes |
+| GBPUSD | 5% | GBPUSD=X | 0.52 | 1.97 | 1:3.8 | 4-tier | tb20 | no |
+| USDJPY | 4% | USDJPY=X | 0.30 | 1.00 | 1:3.3 | no | tb20 | yes (+ gc_lead_1) |
+| USDCHF | 4% | USDCHF=X | 0.30 | 1.75 | 1:5.8 | 4-tier | tb20 | yes (+ gc_lead_1) |
 
 **BTC satellite bucket:** 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate.
 **SL/TP base values:** sl=0.30 universal (research-optimized via sweep across 3 regimes). Model-validity adjustments: YELLOW → tp × 0.85, RED → tp × 0.70. SL unchanged across validity states.
+**Dynamic SL/TP ATR Calibration:** ATR-based dynamic barriers auto-calibrated at engine startup to EWM vol using `calibration_scale: 1.2` (expanding barriers by 20% to support higher TP rates).
+**Scale-Out Strategy:** For assets with scale-out enabled (EURAUD, NZDJPY, CADJPY, AUDJPY, USDCAD, GBPJPY, USDCHF, GBPUSD, EURCAD, DJI), profit-taking is split into 4 equal tiers (25% at 0.25x / 0.50x / 0.75x / 1.00x of original TP multiplier). The stop-loss is moved to breakeven after Tier 1 is filled (`activate_breakeven_after: 0`).
 
 ### Halt Parameters (global defaults, overridable per asset)
 

@@ -180,24 +180,26 @@ python equity/walk_forward_nzdjpy.py
 
 The system maintains a **13-asset continuously evaluated simulation portfolio** with **regime-optimized SL/TP configurations** (sl_mult=0.30, sweep-derived TP per asset). BTC is isolated in a separate satellite bucket (see §4.1). 12 of 13 core assets use regime-differentiated geometry from per-regime sweeps across 3 volatility regimes (low/transition/high); the 13th (GBPUSD) uses plateau default.
 
-| Asset   | Ticker    | Label | Cluster       | Alloc | sl_mult | tp_mult | R:R   | Regime-tuned |
-| ------- | --------- | ----- | ------------- | ----- | ------- | ------- | ----- | ------------ |
-| EURAUD  | EURAUD=X  | tb20  | eur_cross     | 12%   | 0.30    | 1.00    | 1:3.3 | yes |
-| GC      | GC=F      | fwd60 | real_asset    | 13%   | 0.30    | 1.50    | 1:5.0 | yes |
-| NZDJPY  | NZDJPY=X  | tb20  | carry_fx      | 11%   | 0.30    | 1.75    | 1:5.8 | yes |
-| CADJPY  | CADJPY=X  | tb20  | oil_carry     | 9%    | 0.30    | 1.25    | 1:4.2 | yes |
-| CHFJPY  | CHFJPY=X  | tb20  | carry_fx      | 7%    | 0.30    | 1.00    | 1:3.3 | yes |
-| AUDJPY  | AUDJPY=X  | tb20  | carry_fx      | 6%    | 0.30    | 1.75    | 1:5.8 | yes |
-| USDCAD  | USDCAD=X  | tb20  | usd_macro     | 8%    | 0.30    | 1.50    | 1:5.0 | yes |
-| GBPJPY  | GBPJPY=X  | tb20  | carry_fx      | 8%    | 0.30    | 1.25    | 1:4.2 | yes |
-| EURCAD  | EURCAD=X  | tb20  | eur_cross     | 5%    | 0.30    | 1.75    | 1:5.8 | yes |
-| ^DJI    | ^DJI      | tb20  | equity_index  | 5%    | 0.30    | 1.50    | 1:5.0 | yes |
-| GBPUSD  | GBPUSD=X  | tb20  | usd_macro     | 5%    | 0.52    | 1.97    | 1:3.8 | no |
-| USDJPY  | USDJPY=X  | tb20  | usd_macro     | 4%    | 0.30    | 1.00    | 1:3.3 | yes |
-| USDCHF  | USDCHF=X  | tb20  | usd_macro     | 4%    | 0.30    | 1.75    | 1:5.8 | yes |
+| Asset   | Ticker    | Label | Cluster       | Alloc | sl_mult | tp_mult | R:R   | Scale-out | Regime-tuned |
+| ------- | --------- | ----- | ------------- | ----- | ------- | ------- | ----- | --------- | ------------ |
+| EURAUD  | EURAUD=X  | tb20  | eur_cross     | 12%   | 0.30    | 1.00    | 1:3.3 | 4-tier    | yes |
+| GC      | GC=F      | fwd60 | real_asset    | 13%   | 0.30    | 1.50    | 1:5.0 | no        | yes |
+| NZDJPY  | NZDJPY=X  | tb20  | carry_fx      | 11%   | 0.30    | 1.75    | 1:5.8 | 4-tier    | yes |
+| CADJPY  | CADJPY=X  | tb20  | oil_carry     | 9%    | 0.30    | 1.25    | 1:4.2 | 4-tier    | yes |
+| CHFJPY  | CHFJPY=X  | tb20  | carry_fx      | 7%    | 0.30    | 1.00    | 1:3.3 | no        | yes |
+| AUDJPY  | AUDJPY=X  | tb20  | carry_fx      | 6%    | 0.30    | 1.75    | 1:5.8 | 4-tier    | yes |
+| USDCAD  | USDCAD=X  | tb20  | usd_macro     | 8%    | 0.30    | 1.50    | 1:5.0 | 4-tier    | yes |
+| GBPJPY  | GBPJPY=X  | tb20  | carry_fx      | 8%    | 0.30    | 1.25    | 1:4.2 | 4-tier    | yes |
+| EURCAD  | EURCAD=X  | tb20  | eur_cross     | 5%    | 0.30    | 1.75    | 1:5.8 | 4-tier    | yes |
+| ^DJI    | ^DJI      | tb20  | equity_index  | 5%    | 0.30    | 1.50    | 1:5.0 | 4-tier    | yes |
+| GBPUSD  | GBPUSD=X  | tb20  | usd_macro     | 5%    | 0.52    | 1.97    | 1:3.8 | 4-tier    | no |
+| USDJPY  | USDJPY=X  | tb20  | usd_macro     | 4%    | 0.30    | 1.00    | 1:3.3 | no        | yes |
+| USDCHF  | USDCHF=X  | tb20  | usd_macro     | 4%    | 0.30    | 1.75    | 1:5.8 | 4-tier    | yes |
 
 * **Cash buffer**: ~3% retained as dynamic risk slack.
 * **SL/TP values**: sl=0.30 universal base (per-regime sweep optimum), TP varies by asset (sweep-derived per-regime, mid-range shown). Model-validity adjustments: YELLOW → TP × 0.85, RED → TP × 0.70.
+* **Dynamic SL/TP ATR Calibration**: ATR-based dynamic barriers auto-calibrated at startup to EWM vol using `calibration_scale: 1.2` (expanding barriers by 20% to optimize TP rates).
+* **Scale-Out Strategy**: For assets with scale-out enabled (EURAUD, NZDJPY, CADJPY, AUDJPY, USDCAD, GBPJPY, USDCHF, GBPUSD, EURCAD, DJI), position profit-taking is split into 4 equal tiers (25% at 0.25x / 0.50x / 0.75x / 1.00x of original TP). Stop-loss is moved to breakeven after Tier 1 realizes.
 * **Stop-loss** = vol × sl_mult, **take-profit** = vol × tp_mult. Training labels in `features/registry.py` must match runtime multipliers — enforced by `PaperTradingEngine.initialize()`.
 
 ### 4.1 BTC Satellite Bucket

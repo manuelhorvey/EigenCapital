@@ -89,22 +89,22 @@ Applied in: `PositionManager.compute_daily_pnl()` → `current_value * direction
 **Multiplier:** Per-asset from `configs/paper_trading.yaml` `sl_mult`/`tp_mult`, adjusted by model-validity state machine multipliers.
 **Base values (research-optimized via per-regime sweep):**
 
-| Asset | sl_mult | tp_mult | Regime-tuned |
-|-------|---------|---------|--------------|
-| EURAUD | 0.30 | 1.00 | yes |
-| GC | 0.30 | 1.50 | yes |
-| NZDJPY | 0.30 | 1.75 | yes |
-| CADJPY | 0.30 | 1.25 | yes |
-| AUDJPY | 0.30 | 1.75 | yes |
-| USDCAD | 0.30 | 1.50 | yes |
-| GBPJPY | 0.30 | 1.25 | yes |
-| USDJPY | 0.30 | 1.00 | yes |
-| USDCHF | 0.30 | 1.75 | yes |
-| CHFJPY | 0.30 | 1.00 | yes |
-| EURCAD | 0.30 | 1.75 | yes |
-| ^DJI | 0.30 | 1.50 | yes |
-| GBPUSD | 0.52 | 1.97 | no (plateau default) |
-| BTC (satellite) | 0.58 | 1.51 | no (plateau default) |
+| Asset | sl_mult | tp_mult | Scale-out | Regime-tuned |
+|-------|---------|---------|-----------|--------------|
+| EURAUD | 0.30 | 1.00 | 4-tier | yes |
+| GC | 0.30 | 1.50 | no | yes |
+| NZDJPY | 0.30 | 1.75 | 4-tier | yes |
+| CADJPY | 0.30 | 1.25 | 4-tier | yes |
+| AUDJPY | 0.30 | 1.75 | 4-tier | yes |
+| USDCAD | 0.30 | 1.50 | 4-tier | yes |
+| GBPJPY | 0.30 | 1.25 | 4-tier | yes |
+| USDJPY | 0.30 | 1.00 | no | yes |
+| USDCHF | 0.30 | 1.75 | 4-tier | yes |
+| CHFJPY | 0.30 | 1.00 | no | yes |
+| EURCAD | 0.30 | 1.75 | 4-tier | yes |
+| ^DJI | 0.30 | 1.50 | 4-tier | yes |
+| GBPUSD | 0.52 | 1.97 | 4-tier | no (plateau default) |
+| BTC (satellite) | 0.58 | 1.51 | 4-tier | no (plateau default) |
 
 **Regime-validity adjustment:** When model validity state is YELLOW, TP is multiplied by 0.85; when RED, TP × 0.70. SL stays at base multiplier across all states.
 
@@ -118,6 +118,18 @@ long:  sl = entry × (1 - vol × sl_mult_effective)
 short: sl = entry × (1 + vol × sl_mult_effective)
        tp = entry × (1 - vol × tp_mult_effective)
 ```
+
+**Dynamic SL/TP Calibration:**
+The system uses ATR-based dynamic barriers with auto-calibration at startup, matching the EWM volatility scale scaled by a `calibration_scale` factor of `1.2` (expanding barriers by 20% to support higher TP rates and maximize Sharpe ratio).
+
+**Scale-Out Strategy:**
+For assets with scale-out enabled (EURAUD, NZDJPY, CADJPY, AUDJPY, USDCAD, GBPJPY, USDCHF, GBPUSD, EURCAD, DJI), profit-taking is split into 4 tiers:
+- **Tier 1:** 25% of the position closed at 25% of the original TP multiplier.
+- **Tier 2:** 25% of the position closed at 50% of the original TP multiplier.
+- **Tier 3:** 25% of the position closed at 75% of the original TP multiplier.
+- **Tier 4:** 25% of the position closed at 100% of the original TP multiplier.
+
+**Breakeven Stop:** After Tier 1 is filled, the stop-loss on the remaining 75% of the position is automatically moved to the entry price (breakeven).
 
 ---
 

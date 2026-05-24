@@ -37,7 +37,7 @@ from paper_trading.satellite_runner import (
 )
 from paper_trading.simulation_snapshot import SimulationStore, build_asset_snapshot
 from paper_trading.state_store import _SKIP_JOURNAL, EngineSnapshot, StateStore, sanitize  # noqa: F401
-from portfolio.risk_parity import compute_equal_risk_weights
+from shared.sizing import compute_equal_risk_weights
 from shared.execution_config import build_execution_configs
 from shared.registry import StrategyRegistry
 

@@ -248,8 +248,8 @@ class PaperTradingEngine:
 
     def run_once(self):
         if is_market_closed():
-            logger.debug("Market closed — run_once skipped")
-            return {}
+            logger.debug("Market closed — core assets skipped")
+            return self._run_satellite_only()
         pd_limit = get_config().portfolio_drawdown_limit
         results = {}
 
@@ -358,6 +358,18 @@ class PaperTradingEngine:
         except Exception as e:
             logger.error("satellite gating failed: %s", e)
             results["satellite"] = {"asset": "BTC", "error": str(e)}
+
+    def _run_satellite_only(self) -> dict:
+        results: dict[str, object] = {}
+        if self.satellite is not None:
+            try:
+                self._run_satellite(results)
+            except Exception as e:
+                logger.error("satellite weekend run failed: %s", e)
+                results["satellite"] = {"asset": "BTC", "error": str(e)}
+        if not results.get("satellite"):
+            results["satellite"] = {"asset": "BTC", "message": "no satellite configured"}
+        return results
 
     def _detect_crisis_regime(self) -> bool:
         """Check if any core asset has an active CRISIS validity state."""

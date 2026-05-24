@@ -47,7 +47,7 @@ A secondary confidence filter applied after the primary XGBoost signal:
 - **Decision bands**: FULL (≥ 0.55, scale 1.0×), REDUCED (≥ 0.40, scale 0.5×), SKIP (< 0.40, scale 0.0×)
 - **Integration**: `pos_size *= meta_result.scale_factor` in `_generate_and_apply()` before `TradeDecision`
 
-Logistic regression underfits if no signal exists — a natural guard against overfitting. Class weighting preserves real trade outcome distribution. The SKIP band filters ~30-40% of signals.
+Logistic regression underfits if no signal exists — a natural guard against overfitting. Class weighting preserves real trade outcome distribution. The SKIP band filters ~30-40% of signals at the validated REDUCED threshold of 0.40 (see `meta_labeling.confidence_threshold` in config).
 
 ## 4. 5D Drift Monitoring
 

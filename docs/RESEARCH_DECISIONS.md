@@ -185,6 +185,22 @@ This balances three constraints:
 
 **Lesson learned:** The governance layers are genuinely additive, not cosmetic. Each layer (confidence filter, execution physics, deleveraging, regime bootstrap) contributes independently to the Sharpe uplift. The core signal provides the edge; governance extracts it reliably without destroying path dependency.
 
+### Confidence Filter Sensitivity Sweep — CF=0.40 Optimal
+
+**Hypothesis:** The isotonic-calibrated primary signal confidence filter (applied before meta-labeling) at the default 0.30 threshold causes governance-induced ruin artifacts at 3yr simulation windows because halted paths do not have time to recover.
+
+**Sweep (1000 paths, 3yr, full governance vs naked, execution physics + deleveraging + regime bootstrap):**
+
+| CF | Governance Ruin | Gov Sharpe | Gov Ann.Ret | Naked Ruin | Naked Sharpe | Gov P50x |
+|---|---|---|---|---|---|---|
+| 0.30 | **33.4%** | 4.02 | +19.5% | 0.0% | 5.80 | 1.71 |
+| 0.40 | **0.0%** | 5.29 | +23.2% | 0.0% | 6.03 | 1.87 |
+| 0.50 | **0.0%** | 4.70 | +16.0% | 0.0% | 5.95 | 1.56 |
+
+**5yr confirmation (CF=0.30):** Governance ruin drops from 33.4% → 0.0% at extended window, confirming the 3yr 33.4% was a measurement artifact — governance flat periods recover within 5yr.
+
+**Decision:** Set `meta_labeling.confidence_threshold: 0.40` in `paper_trading.yaml`. CF=0.40 eliminates the ruin artifact, costs 0.74 Sharpe / 3.7% ann. return vs naked — a reasonable governance premium. CF=0.50 over-filters (Sharp drops to 4.70, P50x to 1.56). The penalty thresholds themselves (PSI, stability) remain correct and unchanged.
+
 ### Regime-Stratified Trade Outcome Analytics
 
 **Hypothesis:** Trade quality (TP hit rate, SL hit rate, win rate, AvgR) varies meaningfully by market regime. Presenting per-asset × per-regime breakdowns reveals regime-specific weaknesses hidden in aggregate averages.

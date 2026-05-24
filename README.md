@@ -144,6 +144,8 @@ Reference for `configs/paper_trading.yaml`. See [docs/PAPER_TRADING_RUNBOOK.md](
 | `liquidity_config.volume_z_thin_threshold` | -1.5 | Volume z → THIN |
 | `liquidity_config.amihud_high_threshold` | 1.5 | Amihud z → THIN |
 | `liquidity_config.stressed_sl_widen_pct` | 30 | SL widen in STRESSED |
+| `meta_labeling.confidence_threshold` | 0.40 | Primary signal confidence filter (isotonic calibrated) |
+| `meta_labeling.threshold_reduced` | 0.40 | Meta-model REDUCED/SKIP boundary |
 
 ---
 
@@ -201,9 +203,9 @@ Full detail: [docs/HARDENING_ROADMAP.md](docs/HARDENING_ROADMAP.md)
 
 ## 10. SURVIVAL SIMULATION
 
-Multi-layer survival framework at `research/risk/` with execution physics, regime-aware bootstrap, and deleveraging feedback. Validated across 5000 correlated paths.
+Multi-layer survival framework at `research/risk/` with execution physics, regime-aware bootstrap, and deleveraging feedback. Validated across 1000 correlated paths.
 
-**Key results:** Full Governance Sharpe 12.39 (vs Naked 6.06), 0% ruin, worst DD 5.2%. Extended history (25y): Sharpe 6.26, 0% ruin.
+**Key results (CF=0.40, 3yr):** Full Governance Sharpe 5.29 (vs Naked 6.03), 0% ruin, worst DD 8.5%, P50x 1.87. Extended history (25y): Sharpe 6.26, 0% ruin.
 
 Full detail: [docs/SURVIVAL_SIMULATION.md](docs/SURVIVAL_SIMULATION.md)
 

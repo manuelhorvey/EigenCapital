@@ -38,6 +38,7 @@ from paper_trading.tracer import (
     shadow_compare_pnl,
     shadow_compare_signal,
     shadow_compare_sizing,
+    shadow_compare_sltp,
     trace_decision,
     trace_diagnostic_report,
 )
@@ -286,6 +287,9 @@ class AssetEngine:
         self._bars_at_entry = 0
         self._initial_sl = (
             float(sltp_result.stop_loss) if self.config.get("dynamic_sltp", {}).get("enabled", False) else None
+        )
+        self._initial_tp = (
+            float(sltp_result.take_profit) if self.config.get("dynamic_sltp", {}).get("enabled", False) else None
         )
         if self._initial_sl is not None:
             self._sltp_engine.reset_best_price(fill_price)
@@ -760,6 +764,15 @@ class AssetEngine:
                             trailing.trailing_sl,
                             (trailing.locked_profit or 0) * 100,
                         )
+                        shadow_compare_sltp(
+                            self.name,
+                            label_sl=self._initial_sl or self.pos_mgr.position.stop_loss,
+                            label_tp=self.pos_mgr.position.take_profit,
+                            runtime_sl=trailing.trailing_sl,
+                            runtime_tp=self.pos_mgr.position.take_profit,
+                            entry_price=self.pos_mgr.position.entry_price,
+                            reason="trailing",
+                        )
 
                     # ── Post-entry adjustment ────────────────────────
                     self._bars_at_entry += 1
@@ -780,6 +793,15 @@ class AssetEngine:
                             adjust.reason,
                             adjust.new_sl,
                         )
+                        shadow_compare_sltp(
+                            self.name,
+                            label_sl=self._initial_sl or self.pos_mgr.position.stop_loss,
+                            label_tp=self.pos_mgr.position.take_profit,
+                            runtime_sl=adjust.new_sl,
+                            runtime_tp=self.pos_mgr.position.take_profit,
+                            entry_price=self.pos_mgr.position.entry_price,
+                            reason=adjust.reason or "post_entry_sl",
+                        )
                     if adjust.new_tp is not None:
                         self.pos_mgr.update_take_profit(float(adjust.new_tp))
                         logger.info(
@@ -787,6 +809,15 @@ class AssetEngine:
                             self.name,
                             adjust.reason,
                             adjust.new_tp,
+                        )
+                        shadow_compare_sltp(
+                            self.name,
+                            label_sl=self.pos_mgr.position.stop_loss,
+                            label_tp=self._initial_tp or self.pos_mgr.position.take_profit,
+                            runtime_sl=self.pos_mgr.position.stop_loss,
+                            runtime_tp=adjust.new_tp,
+                            entry_price=self.pos_mgr.position.entry_price,
+                            reason=adjust.reason or "post_entry_tp",
                         )
 
             # Time stop check — force close if held beyond max_holding_days

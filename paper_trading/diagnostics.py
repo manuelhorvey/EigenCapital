@@ -200,6 +200,7 @@ def build_shadow_report(
     feature_drivers: list | None = None,
     regime_context: dict | None = None,
     pnl_decomposition: dict | None = None,
+    sltp_drift: dict | None = None,
 ) -> dict:
     report = {
         "asset": asset,
@@ -211,6 +212,7 @@ def build_shadow_report(
         "feature_drivers": feature_drivers or [],
         "regime_context": regime_context or {},
         "pnl_decomposition": pnl_decomposition or {},
+        "sltp_drift": sltp_drift or {},
     }
 
     hypotheses = []

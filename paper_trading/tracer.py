@@ -113,3 +113,34 @@ def shadow_compare_sizing(
                 "original_size": original_size,
             }
         )
+
+
+def shadow_compare_sltp(
+    asset: str,
+    label_sl: float,
+    label_tp: float,
+    runtime_sl: float,
+    runtime_tp: float,
+    entry_price: float,
+    reason: str = "adjustment",
+) -> None:
+    """Track when runtime SL/TP deviates from the original label barriers."""
+    sl_diff_pct = abs(runtime_sl - label_sl) / (entry_price + 1e-9) * 100
+    tp_diff_pct = abs(runtime_tp - label_tp) / (entry_price + 1e-9) * 100
+    threshold = 0.01  # 1 bp
+    if sl_diff_pct > threshold or tp_diff_pct > threshold:
+        _append(
+            {
+                "event": "shadow_sltp_change",
+                "timestamp": datetime.utcnow().isoformat(),
+                "asset": asset,
+                "entry_price": entry_price,
+                "label_sl": label_sl,
+                "label_tp": label_tp,
+                "runtime_sl": runtime_sl,
+                "runtime_tp": runtime_tp,
+                "sl_delta_pct": round(sl_diff_pct, 4),
+                "tp_delta_pct": round(tp_diff_pct, 4),
+                "reason": reason,
+            }
+        )

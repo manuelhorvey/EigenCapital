@@ -92,6 +92,7 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
     signal_total = 0
     pnl_diffs = []
     regime_counts = Counter()
+    sl_deltas, tp_deltas = [], []
 
     for e in events:
         md = e.get("model_divergence", {})
@@ -115,6 +116,12 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
         if rc.get("volatility_regime"):
             regime_counts[rc["volatility_regime"]] += 1
 
+        sltp = e.get("sltp_drift", {})
+        if sltp.get("sl_delta_pct") is not None:
+            sl_deltas.append(sltp["sl_delta_pct"])
+        if sltp.get("tp_delta_pct") is not None:
+            tp_deltas.append(sltp["tp_delta_pct"])
+
     baseline["model_proba_distribution"] = {
         "short": _histogram_bins(proba_short),
         "neutral": _histogram_bins(proba_neutral),
@@ -135,6 +142,16 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
             "mean_abs_error": round(float(np.mean(pnl_diffs)), 10),
             "max_abs_error": round(float(np.max(pnl_diffs)), 10),
             "count": len(pnl_diffs),
+        }
+
+    if sl_deltas:
+        baseline["sltp_drift_stats"] = {
+            "mean_sl_delta_pct": round(float(np.mean(sl_deltas)), 4),
+            "max_sl_delta_pct": round(float(np.max(sl_deltas)), 4),
+            "mean_tp_delta_pct": round(float(np.mean(tp_deltas)), 4) if tp_deltas else 0.0,
+            "max_tp_delta_pct": round(float(np.max(tp_deltas)), 4) if tp_deltas else 0.0,
+            "sl_adjustment_count": len(sl_deltas),
+            "tp_adjustment_count": len(tp_deltas),
         }
 
     return baseline

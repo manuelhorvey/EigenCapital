@@ -218,9 +218,11 @@ class HighVolSatellite:
         if not self.gate_is_open():
             logger.warning("%s satellite: gate closed, blocking position open", self.name)
             return
+        logger.info("%s satellite: opening %s position at %.2f", self.name, side, entry_price)
         self.position_active = True
         self.position_entry = entry_price
         self.position_side = side
+        self.current_value = self.max_capital
 
     def close_position(self) -> None:
         """Close the current position."""

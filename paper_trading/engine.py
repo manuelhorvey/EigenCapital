@@ -330,7 +330,7 @@ class PaperTradingEngine:
         return results
 
     def _run_satellite(self, results: dict) -> None:
-        """Evaluate regime gate and generate satellite (BTC) signal."""
+        """Evaluate regime gate and manage satellite (BTC) position."""
         sat = self.satellite
         if sat is None:
             return
@@ -354,14 +354,38 @@ class PaperTradingEngine:
                 crisis_regime_active=self._detect_crisis_regime(),
             )
 
+            current_price = float(btc_price_data["close"].ffill().iloc[-1])
             returns_all = ctx.get("returns_all")
-            if returns_all is not None and len(returns_all) >= 2:
-                sat.record_return(float(returns_all[-1]))
+            current_return = float(returns_all[-1]) if returns_all is not None and len(returns_all) >= 1 else 0.0
+
+            # Deploy capital on first run
+            if sat.initial_capital == 0.0:
+                sat.deploy_capital(sat.max_capital)
+                logger.info("BTC satellite: deployed capital %.2f", sat.max_capital)
+
+            # Gate → position management
+            if decision.allowed and not sat.position_active:
+                sat.open_position(entry_price=current_price)
+            elif not decision.allowed and sat.position_active:
+                sat.close_position()
+
+            sat.record_return(current_return)
+
+            logger.info(
+                "%s satellite: gate=%s, position=%s, value=%.2f",
+                sat.name,
+                "OPEN" if decision.allowed else "CLOSED",
+                "ACTIVE" if sat.position_active else "FLAT",
+                sat.current_value,
+            )
 
             results["satellite"] = {
                 "asset": "BTC",
                 "gate_allowed": decision.allowed,
                 "gate_reasons": decision.reasons_blocked,
+                "position_active": sat.position_active,
+                "current_value": round(sat.current_value, 2),
+                "current_price": round(current_price, 2),
             }
         except Exception as e:
             logger.error("satellite gating failed: %s", e)

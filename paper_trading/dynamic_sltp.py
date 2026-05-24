@@ -94,6 +94,7 @@ class DynamicSLTPEngine:
         max_sl_widen_pct: float = 0.0,
         use_gap_protection: bool = True,
         calibration_scale: float = 1.0,
+        confidence_sl_adjust: float = 0.0,
     ):
         self.method = method
         self.atr_period = atr_period
@@ -106,6 +107,7 @@ class DynamicSLTPEngine:
         self.max_sl_widen_pct = max_sl_widen_pct
         self.use_gap_protection = use_gap_protection
         self.calibration_scale = calibration_scale
+        self.confidence_sl_adjust = confidence_sl_adjust
         self._best_price_seen: float | None = None
 
     def reset_best_price(self, entry_price: float) -> None:
@@ -123,6 +125,7 @@ class DynamicSLTPEngine:
         tp_mult: float,
         regime: str = "neutral",
         vol: float | None = None,
+        meta_confidence: float | None = None,
     ) -> SLTPResult:
         """Compute initial stop-loss and take-profit levels.
 
@@ -140,15 +143,29 @@ class DynamicSLTPEngine:
             Regime label for regime-aware override.
         vol : float | None
             Precomputed vol (only used if method == ``vol_ewm``).
+        meta_confidence : float | None
+            Meta-label P(TP>SL). When set, adjusts SL distance inversely:
+            high confidence → tighter SL, low confidence → wider SL.
         """
         if self.method == "atr":
-            return self._atr_barriers(entry_price, side, df, sl_mult, tp_mult, regime)
+            result = self._atr_barriers(entry_price, side, df, sl_mult, tp_mult, regime)
         elif self.method == "vol_ewm":
-            return self._vol_ewm_barriers(entry_price, side, vol or 0.01, sl_mult, tp_mult, regime)
+            result = self._vol_ewm_barriers(entry_price, side, vol or 0.01, sl_mult, tp_mult, regime)
         elif self.method == "trailing":
-            return self._trailing_initial_barriers(entry_price, side, df, sl_mult, tp_mult, regime)
+            result = self._trailing_initial_barriers(entry_price, side, df, sl_mult, tp_mult, regime)
         else:
-            return self._static_barriers(entry_price, side, vol or 0.01, sl_mult, tp_mult)
+            result = self._static_barriers(entry_price, side, vol or 0.01, sl_mult, tp_mult)
+
+        if meta_confidence is not None and self.confidence_sl_adjust > 0:
+            factor = self._confidence_sl_factor(meta_confidence)
+            if side == "long":
+                sl_dist = entry_price - result.stop_loss
+                result.stop_loss = entry_price - sl_dist * factor
+            else:
+                sl_dist = result.stop_loss - entry_price
+                result.stop_loss = entry_price + sl_dist * factor
+
+        return result
 
     def calibrate(self, df: pd.DataFrame) -> None:
         """Auto-calibrate ``atr_mult_sl`` so ATR-based barriers match
@@ -261,6 +278,17 @@ class DynamicSLTPEngine:
             )
 
         return PostEntryAdjustment()
+
+    def _confidence_sl_factor(self, meta_confidence: float) -> float:
+        """Map meta-confidence [threshold, 1.0] → SL distance multiplier.
+
+        High confidence → tighter SL (factor < 1), low confidence → wider SL.
+        At threshold (e.g. 0.55) returns 1.0 (baseline); at 1.0 returns
+        (1 - confidence_sl_adjust).
+        """
+        threshold = 0.5
+        clamped = max(threshold, min(meta_confidence, 1.0))
+        return 1.0 - (clamped - threshold) / (1.0 - threshold + 1e-9) * self.confidence_sl_adjust
 
     # ── Barrier computation methods ───────────────────────────────
 
@@ -463,6 +491,7 @@ def build_dynamic_sltp_from_config(asset_config: dict, df: pd.DataFrame | None =
         max_sl_widen_pct=sltp_cfg.get("max_sl_widen_pct", 0.0),
         use_gap_protection=sltp_cfg.get("use_gap_protection", True),
         calibration_scale=sltp_cfg.get("calibration_scale", 1.0),
+        confidence_sl_adjust=sltp_cfg.get("confidence_sl_adjust", 0.0),
     )
     if df is not None and sltp_cfg.get("auto_calibrate", True):
         engine.calibrate(df)

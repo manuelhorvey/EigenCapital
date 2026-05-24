@@ -241,6 +241,65 @@ class TestValidation:
         assert sum(f for f, _ in engine.tier_specs) == pytest.approx(1.0)
 
 
+class TestTrailingAfterTier:
+    def test_trailing_not_emitted_when_not_configured(self):
+        engine = ScaleOutEngine(tiers=[(0.5, 0.5), (0.5, 1.0)], trailing_after_tier=None)
+        plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
+        reasons = [f["reason"] for f in fills]
+        assert "trailing_activated" not in reasons
+
+    def test_trailing_not_emitted_before_tier(self):
+        engine = ScaleOutEngine(tiers=[(0.5, 0.5), (0.5, 1.0)], trailing_after_tier=1)
+        plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
+        reasons = [f["reason"] for f in fills]
+        assert "trailing_activated" not in reasons
+
+    def test_trailing_emitted_after_tier(self):
+        engine = ScaleOutEngine(tiers=[(0.5, 0.5), (0.5, 1.0)], trailing_after_tier=0)
+        plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
+        reasons = [f["reason"] for f in fills]
+        assert "trailing_activated" in reasons
+
+    def test_trailing_emitted_even_with_breakeven_active(self):
+        engine = ScaleOutEngine(tiers=[(0.5, 0.5), (0.5, 1.0)], activate_breakeven_after=0, trailing_after_tier=0)
+        plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0)
+        fills = engine.check_tiers(plan, "long", current_price=105.0, current_value=10000.0,
+                                   position_size=1.0, exposure_mult=1.0)
+        reasons = [f["reason"] for f in fills]
+        assert "trailing_activated" in reasons  # both breakeven and trailing can fire
+
+    def test_trailing_not_emitted_when_nothing_remains(self):
+        engine = ScaleOutEngine(tiers=[(1.0, 1.0)], trailing_after_tier=0)
+        plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=110.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
+        reasons = [f["reason"] for f in fills]
+        assert "trailing_activated" not in reasons
+
+    def test_trailing_from_config(self):
+        engine = build_scale_out_from_config(
+            {
+                "scale_out": {
+                    "enabled": True,
+                    "tiers": [{"fraction": 1.0, "multiplier": 0.5}],
+                    "trailing_after_tier": 0,
+                },
+            }
+        )
+        assert engine is not None
+        assert engine.trailing_after_tier == 0
+
+
 class TestBuildFromConfig:
     def test_build_enabled(self):
         engine = build_scale_out_from_config(

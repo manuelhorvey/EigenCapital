@@ -258,6 +258,7 @@ class AssetEngine:
                 tp_mult=tp_mult,
                 regime=regime,
                 vol=vol,
+                meta_confidence=self._last_meta_proba,
             )
             intent = PositionIntent(
                 side=side,

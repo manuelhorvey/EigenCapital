@@ -399,3 +399,118 @@ class TestBuildFromConfig:
             {"dynamic_sltp": {"auto_calibrate": False}},
         )
         assert engine.atr_mult_sl == 2.0  # default unchanged
+
+
+class TestConfidenceSLAdjust:
+    @pytest.fixture
+    def engine(self):
+        return DynamicSLTPEngine(confidence_sl_adjust=0.3)
+
+    @pytest.fixture
+    def df(self):
+        np.random.seed(42)
+        prices = 100 + np.cumsum(np.random.randn(50) * 0.5)
+        return pd.DataFrame(
+            {
+                "close": prices,
+                "high": prices * 1.01,
+                "low": prices * 0.99,
+            }
+        )
+
+    def test_no_adjust_when_confidence_none(self, engine, df):
+        result = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0)
+        no_adjust = DynamicSLTPEngine(confidence_sl_adjust=0.0).compute_barriers(
+            100.0,
+            "long",
+            df,
+            sl_mult=1.0,
+            tp_mult=1.0,
+        )
+        assert result.stop_loss == no_adjust.stop_loss
+
+    def test_high_confidence_tightens_sl_long(self, engine, df):
+        base = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.5)
+        confident = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.95)
+        base_sl_dist = 100.0 - base.stop_loss
+        conf_sl_dist = 100.0 - confident.stop_loss
+        assert conf_sl_dist < base_sl_dist
+
+    def test_lowest_confidence_baseline(self, engine, df):
+        low = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.5)
+        base = DynamicSLTPEngine(confidence_sl_adjust=0.0).compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0)
+        assert low.stop_loss == pytest.approx(base.stop_loss)
+
+    def test_max_confidence_adjust(self, engine, df):
+        result = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=1.0)
+        base = DynamicSLTPEngine(confidence_sl_adjust=0.0).compute_barriers(
+            100.0,
+            "long",
+            df,
+            sl_mult=1.0,
+            tp_mult=1.0,
+            meta_confidence=0.5,
+        )
+        base_sl_dist = 100.0 - base.stop_loss
+        adj_sl_dist = 100.0 - result.stop_loss
+        expected_ratio = 1.0 - engine.confidence_sl_adjust  # 0.7
+        assert adj_sl_dist == pytest.approx(base_sl_dist * expected_ratio, rel=0.3)
+
+    def test_confidence_short(self, engine, df):
+        base = engine.compute_barriers(100.0, "short", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.5)
+        confident = engine.compute_barriers(100.0, "short", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.95)
+        base_sl_dist = base.stop_loss - 100.0
+        conf_sl_dist = confident.stop_loss - 100.0
+        assert conf_sl_dist < base_sl_dist
+
+    def test_no_adjust_when_disabled(self, df):
+        engine = DynamicSLTPEngine(confidence_sl_adjust=0.0)
+        base = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0)
+        with_meta = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.95)
+        assert base.stop_loss == with_meta.stop_loss
+
+    def test_confidence_clamped_below_threshold(self, engine, df):
+        clamped = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.3)
+        at_threshold = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0, meta_confidence=0.5)
+        assert clamped.stop_loss == at_threshold.stop_loss
+
+
+class TestBestPriceTracking:
+    @pytest.fixture
+    def engine(self):
+        return DynamicSLTPEngine(trailing_activation_mult=1.0, trailing_distance_mult=2.0)
+
+    @pytest.fixture
+    def df(self):
+        np.random.seed(42)
+        prices = 100 + np.cumsum(np.random.randn(50) * 0.5)
+        return pd.DataFrame(
+            {
+                "close": prices,
+                "high": prices * 1.01,
+                "low": prices * 0.99,
+            }
+        )
+
+    def test_reset_best_price(self, engine):
+        engine.reset_best_price(100.0)
+        assert engine._best_price_seen == 100.0
+
+    def test_tracks_maximum_long(self, engine, df):
+        engine.reset_best_price(100.0)
+        engine.compute_trailing_stop("long", 100.0, 103.0, initial_sl=97.0, current_sl=97.0, take_profit=110.0, df=df)
+        engine.compute_trailing_stop("long", 100.0, 102.0, initial_sl=97.0, current_sl=97.0, take_profit=110.0, df=df)
+        assert engine._best_price_seen == 103.0
+
+    def test_tracks_minimum_short(self, engine, df):
+        engine.reset_best_price(100.0)
+        engine.compute_trailing_stop("short", 100.0, 97.0, initial_sl=103.0, current_sl=103.0, take_profit=90.0, df=df)
+        engine.compute_trailing_stop("short", 100.0, 98.0, initial_sl=103.0, current_sl=103.0, take_profit=90.0, df=df)
+        assert engine._best_price_seen == 97.0
+
+    def test_persists_across_calls(self, engine, df):
+        engine.reset_best_price(100.0)
+        engine.compute_trailing_stop("long", 100.0, 105.0, initial_sl=97.0, current_sl=97.0, take_profit=110.0, df=df)
+        engine.compute_trailing_stop("long", 100.0, 104.0, initial_sl=97.0, current_sl=97.0, take_profit=110.0, df=df)
+        engine.compute_trailing_stop("long", 100.0, 103.0, initial_sl=97.0, current_sl=97.0, take_profit=110.0, df=df)
+        assert engine._best_price_seen == 105.0

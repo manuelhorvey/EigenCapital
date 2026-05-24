@@ -135,12 +135,7 @@ class ScaleOutEngine:
             )
 
         # Activate trailing on the remainder after a configurable tier index
-        if (
-            self.trailing_after_tier is not None
-            and not plan.breakeven_activated
-            and plan.remaining_fraction > 0
-            and n_filled > self.trailing_after_tier
-        ):
+        if self.trailing_after_tier is not None and plan.remaining_fraction > 0 and n_filled > self.trailing_after_tier:
             fills.append(
                 {
                     "fraction": 0.0,

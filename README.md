@@ -45,8 +45,8 @@ C --> D6[Oil-Correlation: CADJPY]
 C --> D7[BTC Satellite: HighVolSatellite]
 
 D1 & D2 & D3 & D4 & D5 & D6 --> E[Labeling Layer]
-D7 -.-> S[Satellite Gate]
-S -.-> E
+D7 --> S[Satellite Gate]
+S --> E
 
 E --> F1[tb20: Triple Barrier]
 E --> F2[fwd60: Forward Returns]
@@ -104,7 +104,7 @@ export FRED_API_KEY=your_key
 
 ## 4. LIVE PORTFOLIO
 
-13-asset continuously evaluated simulation with regime-optimized SL/TP (sl=0.30, sweep-derived TP per asset). BTC isolated in satellite bucket.
+13-asset continuously evaluated simulation with regime-optimized SL/TP (sl=0.30, sweep-derived TP per asset). BTC actively traded in a satellite bucket via a 5-condition macro gate with vol-adjusted SL/TP and full position management — opens when gate permits, closes when gate blocks or SL/TP is hit, with entry/target/stop prices and exit reasons exposed on the dashboard.
 
 | Asset | Alloc | sl_mult | tp_mult | R:R | Scale-out | Regime-tuned |
 |-------|-------|---------|---------|:---:|-----------|--------------|
@@ -122,7 +122,7 @@ export FRED_API_KEY=your_key
 | USDJPY | 4% | 0.30 | 1.00 | 1:3.3 | no | yes |
 | USDCHF | 4% | 0.30 | 1.75 | 1:5.8 | 4-tier | yes |
 
-**BTC satellite**: 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate.
+**BTC satellite**: 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate. Actively managed — positions open on gate OPEN, close on gate CLOSED or SL/TP hit. Vol-adjusted SL/TP (same formula as core assets: `entry × (1 ± vol × multiplier)`). Entry/stop/target prices and exit reason logged per cycle and displayed on the satellite dashboard card.
 
 ---
 

@@ -186,10 +186,15 @@ portfolio_circuit_breaker: force-closed by portfolio-level drawdown limit (-15%)
 **BTC satellite bucket:**
 | Property | Value |
 |---|---|
-| Allocation | 5% AUM cap |
+| Allocation | 5% AUM cap (deployed on first engine tick, reset on each re-entry) |
 | Vol target | 40% annualised |
 | Drawdown limit | 25% |
 | Regime gate | 5-condition AND logic (correlation, BTC vol, VIX, DXY momentum, CRISIS) |
+| Position management | Active — opens on gate OPEN, closes on gate CLOSED, SL_HIT, or TP_HIT |
+| SL/TP formula | `stop = entry × (1 − vol × sl_mult)` / `target = entry × (1 + vol × tp_mult)` where `vol` = EWMA(span=100) of BTC daily log returns |
+| SL/TP multipliers | `sl_mult=0.58`, `tp_mult=1.51` from config (applied as vol multipliers, not raw entry %) |
+| Dashboard fields | Entry price, stop price, target price, exit reason (SL_HIT / TP_HIT / GATE_CLOSED) |
+| Per-cycle logging | `"BTC satellite: gate=OPEN\|CLOSED, position=ACTIVE\|FLAT, value=XXXX"` |
 
 **Capital:** $100,000
 **Sum constraint:** `sum(core_allocations) ≈ 0.97` (cash buffer of ~3%)

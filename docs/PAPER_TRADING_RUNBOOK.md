@@ -42,13 +42,13 @@ Operational procedures for the paper trading system. This document is for the pe
 | USDJPY | 4% | USDJPY=X | 0.30 | 1.00 | 1:3.3 | no | tb20 | yes (+ gc_lead_1) |
 | USDCHF | 4% | USDCHF=X | 0.30 | 1.75 | 1:5.8 | 4-tier | tb20 | yes (+ gc_lead_1) |
 
-**BTC satellite bucket:** 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate.
-**SL/TP base values:** sl=0.30 universal (research-optimized via sweep across 3 regimes). Model-validity adjustments: YELLOW → tp × 0.85, RED → tp × 0.70. SL unchanged across validity states.
+**BTC satellite bucket:** 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate. Actively managed — when the gate is OPEN the satellite opens a long BTC position with vol-adjusted SL/TP; when the gate CLOSES or SL/TP is hit the position is flattened. Entry price, stop price, target price, and exit reason are logged every cycle and shown on the dashboard.
+**SL/TP base values:** Core assets use sl=0.30 universal (research-optimized via sweep across 3 regimes). BTC satellite uses satellite-specific multipliers: `sl_mult=0.58`, `tp_mult=1.51`. SL/TP are computed as `entry × (1 ± vol × multiplier)` where `vol` = EWMA(span=100) of BTC daily log returns (same formula as core assets, matching `AssetEngine._tb_vol`). Model-validity adjustments: YELLOW → tp × 0.85, RED → tp × 0.70. SL unchanged across validity states.
 **Dynamic SL/TP ATR Calibration:** ATR-based dynamic barriers auto-calibrated at engine startup to EWM vol using `calibration_scale: 1.2` (expanding barriers by 20% to support higher TP rates).
 **Confidence-based SL adjustment (optional):** When `confidence_sl_adjust > 0.0`, SL width tightens as meta-label confidence increases (p=0.9 → sl × (1.0 - adjust), p=0.1 → sl × (1.0 + adjust/2)). Default 0.0 (disabled).
 **Scale-Out Strategy:** For assets with scale-out enabled (EURAUD, NZDJPY, CADJPY, AUDJPY, USDCAD, GBPJPY, USDCHF, GBPUSD, EURCAD, DJI), profit-taking is split into 4 equal tiers (25% at 0.25x / 0.50x / 0.75x / 1.00x of original TP multiplier). The stop-loss is moved to breakeven after Tier 1 is filled (`activate_breakeven_after: 0`). Optionally, trailing stop activation can be triggered after a configurable tier (`trailing_after_tier`, default disabled) — see `ScaleOutEngine` in `paper_trading/scale_out.py`.
 
-**Dashboard features:** Per-asset scale-out tier progress visualization (filled vs pending tiers shown as color-coded blocks in AssetCard). SL/TP hit rate gauge bars (GREEN/YELLOW/RED thresholds) in the Trade Outcomes table. PSI Drift panel with per-feature distribution shift scores, trend arrows, and color-coded classification badges.
+**Dashboard features:** Per-asset scale-out tier progress visualization (filled vs pending tiers shown as color-coded blocks in AssetCard). SL/TP hit rate gauge bars (GREEN/YELLOW/RED thresholds) in the Trade Outcomes table. PSI Drift panel with per-feature distribution shift scores, trend arrows, and color-coded classification badges. **Satellite card** shows entry price, stop price, target price when position active; SL/TP show `—` when flat; last exit reason (SL_HIT/TP_HIT/GATE_CLOSED) is displayed after each exit.
 
 ### Governance Overlays
 
@@ -133,6 +133,7 @@ curl http://127.0.0.1:5000/ping
 
 - Portfolio total value and daily return are updating
 - All 13 core assets show a signal (BUY/SELL/FLAT) with confidence
+- **BTC Satellite card**: check gate state (OPEN/CLOSED), position state (ACTIVE/FLAT), entry/SL/TP prices, and exit reason after each exit
 - Current price is within ~0.5% of market price
 - No asset is in halt (check asset cards for RED status)
 - Per-asset drawdown % is not approaching per-asset limits
@@ -162,10 +163,11 @@ GBPUSD: BUY conf=XX% @ $XX.XX
 CHFJPY: FLAT conf=XX% @ $XX.XX
 EURCAD: SELL conf=XX% @ $XX.XX
 ^DJI: BUY conf=XX% @ $XX.XX
+BTC satellite: gate=OPEN/CLOSED, position=ACTIVE/FLAT, value=XXXX
 Portfolio: $XXXXX (XX%)
 ```
 
-If any asset shows `ERROR`, investigate immediately (see Halt Conditions).
+If any asset shows `ERROR`, investigate immediately (see Halt Conditions). If the satellite shows `exit=SL_HIT` or `exit=TP_HIT`, this is normal — SL/TP are real working levels. Verify the SL/TP prices make sense relative to the entry price and current volatility.
 
 ### End of Day (~17:00 ET)
 

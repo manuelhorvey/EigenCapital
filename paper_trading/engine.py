@@ -360,6 +360,13 @@ class PaperTradingEngine:
             returns_all = ctx.get("returns_all")
             current_return = float(returns_all[-1]) if returns_all is not None and len(returns_all) >= 1 else 0.0
 
+            # Compute vol from BTC returns (EWMA, same as AssetEngine._tb_vol)
+            if returns_all is not None and len(returns_all) >= 20:
+                returns_series = pd.Series(returns_all)
+                vol = float(returns_series.ewm(span=100).std().iloc[-1])
+            else:
+                vol = 0.45  # fallback BTC vol baseline
+
             # Deploy capital on first run
             if sat.initial_capital == 0.0:
                 sat.deploy_capital(sat.max_capital)
@@ -374,7 +381,7 @@ class PaperTradingEngine:
             # Gate → position management (only if not already exited via SL/TP)
             if exit_reason is None:
                 if decision.allowed and not sat.position_active:
-                    sat.open_position(entry_price=current_price)
+                    sat.open_position(entry_price=current_price, vol=vol)
                 elif not decision.allowed and sat.position_active:
                     sat.close_position(reason="GATE_CLOSED")
 

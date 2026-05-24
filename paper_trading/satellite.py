@@ -225,28 +225,40 @@ class HighVolSatellite:
             self.current_value *= 1.0 + daily_return
         self.peak_value = max(self.peak_value, self.current_value)
 
-    def open_position(self, entry_price: float, side: str = "long") -> None:
-        """Open a position in the satellite with SL/TP levels."""
+    def open_position(self, entry_price: float, side: str = "long", vol: float | None = None) -> None:
+        """Open a position in the satellite with vol-adjusted SL/TP levels.
+
+        SL/TP are computed as::
+
+            stop  = entry * (1 - vol * sl_mult)
+            target = entry * (1 + vol * tp_mult)
+
+        This mirrors :meth:`PositionIntent.from_price_and_vol`.
+        If *vol* is ``None`` the configured vol baseline is used.
+        """
         if not self.gate_is_open():
             logger.warning("%s satellite: gate closed, blocking position open", self.name)
             return
-        logger.info("%s satellite: opening %s position at %.2f", self.name, side, entry_price)
+        v = vol if vol is not None else 0.45  # fallback BTC vol baseline
+        sl_pct = v * self.config.sl_mult * 100
+        tp_pct = v * self.config.tp_mult * 100
+        logger.info(
+            "%s satellite: opening %s position at %.2f (vol=%.4f, sl=%.1f%%, tp=+%.1f%%)",
+            self.name,
+            side,
+            entry_price,
+            v,
+            sl_pct,
+            tp_pct,
+        )
         self.position_active = True
         self.position_entry = entry_price
         self.position_side = side
         self.current_value = self.max_capital
         self.entry_price = entry_price
-        self.stop_price = entry_price * (1.0 - self.config.sl_mult)
-        self.target_price = entry_price * (1.0 + self.config.tp_mult)
+        self.stop_price = entry_price * (1.0 - v * self.config.sl_mult)
+        self.target_price = entry_price * (1.0 + v * self.config.tp_mult)
         self._last_exit_reason = None
-        logger.info(
-            "%s satellite: SL=%.2f (-%.1f%%), TP=%.2f (+%.1f%%)",
-            self.name,
-            self.stop_price,
-            self.config.sl_mult * 100,
-            self.target_price,
-            self.config.tp_mult * 100,
-        )
 
     def close_position(self, price: float | None = None, reason: str = "MANUAL") -> None:
         """Close the current position with optional exit price and reason."""

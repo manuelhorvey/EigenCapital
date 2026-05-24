@@ -352,3 +352,36 @@ Six parameterised stress blocks cover structurally distinct crisis regimes: COVI
 **Data needed:** Validated correlation and volatility models for the 14-asset portfolio. The expansion to 14 assets may shift pairwise correlation structure. Requires: a) rolling correlation estimator, b) volatility forecasting, c) rebalancing schedule, d) backtest against fixed-weight baseline.
 
 **Estimated effort:** 2-3 weeks for implementation + 2 weeks for validation.
+
+---
+
+## Current Research Status
+
+See also `docs/SURVIVAL_SIMULATION.md`, `docs/GOVERNANCE_LAYER.md`, `docs/FEATURES.md`.
+
+### Active Paper Trading
+
+- **13-asset live paper trading** active with regime-optimized SL/TP geometry (sl=0.30 sweep-derived TP, 12/13 assets regime-tuned, BTC in satellite).
+- **14 models** in `paper_trading/models/` (13 core + BTC satellite). Stale non-traded models cleaned up.
+- **32 assets** registered in FEATURE_REGISTRY with full FeatureContracts, walk-forward evaluated via `scripts/walk_forward_all.py`
+- **Dashboard UX**: TradeFeed pagination, SignalsTable search filter, lazy-loaded FeatureCards, refetch indicator spinner, narrative regime badge, liquidity regime badges, SL/TP gauge bars, scale-out tier visualization
+
+### Validation
+
+- 5000-path survival sim: Full Governance Sharpe 12.39 vs Naked 6.06 — governance adds +51.9% ann return
+- Extended history (25y): Sharpe 6.26, 0% ruin
+- 281 tests across 19 test files — zero regressions
+
+### Recent Additions
+
+- **Macro narrative governance** — Weekly FXStreet article → Claude API → SL widen / size reduce
+- **Liquidity regime model** — Volume z-score + Amihud ratio + Corwin-Schultz spread → NORMAL/THIN/STRESSED → SL widen / size reduce / halt
+- **Multiplicative governance chain**: `final_sl = base × regime_geom × narrative × liquidity`
+
+### Known Constraints
+
+- Paper trading only (no live capital execution)
+- Data limited to Yahoo Finance + FRED
+- EURUSD excluded (pending COT integration)
+- ^DJI marginal contribution under watch (ΔSharpe −0.11)
+- 19 unscreened pairs not yet evaluated

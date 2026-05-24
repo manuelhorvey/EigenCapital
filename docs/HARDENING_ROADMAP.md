@@ -176,3 +176,112 @@ pytest tests/ -q --tb=short
 - `paper_trading/dashboard/src/components/ui/SltpGauge.tsx` — Color-coded gauge bars for TP/SL/Flip rates (GREEN/YELLOW/RED thresholds).
 - `paper_trading/dashboard/src/components/TradeOutcomes.tsx` — Gauge column in per-asset trade outcomes table.
 - `paper_trading/dashboard/src/components/AssetCard.tsx` — Scale-out tier progress bar when a position has active scale-out tiers.
+
+---
+
+## Tier 5 — Macro Narrative Governance (Weekly LLM Overlay)
+
+### Objective
+
+Add a weekly macro context layer that adjusts SL width and position sizing based on LLM-extracted narrative signals from FXStreet analysis. This is an execution governance overlay, not a feature — it shapes how the system executes, not what it predicts.
+
+### Implementation
+
+#### Pipeline
+
+- `features/fxstreet_fetcher.py` — `fetch_fxstreet_article()` scrapes FXStreet "Week ahead" article; `call_llm()` sends text to Claude API with structured JSON prompt; `run_weekly_narrative_pipeline()` orchestrates fetch → LLM → pending; `confirm_pending_narrative()` promotes pending to active; `get_narrative_status()` returns combined state.
+- `features/macro_narrative.py` — `MacroNarrativeFeatures` dataclass with: `geopol_risk_score`, `fed_hawkishness`, `rbnz_hawkishness`, `rba_hawkishness`, `boj_intervention_risk`, `energy_crisis_pressure`, currency biases, `overall_regime`, `confidence`; `narrative_governance_scalars()` maps features to `{sl_mult, size_scalar}`.
+- `paper_trading/asset_engine.py` — `_load_narrative_state()` on init, `set_narrative_state()` for runtime updates; `_narrative_sl_mult` multiplied into SL in `_open_position`; `_narrative_size_scalar` applied in `_sizing_config` and execution bridge notional; `narrative_ok` flag in `check_halt_conditions` with -0.10 validity penalty.
+- `paper_trading/engine.py` — `_init_narrative()`, `_refresh_narrative()` in Phase 3.5 of `run_once()`: runs pipeline on Monday before noon (pending) or auto-confirms after deadline_hour; carries forward with staleness on failure.
+
+#### Human Review Step
+
+- Pending narrative saved as `data/live/narrative_pending.json`
+- Dashboard renders **NARR PENDING** button (one-click confirm via `POST /narrative/confirm`)
+- Auto-confirm at `auto_confirm_deadline_hour` ET (default 12:00)
+- Scrape/LLM errors surface as yellow **NARR ERR** badge — narrative carries forward
+
+#### Dashboard
+
+- `paper_trading/dashboard/src/hooks/useNarrative.ts` — React Query hook polling every 30s
+- `paper_trading/dashboard/src/components/Header.tsx` — NARR PENDING button, regime badge (color-coded), stale indicator, NARR ERR badge
+
+#### Config
+
+```yaml
+narrative_config:
+  enabled: true
+  fxstreet_url: "https://www.fxstreet.com/analysis"
+  geopol_sl_widen_pct: 10
+  risk_off_size_reduce_pct: 20
+  min_confidence: 0.6
+  auto_confirm_deadline_hour: 12
+```
+
+**Tests:** TBD (manual verification during first Monday cycle)
+
+---
+
+## Tier 6 — Liquidity Regime Model (Per-Tick Proxy)
+
+### Objective
+
+Detect abnormal liquidity conditions from daily OHLCV data alone (no tick/order book required) and adjust execution parameters accordingly.
+
+### Implementation
+
+#### Core
+
+- `features/liquidity_regime.py`:
+  - `compute_liquidity_features(df)`: Volume z-score (rolling 21d), Amihud illiquidity ratio z-score (`|return| / volume × close`), Corwin-Schultz bid-ask spread estimate from daily high/low.
+  - `classify_liquidity_regime(features)`: Returns NORMAL / THIN / STRESSED based on configurable thresholds.
+  - `liquidity_governance_scalars(regime)`: Returns `{sl_mult, size_scalar, halted}`.
+
+#### Governance Rules
+
+| Regime | SL Adjustment | Size Adjustment | Halts? |
+|--------|--------------|-----------------|--------|
+| NORMAL | 1.0× | 1.0× | No |
+| THIN | +15% (1.15×) | −15% (0.85×) | No |
+| STRESSED | +30% (1.30×) | −30% (0.70×) | Yes |
+
+#### Integration
+
+- `paper_trading/asset_engine.py` — `_load_liquidity_state()` on init; `_refresh_liquidity()` called every signal cycle; `_liquidity_sl_mult` in SL chain; `_liquidity_size_scalar` in sizing notional; `liquidity_ok` flag halts on STRESSED with -0.10 validity penalty.
+- `paper_trading/engine.py` — liquidity regime exposed per-asset in `get_state()`.
+- `paper_trading/serve.py` — `GET /liquidity.json` with 30s cache.
+- `paper_trading/dashboard/src/hooks/useLiquidity.ts` — React Query hook polling every 30s.
+- `paper_trading/dashboard/src/components/Header.tsx` — LIQ THIN (yellow) / LIQ STRSD (red) badge with per-asset hover tooltip.
+
+#### Config
+
+```yaml
+liquidity_config:
+  enabled: true
+  regime_window: 21
+  volume_z_thin_threshold: -1.5
+  volume_z_stressed_threshold: -2.5
+  amihud_high_threshold: 1.5
+  amihud_stressed_threshold: 3.0
+  thin_sl_widen_pct: 15
+  thin_size_reduce_pct: 15
+  stressed_sl_widen_pct: 30
+  stressed_size_reduce_pct: 30
+  stressed_halt: true
+```
+
+**Tests:** TBD (requires OHLCV data fixture for feature computation validation)
+
+---
+
+## Multiplicative Governance Chain
+
+The five governance/execution layers stack multiplicatively:
+
+```
+final_sl_mult = base_sl_mult × regime_geometry_sl × narrative_sl_mult × liquidity_sl_mult
+final_size_scalar = base_size × narrative_size_scalar × liquidity_size_scalar
+halt = drawdown_halt OR pf_halt OR drought_halt OR drift_halt OR narrative_halt OR liquidity_halt
+```
+
+Each layer is independently configurable, independently gated (by confidence, staleness, or threshold), and independently observable in the dashboard.

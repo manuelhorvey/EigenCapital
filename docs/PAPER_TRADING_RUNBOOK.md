@@ -50,6 +50,33 @@ Operational procedures for the paper trading system. This document is for the pe
 
 **Dashboard features:** Per-asset scale-out tier progress visualization (filled vs pending tiers shown as color-coded blocks in AssetCard). SL/TP hit rate gauge bars (GREEN/YELLOW/RED thresholds) in the Trade Outcomes table.
 
+### Governance Overlays
+
+The system applies two independent governance layers on top of the base SL/TP chain:
+
+- **Macro Narrative (weekly)**: FXStreet article → Claude LLM → geopol risk score + regime. SL widens +10% when geopolitics > 0.7. Size reduces -20% when risk_off. Human confirm step via dashboard.
+- **Liquidity Regime (per-tick)**: Volume z-score + Amihud ratio from daily OHLCV. THIN → SL +15%, size -15%. STRESSED → SL +30%, size -30%, halted.
+
+Multiplicative chain: `final_sl = base × regime_geom × narrative_sl × liquidity_sl`
+
+### Governance Config Reference
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `narrative_config.enabled` | true | Enable weekly macro narrative |
+| `narrative_config.geopol_sl_widen_pct` | 10 | SL widen % on geopol risk |
+| `narrative_config.risk_off_size_reduce_pct` | 20 | Size reduce % on risk_off |
+| `narrative_config.min_confidence` | 0.6 | Min LLM confidence |
+| `narrative_config.auto_confirm_deadline_hour` | 12 | Auto-confirm deadline (ET) |
+| `liquidity_config.volume_z_thin_threshold` | -1.5 | Volume z → THIN |
+| `liquidity_config.volume_z_stressed_threshold` | -2.5 | Volume z → STRESSED |
+| `liquidity_config.amihud_high_threshold` | 1.5 | Amihud z → THIN |
+| `liquidity_config.amihud_stressed_threshold` | 3.0 | Amihud z → STRESSED |
+| `liquidity_config.thin_sl_widen_pct` | 15 | SL widen in THIN |
+| `liquidity_config.thin_size_reduce_pct` | 15 | Size reduce in THIN |
+| `liquidity_config.stressed_sl_widen_pct` | 30 | SL widen in STRESSED |
+| `liquidity_config.stressed_size_reduce_pct` | 30 | Size reduce in STRESSED |
+
 ### Halt Parameters (global defaults, overridable per asset)
 
 Per-asset:
@@ -112,6 +139,8 @@ curl http://127.0.0.1:5000/ping
 - **LAST** timestamp in the header shows when signals were last refreshed
 - **Scale-out tiers** on open positions: check filled vs pending tier blocks in AssetCard
 - **SL/TP gauge bars** in Trade Outcomes: GREEN TP rate (≥25%), GREEN SL rate (≤50%), GREEN flip rate (≤15%)
+- **Narrative badge**: check overall_regime indicator (red/yellow/green/grey) and stale flag; check for **NARR PENDING** button or **NARR ERR** badge
+- **Liquidity badge**: check for **LIQ THIN** (yellow) or **LIQ STRSD** (red); hover for per-asset breakdown
 
 ### Log Check
 
@@ -195,6 +224,33 @@ for name, a in s['assets'].items():
 | USDCHF | tb20 | ~1:1 | 55-75% |
 | GBPUSD | tb20 | ~1:1 | 55-75% |
 
+### Narrative Check (Monday Morning)
+
+On Monday before noon ET, verify the macro narrative pipeline ran:
+
+```bash
+curl http://127.0.0.1:5000/narrative.json | python3 -m json.tool
+```
+
+Check for:
+- `"has_pending": true` — pipeline fetched but awaits confirmation. Click **NARR PENDING** on the dashboard or wait for auto-confirm at noon.
+- `"needs_confirmation": true` — same as above; visible indicator present.
+- `"active"` — narrative has been confirmed and is live. Check `overall_regime` and `confidence`.
+- `"stale": true` — narrative is ≥7 days old. Governance not applied. Will refresh next Monday.
+- `"fetch_error"` — scrape or LLM call failed. Check logs for details.
+
+If the key `ANTHROPIC_API_KEY` is not set, the pipeline will skip the LLM call and save a neutral narrative instead.
+
+### Liquidity Check
+
+Check for abnormal liquidity conditions via dashboard badges or API:
+
+```bash
+curl http://127.0.0.1:5000/liquidity.json | python3 -m json.tool
+```
+
+If any asset shows `"regime": "STRESSED"`, investigate whether this correlates with a macro event, data issue, or asset-specific factor.
+
 **If ratio exceeds 3:1 in either direction**, investigate macro context. A sustained imbalance may indicate:
 - A structural regime shift (e.g., persistent tightening)
 - Feature drift (PSI > 0.25 on a key feature)
@@ -252,7 +308,7 @@ for name in engine.assets:
 
 ## 3. Halt Condition Responses
 
-The system has three independent halt mechanisms:
+The system has five independent halt mechanisms:
 
 ### 3.1 Validity State Machine (Automatic)
 
@@ -336,7 +392,62 @@ if portfolio_dd ≤ portfolio_drawdown_limit:
 
 **This is the final safety layer** — it fires only when per-asset halts and validity state machines have already failed to contain losses.
 
-### 3.4 Data Feed Failure
+### 3.4 Macro Narrative Governance (Weekly)
+
+A weekly LLM-driven macro context overlay that adjusts SL width and position sizing based on FXStreet analysis:
+
+| Condition | Trigger | Effect |
+|-----------|---------|--------|
+| Geopolitical risk | `geopol_risk_score > 0.7` | SL widens by `geopol_sl_widen_pct` (+10%) |
+| Risk-off regime | `overall_regime == "risk_off"` | Position size reduced by `risk_off_size_reduce_pct` (-20%) |
+| Low confidence | LLM `confidence < min_confidence` (0.6) | No governance applied |
+| Stale narrative | ≥7 days since week_start | Governance suppressed; `(STALE)` badge on dashboard |
+
+**Pipeline** — runs Monday before noon ET:
+1. Fetches FXStreet "Week ahead" article via web scrape
+2. Sends text to Claude API for structured JSON extraction
+3. Output saved as `narrative_pending.json` on dashboard
+4. Human confirms via **NARR PENDING** button; or auto-confirms after `auto_confirm_deadline_hour` (12:00 ET)
+5. Active narrative applied to all assets: SL × `_narrative_sl_mult`, size × `_narrative_size_scalar`
+
+**Failure modes:**
+- Scrape failure → carries forward last week's narrative with `fetch_error` flag; yellow **NARR ERR** dashboard badge
+- LLM parsing failure → neutral defaults applied
+- No pending confirmation by deadline → auto-confirm at noon
+
+**To check narrative status:**
+```bash
+curl http://127.0.0.1:5000/narrative.json
+```
+
+**Dashboards indicators:**
+- **NARR PENDING** button — one-click confirm, shown when `needs_confirmation: true`
+- **NARR ERR** badge — yellow/red when scrape or LLM fails
+- **Regime badge** — color-coded text (risk_off=red, geopol_tension=yellow, risk_on=green, data_driven=grey)
+- **(STALE)** suffix — appended when narrative exceeds 7-day window
+
+### 3.5 Liquidity Regime Model (Per-Tick)
+
+Real-time liquidity regime computed from daily OHLCV volume and price data on every signal cycle:
+
+| Condition | Trigger | Effect |
+|-----------|---------|--------|
+| THIN regime | `volume_z < -1.5` OR `amihud_z > 1.5` | SL +15%, size -15% |
+| STRESSED regime | `volume_z < -2.5` OR `amihud_z > 3.0` | SL +30%, size -30%, halted |
+| NORMAL | All thresholds clear | No adjustment |
+
+**Effect chain:** `final_sl = base_sl × regime_geom × narrative_sl × liquidity_sl`
+
+**Dashboard indicators:**
+- **LIQ THIN** (yellow badge) — one or more assets in THIN regime
+- **LIQ STRSD** (red badge) — one or more assets in STRESSED regime (halted)
+- Hover tooltip shows per-asset breakdown: `EURAUD: THIN sl=1.15x size=0.85x`
+
+**Response:**
+- THIN regime: No action required. Monitor for progression to STRESSED.
+- STRESSED regime: Check the affected asset(s) — the engine halts execution for those assets and logs the liquidity event. Review whether this correlates with a macro event or is asset-specific.
+
+### 3.6 Data Feed Failure
 
 If yfinance returns empty or stale data for any ticker:
 

@@ -43,7 +43,7 @@ QuantForge is an adaptive multi-asset macro research and portfolio simulation pl
 |-------|---------|
 | **Features** | Deterministic macro-conditioned signals under strict schema contracts (FeatureContract) |
 | **Models** | Probabilistic directional inference via XGBoost (BUY / HOLD / SELL) |
-| **Governance** | Exposure suppression under instability — validity state machine, feature stability penalties, meta-labeling |
+| **Governance** | Exposure suppression under instability — validity state machine, feature stability penalties, meta-labeling, macro narrative governance, liquidity regime overlay |
 | **Simulation** | Adversarial survival testing with execution physics, regime bootstrap, and deleveraging feedback |
 | **Execution** | Continuous paper trading with mark-to-market PnL, SL/TP surface optimization, and portfolio construction |
 | **Telemetry** | Adaptive risk observability — shadow analytics, drift detection, importance tracking, deterministic replay |
@@ -266,7 +266,10 @@ All features are enforced via a **FeatureContract** to ensure deterministic trai
 | `cross_asset_features` | Inter-asset correlations, relative strength |
 | `interaction_features` | Regime contrast, EMA contrast, transition risk |
 | `pair_specific` | FX carry, rate differentials |
+| `cot_features` | COT positioning indices, net changes, extreme flags |
 | `lead_lag_features` | Optional lagged peer returns (e.g. `nzdjpy_lead_3` on AUDJPY) |
+| `macro_narrative` | MacroNarrativeFeatures dataclass, governance scalars from weekly LLM extraction (SL widen / size reduce) |
+| `liquidity_regime` | Volume z-score + Amihud illiquidity ratio + Corwin-Schultz spread from daily OHLCV; NORMAL/THIN/STRESSED classification |
 
 ### 6.2.1 Cross-Asset Isolation
 
@@ -498,6 +501,21 @@ React + TypeScript + Tailwind + react-query frontend in `paper_trading/dashboard
 | `satellite.BTC.vol_target` | 0.40 | BTC vol target |
 | `satellite.BTC.max_drawdown_pct` | -0.25 | BTC drawdown limit |
 | `QUANTFORGE_REFRESH_INTERVAL` | 300 | Engine loop interval in seconds (env var) |
+| `narrative_config.enabled` | true | Enable weekly LLM macro narrative pipeline |
+| `narrative_config.geopol_sl_widen_pct` | 10 | SL widen % when geopolitical risk > 0.7 |
+| `narrative_config.risk_off_size_reduce_pct` | 20 | Size reduce % when regime == risk_off |
+| `narrative_config.min_confidence` | 0.6 | Min LLM confidence to apply governance |
+| `narrative_config.auto_confirm_deadline_hour` | 12 | Hour (ET) for auto-confirm on Monday |
+| `liquidity_config.enabled` | true | Enable per-tick liquidity regime detection |
+| `liquidity_config.volume_z_thin_threshold` | -1.5 | Volume z-score below = THIN regime |
+| `liquidity_config.volume_z_stressed_threshold` | -2.5 | Volume z-score below = STRESSED regime |
+| `liquidity_config.amihud_high_threshold` | 1.5 | Amihud z-score above = THIN regime |
+| `liquidity_config.amihud_stressed_threshold` | 3.0 | Amihud z-score above = STRESSED regime |
+| `liquidity_config.thin_sl_widen_pct` | 15 | SL widen % in THIN regime |
+| `liquidity_config.thin_size_reduce_pct` | 15 | Size reduce % in THIN regime |
+| `liquidity_config.stressed_sl_widen_pct` | 30 | SL widen % in STRESSED regime |
+| `liquidity_config.stressed_size_reduce_pct` | 30 | Size reduce % in STRESSED regime |
+| `ANTHROPIC_API_KEY` | — | API key for Claude LLM narrative extraction (env var) |
 
 ### 10.8 Three-Tier Hardening
 
@@ -514,6 +532,8 @@ See **[docs/HARDENING_ROADMAP.md](docs/HARDENING_ROADMAP.md)** for full procedur
 | **4B** | Probability-based SL/TP via meta-label confidence — `confidence_sl_adjust` parameter biases SL width toward prediction reliability |
 | **4C** | Shadow SL/TP drift analytics — tracer logs runtime barrier deviations; shadow memory tracks drift history per asset |
 | **4D** | Dashboard polish — scale-out tier visualization, SL/TP hit rate gauge bars |
+| **5** | Macro narrative governance — weekly FXStreet/LLM pipeline, human review, auto-confirm |
+| **6** | Liquidity regime model — volume z-score + Amihud proxy, THIN/STRESSED governance |
 
 See **[docs/HARDENING_ROADMAP.md](docs/HARDENING_ROADMAP.md)** for full details.
 
@@ -572,6 +592,45 @@ Logistic regression underfits if no signal exists — a natural guard against ov
 * `risk_governance.py` — Real-time risk evaluation (composite risk score, exposure multiplier)
 * `shadow_actions.py` — Corrective action recommendations (PAUSE / REDUCE / MONITOR)
 * Advisory layer — computed but not enforced (validity state machine is the enforcement layer)
+
+### 11.6 Macro Narrative Governance (Weekly)
+
+Weekly LLM-driven macro context overlay that adjusts execution parameters based on FXStreet analysis:
+
+* **Pipeline**: FXStreet "Week ahead" article → Claude API (structured JSON extraction) → `MacroNarrativeFeatures` → governance scalars
+* **Regime output**: `risk_off`, `geopol_tension`, `risk_on`, `data_driven` — derived from geopol risk score, fed/central bank hawkishness, currency biases
+* **Governance rules** (via `narrative_governance_scalars()`):
+  - `geopol_risk_score > 0.7` → SL widens by `geopol_sl_widen_pct` (default +10%)
+  - `overall_regime == "risk_off"` → position size reduces by `risk_off_size_reduce_pct` (default -20%)
+  - `confidence < min_confidence` (default 0.6) or stale narrative → no governance applied
+* **Human review step**: Narrative lands as `narrative_pending.json`; must be confirmed via dashboard **NARR PENDING** button or auto-confirms at Monday noon (`auto_confirm_deadline_hour: 12`)
+* **Staleness**: ≥7 days since week_start → stale flag suppresses governance, shown as `(STALE)` on dashboard
+* **Failure mode**: scrape/LLM error → narrative carries forward with `fetch_error` status; dashboard shows yellow **NARR ERR** badge
+* **Integration**: `_narrative_sl_mult` multiplied into SL in `_open_position`; `_narrative_size_scalar` applied in `_sizing_config` and execution bridge notional; `narrative_ok` flag in `check_halt_conditions` with -0.10 validity penalty
+* **State storage**: `data/live/narrative_active.json`, `narrative_pending.json`
+* **Config**: `configs/paper_trading.yaml` → `narrative_config` section
+* **Requires**: `ANTHROPIC_API_KEY` env var
+
+### 11.7 Liquidity Regime Model (Per-Tick)
+
+Real-time liquidity proxy computed from daily OHLCV on every signal cycle:
+
+* **Features** (`compute_liquidity_features()`):
+  - **Volume z-score**: rolling 21d z-score of volume (negative = thin)
+  - **Amihud illiquidity ratio z-score**: `|return| / (volume × close)`, normalized (positive = illiquid)
+  - **Corwin-Schultz spread estimate**: bid-ask spread proxy from daily high/low
+* **Regime output**: `NORMAL` / `THIN` / `STRESSED` — threshold-driven from config params
+* **Governance rules** (via `liquidity_governance_scalars()`):
+  - `THIN` → SL widens by `thin_sl_widen_pct` (+15%), size reduces by `thin_size_reduce_pct` (-15%)
+  - `STRESSED` → SL widens by `stressed_sl_widen_pct` (+30%), size reduces by `stressed_size_reduce_pct` (-30%), sets halted flag
+* **Integration**: `_liquidity_sl_mult` multiplied into SL in `_open_position`; `_liquidity_size_scalar` applied in sizing and execution notional; `liquidity_ok` flag in `check_halt_conditions` (STRESSED halts) with -0.10 validity penalty
+* **Dashboard**: LIQ THIN (yellow) / LIQ STRSD (red) badge in header with per-asset hover tooltip
+* **Config**: `configs/paper_trading.yaml` → `liquidity_config` section with threshold and pct params
+
+The two governance layers stack multiplicatively on the existing SL chain:
+```
+final_sl_mult = base_sl_mult × regime_geom_sl × narrative_sl_mult × liquidity_sl_mult
+```
 
 ---
 
@@ -817,6 +876,7 @@ R --> A
 * Meta-labeling trains on live trades only (min 50), never on historical backtest data
 * Worst-wins penalty aggregation (single low stability metric triggers full penalty)
 * Synthetic stress capped at 25% of original series length (prevents synthetic dominance)
+* Multiplicative governance layering: `sl_mult = base × regime_geom × narrative × liquidity`; each layer is independently configurable and independently gated
 
 ---
 
@@ -895,9 +955,12 @@ R --> A
 * **In-memory TTL cache** on serve.py with per-endpoint expiry; gzip compression for large responses; `/ping` health endpoint
 * **Three-tier hardening** — feature isolation + circuit breaker, `ExecutionBridge` + YAML execution physics, extended history / lead-lag / adaptive macro (see `docs/HARDENING_ROADMAP.md`, ADR-022)
 * **Config-driven vol baselines** — `vol_baselines` in `EngineConfig` wired into `VolTargetSizing` and `/volatility.json`
-* **Dashboard UX**: TradeFeed pagination, SignalsTable search filter, lazy-loaded FeatureCards, refetch indicator spinner
+* **Dashboard UX**: TradeFeed pagination, SignalsTable search filter, lazy-loaded FeatureCards, refetch indicator spinner, narrative regime badge, narrative confirm button, narrative fetch error badge, liquidity regime badge (LIQ THIN / LIQ STRSD)
 * **Configurable refresh interval** via `QUANTFORGE_REFRESH_INTERVAL` env var (default 300s)
 * **281 tests** across 19 test files — zero regressions
+* **Macro narrative governance** — Weekly FXStreet article scraped → Claude API extracts structured macro context; `geopol_risk_score > 0.7` widens SL, `risk_off` regime reduces size; human confirm step (dashboard button or auto-confirm at Monday noon); staleness flag suppresses governance; fetch/LLM errors surface as warning badge. Files: `features/fxstreet_fetcher.py`, `features/macro_narrative.py`
+* **Liquidity regime model** — Volume z-score + Amihud illiquidity ratio + Corwin-Schultz spread computed from daily OHLCV per tick; classifies NORMAL/THIN/STRESSED with configurable thresholds; THIN widens SL +15% and reduces size -15%, STRESSED widens SL +30%, reduces size -30%, and halts. File: `features/liquidity_regime.py`
+* **Dashboard: narrative + liquidity indicators** — Narrative regime badge (color-coded: red=risk_off, yellow=geopol_tension, green=risk_on, grey=data_driven), NARR PENDING confirm button, NARR ERR badge, LIQ THIN (yellow) / LIQ STRSD (red) per-asset badges with hover tooltip
 * **DynamicSLTPEngine** — ATR-calibrated SL/TP with trailing stop, cross-bar best-price tracking, post-entry adjustment, and optional confidence-based SL width (`confidence_sl_adjust`)
 * **ScaleOutEngine** — 4-tier scale-out with configurable trailing activation after tier fill (`trailing_after_tier`); breakeven trigger independent of trailing
 * **Shadow SL/TP drift analytics** — `shadow_compare_sltp()` logs runtime barrier deviations in bps; shadow memory profiles track mean/max drift history per asset; wired into trailing stop and post-entry adjustment paths

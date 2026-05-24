@@ -36,6 +36,8 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 | 021 | [Simulation Snapshot System for Deterministic Replay](ADR-021-simulation-snapshot.md) | Accepted | 2026-05 |
 | 022 | [Macro Expert Head Adaptive Weighting](ADR-022-macro-adaptive-weight.md) | Accepted | 2026-05 |
 | 023 | [Fast Scale-Out Profit Taking and Dynamic SL/TP Calibration](ADR-023-fast-scale-out-calibration-scale.md) | Accepted | 2026-05 |
+| 024 | [Macro Narrative Governance — Weekly LLM Overlay](ADR-024-macro-narrative-governance.md) | Accepted | 2026-05 |
+| 025 | [Liquidity Regime Model — Volume/Amihud Proxy Governance](ADR-025-liquidity-regime-model.md) | Accepted | 2026-05 |
 
 ## By Topic
 
@@ -68,6 +70,8 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 - ADR-018: BTC satellite isolation
 - ADR-019: Feature importance stability tracking
 - ADR-023: Fast scale-out and dynamic SL/TP calibration
+- ADR-024: Macro narrative governance (weekly LLM overlay)
+- ADR-025: Liquidity regime model (volume/Amihud proxy)
 
 ### Signal Processing
 - ADR-020: Meta-labeling as confidence filter

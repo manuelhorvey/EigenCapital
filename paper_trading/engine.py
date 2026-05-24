@@ -147,6 +147,7 @@ class PaperTradingEngine:
         active = status.get("active")
         if active:
             from features.macro_narrative import MacroNarrativeFeatures
+
             narr = MacroNarrativeFeatures(**active)
             for asset in self.assets.values():
                 asset.set_narrative_state(narr)

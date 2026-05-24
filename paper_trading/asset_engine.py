@@ -246,7 +246,8 @@ class AssetEngine:
         if regime != "NORMAL":
             logger.info(
                 "%s: liquidity regime=%s vol_z=%.2f amihud_z=%.2f sl=%.2fx size=%.2fx%s",
-                self.name, regime,
+                self.name,
+                regime,
                 features.get("volume_z", 0),
                 features.get("amihud_z", 0),
                 self._liquidity_sl_mult,
@@ -265,7 +266,10 @@ class AssetEngine:
         if price <= 0:
             return cfg
         notional = (
-            self.current_value * self.pos_mgr.position_size * self.pos_mgr.exposure_multiplier * position_size_scalar
+            self.current_value
+            * self.pos_mgr.position_size
+            * self.pos_mgr.exposure_multiplier
+            * position_size_scalar
             * max(self._narrative_size_scalar * self._liquidity_size_scalar, self._MIN_SIZE_SCALAR)
         )
         cfg["impact_bps"] = self.execution_bridge.estimate_impact_bps(self.ticker, notional)
@@ -357,7 +361,8 @@ class AssetEngine:
         if self.execution_bridge is not None:
             broker_side = "buy" if side == "long" else "sell"
             notional = (
-                self.current_value * self.pos_mgr.position_size
+                self.current_value
+                * self.pos_mgr.position_size
                 * self.pos_mgr.exposure_multiplier
                 * max(self._narrative_size_scalar * self._liquidity_size_scalar, self._MIN_SIZE_SCALAR)
             )
@@ -1244,8 +1249,10 @@ class AssetEngine:
             drift_ok = False
 
         narrative_ok = True
-        if self._narrative_active is not None and not self._narrative_stale and (
-            self._narrative_sl_mult > 1.05 or self._narrative_size_scalar < 0.95
+        if (
+            self._narrative_active is not None
+            and not self._narrative_stale
+            and (self._narrative_sl_mult > 1.05 or self._narrative_size_scalar < 0.95)
         ):
             narr = self._narrative_active
             reasons.append(

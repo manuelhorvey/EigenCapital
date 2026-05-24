@@ -14,8 +14,6 @@ from __future__ import annotations
 import logging
 import os
 import pickle
-from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -107,7 +105,9 @@ class MetaLabelModel:
         if meta_y.sum() < self.min_train_samples:
             logger.warning(
                 "%s: insufficient meta-positive samples (%d < %d), skipping",
-                asset, meta_y.sum(), self.min_train_samples,
+                asset,
+                meta_y.sum(),
+                self.min_train_samples,
             )
             return
 
@@ -121,7 +121,11 @@ class MetaLabelModel:
         self._feature_names = list(meta_X.columns)
 
         X_tr, X_va, y_tr, y_va = train_test_split(
-            meta_X.values, meta_y, test_size=0.2, random_state=42, stratify=meta_y,
+            meta_X.values,
+            meta_y,
+            test_size=0.2,
+            random_state=42,
+            stratify=meta_y,
         )
 
         scale_pos_weight = (y_tr == 0).sum() / (y_tr == 1).sum()
@@ -137,7 +141,8 @@ class MetaLabelModel:
             verbosity=0,
         )
         self.model.fit(
-            X_tr, y_tr,
+            X_tr,
+            y_tr,
             eval_set=[(X_va, y_va)],
             verbose=False,
         )
@@ -148,7 +153,10 @@ class MetaLabelModel:
                 pickle.dump(self, f)
             logger.info(
                 "%s: meta model trained (pos_weight=%.2f, n=%d, threshold=%.2f)",
-                asset, scale_pos_weight, len(X_tr), self.threshold,
+                asset,
+                scale_pos_weight,
+                len(X_tr),
+                self.threshold,
             )
 
     def predict_proba(self, X: pd.DataFrame, y_primary: np.ndarray) -> float | None:
@@ -181,7 +189,11 @@ class MetaLabelModel:
         y_primary: np.ndarray,
         infer: bool = False,
     ) -> pd.DataFrame:
-        base = X[features].copy() if infer else X[features].copy()
+        if infer:
+            orig = [f for f in features if not f.startswith("meta_")]
+            base = X[orig].copy()
+        else:
+            base = X[features].copy()
 
         # Add primary model probabilities as meta features
         if len(y_primary.shape) == 1 or y_primary.shape[1] == 1:
@@ -224,13 +236,13 @@ def meta_label_feature_suggestions() -> list[str]:
     to hit TP vs getting stopped out.
     """
     return [
-        "volatility_regime",         # High vol → more SL hits
-        "spread_bps",                # Wide spread → worse fills
-        "recent_win_rate_10",        # Hot/cold streak
-        "avg_r_multiple_20",         # Recent R-multiple average
-        "atr_ratio_14_100",          # Short-term vs long-term vol
-        "entry_hour",                # Time-of-day effects
-        "day_of_week",               # Day-of-week effects
-        "correlation_spy_21",        # Beta to SPY during trade
-        "vix_level",                 # Fear gauge
+        "volatility_regime",  # High vol → more SL hits
+        "spread_bps",  # Wide spread → worse fills
+        "recent_win_rate_10",  # Hot/cold streak
+        "avg_r_multiple_20",  # Recent R-multiple average
+        "atr_ratio_14_100",  # Short-term vs long-term vol
+        "entry_hour",  # Time-of-day effects
+        "day_of_week",  # Day-of-week effects
+        "correlation_spy_21",  # Beta to SPY during trade
+        "vix_level",  # Fear gauge
     ]

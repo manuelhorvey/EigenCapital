@@ -153,7 +153,13 @@ def build_scale_out_from_config(asset_config: dict) -> ScaleOutEngine | None:
         return None
     tiers = so_cfg.get("tiers", [(1 / 3, 0.50), (1 / 3, 1.00), (1 / 3, 1.50)])
     activate_after = so_cfg.get("activate_breakeven_after", 0)
+    parsed = []
+    for t in tiers:
+        if isinstance(t, dict):
+            parsed.append((t["fraction"], t["multiplier"]))
+        else:
+            parsed.append(t)
     return ScaleOutEngine(
-        tiers=[(t["fraction"], t["multiplier"]) for t in tiers],
+        tiers=parsed,
         activate_breakeven_after=activate_after,
     )

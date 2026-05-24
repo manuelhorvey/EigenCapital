@@ -412,17 +412,20 @@ class DynamicSLTPEngine:
             current_dist = entry_price - current_sl
             new_dist = current_dist * vol_ratio
             new_sl = entry_price - new_dist
-            if new_sl > current_sl - 1e-9:
+            if new_sl < current_sl + 1e-9:  # wider or equal
+                if self.max_sl_widen_pct > 0:
+                    max_widen = current_sl * (1 - self.max_sl_widen_pct)
+                    return max(new_sl, max_widen)
                 return None
-            if self.max_sl_widen_pct > 0:
-                max_widen = current_sl * (1 - self.max_sl_widen_pct)
-                new_sl = max(new_sl, max_widen) if side == "long" else new_sl
             return new_sl
         else:
             current_dist = current_sl - entry_price
             new_dist = current_dist * vol_ratio
             new_sl = entry_price + new_dist
-            if new_sl < current_sl + 1e-9:
+            if new_sl > current_sl - 1e-9:  # wider or equal
+                if self.max_sl_widen_pct > 0:
+                    max_widen = current_sl * (1 + self.max_sl_widen_pct)
+                    return min(new_sl, max_widen)
                 return None
             return new_sl
 

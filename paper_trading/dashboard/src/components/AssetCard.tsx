@@ -34,6 +34,9 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
       dist: m.signal_distribution,
       slMult: m.current_sl_mult ?? asset.sl_mult,
       tpMult: m.current_tp_mult ?? asset.tp_mult,
+      scaleOutActive: m.scale_out_active ?? false,
+      scaleOutTiers: m.scale_out_tiers ?? null,
+      remainingFraction: m.remaining_fraction ?? 1,
       isNew,
     }
   }, [asset, data, name])
@@ -153,6 +156,36 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
               )
             })()}
           </div>
+
+          {info.scaleOutActive && info.scaleOutTiers && info.scaleOutTiers.length > 0 && (
+            <div className="mt-2 space-y-1">
+              <div className="text-[10px] text-tertiary font-medium uppercase tracking-wider flex items-center gap-1">
+                Scale-out Tiers
+                <span className="text-muted font-mono normal-case tracking-normal">
+                  ({info.remainingFraction != null ? (info.remainingFraction * 100).toFixed(0) : '?'}% remain)
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {info.scaleOutTiers.map((tier, i) => {
+                  const filled = tier.filled
+                  const fillPct = tier.fraction * 100
+                  return (
+                    <div
+                      key={i}
+                      className={`flex-1 h-6 rounded text-[9px] font-mono flex items-center justify-center border transition-colors ${
+                        filled
+                          ? 'bg-gov-green/15 border-gov-green/40 text-gov-green'
+                          : 'bg-panel border-default/50 text-tertiary'
+                      }`}
+                      title={`Tier ${i + 1}: ${fillPct.toFixed(0)}% @ $${tier.price}${filled ? ` (filled @ $${tier.fill_price})` : ' (pending)'}`}
+                    >
+                      {fillPct.toFixed(0)}%
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -70,6 +70,13 @@ export interface ExitReasons {
   avg_r: number
 }
 
+export interface ScaleOutTierInfo {
+  fraction: number
+  price: number
+  filled: boolean
+  fill_price: number | null
+}
+
 export interface AssetMetrics {
   asset: string
   current_value: number
@@ -93,6 +100,9 @@ export interface AssetMetrics {
   current_tp_mult?: number
   trade_log: TradeEntry[]
   exit_reasons?: ExitReasons
+  scale_out_active?: boolean
+  remaining_fraction?: number
+  scale_out_tiers?: ScaleOutTierInfo[] | null
 }
 
 export interface SignalDistribution {

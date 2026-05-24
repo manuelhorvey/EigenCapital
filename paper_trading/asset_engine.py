@@ -996,6 +996,19 @@ class AssetEngine:
             else False
         )
 
+        # Scale-out tier info for dashboard
+        scale_out_tiers = None
+        if self._scale_out_plan is not None:
+            scale_out_tiers = [
+                {
+                    "fraction": t.fraction,
+                    "price": t.price,
+                    "filled": t.filled,
+                    "fill_price": t.fill_price,
+                }
+                for t in self._scale_out_plan.tiers
+            ]
+
         return {
             "asset": self.name,
             "current_value": round(self.current_value, 2),
@@ -1028,6 +1041,7 @@ class AssetEngine:
             "meta_inference": meta_inference,
             "scale_out_active": scale_out_active,
             "remaining_fraction": round(remaining_frac, 4),
+            "scale_out_tiers": scale_out_tiers,
         }
 
     def _save_trade_journal(self, trade):

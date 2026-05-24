@@ -3,6 +3,7 @@ import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import KpiCard from './ui/KpiCard'
 import { Skeleton } from './ui/Skeleton'
+import SltpGauge from './ui/SltpGauge'
 
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`
@@ -61,36 +62,40 @@ export default function TradeOutcomes() {
           </div>
 
           <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-xs min-w-[520px]">
+            <table className="w-full text-xs min-w-[680px]">
               <thead>
                 <tr className="border-b border-default">
-                  <th className="table-header text-left py-2 pr-3">Asset</th>
-                  <th className="table-header text-right py-2 px-3">Trades</th>
-                  <th className="table-header text-right py-2 px-3">TP%</th>
-                  <th className="table-header text-right py-2 px-3">SL%</th>
-                  <th className="table-header text-right py-2 px-3">Flip%</th>
-                  <th className="table-header text-right py-2 px-3">Avg R</th>
-                  <th className="table-header text-right py-2 px-3">Win%</th>
-                  <th className="table-header text-right py-2 pl-3">PF</th>
+                  <th className="table-header text-left py-2 pr-2">Asset</th>
+                  <th className="table-header text-right py-2 px-2">Trades</th>
+                  <th className="table-header text-left py-2 px-2">Hit Rates</th>
+                  <th className="table-header text-right py-2 px-2">TP%</th>
+                  <th className="table-header text-right py-2 px-2">SL%</th>
+                  <th className="table-header text-right py-2 px-2">Flip%</th>
+                  <th className="table-header text-right py-2 px-2">Avg R</th>
+                  <th className="table-header text-right py-2 px-2">Win%</th>
+                  <th className="table-header text-right py-2 pl-2">PF</th>
                 </tr>
               </thead>
               <tbody>
                 {byAsset.map((a) => (
                   <tr key={a.asset} className="border-b border-default/40 table-row-hover">
-                    <td className="py-2 pr-3 font-medium text-primary font-mono text-xs">{a.asset}</td>
-                    <td className="text-right py-2 px-3 text-secondary font-mono tabular-nums">{a.n_trades}</td>
-                    <td className={`text-right py-2 px-3 font-mono tabular-nums ${a.tp_rate >= 0.2 ? 'text-gov-green' : 'text-gov-yellow'}`}>
+                    <td className="py-2 pr-2 font-medium text-primary font-mono text-xs">{a.asset}</td>
+                    <td className="text-right py-2 px-2 text-secondary font-mono tabular-nums">{a.n_trades}</td>
+                    <td className="py-2 px-2">
+                      <SltpGauge tpRate={a.tp_rate} slRate={a.sl_rate} flipRate={a.signal_flip_rate} />
+                    </td>
+                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.tp_rate >= 0.2 ? 'text-gov-green' : 'text-gov-yellow'}`}>
                       {pct(a.tp_rate)}
                     </td>
-                    <td className={`text-right py-2 px-3 font-mono tabular-nums ${a.sl_rate <= 0.6 ? 'text-secondary' : 'text-gov-red'}`}>
+                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.sl_rate <= 0.6 ? 'text-secondary' : 'text-gov-red'}`}>
                       {pct(a.sl_rate)}
                     </td>
-                    <td className="text-right py-2 px-3 text-tertiary font-mono tabular-nums">{pct(a.signal_flip_rate)}</td>
-                    <td className={`text-right py-2 px-3 font-mono tabular-nums ${a.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+                    <td className="text-right py-2 px-2 text-tertiary font-mono tabular-nums">{pct(a.signal_flip_rate)}</td>
+                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
                       {r2(a.avg_r)}
                     </td>
-                    <td className="text-right py-2 px-3 text-secondary font-mono tabular-nums">{pct(a.win_rate)}</td>
-                    <td className="text-right py-2 pl-3 text-secondary font-mono tabular-nums">
+                    <td className="text-right py-2 px-2 text-secondary font-mono tabular-nums">{pct(a.win_rate)}</td>
+                    <td className="text-right py-2 pl-2 text-secondary font-mono tabular-nums">
                       {a.profit_factor !== null ? r2(a.profit_factor) : '—'}
                     </td>
                   </tr>

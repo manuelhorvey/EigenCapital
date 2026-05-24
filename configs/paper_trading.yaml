@@ -4,7 +4,7 @@ rebalance: daily
 retrain_freq: annual
 retrain_window: 5
 research_mode: false
-  portfolio_drawdown_limit: -0.15
+portfolio_drawdown_limit: -0.15
 narrative_config:
   enabled: true
   fxstreet_url: "https://www.fxstreet.com/analysis"

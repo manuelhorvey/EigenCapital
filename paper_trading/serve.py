@@ -67,7 +67,8 @@ def _cache_get(key: str) -> str | None:
 
 def _cache_set(key: str, value: str, ttl: float | None = None) -> None:
     if ttl is None:
-        ttl = _CACHE_TTL.get(key, 5.0)
+        base_key = key.split("?")[0]
+        ttl = _CACHE_TTL.get(base_key, 5.0)
     _CACHE[key] = (value, time.monotonic() + ttl)
 
 
@@ -218,7 +219,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
 
             # API endpoints
             if path in _CACHE_TTL:
-                cached = _cache_get(path)
+                cached = _cache_get(self.path)
                 if cached is not None:
                     self._send_json(cached)
                     return
@@ -318,7 +319,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                 deduped = final
 
                 data = json.dumps(deduped[offset : offset + limit], default=str)
-                _cache_set("/trades.json", data)
+                _cache_set(self.path, data)
                 self._send_json(data)
             elif path == "/equity_history.json":
                 history = _STORE.read_equity_history()

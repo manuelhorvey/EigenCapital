@@ -18,9 +18,11 @@ import HitRateDrift from './components/HitRateDrift'
 import RiskParityPanel from './components/RiskParityPanel'
 import PSIDriftCard from './components/PSIDriftCard'
 import EngineLogs from './components/EngineLogs'
+import AlertFeed from './components/AlertFeed'
 import Footer from './components/Footer'
 import LoadingScreen from './components/ui/LoadingScreen'
 import ErrorScreen from './components/ui/ErrorScreen'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const NAV_SECTIONS = [
   { id: 'portfolio', label: 'Portfolio' },
@@ -29,7 +31,7 @@ const NAV_SECTIONS = [
   { id: 'governance', label: 'Governance' },
   { id: 'risk', label: 'Risk' },
   { id: 'charts', label: 'Charts' },
-] as const
+]
 
 function AnchorNav() {
   const [active, setActive] = useState('portfolio')
@@ -37,10 +39,8 @@ function AnchorNav() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            setActive(e.target.id)
-          }
+        for (const entry of entries) {
+          if (entry.isIntersecting) setActive(entry.target.id)
         }
       },
       { rootMargin: '-80px 0px -60% 0px', threshold: 0 },
@@ -95,58 +95,71 @@ export default function App() {
         className="flex-1 max-w-[90rem] w-full mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6 relative animate-fade-in"
         data-fetching={isFetching ? 'true' : undefined}
       >
-        {/* ── Portfolio ── */}
-        <section id="portfolio" className="anchor-nav">
-          <PortfolioSummary />
-        </section>
+        <ErrorBoundary title="Portfolio">
+          <section id="portfolio" className="anchor-nav space-y-5 sm:space-y-6">
+            <PortfolioSummary />
+            <AssetGrid />
+            <HaltConditions />
+          </section>
+        </ErrorBoundary>
 
-        <AssetGrid />
+        <ErrorBoundary title="Governance">
+          <section id="governance" className="anchor-nav space-y-5 sm:space-y-6">
+            <GovernancePanel />
+            <GovernanceStateCards />
+            <RiskParityPanel />
+            <PSIDriftCard />
+          </section>
+        </ErrorBoundary>
 
-        <HaltConditions />
-
-        {/* ── Governance ── */}
-        <section id="governance" className="anchor-nav space-y-5 sm:space-y-6">
-          <GovernancePanel />
-          <GovernanceStateCards />
-          <RiskParityPanel />
-          <PSIDriftCard />
-        </section>
-
-        {/* ── Signals ── */}
-        <section id="signals" className="anchor-nav">
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5">
-            <div className="xl:col-span-3 min-w-0">
-              <SignalsTable />
+        <ErrorBoundary title="Signals">
+          <section id="signals" className="anchor-nav">
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5">
+              <div className="xl:col-span-3 min-w-0">
+                <SignalsTable />
+              </div>
+              <div className="xl:col-span-2 min-w-0">
+                <EquityChart />
+              </div>
             </div>
-            <div className="xl:col-span-2 min-w-0">
-              <EquityChart />
+          </section>
+        </ErrorBoundary>
+
+        <ErrorBoundary title="Risk">
+          <section id="risk" className="anchor-nav">
+            <HealthScores />
+          </section>
+        </ErrorBoundary>
+
+        <ErrorBoundary title="Charts">
+          <section id="charts" className="anchor-nav">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+              <div className="lg:col-span-2 min-w-0">
+                <MetricsGrid />
+              </div>
+              <div className="space-y-4 sm:space-y-5 min-w-0">
+                <ConfidenceChart />
+                <HitRateDrift />
+                <VolRegimePanel />
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </ErrorBoundary>
 
-        <HealthScores />
+        <ErrorBoundary title="Trades">
+          <section id="trades" className="anchor-nav space-y-5 sm:space-y-6">
+            <TradeOutcomes />
+            <TradeFeed />
+          </section>
+        </ErrorBoundary>
 
-        {/* ── Charts ── */}
-        <section id="charts" className="anchor-nav">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
-            <div className="lg:col-span-2 min-w-0">
-              <MetricsGrid />
-            </div>
-            <div className="space-y-4 sm:space-y-5 min-w-0">
-              <ConfidenceChart />
-              <HitRateDrift />
-              <VolRegimePanel />
-            </div>
-          </div>
-        </section>
+        <ErrorBoundary title="Alert Feed">
+          <AlertFeed />
+        </ErrorBoundary>
 
-        {/* ── Trades ── */}
-        <section id="trades" className="anchor-nav space-y-5 sm:space-y-6">
-          <TradeOutcomes />
-          <TradeFeed />
-        </section>
-
-        <EngineLogs />
+        <ErrorBoundary title="Engine Logs">
+          <EngineLogs />
+        </ErrorBoundary>
       </main>
 
       <Footer />

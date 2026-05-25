@@ -1,33 +1,50 @@
 import { useEffect, useState } from 'react'
-import { Sun, Moon, RefreshCw, TrendingUp, Pause, Wifi } from 'lucide-react'
+import { Sun, Moon, RefreshCw, Calendar, Clock, TrendingUp, Pause } from 'lucide-react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import { useSessionClock } from '../hooks/useSessionClock'
 import { useNarrative } from '../hooks/useNarrative'
 import { useLiquidity } from '../hooks/useLiquidity'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
+import ConnectionStatus from './ConnectionStatus'
 
 function ConfirmButton() {
   const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   return (
-    <button
-      type="button"
-      disabled={confirming}
-      onClick={async () => {
-        setConfirming(true)
-        try {
-          const resp = await fetch('/narrative/confirm', { method: 'POST' })
-          if (resp.ok) await queryClient.invalidateQueries({ queryKey: ['narrative'] })
-        } catch { /* silent */ }
-        setConfirming(false)
-      }}
-      className="flex items-center gap-1 px-2 py-1 rounded-md border border-gov-yellow/25 bg-gov-yellow-muted text-gov-yellow text-2xs font-medium hover:bg-gov-yellow/20 transition-colors active:scale-95 disabled:opacity-50"
-      title="Confirm pending macro narrative"
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${confirming ? 'bg-muted' : 'bg-gov-yellow animate-pulse'}`} />
-      {confirming ? 'CONFIRMING...' : 'NARR PENDING'}
-    </button>
+    <div className="relative">
+      <button
+        type="button"
+        disabled={confirming}
+        onClick={async () => {
+          setConfirming(true)
+          setError(null)
+          try {
+            const resp = await fetch('/narrative/confirm', { method: 'POST' })
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+            await queryClient.invalidateQueries({ queryKey: ['narrative'] })
+            await queryClient.invalidateQueries({ queryKey: ['governance'] })
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Confirm failed'
+            console.error('[Narrative] confirm error:', msg)
+            setError(msg)
+            setTimeout(() => setError(null), 4000)
+          }
+          setConfirming(false)
+        }}
+        className="flex items-center gap-1 px-2 py-1 rounded-md border border-gov-yellow/25 bg-gov-yellow-muted text-gov-yellow text-2xs font-medium hover:bg-gov-yellow/20 transition-colors active:scale-95 disabled:opacity-50"
+        title="Confirm pending macro narrative"
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${confirming ? 'bg-muted' : 'bg-gov-yellow animate-pulse'}`} />
+        {confirming ? 'CONFIRMING...' : 'NARR PENDING'}
+      </button>
+      {error && (
+        <div className="absolute top-full mt-1 right-0 whitespace-nowrap px-2 py-1 rounded border border-gov-red/25 bg-gov-red-muted text-gov-red text-2xs font-mono">
+          {error}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -99,6 +116,10 @@ export default function Header() {
             )}
             <span className="text-2xs font-semibold font-mono uppercase tracking-wide">{statusText}</span>
             {isFetching && <RefreshCw className="w-2 h-2 animate-spin opacity-70" strokeWidth={2.5} />}
+          </div>
+
+          <div className="hidden sm:flex">
+            <ConnectionStatus />
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 text-2xs text-secondary border-l border-default pl-2">

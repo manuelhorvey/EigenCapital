@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { usePSI } from '../hooks/usePSI'
@@ -26,13 +27,13 @@ function psiBg(cls: string): string {
 }
 
 function trendArrow(trend: string, cls: string): string {
-  if (trend === 'INCREASING') return cls === 'SEVERE' ? '\u2191' : '\u2191'
+  if (trend === 'INCREASING') return '\u2191'
   if (trend === 'DECREASING') return '\u2193'
   return '\u2192'
 }
 
 function trendColor(trend: string, cls: string): string {
-  if (trend === 'INCREASING') return cls === 'NO_DRIFT' ? 'text-gov-green' : 'text-gov-red'
+  if (trend === 'INCREASING') return cls !== 'NO_DRIFT' ? 'text-gov-red' : 'text-gov-green'
   if (trend === 'DECREASING') return 'text-gov-green'
   return 'text-muted'
 }
@@ -61,6 +62,11 @@ function FeatureRow({ entry }: { entry: PSIFeatureEntry }) {
 }
 
 function AssetDriftSection({ asset, status }: { asset: string; status: PSIAssetStatus }) {
+  const sortedFeatures = useMemo(
+    () => [...status.per_feature].sort((a, b) => b.psi - a.psi),
+    [status.per_feature],
+  )
+
   return (
     <div className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 text-[11px] text-secondary hover:border-strong/80 transition-colors">
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -84,7 +90,7 @@ function AssetDriftSection({ asset, status }: { asset: string; status: PSIAssetS
       </div>
 
       <div className="space-y-1">
-        {status.per_feature.map(entry => (
+        {sortedFeatures.map(entry => (
           <FeatureRow key={entry.feature} entry={entry} />
         ))}
       </div>
@@ -92,10 +98,48 @@ function AssetDriftSection({ asset, status }: { asset: string; status: PSIAssetS
   )
 }
 
-export default function PSIDriftCard() {
-  const { data, isPending } = usePSI()
+function PSISkeleton() {
+  return (
+    <div className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 animate-pulse">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="h-4 w-16 bg-panel rounded" />
+        <div className="h-3 w-20 bg-panel rounded" />
+      </div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="h-3 bg-panel rounded mb-1" />
+      ))}
+    </div>
+  )
+}
 
-  if (isPending) return null
+export default function PSIDriftCard() {
+  const { data, isPending, isError, error } = usePSI()
+
+  if (isPending) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="PSI Drift" accent="amber" />
+        <div className="grid grid-cols-1 gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <PSISkeleton key={i} />
+          ))}
+        </div>
+      </Panel>
+    )
+  }
+
+  if (isError) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="PSI Drift" accent="amber" />
+        <div className="flex flex-col items-center justify-center py-6 gap-2">
+          <span className="text-xs text-gov-red/80">Failed to load PSI drift data</span>
+          <span className="text-2xs text-muted font-mono">{error?.message}</span>
+        </div>
+      </Panel>
+    )
+  }
+
   if (!data) return null
 
   const entries = Object.entries(data).sort(([a], [b]) => a.localeCompare(b))

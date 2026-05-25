@@ -4,8 +4,19 @@ import { format } from 'date-fns'
 const ET = 'America/New_York'
 
 function toZonedTime(date: Date, tz: string): Date {
-  const s = date.toLocaleString('en-US', { timeZone: tz })
-  return new Date(s)
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = formatter.formatToParts(date)
+  const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10)
+  return new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'))
 }
 
 interface SessionInfo {

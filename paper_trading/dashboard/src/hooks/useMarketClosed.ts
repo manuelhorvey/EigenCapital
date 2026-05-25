@@ -1,8 +1,10 @@
-import { usePortfolioState } from './usePortfolioState'
+import { useQueryClient } from '@tanstack/react-query'
 import { isMarketOpen, useSessionClock } from './useSessionClock'
+import type { EngineSnapshot } from '../types/portfolio'
 
 export function useMarketClosed(): boolean {
-  const { data } = usePortfolioState()
+  const queryClient = useQueryClient()
+  const data = queryClient.getQueryData<EngineSnapshot>(['portfolioState'])
   const { day, hour } = useSessionClock()
 
   const serverClosed = data?.engine_status?.market_closed

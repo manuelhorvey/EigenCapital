@@ -1,30 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
+import { GovernanceDataSchema } from '../lib/schemas'
+import type { z } from 'zod'
 
-export interface GovernanceState {
-  regime_sl_mult: number
-  regime_size_scalar: number
-  narrative_sl_mult: number
-  narrative_size_scalar: number
-  liquidity_sl_mult: number
-  liquidity_size_scalar: number
-  combined_sl_mult: number
-  combined_size_scalar: number
-  floor_active: boolean
-  validity_state: string
-  narrative_regime: string | null
-  narrative_stale: boolean
-  liquidity_regime: string
-  halted: boolean
-}
-
-export interface GovernanceData {
-  [asset: string]: GovernanceState
-}
+export type GovernanceState = z.infer<typeof GovernanceDataSchema>[string]
+export type GovernanceData = z.infer<typeof GovernanceDataSchema>
 
 async function fetchGovernance(): Promise<GovernanceData> {
   const resp = await fetch('/governance.json')
   if (!resp.ok) throw new Error('Failed to fetch governance')
-  return resp.json()
+  const json = await resp.json()
+  const parsed = GovernanceDataSchema.safeParse(json)
+  if (!parsed.success) {
+    console.error('[Governance] validation failed:', parsed.error.issues)
+    throw new Error('Invalid governance data from server')
+  }
+  return parsed.data
 }
 
 export function useGovernance() {
@@ -32,6 +22,7 @@ export function useGovernance() {
     queryKey: ['governance'],
     queryFn: fetchGovernance,
     refetchInterval: 30_000,
-    staleTime: 15_000,
+    staleTime: 25_000,
+    gcTime: 300_000,
   })
 }

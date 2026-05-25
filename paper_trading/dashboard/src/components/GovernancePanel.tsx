@@ -8,8 +8,42 @@ function hasTrades(state: { metrics?: { trade_log?: unknown[] } }): boolean {
 }
 
 export default function GovernancePanel() {
-  const { data } = usePortfolioState()
+  const { data, isPending, isError } = usePortfolioState()
   const assets = data?.assets ?? {}
+
+  if (isPending) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="Calibration Governance" accent="indigo" />
+        <div className="grid grid-cols-1 gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 animate-pulse">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="h-4 w-16 bg-panel rounded" />
+                <div className="h-3 w-20 bg-panel rounded" />
+              </div>
+              <div className="flex gap-4">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div key={j} className="h-3 w-24 bg-panel rounded" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    )
+  }
+
+  if (isError) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="Calibration Governance" accent="indigo" />
+        <div className="flex flex-col items-center justify-center py-6 gap-2">
+          <span className="text-xs text-gov-red/80">Failed to load governance panel</span>
+        </div>
+      </Panel>
+    )
+  }
 
   const entries = Object.entries(assets).sort(([a], [b]) => {
     if (a === '^DJI' || a === 'DJI') return -1
@@ -20,7 +54,16 @@ export default function GovernancePanel() {
   const active = entries.filter(([, s]) => hasTrades(s))
   const init = entries.filter(([, s]) => !hasTrades(s))
 
-  if (entries.length === 0) return null
+  if (entries.length === 0) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="Calibration Governance" accent="indigo" />
+        <div className="flex flex-col items-center justify-center py-6 gap-2">
+          <span className="text-xs text-tertiary">No asset data available yet</span>
+        </div>
+      </Panel>
+    )
+  }
 
   return (
     <Panel className="p-4">

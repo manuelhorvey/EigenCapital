@@ -1,43 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
+import { HealthResponseSchema } from '../lib/schemas'
 import { useMarketClosed } from './useMarketClosed'
+import type { z } from 'zod'
 
-export interface HealthComponent {
-  validity: number
-  drift: number
-  pnl_stability: number
-  shadow_agreement: number
-  stress_robustness: number
-}
-
-export interface AssetHealth {
-  asset: string
-  health_score: number
-  health_label: string
-  health_color: string
-  components: HealthComponent
-  limiting_factors: { component: string; score: number }[]
-  validity_state: string
-}
-
-export interface SystemHealth {
-  mean_health_score: number
-  n_assets: number
-  healthiest_asset: string | null
-  weakest_asset: string | null
-  n_healthy: number
-  n_degraded: number
-  n_critical: number
-}
-
-interface HealthResponse {
-  assets: Record<string, AssetHealth>
-  system_health: SystemHealth
-}
+export type HealthComponent = z.infer<typeof HealthResponseSchema>['assets'][string]['components']
+export type AssetHealth = z.infer<typeof HealthResponseSchema>['assets'][string]
+export type SystemHealth = z.infer<typeof HealthResponseSchema>['system_health']
+export type HealthResponse = z.infer<typeof HealthResponseSchema>
 
 async function fetchHealth(): Promise<HealthResponse> {
   const res = await fetch('/health.json')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+  const json = await res.json()
+  const parsed = HealthResponseSchema.safeParse(json)
+  if (!parsed.success) {
+    console.error('[Health] validation failed:', parsed.error.issues)
+    throw new Error('Invalid health data from server')
+  }
+  return parsed.data
 }
 
 export function useHealthScores() {

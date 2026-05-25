@@ -28,19 +28,19 @@ export default {
           100: '#2a3040',
         },
         'gov-green': {
-          DEFAULT: '#34d399',
-          muted: 'rgba(52, 211, 153, 0.12)',
-          muted2: 'rgba(52, 211, 153, 0.06)',
+          DEFAULT: '#22c55e',
+          muted: 'rgba(34, 197, 94, 0.12)',
+          muted2: 'rgba(34, 197, 94, 0.06)',
         },
         'gov-yellow': {
-          DEFAULT: '#fbbf24',
-          muted: 'rgba(251, 191, 36, 0.12)',
-          muted2: 'rgba(251, 191, 36, 0.06)',
+          DEFAULT: '#eab308',
+          muted: 'rgba(234, 179, 8, 0.12)',
+          muted2: 'rgba(234, 179, 8, 0.06)',
         },
         'gov-red': {
-          DEFAULT: '#f87171',
-          muted: 'rgba(248, 113, 113, 0.12)',
-          muted2: 'rgba(248, 113, 113, 0.06)',
+          DEFAULT: '#ef4444',
+          muted: 'rgba(239, 68, 68, 0.12)',
+          muted2: 'rgba(239, 68, 68, 0.06)',
         },
         'gov-init': {
           DEFAULT: '#64748b',

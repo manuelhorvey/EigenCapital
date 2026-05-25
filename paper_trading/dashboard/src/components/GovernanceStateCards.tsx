@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { useGovernance } from '../hooks/useGovernance'
@@ -37,6 +37,13 @@ function narrRegimeColor(regime: string | null): string {
 
 function Dot({ color }: { color: string }) {
   return <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${color}`} />
+}
+
+function validityStateColor(state: string): string {
+  if (state === 'GREEN' || state === 'green') return 'text-gov-green bg-gov-green-muted border-gov-green/20'
+  if (state === 'YELLOW' || state === 'yellow' || state === 'amber') return 'text-gov-yellow bg-gov-yellow-muted border-gov-yellow/20'
+  if (state === 'RED' || state === 'red') return 'text-gov-red bg-gov-red-muted border-gov-red/20'
+  return 'text-gov-init bg-gov-init-muted border-gov-init/20'
 }
 
 function GovernanceStateCard({
@@ -81,17 +88,21 @@ function GovernanceStateCard({
   )
 
   return (
-    <div className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 text-[11px] text-secondary hover:border-strong/80 transition-colors">
+    <div className={`bg-panel/80 border rounded-lg px-3 py-2.5 text-[11px] text-secondary hover:border-strong/80 transition-colors ${state.halted ? 'border-l-2 border-l-gov-red border-default' : 'border-default'}`}>
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-primary font-mono">{asset}</span>
+          <span className={`text-2xs font-bold px-1.5 py-0.5 rounded border ${validityStateColor(state.validity_state)}`}>
+            {state.validity_state}
+          </span>
           {state.halted && (
-            <span className="text-2xs font-bold text-gov-red bg-gov-red-muted px-1.5 py-0.5 rounded border border-gov-red/20">
+            <span className="flex items-center gap-1 text-2xs font-bold text-gov-red bg-gov-red-muted px-1.5 py-0.5 rounded border border-gov-red/20" title="Trading halted by governance rules">
+              <span className="w-1.5 h-1.5 rounded-full bg-gov-red state-pulse-red" />
               HALTED
             </span>
           )}
           {state.floor_active && (
-            <span className="text-2xs font-bold text-gov-yellow bg-gov-yellow-muted px-1.5 py-0.5 rounded border border-gov-yellow/20">
+            <span className="text-2xs font-bold text-gov-yellow bg-gov-yellow-muted px-1.5 py-0.5 rounded border border-gov-yellow/20" title="Size scalar floored at 0.30x">
               FLOOR
             </span>
           )}
@@ -114,11 +125,27 @@ function GovernanceStateCard({
         <span className="text-tertiary text-center">Size</span>
 
         {rows.map(r => (
-          <>
-            <span key={`${r.label}-label`} className="text-tertiary font-sans">{r.label}</span>
-            <span key={`${r.label}-sl`} className={`text-center ${r.slColor}`}>{r.sl.toFixed(2)}x</span>
-            <span key={`${r.label}-size`} className={`text-center ${r.sizeColor}`}>{r.size.toFixed(2)}x</span>
-          </>
+          <React.Fragment key={r.label}>
+            <span className="text-tertiary font-sans">{r.label}</span>
+            <span className={`text-center ${r.slColor}`}>{r.sl.toFixed(2)}x</span>
+            <span className={`text-center ${r.sizeColor}`}>{r.size.toFixed(2)}x</span>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function GovernanceCardSkeleton() {
+  return (
+    <div className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 animate-pulse">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="h-4 w-16 bg-panel rounded" />
+        <div className="h-3 w-20 bg-panel rounded" />
+      </div>
+      <div className="grid grid-cols-3 gap-1">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="h-3 bg-panel rounded" />
         ))}
       </div>
     </div>
@@ -126,9 +153,33 @@ function GovernanceStateCard({
 }
 
 export default function GovernanceStateCards() {
-  const { data, isPending } = useGovernance()
+  const { data, isPending, isError, error } = useGovernance()
 
-  if (isPending) return null
+  if (isPending) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="Governance State" accent="indigo" />
+        <div className="grid grid-cols-1 gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <GovernanceCardSkeleton key={i} />
+          ))}
+        </div>
+      </Panel>
+    )
+  }
+
+  if (isError) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="Governance State" accent="indigo" />
+        <div className="flex flex-col items-center justify-center py-6 gap-2">
+          <span className="text-xs text-gov-red/80">Failed to load governance data</span>
+          <span className="text-2xs text-muted font-mono">{error?.message}</span>
+        </div>
+      </Panel>
+    )
+  }
+
   if (!data) return null
 
   const entries = Object.entries(data).sort(([a], [b]) => a.localeCompare(b))

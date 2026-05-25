@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceDot } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
 import ChartContainer from './ui/ChartContainer'
 import {
@@ -24,13 +24,19 @@ export default function EquityChart() {
   const { data, isPending } = useEquityHistory()
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
 
+  const MAX_POINTS = 200
+  const STARTING_CAPITAL = 97_000
+
   const chartData = useMemo(
     () =>
-      (data ?? []).map(d => ({
-        t: d.timestamp?.split('T')[0] ?? '',
-        portfolio: d.portfolio_value,
-        ...d.assets,
-      })),
+      (data ?? [])
+        .slice(-MAX_POINTS)
+        .filter(d => d.portfolio_value != null && !isNaN(d.portfolio_value))
+        .map(d => ({
+          t: d.timestamp?.split('T')[0] ?? '',
+          portfolio: d.portfolio_value,
+          ...d.assets,
+        })),
     [data],
   )
 
@@ -42,6 +48,21 @@ export default function EquityChart() {
   const firstVal = chartData.length > 0 ? chartData[0].portfolio : 0
   const lastVal = chartData.length > 0 ? chartData[chartData.length - 1].portfolio : 0
   const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
+
+  const minPoint = useMemo(() => {
+    if (chartData.length === 0) return null
+    let min = Infinity
+    let minIdx = 0
+    for (let i = 0; i < chartData.length; i++) {
+      if (chartData[i].portfolio < min) {
+        min = chartData[i].portfolio
+        minIdx = i
+      }
+    }
+    return { index: minIdx, value: min, date: chartData[minIdx].t }
+  }, [chartData])
+
+  const maxDD = minPoint && firstVal > 0 ? ((minPoint.value - firstVal) / firstVal) * 100 : 0
 
   const toggle = (name: string) => {
     setSelected(prev => {
@@ -110,7 +131,7 @@ export default function EquityChart() {
             dataKey="t"
             tick={axisTick}
             interval="preserveStartEnd"
-            axisLine={{ stroke: 'var(--color-border)', strokeWidth: 0.5 }}
+            axisLine={{ stroke: 'var(--color-border)' }}
             tickLine={false}
           />
           <YAxis
@@ -119,27 +140,40 @@ export default function EquityChart() {
             axisLine={false}
             tickLine={false}
             width={48}
-            tickFormatter={formatValue}
+            tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
           />
           <Tooltip
             contentStyle={tooltipStyle}
             labelStyle={tooltipLabelStyle}
-            formatter={(value: number, name: string) => [
-              `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-              name === 'portfolio' ? 'Portfolio' : name,
-            ]}
             itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '1px 0' }}
           />
-          {firstVal > 0 && (
+          {chartData.length > 0 && (
             <ReferenceLine
-              y={firstVal}
+              y={STARTING_CAPITAL}
               stroke="var(--color-text-muted)"
               strokeDasharray="4 4"
-              strokeWidth={0.5}
+              strokeWidth={1}
               label={{
                 value: 'Start',
                 position: 'insideBottomRight',
-                fill: 'var(--color-text-muted)',
+                fill: 'var(--color-text-tertiary)',
+                fontSize: 9,
+                fontFamily: 'var(--font-mono)',
+              }}
+            />
+          )}
+          {minPoint && selected.has('portfolio') && (
+            <ReferenceDot
+              x={minPoint.date}
+              y={minPoint.value}
+              r={4}
+              fill="var(--color-gov-red)"
+              stroke="var(--color-card)"
+              strokeWidth={2}
+              label={{
+                value: `Max DD ${maxDD.toFixed(1)}%`,
+                position: 'bottom',
+                fill: 'var(--color-gov-red)',
                 fontSize: 9,
                 fontFamily: 'var(--font-mono)',
               }}
@@ -153,8 +187,9 @@ export default function EquityChart() {
               fill={getGradientFill()}
               fillOpacity={1}
               strokeWidth={2}
-              name="portfolio"
+              name="Portfolio"
               dot={false}
+              isAnimationActive={false}
               activeDot={{ stroke: CHART_PRIMARY, strokeWidth: 2, r: 4, fill: 'var(--color-card)' }}
             />
           )}
@@ -170,6 +205,7 @@ export default function EquityChart() {
                 strokeWidth={1.5}
                 name={a}
                 dot={false}
+                isAnimationActive={false}
                 activeDot={{ stroke: CHART_PALETTE[i % CHART_PALETTE.length], strokeWidth: 2, r: 3, fill: 'var(--color-card)' }}
               />
             ) : null,

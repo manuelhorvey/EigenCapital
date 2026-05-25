@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 interface SectionHeaderProps {
   title: string
+  subtitle?: string
   accent?: 'emerald' | 'blue' | 'purple' | 'amber' | 'indigo' | 'neutral'
   meta?: ReactNode
   className?: string
@@ -25,6 +26,7 @@ const titleSize = {
 
 export default function SectionHeader({
   title,
+  subtitle,
   accent = 'emerald',
   meta,
   className = '',
@@ -41,7 +43,10 @@ export default function SectionHeader({
     >
       <div className="flex items-center gap-2 min-w-0">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${accentDot[accent]}`} />
-        <h2 className={[titleSize[size], 'truncate'].join(' ')}>{title}</h2>
+        <div className="min-w-0">
+          <h2 className={[titleSize[size], 'truncate'].join(' ')}>{title}</h2>
+          {subtitle && <p className="text-[10px] text-tertiary font-mono truncate">{subtitle}</p>}
+        </div>
       </div>
       {meta != null && <div className="shrink-0">{meta}</div>}
     </div>

@@ -19,6 +19,10 @@
   --color-text-tertiary: #6b7280;
   --color-text-muted: #9ca3af;
   --color-glass: rgba(255, 255, 255, 0.88);
+  --color-gov-green: #34d399;
+  --color-gov-yellow: #fbbf24;
+  --color-gov-red: #f87171;
+  --color-gov-init: #64748b;
   --gradient-start: #ffffff;
   --gradient-mid: #f8f9fb;
   --gradient-end: #f0f2f6;
@@ -41,6 +45,10 @@
   --color-text-tertiary: #64748b;
   --color-text-muted: #475569;
   --color-glass: rgba(12, 13, 18, 0.92);
+  --color-gov-green: #34d399;
+  --color-gov-yellow: #fbbf24;
+  --color-gov-red: #f87171;
+  --color-gov-init: #64748b;
   --gradient-start: #0c0d12;
   --gradient-mid: #111318;
   --gradient-end: #08090c;
@@ -139,6 +147,10 @@
     @apply text-sm font-semibold text-primary tracking-tight;
   }
 
+  .sub-section-title {
+    @apply text-xs font-medium text-tertiary tracking-wide uppercase;
+  }
+
   .glass {
     background: var(--color-glass);
     backdrop-filter: blur(14px);
@@ -212,7 +224,15 @@
   }
 
   .table-header {
-    @apply text-[10px] font-semibold uppercase tracking-wider text-tertiary;
+    @apply text-[10px] font-semibold uppercase tracking-wide text-tertiary;
+  }
+
+  .sort-header {
+    @apply cursor-pointer select-none hover:text-secondary transition-colors duration-150;
+  }
+
+  .sort-header:hover {
+    color: var(--color-text-secondary);
   }
 
   .table-row-hover {
@@ -252,5 +272,55 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .panel-accent {
+    position: relative;
+  }
+
+  .panel-accent::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+
+  .panel-accent-green::before { background-color: var(--color-gov-green); }
+  .panel-accent-yellow::before { background-color: var(--color-gov-yellow); }
+  .panel-accent-red::before { background-color: var(--color-gov-red); }
+  .panel-accent-init::before { background-color: var(--color-gov-init); }
+
+  .state-pulse-red {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.5);
+    animation: state-pulse-red 2s infinite;
+  }
+
+  @keyframes state-pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(248, 113, 113, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+  }
+
+  .state-pulse-green {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
+    animation: state-pulse-green 3s infinite;
+  }
+
+  @keyframes state-pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  }
+
+  .anchor-nav {
+    scroll-margin-top: 5rem;
+  }
+
+  .data-fetching {
+    opacity: 0.7;
+    transition: opacity 200ms ease;
   }
 }

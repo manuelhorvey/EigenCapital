@@ -1,6 +1,7 @@
 import type { AssetState } from '../types/portfolio'
 import { ASSET_LABEL_PARAMS, LABEL_HORIZON } from '../lib/registry'
 import StatusBadge from './ui/StatusBadge'
+import StatePill from './ui/StatePill'
 import {
   prematureRateState,
   governanceText,
@@ -48,11 +49,17 @@ export default function GovernanceRow({ asset, state }: GovernanceRowProps) {
   const classification: GovernanceState = prematureRateState(prematureRate)
 
   return (
-    <div className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 text-[11px] text-secondary hover:border-strong/80 transition-colors">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <div className="bg-panel/80 border border-default rounded-lg px-3 py-2.5 text-[11px] text-secondary hover:border-strong/80 transition-colors relative overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-sm" style={{
+        backgroundColor: classification === 'GREEN' ? 'var(--color-gov-green)'
+          : classification === 'YELLOW' ? 'var(--color-gov-yellow)'
+          : classification === 'RED' ? 'var(--color-gov-red)'
+          : 'var(--color-gov-init)'
+      }} />
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2 ml-1.5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-primary font-mono">{asset}</span>
-          <StatusBadge state={classification} />
+          <StatusBadge state={classification} pulse />
         </div>
         <span className="text-tertiary">
           Exposure{' '}
@@ -62,7 +69,7 @@ export default function GovernanceRow({ asset, state }: GovernanceRowProps) {
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-mono text-2xs sm:text-[11px]">
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-mono text-2xs sm:text-[11px] ml-1.5">
         <div>
           <span className="text-tertiary font-sans">Jaccard (10d) </span>
           <span className={state.feature_stability_jaccard != null ? 'text-accent-indigo' : 'text-muted'}>

@@ -6,7 +6,7 @@ import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 
 export default function PortfolioSummary() {
-  const { data, isPending, isError } = usePortfolioState()
+  const { data, isPending, isError, isFetching } = usePortfolioState()
   const p = data?.portfolio
 
   const cards = useMemo(() => {
@@ -20,6 +20,7 @@ export default function PortfolioSummary() {
         sub: `Capital $${(p.capital ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         valueClassName: 'text-gov-green',
         accent: 'emerald' as const,
+        trend: (p.total_return ?? 0) > 0 ? ('up' as const) : (p.total_return ?? 0) < 0 ? ('down' as const) : undefined,
       },
       {
         label: 'Total Return',
@@ -27,6 +28,7 @@ export default function PortfolioSummary() {
         sub: `Unrealized $${(p.unrealized_pnl ?? 0).toFixed(2)}`,
         valueClassName: posReturn ? 'text-gov-green' : 'text-gov-red',
         accent: posReturn ? ('emerald' as const) : ('amber' as const),
+        trend: posReturn ? ('up' as const) : ('down' as const),
       },
       {
         label: 'Realized P&L',
@@ -34,6 +36,7 @@ export default function PortfolioSummary() {
         sub: `Realized $${(p.realized_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         valueClassName: posRealized ? 'text-gov-green' : 'text-gov-red',
         accent: posRealized ? ('emerald' as const) : ('amber' as const),
+        trend: posRealized ? ('up' as const) : ('down' as const),
       },
       {
         label: 'Positions',
@@ -58,7 +61,7 @@ export default function PortfolioSummary() {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-fetching={isFetching ? 'true' : undefined}>
       {cards.map(c => (
         <MetricCard
           key={c.label}
@@ -67,6 +70,7 @@ export default function PortfolioSummary() {
           sub={c.sub}
           valueClassName={c.valueClassName}
           accent={c.accent}
+          trend={c.trend}
         />
       ))}
     </div>

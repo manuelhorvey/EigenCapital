@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Sun, Moon, RefreshCw, Calendar, Clock, TrendingUp, Pause } from 'lucide-react'
+import { Sun, Moon, RefreshCw, TrendingUp, Pause, Wifi } from 'lucide-react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import { useSessionClock } from '../hooks/useSessionClock'
 import { useNarrative } from '../hooks/useNarrative'
@@ -19,9 +19,7 @@ function ConfirmButton() {
         try {
           const resp = await fetch('/narrative/confirm', { method: 'POST' })
           if (resp.ok) await queryClient.invalidateQueries({ queryKey: ['narrative'] })
-        } catch {
-          // silent
-        }
+        } catch { /* silent */ }
         setConfirming(false)
       }}
       className="flex items-center gap-1 px-2 py-1 rounded-md border border-gov-yellow/25 bg-gov-yellow-muted text-gov-yellow text-2xs font-medium hover:bg-gov-yellow/20 transition-colors active:scale-95 disabled:opacity-50"
@@ -35,7 +33,7 @@ function ConfirmButton() {
 
 export default function Header() {
   const { dataUpdatedAt, isError, isFetching, data } = usePortfolioState()
-  const { data: narrative, refetch: refetchNarrative } = useNarrative()
+  const { data: narrative } = useNarrative()
   const { data: liquidity } = useLiquidity()
   const { timeStr, dateStr, marketsOpen } = useSessionClock()
   const [dark, setDark] = useState(() => localStorage.getItem('theme') !== 'light')
@@ -68,13 +66,7 @@ export default function Header() {
 
   const lastUpdate = data?.engine_status?.last_update
   const lastRefreshStr = lastUpdate
-    ? (() => {
-        try {
-          return format(new Date(lastUpdate), 'MMM dd, HH:mm')
-        } catch {
-          return ''
-        }
-      })()
+    ? (() => { try { return format(new Date(lastUpdate), 'MMM dd, HH:mm') } catch { return '' } })()
     : ''
 
   const handleRefresh = async () => {
@@ -85,58 +77,40 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-30 glass glass-border">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="max-w-[90rem] mx-auto px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-emerald to-emerald-700 flex items-center justify-center shadow-glow-emerald">
-            <TrendingUp className="w-4 h-4 text-surface" strokeWidth={2.25} />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-accent-emerald to-emerald-700 flex items-center justify-center shadow-glow-emerald shrink-0">
+            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface" strokeWidth={2.25} />
           </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-primary leading-none">QuantForge</h1>
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold tracking-tight text-primary leading-none truncate">QuantForge</h1>
             <p className="text-2xs text-muted uppercase tracking-widest mt-0.5 hidden sm:block">Paper Trading</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors ${statusClass}`}>
             {marketsClosed && !isDisconnected ? (
               <Pause className="w-2.5 h-2.5" strokeWidth={2.5} />
             ) : (
-              <>
-                <span className={`relative inline-flex w-1.5 h-1.5 rounded-full bg-current ${isLive ? 'animate-pulse' : ''}`}>
-                  {isLive && (
-                    <span className="absolute inset-0 rounded-full bg-current animate-ping opacity-30" />
-                  )}
-                </span>
-              </>
+              <span className={`relative inline-flex w-1.5 h-1.5 rounded-full bg-current ${isLive ? 'animate-pulse' : ''}`}>
+                {isLive && <span className="absolute inset-0 rounded-full bg-current animate-ping opacity-30" />}
+              </span>
             )}
             <span className="text-2xs font-semibold font-mono uppercase tracking-wide">{statusText}</span>
-            {isFetching && (
-              <RefreshCw className="w-2.5 h-2.5 animate-spin opacity-70" strokeWidth={2.5} />
-            )}
+            {isFetching && <RefreshCw className="w-2 h-2 animate-spin opacity-70" strokeWidth={2.5} />}
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-2xs text-secondary border-l border-default pl-3">
-            <Calendar className="w-3 h-3 text-muted shrink-0" strokeWidth={1.5} />
-            <span>{dateStr}</span>
-            <Clock className="w-3 h-3 text-muted shrink-0 ml-1" strokeWidth={1.5} />
+          <div className="hidden sm:flex items-center gap-1.5 text-2xs text-secondary border-l border-default pl-2">
             <span className="font-mono tabular-nums">{timeStr}</span>
-            <span
-              className={`px-1.5 py-0.5 rounded text-2xs font-bold tracking-wider ${
-                marketsClosed
-                  ? 'bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/20'
-                  : 'bg-gov-green-muted text-gov-green border border-gov-green/20'
-              }`}
-            >
+            <span className="text-tertiary">·</span>
+            <span className={marketsClosed ? 'text-gov-yellow font-semibold' : 'text-gov-green font-semibold'}>
               {marketsClosed ? 'CLSD' : 'OPEN'}
             </span>
-            {marketsClosed && (
-              <span className="text-tertiary ml-1 italic">weekend — no refresh</span>
-            )}
           </div>
 
           {lastRefreshStr && (
-            <div className="hidden md:flex items-center gap-1 text-2xs text-tertiary font-mono tabular-nums">
-              <Clock className="w-3 h-3 text-muted shrink-0" strokeWidth={1.5} />
+            <div className="hidden md:flex items-center gap-1 text-2xs text-tertiary font-mono tabular-nums border-l border-default pl-2">
               <span className="text-muted">LAST</span>
               <span className="text-secondary">{lastRefreshStr}</span>
             </div>
@@ -157,9 +131,7 @@ export default function Header() {
             </div>
           )}
 
-          {narrative?.needs_confirmation && (
-            <ConfirmButton />
-          )}
+          {narrative?.needs_confirmation && <ConfirmButton />}
 
           {narrative?.active && !narrative.needs_confirmation && !narrative.fetch_error && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-default/20 bg-panel text-2xs text-tertiary font-medium">
@@ -170,9 +142,7 @@ export default function Header() {
                 'bg-muted'
               }`} />
               {String(narrative.active.overall_regime).replace(/_/g, ' ').toUpperCase()}
-              {narrative.stale && (
-                <span className="text-gov-yellow ml-1 text-[10px]">(STALE)</span>
-              )}
+              {narrative.stale && <span className="text-gov-yellow ml-1 text-[10px]">(STALE)</span>}
             </div>
           )}
 
@@ -189,8 +159,7 @@ export default function Header() {
               ) : (
                 <span className="w-1.5 h-1.5 rounded-full bg-gov-yellow" />
               )}
-              LIQ&nbsp;
-              {Object.values(liquidity).some(l => l.regime === 'STRESSED') ? 'STRSD' : 'THIN'}
+              LIQ {Object.values(liquidity).some(l => l.regime === 'STRESSED') ? 'STRSD' : 'THIN'}
             </div>
           )}
 
@@ -201,10 +170,7 @@ export default function Header() {
             className="p-1.5 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors disabled:opacity-40 active:scale-95"
             title="Refresh all data"
           >
-            <RefreshCw
-              className={`w-3.5 h-3.5 text-secondary ${refreshing ? 'animate-spin' : ''}`}
-              strokeWidth={2}
-            />
+            <RefreshCw className={`w-3 h-3 text-secondary ${refreshing ? 'animate-spin' : ''}`} strokeWidth={2} />
           </button>
 
           <button
@@ -214,9 +180,9 @@ export default function Header() {
             title="Toggle theme"
           >
             {dark ? (
-              <Sun className="w-3.5 h-3.5 text-gov-yellow" strokeWidth={2} />
+              <Sun className="w-3 h-3 text-gov-yellow" strokeWidth={2} />
             ) : (
-              <Moon className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
+              <Moon className="w-3 h-3 text-tertiary" strokeWidth={2} />
             )}
           </button>
         </div>

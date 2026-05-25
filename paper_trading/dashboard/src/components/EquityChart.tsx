@@ -14,6 +14,12 @@ import {
   getGradientFill,
 } from './ui/chartTheme'
 
+function formatValue(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}k`
+  return v.toFixed(0)
+}
+
 export default function EquityChart() {
   const { data, isPending } = useEquityHistory()
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
@@ -33,6 +39,10 @@ export default function EquityChart() {
     return Object.keys(data[0].assets ?? {}).sort()
   }, [data])
 
+  const firstVal = chartData.length > 0 ? chartData[0].portfolio : 0
+  const lastVal = chartData.length > 0 ? chartData[chartData.length - 1].portfolio : 0
+  const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
+
   const toggle = (name: string) => {
     setSelected(prev => {
       const next = new Set(prev)
@@ -41,10 +51,6 @@ export default function EquityChart() {
       return next
     })
   }
-
-  const firstVal = chartData.length > 0 ? chartData[0].portfolio : 0
-  const lastVal = chartData.length > 0 ? chartData[chartData.length - 1].portfolio : 0
-  const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
 
   const legend = (
     <div className="flex flex-wrap gap-1.5 mb-3 -mt-1">
@@ -104,7 +110,7 @@ export default function EquityChart() {
             dataKey="t"
             tick={axisTick}
             interval="preserveStartEnd"
-            axisLine={{ stroke: 'var(--color-border)' }}
+            axisLine={{ stroke: 'var(--color-border)', strokeWidth: 0.5 }}
             tickLine={false}
           />
           <YAxis
@@ -113,13 +119,32 @@ export default function EquityChart() {
             axisLine={false}
             tickLine={false}
             width={48}
-            tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+            tickFormatter={formatValue}
           />
           <Tooltip
             contentStyle={tooltipStyle}
             labelStyle={tooltipLabelStyle}
+            formatter={(value: number, name: string) => [
+              `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              name === 'portfolio' ? 'Portfolio' : name,
+            ]}
             itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '1px 0' }}
           />
+          {firstVal > 0 && (
+            <ReferenceLine
+              y={firstVal}
+              stroke="var(--color-text-muted)"
+              strokeDasharray="4 4"
+              strokeWidth={0.5}
+              label={{
+                value: 'Start',
+                position: 'insideBottomRight',
+                fill: 'var(--color-text-muted)',
+                fontSize: 9,
+                fontFamily: 'var(--font-mono)',
+              }}
+            />
+          )}
           {selected.has('portfolio') && (
             <Area
               type="monotone"
@@ -128,7 +153,7 @@ export default function EquityChart() {
               fill={getGradientFill()}
               fillOpacity={1}
               strokeWidth={2}
-              name="Portfolio"
+              name="portfolio"
               dot={false}
               activeDot={{ stroke: CHART_PRIMARY, strokeWidth: 2, r: 4, fill: 'var(--color-card)' }}
             />

@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Search, ListFilter } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import { formatAssetPrice } from '../utils/format'
+import DataTable, { type ColumnDef } from './ui/DataTable'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { TableSkeleton } from './ui/Skeleton'
-import { governanceDot } from './ui/governance'
 
-function signalClass(signal?: string): string {
-  if (signal === 'BUY') return 'text-gov-green'
-  if (signal === 'SELL') return 'text-gov-red'
-  return 'text-muted'
+function signalPill(signal?: string): string {
+  if (signal === 'BUY') return 'signal-pill signal-pill-buy'
+  if (signal === 'SELL') return 'signal-pill signal-pill-sell'
+  return 'signal-pill signal-pill-flat'
 }
 
 function confClass(conf: number): string {
@@ -26,9 +26,20 @@ function ddClass(dd: number): string {
   return 'text-gov-red'
 }
 
+interface SignalRow {
+  name: string
+  signal: string
+  confidence: number
+  price: number
+  alloc: number
+  ret: number
+  dd: number
+}
+
 export default function SignalsTable() {
   const [search, setSearch] = useState('')
   const { data, isPending } = usePortfolioState()
+
   const rows = useMemo(() => {
     if (!data?.assets) return []
     return Object.entries(data.assets)
@@ -38,13 +49,80 @@ export default function SignalsTable() {
         const sig = asset.last_signal
         const m = asset.metrics
         const alloc = data.portfolio?.allocations?.[name] ?? 0
-        return { name, sig, m, alloc }
+        return {
+          name,
+          signal: sig?.signal ?? 'FLAT',
+          confidence: sig?.confidence ?? 0,
+          price: sig?.close_price ?? m?.current_price ?? 0,
+          alloc,
+          ret: m?.mtm_return ?? 0,
+          dd: m?.drawdown ?? 0,
+        }
       })
   }, [data, search])
 
+  const columns: ColumnDef<SignalRow>[] = useMemo(() => [
+    {
+      key: 'name',
+      label: 'Asset',
+      sortable: true,
+      render: r => <span className="font-semibold text-primary text-xs font-mono">{r.name}</span>,
+    },
+    {
+      key: 'signal',
+      label: 'Signal',
+      sortable: true,
+      render: r => <span className={signalPill(r.signal)}>{r.signal === 'BUY' ? 'LONG' : r.signal === 'SELL' ? 'SHORT' : 'FLAT'}</span>,
+    },
+    {
+      key: 'confidence',
+      label: 'Conf',
+      align: 'right',
+      sortable: true,
+      sortKey: r => r.confidence,
+      render: r => <span className={`font-mono tabular-nums ${confClass(r.confidence)}`}>{r.confidence.toFixed(0)}</span>,
+    },
+    {
+      key: 'price',
+      label: 'Price',
+      align: 'right',
+      sortable: true,
+      sortKey: r => r.price,
+      render: r => <span className="font-mono text-secondary tabular-nums">{formatAssetPrice(r.price)}</span>,
+    },
+    {
+      key: 'alloc',
+      label: 'Alloc',
+      align: 'right',
+      sortable: true,
+      sortKey: r => r.alloc,
+      render: r => <span className="font-mono text-tertiary tabular-nums">{(r.alloc * 100).toFixed(0)}%</span>,
+    },
+    {
+      key: 'ret',
+      label: 'Ret',
+      align: 'right',
+      sortable: true,
+      sortKey: r => r.ret,
+      render: r => (
+        <span className={`font-mono tabular-nums ${r.ret >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+          {r.ret.toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'dd',
+      label: 'DD',
+      align: 'right',
+      sortable: true,
+      sortKey: r => r.dd,
+      render: r => <span className={`font-mono tabular-nums ${ddClass(r.dd)}`}>{r.dd.toFixed(2)}</span>,
+    },
+  ], [])
+
   if (isPending) return <TableSkeleton rows={6} />
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && !search) {
     return (
       <Panel className="p-4">
         <SectionHeader title="Signals" accent="emerald" />
@@ -54,7 +132,7 @@ export default function SignalsTable() {
   }
 
   return (
-    <Panel className="overflow-hidden">
+    <Panel className="overflow-hidden p-3.5 sm:p-4">
       <SectionHeader
         title="Signals"
         accent="emerald"
@@ -74,65 +152,19 @@ export default function SignalsTable() {
           </div>
         }
       />
-      <div className="overflow-x-auto -mx-1">
-        <table className="w-full text-[11px] min-w-[500px]">
-          <thead>
-            <tr className="border-b border-default">
-              <th className="table-header text-left py-2 pr-3">Asset</th>
-              <th className="table-header text-left py-2 pr-3">Signal</th>
-              <th className="table-header text-right py-2 pr-3">Conf</th>
-              <th className="table-header text-right py-2 pr-3">Price</th>
-              <th className="table-header text-right py-2 pr-3">Alloc</th>
-              <th className="table-header text-right py-2 pr-3">Ret</th>
-              <th className="table-header text-right py-2">DD</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ name, sig, m, alloc }, i) => (
-              <tr
-                key={name}
-                className={`border-b border-default/40 table-row-hover ${
-                  i % 2 === 1 ? 'bg-panel/30' : ''
-                }`}
-              >
-                <td className="py-2 pr-3">
-                  <span className="font-semibold text-primary text-xs font-mono">{name}</span>
-                </td>
-                <td className="py-2 pr-3">
-                  <span className={`signal-pill ${
-                    sig?.signal === 'BUY'
-                      ? 'signal-pill-buy'
-                      : sig?.signal === 'SELL'
-                        ? 'signal-pill-sell'
-                        : 'signal-pill-flat'
-                  }`}>
-                    {sig?.signal === 'BUY' ? 'LONG' : sig?.signal === 'SELL' ? 'SHORT' : 'FLAT'}
-                  </span>
-                </td>
-                <td className={`py-2 pr-3 text-right font-mono tabular-nums ${confClass(sig?.confidence ?? 0)}`}>
-                  {(sig?.confidence ?? 0).toFixed(0)}
-                </td>
-                <td className="py-2 pr-3 text-right font-mono text-secondary tabular-nums">
-                  {formatAssetPrice(sig?.close_price)}
-                </td>
-                <td className="py-2 pr-3 text-right font-mono text-tertiary tabular-nums">
-                  {(alloc * 100).toFixed(0)}%
-                </td>
-                <td
-                  className={`py-2 pr-3 text-right font-mono tabular-nums ${
-                    (m?.mtm_return ?? 0) >= 0 ? 'text-gov-green' : 'text-gov-red'
-                  }`}
-                >
-                  {(m?.mtm_return ?? 0).toFixed(2)}
-                </td>
-                <td className={`py-2 text-right font-mono tabular-nums ${ddClass(m?.drawdown ?? 0)}`}>
-                  {(m?.drawdown ?? 0).toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {rows.length === 0 ? (
+        <EmptyState message="No assets match filter" compact filtered />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={rows}
+          keyExtractor={r => r.name}
+          sortable
+          defaultSortKey="confidence"
+          defaultSortDir="desc"
+          storageKey="signals"
+        />
+      )}
     </Panel>
   )
 }

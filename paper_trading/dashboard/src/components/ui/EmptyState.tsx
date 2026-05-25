@@ -1,19 +1,21 @@
-import { Inbox } from 'lucide-react'
+import { Inbox, SearchSlash } from 'lucide-react'
 
 interface EmptyStateProps {
   message: string
   hint?: string
   compact?: boolean
+  filtered?: boolean
 }
 
-export default function EmptyState({ message, hint, compact }: EmptyStateProps) {
+export default function EmptyState({ message, hint, compact, filtered }: EmptyStateProps) {
+  const Icon = filtered ? SearchSlash : Inbox
   return (
     <div
       className={`flex flex-col items-center justify-center text-center ${
         compact ? 'py-10 px-4' : 'py-16 px-6'
       }`}
     >
-      <Inbox
+      <Icon
         className={`text-tertiary/40 mb-2 ${compact ? 'w-5 h-5' : 'w-7 h-7'}`}
         strokeWidth={1.25}
       />

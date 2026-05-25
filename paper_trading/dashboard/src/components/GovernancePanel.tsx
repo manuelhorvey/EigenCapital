@@ -26,6 +26,7 @@ export default function GovernancePanel() {
     <Panel className="p-4">
       <SectionHeader
         title="Calibration Governance"
+        subtitle="Per-asset Jaccard stability, meta-label decisions, SL/TP alignment, premature stop rate"
         accent="indigo"
         meta={
           <span className="text-[10px] text-tertiary font-mono bg-panel px-2 py-0.5 rounded border border-default tabular-nums">

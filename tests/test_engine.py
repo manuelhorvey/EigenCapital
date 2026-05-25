@@ -196,6 +196,7 @@ class TestPaperTradingEngineState:
                 exposure_multiplier=1.0,
             ),
             refresh_price=lambda: None,
+            mtm_value=100_000,
             get_metrics=lambda: {
                 "current_value": 100_000,
                 "current_price": 100.0,

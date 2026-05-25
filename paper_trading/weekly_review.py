@@ -57,7 +57,7 @@ def _compute_trade_metrics(df: pd.DataFrame) -> dict:
     gross_profit = float(winners.sum()) if not winners.empty else 0.0
     gross_loss = float(abs(losers.sum())) if not losers.empty else 0.0
     profit_factor = (
-        _safe_div(gross_profit, gross_loss) if gross_loss > 0 else (None if gross_profit == 0 else float("inf"))
+        _safe_div(gross_profit, gross_loss) if gross_loss > 0 else None
     )
 
     avg_r = float(returns.mean())

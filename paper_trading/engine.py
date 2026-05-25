@@ -5,6 +5,9 @@ from enum import Enum
 
 import pandas as pd
 import pytz
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from features.fxstreet_fetcher import (
     confirm_pending_narrative,

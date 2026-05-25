@@ -55,6 +55,7 @@ dependencies = [
     "statsmodels>=0.14",
     "shap>=0.42",
     "pyyaml>=6.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

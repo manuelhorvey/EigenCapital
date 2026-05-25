@@ -202,16 +202,14 @@ class PaperTradingEngine:
     def _restore_saved_position(asset, pos_data: dict) -> None:
         pos_dict = pos_data.get("position")
         if pos_dict:
-            intent = PositionIntent.from_price_and_vol(
+            intent = PositionIntent(
                 side=pos_dict["side"],
                 entry_price=pos_dict["entry"],
                 entry_date=pos_dict["entry_date"],
+                stop_loss=pos_dict["sl"],
+                take_profit=pos_dict["tp"],
                 vol=pos_dict["vol"],
-                sl_mult=pos_dict.get("sl_mult", asset.sl_mult),
-                tp_mult=pos_dict.get("tp_mult", asset.tp_mult),
             )
-            pos_dict["sl"] = intent.stop_loss
-            pos_dict["tp"] = intent.take_profit
             asset.position = pos_dict
             asset.pos_mgr.open(intent)
         cv = pos_data.get("current_value")

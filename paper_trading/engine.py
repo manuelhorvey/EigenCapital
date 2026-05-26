@@ -403,6 +403,13 @@ class PaperTradingEngine:
                 sat.deploy_capital(sat.max_capital)
                 logger.info("BTC satellite: deployed capital %.2f", sat.max_capital)
 
+            # Snapshot pre-exit satellite state for trade persistence
+            sat_entry = sat.entry_price
+            sat_entry_date = getattr(sat, "position_entry_date", None)
+            sat_entry_capital = getattr(sat, "_entry_capital", 0.0)
+            sat_stop = sat.stop_price
+            was_active = sat.position_active
+
             # Record return for satellite contribution metrics. Live P&L is
             # marked from entry capital so dashboard value follows BTC price.
             sat.record_return(current_return)
@@ -420,6 +427,30 @@ class PaperTradingEngine:
                     sat.open_position(entry_price=current_price, vol=vol)
                 elif not decision.allowed and sat.position_active:
                     sat.close_position(reason="GATE_CLOSED")
+
+            # Persist satellite trade if one just closed
+            if was_active and not sat.position_active and sat._last_exit_reason is not None:
+                exit_price = current_price
+                pnl_pct = (exit_price / sat_entry - 1.0) if sat_entry else 0.0
+                r_mult = pnl_pct / abs((exit_price - sat_stop) / sat_entry) if sat_stop and sat_entry else 0.0
+                entry_dt = str(sat_entry_date) if sat_entry_date else str(datetime.now(tz=ET).date())
+                exit_dt = str(datetime.now(tz=ET).date())
+                trade = {
+                    "asset": sat.name,
+                    "side": "long",
+                    "entry": round(float(sat_entry), 4) if sat_entry else None,
+                    "exit": round(float(exit_price), 4),
+                    "entry_date": entry_dt,
+                    "exit_date": exit_dt,
+                    "return": round(pnl_pct, 6),
+                    "pnl": round(pnl_pct * sat_entry_capital, 2),
+                    "total_pnl": round(pnl_pct * sat_entry_capital, 2),
+                    "reason": sat._last_exit_reason.lower(),
+                    "realized_r": round(r_mult, 4),
+                    "bars": 0,
+                }
+                self.state_store.append_trade(trade)
+                self.state_store.write_trade_outcomes_cache()
 
             logger.info(
                 "%s satellite: gate=%s, position=%s, value=%.2f%s",

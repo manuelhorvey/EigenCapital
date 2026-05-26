@@ -54,6 +54,7 @@ _CACHE_TTL: dict[str, float] = {
     "/risk-parity.json": 30.0,
     "/psi.json": 30.0,
     "/weekly-review.json": 30.0,
+    "/trade-outcomes.json": 5.0,
 }
 
 
@@ -513,6 +514,13 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
                             }
                 data = json.dumps(psi_data, indent=2, default=str)
                 _cache_set("/psi.json", data)
+                self._send_json(data)
+            elif path == "/trade-outcomes.json":
+                outcomes = _STORE.read_trade_outcomes()
+                if outcomes is None:
+                    outcomes = {"overall": {}, "by_asset": [], "updated_at": ""}
+                data = json.dumps(outcomes, indent=2, default=str)
+                _cache_set("/trade-outcomes.json", data)
                 self._send_json(data)
             elif path == "/weekly-review.json":
                 data = json.dumps(compute_weekly_review(_STORE), indent=2, default=str)

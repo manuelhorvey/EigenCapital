@@ -4,6 +4,7 @@ import logging
 import math
 import os
 from dataclasses import asdict, dataclass
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -64,6 +65,7 @@ class StateStore:
         self.confidence_bucket_path = os.path.join(self.live_dir, "confidence_buckets.parquet")
         self.equity_history_path = os.path.join(self.live_dir, "equity_history.json")
         self.review_log_path = os.path.join(self.live_dir, "review_log.json")
+        self.trade_outcomes_path = os.path.join(self.live_dir, "trade_outcomes.json")
         self.cache_dir = os.path.join(self.live_dir, "cache")
         os.makedirs(self.cache_dir, exist_ok=True)
         os.makedirs(self.live_dir, exist_ok=True)
@@ -127,6 +129,92 @@ class StateStore:
             return df[df["exit_date"] >= date].copy()
         except Exception:
             return pd.DataFrame(columns=columns)
+
+    def read_trade_outcomes(self) -> dict | None:
+        if not os.path.exists(self.trade_outcomes_path):
+            return None
+        try:
+            with open(self.trade_outcomes_path) as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def write_trade_outcomes_cache(self) -> None:
+        if not os.path.exists(self.trade_journal_path):
+            return
+        try:
+            df = pd.read_parquet(self.trade_journal_path)
+            if df.empty:
+                return
+
+            reason_col = "reason" if "reason" in df.columns else "exit_reason"
+            ret_col = "return" if "return" in df.columns else "pnl"
+            r_col = "realized_r" if "realized_r" in df.columns else None
+
+            df[reason_col] = (
+                df[reason_col]
+                .astype(str)
+                .str.lower()
+                .replace(
+                    {
+                        "sl_hit": "sl",
+                        "tp_hit": "tp",
+                        "gate_closed": "signal_flip",
+                    }
+                )
+            )
+            df[ret_col] = pd.to_numeric(df[ret_col], errors="coerce").fillna(0.0)
+
+            by_asset = []
+            for asset_name, group in df.groupby("asset"):
+                n = len(group)
+                tp = (group[reason_col] == "tp").sum()
+                sl = (group[reason_col] == "sl").sum()
+                flip = (group[reason_col] == "signal_flip").sum()
+                wins = (group[ret_col] > 0).sum()
+                total_profit = group[ret_col].clip(lower=0).sum()
+                total_loss = (-group[ret_col].clip(upper=0)).sum()
+                avg_r = float(group[r_col].mean()) if r_col and r_col in group else 0.0
+
+                by_asset.append(
+                    {
+                        "asset": asset_name,
+                        "n_trades": int(n),
+                        "tp_rate": round(float(tp) / n, 4) if n > 0 else 0.0,
+                        "sl_rate": round(float(sl) / n, 4) if n > 0 else 0.0,
+                        "signal_flip_rate": round(float(flip) / n, 4) if n > 0 else 0.0,
+                        "avg_r": round(avg_r, 4),
+                        "win_rate": round(float(wins) / n, 4) if n > 0 else 0.0,
+                        "profit_factor": round(float(total_profit / total_loss), 4) if total_loss > 0 else None,
+                    }
+                )
+
+            n_total = len(df)
+            tp_total = int((df[reason_col] == "tp").sum())
+            sl_total = int((df[reason_col] == "sl").sum())
+            flip_total = int((df[reason_col] == "signal_flip").sum())
+            wins_total = int((df[ret_col] > 0).sum())
+            profit_total = float(df[ret_col].clip(lower=0).sum())
+            loss_total = float((-df[ret_col].clip(upper=0)).sum())
+            avg_r_total = float(df[r_col].mean()) if r_col and r_col in df.columns else 0.0
+
+            payload = {
+                "overall": {
+                    "tp_rate": round(tp_total / n_total, 4) if n_total > 0 else 0.0,
+                    "sl_rate": round(sl_total / n_total, 4) if n_total > 0 else 0.0,
+                    "signal_flip_rate": round(flip_total / n_total, 4) if n_total > 0 else 0.0,
+                    "avg_r": round(avg_r_total, 4),
+                    "win_rate": round(wins_total / n_total, 4) if n_total > 0 else 0.0,
+                    "profit_factor": round(profit_total / loss_total, 4) if loss_total > 0 else None,
+                },
+                "by_asset": by_asset,
+                "updated_at": datetime.now().isoformat(),
+            }
+
+            with open(self.trade_outcomes_path, "w") as f:
+                json.dump(payload, f, indent=2)
+        except Exception as e:
+            logger.warning("Failed to write trade outcomes cache: %s", e)
 
     def append_confidence_bucket(self, bucket: dict) -> None:
         df = pd.DataFrame([bucket])

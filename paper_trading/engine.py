@@ -1,5 +1,6 @@
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
 
@@ -265,13 +266,16 @@ class PaperTradingEngine:
         pd_limit = get_config().portfolio_drawdown_limit
         results = {}
 
-        # Phase 1: Refresh prices and settle P&L for all assets
-        for name, asset in self.assets.items():
+        # Phase 1: Refresh prices and settle P&L for all assets (parallel)
+        def _refresh_asset(name: str, asset):
             try:
                 asset.refresh_price()
                 asset.update_pnl()
             except Exception as e:
                 logger.error("%s: price/pnl refresh failed: %s", name, e)
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(lambda item: _refresh_asset(*item), list(self.assets.items())))
 
         # Phase 2: Portfolio-level drawdown check
         mtm = sum(a.mtm_value for a in self.assets.values())
@@ -306,13 +310,16 @@ class PaperTradingEngine:
             self.last_update = datetime.now(tz=ET)
             return results
 
-        # Phase 3: Generate new signals for each asset
-        for name, asset in self.assets.items():
+        # Phase 3: Generate new signals for each asset (parallel)
+        def _generate_signal(name: str, asset):
             try:
-                signal = asset.generate_signal()
-                results[name] = signal
+                return name, asset.generate_signal()
             except Exception as e:
-                results[name] = {"asset": name, "error": str(e)}
+                return name, {"asset": name, "error": str(e)}
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            for n, sig in pool.map(lambda item: _generate_signal(*item), list(self.assets.items())):
+                results[n] = sig
 
         # Phase 3.5: Weekly narrative refresh + liquidity regime refresh
         self._refresh_narrative()
@@ -321,10 +328,16 @@ class PaperTradingEngine:
         if self._should_rebalance():
             self._rebalance_portfolio()
 
-        # Phase 4: Update validity-driven exposure multipliers
-        for name, asset in self.assets.items():
-            validity = asset.update_validity()
-            asset.pos_mgr.exposure_multiplier = validity.get("exposure", 1.0)
+        # Phase 4: Update validity-driven exposure multipliers (parallel)
+        def _update_validity(name: str, asset):
+            try:
+                validity = asset.update_validity()
+                asset.pos_mgr.exposure_multiplier = validity.get("exposure", 1.0)
+            except Exception as e:
+                logger.error("%s: validity update failed: %s", name, e)
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            pool.map(lambda item: _update_validity(*item), list(self.assets.items()))
 
         # ── Satellite run: evaluate gate, generate BTC signal ────────
         if self.satellite is not None:

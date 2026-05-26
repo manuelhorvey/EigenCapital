@@ -13,10 +13,9 @@ from monitoring.psi_monitor import PSIMonitor, PSISnapshot
 from monitoring.validity_state_machine import (
     ValidityStateMachine as _ValidityStateMachine,
 )
-from paper_trading import diagnostics as diag
-from paper_trading import wrappers as _w
 from paper_trading.asset_governance import AssetGovernance
 from paper_trading.asset_inference_pipeline import AssetInferencePipeline
+from paper_trading.asset_pnl_controller import AssetPnlController
 from paper_trading.asset_training_pipeline import AssetTrainingPipeline
 from paper_trading.config_manager import get_config
 from paper_trading.data_fetcher import flatten, safe_download
@@ -26,13 +25,7 @@ from paper_trading.position_manager import PositionManager
 from paper_trading.regime_classifier import RegimeClassifier
 from paper_trading.risk_governance import record_trade_outcome as _record_exit_outcome
 from paper_trading.scale_out import build_scale_out_from_config
-from paper_trading.shadow_memory import store_event as _shadow_store
 from paper_trading.state_store import _SKIP_JOURNAL, StateStore
-from paper_trading.tracer import (
-    shadow_compare_pnl,
-    shadow_compare_sltp,
-    trace_diagnostic_report,
-)
 from shared.registry import StrategyRegistry
 
 logger = logging.getLogger("quantforge.asset_engine")
@@ -149,6 +142,7 @@ class AssetEngine:
         self._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
         self._initial_settlement_done: bool = False
         self._training = AssetTrainingPipeline(self)
+        self._pnl = AssetPnlController(self)
         self._inference = AssetInferencePipeline(self)
 
     def set_narrative_state(self, narr) -> None:
@@ -494,225 +488,11 @@ class AssetEngine:
             self.pos_mgr.open(intent)
 
     def update_pnl(self):
-        self._ensure_position_synced()
-
-        # 1. Intraday SL/TP Check - ALWAYS run this on every refresh using real-time price
-        max_hold = self.config.get("max_holding_days")
-        if self.pos_mgr.has_position() and self.current_price is not None:
-            # ── Scale-out tier check ─────────────────────────────
-            if self._scale_out_plan is not None:
-                so_fills = self._scale_out_engine.check_tiers(
-                    self._scale_out_plan,
-                    self.pos_mgr.position.side,
-                    self.current_price,
-                    self.current_value,
-                    self.pos_mgr.position_size,
-                    self.pos_mgr.exposure_multiplier,
-                )
-                for so in so_fills:
-                    if so.get("fraction", 0) > 0:
-                        self.pos_mgr.partial_close(
-                            so["fraction"],
-                            so["fill_price"],
-                            str(datetime.now(tz=ET).date()),
-                            so["reason"],
-                        )
-                    breakeven = so.get("breakeven_price")
-                    if breakeven is not None:
-                        self.pos_mgr.activate_breakeven_stop()
-                    if so.get("reason") == "trailing_activated":
-                        logger.info("%s: trailing activated by scale-out tier fill", self.name)
-
-            hit = self.pos_mgr.check_sl_tp(self.current_price)
-            if hit:
-                last_bar = str(datetime.now(tz=ET).date())
-
-                logger.info(
-                    "%s: SL/TP HIT: %s at %s (Current: %s)", self.name, hit[0].upper(), hit[1], self.current_price
-                )
-                if self.pos_mgr.position is not None:
-                    self._record_stop_out(self.pos_mgr.position.side, hit[1])
-                self._close_position(hit[1], last_bar, hit[0])
-                if self.current_value > self.peak_value:
-                    self.peak_value = self.current_value
-                return
-
-            # ── Trailing stop check ──────────────────────────────
-            if self.config.get("dynamic_sltp", {}).get("enabled", False) and self._entry_vol is not None:
-                data = getattr(self, "price_data", None)
-                if data is None:
-                    data = getattr(self, "_price_df", None)
-                if data is not None and self.pos_mgr.position is not None:
-                    trailing = self._sltp_engine.compute_trailing_stop(
-                        side=self.pos_mgr.position.side,
-                        entry_price=self.pos_mgr.position.entry_price,
-                        current_price=self.current_price,
-                        initial_sl=self._initial_sl or self.pos_mgr.position.stop_loss,
-                        current_sl=self.pos_mgr.position.stop_loss,
-                        take_profit=self.pos_mgr.position.take_profit,
-                        df=data,
-                    )
-                    if trailing.trailing_sl is not None:
-                        self.pos_mgr.update_stop_loss(float(trailing.trailing_sl))
-                        logger.info(
-                            "%s: trailing stop activated to %.4f (locked profit=%.2f%%)",
-                            self.name,
-                            trailing.trailing_sl,
-                            (trailing.locked_profit or 0) * 100,
-                        )
-                        shadow_compare_sltp(
-                            self.name,
-                            label_sl=self._initial_sl or self.pos_mgr.position.stop_loss,
-                            label_tp=self.pos_mgr.position.take_profit,
-                            runtime_sl=trailing.trailing_sl,
-                            runtime_tp=self.pos_mgr.position.take_profit,
-                            entry_price=self.pos_mgr.position.entry_price,
-                            reason="trailing",
-                        )
-
-                    # ── Post-entry adjustment ────────────────────────
-                    self._bars_at_entry += 1
-                    adjust = self._sltp_engine.post_entry_adjust(
-                        side=self.pos_mgr.position.side,
-                        entry_price=self.pos_mgr.position.entry_price,
-                        current_sl=self.pos_mgr.position.stop_loss,
-                        current_tp=self.pos_mgr.position.take_profit,
-                        df=data,
-                        vol=self._entry_vol,
-                        bars_since_entry=self._bars_at_entry,
-                    )
-                    if adjust.new_sl is not None:
-                        self.pos_mgr.update_stop_loss(float(adjust.new_sl))
-                        logger.info(
-                            "%s: post-entry SL adjusted: %s (new=%.4f)",
-                            self.name,
-                            adjust.reason,
-                            adjust.new_sl,
-                        )
-                        shadow_compare_sltp(
-                            self.name,
-                            label_sl=self._initial_sl or self.pos_mgr.position.stop_loss,
-                            label_tp=self.pos_mgr.position.take_profit,
-                            runtime_sl=adjust.new_sl,
-                            runtime_tp=self.pos_mgr.position.take_profit,
-                            entry_price=self.pos_mgr.position.entry_price,
-                            reason=adjust.reason or "post_entry_sl",
-                        )
-                    if adjust.new_tp is not None:
-                        self.pos_mgr.update_take_profit(float(adjust.new_tp))
-                        logger.info(
-                            "%s: post-entry TP adjusted: %s (new=%.4f)",
-                            self.name,
-                            adjust.reason,
-                            adjust.new_tp,
-                        )
-                        shadow_compare_sltp(
-                            self.name,
-                            label_sl=self.pos_mgr.position.stop_loss,
-                            label_tp=self._initial_tp or self.pos_mgr.position.take_profit,
-                            runtime_sl=self.pos_mgr.position.stop_loss,
-                            runtime_tp=adjust.new_tp,
-                            entry_price=self.pos_mgr.position.entry_price,
-                            reason=adjust.reason or "post_entry_tp",
-                        )
-
-            # Time stop check — force close if held beyond max_holding_days
-            if max_hold is not None and self.pos_mgr.position is not None:
-                entry_str = str(self.pos_mgr.position.entry_date)
-                try:
-                    entry_dt = pd.Timestamp(entry_str)
-                    if entry_dt.tz is None:
-                        entry_dt = entry_dt.tz_localize("US/Eastern")
-                    elapsed = (datetime.now(tz=ET) - entry_dt).days
-                    if elapsed >= max_hold:
-                        last_bar = str(datetime.now(tz=ET).date())
-                        logger.info("%s: TIME STOP after %d days (max=%d)", self.name, elapsed, max_hold)
-                        self._close_position(self.current_price, last_bar, "time_stop")
-                        return
-                except Exception:
-                    pass
-
-        # 2. Daily P&L Settlement - Only run if signal_data is available (historical context)
-        if self.signal_data is None or len(self.signal_data) < 2:
-            return
-
-        close = self.signal_data["close"]
-        today_close = float(close.iloc[-1])
-        last_bar = str(datetime.now(tz=ET).date())
-
-        if self.trades and self.trades[-1]["date"] == last_bar:
-            return
-        # Skip settlement on first cycle — no prior live signal to settle.
-        if not self._initial_settlement_done:
-            self._initial_settlement_done = True
-            return
-        sig = self.signal_data["signal"].iloc[-2]
-        direction = 1 if sig == 2 else (-1 if sig == 0 else 0)
-        pos_size = (
-            float(self.signal_data["position_size"].iloc[-2]) if "position_size" in self.signal_data.columns else 1.0
-        )
-        prev_close = float(close.iloc[-2])
-        ret = (
-            (today_close / prev_close - 1)
-            if len(close) >= 2 and prev_close != 0 and not pd.isna(today_close) and not pd.isna(prev_close)
-            else 0
-        )
-        if pd.isna(ret) or np.isinf(ret):
-            ret = 0
-        pnl = self.pos_mgr.compute_daily_pnl(direction, ret, pos_size)
-        _shadow_pnl = _w.compute_daily_pnl(
-            self.pos_mgr.current_value,
-            direction,
-            ret,
-            self.pos_mgr.position_size,
-            pos_size,
-        )
-        shadow_compare_pnl(asset=self.name, wrapper_pnl=_shadow_pnl, original_pnl=pnl)
-        try:
-            _pnl_decomp = diag.analyze_pnl_decomposition(
-                self.pos_mgr.current_value,
-                direction,
-                ret,
-                self.pos_mgr.position_size,
-                pos_size,
-                pnl,
-            )
-            _regime = diag.analyze_regime_context(close)
-            _report = diag.build_shadow_report(
-                asset=self.name,
-                timestamp=last_bar,
-                signal_match=True,
-                pnl_match=_pnl_decomp["match"],
-                regime_context=_regime,
-                pnl_decomposition=_pnl_decomp,
-            )
-            trace_diagnostic_report(_report)
-            _shadow_store(self.name, _report)
-        except Exception:
-            pass
-        self.pos_mgr.apply_pnl(pnl)
-        self.current_value = self.pos_mgr.current_value
-        self.peak_value = self.pos_mgr.peak_value
-        if direction != 0:
-            self.trades.append(
-                {
-                    "date": last_bar,
-                    "direction": direction,
-                    "return": float(ret),
-                    "pnl": float(pnl),
-                }
-            )
+        self._pnl.update_pnl()
 
     @property
     def mtm_value(self) -> float:
-        """Mark-to-market value of the asset including unrealized P&L."""
-        cv = self.current_value if not pd.isna(self.current_value) else self.initial_capital
-        if not self.pos_mgr.has_position() or self.current_price is None or pd.isna(self.current_price):
-            return cv
-
-        pnl_pct = self.pos_mgr.position_pnl(self.current_price) / 100
-        # MTM = settled value + (settled value * pnl_pct * position_size * exposure_multiplier)
-        return cv * (1 + pnl_pct * self.pos_mgr.position_size * self.pos_mgr.exposure_multiplier)
+        return self._pnl.mtm_value
 
     def get_metrics(self):
         self._ensure_position_synced()
@@ -1003,13 +783,4 @@ class AssetEngine:
         }
 
     def set_capital_base(self, new_base: float) -> None:
-        """Update the capital allocated to this asset on a rebalance.
-
-        Adjusts current_value to reflect the new capital (conceptual cash transfer).
-        The difference is recorded as a capital adjustment (not a trade PnL).
-        """
-        old_base = self.capital_base
-        self.capital_base = new_base
-        delta = new_base - old_base
-        self.current_value = self.current_value + delta
-        self.pos_mgr.current_value = self.pos_mgr.current_value + delta
+        self._pnl.set_capital_base(new_base)

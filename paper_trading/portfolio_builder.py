@@ -53,6 +53,9 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
             halt = dict(halt_defaults)
             halt.update(user_halt)
             config = dict(spec.get("config", {}))
+            defaults = cfg.defaults or {}
+            if "churn_ratio_threshold" not in config:
+                config["churn_ratio_threshold"] = defaults.get("churn_ratio_threshold", 0.50)
             narrative_cfg = cfg.narrative_config
             if narrative_cfg:
                 config["narrative_config"] = narrative_cfg

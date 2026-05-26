@@ -15,6 +15,9 @@ narrative_config:
   risk_off_size_reduce_pct: 20
   min_confidence: 0.6
   auto_confirm_deadline_hour: 12
+defaults:
+  churn_ratio_threshold: 0.35
+
 liquidity_config:
   enabled: true
   regime_window: 21
@@ -113,7 +116,7 @@ assets:
   EURAUD:
     ticker: EURAUD=X
     allocation: 0.10
-    sl_mult: 0.3
+    sl_mult: 0.48
     tp_mult: 1.0
     regime_sizing: true
     execution_config:
@@ -204,8 +207,9 @@ assets:
   AUDJPY:
     ticker: AUDJPY=X
     allocation: 0.16
-    sl_mult: 0.3
+    sl_mult: 0.48
     tp_mult: 1.75
+    churn_ratio_threshold: 0.35
     regime_sizing: true
     execution_config:
       base_spread_bps: 2.0
@@ -239,22 +243,13 @@ assets:
         enabled: true
         threshold: 0.55
       scale_out:
-        enabled: true
-        tiers:
-        - fraction: 0.25
-          multiplier: 0.25
-        - fraction: 0.25
-          multiplier: 0.5
-        - fraction: 0.25
-          multiplier: 0.75
-        - fraction: 0.25
-          multiplier: 1.0
-        activate_breakeven_after: 0
+        enabled: false
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.13
-    sl_mult: 0.3
+    sl_mult: 0.48
     tp_mult: 1.5
+    churn_ratio_threshold: 0.35
     regime_sizing: true
     execution_config:
       base_spread_bps: 0.8
@@ -288,21 +283,11 @@ assets:
         enabled: true
         threshold: 0.55
       scale_out:
-        enabled: true
-        tiers:
-        - fraction: 0.25
-          multiplier: 0.25
-        - fraction: 0.25
-          multiplier: 0.5
-        - fraction: 0.25
-          multiplier: 0.75
-        - fraction: 0.25
-          multiplier: 1.0
-        activate_breakeven_after: 0
+        enabled: false
   CHFJPY:
     ticker: CHFJPY=X
     allocation: 0.14
-    sl_mult: 0.3
+    sl_mult: 0.48
     tp_mult: 1.0
     regime_sizing: true
     execution_config:
@@ -339,7 +324,7 @@ assets:
   EURCAD:
     ticker: EURCAD=X
     allocation: 0.20
-    sl_mult: 0.3
+    sl_mult: 0.48
     tp_mult: 1.75
     regime_sizing: true
     execution_config:

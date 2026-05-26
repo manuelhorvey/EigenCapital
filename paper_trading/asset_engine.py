@@ -173,6 +173,7 @@ class AssetEngine:
         self._last_stop_out_price: float | None = None
         self._entry_price: float | None = None
         self._regime_adjusted_entry: bool = False
+        self._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
         self._initial_settlement_done: bool = False
 
     def _load_narrative_state(self) -> None:
@@ -483,7 +484,7 @@ class AssetEngine:
         if self._regime_adjusted_entry and self._last_stop_out_price is not None and self._entry_price is not None:
             sl_distance = abs(self._last_stop_out_price - self._entry_price)
             price_beyond_sl = abs(exit_price - self._last_stop_out_price)
-            if sl_distance > 0 and (price_beyond_sl / sl_distance) < 0.5:
+            if sl_distance > 0 and (price_beyond_sl / sl_distance) < self._churn_ratio_threshold:
                 return
 
         self._last_stop_out_side = side

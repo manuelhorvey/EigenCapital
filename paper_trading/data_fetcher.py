@@ -16,6 +16,39 @@ ET = pytz.timezone("US/Eastern")
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _STORE = StateStore(BASE)
 
+_MIN_REQUEST_INTERVAL = 1.0
+_last_request_time: float = 0.0
+
+_IN_MEMORY_CACHE: dict[str, tuple[pd.DataFrame | float | None, float]] = {}
+_IN_MEMORY_TTL: dict[str, float] = {
+    "download": 60.0,
+    "realtime": 5.0,
+}
+
+
+def _rate_limit() -> None:
+    global _last_request_time
+    elapsed = time.monotonic() - _last_request_time
+    if elapsed < _MIN_REQUEST_INTERVAL:
+        time.sleep(_MIN_REQUEST_INTERVAL - elapsed)
+    _last_request_time = time.monotonic()
+
+
+def _cache_get(key: str) -> pd.DataFrame | float | None:
+    entry = _IN_MEMORY_CACHE.get(key)
+    if entry is None:
+        return None
+    value, expiry = entry
+    if time.monotonic() > expiry:
+        del _IN_MEMORY_CACHE[key]
+        return None
+    return value
+
+
+def _cache_set(key: str, value: pd.DataFrame | float | None, cache_type: str = "download") -> None:
+    ttl = _IN_MEMORY_TTL.get(cache_type, 60.0)
+    _IN_MEMORY_CACHE[key] = (value, time.monotonic() + ttl)
+
 
 def flatten(df: pd.DataFrame) -> pd.DataFrame:
     if isinstance(df.columns, pd.MultiIndex):
@@ -47,11 +80,17 @@ def _cache_path(ticker: str) -> str:
 
 
 def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
+    cache_key = f"download:{ticker}:{hash(frozenset(kwargs.items()))}"
+    cached = _cache_get(cache_key)
+    if cached is not None and isinstance(cached, pd.DataFrame) and not cached.empty:
+        return cached
     delays = [5, 15, 45]
     for attempt, delay in enumerate(delays, 1):
         try:
+            _rate_limit()
             df = yf.download(ticker, **kwargs)
             if not df.empty:
+                _cache_set(cache_key, df, "download")
                 _STORE.save_cache(ticker, df)
                 return df
             logger.warning(f"{ticker} empty response attempt {attempt}/3")
@@ -69,20 +108,28 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
 
 
 def fetch_realtime_price(ticker: str) -> float | None:
-    """Get the absolute latest price for a ticker using fast_info or 1m download."""
+    cache_key = f"realtime:{ticker}"
+    cached = _cache_get(cache_key)
+    if cached is not None and isinstance(cached, (int, float)):
+        return float(cached)
     try:
+        _rate_limit()
         t = yf.Ticker(ticker)
         lp = t.fast_info.get("lastPrice")
         if lp is not None and not pd.isna(lp) and lp > 0:
+            _cache_set(cache_key, float(lp), "realtime")
             return float(lp)
     except Exception:
         pass
 
     try:
+        _rate_limit()
         df = yf.download(ticker, period="1d", interval="1m", progress=False)
         if not df.empty:
             df = flatten(df)
-            return float(df["close"].ffill().iloc[-1])
+            price = float(df["close"].ffill().iloc[-1])
+            _cache_set(cache_key, price, "realtime")
+            return price
     except Exception:
         pass
     return None

@@ -5,6 +5,7 @@ import pandas as pd
 
 from features.registry import FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
+from shared.volatility import VOLATILITY_PRIMITIVE_VERSION, VolatilityPrimitive
 
 logger = logging.getLogger("quantforge.labels.generator")
 
@@ -58,16 +59,24 @@ class LabelGenerator:
 
         df = pd.read_parquet(raw_path)
 
+        # Build volatility primitive from contract params (with fallback)
+        vol_method = contract.label_params.get("vol_method", "ewm_100")
+        atr_period = contract.label_params.get("atr_period", 14)
+        if vol_method == "atr":
+            vol_prim = VolatilityPrimitive.detect(df, period=atr_period)
+        else:
+            vol_prim = None
+
         # New Labels (from current contract params)
         logger.info(f"Computing NEW labels for {contract.name} (v:{v_hash})...")
         new_labeled = apply_triple_barrier(
             df,
             pt_sl=contract.label_params.get("pt_sl", [2, 2]),
             vertical_barrier=contract.label_params.get("vertical_barrier", 20),
+            vol_primitive=vol_prim,
         )
 
-        # Shadow Labels (Legacy/Reference)
-        # For now, we use a fixed [2, 2, 20] baseline as 'shadow' if not specified
+        # Shadow Labels (Legacy/Reference — always EWM vol for baseline comparison)
         logger.info(f"Computing SHADOW labels for {contract.name}...")
         shadow_labeled = apply_triple_barrier(df, pt_sl=[2, 2], vertical_barrier=20)
 
@@ -75,9 +84,11 @@ class LabelGenerator:
         final_df["label_new"] = (new_labeled["label"] + 1).astype(int)
         final_df["label_shadow"] = (shadow_labeled["label"] + 1).astype(int)
 
-        # Metadata
+        # Metadata — persist volatility primitive info for replayability
         final_df.attrs["label_version"] = v_hash
         final_df.attrs["contract_params"] = str(contract.label_params)
+        final_df.attrs["vol_method"] = new_labeled.attrs.get("vol_method", vol_method)
+        final_df.attrs["vol_primitive_version"] = VOLATILITY_PRIMITIVE_VERSION
 
         final_df.to_parquet(out_path)
         logger.info(f"Saved {contract.name} labels to {out_path}")

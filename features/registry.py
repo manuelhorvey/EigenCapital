@@ -2,16 +2,20 @@ from features.contract import FeatureContract
 
 FEATURE_CONTRACT_VALIDATION = True
 
-ASSET_LABEL_PARAMS: dict[str, dict[str, float]] = {
-    "BTC": {"pt": 1.51, "sl": 0.58},
-    "EURAUD": {"pt": 1.77, "sl": 0.54},
-    "GC": {"pt": 2.67, "sl": 0.51},
+ASSET_LABEL_PARAMS: dict[str, dict] = {
+    "BTC": {"pt": 1.51, "sl": 0.58, "vol_method": "atr", "atr_period": 7},
+    "EURAUD": {"pt": 1.77, "sl": 0.54, "vol_method": "atr", "atr_period": 14},
+    "GC": {"pt": 2.67, "sl": 0.51, "vol_method": "atr", "atr_period": 14},
+    "AUDJPY": {"pt": 2.01, "sl": 0.52, "vol_method": "atr", "atr_period": 14},
+    "USDCAD": {"pt": 1.90, "sl": 0.52, "vol_method": "atr", "atr_period": 14},
+    "CHFJPY": {"pt": 2.0, "sl": 2.0, "vol_method": "atr", "atr_period": 14},
+    "EURCAD": {"pt": 2.0, "sl": 2.0, "vol_method": "atr", "atr_period": 14},
+    "USDJPY": {"pt": 1.97, "sl": 0.52, "vol_method": "atr", "atr_period": 14},
+    "GBPCAD": {"pt": 2.0, "sl": 2.0, "vol_method": "atr", "atr_period": 14},
+    # Research assets (default EWM vol for backward compatibility)
     "NZDJPY": {"pt": 2.02, "sl": 0.51},
     "CADJPY": {"pt": 1.65, "sl": 0.52},
-    "AUDJPY": {"pt": 2.01, "sl": 0.52},
-    "USDCAD": {"pt": 1.90, "sl": 0.52},
     "GBPJPY": {"pt": 2.22, "sl": 0.50},
-    "USDJPY": {"pt": 1.97, "sl": 0.52},
     "USDCHF": {"pt": 2.04, "sl": 0.52},
     "GBPUSD": {"pt": 1.97, "sl": 0.52},
     "EURUSD": {"pt": 2.0, "sl": 2.0},
@@ -19,12 +23,9 @@ ASSET_LABEL_PARAMS: dict[str, dict[str, float]] = {
     "NZDUSD": {"pt": 2.0, "sl": 2.0},
     "EURGBP": {"pt": 2.0, "sl": 2.0},
     "EURJPY": {"pt": 2.0, "sl": 2.0},
-    "CHFJPY": {"pt": 2.0, "sl": 2.0},
     "EURCHF": {"pt": 2.0, "sl": 2.0},
     "GBPAUD": {"pt": 2.0, "sl": 2.0},
     "AUDCAD": {"pt": 2.0, "sl": 2.0},
-    "EURCAD": {"pt": 2.0, "sl": 2.0},
-    "GBPCAD": {"pt": 2.0, "sl": 2.0},
     "AUDNZD": {"pt": 2.0, "sl": 2.0},
     "EURNZD": {"pt": 2.0, "sl": 2.0},
     "GBPNZD": {"pt": 2.0, "sl": 2.0},
@@ -46,6 +47,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["BTC"]["pt"], ASSET_LABEL_PARAMS["BTC"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["BTC"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["BTC"].get("atr_period", 14),
         },
         macro_filters=("rate_diff", "2y_yield_delta_63", "vix_delta_5", "dxy_mom_21", "vix_ma21"),
         price_mom_windows=(10, 21, 63),
@@ -104,6 +107,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["USDCAD"]["pt"], ASSET_LABEL_PARAMS["USDCAD"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["USDCAD"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["USDCAD"].get("atr_period", 14),
         },
         macro_filters=("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"),
         price_mom_windows=(21, 63),
@@ -118,6 +123,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["EURAUD"]["pt"], ASSET_LABEL_PARAMS["EURAUD"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["EURAUD"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["EURAUD"].get("atr_period", 14),
         },
         macro_filters=("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"),
         price_mom_windows=(21, 63),
@@ -132,6 +139,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["AUDJPY"]["pt"], ASSET_LABEL_PARAMS["AUDJPY"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["AUDJPY"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["AUDJPY"].get("atr_period", 14),
         },
         macro_filters=("vix_ma21", "vix_delta_5", "us_jp_10y_spread"),
         price_mom_windows=(21, 63),
@@ -160,6 +169,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["USDJPY"]["pt"], ASSET_LABEL_PARAMS["USDJPY"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["USDJPY"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["USDJPY"].get("atr_period", 14),
         },
         macro_filters=("vix_ma21", "vix_delta_5", "us_jp_10y_spread", "dxy_mom_21"),
         price_mom_windows=(21, 63),
@@ -266,6 +277,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["CHFJPY"]["pt"], ASSET_LABEL_PARAMS["CHFJPY"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["CHFJPY"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["CHFJPY"].get("atr_period", 14),
         },
         macro_filters=("vix_ma21", "vix_delta_5", "us_jp_10y_spread"),
         price_mom_windows=(21, 63),
@@ -318,6 +331,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["EURCAD"]["pt"], ASSET_LABEL_PARAMS["EURCAD"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["EURCAD"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["EURCAD"].get("atr_period", 14),
         },
         macro_filters=("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"),
         price_mom_windows=(21, 63),
@@ -331,6 +346,8 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         label_params={
             "pt_sl": [ASSET_LABEL_PARAMS["GBPCAD"]["pt"], ASSET_LABEL_PARAMS["GBPCAD"]["sl"]],
             "vertical_barrier": 20,
+            "vol_method": ASSET_LABEL_PARAMS["GBPCAD"].get("vol_method", "ewm_100"),
+            "atr_period": ASSET_LABEL_PARAMS["GBPCAD"].get("atr_period", 14),
         },
         macro_filters=("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"),
         price_mom_windows=(21, 63),

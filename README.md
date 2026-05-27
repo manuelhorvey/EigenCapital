@@ -67,19 +67,9 @@ H --> I
 I --> J[Risk Engine]
 J --> K[Portfolio Allocation]
 
-subgraph Execution_Spine [Execution Spine: Phases 3-6 — Frozen Contracts]
-    K --> P3[Phase 3: Archetype — Routing Key]
-    P3 --> P1[Phase 1: Entry Quality]
-    P1 --> P4[Phase 4: PolicyDecision — FROZEN]
-    P4 --> P5[Phase 5: FillResult — FROZEN]
-    P5 --> P6[Phase 6: AttributionRecord — FROZEN]
-end
-
-P6 --> L[PaperBroker Execution]
-L --> M[Validity State Machine]
-L --> N[5D Drift Engine]
-L --> O[Shadow Diagnostics]
-M & N & O --> P[Observability Layer]
+K --> P[Execution Spine: Phases 3-6 — see detailed pipeline below]
+P --> L[PaperBroker Execution]
+L --> M[Observability Layer]
 
 subgraph "Research (Offline)"
     R1[Execution Surface Sweep]

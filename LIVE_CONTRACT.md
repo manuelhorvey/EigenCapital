@@ -109,13 +109,16 @@ short: sl = entry × (1 + vol × sl_mult_effective)
 The system uses ATR-based dynamic barriers with auto-calibration at startup, matching the EWM volatility scale scaled by a `calibration_scale` factor of `1.2` (expanding barriers by 20% to support higher TP rates and maximize Sharpe ratio).
 
 **Scale-Out Strategy:**
-For assets with scale-out enabled (EURAUD, AUDJPY, USDCAD, EURCAD), profit-taking is split into 4 tiers:
-- **Tier 1:** 25% of the position closed at 25% of the original TP multiplier.
-- **Tier 2:** 25% of the position closed at 50% of the original TP multiplier.
-- **Tier 3:** 25% of the position closed at 75% of the original TP multiplier.
-- **Tier 4:** 25% of the position closed at 100% of the original TP multiplier.
+For assets with scale-out enabled, profit-taking is split into N tiers with archetype-specific profiles:
+- **Breakout:** 10/20/30/40 (backloaded convex)
+- **Trend pullback:** 15/20/30/35 (convex)
+- **Mean reversion:** 33/33/34 (flat, symmetrical)
+- **Vol expansion:** 10/15/25/50 (max convexity)
+- **Momentum ignition:** 10/10/30/50 (tail-heavy)
 
-**Breakeven Stop:** After Tier 1 is filled, the stop-loss on the remaining 75% of the position is automatically moved to the entry price (breakeven).
+Each tier closes at `accumulated_fraction × tp_mult` where `tp_mult` is computed by the regime×archetype TP compiler (`paper_trading/tp_compiler.py`).
+
+**Breakeven Stop:** After Tier 1 is filled, the stop-loss on the remaining position is automatically moved to the entry price (breakeven).
 
 ---
 
@@ -266,15 +269,25 @@ Live system (`paper_trading/`) may only import:
 ```
 standard library: os, sys, json, pickle, math, copy, time, threading,
                   signal, logging, dataclasses, http.server, socketserver,
-                  abc, enum, fcntl
+                  abc, enum, fcntl, hashlib
 third-party: pandas, numpy, xgboost, yfinance, yaml, pytz
 intra-project:
-  features.builder, features.contract, features.registry
+  features.builder, features.contract, features.registry,
+  features.archetypes
   labels.triple_barrier
   monitoring.validity_state_machine
   paper_trading.* (own package)
   execution.paper_broker
   paper_trading.execution_bridge
+  paper_trading.execution_simulator
+  paper_trading.slippage_model
+  paper_trading.fill_model
+  paper_trading.latency_model
+  paper_trading.execution_policy
+  paper_trading.entry_optimizer
+  paper_trading.deferred_entry
+  paper_trading.tp_compiler
+  paper_trading.trade_attribution
   shared.execution_config
   shared.registry
   quantforge (setup_logging)

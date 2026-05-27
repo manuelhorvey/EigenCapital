@@ -17,6 +17,11 @@ QuantForge is an adaptive multi-asset macro research and portfolio simulation pl
 |-------|---------|
 | **Features** | Deterministic macro-conditioned signals under strict schema contracts |
 | **Models** | Probabilistic directional inference via XGBoost (BUY / HOLD / SELL) |
+| **Archetype Classification** | 5 pure-feature market structure archetypes — breakout, trend pullback, mean reversion, vol expansion, momentum ignition |
+| **Entry Quality** | DeferredEntry engine with idempotent entry_id, EntryOptimizer routing (ENTER / DEFER / SKIP) |
+| **Execution Policy** | Immutable PolicyDecision dispatch — archetype-to-policy switchboard |
+| **Fill Realism** | Seeded deterministic slippage (asymmetric SL/TP), gap-through, partial fill, latency |
+| **Trade Attribution** | 4-domain causal attribution (Prediction, Execution, Exit, Friction) — observes everything, mutates nothing |
 | **Governance** | 7-layer suppression under instability — see [docs/GOVERNANCE_LAYER.md](docs/GOVERNANCE_LAYER.md) |
 | **Simulation** | Adversarial survival testing with execution physics and deleveraging feedback |
 | **Execution** | Paper trading with mark-to-market PnL, SL/TP surface optimization, portfolio construction |
@@ -28,6 +33,9 @@ QuantForge is an adaptive multi-asset macro research and portfolio simulation pl
 - **Survival under stress over historical fit** — adversarial perturbation, not backtest R²
 - **Governance as primary component** — validity state machines, stability penalties, meta-labeling, narrative + liquidity governance
 - **Portfolio topology over standalone alpha** — assets selected for marginal contribution to portfolio risk, not individual Sharpe
+- **Epistemic boundary separation** — prediction (Phase 3), decision (Phase 4), execution (Phase 5), and attribution (Phase 6) are causally isolated layers; each can only degrade the signal, never create it
+- **Fill realism as degradation** — Phase 5 may only make fills worse, never better; sits after PolicyDecision freeze
+- **Observe-only analytics** — Phase 6 attribution observes everything but mutates nothing; never feeds back into labels, frozen kernel, or policies
 
 ---
 
@@ -57,7 +65,16 @@ G --> I[Signal Generator]
 I --> J[Risk Engine]
 H --> J
 J --> K[Portfolio Construction]
-K --> L[PaperBroker Execution]
+
+subgraph Execution_Pipeline [Execution Pipeline: Phases 3-6]
+    K --> P3[Phase 3: Archetype Classification]
+    P3 --> P1[Phase 1: Entry Quality]
+    P1 --> P4[Phase 4: Execution Policy]
+    P4 --> P5[Phase 5: Fill Realism]
+    P5 --> P6[Phase 6: Trade Attribution]
+end
+
+P6 --> L[PaperBroker Execution]
 L --> M[Validity State Machine]
 L --> N[5D Drift Engine]
 L --> O[Shadow Diagnostics]
@@ -70,6 +87,54 @@ subgraph "Research (Offline)"
     R1 & R2 & R3 --> R[Research / Risk]
 end
 R --> A
+```
+
+### Execution Pipeline (Phases 3–6)
+
+```mermaid
+graph LR
+    subgraph Signal [Signal Layer]
+        A[Model Signal + Confidence] --> B[Archetype Classifier]
+    end
+
+    subgraph Entry [Entry Quality]
+        B --> C[EntryOptimizer]
+        C --> D{EntryAction}
+        D -->|ENTER| E[PolicyDecision Builder]
+        D -->|DEFER| F[DeferredEntry]
+        D -->|SKIP| G[Skip Signal]
+    end
+
+    subgraph Policy [Execution Policy]
+        E --> H[POLICY_MAP Dispatch]
+        H --> I[PolicyDecision: frozen]
+        F -->|Triggered| E
+    end
+
+    subgraph Fill [Fill Realism]
+        I --> J[ExecutionSimulator]
+        J --> K[SlippageModel: asym SL/TP]
+        J --> L[FillModel: gap-through]
+        J --> M[LatencyModel: seeded delay]
+        K & L & M --> N[FillResult: frozen]
+    end
+
+    subgraph Attribute [Trade Attribution]
+        N --> O[AttributionCollector]
+        O --> P[Prediction Attribution]
+        O --> Q[Execution Attribution]
+        O --> R[Exit Attribution]
+        O --> S[Friction Attribution]
+    end
+
+    subgraph State [State Mutation]
+        N --> T[AssetEngine: position state]
+        T --> U[PnL + Journal + Snapshots]
+    end
+
+    style I fill:#1a1a2e,stroke:#e94560
+    style O fill:#1a1a2e,stroke:#0f3460
+    style N fill:#16213e,stroke:#e94560
 ```
 
 See [docs/SYSTEM_OVERVIEW.md](docs/SYSTEM_OVERVIEW.md) for full component details.
@@ -186,6 +251,20 @@ Full detail: [docs/ARCHITECTURE_FOUNDATIONS.md](docs/ARCHITECTURE_FOUNDATIONS.md
 
 ## 9. HARDENING ROADMAP
 
+### Execution Research Framework (Phases 0–6)
+
+| Phase | Capability |
+|-------|------------|
+| **0** | Frozen Kernel + Labels — retrained with runtime-consistent initial geometry; no adaptive logic leaks into labels |
+| **1** | Entry Quality Engine — EntryOptimizer, DeferredEntry with idempotent entry_id |
+| **2** | TP/Exit Geometry — regime×archetype TP compiler; backloaded scale-out tiers per archetype |
+| **3** | Archetype Classification — 5 pure-feature archetypes: BREAKOUT, TREND_PULLBACK, MEAN_REVERSION, VOLATILITY_EXPANSION, MOMENTUM_IGNITION |
+| **4** | Execution Policy Layer — archetype-to-policy dispatch via POLICY_MAP; PolicyDecision as immutable instruction packet |
+| **5** | Fill Realism Layer — SlippageModel, FillModel, LatencyModel, ExecutionSimulator; asymmetric SL/TP slippage; gap-through; partial fill; seeded deterministic randomness |
+| **6** | Trade Attribution Analytics — 4-domain causal attribution (Prediction, Execution, Exit, Friction); counterfactual metrics; MAE/MFE; archetype drift tracking |
+
+### Pre-existing Tiers (1–7)
+
 | Tier | Capability |
 |------|------------|
 | **1** | Cross-asset feature isolation, regime sizing, circuit breaker, trade quality gates |
@@ -224,6 +303,10 @@ Full detail: [docs/SURVIVAL_SIMULATION.md](docs/SURVIVAL_SIMULATION.md)
 - Worst-wins penalty aggregation
 - Synthetic stress capped at 25% of original series length
 - Multiplicative governance layering: each layer independently configurable and gated
+- Frozen kernel alignment: training label geometry matches runtime initial barriers (no adaptive logic leaks)
+- Execution fill determinism: same seed + same inputs → identical FillResult across runs
+- Degradation-only fill realism: Phase 5 may only degrade outcomes, never improve them
+- Observe-only attribution: Phase 6 analytics never mutate labels, kernel, or policies
 
 ---
 

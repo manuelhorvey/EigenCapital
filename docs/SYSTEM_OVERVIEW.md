@@ -42,8 +42,39 @@ graph TD
         J --> J2[Confidence = max P]
     end
 
+    subgraph Archetype_Layer [Archetype Classification — Phase 3]
+        J1 & J2 --> A1[SetupArchetype: 5 pure-feature types]
+        A1 --> A2[BREAKOUT / TREND_PULLBACK]
+        A1 --> A3[MEAN_REVERSION / VOL_EXPANSION / MOMENTUM_IGNITION]
+    end
+
+    subgraph Entry_Layer [Entry Quality — Phase 1]
+        A2 & A3 --> E1[EntryOptimizer]
+        E1 --> E2{ENTER / DEFER / SKIP}
+        E2 -->|DEFER| E3[DeferredEntry: idempotent entry_id]
+    end
+
+    subgraph Policy_Layer [Execution Policy — Phase 4]
+        E2 --> P1[ExecutionPolicyLayer: POLICY_MAP]
+        P1 --> P2[PolicyDecision: immutable instruction packet]
+        E3 -->|Triggered| P1
+    end
+
+    subgraph Fill_Layer [Fill Realism — Phase 5]
+        P2 --> F1[ExecutionSimulator]
+        F1 --> F2[SlippageModel: asymmetric SL/TP]
+        F1 --> F3[FillModel: gap-through / partial fill]
+        F1 --> F4[LatencyModel: seeded delay]
+        F2 & F3 & F4 --> F5[FillResult: frozen]
+    end
+
+    subgraph Attribution_Layer [Trade Attribution — Phase 6]
+        F5 --> T1[AttributionCollector: observe-only]
+        T1 --> T2[4-domain: Prediction / Execution / Exit / Friction]
+    end
+
     subgraph Monitoring_Layer [Monitoring Layer]
-        J1 & J2 --> K[Validity State Machine]
+        T1 --> K[Validity State Machine]
         K --> K1[GREEN 1.0 / YELLOW 0.5 / RED 0.0]
         K --> K2[Hysteresis + temporal smoothing]
     end
@@ -89,6 +120,7 @@ Features are computed independently per module and concatenated by common index.
 | structural | Price slope, curvature, path efficiency, skew, kurtosis | Research only |
 | interaction | Regime contrast, entropy, transition risk | Research only |
 | macro (loader) | rate_diff, dxy_mom, yield_slope, yield_delta | Macro expert head |
+| archetypes | Breakout detection, trend pullback, mean reversion, vol expansion, momentum ignition | EntryOptimizer, policy dispatch |
 
 ### Model Layer (`quantforge/`, `shared/model.py`)
 
@@ -121,14 +153,67 @@ Features are computed independently per module and concatenated by common index.
 - Engine adds volatility scalar (target_vol=0.30, cap=1.0) for BTC
 - Triple-barrier volatility used for SL/TP placement
 
+### Archetype Classification (`features/`)
+
+| Component | File | Responsibility |
+|-----------|------|---------------|
+| SetupArchetype | `features/archetypes.py` | 5 pure-feature archetypes: MOMENTUM_IGNITION, MEAN_REVERSION, BREAKOUT_TEST, TREND_PULLBACK, VOLATILITY_EXPANSION |
+| ArchetypeClassifier | `features/archetypes.py` | Computes archetype from feature vector without model inference |
+
+### Entry Quality (`paper_trading/`)
+
+| Component | File | Responsibility |
+|-----------|------|---------------|
+| EntryOptimizer | `paper_trading/entry_optimizer.py` | Maps (archetype, MarketStructureState) → EntryAction (ENTER / DEFER / SKIP) |
+| DeferredEntry | `paper_trading/deferred_entry.py` | Idempotent entry_id from hash(signal_snapshot + symbol + timestamp_bucket); PENDING/TRIGGERED/EXPIRED/CANCELLED state machine; persists across ticks |
+| EntryAction | `paper_trading/decision.py` | Routing enum: ENTER (immediate), DEFER (conditional trigger), SKIP (abstain) |
+
+### Execution Policy (`paper_trading/`)
+
+| Component | File | Responsibility |
+|-----------|------|---------------|
+| BasePolicy | `paper_trading/execution_policy.py` | Abstract base; archetypePolicy mixin; POLICY_MAP dispatch |
+| PolicyDecision | `paper_trading/decision.py` | Frozen dataclass — immutable instruction packet with archetype, action, TPGeometry, market_state hash |
+| TPGeometry | `paper_trading/decision.py` | Frozen dataclass — tp_mult, sl_mult, scale_out_tiers, vol_adjustment |
+
+### TP Compiler (`paper_trading/`)
+
+| Component | File | Responsibility |
+|-----------|------|---------------|
+| TPCompiler | `paper_trading/tp_compiler.py` | regime×archetype TP geometry; backloaded scale-out tiers per archetype; vol-expansion adjustment; inverted regime TP multipliers |
+
+### Fill Realism (`paper_trading/`)
+
+| Component | File | Responsibility |
+|-----------|------|---------------|
+| ExecutionSimulator | `paper_trading/execution_simulator.py` | Orchestrator: simulate(), simulate_entry(), simulate_stop_loss(), simulate_take_profit(); all randomness seeded and deterministic |
+| SlippageModel | `paper_trading/slippage_model.py` | Asymmetric slippage: SL 1.5× base + seeded noise (adverse); TP 0.1× base (neutral/near-zero) |
+| FillModel | `paper_trading/fill_model.py` | Gap-through detection (fills at gap-open if price gaps through stop); partial fill degradation (min_fill_prob 0.60) |
+| LatencyModel | `paper_trading/latency_model.py` | Seeded bar-level execution delay (0–3 bars, gamma-distributed) |
+| FillResult | `paper_trading/decision.py` | Frozen dataclass — fill_price, fill_qty, slippage_bps, gap_through, partial, latency_bars |
+
+### Trade Attribution (`paper_trading/`)
+
+| Component | File | Responsibility |
+|-----------|------|---------------|
+| AttributionCollector | `paper_trading/trade_attribution.py` | Observe-only collector; wired into AssetEngine open/close lifecycle; 4-domain causal split |
+| PredictionAttribution | `paper_trading/trade_attribution.py` | Directional correctness, confidence calibration, regime alignment at entry |
+| ExecutionAttribution | `paper_trading/trade_attribution.py` | Entry timing quality, slippage impact, fill efficiency, counterfactuals |
+| ExitAttribution | `paper_trading/trade_attribution.py` | MAE/MFE time-normalized, exit reason decomposition, scale-out efficiency |
+| FrictionAttribution | `paper_trading/trade_attribution.py` | Spread cost, market impact, latency cost, total friction |
+| CounterfactualMetric | `paper_trading/trade_attribution.py` | What-if: perfect entry, zero slippage, ideal exit vs actual |
+
 ### Execution (`paper_trading/`)
 
 **AssetEngine** (per-asset instance)
 - Loads serialized model pickle
 - Fetches live data (yfinance)
 - Runs inference → signal → confidence
+- Routes through archetype classifier → EntryOptimizer → ExecutionPolicyLayer → ExecutionSimulator → AttributionCollector
 - Manages position: entry, SL/TP, PnL tracking
 - Updates live state (history.parquet, state.json)
+- `_apply_decision()`: dispatches PolicyDecision to state mutation
+- `_poll_pending_entries()`: checks DeferredEntry triggers each cycle
 
 **PaperTradingEngine** (orchestrator)
 - Manages 13 AssetEngine instances + BTC satellite
@@ -203,11 +288,21 @@ graph TD
     T1[yfinance 5 min] --> T2[Feature computation live]
     T3[Load model pickle] --> T4[Inference XGBoost]
     T2 & T4 --> T5[Signal + Confidence > 0.45?]
-    T5 --> T6[Governance layer: 7 conditions]
-    T6 --> T7[Validity state machine check]
-    T7 --> T8[Position management: entry/SL/TP/scale-out]
-    T8 --> T9[Update state.json + trade_journal.parquet]
-    T9 --> T10[Dashboard + telemetry]
+    T5 --> T6[Archetype Classification: Phase 3]
+    T6 --> T7[EntryOptimizer: Phase 1]
+    T7 --> T8{EntryAction}
+    T8 -->|ENTER| T9[ExecutionPolicy: Phase 4]
+    T8 -->|DEFER| T10[DeferredEntry: monitor trigger]
+    T8 -->|SKIP| T17[Skip Signal]
+    T17 --> T18[Dashboard + telemetry]
+    T10 -->|Triggered| T9
+    T9 --> T11[ExecutionSimulator: Phase 5]
+    T11 --> T12[Governance layer: 7 conditions]
+    T12 --> T13[Validity state machine check]
+    T13 --> T14[Position management: entry/SL/TP/scale-out]
+    T14 --> T15[TradeAttribution: Phase 6]
+    T15 --> T16[Update state.json + trade_journal.parquet]
+    T16 --> T18[Dashboard + telemetry]
 ```
 
 ---

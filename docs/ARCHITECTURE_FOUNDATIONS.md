@@ -146,4 +146,81 @@ The research pipeline is complete when all three expansion axes and the generali
 
 ---
 
+## Theorem 6: Execution Pipeline Decomposition
+
+The system's execution path decomposes into four causally isolated sub-layers, discovered during the Execution Research Framework (Phases 0–6). Each sub-layer has a distinct role, a distinct bottleneck, and a distinct empirical constraint.
+
+### Sub-layer A — Archetype Classification (Phase 3)
+
+**Role:** Project signal state into discrete market-structure archetype.
+
+**Components:** `features/archetypes.py` — 5 pure-feature archetypes (BREAKOUT, TREND_PULLBACK, MEAN_REVERSION, VOLATILITY_EXPANSION, MOMENTUM_IGNITION).
+
+**Constraint:** *Archetype is a projection of feature space, not model inference.* It adds no information beyond what is already present in the feature vector. It restructures existing information into a decision-relevant taxonomy.
+
+**Invariant:** *Archetype classifies what the model already sees.* It cannot create edge; it can only route to an appropriate policy.
+
+---
+
+### Sub-layer B — Entry Quality (Phase 1)
+
+**Role:** Gate entry on timing quality.
+
+**Components:** `EntryOptimizer` (ENTER / DEFER / SKIP), `DeferredEntry` (idempotent entry_id, PENDING/TRIGGERED/EXPIRED/CANCELLED state machine).
+
+**Constraint:** *DeferredEntry is execution state, not temporary calculation.* It must persist across ticks. The idempotent entry_id (hash of signal_snapshot + symbol + timestamp_bucket) prevents double-trigger on restart or replay.
+
+**Invariant:** *Entry quality can only degrade the signal.* It can defer or skip, but never improve a weak signal into a strong one.
+
+---
+
+### Sub-layer C — Fill Realism (Phase 5)
+
+**Role:** Emulate market physics at fill time.
+
+**Components:** `ExecutionSimulator`, `SlippageModel`, `FillModel`, `LatencyModel`.
+
+**Constraint:** *Fill realism sits after PolicyDecision freeze.* The decision is finalized before physics is applied. Phase 5 may only degrade outcomes, never improve them.
+
+**Invariant:** *Execution randomness is deterministic.* Same seed + same inputs → identical FillResult across runs. All sub-components use seeded RNG: SlippageModel(seed), FillModel(seed+1), LatencyModel(seed+2).
+
+**Corollary:** *Fill asymmetry is structural, not random.* SL fills get adverse slippage (1.5× base); TP fills get neutral/near-zero slippage (0.1× base). This reflects documented market microstructure: stop-losses cluster and gap, while limit orders provide liquidity.
+
+---
+
+### Sub-layer D — Trade Attribution (Phase 6)
+
+**Role:** Observe, diagnose, and decompose execution outcomes into causally distinct components.
+
+**Components:** `AttributionCollector`, `PredictionAttribution`, `ExecutionAttribution`, `ExitAttribution`, `FrictionAttribution`.
+
+**Constraint:** *Phase 6 observes everything, mutates nothing.* Analytics never feed back into labels, frozen kernel, or policies. The attribution layer is epistemically isolated from all decision and execution layers.
+
+**Invariant:** *Four-domain attribution is irreducible.* A single collapsed PnL number conflates prediction accuracy, execution quality, exit timing, and market friction. These four domains are causally independent and must be tracked separately for diagnostic value.
+
+**Corollary:** *Counterfactual metrics are diagnostic, not predictive.* What-if scenarios (perfect entry, zero slippage, ideal exit) reveal where alpha is lost in the pipeline, but cannot be used to retroactively improve outcomes.
+
+---
+
+### Updated Causal Chain
+
+The original Theorem 2 causal chain is extended to include the execution pipeline:
+
+```
+Asset physics → label projection → model training → geometry conditioning
+    → archetype classification → entry quality → policy decision
+    → fill realism → attribution (observe only)
+    → P&L
+```
+
+Each step can only degrade the signal (except attribution, which neither degrades nor improves). No step can create signal that was not present in the previous step.
+
+After geometry conditioning, the remaining degradation sources are:
+- **Archetype misclassification** (~5–15% of remaining expectancy)
+- **Entry timing error** (deferred vs immediate, ~5–20% depending on archetype)
+- **Slippage + fill cost** (measured empirically via Phase 6 attribution, typically 10–30% of gross alpha)
+- **Exit quality** (MAE/MFE decomposition reveals exit efficiency)
+
+---
+
 *Document locked May 2026. No revisions without empirical contradiction.*

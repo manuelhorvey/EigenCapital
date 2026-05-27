@@ -2,7 +2,94 @@
 
 Operational reference for cross-asset isolation, execution physics, extended history, lead-lag features, adaptive macro weighting, and portfolio-level circuit breaker.
 
-All tiers have been implemented, validated, and merged to `main`. 470 tests pass across 18 test files.
+All tiers have been implemented, validated, and merged to `main`. 845 tests pass across 30+ test files (includes Phases 0–6).
+
+---
+
+## Phases 0–6: Execution Research Framework
+
+Transforms QuantForge from a prediction-driven system into a policy-driven execution research framework with causal attribution.
+
+### Phase 0 — Frozen Kernel + Labels
+
+Retrained labels with runtime-consistent initial geometry. Stateless `compute_initial_barriers()` ensures no adaptive logic leaks into labels. Training label geometry now matches runtime initial barriers — fixing the root cause of signal corruption.
+
+**Files:** `labels/triple_barrier.py`, `labels/label_architectures.py`
+**Tests:** Existing label tests pass with updated barrier alignment.
+
+### Phase 1 — Entry Quality Engine
+
+- `paper_trading/entry_optimizer.py` — `EntryOptimizer` maps (archetype, MarketStructureState) to `EntryAction` (ENTER / DEFER / SKIP)
+- `paper_trading/deferred_entry.py` — `DeferredEntry` with idempotent `entry_id` from hash(signal_snapshot + symbol + timestamp_bucket)
+- `paper_trading/decision.py` — `EntryAction` routing; `PolicyDecision`, `TPGeometry` as frozen dataclasses
+
+**Tests:** `tests/test_deferred_entry.py`, `tests/test_entry_optimizer.py`
+
+### Phase 2 — TP/Exit Geometry
+
+- `paper_trading/tp_compiler.py` — Regime×archetype TP compiler with backloaded scale-out tiers per archetype
+- Vol-expansion TP adjustment and inverted regime TP multipliers (trend/volatile get wider TP to let winners run; calm/range get tighter TP to clip mean reversion)
+- Scale-out profiles: breakout 10/20/30/40, trend_pullback 15/20/30/35, mean_reversion 33/33/34, vol_expansion 10/15/25/50, momentum_ignition 10/10/30/50
+
+**Files:** `paper_trading/tp_compiler.py`, `paper_trading/scale_out.py`
+**Tests:** `tests/test_scale_out.py` (44 tests), `tests/test_tp_compiler.py`
+
+### Phase 3 — Archetype Classification
+
+- `features/archetypes.py` — 5 pure-feature archetypes computed from feature vector without model inference:
+  - BREAKOUT: KER + ADX + volatility contraction
+  - TREND_PULLBACK: Trend direction + retracement depth + volume
+  - MEAN_REVERSION: Overextended Bollinger + RSI extremes
+  - VOLATILITY_EXPANSION: Vol z-score spike + compression release
+  - MOMENTUM_IGNITION: Rate of change acceleration + volume confirmation
+
+**Tests:** `tests/test_archetypes.py`
+
+### Phase 4 — Execution Policy Layer
+
+- `paper_trading/execution_policy.py` — Archetype-to-policy dispatch via `POLICY_MAP`; `BasePolicy`, `ArchetypePolicy` mixins
+- `PolicyDecision` as immutable instruction packet — decision layer ≠ state mutation layer
+- Enforces: policy return is always `PolicyDecision`, not `PositionIntent`
+
+**Tests:** `tests/test_execution_policy.py`
+
+### Phase 5 — Fill Realism Layer
+
+Seeded deterministic market physics emulation. Sits AFTER PolicyDecision freeze. Only degrades outcomes, never improves them.
+
+- `paper_trading/execution_simulator.py` — Orchestrator: `simulate()`, `simulate_entry()`, `simulate_stop_loss()`, `simulate_take_profit()`
+- `paper_trading/slippage_model.py` — Asymmetric slippage: SL 1.5× base + seeded noise (adverse); TP 0.1× base (neutral)
+- `paper_trading/fill_model.py` — Gap-through detection (fills at gap-open if price gaps through stop); partial fill degradation (min_fill_prob 0.60)
+- `paper_trading/latency_model.py` — Seeded bar-level execution delay (0–3 bars, gamma-distributed)
+- `paper_trading/execution_bridge.py` — Integration point: `fill_price()` wraps entry via simulator; `fill_stop_loss()` / `fill_take_profit()` return `FillResult`
+- Opt-in via `use_execution_simulator` flag — existing code path unchanged (wrap-first, replace-later)
+
+**Key invariants:**
+- All randomness seeded: SlippageModel(seed), FillModel(seed+1), LatencyModel(seed+2)
+- Same seed + same inputs → identical FillResult
+- Gap-through always fills at worst of open or trigger price
+- Partial fill never exceeds requested qty
+- Phase 5 modules import no strategy modules (xgboost, sklearn, meta_label)
+
+**Tests:** `tests/test_phase5_fill_realism.py` (24 invariant tests)
+
+### Phase 6 — Trade Attribution Analytics
+
+Observe everything, mutate nothing. Never feeds back into labels, frozen kernel, or policies.
+
+- `paper_trading/trade_attribution.py` — 4-domain causal attribution split:
+  1. **PredictionAttribution** — Directional correctness, confidence calibration, regime alignment
+  2. **ExecutionAttribution** — Entry timing quality, slippage impact, fill efficiency, counterfactuals
+  3. **ExitAttribution** — MAE/MFE time-normalized, exit reason decomposition, scale-out efficiency
+  4. **FrictionAttribution** — Spread cost, market impact, latency cost, total friction
+- `AttributionCollector` — Observe-only collector wired into AssetEngine open/close lifecycle
+- Counterfactual metrics (what-if: perfect entry, zero slippage, ideal exit vs actual)
+- Archetype drift tracking, decision quality scoring, version hashing
+- Never mutates labels, frozen kernel, or policies
+
+**Tests:** `tests/test_phase6_attribution.py` (36 tests across 9 classes)
+
+---
 
 ## Tier 1 — Cross-asset leakage and regime sizing
 

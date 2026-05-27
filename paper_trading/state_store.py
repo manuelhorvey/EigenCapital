@@ -73,6 +73,8 @@ class StateStore:
         self.cache_dir = os.path.join(self.live_dir, "cache")
         self._snapshot_cache = None
         self._snapshot_cache_ttl = snapshot_cache_ttl
+        self._analytics_snapshot_counter = 0
+        self._analytics_snapshot_frequency = 5  # recompute every N calls
         os.makedirs(self.cache_dir, exist_ok=True)
         os.makedirs(self.live_dir, exist_ok=True)
 
@@ -307,6 +309,101 @@ class StateStore:
         except Exception as e:
             logger.warning("Failed to read shadow trades: %s", e)
             return []
+
+    def write_analytics_snapshot(self) -> None:
+        """Precompute analytics aggregates and cache to analytics_snapshot.json.
+
+        Called periodically from the engine main loop (not from API routes).
+        Uses a frequency gate (_analytics_snapshot_frequency) to avoid
+        recomputing on every call. Routes should prefer this cache over
+        live parquet reads for expensive aggregations.
+        """
+        self._analytics_snapshot_counter += 1
+        if self._analytics_snapshot_counter < self._analytics_snapshot_frequency:
+            return
+        self._analytics_snapshot_counter = 0
+        attrs = self.read_attribution(limit=2000)
+        shadows = self.read_shadow_trades(limit=2000)
+        snapshot: dict = {}
+
+        if attrs:
+            import pandas as pd
+            df = pd.DataFrame(attrs)
+            arch_col = "pred_archetype_at_entry"
+            regime_col = "pred_regime_at_entry"
+            reason_col = "exit_exit_reason"
+
+            # Overall
+            r_values = df.get("exit_realized_r", df.get("realized_r", 0))
+            snapshot["overall"] = {
+                "n_trades": len(df),
+                "avg_r": float(r_values.mean()),
+                "win_rate": float((r_values > 0).mean()),
+                "tp_rate": float((df.get(reason_col, "") == "tp").mean()),
+                "sl_rate": float((df.get(reason_col, "") == "sl").mean()),
+            }
+
+            # Per archetype
+            by_arch = {}
+            if arch_col in df.columns:
+                for arch, grp in df.groupby(arch_col):
+                    grp_r = grp.get("exit_realized_r", 0)
+                    by_arch[arch] = {
+                        "n": len(grp),
+                        "avg_r": float(grp_r.mean()),
+                        "win_rate": float((grp_r > 0).mean()),
+                        "tp_rate": float((grp.get(reason_col, "") == "tp").mean()),
+                        "sl_rate": float((grp.get(reason_col, "") == "sl").mean()),
+                        "avg_entry_slippage": float(grp.get("friction_entry_slippage_bps", 0).mean()),
+                        "avg_mae": float(grp.get("exit_mae", 0).mean()),
+                        "avg_mfe": float(grp.get("exit_mfe", 0).mean()),
+                    }
+            snapshot["by_archetype"] = by_arch
+
+            # Per regime
+            by_reg = {}
+            if regime_col in df.columns:
+                for reg, grp in df.groupby(regime_col):
+                    grp_r = grp.get("exit_realized_r", 0)
+                    by_reg[reg] = {
+                        "n": len(grp),
+                        "avg_r": float(grp_r.mean()),
+                        "win_rate": float((grp_r > 0).mean()),
+                    }
+            snapshot["by_regime"] = by_reg
+
+        if shadows:
+            import pandas as pd
+            sdf = pd.DataFrame(shadows)
+            n = len(sdf)
+            same = (sdf.get("exit_reason", "") == sdf.get("live_exit_reason", "")).sum()
+            shadow_divergence_rate = 1 - (same / n) if n > 0 else 0
+            r_delta = sdf.get("realized_r", 0) - sdf.get("live_realized_r", 0)
+            snapshot["shadow"] = {
+                "n": n,
+                "divergence_rate": round(shadow_divergence_rate, 4),
+                "avg_r_delta": round(float(r_delta.mean()), 4),
+            }
+
+        snapshot["updated_at"] = datetime.now(tz=ET).isoformat()
+
+        try:
+            path = os.path.join(self.live_dir, "analytics_snapshot.json")
+            with open(path, "w") as f:
+                json.dump(snapshot, f, indent=2, default=str)
+        except Exception as e:
+            logger.warning("Failed to write analytics snapshot: %s", e)
+
+    def read_analytics_snapshot(self) -> dict | None:
+        """Read the precomputed analytics snapshot if available."""
+        path = os.path.join(self.live_dir, "analytics_snapshot.json")
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception:
+            return None
 
     def append_confidence_bucket(self, bucket: dict) -> None:
         df = pd.DataFrame([bucket])

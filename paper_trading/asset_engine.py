@@ -582,6 +582,7 @@ class AssetEngine:
         self._save_trade_journal(trade)
         if self.state_store is not None:
             self.state_store.write_trade_outcomes_cache()
+            self.state_store.write_analytics_snapshot()
         _record_exit_outcome(self.name, reason)
 
     def _record_stop_out(self, side: str, exit_price: float) -> None:

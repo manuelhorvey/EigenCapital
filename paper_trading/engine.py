@@ -474,6 +474,7 @@ class PaperTradingEngine:
                 }
                 self.state_store.append_trade(trade)
                 self.state_store.write_trade_outcomes_cache()
+                self.state_store.write_analytics_snapshot()
 
             logger.info(
                 "%s satellite: gate=%s, position=%s, value=%.2f%s",

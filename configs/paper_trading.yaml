@@ -199,7 +199,7 @@ assets:
         threshold: 0.55
       scale_out:
         enabled: false
-  AUDJPY:
+      AUDJPY:
     ticker: AUDJPY=X
     allocation: 0.16
     sl_mult: 0.48
@@ -238,7 +238,17 @@ assets:
         enabled: true
         threshold: 0.55
       scale_out:
-        enabled: false
+        enabled: true
+        tiers:
+        - fraction: 0.25
+          multiplier: 0.25
+        - fraction: 0.25
+          multiplier: 0.5
+        - fraction: 0.25
+          multiplier: 0.75
+        - fraction: 0.25
+          multiplier: 1.0
+        activate_breakeven_after: 0
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.13
@@ -279,7 +289,7 @@ assets:
         threshold: 0.55
       scale_out:
         enabled: false
-  CHFJPY:
+      CHFJPY:
     ticker: CHFJPY=X
     allocation: 0.14
     sl_mult: 0.48
@@ -309,13 +319,23 @@ assets:
         atr_mult_sl: 1.8
         atr_mult_tp: 2.0
         min_rr_ratio: 1.5
-        calibration_scale: 1.2
+        calibration_scale: 1.0
         auto_calibrate: true
       meta_labeling:
         enabled: true
         threshold: 0.55
       scale_out:
-        enabled: false
+        enabled: true
+        tiers:
+        - fraction: 0.25
+          multiplier: 0.25
+        - fraction: 0.25
+          multiplier: 0.5
+        - fraction: 0.25
+          multiplier: 0.75
+        - fraction: 0.25
+          multiplier: 1.0
+        activate_breakeven_after: 0
   EURCAD:
     ticker: EURCAD=X
     allocation: 0.20
@@ -364,7 +384,7 @@ assets:
         - fraction: 0.25
           multiplier: 1.0
         activate_breakeven_after: 0
-  USDJPY:
+      USDJPY:
     ticker: USDJPY=X
     allocation: 0.08
     sl_mult: 0.48
@@ -397,14 +417,24 @@ assets:
         atr_mult_sl: 2.0
         atr_mult_tp: 3.0
         min_rr_ratio: 1.5
-        calibration_scale: 1.2
+        calibration_scale: 1.0
         auto_calibrate: true
       meta_labeling:
         enabled: true
         threshold: 0.55
       scale_out:
-        enabled: false
-  GBPCAD:
+        enabled: true
+        tiers:
+        - fraction: 0.25
+          multiplier: 0.25
+        - fraction: 0.25
+          multiplier: 0.5
+        - fraction: 0.25
+          multiplier: 0.75
+        - fraction: 0.25
+          multiplier: 1.0
+        activate_breakeven_after: 0
+      GBPCAD:
     ticker: GBPCAD=X
     allocation: 0.07
     sl_mult: 0.48
@@ -441,4 +471,14 @@ assets:
         enabled: true
         threshold: 0.55
       scale_out:
-        enabled: false
+        enabled: true
+        tiers:
+        - fraction: 0.25
+          multiplier: 0.25
+        - fraction: 0.25
+          multiplier: 0.5
+        - fraction: 0.25
+          multiplier: 0.75
+        - fraction: 0.25
+          multiplier: 1.0
+        activate_breakeven_after: 0

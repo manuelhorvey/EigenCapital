@@ -8,6 +8,7 @@ import pytz
 from paper_trading import diagnostics as diag
 from paper_trading import wrappers as _w
 from paper_trading.shadow_memory import store_event as _shadow_store
+from paper_trading.shadow_sltp import ShadowSLTPEngine, ShadowTradeRecord
 from paper_trading.tracer import (
     shadow_compare_pnl,
     shadow_compare_sltp,
@@ -30,6 +31,16 @@ class AssetPnlController:
         # 1. Intraday SL/TP Check - ALWAYS run this on every refresh using real-time price
         max_hold = asset.config.get("max_holding_days")
         if asset.pos_mgr.has_position() and asset.current_price is not None:
+            # ── Shadow SL/TP tick (isolated counterfactual replay) ──
+            if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None and asset._shadow_sltp.is_active:
+                data = getattr(asset, "price_data", None) or getattr(asset, "_price_df", None)
+                if data is not None:
+                    asset._shadow_sltp.tick(
+                        asset.current_price,
+                        data,
+                        str(datetime.now(tz=ET).date()),
+                    )
+
             # ── Scale-out tier check ─────────────────────────────
             if asset._scale_out_plan is not None:
                 so_fills = asset._scale_out_engine.check_tiers(
@@ -63,6 +74,10 @@ class AssetPnlController:
                 )
                 if asset.pos_mgr.position is not None:
                     asset._record_stop_out(asset.pos_mgr.position.side, hit[1])
+                # Close shadow position with live exit reason
+                if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None:
+                    asset._shadow_sltp.close_shadow(float(hit[1]), last_bar, hit[0])
+                    asset._shadow_sltp.set_live_outcome(hit[0], _compute_r(asset, float(hit[1])))
                 asset._close_position(hit[1], last_bar, hit[0])
                 if asset.current_value > asset.peak_value:
                     asset.peak_value = asset.current_value
@@ -158,6 +173,8 @@ class AssetPnlController:
                     if elapsed >= max_hold:
                         last_bar = str(datetime.now(tz=ET).date())
                         logger.info("%s: TIME STOP after %d days (max=%d)", asset.name, elapsed, max_hold)
+                        if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None:
+                            asset._shadow_sltp.close_shadow(asset.current_price, last_bar, "time_stop")
                         asset._close_position(asset.current_price, last_bar, "time_stop")
                         return
                 except (AttributeError, TypeError, ValueError):
@@ -251,3 +268,17 @@ class AssetPnlController:
         delta = new_base - old_base
         asset.current_value = asset.current_value + delta
         asset.pos_mgr.current_value = asset.pos_mgr.current_value + delta
+
+
+def _compute_r(asset, exit_price: float) -> float:
+    """Compute the realized R-multiple from a trade."""
+    if asset.pos_mgr is None or asset.pos_mgr.position is None:
+        return 0.0
+    entry = asset.pos_mgr.position.entry_price
+    sl = asset.pos_mgr.position.stop_loss
+    if entry <= 0 or sl == entry:
+        return 0.0
+    side = asset.pos_mgr.position.side
+    ret = (exit_price / entry - 1) if side == "long" else (entry / exit_price - 1)
+    risk_pct = abs(entry - sl) / entry
+    return round(ret / risk_pct, 4) if risk_pct > 0 else 0.0

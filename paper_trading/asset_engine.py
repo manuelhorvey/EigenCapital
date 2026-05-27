@@ -21,7 +21,8 @@ from paper_trading.config_manager import get_config
 from paper_trading.data_fetcher import flatten, safe_download
 from paper_trading.decision import EntryAction, PositionIntent, PositionSide, SignalType, TradeDecision
 from paper_trading.deferred_entry import DeferredEntryStatus
-from paper_trading.dynamic_sltp import build_dynamic_sltp_from_config
+from paper_trading.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
+from paper_trading.shadow_sltp import ShadowSLTPEngine
 from paper_trading.position_manager import PositionManager
 from paper_trading.regime_classifier import RegimeClassifier
 from paper_trading.risk_governance import record_trade_outcome as _record_exit_outcome
@@ -123,6 +124,26 @@ class AssetEngine:
 
         self._sltp_engine = build_dynamic_sltp_from_config(self.config)
         self._scale_out_engine = build_scale_out_from_config(self.config)
+
+        # Shadow SL/TP engine — parallel counterfactual replay
+        self._shadow_sltp: ShadowSLTPEngine | None = None
+        if self.config.get("shadow_sltp", {}).get("enabled", False):
+            shadow_cfg = self.config.get("shadow_sltp", {})
+            alt_engine = DynamicSLTPEngine(
+                method=shadow_cfg.get("method", "atr"),
+                atr_period=shadow_cfg.get("atr_period", self.config.get("dynamic_sltp", {}).get("atr_period", 14)),
+                atr_mult_sl=shadow_cfg.get("atr_mult_sl", 2.5),
+                atr_mult_tp=shadow_cfg.get("atr_mult_tp", 2.0),
+                min_rr_ratio=shadow_cfg.get("min_rr_ratio", 1.2),
+                trailing_activation_mult=shadow_cfg.get("trailing_activation_mult", 1.0),
+                trailing_distance_mult=shadow_cfg.get("trailing_distance_mult", 1.5),
+                confidence_sl_adjust=shadow_cfg.get("confidence_sl_adjust", 0.3),
+            )
+            self._shadow_sltp = ShadowSLTPEngine(
+                name=shadow_cfg.get("name", "tight_trail"),
+                alt_engine=alt_engine,
+            )
+            logger.info("%s: shadow SL/TP engine '%s' initialized", self.name, self._shadow_sltp.name)
         self._scale_out_plan = None
         self._last_adjust_bar = 0
         self._bars_at_entry = 0
@@ -372,6 +393,20 @@ class AssetEngine:
             intent.take_profit = fill_price - tp_geo.tp_distance
 
         self.pos_mgr.open(intent)
+
+        # Shadow entry recording (isolated counterfactual)
+        if self._shadow_sltp is not None:
+            self._shadow_sltp.record_entry(
+                side=side,
+                entry_price=float(fill_price),
+                entry_date=entry_date,
+                df=data,
+                sl_mult=sl_mult,
+                tp_mult=tp_mult,
+                regime=getattr(self, "_current_regime", "neutral"),
+                meta_confidence=getattr(self, "_last_meta_proba", None),
+            )
+
         self.position = {
             "side": intent.side,
             "entry": intent.entry_price,

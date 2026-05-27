@@ -11,17 +11,17 @@
 
 ## 1. SYSTEM OVERVIEW
 
-QuantForge is an adaptive multi-asset macro research and portfolio simulation platform with **governance-driven execution control and stress-conditioned survival modeling**.
+QuantForge is a **deterministic market interaction simulator with causally decomposed execution quality** — an adaptive multi-asset research platform combining governance-driven execution control, stress-conditioned survival modeling, and an immutable execution contract ledger.
 
 | Layer | Purpose |
 |-------|---------|
 | **Features** | Deterministic macro-conditioned signals under strict schema contracts |
-| **Models** | Probabilistic directional inference via XGBoost (BUY / HOLD / SELL) |
-| **Archetype Classification** | 5 pure-feature market structure archetypes — breakout, trend pullback, mean reversion, vol expansion, momentum ignition |
+| **Models** | Probabilistic directional intent via XGBoost (BUY / HOLD / SELL) — signal generator, not decision authority |
+| **Archetype Classification** | 5 pure-feature market structure archetypes — primary execution conditioning variable across Phases 1-4 |
 | **Entry Quality** | DeferredEntry engine with idempotent entry_id, EntryOptimizer routing (ENTER / DEFER / SKIP) |
 | **Execution Policy** | Immutable PolicyDecision dispatch — archetype-to-policy switchboard |
 | **Fill Realism** | Seeded deterministic slippage (asymmetric SL/TP), gap-through, partial fill, latency |
-| **Trade Attribution** | 4-domain causal attribution (Prediction, Execution, Exit, Friction) — observes everything, mutates nothing |
+| **Trade Attribution** | 4-domain causal reconstruction (Prediction, Execution, Exit, Friction) with counterfactual decomposition — observes everything, mutates nothing |
 | **Governance** | 7-layer suppression under instability — see [docs/GOVERNANCE_LAYER.md](docs/GOVERNANCE_LAYER.md) |
 | **Simulation** | Adversarial survival testing with execution physics and deleveraging feedback |
 | **Execution** | Paper trading with mark-to-market PnL, SL/TP surface optimization, portfolio construction |
@@ -33,6 +33,7 @@ QuantForge is an adaptive multi-asset macro research and portfolio simulation pl
 - **Survival under stress over historical fit** — adversarial perturbation, not backtest R²
 - **Governance as primary component** — validity state machines, stability penalties, meta-labeling, narrative + liquidity governance
 - **Portfolio topology over standalone alpha** — assets selected for marginal contribution to portfolio risk, not individual Sharpe
+- **Archetypes as primary routing key** — execution policy, TP geometry, and entry behavior are all conditioned on archetype classification; archetypes are the central conditioning variable across Phases 1-4
 - **Epistemic boundary separation** — prediction (Phase 3), decision (Phase 4), execution (Phase 5), and attribution (Phase 6) are causally isolated layers; each can only degrade the signal, never create it
 - **Fill realism as degradation** — Phase 5 may only make fills worse, never better; sits after PolicyDecision freeze
 - **Observe-only analytics** — Phase 6 attribution observes everything but mutates nothing; never feeds back into labels, frozen kernel, or policies
@@ -59,19 +60,19 @@ S --> E
 
 E --> F1[tb20: Triple Barrier]
 E --> F2[fwd60: Forward Returns]
-F1 & F2 --> G[XGBoost Model Layer]
+F1 & F2 --> G[XGBoost Signal Generator]
 G --> H[Regime Classifier Overlay]
-G --> I[Signal Generator]
+G --> I[Signal Intent]
+H --> I
 I --> J[Risk Engine]
-H --> J
-J --> K[Portfolio Construction]
+J --> K[Portfolio Allocation]
 
-subgraph Execution_Pipeline [Execution Pipeline: Phases 3-6]
-    K --> P3[Phase 3: Archetype Classification]
+subgraph Execution_Spine [Execution Spine: Phases 3-6 — Frozen Contracts]
+    K --> P3[Phase 3: Archetype — Routing Key]
     P3 --> P1[Phase 1: Entry Quality]
-    P1 --> P4[Phase 4: Execution Policy]
-    P4 --> P5[Phase 5: Fill Realism]
-    P5 --> P6[Phase 6: Trade Attribution]
+    P1 --> P4[Phase 4: PolicyDecision — FROZEN]
+    P4 --> P5[Phase 5: FillResult — FROZEN]
+    P5 --> P6[Phase 6: AttributionRecord — FROZEN]
 end
 
 P6 --> L[PaperBroker Execution]
@@ -105,29 +106,29 @@ graph LR
         D -->|SKIP| G[Skip Signal]
     end
 
-    subgraph Policy [Execution Policy]
+    subgraph Policy [Execution Policy — FROZEN CONTRACT]
         E --> H[POLICY_MAP Dispatch]
-        H --> I[PolicyDecision: frozen]
+        H --> I[PolicyDecision: immutable]
         F -->|Triggered| E
     end
 
-    subgraph Fill [Fill Realism]
+    subgraph Fill [Fill Realism — FROZEN CONTRACT]
         I --> J[ExecutionSimulator]
         J --> K[SlippageModel: asym SL/TP]
         J --> L[FillModel: gap-through]
         J --> M[LatencyModel: seeded delay]
-        K & L & M --> N[FillResult: frozen]
+        K & L & M --> N[FillResult: immutable]
     end
 
-    subgraph Attribute [Trade Attribution]
-        N --> O[AttributionCollector]
+    subgraph Attribute [Causal Reconstruction — FROZEN CONTRACT]
+        N --> O[AttributionCollector: observe-only]
         O --> P[Prediction Attribution]
         O --> Q[Execution Attribution]
         O --> R[Exit Attribution]
         O --> S[Friction Attribution]
     end
 
-    subgraph State [State Mutation]
+    subgraph State [State Mutation — Mutable]
         N --> T[AssetEngine: position state]
         T --> U[PnL + Journal + Snapshots]
     end
@@ -190,6 +191,8 @@ export FRED_API_KEY=your_key
 
 **BTC satellite**: 5% AUM cap, vol target 40%, drawdown limit 25%, 5-condition AND gate. Actively managed — positions open on gate OPEN, close on gate CLOSED or SL/TP hit. Vol-adjusted SL/TP (same formula as core assets: `entry × (1 ± vol × multiplier)`). Entry/stop/target prices and exit reason logged per cycle and displayed on the satellite dashboard card.
 
+> Portfolio allocation provides capital input only. Execution truth resides in the deterministic contract chain: PolicyDecision (Phase 4) → FillResult (Phase 5) → AttributionRecord (Phase 6). Allocation weights are not execution decisions.
+
 ---
 
 ## 5. KEY CONFIGURATION
@@ -243,7 +246,9 @@ Full detail: [docs/FEATURES.md](docs/FEATURES.md)
 
 ## 8. MODEL ARCHITECTURE
 
-**XGBoost** multiclass classifier (BUY / HOLD / SELL) with 300 trees, max_depth=2, learning_rate=0.02. Optional macro expert head with adaptive blend weight. Strategy interfaces via `shared/` abstract base classes.
+**XGBoost** multiclass classifier (BUY / HOLD / SELL) with 300 trees, max_depth=2, learning_rate=0.02 — serves as **probabilistic signal generator**, not decision authority. Optional macro expert head with adaptive blend weight. Strategy interfaces via `shared/` abstract base classes.
+
+The model produces directional intent; execution truth is resolved downstream by the structural decision spine: Archetype Classification (Phase 3) → Entry Optimizer (Phase 1) → Execution Policy (Phase 4) → Fill Realism (Phase 5) → Attribution (Phase 6). Model output is one of several inputs to the archetype-conditioned policy layer — never a direct trading decision.
 
 Full detail: [docs/ARCHITECTURE_FOUNDATIONS.md](docs/ARCHITECTURE_FOUNDATIONS.md)
 
@@ -261,7 +266,7 @@ Full detail: [docs/ARCHITECTURE_FOUNDATIONS.md](docs/ARCHITECTURE_FOUNDATIONS.md
 | **3** | Archetype Classification — 5 pure-feature archetypes: BREAKOUT, TREND_PULLBACK, MEAN_REVERSION, VOLATILITY_EXPANSION, MOMENTUM_IGNITION |
 | **4** | Execution Policy Layer — archetype-to-policy dispatch via POLICY_MAP; PolicyDecision as immutable instruction packet |
 | **5** | Fill Realism Layer — SlippageModel, FillModel, LatencyModel, ExecutionSimulator; asymmetric SL/TP slippage; gap-through; partial fill; seeded deterministic randomness |
-| **6** | Trade Attribution Analytics — 4-domain causal attribution (Prediction, Execution, Exit, Friction); counterfactual metrics; MAE/MFE; archetype drift tracking |
+| **6** | Causal Reconstruction Layer — 4-domain attribution (Prediction, Execution, Exit, Friction); counterfactual metrics (perfect entry, zero slippage, ideal exit); MAE/MFE time-normalized; archetype drift tracking; deterministic replay audit |
 
 ### Pre-existing Tiers (1–7)
 
@@ -307,6 +312,7 @@ Full detail: [docs/SURVIVAL_SIMULATION.md](docs/SURVIVAL_SIMULATION.md)
 - Execution fill determinism: same seed + same inputs → identical FillResult across runs
 - Degradation-only fill realism: Phase 5 may only degrade outcomes, never improve them
 - Observe-only attribution: Phase 6 analytics never mutate labels, kernel, or policies
+- Frozen execution contract: PolicyDecision (Phase 4), FillResult (Phase 5), and AttributionRecord (Phase 6) form an immutable causal ledger — deterministic replay, counterfactual evaluation, no upstream mutation
 
 ---
 
@@ -332,12 +338,63 @@ Full detail: [docs/SURVIVAL_SIMULATION.md](docs/SURVIVAL_SIMULATION.md)
 
 ## 14. SYSTEM CLASSIFICATION
 
-> Adaptive multi-asset macro research and portfolio simulation platform with governance-driven execution control and stress-conditioned survival modeling.
+> Deterministic market interaction simulator with causally decomposed execution quality, governance-driven execution control, and stress-conditioned survival modeling.
 
-Distinguished from backtesting frameworks by treating governance as a primary system component, stress survival as the central validation criterion, and portfolio topology as the unit of analysis.
+Distinguished from backtesting frameworks by treating execution physics as the primary unit of analysis, governance as a primary system component, stress survival as the central validation criterion, and portfolio topology as a downstream allocation concern.
 
 ---
 
-## 15. DISCLAIMER
+## 15. EXECUTION LEDGER MODEL
+
+The system now operates on a **frozen execution ledger** composed of immutable artifacts forming a causal chain of market interaction:
+
+| Artifact | Phase | Immutability |
+|----------|-------|--------------|
+| Initial Barrier Geometry | Phase 0 | Frozen at kernel compile |
+| Archetype Context | Phase 3 | Deterministic from feature vector |
+| Entry Decision State | Phase 1 | Idempotent entry_id |
+| Reward Geometry | Phase 2 | Compiled from regime×archetype |
+| Policy Decision Packet | Phase 4 | Frozen instruction |
+| Fill Simulation Result | Phase 5 | Seeded deterministic |
+| Trade Attribution Record | Phase 6 | Observe-only append |
+
+These seven artifacts form a **deterministic replay chain**: same inputs + same seed → identical execution history. This enables counterfactual evaluation — what-if analysis on any single artifact without recomputing upstream layers.
+
+---
+
+## 16. SYSTEM TRANSFORMATION
+
+QuantForge has transitioned from:
+
+> Predictive trading system with analytics
+
+to:
+
+> Causally decomposed execution simulator with observability-first architecture
+
+| Dimension | Before (Phases 0–2) | After (Phases 0–6) |
+|-----------|--------------------|--------------------|
+| Core abstraction | ML pipeline | Execution contract ledger |
+| Model role | Decision authority | Signal generator |
+| Execution truth | Position manager state | Frozen PolicyDecision → FillResult |
+| Analytics | Performance metrics | Causal decomposition with counterfactuals |
+| Attribution | PnL attribution | 4-domain (Prediction, Execution, Exit, Friction) |
+| Reproducibility | Stochastic | Seeded deterministic across all layers |
+
+---
+
+## 17. SYSTEM MATURITY STATE
+
+QuantForge is now in **observability-complete execution simulation** state. The architecture is structurally complete through Phase 6. Future work is no longer about structural expansion, but about:
+
+- **Statistical governance** — edge discovery from the full attribution surface
+- **Regime sensitivity analysis** — expectancy surfaces conditioned on market regime
+- **Policy optimization** — tuning execution within existing contract boundaries (no kernel contamination)
+
+The architecture is contract-frozen. All subsequent development operates within the existing causal isolation boundaries and respects the observe-only constraint on the signal kernel.
+
+---
+
+## 18. DISCLAIMER
 
 Research system only. No live capital execution. Not financial advice. Historical simulation results are not indicative of future performance.

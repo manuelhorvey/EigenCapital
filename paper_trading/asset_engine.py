@@ -207,11 +207,40 @@ class AssetEngine:
         growth = self.current_value / self.initial_capital
         return self.capital_base * growth
 
+    def _meta_size_multiplier(self) -> float:
+        """Convert meta-label confidence to a position size multiplier.
+
+        Meta-confidence is interpreted as "how much capital should we
+        trust this prediction with?" — not "how far should this trade run?"
+
+        Mapping (linear interpolation from threshold to certainty):
+            [threshold, 1.0] → [min_size, 1.0]
+
+        Below threshold → 0.0 (effectively blocks the trade).
+        """
+        if not self.config.get("meta_labeling", {}).get("enabled", False):
+            return 1.0
+        meta_proba = getattr(self, "_last_meta_proba", None)
+        if meta_proba is None:
+            return 1.0
+
+        threshold = self.config.get("meta_labeling", {}).get("threshold", 0.55)
+        min_size = self.config.get("meta_labeling", {}).get("min_size_on_threshold", 0.25)
+
+        if meta_proba < threshold:
+            return 0.0
+        if meta_proba >= 1.0:
+            return 1.0
+
+        t = (meta_proba - threshold) / (1.0 - threshold)
+        return min_size + t * (1.0 - min_size)
+
     def _composite_size_scalar(self, extra_scalar: float = 1.0) -> float:
         return (
             self.pos_mgr.position_size
             * self.pos_mgr.exposure_multiplier
             * extra_scalar
+            * self._meta_size_multiplier()
             * max(
                 self.governance._narrative_size_scalar * self.governance._liquidity_size_scalar, self._MIN_SIZE_SCALAR
             )
@@ -582,21 +611,23 @@ class AssetEngine:
             logger.debug("%s: skipping trade, confidence %.1f%% < min %.1f%%", self.name, decision.confidence, min_conf)
             new_side = None
 
-        # Meta-label filter — skip trades unlikely to hit TP before SL
+        # Meta-label advisory (sizing handles suppression via _meta_size_multiplier)
         if (
             new_side
             and self._meta_label_model is not None
             and self.config.get("meta_labeling", {}).get("enabled", False)
             and hasattr(self, "_last_meta_proba")
-            and not self._meta_label_model.should_enter(self._last_meta_proba)
+            and self._last_meta_proba is not None
+            and self._last_meta_proba < self._meta_label_model.threshold
         ):
             logger.info(
-                "%s: meta-label blocking trade (p(TP>SL)=%.2f < threshold=%.2f)",
+                "%s: meta-label below threshold (p(TP>SL)=%.2f < %.2f) — sizing will suppress",
                 self.name,
                 self._last_meta_proba,
                 self._meta_label_model.threshold,
             )
-            new_side = None
+            # new_side remains set; _meta_size_multiplier returns 0.0
+            # which flows through _composite_size_scalar → zero notional
 
         if new_side != current_side:
             if self.pos_mgr.has_position():

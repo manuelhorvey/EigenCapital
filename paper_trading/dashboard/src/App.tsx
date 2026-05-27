@@ -25,10 +25,23 @@ import ErrorScreen from './components/ui/ErrorScreen'
 import ErrorBoundary from './components/ErrorBoundary'
 import WeeklyReviewPopup from './components/WeeklyReviewPopup'
 import { useLastReview } from './hooks/useLastReview'
+import type { FilterState } from './components/FilterBar'
+import FilterBar from './components/FilterBar'
+import ExecutionQualityStrip from './components/execution/ExecutionQualityStrip'
+import AttributionBreakdownCard from './components/attribution/AttributionBreakdownCard'
+import PnLWaterfall from './components/attribution/PnLWaterfall'
+import MaeMfeScatter from './components/attribution/MaeMfeScatter'
+import SlippageHistogram from './components/execution/SlippageHistogram'
+import FillQualityGauge from './components/execution/FillQualityGauge'
+import TradeExecutionTable from './components/execution/TradeExecutionTable'
+import ShadowComparisonTable from './components/shadow/ShadowComparisonTable'
+import ShadowDivergenceChart from './components/shadow/ShadowDivergenceChart'
+import { useAttributionTrades } from './hooks/useAttributionTrades'
 
 const NAV_SECTIONS = [
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'signals', label: 'Signals' },
+  { id: 'execution', label: 'Execution' },
   { id: 'trades', label: 'Trades' },
   { id: 'governance', label: 'Governance' },
   { id: 'risk', label: 'Risk' },
@@ -83,6 +96,9 @@ function AnchorNav() {
 
 export default function App() {
   const { isPending, isError, isFetching } = usePortfolioState()
+  const [filters, setFilters] = useState<FilterState>({ archetype: '', regime: '', asset: '' })
+  const { data: allTrades } = useAttributionTrades(200)
+  const uniqueAssets = [...new Set(allTrades?.map(t => t.asset) ?? [])]
 
   if (isPending) return <LoadingScreen />
   if (isError) return <ErrorScreen />
@@ -124,6 +140,42 @@ export default function App() {
                 <EquityChart />
               </div>
             </div>
+          </section>
+        </ErrorBoundary>
+
+        <ErrorBoundary title="Execution">
+          <section id="execution" className="anchor-nav space-y-4 sm:space-y-5">
+            {/* Layer 0: Persistent Filter Bar */}
+            <FilterBar assets={uniqueAssets} onChange={setFilters} />
+
+            {/* Layer 1: Execution Quality KPI Strip */}
+            <ExecutionQualityStrip />
+
+            {/* Layer 2: Attribution Overview — decomposition + scores */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+              <AttributionBreakdownCard />
+              <PnLWaterfall />
+            </div>
+
+            {/* Layer 3: MAE / MFE Scatter */}
+            <MaeMfeScatter />
+
+            {/* Layer 4: Execution Friction — slippage + fill quality */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+              <div className="lg:col-span-2 min-w-0">
+                <SlippageHistogram />
+              </div>
+              <div className="lg:col-span-1 min-w-0">
+                <FillQualityGauge />
+              </div>
+            </div>
+
+            {/* Layer 5: Trade Execution Detail Table (with drill-down) */}
+            <TradeExecutionTable />
+
+            {/* Layer 6: Shadow Analysis — comparison + divergence */}
+            <ShadowDivergenceChart />
+            <ShadowComparisonTable />
           </section>
         </ErrorBoundary>
 

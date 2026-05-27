@@ -6,12 +6,12 @@ logger = logging.getLogger("quantforge.paper_trading.tp_compiler")
 
 # 1. Archetype → Convexity Mapping (Finalized Spec)
 ARCHETYPE_CONVEXITY = {
-    "BREAKOUT": 1.7,  # 1.3 - 2.0
-    "TREND_PULLBACK": 1.3,  # 1.1 - 1.5
-    "MEAN_REVERSION": 0.95,  # 0.8 - 1.1
-    "VOL_EXPANSION": 1.5,  # 1.2 - 1.8
-    "MOMENTUM_IGNITION": 2.0,  # 1.4 - 2.2
-    "UNKNOWN": 1.0,
+    "BREAKOUT": 5.0,
+    "TREND_PULLBACK": 4.0,
+    "MEAN_REVERSION": 3.0,
+    "VOL_EXPANSION": 4.5,
+    "MOMENTUM_IGNITION": 6.0,
+    "UNKNOWN": 3.0,
 }
 
 # 2. Regime Layer Modifiers (Finalized Spec)

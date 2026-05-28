@@ -50,7 +50,7 @@ class ArchetypeClassifier:
                 return SetupArchetype.BREAKOUT_TEST
 
             # 4. Vol Expansion (Approximated by low ADX turning higher)
-            if adx < 20.0 and abs(bb_z) < 1.0:
+            if adx < 20.0 and abs(bb_z) < 1.5:
                 return SetupArchetype.VOL_EXPANSION
 
             return SetupArchetype.UNKNOWN

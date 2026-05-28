@@ -1,0 +1,3 @@
+CLOSE_zscore_20
+CLOSE_vol_ratio
+CLOSE_dow_signal

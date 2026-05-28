@@ -1,0 +1,53 @@
+{
+  "ticker": "EURCAD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-06",
+      "test_start": "2018-11-14",
+      "test_end": "2020-07-13",
+      "ic": 0.0769,
+      "hit_rate": 0.5
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-07-06",
+      "test_start": "2020-07-14",
+      "test_end": "2022-01-25",
+      "ic": 0.087,
+      "hit_rate": 0.4748
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2022-01-18",
+      "test_start": "2022-01-26",
+      "test_end": "2023-05-24",
+      "ic": -0.0755,
+      "hit_rate": 0.2914
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-12",
+      "test_start": "2023-05-25",
+      "test_end": "2024-11-04",
+      "ic": -0.1111,
+      "hit_rate": 0.3885
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-28",
+      "test_start": "2024-11-05",
+      "test_end": "2026-05-11",
+      "ic": 0.4098,
+      "hit_rate": 0.4784
+    }
+  ],
+  "mean_ic": 0.0774,
+  "positive_folds": 3,
+  "total_folds": 5
+}

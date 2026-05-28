@@ -1,0 +1,53 @@
+{
+  "ticker": "NZDCHF",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-09-27",
+      "test_start": "2018-10-05",
+      "test_end": "2020-02-24",
+      "ic": 0.0844,
+      "hit_rate": 0.2618
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-02-14",
+      "test_start": "2020-02-25",
+      "test_end": "2021-08-24",
+      "ic": 0.1319,
+      "hit_rate": 0.2
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-08-17",
+      "test_start": "2021-08-25",
+      "test_end": "2023-01-31",
+      "ic": 0.2523,
+      "hit_rate": 0.5455
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-01-24",
+      "test_start": "2023-02-02",
+      "test_end": "2024-08-05",
+      "ic": 0.1402,
+      "hit_rate": 0.3818
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-07-29",
+      "test_start": "2024-08-06",
+      "test_end": "2026-05-11",
+      "ic": 0.1429,
+      "hit_rate": 0.5309
+    }
+  ],
+  "mean_ic": 0.1503,
+  "positive_folds": 5,
+  "total_folds": 5
+}

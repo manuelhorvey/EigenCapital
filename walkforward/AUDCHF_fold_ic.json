@@ -1,0 +1,53 @@
+{
+  "ticker": "AUDCHF",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-12",
+      "test_start": "2018-11-20",
+      "test_end": "2020-04-28",
+      "ic": 0.1714,
+      "hit_rate": 0.3964
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-04-21",
+      "test_start": "2020-04-29",
+      "test_end": "2021-11-26",
+      "ic": 0.123,
+      "hit_rate": 0.2857
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-18",
+      "test_start": "2021-11-29",
+      "test_end": "2023-05-31",
+      "ic": -0.0462,
+      "hit_rate": 0.4179
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-23",
+      "test_start": "2023-06-01",
+      "test_end": "2024-10-07",
+      "ic": 0.3016,
+      "hit_rate": 0.3679
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-19",
+      "test_start": "2024-10-15",
+      "test_end": "2026-04-22",
+      "ic": -0.1429,
+      "hit_rate": 0.4357
+    }
+  ],
+  "mean_ic": 0.0814,
+  "positive_folds": 3,
+  "total_folds": 5
+}

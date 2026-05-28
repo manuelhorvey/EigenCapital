@@ -1,0 +1,53 @@
+{
+  "ticker": "CADCHF",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-08-30",
+      "test_start": "2018-09-11",
+      "test_end": "2020-02-26",
+      "ic": -0.1429,
+      "hit_rate": 0.3949
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-02-19",
+      "test_start": "2020-02-27",
+      "test_end": "2021-10-15",
+      "ic": 0.166,
+      "hit_rate": 0.3732
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-10-04",
+      "test_start": "2021-10-18",
+      "test_end": "2023-03-28",
+      "ic": 0.0861,
+      "hit_rate": 0.4022
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-03-20",
+      "test_start": "2023-03-29",
+      "test_end": "2024-09-18",
+      "ic": -0.0625,
+      "hit_rate": 0.5072
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-09",
+      "test_start": "2024-09-19",
+      "test_end": "2026-05-11",
+      "ic": -0.0526,
+      "hit_rate": 0.4928
+    }
+  ],
+  "mean_ic": -0.0012,
+  "positive_folds": 2,
+  "total_folds": 5
+}

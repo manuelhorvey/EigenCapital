@@ -1,0 +1,53 @@
+{
+  "ticker": "NZDUSD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-10-26",
+      "test_start": "2018-11-05",
+      "test_end": "2020-03-17",
+      "ic": -0.1485,
+      "hit_rate": 0.26
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-03-10",
+      "test_start": "2020-03-18",
+      "test_end": "2021-11-16",
+      "ic": -0.2371,
+      "hit_rate": 0.25
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-09",
+      "test_start": "2021-11-17",
+      "test_end": "2023-05-03",
+      "ic": 0.125,
+      "hit_rate": 0.4867
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-04-26",
+      "test_start": "2023-05-04",
+      "test_end": "2024-10-01",
+      "ic": -0.1826,
+      "hit_rate": 0.33
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-24",
+      "test_start": "2024-10-02",
+      "test_end": "2026-05-07",
+      "ic": 0.0588,
+      "hit_rate": 0.4967
+    }
+  ],
+  "mean_ic": -0.0769,
+  "positive_folds": 2,
+  "total_folds": 5
+}

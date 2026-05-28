@@ -1,0 +1,53 @@
+{
+  "ticker": "AUDNZD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2019-01-02",
+      "test_start": "2019-01-15",
+      "test_end": "2020-07-09",
+      "ic": 0.0152,
+      "hit_rate": 0.3188
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-07-01",
+      "test_start": "2020-07-10",
+      "test_end": "2021-11-16",
+      "ic": 0.2593,
+      "hit_rate": 0.2584
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-09",
+      "test_start": "2021-11-17",
+      "test_end": "2023-05-19",
+      "ic": -0.117,
+      "hit_rate": 0.2315
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-12",
+      "test_start": "2023-05-22",
+      "test_end": "2024-10-18",
+      "ic": -0.2773,
+      "hit_rate": 0.3289
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-02",
+      "test_start": "2024-10-21",
+      "test_end": "2026-05-07",
+      "ic": -0.1765,
+      "hit_rate": 0.2517
+    }
+  ],
+  "mean_ic": -0.0593,
+  "positive_folds": 2,
+  "total_folds": 5
+}

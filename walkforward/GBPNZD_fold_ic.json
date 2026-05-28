@@ -1,0 +1,53 @@
+{
+  "ticker": "GBPNZD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-20",
+      "test_start": "2018-11-29",
+      "test_end": "2020-05-27",
+      "ic": -0.0101,
+      "hit_rate": 0.3922
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-05-19",
+      "test_start": "2020-05-28",
+      "test_end": "2021-10-27",
+      "ic": -0.0065,
+      "hit_rate": 0.4876
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-10-20",
+      "test_start": "2021-10-28",
+      "test_end": "2023-05-12",
+      "ic": 0.0065,
+      "hit_rate": 0.3145
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-04-28",
+      "test_start": "2023-05-15",
+      "test_end": "2024-10-23",
+      "ic": -0.3412,
+      "hit_rate": 0.3286
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-16",
+      "test_start": "2024-10-24",
+      "test_end": "2026-05-11",
+      "ic": -0.05,
+      "hit_rate": 0.424
+    }
+  ],
+  "mean_ic": -0.0803,
+  "positive_folds": 1,
+  "total_folds": 5
+}

@@ -325,7 +325,7 @@ class AssetEngine:
         data = df if df is not None else self.price_data
         vol = self._tb_vol(data["close"])
         if pd.isna(vol) or pd.isna(entry_price) or entry_price == 0:
-            logger.error("%s: invalid entry_price=%s or vol=%s", self.name, entry_price, vol)
+            logger.warning("%s: skipped entry — invalid price=%s or vol=%s", self.name, entry_price, vol)
             return
 
         # Regime-conditional geometry selection (multipliers on base sl_mult/tp_mult)

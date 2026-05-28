@@ -1,0 +1,53 @@
+{
+  "ticker": "CHFJPY",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-08",
+      "test_start": "2018-11-19",
+      "test_end": "2020-06-10",
+      "ic": 0.0288,
+      "hit_rate": 0.3229
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-06-01",
+      "test_start": "2020-06-11",
+      "test_end": "2021-11-10",
+      "ic": 0.0444,
+      "hit_rate": 0.2431
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-03",
+      "test_start": "2021-11-11",
+      "test_end": "2023-05-16",
+      "ic": -0.0844,
+      "hit_rate": 0.2222
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-09",
+      "test_start": "2023-05-17",
+      "test_end": "2024-11-04",
+      "ic": 0.3005,
+      "hit_rate": 0.5556
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-23",
+      "test_start": "2024-11-05",
+      "test_end": "2026-05-05",
+      "ic": 0.092,
+      "hit_rate": 0.4896
+    }
+  ],
+  "mean_ic": 0.0763,
+  "positive_folds": 4,
+  "total_folds": 5
+}

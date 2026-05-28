@@ -1,0 +1,53 @@
+{
+  "ticker": "EURUSD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-12-12",
+      "test_start": "2018-12-27",
+      "test_end": "2020-05-29",
+      "ic": -0.0199,
+      "hit_rate": 0.4027
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-05-21",
+      "test_start": "2020-06-01",
+      "test_end": "2021-10-26",
+      "ic": 0.1484,
+      "hit_rate": 0.2901
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-10-19",
+      "test_start": "2021-10-27",
+      "test_end": "2023-05-17",
+      "ic": 0.0909,
+      "hit_rate": 0.5119
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-10",
+      "test_start": "2023-05-18",
+      "test_end": "2024-10-15",
+      "ic": -0.225,
+      "hit_rate": 0.3891
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-08",
+      "test_start": "2024-10-16",
+      "test_end": "2026-05-07",
+      "ic": 0.2,
+      "hit_rate": 0.413
+    }
+  ],
+  "mean_ic": 0.0389,
+  "positive_folds": 3,
+  "total_folds": 5
+}

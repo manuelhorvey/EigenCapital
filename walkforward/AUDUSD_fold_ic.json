@@ -1,0 +1,53 @@
+{
+  "ticker": "AUDUSD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-16",
+      "test_start": "2018-11-28",
+      "test_end": "2020-04-21",
+      "ic": -0.0811,
+      "hit_rate": 0.3959
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-04-07",
+      "test_start": "2020-04-22",
+      "test_end": "2021-11-17",
+      "ic": -0.089,
+      "hit_rate": 0.3208
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-10",
+      "test_start": "2021-11-18",
+      "test_end": "2023-05-03",
+      "ic": 0.1667,
+      "hit_rate": 0.4744
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-04-26",
+      "test_start": "2023-05-04",
+      "test_end": "2024-10-01",
+      "ic": -0.0442,
+      "hit_rate": 0.3174
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-24",
+      "test_start": "2024-10-02",
+      "test_end": "2026-05-08",
+      "ic": -0.2542,
+      "hit_rate": 0.4232
+    }
+  ],
+  "mean_ic": -0.0604,
+  "positive_folds": 1,
+  "total_folds": 5
+}

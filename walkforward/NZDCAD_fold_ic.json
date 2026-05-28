@@ -1,0 +1,53 @@
+{
+  "ticker": "NZDCAD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-10-25",
+      "test_start": "2018-11-02",
+      "test_end": "2020-05-12",
+      "ic": 0.2281,
+      "hit_rate": 0.2118
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-05-05",
+      "test_start": "2020-05-13",
+      "test_end": "2021-10-07",
+      "ic": -0.1724,
+      "hit_rate": 0.1354
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-09-30",
+      "test_start": "2021-10-08",
+      "test_end": "2023-03-10",
+      "ic": 0.0541,
+      "hit_rate": 0.4132
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-02-28",
+      "test_start": "2023-03-13",
+      "test_end": "2024-08-23",
+      "ic": -0.1,
+      "hit_rate": 0.2708
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-08-14",
+      "test_start": "2024-08-29",
+      "test_end": "2026-05-05",
+      "ic": -0.2911,
+      "hit_rate": 0.4618
+    }
+  ],
+  "mean_ic": -0.0563,
+  "positive_folds": 2,
+  "total_folds": 5
+}

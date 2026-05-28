@@ -1,0 +1,53 @@
+{
+  "ticker": "USDCHF",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-14",
+      "test_start": "2018-12-03",
+      "test_end": "2020-06-01",
+      "ic": -0.0448,
+      "hit_rate": 0.3922
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-05-22",
+      "test_start": "2020-06-02",
+      "test_end": "2021-11-19",
+      "ic": 0.0917,
+      "hit_rate": 0.3852
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-12",
+      "test_start": "2021-11-22",
+      "test_end": "2023-05-12",
+      "ic": 0.1059,
+      "hit_rate": 0.3286
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-05",
+      "test_start": "2023-05-16",
+      "test_end": "2024-10-29",
+      "ic": 0.0492,
+      "hit_rate": 0.4028
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-11",
+      "test_start": "2024-10-30",
+      "test_end": "2026-05-08",
+      "ic": 0.1096,
+      "hit_rate": 0.4382
+    }
+  ],
+  "mean_ic": 0.0623,
+  "positive_folds": 4,
+  "total_folds": 5
+}

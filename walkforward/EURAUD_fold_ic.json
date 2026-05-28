@@ -1,0 +1,53 @@
+{
+  "ticker": "EURAUD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-08",
+      "test_start": "2018-11-19",
+      "test_end": "2020-05-19",
+      "ic": 0.1026,
+      "hit_rate": 0.4596
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-04-30",
+      "test_start": "2020-05-20",
+      "test_end": "2021-12-14",
+      "ic": -0.0909,
+      "hit_rate": 0.4386
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-12-01",
+      "test_start": "2021-12-15",
+      "test_end": "2023-04-28",
+      "ic": 0.0267,
+      "hit_rate": 0.414
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-04-21",
+      "test_start": "2023-05-01",
+      "test_end": "2024-11-13",
+      "ic": 0.1489,
+      "hit_rate": 0.5018
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-11-05",
+      "test_start": "2024-11-14",
+      "test_end": "2026-05-05",
+      "ic": -0.191,
+      "hit_rate": 0.4737
+    }
+  ],
+  "mean_ic": -0.0007,
+  "positive_folds": 3,
+  "total_folds": 5
+}

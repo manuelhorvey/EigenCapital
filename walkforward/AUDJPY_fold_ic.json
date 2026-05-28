@@ -1,0 +1,53 @@
+{
+  "ticker": "AUDJPY",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-10-23",
+      "test_start": "2018-10-31",
+      "test_end": "2020-04-22",
+      "ic": 0.17,
+      "hit_rate": 0.2612
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-04-06",
+      "test_start": "2020-04-23",
+      "test_end": "2021-10-12",
+      "ic": -0.1226,
+      "hit_rate": 0.1718
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-10-05",
+      "test_start": "2021-10-13",
+      "test_end": "2023-03-22",
+      "ic": 0.1343,
+      "hit_rate": 0.299
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-03-14",
+      "test_start": "2023-03-23",
+      "test_end": "2024-10-17",
+      "ic": -0.325,
+      "hit_rate": 0.3918
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-25",
+      "test_start": "2024-10-29",
+      "test_end": "2026-04-30",
+      "ic": 0.284,
+      "hit_rate": 0.4983
+    }
+  ],
+  "mean_ic": 0.0281,
+  "positive_folds": 3,
+  "total_folds": 5
+}

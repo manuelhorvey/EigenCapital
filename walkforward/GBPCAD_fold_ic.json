@@ -1,0 +1,53 @@
+{
+  "ticker": "GBPCAD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-06",
+      "test_start": "2018-11-14",
+      "test_end": "2020-06-12",
+      "ic": -0.0993,
+      "hit_rate": 0.4097
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-06-04",
+      "test_start": "2020-06-15",
+      "test_end": "2021-12-20",
+      "ic": 0.1139,
+      "hit_rate": 0.4826
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-12-13",
+      "test_start": "2021-12-21",
+      "test_end": "2023-05-31",
+      "ic": -0.1545,
+      "hit_rate": 0.4132
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-05-05",
+      "test_start": "2023-06-01",
+      "test_end": "2024-10-24",
+      "ic": -0.2515,
+      "hit_rate": 0.1701
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-08",
+      "test_start": "2024-10-30",
+      "test_end": "2026-05-12",
+      "ic": 0.3913,
+      "hit_rate": 0.5278
+    }
+  ],
+  "mean_ic": -0.0,
+  "positive_folds": 2,
+  "total_folds": 5
+}

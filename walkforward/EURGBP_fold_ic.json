@@ -1,0 +1,53 @@
+{
+  "ticker": "EURGBP",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-27",
+      "test_start": "2018-12-06",
+      "test_end": "2020-07-28",
+      "ic": -0.0762,
+      "hit_rate": 0.3682
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-07-14",
+      "test_start": "2020-07-29",
+      "test_end": "2022-01-24",
+      "ic": 0.0714,
+      "hit_rate": 0.4188
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2022-01-13",
+      "test_start": "2022-01-25",
+      "test_end": "2023-07-11",
+      "ic": 0.0694,
+      "hit_rate": 0.4116
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-07-03",
+      "test_start": "2023-07-12",
+      "test_end": "2024-11-27",
+      "ic": 0.2679,
+      "hit_rate": 0.444
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-11-11",
+      "test_start": "2024-11-29",
+      "test_end": "2026-05-06",
+      "ic": 0.2195,
+      "hit_rate": 0.4332
+    }
+  ],
+  "mean_ic": 0.1104,
+  "positive_folds": 4,
+  "total_folds": 5
+}

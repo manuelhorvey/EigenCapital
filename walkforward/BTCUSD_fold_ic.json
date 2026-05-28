@@ -1,0 +1,53 @@
+{
+  "ticker": "BTCUSD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-06",
+      "train_end": "2018-08-31",
+      "test_start": "2018-10-12",
+      "test_end": "2020-04-28",
+      "ic": 0.069,
+      "hit_rate": 0.31
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-06",
+      "train_end": "2020-04-21",
+      "test_start": "2020-04-29",
+      "test_end": "2021-10-27",
+      "ic": 0.4057,
+      "hit_rate": 0.635
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-06",
+      "train_end": "2021-10-11",
+      "test_start": "2021-10-28",
+      "test_end": "2023-04-13",
+      "ic": -0.1299,
+      "hit_rate": 0.455
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-06",
+      "train_end": "2023-03-13",
+      "test_start": "2023-04-14",
+      "test_end": "2024-10-29",
+      "ic": 0.5111,
+      "hit_rate": 0.515
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-06",
+      "train_end": "2024-10-22",
+      "test_start": "2024-10-30",
+      "test_end": "2026-05-05",
+      "ic": 0.2759,
+      "hit_rate": 0.5
+    }
+  ],
+  "mean_ic": 0.2264,
+  "positive_folds": 4,
+  "total_folds": 5
+}

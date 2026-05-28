@@ -1,0 +1,53 @@
+{
+  "ticker": "EURJPY",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-26",
+      "test_start": "2018-12-17",
+      "test_end": "2020-06-02",
+      "ic": -0.0616,
+      "hit_rate": 0.391
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-05-26",
+      "test_start": "2020-06-03",
+      "test_end": "2021-11-08",
+      "ic": -0.2409,
+      "hit_rate": 0.2699
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-01",
+      "test_start": "2021-11-09",
+      "test_end": "2023-04-04",
+      "ic": 0.1613,
+      "hit_rate": 0.4637
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-03-28",
+      "test_start": "2023-04-05",
+      "test_end": "2024-10-21",
+      "ic": 0.283,
+      "hit_rate": 0.3668
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-10-02",
+      "test_start": "2024-10-22",
+      "test_end": "2026-04-27",
+      "ic": 0.3451,
+      "hit_rate": 0.4464
+    }
+  ],
+  "mean_ic": 0.0974,
+  "positive_folds": 3,
+  "total_folds": 5
+}

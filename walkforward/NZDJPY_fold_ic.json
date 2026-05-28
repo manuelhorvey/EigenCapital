@@ -1,0 +1,53 @@
+{
+  "ticker": "NZDJPY",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-09-07",
+      "test_start": "2018-09-17",
+      "test_end": "2020-03-13",
+      "ic": 0.0745,
+      "hit_rate": 0.2483
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-03-06",
+      "test_start": "2020-03-16",
+      "test_end": "2021-10-04",
+      "ic": -0.0233,
+      "hit_rate": 0.1014
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-09-24",
+      "test_start": "2021-10-05",
+      "test_end": "2023-03-27",
+      "ic": 0.0897,
+      "hit_rate": 0.3427
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-03-20",
+      "test_start": "2023-03-28",
+      "test_end": "2024-09-16",
+      "ic": -0.2743,
+      "hit_rate": 0.2937
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-09",
+      "test_start": "2024-09-17",
+      "test_end": "2026-04-30",
+      "ic": -0.1084,
+      "hit_rate": 0.486
+    }
+  ],
+  "mean_ic": -0.0484,
+  "positive_folds": 2,
+  "total_folds": 5
+}

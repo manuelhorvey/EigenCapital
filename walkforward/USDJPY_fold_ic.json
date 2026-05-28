@@ -1,0 +1,53 @@
+{
+  "ticker": "USDJPY",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-06",
+      "train_end": "2018-11-16",
+      "test_start": "2018-11-27",
+      "test_end": "2020-06-02",
+      "ic": 0.0282,
+      "hit_rate": 0.3534
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-06",
+      "train_end": "2020-05-26",
+      "test_start": "2020-06-03",
+      "test_end": "2021-12-20",
+      "ic": -0.0068,
+      "hit_rate": 0.3958
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-06",
+      "train_end": "2021-12-06",
+      "test_start": "2021-12-21",
+      "test_end": "2023-04-27",
+      "ic": -0.0723,
+      "hit_rate": 0.1625
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-06",
+      "train_end": "2023-04-20",
+      "test_start": "2023-04-28",
+      "test_end": "2024-10-09",
+      "ic": 0.0407,
+      "hit_rate": 0.3781
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-06",
+      "train_end": "2024-10-01",
+      "test_start": "2024-10-10",
+      "test_end": "2026-05-05",
+      "ic": 0.4141,
+      "hit_rate": 0.53
+    }
+  ],
+  "mean_ic": 0.0808,
+  "positive_folds": 3,
+  "total_folds": 5
+}

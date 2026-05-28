@@ -1,0 +1,53 @@
+{
+  "ticker": "GC",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-11-02",
+      "test_start": "2018-11-12",
+      "test_end": "2020-06-18",
+      "ic": 0.0109,
+      "hit_rate": 0.2171
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-06-10",
+      "test_start": "2020-06-19",
+      "test_end": "2022-01-21",
+      "ic": -0.0278,
+      "hit_rate": 0.3737
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2022-01-13",
+      "test_start": "2022-01-24",
+      "test_end": "2023-07-07",
+      "ic": 0.085,
+      "hit_rate": 0.5267
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-06-29",
+      "test_start": "2023-07-10",
+      "test_end": "2024-11-18",
+      "ic": 0.1045,
+      "hit_rate": 0.4057
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-11-11",
+      "test_start": "2024-11-19",
+      "test_end": "2026-05-08",
+      "ic": 0.4624,
+      "hit_rate": 0.4947
+    }
+  ],
+  "mean_ic": 0.127,
+  "positive_folds": 4,
+  "total_folds": 5
+}

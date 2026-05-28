@@ -1,0 +1,53 @@
+{
+  "ticker": "AUDCAD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-10-23",
+      "test_start": "2018-10-31",
+      "test_end": "2020-05-21",
+      "ic": 0.2571,
+      "hit_rate": 0.2466
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-05-14",
+      "test_start": "2020-05-22",
+      "test_end": "2021-11-17",
+      "ic": 0.133,
+      "hit_rate": 0.1747
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-11-09",
+      "test_start": "2021-11-18",
+      "test_end": "2023-04-05",
+      "ic": 0.2768,
+      "hit_rate": 0.2671
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-03-29",
+      "test_start": "2023-04-11",
+      "test_end": "2024-09-06",
+      "ic": 0.0541,
+      "hit_rate": 0.2774
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-08-29",
+      "test_start": "2024-09-09",
+      "test_end": "2026-05-08",
+      "ic": -0.2389,
+      "hit_rate": 0.3048
+    }
+  ],
+  "mean_ic": 0.0964,
+  "positive_folds": 4,
+  "total_folds": 5
+}

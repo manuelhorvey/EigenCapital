@@ -1,0 +1,53 @@
+{
+  "ticker": "EURNZD",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-05",
+      "train_end": "2018-10-22",
+      "test_start": "2018-10-30",
+      "test_end": "2020-03-23",
+      "ic": -0.1755,
+      "hit_rate": 0.3958
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-05",
+      "train_end": "2020-03-16",
+      "test_start": "2020-03-24",
+      "test_end": "2021-10-14",
+      "ic": 0.0194,
+      "hit_rate": 0.3993
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-05",
+      "train_end": "2021-10-07",
+      "test_start": "2021-10-15",
+      "test_end": "2023-04-27",
+      "ic": 0.2075,
+      "hit_rate": 0.3392
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-05",
+      "train_end": "2023-04-20",
+      "test_start": "2023-04-28",
+      "test_end": "2024-10-01",
+      "ic": 0.0085,
+      "hit_rate": 0.4523
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-05",
+      "train_end": "2024-09-24",
+      "test_start": "2024-10-02",
+      "test_end": "2026-05-07",
+      "ic": 0.0732,
+      "hit_rate": 0.424
+    }
+  ],
+  "mean_ic": 0.0266,
+  "positive_folds": 4,
+  "total_folds": 5
+}

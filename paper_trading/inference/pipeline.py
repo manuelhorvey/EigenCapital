@@ -47,71 +47,117 @@ class AssetInferencePipeline:
 
         df = fetch_live(asset.ticker)
 
+        # Normalise index to TZ-naive date to match alpha feature alignment
+        # norm_index localises to US/Eastern; for FX crosses (24h in UTC) this
+        # shifts the date by a day, breaking close.reindex(alpha_index).
+        # Convert to UTC first so the extracted date matches fetch_yf_series.
+        if df.index.tz is not None:
+            df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
+        else:
+            df.index = pd.to_datetime(df.index.date)
+
         # Sync with latest price (same as dashboard) to ensure responsive SL/TP
         asset.refresh_price()
         if asset.current_price is not None:
-            # Update the last row's close with the real-time price
             df.loc[df.index[-1], "close"] = asset.current_price
 
         asset.price_data = df
         asset._refresh_liquidity(df)
         df["close"] = df["close"].ffill()
-        ref = None
-        if getattr(asset.contract, "vs_spy_windows", ()):
-            ref = fetch_ref("SPY")
-        macro = asset._feature_pipeline.macro_derived(
-            pd.read_parquet(os.path.join(BASE, "data/processed/macro_factors.parquet"))
+
+        # ── Build alpha features ──
+        from features.alpha_features import build_alpha_features
+        from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
+
+        hist_prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(
+            asset.name, asset.ticker,
         )
-        features_df = asset._feature_pipeline.build(df, macro, ref, asset.contract)
-        validate_no_cross_asset_leakage(features_df, asset.contract, known_slugs=FEATURE_REGISTRY.keys())
+        alpha_df = build_alpha_features(
+            hist_prices, rate_diffs,
+            dxy=dxy, vix=vix, spx=spx, commodities=commodities,
+        )
 
-        # ── Archetype Inference Features (not passed to XGBoost) ──
-        # ADX, RSI, BB z-score, EMA spread for ArchetypeClassifier.
-        # These are computed from OHLCV after contract validation to avoid
-        # FeatureContract schema rejection. They are inference-only and
-        # never enter the XGBoost feature set — no train/serve skew risk.
+        # ── Build archetype features on full-history OHLCV ──
+        alpha_idx = alpha_df.index
+        ohlcv = fetch_asset_ohlcv(asset.ticker)
+        if not ohlcv.empty:
+            ohlcv = ohlcv.reindex(alpha_idx).ffill()
+        archetype_df = pd.DataFrame(index=alpha_idx)
         import ta
-        ema_20 = ta.trend.ema_indicator(df["close"], window=20)
-        ema_50 = ta.trend.ema_indicator(df["close"], window=50)
-        features_df["ema_spread"] = ((ema_20 - ema_50) / ema_50).reindex(features_df.index)
-
-        features_df["adx"] = ta.trend.adx(df["high"], df["low"], df["close"], window=14).reindex(features_df.index)
-        features_df["rsi"] = ta.momentum.rsi(df["close"], window=14).reindex(features_df.index)
-
-        bb = ta.volatility.BollingerBands(df["close"], window=20, window_dev=2)
-        bb_mavg = bb.bollinger_mavg()
-        bb_std = bb.bollinger_hband() - bb_mavg
-        features_df["bb_zscore"] = ((df["close"] - bb_mavg) / (bb_std / 2)).reindex(features_df.index)
+        if not ohlcv.empty:
+            ema_20 = ta.trend.ema_indicator(ohlcv["close"], window=20)
+            ema_50 = ta.trend.ema_indicator(ohlcv["close"], window=50)
+            archetype_df["ema_spread"] = ((ema_20 - ema_50) / ema_50).reindex(alpha_idx)
+            archetype_df["adx"] = ta.trend.adx(ohlcv["high"], ohlcv["low"], ohlcv["close"], window=14).reindex(alpha_idx)
+            archetype_df["rsi"] = ta.momentum.rsi(ohlcv["close"], window=14).reindex(alpha_idx)
+            bb = ta.volatility.BollingerBands(ohlcv["close"], window=20, window_dev=2)
+            bb_mavg = bb.bollinger_mavg()
+            bb_std = bb.bollinger_hband() - bb_mavg
+            archetype_df["bb_zscore"] = ((ohlcv["close"] - bb_mavg) / (bb_std / 2)).reindex(alpha_idx)
 
         for col in ["adx", "rsi", "bb_zscore", "ema_spread"]:
-            if col in features_df.columns and features_df[col].isna().any():
-                n_nan = features_df[col].isna().sum()
-                logger.warning(
-                    "%s: archetype feature '%s' has %d NaN rows "
-                    "(need >=%d bars of OHLCV data) — "
-                    "classifier will fall back to defaults",
-                    asset.name, col, n_nan,
-                    14 if col in ("adx", "rsi") else 20,
-                )
+            if col in archetype_df.columns and archetype_df[col].isna().any():
+                n_nan = archetype_df[col].isna().sum()
+                if n_nan > 30:
+                    logger.warning(
+                        "%s: archetype feature '%s' has %d NaN rows "
+                        "(classifier will fall back to defaults)",
+                        asset.name, col, n_nan,
+                    )
 
-        X = features_df[asset.features]
-        if len(X) == 0:
-            raise ValueError(f"No valid feature rows after building features for {asset.name}")
+        feature_cols = getattr(asset, "_alpha_feature_cols", None)
+        if not feature_cols:
+            feature_cols = [c for c in alpha_df.columns]
+            asset._alpha_feature_cols = feature_cols
 
-        # PSI drift: rolling 21d distribution vs training baseline
-        try:
-            latest_df, _ = asset._importance_store.get_latest_two_snapshots(asset.name)
-            if latest_df is not None and not latest_df.empty:
-                top10 = latest_df[latest_df["rank"] <= 10]
-                top_features = [(r["feature"], r["importance_score"]) for r in top10.to_dict("records")]
-                X_current = X.tail(21)
-                asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, X_current, top_features)
-        except Exception as e:
-            logger.debug("%s: PSI drift skipped: %s", asset.name, e)
+        available = [c for c in feature_cols if c in alpha_df.columns]
+        if not available:
+            raise ValueError(f"No alpha feature columns found for {asset.name}")
 
-        proba = asset._model_iface.predict(asset.model, X)
-        if proba.shape[1] < 3:
-            raise ValueError(f"Model returned {proba.shape[1]} classes, expected 3")
+        X = alpha_df[available]
+        features_df = pd.concat([alpha_df, archetype_df], axis=1)
+
+        # PSI drift: skip first cycle (warm-up), then rolling 21d vs baseline
+        if not getattr(asset, "_psi_drift_initialized", False):
+            asset._psi_drift_initialized = True
+        else:
+            try:
+                latest_df, _ = asset._importance_store.get_latest_two_snapshots(asset.name)
+                if latest_df is not None and not latest_df.empty:
+                    top10 = latest_df[latest_df["rank"] <= 10]
+                    top_features = [(r["feature"], r["importance_score"]) for r in top10.to_dict("records")]
+                    X_current = X.tail(21)
+                    asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, X_current, top_features)
+            except Exception as e:
+                logger.debug("%s: PSI drift skipped: %s", asset.name, e)
+
+        raw = asset._model_iface.predict(asset.model, X)
+        # Binary model -> expand to 3-column format for pipeline compatibility
+        if raw.shape[1] == 2:
+            p_long = raw[:, 1].reshape(-1, 1)
+            proba = np.column_stack([1.0 - raw[:, 1], np.zeros(raw.shape[0]), raw[:, 1]])
+        elif raw.shape[1] >= 3:
+            proba = raw[:, :3]
+        else:
+            raise ValueError(f"Model returned {raw.shape[1]} columns, expected >=2")
+
+        # ── Ensemble: blend base + regime model if available ──
+        ensemble = getattr(asset, "_ensemble", None)
+        if ensemble is not None and getattr(asset, "_regime_model", None) is not None:
+            regime_feats = getattr(asset, "regime_feature_names", None)
+            if regime_feats:
+                regime_available = [c for c in regime_feats if c in features_df.columns]
+                if regime_available:
+                    try:
+                        regime_raw = asset._regime_model.predict_proba(features_df)
+                        regime_p_long = regime_raw[:, 1]
+                        base_p_long = raw[:, 1]
+                        three_col, ensemble_signals = ensemble.combine_and_expand(base_p_long, regime_p_long)
+                        proba = three_col
+                        logger.debug("%s: ensemble blended (base=%.2f regime=%.2f)",
+                                     asset.name, ensemble.base_weight, ensemble.regime_weight)
+                    except Exception as e:
+                        logger.debug("%s: ensemble inference failed: %s", asset.name, e)
 
         # Meta-label inference
         asset._last_meta_proba = None
@@ -134,6 +180,40 @@ class AssetInferencePipeline:
 
         result = asset._signal_strategy.compute(proba, X.index, threshold, df["close"], pos_size)
 
+        # ── Ensemble breakdown logging ──
+        asset._ensemble_breakdown = {}
+        try:
+            latest_row = alpha_df.iloc[-1]
+            asset_name_u = asset.name.upper()
+            carry_val = latest_row.get(f"{asset_name_u}_carry_vol_adj", np.nan)
+            mom_21 = latest_row.get(f"{asset_name_u}_mom_21d", np.nan)
+            mom_63 = latest_row.get(f"{asset_name_u}_mom_63d", np.nan)
+            zscore_val = latest_row.get(f"{asset_name_u}_zscore_20", np.nan)
+            dow_val = latest_row.get(f"{asset_name_u}_dow_signal", np.nan)
+            vol_ratio = latest_row.get(f"{asset_name_u}_vol_ratio", np.nan)
+            asset._ensemble_breakdown = {
+                "xgb_prob": round(float(proba[-1, 2]), 4),
+                "carry_normalized": round(float(carry_val), 4) if not np.isnan(carry_val) else 0.0,
+                "mom_normalized": round(float(mom_21 * 0.6 + mom_63 * 0.4), 4) if not (np.isnan(mom_21) or np.isnan(mom_63)) else 0.0,
+                "reversion_normalized": round(float(zscore_val * -0.1), 4) if not np.isnan(zscore_val) else 0.0,
+                "dow_signal": round(float(dow_val), 4) if not np.isnan(dow_val) else 0.0,
+                "vol_ratio": round(float(vol_ratio), 4) if not np.isnan(vol_ratio) else 0.0,
+                "ensemble_score": round(float(result.confidence_pct / 100.0), 4),
+            }
+            logger.info(
+                "%s ensemble breakdown — xgb=%.4f carry=%.4f mom=%.4f rev=%.4f dow=%.4f vol=%.4f score=%.4f",
+                asset.name,
+                asset._ensemble_breakdown["xgb_prob"],
+                asset._ensemble_breakdown["carry_normalized"],
+                asset._ensemble_breakdown["mom_normalized"],
+                asset._ensemble_breakdown["reversion_normalized"],
+                asset._ensemble_breakdown["dow_signal"],
+                asset._ensemble_breakdown["vol_ratio"],
+                asset._ensemble_breakdown["ensemble_score"],
+            )
+        except Exception as e:
+            logger.debug("%s: ensemble breakdown logging failed: %s", asset.name, e)
+
         # Phase 3: Archetype Classification (Structural Context)
         archetype = "UNKNOWN"
         if asset._archetype_classifier is not None:
@@ -152,6 +232,12 @@ class AssetInferencePipeline:
         latest = asset.signal_data.iloc[-1]
         asset.last_signal_date = latest.name
 
+        close_price = float(latest["close"])
+        if pd.isna(close_price) or close_price == 0.0:
+            close_price = float(df["close"].ffill().iloc[-1])
+        if pd.isna(close_price) and asset.current_price is not None:
+            close_price = float(asset.current_price)
+
         decision = TradeDecision(
             asset=asset.name,
             signal=SignalType(result.signal_type),
@@ -160,7 +246,7 @@ class AssetInferencePipeline:
             prob_long=round(float(latest["prob_long"]), 4),
             prob_short=round(float(latest["prob_short"]), 4),
             prob_neutral=round(float(latest["prob_neutral"]), 4),
-            close_price=round(float(latest["close"]), 4),
+            close_price=round(close_price, 4),
             timestamp=str(datetime.now(tz=ET).date()),
             position_size=float(pos_size),
             archetype=archetype,
@@ -176,7 +262,7 @@ class AssetInferencePipeline:
             signal=decision.signal,
             confidence=decision.confidence,
             pos_size=float(pos_size),
-            close_price=float(latest["close"]),
+            close_price=close_price,
             current_side=asset.pos_mgr.current_side(),
             halt_flags=asset.check_halt_conditions(),
         )

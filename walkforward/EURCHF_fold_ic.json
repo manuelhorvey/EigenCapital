@@ -1,0 +1,53 @@
+{
+  "ticker": "EURCHF",
+  "folds": [
+    {
+      "fold": 0,
+      "train_start": "2017-06-07",
+      "train_end": "2018-11-14",
+      "test_start": "2018-11-27",
+      "test_end": "2020-04-13",
+      "ic": -0.2118,
+      "hit_rate": 0.4568
+    },
+    {
+      "fold": 1,
+      "train_start": "2017-06-07",
+      "train_end": "2020-03-24",
+      "test_start": "2020-04-16",
+      "test_end": "2021-11-09",
+      "ic": -0.2069,
+      "hit_rate": 0.2914
+    },
+    {
+      "fold": 2,
+      "train_start": "2017-06-07",
+      "train_end": "2021-10-29",
+      "test_start": "2021-11-10",
+      "test_end": "2023-04-05",
+      "ic": 0.1299,
+      "hit_rate": 0.3957
+    },
+    {
+      "fold": 3,
+      "train_start": "2017-06-07",
+      "train_end": "2023-03-29",
+      "test_start": "2023-04-06",
+      "test_end": "2024-08-26",
+      "ic": 0.1235,
+      "hit_rate": 0.259
+    },
+    {
+      "fold": 4,
+      "train_start": "2017-06-07",
+      "train_end": "2024-08-19",
+      "test_start": "2024-08-27",
+      "test_end": "2026-04-27",
+      "ic": 0.1479,
+      "hit_rate": 0.2338
+    }
+  ],
+  "mean_ic": -0.0035,
+  "positive_folds": 3,
+  "total_folds": 5
+}

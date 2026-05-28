@@ -2,7 +2,6 @@ import logging
 import os
 
 import pandas as pd
-import ta
 
 from features.contract import FeatureContract, validate_no_cross_asset_leakage
 from features.publication_lags import (
@@ -153,34 +152,6 @@ def build_features(
 
     if contract.custom_features:
         _attach_lead_lag_features(a, df, contract)
-
-    # ── Archetype Inference Features (not passed to XGBoost) ──
-    # ADX, RSI, BB z-score, EMA spread for ArchetypeClassifier
-    # These are computed directly from OHLCV and aligned by index.
-    # They are consumed only by Phase 3 (Archetype Classification),
-    # never by the XGBoost model — no train/serve skew risk.
-    ema_20 = ta.trend.ema_indicator(df["close"], window=20)
-    ema_50 = ta.trend.ema_indicator(df["close"], window=50)
-    a["ema_spread"] = ((ema_20 - ema_50) / ema_50).reindex(a.index)
-
-    a["adx"] = ta.trend.adx(df["high"], df["low"], df["close"], window=14).reindex(a.index)
-    a["rsi"] = ta.momentum.rsi(df["close"], window=14).reindex(a.index)
-
-    bb = ta.volatility.BollingerBands(df["close"], window=20, window_dev=2)
-    bb_mavg = bb.bollinger_mavg()
-    bb_std = bb.bollinger_hband() - bb_mavg
-    a["bb_zscore"] = ((df["close"] - bb_mavg) / (bb_std / 2)).reindex(a.index)
-
-    for col in ["adx", "rsi", "bb_zscore", "ema_spread"]:
-        if col in a.columns and a[col].isna().any():
-            n_nan = a[col].isna().sum()
-            logger.warning(
-                "%s: archetype feature '%s' has %d NaN rows "
-                "(need >=%d bars of OHLCV data) — "
-                "classifier will fall back to defaults",
-                contract.name, col, n_nan,
-                14 if col in ("adx", "rsi") else 20,
-            )
 
     a["label"] = labels
     drop_cols = [c for c in list(contract.features) + ["label"] if c in a.columns]

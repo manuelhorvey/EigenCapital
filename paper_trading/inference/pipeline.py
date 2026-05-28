@@ -9,22 +9,22 @@ import pytz
 from features.contract import validate_no_cross_asset_leakage
 from features.regime_features import generate_regime_features
 from features.registry import FEATURE_REGISTRY
-from paper_trading.ops import diagnostics as diag
-from paper_trading.ops import wrappers as _w
-from paper_trading.ops.data_fetcher import fetch_live, fetch_ref
 from paper_trading.entry.decision import SignalType, TradeDecision
 from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
 from paper_trading.governance.risk import evaluate as _risk_evaluate
-from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
-from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
-from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
-from paper_trading.shadow.memory import store_event as _shadow_store
+from paper_trading.ops import diagnostics as diag
+from paper_trading.ops import wrappers as _w
+from paper_trading.ops.data_fetcher import fetch_live, fetch_ref
 from paper_trading.ops.tracer import (
     shadow_compare_signal,
     shadow_compare_sizing,
     trace_decision,
     trace_diagnostic_report,
 )
+from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
+from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
+from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
+from paper_trading.shadow.memory import store_event as _shadow_store
 
 logger = logging.getLogger("quantforge.inference_pipeline")
 
@@ -64,6 +64,35 @@ class AssetInferencePipeline:
         )
         features_df = asset._feature_pipeline.build(df, macro, ref, asset.contract)
         validate_no_cross_asset_leakage(features_df, asset.contract, known_slugs=FEATURE_REGISTRY.keys())
+
+        # ── Archetype Inference Features (not passed to XGBoost) ──
+        # ADX, RSI, BB z-score, EMA spread for ArchetypeClassifier.
+        # These are computed from OHLCV after contract validation to avoid
+        # FeatureContract schema rejection. They are inference-only and
+        # never enter the XGBoost feature set — no train/serve skew risk.
+        import ta
+        ema_20 = ta.trend.ema_indicator(df["close"], window=20)
+        ema_50 = ta.trend.ema_indicator(df["close"], window=50)
+        features_df["ema_spread"] = ((ema_20 - ema_50) / ema_50).reindex(features_df.index)
+
+        features_df["adx"] = ta.trend.adx(df["high"], df["low"], df["close"], window=14).reindex(features_df.index)
+        features_df["rsi"] = ta.momentum.rsi(df["close"], window=14).reindex(features_df.index)
+
+        bb = ta.volatility.BollingerBands(df["close"], window=20, window_dev=2)
+        bb_mavg = bb.bollinger_mavg()
+        bb_std = bb.bollinger_hband() - bb_mavg
+        features_df["bb_zscore"] = ((df["close"] - bb_mavg) / (bb_std / 2)).reindex(features_df.index)
+
+        for col in ["adx", "rsi", "bb_zscore", "ema_spread"]:
+            if col in features_df.columns and features_df[col].isna().any():
+                n_nan = features_df[col].isna().sum()
+                logger.warning(
+                    "%s: archetype feature '%s' has %d NaN rows "
+                    "(need >=%d bars of OHLCV data) — "
+                    "classifier will fall back to defaults",
+                    asset.name, col, n_nan,
+                    14 if col in ("adx", "rsi") else 20,
+                )
 
         X = features_df[asset.features]
         if len(X) == 0:
@@ -110,7 +139,9 @@ class AssetInferencePipeline:
         if asset._archetype_classifier is not None:
             try:
                 # Use current feature row for classification
-                archetype_enum = asset._archetype_classifier.classify(X.iloc[-1])
+                # Must use features_df (includes archetype columns adx/rsi/bb_zscore/ema_spread)
+                # not X (which is XGBoost-only features)
+                archetype_enum = asset._archetype_classifier.classify(features_df.iloc[-1])
                 archetype = archetype_enum.value
             except Exception as e:
                 logger.debug("%s: archetype classification failed: %s", asset.name, e)

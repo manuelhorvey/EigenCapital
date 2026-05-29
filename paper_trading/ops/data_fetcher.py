@@ -138,7 +138,7 @@ def fetch_realtime_price(ticker: str) -> float | None:
     return None
 
 
-def fetch_live(ticker: str, min_days: int = 250) -> pd.DataFrame:
+def fetch_live(ticker: str, min_days: int = 500) -> pd.DataFrame:
     start_dt = datetime.now(tz=ET) - pd.Timedelta(days=min_days)
     start = start_dt.strftime("%Y-%m-%d")
     df = safe_download(

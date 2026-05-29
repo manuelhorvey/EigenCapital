@@ -26,6 +26,13 @@ defaults:
     mr_extreme_high: 0.85
     mr_extreme_low: 0.15
     breakout_max_compression: 0.05
+optimizations:
+  truncate_inference: auto
+  batch_http: true
+  sqlite_state: true
+  vectorized_labels: true
+  async_diagnostics: true
+
 execution:
   governance:
     regime_geometry:

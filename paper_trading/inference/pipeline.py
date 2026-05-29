@@ -8,22 +8,19 @@ import pandas as pd
 import pytz
 
 from features.regime_features import generate_regime_features
+from paper_trading.config_manager import get_config
 from paper_trading.entry.decision import SignalType, TradeDecision
-from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
-from paper_trading.governance.risk import evaluate as _risk_evaluate
-from paper_trading.ops import diagnostics as diag
+from paper_trading.inference.async_diagnostics import (
+    DiagnosticsSnapshot,
+    get_diagnostics_queue,
+)
 from paper_trading.ops import wrappers as _w
 from paper_trading.ops.data_fetcher import fetch_live
 from paper_trading.ops.tracer import (
     shadow_compare_signal,
     shadow_compare_sizing,
     trace_decision,
-    trace_diagnostic_report,
 )
-from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
-from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
-from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
-from paper_trading.shadow.memory import store_event as _shadow_store
 
 logger = logging.getLogger("quantforge.inference_pipeline")
 
@@ -49,6 +46,10 @@ class AssetInferencePipeline:
         _t0 = time.perf_counter()
 
         asset = self.asset
+
+        # Apply any pending async diagnostics from the previous cycle
+        get_diagnostics_queue().apply_pending(asset.name, asset)
+
         asset._ensure_position_synced()
         if not asset._trained:
             asset.train()
@@ -332,58 +333,79 @@ class AssetInferencePipeline:
             original_size=float(pos_size),
         )
 
-        try:
-            _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
-            _sig_div = diag.analyze_signal_divergence(
-                _proba_list,
-                threshold,
-                decision.signal,
-                decision.confidence,
-                _shadow_stype,
-                _shadow_conf_pct,
-            )
-            _mod_div = diag.analyze_model_distribution(asset.name, _proba_list)
-            _feat_drivers = diag.analyze_feature_impact(
-                asset.model,
-                x.iloc[[-1]],
-                asset.features,
-                proba[-1:],
-            )
-            _regime = diag.analyze_regime_context(df["close"])
-            _report = diag.build_shadow_report(
-                asset=asset.name,
+        _cfg = get_config()
+        if _cfg.optimizations.get("async_diagnostics", True):
+            _snap = DiagnosticsSnapshot(
+                asset_name=asset.name,
+                proba_long=float(proba[-1, 0]),
+                proba_short=float(proba[-1, 1]),
+                proba_neutral=float(proba[-1, 2]),
+                threshold=threshold,
+                signal=decision.signal,
+                confidence=decision.confidence,
+                shadow_stype=_shadow_stype,
+                shadow_conf_pct=_shadow_conf_pct,
+                feature_row={k: float(v) for k, v in x.iloc[-1].items()},
+                close_prices=df["close"].ffill().tolist(),
                 timestamp=str(datetime.now(tz=ET).date()),
-                signal_match=_sig_div["match"],
-                signal_divergence=_sig_div,
-                model_divergence=_mod_div,
-                feature_drivers=_feat_drivers,
-                regime_context=_regime,
+                model=asset.model,
+                features=asset.features,
             )
-            trace_diagnostic_report(_report)
-            _shadow_store(asset.name, _report)
-            asset._risk_signal = _risk_evaluate(asset.name)
-            asset._shadow_drift_intel = _get_drift(asset.name)
-            asset._shadow_action = _compute_shadow(
-                asset=asset.name,
-                state=None,
-                drift_report=asset._shadow_drift_intel,
-                risk_signal=asset._risk_signal,
-            )
-            _record_feedback(
-                asset=asset.name,
-                signal_data={"signal": decision.signal, "confidence": decision.confidence},
-                drift=asset._shadow_drift_intel,
-                risk=asset._risk_signal,
-                action=asset._shadow_action,
-            )
-            asset._shadow_learning = _compile_learning(
-                asset=asset.name,
-                feedback_logs=None,
-                drift_history=asset._shadow_drift_intel,
-                risk_history=asset._risk_signal,
-            )
-        except Exception:
-            logger.debug("%s: shadow learning feedback skipped", asset.name)
+            get_diagnostics_queue().enqueue(_snap)
+        else:
+            try:
+                from paper_trading.ops import diagnostics as diag
+                from paper_trading.ops.tracer import trace_diagnostic_report
+                from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
+                from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
+                from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
+                from paper_trading.shadow.memory import store_event as _shadow_store
+                from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
+                from paper_trading.governance.risk import evaluate as _risk_evaluate
+
+                _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
+                _sig_div = diag.analyze_signal_divergence(
+                    _proba_list, threshold, decision.signal, decision.confidence,
+                    _shadow_stype, _shadow_conf_pct,
+                )
+                _mod_div = diag.analyze_model_distribution(asset.name, _proba_list)
+                _feat_drivers = diag.analyze_feature_impact(
+                    asset.model, x.iloc[[-1]], asset.features, proba[-1:],
+                )
+                _regime = diag.analyze_regime_context(df["close"])
+                _report = diag.build_shadow_report(
+                    asset=asset.name,
+                    timestamp=str(datetime.now(tz=ET).date()),
+                    signal_match=_sig_div["match"],
+                    signal_divergence=_sig_div,
+                    model_divergence=_mod_div,
+                    feature_drivers=_feat_drivers,
+                    regime_context=_regime,
+                )
+                trace_diagnostic_report(_report)
+                _shadow_store(asset.name, _report)
+                asset._risk_signal = _risk_evaluate(asset.name)
+                asset._shadow_drift_intel = _get_drift(asset.name)
+                asset._shadow_action = _compute_shadow(
+                    asset=asset.name, state=None,
+                    drift_report=asset._shadow_drift_intel,
+                    risk_signal=asset._risk_signal,
+                )
+                _record_feedback(
+                    asset=asset.name,
+                    signal_data={"signal": decision.signal, "confidence": decision.confidence},
+                    drift=asset._shadow_drift_intel,
+                    risk=asset._risk_signal,
+                    action=asset._shadow_action,
+                )
+                asset._shadow_learning = _compile_learning(
+                    asset=asset.name,
+                    feedback_logs=None,
+                    drift_history=asset._shadow_drift_intel,
+                    risk_history=asset._risk_signal,
+                )
+            except Exception:
+                logger.debug("%s: shadow learning feedback skipped", asset.name)
 
         _t_total = time.perf_counter()
         _fetch_time = _t_fetch - _t0

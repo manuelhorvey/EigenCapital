@@ -41,6 +41,13 @@ class EngineConfig:
     liquidity_config: dict = field(default_factory=dict)
     defaults: dict = field(default_factory=dict)
     execution: dict = field(default_factory=dict)
+    optimizations: dict = field(default_factory=lambda: {
+        "truncate_inference": "auto",
+        "batch_http": True,
+        "sqlite_state": True,
+        "vectorized_labels": True,
+        "async_diagnostics": True,
+    })
 
     @classmethod
     def from_dict(cls, data: dict) -> "EngineConfig":
@@ -72,6 +79,7 @@ class EngineConfig:
             liquidity_config=governance.get("liquidity_config", data.get("liquidity_config", {})),
             defaults=data.get("defaults", {}),
             execution=execution,
+            optimizations=data.get("optimizations", {}),
         )
 
     def to_dict(self) -> dict:
@@ -92,6 +100,7 @@ class EngineConfig:
             "narrative_config": self.narrative_config,
             "liquidity_config": self.liquidity_config,
             "defaults": self.defaults,
+            "optimizations": self.optimizations,
         }
 
 

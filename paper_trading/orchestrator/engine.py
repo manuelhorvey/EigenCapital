@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any
 
@@ -57,10 +58,12 @@ class EngineOrchestrator:
         satellite_actor: AssetActor | None = None,
         max_halt_ratio: float = 0.5,
         wal_writer: WalWriter | None = None,
+        max_workers: int = 8,
     ):
         self._actors = actors
         self._satellite = satellite_actor
         self._max_halt_ratio = max_halt_ratio
+        self._max_workers = max_workers or len(actors) * 2
         self._persist_buffer: list[dict] = []
         self._peak_portfolio_value: float | None = None
         self._emergency_halt: bool = False
@@ -96,15 +99,20 @@ class EngineOrchestrator:
         results["phasetimestamps"][EnginePhase.REFRESH] = datetime.utcnow().isoformat()
         asset_results: dict[str, AssetResult] = {}
 
-        for name, actor in self._actors.items():
+        def _run_actor(name: str, actor: AssetActor) -> AssetResult:
             if actor.health == actor.health.HALTED:
-                asset_results[name] = AssetResult.failed(name, "actor_halted", actor.metrics.cycle_id)
-                continue
-            try:
-                asset_results[name] = actor.run_cycle(market_data)
-            except Exception as e:
-                logger.critical("%s actor threw uncaught exception: %s", name, e)
-                asset_results[name] = AssetResult.failed(name, f"uncaught: {e}")
+                return AssetResult.failed(name, "actor_halted", actor.metrics.cycle_id)
+            return actor.run_cycle(market_data)
+
+        with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
+            futures = {pool.submit(_run_actor, n, a): n for n, a in self._actors.items()}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    asset_results[name] = future.result()
+                except Exception as e:
+                    logger.critical("%s actor threw uncaught exception: %s", name, e)
+                    asset_results[name] = AssetResult.failed(name, f"uncaught: {e}")
 
         for name, result in asset_results.items():
             if result.success:

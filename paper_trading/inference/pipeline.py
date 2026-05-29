@@ -268,7 +268,7 @@ class AssetInferencePipeline:
 
         trace_decision(
             asset=asset.name,
-                features={k: round(float(v), 6) for k, v in x.iloc[-1].items()},
+            features={k: round(float(v), 6) for k, v in x.iloc[-1].items()},
             proba=[float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])],
             threshold=threshold,
             signal=decision.signal,

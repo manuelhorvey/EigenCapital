@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 
 import numpy as np
@@ -81,12 +82,24 @@ def _make_dummy_model(asset) -> None:
         raise RuntimeError(f"Failed to create dummy model for {asset.name}: {e}")
 
 
-def build_engine(n_assets: int, n_workers: int, skip_validation: bool, quick: bool):
-    """Build a PaperTradingEngine with a subset of assets and config tweaks."""
+def build_engine(n_assets: int, n_workers: int, skip_validation: bool, quick: bool, state_dir: str | None = None):
+    """Build a PaperTradingEngine with a subset of assets and config tweaks.
+
+    If *state_dir* is ``None`` a temporary directory is created so the
+    benchmark never touches the production ``data/live/`` state store.
+    """
     from paper_trading.config_manager import reset_config, get_config
+    from paper_trading.state_store import StateStore
 
     reset_config()
     cfg = get_config()
+
+    # Isolated state store — never write to production data/live/
+    if not state_dir:
+        state_dir = tempfile.mkdtemp(prefix="qf_bench_")
+    store = StateStore(state_dir)
+    logger = logging.getLogger("benchmark")
+    logger.info("state store: %s", store._db_path)
 
     # Trim to requested asset count
     asset_items = sorted(cfg.assets.items())[:n_assets]
@@ -100,7 +113,7 @@ def build_engine(n_assets: int, n_workers: int, skip_validation: bool, quick: bo
 
     from paper_trading.engine import PaperTradingEngine
 
-    engine = PaperTradingEngine()
+    engine = PaperTradingEngine(state_store=store)
     engine._orchestrator._max_workers = n_workers
 
     if skip_validation:
@@ -124,7 +137,7 @@ def run_benchmark(args) -> list[dict]:
 
     results: list[dict] = []
     try:
-        engine = build_engine(args.assets, args.workers, args.skip_validation, args.quick)
+        engine = build_engine(args.assets, args.workers, args.skip_validation, args.quick, args.state_dir)
 
         # Initialise (train models on synthetic data) unless quick
         if not args.quick:
@@ -236,7 +249,7 @@ def run_profiled(args) -> None:
     mock.install()
 
     try:
-        engine = build_engine(args.assets, args.workers, args.skip_validation, args.quick)
+        engine = build_engine(args.assets, args.workers, args.skip_validation, args.quick, args.state_dir)
 
         if not args.quick:
             engine.initialize()
@@ -274,6 +287,7 @@ def main():
     parser.add_argument("--output", type=str, default="", help="path to write JSONL results")
     parser.add_argument("--profile", type=str, default="", help="path to write cProfile .prof file")
     parser.add_argument("--skip-validation", action="store_true", help="force truncation on")
+    parser.add_argument("--state-dir", type=str, default="", help="state store directory (default: temp dir)")
     parser.add_argument("--quick", action="store_true", help="skip full model training, use dummy models")
     parser.add_argument("--sweep", action="store_true", help="sweep asset x worker grid")
 

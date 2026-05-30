@@ -157,6 +157,7 @@ def day_of_week_signal(price: pd.Series) -> pd.Series:
 
     Uses rolling(window=252, min_periods=63) to avoid look-ahead bias.
     """
+    price.index = pd.DatetimeIndex(price.index)
     forward_1d = price.pct_change(-1, fill_method=None)
     result = pd.Series(0.0, index=price.index)
     for d in range(5):

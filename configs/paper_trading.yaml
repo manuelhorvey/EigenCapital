@@ -65,6 +65,13 @@ execution:
       risk_off_size_reduce_pct: 20
       min_confidence: 0.6
       auto_confirm_deadline_hour: 12
+satellite:
+  BTC:
+    max_allocation_pct: 0.05
+    vol_target: 0.40
+    max_drawdown_pct: -0.25
+    sl_mult: 0.58
+    tp_mult: 1.51
 assets:
   BTCUSD:
     ticker: BTC-USD

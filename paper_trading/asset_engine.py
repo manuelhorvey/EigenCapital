@@ -1258,16 +1258,15 @@ class AssetEngine:
                 hard_reasons.append(f"Signal drought: {days_since}d > {drought_days}d")
                 drought_ok = False
         drift_ok = True
-        if len(self.prob_history) < 3:
-            pass  # not enough signals to measure drift — skip
-        prob_drift_limit = hc.get("prob_drift", 0.25)
-        mean_conf = metrics.get("mean_confidence", 0) / 100
-        if pd.isna(mean_conf):
-            mean_conf = 0
-        drift = abs(mean_conf - self.expected_prob_conf)
-        if drift > prob_drift_limit:
-            hard_reasons.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
-            drift_ok = False
+        if len(self.prob_history) >= 3:
+            prob_drift_limit = hc.get("prob_drift", 0.25)
+            mean_conf = metrics.get("mean_confidence", 0) / 100
+            if pd.isna(mean_conf):
+                mean_conf = 0
+            drift = abs(mean_conf - self.expected_prob_conf)
+            if drift > prob_drift_limit:
+                hard_reasons.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
+                drift_ok = False
 
         narrative_ok = True
         narr_warnings = self.governance.narrative_warnings()

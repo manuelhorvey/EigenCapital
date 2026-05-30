@@ -15,6 +15,7 @@ export const GovernanceStateSchema = z.object({
   narrative_stale: z.boolean(),
   liquidity_regime: z.string(),
   halted: z.boolean(),
+  soft_warnings: z.array(z.string()),
 })
 
 export const GovernanceDataSchema = z.record(z.string(), GovernanceStateSchema)

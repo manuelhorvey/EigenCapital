@@ -751,6 +751,7 @@ class PaperTradingEngine:
                 else None,
                 "narrative_stale": asset.governance._narrative_stale,
                 "regime_geometry": asset.regime_geometry,
+                "soft_warnings": halt.get("soft_warnings", []),
                 "stop_out_last_side": getattr(asset, "_last_stop_out_side", None),
                 "stop_out_last_date": (str(d) if (d := getattr(asset, "_last_stop_out_date", None)) else None),
             }

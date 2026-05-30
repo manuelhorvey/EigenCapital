@@ -290,6 +290,7 @@ def handle_governance(path: str, query: dict) -> str:
                 "narrative_stale": asset.get("narrative_stale", False),
                 "liquidity_regime": asset.get("liquidity_regime", "NORMAL"),
                 "halted": asset.get("halt", {}).get("halted", False),
+                "soft_warnings": asset.get("soft_warnings", []),
             }
     data = json.dumps(governance, indent=2, default=str)
     cache_set("/governance.json", data)

@@ -1195,8 +1195,6 @@ class AssetEngine:
             score -= 0.15
         if not halt["drift_ok"]:
             score -= 0.15
-        if not halt.get("narrative_ok", True):
-            score -= 0.10
         if not halt.get("liquidity_ok", True):
             score -= 0.10
 
@@ -1245,18 +1243,19 @@ class AssetEngine:
         if pd.isna(dd):
             dd = 0
         hc = self.halt_config
-        reasons = []
+        hard_reasons = []
+        soft_warnings = []
         if dd <= hc["drawdown"]:
-            reasons.append(f"DD {metrics['drawdown']:.1f}% <= {hc['drawdown'] * 100:.0f}%")
+            hard_reasons.append(f"DD {metrics['drawdown']:.1f}% <= {hc['drawdown'] * 100:.0f}%")
         mpf = metrics.get("monthly_pf")
         if mpf is not None and not pd.isna(mpf) and mpf < hc["monthly_pf"]:
-            reasons.append(f"PF {mpf:.2f} < {hc['monthly_pf']:.2f}")
+            hard_reasons.append(f"PF {mpf:.2f} < {hc['monthly_pf']:.2f}")
         drought_ok = True
         drought_days = hc.get("signal_drought", 30)
         if self.last_signal_date is not None:
             days_since = (datetime.now(tz=ET).date() - pd.Timestamp(self.last_signal_date).date()).days
             if days_since > drought_days:
-                reasons.append(f"Signal drought: {days_since}d > {drought_days}d")
+                hard_reasons.append(f"Signal drought: {days_since}d > {drought_days}d")
                 drought_ok = False
         drift_ok = True
         if len(self.prob_history) < 3:
@@ -1267,32 +1266,35 @@ class AssetEngine:
             mean_conf = 0
         drift = abs(mean_conf - self.expected_prob_conf)
         if drift > prob_drift_limit:
-            reasons.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
+            hard_reasons.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
             drift_ok = False
 
         narrative_ok = True
         narr_warnings = self.governance.narrative_warnings()
         if narr_warnings:
-            reasons.extend(narr_warnings)
+            soft_warnings.extend(narr_warnings)
 
         liquidity_ok = True
         liq_warnings = self.governance.liquidity_warnings()
         if liq_warnings:
-            reasons.extend(liq_warnings)
+            hard_reasons.extend(liq_warnings)
             if self.governance._liquidity_halted:
                 liquidity_ok = False
 
         psi_ok = True
         if self._last_psi_drift is not None and not self._last_psi_drift.psi_ok:
-            reasons.append(
+            hard_reasons.append(
                 f"PSI drift SEVERE on {self._last_psi_drift.severe_count} features "
                 f"(worst={self._last_psi_drift.worst_classification})"
             )
             psi_ok = False
 
+        halted = len(hard_reasons) > 0
         return {
-            "halted": len(reasons) > 0,
-            "reasons": reasons,
+            "halted": halted,
+            "reasons": [*hard_reasons, *soft_warnings],
+            "hard_reasons": hard_reasons,
+            "soft_warnings": soft_warnings,
             "drawdown_ok": dd > hc["drawdown"],
             "monthly_pf_ok": mpf is None or pd.isna(mpf) or mpf >= hc["monthly_pf"],
             "drought_ok": drought_ok,

@@ -80,6 +80,12 @@ function GovernanceStateCard({
               HALTED
             </span>
           )}
+          {!state.halted && state.soft_warnings?.length > 0 && (
+            <span className="flex items-center gap-1 text-2xs font-bold text-gov-yellow" title={state.soft_warnings.join('; ')}>
+              <span className="w-1.5 h-1.5 rounded-full bg-gov-yellow" />
+              WARNING
+            </span>
+          )}
           {state.floor_active && (
             <span className={`text-2xs font-bold ${mapStateToBorder('YELLOW')}`} title="Size scalar floored at 0.30x">
               FLOOR

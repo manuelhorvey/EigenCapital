@@ -75,6 +75,18 @@ export default function AlertFeed() {
           message: `${asset} halted by governance`,
         })
       }
+      if (!state.halted && state.soft_warnings?.length > 0) {
+        for (const w of state.soft_warnings) {
+          newAlerts.push({
+            id: nextId(),
+            ts: Date.now(),
+            type: 'narrative',
+            asset,
+            severity: 'low',
+            message: `${asset}: ${w}`,
+          })
+        }
+      }
       if (state.validity_state === 'RED') {
         newAlerts.push({
           id: nextId(),

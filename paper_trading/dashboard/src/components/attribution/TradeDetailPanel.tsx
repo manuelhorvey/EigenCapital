@@ -60,8 +60,8 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Exit slip: <span className={trade.friction_exit_slippage_bps > 5 ? 'text-gov-red' : 'text-gov-green'}>
               {trade.friction_exit_slippage_bps.toFixed(1)} bps
             </span></p>
-            <p>Fill ratio: <span className="text-secondary">{(trade.friction_fill_qty_ratio * 100).toFixed(0)}%</span></p>
-            <p>Latency: <span className="text-secondary">{trade.friction_latency_bars} bars</span></p>
+            <p>Fill ratio: <span className="text-secondary">{((trade.friction_fill_qty_ratio ?? 1) * 100).toFixed(0)}%</span></p>
+            <p>Latency: <span className="text-secondary">{trade.friction_latency_bars ?? '—'} bars</span></p>
             {trade.friction_gap_fill && <p className="text-gov-red">⚠ Gap fill</p>}
             {trade.friction_partial_fill && <p className="text-gov-yellow">⚠ Partial fill</p>}
           </div>
@@ -88,8 +88,8 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
           <div className="text-tertiary space-y-0.5">
             <p>Entry slip: <span className="text-secondary">{trade.friction_entry_slippage_bps.toFixed(1)} bps</span></p>
             <p>Exit slip: <span className="text-secondary">{trade.friction_exit_slippage_bps.toFixed(1)} bps</span></p>
-            <p>Fill qty: <span className="text-secondary">{(trade.friction_fill_qty_ratio * 100).toFixed(0)}%</span></p>
-            <p>Latency: <span className="text-secondary">{trade.friction_latency_bars} bars</span></p>
+            <p>Fill qty: <span className="text-secondary">{((trade.friction_fill_qty_ratio ?? 1) * 100).toFixed(0)}%</span></p>
+            <p>Latency: <span className="text-secondary">{trade.friction_latency_bars ?? '—'} bars</span></p>
             <p>Gap fill: <span className={trade.friction_gap_fill ? 'text-gov-red' : 'text-gov-green'}>{trade.friction_gap_fill ? 'Yes' : 'No'}</span></p>
             <p>Partial: <span className={trade.friction_partial_fill ? 'text-gov-yellow' : 'text-gov-green'}>{trade.friction_partial_fill ? 'Yes' : 'No'}</span></p>
           </div>

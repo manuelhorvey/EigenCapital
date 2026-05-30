@@ -75,10 +75,10 @@ export default function TradeExecutionTable() {
                     {t.friction_exit_slippage_bps.toFixed(1)}
                   </td>
                   <td className="py-2 pr-2 text-right font-mono tabular-nums text-secondary">
-                    {(t.friction_fill_qty_ratio * 100).toFixed(0)}%
+                    {(t.friction_fill_qty_ratio != null ? t.friction_fill_qty_ratio * 100 : 100).toFixed(0)}%
                   </td>
                   <td className="py-2 pr-2 text-right font-mono tabular-nums text-secondary">
-                    {t.friction_latency_bars}
+                    {t.friction_latency_bars ?? '—'}
                   </td>
                   <td className="py-2 pr-2 text-right font-mono tabular-nums text-gov-red">
                     {t.exit_mae.toFixed(2)}

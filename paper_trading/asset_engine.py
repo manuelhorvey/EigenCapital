@@ -17,7 +17,8 @@ from paper_trading.governance.multipliers import compute_effective_multipliers
 from paper_trading.governance.regime import RegimeClassifier
 from paper_trading.inference.pipeline import AssetInferencePipeline
 from paper_trading.inference.training import AssetTrainingPipeline
-from paper_trading.ops.data_fetcher import flatten, safe_download
+from paper_trading.ops.data_fetcher import flatten
+from paper_trading.ops.market_data_service import get_market_data_service
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
 from paper_trading.position.scale_out import build_scale_out_from_config
@@ -60,6 +61,7 @@ class AssetEngine:
         position_size=None,
         retrain_window=None,
         execution_bridge=None,
+        market_data_service=None,
     ):
         self.ticker = ticker
         self.name = name
@@ -178,6 +180,7 @@ class AssetEngine:
         self._metrics = MetricsService(self)
         self._attribution_svc = AttributionService(self)
         self._signal = SignalService(self)
+        self._market_data = market_data_service or get_market_data_service()
         from features.archetypes import ArchetypeClassifier
 
         self._archetype_classifier = ArchetypeClassifier()
@@ -209,6 +212,11 @@ class AssetEngine:
             import importlib
             mod = importlib.import_module(mod_path)
             svc = getattr(mod, cls_name)(self)
+            object.__setattr__(self, name, svc)
+            return svc
+        if name == "_market_data":
+            from paper_trading.ops.market_data_service import get_market_data_service
+            svc = get_market_data_service()
             object.__setattr__(self, name, svc)
             return svc
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
@@ -268,17 +276,15 @@ class AssetEngine:
         return self._entry.can_enter(side, price, context)
 
     def refresh_price(self):
-        # 1. Try absolute real-time price first
-        from paper_trading.ops.data_fetcher import fetch_realtime_price
-
-        lp = fetch_realtime_price(self.ticker)
+        # 1. Try real-time price first
+        lp = self._market_data.get_realtime_price(self.ticker)
         if lp is not None:
             self.current_price = lp
             return
 
         # 2. Fallback to 5d download
         try:
-            df = safe_download(self.ticker, period="5d", auto_adjust=True, progress=False)
+            df = self._market_data.get_historical(self.ticker, period="5d", auto_adjust=True, progress=False)
             if not df.empty:
                 df = flatten(df)
                 close = float(df["close"].ffill().iloc[-1])

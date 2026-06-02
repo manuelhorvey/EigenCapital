@@ -47,14 +47,14 @@ execution:
   governance:
     regime_geometry:
       GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
+        sl_mult: 0.60
+        tp_mult: 0.70
       YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.8
+        sl_mult: 0.60
+        tp_mult: 0.70
       RED:
-        sl_mult: 0.8
-        tp_mult: 0.5
+        sl_mult: 0.60
+        tp_mult: 0.80
     liquidity_config:
       enabled: true
       regime_window: 21
@@ -81,6 +81,16 @@ assets:
     allocation: 0.050
     sl_mult: 0.76
     tp_mult: 3.48
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.76
+        tp_mult: 0.43
+      YELLOW:
+        sl_mult: 0.76
+        tp_mult: 0.43
+      RED:
+        sl_mult: 0.76
+        tp_mult: 0.43
   EURGBP:
     ticker: EURGBP=X
     allocation: 0.067
@@ -91,26 +101,76 @@ assets:
     allocation: 0.066
     sl_mult: 0.51
     tp_mult: 2.94
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.59
+        tp_mult: 0.43
+      YELLOW:
+        sl_mult: 0.59
+        tp_mult: 0.43
+      RED:
+        sl_mult: 0.59
+        tp_mult: 0.77
   NZDCHF:
     ticker: NZDCHF=X
     allocation: 0.066
     sl_mult: 0.53
     tp_mult: 1.80
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.57
+        tp_mult: 0.97
+      YELLOW:
+        sl_mult: 0.57
+        tp_mult: 0.83
+      RED:
+        sl_mult: 0.57
+        tp_mult: 0.97
   CHFJPY:
     ticker: CHFJPY=X
     allocation: 0.066
     sl_mult: 0.50
     tp_mult: 1.70
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.60
+        tp_mult: 0.59
+      YELLOW:
+        sl_mult: 0.60
+        tp_mult: 0.59
+      RED:
+        sl_mult: 0.60
+        tp_mult: 0.74
   CADJPY:
     ticker: CADJPY=X
     allocation: 0.066
     sl_mult: 0.50
     tp_mult: 1.69
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.60
+        tp_mult: 0.59
+      YELLOW:
+        sl_mult: 0.60
+        tp_mult: 0.89
+      RED:
+        sl_mult: 0.60
+        tp_mult: 0.74
   USDCHF:
     ticker: USDCHF=X
     allocation: 0.066
     sl_mult: 0.52
     tp_mult: 1.93
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.58
+        tp_mult: 0.91
+      YELLOW:
+        sl_mult: 0.58
+        tp_mult: 0.91
+      RED:
+        sl_mult: 0.58
+        tp_mult: 0.78
   EURJPY:
     ticker: EURJPY=X
     allocation: 0.066
@@ -121,31 +181,91 @@ assets:
     allocation: 0.066
     sl_mult: 0.51
     tp_mult: 1.96
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.59
+        tp_mult: 0.77
+      YELLOW:
+        sl_mult: 0.59
+        tp_mult: 0.89
+      RED:
+        sl_mult: 0.59
+        tp_mult: 1.02
   AUDCHF:
     ticker: AUDCHF=X
     allocation: 0.068
     sl_mult: 0.51
     tp_mult: 1.92
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.59
+        tp_mult: 0.78
+      YELLOW:
+        sl_mult: 1.03
+        tp_mult: 1.05
+      RED:
+        sl_mult: 0.59
+        tp_mult: 1.04
   USDJPY:
     ticker: USDJPY=X
     allocation: 0.066
     sl_mult: 0.51
     tp_mult: 2.02
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.59
+        tp_mult: 0.50
+      YELLOW:
+        sl_mult: 0.59
+        tp_mult: 0.50
+      RED:
+        sl_mult: 0.59
+        tp_mult: 0.62
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.066
     sl_mult: 0.51
     tp_mult: 2.03
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.59
+        tp_mult: 0.74
+      YELLOW:
+        sl_mult: 0.59
+        tp_mult: 0.62
+      RED:
+        sl_mult: 0.59
+        tp_mult: 0.74
   GBPCHF:
     ticker: GBPCHF=X
     allocation: 0.066
     sl_mult: 0.52
     tp_mult: 1.65
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.99
+        tp_mult: 1.19
+      YELLOW:
+        sl_mult: 0.99
+        tp_mult: 1.19
+      RED:
+        sl_mult: 0.99
+        tp_mult: 1.19
   ES:
     ticker: ES=F
     allocation: 0.077
     sl_mult: 0.50
     tp_mult: 4.69
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.60
+        tp_mult: 0.32
+      YELLOW:
+        sl_mult: 0.60
+        tp_mult: 0.48
+      RED:
+        sl_mult: 0.60
+        tp_mult: 0.32
   NQ:
     ticker: NQ=F
     allocation: 0.078

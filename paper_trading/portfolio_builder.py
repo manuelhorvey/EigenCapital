@@ -72,6 +72,7 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
                 config["vol_baseline"] = baseline
             sl_mult = spec.get("sl_mult", 1.0)
             tp_mult = spec.get("tp_mult", 2.5)
+            asset_regime_geom = spec.get("regime_geometry") or regime_geom
             pf[name] = {
                 "ticker": ticker,
                 "contract": contract,
@@ -80,7 +81,7 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
                 "config": config,
                 "sl_mult": sl_mult,
                 "tp_mult": tp_mult,
-                "regime_geometry": regime_geom,
+                "regime_geometry": asset_regime_geom,
                 "execution_config": spec.get("execution_config"),
             }
         return pf

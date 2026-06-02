@@ -73,9 +73,7 @@ def fetch_fxstreet_article() -> str | None:
                 if wrap:
                     for tag in wrap.find_all(["script", "style", "nav", "footer"]):
                         tag.decompose()
-                    for tag in wrap.find_all(
-                        "div", class_=re.compile(r"hidden|text-body-xs|text-neutral-")
-                    ):
+                    for tag in wrap.find_all("div", class_=re.compile(r"hidden|text-body-xs|text-neutral-")):
                         tag.decompose()
                     text = wrap.get_text(separator="\n", strip=True)
                     if len(text) > 200:

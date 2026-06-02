@@ -47,18 +47,20 @@ LLM_SYSTEM_PROMPT = (
 
 def fetch_fxstreet_article() -> str | None:
     url = FXSTREET_URL
-    headers = {"User-Agent": "QuantForge Research Bot"}
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
     try:
         resp = requests.get(url, headers=headers, timeout=15)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Strategy 1: find full article by link title, attempt to scrape
-        articles = soup.find_all("a", href=True, string=re.compile(r"Week (ahead|ly)", re.I))
-        # Strategy 2: look for "weekly forecast" links on the analysis page itself
-        analysis_links = soup.find_all("a", href=True, string=re.compile(r"Weekly [Ff]orecast", re.I))
-        candidates = articles or analysis_links
-        for link in candidates:
+        # Strategy 1: find article link containing both "weekly" and "forecast"
+        candidates = []
+        for a in soup.find_all("a", href=True):
+            txt = a.get_text(strip=True)
+            if "weekly" in txt.lower() and "forecast" in txt.lower():
+                candidates.append(a)
+        if candidates:
+            link = candidates[0]
             href = link["href"]
             if href.startswith("/"):
                 href = "https://www.fxstreet.com" + href
@@ -66,6 +68,19 @@ def fetch_fxstreet_article() -> str | None:
                 article_resp = requests.get(href, headers=headers, timeout=15)
                 article_resp.raise_for_status()
                 article_soup = BeautifulSoup(article_resp.text, "html.parser")
+                # Strategy 1a: extract from the main article wrapper (Tailwind redesign)
+                wrap = article_soup.find("div", class_=re.compile(r"overflow-clip"))
+                if wrap:
+                    for tag in wrap.find_all(["script", "style", "nav", "footer"]):
+                        tag.decompose()
+                    for tag in wrap.find_all(
+                        "div", class_=re.compile(r"hidden|text-body-xs|text-neutral-")
+                    ):
+                        tag.decompose()
+                    text = wrap.get_text(separator="\n", strip=True)
+                    if len(text) > 200:
+                        return text
+                # Strategy 1b: fallback to old content classes
                 body = article_soup.find(
                     "div", class_=re.compile(r"article-content|entry-content|post-content|fxs_contentView")
                 )
@@ -76,13 +91,13 @@ def fetch_fxstreet_article() -> str | None:
                     if len(text) > 200:
                         return text
             except Exception:
-                continue
+                pass
 
-        # Strategy 3: concatenate article preview snippets from the listing page
+        # Strategy 2: concatenate article preview snippets from the listing page
         parts = []
-        for div in soup.find_all("div", class_=re.compile(r"fxs_entryPlain_txt|fxs_entryFeatured")):
+        for div in soup.find_all("div", class_=re.compile(r"text-body-md")):
             text = div.get_text(separator="\n", strip=True)
-            if text and len(text) > 30:
+            if text and len(text) > 50:
                 parts.append(text)
         if parts:
             combined = "\n\n".join(parts)

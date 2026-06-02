@@ -281,6 +281,7 @@ class PaperTradingEngine:
         mtm = sum(a.mtm_value for a in self.assets.values())
         self._mtm_cache_value = mtm
         self._mtm_cache_cycle = self._cycle_count
+        return mtm
 
     def run_once(self):
         _t0 = time.perf_counter()

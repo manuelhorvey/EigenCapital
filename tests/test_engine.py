@@ -89,7 +89,7 @@ class TestConfig:
 
     def test_paper_portfolio_structure(self):
         pf = build_paper_portfolio(get_config().halt)
-        for asset in ("USDCAD", "GC", "EURCAD", "CHFJPY", "BTCUSD", "EURGBP"):
+        for asset in ("USDCAD", "GC", "EURCAD", "EURGBP", "CADJPY", "USDCHF"):
             assert asset in pf
         assert "XLF" not in pf
         assert sum(v["alloc"] for v in pf.values()) <= 1.0

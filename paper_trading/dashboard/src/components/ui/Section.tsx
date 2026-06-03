@@ -16,7 +16,7 @@ export default function Section({
     <ErrorBoundary title={errorTitle ?? title ?? id}>
       <section
         id={id}
-        className={`anchor-nav space-y-5 sm:space-y-6${className ? ` ${className}` : ''}`}
+        className={`anchor-nav space-y-6 sm:space-y-8${className ? ` ${className}` : ''}`}
       >
         {children}
       </section>

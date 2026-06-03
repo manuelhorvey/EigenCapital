@@ -42,7 +42,7 @@ export default function App() {
         <Header />
         <AnchorNav />
 
-        <main className="flex-1 max-w-[90rem] w-full mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6 relative animate-fade-in">
+        <main className="flex-1 max-w-[90rem] w-full mx-auto px-4 sm:px-7 py-5 sm:py-7 space-y-6 sm:space-y-8 relative animate-fade-in">
           <Section id="portfolio" errorTitle="Portfolio">
             <PortfolioSummary />
             <AssetGrid />
@@ -50,7 +50,7 @@ export default function App() {
           </Section>
 
           <Section id="signals" errorTitle="Signals">
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 sm:gap-6">
               <div className="xl:col-span-3 min-w-0">
                 <SignalsTable />
               </div>
@@ -60,15 +60,15 @@ export default function App() {
             </div>
           </Section>
 
-          <Section id="execution" errorTitle="Execution" className="space-y-4 sm:space-y-5">
+          <Section id="execution" errorTitle="Execution" className="space-y-5 sm:space-y-6">
             <FilterBar assets={uniqueAssets} onChange={setFilters} />
             <ExecutionQualityStrip />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
               <AttributionBreakdownCard />
               <PnLWaterfall />
             </div>
             <MaeMfeScatter />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
               <div className="lg:col-span-2 min-w-0">
                 <SlippageHistogram />
               </div>

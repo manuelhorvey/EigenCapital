@@ -1,7 +1,7 @@
 import { useTradeOutcomes } from '../hooks/useTradeOutcomes'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
-import KpiCard from './ui/KpiCard'
+import StatCard from './ui/StatCard'
 import { Skeleton } from './ui/Skeleton'
 import SltpGauge from './ui/SltpGauge'
 
@@ -53,12 +53,12 @@ export default function TradeOutcomes() {
       ) : (
         <>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 mb-5">
-            <KpiCard label="TP Hit Rate" value={pct(overall.tp_rate)} color="text-gov-green" />
-            <KpiCard label="SL Hit Rate" value={pct(overall.sl_rate)} color="text-gov-red" />
-            <KpiCard label="Flip Rate" value={pct(overall.signal_flip_rate)} color="text-gov-yellow" />
-            <KpiCard label="Avg R" value={r2(overall.avg_r)} color={overall.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'} />
-            <KpiCard label="Win Rate" value={pct(overall.win_rate)} color="text-accent-blue" />
-            <KpiCard label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} color="text-accent-purple" />
+            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="#22c55e" />
+            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="#ef4444" />
+            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="#eab308" />
+            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? '#22c55e' : '#ef4444'} />
+            <StatCard variant="kpi" label="Win Rate" value={pct(overall.win_rate)} accent="#60a5fa" />
+            <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="#a78bfa" />
           </div>
 
           <div className="overflow-x-auto -mx-1">

@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { ArrowUp, ArrowDown } from 'lucide-react'
 import { useTrades } from '../hooks/useTrades'
 import { formatAssetPrice, formatHeldDuration, safeToFixed } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
@@ -9,6 +8,7 @@ import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { TableSkeleton } from './ui/Skeleton'
 import { usePortfolioState } from '../hooks/usePortfolioState'
+import Badge, { reasonToBadge, signalToBadge } from './ui/Badge'
 import type { TradeEntry } from '../hooks/useTrades'
 
 const PAGE_SIZE = 10
@@ -19,13 +19,6 @@ function reasonLabel(reason?: string): string {
   if (r === 'sl' || r === 'sl_hit' || r === 'stop_loss') return 'SL'
   if (r === 'signal_flip' || r === 'flip') return 'FLIP'
   return reason ?? '—'
-}
-
-function reasonPillClass(reason?: string): string {
-  const r = reason?.toLowerCase() ?? ''
-  if (r === 'tp' || r === 'tp_hit') return 'signal-pill signal-pill-buy'
-  if (r === 'sl' || r === 'sl_hit' || r === 'stop_loss') return 'signal-pill signal-pill-sell'
-  return 'signal-pill signal-pill-flat'
 }
 
 export default function TradeFeed() {
@@ -56,12 +49,10 @@ export default function TradeFeed() {
       label: 'Side',
       sortable: true,
       minWidth: '80px',
-      render: t => (
-        <span className={`inline-flex items-center gap-1 signal-pill ${t.side === 'LONG' ? 'signal-pill-buy' : 'signal-pill-sell'}`}>
-          {t.side === 'LONG' ? <ArrowUp className="w-2.5 h-2.5" strokeWidth={2.5} /> : <ArrowDown className="w-2.5 h-2.5" strokeWidth={2.5} />}
-          {t.side ?? '—'}
-        </span>
-      ),
+      render: t => {
+        const { variant, icon } = signalToBadge(t.side ?? '')
+        return <Badge variant={variant} icon={icon}>{t.side ?? '—'}</Badge>
+      },
     },
     {
       key: 'entry',
@@ -114,7 +105,7 @@ export default function TradeFeed() {
       label: 'Reason',
       align: 'right',
       render: t => (
-        <span className={reasonPillClass(t.reason)}>{reasonLabel(t.reason)}</span>
+        <Badge variant={reasonToBadge(t.reason)}>{reasonLabel(t.reason)}</Badge>
       ),
     },
   ], [])

@@ -104,7 +104,7 @@ export default function DataTable<T>({
         <thead>
           <tr
             className={`border-b transition-shadow duration-150 ${
-              scrolled && stickyHeader ? 'border-default shadow-panel-sm' : 'border-default'
+              scrolled && stickyHeader ? 'border-default shadow-panel' : 'border-default'
             }`}
           >
             {columns.map(col => (

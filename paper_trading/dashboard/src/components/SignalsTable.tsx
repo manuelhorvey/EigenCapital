@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, ArrowUp, ArrowDown, Minus } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import { formatAssetPrice } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
@@ -7,6 +7,7 @@ import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { TableSkeleton } from './ui/Skeleton'
+import Badge, { signalToBadge } from './ui/Badge'
 
 function confClass(conf: number): string {
   if (conf >= 60) return 'text-gov-green'
@@ -70,21 +71,8 @@ export default function SignalsTable() {
       sortable: true,
       minWidth: '80px',
       render: r => {
-        if (r.signal === 'BUY') return (
-          <span className="inline-flex items-center gap-1 signal-pill signal-pill-buy">
-            <ArrowUp className="w-2.5 h-2.5" strokeWidth={2.5} /> LONG
-          </span>
-        )
-        if (r.signal === 'SELL') return (
-          <span className="inline-flex items-center gap-1 signal-pill signal-pill-sell">
-            <ArrowDown className="w-2.5 h-2.5" strokeWidth={2.5} /> SHORT
-          </span>
-        )
-        return (
-          <span className="inline-flex items-center gap-1 signal-pill signal-pill-flat">
-            <Minus className="w-2.5 h-2.5" strokeWidth={2.5} /> FLAT
-          </span>
-        )
+        const { variant, icon } = signalToBadge(r.signal)
+        return <Badge variant={variant} icon={icon}>{r.signal === 'BUY' ? 'LONG' : r.signal === 'SELL' ? 'SHORT' : 'FLAT'}</Badge>
       },
     },
     {

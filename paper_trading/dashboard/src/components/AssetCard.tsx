@@ -76,7 +76,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
   const ddState: GovernanceState = ddToState(info.drawdown)
 
   return (
-    <div className="relative panel rounded-lg px-4 py-3 panel-hover overflow-hidden group">
+    <div className="relative panel rounded-lg px-4 py-3 overflow-hidden group">
       <div className="flex items-center gap-2 mb-2">
         <span className="font-semibold text-sm text-primary">{name}</span>
         {(info.isNew || newBadge) && (

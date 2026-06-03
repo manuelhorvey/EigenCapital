@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react'
 
+type PanelVariant = 'default' | 'elevated' | 'flat' | 'accent'
+
 interface PanelProps {
   children: ReactNode
   className?: string
   padding?: 'md' | 'lg' | 'none'
+  variant?: PanelVariant
+  hoverable?: boolean
+  onClick?: () => void
 }
 
 const paddingMap = {
@@ -12,9 +17,38 @@ const paddingMap = {
   none: '',
 }
 
-export default function Panel({ children, className = '', padding = 'md' }: PanelProps) {
+const variantStyles: Record<PanelVariant, string> = {
+  default: 'bg-panel border border-default shadow-panel',
+  elevated: 'bg-panel border border-default shadow-card',
+  flat: 'bg-panel border border-default',
+  accent: 'bg-panel border border-default shadow-panel border-t-accent-emerald/50',
+}
+
+export default function Panel({
+  children,
+  className = '',
+  padding = 'md',
+  variant = 'default',
+  hoverable = false,
+  onClick,
+}: PanelProps) {
+  const hoverStyles = hoverable
+    ? 'cursor-pointer hover:border-strong transition-colors duration-200'
+    : ''
+
   return (
-    <div className={['panel rounded-lg', paddingMap[padding], className].filter(Boolean).join(' ')}>
+    <div
+      onClick={onClick}
+      className={[
+        'rounded-lg',
+        variantStyles[variant],
+        paddingMap[padding],
+        hoverStyles,
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {children}
     </div>
   )

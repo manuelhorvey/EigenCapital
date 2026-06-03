@@ -3,37 +3,7 @@ import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import { Skeleton } from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
-
-function Gauge({ label, value, size = 80 }: { label: string; value: number; size?: number }) {
-  const pct = Math.min(Math.max(value, 0), 1)
-  const color = pct >= 0.8 ? '#22c55e' : pct >= 0.5 ? '#f97316' : '#ef4444'
-  const r = size * 0.35
-  const circ = 2 * Math.PI * r
-  const offset = circ * (1 - pct)
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#2a2a4a" strokeWidth={6} />
-        <circle
-          cx={size / 2} cy={size / 2} r={r}
-          fill="none" stroke={color} strokeWidth={6}
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-        <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central"
-          fill="currentColor" fontSize={size * 0.18} fontWeight={600}
-          className="text-secondary font-mono"
-        >
-          {(pct * 100).toFixed(0)}%
-        </text>
-      </svg>
-      <span className="text-2xs text-tertiary">{label}</span>
-    </div>
-  )
-}
+import Gauge from '../ui/Gauge'
 
 export default function FillQualityGauge() {
   const { data, isPending } = useExecutionQuality()

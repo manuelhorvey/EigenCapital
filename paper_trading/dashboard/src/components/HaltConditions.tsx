@@ -70,7 +70,9 @@ export default function HaltConditions() {
             <div
               key={c.label}
               className={`rounded-lg px-3.5 py-3 border transition-colors duration-200 ${
-                c.pass ? 'halt-pass' : 'halt-fail'
+                c.pass
+                  ? 'bg-panel border-default'
+                  : 'bg-gov-red/[0.04] border-gov-red/15'
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">

@@ -10,6 +10,7 @@ import {
   chartMargin,
   tooltipLabelStyle,
   tooltipStyle,
+  chartCursor,
   ChartGradientDefs,
   getGradientFill,
 } from './ui/chartTheme'
@@ -162,7 +163,7 @@ export default function EquityChart() {
               contentStyle={tooltipStyle}
               labelStyle={tooltipLabelStyle}
               itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '1px 0' }}
-              cursor={{ stroke: 'var(--color-border-strong)', strokeWidth: 1, strokeDasharray: '3 3' }}
+              cursor={chartCursor}
             />
             {chartData.length > 0 && (
               <ReferenceLine

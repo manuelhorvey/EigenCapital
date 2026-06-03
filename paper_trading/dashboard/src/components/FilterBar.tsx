@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
+import Select from './ui/Select'
+import Badge from './ui/Badge'
 
 export interface FilterState {
   archetype: string
@@ -15,8 +18,8 @@ interface FilterBarProps {
 
 const DEFAULT_FILTER: FilterState = { archetype: '', regime: '', asset: '' }
 
-const ARCHETYPES = ['', 'BREAKOUT', 'MEAN_REVERSION', 'MOMENTUM', 'VOL_EXPANSION']
-const REGIMES = ['', 'GREEN', 'YELLOW', 'RED']
+const ARCHETYPES = ['BREAKOUT', 'MEAN_REVERSION', 'MOMENTUM', 'VOL_EXPANSION']
+const REGIMES = ['GREEN', 'YELLOW', 'RED']
 
 export default function FilterBar({ assets, archetypes = ARCHETYPES, regimes = REGIMES, onChange }: FilterBarProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER)
@@ -27,42 +30,46 @@ export default function FilterBar({ assets, archetypes = ARCHETYPES, regimes = R
     onChange(next)
   }
 
+  const activeCount = Object.values(filters).filter(Boolean).length
+
   return (
     <div className="flex flex-wrap items-center gap-2 py-2 px-3 bg-panel rounded-lg border border-default">
       <span className="text-2xs font-medium text-tertiary uppercase tracking-wider mr-1">Filters</span>
 
-      <select
+      <Select
+        options={assets.map(a => ({ value: a, label: a }))}
         value={filters.asset}
-        onChange={e => update('asset', e.target.value)}
-        className="filter-select"
-      >
-        <option value="">All Assets</option>
-        {assets.map(a => <option key={a} value={a}>{a}</option>)}
-      </select>
+        onChange={v => update('asset', v)}
+        placeholder="All Assets"
+      />
 
-      <select
+      <Select
+        options={archetypes.map(a => ({ value: a, label: a }))}
         value={filters.archetype}
-        onChange={e => update('archetype', e.target.value)}
-        className="filter-select"
-      >
-        <option value="">All Archetypes</option>
-        {archetypes.filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}
-      </select>
+        onChange={v => update('archetype', v)}
+        placeholder="All Archetypes"
+      />
 
-      <select
+      <Select
+        options={regimes.map(r => ({ value: r, label: r }))}
         value={filters.regime}
-        onChange={e => update('regime', e.target.value)}
-        className="filter-select"
-      >
-        <option value="">All Regimes</option>
-        {regimes.filter(Boolean).map(r => <option key={r} value={r}>{r}</option>)}
-      </select>
+        onChange={v => update('regime', v)}
+        placeholder="All Regimes"
+      />
 
-      {filters.archetype && (
-        <button onClick={() => update('archetype', '')} className="text-2xs text-gov-red hover:underline">✕</button>
-      )}
-      {filters.regime && (
-        <button onClick={() => update('regime', '')} className="text-2xs text-gov-red hover:underline">✕</button>
+      {activeCount > 0 && (
+        <>
+          <span className="text-2xs text-muted">|</span>
+          <button
+            onClick={() => {
+              setFilters(DEFAULT_FILTER)
+              onChange(DEFAULT_FILTER)
+            }}
+            className="text-2xs text-tertiary hover:text-primary transition-colors"
+          >
+            Clear {activeCount > 1 ? `(${activeCount})` : ''}
+          </button>
+        </>
       )}
     </div>
   )

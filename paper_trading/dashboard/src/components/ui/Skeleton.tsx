@@ -27,10 +27,23 @@ export function MetricCardSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="metric-card">
+        <div key={i} className="bg-panel border border-default rounded-lg p-3 sm:p-3.5">
           <Skeleton className="h-2.5 w-16 mb-3 rounded" shimmer />
           <Skeleton className="h-7 w-24 mb-2 rounded" shimmer />
           <Skeleton className="h-2.5 w-20 rounded" shimmer />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function SkeletonKpi({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="bg-panel/60 border border-default rounded-lg p-2.5">
+          <Skeleton className="h-2.5 w-14 mb-2 rounded" shimmer />
+          <Skeleton className="h-4 w-10 rounded" shimmer />
         </div>
       ))}
     </div>

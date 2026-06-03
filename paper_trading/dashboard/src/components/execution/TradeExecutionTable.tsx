@@ -5,6 +5,8 @@ import SectionHeader from '../ui/SectionHeader'
 import { TableSkeleton } from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import TradeDetailPanel from '../attribution/TradeDetailPanel'
+import Select from '../ui/Select'
+import Badge, { signalToBadge, reasonToBadge } from '../ui/Badge'
 
 export default function TradeExecutionTable() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -18,22 +20,20 @@ export default function TradeExecutionTable() {
   if (isPending) return <TableSkeleton rows={6} />
   if (!trades || trades.length === 0) return <Panel><EmptyState message="No attribution data yet" compact /></Panel>
 
+  const archetypes = [...new Set(trades.map(t => t.pred_archetype_at_entry))]
+
   return (
     <Panel className="overflow-hidden">
       <SectionHeader
         title="Trade Execution Detail"
         accent="blue"
         meta={
-          <select
+          <Select
+            options={archetypes.map(a => ({ value: a, label: a }))}
             value={archetypeFilter}
-            onChange={e => setArchetypeFilter(e.target.value)}
-            className="filter-select text-2xs"
-          >
-            <option value="">All Archetypes</option>
-            {[...new Set(trades.map(t => t.pred_archetype_at_entry))].map(a => (
-              <option key={a} value={a}>{a}</option>
-            ))}
-          </select>
+            onChange={setArchetypeFilter}
+            placeholder="All Archetypes"
+          />
         }
       />
       <div className="overflow-x-auto">
@@ -54,56 +54,57 @@ export default function TradeExecutionTable() {
           </thead>
           <tbody>
             {filtered.map(t => {
-              const eis = 1 - Math.min(Math.abs(t.exec_entry_slippage_bps) / 50, 1)
+              const selected = selectedId === `${t.trade_id ?? t.asset}_${t.exit_date}`
+              const { variant: archVariant } = signalToBadge(t.pred_archetype_at_entry)
               return (
-                <tr
-                  key={t.trade_id}
-                  onClick={() => setSelectedId(selectedId === t.trade_id ? null : t.trade_id)}
-                  className="border-b border-default/40 table-row-hover cursor-pointer"
-                >
-                  <td className="py-2 pr-2 font-mono font-medium text-primary">{t.asset}</td>
-                  <td className="py-2 pr-2">
-                    <span className="signal-pill signal-pill-buy text-2xs">{t.pred_archetype_at_entry}</span>
-                  </td>
-                  <td className={`py-2 pr-2 text-right font-mono tabular-nums ${t.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
-                    {t.exit_realized_r.toFixed(2)}
-                  </td>
-                  <td className="py-2 pr-2 text-right font-mono tabular-nums text-secondary">
-                    {t.friction_entry_slippage_bps.toFixed(1)}
-                  </td>
-                  <td className="py-2 pr-2 text-right font-mono tabular-nums text-secondary">
-                    {t.friction_exit_slippage_bps.toFixed(1)}
-                  </td>
-                  <td className="py-2 pr-2 text-right font-mono tabular-nums text-secondary">
-                    {(t.friction_fill_qty_ratio != null ? t.friction_fill_qty_ratio * 100 : 100).toFixed(0)}%
-                  </td>
-                  <td className="py-2 pr-2 text-right font-mono tabular-nums text-secondary">
-                    {t.friction_latency_bars ?? '—'}
-                  </td>
-                  <td className="py-2 pr-2 text-right font-mono tabular-nums text-gov-red">
-                    {t.exit_mae.toFixed(2)}
-                  </td>
-                  <td className="py-2 pr-2 text-right font-mono tabular-nums text-gov-green">
-                    {t.exit_mfe.toFixed(2)}
-                  </td>
-                  <td className="py-2 text-right">
-                    <span className={`signal-pill ${t.exit_exit_reason === 'tp' ? 'signal-pill-buy' : t.exit_exit_reason === 'sl' ? 'signal-pill-sell' : 'signal-pill-flat'}`}>
-                      {t.exit_exit_reason}
-                    </span>
-                  </td>
-                </tr>
+                <>
+                  <tr
+                    key={`${t.trade_id ?? t.asset}_${t.exit_date}`}
+                    onClick={() => setSelectedId(selected ? null : `${t.trade_id ?? t.asset}_${t.exit_date}`)}
+                    className={`border-b border-default/40 table-row-hover cursor-pointer ${selected ? 'bg-panel/40' : ''}`}
+                  >
+                    <td className="py-2 pr-2 font-medium text-primary font-mono">{t.asset}</td>
+                    <td className="py-2 pr-2">
+                      <Badge variant={archVariant === 'success' ? 'success' : 'neutral'}>{t.pred_archetype_at_entry}</Badge>
+                    </td>
+                    <td className={`text-right py-2 pr-2 font-mono tabular-nums ${t.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+                      {t.exit_realized_r.toFixed(2)}
+                    </td>
+                    <td className="text-right py-2 pr-2 font-mono tabular-nums text-secondary">
+                      {t.friction_entry_slippage_bps.toFixed(1)}
+                    </td>
+                    <td className="text-right py-2 pr-2 font-mono tabular-nums text-secondary">
+                      {t.friction_exit_slippage_bps.toFixed(1)}
+                    </td>
+                    <td className="text-right py-2 pr-2 font-mono tabular-nums text-secondary">
+                      {t.friction_fill_qty_ratio != null ? `${(t.friction_fill_qty_ratio * 100).toFixed(0)}%` : '—'}
+                    </td>
+                    <td className="text-right py-2 pr-2 font-mono tabular-nums text-secondary">
+                      {t.friction_latency_bars ?? '—'}
+                    </td>
+                    <td className="text-right py-2 pr-2 font-mono tabular-nums text-gov-red">
+                      {t.exit_mae.toFixed(2)}
+                    </td>
+                    <td className="text-right py-2 pr-2 font-mono tabular-nums text-gov-green">
+                      {t.exit_mfe.toFixed(2)}
+                    </td>
+                    <td className="text-right py-2 font-mono tabular-nums">
+                      <Badge variant={reasonToBadge(t.exit_exit_reason)}>{t.exit_exit_reason ?? '—'}</Badge>
+                    </td>
+                  </tr>
+                  {selected && (
+                    <tr key={`detail-${t.trade_id}`}>
+                      <td colSpan={10} className="p-0">
+                        <TradeDetailPanel trade={t} onClose={() => setSelectedId(null)} />
+                      </td>
+                    </tr>
+                  )}
+                </>
               )
             })}
           </tbody>
         </table>
       </div>
-
-      {selectedId && (
-        <TradeDetailPanel
-          trade={trades.find(t => t.trade_id === selectedId)!}
-          onClose={() => setSelectedId(null)}
-        />
-      )}
     </Panel>
   )
 }

@@ -1,5 +1,6 @@
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { governanceText } from './governance'
+import Button from './Button'
 
 interface ErrorScreenProps {
   title?: string
@@ -21,10 +22,9 @@ export default function ErrorScreen({
         <h2 className="text-primary text-lg font-semibold tracking-tight">{title}</h2>
         <p className="text-tertiary text-sm mt-1.5">{message}</p>
       </div>
-      <button type="button" onClick={onRetry} className="btn-primary gap-2">
-        <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+      <Button variant="primary" onClick={onRetry} icon={<RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />}>
         Retry connection
-      </button>
+      </Button>
     </div>
   )
 }

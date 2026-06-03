@@ -11,18 +11,33 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
+        // Background hierarchy
+        app: '#08090c',
         surface: {
-          DEFAULT: '#08090c',
+          DEFAULT: '#0c0d12',
           50: '#0c0d12',
           100: '#111318',
           150: '#141620',
           200: '#161820',
         },
-        border: {
-          DEFAULT: '#1a1d28',
-          50: '#222633',
-          100: '#2a3040',
-        },
+        card: '#0c0d12',
+        panel: '#111318',
+        'panel-hover': '#161820',
+
+        // Text hierarchy
+        primary: '#f1f3f6',
+        secondary: '#94a3b8',
+        tertiary: '#64748b',
+        muted: '#475569',
+
+        // Borders
+        default: '#1a1d28',
+        strong: '#2a3040',
+
+        // Glass
+        glass: 'rgba(12, 13, 18, 0.92)',
+
+        // Governance
         'gov-green': {
           DEFAULT: '#22c55e',
           muted: 'rgba(34, 197, 94, 0.12)',
@@ -43,12 +58,16 @@ export default {
           muted: 'rgba(100, 116, 139, 0.12)',
           muted2: 'rgba(100, 116, 139, 0.06)',
         },
-        'accent-emerald': '#34d399',
+
+        // Accent palette — refined teal-emerald as hero
+        'accent-emerald': '#2dd4bf',
         'accent-blue': '#60a5fa',
         'accent-purple': '#a78bfa',
         'accent-amber': '#fbbf24',
         'accent-indigo': '#818cf8',
         'accent-pink': '#f472b6',
+
+        // Chart
         'chart-rose': '#fb7185',
         'chart-teal': '#2dd4bf',
       },
@@ -57,6 +76,7 @@ export default {
         card: '0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)',
         modal: '0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.6)',
         tooltip: '0 4px 20px rgba(0,0,0,0.5)',
+        'inner-subtle': 'inset 0 1px 3px rgba(0,0,0,0.3)',
       },
       borderRadius: {
         DEFAULT: '6px',

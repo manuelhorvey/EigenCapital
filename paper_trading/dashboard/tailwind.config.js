@@ -11,33 +11,52 @@ export default {
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
-        // Background hierarchy
-        app: '#08090c',
-        surface: {
-          DEFAULT: '#0c0d12',
-          50: '#0c0d12',
-          100: '#111318',
-          150: '#141620',
-          200: '#161820',
+        // ── Brand: Teal-Emerald (hero) ─────────────
+        teal: {
+          50: '#eefdf8',
+          100: '#d3faea',
+          200: '#adf5d8',
+          300: '#75ebc5',
+          400: '#3dd9ae',
+          500: '#2dd4bf',
+          600: '#1bb5a5',
+          700: '#15918a',
+          800: '#14736e',
+          900: '#135e5a',
+          950: '#043533',
         },
-        card: '#0c0d12',
-        panel: '#111318',
-        'panel-hover': '#161820',
 
-        // Text hierarchy
-        primary: '#f1f3f6',
-        secondary: '#94a3b8',
-        tertiary: '#64748b',
-        muted: '#475569',
+        // ── Brand: Indigo (secondary) ──────────────
+        indigo: {
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c9d4fe',
+          300: '#a7b6fd',
+          400: '#818cf8',
+          500: '#6366f1',
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+          950: '#1e1b4b',
+        },
 
-        // Borders
-        default: '#1a1d28',
-        strong: '#2a3040',
+        // ── Neutral: Surface palette ───────────────
+        neutral: {
+          50: '#f3f6f5',
+          100: '#e1e6e4',
+          200: '#c3cdc8',
+          300: '#9eada6',
+          400: '#7a8d85',
+          500: '#5f726b',
+          600: '#4b5b55',
+          700: '#3e4a46',
+          800: '#2e3835',
+          900: '#1b221f',
+          950: '#0b0e0c',
+        },
 
-        // Glass
-        glass: 'rgba(12, 13, 18, 0.92)',
-
-        // Governance
+        // ── Semantic ───────────────────────────────
         'gov-green': {
           DEFAULT: '#22c55e',
           muted: 'rgba(34, 197, 94, 0.12)',
@@ -59,13 +78,33 @@ export default {
           muted2: 'rgba(100, 116, 139, 0.06)',
         },
 
-        // Accent palette — refined teal-emerald as hero
+        // ── Accent palette ─────────────────────────
         'accent-emerald': '#2dd4bf',
         'accent-blue': '#60a5fa',
         'accent-purple': '#a78bfa',
         'accent-amber': '#fbbf24',
         'accent-indigo': '#818cf8',
         'accent-pink': '#f472b6',
+
+        // ── Legacy aliases (backward compat) ───────
+        app: '#08090c',
+        surface: {
+          DEFAULT: '#0c0d12',
+          50: '#0c0d12',
+          100: '#111318',
+          150: '#141620',
+          200: '#161820',
+        },
+        card: '#0c0d12',
+        panel: '#111318',
+        'panel-hover': '#161820',
+        primary: '#f1f3f6',
+        secondary: '#94a3b8',
+        tertiary: '#64748b',
+        muted: '#475569',
+        default: '#1a1d28',
+        strong: '#2a3040',
+        glass: 'rgba(12, 13, 18, 0.92)',
 
         // Chart
         'chart-rose': '#fb7185',

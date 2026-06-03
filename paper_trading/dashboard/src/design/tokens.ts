@@ -1,41 +1,47 @@
+import {
+  teal, indigo, neutral,
+  success, warning, error, neutral_semantic,
+  accents, chart, background, text, border, glass, usage,
+} from './color-system'
+
 export const colors = {
   // Background hierarchy — 5 levels from deepest to surface
-  app: '#08090c',
-  surface: '#0c0d12',
-  card: '#0c0d12',
-  panel: '#111318',
-  'panel-hover': '#161820',
+  app: background.app,
+  surface: background.surface,
+  card: background.card,
+  panel: background.panel,
+  'panel-hover': background['panel-hover'],
 
   // Text hierarchy — 4 levels
-  primary: '#f1f3f6',
-  secondary: '#94a3b8',
-  tertiary: '#64748b',
-  muted: '#475569',
+  primary: text.primary,
+  secondary: text.secondary,
+  tertiary: text.tertiary,
+  muted: text.muted,
 
   // Borders
-  default: '#1a1d28',
-  strong: '#2a3040',
+  default: border.DEFAULT,
+  strong: border.strong,
 
   // Glass
-  glass: 'rgba(12, 13, 18, 0.92)',
+  glass,
 
   // Governance (semantic)
-  'gov-green': '#22c55e',
-  'gov-yellow': '#eab308',
-  'gov-red': '#ef4444',
-  'gov-init': '#64748b',
+  'gov-green': success.DEFAULT,
+  'gov-yellow': warning.DEFAULT,
+  'gov-red': error.DEFAULT,
+  'gov-init': neutral_semantic.DEFAULT,
 
   // Accent palette — refined emerald as hero
-  'accent-emerald': '#2dd4bf',
-  'accent-blue': '#60a5fa',
-  'accent-purple': '#a78bfa',
-  'accent-amber': '#fbbf24',
-  'accent-indigo': '#818cf8',
-  'accent-pink': '#f472b6',
+  'accent-emerald': accents.emerald,
+  'accent-blue': accents.blue,
+  'accent-purple': accents.purple,
+  'accent-amber': accents.amber,
+  'accent-indigo': accents.indigo,
+  'accent-pink': accents.pink,
 
   // Chart-specific
   'chart-rose': '#fb7185',
-  'chart-teal': '#2dd4bf',
+  'chart-teal': accents.emerald,
 } as const
 
 export const spacing = {

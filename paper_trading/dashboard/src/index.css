@@ -7,6 +7,8 @@
 :root {
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ── Legacy runtime colors (backward compat) ──── */
   --color-bg: #08090c;
   --color-surface: #0c0d12;
   --color-card: #0c0d12;
@@ -28,9 +30,47 @@
   --color-accent-purple: #a78bfa;
   --color-accent-amber: #fbbf24;
   --color-accent-indigo: #818cf8;
+  --color-accent-pink: #f472b6;
   --shadow-tooltip: 0 4px 20px rgba(0, 0, 0, 0.5);
   --scrollbar-thumb: #1a1d28;
   --scrollbar-thumb-hover: #2a3040;
+
+  /* ── Brand scales ─────────────────────────────── */
+  --teal-50: #eefdf8;
+  --teal-100: #d3faea;
+  --teal-200: #adf5d8;
+  --teal-300: #75ebc5;
+  --teal-400: #3dd9ae;
+  --teal-500: #2dd4bf;
+  --teal-600: #1bb5a5;
+  --teal-700: #15918a;
+  --teal-800: #14736e;
+  --teal-900: #135e5a;
+  --teal-950: #043533;
+
+  --indigo-50: #eef2ff;
+  --indigo-100: #e0e7ff;
+  --indigo-200: #c9d4fe;
+  --indigo-300: #a7b6fd;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;
+  --indigo-700: #4338ca;
+  --indigo-800: #3730a3;
+  --indigo-900: #312e81;
+  --indigo-950: #1e1b4b;
+
+  --neutral-50: #f3f6f5;
+  --neutral-100: #e1e6e4;
+  --neutral-200: #c3cdc8;
+  --neutral-300: #9eada6;
+  --neutral-400: #7a8d85;
+  --neutral-500: #5f726b;
+  --neutral-600: #4b5b55;
+  --neutral-700: #3e4a46;
+  --neutral-800: #2e3835;
+  --neutral-900: #1b221f;
+  --neutral-950: #0b0e0c;
 }
 
 @layer utilities {

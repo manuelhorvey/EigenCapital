@@ -19,13 +19,13 @@ def evaluate_regime_conviction_gate(
 ) -> tuple[bool, str]:
     """
     Decides whether a signal flip is allowed based on regime conviction.
-    
+
     Flips are allowed under the following conditions:
     1. Model confidence is high (equal to or greater than the confidence threshold).
     2. No regime data is available (default to allow flip).
     3. The current regime is TREND, it is decisive (P_trend - P_range >= regime_margin_threshold),
-       and the regime has persisted for at least min_bars_in_regime.
-    
+               and the regime has persisted for at least min_bars_in_regime.
+
     Flips are blocked in ranging or volatile/neutral markets when the model is uncertain,
     preventing churn and whipsaws.
     """

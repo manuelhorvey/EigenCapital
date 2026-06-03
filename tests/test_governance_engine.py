@@ -243,3 +243,92 @@ class TestIsNarrativeStale:
         old = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
         from features.fxstreet_fetcher import is_narrative_stale
         assert is_narrative_stale(old) is True
+
+
+class TestRegimeConvictionFlipGate:
+    def test_high_model_confidence_allows_flip(self):
+        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate, RegimeRow
+        # High confidence (e.g. 0.85 >= 0.50 threshold) should bypass the gate
+        row = RegimeRow(P_trend=0.1, P_range=0.8, P_volatile=0.1, regime_label="range")
+        allowed, reason = evaluate_regime_conviction_gate(
+            regime_row=row,
+            model_confidence=85.0, # percentage
+            bars_in_current_regime=1,
+            regime_margin_threshold=0.35,
+            confidence_threshold=0.50,
+            min_bars_in_regime=3
+        )
+        assert allowed is True
+        assert "high_model_confidence" in reason
+
+    def test_no_regime_row_allows_flip(self):
+        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate
+        allowed, reason = evaluate_regime_conviction_gate(
+            regime_row=None,
+            model_confidence=30.0, # low confidence
+            bars_in_current_regime=5,
+            regime_margin_threshold=0.35,
+            confidence_threshold=0.50,
+            min_bars_in_regime=3
+        )
+        assert allowed is True
+        assert "no_regime_data" in reason
+
+    def test_insufficient_bars_in_regime_blocks_flip(self):
+        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate, RegimeRow
+        row = RegimeRow(P_trend=0.8, P_range=0.1, P_volatile=0.1, regime_label="trend")
+        allowed, reason = evaluate_regime_conviction_gate(
+            regime_row=row,
+            model_confidence=30.0,
+            bars_in_current_regime=2, # < 3 min_bars_in_regime
+            regime_margin_threshold=0.35,
+            confidence_threshold=0.50,
+            min_bars_in_regime=3
+        )
+        assert allowed is False
+        assert "regime_duration_insufficient" in reason
+
+    def test_non_trend_regime_blocks_flip(self):
+        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate, RegimeRow
+        row = RegimeRow(P_trend=0.1, P_range=0.8, P_volatile=0.1, regime_label="range")
+        allowed, reason = evaluate_regime_conviction_gate(
+            regime_row=row,
+            model_confidence=30.0,
+            bars_in_current_regime=5,
+            regime_margin_threshold=0.35,
+            confidence_threshold=0.50,
+            min_bars_in_regime=3
+        )
+        assert allowed is False
+        assert "regime_not_trend" in reason
+
+    def test_insufficient_trend_margin_blocks_flip(self):
+        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate, RegimeRow
+        # Trend is dominant but P_trend - P_range is 0.45 - 0.35 = 0.10 (< 0.35 threshold)
+        row = RegimeRow(P_trend=0.45, P_range=0.35, P_volatile=0.20, regime_label="trend")
+        allowed, reason = evaluate_regime_conviction_gate(
+            regime_row=row,
+            model_confidence=30.0,
+            bars_in_current_regime=5,
+            regime_margin_threshold=0.35,
+            confidence_threshold=0.50,
+            min_bars_in_regime=3
+        )
+        assert allowed is False
+        assert "trend_margin_insufficient" in reason
+
+    def test_decisive_trend_allows_flip(self):
+        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate, RegimeRow
+        # Trend is dominant and P_trend - P_range is 0.70 - 0.20 = 0.50 (>= 0.35 threshold)
+        row = RegimeRow(P_trend=0.70, P_range=0.20, P_volatile=0.10, regime_label="trend")
+        allowed, reason = evaluate_regime_conviction_gate(
+            regime_row=row,
+            model_confidence=30.0,
+            bars_in_current_regime=5,
+            regime_margin_threshold=0.35,
+            confidence_threshold=0.50,
+            min_bars_in_regime=3
+        )
+        assert allowed is True
+        assert "decisive_trend_regime" in reason
+

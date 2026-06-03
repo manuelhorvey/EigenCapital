@@ -99,6 +99,16 @@ VARIANTS = {
         "description": "BTC only active in favorable volatility regimes",
         "modify_alloc": None,  # handled separately via regime filtering
     },
+    "no_es": {
+        "label": "No ES",
+        "description": "All assets except ES, allocations renormalized",
+        "modify_alloc": lambda allocs: {k: v for k, v in allocs.items() if k != "ES"},
+    },
+    "no_nq": {
+        "label": "No NQ",
+        "description": "All assets except NQ, allocations renormalized",
+        "modify_alloc": lambda allocs: {k: v for k, v in allocs.items() if k != "NQ"},
+    },
     "synthetic_stress": {
         "label": "Full Portfolio + Synthetic Stress Injection",
         "description": "All 11 assets with synthetic CRISIS blocks injected into bootstrap",

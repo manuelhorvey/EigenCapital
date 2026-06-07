@@ -21,26 +21,26 @@ Source: `configs/paper_trading.yaml`, `LIVE_CONTRACT.md`
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|
-| GC | GC=F | 9.0% | 1.00 | 4.00 | 2 |
-| CHFJPY | CHFJPY=X | 9.0% | 0.50 | 1.00 | 2 |
-| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
+| GC | GC=F | 11.0% | 1.00 | 4.00 | 2 |
+| USDCHF | USDCHF=X | 5.0% | 0.85 | 3.00 | 4 |
 | AUDCHF | AUDCHF=X | 7.0% | 2.75 | 3.50 | 2 |
-| USDCAD | USDCAD=X | 7.0% | 2.50 | 2.00 | 5 |
-| ES | ES=F | 10.0% | 2.00 | 5.50 | 2 |
-| NQ | NQ=F | 8.0% | 2.50 | 5.00 | 2 |
+| USDCAD | USDCAD=X | 7.0% | 2.50 | 2.03 | 5 |
+| ES | ES=F | 12.0% | 2.00 | 5.50 | 2 |
+| NQ | NQ=F | 10.0% | 2.50 | 5.00 | 2 |
 | GBPCAD | GBPCAD=X | 7.0% | 2.50 | 2.50 | 2 |
 | GBPNZD | GBPNZD=X | 7.0% | 3.00 | 1.00 | 3 |
 | NZDCAD | NZDCAD=X | 7.0% | 2.50 | 4.00 | 2 |
-| ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
+| ^DJI | ^DJI | 5.0% | 0.50 | 4.00 | 4 |
+| EURUSD | EURUSD=X | 5.0% | 3.00 | 1.50 | 3 |
+| NZDUSD | NZDUSD=X | 7.0% | 2.50 | 1.50 | 5 |
 
 ---
 
 ## 3. MODEL FILES
 
-**Directory:** `paper_trading/models/` — 11 `.json` models
+**Directory:** `paper_trading/models/` — 12 `.json` models
 
 - `GC_model.json`
-- `CHFJPY_model.json`
 - `USDCHF_model.json`
 - `AUDCHF_model.json`
 - `USDCAD_model.json`
@@ -50,6 +50,8 @@ Source: `configs/paper_trading.yaml`, `LIVE_CONTRACT.md`
 - `GBPNZD_model.json`
 - `NZDCAD_model.json`
 - `DJI_model.json`
+- `EURUSD_model.json`
+- `NZDUSD_model.json`
 
 ---
 
@@ -85,7 +87,7 @@ Key invariants from the contract:
 - Daily OHLCV from MT5 / yfinance
 - Triple-barrier labeling with per-asset pt_sl
 - Fixed-threshold signal strategy at 0.45
-- 11 promoted assets with risk-parity weights
+- 12 promoted assets with risk-parity weights
 - Per-asset max_depth (2–5)
 
 ---

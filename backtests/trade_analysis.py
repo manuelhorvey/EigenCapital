@@ -33,6 +33,9 @@ SLTP_CFG = {
     "GBPNZD": {"sl": 3.00, "tp": 1.00},
     "NZDCAD": {"sl": 2.50, "tp": 4.00},
     "DJI":    {"sl": 0.50, "tp": 4.00},
+    # New additions (candidate sweep 2026-06)
+    "EURUSD": {"sl": 3.00, "tp": 1.50},
+    "NZDUSD": {"sl": 2.50, "tp": 1.50},
 }
 DASHBOARD_TICKERS = {
     "GC=F": "GC",
@@ -40,11 +43,15 @@ DASHBOARD_TICKERS = {
     "USDCAD=X": "USDCAD", "ES=F": "ES",
     "NQ=F": "NQ", "GBPCAD=X": "GBPCAD", "GBPNZD=X": "GBPNZD",
     "NZDCAD=X": "NZDCAD", "^DJI": "DJI",
+    # New additions (candidate sweep 2026-06)
+    "EURUSD=X": "EURUSD", "NZDUSD=X": "NZDUSD",
 }
 MODEL_DEPTH = {
     "GC": 2, "USDCHF": 4,
     "AUDCHF": 2, "USDCAD": 5, "ES": 2,
     "NQ": 2, "GBPCAD": 2, "GBPNZD": 3, "NZDCAD": 2, "DJI": 4,
+    # New additions (candidate sweep 2026-06)
+    "EURUSD": 3, "NZDUSD": 5,
 }
 
 DEF_SL, DEF_TP = 1.0, 2.0

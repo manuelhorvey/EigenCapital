@@ -27,27 +27,28 @@ Operational procedures for the paper trading system. This document is for the pe
 
 ### Assets
 
-**Core portfolio (11 assets promoted from walk-forward screening):**
+**Core portfolio (12 assets promoted from walk-forward screening):**
 
 Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_depth calibrated via walk-forward optimization.
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|
-| GC | GC=F | 9.0% | 1.00 | 4.00 | 2 |
-| CHFJPY | CHFJPY=X | 9.0% | 0.50 | 1.00 | 2 |
-| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
+|---|---|---|---|---|---|---|
+| GC | GC=F | 11.0% | 1.00 | 4.00 | 2 |
+| USDCHF | USDCHF=X | 5.0% | 0.85 | 3.00 | 4 |
 | AUDCHF | AUDCHF=X | 7.0% | 2.75 | 3.50 | 2 |
-| USDCAD | USDCAD=X | 7.0% | 2.50 | 2.00 | 5 |
-| ES | ES=F | 10.0% | 2.00 | 5.50 | 2 |
-| NQ | NQ=F | 8.0% | 2.50 | 5.00 | 2 |
+| USDCAD | USDCAD=X | 7.0% | 2.50 | 2.03 | 5 |
+| ES | ES=F | 12.0% | 2.00 | 5.50 | 2 |
+| NQ | NQ=F | 10.0% | 2.50 | 5.00 | 2 |
 | GBPCAD | GBPCAD=X | 7.0% | 2.50 | 2.50 | 2 |
 | GBPNZD | GBPNZD=X | 7.0% | 3.00 | 1.00 | 3 |
 | NZDCAD | NZDCAD=X | 7.0% | 2.50 | 4.00 | 2 |
-| ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
+| ^DJI | ^DJI | 5.0% | 0.50 | 4.00 | 4 |
+| EURUSD | EURUSD=X | 5.0% | 3.00 | 1.50 | 3 |
+| NZDUSD | NZDUSD=X | 7.0% | 2.50 | 1.50 | 5 |
 
-**Allocations sum to ~100%.**
+**Total allocation: 0.90 (10% cash).**
 
-**Backtest performance (5-year: 2021–2025):** PF 1.46, avgR +0.196, 2036 trades, 11 assets.
+**Backtest performance (5-year: 2021–2025):** PF 2.102, avgR +0.277, 2036 trades, 12 assets.
 
 **SL/TP Architecture:** Barriers are computed by `DynamicSLTPEngine` using `shared/volatility.py:VolatilityPrimitive` with `method="atr"`. At entry, initial barriers are set. On each refresh within the first `post_adjust_interval_bars` (default 3), `post_entry_adjust()` recomputes barriers based on current ATR — vol spikes (>1.3×) tighten SL; vol collapses (<0.7×) no action. Model-validity adjustments via `regime_geometry`: YELLOW → sl×0.9, tp×0.8; RED → sl×0.8, tp×0.5.
 
@@ -185,7 +186,6 @@ curl http://127.0.0.1:5000/ping
 After startup (Mon–Fri during market hours), verify log output shows:
 ```
 GC: BUY conf=XX% @ $XX.XX
-CHFJPY: SELL conf=XX% @ $XX.XX
 USDCHF: BUY conf=XX% @ $XX.XX
 AUDCHF: FLAT conf=XX% @ $XX.XX
 USDCAD: FLAT conf=XX% @ $XX.XX
@@ -195,6 +195,8 @@ GBPCAD: FLAT conf=XX% @ $XX.XX
 GBPNZD: BUY conf=XX% @ $XX.XX
 NZDCAD: FLAT conf=XX% @ $XX.XX
 DJI: BUY conf=XX% @ $XX.XX
+EURUSD: BUY conf=XX% @ $XX.XX
+NZDUSD: BUY conf=XX% @ $XX.XX
 Portfolio: $XXXXX (XX%)
 ```
 
@@ -247,7 +249,6 @@ for name, a in s['assets'].items():
 | Asset | Label | BUY/SELL Ratio | Mean Confidence |
 |-------|-------|----------------|-----------------|
 | GC | fwd60 | ~1:1 | 55-75% |
-| CHFJPY | tb20 | ~1:1 | 55-75% |
 | USDCHF | tb20 | ~1:1 | 55-75% |
 | AUDCHF | tb20 | ~1:1 | 55-75% |
 | USDCAD | tb20 | ~1:1 | 55-75% |
@@ -257,6 +258,8 @@ for name, a in s['assets'].items():
 | GBPNZD | tb20 | ~1:1 | 55-75% |
 | NZDCAD | tb20 | ~1:1 | 55-75% |
 | ^DJI | tb20 | ~1:1 | 55-75% |
+| EURUSD | tb20 | ~1:1 | 55-75% |
+| NZDUSD | tb20 | ~1:1 | 55-75% |
 
 ### Narrative Check (Monday Morning)
 

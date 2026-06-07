@@ -38,16 +38,16 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 | MT5 client | `paper_trading/ops/mt5_client.py` | Host-side client with frame protocol + RLock |
 | Broker | `paper_trading/execution/` | PaperBroker (simulated) or MT5Broker (live Exness) |
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
-| Portfolio | `paper_trading/portfolio_builder.py` | 11-asset risk-parity portfolio from YAML config |
+| Portfolio | `paper_trading/portfolio_builder.py` | 12-asset risk-parity portfolio from YAML config |
 | Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator |
 | Dashboard | `paper_trading/dashboard/` | React SPA (Vite + TypeScript + Tailwind) on port 5000 |
 
 ## Current Portfolio
 
-11 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
+12 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
 
 ### Active
-GC, CHFJPY, USDCHF, AUDCHF, USDCAD, ES, NQ, GBPCAD, GBPNZD, NZDCAD, ^DJI
+GC, USDCHF, AUDCHF, USDCAD, ES, NQ, GBPCAD, GBPNZD, NZDCAD, ^DJI, EURUSD, NZDUSD
 
 ### Removed (post walk-forward, insufficient edge)
 AUDNZD, CADCHF, CADJPY, CL, EURCAD, GBPCHF, USDJPY, BTCUSD, EURGBP, EURJPY, NZDCHF, GBPUSD, GBPJPY, GBPAUD, AUDCAD, EURCHF, NZDJPY, ^VIX, IWM

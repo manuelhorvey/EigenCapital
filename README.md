@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Status](https://img.shields.io/badge/status-paper%20trading-green)
 ![WalkForward](https://img.shields.io/badge/walk--forward-36%20assets%20screened-success)
-![Portfolio](https://img.shields.io/badge/portfolio-11%20dashboard%20assets-blue)
+![Portfolio](https://img.shields.io/badge/portfolio-12%20dashboard%20assets-blue)
 [![codecov](https://codecov.io/gh/manuelhorvey/QuantForge/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/QuantForge)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -57,21 +57,22 @@ State Persistence + Replay
 
 # Current Portfolio
 
-11 dashboard assets promoted from the research universe. Per-asset SL/TP/max_depth calibrated via walk-forward optimization.
+12 dashboard assets promoted from the research universe. Per-asset SL/TP/max_depth calibrated via walk-forward optimization.
 
 | Asset      | Ticker       | sl_mult | tp_mult | Allocation | max_depth |
 | ---------- | ------------ | ------- | ------- | ---------- | --------- |
-| GC         | GC=F         | 1.00    | 4.00    | 9.0%       | 2         |
-| CHFJPY     | CHFJPY=X     | 0.50    | 1.00    | 9.0%       | 2         |
-| USDCHF     | USDCHF=X     | 0.85    | 3.00    | 4.0%       | 4         |
+| GC         | GC=F         | 1.00    | 4.00    | 11.0%      | 2         |
+| USDCHF     | USDCHF=X     | 0.85    | 3.00    | 5.0%       | 4         |
 | AUDCHF     | AUDCHF=X     | 2.75    | 3.50    | 7.0%       | 2         |
-| USDCAD     | USDCAD=X     | 2.50    | 2.00    | 7.0%       | 5         |
-| ES         | ES=F         | 2.00    | 5.50    | 10.0%      | 2         |
-| NQ         | NQ=F         | 2.50    | 5.00    | 8.0%       | 2         |
+| USDCAD     | USDCAD=X     | 2.50    | 2.03    | 7.0%       | 5         |
+| ES         | ES=F         | 2.00    | 5.50    | 12.0%      | 2         |
+| NQ         | NQ=F         | 2.50    | 5.00    | 10.0%      | 2         |
 | GBPCAD     | GBPCAD=X     | 2.50    | 2.50    | 7.0%       | 2         |
 | GBPNZD     | GBPNZD=X     | 3.00    | 1.00    | 7.0%       | 3         |
 | NZDCAD     | NZDCAD=X     | 2.50    | 4.00    | 7.0%       | 2         |
-| ^DJI       | ^DJI         | 0.50    | 4.00    | 4.0%       | 4         |
+| ^DJI       | ^DJI         | 0.50    | 4.00    | 5.0%       | 4         |
+| EURUSD     | EURUSD=X     | 3.00    | 1.50    | 5.0%       | 3         |
+| NZDUSD     | NZDUSD=X     | 2.50    | 1.50    | 7.0%       | 5         |
 
 Daily risk-parity rebalancing redistributes capital proportionally.
 
@@ -79,8 +80,8 @@ Daily risk-parity rebalancing redistributes capital proportionally.
 
 | Metric | Value |
 |--------|-------|
-| Profit factor | 1.46 |
-| Avg R | +0.196 |
+| Profit factor | 2.102 |
+| Avg R | +0.277 |
 | Win rate | 41% |
 | TP/SL/Flip | 19%/46%/34% |
 | Total trades | 2036 |

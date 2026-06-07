@@ -17,10 +17,10 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 **Per-asset max_depth:**
 | Depth | Assets |
 |-------|--------|
-| 2 | GC, CHFJPY, AUDCHF, ES, NQ, GBPCAD, NZDCAD |
-| 3 | GBPNZD |
+| 2 | GC, AUDCHF, ES, NQ, GBPCAD, NZDCAD |
+| 3 | GBPNZD, EURUSD |
 | 4 | USDCHF, ^DJI |
-| 5 | USDCAD |
+| 5 | USDCAD, NZDUSD |
 
 **Signature:** `model.predict(X: pd.DataFrame) -> np.ndarray`
 **Output shape:** `(N, 1)` — raw probability of LONG class
@@ -59,7 +59,6 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 | Asset | Features |
 |-------|----------|
 | GC | `real_yield_delta_63`, `breakeven_delta_63`, `dxy_mom_63`, `gc=f_mom_63` |
-| CHFJPY | `vix_ma21`, `vix_delta_5`, `us_jp_10y_spread`, `chfjpy=x_mom_21`, `chfjpy=x_mom_63` |
 | USDCHF | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `usdchf=x_mom_21`, `usdchf=x_mom_63`, `gc_lead_1` |
 | AUDCHF | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `audchf=x_mom_21`, `audchf=x_mom_63` |
 | USDCAD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `usdcad=x_mom_21`, `usdcad=x_mom_63`, `dji_lead_1` |
@@ -69,6 +68,8 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 | GBPNZD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `gbpnzd=x_mom_21`, `gbpnzd=x_mom_63` |
 | NZDCAD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `nzdcad=x_mom_21`, `nzdcad=x_mom_63` |
 | ^DJI | `rate_diff`, `vix_ma21`, `dxy_mom_21`, `breakeven_delta_63`, `^dji_mom_21`, `^dji_mom_63` |
+| EURUSD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `eurusd=x_mom_21`, `eurusd=x_mom_63` |
+| NZDUSD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `nzdusd=x_mom_21`, `nzdusd=x_mom_63` |
 
 ### Archetype features (inference-only, from full-history OHLCV)
 
@@ -160,25 +161,26 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 **Builder:** `paper_trading/portfolio_builder.py:build_paper_portfolio()`
 **Source:** `configs/paper_trading.yaml`
 
-### Current assets (11 promoted)
+### Current assets (12 promoted)
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|
-| GC | GC=F | 9.0% | 1.00 | 4.00 | 2 |
-| CHFJPY | CHFJPY=X | 9.0% | 0.50 | 1.00 | 2 |
-| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
+|---|---|---|---|---|---|---|
+| GC | GC=F | 11.0% | 1.00 | 4.00 | 2 |
+| USDCHF | USDCHF=X | 5.0% | 0.85 | 3.00 | 4 |
 | AUDCHF | AUDCHF=X | 7.0% | 2.75 | 3.50 | 2 |
-| USDCAD | USDCAD=X | 7.0% | 2.50 | 2.00 | 5 |
-| ES | ES=F | 10.0% | 2.00 | 5.50 | 2 |
-| NQ | NQ=F | 8.0% | 2.50 | 5.00 | 2 |
+| USDCAD | USDCAD=X | 7.0% | 2.50 | 2.03 | 5 |
+| ES | ES=F | 12.0% | 2.00 | 5.50 | 2 |
+| NQ | NQ=F | 10.0% | 2.50 | 5.00 | 2 |
 | GBPCAD | GBPCAD=X | 7.0% | 2.50 | 2.50 | 2 |
 | GBPNZD | GBPNZD=X | 7.0% | 3.00 | 1.00 | 3 |
 | NZDCAD | NZDCAD=X | 7.0% | 2.50 | 4.00 | 2 |
-| ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
+| ^DJI | ^DJI | 5.0% | 0.50 | 4.00 | 4 |
+| EURUSD | EURUSD=X | 5.0% | 3.00 | 1.50 | 3 |
+| NZDUSD | NZDUSD=X | 7.0% | 2.50 | 1.50 | 5 |
 
-**Allocations sum to ~100%.**
+**Total allocation: 0.90 (10% cash).**
 
 ### Removed (post walk-forward, insufficient edge)
-AUDNZD, CADCHF, CADJPY, CL, EURCAD, GBPCHF, USDJPY, BTCUSD, EURGBP, EURJPY, NZDCHF, GBPUSD, GBPJPY, GBPAUD, AUDCAD, EURCHF, NZDJPY, ^VIX, IWM
+CHFJPY, AUDNZD, CADCHF, CADJPY, CL, EURCAD, GBPCHF, USDJPY, BTCUSD, EURGBP, EURJPY, NZDCHF, GBPUSD, GBPJPY, GBPAUD, AUDCAD, EURCHF, NZDJPY, ^VIX, IWM
 
 ---
 

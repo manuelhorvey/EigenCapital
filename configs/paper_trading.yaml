@@ -177,3 +177,17 @@ assets:
     sl_mult: 0.50
     tp_mult: 4.00
     max_depth: 4
+
+  # ── New additions (candidate sweep 2026-06) ─────────────────────────────
+  EURUSD:
+    ticker: EURUSD=X
+    allocation: 0.050
+    sl_mult: 3.00
+    tp_mult: 1.50
+    max_depth: 3
+  NZDUSD:
+    ticker: NZDUSD=X
+    allocation: 0.070
+    sl_mult: 2.50
+    tp_mult: 1.50
+    max_depth: 5

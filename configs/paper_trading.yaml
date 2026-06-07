@@ -137,7 +137,7 @@ assets:
       RED:
         sl_mult: 0.58
         tp_mult: 0.78
-   AUDCHF:
+  AUDCHF:
     ticker: AUDCHF=X
     allocation: 0.070
     sl_mult: 2.75

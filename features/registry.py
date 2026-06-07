@@ -217,7 +217,7 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
             "pt_sl": [ASSET_LABEL_PARAMS["EURUSD"]["pt"], ASSET_LABEL_PARAMS["EURUSD"]["sl"]],
             "vertical_barrier": 20,
         },
-        macro_filters=("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"),
+        macro_filters=("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5", "real_yield_delta_63"),
         price_mom_windows=(21, 63),
         vs_spy_windows=(),
     ),

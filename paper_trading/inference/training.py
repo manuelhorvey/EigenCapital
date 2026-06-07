@@ -105,9 +105,10 @@ class AssetTrainingPipeline:
             stratify=strat,
         )
 
+        depth = getattr(asset, "max_depth", 2)
         model = xgb.XGBClassifier(
             n_estimators=300,
-            max_depth=2,
+            max_depth=depth,
             learning_rate=0.02,
             objective="binary:logistic",
             random_state=42,

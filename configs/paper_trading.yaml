@@ -93,9 +93,9 @@ execution:
 assets:
   GC:
     ticker: GC=F
-    allocation: 0.070
-    sl_mult: 0.51
-    tp_mult: 2.94
+    allocation: 0.090
+    sl_mult: 1.00
+    tp_mult: 4.00
     regime_geometry:
       GREEN:
         sl_mult: 0.59
@@ -108,9 +108,9 @@ assets:
         tp_mult: 0.77
   CHFJPY:
     ticker: CHFJPY=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.70
+    allocation: 0.090
+    sl_mult: 0.50
+    tp_mult: 1.00
     regime_geometry:
       GREEN:
         sl_mult: 0.60
@@ -118,29 +118,15 @@ assets:
       YELLOW:
         sl_mult: 0.60
         tp_mult: 0.59
-      RED:
-        sl_mult: 0.60
-        tp_mult: 0.74
-  CADJPY:
-    ticker: CADJPY=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.69
-    regime_geometry:
-      GREEN:
-        sl_mult: 0.60
-        tp_mult: 0.59
-      YELLOW:
-        sl_mult: 0.60
-        tp_mult: 0.89
       RED:
         sl_mult: 0.60
         tp_mult: 0.74
   USDCHF:
     ticker: USDCHF=X
-    allocation: 0.070
+    allocation: 0.040
     sl_mult: 0.85
-    tp_mult: 1.93
+    tp_mult: 3.00
+    max_depth: 4
     regime_geometry:
       GREEN:
         sl_mult: 0.58
@@ -151,46 +137,17 @@ assets:
       RED:
         sl_mult: 0.58
         tp_mult: 0.78
-  EURCAD:
-    ticker: EURCAD=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.96
-    regime_geometry:
-      GREEN:
-        sl_mult: 0.59
-        tp_mult: 0.77
-      YELLOW:
-        sl_mult: 0.59
-        tp_mult: 0.89
-      RED:
-        sl_mult: 0.59
-        tp_mult: 1.02
-  AUDCHF:
+   AUDCHF:
     ticker: AUDCHF=X
     allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.92
-  USDJPY:
-    ticker: USDJPY=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 2.02
-    regime_geometry:
-      GREEN:
-        sl_mult: 0.59
-        tp_mult: 0.50
-      YELLOW:
-        sl_mult: 0.59
-        tp_mult: 0.50
-      RED:
-        sl_mult: 0.59
-        tp_mult: 0.62
+    sl_mult: 2.75
+    tp_mult: 3.50
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.070
-    sl_mult: 0.85
+    sl_mult: 2.50
     tp_mult: 2.03
+    max_depth: 5
     regime_geometry:
       GREEN:
         sl_mult: 0.59
@@ -201,55 +158,37 @@ assets:
       RED:
         sl_mult: 0.59
         tp_mult: 0.74
-  GBPCHF:
-    ticker: GBPCHF=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.65
   ES:
     ticker: ES=F
-    allocation: 0.080
-    sl_mult: 0.50
-    tp_mult: 4.69
+    allocation: 0.100
+    sl_mult: 2.00
+    tp_mult: 5.50
   NQ:
     ticker: NQ=F
     allocation: 0.080
-    sl_mult: 2.97
-    tp_mult: 4.38
+    sl_mult: 2.50
+    tp_mult: 5.00
 
   # ── Newly promoted (GREEN/YELLOW from walk-forward) ─────────────────────
-  AUDNZD:
-    ticker: AUDNZD=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.50
-  CADCHF:
-    ticker: CADCHF=X
-    allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.50
-  CL:
-    ticker: CL=F
-    allocation: 0.070
-    sl_mult: 0.50
-    tp_mult: 2.00
   GBPCAD:
     ticker: GBPCAD=X
     allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.50
+    sl_mult: 2.50
+    tp_mult: 2.50
   GBPNZD:
     ticker: GBPNZD=X
     allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.50
+    sl_mult: 3.00
+    tp_mult: 1.00
+    max_depth: 3
   NZDCAD:
     ticker: NZDCAD=X
     allocation: 0.070
-    sl_mult: 0.85
-    tp_mult: 1.50
+    sl_mult: 2.50
+    tp_mult: 4.00
   ^DJI:
     ticker: ^DJI
-    allocation: 0.070
+    allocation: 0.040
     sl_mult: 0.50
-    tp_mult: 1.50
+    tp_mult: 4.00
+    max_depth: 4

@@ -56,7 +56,7 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         },
         macro_filters=("rate_diff", "2y_yield_delta_63", "vix_delta_5", "dxy_mom_21", "vix_ma21"),
         price_mom_windows=(10, 21, 63),
-        vs_spy_windows=(21, 63),
+        vs_spy_windows=(),
     ),
     "GC=F": FeatureContract(
         ticker="GC=F",
@@ -472,7 +472,7 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         },
         macro_filters=("rate_diff", "vix_ma21", "dxy_mom_21", "breakeven_delta_63"),
         price_mom_windows=(21, 63),
-        vs_spy_windows=(21, 63),
+        vs_spy_windows=(),
         custom_features=(),
     ),
     "CL=F": FeatureContract(
@@ -509,7 +509,7 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         },
         macro_filters=("rate_diff", "vix_ma21", "dxy_mom_21"),
         price_mom_windows=(21, 63),
-        vs_spy_windows=(21, 63),
+        vs_spy_windows=(),
     ),
     "IWM": FeatureContract(
         ticker="IWM",
@@ -522,7 +522,7 @@ FEATURE_REGISTRY: dict[str, FeatureContract] = {
         },
         macro_filters=("rate_diff", "vix_ma21", "dxy_mom_21"),
         price_mom_windows=(21, 63),
-        vs_spy_windows=(21, 63),
+        vs_spy_windows=(),
     ),
     "^VIX": FeatureContract(
         ticker="^VIX",

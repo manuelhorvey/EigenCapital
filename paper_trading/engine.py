@@ -204,6 +204,7 @@ class PaperTradingEngine:
                 config=spec["config"],
                 sl_mult=spec.get("sl_mult", 1.0),
                 tp_mult=spec.get("tp_mult", 2.5),
+                max_depth=spec.get("max_depth", 2),
                 regime_geometry=spec.get("regime_geometry", {}),
                 state_store=self.state_store,
                 execution_bridge=self.execution_bridge,

@@ -57,6 +57,7 @@ class AssetEngine:
         journal_path=None,
         sl_mult=1.0,
         tp_mult=2.5,
+        max_depth=2,
         regime_geometry=None,
         initial_capital=None,
         position_size=None,
@@ -107,6 +108,7 @@ class AssetEngine:
         self._shadow_learning = None
         self.sl_mult = sl_mult
         self.tp_mult = tp_mult
+        self.max_depth = max_depth
         self.regime_geometry = regime_geometry or {}
         self.execution_bridge = execution_bridge
         self._research_mode = engine_cfg.research_mode

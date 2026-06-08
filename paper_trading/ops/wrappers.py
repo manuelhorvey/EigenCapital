@@ -48,12 +48,6 @@ def compute_vol_scalar(
     return _sizing_strategy.compute(close, config)
 
 
-def compute_tb_vol(close: pd.Series, span: int = 100, floor: float = 0.01) -> float:
-    returns = np.log(close / close.shift(1))
-    vol = returns.ewm(span=span).std()
-    return vol.iloc[-1] if not pd.isna(vol.iloc[-1]) else floor
-
-
 def compute_daily_pnl(
     current_value: float,
     direction: int,
@@ -62,29 +56,3 @@ def compute_daily_pnl(
     pos_size: float = 1.0,
 ) -> float:
     return _pnl_strategy.compute_daily(current_value, direction, ret, position_size_fraction, pos_size)
-
-
-def compute_position_return(
-    side: str,
-    entry_price: float,
-    exit_price: float,
-) -> float:
-    if side == "long":
-        return exit_price / entry_price - 1
-    else:
-        return entry_price / exit_price - 1
-
-
-def compute_sl_tp(
-    side: str,
-    entry_price: float,
-    vol: float,
-    multiplier: float = 2.0,
-) -> tuple:
-    if side == "long":
-        sl = entry_price * (1 - vol * multiplier)
-        tp = entry_price * (1 + vol * multiplier)
-    else:
-        sl = entry_price * (1 + vol * multiplier)
-        tp = entry_price * (1 - vol * multiplier)
-    return sl, tp

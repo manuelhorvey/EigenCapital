@@ -1,4 +1,4 @@
-from quantforge.domain.value_objects.volatility import (
+from shared.volatility import (
     compute_atr_pct,
     compute_atr_series,
     compute_latest_atr,

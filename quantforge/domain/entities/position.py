@@ -26,7 +26,7 @@ class PositionState(Enum):
 
 @dataclass
 class PositionIntent:
-    side: str
+    side: PositionSide
     entry_price: float
     entry_date: str
     stop_loss: float
@@ -37,22 +37,25 @@ class PositionIntent:
     @classmethod
     def from_price_and_vol(
         cls,
-        side: str,
+        side: PositionSide,
         entry_price: float,
         entry_date: str,
         vol: float,
-        sl_mult: float,
-        tp_mult: float,
+        sl_mult: float = 1.0,
+        tp_mult: float = 2.5,
     ) -> PositionIntent:
-        direction = 1 if side == "long" else -1
-        sl = entry_price - direction * entry_price * sl_mult
-        tp = entry_price + direction * entry_price * tp_mult
+        if side == PositionSide.LONG:
+            sl = entry_price * (1 - vol * sl_mult)
+            tp = entry_price * (1 + vol * tp_mult)
+        else:
+            sl = entry_price * (1 + vol * sl_mult)
+            tp = entry_price * (1 - vol * tp_mult)
         return cls(side=side, entry_price=entry_price, entry_date=entry_date, stop_loss=sl, take_profit=tp, vol=vol)
 
     @property
     def is_long(self) -> bool:
-        return self.side == "long"
+        return self.side == PositionSide.LONG
 
     @property
     def is_short(self) -> bool:
-        return self.side == "short"
+        return self.side == PositionSide.SHORT

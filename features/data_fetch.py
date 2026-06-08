@@ -9,10 +9,11 @@ from paper_trading.ops.data_fetcher import fetch_live as _provider_fetch_live
 
 logger = logging.getLogger("quantforge.data_fetch")
 
-# Fetch 500 trading days (~2 years) instead of 10 years.
-# Indicator max lookback is 253 bars; 500 provides 247-bar warmup margin.
-_FETCH_PERIOD = "2y"
-_FETCH_WARMUP_BUFFER = 500
+# Fetch ~5 years for training — tight-SL assets (AUDCHF, ES, NQ, ^DJI)
+# need more binary samples to reach the 100 minimum.
+# Indicator max lookback is 253 bars; 1250 provides ~1k-bar warmup margin.
+_FETCH_PERIOD = "5y"
+_FETCH_WARMUP_BUFFER = 1250
 
 # Minimum history rows required for stable indicator computation.
 # Must be >= the largest lookback in alpha_features.py (_MAX_INDICATOR_LOOKBACK = 253).

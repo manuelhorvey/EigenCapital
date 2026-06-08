@@ -76,6 +76,7 @@ class AssetInferencePipeline:
         asset.price_data = df
         asset._refresh_liquidity(df)
         df["close"] = df["close"].ffill()
+        df = df[~df.index.duplicated(keep="last")]
 
         _t_fetch = time.perf_counter()
 
@@ -192,6 +193,8 @@ class AssetInferencePipeline:
             x_infer = x
             features_infer = features_df
 
+        _infer_idx = x.index[-1:] if getattr(asset, "_truncate_inference", False) else x.index
+
         raw = asset._model_iface.predict(asset.model, x_infer)
         # Binary model -> expand to 3-column format for pipeline compatibility
         if raw.shape[1] == 2:
@@ -251,7 +254,7 @@ class AssetInferencePipeline:
             asset._last_regime_row = None
             pos_size = asset._sizing_strategy.compute(df["close"], sizing_cfg)
 
-        result = asset._signal_strategy.compute(proba, x.index, threshold, df["close"], pos_size)
+        result = asset._signal_strategy.compute(proba, _infer_idx, threshold, df["close"], pos_size)
 
         # ── Ensemble breakdown logging ──
         asset._ensemble_breakdown = {}

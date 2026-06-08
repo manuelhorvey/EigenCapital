@@ -48,6 +48,7 @@ SI=F: XAGUSD
 ES=F: US500
 NQ=F: USTEC
 YM=F: US30
+^DJI: US30
 
 # ── Energy ────────────────────────────────────────────────────────────────────
 CL=F: USOIL
@@ -59,4 +60,4 @@ CL=F: USOIL
 
 # ── Non-MT5 Assets (yfinance only) ───────────────────────────────────────────
 # These are tracked in the dashboard but fetched via yfinance, not MT5:
-# ^VIX, ^DJI, IWM
+# ^VIX, IWM

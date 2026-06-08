@@ -146,6 +146,7 @@ class AssetInferencePipeline:
             bb_mavg = bb.bollinger_mavg()
             bb_std = bb.bollinger_hband() - bb_mavg
             archetype_df["bb_zscore"] = ((ohlcv["close"] - bb_mavg) / (bb_std / 2)).reindex(alpha_idx)
+        archetype_df = archetype_df.bfill()
 
         feature_cols = getattr(asset, "_alpha_feature_cols", None)
         if not feature_cols:

@@ -3,13 +3,13 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Status](https://img.shields.io/badge/status-paper%20trading-green)
 ![WalkForward](https://img.shields.io/badge/walk--forward-36%20assets%20screened-success)
-![Portfolio](https://img.shields.io/badge/portfolio-12%20dashboard%20assets-blue)
+![Portfolio](https://img.shields.io/badge/portfolio-21%20dashboard%20assets-blue)
 [![codecov](https://codecov.io/gh/manuelhorvey/QuantForge/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/QuantForge)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
 
-Cross-sectional multi-asset research and paper trading engine with walk-forward asset selection, per-asset XGBoost models, seven-layer governance, MetaTrader 5 bridge execution, and a React dashboard.
+Cross-sectional multi-asset research and paper trading engine with walk-forward asset selection, per-asset XGBoost models, seven-layer governance, MetaTrader 5 bridge execution (with full order lifecycle support), and a React dashboard.
 
 ---
 
@@ -36,7 +36,7 @@ Every promoted asset must survive expanding-window validation before entering th
 # System Lifecycle
 
 ```
-Research Universe (36+ assets)
+Research Universe (36 assets screened)
         ↓
 Walk-Forward Screening (expanding window)
         ↓
@@ -57,34 +57,42 @@ State Persistence + Replay
 
 # Current Portfolio
 
-12 dashboard assets promoted from the research universe. Per-asset SL/TP/max_depth calibrated via walk-forward optimization.
+21 assets promoted from the research universe via expanding-window walk-forward. Per-asset SL/TP/max_depth calibrated via grid sweep.
 
 | Asset      | Ticker       | sl_mult | tp_mult | Allocation | max_depth |
 | ---------- | ------------ | ------- | ------- | ---------- | --------- |
-| GC         | GC=F         | 1.00    | 4.00    | 11.0%      | 2         |
-| USDCHF     | USDCHF=X     | 0.85    | 3.00    | 5.0%       | 4         |
-| AUDCHF     | AUDCHF=X     | 2.75    | 3.50    | 7.0%       | 2         |
-| USDCAD     | USDCAD=X     | 2.50    | 2.03    | 7.0%       | 5         |
-| ES         | ES=F         | 2.00    | 5.50    | 12.0%      | 2         |
-| NQ         | NQ=F         | 2.50    | 5.00    | 10.0%      | 2         |
-| GBPCAD     | GBPCAD=X     | 2.50    | 2.50    | 7.0%       | 2         |
-| GBPNZD     | GBPNZD=X     | 3.00    | 1.00    | 7.0%       | 3         |
-| NZDCAD     | NZDCAD=X     | 2.50    | 4.00    | 7.0%       | 2         |
-| ^DJI       | ^DJI         | 0.50    | 4.00    | 5.0%       | 4         |
-| EURUSD     | EURUSD=X     | 3.00    | 1.50    | 5.0%       | 3         |
-| NZDUSD     | NZDUSD=X     | 2.50    | 1.50    | 7.0%       | 5         |
+| GC         | GC=F         | 1.00    | 4.00    | 7.0%       | 2         |
+| USDCHF     | USDCHF=X     | 0.85    | 3.00    | 4.0%       | 4         |
+| AUDCHF     | AUDCHF=X     | 2.75    | 3.50    | 5.0%       | 2         |
+| USDCAD     | USDCAD=X     | 2.50    | 2.03    | 5.0%       | 5         |
+| ES         | ES=F         | 2.00    | 5.50    | 7.0%       | 2         |
+| NQ         | NQ=F         | 2.50    | 5.00    | 7.0%       | 2         |
+| GBPCAD     | GBPCAD=X     | 2.50    | 2.50    | 5.0%       | 2         |
+| GBPNZD     | GBPNZD=X     | 3.00    | 1.00    | 5.0%       | 3         |
+| NZDCAD     | NZDCAD=X     | 2.50    | 4.00    | 5.0%       | 2         |
+| ^DJI       | ^DJI         | 0.50    | 4.00    | 4.0%       | 4         |
+| EURUSD     | EURUSD=X     | 3.00    | 1.50    | 4.0%       | 3         |
+| NZDUSD     | NZDUSD=X     | 2.50    | 1.50    | 5.0%       | 5         |
+| GBPAUD     | GBPAUD=X     | 1.00    | 2.00    | 5.0%       | 2         |
+| NZDCHF     | NZDCHF=X     | 1.00    | 4.00    | 7.0%       | 2         |
+| CADCHF     | CADCHF=X     | 1.00    | 4.00    | 5.0%       | 2         |
+| AUDUSD     | AUDUSD=X     | 1.50    | 4.00    | 4.0%       | 2         |
+| AUDNZD     | AUDNZD=X     | 2.00    | 1.00    | 3.0%       | 2         |
+| EURCHF     | EURCHF=X     | 1.00    | 3.00    | 5.0%       | 4         |
+| EURCAD     | EURCAD=X     | 1.00    | 1.00    | 2.0%       | 3         |
+| EURNZD     | EURNZD=X     | 1.50    | 2.50    | 3.0%       | 3         |
+| GBPCHF     | GBPCHF=X     | 1.00    | 2.00    | 3.0%       | 2         |
 
-Daily risk-parity rebalancing redistributes capital proportionally.
+Allocation sums to ~1.00. Daily risk-parity rebalancing redistributes capital proportionally.
 
-### Backtest Performance (5-Year: 2021–2025)
+### Backtest Performance (5-Year 2021–2025, 21-asset portfolio)
 
 | Metric | Value |
 |--------|-------|
-| Profit factor | 2.102 |
-| Avg R | +0.277 |
-| Win rate | 41% |
-| TP/SL/Flip | 19%/46%/34% |
-| Total trades | 2036 |
+| Profit factor | 1.908 |
+| Avg R | +0.268 |
+| All assets positive | 21/21 |
+| Total trades | 2383 |
 
 ---
 
@@ -97,7 +105,7 @@ QuantForge can route data fetching and order execution through a live MetaTrader
 ```
 Linux Host                          Wine Prefix
 ┌─────────────┐                ┌──────────────────────┐
-│ Engine      │── TCP :9876 ──▶│ mt5_bridge.py        │
+│ Engine      │── TCP :9879 ──▶│ mt5_bridge.py        │
 │ mt5_client  │◀───────────────│ (Python 3.12 via      │
 │ (Python)    │                │  Wine → MetaTrader5)  │
 └─────────────┘                ├──────────────────────┤
@@ -112,9 +120,9 @@ Linux Host                          Wine Prefix
 * Real-time price streaming (bid/ask)
 * Historical OHLCV and tick data
 * Account info and position management
-* Market, limit, and stop order placement
-* Stop-loss and take-profit modification
-* Position closing
+* Market order placement with SL/TP
+* Trailing stop and post-entry SL/TP modification
+* Position closing on flip, SL, TP, and time-stop
 
 ## Symbol Mapping
 
@@ -130,8 +138,11 @@ When MT5 is enabled, each engine cycle syncs internal capital bases to the live 
 
 Each asset runs an independent XGBoost model with per-asset configuration.
 
+**Training** (backtest): `multi:softprob` — 3-class (SELL/HOLD/BUY), HOLD dropped for training.
+**Live inference**: `binary:logistic` — trained on {-1, 1} labels after dropping HOLD.
+
 ```text
-Objective: binary:logistic
+Objective: binary:logistic (live), multi:softprob (backtest)
 Trees:     300
 LR:        0.02
 Depth:     per-asset (2–5)
@@ -143,12 +154,26 @@ No shared multi-asset model exists.
 
 # Feature Engineering
 
-Built in `features/builder.py` using per-asset contracts from `features/registry.py`.
+Built in `features/alpha_features.py:build_alpha_features()`.
 
-Each asset has a tailored feature set combining:
-- Macro filters (rate_diff, vix, dxy, breakeven, real yield)
-- Price momentum (21d, 63d windows)
-- Custom features (gc_lead_1, dji_lead_1)
+Every asset uses the same 12 alpha features (per-asset prefix):
+
+| Feature | Description |
+|---------|-------------|
+| `{ASSET}_carry_vol_adj` | Volatility-adjusted carry |
+| `{ASSET}_mom_21d` | 21-day momentum |
+| `{ASSET}_mom_63d` | 63-day momentum |
+| `{ASSET}_mom_126d` | 126-day momentum |
+| `{ASSET}_mom_252d` | 252-day momentum |
+| `{ASSET}_zscore_20` | 20-day z-score |
+| `{ASSET}_vol_ratio` | Short/long-term vol ratio |
+| `{ASSET}_dow_signal` | Day-of-week encoding |
+| `dxy_mom_21d` | DXY 21-day return |
+| `vix_mom_5d` | VIX 5-day return |
+| `spx_mom_5d` | SPX 5-day return |
+| `WTI_mom_21d` | WTI crude 21-day return |
+
+Some assets additionally include `yield_slope` (GBPAUD, CADCHF, AUDNZD, EURNZD, GBPCHF) or `mom126` (EURCHF, NZDUSD).
 
 ## Archetype Features (inference-only)
 
@@ -160,18 +185,19 @@ Derived from OHLCV for execution conditioning:
 # Inference Pipeline
 
 ```text
-1. Fetch live OHLCV (MT5 or yfinance)
+1. Fetch live OHLCV (MT5 or yfinance, 5y window)
 2. Refresh latest price
 3. Fetch macro data
-4. Build per-asset features (FEATURE_REGISTRY)
-5. Validate truncation behavior
-6. Validate model hot-swap integrity
-7. Run XGBoost inference
-8. Classify market structure
-9. Apply execution strategy
-10. Enqueue async diagnostics
-11. Route through 7 governance layers
-12. Execute or defer
+4. Build alpha features (build_alpha_features, 12 cols)
+5. Build archetype features (ema_spread, adx, rsi, bb_zscore)
+6. Optional truncation validation (predict last row only)
+7. PSI drift check (rolling 21d vs baseline)
+8. XGBoost inference (binary:logistic → 3-col proba expansion)
+9. Optional meta-label inference
+10. FixedThresholdStrategy(0.45) → BUY/SELL/FLAT
+11. Archetype classification
+12. Route through 7 governance layers
+13. Execute or defer (MT5 bridge for real broker)
 ```
 
 ---
@@ -327,7 +353,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | `MT5_SERVER`                  | No*      | Exness MT5 server (e.g. Exness-MT5Trial2) |
 | `OPENCODE_ZEN_API_KEY`        | No       | Weekly narrative extraction            |
 | `WINE_PREFIX`                 | No       | Wine prefix path (default ~/.wine_mt5) |
-| `MT5_BRIDGE_PORT`             | No       | Bridge TCP port (default 9876)          |
+| `MT5_BRIDGE_PORT`             | No       | Bridge TCP port (default 9879)          |
 
 \* Required when `mt5.enabled: true` in config.
 

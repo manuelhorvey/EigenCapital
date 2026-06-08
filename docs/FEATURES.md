@@ -2,7 +2,7 @@
 
 ## Alpha Features
 
-The primary feature builder is `features/builder.py:build_features()`. It produces per-asset feature sets defined by `features/registry.py:FEATURE_REGISTRY`, using a combination of macro filters, price momentum, and custom features.
+The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses the same 12 alpha features (with per-asset prefix). The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
 
 ### Input Data
 
@@ -15,51 +15,44 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 | VIX | `^VIX` | VIX close |
 | SPX | `^GSPC` | S&P 500 close |
 | Crude oil | `CL=F` | WTI close |
-| 10Y Treasury | `^TNX` | TNX yield |
 
 ### Feature Categories
 
-#### Macro Filters
-| Feature | Source | Description |
-|---|---|---|
-| `rate_diff` | yfinance | Interest rate differential proxy |
-| `dxy_mom_21` / `dxy_mom_63` | DX-Y.NYB | Dollar momentum |
-| `vix_ma21` | ^VIX | VIX 21-day moving average |
-| `vix_delta_5` | ^VIX | VIX 5-day change |
-| `breakeven_delta_63` | ^TNX | 10Y breakeven inflation change |
-| `real_yield_delta_63` | ^TNX | Real yield change |
-| `us_jp_10y_spread` | ^TNX | US-JP 10-year yield spread |
+#### Per-Asset Alpha Features (12 cols via `build_alpha_features()`)
 
-#### Price Momentum
-| Feature | Window | Description |
-|---|---|---|
-| `{asset}_mom_21` | 21d | 1-month momentum |
-| `{asset}_mom_63` | 63d | 3-month momentum |
-
-#### Custom Features
 | Feature | Description |
 |---|---|
-| `gc_lead_1` | Gold 1-day lead |
-| `dji_lead_1` | Dow 1-day lead |
+| `{ASSET}_carry_vol_adj` | Volatility-adjusted carry |
+| `{ASSET}_mom_21d` | 21-day momentum |
+| `{ASSET}_mom_63d` | 63-day momentum |
+| `{ASSET}_mom_126d` | 126-day momentum |
+| `{ASSET}_mom_252d` | 252-day momentum |
+| `{ASSET}_zscore_20` | 20-day z-score vs SMA |
+| `{ASSET}_vol_ratio` | Short/long-term vol ratio |
+| `{ASSET}_dow_signal` | Day-of-week encoding |
 
-### Per-Asset Feature Sets
+#### Cross-Asset Features
 
-Each dashboard asset has a tailored feature set from `features/registry.py`:
+| Feature | Source | Description |
+|---|---|---|
+| `dxy_mom_21d` | DX-Y.NYB | Dollar 21-day return |
+| `vix_mom_5d` | ^VIX | VIX 5-day return |
+| `spx_mom_5d` | ^GSPC | S&P 500 5-day return |
+| `WTI_mom_21d` | CL=F | WTI crude 21-day return |
 
-| Asset | Features |
+### Custom Feature Variants
+
+Some assets have additional or replacement features beyond the 12-base set:
+
+| Asset | Variant |
 |---|---|
-| GC | `real_yield_delta_63`, `breakeven_delta_63`, `dxy_mom_63`, `gc=f_mom_63` |
-| USDCHF | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `usdchf=x_mom_21`, `usdchf=x_mom_63`, `gc_lead_1` |
-| AUDCHF | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `audchf=x_mom_21`, `audchf=x_mom_63` |
-| USDCAD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `usdcad=x_mom_21`, `usdcad=x_mom_63`, `dji_lead_1` |
-| ES | `rate_diff`, `vix_ma21`, `dxy_mom_21`, `breakeven_delta_63`, `es=f_mom_21`, `es=f_mom_63` |
-| NQ | `rate_diff`, `vix_ma21`, `dxy_mom_21`, `nq=f_mom_21`, `nq=f_mom_63` |
-| GBPCAD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `gbpcad=x_mom_21`, `gbpcad=x_mom_63` |
-| GBPNZD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `gbpnzd=x_mom_21`, `gbpnzd=x_mom_63` |
-| NZDCAD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `nzdcad=x_mom_21`, `nzdcad=x_mom_63` |
-| ^DJI | `rate_diff`, `vix_ma21`, `dxy_mom_21`, `breakeven_delta_63`, `^dji_mom_21`, `^dji_mom_63` |
-| EURUSD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `eurusd=x_mom_21`, `eurusd=x_mom_63` |
-| NZDUSD | `rate_diff`, `dxy_mom_21`, `vix_ma21`, `vix_delta_5`, `nzdusd=x_mom_21`, `nzdusd=x_mom_63` |
+| EURCHF | `mom126` replaces base momentum (126d momentum) |
+| NZDUSD | `mom126` replaces base momentum |
+| GBPAUD | `yield_slope` (US yield curve slope) |
+| CADCHF | `yield_slope` |
+| AUDNZD | `yield_slope` |
+| EURNZD | `yield_slope` |
+| GBPCHF | `yield_slope` |
 
 ## Archetype Features
 
@@ -102,4 +95,4 @@ Per-asset `pt_sl` from `configs/paper_trading.yaml`.
 
 ## Architecture Note
 
-Feature sets are defined per-asset in `FEATURE_REGISTRY` and built by `features/builder.py`. Each asset has an independent set of features — no shared feature manifold across all assets.
+All 21 dashboard assets use the same 12 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.

@@ -16,7 +16,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 1. **Screening output**: Composite scores + promotion classifications (GREEN/YELLOW/RED) for 30+ tickers
 2. **Per-asset models**: Binary XGBoost classifiers, one per promoted asset
-3. **Live signals**: BUY/SELL/FLAT decisions every 5 minutes for 15 assets
+3. **Live signals**: BUY/SELL/FLAT decisions every 5 minutes for 21 assets
 4. **Portfolio allocation**: Risk-parity weighted long/short basket with governance overlay
 5. **Execution traces**: Full attribution records (prediction, execution, exit, friction) per trade
 
@@ -26,7 +26,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 - Does NOT use ensemble/regime routing in production (disabled by default)
 - Does NOT use FRED macro data in the live pipeline
 - Does NOT operate with live capital (paper trading only)
-- Does NOT deploy every screened ticker (16/30 screened RED, not promoted)
+- Does NOT deploy every screened ticker (13/34 screened RED, not promoted)
 
 ---
 
@@ -94,8 +94,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    PORTFOLIO LAYER                                       │
 │                                                                         │
-│  15 assets, risk-parity weights (6.5–7.8% each)                        │
-│  + BTC satellite (5% AUM cap, macro gate)                               │
+│  21 assets, risk-parity weights (2.0–7.0% each)                        │
 │  SQLite state store (WAL mode): trades, attribution, equity_history     │
 │  PaperBroker → StateStore → state.json + state.db → dashboard           │
 │  7-layer governance overlay                                             │
@@ -164,20 +163,20 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 
 | Feature | Formula |
 |---|---|
-| `{asset}_carry_vol_adj` | Close return normalized by rolling vol |
-| `{asset}_mom_21d` | `close.pct_change(21)` |
-| `{asset}_mom_63d` | `close.pct_change(63)` |
-| `{asset}_mom_126d` | `close.pct_change(126)` |
-| `{asset}_mom_252d` | `close.pct_change(252)` |
-| `{asset}_zscore_20` | `(close - SMA20) / std(close, 20)` |
-| `{asset}_vol_ratio` | Short-term vol / long-term vol |
-| `{asset}_dow_signal` | Day-of-week encoding |
-| `dxy_mom_21/63` | DXY returns |
-| `vix_mom_21/63` | VIX returns |
-| `spx_mom_21/63` | SPX returns |
-| `wti_mom_21/63` | WTI returns |
+| `{ASSET}_carry_vol_adj` | Close return normalized by rolling vol |
+| `{ASSET}_mom_21d` | `close.pct_change(21)` |
+| `{ASSET}_mom_63d` | `close.pct_change(63)` |
+| `{ASSET}_mom_126d` | `close.pct_change(126)` |
+| `{ASSET}_mom_252d` | `close.pct_change(252)` |
+| `{ASSET}_zscore_20` | `(close - SMA20) / std(close, 20)` |
+| `{ASSET}_vol_ratio` | Short-term vol / long-term vol |
+| `{ASSET}_dow_signal` | Day-of-week encoding |
+| `dxy_mom_21d` | DXY 21-day return |
+| `vix_mom_5d` | VIX 5-day return |
+| `spx_mom_5d` | SPX 5-day return |
+| `WTI_mom_21d` | WTI 21-day return |
 
-~30 feature columns per asset total.
+12 feature columns per asset. Some assets have additional `yield_slope` or `mom126` variants.
 
 ### 4.3 Labeling
 
@@ -187,7 +186,7 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 2. Triple-barrier touch → {-1 (SELL), 0 (HOLD), 1 (BUY)}
 3. Binary reduction: drop HOLD (0), map {-1, 1} → {0, 1}
 
-**Default pt_sl**: (1.5, 2.0) for most assets; (2.5, 3.0) for BTC-USD.
+**Default pt_sl**: per-asset from `configs/paper_trading.yaml`.
 
 ### 4.4 Model Training
 
@@ -227,21 +226,18 @@ Format: XGBoost `.json` (not pickle)
 
 **Frequency**: Every 300 seconds (configurable via `QUANTFORGE_REFRESH_INTERVAL`)
 
-**Parallel execution**: 13 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
+**Parallel execution**: 21 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
 
 **Steps**:
-1. `fetch_live(ticker)` — 500 days OHLCV (yfinance `period="500d"`)
+1. `fetch_live(ticker)` — 5y OHLCV (`_FETCH_PERIOD = "5y"`)
 2. Normalize index to UTC TZ-naive date (fixes FX cross date shift)
-3. `refresh_price()` — real-time price via `fast_info` or 5d fallback
-4. `ffill()` close column
-5. `fetch_asset_data()` — 10y close + macro (macro tickers batched into single `yf.download` call, TTL cache 300s)
-6. `build_alpha_features()` — alpha_df (~30 feature cols)
-7. `fetch_asset_ohlcv()` — 10y full OHLCV (no rate-limit sleep)
-8. Archetype features from OHLCV: ema_spread, ADX(14), RSI(14), BB_zscore(20)
-9. PSI drift check (rolling 21d vs baseline; skipped first cycle)
-10. Inference truncation: 500d → 250d via `_truncate_to_window()`, with behavioral validation (window size, date range, NaN ratio)
-11. Model hot-swap validation: checks object identity change (`model is not last_model`) and re-validates full inference chain on swap
-12. XGBoost predict → 3-column proba expansion:
+3. `refresh_price()` — real-time price via MT5 bridge or 5d fallback
+4. `ffill()` close column, deduplicate index
+5. `fetch_asset_data()` + `build_alpha_features()` — alpha_df (12 feature cols)
+6. Archetype features from OHLCV: ema_spread, ADX(14), RSI(14), BB_zscore(20)
+7. PSI drift check (rolling 21d vs baseline; skipped first cycle)
+8. Inference truncation validation — if proven safe, predict only last row
+9. XGBoost predict → 3-column proba expansion:
     ```python
     if raw.shape[1] == 2:  # binary model
         proba = np.column_stack([1.0 - raw[:,1], zeros, raw[:,1]])
@@ -252,6 +248,7 @@ Format: XGBoost `.json` (not pickle)
 16. Archetype classification → `TradeDecision(close_price, confidence, probs, ...)`
 17. DiagnosticsSnapshot enqueues model/feature snapshots off hot path via async daemon consumer (8 heavy imports removed from inference thread)
 18. `_apply_decision()` → EntryOptimizer → ExecutionPolicyLayer → PositionManager
+19. MT5 lifecycle: open → bridge `place_order` with SL/TP; close → bridge `close_position`; SL/TP adjust → bridge `modify_position`
 
 ### 5.2 Signal Contract
 
@@ -280,27 +277,31 @@ Computed from OHLCV feature vector (no model inference):
 
 ### 6.1 Current Composition
 
-**15 assets** promoted from 30-ticker walk-forward screening, risk-parity weighted:
+**21 assets** promoted from 34-ticker walk-forward screening, risk-parity weighted:
 
-| Asset | Ticker | Allocation | sl_mult | tp_mult | Score |
+| Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|
-| BTCUSD | BTC-USD | 6.5% | 3.0 | 2.5 | 80.9 |
-| EURGBP | EURGBP=X | 6.5% | 2.0 | 1.5 | 69.0 |
-| GC | GC=F | 6.5% | 2.0 | 1.5 | 66.7 |
-| NZDCHF | NZDCHF=X | 6.5% | 2.0 | 1.5 | 70.0 |
-| CHFJPY | CHFJPY=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| CADJPY | CADJPY=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| USDCHF | USDCHF=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| EURJPY | EURJPY=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| EURCAD | EURCAD=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| AUDCHF | AUDCHF=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| USDJPY | USDJPY=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| USDCAD | USDCAD=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| GBPCHF | GBPCHF=X | 6.5% | 2.0 | 1.5 | YELLOW |
-| ES | ES=F | 7.7% | 2.0 | 2.5 | 76.9 |
-| NQ | NQ=F | 7.8% | 2.0 | 2.5 | 67.9 |
-
-**BTC satellite**: 5% AUM cap, vol target 40%, macro-gated entry via `HighVolSatellite`.
+| GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
+| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
+| AUDCHF | AUDCHF=X | 5.0% | 2.75 | 3.50 | 2 |
+| USDCAD | USDCAD=X | 5.0% | 2.50 | 2.03 | 5 |
+| ES | ES=F | 7.0% | 2.00 | 5.50 | 2 |
+| NQ | NQ=F | 7.0% | 2.50 | 5.00 | 2 |
+| GBPCAD | GBPCAD=X | 5.0% | 2.50 | 2.50 | 2 |
+| GBPNZD | GBPNZD=X | 5.0% | 3.00 | 1.00 | 3 |
+| NZDCAD | NZDCAD=X | 5.0% | 2.50 | 4.00 | 2 |
+| ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
+| EURUSD | EURUSD=X | 4.0% | 3.00 | 1.50 | 3 |
+| NZDUSD | NZDUSD=X | 5.0% | 2.50 | 1.50 | 5 |
+| GBPAUD | GBPAUD=X | 5.0% | 1.00 | 2.00 | 2 |
+| NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
+| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
+| AUDUSD | AUDUSD=X | 4.0% | 1.50 | 4.00 | 2 |
+| AUDNZD | AUDNZD=X | 3.0% | 2.00 | 1.00 | 2 |
+| EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
+| EURCAD | EURCAD=X | 2.0% | 1.00 | 1.00 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.50 | 2.50 | 3 |
+| GBPCHF | GBPCHF=X | 3.0% | 1.00 | 2.00 | 2 |
 
 ### 6.2 Position Sizing
 
@@ -363,9 +364,10 @@ In-memory TTL cache per download type:
 8. **Worst-wins governance**: Most negative penalty applied, not averaged
 9. **Per-asset pt_sl**: Barrier geometry from config, applied label-time and runtime
 10. **.json serialization**: No pickle in production
-11. **Inference truncation symmetry**: Training uses 5y data; live inference fetches 500d, truncates to 250d for XGBoost (matching training window)
+11. **Inference truncation symmetry**: Training uses 5y data; live inference fetches 5y, truncates to `_MAX_INDICATOR_LOOKBACK + 50` when validated
 12. **SQLite state store**: All persistent state in single WAL-mode database; legacy JSON/parquet files are read-only fallbacks
-13. **Parallel asset isolation**: 13 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently
+13. **Parallel asset isolation**: 21 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently
+14. **MT5 order lifecycle symmetry**: Every paper open → MT5 `place_order`; paper close → MT5 `close_position`; SL/TP adjust → MT5 `modify_position`
 
 ---
 
@@ -373,7 +375,7 @@ In-memory TTL cache per download type:
 
 | Path | Role |
 |---|---|
-| `configs/paper_trading.yaml` | Production config (15 assets, params) |
+| `configs/paper_trading.yaml` | Production config (21 assets, params) |
 | `features/alpha_features.py` | Alpha feature factory |
 | `features/data_fetch.py` | YFinance data ingestion |
 | `features/labels.py` | Triple-barrier labeling |
@@ -405,10 +407,10 @@ In-memory TTL cache per download type:
 2. **Yahoo Finance single source** — all data via yfinance, including macro
 3. **FX cross price NaN on first cycle** — incomplete daily bar; resolves after next cycle with full bar
 4. **Ensemble disabled** — `ensemble.enabled: false` in config; experimental feature
-5. **15/30 tickers RED** — not promoted; reflects weak IC for most FX pairs
+5. **13/34 tickers RED** — not promoted; reflects weak IC for most FX pairs
 6. **No FRED** — macro derived from yfinance tickers only; no FRED API dependency in production
-7. **JPY/CHF cross TZ issue** — fixed via UTC normalization in pipeline
-8. **Attribution table schema gap** — `attribution` table in SQLite lacks friction columns (`friction_fill_qty_ratio`, `friction_gap_fill`, `friction_partial_fill`, `friction_latency_bars`) that exist in `trades` table. Frontend uses nullish defaults (`??`) as workaround.
+7. **JPY/CHF cross TZ issue** — fixed via UTC normalization + index deduplication in pipeline
+8. **FTX bridge 5s timeout** — MT5 `realtime_mid_price()` has a 5s socket timeout; during volatile periods, prices may lag
 9. **Benchmark isolation** — `microbenchmark.py --state-dir` uses temp directory by default; must never point at production `data/live/`
 
 ---

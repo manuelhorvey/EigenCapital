@@ -18,7 +18,7 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 |---------|-------------|
 | `./monitor_all` | One-command launch: MT5 terminal + bridge + engine + dashboard |
 | `mt5-terminal` | Launch MT5 terminal in Wine |
-| `mt5-bridge` | Launch MT5 TCP bridge server on :9876 |
+| `mt5-bridge` | Launch MT5 TCP bridge server on :9879 |
 | `python -m paper_trading.ops.monitor` | Run engine + dashboard only |
 | `python backtests/trade_analysis.py` | Walk-forward style backtest + per-asset optimization |
 | `python scripts/walk_forward_backtest.py` | Multi-ticker walk-forward validation |
@@ -38,19 +38,19 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 | MT5 client | `paper_trading/ops/mt5_client.py` | Host-side client with frame protocol + RLock |
 | Broker | `paper_trading/execution/` | PaperBroker (simulated) or MT5Broker (live Exness) |
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
-| Portfolio | `paper_trading/portfolio_builder.py` | 12-asset risk-parity portfolio from YAML config |
+| Portfolio | `paper_trading/portfolio_builder.py` | 21-asset risk-parity portfolio from YAML config |
 | Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator |
 | Dashboard | `paper_trading/dashboard/` | React SPA (Vite + TypeScript + Tailwind) on port 5000 |
 
 ## Current Portfolio
 
-12 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
+21 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
 
 ### Active
-GC, USDCHF, AUDCHF, USDCAD, ES, NQ, GBPCAD, GBPNZD, NZDCAD, ^DJI, EURUSD, NZDUSD
+GC, USDCHF, AUDCHF, USDCAD, ES, NQ, GBPCAD, GBPNZD, NZDCAD, ^DJI, EURUSD, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, AUDNZD, EURCHF, EURCAD, EURNZD, GBPCHF
 
 ### Removed (post walk-forward, insufficient edge)
-AUDNZD, CADCHF, CADJPY, CL, EURCAD, GBPCHF, USDJPY, BTCUSD, EURGBP, EURJPY, NZDCHF, GBPUSD, GBPJPY, GBPAUD, AUDCAD, EURCHF, NZDJPY, ^VIX, IWM
+CADJPY, CHFJPY, CL, USDJPY, BTCUSD, EURGBP, EURJPY, GBPUSD, GBPJPY, AUDCAD, NZDJPY, ^VIX, IWM
 
 ## Services / Processes
 
@@ -58,7 +58,7 @@ AUDNZD, CADCHF, CADJPY, CL, EURCAD, GBPCHF, USDJPY, BTCUSD, EURGBP, EURJPY, NZDC
 |---------|------|---------|
 | Engine | — | Main trading loop (300s cycle) |
 | Dashboard | 5000 | React SPA + JSON API endpoints |
-| MT5 bridge | 9876 | Wine-hosted TCP bridge to MetaTrader 5 terminal |
+| MT5 bridge | 9879 | Wine-hosted TCP bridge to MetaTrader 5 terminal |
 | MT5 terminal | — | MetaTrader 5 under Wine + xvfb-run |
 
 ## ADRs

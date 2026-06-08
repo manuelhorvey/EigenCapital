@@ -162,6 +162,28 @@ class MT5Broker(BrokerInterface):
         )
         return order_id
 
+    def close_position(self, asset: str, position_id: str) -> bool:
+        self.ensure_connected()
+        ticket = int(position_id)
+        result = self._client.close_position(ticket)
+        retcode = result.get("result", {}).get("retcode", -1)
+        if retcode != 10009:
+            logger.error("Close position failed: retcode=%d ticket=%s asset=%s", retcode, ticket, asset)
+            return False
+        logger.info("Position closed: ticket=%s asset=%s", ticket, asset)
+        return True
+
+    def modify_position(self, asset: str, position_id: str, sl: float | None = None, tp: float | None = None) -> bool:
+        self.ensure_connected()
+        ticket = int(position_id)
+        result = self._client.modify_position(ticket, sl=sl, tp=tp)
+        retcode = result.get("result", {}).get("retcode", -1)
+        if retcode != 10009:
+            logger.error("Modify position failed: retcode=%d ticket=%s asset=%s", retcode, ticket, asset)
+            return False
+        logger.info("Position modified: ticket=%s asset=%s sl=%s tp=%s", ticket, asset, sl, tp)
+        return True
+
     def cancel_order(self, order_id: str) -> bool:
         logger.warning("cancel_order not implemented for MT5")
         return False

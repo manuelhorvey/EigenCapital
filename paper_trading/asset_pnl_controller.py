@@ -19,6 +19,23 @@ logger = logging.getLogger("quantforge.pnl_controller")
 ET = pytz.timezone("US/Eastern")
 
 
+def _sync_broker_sltp(asset) -> None:
+    """Push current SL/TP to the real broker (MT5) after in-memory adjustment."""
+    mt5_ticket = asset.position.get("mt5_ticket") if asset.position else None
+    if mt5_ticket is None:
+        return
+    bridge = getattr(asset, "execution_bridge", None)
+    if bridge is None or not getattr(bridge, "_is_real_broker", False):
+        return
+    pos = asset.pos_mgr.position
+    if pos is None:
+        return
+    try:
+        bridge.broker.modify_position(asset.ticker, str(mt5_ticket), sl=float(pos.stop_loss), tp=float(pos.take_profit))
+    except Exception as e:
+        logger.debug("%s: MT5 modify_position failed: %s", asset.name, e)
+
+
 class AssetPnlController:
     def __init__(self, asset):
         self.asset = asset
@@ -110,6 +127,7 @@ class AssetPnlController:
                     )
                     if trailing.trailing_sl is not None:
                         asset.pos_mgr.update_stop_loss(float(trailing.trailing_sl))
+                        _sync_broker_sltp(asset)
                         logger.info(
                             "%s: trailing stop activated to %.4f (locked profit=%.2f%%)",
                             asset.name,
@@ -139,6 +157,7 @@ class AssetPnlController:
                     )
                     if adjust.new_sl is not None:
                         asset.pos_mgr.update_stop_loss(float(adjust.new_sl))
+                        _sync_broker_sltp(asset)
                         logger.info(
                             "%s: post-entry SL adjusted: %s (new=%.4f)",
                             asset.name,
@@ -156,6 +175,7 @@ class AssetPnlController:
                         )
                     if adjust.new_tp is not None:
                         asset.pos_mgr.update_take_profit(float(adjust.new_tp))
+                        _sync_broker_sltp(asset)
                         logger.info(
                             "%s: post-entry TP adjusted: %s (new=%.4f)",
                             asset.name,

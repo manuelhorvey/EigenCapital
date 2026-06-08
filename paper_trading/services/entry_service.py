@@ -128,6 +128,7 @@ class EntryService:
 
         fill_price = entry_price
         entry_slippage_bps = 0.0
+        mt5_ticket = None
         if asset.execution_bridge is not None:
             broker_side = "buy" if side == "long" else "sell"
             notional = self.compute_notional()
@@ -159,6 +160,7 @@ class EntryService:
                         tp=mt5_tp,
                     )
                     if order_id:
+                        mt5_ticket = int(order_id)
                         logger.info(
                             "%s: MT5 order submitted — ticket=%s sl=%.5f tp=%.5f",
                             asset.name,
@@ -236,6 +238,7 @@ class EntryService:
             "sl_mult": sl_mult,
             "tp_mult": tp_mult,
             "tp_geo": tp_geo,
+            "mt5_ticket": mt5_ticket,
         }
         asset._entry_vol = vol
         asset._bars_at_entry = 0

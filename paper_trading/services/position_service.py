@@ -141,6 +141,14 @@ class PositionService:
         except (AttributeError, ValueError, TypeError):
             pass
 
+        # ── Real broker close (MT5) ──
+        mt5_ticket = asset.position.get("mt5_ticket") if asset.position else None
+        if mt5_ticket is not None and asset.execution_bridge is not None and getattr(asset.execution_bridge, "_is_real_broker", False):
+            try:
+                asset.execution_bridge.broker.close_position(asset.ticker, str(mt5_ticket))
+            except Exception as e:
+                logger.warning("%s: MT5 close failed for ticket=%s: %s", asset.name, mt5_ticket, e)
+
         asset.position = None
         if reason == "signal_flip":
             asset._last_signal_flip_cycle = asset._cycle_counter

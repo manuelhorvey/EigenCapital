@@ -217,6 +217,12 @@ class PaperBroker(BrokerInterface):
         )
         return order_id
 
+    def close_position(self, asset: str, position_id: str) -> bool:
+        return True
+
+    def modify_position(self, asset: str, position_id: str, sl: float | None = None, tp: float | None = None) -> bool:
+        return True
+
     def cancel_order(self, order_id: str) -> bool:
         return False
 

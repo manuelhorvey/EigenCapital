@@ -134,7 +134,7 @@ class TestStateStore:
     def test_append_confidence_bucket(self, tmp_store):
         bucket = {"asset": "BTC", "date": "2026-06-01", "mean_conf": 0.5}
         tmp_store.append_confidence_bucket(bucket)
-        with tmp_store._connect() as conn:
+        with tmp_store.db._connect() as conn:
             rows = conn.execute("SELECT * FROM confidence_buckets").fetchall()
         assert len(rows) == 1
         assert rows[0]["asset"] == "BTC"

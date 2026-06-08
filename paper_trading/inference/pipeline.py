@@ -29,10 +29,6 @@ logger = logging.getLogger("quantforge.inference_pipeline")
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ET = pytz.timezone("US/Eastern")
 
-# Max indicator lookback from alpha_features.py:
-#   momentum_features(horizons=[21,63,126,252]) with shift(h+1) → 253
-#   day_of_week_signal rolling(252, min_periods=63) → 252
-# UPDATE THIS if any indicator lookback exceeds 252 + 1
 _MAX_INDICATOR_LOOKBACK = 253
 
 
@@ -47,53 +43,76 @@ class AssetInferencePipeline:
 
     def _generate_and_apply(self, threshold=0.45):
         _t0 = time.perf_counter()
-
         asset = self.asset
 
-        # Apply any pending async diagnostics from the previous cycle
+        self._apply_async_diagnostics(asset)
+        self._ensure_ready(asset)
+        df = self._fetch_and_prepare_data(asset)
+
+        _t_fetch = time.perf_counter()
+        alpha_df, features_df, x = self._build_feature_set(asset, df)
+
+        _t_features = time.perf_counter()
+        self._check_archetype_nans(asset, features_df)
+        self._check_psi_drift(asset, x)
+        x, features_df = self._validate_and_truncate(asset, x, features_df)
+
+        _t_infer = time.perf_counter()
+        proba, _infer_idx = self._run_inference(asset, x, features_df)
+        result, pos_size = self._compute_sizing_and_signal(asset, df, proba, _infer_idx, threshold)
+
+        self._log_ensemble_breakdown(asset, alpha_df, proba, result)
+        archetype = self._classify_archetype(asset, features_df)
+        decision = self._build_decision(asset, result, pos_size, archetype, df)
+
+        asset._apply_decision(decision, df)
+        self._trace_and_diagnostics(asset, decision, proba, x, df, threshold)
+
+        _t_total = time.perf_counter()
+        self._log_pipeline_benchmark(asset, x, _t0, _t_fetch, _t_features, _t_infer, _t_total)
+
+        asset._reg.validate_strategies(
+            asset.name,
+            {
+                "_model": asset._model_iface,
+                "_signal": asset._signal_strategy,
+                "_sizing": asset._sizing_strategy,
+                "_pnl": asset._pnl_strategy,
+                "_feature_pipeline": asset._feature_pipeline,
+            },
+        )
+        return asset._decision_to_dict(decision)
+
+    # ── Focused pipeline stages ────────────────────────────────────
+
+    def _apply_async_diagnostics(self, asset) -> None:
         get_diagnostics_queue().apply_pending(asset.name, asset)
 
+    def _ensure_ready(self, asset) -> None:
         asset._ensure_position_synced()
         if not asset._trained:
             asset.train()
 
+    def _fetch_and_prepare_data(self, asset):
         df = fetch_live(asset.ticker)
-
-        # Normalise index to UTC midnight to match alpha feature alignment.
-        # norm_index localises to US/Eastern; for FX crosses (24h in UTC) this
-        # shifts the date by a day. Convert to UTC first so the extracted
-        # date matches fetch_yf_series (which also normalises to UTC midnight).
         if df.index.tz is not None:
             df.index = df.index.tz_convert("UTC").normalize()
         else:
             df.index = df.index.tz_localize("UTC").normalize()
-
-        # Sync with latest price (same as dashboard) to ensure responsive SL/TP
         asset.refresh_price()
         if asset.current_price is not None:
             df.loc[df.index[-1], "close"] = asset.current_price
-
         asset.price_data = df
         asset._refresh_liquidity(df)
         df["close"] = df["close"].ffill()
         df = df[~df.index.duplicated(keep="last")]
+        return df
 
-        _t_fetch = time.perf_counter()
-
-        # ── Build alpha features ──
+    def _build_feature_set(self, asset, df):
         from features.alpha_features import build_alpha_features
         from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 
-        hist_prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(
-            asset.name,
-            asset.ticker,
-        )
-
-        # ── Inference truncation: slice inputs to min required rows ──
-        # When truncation is validated we only predict on the last row,
-        # but indicator lookbacks (max 253) still need warmup history.
-        # Slicing to _MAX_INDICATOR_LOOKBACK + margin cuts ~40% feature
-        # computation with no accuracy loss.
+        hist_prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset.name, asset.ticker)
         if getattr(asset, "_truncate_inference", False):
             _trunc_rows = _MAX_INDICATOR_LOOKBACK + 50
             hist_prices = hist_prices.iloc[-_trunc_rows:]
@@ -105,26 +124,16 @@ class AssetInferencePipeline:
             if not commodities.empty:
                 commodities = commodities.iloc[-_trunc_rows:]
 
-        alpha_df = build_alpha_features(
-            hist_prices,
-            rate_diffs,
-            dxy=dxy,
-            vix=vix,
-            spx=spx,
-            commodities=commodities,
-        )
-
-        # ── Build archetype features on full-history OHLCV ──
+        alpha_df = build_alpha_features(hist_prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities)
         alpha_idx = alpha_df.index
+
         ohlcv = fetch_asset_ohlcv(asset.ticker)
         if not ohlcv.empty:
-            # Apply same truncation slice if active
             if getattr(asset, "_truncate_inference", False):
-                _trunc_rows = _MAX_INDICATOR_LOOKBACK + 50
                 ohlcv = ohlcv.iloc[-_trunc_rows:]
             ohlcv = ohlcv.reindex(alpha_idx).ffill()
-        archetype_df = pd.DataFrame(index=alpha_idx)
 
+        archetype_df = pd.DataFrame(index=alpha_idx)
         if not ohlcv.empty:
             ema_20 = ta.trend.ema_indicator(ohlcv["close"], window=20)
             ema_50 = ta.trend.ema_indicator(ohlcv["close"], window=50)
@@ -138,11 +147,21 @@ class AssetInferencePipeline:
             bb_std = bb.bollinger_hband() - bb_mavg
             archetype_df["bb_zscore"] = ((ohlcv["close"] - bb_mavg) / (bb_std / 2)).reindex(alpha_idx)
 
-        _t_features = time.perf_counter()
+        feature_cols = getattr(asset, "_alpha_feature_cols", None)
+        if not feature_cols:
+            feature_cols = [c for c in alpha_df.columns]
+            asset._alpha_feature_cols = feature_cols
+        available = [c for c in feature_cols if c in alpha_df.columns]
+        if not available:
+            raise ValueError(f"No alpha feature columns found for {asset.name}")
+        x = alpha_df[available]
+        features_df = pd.concat([alpha_df, archetype_df], axis=1)
+        return alpha_df, features_df, x
 
+    def _check_archetype_nans(self, asset, features_df) -> None:
         for col in ["adx", "rsi", "bb_zscore", "ema_spread"]:
-            if col in archetype_df.columns and archetype_df[col].isna().any():
-                n_nan = archetype_df[col].isna().sum()
+            if col in features_df.columns and features_df[col].isna().any():
+                n_nan = features_df[col].isna().sum()
                 if n_nan > 30:
                     logger.warning(
                         "%s: archetype feature '%s' has %d NaN rows (classifier will fall back to defaults)",
@@ -151,52 +170,34 @@ class AssetInferencePipeline:
                         n_nan,
                     )
 
-        feature_cols = getattr(asset, "_alpha_feature_cols", None)
-        if not feature_cols:
-            feature_cols = [c for c in alpha_df.columns]
-            asset._alpha_feature_cols = feature_cols
-
-        available = [c for c in feature_cols if c in alpha_df.columns]
-        if not available:
-            raise ValueError(f"No alpha feature columns found for {asset.name}")
-
-        x = alpha_df[available]
-        features_df = pd.concat([alpha_df, archetype_df], axis=1)
-
-        # PSI drift: skip first cycle (warm-up), then rolling 21d vs baseline
+    def _check_psi_drift(self, asset, x) -> None:
         if not getattr(asset, "_psi_drift_initialized", False):
             asset._psi_drift_initialized = True
-        else:
-            try:
-                latest_df, _ = asset._importance_store.get_latest_two_snapshots(asset.name)
-                if latest_df is not None and not latest_df.empty:
-                    top10 = latest_df[latest_df["rank"] <= 10]
-                    top_features = [(r["feature"], r["importance_score"]) for r in top10.to_dict("records")]
-                    x_current = x.tail(21)
-                    asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, x_current, top_features)
-            except Exception as e:
-                logger.debug("%s: PSI drift skipped: %s", asset.name, e)
+            return
+        try:
+            latest_df, _ = asset._importance_store.get_latest_two_snapshots(asset.name)
+            if latest_df is not None and not latest_df.empty:
+                top10 = latest_df[latest_df["rank"] <= 10]
+                top_features = [(r["feature"], r["importance_score"]) for r in top10.to_dict("records")]
+                x_current = x.tail(21)
+                asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, x_current, top_features)
+        except Exception as e:
+            logger.debug("%s: PSI drift skipped: %s", asset.name, e)
 
-        # ── Inference truncation validation (first cycle or model change) ──
+    def _validate_and_truncate(self, asset, x, features_df):
         _model_id = id(asset.model)
         if not self._truncation_validated or self._validated_model_id != _model_id:
             self._validate_inference_truncation(asset, x)
             self._truncation_validated = True
             self._validated_model_id = _model_id
-
-        # ── Inference truncation (predict only on latest row) ──
-        _infer_start = time.perf_counter()
         if getattr(asset, "_truncate_inference", False):
-            x_infer = x.iloc[-1:]
-            features_infer = features_df.iloc[-1:]
-        else:
-            x_infer = x
-            features_infer = features_df
+            return x.iloc[-1:], features_df.iloc[-1:]
+        return x, features_df
 
+    def _run_inference(self, asset, x, features_df):
         _infer_idx = x.index[-1:] if getattr(asset, "_truncate_inference", False) else x.index
 
-        raw = asset._model_iface.predict(asset.model, x_infer)
-        # Binary model -> expand to 3-column format for pipeline compatibility
+        raw = asset._model_iface.predict(asset.model, x)
         if raw.shape[1] == 2:
             proba = np.column_stack([1.0 - raw[:, 1], np.zeros(raw.shape[0]), raw[:, 1]])
         elif raw.shape[1] >= 3:
@@ -204,18 +205,17 @@ class AssetInferencePipeline:
         else:
             raise ValueError(f"Model returned {raw.shape[1]} columns, expected >=2")
 
-        # ── Ensemble: blend base + regime model if available ──
         ensemble = getattr(asset, "_ensemble", None)
         if ensemble is not None and getattr(asset, "_regime_model", None) is not None:
             regime_feats = getattr(asset, "regime_feature_names", None)
             if regime_feats:
-                regime_available = [c for c in regime_feats if c in features_infer.columns]
+                regime_available = [c for c in regime_feats if c in features_df.columns]
                 if regime_available:
                     try:
-                        regime_raw = asset._regime_model.predict_proba(features_infer[regime_available])
+                        regime_raw = asset._regime_model.predict_proba(features_df[regime_available])
                         regime_p_long = regime_raw[:, 1]
                         base_p_long = raw[:, 1]
-                        three_col, ensemble_signals = ensemble.combine_and_expand(base_p_long, regime_p_long)
+                        three_col, _ = ensemble.combine_and_expand(base_p_long, regime_p_long)
                         proba = three_col
                         logger.debug(
                             "%s: ensemble blended (base=%.2f regime=%.2f)",
@@ -226,16 +226,16 @@ class AssetInferencePipeline:
                     except Exception as e:
                         logger.debug("%s: ensemble inference failed: %s", asset.name, e)
 
-        # Meta-label inference
         asset._last_meta_proba = None
         if asset._meta_label_model is not None and asset._meta_label_model._trained:
             try:
-                asset._last_meta_proba = asset._meta_label_model.predict_proba(x_infer, proba)
+                asset._last_meta_proba = asset._meta_label_model.predict_proba(x, proba)
             except Exception as e:
                 logger.debug("%s: meta-label inference failed: %s", asset.name, e)
 
-        _t_infer = time.perf_counter()
+        return proba, _infer_idx
 
+    def _compute_sizing_and_signal(self, asset, df, proba, infer_idx, threshold):
         sizing_cfg = asset._sizing_config(df["close"])
         if asset.config.get("regime_sizing"):
             regime_features_df = generate_regime_features(df)
@@ -254,9 +254,10 @@ class AssetInferencePipeline:
             asset._last_regime_row = None
             pos_size = asset._sizing_strategy.compute(df["close"], sizing_cfg)
 
-        result = asset._signal_strategy.compute(proba, _infer_idx, threshold, df["close"], pos_size)
+        result = asset._signal_strategy.compute(proba, infer_idx, threshold, df["close"], pos_size)
+        return result, pos_size
 
-        # ── Ensemble breakdown logging ──
+    def _log_ensemble_breakdown(self, asset, alpha_df, proba, result) -> None:
         asset._ensemble_breakdown = {}
         try:
             latest_row = alpha_df.iloc[-1]
@@ -292,24 +293,21 @@ class AssetInferencePipeline:
         except Exception as e:
             logger.debug("%s: ensemble breakdown logging failed: %s", asset.name, e)
 
-        # Phase 3: Archetype Classification (Structural Context)
+    def _classify_archetype(self, asset, features_df) -> str:
         archetype = "UNKNOWN"
         if asset._archetype_classifier is not None:
             try:
-                # Use current feature row for classification
-                # Must use features_df (includes archetype columns adx/rsi/bb_zscore/ema_spread)
-                # not X (which is XGBoost-only features)
                 archetype_enum = asset._archetype_classifier.classify(features_df.iloc[-1])
                 archetype = archetype_enum.value
             except Exception as e:
                 logger.debug("%s: archetype classification failed: %s", asset.name, e)
+        return archetype
 
-        self._record_inference_proxies(proba, x, result.signal_type)
+    def _build_decision(self, asset, result, pos_size, archetype, df):
+        self._record_inference_proxies(result.signal_data, result.signal_type)
         asset.signal_data = result.signal_data
-
         latest = asset.signal_data.iloc[-1]
         asset.last_signal_date = latest.name
-
         close_price = float(latest["close"])
         if pd.isna(close_price) or close_price == 0.0:
             close_price = float(df["close"].ffill().iloc[-1])
@@ -329,7 +327,6 @@ class AssetInferencePipeline:
             position_size=float(pos_size),
             archetype=archetype,
         )
-
         logger.debug(
             "%s ENTRY: signal=%s close_price=%.4f current_price=%s confidence=%.1f pos_size=%.4f",
             asset.name,
@@ -339,9 +336,9 @@ class AssetInferencePipeline:
             decision.confidence,
             pos_size,
         )
+        return decision
 
-        asset._apply_decision(decision, df)
-
+    def _trace_and_diagnostics(self, asset, decision, proba, x, df, threshold) -> None:
         trace_decision(
             asset=asset.name,
             features={k: round(float(v), 6) for k, v in x.iloc[-1].items()},
@@ -349,8 +346,8 @@ class AssetInferencePipeline:
             threshold=threshold,
             signal=decision.signal,
             confidence=decision.confidence,
-            pos_size=float(pos_size),
-            close_price=close_price,
+            pos_size=float(decision.position_size),
+            close_price=decision.close_price,
             current_side=asset.pos_mgr.current_side(),
             halt_flags=asset.check_halt_conditions(),
         )
@@ -375,7 +372,7 @@ class AssetInferencePipeline:
         shadow_compare_sizing(
             asset=asset.name,
             wrapper_size=_shadow_size,
-            original_size=float(pos_size),
+            original_size=float(decision.position_size),
         )
 
         _cfg = get_config()
@@ -398,115 +395,75 @@ class AssetInferencePipeline:
             )
             get_diagnostics_queue().enqueue(_snap)
         else:
-            try:
-                from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
-                from paper_trading.governance.risk import evaluate as _risk_evaluate
-                from paper_trading.ops import diagnostics as diag
-                from paper_trading.ops.tracer import trace_diagnostic_report
-                from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
-                from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
-                from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
-                from paper_trading.shadow.memory import store_event as _shadow_store
+            self._run_shadow_feedback(asset, decision, proba, x, df, threshold, _shadow_stype, _shadow_conf_pct)
 
-                _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
-                _sig_div = diag.analyze_signal_divergence(
-                    _proba_list,
-                    threshold,
-                    decision.signal,
-                    decision.confidence,
-                    _shadow_stype,
-                    _shadow_conf_pct,
-                )
-                _mod_div = diag.analyze_model_distribution(asset.name, _proba_list)
-                _feat_drivers = diag.analyze_feature_impact(
-                    asset.model,
-                    x.iloc[[-1]],
-                    asset.features,
-                    proba[-1:],
-                )
-                _regime = diag.analyze_regime_context(df["close"])
-                _report = diag.build_shadow_report(
-                    asset=asset.name,
-                    timestamp=str(datetime.now(tz=ET).date()),
-                    signal_match=_sig_div["match"],
-                    signal_divergence=_sig_div,
-                    model_divergence=_mod_div,
-                    feature_drivers=_feat_drivers,
-                    regime_context=_regime,
-                )
-                trace_diagnostic_report(_report)
-                _shadow_store(asset.name, _report)
-                asset._risk_signal = _risk_evaluate(asset.name)
-                asset._shadow_drift_intel = _get_drift(asset.name)
-                asset._shadow_action = _compute_shadow(
-                    asset=asset.name,
-                    state=None,
-                    drift_report=asset._shadow_drift_intel,
-                    risk_signal=asset._risk_signal,
-                )
-                _record_feedback(
-                    asset=asset.name,
-                    signal_data={"signal": decision.signal, "confidence": decision.confidence},
-                    drift=asset._shadow_drift_intel,
-                    risk=asset._risk_signal,
-                    action=asset._shadow_action,
-                )
-                asset._shadow_learning = _compile_learning(
-                    asset=asset.name,
-                    feedback_logs=None,
-                    drift_history=asset._shadow_drift_intel,
-                    risk_history=asset._risk_signal,
-                )
-            except Exception:
-                logger.debug("%s: shadow learning feedback skipped", asset.name)
+    def _run_shadow_feedback(self, asset, decision, proba, x, df, threshold, shadow_stype, shadow_conf_pct) -> None:
+        try:
+            from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
+            from paper_trading.governance.risk import evaluate as _risk_evaluate
+            from paper_trading.ops import diagnostics as diag
+            from paper_trading.ops.tracer import trace_diagnostic_report
+            from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
+            from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
+            from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
+            from paper_trading.shadow.memory import store_event as _shadow_store
 
-        _t_total = time.perf_counter()
-        _fetch_time = _t_fetch - _t0
-        _feat_time = _t_features - _t_fetch
-        _infer_time = _t_infer - _t_features
-        _apply_time = _t_total - _t_infer
+            _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
+            _sig_div = diag.analyze_signal_divergence(
+                _proba_list, threshold, decision.signal, decision.confidence, shadow_stype, shadow_conf_pct,
+            )
+            _mod_div = diag.analyze_model_distribution(asset.name, _proba_list)
+            _feat_drivers = diag.analyze_feature_impact(asset.model, x.iloc[[-1]], asset.features, proba[-1:])
+            _regime = diag.analyze_regime_context(df["close"])
+            _report = diag.build_shadow_report(
+                asset=asset.name,
+                timestamp=str(datetime.now(tz=ET).date()),
+                signal_match=_sig_div["match"],
+                signal_divergence=_sig_div,
+                model_divergence=_mod_div,
+                feature_drivers=_feat_drivers,
+                regime_context=_regime,
+            )
+            trace_diagnostic_report(_report)
+            _shadow_store(asset.name, _report)
+            asset._risk_signal = _risk_evaluate(asset.name)
+            asset._shadow_drift_intel = _get_drift(asset.name)
+            asset._shadow_action = _compute_shadow(
+                asset=asset.name, state=None, drift_report=asset._shadow_drift_intel, risk_signal=asset._risk_signal,
+            )
+            _record_feedback(
+                asset=asset.name,
+                signal_data={"signal": decision.signal, "confidence": decision.confidence},
+                drift=asset._shadow_drift_intel,
+                risk=asset._risk_signal,
+                action=asset._shadow_action,
+            )
+            asset._shadow_learning = _compile_learning(
+                asset=asset.name, feedback_logs=None,
+                drift_history=asset._shadow_drift_intel, risk_history=asset._risk_signal,
+            )
+        except Exception:
+            logger.debug("%s: shadow learning feedback skipped", asset.name)
+
+    def _log_pipeline_benchmark(self, asset, x, t0, t_fetch, t_features, t_infer, t_total) -> None:
+        fetch_time = t_fetch - t0
+        feat_time = t_features - t_fetch
+        infer_time = t_infer - t_features
+        apply_time = t_total - t_infer
         logger.debug(
             "PIPELINE_BENCHMARK %s: fetch=%.3fs feat=%.3fs infer=%.3fs apply=%.3fs total=%.3fs truncate=%s rows=%d",
-            asset.name,
-            _fetch_time,
-            _feat_time,
-            _infer_time,
-            _apply_time,
-            _t_total - _t0,
-            getattr(asset, "_truncate_inference", False),
-            len(x),
+            asset.name, fetch_time, feat_time, infer_time, apply_time, t_total - t0,
+            getattr(asset, "_truncate_inference", False), len(x),
         )
-
-        asset._reg.validate_strategies(
-            asset.name,
-            {
-                "_model": asset._model_iface,
-                "_signal": asset._signal_strategy,
-                "_sizing": asset._sizing_strategy,
-                "_pnl": asset._pnl_strategy,
-                "_feature_pipeline": asset._feature_pipeline,
-            },
-        )
-
-        return asset._decision_to_dict(decision)
 
     def _validate_inference_truncation(self, asset, x: pd.DataFrame) -> None:
-        """Validate that predict(x.iloc[-1:]) matches predict(x)[-1].
-
-        Runs once on the first data cycle. Disables truncation if the
-        model interface produces different predictions for the last row
-        when given only that row vs the full history (indicating a
-        stateful/context-dependent model).
-        """
         if len(x) < _MAX_INDICATOR_LOOKBACK + 1:
             logger.warning(
                 "%s: insufficient rows (%d) for truncation validation — disabling",
-                asset.name,
-                len(x),
+                asset.name, len(x),
             )
             asset._truncate_inference = False
             return
-
         x_warm = x.iloc[_MAX_INDICATOR_LOOKBACK:]
         try:
             full = asset._model_iface.predict(asset.model, x_warm)
@@ -515,40 +472,35 @@ class AssetInferencePipeline:
             logger.warning("%s: truncation validation failed — %s", asset.name, e)
             asset._truncate_inference = False
             return
-
         max_diff = float(np.max(np.abs(full[-1:] - truncated)))
         if max_diff > 1e-6:
             logger.warning(
                 "%s: inference truncation diff=%.2e (>=1e-6) — disabling truncation",
-                asset.name,
-                max_diff,
+                asset.name, max_diff,
             )
             asset._truncate_inference = False
         else:
             logger.info(
                 "%s: inference truncation validated (diff=%.2e, rows=%d)",
-                asset.name,
-                max_diff,
-                len(x),
+                asset.name, max_diff, len(x),
             )
             asset._truncate_inference = True
 
-    def _record_inference_proxies(self, proba: np.ndarray, x: pd.DataFrame, signal: str) -> None:
-        """Store macro vs blend directions for adaptive weight feedback on trade close."""
+    def _record_inference_proxies(self, signal_data, signal: str) -> None:
         asset = self.asset
         asset._last_macro_dir = None
         asset._last_blend_dir = None
         asset._entry_signal_dir = 1 if signal == "BUY" else (-1 if signal == "SELL" else 0)
 
         macro_head = getattr(asset.model, "macro_head", None) if asset.model else None
-        if macro_head is None or x.empty:
+        if macro_head is None:
             return
         try:
-            macro_cols = [c for c in macro_head.features if c in x.columns]
+            macro_cols = [c for c in macro_head.features if c in signal_data.columns]
             if len(macro_cols) < 3:
                 return
-            macro_probs = macro_head.predict_proba(x.iloc[[-1]][macro_cols])[0]
+            macro_probs = macro_head.predict_proba(signal_data.iloc[[-1]][macro_cols])[0]
             asset._last_macro_dir = int(np.argmax(macro_probs)) - 1
-            asset._last_blend_dir = int(np.argmax(proba[-1])) - 1
+            asset._last_blend_dir = int(np.argmax(signal_data.iloc[-1].values)) - 1
         except Exception:
             logger.debug("%s: macro proxy inference failed", asset.name)

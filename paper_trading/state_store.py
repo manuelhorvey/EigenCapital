@@ -68,32 +68,21 @@ def _atomic_write_json(path: str, data: dict) -> None:
     os.replace(tmp_path, path)
 
 
-class StateStore:
-    def __init__(self, base_dir: str, snapshot_cache_ttl: float = 1.0):
-        self.base_dir = base_dir
-        self.live_dir = os.path.join(base_dir, "data", "live")
-        self.state_path = os.path.join(self.live_dir, "state.json")
-        self.equity_history_path = os.path.join(self.live_dir, "equity_history.json")
-        self.review_log_path = os.path.join(self.live_dir, "review_log.json")
-        self.trade_outcomes_path = os.path.join(self.live_dir, "trade_outcomes.json")
-        self.cache_dir = os.path.join(self.live_dir, "cache")
-        self._snapshot_cache = None
-        self._snapshot_cache_ttl = snapshot_cache_ttl
-        self._analytics_snapshot_counter = 0
-        self._analytics_snapshot_frequency = 5
-        os.makedirs(self.cache_dir, exist_ok=True)
-        os.makedirs(self.live_dir, exist_ok=True)
+# ═══════════════════════════════════════════════════════════════════════
+# DatabaseStore — SQLite persistence
+# ═══════════════════════════════════════════════════════════════════════
 
-        # SQLite-backed append store (replaces read-all-write-all parquet/JSON)
-        self._db_path = os.path.join(self.live_dir, "state.db")
+class _DatabaseStore:
+    """SQLite-backed append store for trades, attribution, shadow trades,
+    confidence buckets, and equity history."""
+
+    def __init__(self, db_path: str, checkpoint_interval: int = 50):
+        self._db_path = db_path
         self._write_count = 0
-        self._checkpoint_interval = 50
+        self._checkpoint_interval = checkpoint_interval
         self._init_db()
 
-    # ── SQLite initialisation ──────────────────────────────────────
-
     def _init_db(self) -> None:
-        """Create tables if they don't exist."""
         with self._connect() as conn:
             conn.executescript("""
                 PRAGMA journal_mode=WAL;
@@ -230,28 +219,12 @@ class StateStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        """Open a new SQLite connection with row factory."""
         conn = sqlite3.connect(self._db_path, timeout=5.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
-    # ── Snapshot (JSON, overwrite-only — no SQLite needed) ─────────
-
-    def save_snapshot(self, snapshot: EngineSnapshot) -> None:
-        self._snapshot_cache = (snapshot, time.monotonic())
-        os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
-        tmp_path = self.state_path + ".tmp"
-        data = sanitize(asdict(snapshot))
-        with open(tmp_path, "w") as f:
-            json.dump(data, f, indent=2, default=str)
-        os.replace(tmp_path, self.state_path)
-        self._maybe_checkpoint()
-
-    def _maybe_checkpoint(self) -> None:
-        """Periodic WAL checkpoint to prevent unbounded WAL growth.
-        Runs every `_checkpoint_interval` writes (~hourly at 60s cycle).
-        """
+    def checkpoint_wal(self) -> None:
         self._write_count += 1
         if self._write_count % self._checkpoint_interval == 0:
             try:
@@ -260,30 +233,9 @@ class StateStore:
             except Exception as e:
                 logger.debug("WAL checkpoint skipped: %s", e)
 
-    def load_snapshot(self) -> EngineSnapshot | None:
-        if self._snapshot_cache is not None:
-            cached, expiry = self._snapshot_cache
-            if time.monotonic() < expiry:
-                return cached
-            self._snapshot_cache = None
-        if not os.path.exists(self.state_path):
-            return None
-        try:
-            with open(self.state_path) as f:
-                data = json.load(f)
-            snapshot = EngineSnapshot.from_dict(data)
-            self._snapshot_cache = (snapshot, time.monotonic() + self._snapshot_cache_ttl)
-            return snapshot
-        except Exception as e:
-            logger.warning("Failed to load state snapshot: %s", e)
-            return None
-
-    # ── Trades (SQLite) ────────────────────────────────────────────
+    # ── Trades ─────────────────────────────────────────────────────
 
     def append_trade(self, trade: dict) -> None:
-        """Append a single trade record via SQLite INSERT.
-        O(1) — no read-all-then-write-all.
-        """
         with self._connect() as conn:
             conn.execute(
                 """INSERT INTO trades (
@@ -350,102 +302,9 @@ class StateStore:
         except Exception:
             return pd.DataFrame(columns=columns)
 
-    def write_trade_outcomes_cache(self) -> None:
-        self.read_trade_outcomes()
-
-    def read_trade_outcomes(self) -> dict | None:
-        now = time.monotonic()
-        if (
-            hasattr(self, "_trade_outcomes_cache_ts")
-            and now - self._trade_outcomes_cache_ts < 30.0
-            and hasattr(self, "_trade_outcomes_cache")
-            and self._trade_outcomes_cache is not None
-        ):
-            return self._trade_outcomes_cache
-        result = self._compute_trade_outcomes()
-        if result is not None:
-            self._trade_outcomes_cache = result
-            self._trade_outcomes_cache_ts = now
-        return result
-
-    def _compute_trade_outcomes(self) -> dict | None:
-        try:
-            with self._connect() as conn:
-                rows = conn.execute("SELECT * FROM trades").fetchall()
-                if not rows:
-                    return None
-                df = pd.DataFrame([dict(r) for r in rows])
-
-            reason_col = "reason" if "reason" in df.columns else "exit_reason"
-            ret_col = "return" if "return" in df.columns else "pnl"
-            r_col = "realized_r" if "realized_r" in df.columns else None
-
-            if reason_col in df.columns:
-                df[reason_col] = (
-                    df[reason_col]
-                    .astype(str)
-                    .str.lower()
-                    .replace({"sl_hit": "sl", "tp_hit": "tp", "gate_closed": "signal_flip"})
-                )
-            if ret_col in df.columns:
-                df[ret_col] = pd.to_numeric(df[ret_col], errors="coerce").fillna(0.0)
-
-            by_asset = []
-            for asset_name, group in df.groupby("asset"):
-                n = len(group)
-                tp = int((group[reason_col] == "tp").sum())
-                sl = int((group[reason_col] == "sl").sum())
-                flip = int((group[reason_col] == "signal_flip").sum())
-                wins = int((group[ret_col] > 0).sum())
-                total_profit = float(group[ret_col].clip(lower=0).sum())
-                total_loss = float((-group[ret_col].clip(upper=0)).sum())
-                avg_r = float(group[r_col].mean()) if r_col and r_col in group else 0.0
-
-                by_asset.append(
-                    {
-                        "asset": asset_name,
-                        "n_trades": n,
-                        "tp_rate": round(tp / n, 4) if n > 0 else 0.0,
-                        "sl_rate": round(sl / n, 4) if n > 0 else 0.0,
-                        "signal_flip_rate": round(flip / n, 4) if n > 0 else 0.0,
-                        "avg_r": round(avg_r, 4),
-                        "win_rate": round(wins / n, 4) if n > 0 else 0.0,
-                        "profit_factor": round(total_profit / total_loss, 4) if total_loss > 0 else None,
-                    }
-                )
-
-            n_total = len(df)
-            tp_total = int((df[reason_col] == "tp").sum())
-            sl_total = int((df[reason_col] == "sl").sum())
-            flip_total = int((df[reason_col] == "signal_flip").sum())
-            wins_total = int((df[ret_col] > 0).sum())
-            profit_total = float(df[ret_col].clip(lower=0).sum())
-            loss_total = float((-df[ret_col].clip(upper=0)).sum())
-            avg_r_total = float(df[r_col].mean()) if r_col and r_col in df.columns else 0.0
-
-            payload = {
-                "overall": {
-                    "tp_rate": round(tp_total / n_total, 4) if n_total > 0 else 0.0,
-                    "sl_rate": round(sl_total / n_total, 4) if n_total > 0 else 0.0,
-                    "signal_flip_rate": round(flip_total / n_total, 4) if n_total > 0 else 0.0,
-                    "avg_r": round(avg_r_total, 4),
-                    "win_rate": round(wins_total / n_total, 4) if n_total > 0 else 0.0,
-                    "profit_factor": round(profit_total / loss_total, 4) if loss_total > 0 else None,
-                },
-                "by_asset": by_asset,
-                "updated_at": datetime.now(tz=ET).isoformat(),
-            }
-
-            _atomic_write_json(self.trade_outcomes_path, payload)
-            return payload
-        except Exception:
-            logger.exception("Failed to compute trade outcomes")
-            return None
-
-    # ── Attribution (SQLite) ───────────────────────────────────────
+    # ── Attribution ────────────────────────────────────────────────
 
     def append_attribution(self, record_dict: dict) -> None:
-        """Append a single attribution record via SQLite INSERT."""
         with self._connect() as conn:
             conn.execute(
                 """INSERT INTO attribution (
@@ -535,10 +394,9 @@ class StateStore:
             logger.warning("Failed to read attribution: %s", e)
             return []
 
-    # ── Shadow trades (SQLite) ─────────────────────────────────────
+    # ── Shadow trades ──────────────────────────────────────────────
 
     def append_shadow_trade(self, record_dict: dict) -> None:
-        """Append a single shadow trade record via SQLite INSERT."""
         with self._connect() as conn:
             conn.execute(
                 """INSERT INTO shadow_trades (
@@ -587,99 +445,9 @@ class StateStore:
         except Exception:
             return []
 
-    # ── Analytics snapshot (JSON, periodic compute) ────────────────
-
-    def write_analytics_snapshot(self) -> None:
-        """Precompute analytics aggregates from SQLite and cache to JSON."""
-        self._analytics_snapshot_counter += 1
-        if self._analytics_snapshot_counter < self._analytics_snapshot_frequency:
-            return
-        self._analytics_snapshot_counter = 0
-
-        attrs = self.read_attribution(limit=2000)
-        shadows = self.read_shadow_trades(limit=2000)
-        snapshot: dict = {}
-
-        if attrs:
-            import pandas as pd
-
-            df = pd.DataFrame(attrs)
-            arch_col = "pred_archetype_at_entry"
-            regime_col = "pred_regime_at_entry"
-            reason_col = "exit_exit_reason"
-
-            r_values = df.get("exit_realized_r", df.get("realized_r", 0))
-            reason_series = df.get(reason_col) if reason_col in df.columns else pd.Series(dtype=object)
-            has_reason = len(reason_series) > 0
-            snapshot["overall"] = {
-                "n_trades": len(df),
-                "avg_r": float(r_values.mean()),
-                "win_rate": float((r_values > 0).mean()),
-                "tp_rate": float((reason_series == "tp").mean()) if has_reason else 0.0,
-                "sl_rate": float((reason_series == "sl").mean()) if has_reason else 0.0,
-            }
-
-            by_arch = {}
-            if arch_col in df.columns:
-                for arch, grp in df.groupby(arch_col):
-                    grp_r = grp.get("exit_realized_r", 0)
-                    grp_reason = grp.get(reason_col) if reason_col in grp.columns else pd.Series(dtype=object)
-                    grp_has_reason = len(grp_reason) > 0
-                    by_arch[arch] = {
-                        "n": len(grp),
-                        "avg_r": float(grp_r.mean()),
-                        "win_rate": float((grp_r > 0).mean()),
-                        "tp_rate": float((grp_reason == "tp").mean()) if grp_has_reason else 0.0,
-                        "sl_rate": float((grp_reason == "sl").mean()) if grp_has_reason else 0.0,
-                        "avg_entry_slippage": float(grp.get("friction_entry_slippage_bps", 0).mean()),
-                        "avg_mae": float(grp.get("exit_mae", 0).mean()),
-                        "avg_mfe": float(grp.get("exit_mfe", 0).mean()),
-                    }
-            snapshot["by_archetype"] = by_arch
-
-            by_reg = {}
-            if regime_col in df.columns:
-                for reg, grp in df.groupby(regime_col):
-                    grp_r = grp.get("exit_realized_r", 0)
-                    by_reg[reg] = {"n": len(grp), "avg_r": float(grp_r.mean()), "win_rate": float((grp_r > 0).mean())}
-            snapshot["by_regime"] = by_reg
-
-        if shadows:
-            import pandas as pd
-
-            sdf = pd.DataFrame(shadows)
-            n = len(sdf)
-            same = (sdf.get("exit_reason", "") == sdf.get("live_exit_reason", "")).sum()
-            shadow_divergence_rate = 1 - (same / n) if n > 0 else 0
-            r_delta = sdf.get("realized_r", 0) - sdf.get("live_realized_r", 0)
-            snapshot["shadow"] = {
-                "n": n,
-                "divergence_rate": round(shadow_divergence_rate, 4),
-                "avg_r_delta": round(float(r_delta.mean()), 4),
-            }
-
-        snapshot["updated_at"] = datetime.now(tz=ET).isoformat()
-
-        try:
-            path = os.path.join(self.live_dir, "analytics_snapshot.json")
-            _atomic_write_json(path, snapshot)
-        except OSError as e:
-            logger.error("Failed to write analytics snapshot: %s", e)
-
-    def read_analytics_snapshot(self) -> dict | None:
-        path = os.path.join(self.live_dir, "analytics_snapshot.json")
-        if not os.path.exists(path):
-            return None
-        try:
-            with open(path) as f:
-                return json.load(f)
-        except Exception:
-            return None
-
-    # ── Confidence buckets (SQLite) ────────────────────────────────
+    # ── Confidence buckets ─────────────────────────────────────────
 
     def append_confidence_bucket(self, bucket: dict) -> None:
-        """Append a single confidence bucket via SQLite INSERT."""
         with self._connect() as conn:
             conn.execute(
                 """INSERT INTO confidence_buckets (
@@ -707,10 +475,9 @@ class StateStore:
                 ),
             )
 
-    # ── Equity history (SQLite) ────────────────────────────────────
+    # ── Equity history ─────────────────────────────────────────────
 
     def append_equity_history(self, record: dict) -> None:
-        """Append a single equity history record via SQLite INSERT."""
         with self._connect() as conn:
             conn.execute(
                 """INSERT INTO equity_history (
@@ -735,19 +502,246 @@ class StateStore:
         except Exception:
             return []
 
-    # ── Legacy path helpers (unchanged) ────────────────────────────
 
-    def cache_path(self, ticker: str) -> str:
+# ═══════════════════════════════════════════════════════════════════════
+# SnapshotManager — JSON state snapshot with TTL cache
+# ═══════════════════════════════════════════════════════════════════════
+
+class _SnapshotManager:
+    """JSON state snapshot save/load with monotonic-time TTL cache."""
+
+    def __init__(self, state_path: str, cache_ttl: float = 1.0):
+        self._state_path = state_path
+        self._cache_ttl = cache_ttl
+        self._cache: tuple[EngineSnapshot, float] | None = None
+
+    def save(self, snapshot: EngineSnapshot) -> None:
+        self._cache = (snapshot, time.monotonic())
+        os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
+        data = sanitize(asdict(snapshot))
+        _atomic_write_json(self._state_path, data)
+
+    def load(self) -> EngineSnapshot | None:
+        if self._cache is not None:
+            cached, expiry = self._cache
+            if time.monotonic() < expiry:
+                return cached
+            self._cache = None
+        if not os.path.exists(self._state_path):
+            return None
+        try:
+            with open(self._state_path) as f:
+                data = json.load(f)
+            snapshot = EngineSnapshot.from_dict(data)
+            self._cache = (snapshot, time.monotonic() + self._cache_ttl)
+            return snapshot
+        except Exception as e:
+            logger.warning("Failed to load state snapshot: %s", e)
+            return None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# AnalyticsStore — precomputed analytics from SQLite data
+# ═══════════════════════════════════════════════════════════════════════
+
+class _AnalyticsStore:
+    """Precomputed trade outcomes and aggregated analytics snapshots."""
+
+    def __init__(self, db_store: _DatabaseStore, analytics_path: str, trade_outcomes_path: str):
+        self._db = db_store
+        self._analytics_path = analytics_path
+        self._trade_outcomes_path = trade_outcomes_path
+        self._analytics_snapshot_counter = 0
+        self._analytics_snapshot_frequency = 5
+        self._trade_outcomes_cache: tuple[dict, float] | None = None
+
+    # ── Trade outcomes ─────────────────────────────────────────────
+
+    def write_trade_outcomes_cache(self) -> None:
+        self.read_trade_outcomes()
+
+    def read_trade_outcomes(self) -> dict | None:
+        now = time.monotonic()
+        if self._trade_outcomes_cache is not None and now - self._trade_outcomes_cache[1] < 30.0:
+            return self._trade_outcomes_cache[0]
+        result = self._compute_trade_outcomes()
+        if result is not None:
+            self._trade_outcomes_cache = (result, now)
+        return result
+
+    def _compute_trade_outcomes(self) -> dict | None:
+        try:
+            with sqlite3.connect(self._db._db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute("SELECT * FROM trades").fetchall()
+                if not rows:
+                    return None
+                df = pd.DataFrame([dict(r) for r in rows])
+
+            reason_col = "reason" if "reason" in df.columns else "exit_reason"
+            ret_col = "return" if "return" in df.columns else "pnl"
+            r_col = "realized_r" if "realized_r" in df.columns else None
+
+            if reason_col in df.columns:
+                df[reason_col] = (
+                    df[reason_col]
+                    .astype(str)
+                    .str.lower()
+                    .replace({"sl_hit": "sl", "tp_hit": "tp", "gate_closed": "signal_flip"})
+                )
+            if ret_col in df.columns:
+                df[ret_col] = pd.to_numeric(df[ret_col], errors="coerce").fillna(0.0)
+
+            by_asset = []
+            for asset_name, group in df.groupby("asset"):
+                n = len(group)
+                tp = int((group[reason_col] == "tp").sum())
+                sl = int((group[reason_col] == "sl").sum())
+                flip = int((group[reason_col] == "signal_flip").sum())
+                wins = int((group[ret_col] > 0).sum())
+                total_profit = float(group[ret_col].clip(lower=0).sum())
+                total_loss = float((-group[ret_col].clip(upper=0)).sum())
+                avg_r = float(group[r_col].mean()) if r_col and r_col in group else 0.0
+                by_asset.append({
+                    "asset": asset_name,
+                    "n_trades": n,
+                    "tp_rate": round(tp / n, 4) if n > 0 else 0.0,
+                    "sl_rate": round(sl / n, 4) if n > 0 else 0.0,
+                    "signal_flip_rate": round(flip / n, 4) if n > 0 else 0.0,
+                    "avg_r": round(avg_r, 4),
+                    "win_rate": round(wins / n, 4) if n > 0 else 0.0,
+                    "profit_factor": round(total_profit / total_loss, 4) if total_loss > 0 else None,
+                })
+
+            n_total = len(df)
+            tp_total = int((df[reason_col] == "tp").sum())
+            sl_total = int((df[reason_col] == "sl").sum())
+            flip_total = int((df[reason_col] == "signal_flip").sum())
+            wins_total = int((df[ret_col] > 0).sum())
+            profit_total = float(df[ret_col].clip(lower=0).sum())
+            loss_total = float((-df[ret_col].clip(upper=0)).sum())
+            avg_r_total = float(df[r_col].mean()) if r_col and r_col in df.columns else 0.0
+
+            payload = {
+                "overall": {
+                    "tp_rate": round(tp_total / n_total, 4) if n_total > 0 else 0.0,
+                    "sl_rate": round(sl_total / n_total, 4) if n_total > 0 else 0.0,
+                    "signal_flip_rate": round(flip_total / n_total, 4) if n_total > 0 else 0.0,
+                    "avg_r": round(avg_r_total, 4),
+                    "win_rate": round(wins_total / n_total, 4) if n_total > 0 else 0.0,
+                    "profit_factor": round(profit_total / loss_total, 4) if loss_total > 0 else None,
+                },
+                "by_asset": by_asset,
+                "updated_at": datetime.now(tz=ET).isoformat(),
+            }
+            _atomic_write_json(self._trade_outcomes_path, payload)
+            return payload
+        except Exception:
+            logger.exception("Failed to compute trade outcomes")
+            return None
+
+    # ── Analytics snapshot ─────────────────────────────────────────
+
+    def write_snapshot(self) -> None:
+        self._analytics_snapshot_counter += 1
+        if self._analytics_snapshot_counter < self._analytics_snapshot_frequency:
+            return
+        self._analytics_snapshot_counter = 0
+
+        attrs = self._db.read_attribution(limit=2000)
+        shadows = self._db.read_shadow_trades(limit=2000)
+        snapshot: dict = {}
+
+        if attrs:
+            df = pd.DataFrame(attrs)
+            arch_col = "pred_archetype_at_entry"
+            regime_col = "pred_regime_at_entry"
+            reason_col = "exit_exit_reason"
+
+            r_values = df.get("exit_realized_r", df.get("realized_r", 0))
+            reason_series = df.get(reason_col) if reason_col in df.columns else pd.Series(dtype=object)
+            has_reason = len(reason_series) > 0
+            snapshot["overall"] = {
+                "n_trades": len(df),
+                "avg_r": float(r_values.mean()),
+                "win_rate": float((r_values > 0).mean()),
+                "tp_rate": float((reason_series == "tp").mean()) if has_reason else 0.0,
+                "sl_rate": float((reason_series == "sl").mean()) if has_reason else 0.0,
+            }
+            by_arch = {}
+            if arch_col in df.columns:
+                for arch, grp in df.groupby(arch_col):
+                    grp_r = grp.get("exit_realized_r", 0)
+                    grp_reason = grp.get(reason_col) if reason_col in grp.columns else pd.Series(dtype=object)
+                    grp_has_reason = len(grp_reason) > 0
+                    by_arch[arch] = {
+                        "n": len(grp),
+                        "avg_r": float(grp_r.mean()),
+                        "win_rate": float((grp_r > 0).mean()),
+                        "tp_rate": float((grp_reason == "tp").mean()) if grp_has_reason else 0.0,
+                        "sl_rate": float((grp_reason == "sl").mean()) if grp_has_reason else 0.0,
+                        "avg_entry_slippage": float(grp.get("friction_entry_slippage_bps", 0).mean()),
+                        "avg_mae": float(grp.get("exit_mae", 0).mean()),
+                        "avg_mfe": float(grp.get("exit_mfe", 0).mean()),
+                    }
+            snapshot["by_archetype"] = by_arch
+            by_reg = {}
+            if regime_col in df.columns:
+                for reg, grp in df.groupby(regime_col):
+                    grp_r = grp.get("exit_realized_r", 0)
+                    by_reg[reg] = {"n": len(grp), "avg_r": float(grp_r.mean()), "win_rate": float((grp_r > 0).mean())}
+            snapshot["by_regime"] = by_reg
+
+        if shadows:
+            sdf = pd.DataFrame(shadows)
+            n = len(sdf)
+            same = (sdf.get("exit_reason", "") == sdf.get("live_exit_reason", "")).sum()
+            shadow_divergence_rate = 1 - (same / n) if n > 0 else 0
+            r_delta = sdf.get("realized_r", 0) - sdf.get("live_realized_r", 0)
+            snapshot["shadow"] = {
+                "n": n,
+                "divergence_rate": round(shadow_divergence_rate, 4),
+                "avg_r_delta": round(float(r_delta.mean()), 4),
+            }
+
+        snapshot["updated_at"] = datetime.now(tz=ET).isoformat()
+        try:
+            _atomic_write_json(self._analytics_path, snapshot)
+        except OSError as e:
+            logger.error("Failed to write analytics snapshot: %s", e)
+
+    def read_snapshot(self) -> dict | None:
+        if not os.path.exists(self._analytics_path):
+            return None
+        try:
+            with open(self._analytics_path) as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# DataCache — parquet file cache for downloaded market data
+# ═══════════════════════════════════════════════════════════════════════
+
+class _DataCache:
+    """Parquet file cache for downloaded OHLCV data."""
+
+    def __init__(self, cache_dir: str):
+        self._cache_dir = cache_dir
+        os.makedirs(self._cache_dir, exist_ok=True)
+
+    def path_for(self, ticker: str) -> str:
         safe_name = ticker.replace("=", "_").replace("-", "_")
-        return os.path.join(self.cache_dir, f"{safe_name}.parquet")
+        return os.path.join(self._cache_dir, f"{safe_name}.parquet")
 
-    def save_cache(self, ticker: str, df: pd.DataFrame) -> None:
-        path = self.cache_path(ticker)
+    def save(self, ticker: str, df: pd.DataFrame) -> None:
+        path = self.path_for(ticker)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         df.to_parquet(path)
 
-    def load_cache(self, ticker: str) -> pd.DataFrame | None:
-        path = self.cache_path(ticker)
+    def load(self, ticker: str) -> pd.DataFrame | None:
+        path = self.path_for(ticker)
         if os.path.exists(path):
             try:
                 df = pd.read_parquet(path)
@@ -756,3 +750,119 @@ class StateStore:
             except Exception as e:
                 logger.warning("Cache read error for %s: %s", ticker, e)
         return None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# StateStore — facade delegating to focused internal stores
+# ═══════════════════════════════════════════════════════════════════════
+
+class StateStore:
+    """Facade that delegates to DatabaseStore, SnapshotManager, AnalyticsStore, and DataCache."""
+
+    def __init__(self, base_dir: str, snapshot_cache_ttl: float = 1.0):
+        self.base_dir = base_dir
+        self.live_dir = os.path.join(base_dir, "data", "live")
+        self.state_path = os.path.join(self.live_dir, "state.json")
+        self.equity_history_path = os.path.join(self.live_dir, "equity_history.json")
+        self.review_log_path = os.path.join(self.live_dir, "review_log.json")
+        self.trade_outcomes_path = os.path.join(self.live_dir, "trade_outcomes.json")
+        self.cache_dir = os.path.join(self.live_dir, "cache")
+
+        db_path = os.path.join(self.live_dir, "state.db")
+        os.makedirs(self.live_dir, exist_ok=True)
+
+        self.db = _DatabaseStore(db_path)
+        self.snapshot = _SnapshotManager(self.state_path, cache_ttl=snapshot_cache_ttl)
+        self.analytics = _AnalyticsStore(
+            self.db,
+            os.path.join(self.live_dir, "analytics_snapshot.json"),
+            self.trade_outcomes_path,
+        )
+        self.cache = _DataCache(self.cache_dir)
+
+    # ── Snapshot ───────────────────────────────────────────────────
+
+    def save_snapshot(self, snapshot: EngineSnapshot) -> None:
+        self.snapshot.save(snapshot)
+        self.db.checkpoint_wal()
+
+    def load_snapshot(self) -> EngineSnapshot | None:
+        return self.snapshot.load()
+
+    # ── Trades ─────────────────────────────────────────────────────
+
+    def append_trade(self, trade: dict) -> None:
+        self.db.append_trade(trade)
+
+    def read_trades(self, limit: int = 10) -> list:
+        return self.db.read_trades(limit)
+
+    def read_trades_since(self, date: str) -> pd.DataFrame:
+        return self.db.read_trades_since(date)
+
+    def write_trade_outcomes_cache(self) -> None:
+        self.analytics.write_trade_outcomes_cache()
+
+    def read_trade_outcomes(self) -> dict | None:
+        return self.analytics.read_trade_outcomes()
+
+    # ── Attribution ────────────────────────────────────────────────
+
+    def append_attribution(self, record_dict: dict) -> None:
+        self.db.append_attribution(record_dict)
+
+    def read_attribution(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        archetype: str | None = None,
+        regime: str | None = None,
+        asset: str | None = None,
+    ) -> list:
+        return self.db.read_attribution(limit, offset, archetype, regime, asset)
+
+    # ── Shadow trades ──────────────────────────────────────────────
+
+    def append_shadow_trade(self, record_dict: dict) -> None:
+        self.db.append_shadow_trade(record_dict)
+
+    def read_shadow_trades(self, limit: int = 100, offset: int = 0, alt_label: str | None = None) -> list:
+        return self.db.read_shadow_trades(limit, offset, alt_label)
+
+    # ── Analytics ──────────────────────────────────────────────────
+
+    def write_analytics_snapshot(self) -> None:
+        self.analytics.write_snapshot()
+
+    def read_analytics_snapshot(self) -> dict | None:
+        return self.analytics.read_snapshot()
+
+    # ── Confidence buckets ─────────────────────────────────────────
+
+    def append_confidence_bucket(self, bucket: dict) -> None:
+        self.db.append_confidence_bucket(bucket)
+
+    # ── Equity history ─────────────────────────────────────────────
+
+    def append_equity_history(self, record: dict) -> None:
+        self.db.append_equity_history(record)
+
+    def read_equity_history(self) -> list:
+        return self.db.read_equity_history()
+
+    # ── Raw DB access (for tests / direct queries) ────────────────
+
+    def connect(self) -> sqlite3.Connection:
+        """Open a direct SQLite connection. Used by tests."""
+        return self.db._connect()
+
+    # ── Data cache ─────────────────────────────────────────────────
+
+    def cache_path(self, ticker: str) -> str:
+        return self.cache.path_for(ticker)
+
+    def save_cache(self, ticker: str, df: pd.DataFrame) -> None:
+        self.cache.save(ticker, df)
+
+    def load_cache(self, ticker: str) -> pd.DataFrame | None:
+        return self.cache.load(ticker)

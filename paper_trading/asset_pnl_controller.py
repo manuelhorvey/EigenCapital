@@ -44,173 +44,202 @@ class AssetPnlController:
         asset = self.asset
         asset._ensure_position_synced()
 
-        # 1. Intraday SL/TP Check - ALWAYS run this on every refresh using real-time price
         max_hold = asset.config.get("max_holding_days")
-        if asset.pos_mgr.has_position() and asset.current_price is not None:
-            # ── Shadow SL/TP tick (isolated counterfactual replay) ──
-            if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None and asset._shadow_sltp.is_active:
-                data = getattr(asset, "price_data", None) or getattr(asset, "_price_df", None)
-                if data is not None:
-                    asset._shadow_sltp.tick(
-                        asset.current_price,
-                        data,
-                        str(datetime.now(tz=ET).date()),
-                    )
+        if (
+            asset.pos_mgr.has_position()
+            and asset.current_price is not None
+            and self._check_intraday_sltp(asset, max_hold)
+        ):
+            return
 
-            # ── Scale-out tier check ─────────────────────────────
-            if asset._scale_out_plan is not None:
-                so_fills = asset._scale_out_engine.check_tiers(
-                    asset._scale_out_plan,
-                    asset.pos_mgr.position.side,
+        self._settle_daily_pnl(asset)
+
+    def _check_intraday_sltp(self, asset, max_hold) -> bool:
+        self._tick_shadow_sltp(asset)
+        self._check_scale_out_tiers(asset)
+        if self._check_sltp_hit(asset):
+            return True
+        self._apply_trailing_stop(asset)
+        return self._check_time_stop(asset, max_hold)
+
+    def _tick_shadow_sltp(self, asset) -> None:
+        if (
+            hasattr(asset, "_shadow_sltp")
+            and asset._shadow_sltp is not None
+            and asset._shadow_sltp.is_active
+        ):
+            data = getattr(asset, "price_data", None) or getattr(asset, "_price_df", None)
+            if data is not None:
+                asset._shadow_sltp.tick(
                     asset.current_price,
-                    asset.current_value,
-                    asset.pos_mgr.position_size,
-                    asset.pos_mgr.exposure_multiplier,
+                    data,
+                    str(datetime.now(tz=ET).date()),
                 )
-                for so in so_fills:
-                    if so.get("fraction", 0) > 0:
-                        asset.pos_mgr.partial_close(
-                            so["fraction"],
-                            so["fill_price"],
-                            str(datetime.now(tz=ET).date()),
-                            so["reason"],
-                        )
-                    breakeven = so.get("breakeven_price")
-                    if breakeven is not None:
-                        asset.pos_mgr.activate_breakeven_stop()
-                    if so.get("reason") == "trailing_activated":
-                        logger.info("%s: trailing activated by scale-out tier fill", asset.name)
 
-            hit = asset.pos_mgr.check_sl_tp(asset.current_price)
-            if hit:
+    def _check_scale_out_tiers(self, asset) -> None:
+        if asset._scale_out_plan is None:
+            return
+        so_fills = asset._scale_out_engine.check_tiers(
+            asset._scale_out_plan,
+            asset.pos_mgr.position.side,
+            asset.current_price,
+            asset.current_value,
+            asset.pos_mgr.position_size,
+            asset.pos_mgr.exposure_multiplier,
+        )
+        for so in so_fills:
+            if so.get("fraction", 0) > 0:
+                asset.pos_mgr.partial_close(
+                    so["fraction"],
+                    so["fill_price"],
+                    str(datetime.now(tz=ET).date()),
+                    so["reason"],
+                )
+            breakeven = so.get("breakeven_price")
+            if breakeven is not None:
+                asset.pos_mgr.activate_breakeven_stop()
+            if so.get("reason") == "trailing_activated":
+                logger.info("%s: trailing activated by scale-out tier fill", asset.name)
+
+    def _check_sltp_hit(self, asset) -> bool:
+        hit = asset.pos_mgr.check_sl_tp(asset.current_price)
+        if not hit:
+            return False
+
+        last_bar = str(datetime.now(tz=ET).date())
+
+        if asset.pos_mgr.position is not None:
+            entry = asset.pos_mgr.position.entry_price
+            side = asset.pos_mgr.position.side
+            ret = (hit[1] / entry - 1) if side == "long" else (entry / hit[1] - 1)
+            logger.info(
+                "%s: SL/TP HIT: %s at %.4f (Current: %.4f, Entry: %.4f, Ret: %.4f%%, Side: %s)",
+                asset.name,
+                hit[0].upper(),
+                hit[1],
+                asset.current_price,
+                entry,
+                ret * 100,
+                side,
+            )
+        if asset.pos_mgr.position is not None:
+            asset._record_stop_out(asset.pos_mgr.position.side, hit[1])
+        if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None:
+            asset._shadow_sltp.close_shadow(float(hit[1]), last_bar, hit[0])
+            asset._shadow_sltp.set_live_outcome(hit[0], _compute_r(asset, float(hit[1])))
+        asset._close_position(hit[1], last_bar, hit[0])
+        if asset.current_value > asset.peak_value:
+            asset.peak_value = asset.current_value
+        return True
+
+    def _apply_trailing_stop(self, asset) -> None:
+        if not asset.config.get("dynamic_sltp", {}).get("enabled", False) or asset._entry_vol is None:
+            return
+        data = getattr(asset, "price_data", None)
+        if data is None:
+            data = getattr(asset, "_price_df", None)
+        if data is None or asset.pos_mgr.position is None:
+            return
+
+        trailing = asset._sltp_engine.compute_trailing_stop(
+            side=asset.pos_mgr.position.side,
+            entry_price=asset.pos_mgr.position.entry_price,
+            current_price=asset.current_price,
+            initial_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
+            current_sl=asset.pos_mgr.position.stop_loss,
+            take_profit=asset.pos_mgr.position.take_profit,
+            df=data,
+        )
+        if trailing.trailing_sl is not None:
+            asset.pos_mgr.update_stop_loss(float(trailing.trailing_sl))
+            _sync_broker_sltp(asset)
+            logger.info(
+                "%s: trailing stop activated to %.4f (locked profit=%.2f%%)",
+                asset.name,
+                trailing.trailing_sl,
+                (trailing.locked_profit or 0) * 100,
+            )
+            shadow_compare_sltp(
+                asset.name,
+                label_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
+                label_tp=asset.pos_mgr.position.take_profit,
+                runtime_sl=trailing.trailing_sl,
+                runtime_tp=asset.pos_mgr.position.take_profit,
+                entry_price=asset.pos_mgr.position.entry_price,
+                reason="trailing",
+            )
+
+        self._apply_post_entry_adjust(asset, data)
+
+    def _apply_post_entry_adjust(self, asset, data) -> None:
+        asset._bars_at_entry += 1
+        adjust = asset._sltp_engine.post_entry_adjust(
+            side=asset.pos_mgr.position.side,
+            entry_price=asset.pos_mgr.position.entry_price,
+            current_sl=asset.pos_mgr.position.stop_loss,
+            current_tp=asset.pos_mgr.position.take_profit,
+            df=data,
+            vol=asset._entry_vol,
+            bars_since_entry=asset._bars_at_entry,
+        )
+        if adjust.new_sl is not None:
+            asset.pos_mgr.update_stop_loss(float(adjust.new_sl))
+            _sync_broker_sltp(asset)
+            logger.info(
+                "%s: post-entry SL adjusted: %s (new=%.4f)",
+                asset.name,
+                adjust.reason,
+                adjust.new_sl,
+            )
+            shadow_compare_sltp(
+                asset.name,
+                label_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
+                label_tp=asset.pos_mgr.position.take_profit,
+                runtime_sl=adjust.new_sl,
+                runtime_tp=asset.pos_mgr.position.take_profit,
+                entry_price=asset.pos_mgr.position.entry_price,
+                reason=adjust.reason or "post_entry_sl",
+            )
+        if adjust.new_tp is not None:
+            asset.pos_mgr.update_take_profit(float(adjust.new_tp))
+            _sync_broker_sltp(asset)
+            logger.info(
+                "%s: post-entry TP adjusted: %s (new=%.4f)",
+                asset.name,
+                adjust.reason,
+                adjust.new_tp,
+            )
+            shadow_compare_sltp(
+                asset.name,
+                label_sl=asset.pos_mgr.position.stop_loss,
+                label_tp=asset._initial_tp or asset.pos_mgr.position.take_profit,
+                runtime_sl=asset.pos_mgr.position.stop_loss,
+                runtime_tp=adjust.new_tp,
+                entry_price=asset.pos_mgr.position.entry_price,
+                reason=adjust.reason or "post_entry_tp",
+            )
+
+    def _check_time_stop(self, asset, max_hold) -> bool:
+        if max_hold is None or asset.pos_mgr.position is None:
+            return False
+        entry_str = str(asset.pos_mgr.position.entry_date)
+        try:
+            entry_dt = pd.Timestamp(entry_str)
+            if entry_dt.tz is None:
+                entry_dt = entry_dt.tz_localize("US/Eastern")
+            elapsed = (datetime.now(tz=ET) - entry_dt).days
+            if elapsed >= max_hold:
                 last_bar = str(datetime.now(tz=ET).date())
-
-                if asset.pos_mgr.position is not None:
-                    entry = asset.pos_mgr.position.entry_price
-                    side = asset.pos_mgr.position.side
-                    ret = (hit[1] / entry - 1) if side == "long" else (entry / hit[1] - 1)
-                    logger.info(
-                        "%s: SL/TP HIT: %s at %.4f (Current: %.4f, Entry: %.4f, Ret: %.4f%%, Side: %s)",
-                        asset.name,
-                        hit[0].upper(),
-                        hit[1],
-                        asset.current_price,
-                        entry,
-                        ret * 100,
-                        side,
-                    )
-                if asset.pos_mgr.position is not None:
-                    asset._record_stop_out(asset.pos_mgr.position.side, hit[1])
-                # Close shadow position with live exit reason
+                logger.info("%s: TIME STOP after %d days (max=%d)", asset.name, elapsed, max_hold)
                 if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None:
-                    asset._shadow_sltp.close_shadow(float(hit[1]), last_bar, hit[0])
-                    asset._shadow_sltp.set_live_outcome(hit[0], _compute_r(asset, float(hit[1])))
-                asset._close_position(hit[1], last_bar, hit[0])
-                if asset.current_value > asset.peak_value:
-                    asset.peak_value = asset.current_value
-                return
+                    asset._shadow_sltp.close_shadow(asset.current_price, last_bar, "time_stop")
+                asset._close_position(asset.current_price, last_bar, "time_stop")
+                return True
+        except (AttributeError, TypeError, ValueError):
+            logger.debug("%s: could not parse entry date for time stop", asset.name)
+        return False
 
-            # ── Trailing stop check ──────────────────────────────
-            if asset.config.get("dynamic_sltp", {}).get("enabled", False) and asset._entry_vol is not None:
-                data = getattr(asset, "price_data", None)
-                if data is None:
-                    data = getattr(asset, "_price_df", None)
-                if data is not None and asset.pos_mgr.position is not None:
-                    trailing = asset._sltp_engine.compute_trailing_stop(
-                        side=asset.pos_mgr.position.side,
-                        entry_price=asset.pos_mgr.position.entry_price,
-                        current_price=asset.current_price,
-                        initial_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
-                        current_sl=asset.pos_mgr.position.stop_loss,
-                        take_profit=asset.pos_mgr.position.take_profit,
-                        df=data,
-                    )
-                    if trailing.trailing_sl is not None:
-                        asset.pos_mgr.update_stop_loss(float(trailing.trailing_sl))
-                        _sync_broker_sltp(asset)
-                        logger.info(
-                            "%s: trailing stop activated to %.4f (locked profit=%.2f%%)",
-                            asset.name,
-                            trailing.trailing_sl,
-                            (trailing.locked_profit or 0) * 100,
-                        )
-                        shadow_compare_sltp(
-                            asset.name,
-                            label_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
-                            label_tp=asset.pos_mgr.position.take_profit,
-                            runtime_sl=trailing.trailing_sl,
-                            runtime_tp=asset.pos_mgr.position.take_profit,
-                            entry_price=asset.pos_mgr.position.entry_price,
-                            reason="trailing",
-                        )
-
-                    # ── Post-entry adjustment ────────────────────────
-                    asset._bars_at_entry += 1
-                    adjust = asset._sltp_engine.post_entry_adjust(
-                        side=asset.pos_mgr.position.side,
-                        entry_price=asset.pos_mgr.position.entry_price,
-                        current_sl=asset.pos_mgr.position.stop_loss,
-                        current_tp=asset.pos_mgr.position.take_profit,
-                        df=data,
-                        vol=asset._entry_vol,
-                        bars_since_entry=asset._bars_at_entry,
-                    )
-                    if adjust.new_sl is not None:
-                        asset.pos_mgr.update_stop_loss(float(adjust.new_sl))
-                        _sync_broker_sltp(asset)
-                        logger.info(
-                            "%s: post-entry SL adjusted: %s (new=%.4f)",
-                            asset.name,
-                            adjust.reason,
-                            adjust.new_sl,
-                        )
-                        shadow_compare_sltp(
-                            asset.name,
-                            label_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
-                            label_tp=asset.pos_mgr.position.take_profit,
-                            runtime_sl=adjust.new_sl,
-                            runtime_tp=asset.pos_mgr.position.take_profit,
-                            entry_price=asset.pos_mgr.position.entry_price,
-                            reason=adjust.reason or "post_entry_sl",
-                        )
-                    if adjust.new_tp is not None:
-                        asset.pos_mgr.update_take_profit(float(adjust.new_tp))
-                        _sync_broker_sltp(asset)
-                        logger.info(
-                            "%s: post-entry TP adjusted: %s (new=%.4f)",
-                            asset.name,
-                            adjust.reason,
-                            adjust.new_tp,
-                        )
-                        shadow_compare_sltp(
-                            asset.name,
-                            label_sl=asset.pos_mgr.position.stop_loss,
-                            label_tp=asset._initial_tp or asset.pos_mgr.position.take_profit,
-                            runtime_sl=asset.pos_mgr.position.stop_loss,
-                            runtime_tp=adjust.new_tp,
-                            entry_price=asset.pos_mgr.position.entry_price,
-                            reason=adjust.reason or "post_entry_tp",
-                        )
-
-            # Time stop check — force close if held beyond max_holding_days
-            if max_hold is not None and asset.pos_mgr.position is not None:
-                entry_str = str(asset.pos_mgr.position.entry_date)
-                try:
-                    entry_dt = pd.Timestamp(entry_str)
-                    if entry_dt.tz is None:
-                        entry_dt = entry_dt.tz_localize("US/Eastern")
-                    elapsed = (datetime.now(tz=ET) - entry_dt).days
-                    if elapsed >= max_hold:
-                        last_bar = str(datetime.now(tz=ET).date())
-                        logger.info("%s: TIME STOP after %d days (max=%d)", asset.name, elapsed, max_hold)
-                        if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None:
-                            asset._shadow_sltp.close_shadow(asset.current_price, last_bar, "time_stop")
-                        asset._close_position(asset.current_price, last_bar, "time_stop")
-                        return
-                except (AttributeError, TypeError, ValueError):
-                    logger.debug("%s: could not parse entry_dt=%r for time stop", asset.name, entry_dt)
-
-        # 2. Daily P&L Settlement - Only run if signal_data is available (historical context)
+    def _settle_daily_pnl(self, asset) -> None:
         if asset.signal_data is None or len(asset.signal_data) < 2:
             return
 
@@ -220,10 +249,10 @@ class AssetPnlController:
 
         if asset.trades and asset.trades[-1]["date"] == last_bar:
             return
-        # Skip settlement on first cycle — no prior live signal to settle.
         if not asset._initial_settlement_done:
             asset._initial_settlement_done = True
             return
+
         sig = asset.signal_data["signal"].iloc[-2]
         direction = 1 if sig == 2 else (-1 if sig == 0 else 0)
         pos_size = (

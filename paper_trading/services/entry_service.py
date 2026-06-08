@@ -14,90 +14,84 @@ ET = pytz.timezone("US/Eastern")
 
 
 class EntryService:
-    def __init__(self, asset):
-        self.asset = asset
+    """Entry service methods. Stateless — methods take everything they need as parameters."""
 
-    def effective_capital(self) -> float:
-        asset = self.asset
-        if asset.initial_capital <= 0:
-            return asset.capital_base
-        growth = asset.current_value / asset.initial_capital
-        return asset.capital_base * growth
+    def effective_capital(self, *, initial_capital, capital_base, current_value) -> float:
+        if initial_capital <= 0:
+            return capital_base
+        growth = current_value / initial_capital
+        return capital_base * growth
 
     def tb_vol(self, close_series):
         returns = np.log(close_series / close_series.shift(1))
         vol = returns.ewm(span=100).std()
         return vol.iloc[-1] if not pd.isna(vol.iloc[-1]) else 0.01
 
-    def composite_size_scalar(self, extra_scalar: float = 1.0) -> float:
-        asset = self.asset
+    def composite_size_scalar(self, extra_scalar: float = 1.0, *, validity_state, sl_mult, tp_mult,
+                                regime_geometry, governance, pos_mgr, meta_size_multiplier) -> float:
         _, _, effective_size = compute_effective_multipliers(
-            base_sl=asset.sl_mult,
-            base_tp=asset.tp_mult,
-            validity_state=asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW",
-            regime_geometry=asset.regime_geometry,
-            narrative_sl_mult=asset.governance._narrative_sl_mult,
-            liquidity_sl_mult=asset.governance._liquidity_sl_mult,
-            narrative_size_scalar=asset.governance._narrative_size_scalar,
-            liquidity_size_scalar=asset.governance._liquidity_size_scalar,
+            base_sl=sl_mult,
+            base_tp=tp_mult,
+            validity_state=validity_state,
+            regime_geometry=regime_geometry,
+            narrative_sl_mult=governance._narrative_sl_mult,
+            liquidity_sl_mult=governance._liquidity_sl_mult,
+            narrative_size_scalar=governance._narrative_size_scalar,
+            liquidity_size_scalar=governance._liquidity_size_scalar,
         )
         return (
-            asset.pos_mgr.position_size
-            * asset.pos_mgr.exposure_multiplier
+            pos_mgr.position_size
+            * pos_mgr.exposure_multiplier
             * extra_scalar
-            * asset._meta_size_multiplier()
+            * meta_size_multiplier
             * effective_size
         )
 
-    def compute_notional(self, extra_scalar: float = 1.0) -> float:
-        return self.effective_capital() * self.composite_size_scalar(extra_scalar)
+    def compute_notional(self, effective_capital_val: float, size_scalar_val: float) -> float:
+        return effective_capital_val * size_scalar_val
 
-    def sizing_config(self, close: pd.Series, position_size_scalar: float = 1.0) -> dict:
-        asset = self.asset
-        cfg = dict(asset.config)
-        if asset.execution_bridge is None:
+    def sizing_config(self, close: pd.Series, position_size_scalar: float = 1.0, *,
+                      execution_bridge, ticker, config, effective_capital_val, size_scalar_val) -> dict:
+        cfg = dict(config)
+        if execution_bridge is None:
             return cfg
         price = float(close.iloc[-1]) if len(close) else 0.0
         if price <= 0:
             return cfg
-        notional = self.compute_notional(position_size_scalar)
-        cfg["impact_bps"] = asset.execution_bridge.estimate_impact_bps(asset.ticker, notional)
+        notional = self.compute_notional(effective_capital_val, size_scalar_val)
+        cfg["impact_bps"] = execution_bridge.estimate_impact_bps(ticker, notional)
         return cfg
 
-    def can_enter(self, side, price, context=None) -> tuple[bool, str]:
-        asset = self.asset
-
-        # Cross-side stop-out cooldown: blocks ALL entries after ANY SL hit
-        # Prevents the LONG→SL→SHORT→SL→LONG churn loop.
-        if asset._last_stop_out_date is not None:
-            cross_cooldown_hours = asset.config.get("stopout_cross_side_cooldown_hours", 1.0)
+    def can_enter(self, side, price, *, last_stop_out_date, last_stop_out_side, config,
+                  cooldown_penalty_func, pending_entries, cycle_counter, last_signal_flip_cycle,
+                  min_flip_interval_bars, context=None) -> tuple[bool, str]:
+        if last_stop_out_date is not None:
+            cross_cooldown_hours = config.get("stopout_cross_side_cooldown_hours", 1.0)
             now = pd.Timestamp.now(tz="UTC")
-            elapsed_hours = (now - asset._last_stop_out_date).total_seconds() / 3600
+            elapsed_hours = (now - last_stop_out_date).total_seconds() / 3600
             if elapsed_hours < cross_cooldown_hours:
                 remaining = round(cross_cooldown_hours - elapsed_hours, 2)
                 return False, f"cross_side_stopout_cooldown_{remaining}h"
 
-        # Same-side day lock: prevents re-entering the stopped-out side for rest of day
-        if asset._last_stop_out_date is not None and asset._last_stop_out_side == side:
+        if last_stop_out_date is not None and last_stop_out_side == side:
             now = pd.Timestamp.now(tz="UTC")
-            if asset._last_stop_out_date == now.normalize():
+            if last_stop_out_date == now.normalize():
                 return False, "same_day_stopout_lock"
 
-        penalty = asset._position.cooldown_penalty(side)
+        penalty = cooldown_penalty_func(side)
         if penalty > 0:
             return False, f"cooldown_active_{penalty:.2f}"
 
-        if side in asset._pending_entries:
+        if side in pending_entries:
             return False, "pending_entry_exists"
 
-        cycles_since_flip = asset._cycle_counter - asset._last_signal_flip_cycle
-        if cycles_since_flip < asset._min_flip_interval_bars:
+        cycles_since_flip = cycle_counter - last_signal_flip_cycle
+        if cycles_since_flip < min_flip_interval_bars:
             return False, f"signal_flip_cooldown_{cycles_since_flip}"
 
         return True, "ok"
 
-    def open_position(self, side, entry_price, entry_date, df=None, tp_geo=None):
-        asset = self.asset
+    def open_position(self, side, entry_price, entry_date, asset, df=None, tp_geo=None):
         data = df if df is not None else asset.price_data
         vol = self.tb_vol(data["close"])
         logger.debug(
@@ -130,8 +124,24 @@ class EntryService:
         entry_slippage_bps = 0.0
         mt5_ticket = None
         if asset.execution_bridge is not None:
-            broker_side = "buy" if side == "long" else "sell"
-            notional = self.compute_notional()
+            effective_cap = self.effective_capital(
+                initial_capital=asset.initial_capital,
+                capital_base=asset.capital_base,
+                current_value=asset.current_value,
+            )
+            size_scalar = self.composite_size_scalar(
+                1.0,
+                validity_state=state,
+                sl_mult=asset.sl_mult,
+                tp_mult=asset.tp_mult,
+                regime_geometry=asset.regime_geometry,
+                governance=asset.governance,
+                pos_mgr=asset.pos_mgr,
+                meta_size_multiplier=asset._meta_size_multiplier(),
+            )
+            notional = self.compute_notional(effective_cap, size_scalar)
+            side_str = side.value if hasattr(side, "value") else side
+            broker_side = "buy" if side_str == "long" else "sell"
             qty = max(notional / entry_price, 1e-6)
             if hasattr(asset.execution_bridge, "_is_real_broker") and asset.execution_bridge._is_real_broker:
                 broker = asset.execution_bridge.broker
@@ -298,8 +308,7 @@ class EntryService:
                 side, float(intent.entry_price), float(intent.take_profit), tier_specs=tp_geo.scale_out_tiers
             )
 
-    def poll_pending_entries(self, df: pd.DataFrame) -> None:
-        asset = self.asset
+    def poll_pending_entries(self, df: pd.DataFrame, asset) -> None:
         if not asset._pending_entries:
             return
 
@@ -361,10 +370,18 @@ class EntryService:
 
             if policy_dec.action == EntryAction.ENTER:
                 side = PositionSide(direction)
-                ok, reason = asset._entry.can_enter(
+                ok, reason = self.can_enter(
                     side,
                     float(df["close"].iloc[-1]),
-                    {"regime": getattr(asset, "_current_regime", "neutral")},
+                    last_stop_out_date=asset._last_stop_out_date,
+                    last_stop_out_side=asset._last_stop_out_side,
+                    config=asset.config,
+                    cooldown_penalty_func=asset._cooldown_penalty,
+                    pending_entries=asset._pending_entries,
+                    cycle_counter=asset._cycle_counter,
+                    last_signal_flip_cycle=asset._last_signal_flip_cycle,
+                    min_flip_interval_bars=asset._min_flip_interval_bars,
+                    context={"regime": getattr(asset, "_current_regime", "neutral")},
                 )
                 if not ok:
                     logger.info(

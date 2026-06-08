@@ -11,74 +11,80 @@ ET = pytz.timezone("US/Eastern")
 
 
 class PositionService:
-    def __init__(self, asset):
-        self.asset = asset
+    def __init__(self, *, name, ticker, config, pos_mgr, state_store, attribution,
+                 attribution_svc, execution_bridge, model, shadow_sltp):
+        self.name = name
+        self.ticker = ticker
+        self.config = config
+        self.pos_mgr = pos_mgr
+        self.state_store = state_store
+        self.attribution = attribution
+        self.attribution_svc = attribution_svc
+        self.execution_bridge = execution_bridge
+        self.model = model
+        self._shadow_sltp = shadow_sltp
 
-    def macro_blend_trade_returns(self, trade_ret: float) -> tuple[float, float]:
-        asset = self.asset
-        entry = asset._entry_signal_dir
+    def macro_blend_trade_returns(
+        self, trade_ret: float, *, entry_signal_dir: int, last_macro_dir, last_blend_dir,
+    ) -> tuple[float, float]:
+        entry = entry_signal_dir
         if entry == 0:
             return trade_ret, trade_ret
-        macro_dir = asset._last_macro_dir
-        blend_dir = asset._last_blend_dir
+        macro_dir = last_macro_dir
+        blend_dir = last_blend_dir
         macro_ret = trade_ret if macro_dir is None or macro_dir == entry else -trade_ret
         blend_ret = trade_ret if blend_dir is None or blend_dir == entry else -trade_ret
         return macro_ret, blend_ret
 
-    def position_pnl(self, current_price):
-        return self.asset.pos_mgr.position_pnl(current_price)
-
-    def ensure_position_synced(self):
-        asset = self.asset
-        if asset.position is not None and not asset.pos_mgr.has_position():
+    def ensure_position_synced(self, *, position, pos_mgr):
+        if position is not None and not pos_mgr.has_position():
             intent = PositionIntent(
-                side=PositionSide(asset.position["side"]),
-                entry_price=asset.position["entry"],
-                entry_date=asset.position.get("entry_date", ""),
-                stop_loss=asset.position["sl"],
-                take_profit=asset.position["tp"],
-                vol=asset.position.get("vol", 0.01),
+                side=PositionSide(position["side"]),
+                entry_price=position["entry"],
+                entry_date=position.get("entry_date", ""),
+                stop_loss=position["sl"],
+                take_profit=position["tp"],
+                vol=position.get("vol", 0.01),
             )
-            asset.pos_mgr.open(intent)
+            pos_mgr.open(intent)
 
-    def save_trade_journal(self, trade):
-        if self.asset.state_store is not None:
-            self.asset.state_store.append_trade(trade)
-
-    def close_position(self, exit_price, exit_date, reason):
-        asset = self.asset
+    def close_position(self, exit_price, exit_date, reason, *, position, current_value,
+                       entry_archetype, current_trade_id, attribution_buffer, cycle_counter,
+                       last_entry_slippage, last_policy_hash, exit_archetype,
+                       attribution_export_dir, experiment_id,
+                       entry_signal_dir, last_macro_dir, last_blend_dir):
         fill_price = exit_price
         exit_slippage_bps = 0.0
-        if asset.execution_bridge is not None and asset.pos_mgr.has_position():
-            side = asset.pos_mgr.position.side
+        if self.execution_bridge is not None and self.pos_mgr.has_position():
+            side = self.pos_mgr.position.side
             broker_side = "sell" if side == "long" else "buy"
-            notional = asset.current_value * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier
+            notional = current_value * self.pos_mgr.position_size * self.pos_mgr.exposure_multiplier
             qty = max(notional / exit_price, 1e-6)
-            fill_price, exit_slippage_bps, _ = asset.execution_bridge.fill_price(
-                asset.ticker, broker_side, qty, exit_price
+            fill_price, exit_slippage_bps, _ = self.execution_bridge.fill_price(
+                self.ticker, broker_side, qty, exit_price
             )
 
-        trade = asset.pos_mgr.close(fill_price, exit_date, reason)
+        trade = self.pos_mgr.close(fill_price, exit_date, reason)
         if trade is None:
-            return
-        trade["asset"] = asset.name
-        trade["conf_at_entry"] = asset.position.get("confidence") if asset.position else None
-        trade["archetype_at_entry"] = asset._entry_archetype if hasattr(asset, "_entry_archetype") else "UNKNOWN"
+            return {}
+        trade["asset"] = self.name
+        trade["conf_at_entry"] = position.get("confidence") if position else None
+        trade["archetype_at_entry"] = entry_archetype if entry_archetype else "UNKNOWN"
 
-        trade_id = asset._current_trade_id
+        trade_id = current_trade_id
         if trade_id:
             realized_r = trade.get("realized_r", 0.0)
             realized_return = trade.get("return", 0.0)
             realized_pnl = trade.get("pnl", 0.0)
             theoretical_r = realized_r
-            asset._attribution.record_friction(
+            self.attribution.record_friction(
                 trade_id=trade_id,
-                entry_slippage_bps=getattr(asset, "_last_entry_slippage", 0.0),
+                entry_slippage_bps=last_entry_slippage if last_entry_slippage else 0.0,
                 exit_slippage_bps=exit_slippage_bps,
             )
-            record = asset._attribution.finalize(
+            record = self.attribution.finalize(
                 trade_id=trade_id,
-                asset=asset.name,
+                asset=self.name,
                 entry_date=str(trade.get("entry_date", "")),
                 exit_date=str(trade.get("exit_date", "")),
                 side=str(trade.get("side", "long")),
@@ -88,16 +94,21 @@ class PositionService:
                 realized_return=realized_return,
                 realized_pnl=realized_pnl,
                 theoretical_r=theoretical_r,
-                policy_hash=getattr(asset, "_last_policy_hash", ""),
+                policy_hash=last_policy_hash if last_policy_hash else "",
                 archetype_version="1.0",
-                exit_archetype=getattr(asset, "_exit_archetype", ""),
+                exit_archetype=exit_archetype if exit_archetype else "",
             )
             if record is not None:
-                asset._attribution_buffer.append(record)
-                asset._attribution_svc.flush_attribution()
-                if asset.state_store is not None:
+                attribution_buffer.append(record)
+                self.attribution_svc.flush_attribution(
+                    name=self.name,
+                    attribution_buffer=attribution_buffer,
+                    attribution_export_dir=attribution_export_dir,
+                    experiment_id=experiment_id,
+                )
+                if self.state_store is not None:
                     try:
-                        asset.state_store.append_attribution(record.to_dict())
+                        self.state_store.append_attribution(record.to_dict())
                     except Exception:
                         logger.exception("attribution: failed to persist to centralized store")
                 exit_info = record.exit_info
@@ -122,86 +133,89 @@ class PositionService:
                 trade["pred_regime"] = record.prediction.regime_at_entry
             trade["attribution_trade_id"] = trade_id
 
-            if asset.state_store is not None:
+            if self.state_store is not None:
                 try:
-                    shadow = getattr(asset, "_shadow_sltp", None)
-                    if shadow is not None:
-                        completed = shadow.flush_completed(asset_name=asset.name)
+                    if self._shadow_sltp is not None:
+                        completed = self._shadow_sltp.flush_completed(asset_name=self.name)
                         for st in completed:
-                            asset.state_store.append_shadow_trade(st.__dict__)
+                            self.state_store.append_shadow_trade(st.__dict__)
                 except Exception:
                     logger.exception("shadow: failed to persist completed shadow trades")
 
         try:
-            macro_head = getattr(asset.model, "macro_head", None) if asset.model else None
+            macro_head = getattr(self.model, "macro_head", None) if self.model else None
             if macro_head is not None and macro_head.online_weight:
                 trade_ret = float(trade.get("return", 0.0))
-                macro_ret, blend_ret = self.macro_blend_trade_returns(trade_ret)
+                macro_ret, blend_ret = self.macro_blend_trade_returns(
+                    trade_ret,
+                    entry_signal_dir=entry_signal_dir,
+                    last_macro_dir=last_macro_dir,
+                    last_blend_dir=last_blend_dir,
+                )
                 macro_head.update_weight(macro_ret, blend_ret)
         except (AttributeError, ValueError, TypeError):
             pass
 
         # ── Real broker close (MT5) ──
-        mt5_ticket = asset.position.get("mt5_ticket") if asset.position else None
-        is_real = getattr(asset.execution_bridge, "_is_real_broker", False)
-        if mt5_ticket is not None and asset.execution_bridge is not None and is_real:
+        mt5_ticket = position.get("mt5_ticket") if position else None
+        is_real = getattr(self.execution_bridge, "_is_real_broker", False)
+        if mt5_ticket is not None and self.execution_bridge is not None and is_real:
             try:
-                asset.execution_bridge.broker.close_position(asset.ticker, str(mt5_ticket))
+                self.execution_bridge.broker.close_position(self.ticker, str(mt5_ticket))
             except Exception as e:
-                logger.warning("%s: MT5 close failed for ticket=%s: %s", asset.name, mt5_ticket, e)
+                logger.warning("%s: MT5 close failed for ticket=%s: %s", self.name, mt5_ticket, e)
 
-        asset.position = None
+        new_trade_log = list(self.pos_mgr.trade_log)
+        mutations = {
+            "position": None,
+            "trade": trade,
+            "current_value": self.pos_mgr.current_value,
+            "trade_log": new_trade_log,
+        }
         if reason == "signal_flip":
-            asset._last_signal_flip_cycle = asset._cycle_counter
-        asset.current_value = asset.pos_mgr.current_value
-        asset.trade_log = list(asset.pos_mgr.trade_log)
-        self.save_trade_journal(trade)
-        if asset.state_store is not None:
-            asset.state_store.write_analytics_snapshot()
+            mutations["last_signal_flip_cycle"] = cycle_counter
+
+        if self.state_store is not None:
+            self.state_store.append_trade(trade)
+            self.state_store.write_analytics_snapshot()
         from paper_trading.governance.risk import record_trade_outcome as _record_exit_outcome
 
-        _record_exit_outcome(asset.name, reason)
+        _record_exit_outcome(self.name, reason)
+        return mutations
 
-    def record_stop_out(self, side: str, exit_price: float) -> None:
-        asset = self.asset
-
-        # Compute SL price for churn filter check WITHOUT mutating state yet
+    def record_stop_out(self, side: str, exit_price: float, *, pos_mgr, regime_adjusted_entry,
+                        entry_price, churn_ratio_threshold):
         sl_price = None
-        if asset.pos_mgr.position is not None:
-            sl_price = asset.pos_mgr.position.stop_loss
+        if pos_mgr.position is not None:
+            sl_price = pos_mgr.position.stop_loss
 
-        # Churn filter: if price barely moved beyond SL, skip recording entirely.
-        # Prevents noise-driven stop-outs from triggering cooldown/locks.
-        if asset._regime_adjusted_entry and sl_price is not None and asset._entry_price is not None:
-            sl_distance = abs(sl_price - asset._entry_price)
+        # Churn filter
+        if regime_adjusted_entry and sl_price is not None and entry_price is not None:
+            sl_distance = abs(sl_price - entry_price)
             price_beyond_sl = abs(exit_price - sl_price)
-            if sl_distance > 0 and (price_beyond_sl / sl_distance) < asset._churn_ratio_threshold:
-                return
+            if sl_distance > 0 and (price_beyond_sl / sl_distance) < churn_ratio_threshold:
+                return {}
 
-        # Atomically persist all stop-out metadata (only after churn filter passes)
-        asset._last_stop_out_price = sl_price
-        asset._last_stop_out_side = side
-        asset._last_stop_out_date = pd.Timestamp.now(tz="UTC").normalize()
-        asset._cooldown_score = 1.0
-        asset._last_cooldown_update = pd.Timestamp.now(tz="UTC")
+        return {
+            "_last_stop_out_price": sl_price,
+            "_last_stop_out_side": side,
+            "_last_stop_out_date": pd.Timestamp.now(tz="UTC").normalize(),
+            "_cooldown_score": 1.0,
+            "_last_cooldown_update": pd.Timestamp.now(tz="UTC"),
+        }
 
-    def cooldown_penalty(self, side: str) -> float:
-        asset = self.asset
-        if asset._last_stop_out_side != side:
+    def cooldown_penalty(self, side: str, *, last_stop_out_side, cooldown_score,
+                         last_cooldown_update, config) -> float:
+        if last_stop_out_side != side:
             return 0.0
-        if not hasattr(asset, "_cooldown_score") or asset._cooldown_score <= 0:
+        if not cooldown_score or cooldown_score <= 0:
             return 0.0
 
         now = pd.Timestamp.now(tz="UTC")
-        elapsed_hours = (now - asset._last_cooldown_update).total_seconds() / 3600
+        elapsed_hours = (now - last_cooldown_update).total_seconds() / 3600
 
-        half_life = asset.config.get("cooldown_half_life_hours", 4.0)
+        half_life = config.get("cooldown_half_life_hours", 4.0)
         decay = 0.5 ** (elapsed_hours / half_life)
-        asset._cooldown_score *= decay
-        asset._last_cooldown_update = now
+        new_score = cooldown_score * decay
 
-        if asset._cooldown_score < 0.05:
-            asset._cooldown_score = 0.0
-            asset._last_stop_out_side = None
-
-        return asset._cooldown_score
+        return new_score

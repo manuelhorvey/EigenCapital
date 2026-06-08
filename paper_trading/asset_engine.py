@@ -23,12 +23,8 @@ from paper_trading.ops.market_data_service import get_market_data_service
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
 from paper_trading.position.scale_out import build_scale_out_from_config
-from paper_trading.services.attribution_service import AttributionService
 from paper_trading.services.entry_service import EntryService
-from paper_trading.services.governance_service import GovernanceService
-from paper_trading.services.metrics_service import MetricsService
 from paper_trading.services.position_service import PositionService
-from paper_trading.services.signal_service import SignalService
 from paper_trading.shadow.engine import ShadowSLTPEngine
 from paper_trading.state_store import _SKIP_JOURNAL, StateStore
 from shared.registry import StrategyRegistry
@@ -182,12 +178,21 @@ class AssetEngine:
         self._training = AssetTrainingPipeline(self)
         self._pnl = AssetPnlController(self)
         self._inference = AssetInferencePipeline(self)
-        self._entry = EntryService(self)
-        self._position = PositionService(self)
-        self._governance = GovernanceService(self)
-        self._metrics = MetricsService(self)
-        self._attribution_svc = AttributionService(self)
-        self._signal = SignalService(self)
+        self._entry = EntryService()
+        self._attribution = AttributionCollector()
+        from paper_trading.services.attribution_service import AttributionService as _AttributionService
+        self._position = PositionService(
+            name=self.name,
+            ticker=self.ticker,
+            config=self.config,
+            pos_mgr=self.pos_mgr,
+            state_store=self.state_store,
+            attribution=self._attribution,
+            attribution_svc=_AttributionService,
+            execution_bridge=self.execution_bridge,
+            model=self.model,
+            shadow_sltp=self._shadow_sltp,
+        )
         self._market_data = market_data_service or get_market_data_service()
         from features.archetypes import ArchetypeClassifier
 
@@ -209,58 +214,165 @@ class AssetEngine:
 
 
     def set_experiment_context(self, experiment_id: str, export_dir: str | None = None) -> None:
-        self._attribution_svc.set_experiment_context(experiment_id, export_dir)
+        from paper_trading.services.attribution_service import AttributionService
+        self._attribution_export_dir = AttributionService.set_experiment_context(
+            attribution_export_dir=self._attribution_export_dir,
+            experiment_id=experiment_id,
+            export_dir=export_dir,
+        )
+        self._experiment_id = experiment_id
 
     def flush_attribution(self) -> None:
-        self._attribution_svc.flush_attribution()
+        from paper_trading.services.attribution_service import AttributionService
+        AttributionService.flush_attribution(
+            name=self.name,
+            attribution_buffer=self._attribution_buffer,
+            attribution_export_dir=self._attribution_export_dir,
+            experiment_id=self._experiment_id,
+        )
 
     def set_narrative_state(self, narr) -> None:
-        self._governance.set_narrative_state(narr)
+        self.governance.set_narrative_state(narr)
 
     def _refresh_liquidity(self, df) -> None:
-        self._governance.refresh_liquidity(df)
+        self.governance.refresh_liquidity(df)
 
     def _effective_capital(self) -> float:
-        return self._entry.effective_capital()
+        return self._entry.effective_capital(
+            initial_capital=self.initial_capital,
+            capital_base=self.capital_base,
+            current_value=self.current_value,
+        )
 
     def _meta_size_multiplier(self) -> float:
-        return self._signal.meta_size_multiplier()
+        from paper_trading.services.signal_service import SignalService
+        return SignalService.meta_size_multiplier(self.config, getattr(self, "_last_meta_proba", None))
 
     def _composite_size_scalar(self, extra_scalar: float = 1.0) -> float:
-        return self._entry.composite_size_scalar(extra_scalar)
+        state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
+        return self._entry.composite_size_scalar(
+            extra_scalar,
+            validity_state=state,
+            sl_mult=self.sl_mult,
+            tp_mult=self.tp_mult,
+            regime_geometry=self.regime_geometry,
+            governance=self.governance,
+            pos_mgr=self.pos_mgr,
+            meta_size_multiplier=self._meta_size_multiplier(),
+        )
 
     def _compute_notional(self, extra_scalar: float = 1.0) -> float:
-        return self._entry.compute_notional(extra_scalar)
+        effective = self._effective_capital()
+        size_scalar = self._composite_size_scalar(extra_scalar)
+        return self._entry.compute_notional(effective, size_scalar)
 
     def _sizing_config(self, close: pd.Series, position_size_scalar: float = 1.0) -> dict:
-        return self._entry.sizing_config(close, position_size_scalar)
+        effective = self._effective_capital()
+        size_scalar = self._composite_size_scalar(position_size_scalar)
+        return self._entry.sizing_config(
+            close, position_size_scalar,
+            execution_bridge=self.execution_bridge,
+            ticker=self.ticker,
+            config=self.config,
+            effective_capital_val=effective,
+            size_scalar_val=size_scalar,
+        )
 
     def _macro_blend_trade_returns(self, trade_ret: float) -> tuple[float, float]:
-        return self._position.macro_blend_trade_returns(trade_ret)
+        return self._position.macro_blend_trade_returns(
+            trade_ret,
+            entry_signal_dir=self._entry_signal_dir,
+            last_macro_dir=self._last_macro_dir,
+            last_blend_dir=self._last_blend_dir,
+        )
 
     def _enable_adaptive_macro(self) -> None:
-        self._signal.enable_adaptive_macro()
+        if not self.config.get("adaptive_macro") or self.model is None:
+            return
+        macro_head = getattr(self.model, "macro_head", None)
+        if macro_head is not None:
+            macro_head.online_weight = True
 
     def _load_meta_label_model(self) -> None:
-        self._signal.load_meta_label_model()
+        from paper_trading.services.signal_service import SignalService
+        self._meta_label_model = SignalService.load_meta_label_model(self.config, self.name)
 
     def _tb_vol(self, close_series):
         return self._entry.tb_vol(close_series)
 
     def _open_position(self, side, entry_price, entry_date, df=None, tp_geo=None):
-        self._entry.open_position(side, entry_price, entry_date, df, tp_geo)
+        self._entry.open_position(side, entry_price, entry_date, self, df, tp_geo)
 
     def _close_position(self, exit_price, exit_date, reason):
-        self._position.close_position(exit_price, exit_date, reason)
+        mutations = self._position.close_position(
+            exit_price, exit_date, reason,
+            position=self.position,
+            current_value=self.current_value,
+            entry_archetype=getattr(self, "_entry_archetype", None),
+            current_trade_id=self._current_trade_id,
+            attribution_buffer=self._attribution_buffer,
+            cycle_counter=self._cycle_counter,
+            last_entry_slippage=getattr(self, "_last_entry_slippage", 0.0),
+            last_policy_hash=getattr(self, "_last_policy_hash", ""),
+            exit_archetype=getattr(self, "_exit_archetype", ""),
+            attribution_export_dir=self._attribution_export_dir,
+            experiment_id=self._experiment_id,
+            entry_signal_dir=self._entry_signal_dir,
+            last_macro_dir=self._last_macro_dir,
+            last_blend_dir=self._last_blend_dir,
+        )
+        if not mutations:
+            return
+        self.position = mutations.get("position", self.position)
+        self.current_value = mutations.get("current_value", self.current_value)
+        self.trade_log = mutations.get("trade_log", self.trade_log)
+        if "last_signal_flip_cycle" in mutations:
+            self._last_signal_flip_cycle = mutations["last_signal_flip_cycle"]
 
     def _record_stop_out(self, side: str, exit_price: float) -> None:
-        self._position.record_stop_out(side, exit_price)
+        mutations = self._position.record_stop_out(
+            side, exit_price,
+            pos_mgr=self.pos_mgr,
+            regime_adjusted_entry=self._regime_adjusted_entry,
+            entry_price=self._entry_price,
+            churn_ratio_threshold=self._churn_ratio_threshold,
+        )
+        if not mutations:
+            return
+        self._last_stop_out_price = mutations["_last_stop_out_price"]
+        self._last_stop_out_side = mutations["_last_stop_out_side"]
+        self._last_stop_out_date = mutations["_last_stop_out_date"]
+        self._cooldown_score = mutations["_cooldown_score"]
+        self._last_cooldown_update = mutations["_last_cooldown_update"]
 
     def _cooldown_penalty(self, side: str) -> float:
-        return self._position.cooldown_penalty(side)
+        new_score = self._position.cooldown_penalty(
+            side,
+            last_stop_out_side=self._last_stop_out_side,
+            cooldown_score=self._cooldown_score,
+            last_cooldown_update=self._last_cooldown_update,
+            config=self.config,
+        )
+        now = pd.Timestamp.now(tz="UTC")
+        self._cooldown_score = new_score
+        self._last_cooldown_update = now
+        if new_score < 0.05:
+            self._last_stop_out_side = None
+        return self._cooldown_score
 
     def _can_enter(self, side: str, price: float, context: dict | None = None) -> tuple[bool, str]:
-        return self._entry.can_enter(side, price, context)
+        return self._entry.can_enter(
+            side, price,
+            last_stop_out_date=self._last_stop_out_date,
+            last_stop_out_side=self._last_stop_out_side,
+            config=self.config,
+            cooldown_penalty_func=self._cooldown_penalty,
+            pending_entries=self._pending_entries,
+            cycle_counter=self._cycle_counter,
+            last_signal_flip_cycle=self._last_signal_flip_cycle,
+            min_flip_interval_bars=self._min_flip_interval_bars,
+            context=context,
+        )
 
     def _evaluate_flip_gate(self) -> tuple[bool, str]:
         from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate
@@ -480,16 +592,25 @@ class AssetEngine:
         self._log_confidence_buckets()
 
     def _poll_pending_entries(self, df: pd.DataFrame) -> None:
-        self._entry.poll_pending_entries(df)
+        self._entry.poll_pending_entries(df, self)
 
     def _decision_to_dict(self, decision: TradeDecision):
-        return self._metrics.decision_to_dict(decision)
+        from paper_trading.services.metrics_service import MetricsService
+        return MetricsService.decision_to_dict(
+            decision,
+            pos_mgr_position=self.pos_mgr.position,
+            model=self.model,
+            name=self.name,
+        )
 
     def _position_pnl(self, current_price):
-        return self._position.position_pnl(current_price)
+        return self.pos_mgr.position_pnl(current_price)
 
     def _ensure_position_synced(self):
-        self._position.ensure_position_synced()
+        self._position.ensure_position_synced(
+            position=self.position,
+            pos_mgr=self.pos_mgr,
+        )
 
     def update_pnl(self):
         self._pnl.update_pnl()
@@ -499,19 +620,68 @@ class AssetEngine:
         return self._pnl.mtm_value
 
     def get_metrics(self):
-        return self._metrics.get_metrics()
+        from paper_trading.services.metrics_service import MetricsService
+        return MetricsService.get_metrics(
+            name=self.name,
+            ensure_position_synced=self._ensure_position_synced,
+            pos_mgr=self.pos_mgr,
+            current_value=self.current_value,
+            peak_value=self.peak_value,
+            initial_capital=self.initial_capital,
+            model=self.model,
+            trade_log=self.trade_log,
+            prob_history=self.prob_history,
+            last_signal_date=self.last_signal_date,
+            validity_sm=self.validity_sm,
+            sl_mult=self.sl_mult,
+            tp_mult=self.tp_mult,
+            regime_geometry=self.regime_geometry,
+            governance=self.governance,
+            current_price=self.current_price,
+            position=self.position,
+            _meta_label_model=getattr(self, "_meta_label_model", None),
+            _last_meta_proba=getattr(self, "_last_meta_proba", None),
+            _scale_out_plan=self._scale_out_plan,
+            _last_stability=self._last_stability,
+            _last_psi_drift=self._last_psi_drift,
+            mtm_value=self.mtm_value,
+        )
 
     def _save_trade_journal(self, trade):
-        self._position.save_trade_journal(trade)
+        if self.state_store is not None:
+            self.state_store.append_trade(trade)
 
     def _log_confidence_buckets(self):
-        self._metrics.log_confidence_buckets()
+        from paper_trading.services.metrics_service import MetricsService
+        MetricsService.log_confidence_buckets(
+            name=self.name,
+            prob_history=self.prob_history,
+            state_store=self.state_store,
+        )
 
     def update_validity(self, halt: dict | None = None):
-        return self._governance.update_validity(halt)
+        from paper_trading.services.governance_service import GovernanceService
+        return GovernanceService.update_validity(
+            name=self.name,
+            halt=halt,
+            check_halt_conditions=self.check_halt_conditions,
+            validity_sm=self.validity_sm,
+            last_stability=self._last_stability,
+            last_psi_drift=self._last_psi_drift,
+        )
 
     def check_halt_conditions(self, metrics: dict | None = None):
-        return self._governance.check_halt_conditions(metrics)
+        from paper_trading.services.governance_service import GovernanceService
+        return GovernanceService.check_halt_conditions(
+            get_metrics=(lambda: metrics if metrics is not None else self.get_metrics()),
+            name=self.name,
+            halt_config=self.halt_config,
+            last_signal_date=self.last_signal_date,
+            prob_history=self.prob_history,
+            expected_prob_conf=self.expected_prob_conf,
+            governance=self.governance,
+            last_psi_drift=self._last_psi_drift,
+        )
 
     def set_capital_base(self, new_base: float) -> None:
         self._pnl.set_capital_base(new_base)

@@ -111,6 +111,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.3
+        trailing_distance_mult: 1.0
   USDCHF:
     ticker: USDCHF=X
     allocation: 0.040
@@ -127,6 +133,12 @@ assets:
       RED:
         sl_mult: 1.41
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.33
+        trailing_distance_mult: 1.0
   AUDCHF:
     ticker: AUDCHF=X
     allocation: 0.050
@@ -142,6 +154,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.33
+        trailing_distance_mult: 1.0
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.050
@@ -158,6 +176,12 @@ assets:
       RED:
         sl_mult: 0.59
         tp_mult: 0.74
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.33
+        trailing_distance_mult: 1.0
   ES:
     ticker: ES=F
     allocation: 0.070
@@ -173,6 +197,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.33
+        trailing_distance_mult: 0.5
   NQ:
     ticker: NQ=F
     allocation: 0.070
@@ -188,6 +218,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 0.5
   GBPCAD:
     ticker: GBPCAD=X
     allocation: 0.050
@@ -203,6 +239,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.3
+        trailing_distance_mult: 1.5
   GBPNZD:
     ticker: GBPNZD=X
     allocation: 0.050
@@ -219,6 +261,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.3
+        trailing_distance_mult: 1.5
   NZDCAD:
     ticker: NZDCAD=X
     allocation: 0.050
@@ -234,6 +282,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.3
+        trailing_distance_mult: 0.8
   ^DJI:
     ticker: ^DJI
     allocation: 0.040
@@ -250,6 +304,12 @@ assets:
       RED:
         sl_mult: 2.40
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.3
+        trailing_distance_mult: 0.5
   EURUSD:
     ticker: EURUSD=X
     allocation: 0.040
@@ -266,6 +326,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.3
+        trailing_distance_mult: 1.0
   NZDUSD:
     ticker: NZDUSD=X
     allocation: 0.050
@@ -282,6 +348,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.5
+        trailing_distance_mult: 0.8
 
   # ── New additions (filter sweep 2026-06) ────────────────────────────────
   GBPAUD:
@@ -300,6 +372,12 @@ assets:
       RED:
         sl_mult: 1.20
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.33
+        trailing_distance_mult: 1.0
   NZDCHF:
     ticker: NZDCHF=X
     allocation: 0.070
@@ -316,6 +394,12 @@ assets:
       RED:
         sl_mult: 1.20
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.8
+        trailing_distance_mult: 0.8
   CADCHF:
     ticker: CADCHF=X
     allocation: 0.050
@@ -332,6 +416,12 @@ assets:
       RED:
         sl_mult: 1.20
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 0.8
   AUDUSD:
     ticker: AUDUSD=X
     allocation: 0.040
@@ -348,6 +438,12 @@ assets:
       RED:
         sl_mult: 1.07
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 0.8
   AUDNZD:
     ticker: AUDNZD=X
     allocation: 0.030
@@ -364,6 +460,12 @@ assets:
       RED:
         sl_mult: 0.80
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.5
+        trailing_distance_mult: 1.0
 
   # ── Remaining filter survivors 2026-06 ────────────────────────────────────
   EURCHF:
@@ -382,6 +484,12 @@ assets:
       RED:
         sl_mult: 1.20
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.8
+        trailing_distance_mult: 0.8
   EURCAD:
     ticker: EURCAD=X
     allocation: 0.020
@@ -398,6 +506,12 @@ assets:
       RED:
         sl_mult: 1.20
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.5
+        trailing_distance_mult: 1.0
   EURNZD:
     ticker: EURNZD=X
     allocation: 0.030
@@ -414,6 +528,12 @@ assets:
       RED:
         sl_mult: 1.07
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.5
+        trailing_distance_mult: 1.5
   GBPCHF:
     ticker: GBPCHF=X
     allocation: 0.030
@@ -430,3 +550,9 @@ assets:
       RED:
         sl_mult: 1.20
         tp_mult: 0.80
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 0.8
+        trailing_distance_mult: 1.0

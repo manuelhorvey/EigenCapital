@@ -1,13 +1,8 @@
 import logging
 
-import pandas as pd
-import pytz
-
 from paper_trading.entry.decision import PositionIntent, PositionSide
 
 logger = logging.getLogger("quantforge.position_service")
-
-ET = pytz.timezone("US/Eastern")
 
 
 class PositionService:
@@ -217,7 +212,8 @@ class PositionService:
         return mutations
 
     def record_stop_out(
-        self, side: str, exit_price: float, *, pos_mgr, regime_adjusted_entry, entry_price, churn_ratio_threshold
+        self, side: str, exit_price: float, *, pos_mgr, regime_adjusted_entry, entry_price,
+        churn_ratio_threshold, cycle_counter,
     ):
         sl_price = None
         if pos_mgr.position is not None:
@@ -233,22 +229,20 @@ class PositionService:
         return {
             "_last_stop_out_price": sl_price,
             "_last_stop_out_side": side,
-            "_last_stop_out_date": pd.Timestamp.now(tz="UTC").normalize(),
+            "_last_stop_out_cycle": cycle_counter,
             "_cooldown_score": 1.0,
-            "_last_cooldown_update": pd.Timestamp.now(tz="UTC"),
+            "_last_cooldown_update_cycle": cycle_counter,
         }
 
-    def cooldown_penalty(self, side: str, *, last_stop_out_side, cooldown_score, last_cooldown_update, config) -> float:
+    def cooldown_penalty(self, side: str, *, last_stop_out_side, cooldown_score,
+                          last_cooldown_update_cycle, config, cycle_counter) -> float:
         if last_stop_out_side != side:
             return 0.0
         if not cooldown_score or cooldown_score <= 0:
             return 0.0
 
-        now = pd.Timestamp.now(tz="UTC")
-        elapsed_hours = (now - last_cooldown_update).total_seconds() / 3600
-
-        half_life = config.get("cooldown_half_life_hours", 4.0)
-        decay = 0.5 ** (elapsed_hours / half_life)
+        elapsed_cycles = cycle_counter - last_cooldown_update_cycle
+        half_life = config.get("cooldown_half_life_cycles", 48)
+        decay = 0.5 ** (elapsed_cycles / max(half_life, 1))
         new_score = cooldown_score * decay
-
         return new_score

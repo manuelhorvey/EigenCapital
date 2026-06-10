@@ -454,7 +454,7 @@ class TestStopOutCooldown:
         engine._regime_adjusted_entry = True
         engine._record_stop_out("short", exit_price=158.32)
         assert engine._last_stop_out_side is None
-        assert engine._last_stop_out_date is None
+        assert engine._last_stop_out_cycle == -999
 
     def test_blowthrough_case_sets_cooldown(self, engine):
         """Price blows through SL — cooldown applied."""
@@ -473,4 +473,4 @@ class TestStopOutCooldown:
         engine._regime_adjusted_entry = True
         engine._record_stop_out("short", exit_price=158.55)
         assert engine._last_stop_out_side == "short"
-        assert engine._last_stop_out_date is not None
+        assert engine._last_stop_out_cycle == 0

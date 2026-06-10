@@ -291,6 +291,12 @@ class DynamicSLTPEngine:
                 new_tp = entry_price + (current_tp - entry_price) * factor
             else:
                 new_tp = entry_price - (entry_price - current_tp) * factor
+            # Recheck RR after nudge — don't violate min RR
+            new_sl_dist = abs(entry_price - current_sl)
+            new_tp_dist = abs(new_tp - entry_price)
+            new_rr = new_tp_dist / (new_sl_dist + 1e-9)
+            if new_rr < self.min_rr_ratio:
+                return PostEntryAdjustment()
             return PostEntryAdjustment(
                 new_tp=new_tp,
                 reason=f"tp_nudged_{factor:.2f}x_progress_{progress:.2f}",

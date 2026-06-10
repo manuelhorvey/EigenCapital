@@ -164,10 +164,10 @@ class AssetEngine:
         self.governance.load_narrative_state()
         self.governance.load_liquidity_state(getattr(self, "price_data", None))
         self._last_stop_out_side: str | None = None
-        self._last_stop_out_date: pd.Timestamp | None = None
+        self._last_stop_out_cycle: int = -999
         self._last_stop_out_price: float | None = None
         self._cooldown_score: float = 0.0
-        self._last_cooldown_update: pd.Timestamp | None = None
+        self._last_cooldown_update_cycle: int = -999
         self._entry_price: float | None = None
         self._regime_adjusted_entry: bool = False
         self._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
@@ -343,26 +343,27 @@ class AssetEngine:
             regime_adjusted_entry=self._regime_adjusted_entry,
             entry_price=self._entry_price,
             churn_ratio_threshold=self._churn_ratio_threshold,
+            cycle_counter=self._cycle_counter,
         )
         if not mutations:
             return
         self._last_stop_out_price = mutations["_last_stop_out_price"]
         self._last_stop_out_side = mutations["_last_stop_out_side"]
-        self._last_stop_out_date = mutations["_last_stop_out_date"]
+        self._last_stop_out_cycle = mutations["_last_stop_out_cycle"]
         self._cooldown_score = mutations["_cooldown_score"]
-        self._last_cooldown_update = mutations["_last_cooldown_update"]
+        self._last_cooldown_update_cycle = mutations["_last_cooldown_update_cycle"]
 
     def _cooldown_penalty(self, side: str) -> float:
         new_score = self._position.cooldown_penalty(
             side,
             last_stop_out_side=self._last_stop_out_side,
             cooldown_score=self._cooldown_score,
-            last_cooldown_update=self._last_cooldown_update,
+            last_cooldown_update_cycle=self._last_cooldown_update_cycle,
             config=self.config,
+            cycle_counter=self._cycle_counter,
         )
-        now = pd.Timestamp.now(tz="UTC")
         self._cooldown_score = new_score
-        self._last_cooldown_update = now
+        self._last_cooldown_update_cycle = self._cycle_counter
         if new_score < 0.05:
             self._last_stop_out_side = None
         return self._cooldown_score
@@ -371,7 +372,7 @@ class AssetEngine:
         return self._entry.can_enter(
             side,
             price,
-            last_stop_out_date=self._last_stop_out_date,
+            last_stop_out_cycle=self._last_stop_out_cycle,
             last_stop_out_side=self._last_stop_out_side,
             config=self.config,
             cooldown_penalty_func=self._cooldown_penalty,

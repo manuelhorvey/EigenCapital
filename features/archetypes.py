@@ -37,19 +37,23 @@ class ArchetypeClassifier:
             bb_z = row.get("bb_zscore", 0)
             ema_s = row.get("ema_spread", 0)
 
-            # 1. Momentum Ignition
-            if adx > self.adx_threshold and abs(bb_z) > 1.5 and abs(ema_s) > 0.01:
-                return SetupArchetype.MOMENTUM_IGNITION
-
-            # 2. Mean Reversion
-            if adx < self.adx_threshold and (rsi > (100 - self.rsi_extreme) or rsi < self.rsi_extreme):
-                return SetupArchetype.MEAN_REVERSION
-
-            # 3. Breakout Test
+            # 1. Breakout Test (most extreme — price at outer Bollinger Band)
             if abs(bb_z) > 2.0 and adx > self.adx_threshold:
                 return SetupArchetype.BREAKOUT_TEST
 
-            # 4. Vol Expansion (Approximated by low ADX turning higher)
+            # 2. Momentum Ignition (strong trending move)
+            if adx > self.adx_threshold and abs(bb_z) > 1.5 and abs(ema_s) > 0.01:
+                return SetupArchetype.MOMENTUM_IGNITION
+
+            # 3. Trend Pullback (trending, price near EMA, not extreme)
+            if adx > self.adx_threshold and abs(ema_s) < 0.005 and 40 <= rsi <= 60:
+                return SetupArchetype.TREND_PULLBACK
+
+            # 4. Mean Reversion (no trend, RSI extreme)
+            if adx < self.adx_threshold and (rsi > (100 - self.rsi_extreme) or rsi < self.rsi_extreme):
+                return SetupArchetype.MEAN_REVERSION
+
+            # 5. Vol Expansion (Approximated by low ADX turning higher)
             if adx < 20.0 and abs(bb_z) < 1.5:
                 return SetupArchetype.VOL_EXPANSION
 

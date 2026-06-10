@@ -31,6 +31,7 @@ from paper_trading.orchestrator.actor import (
     compute_health_snapshot,
 )
 from paper_trading.replay.wal import WalWriter
+from risk.drawdown_controls import check_drawdown_circuit_breaker
 
 logger = logging.getLogger("quantforge.orchestrator.engine")
 
@@ -144,7 +145,39 @@ class EngineOrchestrator:
         }
         self._write_health_events(health)
 
-        # ── Portfolio circuit breaker ──────────────────────────────────────
+        # ── Drawdown circuit breaker ──────────────────────────────────────
+        total_value = sum(
+            actor._engine.current_value for actor in self._actors.values()
+            if hasattr(actor._engine, "current_value")
+        )
+        if self._peak_portfolio_value is None:
+            self._peak_portfolio_value = total_value
+        self._peak_portfolio_value = max(self._peak_portfolio_value, total_value)
+        dd_result = check_drawdown_circuit_breaker(
+            total_value, self._peak_portfolio_value,
+            drawdown_limit=-0.15,
+        )
+        results["drawdown"] = dd_result
+        if dd_result["halted"]:
+            logger.error(
+                "DRAWDOWN CIRCUIT BREAKER TRIGGERED: dd=%.2f%% — halting all actors",
+                dd_result["drawdown"] * 100,
+            )
+            for actor in self._actors.values():
+                if hasattr(actor._engine, "pos_mgr"):
+                    actor._engine.pos_mgr.exposure_multiplier = 0.0
+            self._emergency_halt = True
+            results["circuit_breaker"] = {
+                "triggered": True,
+                "reason": f"drawdown_{dd_result['drawdown']:.4f}",
+            }
+            return results
+        elif dd_result["exposure_multiplier"] < 1.0:
+            for actor in self._actors.values():
+                if hasattr(actor._engine, "pos_mgr"):
+                    actor._engine.pos_mgr.exposure_multiplier = dd_result["exposure_multiplier"]
+
+        # ── Halt ratio circuit breaker ──────────────────────────────────────
         if not health.is_system_healthy:
             logger.error(
                 "PORTFOLIO CIRCUIT BREAKER: halt_ratio=%.2f exceeds max=%.2f — initiating emergency shutdown",

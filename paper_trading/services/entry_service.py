@@ -82,7 +82,7 @@ class EntryService:
         side,
         price,
         *,
-        last_stop_out_date,
+        last_stop_out_cycle,
         last_stop_out_side,
         config,
         cooldown_penalty_func,
@@ -92,18 +92,15 @@ class EntryService:
         min_flip_interval_bars,
         context=None,
     ) -> tuple[bool, str]:
-        if last_stop_out_date is not None:
-            cross_cooldown_hours = config.get("stopout_cross_side_cooldown_hours", 1.0)
-            now = pd.Timestamp.now(tz="UTC")
-            elapsed_hours = (now - last_stop_out_date).total_seconds() / 3600
-            if elapsed_hours < cross_cooldown_hours:
-                remaining = round(cross_cooldown_hours - elapsed_hours, 2)
-                return False, f"cross_side_stopout_cooldown_{remaining}h"
+        if last_stop_out_cycle is not None:
+            cross_cooldown_cycles = config.get("stopout_cross_side_cooldown_cycles", 1)
+            elapsed_cycles = cycle_counter - last_stop_out_cycle
+            if elapsed_cycles < cross_cooldown_cycles:
+                remaining = cross_cooldown_cycles - elapsed_cycles
+                return False, f"cross_side_stopout_cooldown_{remaining}"
 
-        if last_stop_out_date is not None and last_stop_out_side == side:
-            now = pd.Timestamp.now(tz="UTC")
-            if last_stop_out_date == now.normalize():
-                return False, "same_day_stopout_lock"
+        if last_stop_out_cycle is not None and last_stop_out_side == side and cycle_counter - last_stop_out_cycle < 1:
+            return False, "same_cycle_stopout_lock"
 
         penalty = cooldown_penalty_func(side)
         if penalty > 0:
@@ -147,6 +144,67 @@ class EntryService:
             liquidity_size_scalar=asset.governance._liquidity_size_scalar,
         )
 
+        # ── Step 1: Compute barriers first (single source of truth for SL/TP) ──
+        if asset.config.get("dynamic_sltp", {}).get("enabled", False):
+            regime = getattr(asset, "_current_regime", "neutral")
+            sltp_result = asset._sltp_engine.compute_barriers(
+                entry_price=entry_price,
+                side=side,
+                df=data,
+                sl_mult=sl_mult,
+                tp_mult=tp_mult,
+                regime=regime,
+                vol=vol,
+                meta_confidence=asset._last_meta_proba,
+            )
+            intent_sl = sltp_result.stop_loss
+        else:
+            if side == PositionSide.LONG:
+                intent_sl = entry_price * (1 - vol * sl_mult)
+            else:
+                intent_sl = entry_price * (1 + vol * sl_mult)
+
+        # ── Step 2: Compute TP geometry from actual sl_dist ──
+        sl_dist = abs(intent_sl - entry_price)
+        if tp_geo is None:
+            from paper_trading.entry.tp_compiler import compute_take_profit
+
+            tp_geo = compute_take_profit(
+                entry_price,
+                sl_dist,
+                state,
+                getattr(asset, "_entry_archetype", "UNKNOWN"),
+                asset._structure_detector.detect(data),
+            )
+
+        final_tp = entry_price + (tp_geo.tp_distance if side == PositionSide.LONG else -tp_geo.tp_distance)
+
+        # ── Step 3: Invariant checks ──
+        assert sl_dist > 0, f"SL distance must be positive, got {sl_dist}"
+        assert tp_geo.tp_distance > 0, f"TP distance must be positive, got {tp_geo.tp_distance}"
+        assert not pd.isna(intent_sl), f"NaN stop loss computed for {asset.name}"
+        assert not pd.isna(final_tp), f"NaN take profit computed for {asset.name}"
+        assert sl_mult > 0, f"SL multiplier must be positive, got {sl_mult}"
+        assert tp_mult > 0, f"TP multiplier must be positive, got {tp_mult}"
+        assert intent_sl > 0, f"Stop loss must be positive, got {intent_sl}"
+        assert final_tp > 0, f"Take profit must be positive, got {final_tp}"
+
+        # ── Step 4: RR validation ──
+        rr = abs(final_tp - entry_price) / (sl_dist + 1e-9)
+        min_rr = asset.config.get("dynamic_sltp", {}).get("min_rr_ratio", 1.5)
+        if rr < min_rr:
+            logger.warning(
+                "%s: RR=%.2f < min=%.2f, aborting entry (sl_dist=%.6f tp=%.6f)",
+                asset.name, rr, min_rr, sl_dist, final_tp,
+            )
+            return
+
+        # ── Step 5: NaN guard on final SL/TP ──
+        if pd.isna(intent_sl) or pd.isna(final_tp):
+            logger.error("%s: NaN SL=%.6f or TP=%.6f, aborting entry", asset.name, intent_sl, final_tp)
+            return
+
+        # ── Step 5: Submit to broker with agreed FINAL values ──
         fill_price = entry_price
         entry_slippage_bps = 0.0
         mt5_ticket = None
@@ -182,12 +240,11 @@ class EntryService:
                         side.value,
                     )
                 else:
-                    if side == PositionSide.LONG:
-                        mt5_sl = entry_price * (1 - vol * sl_mult)
-                        mt5_tp = entry_price * (1 + vol * tp_mult)
-                    else:
-                        mt5_sl = entry_price * (1 + vol * sl_mult)
-                        mt5_tp = entry_price * (1 - vol * tp_mult)
+                    mt5_sl = float(intent_sl)
+                    mt5_tp = float(final_tp)
+                    if pd.isna(mt5_sl) or pd.isna(mt5_tp):
+                        logger.error("%s: NaN SL/TP, aborting MT5 order", asset.name)
+                        return
                     fill_price, order_id = asset.execution_bridge.submit_market_order(
                         asset.ticker,
                         broker_side,
@@ -205,51 +262,34 @@ class EntryService:
                             mt5_sl,
                             mt5_tp,
                         )
+                    # Broker submission consistency invariant
+                    stored_sl = float(intent_sl)
+                    stored_tp = float(final_tp)
+                    if abs(mt5_sl - stored_sl) / max(abs(stored_sl), 1e-9) > 0.001:
+                        logger.error(
+                            "%s: BROKER SL MISMATCH submitted=%.5f stored=%.5f",
+                            asset.name, mt5_sl, stored_sl,
+                        )
+                    if abs(mt5_tp - stored_tp) / max(abs(stored_tp), 1e-9) > 0.001:
+                        logger.error(
+                            "%s: BROKER TP MISMATCH submitted=%.5f stored=%.5f",
+                            asset.name, mt5_tp, stored_tp,
+                        )
             else:
                 fill_price, entry_slippage_bps, _ = asset.execution_bridge.fill_price(
                     asset.ticker, broker_side, qty, entry_price
                 )
         asset._last_entry_slippage = entry_slippage_bps
 
-        if asset.config.get("dynamic_sltp", {}).get("enabled", False):
-            regime = getattr(asset, "_current_regime", "neutral")
-            sltp_result = asset._sltp_engine.compute_barriers(
-                entry_price=fill_price,
-                side=side,
-                df=data,
-                sl_mult=sl_mult,
-                tp_mult=tp_mult,
-                regime=regime,
-                vol=vol,
-                meta_confidence=asset._last_meta_proba,
-            )
-            intent = PositionIntent(
-                side=side,
-                entry_price=fill_price,
-                entry_date=entry_date,
-                stop_loss=sltp_result.stop_loss,
-                take_profit=sltp_result.take_profit,
-                vol=vol,
-            )
-        else:
-            intent = PositionIntent.from_price_and_vol(side, fill_price, entry_date, vol, sl_mult, tp_mult)
-
-        if tp_geo is None:
-            from paper_trading.entry.tp_compiler import compute_take_profit
-
-            sl_dist = abs(intent.stop_loss - fill_price)
-            tp_geo = compute_take_profit(
-                fill_price,
-                sl_dist,
-                state,
-                getattr(asset, "_entry_archetype", "UNKNOWN"),
-                asset._structure_detector.detect(data),
-            )
-
-        if side == PositionSide.LONG:
-            intent.take_profit = fill_price + tp_geo.tp_distance
-        else:
-            intent.take_profit = fill_price - tp_geo.tp_distance
+        # ── Step 6: Build definite intent ──
+        intent = PositionIntent(
+            side=side,
+            entry_price=fill_price,
+            entry_date=entry_date,
+            stop_loss=float(intent_sl),
+            take_profit=float(final_tp),
+            vol=vol,
+        )
 
         asset.pos_mgr.open(intent)
 
@@ -400,7 +440,7 @@ class EntryService:
                 ok, reason = self.can_enter(
                     side,
                     float(df["close"].iloc[-1]),
-                    last_stop_out_date=asset._last_stop_out_date,
+                    last_stop_out_cycle=asset._last_stop_out_cycle,
                     last_stop_out_side=asset._last_stop_out_side,
                     config=asset.config,
                     cooldown_penalty_func=asset._cooldown_penalty,

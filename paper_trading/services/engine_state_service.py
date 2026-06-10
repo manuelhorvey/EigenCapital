@@ -80,7 +80,7 @@ class EngineStateService:
                 "regime_geometry": asset.regime_geometry,
                 "soft_warnings": halt.get("soft_warnings", []),
                 "stop_out_last_side": getattr(asset, "_last_stop_out_side", None),
-                "stop_out_last_date": (str(d) if (d := getattr(asset, "_last_stop_out_date", None)) else None),
+                "stop_out_last_cycle": getattr(asset, "_last_stop_out_cycle", None),
             }
         total_value = self.compute_mtm_total()
         rp_weights = {}

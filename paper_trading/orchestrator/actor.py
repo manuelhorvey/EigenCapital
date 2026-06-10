@@ -149,6 +149,8 @@ class AssetActor:
             self._queue_persist("signal", signal or {})
             return AssetResult.ok(self.name, signal or {}, self.metrics.cycle_id, self.metrics.cycle_duration_ms)
         except Exception as e:
+            import traceback
+            logger.error("%s actor exception:\n%s", self.name, traceback.format_exc())
             self._handle_failure(t0, str(e))
             return AssetResult.failed(self.name, str(e), self.metrics.cycle_id, self.metrics.cycle_duration_ms)
 

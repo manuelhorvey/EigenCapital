@@ -19,6 +19,7 @@ data/shadow_feedback/
 data/shadow_learning/
 data/sandbox/
 data/research/
+paper_trading/data/research/
 .ruff_cache/
 .hypothesis/
 paper_trading/dashboard/node_modules/

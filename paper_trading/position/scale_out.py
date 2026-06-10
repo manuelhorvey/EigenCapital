@@ -70,6 +70,10 @@ class ScaleOutEngine:
             # Default fallback (Balanced)
             tier_specs = [(1 / 3, 0.50), (1 / 3, 1.00), (1 / 3, 1.50)]
 
+        total = sum(f for f, _ in tier_specs)
+        if abs(total - 1.0) > 1e-6:
+            raise ValueError(f"build_plan tier fractions must sum to 1.0, got {total:.4f}")
+
         tp_total = abs(take_profit - entry_price)
         tiers = []
         for fraction, mult in tier_specs:

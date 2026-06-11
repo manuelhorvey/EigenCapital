@@ -10,16 +10,14 @@ from monitoring.psi_monitor import PSIMonitor, PSISnapshot
 from monitoring.validity_state_machine import ValidityStateMachine as _ValidityStateMachine
 from paper_trading.asset_pnl_controller import AssetPnlController
 from paper_trading.attribution.collector import AttributionCollector, TradeAttributionRecord
-from paper_trading.config_manager import get_config
-from paper_trading.entry.decision import EntryAction, PositionSide, SignalType, TradeDecision
+from paper_trading.config_manager import get_config  # noqa: F401  (patched by tests)
+from paper_trading.entry.decision import TradeDecision
 from paper_trading.governance.asset import AssetGovernance
 from paper_trading.governance.conviction_gate import RegimeRow
-from paper_trading.governance.multipliers import compute_effective_multipliers
 from paper_trading.governance.regime import RegimeClassifier
 from paper_trading.inference.pipeline import AssetInferencePipeline
 from paper_trading.inference.training import AssetTrainingPipeline
 from paper_trading.ops.data_fetcher import flatten
-from paper_trading.ops.market_data_service import get_market_data_service
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
 from paper_trading.position.scale_out import build_scale_out_from_config

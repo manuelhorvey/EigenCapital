@@ -163,6 +163,7 @@ class _FrameProtocol:
     def _get_conn(self) -> _FrameConnection:
         with self._rr_lock:
             import itertools
+
             return next(itertools.cycle(self._conns))
 
     def send_request(self, method: str, params: dict | None = None) -> dict:

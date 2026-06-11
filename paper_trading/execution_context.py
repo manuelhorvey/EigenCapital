@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -17,17 +16,18 @@ class ExecutionContext:
     for tests and REPL usage.
     """
 
-    state_store: Optional[object] = None
-    execution_bridge: Optional[object] = None
-    market_data_service: Optional[object] = None
-    engine_config: Optional[object] = None
+    state_store: object | None = None
+    execution_bridge: object | None = None
+    market_data_service: object | None = None
+    engine_config: object | None = None
 
     def get_state_store(self) -> object:
         if self.state_store is not None:
             return self.state_store
+        import os
+
         from paper_trading.state_store import StateStore
 
-        import os
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return StateStore(base)
 

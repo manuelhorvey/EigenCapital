@@ -8,13 +8,12 @@ from enum import Enum
 import pytz
 from dotenv import load_dotenv
 
-from paper_trading.asset_engine import AssetEngine
+# Re-exported from child modules for backward compatibility
+from paper_trading.asset_engine import AssetEngine  # noqa: F401
 from paper_trading.config_manager import get_config
 from paper_trading.execution.bridge import ExecutionBridge
 from paper_trading.execution.paper_broker import PaperBroker
 from paper_trading.governance.risk import reset as _reset_risk_governance
-
-# Re-exported from child modules for backward compatibility
 from paper_trading.ops.data_fetcher import (  # noqa: F401
     _cache_path,
     fetch_history,

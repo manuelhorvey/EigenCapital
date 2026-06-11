@@ -124,7 +124,10 @@ def _attach_lead_lag_features(a: pd.DataFrame, df: pd.DataFrame, contract: Featu
 
 
 def build_features(
-    df: pd.DataFrame, macro: pd.DataFrame, ref: pd.DataFrame | None, contract: FeatureContract,
+    df: pd.DataFrame,
+    macro: pd.DataFrame,
+    ref: pd.DataFrame | None,
+    contract: FeatureContract,
     compute_labels: bool = True,
 ) -> pd.DataFrame:
     """

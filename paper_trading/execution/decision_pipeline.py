@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 
@@ -92,7 +93,9 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
     if ctx.decision.confidence < min_conf:
         logger.debug(
             "%s: skipping trade, confidence %.1f%% < min %.1f%%",
-            engine.name, ctx.decision.confidence, min_conf,
+            engine.name,
+            ctx.decision.confidence,
+            min_conf,
         )
         ctx.new_side = None
 
@@ -157,7 +160,9 @@ def manage_position(ctx: DecisionContext) -> None:
     if not ok:
         logger.info(
             "%s: entry gate blocking %s entry — %s",
-            engine.name, ctx.new_side, reason,
+            engine.name,
+            ctx.new_side,
+            reason,
         )
         ctx.new_side = None
 
@@ -210,9 +215,7 @@ def build_entry_artifacts(ctx: DecisionContext) -> None:
     elif entry_action == EntryAction.DEFER:
         from paper_trading.entry.deferred_entry import DeferredEntry
 
-        deferred_entry = DeferredEntry.from_decision(
-            d, max_bars=engine.config.get("entry_defer_max_bars", 5)
-        )
+        deferred_entry = DeferredEntry.from_decision(d, max_bars=engine.config.get("entry_defer_max_bars", 5))
 
     # Store artifacts on context for next stage
     ctx.engine._structure = structure
@@ -285,7 +288,7 @@ def update_prob_history(ctx: DecisionContext) -> None:
             "close_price": d.close_price,
         }
     )
-    MAX_PROB_HISTORY = 1000
+    MAX_PROB_HISTORY = 1000  # noqa: N806
     if len(engine.prob_history) > MAX_PROB_HISTORY:
         engine.prob_history = engine.prob_history[-MAX_PROB_HISTORY:]
     engine._log_confidence_buckets()

@@ -183,7 +183,11 @@ class EntryService:
         if raw_tp <= 0:
             logger.warning(
                 "%s: clamped negative TP %.6f → %.6f (entry=%.6f tp_dist=%.6f)",
-                asset.name, raw_tp, final_tp, entry_price, tp_geo.tp_distance,
+                asset.name,
+                raw_tp,
+                final_tp,
+                entry_price,
+                tp_geo.tp_distance,
             )
 
         # ── Step 3: Invariant checks ──

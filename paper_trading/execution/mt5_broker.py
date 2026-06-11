@@ -242,10 +242,7 @@ class MT5Broker(BrokerInterface):
         """Fetch mid-prices for multiple assets concurrently."""
         self.ensure_connected()
         results = self._client.batch_realtime_price(assets)
-        return {
-            a: (p if p is not None else 0.0)
-            for a, p in results.items()
-        }
+        return {a: (p if p is not None else 0.0) for a, p in results.items()}
 
     # ── Lot / Quantity conversion ──────────────────────────────────────
 

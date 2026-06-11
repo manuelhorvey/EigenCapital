@@ -522,25 +522,27 @@ class AssetEngine:
                     deferred_entry = None
 
                     if entry_action == EntryAction.ENTER:
-                        vol = self._tb_vol(df["close"]) if hasattr(self, "_tb_vol") else 0.01
-                        state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
-                        curr_sl_mult, _, _ = compute_effective_multipliers(
-                            base_sl=self.sl_mult,
-                            base_tp=self.tp_mult,
-                            validity_state=state,
-                            regime_geometry=self.regime_geometry,
-                            narrative_sl_mult=self.governance._narrative_sl_mult,
-                            liquidity_sl_mult=self.governance._liquidity_sl_mult,
-                            narrative_size_scalar=self.governance._narrative_size_scalar,
-                            liquidity_size_scalar=self.governance._liquidity_size_scalar,
-                        )
-                        sl_dist = decision.close_price * vol * curr_sl_mult
+                        dynamic_sltp_enabled = self.config.get("dynamic_sltp", {}).get("enabled", False)
+                        if not dynamic_sltp_enabled:
+                            vol = self._tb_vol(df["close"]) if hasattr(self, "_tb_vol") else 0.01
+                            state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
+                            curr_sl_mult, _, _ = compute_effective_multipliers(
+                                base_sl=self.sl_mult,
+                                base_tp=self.tp_mult,
+                                validity_state=state,
+                                regime_geometry=self.regime_geometry,
+                                narrative_sl_mult=self.governance._narrative_sl_mult,
+                                liquidity_sl_mult=self.governance._liquidity_sl_mult,
+                                narrative_size_scalar=self.governance._narrative_size_scalar,
+                                liquidity_size_scalar=self.governance._liquidity_size_scalar,
+                            )
+                            sl_dist = decision.close_price * vol * curr_sl_mult
 
-                        from paper_trading.entry.tp_compiler import compute_take_profit
+                            from paper_trading.entry.tp_compiler import compute_take_profit
 
-                        tp_geo = compute_take_profit(
-                            decision.close_price, sl_dist, state, decision.archetype, structure
-                        )
+                            tp_geo = compute_take_profit(
+                                decision.close_price, sl_dist, state, decision.archetype, structure
+                            )
 
                     elif entry_action == EntryAction.DEFER:
                         from paper_trading.entry.deferred_entry import DeferredEntry

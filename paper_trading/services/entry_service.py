@@ -399,25 +399,27 @@ class EntryService:
 
             tp_geo = None
             if entry_action == EntryAction.ENTER:
-                vol = self.tb_vol(df["close"] if isinstance(df, pd.DataFrame) and "close" in df.columns else df)
-                state = asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW"
-                curr_sl_mult, _, _ = compute_effective_multipliers(
-                    base_sl=asset.sl_mult,
-                    base_tp=asset.tp_mult,
-                    validity_state=state,
-                    regime_geometry=asset.regime_geometry,
-                    narrative_sl_mult=asset.governance._narrative_sl_mult,
-                    liquidity_sl_mult=asset.governance._liquidity_sl_mult,
-                    narrative_size_scalar=asset.governance._narrative_size_scalar,
-                    liquidity_size_scalar=asset.governance._liquidity_size_scalar,
-                )
-                sl_dist = float(df["close"].iloc[-1]) * vol * curr_sl_mult
+                dynamic_sltp_enabled = asset.config.get("dynamic_sltp", {}).get("enabled", False)
+                if not dynamic_sltp_enabled:
+                    vol = self.tb_vol(df["close"] if isinstance(df, pd.DataFrame) and "close" in df.columns else df)
+                    state = asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW"
+                    curr_sl_mult, _, _ = compute_effective_multipliers(
+                        base_sl=asset.sl_mult,
+                        base_tp=asset.tp_mult,
+                        validity_state=state,
+                        regime_geometry=asset.regime_geometry,
+                        narrative_sl_mult=asset.governance._narrative_sl_mult,
+                        liquidity_sl_mult=asset.governance._liquidity_sl_mult,
+                        narrative_size_scalar=asset.governance._narrative_size_scalar,
+                        liquidity_size_scalar=asset.governance._liquidity_size_scalar,
+                    )
+                    sl_dist = float(df["close"].iloc[-1]) * vol * curr_sl_mult
 
-                from paper_trading.entry.tp_compiler import compute_take_profit
+                    from paper_trading.entry.tp_compiler import compute_take_profit
 
-                tp_geo = compute_take_profit(
-                    float(df["close"].iloc[-1]), sl_dist, state, entry.decision.archetype, structure
-                )
+                    tp_geo = compute_take_profit(
+                        float(df["close"].iloc[-1]), sl_dist, state, entry.decision.archetype, structure
+                    )
 
             policy_dec = asset._execution_policy.handle(
                 entry_action, entry.decision, entry.decision.archetype, structure, tp_geo=tp_geo, deferred=entry

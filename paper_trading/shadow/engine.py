@@ -171,17 +171,17 @@ class ShadowSLTPEngine:
 
         # Check SL/TP hit
         if side == "long":
-            if current_price <= sl:
+            if sl is not None and current_price <= sl:
                 self._close_shadow(current_price, date, "sl")
                 return
-            if current_price >= tp:
+            if tp is not None and current_price >= tp:
                 self._close_shadow(current_price, date, "tp")
                 return
         else:
-            if current_price >= sl:
+            if sl is not None and current_price >= sl:
                 self._close_shadow(current_price, date, "sl")
                 return
-            if current_price <= tp:
+            if tp is not None and current_price <= tp:
                 self._close_shadow(current_price, date, "tp")
                 return
 

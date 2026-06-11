@@ -645,6 +645,28 @@ def handle_archetype_stats(path: str, query: dict) -> str:
     return data
 
 
+def handle_live_attribution(path: str, query: dict) -> str:
+    """Current running MAE/MFE for all open positions."""
+    snapshot = _STORE.load_snapshot()
+    open_positions = snapshot.open_positions if snapshot else {}
+    live = []
+    for name, data in open_positions.items():
+        pos = data.get("position", {})
+        live.append(
+            {
+                "asset": name,
+                "side": pos.get("side"),
+                "entry_price": pos.get("entry"),
+                "current_value": data.get("current_value"),
+                "running_mae": data.get("running_mae"),
+                "running_mfe": data.get("running_mfe"),
+            }
+        )
+    result = json.dumps(live, indent=2, default=str)
+    cache_set("/attribution/live.json", result)
+    return result
+
+
 GET_ROUTES: dict[str, tuple] = {
     "/state.json": (handle_state, False),
     "/trades.json": (handle_trades, False),
@@ -669,6 +691,7 @@ GET_ROUTES: dict[str, tuple] = {
     "/shadow/trades.json": (handle_shadow_trades_route, False),
     "/shadow/summary.json": (handle_shadow_summary, False),
     "/archetype/stats.json": (handle_archetype_stats, False),
+    "/attribution/live.json": (handle_live_attribution, False),
     "/attribution/waterfall.json": (handle_attribution_waterfall, False),
     "/analytics/snapshot.json": (handle_analytics_snapshot, False),
     "/ping": (handle_ping, False),

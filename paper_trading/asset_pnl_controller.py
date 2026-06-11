@@ -43,6 +43,7 @@ class AssetPnlController:
     def update_pnl(self):
         asset = self.asset
         asset._ensure_position_synced()
+        self._track_running_excursion(asset)
 
         max_hold = asset.config.get("max_holding_days")
         if (
@@ -132,6 +133,21 @@ class AssetPnlController:
                 archetype,
             )
         asset._tp_reconciled = True
+
+    def _track_running_excursion(self, asset) -> None:
+        if not asset.pos_mgr.has_position():
+            return
+        entry = asset.pos_mgr.position.entry_price
+        cp = asset.current_price
+        if entry is None or cp is None:
+            return
+        raw_return = (cp - entry) / entry
+        side = asset.pos_mgr.position.side
+        from quantforge.domain.entities.position import PositionSide
+
+        excursion = raw_return if side == PositionSide.LONG else -raw_return
+        asset._running_mae = max(getattr(asset, "_running_mae", 0.0), -excursion)
+        asset._running_mfe = max(getattr(asset, "_running_mfe", 0.0), excursion)
 
     def _check_scale_out_tiers(self, asset) -> None:
         if asset._scale_out_plan is None:

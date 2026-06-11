@@ -1,5 +1,6 @@
 import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ZAxis, Cell } from 'recharts'
 import { useAttributionTrades } from '../../hooks/useAttributionTrades'
+import { useLiveAttribution } from '../../hooks/useLiveAttribution'
 import ChartContainer from '../ui/ChartContainer'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
@@ -13,7 +14,7 @@ const ARCHETYPE_COLORS: Record<string, string> = {
 
 export default function MaeMfeScatter() {
   const { data, isPending } = useAttributionTrades(200)
-  const isEmpty = !data || data.length === 0
+  const { data: liveData } = useLiveAttribution()
 
   const chartData = (data ?? [])
     .filter(t => t.exit_mae > 0 || t.exit_mfe > 0)
@@ -24,10 +25,26 @@ export default function MaeMfeScatter() {
       r: t.exit_realized_r,
       asset: t.asset,
       trade_id: t.trade_id,
+      isLive: false as const,
     }))
 
+  const livePoints = (liveData ?? [])
+    .filter(p => p.running_mae != null && p.running_mfe != null)
+    .map(p => ({
+      mae: p.running_mae!,
+      mfe: p.running_mfe!,
+      archetype: 'LIVE',
+      r: 0,
+      asset: p.asset,
+      trade_id: `live-${p.asset}`,
+      isLive: true as const,
+    }))
+
+  const allData = [...chartData, ...livePoints]
+  const isEmpty = allData.length === 0
+
   return (
-    <ChartContainer title="MAE / MFE Scatter" accent="emerald" isPending={isPending} isEmpty={isEmpty}>
+    <ChartContainer title="MAE / MFE Scatter" accent="emerald" isPending={isPending} isEmpty={isEmpty} emptyMessage="No closed trades yet — appears on exit">
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis
@@ -53,9 +70,13 @@ export default function MaeMfeScatter() {
             contentStyle={tooltipStyle}
             formatter={(value: number, name: string) => [value.toFixed(2), name]}
           />
-          <Scatter data={chartData}>
-            {chartData.map((point, i) => (
-              <Cell key={point.trade_id || i} fill={ARCHETYPE_COLORS[point.archetype] ?? 'var(--color-text-muted)'} fillOpacity={0.7} />
+          <Scatter data={allData}>
+            {allData.map((point, i) => (
+              <Cell
+                key={point.trade_id || i}
+                fill={point.isLive ? 'var(--color-accent-purple)' : (ARCHETYPE_COLORS[point.archetype] ?? 'var(--color-text-muted)')}
+                fillOpacity={point.isLive ? 0.4 : 0.7}
+              />
             ))}
           </Scatter>
         </ScatterChart>

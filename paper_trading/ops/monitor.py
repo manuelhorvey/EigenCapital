@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 logger = setup_logging(logging.INFO, log_file=LOG_PATH)
 
-REFRESH_INTERVAL = int(os.environ.get("QUANTFORGE_REFRESH_INTERVAL", 300))
+REFRESH_INTERVAL = int(os.environ.get("QUANTFORGE_REFRESH_INTERVAL", 60))
 _shutdown = threading.Event()
 
 

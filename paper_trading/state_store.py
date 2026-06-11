@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 import math
@@ -215,9 +216,12 @@ class _DatabaseStore:
                     drawdown REAL,
                     gross_exposure REAL,
                     net_exposure REAL,
+                    assets TEXT,
                     created_at TEXT DEFAULT (datetime('now'))
                 );
             """)
+            with contextlib.suppress(sqlite3.OperationalError):
+                conn.execute("ALTER TABLE equity_history ADD COLUMN assets TEXT")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path, timeout=5.0)
@@ -483,8 +487,8 @@ class _DatabaseStore:
             conn.execute(
                 """INSERT INTO equity_history (
                     timestamp, portfolio_value, portfolio_return, drawdown,
-                    gross_exposure, net_exposure
-                ) VALUES (?,?,?,?,?,?)""",
+                    gross_exposure, net_exposure, assets
+                ) VALUES (?,?,?,?,?,?,?)""",
                 (
                     record.get("timestamp"),
                     record.get("portfolio_value"),
@@ -492,6 +496,7 @@ class _DatabaseStore:
                     record.get("drawdown"),
                     record.get("gross_exposure"),
                     record.get("net_exposure"),
+                    json.dumps(record.get("assets", {})),
                 ),
             )
 
@@ -499,7 +504,15 @@ class _DatabaseStore:
         try:
             with self._connect() as conn:
                 rows = conn.execute("SELECT * FROM equity_history ORDER BY id ASC").fetchall()
-                return [dict(r) for r in rows]
+                result = []
+                for r in rows:
+                    row = dict(r)
+                    if isinstance(row.get("assets"), str):
+                        row["assets"] = json.loads(row["assets"])
+                    elif row.get("assets") is None:
+                        row["assets"] = {}
+                    result.append(row)
+                return result
         except Exception:
             return []
 

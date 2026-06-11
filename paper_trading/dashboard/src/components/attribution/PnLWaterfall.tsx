@@ -22,7 +22,7 @@ export default function PnLWaterfall() {
   ] : []
 
   return (
-    <ChartContainer title="PnL Decomposition" accent="emerald" isPending={isPending} isEmpty={!data || data.n === 0}>
+    <ChartContainer title="PnL Decomposition" accent="emerald" isPending={isPending} isEmpty={!data || data.n === 0} emptyMessage="No closed trades yet — appears on exit">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />

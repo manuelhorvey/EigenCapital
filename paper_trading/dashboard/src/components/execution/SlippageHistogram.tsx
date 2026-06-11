@@ -27,7 +27,7 @@ export default function SlippageHistogram() {
   const isEmpty = !data || data.n === 0
 
   return (
-    <ChartContainer title="Slippage Distribution (bps)" accent="blue" isPending={isPending} isEmpty={isEmpty}>
+    <ChartContainer title="Slippage Distribution (bps)" accent="blue" isPending={isPending} isEmpty={isEmpty} emptyMessage="No closed trades yet — appears on exit">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
         <div className="min-w-0">
           <p className="text-2xs text-tertiary mb-1 font-medium">Entry Slippage</p>

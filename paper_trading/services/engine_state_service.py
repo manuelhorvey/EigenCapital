@@ -198,6 +198,8 @@ class EngineStateService:
                     },
                     "current_value": asset.pos_mgr.current_value,
                     "peak_value": asset.pos_mgr.peak_value,
+                    "running_mae": getattr(asset, "_running_mae", None),
+                    "running_mfe": getattr(asset, "_running_mfe", None),
                     "trade_log": asset.pos_mgr.trade_log,
                     "prob_history": asset.prob_history,
                 }

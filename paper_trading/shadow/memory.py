@@ -3,7 +3,7 @@ import logging
 import os
 import threading
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
@@ -20,8 +20,9 @@ BASELINE_DIR = os.path.join(MEMORY_DIR, "baseline")
 
 def store_event(asset: str, event: dict) -> None:
     try:
-        ts = event.get("timestamp", datetime.utcnow().isoformat())
-        date_str = ts[:10] if isinstance(ts, str) else datetime.utcnow().strftime("%Y-%m-%d")
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        ts = event.get("timestamp", now_utc.isoformat())
+        date_str = ts[:10] if isinstance(ts, str) else now_utc.strftime("%Y-%m-%d")
         path = os.path.join(MEMORY_DIR, asset, f"{date_str}.jsonl")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with _lock, open(path, "a") as f:
@@ -34,7 +35,7 @@ def store_event(asset: str, event: dict) -> None:
 
 def read_events(asset: str, days: int = 90) -> list:
     try:
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
         events = []
         asset_dir = os.path.join(MEMORY_DIR, asset)
         if not os.path.isdir(asset_dir):
@@ -80,7 +81,7 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
 
     baseline = {
         "asset": asset,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "event_count": len(events),
     }
 

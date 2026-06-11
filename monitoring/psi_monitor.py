@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -179,7 +179,7 @@ class PSIMonitor:
             severe_count=severe_count,
             psi_ok=severe_count < 3,
             penalty=penalty,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         )
 
         self._prev_snapshots[asset] = snapshot

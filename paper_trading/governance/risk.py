@@ -1,7 +1,7 @@
 import logging
 import threading
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 
 from paper_trading.governance.drift import get_shadow_intelligence
 
@@ -121,7 +121,7 @@ def evaluate(asset: str) -> dict:
 
         signal = {
             "asset": asset,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "risk_level": risk_level,
             "risk_score": round(risk_score, 4),
             "confidence": round(1.0 - risk_score, 4),
@@ -199,7 +199,7 @@ def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float 
 def _fallback_signal(asset: str) -> dict:
     return {
         "asset": asset,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "risk_level": "LOW",
         "risk_score": 0.0,
         "confidence": 1.0,

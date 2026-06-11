@@ -22,7 +22,7 @@ import atexit
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from paper_trading.governance.drawdown_controls import check_drawdown_circuit_breaker
@@ -98,7 +98,7 @@ class EngineOrchestrator:
         t0 = time.monotonic()
 
         # ── Phase 1: Refresh + Signal (parallel, isolated) ──────────────
-        results["phasetimestamps"][EnginePhase.REFRESH] = datetime.utcnow().isoformat()
+        results["phasetimestamps"][EnginePhase.REFRESH] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         asset_results: dict[str, AssetResult] = {}
 
         def _run_actor(name: str, actor: AssetActor) -> AssetResult:
@@ -122,7 +122,7 @@ class EngineOrchestrator:
                 results["assets"][name] = {"error": result.error}
 
         # ── Phase 2: Validity updates (parallel) ────────────────────────
-        results["phasetimestamps"][EnginePhase.VALIDITY] = datetime.utcnow().isoformat()
+        results["phasetimestamps"][EnginePhase.VALIDITY] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         for name, actor in self._actors.items():
             if actor.health == actor.health.HALTED:
                 continue
@@ -132,7 +132,7 @@ class EngineOrchestrator:
                 logger.warning("%s validity update failed: %s", name, e)
 
         # ── Phase 3: Portfolio health aggregation ────────────────────────
-        results["phasetimestamps"][EnginePhase.PORTFOLIO] = datetime.utcnow().isoformat()
+        results["phasetimestamps"][EnginePhase.PORTFOLIO] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         health = compute_health_snapshot(self._actors)
         results["health"] = {
             "green": health.green,
@@ -193,7 +193,7 @@ class EngineOrchestrator:
             return results
 
         # ── Phase 4: Persist all queues ───────────────────────────────────
-        results["phasetimestamps"][EnginePhase.PERSIST] = datetime.utcnow().isoformat()
+        results["phasetimestamps"][EnginePhase.PERSIST] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         persist_count = 0
         for name, actor in self._actors.items():
             commands = actor.drain_persist_queue()

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 
 TRACE_LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "live", "trace.jsonl"
@@ -38,7 +38,7 @@ def trace_decision(
     _append(
         {
             "event": "decision",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "asset": asset,
             "features_sample": features,
             "proba_short": round(proba[0], 6),
@@ -74,7 +74,7 @@ def shadow_compare_signal(
         _append(
             {
                 "event": "shadow_mismatch",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "asset": asset,
                 "proba": proba_produced,
                 "wrapper": {"signal": wrapper_signal, "confidence": wrapper_confidence},
@@ -92,7 +92,7 @@ def shadow_compare_pnl(
         _append(
             {
                 "event": "shadow_pnl_mismatch",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "asset": asset,
                 "wrapper_pnl": wrapper_pnl,
                 "original_pnl": original_pnl,
@@ -109,7 +109,7 @@ def shadow_compare_sizing(
         _append(
             {
                 "event": "shadow_sizing_mismatch",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "asset": asset,
                 "wrapper_size": wrapper_size,
                 "original_size": original_size,
@@ -134,7 +134,7 @@ def shadow_compare_sltp(
         _append(
             {
                 "event": "shadow_sltp_change",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "asset": asset,
                 "entry_price": entry_price,
                 "label_sl": label_sl,

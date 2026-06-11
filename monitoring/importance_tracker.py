@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -113,7 +113,7 @@ class ImportanceStore:
             return
         ranked_idx = np.argsort(importances)[::-1]
         records = []
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         for rank, idx in enumerate(ranked_idx):
             records.append(
                 FeatureImportanceRecord(
@@ -188,5 +188,5 @@ class ImportanceStore:
             n_union=n_union,
             n_current_top10=10,
             penalty=round(penalty, 4),
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         )

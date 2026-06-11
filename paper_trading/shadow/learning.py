@@ -3,7 +3,7 @@ import logging
 import os
 import threading
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 
@@ -40,7 +40,7 @@ def compile_shadow_learning(
 
         compiled = {
             "asset": asset,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "event_count": n,
             "learning_profile": profile,
             "latent_patterns": latent_patterns,
@@ -306,7 +306,7 @@ def load_compiled(asset: str) -> dict | None:
 def _empty_report(asset: str) -> dict:
     return {
         "asset": asset,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "event_count": 0,
         "learning_profile": {
             "behavioral_stability": 0.0,

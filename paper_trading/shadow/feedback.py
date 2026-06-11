@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger("quantforge.shadow.feedback")
 
@@ -105,7 +105,7 @@ def _build_event(
     action_data = action or {}
 
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "asset": asset,
         "inputs": {
             "signal": {
@@ -134,7 +134,7 @@ def _build_event(
 
 def _store_event(asset: str, event: dict) -> None:
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         month_key = now.strftime("%Y-%m")
         path = os.path.join(FEEDBACK_DIR, asset, f"{month_key}.jsonl")
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -150,7 +150,7 @@ def read_feedback(asset: str, months: int = 3) -> list:
     try:
         from datetime import timedelta
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         events = []
         for i in range(months):
             dt = now - timedelta(days=30 * i)

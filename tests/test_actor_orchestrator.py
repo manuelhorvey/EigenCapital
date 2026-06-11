@@ -11,7 +11,7 @@ Covers:
 
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
@@ -48,13 +48,13 @@ class _MockEngine:
 
     def refresh_price(self):
         self._call_count += 1
-        self.last_refresh = datetime.utcnow()
+        self.last_refresh = datetime.now(timezone.utc).replace(tzinfo=None)
         if self._should_fail:
             if self._fail_after <= 0 or self._call_count > self._fail_after:
                 raise ConnectionError(f"{self.name}: price refresh failed")
 
     def update_pnl(self):
-        self.last_pnl = datetime.utcnow()
+        self.last_pnl = datetime.now(timezone.utc).replace(tzinfo=None)
         if self._should_fail and self._call_count > 1:
             raise ValueError(f"{self.name}: pnl update failed")
 

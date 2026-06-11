@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceDot } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
+import { usePortfolioState } from '../hooks/usePortfolioState'
 import ChartContainer from './ui/ChartContainer'
 import {
   CHART_PALETTE,
@@ -23,10 +24,10 @@ function formatValue(v: number): string {
 
 export default function EquityChart() {
   const { data, isPending } = useEquityHistory()
+  const { data: state } = usePortfolioState()
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
 
   const MAX_POINTS = 200
-  const STARTING_CAPITAL = 97_000
 
   const chartData = useMemo(
     () =>
@@ -36,6 +37,7 @@ export default function EquityChart() {
         .map(d => ({
           t: d.timestamp?.split('T')[0] ?? '',
           portfolio: d.portfolio_value,
+          drawdown: d.drawdown,
           ...d.assets,
         })),
     [data],
@@ -49,6 +51,8 @@ export default function EquityChart() {
   const firstVal = chartData.length > 0 ? chartData[0].portfolio : 0
   const lastVal = chartData.length > 0 ? chartData[chartData.length - 1].portfolio : 0
   const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
+  const startingCapital = data?.[0]?.portfolio_value ?? state?.portfolio?.capital ?? firstVal
+  const latestDrawdown = chartData.length > 0 ? chartData[chartData.length - 1].drawdown : null
 
   const minPoint = useMemo(() => {
     if (chartData.length === 0) return null
@@ -97,6 +101,8 @@ export default function EquityChart() {
             key={name}
             type="button"
             onClick={() => toggle(name)}
+            aria-pressed={active}
+            aria-label={`${active ? 'Hide' : 'Show'} ${name} on equity chart`}
             className={`px-2 py-1 rounded-md border text-2xs font-medium font-mono transition-all duration-150 ${
               active
                 ? 'text-primary bg-panel border-strong shadow-inner-subtle'
@@ -130,6 +136,11 @@ export default function EquityChart() {
               {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
             </span>
           )}
+          {latestDrawdown != null && (
+            <span className="hidden sm:inline text-2xs text-tertiary font-mono tabular-nums">
+              DD {latestDrawdown.toFixed(1)}%
+            </span>
+          )}
           <span className="text-2xs text-tertiary font-mono tabular-nums">{chartData.length} pts</span>
         </div>
       }
@@ -138,8 +149,13 @@ export default function EquityChart() {
       isEmpty={chartData.length === 0}
       emptyMessage="Waiting for equity history…"
       height="h-56 sm:h-64"
+      chartLabel={`Equity curve with ${chartData.length} points; visible portfolio change ${pctChange.toFixed(2)} percent`}
     >
       <div className="relative h-full w-full">
+        <p className="sr-only">
+          Equity chart showing {chartData.length} points. Portfolio changed {pctChange.toFixed(2)} percent over the visible range.
+          {latestDrawdown != null ? ` Latest drawdown is ${latestDrawdown.toFixed(1)} percent.` : ''}
+        </p>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={chartMargin}>
             <ChartGradientDefs />
@@ -167,12 +183,12 @@ export default function EquityChart() {
             />
             {chartData.length > 0 && (
               <ReferenceLine
-                y={STARTING_CAPITAL}
+                y={startingCapital}
                 stroke="var(--color-text-muted)"
                 strokeDasharray="4 4"
                 strokeWidth={1}
                 label={{
-                  value: 'Start',
+                  value: 'Baseline',
                   position: 'insideBottomRight',
                   fill: 'var(--color-text-tertiary)',
                   fontSize: 9,

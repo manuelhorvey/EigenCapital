@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
+import { EngineSnapshotSchema } from '../lib/schemas'
 import type { EngineSnapshot } from '../types/portfolio'
 
 export function usePortfolioState() {
@@ -7,11 +8,12 @@ export function usePortfolioState() {
     queryKey: ['portfolioState'],
     queryFn: async () => {
       const json = await fetchApi<unknown>('/state.json')
-      if (typeof json !== 'object' || json === null || !('assets' in json) || typeof (json as Record<string, unknown>).assets !== 'object') {
-        console.error('[State] top-level validation failed: missing assets or invalid shape')
+      const parsed = EngineSnapshotSchema.safeParse(json)
+      if (!parsed.success) {
+        console.error('[State] validation failed:', parsed.error.issues)
         throw new Error('Invalid state data from server')
       }
-      return json as EngineSnapshot
+      return parsed.data as EngineSnapshot
     },
     refetchInterval: (q) => {
       const d = q.state.data

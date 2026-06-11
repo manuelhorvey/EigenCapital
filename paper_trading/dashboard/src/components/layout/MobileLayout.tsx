@@ -18,7 +18,9 @@ function AccordionSection({
   return (
     <div className="border border-default rounded-lg overflow-hidden">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between px-3 py-2.5 bg-panel text-xs font-semibold text-primary"
       >
         {title}
@@ -65,7 +67,7 @@ export default function MobileLayout() {
             </p>
             {portfolio?.total_return != null && (
               <p className={`text-xs font-semibold font-mono tabular-nums mt-0.5 ${portfolio.total_return >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
-                {portfolio.total_return >= 0 ? '+' : ''}{(portfolio.total_return * 100).toFixed(2)}%
+                {portfolio.total_return >= 0 ? '+' : ''}{portfolio.total_return.toFixed(2)}%
               </p>
             )}
           </div>
@@ -113,7 +115,9 @@ export default function MobileLayout() {
           { label: 'Analytics', icon: BarChart3, color: 'text-gov-yellow' },
         ].map(action => (
           <button
+            type="button"
             key={action.label}
+            aria-label={action.label}
             className="flex flex-col items-center gap-1.5 py-2.5 rounded-lg border border-default bg-panel hover:border-strong transition-colors"
           >
             <action.icon className={`w-4 h-4 ${action.color}`} strokeWidth={1.5} />
@@ -190,7 +194,7 @@ export default function MobileLayout() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-tertiary">Total return</span>
                 <span className={`font-mono ${portfolio.total_return >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
-                  {(portfolio.total_return * 100).toFixed(2)}%
+                  {portfolio.total_return.toFixed(2)}%
                 </span>
               </div>
             )}

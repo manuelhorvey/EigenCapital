@@ -254,7 +254,7 @@ class EngineStateService:
         )
         net = (net_side / len(state.get("assets", {}))) * 2 - 1 if state.get("assets") else 0
 
-        drawdown = p.get("drawdown", 0.0)
+        drawdown = p.get("portfolio_drawdown", p.get("drawdown", 0.0))
 
         record = {
             "timestamp": datetime.now(tz=ET).isoformat(),

@@ -216,6 +216,12 @@
     color: var(--color-text-secondary);
   }
 
+  .sort-header:focus-visible {
+    color: var(--color-text-primary);
+    outline: 2px solid rgba(45, 211, 191, 0.45);
+    outline-offset: -2px;
+  }
+
   .table-row-hover {
     transition: background-color 150ms ease;
   }

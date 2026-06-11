@@ -20,9 +20,21 @@ export default function PnLWaterfall() {
     { name: 'Friction\nCost', value: -data.friction_cost, fill: COLORS.friction_cost },
     { name: 'Net PnL', value: data.net_pnl, fill: data.net_pnl >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)' },
   ] : []
+  const netPnl = data?.net_pnl ?? 0
+  const chartLabel = data
+    ? `PnL decomposition for ${data.n} closed trades. Net PnL ${netPnl.toFixed(2)} dollars.`
+    : 'PnL decomposition chart'
 
   return (
-    <ChartContainer title="PnL Decomposition" accent="emerald" isPending={isPending} isEmpty={!data || data.n === 0} emptyMessage="No closed trades yet — appears on exit">
+    <ChartContainer
+      title="PnL Decomposition"
+      accent="emerald"
+      isPending={isPending}
+      isEmpty={!data || data.n === 0}
+      emptyMessage="No closed trades yet — appears on exit"
+      chartLabel={chartLabel}
+    >
+      <p className="sr-only">{chartLabel}</p>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />

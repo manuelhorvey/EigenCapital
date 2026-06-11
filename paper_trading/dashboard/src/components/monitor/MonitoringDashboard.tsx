@@ -50,8 +50,8 @@ export default function MonitoringDashboard() {
   const governanceLayers = [
     {
       name: 'Exposure',
-      status: (portfolio?.average_validity_exposure ?? 0) > 0.9 ? 'warning' as const
-        : (portfolio?.average_validity_exposure ?? 0) > 0.95 ? 'critical' as const
+      status: (portfolio?.average_validity_exposure ?? 0) > 0.95 ? 'critical' as const
+        : (portfolio?.average_validity_exposure ?? 0) > 0.9 ? 'warning' as const
         : 'healthy' as const,
       detail: `Avg exposure ${((portfolio?.average_validity_exposure ?? 0) * 100).toFixed(0)}%`,
       metric: portfolio?.deployment_cleared ? 'Cleared' : 'Pending',
@@ -104,7 +104,7 @@ export default function MonitoringDashboard() {
           value={portfolio ? `$${portfolio.total_value.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}
           status={portfolio?.total_return && portfolio.total_return > 0 ? 'healthy' : portfolio?.total_return && portfolio.total_return < 0 ? 'critical' : undefined}
           trend={portfolio?.total_return && portfolio.total_return > 0 ? 'up' : portfolio?.total_return && portfolio.total_return < 0 ? 'down' : undefined}
-          change={portfolio?.total_return ? `${(portfolio.total_return * 100).toFixed(2)}%` : undefined}
+          change={portfolio?.total_return ? `${portfolio.total_return.toFixed(2)}%` : undefined}
           icon={<DollarSign className="w-3 h-3" strokeWidth={2} />}
         />
         <HealthSnapshotCard

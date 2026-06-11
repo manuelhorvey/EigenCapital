@@ -25,9 +25,24 @@ export default function SlippageHistogram() {
   const entryData = data ? bucketize(data.entry_slippage) : []
   const exitData = data ? bucketize(data.exit_slippage) : []
   const isEmpty = !data || data.n === 0
+  const avgEntry = data?.entry_slippage?.length
+    ? data.entry_slippage.reduce((sum, v) => sum + v, 0) / data.entry_slippage.length
+    : 0
+  const avgExit = data?.exit_slippage?.length
+    ? data.exit_slippage.reduce((sum, v) => sum + v, 0) / data.exit_slippage.length
+    : 0
+  const chartLabel = `Slippage distribution for ${data?.n ?? 0} trades. Average entry slippage ${avgEntry.toFixed(1)} basis points; average exit slippage ${avgExit.toFixed(1)} basis points.`
 
   return (
-    <ChartContainer title="Slippage Distribution (bps)" accent="blue" isPending={isPending} isEmpty={isEmpty} emptyMessage="No closed trades yet — appears on exit">
+    <ChartContainer
+      title="Slippage Distribution (bps)"
+      accent="blue"
+      isPending={isPending}
+      isEmpty={isEmpty}
+      emptyMessage="No closed trades yet — appears on exit"
+      chartLabel={chartLabel}
+    >
+      <p className="sr-only">{chartLabel}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
         <div className="min-w-0">
           <p className="text-2xs text-tertiary mb-1 font-medium">Entry Slippage</p>

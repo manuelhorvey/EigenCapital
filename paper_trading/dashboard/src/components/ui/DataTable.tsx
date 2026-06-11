@@ -88,6 +88,11 @@ export default function DataTable<T>({
     onSortChange?.(nextCol, next)
   }
 
+  const sortAria = (key: string) => {
+    if (sortCol !== key || !sortDir) return 'none'
+    return sortDir === 'asc' ? 'ascending' : 'descending'
+  }
+
   const alignClass = {
     left: 'text-left',
     right: 'text-right',
@@ -95,12 +100,47 @@ export default function DataTable<T>({
   }
 
   return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      className={`overflow-x-auto overflow-y-auto -mx-1 ${className}`}
-    >
-      <table className={`w-full text-[11px] min-w-[500px] ${compact ? 'text-[10px]' : ''}`}>
+    <>
+      <div className={`sm:hidden space-y-2 ${className}`}>
+        {sorted.length === 0 ? (
+          <div className="py-10 text-center text-tertiary text-xs border border-default rounded-lg bg-panel/40">
+            {emptyMessage}
+          </div>
+        ) : (
+          sorted.map(row => (
+            <button
+              key={keyExtractor(row)}
+              type="button"
+              onClick={() => onRowClick?.(row)}
+              disabled={!onRowClick}
+              className={[
+                'w-full text-left rounded-lg border border-default bg-panel/50 px-3 py-2.5',
+                onRowClick ? 'active:scale-[0.99] transition-transform' : 'disabled:opacity-100',
+              ].join(' ')}
+            >
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {columns.map(col => (
+                  <div key={col.key} className={col.align === 'right' ? 'text-right' : ''}>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">
+                      {col.label}
+                    </dt>
+                    <dd className="text-xs text-primary mt-0.5 min-w-0 overflow-hidden">
+                      {col.render(row)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className={`hidden sm:block overflow-x-auto overflow-y-auto -mx-1 ${className}`}
+      >
+        <table className={`w-full text-[11px] min-w-[500px] ${compact ? 'text-[10px]' : ''}`}>
         <thead>
           <tr
             className={`border-b transition-shadow duration-150 ${
@@ -110,6 +150,11 @@ export default function DataTable<T>({
             {columns.map(col => (
               <th
                 key={col.key}
+                scope="col"
+                tabIndex={sortable && col.sortable ? 0 : undefined}
+                role={sortable && col.sortable ? 'button' : undefined}
+                aria-sort={sortable && col.sortable ? sortAria(col.key) : undefined}
+                aria-label={sortable && col.sortable ? `${col.label}: activate to sort` : undefined}
                 className={[
                   'table-header py-2 pr-3 last:pr-0',
                   alignClass[col.align ?? 'left'],
@@ -117,6 +162,13 @@ export default function DataTable<T>({
                   stickyHeader ? 'sticky top-0 bg-app z-10' : '',
                 ].join(' ')}
                 onClick={() => col.sortable && toggleSort(col.key)}
+                onKeyDown={event => {
+                  if (!col.sortable) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    toggleSort(col.key)
+                  }
+                }}
                 style={{
                   width: col.width,
                   minWidth: col.minWidth,
@@ -174,7 +226,8 @@ export default function DataTable<T>({
             ))
           )}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+    </>
   )
 }

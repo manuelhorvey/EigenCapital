@@ -42,9 +42,20 @@ export default function MaeMfeScatter() {
 
   const allData = [...chartData, ...livePoints]
   const isEmpty = allData.length === 0
+  const worstMae = allData.length ? Math.max(...allData.map(p => p.mae)) : 0
+  const bestMfe = allData.length ? Math.max(...allData.map(p => p.mfe)) : 0
+  const chartLabel = `MAE MFE scatter with ${allData.length} trades; worst adverse excursion ${worstMae.toFixed(2)}, best favorable excursion ${bestMfe.toFixed(2)}.`
 
   return (
-    <ChartContainer title="MAE / MFE Scatter" accent="emerald" isPending={isPending} isEmpty={isEmpty} emptyMessage="No closed trades yet — appears on exit">
+    <ChartContainer
+      title="MAE / MFE Scatter"
+      accent="emerald"
+      isPending={isPending}
+      isEmpty={isEmpty}
+      emptyMessage="No closed trades yet — appears on exit"
+      chartLabel={chartLabel}
+    >
+      <p className="sr-only">{chartLabel}</p>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis

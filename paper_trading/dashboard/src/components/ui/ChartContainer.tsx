@@ -15,6 +15,7 @@ interface ChartContainerProps {
   isEmpty?: boolean
   emptyMessage?: string
   className?: string
+  chartLabel?: string
 }
 
 export default function ChartContainer({
@@ -28,6 +29,7 @@ export default function ChartContainer({
   isEmpty,
   emptyMessage = 'Waiting for data…',
   className = '',
+  chartLabel,
 }: ChartContainerProps) {
   return (
     <Panel className={`p-4 ${className}`}>
@@ -38,7 +40,13 @@ export default function ChartContainer({
       ) : isEmpty ? (
         <EmptyState message={emptyMessage} compact />
       ) : (
-        <div className={`${height} w-full min-w-0 chart-surface rounded-md`}>{children}</div>
+        <div
+          className={`${height} w-full min-w-0 chart-surface rounded-md`}
+          role={chartLabel ? 'img' : undefined}
+          aria-label={chartLabel}
+        >
+          {children}
+        </div>
       )}
     </Panel>
   )

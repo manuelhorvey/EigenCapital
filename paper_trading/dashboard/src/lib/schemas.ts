@@ -194,3 +194,57 @@ export const HealthResponseSchema = z.object({
   assets: z.record(z.string(), AssetHealthSchema),
   system_health: SystemHealthSchema,
 })
+
+export const PortfolioSummarySchema = z.object({
+  total_value: z.number(),
+  mtm_value: z.number().optional(),
+  total_return: z.number(),
+  realized_value: z.number().optional(),
+  realized_return: z.number().optional(),
+  unrealized_pnl: z.number().optional(),
+  days_running: z.number().optional(),
+  runtime_hours: z.number().optional(),
+  start_date: z.string().optional(),
+  start_datetime: z.string().optional(),
+  last_update: z.string().nullable().optional(),
+  capital: z.number(),
+  allocations: z.record(z.string(), z.number()).optional().default({}),
+  deployment_cleared: z.boolean().optional(),
+  open_positions: z.number().optional().default(0),
+  closed_trades: z.number().optional().default(0),
+  execution_state: z.string().optional(),
+  average_validity_exposure: z.number().optional(),
+  portfolio_drawdown: z.number().optional(),
+  portfolio_peak_value: z.number().nullable().optional(),
+}).passthrough()
+
+export const EngineStatusSchema = z.object({
+  initialized: z.boolean().optional().default(false),
+  last_update: z.string().optional().default(''),
+  start_time: z.string().optional().default(''),
+  market_closed: z.boolean().optional(),
+}).passthrough()
+
+export const HaltConditionsSchema = z.object({
+  drawdown: z.number().optional().default(0),
+  monthly_pf: z.number().optional().default(0),
+  signal_drought: z.number().optional().default(0),
+  prob_drift: z.number().optional().default(0),
+}).passthrough()
+
+export const EngineSnapshotSchema = z.object({
+  schema_version: z.string().optional().default('unknown'),
+  timestamp: z.string(),
+  portfolio: PortfolioSummarySchema,
+  assets: z.record(z.string(), z.unknown()),
+  open_positions: z.record(z.string(), z.unknown()).optional(),
+  engine_status: EngineStatusSchema,
+  halt_conditions: HaltConditionsSchema.optional().default({
+    drawdown: 0,
+    monthly_pf: 0,
+    signal_drought: 0,
+    prob_drift: 0,
+  }),
+  risk_signals: z.record(z.string(), z.unknown()).optional(),
+  shadow_actions: z.record(z.string(), z.unknown()).optional(),
+}).passthrough()

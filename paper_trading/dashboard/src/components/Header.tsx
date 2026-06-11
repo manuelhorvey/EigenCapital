@@ -3,16 +3,26 @@ import { Menu, RefreshCw, TrendingUp } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { usePortfolioState } from '../hooks/usePortfolioState'
 import ThemeToggle from './ui/ThemeToggle'
+import { formatTimeAgo } from '../utils/format'
 
 interface HeaderProps {
   onMenuClick?: () => void
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const { isError } = usePortfolioState()
+  const { data, isError, dataUpdatedAt } = usePortfolioState()
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const lastServerUpdate = data?.portfolio?.last_update ?? data?.engine_status?.last_update ?? data?.timestamp
+  const lastClientUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : ''
+  const freshnessLabel = isError
+    ? 'Disconnected'
+    : lastServerUpdate
+      ? `Updated ${formatTimeAgo(lastServerUpdate)}`
+      : lastClientUpdate
+        ? `Fetched ${formatTimeAgo(lastClientUpdate)}`
+        : 'Connected'
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
@@ -52,9 +62,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-2xs text-tertiary font-mono tabular-nums">
+            <span
+              className={`relative inline-flex w-2 h-2 rounded-full ${isError ? 'bg-gov-red' : 'bg-gov-green'}`}
+              title={freshnessLabel}
+              aria-label={freshnessLabel}
+            />
+            {freshnessLabel}
+          </span>
           <span
-            className={`relative inline-flex w-2 h-2 rounded-full ${isError ? 'bg-gov-red' : 'bg-gov-green'}`}
-            title={isError ? 'Disconnected' : 'Connected'}
+            className={`sm:hidden relative inline-flex w-2 h-2 rounded-full ${isError ? 'bg-gov-red' : 'bg-gov-green'}`}
+            title={freshnessLabel}
+            aria-label={freshnessLabel}
           />
 
           <ThemeToggle />
@@ -65,6 +84,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             disabled={refreshing}
             className="p-1.5 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors disabled:opacity-40 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-emerald/50"
             title="Refresh all data"
+            aria-label="Refresh all dashboard data"
           >
             <RefreshCw className={`w-3 h-3 text-secondary ${refreshing ? 'animate-spin' : ''}`} strokeWidth={2} />
           </button>

@@ -21,6 +21,12 @@ export default function GovernanceRadar() {
     max: 100,
     description: a.description,
   }))
+  const weakestAxis = chartData.length
+    ? chartData.reduce((weakest, axis) => axis.value < weakest.value ? axis : weakest, chartData[0])
+    : null
+  const chartLabel = weakestAxis
+    ? `Governance radar with ${chartData.length} axes. Weakest axis is ${weakestAxis.axis} at ${weakestAxis.value} percent.`
+    : 'Governance radar chart'
 
   return (
     <Panel padding="lg">
@@ -39,7 +45,8 @@ export default function GovernanceRadar() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Radar Chart */}
         <div className="lg:col-span-2">
-          <div className="h-[260px]">
+          <div className="h-[260px]" role="img" aria-label={chartLabel}>
+            <p className="sr-only">{chartLabel}</p>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="80%">
                 <PolarGrid stroke="var(--color-border)" strokeWidth={0.5} />

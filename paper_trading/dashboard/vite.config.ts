@@ -7,6 +7,20 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('/react/') || id.includes('/react-dom/')) return 'react'
+          if (id.includes('@tanstack/react-query')) return 'query'
+          if (id.includes('/d3-')) return 'd3'
+          if (id.includes('/recharts/')) return 'recharts'
+          if (id.includes('/lucide-react/')) return 'icons'
+          if (id.includes('/zod/')) return 'validation'
+          return undefined
+        },
+      },
+    },
   },
   server: {
     port: 3000,

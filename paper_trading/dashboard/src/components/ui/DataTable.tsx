@@ -154,6 +154,7 @@ export default function DataTable<T>({
                   onRowClick ? 'cursor-pointer' : '',
                   i % 2 === 1 ? 'bg-panel/20' : '',
                 ].join(' ')}
+                style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 32px' }}
               >
                 {columns.map(col => (
                   <td

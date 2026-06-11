@@ -21,11 +21,11 @@ export default function GovernanceStatusGrid({ layers }: GovernanceStatusGridPro
   }
 
   return (
-    <div className="bg-panel border border-default rounded-lg p-3">
+    <div className="bg-panel border border-default rounded-lg p-3" role="region" aria-label="Governance layer status grid">
       <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2.5 px-1">
         Governance Layer Status
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="list">
         {layers.map(layer => {
           const badgeVariant = layer.status === 'healthy' ? 'success'
             : layer.status === 'warning' ? 'warning'
@@ -33,7 +33,7 @@ export default function GovernanceStatusGrid({ layers }: GovernanceStatusGridPro
             : 'neutral'
 
           return (
-            <div key={layer.name} className="border border-default rounded-lg px-2.5 py-2 bg-surface/30">
+            <div key={layer.name} className="border border-default rounded-lg px-2.5 py-2 bg-surface/30" role="listitem">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="text-2xs font-semibold text-primary">{layer.name}</span>
                 <Badge variant={badgeVariant} size="sm" dot>

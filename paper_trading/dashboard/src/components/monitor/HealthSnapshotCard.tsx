@@ -31,7 +31,11 @@ export default function HealthSnapshotCard({
   title, value, status, trend, change, icon,
 }: HealthSnapshotCardProps) {
   return (
-    <div className="bg-panel border border-default rounded-lg px-3 py-2.5">
+    <div
+      className="bg-panel border border-default rounded-lg px-3 py-2.5"
+      role="status"
+      aria-label={`${title}: ${value ?? '—'} — ${status ?? 'unknown'}`}
+    >
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-2xs font-medium text-tertiary uppercase tracking-wider">
           {title}

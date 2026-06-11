@@ -51,7 +51,7 @@ export default function AlertFeed({ alerts }: AlertFeedProps) {
           </span>
         }
       />
-      <div className="space-y-1.5">
+      <div className="space-y-1.5" role="log" aria-live="polite" aria-label="Active alerts feed">
         {display.map(alert => {
           const sev = severityConfig[alert.severity]
           const TypeIcon = typeIcon[alert.type]
@@ -79,7 +79,7 @@ export default function AlertFeed({ alerts }: AlertFeedProps) {
               <button
                 onClick={() => handleDismiss(alert.id)}
                 className="p-0.5 rounded hover:bg-default/40 transition-colors shrink-0 mt-0.5"
-                title="Dismiss"
+                aria-label={`Dismiss alert: ${alert.message}`}
               >
                 <X className="w-3 h-3 text-tertiary" strokeWidth={2} />
               </button>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X, Clock, BarChart3, GitCompare, Shield } from 'lucide-react'
 import { useTradeInspector } from '../../hooks/useTradeInspector'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import TradeTimeline from './TradeTimeline'
 import TradeGovernanceAudit from './TradeGovernanceAudit'
 import TradeCounterfactual from './TradeCounterfactual'
@@ -38,6 +39,7 @@ function ScoreBar({ label, score, color }: { label: string; score: number; color
 export default function TradeInspectorModal({ asset, entryDate, exitDate, onClose }: TradeInspectorModalProps) {
   const [tab, setTab] = useState<TabId>('timeline')
   const tradeData = useTradeInspector(asset, entryDate, exitDate)
+  const modalRef = useFocusTrap()
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -58,7 +60,7 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-4">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div className="relative w-full max-w-2xl bg-app border border-default rounded-xl shadow-2xl animate-fade-in max-h-[80vh] flex flex-col">
+      <div ref={modalRef} className="relative w-full max-w-2xl bg-app border border-default rounded-xl shadow-2xl animate-fade-in max-h-[80vh] flex flex-col" role="dialog" aria-modal="true" aria-label={`Trade inspector: ${asset}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
           <div>

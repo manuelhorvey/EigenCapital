@@ -205,11 +205,13 @@ class PaperTradingEngine:
         _reg = StrategyRegistry.get_instance()
         _reg.register_defaults(list(portfolio.keys()))
         for name, spec in portfolio.items():
-            self.assets[name] = AssetEngine(
-                spec["ticker"],
-                name,
-                spec["contract"],
-                spec["alloc"],
+            from paper_trading.asset_engine_factory import build_asset_engine
+
+            self.assets[name] = build_asset_engine(
+                ticker=spec["ticker"],
+                name=name,
+                contract=spec["contract"],
+                allocation=spec["alloc"],
                 halt_config=spec["halt"],
                 config=spec["config"],
                 sl_mult=spec.get("sl_mult", 1.0),

@@ -153,16 +153,6 @@ export default function TradeFeed() {
         defaultSortKey="exit_date"
         defaultSortDir="desc"
         storageKey="trades"
-      />
-      <DataTable
-        columns={columns}
-        data={rows}
-        keyExtractor={t => `${t.asset}_${t.exit_date}_${t.entry_date}_${t.entry}_${t.exit}`}
-        compact
-        sortable
-        defaultSortKey="exit_date"
-        defaultSortDir="desc"
-        storageKey="trades"
         onRowClick={handleRowClick}
       />
       {selectedTrade && (

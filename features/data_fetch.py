@@ -234,6 +234,18 @@ def fetch_asset_data(
     wti = macro.get("CL=F", pd.Series(dtype=float))
     tnx = macro.get("^TNX", pd.Series(dtype=float))
 
+    # Deduplicate indices — yfinance can return duplicate dates on some tickers
+    if not dxy.empty and dxy.index.duplicated().any():
+        dxy = dxy[~dxy.index.duplicated(keep="last")]
+    if not vix.empty and vix.index.duplicated().any():
+        vix = vix[~vix.index.duplicated(keep="last")]
+    if not spx.empty and spx.index.duplicated().any():
+        spx = spx[~spx.index.duplicated(keep="last")]
+    if not wti.empty and wti.index.duplicated().any():
+        wti = wti[~wti.index.duplicated(keep="last")]
+    if not tnx.empty and tnx.index.duplicated().any():
+        tnx = tnx[~tnx.index.duplicated(keep="last")]
+
     common = close.index.intersection(dxy.index).intersection(vix.index).intersection(spx.index).intersection(wti.index)
     common = common.intersection(tnx.dropna().index)
     logger.info(

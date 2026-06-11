@@ -33,13 +33,22 @@ class PortfolioSync:
         current_weights = self.get_current_weights(portfolio_value)
         orders = []
 
+        drifted_assets = []
         for asset, target in target_weights.items():
             current = current_weights.get(asset, 0.0)
             drift = abs(target - current)
-            if drift < drift_threshold:
-                continue
+            if drift >= drift_threshold:
+                drifted_assets.append(asset)
 
-            current_price = self.broker.get_current_price(asset)
+        if hasattr(self.broker, "get_current_prices"):
+            prices = self.broker.get_current_prices(drifted_assets)
+        else:
+            prices = {a: self.broker.get_current_price(a) for a in drifted_assets}
+
+        for asset in drifted_assets:
+            target = target_weights[asset]
+            current = current_weights.get(asset, 0.0)
+            current_price = prices.get(asset, self.broker.get_current_price(asset))
             target_value = portfolio_value * target
             current_value = current * portfolio_value
             delta = target_value - current_value

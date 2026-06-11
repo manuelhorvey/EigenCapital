@@ -238,6 +238,15 @@ class MT5Broker(BrokerInterface):
         logger.warning("No price for %s via MT5 bridge", asset)
         return 0.0
 
+    def get_current_prices(self, assets: list[str]) -> dict[str, float]:
+        """Fetch mid-prices for multiple assets concurrently."""
+        self.ensure_connected()
+        results = self._client.batch_realtime_price(assets)
+        return {
+            a: (p if p is not None else 0.0)
+            for a, p in results.items()
+        }
+
     # ── Lot / Quantity conversion ──────────────────────────────────────
 
     def _quantity_to_lots(self, asset: str, quantity: float) -> float:

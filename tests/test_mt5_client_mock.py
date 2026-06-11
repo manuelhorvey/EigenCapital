@@ -164,6 +164,40 @@ class TestMockMT5Client:
         result = client.close_position(12345)
         assert result["result"]["retcode"] == 10009
 
+    def test_batch_realtime_price(self):
+        client = MockMT5Client(realtime_prices={"EURUSD": 1.05, "GBPUSD": 1.25})
+        prices = client.batch_realtime_price(["EURUSD", "GBPUSD"])
+        assert prices["EURUSD"] == 1.05
+        assert prices["GBPUSD"] == 1.25
+
+    def test_batch_realtime_price_default(self):
+        client = MockMT5Client()
+        prices = client.batch_realtime_price(["EURUSD"])
+        assert prices["EURUSD"] == 100.0
+
+    def test_batch_symbol_info(self):
+        client = MockMT5Client(symbol_infos={"XAUUSD": {"contract_size": 100.0}})
+        infos = client.batch_symbol_info(["EURUSD", "XAUUSD"])
+        assert infos["EURUSD"]["contract_size"] == 100000.0
+        assert infos["XAUUSD"]["contract_size"] == 100.0
+
+    def test_batch_symbol_info_default(self):
+        client = MockMT5Client()
+        infos = client.batch_symbol_info(["EURUSD"])
+        assert infos["EURUSD"]["contract_size"] == 100000.0
+
+    def test_batch_realtime_price_calls_tracked(self):
+        client = MockMT5Client()
+        client.batch_realtime_price(["EURUSD", "GBPUSD"])
+        assert "batch_realtime_price" in client.calls
+        args = client.calls["batch_realtime_price"][0]
+        assert args[0] == ("EURUSD", "GBPUSD")
+
+    def test_batch_symbol_info_calls_tracked(self):
+        client = MockMT5Client()
+        client.batch_symbol_info(["EURUSD"])
+        assert "batch_symbol_info" in client.calls
+
     def test_call_tracking(self):
         client = MockMT5Client()
         client.connect()

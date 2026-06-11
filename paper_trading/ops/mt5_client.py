@@ -22,6 +22,7 @@ Usage:
 
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import json
 import logging
@@ -51,69 +52,128 @@ class MT5DataError(Exception):
     pass
 
 
-class _FrameProtocol:
-    def __init__(self, host: str = "127.0.0.1", port: int | None = None):
+class _FrameConnection:
+    """One TCP connection to the MT5 bridge with its own request-id counter."""
+
+    def __init__(self, host: str, port: int):
         self._host = host
-        self._port = port or int(os.environ.get("MT5_BRIDGE_PORT", "9879"))
+        self._port = port
         self._sock: socket.socket | None = None
         self._next_id = 1
-        self._lock = threading.RLock()
 
     def connect(self) -> None:
-        with self._lock:
-            if self._sock is not None:
-                with contextlib.suppress(Exception):
-                    self._sock.close()
-            self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._sock.settimeout(15.0)
-            self._sock.connect((self._host, self._port))
-            self._sock.settimeout(30.0)
+        if self._sock is not None:
+            with contextlib.suppress(Exception):
+                self._sock.close()
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._sock.settimeout(15.0)
+        self._sock.connect((self._host, self._port))
+        self._sock.settimeout(30.0)
 
     def disconnect(self) -> None:
-        with self._lock:
-            if self._sock is not None:
-                with contextlib.suppress(Exception):
-                    self._sock.close()
-                self._sock = None
+        if self._sock is not None:
+            with contextlib.suppress(Exception):
+                self._sock.close()
+            self._sock = None
 
     def send_request(self, method: str, params: dict | None = None) -> dict:
-        with self._lock:
-            if self._sock is None:
-                raise MT5ConnectionError("Not connected")
-            req_id = self._next_id
-            self._next_id += 1
-            payload = json.dumps(
-                {
-                    "id": req_id,
-                    "method": method,
-                    "params": params or {},
-                }
-            ).encode("utf-8")
-            try:
-                self._sock.sendall(struct.pack(_HEADER_FMT, len(payload)) + payload)
-                header = self._sock.recv(_HEADER_SIZE)
-                if not header:
+        if self._sock is None:
+            raise MT5ConnectionError("Not connected")
+        req_id = self._next_id
+        self._next_id += 1
+        payload = json.dumps(
+            {
+                "id": req_id,
+                "method": method,
+                "params": params or {},
+            }
+        ).encode("utf-8")
+        try:
+            self._sock.sendall(struct.pack(_HEADER_FMT, len(payload)) + payload)
+            header = self._sock.recv(_HEADER_SIZE)
+            if not header:
+                raise MT5ConnectionError("Connection closed")
+            size = struct.unpack(_HEADER_FMT, header)[0]
+            data = b""
+            while len(data) < size:
+                chunk = self._sock.recv(size - len(data))
+                if not chunk:
                     raise MT5ConnectionError("Connection closed")
-                size = struct.unpack(_HEADER_FMT, header)[0]
-                data = b""
-                while len(data) < size:
-                    chunk = self._sock.recv(size - len(data))
-                    if not chunk:
-                        raise MT5ConnectionError("Connection closed")
-                    data += chunk
-                resp = json.loads(data.decode("utf-8"))
-                if resp.get("id") != req_id:
-                    raise MT5ConnectionError(f"ID mismatch: sent {req_id}, got {resp.get('id')}")
-                if "error" in resp:
-                    raise MT5DataError(resp["error"])
-                return resp.get("result")
-            except (TimeoutError, ConnectionResetError, BrokenPipeError, OSError) as e:
-                self._sock = None
-                raise MT5ConnectionError(str(e)) from e
+                data += chunk
+            resp = json.loads(data.decode("utf-8"))
+            if resp.get("id") != req_id:
+                raise MT5ConnectionError(f"ID mismatch: sent {req_id}, got {resp.get('id')}")
+            if "error" in resp:
+                raise MT5DataError(resp["error"])
+            return resp.get("result")
+        except (TimeoutError, ConnectionResetError, BrokenPipeError, OSError) as e:
+            self._sock = None
+            raise MT5ConnectionError(str(e)) from e
 
     @property
     def connected(self) -> bool:
         return self._sock is not None
+
+
+class _FrameProtocol:
+    """Connection pool wrapping N TCP sockets + round-robin dispatch.
+
+    Enables concurrent requests to the bridge by maintaining multiple
+    TCP connections (default 4).  The bridge server already creates
+    one thread per client connection, so multiple sockets give true
+    parallelism for batch operations.
+    """
+
+    _POOL_SIZE = 4
+
+    def __init__(self, host: str = "127.0.0.1", port: int | None = None):
+        self._host = host
+        self._port = port or int(os.environ.get("MT5_BRIDGE_PORT", "9879"))
+        self._conns: list[_FrameConnection] = []
+        self._lock = threading.Lock()
+        self._executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self._POOL_SIZE,
+            thread_name_prefix="qf-mt5",
+        )
+
+    def connect(self) -> None:
+        with self._lock:
+            self.disconnect()
+            for _ in range(self._POOL_SIZE):
+                conn = _FrameConnection(self._host, self._port)
+                conn.connect()
+                self._conns.append(conn)
+
+    def disconnect(self) -> None:
+        with self._lock:
+            for conn in self._conns:
+                conn.disconnect()
+            self._conns.clear()
+
+    def _get_conn(self) -> _FrameConnection:
+        import itertools
+        return next(itertools.cycle(self._conns))
+
+    def send_request(self, method: str, params: dict | None = None) -> dict:
+        return self._get_conn().send_request(method, params)
+
+    def batch_request(self, method: str, param_list: list[dict]) -> list[dict]:
+        """Fire N requests concurrently across the pool, return results."""
+
+        def _send(p: dict) -> dict:
+            return self._get_conn().send_request(method, p)
+
+        futures = [self._executor.submit(_send, p) for p in param_list]
+        return [f.result() for f in futures]
+
+    @property
+    def connected(self) -> bool:
+        with self._lock:
+            return bool(self._conns) and all(c.connected for c in self._conns)
+
+    def shutdown(self) -> None:
+        self._executor.shutdown(wait=False)
+        self.disconnect()
 
 
 class MT5Client:
@@ -274,6 +334,33 @@ class MT5Client:
             return self._proto.send_request("symbol_info", {"symbol": symbol})
         except MT5DataError:
             return None
+
+    # ── Batch operations ─────────────────────────────────────────────────
+
+    def batch_realtime_price(self, tickers: list[str]) -> dict[str, float | None]:
+        """Fetch realtime mid-prices for multiple tickers concurrently."""
+        mapped = [self._map_symbol(t) for t in tickers]
+        param_list = [{"symbol": s} for s in mapped]
+        results = self._proto.batch_request("realtime_price", param_list)
+        out: dict[str, float | None] = {}
+        for ticker, res in zip(tickers, results):
+            if isinstance(res, dict) and "error" not in res:
+                bid = res.get("bid")
+                ask = res.get("ask")
+                out[ticker] = ((bid + ask) / 2.0) if (bid and ask) else (res.get("last") or bid or ask)
+            else:
+                out[ticker] = None
+        return out
+
+    def batch_symbol_info(self, tickers: list[str]) -> dict[str, dict | None]:
+        """Fetch symbol info for multiple tickers concurrently."""
+        mapped = [self._map_symbol(t) for t in tickers]
+        param_list = [{"symbol": s} for s in mapped]
+        results = self._proto.batch_request("symbol_info", param_list)
+        out: dict[str, dict | None] = {}
+        for ticker, res in zip(tickers, results):
+            out[ticker] = res if isinstance(res, dict) and "error" not in res else None
+        return out
 
     # ── Trading ──────────────────────────────────────────────────────────
 

@@ -259,3 +259,21 @@ class TestLotConversion:
 
     def test_get_order_status_always_filled(self, broker):
         assert broker.get_order_status("12345") == "filled"
+
+
+class TestBatchPrices:
+    def test_get_current_prices_returns_all(self, mock_client):
+        mock_client._realtime_prices = {"EURUSD": 1.05, "GBPUSD": 1.25}
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        prices = broker.get_current_prices(["EURUSD", "GBPUSD"])
+        assert prices["EURUSD"] == pytest.approx(1.05)
+        assert prices["GBPUSD"] == pytest.approx(1.25)
+        assert "batch_realtime_price" in mock_client.calls
+
+    def test_get_current_prices_fallback_zero(self, mock_client):
+        mock_client._realtime_prices = {"EURUSD": None}
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        prices = broker.get_current_prices(["EURUSD"])
+        assert prices["EURUSD"] == 0.0

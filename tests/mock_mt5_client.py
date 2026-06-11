@@ -120,6 +120,28 @@ class MockMT5Client:
             "max_volume": 100.0,
         })
 
+    # ── Batch operations ─────────────────────────────────────────────────
+
+    def batch_realtime_price(self, tickers: list[str]) -> dict[str, float | None]:
+        self._record("batch_realtime_price", tuple(tickers))
+        results: dict[str, float | None] = {}
+        for t in tickers:
+            price = self._realtime_prices.get(t, 100.0)
+            results[t] = price
+        return results
+
+    def batch_symbol_info(self, tickers: list[str]) -> dict[str, dict | None]:
+        self._record("batch_symbol_info", tuple(tickers))
+        results: dict[str, dict | None] = {}
+        for t in tickers:
+            results[t] = self._symbol_infos.get(t, {
+                "contract_size": 100000.0,
+                "volume_step": 0.01,
+                "min_volume": 0.01,
+                "max_volume": 100.0,
+            })
+        return results
+
     # ── Trading ──────────────────────────────────────────────────────────
 
     def place_order(

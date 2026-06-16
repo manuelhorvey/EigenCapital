@@ -10,13 +10,12 @@ mt5:
   bridge_host: 127.0.0.1
   bridge_port: 9879
   symbol_map_path: configs/mt5_symbol_map.yaml
-# Disabled — no trained regime model files found (models/regime/regime_conditional.json).
-# Re-enable after running regime model training for all assets.
-# ensemble:
-#   enabled: false
-#   base_weight: 0.6
-#   threshold: 0.15
-#   regime_feature_window: 63
+# Ensemble is configured programmatically per-asset after regime model training.
+# Config values here serve as global defaults for all assets.
+ensemble:
+  base_weight: 0.6
+  threshold: 0.15
+  regime_feature_window: 63
 meta_labeling:
   confidence_threshold: 0.4
   threshold_reduced: 0.4
@@ -27,6 +26,7 @@ defaults:
   cooldown_max_penalty_pct: 20.0
   entry_defer_max_bars: 5
   min_flip_interval_bars: 3
+  min_confidence: 55.0
   entry_optimization:
     mom_max_pressure: 0.9
     mom_min_pressure: 0.1

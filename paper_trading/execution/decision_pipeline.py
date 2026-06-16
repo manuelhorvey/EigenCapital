@@ -89,13 +89,30 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
     if ctx.new_side is None:
         return
     engine = ctx.engine
-    min_conf = engine.config.get("min_confidence", 0.0)
+    from paper_trading.config_manager import get_config
+    global_cfg = get_config()
+    min_conf = engine.config.get("min_confidence", getattr(global_cfg.defaults, "min_confidence", 0.0))
     if ctx.decision.confidence < min_conf:
         logger.debug(
             "%s: skipping trade, confidence %.1f%% < min %.1f%%",
             engine.name,
             ctx.decision.confidence,
             min_conf,
+        )
+        ctx.new_side = None
+
+
+def apply_signal_stability_filter(ctx: DecisionContext) -> None:
+    if ctx.new_side is None:
+        return
+    engine = ctx.engine
+    prob_long = ctx.decision.prob_long
+    margin = abs(prob_long - 0.5)
+    if margin < 0.05:
+        logger.debug(
+            "%s: signal too close to boundary (margin=%.4f) — holding flat",
+            engine.name,
+            margin,
         )
         ctx.new_side = None
 
@@ -300,6 +317,7 @@ DEFAULT_STAGES: list[StageFn] = [
     update_mae_mfe,
     resolve_signal,
     apply_confidence_gate,
+    apply_signal_stability_filter,
     apply_meta_label_advisory,
     update_regime_bar_counter,
     evaluate_conviction_gate,

@@ -48,8 +48,10 @@ class MetricsService:
         bucket = {"asset": name, "date": str(datetime.now(tz=ET).date())}
         for p in prob_history[-20:]:
             conf = p["confidence"]
-            bucket.setdefault(f"count_{int(conf / 10) * 10}_{int(conf / 10 + 1) * 10}", 0)
-            bucket[f"count_{int(conf / 10) * 10}_{int(conf / 10 + 1) * 10}"] += 1
+            lo = min(int(conf / 10) * 10, 90)
+            hi = min(int(conf / 10 + 1) * 10, 100)
+            bucket.setdefault(f"count_{lo}_{hi}", 0)
+            bucket[f"count_{lo}_{hi}"] += 1
         bucket["mean_conf"] = np.mean([p["confidence"] for p in prob_history[-20:]]) if prob_history else 0
         bucket["n_signals"] = min(20, len(prob_history))
         if state_store is not None:
@@ -85,8 +87,9 @@ class MetricsService:
         if ensure_position_synced:
             ensure_position_synced()
         cv = current_value if not pd.isna(current_value) else initial_capital
-        pv = peak_value if not pd.isna(peak_value) else cv
-        dd = min(0, (cv - pv) / pv) if pv > 0 else 0
+        mtm_val = mtm_value
+        pv = peak_value if not pd.isna(peak_value) else mtm_val
+        dd = min(0, (mtm_val - pv) / pv) if pv > 0 else 0
         total_return = (cv - initial_capital) / initial_capital if initial_capital > 0 else 0
 
         monthly_pfs = []

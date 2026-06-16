@@ -82,9 +82,11 @@ class EnsembleSignal:
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Like combine() but returns 3-column probabilities for pipeline
-        compatibility: [P(SHORT), 0, P(LONG)].
+        compatibility: [P(SHORT), P(NEUTRAL), P(LONG)].
+        Neutral probability = 1 - max(P(LONG), P(SHORT)) to allow model uncertainty.
         """
         blended, signals = self.combine(base_p_long, regime_p_long)
         p = blended.ravel()
-        three_col = np.column_stack([1.0 - p, np.zeros_like(p), p])
+        neutral = 1.0 - np.abs(p - 0.5) * 2.0
+        three_col = np.column_stack([1.0 - p - neutral / 2, neutral, p - neutral / 2])
         return three_col, signals

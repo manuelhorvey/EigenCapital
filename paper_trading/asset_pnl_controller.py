@@ -43,6 +43,9 @@ class AssetPnlController:
     def update_pnl(self):
         asset = self.asset
         asset._ensure_position_synced()
+        mtm = self.mtm_value
+        if mtm > asset.peak_value:
+            asset.peak_value = mtm
         self._track_running_excursion(asset)
 
         max_hold = asset.config.get("max_holding_days")
@@ -93,7 +96,12 @@ class AssetPnlController:
         if sl_dist <= 0:
             return
 
-        state = asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW"
+        entry_state = getattr(asset, "_entry_validity_state", None)
+        state = (
+            entry_state
+            if entry_state
+            else (asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW")
+        )
         archetype = getattr(asset, "_entry_archetype", "UNKNOWN")
 
         data = getattr(asset, "price_data", None)

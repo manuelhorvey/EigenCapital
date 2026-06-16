@@ -13,11 +13,9 @@ import argparse
 import csv
 import json
 import os
-import sys
 import time
-from datetime import datetime, timezone
-
 import urllib.request
+from datetime import datetime, timezone
 
 DASHBOARD_URL = "http://127.0.0.1:5000/state.json"
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "monitoring")
@@ -108,7 +106,7 @@ def main():
                       f"unrealized={metrics['unrealized_pnl']:.0f} "
                       f"conf={metrics['mean_confidence']:.3f} "
                       f"gate={metrics['gate_overrides']} flips={metrics['signal_flips']} "
-                      f"L/S/F={metrics['n_long']}/{metrics['n_short']}/{metrics['n_flat']}")
+                      f"B/S/F={metrics['n_buy']}/{metrics['n_sell']}/{metrics['n_flat']}")
             time.sleep(args.interval * 3600)
     else:
         state = poll()

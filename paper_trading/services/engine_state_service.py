@@ -55,12 +55,20 @@ class EngineStateService:
                 signal["close_price"] = metrics["current_price"]
             meta_inf = metrics.get("meta_inference") or {}
             feat_stab = metrics.get("feature_stability") or {}
+            sig_flip = False
+            if signal and asset.pos_mgr.has_position():
+                sig_dir = 1 if signal.get("signal") == "BUY" else (-1 if signal.get("signal") == "SELL" else 0)
+                pos_dir = 1 if asset.pos_mgr.position.side == "long" else -1
+                sig_flip = (sig_dir != 0 and pos_dir != 0 and sig_dir != pos_dir)
+
             ad[name] = {
                 "metrics": metrics,
                 "halt": halt,
                 "validity_state": validity.get("state", "YELLOW"),
                 "validity_exposure": validity.get("exposure", 0.5),
                 "last_signal": signal,
+                "gate_override": halt.get("halted", False),
+                "signal_flip": sig_flip,
                 "execution_state": "HALTED" if halt["halted"] else "ACTIVE",
                 "sl_mult": asset.sl_mult,
                 "tp_mult": asset.tp_mult,
@@ -117,8 +125,6 @@ class EngineStateService:
         tc = sum(a.capital_base for a in engine.assets.values()) or get_config().capital or 1.0
 
         mtm_total = self.compute_mtm_total()
-        cash_buffer = max(0, tc - mtm_total)
-        mtm_total += cash_buffer
 
         unrealized_dollars = sum(
             (a.mtm_value - (a.current_value if not pd.isna(a.current_value) else a.initial_capital))
@@ -229,12 +235,12 @@ class EngineStateService:
             )
             asset_snapshots.append(snap)
 
-        cash_buffer = get_config().capital - portfolio.get("realized_value", 0)
+        cash_buffer = max(0, get_config().capital - portfolio.get("realized_value", 0))
 
         engine._sim_store.capture(
             portfolio_value=portfolio.get("total_value", 0),
             total_return=portfolio.get("total_return", 0),
-            cash_buffer=max(0.0, cash_buffer),
+            cash_buffer=cash_buffer,
             asset_snapshots=asset_snapshots,
         )
 

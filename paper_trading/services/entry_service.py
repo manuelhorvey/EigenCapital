@@ -19,12 +19,12 @@ class EntryService:
     def effective_capital(self, *, initial_capital, capital_base, current_value) -> float:
         if initial_capital <= 0:
             return capital_base
-        growth = current_value / initial_capital
+        growth = min(current_value / initial_capital, 3.0)
         return capital_base * growth
 
-    def tb_vol(self, close_series):
+    def tb_vol(self, close_series, vol_lookback=21):
         returns = np.log(close_series / close_series.shift(1))
-        vol = returns.ewm(span=100).std()
+        vol = returns.rolling(vol_lookback).std()
         return vol.iloc[-1] if not pd.isna(vol.iloc[-1]) else 0.01
 
     def composite_size_scalar(
@@ -133,6 +133,7 @@ class EntryService:
             return
 
         state = asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW"
+        asset._entry_validity_state = state
         sl_mult, tp_mult, _ = compute_effective_multipliers(
             base_sl=asset.sl_mult,
             base_tp=asset.tp_mult,

@@ -219,7 +219,8 @@ class AssetInferencePipeline:
 
         ensemble = getattr(asset, "_ensemble", None)
         if ensemble is not None and getattr(asset, "_regime_model", None) is not None:
-            regime_feats = getattr(asset, "regime_feature_names", None)
+            rm_feats = asset._regime_model._feature_names if asset._regime_model._feature_names else None
+            regime_feats = rm_feats if rm_feats else getattr(asset, "regime_feature_names", None)
             if regime_feats:
                 regime_available = [c for c in regime_feats if c in features_df.columns]
                 if regime_available:

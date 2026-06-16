@@ -379,7 +379,7 @@ class AssetEngine:
     def _evaluate_flip_gate(self) -> tuple[bool, str]:
         from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate
 
-        gate_cfg = self.config.get("optimizations", {}).get("regime_conviction_flip_gate", {})
+        gate_cfg = self._engine_cfg.optimizations.get("regime_conviction_flip_gate", {})
         if not gate_cfg.get("enabled", False):
             return True, "gate_disabled"
         _conf = getattr(self, "_last_confidence", 0.0)
@@ -413,6 +413,10 @@ class AssetEngine:
         self._training.train(force=force)
 
     def generate_signal(self, threshold=0.45):
+        halt = self.check_halt_conditions()
+        if halt.get("halted", False):
+            logger.info("%s: skip signal generation — asset halted", self.name)
+            return None
         return self._inference.generate_signal(threshold)
 
     def _apply_decision(self, decision: TradeDecision, df):

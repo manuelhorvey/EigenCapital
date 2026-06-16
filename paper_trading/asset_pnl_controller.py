@@ -95,7 +95,6 @@ class AssetPnlController:
 
         state = asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW"
         archetype = getattr(asset, "_entry_archetype", "UNKNOWN")
-        tp_mult = asset.config.get("tp_mult", 1.0)
 
         data = getattr(asset, "price_data", None)
         if data is None:
@@ -111,7 +110,6 @@ class AssetPnlController:
             state,
             archetype,
             asset._structure_detector.detect(data),
-            tp_mult_override=tp_mult,
         )
 
         from quantforge.domain.entities.position import PositionSide

@@ -175,7 +175,6 @@ class EntryService:
                 state,
                 getattr(asset, "_entry_archetype", "UNKNOWN"),
                 asset._structure_detector.detect(data),
-                tp_mult_override=tp_mult,
             )
 
         raw_tp = entry_price + (tp_geo.tp_distance if side == PositionSide.LONG else -tp_geo.tp_distance)
@@ -442,7 +441,6 @@ class EntryService:
                         state,
                         entry.decision.archetype,
                         structure,
-                        tp_mult_override=curr_tp_mult,
                     )
 
             policy_dec = asset._execution_policy.handle(

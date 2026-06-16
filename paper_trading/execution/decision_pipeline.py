@@ -209,7 +209,6 @@ def build_entry_artifacts(ctx: DecisionContext) -> None:
                 state,
                 d.archetype,
                 structure,
-                tp_mult_override=curr_tp_mult,
             )
 
     elif entry_action == EntryAction.DEFER:

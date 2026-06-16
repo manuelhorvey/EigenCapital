@@ -85,37 +85,50 @@ def _normalize_index(idx: pd.Index) -> pd.Index:
 
 
 def _fetch_macro_batch() -> dict[str, pd.Series]:
-    """Fetch all macro tickers, trying MT5 first, then yfinance.
+    """Fetch all macro tickers via yfinance (macro indices not on MT5).
 
     Returns dict of {name: Series} with UTC-normalized daily indices.
     """
+    import yfinance as yf
+
     cached = _macro_cache.get("macro_batch")
     if cached is not None:
         return cached
 
     logger.debug("fetching macro batch: %s", _MACRO_TICKERS)
 
+    # Use a single batch download — shorter period (2y) to avoid yfinance
+    # "possibly delisted" errors that occur with period=5y for some tickers.
+    try:
+        df = yf.download(
+            _MACRO_TICKERS,
+            period="2y",
+            auto_adjust=True,
+            progress=False,
+            group_by="ticker",
+        )
+    except Exception:
+        df = pd.DataFrame()
+
     result: dict[str, pd.Series] = {}
+    if not df.empty and isinstance(df.columns, pd.MultiIndex):
+        for ticker in _MACRO_TICKERS:
+            clean = ticker.replace("=", "-")
+            if clean in df.columns.get_level_values(0):
+                series = df[clean]["Close"].squeeze().copy()
+                series.index = _normalize_index(series.index)
+                result[ticker] = series
 
-    # Try MT5 data_fetcher.safe_download for each macro ticker
-    from paper_trading.ops.data_fetcher import safe_download as _sd
-
+    # Fallback for any ticker not in batch result
     for ticker in _MACRO_TICKERS:
-        try:
-            df = _sd(ticker, start="2021-01-01", auto_adjust=True, progress=False)
-            if not df.empty:
-                close_col = "Close" if "Close" in df.columns else ("close" if "close" in df.columns else None)
-                if close_col is not None:
-                    series = df[close_col].squeeze().copy()
-                    if isinstance(series, pd.DataFrame):
-                        series = series.iloc[:, 0]
-                    series.index = _normalize_index(series.index)
-                    result[ticker] = series
-                    continue
-        except Exception:
-            pass
-        # Fallback: try yfinance directly
-        result[ticker] = _fetch_single_series(ticker)
+        if ticker not in result:
+            logger.debug("macro ticker %s not in batch — fetching individually", ticker)
+            try:
+                s = _fetch_single_series(ticker)
+                if not s.empty:
+                    result[ticker] = s
+            except Exception:
+                pass
 
     # Normalise all yield tickers from percentage to decimal
     _yield_tickers = {"^TNX", "^FVX", "^TYX", "^IRX"}

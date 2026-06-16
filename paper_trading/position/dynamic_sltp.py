@@ -331,10 +331,11 @@ class DynamicSLTPEngine:
         atr_price = compute_latest_atr(df, self.atr_period)
         atr_pct = atr_price / (entry_price + 1e-9)
 
-        # Effective vol for barrier placement: blend ATR % with config multipliers
-        vol_used = atr_pct * self.atr_mult_sl  # atr_mult_sl calibrates ATR → vol scale
-        sl_dist = entry_price * vol_used * sl_mult
-        tp_dist = entry_price * vol_used * tp_mult
+        # Effective vol for barrier placement: separate multipliers for SL and TP
+        vol_used_sl = atr_pct * self.atr_mult_sl  # atr_mult_sl calibrates ATR → vol scale for SL
+        vol_used_tp = atr_pct * self.atr_mult_tp  # atr_mult_tp calibrates ATR → vol scale for TP
+        sl_dist = entry_price * vol_used_sl * sl_mult
+        tp_dist = entry_price * vol_used_tp * tp_mult
 
         # Enforce minimum RR ratio
         rr = tp_dist / (sl_dist + 1e-9)

@@ -4,6 +4,11 @@ from paper_trading.entry.decision import MarketStructureState, TPGeometry, Valid
 
 logger = logging.getLogger("quantforge.paper_trading.tp_compiler")
 
+# Maximum reward-to-risk ratio — prevents absurd TP distances from
+# stacked convexity × regime × sl_mult multipliers.
+# At 5.0 R:R even MOMENTUM_IGNITION (base convexity 6.0) gets capped.
+MAX_RR = 5.0
+
 # 1. Archetype → Convexity Mapping (Finalized Spec)
 ARCHETYPE_CONVEXITY = {
     "BREAKOUT_TEST": 5.0,
@@ -51,6 +56,18 @@ def compute_take_profit(
     # 3. Final TP Distance Calculation
     # tp_distance = f(sl_distance) * multiplier * config_override
     tp_distance = sl_distance * convexity * reg_mult * tp_mult_override
+    # Cap at MAX_RR to prevent absurdly wide TP from stacked multipliers
+    capped_distance = sl_distance * MAX_RR
+    if tp_distance > capped_distance:
+        logger.debug(
+            "capped TP %.2fR -> %.2fR (convexity=%.1f reg_mult=%.1f override=%.1f)",
+            tp_distance / sl_distance,
+            MAX_RR,
+            convexity,
+            reg_mult,
+            tp_mult_override,
+        )
+        tp_distance = capped_distance
 
     # 4. Generate Scale-Out Tiers
     tiers = _generate_scale_out_profile(archetype, convexity)

@@ -360,7 +360,47 @@ See `docs/GOVERNANCE_LAYER.md` for full detail.
 
 ---
 
-## 14. DISCLAIMER
+## 14. SL/TP BARRIER COMPUTATION CONTRACT
+
+**Engine:** `paper_trading/position/dynamic_sltp.py:DynamicSLTPEngine`
+
+### Barrier computation chain
+
+1. **Primary method:** `_atr_barriers()` — ATR-based vol, used for most asset/regime combinations
+2. **Vol basis:** `atr_pct = ATR_mean / close` (20-day ATR)
+3. **Effective vol per side:**
+   ```
+   vol_used_sl = atr_pct * atr_mult_sl   # SL multiplier calibration
+   vol_used_tp = atr_pct * atr_mult_tp   # TP multiplier calibration (separate from SL)
+   sl_dist = entry_price * vol_used_sl * sl_mult
+   tp_dist = entry_price * vol_used_tp * tp_mult
+   ```
+4. `atr_mult_sl` and `atr_mult_tp` are config-level defaults (currently 2.0 and 3.0) — per-asset override possible via YAML
+5. The `_atr_barriers()` TP distance is discarded for live orders — the TP compiler overrides it
+
+**SL/TP overrides (applied after ATR barriers):**
+
+### TP Compiler: `paper_trading/entry/tp_compiler.py:compute_take_profit()`
+
+This function ALWAYS overrides the TP from `_atr_barriers()`:
+```
+tp_distance = sl_distance × convexity × reg_mult × tp_mult_override
+```
+
+Where:
+- `convexity` = archetype convexity (MOMENTUM_IGNITION=6.0, BREAKOUT=5.0, etc.)
+- `reg_mult` = regime multiplier (trend=2.0, range_bound=1.5, volatile=1.1, crisis=0.6)
+- `tp_mult_override` = config-level `tp_mult` from YAML per-asset
+
+**Safety cap:** `MAX_RR = 5.0` — TP distance capped at 5× SL distance regardless of stacked multipliers.
+
+### Post-entry adjustments
+- Trailing stop: `_trailing_initial_barriers()` delegates to `_atr_barriers()` for SL, then adjusts
+- `trailing_activation_mult = 2.0` — trailing activates at 2× SL distance from entry
+
+---
+
+## 15. DISCLAIMER
 
 Paper trading system only. No live capital execution. Not financial advice.
 Past walk-forward performance is not indicative of future results.

@@ -349,11 +349,11 @@ def fetch_asset_data(
     )
 
     prices = prices.loc[common].copy()
-    dxy = dxy.reindex(common).ffill()
-    vix = vix.reindex(common).ffill()
-    spx = spx.reindex(common).ffill()
-    wti = wti.reindex(common).ffill()
-    tnx = tnx.reindex(common).ffill()
+    dxy = dxy.reindex(common).ffill().fillna(0.0)
+    vix = vix.reindex(common).ffill().fillna(0.0)
+    spx = spx.reindex(common).ffill().fillna(0.0)
+    wti = wti.reindex(common).ffill().fillna(0.0)
+    tnx = tnx.reindex(common).ffill().fillna(0.0)
 
     # ── Real rate differentials —───────────────────────────────────
     # Parse asset name into base/quote currencies for FX pairs.

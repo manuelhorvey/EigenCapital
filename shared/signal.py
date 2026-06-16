@@ -52,6 +52,14 @@ class FixedThresholdStrategy(SignalStrategy):
             index=index,
         )
 
+        if len(signal_data) == 0:
+            return SignalResult(
+                signal_data=signal_data,
+                signal_type="FLAT",
+                confidence_pct=0.0,
+                label=1,
+            )
+
         latest = signal_data.iloc[-1]
         signal_type = "BUY" if latest["signal"] == 2 else ("SELL" if latest["signal"] == 0 else "FLAT")
         confidence = max(latest["prob_long"], latest["prob_short"])

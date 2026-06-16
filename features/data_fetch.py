@@ -207,9 +207,11 @@ def fetch_cot_features(
             if feats.empty:
                 continue
             if "lev_net_cot_index" in feats.columns:
-                result[f"{symbol}_cot_z"] = feats["lev_net_cot_index"].reindex(price_index, method="ffill")
+                val = feats["lev_net_cot_index"].reindex(price_index, method="ffill")
+                result[f"{symbol}_cot_z"] = val.fillna(0.0)
             if "lev_net_change_4w" in feats.columns:
-                result[f"{symbol}_cot_change_4w"] = feats["lev_net_change_4w"].reindex(price_index, method="ffill")
+                val = feats["lev_net_change_4w"].reindex(price_index, method="ffill")
+                result[f"{symbol}_cot_change_4w"] = val.fillna(0.0)
 
         return result
     except Exception as exc:

@@ -278,14 +278,24 @@ def build_alpha_features(
             for comm in commodities.columns:
                 features[f"{comm.upper()}_mom_21d"] = commodity_momentum(commodities[comm]).reindex(features.index)
 
-    # COT cross-asset features — add for all rows, zero-fill missing pairs
+    # Initialize all possible COT features for covered assets to 0.0 first
+    # to ensure all expected features are present even if COT data is missing or partial.
+    for asset_upper in (c.upper() for c in prices.columns):
+        if asset_upper in _COT_COVERED_NAMES:
+            features[f"{asset_upper}_cot_z"] = 0.0
+            features[f"{asset_upper}_cot_change_4w"] = 0.0
+
+    # Overwrite/add cross-asset COT features from cot_data if available
     if cot_data is not None and not cot_data.empty:
         for col in cot_data.columns:
             features[col] = cot_data[col].reindex(features.index, method="ffill")
-    else:
-        for asset_upper in (c.upper() for c in prices.columns):
-            if asset_upper in _COT_COVERED_NAMES:
-                features[f"{asset_upper}_cot_z"] = 0.0
-                features[f"{asset_upper}_cot_change_4w"] = 0.0
 
-    return features.ffill().dropna()
+    # Final forward-fill and dropna to handle indicator warmup.
+    # We also fill any remaining NaNs in cross-asset/COT features with 0.0
+    # to prevent an entirely NaN column from discarding all rows.
+    features = features.ffill()
+    for col in features.columns:
+        if "cot" in col or col in ["dxy_mom_21d", "vix_mom_5d", "spx_mom_5d"] or "WTI_mom" in col:
+            features[col] = features[col].fillna(0.0)
+
+    return features.dropna()

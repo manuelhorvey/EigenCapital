@@ -89,6 +89,29 @@ class _TTLCache:
 # Module-level cache shared across all assets in the same cycle.
 _macro_cache = _TTLCache(ttl=300)
 
+# Cycle-scoped cache for fetch_asset_data results — keyed by asset name.
+# Each cycle increments _cycle_id; stale entries are evicted on access.
+_cycle_cache: dict[str, tuple[int, Any]] = {}
+_cycle_id: int = 0
+
+
+def bump_cycle_id() -> int:
+    """Increment the cycle id to invalidate per-asset caches."""
+    global _cycle_id
+    _cycle_id += 1
+    return _cycle_id
+
+
+def _get_cycle_cached(key: str) -> Any | None:
+    value = _cycle_cache.get(key)
+    if value is not None and value[0] == _cycle_id:
+        return value[1]
+    return None
+
+
+def _set_cycle_cache(key: str, value: Any) -> None:
+    _cycle_cache[key] = (_cycle_id, value)
+
 
 def _normalize_index(idx: pd.Index) -> pd.Index:
     """Normalize a DatetimeIndex to UTC midnight."""
@@ -286,7 +309,14 @@ def fetch_asset_data(
     asset_name: str,
     ticker: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.DataFrame]:
-    """Fetch asset OHLCV + macro data."""
+    """Fetch asset OHLCV + macro data.
+
+    Results are cached within the current engine cycle (see ``bump_cycle_id``).
+    """
+    cached = _get_cycle_cached(asset_name)
+    if cached is not None:
+        return cached
+
     # Per-asset close via MT5 provider (falls back to yfinance automatically).
     # fetch_live returns US/Eastern index; normalise to UTC midnight to
     # align with macro data from yfinance.
@@ -413,7 +443,9 @@ def fetch_asset_data(
 
     commodities = wti.to_frame("WTI")
 
-    return prices, rate_diffs, dxy, vix, spx, commodities
+    result = (prices, rate_diffs, dxy, vix, spx, commodities)
+    _set_cycle_cache(asset_name, result)
+    return result
 
 
 def fetch_asset_ohlcv(

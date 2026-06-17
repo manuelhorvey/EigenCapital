@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_cot_features
-from features.labels import triple_barrier_labels, PurgedWalkForwardFolds
+from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("improve")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
@@ -24,9 +25,7 @@ class ExecutionContext:
     def get_state_store(self) -> object:
         if self.state_store is not None:
             return self.state_store
-        import os
-
-        from paper_trading.state_store import StateStore
+        from paper_trading.compat import StateStore
 
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.state_store = StateStore(base)
@@ -38,13 +37,13 @@ class ExecutionContext:
     def get_market_data_service(self) -> object:
         if self.market_data_service is not None:
             return self.market_data_service
-        from paper_trading.ops.market_data_service import get_market_data_service
+        from paper_trading.compat import _get_market_data_service
 
-        return get_market_data_service()
+        return _get_market_data_service()
 
     def get_engine_config(self) -> object:
         if self.engine_config is not None:
             return self.engine_config
-        from paper_trading.config_manager import get_config
+        from paper_trading.compat import get_config
 
         return get_config()

@@ -29,6 +29,7 @@ from paper_trading.orchestrator.actor import AssetActor
 from paper_trading.orchestrator.engine import EngineOrchestrator
 from paper_trading.replay.wal import WalWriter
 from paper_trading.services.engine_narrative_service import EngineNarrativeService
+from paper_trading.writer import BackgroundWriter
 from paper_trading.services.engine_rebalance_service import EngineRebalanceService
 from paper_trading.services.engine_recovery_service import EngineRecoveryService
 from paper_trading.services.engine_state_service import EngineStateService
@@ -111,7 +112,7 @@ class PaperTradingEngine:
         self._recovery = EngineRecoveryService(self)
         self._state = EngineStateService(self)
 
-        from paper_trading.execution_context import ExecutionContext
+        from paper_trading.compat import ExecutionContext
 
         self._execution_context = ExecutionContext(
             state_store=self.state_store,
@@ -131,7 +132,7 @@ class PaperTradingEngine:
         self._init_experiment_context()
         self._narrative.init_narrative()
         self._recovery.restore_positions(saved_positions)
-        from paper_trading.ops.simulation_snapshot import SimulationStore
+        from paper_trading.compat import SimulationStore
 
         self._sim_store = SimulationStore(BASE)
         self._rebalance_last_day: datetime | None = None
@@ -146,6 +147,12 @@ class PaperTradingEngine:
         self._mtm_cache_value: float | None = None
         self._mtm_cache_cycle: int = -1
 
+        # Background persistence writer (single-threaded drain)
+        self._background_writer = BackgroundWriter(
+            wal_writer=self._wal,
+            db_store=self.state_store.db if hasattr(self.state_store, "db") else None,
+        )
+
         # Fault-isolated actor orchestrator (Phase 5)
         self._orchestrator = EngineOrchestrator(
             actors={name: AssetActor(name, asset, wal_writer=self._wal) for name, asset in self.assets.items()},
@@ -156,7 +163,7 @@ class PaperTradingEngine:
     def _create_mt5_broker(self, cfg):
         import yaml
 
-        from paper_trading.execution.mt5_broker import MT5Broker
+        from paper_trading.compat import MT5Broker
 
         mt5 = cfg.mt5
         symbol_map: dict[str, str] = {}
@@ -182,7 +189,7 @@ class PaperTradingEngine:
         import yaml
 
         from paper_trading.ops.data_fetcher import set_mt5_client
-        from paper_trading.ops.mt5_client import MT5Client
+        from paper_trading.compat import MT5Client
 
         symbol_map: dict[str, str] = {}
         if cfg.mt5.symbol_map_path:
@@ -205,13 +212,13 @@ class PaperTradingEngine:
         logger.info("MT5 data provider installed")
 
     def _build_asset_registry(self) -> None:
-        from paper_trading.portfolio_builder import build_paper_portfolio as _build_paper_portfolio
+        from paper_trading.compat import build_paper_portfolio as _build_paper_portfolio
 
         portfolio = _build_paper_portfolio(self._engine_cfg.halt)
         _reg = StrategyRegistry.get_instance()
         _reg.register_defaults(list(portfolio.keys()))
         for name, spec in portfolio.items():
-            from paper_trading.asset_engine_factory import build_asset_engine
+            from paper_trading.compat import build_asset_engine
 
             self.assets[name] = build_asset_engine(
                 ticker=spec["ticker"],
@@ -286,6 +293,9 @@ class PaperTradingEngine:
     def run_once(self):
         _t0 = time.perf_counter()
         self._cycle_count += 1
+        from features.data_fetch import bump_cycle_id
+
+        bump_cycle_id()
 
         if is_market_closed():
             logger.debug("Market closed — core assets skipped")
@@ -302,55 +312,12 @@ class PaperTradingEngine:
                     ctx.freeze.experiment_id,
                 )
 
-        pd_limit = self._engine_cfg.portfolio_drawdown_limit
         results: dict[str, object] = {}
 
-        # ── Refresh prices for accurate MTM before drawdown check ──
-        for name, asset in self.assets.items():
-            asset.refresh_price()
-        self._mtm_cache_value = None  # invalidate MTM cache so it recomputes with fresh prices
-
-        # ── Portfolio drawdown check (BEFORE any new trading) ────────
-        mtm = self._state.compute_mtm_total()
-        if self.portfolio_peak_value is None or mtm > self.portfolio_peak_value:
-            self.portfolio_peak_value = mtm
-        portfolio_dd = (
-            (mtm - self.portfolio_peak_value) / self.portfolio_peak_value
-            if self.portfolio_peak_value and self.portfolio_peak_value > 0
-            else 0.0
-        )
-
-        if pd_limit is not None and portfolio_dd <= pd_limit:
-            logger.warning(
-                "PORTFOLIO CIRCUIT BREAKER: drawdown %.2f%% <= %.2f%% limit — closing all positions",
-                portfolio_dd * 100,
-                pd_limit * 100,
-            )
-            for name, asset in self.assets.items():
-                if asset.pos_mgr.has_position():
-                    asset._close_position(
-                        asset.current_price,
-                        str(datetime.now(tz=ET).date()),
-                        "portfolio_circuit_breaker",
-                    )
-            results["circuit_breaker"] = {
-                "triggered": True,
-                "portfolio_drawdown": round(portfolio_dd * 100, 2),
-                "limit": round(pd_limit * 100, 2),
-            }
-            self._wal.write(
-                "state_committed",
-                {
-                    "circuit_breaker": results["circuit_breaker"],
-                    "portfolio_drawdown": round(portfolio_dd * 100, 2),
-                },
-            )
-            self.last_update = datetime.now(tz=ET)
-            return results
-
         # ── Fault-isolated asset execution via orchestrator ──────────
-        # Replaces Phases 1 (refresh+pnl), 3 (signal), 4 (validity).
-        # Each asset runs in its own actor; no single failure halts others.
+        # The orchestrator owns Phases 1-4 (refresh, signal, validity,
+        # portfolio health, persist).  It is the sole source of truth
+        # for drawdown tracking and circuit breakers.
         orch_results = self._orchestrator.run_once()
 
         # Propagate orchestrator health snapshot to results
@@ -363,21 +330,22 @@ class PaperTradingEngine:
             if isinstance(sig, dict):
                 results[name] = sig
 
-        # Check orchestrator-level emergency halt
+        # Check orchestrator-level circuit breaker
         if orch_results.get("circuit_breaker"):
-            logger.error("Orchestrator circuit breaker triggered — actor halt ratio exceeded threshold")
+            logger.error("Orchestrator circuit breaker triggered — reason=%s", orch_results["circuit_breaker"])
             results["orchestrator_circuit_breaker"] = orch_results["circuit_breaker"]
+            self.last_update = datetime.now(tz=ET)
+            return results
 
         # Drain all actor persist queues into engine persist buffer
         persist_commands = self._orchestrator.drain_persist_buffer()
         for cmd in persist_commands:
             if cmd["kind"] == "signal":
                 pass  # signals already captured in results
-            # Future: route trades, snapshots, attribution to state store
 
         _t1 = time.perf_counter()
 
-        # ── Narrative refresh ──────────────────────────────────────────
+        # ── Narrative refresh (non-blocking to asset cycles) ────────────
         self._refresh_narrative()
 
         _t2 = time.perf_counter()
@@ -388,16 +356,10 @@ class PaperTradingEngine:
 
         _t3 = time.perf_counter()
 
-        # ── WAL: engine-level state committed ──────────────────────────
-        self._wal.write(
-            "state_committed",
-            {
-                "assets": {name: {"has_position": a.pos_mgr.has_position()} for name, a in self.assets.items()},
-                "last_update": str(self.last_update),
-            },
-        )
-
         self.last_update = datetime.now(tz=ET)
+
+        # ── Flush background writer ──────────────────────────────────
+        self._background_writer.flush()
 
         # ── Cycle benchmark ───────────────────────────────────────────
         _elapsed = time.perf_counter() - _t0

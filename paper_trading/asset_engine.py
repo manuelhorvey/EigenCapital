@@ -5,15 +5,14 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
-from monitoring.importance_tracker import ImportanceStore, StabilityResult
-from monitoring.psi_monitor import PSIMonitor, PSISnapshot
+from monitoring.importance_tracker import ImportanceStore
+from monitoring.psi_monitor import PSIMonitor
 from monitoring.validity_state_machine import ValidityStateMachine as _ValidityStateMachine
 from paper_trading.asset_pnl_controller import AssetPnlController
-from paper_trading.attribution.collector import AttributionCollector, TradeAttributionRecord
+from paper_trading.attribution.collector import AttributionCollector
 from paper_trading.config_manager import get_config  # noqa: F401  (patched by tests)
 from paper_trading.entry.decision import TradeDecision
 from paper_trading.governance.asset import AssetGovernance
-from paper_trading.governance.conviction_gate import RegimeRow
 from paper_trading.governance.regime import RegimeClassifier
 from paper_trading.inference.pipeline import AssetInferencePipeline
 from paper_trading.inference.training import AssetTrainingPipeline
@@ -23,9 +22,22 @@ from paper_trading.position.manager import PositionManager
 from paper_trading.position.scale_out import build_scale_out_from_config
 from paper_trading.services.entry_service import EntryService
 from paper_trading.services.position_service import PositionService
+from paper_trading.services.attribution_service import AttributionService as _AttributionService
+from paper_trading.entry.optimizer import EntryOptimizer
+from paper_trading.entry.policy import ExecutionPolicyLayer
+from features.archetypes import ArchetypeClassifier
+from features.market_structure import MarketStructureDetector
 from paper_trading.shadow.engine import ShadowSLTPEngine
 from paper_trading.state_store import _SKIP_JOURNAL
 from shared.registry import StrategyRegistry
+from paper_trading.compat import (
+    ExecutionContext,
+    SignalService,
+    MetricsService,
+    GovernanceService,
+    evaluate_regime_conviction_gate,
+    run_decision_pipeline,
+)
 
 logger = logging.getLogger("quantforge.asset_engine")
 
@@ -55,78 +67,167 @@ class AssetEngine:
         retrain_window=None,
         context=None,
     ):
-        from paper_trading.execution_context import ExecutionContext
-
         ctx = context or ExecutionContext()
         engine_cfg = ctx.get_engine_config()
+        self._engine_cfg = engine_cfg
+
+        # ── Core identity ────────────────────────────────────────────
         self.ticker = ticker
         self.name = name
         self.contract = contract
         self.features = list(contract.features)
         self.allocation = allocation
-        self._engine_cfg = engine_cfg
+        self.config = config or {}
+        self.halt_config = halt_config or dict(engine_cfg.halt)
+        self.sl_mult = sl_mult
+        self.tp_mult = tp_mult
+        self.max_depth = max_depth
+        self.regime_geometry = regime_geometry or {}
+
+        # ── Capital & position management ────────────────────────────
         self.initial_capital = initial_capital if initial_capital is not None else engine_cfg.capital * allocation
         self.capital_base = self.initial_capital
-        self.halt_config = halt_config or dict(engine_cfg.halt)
-        self.config = config or {}
-        self.model = None
-        self.signal_data = None
         self.peak_value = self.initial_capital
         self.current_value = self.initial_capital
-        self.start_time = datetime.now(tz=ET)
-        self.last_signal_date = None
-        self.trades = []
-        self.prob_history = []
-        self.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
-        self._trained = False
-        self.position = None
-        self.trade_log = []
-        self.current_price = None
         self.pos_mgr = PositionManager(
             self.initial_capital,
             position_size if position_size is not None else engine_cfg.position_size,
         )
+
+        # ── Runtime state ────────────────────────────────────────────
+        self.start_time = datetime.now(tz=ET)
+        self.model = None
+        self.signal_data = None
+        self.last_signal_date = None
+        self.current_price = None
+        self.position = None
+        self.trades = []
+        self.trade_log = []
+        self.prob_history = []
+        self._trained = False
+        self._cycle_counter: int = 0
+        self._research_mode = engine_cfg.research_mode
+        self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
+        self.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
+
+        # ── Infrastructure dependencies ──────────────────────────────
+        self.execution_bridge = ctx.get_execution_bridge()
+        self.state_store = ctx.get_state_store()
+        if journal_path is _SKIP_JOURNAL:
+            self.state_store = None
+        self._market_data = ctx.get_market_data_service()
+        self._setup_registry_strategies()
+
+        # ── Monitoring & governance ──────────────────────────────────
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self._importance_store = ImportanceStore(base_dir)
+        self._psi_monitor = PSIMonitor(base_dir)
+        self.regime_classifier = RegimeClassifier()
         self.validity_sm = _ValidityStateMachine()
+        self.governance = AssetGovernance(self.name, self.config, self.halt_config)
+        self.governance.load_narrative_state()
+        self.governance.load_liquidity_state(getattr(self, "price_data", None))
+        self._setup_shadow_sltp()
+
+        # ── SL/TP & entry machinery ──────────────────────────────────
+        self._sltp_engine = build_dynamic_sltp_from_config(self.config)
+        self._scale_out_engine = build_scale_out_from_config(self.config)
+        self._scale_out_plan = None
+        self._entry = EntryService()
+        self._entry_optimizer = EntryOptimizer()
+        self._execution_policy = ExecutionPolicyLayer()
+        self._structure_detector = MarketStructureDetector()
+        self._archetype_classifier = ArchetypeClassifier()
+        self._pending_entries: dict[str, object] = {}
+        self._deferred_entry = None
+
+        # ── Working state for entry/exit logic ───────────────────────
+        self._entry_price: float | None = None
+        self._entry_vol = None
+        self._entry_signal_dir: int = 0
+        self._entry_archetype = "UNKNOWN"
+        self._entry_pressure = None
+        self._entry_validity_state = "YELLOW"
+        self._bars_at_entry = 0
+        self._last_adjust_bar = 0
+        self._initial_sl = None
+        self._initial_tp = None
+        self._last_entry_slippage = 0.0
+        self._last_policy_hash = ""
+        self._regime_adjusted_entry = False
+        self._cooldown_score = 0.0
+        self._last_cooldown_update_cycle = -999
+        self._last_stop_out_side = None
+        self._last_stop_out_cycle = -999
+        self._last_stop_out_price = None
+        self._last_signal_flip_cycle = -self.config.get("min_flip_interval_bars", 3) * 2
+        self._min_flip_interval_bars = self.config.get("min_flip_interval_bars", 3)
+        self._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
+        self._initial_settlement_done = False
+
+        # ── Inference & training state ───────────────────────────────
+        self._last_label = None
+        self._last_confidence = 0.0
+        self._last_prob_long = 0.0
+        self._last_prob_short = 0.0
+        self._last_prob_neutral = 0.0
+        self._last_meta_proba = None
+        self._last_macro_dir = None
+        self._last_blend_dir = None
+        self._last_regime_row = None
+        self._regime_bar_counter = 0
+        self._last_regime_label = None
+        self._current_regime = "neutral"
+        self._alpha_feature_cols = None
+        self.regime_feature_names = []
+        self._ensemble = None
+        self._regime_model = None
+        self._meta_label_model = None
+        self._ensemble_breakdown = {}
+        self._window_id_counter = 0
+        self._current_window_train_start = ""
+        self._current_window_train_end = ""
+        self._last_stability = None
+        self._last_psi_drift = None
+        self._truncate_inference = False
+        self._psi_drift_initialized = False
+
+        # ── Shadow engine ────────────────────────────────────────────
+        self._shadow_sltp = None
+        self._risk_signal = None
+        self._shadow_action = None
+        self._shadow_drift_intel = None
+        self._shadow_learning = None
+
+        # ── Attribution ──────────────────────────────────────────────
+        self._attribution = AttributionCollector()
+        self._experiment_id = ""
+        self._attribution_export_dir = None
+        self._current_trade_id = None
+        self._attribution_buffer = []
+
+        # ── Sub-pipelines (training, inference, PnL, position) ──────
+        self._training = AssetTrainingPipeline(self)
+        self._pnl = AssetPnlController(self)
+        self._inference = AssetInferencePipeline(self)
+        self._position = self._build_position_service()
+
+    # ── Internal setup helpers ──────────────────────────────────────
+
+    def _setup_registry_strategies(self) -> None:
         self._reg = StrategyRegistry.get_instance()
         self._model_iface = self._reg.get_model(self.name)
         self._signal_strategy = self._reg.get_signal(self.name)
         self._sizing_strategy = self._reg.get_sizing(self.name)
         self._pnl_strategy = self._reg.get_pnl(self.name)
         self._feature_pipeline = self._reg.get_features(self.name)
-        self._risk_signal = None
-        self._shadow_action = None
-        self._shadow_drift_intel = None
-        self._shadow_learning = None
-        self.sl_mult = sl_mult
-        self.tp_mult = tp_mult
-        self.max_depth = max_depth
-        self.regime_geometry = regime_geometry or {}
-        self.execution_bridge = ctx.get_execution_bridge()
-        self._research_mode = engine_cfg.research_mode
-        self._last_macro_dir: int | None = None
-        self._last_blend_dir: int | None = None
-        self._entry_signal_dir: int = 0
-        self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
-        self.state_store = ctx.get_state_store()
-        if journal_path is _SKIP_JOURNAL:
-            self.state_store = None
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self._importance_store = ImportanceStore(base_dir)
-        self._psi_monitor = PSIMonitor(base_dir)
-        self.regime_classifier = RegimeClassifier()
-        self._last_regime_row: RegimeRow | None = None
-        self._regime_bar_counter: int = 0
-        self._last_regime_label: str | None = None
         if self.config.get("regime_sizing"):
             self._sizing_strategy.regime_aware = True
 
-        self._sltp_engine = build_dynamic_sltp_from_config(self.config)
-        self._scale_out_engine = build_scale_out_from_config(self.config)
-
-        # Shadow SL/TP engine — parallel counterfactual replay
+    def _setup_shadow_sltp(self) -> None:
         self._shadow_sltp: ShadowSLTPEngine | None = None
-        if self.config.get("shadow_sltp", {}).get("enabled", False):
-            shadow_cfg = self.config.get("shadow_sltp", {})
+        shadow_cfg = self.config.get("shadow_sltp", {})
+        if shadow_cfg.get("enabled", False):
             alt_engine = DynamicSLTPEngine(
                 method=shadow_cfg.get("method", "atr"),
                 atr_period=shadow_cfg.get("atr_period", self.config.get("dynamic_sltp", {}).get("atr_period", 14)),
@@ -142,39 +243,11 @@ class AssetEngine:
                 alt_engine=alt_engine,
             )
             logger.info("%s: shadow SL/TP engine '%s' initialized", self.name, self._shadow_sltp.name)
-        self._scale_out_plan = None
-        self._last_adjust_bar = 0
-        self._bars_at_entry = 0
-        self._entry_vol = None
-        self._meta_label_model = None
-        self._window_id_counter = 0
-        self._current_window_train_start = ""
-        self._current_window_train_end = ""
-        self._last_stability: StabilityResult | None = None
-        self._last_psi_drift: PSISnapshot | None = None
-        self.governance = AssetGovernance(self.name, self.config, self.halt_config)
-        self.governance.load_narrative_state()
-        self.governance.load_liquidity_state(getattr(self, "price_data", None))
-        self._last_stop_out_side: str | None = None
-        self._last_stop_out_cycle: int = -999
-        self._last_stop_out_price: float | None = None
-        self._cooldown_score: float = 0.0
-        self._last_cooldown_update_cycle: int = -999
-        self._entry_price: float | None = None
-        self._regime_adjusted_entry: bool = False
-        self._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
-        self._initial_settlement_done: bool = False
-        self._last_signal_flip_cycle: int = -self.config.get("min_flip_interval_bars", 3) * 2
-        self._min_flip_interval_bars = self.config.get("min_flip_interval_bars", 3)
-        self._cycle_counter: int = 0
-        self._training = AssetTrainingPipeline(self)
-        self._pnl = AssetPnlController(self)
-        self._inference = AssetInferencePipeline(self)
-        self._entry = EntryService()
-        self._attribution = AttributionCollector()
-        from paper_trading.services.attribution_service import AttributionService as _AttributionService
+        else:
+            self._shadow_sltp = None
 
-        self._position = PositionService(
+    def _build_position_service(self) -> PositionService:
+        return PositionService(
             name=self.name,
             ticker=self.ticker,
             config=self.config,
@@ -186,28 +259,9 @@ class AssetEngine:
             model=self.model,
             shadow_sltp=self._shadow_sltp,
         )
-        self._market_data = ctx.get_market_data_service()
-        from features.archetypes import ArchetypeClassifier
-
-        self._archetype_classifier = ArchetypeClassifier()
-        from features.market_structure import MarketStructureDetector
-        from paper_trading.entry.optimizer import EntryOptimizer
-        from paper_trading.entry.policy import ExecutionPolicyLayer
-
-        self._structure_detector = MarketStructureDetector()
-        self._entry_optimizer = EntryOptimizer()
-        self._execution_policy = ExecutionPolicyLayer()
-        self._pending_entries: dict[str, object] = {}  # direction -> DeferredEntry
-        self._attribution = AttributionCollector()
-        self._experiment_id: str = ""
-        self._attribution_export_dir: str | None = None
-        self._current_trade_id: str | None = None
-        self._attribution_buffer: list[TradeAttributionRecord] = []
 
     def set_experiment_context(self, experiment_id: str, export_dir: str | None = None) -> None:
-        from paper_trading.services.attribution_service import AttributionService
-
-        self._attribution_export_dir = AttributionService.set_experiment_context(
+        self._attribution_export_dir = _AttributionService.set_experiment_context(
             attribution_export_dir=self._attribution_export_dir,
             experiment_id=experiment_id,
             export_dir=export_dir,
@@ -215,9 +269,7 @@ class AssetEngine:
         self._experiment_id = experiment_id
 
     def flush_attribution(self) -> None:
-        from paper_trading.services.attribution_service import AttributionService
-
-        AttributionService.flush_attribution(
+        _AttributionService.flush_attribution(
             name=self.name,
             attribution_buffer=self._attribution_buffer,
             attribution_export_dir=self._attribution_export_dir,
@@ -238,8 +290,6 @@ class AssetEngine:
         )
 
     def _meta_size_multiplier(self) -> float:
-        from paper_trading.services.signal_service import SignalService
-
         return SignalService.meta_size_multiplier(self.config, getattr(self, "_last_meta_proba", None))
 
     def _composite_size_scalar(self, extra_scalar: float = 1.0) -> float:
@@ -289,8 +339,6 @@ class AssetEngine:
             macro_head.online_weight = True
 
     def _load_meta_label_model(self) -> None:
-        from paper_trading.services.signal_service import SignalService
-
         self._meta_label_model = SignalService.load_meta_label_model(self.config, self.name)
 
     def _tb_vol(self, close_series):
@@ -376,8 +424,6 @@ class AssetEngine:
         )
 
     def _evaluate_flip_gate(self) -> tuple[bool, str]:
-        from paper_trading.governance.conviction_gate import evaluate_regime_conviction_gate
-
         gate_cfg = self._engine_cfg.optimizations.get("regime_conviction_flip_gate", {})
         if not gate_cfg.get("enabled", False):
             return True, "gate_disabled"
@@ -420,16 +466,12 @@ class AssetEngine:
 
     def _apply_decision(self, decision: TradeDecision, df):
         self._cycle_counter += 1
-        from paper_trading.execution.decision_pipeline import run_decision_pipeline
-
         run_decision_pipeline(self, decision, df)
 
     def _poll_pending_entries(self, df: pd.DataFrame) -> None:
         self._entry.poll_pending_entries(df, self)
 
     def _decision_to_dict(self, decision: TradeDecision):
-        from paper_trading.services.metrics_service import MetricsService
-
         return MetricsService.decision_to_dict(
             decision,
             pos_mgr=self.pos_mgr,
@@ -451,8 +493,6 @@ class AssetEngine:
         return self._pnl.mtm_value
 
     def get_metrics(self):
-        from paper_trading.services.metrics_service import MetricsService
-
         return MetricsService.get_metrics(
             name=self.name,
             ensure_position_synced=self._ensure_position_synced,
@@ -480,8 +520,6 @@ class AssetEngine:
         )
 
     def _log_confidence_buckets(self):
-        from paper_trading.services.metrics_service import MetricsService
-
         MetricsService.log_confidence_buckets(
             name=self.name,
             prob_history=self.prob_history,
@@ -489,8 +527,6 @@ class AssetEngine:
         )
 
     def update_validity(self, halt: dict | None = None):
-        from paper_trading.services.governance_service import GovernanceService
-
         return GovernanceService.update_validity(
             name=self.name,
             halt=halt,
@@ -501,8 +537,6 @@ class AssetEngine:
         )
 
     def check_halt_conditions(self, metrics: dict | None = None):
-        from paper_trading.services.governance_service import GovernanceService
-
         return GovernanceService.check_halt_conditions(
             get_metrics=(lambda: metrics if metrics is not None else self.get_metrics()),
             name=self.name,

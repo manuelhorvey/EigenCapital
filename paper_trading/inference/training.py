@@ -6,9 +6,9 @@ import xgboost as xgb
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
-from features.labels import triple_barrier_labels
 from features.regime_features import generate_regime_features
 from labels.meta_labels import MetaLabelModel
+from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
 
@@ -71,7 +71,17 @@ class AssetTrainingPipeline:
         logger.info("%s: training pt_sl=%s (tp_mult=%.2f, sl_mult=%.2f)", asset.name, pt_sl, tp_mult, sl_mult)
         vb = asset.contract.label_params.get("vertical_barrier", 20)
         logger.info("%s: training vertical_barrier=%d (from contract)", asset.name, vb)
-        labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=vb)
+
+        # Fetch OHLCV early — needed for both vectorized labels and regime features
+        ohlcv = fetch_asset_ohlcv(asset.ticker)
+        if not ohlcv.empty:
+            labeled = apply_triple_barrier(ohlcv, pt_sl=list(pt_sl), vertical_barrier=vb)
+            labels = labeled["label"].reindex(features.index).fillna(0).astype(int)
+        else:
+            logger.warning("%s: no OHLCV data for vectorized labels — using legacy fallback", asset.name)
+            from labels.compat import triple_barrier_labels as _legacy_labels
+
+            labels = _legacy_labels(prices, pt_sl=pt_sl, vertical_barrier=vb)
         features["label"] = labels.reindex(features.index).astype(int)
         features = features.dropna()
         logger.info("%s: %d alpha feature rows, %d columns", asset.name, len(features), len(features.columns) - 1)
@@ -79,9 +89,7 @@ class AssetTrainingPipeline:
         # Store alpha feature column names on the asset for inference
         asset._alpha_feature_cols = [c for c in features.columns if c != "label"]
 
-        # Generate and append regime features (hurst, kaufman_er, adx, vol_zscore, etc.)
-        # Requires OHLCV data — fetch separately since fetch_asset_data only returns close
-        ohlcv = fetch_asset_ohlcv(asset.ticker)
+        # Generate and append regime features
         if ohlcv.empty:
             logger.warning("%s: no OHLCV data for regime features — skipping regime model", asset.name)
             asset.regime_feature_names = []

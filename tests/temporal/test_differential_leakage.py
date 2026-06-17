@@ -29,7 +29,7 @@ from features.alpha_features import (
     vol_regime_ratio,
     day_of_week_signal,
 )
-from features.labels import PurgedWalkForwardFolds, triple_barrier_labels
+from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from features.liquidity_regime import compute_liquidity_features
 
 
@@ -287,7 +287,7 @@ class TestEmbargoInvariant:
     """PurgedWalkForward must enforce embargo between train and test folds."""
 
     def test_embargo_gap_respected(self):
-        from features.labels import PurgedWalkForwardFolds
+        from labels.compat import PurgedWalkForwardFolds
 
         n = 500
         gap = 5

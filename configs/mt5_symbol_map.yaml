@@ -5,27 +5,27 @@
 # Comment out any symbol you don't trade via MT5.
 
 # ── Forex ─────────────────────────────────────────────────────────────────────
-AUDCHF=X: AUDCHF
-AUDJPY=X: AUDJPY
-AUDNZD=X: AUDNZD
-AUDUSD=X: AUDUSD
-CADCHF=X: CADCHF
+AUDCHF=X: AUDCHFm
+AUDJPY=X: AUDJPYm
+AUDNZD=X: AUDNZDm
+AUDUSD=X: AUDUSDm
+CADCHF=X: CADCHFm
 # CADJPY=X: CADJPY      # REMOVED from dashboard (PF < 1.0)
 # CHFJPY=X: CHFJPY      # REMOVED from dashboard (zero edge)
-EURAUD=X: EURAUD
-EURCAD=X: EURCAD
-EURCHF=X: EURCHF
-EURNZD=X: EURNZD
-EURUSD=X: EURUSD
-GBPAUD=X: GBPAUD
-GBPCAD=X: GBPCAD
-GBPCHF=X: GBPCHF
-GBPNZD=X: GBPNZD
-NZDCAD=X: NZDCAD
-NZDCHF=X: NZDCHF
-NZDUSD=X: NZDUSD
-USDCAD=X: USDCAD
-USDCHF=X: USDCHF
+EURAUD=X: EURAUDm
+EURCAD=X: EURCADm
+EURCHF=X: EURCHFm
+EURNZD=X: EURNZDm
+EURUSD=X: EURUSDm
+GBPAUD=X: GBPAUDm
+GBPCAD=X: GBPCADm
+GBPCHF=X: GBPCHFm
+GBPNZD=X: GBPNZDm
+NZDCAD=X: NZDCADm
+NZDCHF=X: NZDCHFm
+NZDUSD=X: NZDUSDm
+USDCAD=X: USDCADm
+USDCHF=X: USDCHFm
 # USDJPY=X: USDJPY      # REMOVED from dashboard (flat edge)
 # AUDCAD=X:  AUDCAD     # FAIL — negative expectancy
 # EURCHF=X:  EURCHF     # WEAK — low consistency
@@ -39,19 +39,19 @@ USDCHF=X: USDCHF
 # NZDJPY=X:  NZDJPY     # WEAK — near-zero trades
 
 # ── Metals ────────────────────────────────────────────────────────────────────
-GC=F: XAUUSD
-SI=F: XAGUSD
+GC=F: XAUUSDm
+SI=F: XAGUSDm
 
 # ── Indices ───────────────────────────────────────────────────────────────────
 # Exact Exness names may vary; adjust as needed.
 # Common variants: US500, SP500m, US500Cash, SPX, ES
-ES=F: US500
-NQ=F: USTEC
-YM=F: US30
-^DJI: US30
+ES=F: US500m
+NQ=F: USTECm
+YM=F: US30m
+^DJI: US30m
 
 # ── Energy ────────────────────────────────────────────────────────────────────
-CL=F: USOIL
+CL=F: USOILm
 # NG=F:      NATGAS
 
 # ── Crypto ────────────────────────────────────────────────────────────────────

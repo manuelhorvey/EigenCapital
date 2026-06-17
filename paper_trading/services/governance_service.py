@@ -92,8 +92,11 @@ class GovernanceService:
         soft_warnings = []
         logger.debug(
             "%s halt check: dd=%.4f mpf=%s drought_date=%s prob_n=%d mean_conf=%.2f liq_halted=%s",
-            name, dd, metrics.get("monthly_pf"),
-            metrics.get("last_signal_date"), len(prob_history),
+            name,
+            dd,
+            metrics.get("monthly_pf"),
+            metrics.get("last_signal_date"),
+            len(prob_history),
             metrics.get("mean_confidence", 0),
             governance._liquidity_halted,
         )
@@ -120,14 +123,21 @@ class GovernanceService:
             drift = abs(mean_conf - expected_prob_conf)
             logger.debug(
                 "%s drift check: n=%d mean_conf=%.3f expected=%.3f drift=%.3f limit=%.3f",
-                name, len(prob_history), mean_conf, expected_prob_conf, drift, prob_drift_limit,
+                name,
+                len(prob_history),
+                mean_conf,
+                expected_prob_conf,
+                drift,
+                prob_drift_limit,
             )
             if drift > prob_drift_limit:
                 soft_warnings.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
                 drift_ok = False
                 logger.info(
                     "%s confidence drift: drift=%.3f limit=%.2f (soft, penalty -0.15)",
-                    name, drift, prob_drift_limit,
+                    name,
+                    drift,
+                    prob_drift_limit,
                 )
 
         narrative_ok = True

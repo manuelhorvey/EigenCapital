@@ -59,7 +59,7 @@ class EngineStateService:
             if signal and asset.pos_mgr.has_position():
                 sig_dir = 1 if signal.get("signal") == "BUY" else (-1 if signal.get("signal") == "SELL" else 0)
                 pos_dir = 1 if asset.pos_mgr.position.side == "long" else -1
-                sig_flip = (sig_dir != 0 and pos_dir != 0 and sig_dir != pos_dir)
+                sig_flip = sig_dir != 0 and pos_dir != 0 and sig_dir != pos_dir
 
             ad[name] = {
                 "metrics": metrics,

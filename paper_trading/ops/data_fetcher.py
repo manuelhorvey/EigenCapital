@@ -21,8 +21,10 @@ def _get_store():
     global _STORE
     if _STORE is None:
         from paper_trading.state_store import StateStore
+
         _STORE = StateStore(BASE)
     return _STORE
+
 
 _MIN_REQUEST_INTERVAL = 1.0
 _last_request_time: float = 0.0

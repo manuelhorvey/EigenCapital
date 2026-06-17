@@ -90,6 +90,7 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
         return
     engine = ctx.engine
     from paper_trading.config_manager import get_config
+
     global_cfg = get_config()
     min_conf = engine.config.get("min_confidence", getattr(global_cfg.defaults, "min_confidence", 0.0))
     if ctx.decision.confidence < min_conf:

@@ -12,6 +12,7 @@ class _LazyStore:
         cls = type(self)
         if cls._instance is None:
             from paper_trading.state_store import StateStore
+
             cls._instance = StateStore(_PROJECT_ROOT)
         return getattr(cls._instance, name)
 

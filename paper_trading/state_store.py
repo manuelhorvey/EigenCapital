@@ -79,8 +79,11 @@ class _DatabaseStore:
     confidence buckets, and equity history."""
 
     REQUIRED_TABLES = [
-        "trades", "attribution", "shadow_trades",
-        "confidence_buckets", "equity_history",
+        "trades",
+        "attribution",
+        "shadow_trades",
+        "confidence_buckets",
+        "equity_history",
     ]
 
     def __init__(self, db_path: str, checkpoint_interval: int = 50):
@@ -240,16 +243,11 @@ class _DatabaseStore:
     def verify(self) -> None:
         with self._connect() as conn:
             existing = {
-                row["name"]
-                for row in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()
+                row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             }
         missing = [t for t in self.REQUIRED_TABLES if t not in existing]
         if missing:
-            raise RuntimeError(
-                f"Database {self._db_path} missing tables after init: {missing}"
-            )
+            raise RuntimeError(f"Database {self._db_path} missing tables after init: {missing}")
         logger.debug("Database %s — all %d tables present", self._db_path, len(self.REQUIRED_TABLES))
 
     def _connect(self) -> sqlite3.Connection:

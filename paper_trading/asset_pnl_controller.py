@@ -98,9 +98,7 @@ class AssetPnlController:
 
         entry_state = getattr(asset, "_entry_validity_state", None)
         state = (
-            entry_state
-            if entry_state
-            else (asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW")
+            entry_state if entry_state else (asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW")
         )
         archetype = getattr(asset, "_entry_archetype", "UNKNOWN")
 

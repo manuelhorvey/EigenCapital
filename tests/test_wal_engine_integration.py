@@ -42,6 +42,7 @@ def _make_mock_engine(name: str, price: float = 100.0, signal: dict | None = Non
     type(engine).mtm_value = PropertyMock(return_value=100_000.0)
     type(engine).current_value = PropertyMock(return_value=100_000.0)
     type(engine).peak_value = PropertyMock(return_value=100_000.0)
+    engine._last_entry_notional = 0.0
 
     return engine
 

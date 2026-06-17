@@ -65,6 +65,9 @@ class MT5Broker(BrokerInterface):
         self._position_cache_time = 0.0
         self._cache_lock = threading.Lock()
 
+        # MT5 drawdown tracking for independent sizing
+        self._peak_equity: float | None = None
+
     # ── Connection lifecycle ────────────────────────────────────────────
 
     def connect(self) -> bool:
@@ -106,14 +109,32 @@ class MT5Broker(BrokerInterface):
 
         positions = self.get_positions()
         total_value = info.get("balance", 0.0)
-        buying_power = info.get("equity", total_value) * info.get("leverage", 1)
+        equity = info.get("equity", total_value)
+        buying_power = equity * info.get("leverage", 1)
+
+        # Track peak equity for MT5 drawdown
+        if self._peak_equity is None or equity > self._peak_equity:
+            self._peak_equity = equity
 
         return AccountSummary(
             total_cash=round(info.get("balance", 0), 2),
             buying_power=round(buying_power, 2),
-            portfolio_value=round(info.get("equity", total_value), 2),
+            portfolio_value=round(equity, 2),
             positions=positions,
         )
+
+    def current_mt5_drawdown_pct(self) -> float:
+        """Current drawdown from MT5 peak equity, as a negative fraction (e.g. -0.05 for 5% down)."""
+        if self._peak_equity is None or self._peak_equity <= 0:
+            return 0.0
+        try:
+            summary = self.get_account_summary()
+            current = summary.portfolio_value
+        except Exception:
+            return 0.0
+        if current <= 0 or self._peak_equity <= 0:
+            return 0.0
+        return current / self._peak_equity - 1.0
 
     # ── Orders ─────────────────────────────────────────────────────────
 

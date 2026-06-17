@@ -443,7 +443,7 @@ class EntryService:
         )
         return fill_price, entry_slippage_bps, mt5_ticket
 
-    def _compute_mt5_qty(self, asset, entry_price):
+    def _compute_mt5_qty(self, asset, entry_price, intent_sl):
         broker = asset.execution_bridge.broker
         if broker is None or not hasattr(broker, "get_account_summary"):
             return 0.0
@@ -459,10 +459,45 @@ class EntryService:
             logger.warning("%s: MT5 equity is %.2f, skipping MT5 sizing", asset.name, mt5_equity)
             return 0.0
 
-        max_pos_pct = asset.config.get("max_position_pct_of_equity", 0.15)
-        notional = mt5_equity * max_pos_pct
+        cfg = asset.config
+
+        # ── Drawdown taper ────────────────────────────────────────────
+        mt5_dd = getattr(broker, "current_mt5_drawdown_pct", lambda: 0.0)()
+        dd_taper = self.drawdown_taper(
+            mt5_dd,
+            start_dd=cfg.get("size_taper_start_dd", -0.05),
+            end_dd=cfg.get("size_taper_end_dd", -0.15),
+            min_size=cfg.get("size_taper_min", 0.50),
+        )
+
+        max_pos_pct = cfg.get("max_position_pct_of_equity", 0.15)
+        notional = mt5_equity * max_pos_pct * dd_taper
+
+        # ── Risk-per-trade cap ────────────────────────────────────────
+        sl_dist = abs(intent_sl - entry_price)
+        risk_usd = sl_dist * (notional / entry_price) if sl_dist > 0 else 0.0
+        max_risk_pct = cfg.get("max_risk_per_trade_pct", 2.0)
+        max_risk_usd = max_risk_pct / 100.0 * mt5_equity if mt5_equity > 0 else float("inf")
+        min_viable_pct = cfg.get("min_viable_position_pct", 0.01)
+        min_viable_notional = min_viable_pct * mt5_equity if mt5_equity > 0 else 0.0
+        risk_capped_notional = notional
+        if mt5_equity > 0 and risk_usd > max_risk_usd:
+            capped_qty = max_risk_usd / sl_dist if sl_dist > 0 else 0.0
+            capped_notional = capped_qty * entry_price
+            if capped_notional < min_viable_notional:
+                logger.info(
+                    "%s: MT5 entry skipped — risk cap (%.2f%%) would shrink position below min viable (%.2f%%)",
+                    asset.name,
+                    max_risk_pct,
+                    min_viable_pct * 100,
+                )
+                return 0.0
+            risk_capped_notional = capped_notional
+
+        notional = min(notional, risk_capped_notional)
         qty = notional / entry_price if entry_price > 0 else 0.0
 
+        # ── Min volume check ──────────────────────────────────────────
         if hasattr(broker, "_quantity_to_lots"):
             lots = broker._quantity_to_lots(asset.ticker, qty)
             if lots <= 0:
@@ -474,17 +509,21 @@ class EntryService:
                 return 0.0
 
         logger.info(
-            "MT5_SIZING %s: mt5_equity=%.2f max_pct=%.2f%% notional=%.2f qty=%.6f",
+            "MT5_SIZING %s: equity=%.2f dd=%.2f max_pct=%.2f%% risk_cap=%.2f "
+            "min_viable=%.2f -> final_not=%.2f qty=%.6f",
             asset.name,
             mt5_equity,
+            dd_taper,
             max_pos_pct * 100,
+            max_risk_usd if mt5_equity > 0 else 0.0,
+            min_viable_notional,
             notional,
             qty,
         )
         return qty
 
     def _submit_mt5_order(self, asset, broker_side, entry_price, intent_sl, final_tp):
-        qty = self._compute_mt5_qty(asset, entry_price)
+        qty = self._compute_mt5_qty(asset, entry_price, intent_sl)
         if qty <= 0:
             return entry_price, 0.0, None
 

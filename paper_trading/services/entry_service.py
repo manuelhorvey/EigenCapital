@@ -129,12 +129,18 @@ class EntryService:
         tp_geo, final_tp = self._compute_take_profit(asset, data, side, entry_price, intent_sl, tp_geo, state)
         sl_dist = abs(intent_sl - entry_price)
 
-        if not self._validate_sltp_invariants(asset, side, entry_price, intent_sl, final_tp, sl_dist, sl_mult,
-                                               tp_mult, tp_geo):
+        if not self._validate_sltp_invariants(
+            asset, side, entry_price, intent_sl, final_tp, sl_dist, sl_mult, tp_mult, tp_geo
+        ):
             return
 
         fill_price, entry_slippage_bps, mt5_ticket = self._submit_to_broker(
-            asset, side, entry_price, intent_sl, final_tp, state,
+            asset,
+            side,
+            entry_price,
+            intent_sl,
+            final_tp,
+            state,
         )
         asset._last_entry_slippage = entry_slippage_bps
 
@@ -146,10 +152,10 @@ class EntryService:
             take_profit=float(final_tp),
             vol=vol,
         )
-        self._record_position_state(asset, side, intent, sl_mult, tp_mult, tp_geo, vol, fill_price, state,
-                                     mt5_ticket, data)
-        self._record_attribution(asset, side, entry_date, entry_price, fill_price, entry_slippage_bps, intent,
-                                  tp_geo)
+        self._record_position_state(
+            asset, side, intent, sl_mult, tp_mult, tp_geo, vol, fill_price, state, mt5_ticket, data
+        )
+        self._record_attribution(asset, side, entry_date, entry_price, fill_price, entry_slippage_bps, intent, tp_geo)
 
     # ── Private helpers for open_position ─────────────────────────────────────
 
@@ -157,7 +163,9 @@ class EntryService:
         vol = self.tb_vol(data["close"])
         logger.debug(
             "%s tb_vol: vol=%.6f entry=%.4f close_last=%.4f close_min=%.4f close_max=%.4f close_len=%d",
-            asset.name, vol, entry_price,
+            asset.name,
+            vol,
+            entry_price,
             data["close"].iloc[-1] if len(data["close"]) else 0,
             data["close"].min() if len(data["close"]) else 0,
             data["close"].max() if len(data["close"]) else 0,
@@ -174,7 +182,9 @@ class EntryService:
             if deviation > max_deviation:
                 logger.warning(
                     "%s: entry skipped — price deviated %.2f%% from signal price (max %.2f%%)",
-                    asset.name, deviation * 100, max_deviation * 100,
+                    asset.name,
+                    deviation * 100,
+                    max_deviation * 100,
                 )
                 return None, None
         return vol, entry_price
@@ -186,8 +196,10 @@ class EntryService:
 
     def _compute_multipliers(self, asset, state):
         sl_mult, tp_mult, _ = compute_effective_multipliers(
-            base_sl=asset.sl_mult, base_tp=asset.tp_mult,
-            validity_state=state, regime_geometry=asset.regime_geometry,
+            base_sl=asset.sl_mult,
+            base_tp=asset.tp_mult,
+            validity_state=state,
+            regime_geometry=asset.regime_geometry,
             narrative_sl_mult=asset.governance._narrative_sl_mult,
             liquidity_sl_mult=asset.governance._liquidity_sl_mult,
             narrative_size_scalar=asset.governance._narrative_size_scalar,
@@ -199,9 +211,14 @@ class EntryService:
         if asset.config.get("dynamic_sltp", {}).get("enabled", False):
             regime = getattr(asset, "_current_regime", "neutral")
             sltp_result = asset._sltp_engine.compute_barriers(
-                entry_price=entry_price, side=side, df=data,
-                sl_mult=sl_mult, tp_mult=tp_mult, regime=regime,
-                vol=vol, meta_confidence=asset._last_meta_proba,
+                entry_price=entry_price,
+                side=side,
+                df=data,
+                sl_mult=sl_mult,
+                tp_mult=tp_mult,
+                regime=regime,
+                vol=vol,
+                meta_confidence=asset._last_meta_proba,
             )
             return sltp_result.stop_loss
         if side == PositionSide.LONG:
@@ -212,8 +229,11 @@ class EntryService:
         sl_dist = abs(intent_sl - entry_price)
         if tp_geo is None:
             from paper_trading.entry.tp_compiler import compute_take_profit
+
             tp_geo = compute_take_profit(
-                entry_price, sl_dist, state,
+                entry_price,
+                sl_dist,
+                state,
                 getattr(asset, "_entry_archetype", "UNKNOWN"),
                 asset._structure_detector.detect(data),
             )
@@ -222,13 +242,25 @@ class EntryService:
         if raw_tp <= 0:
             logger.warning(
                 "%s: clamped negative TP %.6f -> %.6f (entry=%.6f tp_dist=%.6f)",
-                asset.name, raw_tp, final_tp, entry_price, tp_geo.tp_distance,
+                asset.name,
+                raw_tp,
+                final_tp,
+                entry_price,
+                tp_geo.tp_distance,
             )
         return tp_geo, final_tp
 
     def _validate_sltp_invariants(
-        self, asset, side, entry_price, intent_sl, final_tp,
-        sl_dist, sl_mult, tp_mult, tp_geo,
+        self,
+        asset,
+        side,
+        entry_price,
+        intent_sl,
+        final_tp,
+        sl_dist,
+        sl_mult,
+        tp_mult,
+        tp_geo,
     ):
         assert sl_dist > 0, f"SL distance must be positive, got {sl_dist}"
         assert tp_geo.tp_distance > 0, f"TP distance must be positive, got {tp_geo.tp_distance}"
@@ -244,7 +276,11 @@ class EntryService:
         if rr < min_rr:
             logger.warning(
                 "%s: RR=%.2f < min=%.2f, aborting entry (sl_dist=%.6f tp=%.6f)",
-                asset.name, rr, min_rr, sl_dist, final_tp,
+                asset.name,
+                rr,
+                min_rr,
+                sl_dist,
+                final_tp,
             )
             return False
         if pd.isna(intent_sl) or pd.isna(final_tp):
@@ -260,13 +296,19 @@ class EntryService:
             return fill_price, entry_slippage_bps, mt5_ticket
 
         effective_cap = self.effective_capital(
-            initial_capital=asset.initial_capital, capital_base=asset.capital_base,
+            initial_capital=asset.initial_capital,
+            capital_base=asset.capital_base,
             current_value=asset.current_value,
         )
         size_scalar = self.composite_size_scalar(
-            1.0, validity_state=state, sl_mult=asset.sl_mult, tp_mult=asset.tp_mult,
-            regime_geometry=asset.regime_geometry, governance=asset.governance,
-            pos_mgr=asset.pos_mgr, meta_size_multiplier=asset._meta_size_multiplier(),
+            1.0,
+            validity_state=state,
+            sl_mult=asset.sl_mult,
+            tp_mult=asset.tp_mult,
+            regime_geometry=asset.regime_geometry,
+            governance=asset.governance,
+            pos_mgr=asset.pos_mgr,
+            meta_size_multiplier=asset._meta_size_multiplier(),
         )
         notional = self.compute_notional(effective_cap, size_scalar)
         side_str = side.value if hasattr(side, "value") else side
@@ -276,7 +318,10 @@ class EntryService:
         if hasattr(asset.execution_bridge, "_is_real_broker") and asset.execution_bridge._is_real_broker:
             return self._submit_mt5_order(asset, broker_side, entry_price, qty, intent_sl, final_tp)
         fill_price, entry_slippage_bps, _ = asset.execution_bridge.fill_price(
-            asset.ticker, broker_side, qty, entry_price,
+            asset.ticker,
+            broker_side,
+            qty,
+            entry_price,
         )
         return fill_price, entry_slippage_bps, mt5_ticket
 
@@ -295,7 +340,12 @@ class EntryService:
             return entry_price, 0.0, None
 
         fill_price, order_id = asset.execution_bridge.submit_market_order(
-            asset.ticker, broker_side, qty, entry_price, sl=mt5_sl, tp=mt5_tp,
+            asset.ticker,
+            broker_side,
+            qty,
+            entry_price,
+            sl=mt5_sl,
+            tp=mt5_tp,
         )
         mt5_ticket = int(order_id) if order_id else None
         if order_id:
@@ -308,20 +358,32 @@ class EntryService:
             logger.error("%s: BROKER TP MISMATCH submitted=%.5f stored=%.5f", asset.name, mt5_tp, stored_tp)
         return fill_price, 0.0, mt5_ticket
 
-    def _record_position_state(self, asset, side, intent, sl_mult, tp_mult, tp_geo, vol, fill_price, state,
-                                mt5_ticket, data):
+    def _record_position_state(
+        self, asset, side, intent, sl_mult, tp_mult, tp_geo, vol, fill_price, state, mt5_ticket, data
+    ):
         asset.pos_mgr.open(intent)
         if asset._shadow_sltp is not None:
             asset._shadow_sltp.record_entry(
-                side=side, entry_price=float(fill_price), entry_date=intent.entry_date, df=data,
-                sl_mult=sl_mult, tp_mult=tp_mult,
+                side=side,
+                entry_price=float(fill_price),
+                entry_date=intent.entry_date,
+                df=data,
+                sl_mult=sl_mult,
+                tp_mult=tp_mult,
                 regime=getattr(asset, "_current_regime", "neutral"),
                 meta_confidence=getattr(asset, "_last_meta_proba", None),
             )
         asset.position = {
-            "side": intent.side, "entry": intent.entry_price, "sl": intent.stop_loss,
-            "tp": intent.take_profit, "entry_date": intent.entry_date, "vol": intent.vol,
-            "sl_mult": sl_mult, "tp_mult": tp_mult, "tp_geo": tp_geo, "mt5_ticket": mt5_ticket,
+            "side": intent.side,
+            "entry": intent.entry_price,
+            "sl": intent.stop_loss,
+            "tp": intent.take_profit,
+            "entry_date": intent.entry_date,
+            "vol": intent.vol,
+            "sl_mult": sl_mult,
+            "tp_mult": tp_mult,
+            "tp_geo": tp_geo,
+            "mt5_ticket": mt5_ticket,
         }
         asset._entry_vol = vol
         asset._bars_at_entry = 0
@@ -334,7 +396,9 @@ class EntryService:
         asset._scale_out_plan = None
         if asset._scale_out_engine is not None:
             asset._scale_out_plan = asset._scale_out_engine.build_plan(
-                side, float(intent.entry_price), float(intent.take_profit),
+                side,
+                float(intent.entry_price),
+                float(intent.take_profit),
                 tier_specs=tp_geo.scale_out_tiers,
             )
 
@@ -350,7 +414,9 @@ class EntryService:
                 else 0
             )
         asset._attribution.record_prediction(
-            trade_id=trade_id, signal=side, label=getattr(asset, "_last_label", 0),
+            trade_id=trade_id,
+            signal=side,
+            label=getattr(asset, "_last_label", 0),
             confidence=getattr(asset, "_last_confidence", 0.0),
             prob_long=getattr(asset, "_last_prob_long", 0.0),
             prob_short=getattr(asset, "_last_prob_short", 0.0),
@@ -360,15 +426,21 @@ class EntryService:
             archetype_at_entry=getattr(asset, "_entry_archetype", "UNKNOWN"),
         )
         asset._attribution.record_execution(
-            trade_id=trade_id, entry_type=entry_action_type,
-            deferred_bars=deferred_bars, entry_price=float(fill_price),
-            mid_price_at_signal=float(entry_price), entry_slippage_bps=entry_slippage_bps,
+            trade_id=trade_id,
+            entry_type=entry_action_type,
+            deferred_bars=deferred_bars,
+            entry_price=float(fill_price),
+            mid_price_at_signal=float(entry_price),
+            entry_slippage_bps=entry_slippage_bps,
         )
         asset._attribution.record_friction(
-            trade_id=trade_id, entry_slippage_bps=entry_slippage_bps, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=entry_slippage_bps,
+            exit_slippage_bps=0.0,
         )
         asset._attribution.record_decision_quality(
-            trade_id=trade_id, entry_pressure_pct=getattr(asset, "_entry_pressure", None),
+            trade_id=trade_id,
+            entry_pressure_pct=getattr(asset, "_entry_pressure", None),
         )
 
     def poll_pending_entries(self, df: pd.DataFrame, asset) -> None:

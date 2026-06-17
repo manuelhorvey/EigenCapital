@@ -50,6 +50,7 @@ class AssetInferencePipeline:
         df = self._fetch_and_prepare_data(asset)
 
         _t_fetch = time.perf_counter()
+        asset._truncate_inference = True
         alpha_df, features_df, x = self._build_feature_set(asset, df)
 
         _t_features = time.perf_counter()

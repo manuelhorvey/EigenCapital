@@ -233,10 +233,7 @@ class EngineOrchestrator:
             }
             return results
 
-        # ── Phase 3b: MT5 position reconciliation ─────────────────────────
-        self._reconcile_mt5_positions()
-
-        # ── Phase 3c: Portfolio leverage backstop ─────────────────────────
+        # ── Phase 3b: Portfolio leverage backstop ─────────────────────────
         # Should never fire in normal operation: the atomic Lock decrement
         # in _submit_to_broker() prevents overshoot.  If it does fire,
         # the equity snapshot was stale (intra-cycle PnL move) or there
@@ -287,91 +284,6 @@ class EngineOrchestrator:
 
         results["cycle_duration_ms"] = round((time.monotonic() - t0) * 1000.0, 2)
         return results
-
-    # ── MT5 position reconciliation ─────────────────────────────────────────────
-
-    def _reconcile_mt5_positions(self) -> None:
-        """Compare paper positions against MT5 broker positions once per cycle.
-
-        Closes orphaned MT5 positions (open on broker but absent from paper).
-        Logs mismatches for paper positions whose MT5 twin is missing or on a
-        different side.
-        """
-        broker = None
-        symbol_map = {}
-        for actor in self._actors.values():
-            bridge = getattr(actor._engine, "execution_bridge", None)
-            if bridge and getattr(bridge, "_is_real_broker", False):
-                broker = bridge.broker
-                symbol_map = getattr(broker, "_symbol_map", {})
-                break
-
-        if broker is None:
-            return
-
-        reverse_map = {v: k for k, v in symbol_map.items()}
-
-        try:
-            mt5_positions = broker.get_positions()
-        except Exception as e:
-            logger.error("MT5 reconciliation: failed to fetch positions: %s", e)
-            return
-
-        paper_active = {}
-        for name, actor in self._actors.items():
-            eng = actor._engine
-            if eng.pos_mgr.has_position() and isinstance(getattr(eng, "position", None), dict):
-                ticket = eng.position.get("mt5_ticket")
-                if ticket is not None:
-                    paper_active[name] = {"ticket": ticket, "side": eng.position["side"]}
-
-        for mt5_pos in mt5_positions:
-            paper_ticker = reverse_map.get(mt5_pos.asset, mt5_pos.asset)
-            mt5_side = "long" if mt5_pos.quantity > 0 else "short"
-            mt5_ticket = mt5_pos.ticket or ""
-
-            if paper_ticker in paper_active:
-                entry = paper_active[paper_ticker]
-                if entry["side"] != mt5_side:
-                    logger.warning(
-                        "MT5 RECONCILIATION: side mismatch %s paper=%s mt5=%s ticket=%s — "
-                        "paper will close on next flip",
-                        paper_ticker,
-                        entry["side"],
-                        mt5_side,
-                        mt5_ticket,
-                    )
-                continue
-
-            logger.warning(
-                "MT5 RECONCILIATION: orphaned position %s %s ticket=%s — closing",
-                mt5_pos.asset,
-                mt5_side,
-                mt5_ticket,
-            )
-            try:
-                broker.close_position(mt5_pos.asset, mt5_ticket)
-            except Exception as e:
-                logger.error(
-                    "MT5 RECONCILIATION: failed to close orphaned %s ticket=%s: %s",
-                    mt5_pos.asset,
-                    mt5_ticket,
-                    e,
-                )
-
-        for name, entry in paper_active.items():
-            ticket = entry["ticket"]
-            mt5_match = any(
-                reverse_map.get(p.asset, p.asset) == name and str(p.ticket) == str(ticket)
-                for p in mt5_positions
-            )
-            if not mt5_match:
-                logger.warning(
-                    "MT5 RECONCILIATION: paper has %s ticket=%s but no MT5 position found — "
-                    "already closed by broker SL/TP?",
-                    name,
-                    ticket,
-                )
 
     # ── WAL event emission ──────────────────────────────────────────────────────
 

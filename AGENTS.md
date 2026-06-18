@@ -128,13 +128,13 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 - **Profit lock gate (ADDED 2026-06-17)**: `decision_pipeline.py` checks unrealized PnL before flipping. Blocks flip if PnL > `profit_lock_threshold_pct` (default 15%).
 - **Position sizing guardrails (ADDED 2026-06-17)**: drawdown taper (linear between start_dd/end_dd), per-position equity cap, risk-per-trade cap, portfolio leverage budget (atomic lock decrement), backstop decay (penalty × 0.9/cycle on breach-free cycles).
 - **Independent MT5 sizing (ADDED 2026-06-17)**: MT5 computes own qty from broker equity with separate drawdown taper and risk cap. Paper sizing unchanged at $100K equity.
-- **Signal chatter + MT5 orphaned positions (FIXED 2026-06-17)**: Three fixes applied:
+- **Signal chatter + MT5 orphaned positions (FIXED 2026-06-17)**: fixes applied:
   - (1) `decision_pipeline.py:apply_signal_stability_filter` — margin widened 0.05→0.15, now checks max(prob_long, prob_short). Requires >0.65 conviction on either side to proceed.
   - (2) `decision_pipeline.py:apply_signal_hysteresis` (NEW) — 2-of-3 signal agreement required before a flip is allowed.
   - (3) `decision_pipeline.py:manage_position` — `_can_enter()` checked BEFORE `_close_position()`. If cool-down blocks re-entry, old position is kept open.
   - (4) `engine_state_service.py` — `mt5_ticket` now persisted in snapshot.
   - (5) `position_service.py` — MT5 close failures logged as ERROR with "position may be orphaned".
-  - (6) `orchestrator/engine.py:_reconcile_mt5_positions` (NEW) — per-cycle reconciliation: compares `broker.get_positions()` against paper positions. Closes orphaned MT5 positions, logs side mismatches and missing MT5 twins.
+
 
 ## Ruff
 

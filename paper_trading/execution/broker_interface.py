@@ -26,7 +26,6 @@ class Position:
     current_price: float
     unrealized_pnl: float
     realized_pnl: float
-    ticket: str | None = None
 
 
 @dataclass

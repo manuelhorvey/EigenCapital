@@ -28,7 +28,8 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_cot_features
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from features.regime_features import generate_regime_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
@@ -110,14 +111,28 @@ def run_walk_forward(
     alpha_df["label"] = labels.reindex(alpha_df.index).astype(int)
     alpha_df = alpha_df.dropna()
 
-    if len(alpha_df) < 300:
-        logger.warning("%s: insufficient data (%d rows) — skipping", asset_name, len(alpha_df))
+    # Build regime features (matching production pipeline)
+    ohlcv = fetch_asset_ohlcv(ticker)
+    regime_ok = not ohlcv.empty
+    regime_cols: list[str] = []
+    alpha_cols = [c for c in alpha_df.columns if c != "label"]
+    if regime_ok:
+        regime_df = generate_regime_features(ohlcv)
+        prefix = asset_name.upper()
+        regime_renamed = regime_df.rename(columns={c: f"{prefix}_{c}" for c in regime_df.columns})
+        full_df = alpha_df.join(regime_renamed, how="left").dropna()
+        regime_cols = list(regime_renamed.columns)
+    else:
+        full_df = alpha_df.copy()
+
+    all_cols = alpha_cols + regime_cols
+
+    if len(full_df) < 300:
+        logger.warning("%s: insufficient data (%d rows) — skipping", asset_name, len(full_df))
         return None
 
-    feature_cols = [c for c in alpha_df.columns if c != "label"]
-    perf_cols = feature_cols
-    X_all = alpha_df[perf_cols]
-    y_all = _to_binary(alpha_df["label"])
+    X_all = full_df[all_cols]
+    y_all = _to_binary(full_df["label"])
 
     if len(y_all) < 100:
         logger.warning("%s: only %d binary samples — skipping", asset_name, len(y_all))
@@ -158,25 +173,21 @@ def run_walk_forward(
             tree_method="hist",
             verbosity=0,
         )
-        model.fit(X_tr, y_tr)
+        model.fit(X_tr[alpha_cols], y_tr)
 
-        base_p_long = model.predict_proba(X_te)[:, 1]
+        base_p_long = model.predict_proba(X_te[alpha_cols])[:, 1]
 
-        # Ensemble blending
+        # Ensemble blending (matching production: regime model on alpha + regime features)
         p_long = base_p_long
-        if ensemble_weight < 1.0:
-            regime_feats = [c for c in feature_cols if "vol_ratio" in c or "dow_signal" in c or "zscore" in c]
-            if regime_feats:
-                regime_model = RegimeConditionalModel()
-                X_regime = alpha_df[regime_feats].reindex(X_tr.index).dropna()
-                y_regime = _to_binary(alpha_df["label"]).reindex(X_regime.index).dropna()
-                common = X_regime.index.intersection(y_regime.index)
-                if len(common) >= 100 and y_regime.loc[common].nunique() == 2:
-                    regime_model.train(X_regime.loc[common], y_regime.loc[common], regime_feats)
-                    r_p_long = regime_model.predict_long_prob(X_te[regime_feats]).ravel()
-                    ensemble = EnsembleSignal(base_weight=ensemble_weight, ensemble_threshold=ensemble_threshold)
-                    blended, _ = ensemble.combine(base_p_long, r_p_long)
-                    p_long = blended.ravel()
+        if ensemble_weight < 1.0 and regime_ok and regime_cols:
+            X_tr_regime = X_tr[all_cols]
+            X_te_regime = X_te[all_cols]
+            regime_model = RegimeConditionalModel()
+            regime_model.train(X_tr_regime, y_tr, all_cols)
+            r_p_long = regime_model.predict_long_prob(X_te_regime).ravel()
+            ensemble = EnsembleSignal(base_weight=ensemble_weight, ensemble_threshold=ensemble_threshold)
+            blended, _ = ensemble.combine(base_p_long, r_p_long)
+            p_long = blended.ravel()
 
         # Signal from binary P(LONG)
         signals = np.zeros(len(p_long), dtype=int)

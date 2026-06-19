@@ -154,22 +154,13 @@ def run_ensemble_pilot(
         base_model.fit(X_tr[alpha_cols], y_tr)
         base_p_long = base_model.predict_proba(X_te[alpha_cols])[:, 1]
 
-        # Regime model (train on alpha + regime features)
+        # Regime model (train on alpha + regime features, using RegimeConditionalModel for production parity)
         if regime_ok and len(regime_cols) > 0:
             X_tr_regime = X_tr[all_cols]
             X_te_regime = X_te[all_cols]
-            regime_model = xgb.XGBClassifier(
-                n_estimators=200,
-                max_depth=2,
-                learning_rate=0.03,
-                objective="binary:logistic",
-                random_state=42,
-                n_jobs=1,
-                tree_method="hist",
-                verbosity=0,
-            )
-            regime_model.fit(X_tr_regime, y_tr)
-            regime_p_long = regime_model.predict_proba(X_te_regime)[:, 1]
+            regime_model = RegimeConditionalModel()
+            regime_model.train(X_tr_regime, y_tr, all_cols)
+            regime_p_long = regime_model.predict_long_prob(X_te_regime).ravel()
         else:
             regime_p_long = None
 

@@ -411,12 +411,10 @@ class AssetEngine:
             bars_held=int(trade.get("bars", 0)),
             regime_long_prob=self._last_regime_long_prob,
             regime_short_prob=(
-                round(float(self._last_regime_raw_probas[0]), 6)
-                if self._last_regime_raw_probas is not None else None
+                round(float(self._last_regime_raw_probas[0]), 6) if self._last_regime_raw_probas is not None else None
             ),
             regime_label=(
-                self._last_regime_row.regime_label
-                if getattr(self, "_last_regime_row", None) is not None else None
+                self._last_regime_row.regime_label if getattr(self, "_last_regime_row", None) is not None else None
             ),
             regime_features=self._last_regime_features,
         )

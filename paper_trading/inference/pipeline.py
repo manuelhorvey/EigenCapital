@@ -103,6 +103,7 @@ class AssetInferencePipeline:
         60 minutes after detection.
         """
         import logging
+
         logger = logging.getLogger("quantforge.pipeline")
         threshold = 100
         suppress_secs = 3600
@@ -112,7 +113,11 @@ class AssetInferencePipeline:
             asset._suppress_until = time.time() + suppress_secs
             logger.warning(
                 "%s: bar jump detected %d→%d (Δ=%d), suppressing decisions for %ds",
-                asset.name, last, bars, bars - last, suppress_secs,
+                asset.name,
+                last,
+                bars,
+                bars - last,
+                suppress_secs,
             )
         asset._last_bar_count = bars
 
@@ -273,7 +278,8 @@ class AssetInferencePipeline:
                 if not regime_available:
                     logger.warning(
                         "%s: regime features not found in features_df (%d requested, 0 available) — skipping blend",
-                        asset.name, len(regime_feats),
+                        asset.name,
+                        len(regime_feats),
                     )
                 if regime_available:
                     try:
@@ -360,9 +366,11 @@ class AssetInferencePipeline:
                 "vol_ratio": round(float(vol_ratio), 4) if not np.isnan(vol_ratio) else 0.0,
                 "ensemble_score": round(float(result.confidence_pct / 100.0), 4),
                 "regime_long_prob": round(float(asset._last_regime_long_prob), 4)
-                if asset._last_regime_long_prob is not None else None,
+                if asset._last_regime_long_prob is not None
+                else None,
                 "regime_short_prob": round(float(asset._last_regime_raw_probas[0]), 4)
-                if asset._last_regime_raw_probas is not None else None,
+                if asset._last_regime_raw_probas is not None
+                else None,
             }
             logger.info(
                 "%s ensemble breakdown — xgb=%.4f carry=%.4f mom=%.4f rev=%.4f dow=%.4f vol=%.4f score=%.4f",
@@ -425,9 +433,7 @@ class AssetInferencePipeline:
 
     def _trace_and_diagnostics(self, asset, decision, proba, x, df, threshold) -> None:
         _regime_label = (
-            asset._last_regime_row.regime_label
-            if getattr(asset, "_last_regime_row", None) is not None
-            else None
+            asset._last_regime_row.regime_label if getattr(asset, "_last_regime_row", None) is not None else None
         )
         trace_decision(
             asset=asset.name,
@@ -443,8 +449,7 @@ class AssetInferencePipeline:
             current_price=asset.current_price,
             regime_long_prob=asset._last_regime_long_prob,
             regime_short_prob=(
-                round(float(asset._last_regime_raw_probas[0]), 6)
-                if asset._last_regime_raw_probas is not None else None
+                round(float(asset._last_regime_raw_probas[0]), 6) if asset._last_regime_raw_probas is not None else None
             ),
             regime_label=_regime_label,
             regime_features=asset._last_regime_features,

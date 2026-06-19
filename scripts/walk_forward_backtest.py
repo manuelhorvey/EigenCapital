@@ -93,6 +93,7 @@ def run_walk_forward(
     ensemble_weight: float = 0.6,
     ensemble_threshold: float = 0.15,
     pt_sl: tuple[float, float] = (2.0, 2.0),
+    max_depth: int = 2,
 ) -> pd.DataFrame | None:
     import xgboost as xgb
 
@@ -165,7 +166,7 @@ def run_walk_forward(
 
         model = xgb.XGBClassifier(
             n_estimators=300,
-            max_depth=2,
+            max_depth=max_depth,
             learning_rate=0.02,
             objective="binary:logistic",
             random_state=42,
@@ -288,7 +289,25 @@ def main():
     parser.add_argument("--step", type=int, default=1, help="Step size in years")
     parser.add_argument("--ensemble-weight", type=float, default=0.6, help="Base model weight in ensemble")
     parser.add_argument("--ensemble-threshold", type=float, default=0.15, help="Ensemble signal threshold")
+    parser.add_argument("--pt-sl", type=str, default=None,
+                        help="Override pt_sl as tp,sl (e.g. --pt-sl 1.0,2.0). Default: per-asset from production config.")
     args = parser.parse_args()
+
+    # Load per-asset pt_sl from production config
+    from paper_trading.config_manager import get_config
+    _cfg = get_config()
+    _asset_pt_sl: dict[str, tuple[float, float]] = {}
+    for _name, _acfg in _cfg.assets.items():
+        _tp = float(_acfg.get("tp_mult", 2.0))
+        _sl = float(_acfg.get("sl_mult", 2.0))
+        _asset_pt_sl[_name] = (_tp, _sl)
+
+    # Override all if --pt-sl specified
+    _pt_sl_override: tuple[float, float] | None = None
+    if args.pt_sl:
+        parts = [float(x.strip()) for x in args.pt_sl.split(",")]
+        _pt_sl_override = (parts[0], parts[1])
+        logger.info("pt_sl override: %s (applied to all assets)", _pt_sl_override)
 
     assets_to_run: dict[str, str] = {}
 
@@ -318,7 +337,15 @@ def main():
 
     all_summaries = []
     for name, ticker in assets_to_run.items():
-        pt_sl = btc_pt_sl if ticker == "BTC-USD" else (2.0, 2.0)
+        if _pt_sl_override is not None:
+            pt_sl = _pt_sl_override
+        elif ticker == "BTC-USD":
+            pt_sl = btc_pt_sl
+        else:
+            pt_sl = _asset_pt_sl.get(name, (2.0, 2.0))
+        # Load per-asset max_depth from production config
+        _acfg = _cfg.assets.get(name, {})
+        _md = int(_acfg.get("max_depth", 2))
         result = run_walk_forward(
             name, ticker,
             window_years=args.years,
@@ -326,6 +353,7 @@ def main():
             ensemble_weight=args.ensemble_weight,
             ensemble_threshold=args.ensemble_threshold,
             pt_sl=pt_sl,
+            max_depth=_md,
         )
         if result is not None:
             all_summaries.append(result)

@@ -706,7 +706,7 @@ assets:
         tp_mult: 0.8
     config:
       ensemble:
-        threshold: 0.20
+        threshold: 0.25
       shadow_sltp:
         enabled: true
         method: trailing

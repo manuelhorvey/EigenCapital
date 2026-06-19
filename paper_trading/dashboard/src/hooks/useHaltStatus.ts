@@ -3,7 +3,7 @@ import type { EngineSnapshot } from '../types/portfolio'
 
 export interface HaltStatus {
   maxDrawdown: number
-  minMonthlyPf: number
+  minMonthlyPf: number | null
   drawdownTrigger: number
   monthlyPfTrigger: number
   drawdownPass: boolean
@@ -26,14 +26,15 @@ export function useHaltStatus(state: EngineSnapshot | undefined): HaltStatus {
     }
     const ddTrigger = (hc?.drawdown ?? -0.08) * 100
     const pfTrigger = hc?.monthly_pf ?? 0.7
+    const hasMonthlyPf = minPF !== Infinity
     return {
       maxDrawdown: maxDD,
-      minMonthlyPf: minPF === Infinity ? 0 : minPF,
+      minMonthlyPf: hasMonthlyPf ? minPF : null,
       drawdownTrigger: ddTrigger,
       monthlyPfTrigger: pfTrigger,
       drawdownPass: maxDD > ddTrigger,
-      monthlyPfPass: minPF >= pfTrigger,
-      anyTriggered: maxDD <= ddTrigger || minPF < pfTrigger,
+      monthlyPfPass: hasMonthlyPf ? minPF >= pfTrigger : true,
+      anyTriggered: maxDD <= ddTrigger || (hasMonthlyPf && minPF < pfTrigger),
     }
   }, [state])
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
-import { formatAssetPrice } from '../utils/format'
+import { confidenceToPercent, formatAssetPrice } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
@@ -48,7 +48,7 @@ export default function SignalsTable() {
         return {
           name,
           signal: sig?.signal ?? 'FLAT',
-          confidence: sig?.confidence ?? 0,
+          confidence: confidenceToPercent(sig?.confidence),
           price: sig?.close_price ?? m?.current_price ?? 0,
           alloc,
           ret: m?.mtm_return ?? 0,

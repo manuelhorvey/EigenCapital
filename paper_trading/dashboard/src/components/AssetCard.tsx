@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { usePortfolioState } from '../hooks/usePortfolioState'
-import { formatAssetPrice } from '../utils/format'
+import { confidenceToPercent, formatAssetPrice } from '../utils/format'
 import {
   confToState,
   ddToState,
@@ -33,11 +33,11 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
     const isNew = hist.length >= 2 && hist[hist.length - 1].signal !== hist[hist.length - 2].signal
     return {
       signal: sig?.signal ?? 'FLAT',
-      confidence: sig?.confidence ?? 0,
+      confidence: confidenceToPercent(sig?.confidence),
       price: sig?.close_price,
       totalReturn: m.mtm_return ?? m.total_return ?? 0,
       drawdown: m.drawdown ?? 0,
-      meanConf: m.mean_confidence ?? 0,
+      meanConf: confidenceToPercent(m.mean_confidence),
       nTrades: m.n_trades ?? 0,
       nSignals: m.n_signals ?? 0,
       pos,

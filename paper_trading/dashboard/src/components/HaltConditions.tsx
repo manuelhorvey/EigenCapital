@@ -40,10 +40,7 @@ export default function HaltConditions() {
     },
     {
       label: 'Monthly PF',
-      value:
-        status.minMonthlyPf === Infinity || isNaN(status.minMonthlyPf)
-          ? '—'
-          : status.minMonthlyPf.toFixed(2),
+      value: status.minMonthlyPf == null ? '—' : status.minMonthlyPf.toFixed(2),
       threshold: status.monthlyPfTrigger.toFixed(2),
       pass: status.monthlyPfPass,
     },

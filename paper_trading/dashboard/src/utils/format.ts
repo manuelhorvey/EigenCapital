@@ -21,6 +21,16 @@ export function safeToFixed(value: unknown, digits: number, fallback = '—'): s
   return value.toFixed(digits)
 }
 
+export function clampPercent(value: number | null | undefined): number {
+  if (value == null || !isFinite(value)) return 0
+  return Math.min(100, Math.max(0, value))
+}
+
+export function confidenceToPercent(value: number | null | undefined): number {
+  if (value == null || !isFinite(value)) return 0
+  return clampPercent(value <= 1 ? value * 100 : value)
+}
+
 export function formatHeldDuration(bars?: number | null): string {
   if (bars == null || bars < 0) return '—'
   if (bars < 1) return '<1d'

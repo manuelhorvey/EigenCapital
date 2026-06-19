@@ -81,8 +81,9 @@ export function scoreToState(score: number): GovernanceState {
 }
 
 export function confToState(confidence: number): GovernanceState {
-  if (confidence >= 60) return 'GREEN'
-  if (confidence >= 45) return 'YELLOW'
+  const pct = Math.min(100, Math.max(0, confidence <= 1 ? confidence * 100 : confidence))
+  if (pct >= 60) return 'GREEN'
+  if (pct >= 45) return 'YELLOW'
   return 'RED'
 }
 

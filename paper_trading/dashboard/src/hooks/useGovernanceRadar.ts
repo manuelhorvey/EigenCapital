@@ -25,9 +25,9 @@ export function useGovernanceRadar(): {
   const { data: health } = useHealthScores()
 
   return useMemo(() => {
-    // Compute exposure score (0-1, lower is better)
+    // Compute exposure score (0-1, higher means governance allows more deployable exposure)
     const avgExp = state?.portfolio?.average_validity_exposure ?? 0
-    const exposureScore = Math.max(0, 1 - avgExp)
+    const exposureScore = Math.min(1, Math.max(0, avgExp))
 
     // Compute feature stability (mean across assets)
     const assets = Object.values(state?.assets ?? {})
@@ -54,11 +54,13 @@ export function useGovernanceRadar(): {
     const psiDrift = state?.halt_conditions?.prob_drift ?? 0
     const psiScore = Math.max(0, 1 - psiDrift * 2)
 
-    // Drawdown (0-1, higher is worse) — compute from asset-level metrics
-    const dd = assets.length
-      ? assets.reduce((s, a) => s + (a.metrics?.drawdown ?? 0), 0) / assets.length
+    // Drawdown control (0-1, higher is healthier) — asset drawdown is stored as negative percent.
+    const worstDrawdownPct = assets.length
+      ? Math.min(...assets.map(a => a.metrics?.drawdown ?? 0))
       : 0
-    const ddScore = Math.max(0, 1 - dd * 2)
+    const drawdownLimitPct = Math.abs((state?.halt_conditions?.drawdown ?? -0.08) * 100)
+    const drawdownUsage = drawdownLimitPct > 0 ? Math.abs(worstDrawdownPct) / drawdownLimitPct : 0
+    const ddScore = Math.max(0, 1 - Math.min(1, drawdownUsage))
 
     const axes: RadarAxis[] = [
       { label: 'Exposure', value: exposureScore, max: 1, description: `Avg exposure ${(avgExp * 100).toFixed(0)}%` },
@@ -66,7 +68,7 @@ export function useGovernanceRadar(): {
       { label: 'Meta-Label', value: avgMetaConf, max: 1, description: `Mean confidence ${(avgMetaConf * 100).toFixed(0)}%` },
       { label: 'Health', value: avgHealth, max: 1, description: `System health ${(avgHealth * 100).toFixed(0)}%` },
       { label: 'PSI Drift', value: psiScore, max: 1, description: `Drift ${(psiDrift * 100).toFixed(0)}%` },
-      { label: 'Drawdown Control', value: ddScore, max: 1, description: `DD ${(dd * 100).toFixed(1)}%` },
+      { label: 'Drawdown Control', value: ddScore, max: 1, description: `Worst DD ${worstDrawdownPct.toFixed(2)}%` },
     ]
 
     // Bottleneck ranking
@@ -85,10 +87,10 @@ export function useGovernanceRadar(): {
     }
 
     // Exposure penalty
-    if (avgExp > 0.85) {
+    if (avgExp < 0.85) {
       entries.push({
         layer: 'Exposure',
-        penalty: -(avgExp - 0.85) * 0.4,
+        penalty: -(0.85 - avgExp) * 0.4,
         assets: ['SYSTEM'],
       })
     }
@@ -110,10 +112,10 @@ export function useGovernanceRadar(): {
     }
 
     // Drawdown penalty
-    if (dd > 0.1) {
+    if (drawdownUsage > 0.75) {
       entries.push({
         layer: 'Drawdown',
-        penalty: -dd * 0.3,
+        penalty: -drawdownUsage * 0.3,
         assets: ['SYSTEM'],
       })
     }

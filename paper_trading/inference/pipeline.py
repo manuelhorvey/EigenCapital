@@ -47,6 +47,7 @@ class AssetInferencePipeline:
 
         self._apply_async_diagnostics(asset)
         self._ensure_ready(asset)
+        asset.refresh_spread()
         df = self._fetch_and_prepare_data(asset)
 
         _t_fetch = time.perf_counter()

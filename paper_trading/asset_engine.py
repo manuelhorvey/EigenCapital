@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from datetime import datetime
 
 import pandas as pd
@@ -168,6 +169,11 @@ class AssetEngine:
         # ── MT5 orphan cleanup ────────────────────────────────────────
         self._mt5_cleanup_queue: list[tuple[str, int]] = []
         self._mt5_cleanup_retries: int = 0
+
+        # ── Spread gate state ───────────────────────────────────────────
+        self._last_spread_bps: float | None = None
+        self._last_spread_time: float = 0.0
+        self._spread_tier: str = self.config.get("spread_tier", "fx_cross")
 
         # ── Inference & training state ───────────────────────────────
         self._last_label = None
@@ -473,6 +479,27 @@ class AssetEngine:
                 self.current_price = None if pd.isna(close) else close
         except (OSError, ValueError, KeyError):
             logger.debug("%s: fallback price download failed", self.name)
+
+    def refresh_spread(self) -> None:
+        """Fetch current spread from MT5 and store on asset.
+
+        This is called every cycle from the inference pipeline.  If the MT5
+        bridge is unavailable the spread is left at its previous value (the
+        staleness check in the spread gate will catch stale data).
+        """
+        broker = getattr(self.execution_bridge, "broker", None)
+        if broker is None:
+            return
+        client = getattr(broker, "_client", None)
+        if client is None:
+            return
+        try:
+            spread_bps = client.realtime_spread(self.ticker)
+            if spread_bps is not None:
+                self._last_spread_bps = spread_bps
+                self._last_spread_time = time.time()
+        except Exception:
+            logger.debug("%s: refresh_spread failed", self.name, exc_info=True)
 
     def train(self, force=False):
         self._training.train(force=force)

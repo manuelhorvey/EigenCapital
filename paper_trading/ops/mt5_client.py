@@ -374,6 +374,17 @@ class MT5Client:
             return (bid + ask) / 2.0
         return tick.get("last") or bid or ask
 
+    def realtime_spread(self, ticker: str) -> float | None:
+        """Return current spread in basis points, or None if unavailable."""
+        tick = self.realtime_price(ticker)
+        if tick is None:
+            return None
+        bid = tick.get("bid")
+        ask = tick.get("ask")
+        if bid and ask and (bid + ask) > 0:
+            return (ask - bid) / ((bid + ask) / 2.0) * 10000.0
+        return None
+
     def symbol_info(self, ticker: str) -> dict | None:
         symbol = self._map_symbol(ticker)
         try:

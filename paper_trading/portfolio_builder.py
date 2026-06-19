@@ -67,6 +67,8 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
                 config.setdefault("vol_scalar", True)
             if spec.get("adaptive_macro"):
                 config["adaptive_macro"] = True
+            if "spread_tier" in spec:
+                config["spread_tier"] = spec["spread_tier"]
             baseline = cfg.vol_baselines.get(name)
             if baseline is not None:
                 config["vol_baseline"] = baseline

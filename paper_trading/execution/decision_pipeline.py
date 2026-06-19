@@ -407,6 +407,69 @@ def apply_risk_off_suppression(ctx: DecisionContext) -> None:
         ctx.new_side = None
 
 
+# ── Spread gate stage ────────────────────────────────────────────────────
+
+SPREAD_GATE_STALENESS_SECS = 300  # 5 minutes — refreshed every cycle
+SPREAD_GATE_MIN_OBSERVE_CYCLES = 10  # cycles before gate blocks (dry-run)
+
+# Per-asset-class spread thresholds in bps.  These are starting defaults
+# that should be validated via observe-mode logging before being trusted.
+SPREAD_TIER_BPS: dict[str, float] = {
+    "fx_major": 10.0,   # EURUSD, AUDUSD, USDCHF, USDCAD, NZDUSD
+    "fx_cross": 20.0,   # all other FX pairs
+    "indices": 15.0,    # ES, NQ, ^DJI
+    "metals": 20.0,     # GC
+}
+
+
+def apply_spread_gate(ctx: DecisionContext) -> None:
+    """Skip entry if spread exceeds per-asset-class threshold.
+
+    Fail-closed: if spread data is missing or stale, the entry is blocked
+    (conservative — entering blind is worse than missing a trade).
+
+    Observe mode: for the first SPREAD_GATE_MIN_OBSERVE_CYCLES cycles the
+    gate logs what it *would* do but does not block, to validate thresholds
+    against real market conditions before going live.
+    """
+    engine = ctx.engine
+    # ── Gather spread data ─────────────────────────────────────────
+    spread_bps = getattr(engine, "_last_spread_bps", None)
+    spread_time = getattr(engine, "_last_spread_time", 0.0)
+    age = time.time() - spread_time
+    tier = getattr(engine, "_spread_tier", "fx_cross")
+    threshold = SPREAD_TIER_BPS.get(tier, 20.0)
+
+    # ── Staleness / missing-data check (fail-closed) ───────────────
+    if spread_bps is None or age > SPREAD_GATE_STALENESS_SECS:
+        reason = "no_spread_data" if spread_bps is None else f"stale_spread_{age:.0f}s"
+        logger.warning(
+            "%s: SPREAD_GATE blocking entry — %s (tier=%s threshold=%.1fbps)",
+            engine.name, reason, tier, threshold,
+        )
+        ctx.new_side = None
+        return
+
+    # ── Observe mode — log without blocking ────────────────────────
+    cycle = getattr(engine, "_cycle_counter", 0)
+    if cycle < SPREAD_GATE_MIN_OBSERVE_CYCLES:
+        if spread_bps > threshold:
+            logger.info(
+                "%s: SPREAD_GATE [OBSERVE] would block — spread=%.1fbps tier=%s threshold=%.1fbps "
+                "(gate active after %d cycles)",
+                engine.name, spread_bps, tier, threshold, SPREAD_GATE_MIN_OBSERVE_CYCLES,
+            )
+        return
+
+    # ── Live blocking ─────────────────────────────────────────────
+    if spread_bps > threshold:
+        logger.info(
+            "%s: SPREAD_GATE blocking — spread=%.1fbps exceeds tier=%s threshold=%.1fbps",
+            engine.name, spread_bps, tier, threshold,
+        )
+        ctx.new_side = None
+
+
 # ── Pipeline definition ─────────────────────────────────────────────────
 
 DEFAULT_STAGES: list[StageFn] = [
@@ -415,6 +478,7 @@ DEFAULT_STAGES: list[StageFn] = [
     update_mae_mfe,
     resolve_signal,
     apply_risk_off_suppression,
+    apply_spread_gate,
     apply_confidence_gate,
     apply_signal_stability_filter,
     apply_signal_hysteresis,

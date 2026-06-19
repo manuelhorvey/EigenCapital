@@ -37,6 +37,15 @@ defaults:
   size_taper_min: 0.50
   portfolio_max_leverage: 2.0
   portfolio_leverage_tolerance: 0.001
+  spread_gate:
+    enabled: true
+    staleness_secs: 300
+    min_observe_cycles: 10
+    tiers:
+      fx_major: 10
+      fx_cross: 20
+      indices: 15
+      metals: 20
   entry_optimization:
     mom_max_pressure: 0.9
     mom_min_pressure: 0.1
@@ -92,6 +101,7 @@ assets:
     allocation: 0.07
     sl_mult: 1.0
     tp_mult: 4.0
+    spread_tier: metals
     regime_geometry:
       GREEN:
         sl_mult: 1.0
@@ -119,6 +129,7 @@ assets:
     allocation: 0.04
     sl_mult: 0.85
     tp_mult: 3.0
+    spread_tier: fx_major
     max_depth: 4
     regime_geometry:
       GREEN:
@@ -175,6 +186,7 @@ assets:
     allocation: 0.05
     sl_mult: 2.5
     tp_mult: 2.03
+    spread_tier: fx_major
     max_depth: 5
     regime_geometry:
       GREEN:
@@ -203,6 +215,7 @@ assets:
     allocation: 0.07
     sl_mult: 2.0
     tp_mult: 5.5
+    spread_tier: indices
     regime_geometry:
       GREEN:
         sl_mult: 1.0
@@ -230,6 +243,7 @@ assets:
     allocation: 0.07
     sl_mult: 2.5
     tp_mult: 5.0
+    spread_tier: indices
     regime_geometry:
       GREEN:
         sl_mult: 1.0
@@ -339,6 +353,7 @@ assets:
     allocation: 0.04
     sl_mult: 0.5
     tp_mult: 4.0
+    spread_tier: indices
     max_depth: 4
     regime_geometry:
       GREEN:
@@ -367,6 +382,7 @@ assets:
     allocation: 0.04
     sl_mult: 3.0
     tp_mult: 1.5
+    spread_tier: fx_major
     max_depth: 4
     regime_geometry:
       GREEN:
@@ -395,6 +411,7 @@ assets:
     allocation: 0.05
     sl_mult: 2.5
     tp_mult: 1.5
+    spread_tier: fx_major
     max_depth: 5
     regime_geometry:
       GREEN:
@@ -508,6 +525,7 @@ assets:
     sl_mult: 1.5
     tp_mult: 4.0
     max_depth: 2
+    spread_tier: fx_major
     regime_geometry:
       GREEN:
         sl_mult: 1.33

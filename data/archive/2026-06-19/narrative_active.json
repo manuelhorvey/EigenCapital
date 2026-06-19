@@ -1,0 +1,26 @@
+{
+  "week_start": "2026-06-17",
+  "usd_strength_narrative": 0.85,
+  "geopol_risk_score": 0.2,
+  "fed_hawkishness": 0.9,
+  "rbnz_hawkishness": 0.3,
+  "rba_hawkishness": 0.75,
+  "boj_intervention_risk": 0.4,
+  "energy_crisis_pressure": 0.2,
+  "usd_bias": "bullish",
+  "nzd_bias": "neutral",
+  "aud_bias": "bearish",
+  "jpy_bias": "bearish",
+  "cad_bias": "neutral",
+  "eur_bias": "neutral",
+  "key_events": [
+    "Fed hawkish hold with one rate hike expected",
+    "RBA hawkish hold",
+    "AUD/USD falls below 0.70",
+    "USD/JPY rises to 160.66",
+    "Gold turns negative"
+  ],
+  "overall_regime": "risk_off",
+  "confidence": 0.75,
+  "narrative_version": "2026-06-17_14de0d478d38"
+}

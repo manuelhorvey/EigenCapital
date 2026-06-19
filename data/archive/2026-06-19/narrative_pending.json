@@ -1,0 +1,20 @@
+{
+  "week_start": "2026-06-18",
+  "usd_strength_narrative": 0.5,
+  "geopol_risk_score": 0.3,
+  "fed_hawkishness": 0.5,
+  "rbnz_hawkishness": 0.5,
+  "rba_hawkishness": 0.5,
+  "boj_intervention_risk": 0.3,
+  "energy_crisis_pressure": 0.3,
+  "usd_bias": "neutral",
+  "nzd_bias": "neutral",
+  "aud_bias": "neutral",
+  "jpy_bias": "neutral",
+  "cad_bias": "neutral",
+  "eur_bias": "neutral",
+  "key_events": [],
+  "overall_regime": "data_driven",
+  "confidence": 0.5,
+  "narrative_version": "2026-06-18_adc5118bef03_fallback"
+}

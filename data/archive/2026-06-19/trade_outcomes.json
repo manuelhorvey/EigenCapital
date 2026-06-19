@@ -1,0 +1,133 @@
+{
+  "overall": {
+    "tp_rate": 0.0,
+    "sl_rate": 0.6316,
+    "signal_flip_rate": 0.3684,
+    "avg_r": -0.6109,
+    "win_rate": 0.3158,
+    "profit_factor": 0.8905
+  },
+  "by_asset": [
+    {
+      "asset": "AUDUSD",
+      "n_trades": 2,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -1.0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "CADCHF",
+      "n_trades": 4,
+      "tp_rate": 0.0,
+      "sl_rate": 0.0,
+      "signal_flip_rate": 1.0,
+      "avg_r": 0.0874,
+      "win_rate": 1.0,
+      "profit_factor": null
+    },
+    {
+      "asset": "ES",
+      "n_trades": 2,
+      "tp_rate": 0.0,
+      "sl_rate": 0.0,
+      "signal_flip_rate": 1.0,
+      "avg_r": 0.1125,
+      "win_rate": 1.0,
+      "profit_factor": null
+    },
+    {
+      "asset": "EURAUD",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -1.0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "EURCHF",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -0.9997,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "EURNZD",
+      "n_trades": 3,
+      "tp_rate": 0.0,
+      "sl_rate": 0.6667,
+      "signal_flip_rate": 0.3333,
+      "avg_r": -0.7323,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "EURUSD",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -1.0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "GBPAUD",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -0.9999,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "GBPNZD",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -1.0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "NZDUSD",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -1.0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "USDCAD",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -0.9937,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    },
+    {
+      "asset": "USDCHF",
+      "n_trades": 1,
+      "tp_rate": 0.0,
+      "sl_rate": 1.0,
+      "signal_flip_rate": 0.0,
+      "avg_r": -0.9927,
+      "win_rate": 0.0,
+      "profit_factor": 0.0
+    }
+  ],
+  "updated_at": "2026-06-18T21:14:07.980623-04:00"
+}

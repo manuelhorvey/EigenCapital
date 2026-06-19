@@ -1,0 +1,54 @@
+{
+  "overall": {
+    "n_trades": 12,
+    "avg_r": -0.38530833333333336,
+    "win_rate": 0.5,
+    "tp_rate": 0.0,
+    "sl_rate": 0.0
+  },
+  "by_archetype": {
+    "TREND_PULLBACK": {
+      "n": 2,
+      "avg_r": -0.99995,
+      "win_rate": 0.0,
+      "tp_rate": 0.0,
+      "sl_rate": 0.0,
+      "avg_entry_slippage": 0.0,
+      "avg_mae": 0.0,
+      "avg_mfe": 0.0012699999999999934
+    },
+    "UNKNOWN": {
+      "n": 5,
+      "avg_r": -0.32574000000000003,
+      "win_rate": 0.6,
+      "tp_rate": 0.0,
+      "sl_rate": 0.0,
+      "avg_entry_slippage": 0.0,
+      "avg_mae": 18.251000000000204,
+      "avg_mfe": 0.49856599999993456
+    },
+    "VOL_EXPANSION": {
+      "n": 5,
+      "avg_r": -0.19902000000000003,
+      "win_rate": 0.6,
+      "tp_rate": 0.0,
+      "sl_rate": 0.0,
+      "avg_entry_slippage": 0.0,
+      "avg_mae": 0.0018859999999999877,
+      "avg_mfe": 0.0025299999999999433
+    }
+  },
+  "by_regime": {
+    "neutral": {
+      "n": 12,
+      "avg_r": -0.38530833333333336,
+      "win_rate": 0.5
+    }
+  },
+  "shadow": {
+    "n": 10,
+    "divergence_rate": 1.0,
+    "avg_r_delta": 0.9489
+  },
+  "updated_at": "2026-06-18T20:09:12.173158-04:00"
+}

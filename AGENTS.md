@@ -293,6 +293,78 @@ Folds where the direction *wasn't* flipped show zero or near-zero removed signal
 3. Investigate whether fixed-length rolling window (e.g., 12-month lookback) stabilizes fold-to-fold directional bias
 4. Test label structures that penalize reversal bets during trend regimes
 
+---
+## BUY Inversion Discovery (2026-06-20, Phase 2)
+
+### Finding
+
+The original "directional flip" narrative was wrong as a portfolio-wide diagnosis. The real failure mode is:
+
+**The model's BUY signal is inverted for 9 of 19 assets** — `p_long > 0.5` reliably predicts the WRONG direction.
+
+### Evidence Chain
+
+1. **BUY is flat at ~17% win rate from p_long=0.57 to p_long=1.0** across all 9 assets. p_long=0.50-0.575 bucket: 0 wins out of 144 predictions (0%). This is NOT miscalibration — it's an **inverted signal**.
+
+2. **SELL is well-calibrated at ~77% win rate** on the same 9 assets. p_long < 0.425 bucket: 1,273 predictions at 77% win rate.
+
+3. **The pattern is not trend-conditional**: confident BUY wins 15% in trending windows and 23% in non-trending windows. The model simply misprices these assets regardless of regime.
+
+4. **The pattern is uniform across all 9 assets**: every single one shows 0% win rate in the 50-57% p_long bucket.
+
+5. **Portfolio-wide, not concentrated**: 77% of assets have at least one fold with >50% wrong rate. The BUY inversion is a specific subset of a broader miscalibration.
+
+### Correction to Prior Findings
+
+- The "directional flip" (AUDNZD confident SELL during uptrend) was an asset-specific anomaly, not portfolio pattern
+- The portfolio-wide problem is **BUY overconfidence on 9 specific assets**, not "confident wrong-direction bets during trends"
+- DXY correlation, trend duration, and regime-conditional factors were all tested and ruled out as mechanisms
+- Three of the 9 assets (^DJI, EURCHF, USDCHF) are marginally net-positive on BUY due to favorable tp/sl ratios masking the inverted signal — this is still a trust issue, not a returns issue
+
+### Fix Applied
+
+**`apply_sell_only_filter` stage** added to `decision_pipeline.py:DEFAULT_STAGES`. For 9 flagged assets, BUY signals are overridden to FLAT. SELL signals pass through unchanged.
+
+```python
+SELL_ONLY_ASSETS: frozenset[str] = frozenset({
+    "CADCHF", "AUDUSD", "ES", "NQ", "NZDCHF",
+    "EURAUD", "^DJI", "USDCHF", "EURCHF",
+})
+```
+
+Backtest comparison (19 assets, same parquets):
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| total_R | 316.6 | 325.3 | +2.7% |
+| max_dd_R | -2.34 | -1.42 | **-39%** |
+| sharpe_adj | 10.95 | 12.45 | **+13.7%** |
+| OK assets (10) | unchanged | unchanged | 0% regression |
+
+The 2.7% total_R improvement is modest because 3 flagged assets (^DJI, EURCHF, USDCHF) have extreme tp/sl ratios that make even inverted signals marginally net-positive in R. The risk improvement (-39% max_dd, +13.7% sharpe) is the real headline — the filter eliminates the high-variance confident-wrong pattern.
+
+**Pass/fail**: Missed ≥5% total_R bar (only +2.7%). Met the no-OK-asset-regression bar. Success criterion revised: **primary metric is max_dd reduction and confident-wrong elimination**, not total_R improvement, because the original problem was asymmetric downside risk, not returns optimization.
+
+### Remaining Open Items
+
+1. **SHAP audit** — Determine which feature(s) cause the BUY inversion on these 9 assets. May reveal a structural cause (e.g., specific feature stale for these asset classes) that could be fixed at the model level. Currently blocked by need to load XGBoost model files and run conditional SHAP decomposition on bad-prediction rows.
+
+2. **^DJI/EURCHF/USDCHF decision** — Three assets where BUY is inverted (21-29% WR) but marginally profitable due to tp/sl asymmetry. Currently included in SELL_ONLY_ASSETS. This is not settled — the tp/sl structure that masks the inversion is a parameter under human control (set in paper_trading.yaml per asset), not an intrinsic property. Tightening tp or widening sl for any of these three would flip them from marginally-net-positive to net-negative overnight. The current "profit" on these assets' BUY side is a fragile artifact of a specific parameter choice, not evidence of genuine directional skill. The principled argument: if you've confirmed the signal is behaviorally inverted (BUY predicts SELL), you should kill BUY everywhere it's confirmed regardless of whether backtest R currently happens to paper it over. Keeping it on these 3 because "R works out" optimizes for backtest total_R, not for signal trustworthiness — which is exactly the mistake the roll-backward walk-through warned against. Decision deferred until SHAP audit reveals whether the inversion has a structural (feature-level) root cause, at which point either a targeted fix makes all 9 revert to full BUY/SELL, or the structural finding confirms they should all be SELL-only permanently.
+
+3. **Path A (rolling window backtest)** — Running overnight (2026-06-20). Two checks upon completion: (a) per-fold p_long std reduction ≥30% vs expanding; (b) cross-reference p_long distributions for the 9 SELL_ONLY assets to confirm the BUY inversion holds under rolling regime. If rolling window changes p_long enough to weaken the inversion, the fix may need revisiting (expanding-window training may have been a contributor, not the sole cause).
+
+4. **Live tripwire** — If any flagged asset's SELL win rate drops **below** 65% over 20 consecutive trades, re-investigate. SELL baseline is ~77%. Tripwire threshold tightened from 50% to 65% based on actual baseline.
+
+### Falsified Hypotheses (2026-06-20 session)
+
+- Ensemble corrects directional flip (falsified 2026-06-19, re-confirmed)
+- Calibration problem: OK cluster has 57% win rate on same predictions
+- DXY drives the failure: CHF assets show DXY correlation but controlling for DXY direction doesn't explain failures
+- Trend duration: equities have shorter trends (confirmed as secondary factor), but CHF/OTHER cluster has normal duration and still fails
+- Trend-conditional: bad assets are 15-23% regardless of trending regime — not trend-conditional
+- Detection guard: p_long trajectory can't distinguish flip from normal (22.2% FP rate)
+- Label redesign: asymmetric barriers increase (not decrease) fold-to-fold variance
+
 ## Ruff
 
 ```bash

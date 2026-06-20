@@ -43,3 +43,25 @@ class EngineRecoveryService:
         for name, pos_data in saved_positions.items():
             if name in engine.assets:
                 self._restore_saved_position(engine.assets[name], pos_data)
+            else:
+                pos = pos_data.get("position", {})
+                mt5_ticket = pos.get("mt5_ticket")
+                side = pos.get("side", "?")
+                entry = pos.get("entry", 0)
+                logger.warning(
+                    "Orphan position for removed/delisted asset '%s': side=%s entry=%.5f mt5_ticket=%s",
+                    name, side, entry, mt5_ticket,
+                )
+                if mt5_ticket is not None and getattr(engine.execution_bridge, "_is_real_broker", False):
+                    try:
+                        mt5_sym = engine.broker.ticker_to_mt5_symbol(name)
+                        engine.broker.close_position(mt5_sym, str(mt5_ticket))
+                        logger.info(
+                            "Closed orphan MT5 position for removed asset '%s' on %s (ticket=%s)",
+                            name, mt5_sym, mt5_ticket,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to close orphan MT5 position for removed asset '%s' (ticket=%s)",
+                            name, mt5_ticket,
+                        )

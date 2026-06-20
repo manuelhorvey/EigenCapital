@@ -407,6 +407,37 @@ def apply_risk_off_suppression(ctx: DecisionContext) -> None:
         ctx.new_side = None
 
 
+# ── Sell-only filter stage ────────────────────────────────────────────────
+
+SELL_ONLY_ASSETS: frozenset[str] = frozenset({
+    "CADCHF", "AUDUSD", "ES", "NQ", "NZDCHF",
+    "EURAUD", "^DJI", "USDCHF", "EURCHF",
+})
+
+
+def apply_sell_only_filter(ctx: DecisionContext) -> None:
+    """Force FLAT on BUY signals for assets with inverted BUY calibration.
+
+    For these 9 assets, p_long > 0.5 corresponds to ~17% win rate (inverted
+    signal), while p_long < 0.425 corresponds to ~77% win rate (well-calibrated
+    SELL).  This stage lets SELL signals pass through unchanged but overrides
+    BUY signals to FLAT, converting these assets to sell-only.
+
+    See the 2026-06-20 diagnostic chain for full evidence.
+    """
+    if ctx.new_side is None:
+        return
+    engine = ctx.engine
+    if engine.name not in SELL_ONLY_ASSETS:
+        return
+    if ctx.new_side == PositionSide.LONG:
+        logger.info(
+            "%s: sell-only filter — suppressing BUY signal (p_long=%.4f), holding flat",
+            engine.name, ctx.decision.prob_long,
+        )
+        ctx.new_side = None
+
+
 # ── Spread gate stage ────────────────────────────────────────────────────
 
 SPREAD_GATE_STALENESS_SECS = 300  # 5 minutes — refreshed every cycle
@@ -504,6 +535,7 @@ DEFAULT_STAGES: list[StageFn] = [
     update_mae_mfe,
     resolve_signal,
     apply_risk_off_suppression,
+    apply_sell_only_filter,
     apply_spread_gate,
     apply_confidence_gate,
     apply_signal_stability_filter,

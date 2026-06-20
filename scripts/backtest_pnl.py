@@ -304,6 +304,12 @@ def main():
         default=0.30,
         help="Loss cluster threshold as fraction of active assets (default 0.30)",
     )
+    parser.add_argument(
+        "--sell-only",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Apply SELL-only filter for the 9 assets with inverted BUY calibration (default: True)",
+    )
     args = parser.parse_args()
     tag = args.tag
 
@@ -350,6 +356,18 @@ def main():
         if df.empty:
             logger.warning("%s: empty signal parquet — skipping", asset)
             continue
+
+        # SELL-only filter for 9 assets with inverted BUY calibration
+        if args.sell_only:
+            SELL_ONLY_ASSETS = frozenset({
+                "CADCHF", "AUDUSD", "ES", "NQ", "NZDCHF",
+                "EURAUD", "^DJI", "USDCHF", "EURCHF",
+            })
+            if asset in SELL_ONLY_ASSETS:
+                n_override = (df["signal"] == 1).sum()
+                df.loc[df["signal"] == 1, "signal"] = 0
+                if n_override > 0:
+                    logger.info("%s: sell-only filter — overrode %d BUY signals to FLAT", asset, n_override)
 
         daily_r = compute_asset_daily_r(df, tp, sl)
         all_daily_r[asset] = daily_r

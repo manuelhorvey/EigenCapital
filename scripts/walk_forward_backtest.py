@@ -20,7 +20,6 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -31,6 +30,7 @@ from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
 from features.regime_features import generate_regime_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
+from labels.trend_adjusted_labels import trend_adjusted_labels
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
 
@@ -91,8 +91,20 @@ def compute_labels(
     prices: pd.DataFrame,
     pt_sl: tuple[float, float] = (2.0, 2.0),
     vertical_barrier: int = 20,
+    label_type: str = "standard",
 ) -> pd.Series:
-    """Compute triple-barrier labels aligned to prices index."""
+    """Compute triple-barrier labels aligned to prices index.
+
+    Args:
+        label_type: "standard" (legacy EWM vol) or "trend_adjusted"
+            (per-timestep pt_sl based on trend strength).
+    """
+    if label_type == "trend_adjusted":
+        return trend_adjusted_labels(
+            prices,
+            pt_sl=pt_sl,
+            vertical_barrier=vertical_barrier,
+        )
     return triple_barrier_labels(
         prices,
         pt_sl=pt_sl,
@@ -120,6 +132,9 @@ def run_walk_forward(
     pt_sl: tuple[float, float] = (2.0, 2.0),
     max_depth: int = 2,
     tag: str = "",
+    window_type: str = "expanding",
+    rolling_window_bars: int | None = None,
+    label_type: str = "standard",
 ) -> pd.DataFrame | None:
     import xgboost as xgb
 
@@ -130,7 +145,7 @@ def run_walk_forward(
         logger.warning("SKIP: %s (%s) — no data or insufficient rows", asset_name, ticker)
         return None
     # Use vertical_barrier=20 by default (matches FEATURE_REGISTRY), gap >= barrier
-    labels = compute_labels(prices, pt_sl=pt_sl, vertical_barrier=20)
+    labels = compute_labels(prices, pt_sl=pt_sl, vertical_barrier=20, label_type=label_type)
     gap = max(gap, 20)
     cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities, cot_data=cot_data)
@@ -176,6 +191,10 @@ def run_walk_forward(
     lo_thresh = 0.5 - ensemble_threshold / 2.0
 
     for fold, (train_idx, test_idx) in enumerate(cv.split(X_all)):
+        # Rolling window: truncate training to last N bars
+        if window_type == "rolling":
+            max_bars = rolling_window_bars or (window_years * 252)
+            train_idx = train_idx[-max_bars:]
         train_start = X_all.index[train_idx[0]]
         train_end = X_all.index[train_idx[-1]]
         test_start = X_all.index[test_idx[0]]
@@ -318,6 +337,13 @@ def main():
     parser.add_argument("--pt-sl", type=str, default=None,
                         help="Override pt_sl as tp,sl (e.g. --pt-sl 1.0,2.0). Default: per-asset from production config.")
     parser.add_argument("--tag", type=str, default="", help="Suffix for output filenames (ensemble/base, etc.)")
+    parser.add_argument("--window-type", type=str, default="expanding", choices=["expanding", "rolling"],
+                        help="Training window type: expanding (all history) or rolling (fixed lookback)")
+    parser.add_argument("--rolling-window-bars", type=int, default=None,
+                        help="Fixed lookback in bars for rolling window (default: window_years * 252)")
+    parser.add_argument("--label-type", type=str, default="standard",
+                        choices=["standard", "trend_adjusted"],
+                        help="Label type: standard (legacy triple-barrier) or trend_adjusted (per-timestep pt_sl)")
     args = parser.parse_args()
 
     # Load per-asset pt_sl from production config
@@ -382,6 +408,9 @@ def main():
             pt_sl=pt_sl,
             max_depth=_md,
             tag=args.tag,
+            window_type=args.window_type,
+            rolling_window_bars=args.rolling_window_bars,
+            label_type=args.label_type,
         )
         if result is not None:
             all_summaries.append(result)

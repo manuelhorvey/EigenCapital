@@ -89,7 +89,7 @@ class TestConfig:
 
     def test_paper_portfolio_structure(self):
         pf = build_paper_portfolio(get_config().halt)
-        for asset in ("USDCAD", "GC", "EURCAD", "NZDUSD", "USDCHF", "AUDCHF", "GBPCAD"):
+        for asset in ("USDCAD", "GC", "EURCAD", "NZDUSD", "USDCHF", "AUDUSD", "GBPCAD"):
             assert asset in pf
         assert "XLF" not in pf
         assert "EURGBP" not in pf  # removed — RED in walk-forward

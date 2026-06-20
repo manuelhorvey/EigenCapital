@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commodities, equity indices) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 9-layer governance, position sizing guardrails, and MT5 bridge execution (Exness demo via Wine).
+Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commodities, equity indices) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20; see ADR-026 and PnL backtest section), 9-layer governance, position sizing guardrails, and MT5 bridge execution (Exness demo via Wine).
 
 ## Architecture Quick Reference
 
@@ -11,7 +11,7 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
 - **Config**: `configs/paper_trading.yaml` — global defaults + per-asset (21 assets)
 - **Inference**: `paper_trading/inference/pipeline.py` — alpha features → base model → governance → execute (ensemble disabled; regime features still generated for trace logging)
-- **Training**: `paper_trading/inference/training.py` — base model only (regime model skipped when base_weight >= 1.0), scale_pos_weight, meta-labeling
+- **Training**: `paper_trading/inference/training.py` — base model only (regime model skipped when base_weight >= 1.0), scale_pos_weight, meta-labeling. Expanding-window (all history, never drops old data) — known contributor to directional instability across folds.
 - **Entry gates**: `entry_service.py` price deviation check (skips if price deviated > max_entry_slippage_pct); `decision_pipeline.py` profit lock (blocks flips when unrealized PnL > profit_lock_threshold_pct)
 - **Position sizing guardrails**: Drawdown taper, per-position equity cap, risk-per-trade cap, portfolio leverage budget (atomic lock), backstop decay multiplier
 - **Independent MT5 sizing**: Paper sized from paper equity ($100K mtm_value); MT5 sized from real broker account balance via `_compute_mt5_qty()` with its own drawdown taper + risk cap
@@ -40,6 +40,8 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 | `features/data_fetch.py` | Data fetching with MT5/yfinance fallback |
 | `features/labels.py` | Triple-barrier labeling + PurgedWalkForwardFolds |
 | `LIVE_CONTRACT.md` | Immutable system contract (update when architecture changes) |
+| `scripts/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
+| `scripts/compare_ensemble.py` | Ensemble vs base PnL comparison with per-fold sign test |
 
 ## Position Sizing Chain
 
@@ -90,6 +92,16 @@ PYTHONPATH=$PYTHONPATH:. python scripts/train_regime_models.py
 ### Walk-Forward Backtest (diagnostic)
 ```bash
 PYTHONPATH=$PYTHONPATH:. python scripts/walk_forward_backtest.py --asset EURUSD
+```
+
+### PnL Backtest from Signal Parquets
+```bash
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py
+```
+
+### Compare Ensemble vs Base
+```bash
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py --tag base --ensemble-tag ensemble
 ```
 
 ### Daily Monitoring
@@ -177,6 +189,86 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
   **Hurst constant (FIXED b980f69)**: `compute_hurst` used `rolling().apply(hurst_calc)` with `raw=False` (default), passing a pandas Series with DatetimeIndex. Inside `hurst_calc`, `z[lag:]` used label-based datetime indexing — integer lags didn't match dates, always returning the fallback 0.5. Fix: `raw=True` passes numpy arrays → positional indexing works. Post-fix: AUDUSD hurst varies from 0.19–0.40 (vs flat 0.5 everywhere pre-fix).
   **Cycle-1 cold-start transient**: The first inference cycle post-restart uses 200 rows (truncation validation hasn't run yet → `_truncate_inference=False`). Cycles 2+ use 1 row. The regime output differs between the two (NZDCAD 0.7397→0.2130). Cycles 2→3→4 are bit-for-bit identical for all 22 assets (Δ=0.0000). Mitigation: `apply_first_cycle_suppression` stage added to `DEFAULT_STAGES` — suppresses all trading on cycle 1 after a cold start.
   **Pre/post-fix boundary**: Any trades executed prior to commit `f15af30` (2026-06-19) used a regime-dead ensemble. Do not pool pre-fix and post-fix trades into a single exit-reason or performance aggregate — they reflect different systems.
+
+---
+## Walk-Forward PnL Backtest & Calibration Deep-Dive (2026-06-20)
+
+### Tools Built
+- **`scripts/backtest_pnl.py`** — PnL backtest from OOS signal parquets (R-multiples, verified PnL function with 12 test cases, per-asset + portfolio equity curve, drawdown in R-units, autocorrelation-adjusted Sharpe). Usage: `PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py`.
+- **`scripts/compare_ensemble.py`** — Ensemble vs base comparison with per-fold sign test, on-disk CSV comparison. Reusable.
+
+### Ensemble Decision Re-Confirmed
+- Ensemble vs base PnL comparison: +7.41R (+2.5%) over 350 days, portfolio level
+- Sign test: 161/287 non-tie days favor ensemble, p=0.0446 (raw)
+- Does not survive Bonferroni correction (IC test was p=0.83, two tests → adjusted threshold p<0.025)
+- 2.5% improvement is economically trivial vs 22 extra regime model loads + debug surface area
+- The 3 ensemble bugs fixed are a maintenance-burden argument, not a statistical one — kept as separate bullet
+- Ensemble disabled date updated: 2026-06-20
+
+### Initial Backtest Results (base-only, full portfolio)
+- 22 assets, 350 OOS days (Oct 2024 - May 2026)
+- Portfolio total_R = +291R, max_dd_R = -2.64R (all in R-multiples, not currency)
+- Portfolio sharpe_adj (Lo-adjusted for autocorrelation ρ=0.68): 9.1 — **CAVEAT: R-multiple portfolio Sharpe; see note below**
+- **Top performers**: ^DJI (+712.5R), CADCHF (+867R), NZDCHF (+829R), AUDUSD (+516R)
+- **Bottom performers**: AUDNZD (-203R), EURUSD (-157.5R), NZDUSD (-46.5R), GBPNZD (-37R)
+
+**Note on R-multiple Sharpe**: This metric is not comparable to a traditional financial Sharpe ratio. The portfolio daily R is a simple average of per-asset R-multiple changes (20 assets, equal weight regardless of position size). Cross-asset diversification artificially reduces portfolio std, inflating the Sharpe. Monthly-block Sharpe (non-overlapping) = 5.61. Adjusting for realistic FX cross-asset correlation (ρ~0.3) gives ~8.05. All values are in R-multiple space — they describe signal quality, not expected live trading Sharpe.
+
+### Directional Asymmetry Investigation
+
+#### Step 1: Per-direction breakdown
+- AUDNZD and EURUSD both lose on SELL predictions (82% loss rate, 72% loss rate respectively)
+- But this is NOT majority-class bias: 19/22 assets beat 50% coin-flip on BUY, 18/22 on SELL
+- The model has genuine directional skill on both sides for most assets
+
+#### Step 2: Breakeven WR vs raw WR
+- The real bottleneck for losing assets is tp/sl config: AUDNZD needs 66.7% WR to break even (tp=1, sl=2), EURUSD also 66.7% (tp=1.5, sl=3)
+- The model achieves 71.3% BUY WR on AUDNZD (real skill) and 66.2% on EURUSD (skill but just misses BE)
+- SELL WR on these assets: 17.9% and 27.6% — significantly worse than 50% coin flip (anti-skill)
+
+#### Step 3: p_long calibration → isotonic fails
+- Probability calibration check: the model is severely miscalibrated
+  - AUDNZD p_long=0.25 → actual label=1 frequency = 82.6% (model overconfident SELL)
+  - AUDNZD p_long=0.93 → actual label=1 frequency = 47.8% (model overconfident BUY)
+- Isotonic calibration fit on fold-0 test set compresses all probabilities into [0.44, 0.58]
+- With the 0.425-0.575 dead zone, almost all calibrated predictions go FLAT → 0.5 threshold also doesn't help
+- **Cause of isotonic failure**: model's directional mix flips between folds (fold 0: 74% BUY → fold 2: 12% BUY). The isotonic fit on a BUY-dominant fold fails on SELL-dominant folds
+
+#### Step 4: Regime-conditional ensemble check
+- Ensemble signals are nearly identical to base on the trend folds (p_long correlation 0.97-0.98)
+- When signals disagree (13/94 rows), ensemble wins 0/13 on fold 1
+- The regime-conditional ensemble does NOT detect or correct the directional flip — falsified
+
+#### Step 5: Training-window return structure
+- Expanding-window training (confirmed: `train_idx = idx[:test_start - gap]` — all history, never drops old data)
+- 20-bar return autocorrelation is strongly positive in ALL training and test periods (0.75-0.97) but this may be inflated by overlapping-window artifact [CAVEAT: adjacent 20-bar windows share 19/20 data points]
+- Model bias vs recent returns: EURUSD shows trend-follower-like behavior (predicts recent train-window direction) that breaks when test trend reverses; AUDNZD shows unexplained flip at fold 2 despite near-identical recent return (+0.50% → +0.40%)
+
+### Terminal Finding: Base Model Directional Instability
+
+**Symptom**: The base model makes confident wrong-direction bets during trending market periods. Reproducible across 2 assets and 3 consecutive walk-forward folds.
+
+**Evidence**:
+- AUDNZD fold 2 (test: +4.54%): model flips from 94% BUY to 12% BUY (wrong — keeps rallying to +5.79%)
+- EURUSD fold 1 (test: +10.63%): model flips from 99% BUY to 16% BUY (wrong — keeps rallying)
+- Ensemble doesn't correct it (p_long corr 0.97-0.98)
+- Calibration doesn't fix it (isotonic fails on fold-to-fold directional shift)
+- Not cleanly trend-following (AUDNZD fold 1→2 flip unexplained by recent returns)
+- Not cleanly mean-reversion (20-bar ACF positive, not negative)
+
+**Mechanism**: NOT fully isolated. Contributing factors identified:
+1. Expanding training window (dilutes recent signal with old data)
+2. Triple-barrier labels may not distinguish trend vs. reversal regimes
+3. Feature set may lack regime-awareness signals
+4. The interaction between these produces fold-to-fold directional instability that tracks realized test-period trend reversals but whose root cause remains distributed
+
+**Risk**: If this pattern (confident wrong-direction bets during trends) holds in production, a 1-2 month trending period could produce concentrated losses in the assets most affected (AUDNZD, EURUSD, likely others with similar profile).
+
+**Next investigation suggestions**:
+1. **Circuit breaker simulation (PRIORITY)** — Pull trigger logic from live code, write isolated unit tests (hand-picked equity sequences), confirm it fires and flattens positions, then build synthetic correlated-AUD-cascade scenario as realistic stress input. Do this before trusting the breaker as a reliable backstop — asymmetric downside risk.
+2. Cross-correlate AUD pairs for simultaneous adverse move risk
+3. Investigate whether fixed-length rolling window (e.g., 12-month lookback) stabilizes fold-to-fold directional bias
+4. Test label structures that penalize reversal bets during trend regimes
 
 ## Ruff
 

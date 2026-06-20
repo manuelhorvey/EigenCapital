@@ -244,6 +244,26 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 - 20-bar return autocorrelation is strongly positive in ALL training and test periods (0.75-0.97) but this may be inflated by overlapping-window artifact [CAVEAT: adjacent 20-bar windows share 19/20 data points]
 - Model bias vs recent returns: EURUSD shows trend-follower-like behavior (predicts recent train-window direction) that breaks when test trend reverses; AUDNZD shows unexplained flip at fold 2 despite near-identical recent return (+0.50% → +0.40%)
 
+#### Step 6: Directional filter diagnostic — defangs the trend flip, not a structural fix
+
+The filter removes the anti-skill direction per asset (derived from per-direction 50%-null WRs). Portfolio-level: +307R → +350R (+14%). Every asset's total R improved.
+
+**CAVEAT — per-fold concentration**: improvement is dominated by 1-2 folds per asset where trade count collapsed by 80-90% and the removed signals are a concentrated losing streak matching the known trend-period flip:
+
+| Asset | Dominant fold(s) | Removed signals | Removed R | Loss streak |
+|-------|-----------------|----------------|-----------|-------------|
+| AUDNZD | 2-3 | 148 SELL | -224R | 28 consecutive |
+| EURUSD | 1 | 70 SELL | -151.5R | 35 consecutive |
+| AUDCHF | 0-1 | 90 BUY | -85R | 20 consecutive |
+| ES | 0 | 55 BUY | -72.5R | 26 consecutive |
+| NQ | 0 | 32 BUY | -80R | 32 consecutive (all losses) |
+
+Folds where the direction *wasn't* flipped show zero or near-zero removed signals (filter had nothing to override). AUDUSD fold 1-2: removing BUY removes *wins* (+26R), yet fold 0's 48 BUY removed (47/48 losses, -66.5R) outweighs it.
+
+**Interpretation**: The filter defangs the directional instability symptom — it prevents the model from acting on its confirmed trend-period wrong-direction flip. It does NOT identify a structurally bad per-asset direction. The improvement lives where the flip happens (specific historical trend periods) and will re-apply the next time the model flips into a trend. This is a valid production guard but is best understood as a secondary consequence of the terminal finding (directional instability), not an independent discovery.
+
+**script**: `scripts/filter_direction.py`
+
 ### Terminal Finding: Base Model Directional Instability
 
 **Symptom**: The base model makes confident wrong-direction bets during trending market periods. Reproducible across 2 assets and 3 consecutive walk-forward folds.

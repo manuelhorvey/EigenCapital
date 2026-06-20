@@ -42,6 +42,8 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
       nSignals: m.n_signals ?? 0,
       pos,
       dist: m.signal_distribution,
+      sellOnly: asset.sell_only ?? false,
+      tripwireActive: asset.tripwire_active ?? false,
       slMult: m.current_sl_mult ?? asset.sl_mult,
       tpMult: m.current_tp_mult ?? asset.tp_mult,
       scaleOutActive: m.scale_out_active ?? false,
@@ -82,6 +84,15 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
     <div className={`relative bg-panel border border-default rounded-lg px-4 py-3 overflow-hidden group shadow-panel transition-all duration-200 hover:border-strong hover:shadow-card border-l-2 ${governanceBorder[cardState]} ${governanceBgMuted[cardState]}`}>
       <div className="flex items-center gap-2 mb-2">
         <span className="font-semibold text-sm text-primary">{name}</span>
+        {info.sellOnly && (
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-none ${
+            info.tripwireActive
+              ? 'bg-gov-red-muted text-gov-red border border-gov-red/20 animate-pulse'
+              : 'bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/20'
+          }`}>
+            {info.tripwireActive ? 'TRIPWIRE' : 'SELL-ONLY'}
+          </span>
+        )}
         {(info.isNew || newBadge) && (
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/20 animate-pulse leading-none">
             NEW

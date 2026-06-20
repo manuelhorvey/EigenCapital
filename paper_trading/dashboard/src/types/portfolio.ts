@@ -61,6 +61,8 @@ export interface AssetState {
   meta_decision?: string
   feature_stability_jaccard?: number
   feature_stability_spearman?: number
+  sell_only?: boolean
+  tripwire_active?: boolean
 }
 
 export interface ExitReasons {

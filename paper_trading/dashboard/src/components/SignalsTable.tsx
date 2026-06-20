@@ -29,6 +29,8 @@ interface SignalRow {
   alloc: number
   ret: number
   dd: number
+  sellOnly: boolean
+  tripwireActive: boolean
 }
 
 export default function SignalsTable() {
@@ -53,6 +55,8 @@ export default function SignalsTable() {
           alloc,
           ret: m?.mtm_return ?? 0,
           dd: m?.drawdown ?? 0,
+          sellOnly: asset.sell_only ?? false,
+          tripwireActive: asset.tripwire_active ?? false,
         }
       })
   }, [data, search])
@@ -63,7 +67,20 @@ export default function SignalsTable() {
       label: 'Asset',
       sortable: true,
       minWidth: '80px',
-      render: r => <span className="font-semibold text-primary text-xs font-mono">{r.name}</span>,
+      render: r => (
+        <span className="flex items-center gap-1.5">
+          <span className="font-semibold text-primary text-xs font-mono">{r.name}</span>
+          {r.sellOnly && (
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+              r.tripwireActive
+                ? 'bg-gov-red-muted text-gov-red border border-gov-red/20 animate-pulse'
+                : 'bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/20'
+            }`}>
+              {r.tripwireActive ? 'TRIPWIRE' : 'S-O'}
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'signal',

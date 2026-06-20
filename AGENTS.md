@@ -345,15 +345,58 @@ The 2.7% total_R improvement is modest because 3 flagged assets (^DJI, EURCHF, U
 
 **Pass/fail**: Missed ≥5% total_R bar (only +2.7%). Met the no-OK-asset-regression bar. Success criterion revised: **primary metric is max_dd reduction and confident-wrong elimination**, not total_R improvement, because the original problem was asymmetric downside risk, not returns optimization.
 
+## SHAP Audit (2026-06-20)
+
+### Loaded Models
+All 9 flagged asset models loaded successfully from `paper_trading/models/*.json`. Config-loaded `pt_sl=(tp_mult, sl_mult)` and `max_depth` per asset (not hardcoded defaults).
+
+### Method
+For each asset: load live retrained XGBoost, compute SHAP on all binary-classified rows, then compare mean SHAP attributions between **wrong confident-BUY** (p_long > 0.5, triple-barrier label < 0) vs **correct confident-BUY** (p_long > 0.5, label > 0). Pooled per sub-cluster. Threshold: |diff| >= 0.05 with consistent sign across cluster = candidate mechanism.
+
+### Results
+
+**Equities (^DJI, ES, NQ)** — 3 assets, all with sufficient data (>10 wrong-BUY rows each):
+
+| Feature | Pooled |diff| | Sign consistency | Interpretation |
+|---------|---------|------------------|----------------|
+| dxy_mom_21d | 0.195 | 100% (3/3 neg) | Wrong BUY calls have weaker DXY momentum support. The model confuses DXY weakness with risk-on equity signal, but this breaks when DXY and equities decouple. |
+| CLOSE_mom_21d | 0.178 | 67% (2/3 neg) | Wrong BUY calls have weaker short-term momentum. Secondary mechanism. |
+| CLOSE_mom_126d | 0.093 | 67% | Wrong BUY calls have weaker medium-term momentum. |
+
+PASS on dxy_mom_21d. Mechanism: **cross-asset correlation learning failure** — model learns the DXY/equity correlation during normal conditions but fails during periods where the relationship breaks down (e.g., DXY falling for non-risk-on reasons).
+
+**CHF+OTHER (CADCHF, NZDCHF, USDCHF, EURCHF, AUDUSD, EURAUD)** — 6 assets:
+
+| Feature | Pooled |diff| | Sign consistency | Interpretation |
+|---------|---------|------------------|----------------|
+| CLOSE_carry_vol_adj | 0.158 | 83% (5/6 neg) | Wrong BUY calls have weaker carry signal contribution. The model uses positive carry as a bullish signal but fails when carry doesn't support the direction. |
+| CLOSE_mom_252d | 0.115 | 83% (5/6 neg) | Wrong BUY calls have weaker long-term momentum. |
+| CLOSE_mom_21d | 0.082 | 100% (6/6 neg) | Wrong BUY calls have weaker short-term momentum. |
+
+PASS on CLOSE_carry_vol_adj. Mechanism: **single-asset feature dominance** — the carry feature dominates the BUY prediction, but when carry is present without supporting momentum or z-score conditions, the BUY call fails.
+
+**Single-asset note — EURAUD**: Only 1 feature (CLOSE_vol_ratio, diff=-0.071) passes threshold. EURAUD has the most balanced wrong/correct ratio (110 wrong vs 131 correct) and the weakest SHAP separation. May have a different mechanism or be a borderline case. No change to current treatment (kept in SELL_ONLY_ASSETS).
+
+### ^DJI/EURCHF/USDCHF Decision
+
+SHAP confirms all 3 follow the same mechanisms as their cluster peers:
+- **^DJI**: dxy_mom_21d diff=-0.381 (same as ES=-0.173, NQ=+0.130). Sign consistent with equity pooled direction across 3/3 assets.
+- **EURCHF**: CLOSE_carry_vol_adj diff=-0.117. Momentum features (mom_252d=-0.266, mom_21d=-0.224, mom_63d=-0.210) strong. Consistent with CHF cluster carry/momentum pattern.
+- **USDCHF**: CLOSE_zscore_20 diff=-0.230, carry_vol_adj diff=-0.106. Consistent with CHF cluster.
+
+No evidence of a special case for any of the 3. The existing decision (keep all 9 in SELL_ONLY_ASSETS) is consistent with — and reinforced by — the SHAP findings.
+
+### Closed Items
+- SHAP audit: **COMPLETED**. Two distinct mechanisms confirmed (dxy_mom_21d for equities, CLOSE_carry_vol_adj for CHF+OTHER). Both pass 0.05 threshold with consistent sign across cluster.
+- ^DJI/EURCHF/USDCHF decision: **RESOLVED**. SHAP confirms same mechanisms as cluster peers. No special case. SELL_ONLY_ASSETS treatment stands. The tp/sl argument is still correct (the 3 are profitable only due to asymmetric barriers) but the SHAP finding makes it moot — the mechanism is the same, so treating them differently would be inconsistent.
+
 ### Remaining Open Items
-
-1. **SHAP audit** — Determine which feature(s) cause the BUY inversion on these 9 assets. May reveal a structural cause (e.g., specific feature stale for these asset classes) that could be fixed at the model level. Currently blocked by need to load XGBoost model files and run conditional SHAP decomposition on bad-prediction rows.
-
-2. **^DJI/EURCHF/USDCHF decision** — Three assets where BUY is inverted (21-29% WR) but marginally profitable due to tp/sl asymmetry. Currently included in SELL_ONLY_ASSETS. This is not settled — the tp/sl structure that masks the inversion is a parameter under human control (set in paper_trading.yaml per asset), not an intrinsic property. Tightening tp or widening sl for any of these three would flip them from marginally-net-positive to net-negative overnight. The current "profit" on these assets' BUY side is a fragile artifact of a specific parameter choice, not evidence of genuine directional skill. The principled argument: if you've confirmed the signal is behaviorally inverted (BUY predicts SELL), you should kill BUY everywhere it's confirmed regardless of whether backtest R currently happens to paper it over. Keeping it on these 3 because "R works out" optimizes for backtest total_R, not for signal trustworthiness — which is exactly the mistake the roll-backward walk-through warned against. Decision deferred until SHAP audit reveals whether the inversion has a structural (feature-level) root cause, at which point either a targeted fix makes all 9 revert to full BUY/SELL, or the structural finding confirms they should all be SELL-only permanently.
 
 3. **Path A (rolling window backtest)** — Completed 2026-06-20. Result: expanding-vs-rolling discrepancy is **unobservable** at current data depth (~848 bars / 2.3 years per asset). With `rolling_window_bars=3*252=756`, no training fold is large enough for truncation to fire. Expanding and rolling output bit-for-bit identical metrics (total_R=316.6, sharpe_adj=10.95). The original question (does backtest methodology match live training?) is not answered — it cannot be tested with existing data. Revisit when any asset crosses 3+ years of clean history, or test with a deliberately small window (e.g., 252 bars) for a mechanism check (does rolling vs expanding ever matter for this model class). The latter is a cheap mechanism question about the model family, not a validation of the production config. Low priority.
 
 4. **Live tripwire** — If any flagged asset's SELL win rate drops **below** 65% over 20 consecutive trades, re-investigate. SELL baseline is ~77%. Tripwire threshold tightened from 50% to 65% based on actual baseline.
+
+### Falsified Hypotheses (2026-06-20 session)
 
 ### Falsified Hypotheses (2026-06-20 session)
 

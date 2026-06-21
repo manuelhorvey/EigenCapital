@@ -15,6 +15,7 @@ import yfinance as yf
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
 from features.builder import compute_macro_derived, compute_training_data
 from features.registry import FEATURE_REGISTRY
+from backtests import compute_per_fold_labels
 from shared.model import XGBoostModel
 from backtests.model_comparator import (
     compare_models,
@@ -126,7 +127,7 @@ def train_sandbox_model(
 
     contract = FEATURE_REGISTRY[ticker]
     df = fetch_history(ticker)
-    X, y, _ = compute_training_data(ticker, macro, ref, df)
+    X, y, _ = compute_training_data(ticker, macro, ref, df, compute_labels=False)
     logger.info("  %s: %d feature rows, features=%s", ticker, len(X), contract.features)
 
     if len(X) < 200:
@@ -198,7 +199,7 @@ def run_one_asset(
     logger.info("=" * 60)
 
     df = fetch_history(ticker)
-    X, y, _ = compute_training_data(ticker, macro, ref, df)
+    X, y, _ = compute_training_data(ticker, macro, ref, df, compute_labels=False)
 
     if len(X) < 200:
         msg = f"Insufficient data for {ticker} ({len(X)} rows)"
@@ -550,9 +551,8 @@ def run_historical(
         df = fetch_history(ticker)
         from features.builder import build_features
 
-        features_df = build_features(df, macro, ref, contract)
+        features_df = build_features(df, macro, ref, contract, compute_labels=False)
         X = features_df[list(contract.features)]
-        y = features_df["label"]
         close = df["close"].reindex(X.index).ffill()
         if len(X) < 200:
             logger.warning("  %s: insufficient data", ticker)
@@ -563,7 +563,6 @@ def run_historical(
                 "  %s: augmented %d features → %d features (%d rows)", name, X.shape[1], X_aug.shape[1], len(X_aug)
             )
             X = X_aug
-            y = y.reindex(X.index)
             close = close.reindex(X.index).ffill()
         if len(X) < 200:
             logger.warning("  %s: insufficient data after augmentation", ticker)
@@ -579,9 +578,8 @@ def run_historical(
                 logger.info("  %s %d: too few test rows (%d), skipping", name, ty, int(test_mask.sum()))
                 continue
             X_train_hist = X[train_mask]
-            y_train_hist = y[train_mask]
+            y_train_hist, y_test = compute_per_fold_labels(close, train_mask, test_mask, contract)
             X_test = X[test_mask]
-            y_test = y[test_mask]
             close_test = close[test_mask]
             if len(X_train_hist) < 200:
                 logger.info("  %s %d: insufficient train data (%d), skipping", name, ty, len(X_train_hist))

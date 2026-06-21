@@ -11,6 +11,8 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from features.registry import FEATURE_REGISTRY, FeatureContract
 from features.builder import build_features
+from backtests import compute_per_fold_labels
+
 from features.lead_lag_features import load_lead_lag_edges, apply_lead_lag_features
 from shared.volatility import compute_atr_pct
 from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, aggregate
@@ -102,12 +104,12 @@ def run_5yr(name, variant):
     )
 
     df = fetch_ohlcv("EURUSD=X")
-    fdf = build_features(df, macro, None, vc)
+    fdf = build_features(df, macro, None, vc, compute_labels=False)
     if fdf is None or fdf.empty:
         return None
 
     X = fdf[[c for c in vc.features if c in fdf.columns]]
-    y = fdf["label"]
+
 
     close = df["close"].reindex(X.index)
     high = df["high"].reindex(X.index)
@@ -128,7 +130,8 @@ def run_5yr(name, variant):
         if test_mask.sum() < 20:
             continue
 
-        X_tr, y_tr = X[train_mask], y[train_mask]
+        X_tr = X[train_mask]
+        y_tr, y_te = compute_per_fold_labels(close, train_mask, test_mask, vc)
         X_te = X[test_mask]
 
         if len(X_tr) < 200:

@@ -13,7 +13,8 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from features.builder import build_features, compute_macro_derived
+from features.builder import build_features
+from backtests import compute_macro_derived, compute_per_fold_labels
 from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
 
@@ -256,11 +257,11 @@ def backtest_asset(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None, y
         logger.warning("    insufficient data")
         return []
     try:
-        fdf = build_features(df, macro, ref, contract)
+        fdf = build_features(df, macro, ref, contract, compute_labels=False)
     except Exception as e:
         logger.warning("    features failed: %s", e)
         return []
-    X, y = fdf[list(contract.features)], fdf["label"]
+    X = fdf[list(contract.features)]
     close, high, low = [c.reindex(X.index).ffill() for c in [df["close"], df["high"], df["low"]]]
     if len(X) < 200:
         return []
@@ -279,7 +280,9 @@ def backtest_asset(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None, y
         test = (X.index >= cut) & (X.index <= eoy)
         if test.sum() < 20:
             continue
-        X_tr, y_tr, X_te = X[train], y[train], X[test]
+        X_tr = X[train]
+        y_tr, y_te = compute_per_fold_labels(close, train, test, contract)
+        X_te = X[test]
         if len(X_tr) < 200 or set(y_tr.unique()) != {0, 1, 2}:
             continue
         mc = y_tr.value_counts().min()

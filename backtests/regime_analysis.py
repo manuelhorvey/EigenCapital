@@ -10,6 +10,8 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from features.registry import FEATURE_REGISTRY
 from features.builder import build_features
+from backtests import compute_per_fold_labels
+
 from shared.volatility import compute_atr_pct
 from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, aggregate, SLTP_CFG, DASHBOARD_TICKERS, MODEL_DEPTH, REGIME_GEOM
 
@@ -31,12 +33,12 @@ for ticker, name in sorted(DASHBOARD_TICKERS.items(), key=lambda x: x[1]):
         continue
 
     df = fetch_ohlcv(ticker)
-    fdf = build_features(df, macro, None, contract)
+    fdf = build_features(df, macro, None, contract, compute_labels=False)
     if fdf is None or fdf.empty:
         continue
 
     X = fdf[[c for c in contract.features if c in fdf.columns]]
-    y = fdf["label"]
+
     close = df["close"].reindex(X.index)
     high = df["high"].reindex(X.index)
     low = df["low"].reindex(X.index)
@@ -55,7 +57,8 @@ for ticker, name in sorted(DASHBOARD_TICKERS.items(), key=lambda x: x[1]):
         test_mask = (X.index >= cut) & (X.index <= eoy)
         if test_mask.sum() < 20:
             continue
-        X_tr, y_tr = X[train_mask], y[train_mask]
+        X_tr = X[train_mask]
+        y_tr, y_te = compute_per_fold_labels(close, train_mask, test_mask, contract)
         X_te = X[test_mask]
         if len(X_tr) < 200:
             continue

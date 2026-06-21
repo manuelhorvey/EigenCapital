@@ -209,3 +209,42 @@ class TestValidityStateEnum:
         assert ValidityState.GREEN.value == "GREEN"
         assert ValidityState.YELLOW.value == "YELLOW"
         assert ValidityState.RED.value == "RED"
+
+
+class TestCircuitBreaker:
+    def test_no_trip_on_normal_conditions(self):
+        from paper_trading.orchestrator.health import CircuitBreaker
+
+        cb = CircuitBreaker(max_drawdown_pct=0.25, vol_spike_threshold=3.0, max_consecutive_losses=15)
+        result = cb.check(portfolio_value=100.0)
+        assert not result.trip
+        assert result.severity == "info"
+
+    def test_trip_on_vol_spike(self):
+        from paper_trading.orchestrator.health import CircuitBreaker
+
+        cb = CircuitBreaker(max_drawdown_pct=0.25, vol_spike_threshold=3.0)
+        result = cb.check(portfolio_value=100.0, portfolio_vol=3.5, baseline_vol=1.0)
+        assert result.trip
+        assert "vol_spike" in result.reason
+
+    def test_trip_on_consecutive_losses(self):
+        from paper_trading.orchestrator.health import CircuitBreaker
+
+        cb = CircuitBreaker(max_consecutive_losses=5)
+        for _ in range(5):
+            cb.check(portfolio_value=100.0)
+            cb.record_daily_pnl(-1.0)
+        result = cb.check(portfolio_value=99.0)
+        assert result.trip
+        assert "consecutive_loss" in result.reason
+
+    def test_no_trip_on_consecutive_gains(self):
+        from paper_trading.orchestrator.health import CircuitBreaker
+
+        cb = CircuitBreaker(max_consecutive_losses=5)
+        for i in range(6):
+            cb.check(portfolio_value=100.0 + i)
+            cb.record_daily_pnl(1.0)
+        result = cb.check(portfolio_value=106.0)
+        assert not result.trip

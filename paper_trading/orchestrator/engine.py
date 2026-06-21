@@ -32,6 +32,7 @@ from paper_trading.orchestrator.actor import (
     AssetResult,
     compute_health_snapshot,
 )
+from paper_trading.orchestrator.health import CircuitBreaker
 from paper_trading.replay.wal import WalWriter
 
 logger = logging.getLogger("quantforge.orchestrator.engine")
@@ -73,6 +74,9 @@ class EngineOrchestrator:
         self._leverage_lock = threading.Lock()
         self._backstop_multiplier: float = 1.0
         self._backstop_decay_cycles: int = 0
+
+        # Portfolio circuit breaker (vol spike + consecutive loss)
+        self._circuit_breaker = CircuitBreaker()
 
         self._pool = ThreadPoolExecutor(
             max_workers=self._max_workers,
@@ -234,7 +238,35 @@ class EngineOrchestrator:
             }
             return results
 
-        # ── Phase 3b: Portfolio leverage backstop ─────────────────────────
+        # ── Phase 3b: Portfolio circuit breaker (vol spike + losses) ──────
+        prev_value = getattr(self, "_prev_portfolio_value", total_value)
+        if total_value < prev_value:
+            self._circuit_breaker.record_daily_pnl(total_value - prev_value)
+        self._prev_portfolio_value = total_value
+
+        breaker_result = self._circuit_breaker.check(
+            portfolio_value=total_value,
+            actors=self._actors,
+        )
+        results["circuit_breaker_full"] = {
+            "trip": breaker_result.trip,
+            "reason": breaker_result.reason,
+            "severity": breaker_result.severity,
+        }
+        if breaker_result.trip:
+            self._emergency_halt = True
+            logger.error(
+                "VOLATILITY CIRCUIT BREAKER TRIGGERED: %s — flattening and halting",
+                breaker_result.reason,
+            )
+            self.flatten_positions(reason=f"circuit_breaker_{breaker_result.reason}")
+            results["circuit_breaker"] = {
+                "triggered": True,
+                "reason": breaker_result.reason,
+            }
+            return results
+
+        # ── Phase 3d: Portfolio leverage backstop ─────────────────────────
         # Should never fire in normal operation: the atomic Lock decrement
         # in _submit_to_broker() prevents overshoot.  If it does fire,
         # the equity snapshot was stale (intra-cycle PnL move) or there
@@ -270,7 +302,7 @@ class EngineOrchestrator:
             penalty *= 0.9
             self._backstop_multiplier = 1.0 - penalty
 
-        # ── Phase 3c: MT5 orphan reconciliation ───────────────────────────
+        # ── Phase 3e: MT5 orphan reconciliation ───────────────────────────
         self._reconcile_mt5_orphans()
 
         # ── Phase 4: Persist all queues ───────────────────────────────────

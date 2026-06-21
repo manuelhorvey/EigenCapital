@@ -61,7 +61,7 @@ _SKIP_JOURNAL = object()
 def sanitize(obj):
     if isinstance(obj, dict):
         return {k: sanitize(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
+    elif isinstance(obj, (list, tuple)):
         return [sanitize(v) for v in obj]
     elif isinstance(obj, tuple):
         return [sanitize(v) for v in obj]

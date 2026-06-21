@@ -6,6 +6,7 @@ from urllib.parse import unquote
 
 class _StrictJSONEncoder(json.JSONEncoder):
     """Fails loud on non-serializable types instead of silently converting via default=str."""
+
     def default(self, o):
         raise TypeError(
             f"Object of type {type(o).__name__} is not JSON serializable: {o!r}. "

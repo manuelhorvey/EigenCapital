@@ -191,22 +191,21 @@ class EngineStateService:
                 client = broker._client
                 is_connected = bool(client.connected)
                 last_hb = getattr(client, "_last_heartbeat", None)
-                if last_hb is not None:
-                    last_hb_iso = datetime.fromtimestamp(last_hb, tz=ET).isoformat()
-                else:
-                    last_hb_iso = None
+                last_hb_iso = datetime.fromtimestamp(last_hb, tz=ET).isoformat() if last_hb is not None else None
                 account = None
                 try:
                     if is_connected:
                         account = broker.get_account_summary()
                 except Exception:
                     pass
-                set_mt5_status({
-                    "connected": is_connected,
-                    "status": "CONNECTED" if is_connected else "DISCONNECTED",
-                    "last_heartbeat": last_hb_iso,
-                    "account": account,
-                })
+                set_mt5_status(
+                    {
+                        "connected": is_connected,
+                        "status": "CONNECTED" if is_connected else "DISCONNECTED",
+                        "last_heartbeat": last_hb_iso,
+                        "account": account,
+                    }
+                )
             else:
                 set_mt5_status({"connected": False, "status": "DISCONNECTED", "last_heartbeat": None, "account": None})
         except Exception:

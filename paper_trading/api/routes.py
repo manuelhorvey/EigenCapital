@@ -25,6 +25,7 @@ from paper_trading.governance.risk import get_latest as _get_risk_latest
 from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.ops.weekly_review import compute_weekly_review
 from paper_trading.portfolio_builder import build_paper_portfolio
+from paper_trading.state_store import CONTRACT_VERSION
 
 ET = pytz.timezone("US/Eastern")
 

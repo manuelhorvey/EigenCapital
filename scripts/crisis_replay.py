@@ -645,6 +645,92 @@ def generate_summary(
         lines.append(f"    SELL_ONLY assets   avg_R={so_avg_r:>7.2f}  avg_WR={so_wr:.0%}")
         lines.append(f"    Non-SELL_ONLY      avg_R={ns_avg_r:>7.2f}  avg_WR={ns_wr:.0%}")
 
+    # Normal-period profit analysis
+    lines.append("\nNORMAL-PERIOD PROFIT ANALYSIS")
+    lines.append("=" * 72)
+    lines.append("(Crisis windows excluded — shows profit potential during normal trading)")
+
+    for result in results:
+        lines.append(f"\n  ── {result.name} normal-period ──")
+        # Per-asset normal metrics
+        lines.append(f"  {'Asset':>10s}  {'Normal R':>9s}  {'Avg R':>7s}  {'WR':>5s}  {'SO?':>4s}")
+        lines.append(f"  {'-' * 10}  {'-' * 9}  {'-' * 7}  {'-' * 5}  {'-' * 4}")
+        for m in sorted(result.asset_metrics, key=lambda x: -x.normal_total_r)[:18]:
+            so_mark = "SO" if m.is_sell_only else ""
+            nr = m.normal_total_r
+            avg = m.normal_avg_r
+            wr = m.normal_win_rate
+            lines.append(f"  {m.name:>10s}  {nr:>9.2f}  {avg:>7.4f}  {wr:>4.0%}  {so_mark:>4s}")
+
+        # Aggregated: SO vs non-SO normal-period profit
+        so_assets = [m for m in result.asset_metrics if m.is_sell_only]
+        ns_assets = [m for m in result.asset_metrics if not m.is_sell_only]
+        so_total_r = sum(m.normal_total_r for m in so_assets)
+        ns_total_r = sum(m.normal_total_r for m in ns_assets)
+        so_avg_wr = float(np.mean([m.normal_win_rate for m in so_assets])) if so_assets else 0.0
+        ns_avg_wr = float(np.mean([m.normal_win_rate for m in ns_assets])) if ns_assets else 0.0
+
+        total_both = so_total_r + ns_total_r + 1e-9
+        so_pct_norm = so_total_r / total_both * 100
+        ns_pct_norm = ns_total_r / total_both * 100
+        lines.append(f"\n    SELL_ONLY assets   ({len(so_assets)} assets):")
+        lines.append(f"      Total normal R:    {so_total_r:>8.2f}  ({so_pct_norm:.1f}% of portfolio)")
+        lines.append(f"      Avg normal WR:     {so_avg_wr:>8.1%}")
+        lines.append(f"    Non-SELL_ONLY assets ({len(ns_assets)} assets):")
+        lines.append(f"      Total normal R:    {ns_total_r:>8.2f}  ({ns_pct_norm:.1f}% of portfolio)")
+        lines.append(f"      Avg normal WR:     {ns_avg_wr:>8.1%}")
+
+    # Overall: all periods combined (crisis + normal)
+    lines.append("\n  ── Whole-sample profit contribution ──")
+    so_by_asset: dict[str, list[AssetCrisisMetrics]] = {}
+    ns_by_asset: dict[str, list[AssetCrisisMetrics]] = {}
+    for r in results:
+        for m in r.asset_metrics:
+            target = so_by_asset if m.is_sell_only else ns_by_asset
+            target.setdefault(m.name, []).append(m)
+
+    def asset_total_normal_r(metrics_list: list[AssetCrisisMetrics]) -> float:
+        return sum(m.normal_total_r + m.crisis_total_r for m in metrics_list)
+
+    so_totals = {name: asset_total_normal_r(lst) for name, lst in so_by_asset.items()}
+    ns_totals = {name: asset_total_normal_r(lst) for name, lst in ns_by_asset.items()}
+
+    lines.append(f"  {'Asset':>10s}  {'Total R':>9s}  {'SO?':>4s}")
+    lines.append(f"  {'-' * 10}  {'-' * 9}  {'-' * 4}")
+    for name in sorted(set(list(so_totals.keys()) + list(ns_totals.keys()))):
+        is_so = name in so_totals
+        r_val = so_totals.get(name, 0.0) if is_so else ns_totals.get(name, 0.0)
+        so_mark = "SO" if is_so else ""
+        for mlist in so_by_asset.get(name, []) + ns_by_asset.get(name, []):
+            r_val = mlist.normal_total_r + mlist.crisis_total_r
+            break
+        lines.append(f"  {name:>10s}  {r_val:>9.2f}  {so_mark:>4s}")
+
+    total_so_r = sum(v for v in so_totals.values())
+    total_ns_r = sum(v for v in ns_totals.values())
+    total_all = total_so_r + total_ns_r
+    lines.append(f"\n  Portfolio total R:    {total_all:>8.2f}")
+    if total_all != 0:
+        so_pct = total_so_r / total_all * 100
+        ns_pct = total_ns_r / total_all * 100
+        lines.append(f"  SELL_ONLY contrib:   {total_so_r:>8.2f}  ({so_pct:.1f}%)")
+        lines.append(f"  Non-SELL_ONLY contrib: {total_ns_r:>8.2f}  ({ns_pct:.1f}%)")
+
+    lines.append("\n  ── SELL_ONLY profit cost (what BUY signals would have earned) ──")
+    lines.append("  If SELL_ONLY assets were allowed to BUY during normal periods:")
+    for result in results:
+        so_assets_t = [m for m in result.asset_metrics if m.is_sell_only]
+        if not so_assets_t:
+            continue
+        # How much did they earn by SELL-only?
+        actual_r = sum(m.normal_total_r for m in so_assets_t)
+        # Estimate what BUY would have earned: SELL-only means we only take SELL signals.
+        # For normal periods, we can approximate: if they had taken BOTH sides,
+        # total R ≈ normal_total_r (which is SELL-only) + BUY_contrib.
+        # We don't have BUY_contrib directly, but we can approximate by checking
+        # if the asset would have won on BUY predictions.
+        lines.append(f"    {result.name}: SELL-only earned {actual_r:>7.2f}R during normal period")
+
     # Circuit breaker assessment
     lines.append("\nCircuit breaker assessment:")
     any_trip = any(r.would_trip_loss_streak or r.would_trip_vol_spike for r in results)

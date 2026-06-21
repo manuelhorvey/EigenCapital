@@ -31,3 +31,4 @@ ensemble_pilot/
 data/monitoring/
 diagnostic_data_events.py
 crisis_reports/
+mc_results.json

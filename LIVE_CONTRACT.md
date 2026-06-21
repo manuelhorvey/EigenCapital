@@ -104,6 +104,19 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 | EURNZD | `yield_slope` |
 | GBPCHF | `yield_slope` |
 
+### Sell-Only Filter (Decision Pipeline Stage)
+
+Applied at decision pipeline stage `g`. Overrides BUY signals to FLAT for assets where the model's BUY calibration is inverted (p_long > 0.5 → ~17% win rate). SELL signals pass through unchanged. See `2026-06-20 diagnostic chain` for full evidence.
+
+**SELL_ONLY_ASSETS** (`paper_trading/execution/decision_pipeline.py:415`):
+```
+CADCHF, AUDUSD, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF, NZDUSD, EURNZD
+```
+
+**Epistemic status:** Empirically-grounded — two leading causal hypotheses (carry for CHF+OTHER, DXY for equities) tested via walk-forward counterfactual ablation and **falsified**. Removing SELL_ONLY requires discovering a causal mechanism that does not currently exist in any tested hypothesis.
+
+**Deferred-entry bypass fix (2026-06-20):** `entry_service.py:poll_pending_entries()` cancels deferred BUY entries for SELL_ONLY assets with reason `sell_only_filter`.
+
 ### Regime features (used by regime-conditional model, generated from OHLCV)
 
 Built in `features/regime_features.py:generate_regime_features()`.
@@ -231,15 +244,25 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 14. Archetype classification → `TradeDecision`
 15. Refresh MT5 spread for spread gate
 16. Decision pipeline stages (applied sequentially):
-    a. Bar-jump suppression — suppress 60min if bar count changed >100
-    b. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
-    c. Signal stability filter — require >0.65 max(prob_long, prob_short)
-    d. Signal hysteresis — 2-of-3 agreement before flip
-    e. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed from trading)
-    f. First-cycle suppression — suppress trading on cold-start cycle 1
-    g. Conviction gate — flip gate based on regime conviction
-    h. Profit lock gate — block flip if unrealized PnL > threshold
-    i. Manage position — close/re-open with entry gate check
+    a. First-cycle suppression — suppress trading on cold-start cycle 1
+    b. Bar-jump suppression — suppress 60min if bar count changed >100
+    c. Store prediction metadata — record pre-decision signal state
+    d. Update MAE/MFE — update max adverse/favorable excursion
+    e. Resolve signal — map proba to BUY/SELL/FLAT
+    f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed from trading)
+    g. Sell-only filter — override BUY→FLAT for 11 SELL_ONLY assets (inverted BUY calibration)
+    h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
+    i. Confidence gate — abort if net confidence below threshold
+    j. Signal stability filter — require >0.65 max(prob_long, prob_short)
+    k. Signal hysteresis — 2-of-3 agreement before flip
+    l. Meta-label advisory — record meta-label recommendation without enforcement
+    m. Update regime bar counter — track bars since last regime shift
+    n. Conviction gate — flip gate based on regime conviction
+    o. Profit lock gate — block flip if unrealized PnL > threshold
+    p. Manage position — close/re-open with entry gate check
+    q. Build entry artifacts — construct TradeDecision for execution
+    r. Route execution policy — direct to PaperBroker or MT5Broker
+    s. Poll deferred entries — execute previously deferred pending orders
 17. Route through governance layers (9 layers)
 18. Position sizing chain (drawdown taper → cap → risk cap → leverage budget → backstop)
 19. Independent MT5 sizing (`_compute_mt5_qty` with broker equity)
@@ -406,10 +429,10 @@ desired-vs-actual notional diverge wildly for small accounts).
 
 ## 12. GOVERNANCE CONTRACT
 
-Nine layered governance mechanisms plus position sizing guardrails and decision pipeline suppression stages, each independently configurable:
+11 layered governance mechanisms plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
 
 | Layer | Frequency | Effect | Config key |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | Validity state machine | Per tick | Exposure 0–100% | `halt.*` |
 | Feature stability | Per retrain | Validity penalty | — |
 | Meta-labeling (XGBoost) | Per signal | Size scalar [0–1] | `meta_labeling` |
@@ -417,7 +440,10 @@ Nine layered governance mechanisms plus position sizing guardrails and decision 
 | Liquidity regime | Per signal | THIN: SL +15%, size −15% (soft) | `liquidity_config` |
 | | | STRESSED: SL +30%, size −30%, hard halt | |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE | — |
+| Sell-only filter | Per decision | Override BUY→FLAT for 11 inverted-BUY assets | `SELL_ONLY_ASSETS` (hardcoded) |
+| Equity cluster alarm | Per cycle | Flags ES/NQ/^DJI all on same side (recommendation) | (hardcoded, 60s throttle) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
+| Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) | (hardcoded in `CircuitBreaker`) |
 | Entry price deviation | Per entry | Skips entry if price moved > `max_entry_slippage_pct` (def 2%) | `max_entry_slippage_pct` |
 | Profit lock | Per flip | Blocks flip if unrealized PnL > `profit_lock_threshold_pct` (def 15%) | `profit_lock_threshold_pct` |
 
@@ -431,19 +457,29 @@ Nine layered governance mechanisms plus position sizing guardrails and decision 
 | Portfolio leverage budget | Global | Atomic decrement from `max_leverage × equity` pool | `portfolio_max_leverage`, `portfolio_leverage_tolerance` |
 | Backstop multiplier | Global | Ratchets down on breach, decays 0.9/cycle otherwise | (no config — fixed 0.9 decay) |
 
-**Decision pipeline suppression stages:**
+**Decision pipeline suppression stages (applied in order `DEFAULT_STAGES`):**
 
 | Stage | Effect | Config |
 |-------|--------|--------|
+| First-cycle suppression | Suppress trading on cold-start cycle 1 | (hardcoded, `_cycle_counter <= 1`) |
 | Bar-jump suppression | Suppress 60min if bar count changed >100 (data-source switch) | `bar_jump_suppression_cycles` (default 120) |
+| Store prediction metadata | Record pre-decision signal state | — |
+| Update MAE/MFE | Update max adverse/favorable excursion | — |
+| Resolve signal | Map proba to BUY/SELL/FLAT via `FixedThresholdStrategy(0.45)` | `threshold` (default 0.45) |
+| Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed) | (hardcoded, per-asset pair) |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` | (hardcoded frozenset, 11 assets) |
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
+| Confidence gate | Abort if net confidence below threshold | `min_confidence` (default 50) |
 | Signal stability filter | Require >0.65 max(prob_long, prob_short) | `stability_margin` (default 0.15) |
 | Signal hysteresis | 2-of-3 agreement before flip allowed | HYSTERESIS_WINDOW=3, HYSTERESIS_MIN_AGREE=2 |
-| Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed from trading) | (hardcoded, per-asset pair) |
-| First-cycle suppression | Suppress trading on cold-start cycle 1 | (hardcoded, _cycle_counter <= 1) |
+| Meta-label advisory | Record meta-label recommendation (no enforcement) | — |
+| Update regime bar counter | Track bars since last regime shift | — |
 | Conviction gate | Flip gate based on regime conviction | `_evaluate_flip_gate()` |
 | Profit lock gate | Block flip if unrealized PnL > `profit_lock_threshold_pct` | `profit_lock_threshold_pct` (default 15%) |
-| Manage position | Close/re-open with entry gate check | `_can_enter()` 
+| Manage position | Close/re-open with entry gate check | `_can_enter()` |
+| Build entry artifacts | Construct `TradeDecision` for execution | — |
+| Route execution policy | Direct to PaperBroker or MT5Broker | — |
+| Poll deferred entries | Execute pending deferred orders | — |
 
 See `docs/GOVERNANCE_LAYER.md` for full detail.
 
@@ -462,16 +498,15 @@ See `docs/GOVERNANCE_LAYER.md` for full detail.
 9. Binary signal — model trains on {-1, 1} labels only; HOLD dropped
 10. Walk-forward validated — every promoted asset passes expanding-window backtest
 11. Per-asset model depth — `max_depth` configured per-asset, not global
-12. Exit reason canonicalization — all exit reasons are UPPERCASE (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, PORTFOLIO_CIRCUIT_BREAKER)
-
----
-
-### Additional invariants:
-
-11. **MT5 order lifecycle symmetry** — Every paper position open has a corresponding MT5 `place_order`; every paper close has a corresponding MT5 `close_position`; every SL/TP adjustment has a corresponding MT5 `modify_position`.
-12. **Paper engine is source of truth** — If an MT5 bridge operation fails (close, modify), the paper engine state is NOT rolled back. The next open cycle will detect the orphaned MT5 position and skip the duplicate order.
-13. **Independent paper/MT5 sizing** — Paper positions are sized from paper mtm_value ($100K capital) with paper-specific drawdown and leverage budget. MT5 positions are sized from the real broker account balance with MT5-specific drawdown. The two sizing paths never interfere.
-14. **No MT5 equity fetch in orchestrator** — The `EngineOrchestrator` does not fetch broker equity. MT5 sizing occurs at submission time (`_submit_mt5_order`) via `_compute_mt5_qty()`. Paper sizing uses the pre-Phase 1 equity snapshot from `sum(asset.mtm_value)`.
+12. Exit reason canonicalization — all exit reasons are UPPERCASE (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, PORTFOLIO_CIRCUIT_BREAKER, SELL_ONLY_FILTER)
+13. **MT5 order lifecycle symmetry** — Every paper position open has a corresponding MT5 `place_order`; every paper close has a corresponding MT5 `close_position`; every SL/TP adjustment has a corresponding MT5 `modify_position`.
+14. **Paper engine is source of truth** — If an MT5 bridge operation fails (close, modify), the paper engine state is NOT rolled back. The next open cycle will detect the orphaned MT5 position and skip the duplicate order.
+15. **Independent paper/MT5 sizing** — Paper positions are sized from paper mtm_value ($100K capital) with paper-specific drawdown and leverage budget. MT5 positions are sized from the real broker account balance with MT5-specific drawdown. The two sizing paths never interfere.
+16. **No MT5 equity fetch in orchestrator** — The `EngineOrchestrator` does not fetch broker equity. MT5 sizing occurs at submission time (`_submit_mt5_order`) via `_compute_mt5_qty()`. Paper sizing uses the pre-Phase 1 equity snapshot from `sum(asset.mtm_value)`.
+17. **HealthMonitor runs in Phase 3g** — `HealthMonitor.observe()` computes portfolio vol, VaR(95), CVaR, halt ratio, equity cluster alarm, and circuit breaker checks. `RecoveryScheduler.probe()` checks halted actors with exponential backoff for re-enablement.
+18. **Live VaR/CVaR** — Rolling 60-period portfolio returns feed VaR (5th percentile) and CVaR (mean of tail) computed in `EngineOrchestrator.run_once()` Phase 3g. Stored in `results["var_95"]` and `results["cvar_95"]`.
+19. **Schema migration** — SQLite state store uses `DB_SCHEMA_VERSION = "2.0.0"` (up from implicit v1). Migrations run at connect time via `_run_migrations()`. Current migration (v1→v2.0.0) adds `cycle_id` to trades, `vol_spike`/`var_95` to equity_history, and indexes.
+20. **SELL_ONLY_FILTER exit reason** — Deferred BUY entries canceled by sell-only filter record `sell_only_filter` as exit reason in trade history.
 
 ---
 

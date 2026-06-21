@@ -27,22 +27,23 @@ Operational procedures for the paper trading system. This document is for the pe
 
 ### Assets
 
-**Core portfolio (19 assets promoted from walk-forward screening):**
+**Core portfolio (18 assets promoted from walk-forward screening):**
 
 Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_depth calibrated via walk-forward optimization.
 
+**Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability failure mode). USDCAD and NZDUSD halved from 5%→2.5%.
+
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 5.0% | 2.50 | 2.03 | 5 |
+| USDCAD | USDCAD=X | 2.5% | 2.50 | 2.03 | 5 |
 | ES | ES=F | 7.0% | 2.00 | 5.50 | 2 |
 | NQ | NQ=F | 7.0% | 2.50 | 5.00 | 2 |
 | GBPCAD | GBPCAD=X | 5.0% | 2.50 | 2.50 | 2 |
-| GBPNZD | GBPNZD=X | 5.0% | 3.00 | 1.00 | 3 |
 | NZDCAD | NZDCAD=X | 5.0% | 2.50 | 4.00 | 2 |
 | ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
-| NZDUSD | NZDUSD=X | 5.0% | 2.50 | 1.50 | 5 |
+| NZDUSD | NZDUSD=X | 2.5% | 2.50 | 1.50 | 5 |
 | GBPAUD | GBPAUD=X | 5.0% | 1.00 | 2.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
 | CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
@@ -55,7 +56,7 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 
 **Total allocation: ~0.95** (remaining capacity held as cash buffer).
 
-**Backtest performance (pre-leak-fix baseline, 5-year: 2021–2025):** PF 1.908, avgR +0.268, 2383 trades, 19 assets.
+**Backtest performance (pre-leak-fix baseline, 5-year: 2021–2025):** PF 1.908, avgR +0.268, 2383 trades, 18 assets.
 > Note: These are the screening baseline. Current walk-forward diagnostics after look-ahead fixes
 > show lower, honest metrics. Live performance will differ.
 
@@ -168,9 +169,9 @@ The script:
 2. Downloads fresh OHLCV data via MT5 / yfinance
 3. Downloads macro data (DXY, VIX, SPX, WTI, TNX) via yfinance
 4. Computes alpha + regime + archetype features
-5. Runs inference on all assets (base model + regime ensemble)
-6. Applies decision pipeline stages (bar-jump, spread gate, stability, hysteresis, risk-off, first-cycle, conviction, profit lock)
-7. Routes through 9 governance layers + position sizing guardrails
+5. Runs inference on all assets (base model — ensemble disabled portfolio-wide)
+6. Applies decision pipeline stages (19 stages: first-cycle suppression → bar-jump → resolve signal → risk-off → sell-only filter → spread gate → stability → hysteresis → conviction → profit lock → manage position → route execution → poll deferred)
+7. Routes through 11 governance layers + HealthMonitor (circuit breaker, VaR/CVaR, equity cluster alarm) + RecoveryScheduler
 8. Opens/closes positions based on signal vs current position (MT5 bridge + paper)
 9. Serves dashboard on port 5000
 10. Repeats every refresh interval (default 30s, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
@@ -193,14 +194,16 @@ curl http://127.0.0.1:5000/ping
 **What to verify on the dashboard (use the anchor nav bar to jump between sections):**
 
 - Portfolio total value and daily return are updating (trend arrows on metric cards show direction)
-- All 21 assets show a signal (BUY/SELL/FLAT) with confidence — click column headers in the Signals table to sort by confidence descending
+- All 18 assets show a signal (BUY/SELL/FLAT) with confidence — click column headers in the Signals table to sort by confidence descending
 - Current price is within ~0.5% of market price
 - No asset is in halt (check asset cards for RED status)
 - Per-asset drawdown % is not approaching per-asset limits
 - Portfolio drawdown value is not approaching -15% circuit breaker threshold
 - After restart: cycle 1 shows `first-cycle suppression` in logs (normal), trades resume cycle 2+
 - After MT5 reconnect: check for `bar-jump suppression` log — suppresses ~60min if bar count changed >100 (normal after source switch)
-- Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD/AUDCHF showing `risk-off suppression — holding flat` (validated behavior)
+- Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD showing `risk-off suppression — holding flat` (validated behavior)
+- Sell-only filter: 11 flagged assets (CADCHF, AUDUSD, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF, NZDUSD, EURNZD) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
+- Equity cluster alarm: if ES/NQ/^DJI all have open positions on the same side, expect `equity_cluster_all_LONG_ES_NQ_^DJI` or `equity_cluster_all_SHORT_ES_NQ_^DJI` recommendation logged by HealthMonitor
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
 - Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) on weekends
 - **LAST** timestamp in the header shows when signals were last refreshed
@@ -217,11 +220,10 @@ curl http://127.0.0.1:5000/ping
 
 ### Log Check
 
-After startup (Mon–Fri during market hours), verify log output shows signal lines for all 21 assets:
+After startup (Mon–Fri during market hours), verify log output shows signal lines for all 18 assets:
 ```
 GC: BUY conf=XX% @ $XX.XX
 USDCHF: BUY conf=XX% @ $XX.XX
-AUDCHF: FLAT conf=XX% @ $XX.XX
 ...
 Portfolio: $XXXXX (XX%)
 ```
@@ -272,7 +274,7 @@ for name, a in s['assets'].items():
 
 **Expectations:**
 
-All 21 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. Deviations warrant investigation of the specific asset's governance state and recent market conditions.
+All 18 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 11 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
 
 ### Narrative Check (Monday Morning)
 
@@ -810,12 +812,12 @@ Before transitioning from paper to live, verify all checks below. 6/7 must pass 
 | # | Check | Target | Source | Criticality |
 |---|-------|--------|--------|-------------|
 | 1 | Gate override rate | <40% across all assets | `data/monitoring/paper_trade_monitor.csv` — column `gate_overrides` | Hard |
-| 2 | Mean confidence | >0.52 for ≥18/21 assets | Monitor CSV — column `mean_confidence` per snapshot | Hard |
-| 3 | Signal flips | ≤3/day for ≥18/21 assets | Monitor CSV — column `signal_flips` | Hard |
+| 2 | Mean confidence | >0.52 for ≥15/18 assets | Monitor CSV — column `mean_confidence` per snapshot | Hard |
+| 3 | Signal flips | ≤3/day for ≥15/18 assets | Monitor CSV — column `signal_flips` | Hard |
 | 4 | Cross-asset correlation | No unexplained >0.7 | `python scripts/signal_correlation_check.py` | Hard |
 | 5 | MT5 errors | Zero across all cycles | `grep ERROR /tmp/paper_trading.log` | Hard |
 | 6 | Trades executed | ≥10 across portfolio | MT5 terminal or dashboard trades panel | Hard |
-| 7 | GBPNZD DXY fix | Option A/B/C decided | Your call by June 20 | Decision |
+| 7 | SELL_ONLY filter | BUY→FLAT overrides active for 11 assets | `grep "sell-only filter" /tmp/paper_trading.log` | Hard |
 
 **Decision:** 6/7 pass → go live at 50% position size for 2 weeks, then full size if live Sharpe tracks within 0.2 of backtest Sharpe.
 
@@ -849,8 +851,8 @@ curl -s http://127.0.0.1:5000/trades.json | python3 -c "import sys,json; d=json.
 | All assets showing FLAT with low conf | Macro data stale | Check `data/live/cache/` modification dates |
 | Portfolio value not changing | Process not running | `ps aux | grep monitor.py` |
 | BTC drawdown > 15% | Normal for BTC (limit is -15%) | Let it run unless RED state persists > 5 days |
-| GBPNZD showing stale prices or DXY missing | `DX-Y.NYB` not available on some MT5 brokers | Zero-fill DXY features or exclude from go-live |
-| AUDNZD flipping excessively or low confidence | Ensemble may be degrading signal (IC -0.020 in pilot) | Monitor flip count; disable ensemble per-asset if >3 flips/day |
+| SELL_ONLY asset showing BUY signal | Deferred-entry BUY may bypass sell-only filter | Check `entry_service.py` logs; should be canceled with `sell_only_filter` reason |
+| Equity cluster alarm firing | ES/NQ/^DJI all on same side | Recommendation only — no forced flatten. Monitor for correlated risk. |
 | JPY cross entering RED state | VIX spike or yield spread inversion | Check VIX level and US-JP 10y spread |
 | GC=F showing flat/neutral bias | Real yields not updating on weekends | Normal — gold macro features are daily |
 | Dashboard shows CLSD / "weekend — no refresh" | Normal — market is closed | Engine resumes automatically Sun 17:00 ET |

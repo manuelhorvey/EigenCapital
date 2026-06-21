@@ -51,7 +51,6 @@ Some assets have additional or replacement features beyond the 13-base set:
 | NZDUSD | `mom126` replaces base momentum |
 | GBPAUD | `yield_slope` (US yield curve slope) |
 | CADCHF | `yield_slope` |
-| AUDNZD | `yield_slope` |
 | EURNZD | `yield_slope` |
 | GBPCHF | `yield_slope` |
 
@@ -93,4 +92,4 @@ Per-asset `pt_sl` from `configs/paper_trading.yaml`.
 
 ## Architecture Note
 
-All 21 dashboard assets use the same 13 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
+All 18 dashboard assets use the same 13 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.

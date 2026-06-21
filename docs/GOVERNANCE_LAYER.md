@@ -1,9 +1,8 @@
 # QuantForge — Risk & Governance Layer
 
-Nine independent governance mechanisms operating at different frequencies and granularities,
-plus decision pipeline suppression stages and position sizing guardrails.
+11 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
 
-## Governance Layers (9)
+## Governance Layers (11 + HealthMonitor)
 
 | Layer | Frequency | Scope | Effect |
 |---|---|---|---|
@@ -11,26 +10,43 @@ plus decision pipeline suppression stages and position sizing guardrails.
 | Feature stability | Per retrain | Per asset | Validity penalty |
 | Meta-labeling (XGBoost) | Per signal | Per asset | Continuous size scalar [0–1] |
 | Macro narrative | Weekly | Global | SL width, position size |
-| Liquidity regime | Per signal | Per asset | THIN: SL +15%, size −15% (soft)
-STRESSED: SL +30%, size −30%, halt |
+| Liquidity regime | Per signal | Per asset | THIN: SL +15%, size −15% (soft) |
+| | | | STRESSED: SL +30%, size −30%, halt |
 | PSI drift | Per cycle | Per asset | Validity penalty, halt at 3+ SEVERE |
+| Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 11 inverted-BUY assets |
+| Equity cluster alarm | Per cycle | Global | Flags ES/NQ/^DJI all same side (recommendation, 60s throttle) |
+| Circuit breaker | Per cycle | Portfolio | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Global | Circuit breaker at −15% |
 | Entry price deviation | Per entry | Per asset | Skip entry if price drifted >2% |
 | Profit lock | Per flip | Per asset | Block flip if PnL >15% |
 
-## Decision Pipeline Stages
+**Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail, computed in Phase 3g.
+
+**RecoveryScheduler:** Exponential-backoff probe of halted actors via `is_due()`/`record_result()` in Phase 3g.
+
+## Decision Pipeline Stages (`DEFAULT_STAGES` order)
 
 | Stage | Effect |
 |-------|--------|
+| First-cycle suppression | Suppress trading on cold-start cycle 1 |
 | Bar-jump suppression | Suppress 60min if bar count changed >100 (data-source switch) |
+| Store prediction metadata | Record pre-decision signal state |
+| Update MAE/MFE | Update max adverse/favorable excursion |
+| Resolve signal | Map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45) |
+| Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (11 assets) |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles first) |
+| Confidence gate | Abort if net confidence below threshold |
 | Signal stability filter | Require >0.65 max(prob_long, prob_short) to proceed |
 | Signal hysteresis | 2-of-3 agreement required before flip |
-| Risk-off suppression | Flat AUDUSD/AUDCHF when VIX>0 & SPX<0 |
-| First-cycle suppression | Suppress trading on cold-start cycle 1 |
+| Meta-label advisory | Record meta-label recommendation (no enforcement) |
+| Update regime bar counter | Track bars since last regime shift |
 | Conviction gate | Flip gate based on regime conviction |
 | Profit lock gate | Block flip if unrealized PnL > threshold |
 | Manage position | Close/re-open with entry gate check |
+| Build entry artifacts | Construct TradeDecision for execution |
+| Route execution policy | Direct to PaperBroker or MT5Broker |
+| Poll deferred entries | Execute pending deferred orders |
 
 ## Position Sizing Guardrails
 

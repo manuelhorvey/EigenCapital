@@ -43,18 +43,20 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 | Broker | `paper_trading/execution/` | PaperBroker (simulated) or MT5Broker (live Exness) |
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
 | Portfolio | `paper_trading/portfolio_builder.py` | 21-asset risk-parity portfolio from YAML config |
-| Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator |
+| Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator (HealthMonitor + VaR/CVaR in Phase 3g) |
 | Dashboard | `paper_trading/dashboard/` | React SPA (Vite + TypeScript + Tailwind) on port 5000 |
 
 ## Current Portfolio
 
-21 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
+18 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
+
+**Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability). USDCAD/NZDUSD halved 5%→2.5%.
 
 ### Active
-GC, USDCHF, AUDCHF, USDCAD, ES, NQ, GBPCAD, GBPNZD, NZDCAD, ^DJI, EURUSD, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, AUDNZD, EURCHF, EURCAD, EURNZD, GBPCHF
+GC, USDCHF, USDCAD, ES, NQ, GBPCAD, NZDCAD, ^DJI, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF, EURAUD
 
 ### Removed (post walk-forward, insufficient edge)
-CADJPY, CHFJPY, CL, USDJPY, BTCUSD, EURGBP, EURJPY, GBPUSD, GBPJPY, AUDCAD, NZDJPY, ^VIX, IWM
+AUDCHF, AUDNZD, EURUSD, GBPNZD, CADJPY, CHFJPY, CL, USDJPY, BTCUSD, EURGBP, EURJPY, GBPUSD, GBPJPY, AUDCAD, NZDJPY, ^VIX, IWM
 
 ## Services / Processes
 

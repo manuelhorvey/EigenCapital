@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+import math
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,7 +34,7 @@ from paper_trading.orchestrator.actor import (
     compute_health_snapshot,
 )
 from paper_trading.orchestrator.correlation import CorrelationMonitor
-from paper_trading.orchestrator.health import CircuitBreaker
+from paper_trading.orchestrator.health import CircuitBreaker, HealthMonitor, RecoveryScheduler
 from paper_trading.replay.wal import WalWriter
 
 logger = logging.getLogger("quantforge.orchestrator.engine")
@@ -81,6 +82,18 @@ class EngineOrchestrator:
 
         # Cross-asset correlation monitor
         self._correlation_monitor = CorrelationMonitor()
+
+        # HealthMonitor (system-wide health aggregation)
+        self._health_monitor = HealthMonitor()
+
+        # RecoveryScheduler (exponential backoff for HALTED actors)
+        self._recovery_scheduler = RecoveryScheduler()
+
+        # Rolling portfolio returns for VaR/CVaR and vol baseline
+        self._portfolio_returns: list[float] = []
+        self._var_baseline_vol: float | None = None
+        # Separate from Phase 3b's _prev_portfolio_value (which uses total_value sum):
+        self._var_prev_value: float | None = None
 
         self._pool = ThreadPoolExecutor(
             max_workers=self._max_workers,
@@ -243,7 +256,9 @@ class EngineOrchestrator:
             return results
 
         # ── Phase 3b: Portfolio circuit breaker (vol spike + losses) ──────
-        prev_value = getattr(self, "_prev_portfolio_value", total_value)
+        prev_value = getattr(self, "_prev_portfolio_value", None)
+        if prev_value is None:
+            prev_value = total_value
         if total_value < prev_value:
             self._circuit_breaker.record_daily_pnl(total_value - prev_value)
         self._prev_portfolio_value = total_value
@@ -331,6 +346,76 @@ class EngineOrchestrator:
 
         # ── Phase 3f: MT5 orphan reconciliation ───────────────────────────
         self._reconcile_mt5_orphans()
+
+        # ── Phase 3g: HealthMonitor + VaR + RecoveryScheduler ─────────────
+        pv = None
+        try:
+            pv_raw = self.get_total_portfolio_value()
+            if pv_raw is not None:
+                pv = float(pv_raw)
+        except (TypeError, ValueError):
+            pass
+        portfolio_peak_raw = getattr(self._circuit_breaker, "_peak_value", None)
+        portfolio_peak = float(portfolio_peak_raw) if portfolio_peak_raw is not None else None
+        baseline_vol = self._var_baseline_vol
+        health_summary = self._health_monitor.observe(
+            self._actors,
+            portfolio_value=pv,
+            portfolio_peak=portfolio_peak,
+            portfolio_vol=self._portfolio_vol_estimate(),
+            baseline_vol=baseline_vol,
+        )
+        results["health_monitor"] = {
+            "halt_ratio": health_summary.halt_ratio,
+            "n_green": health_summary.n_green,
+            "n_halted": health_summary.n_halted,
+            "recommendations": health_summary.recommendations,
+        }
+        # Track portfolio value for VaR computation
+        # Uses _var_prev_value (separate from Phase 3b's _prev_portfolio_value
+        # which is overwritten by total_value sum).
+        if pv is not None and pv > 0:
+            if self._var_prev_value is not None and self._var_prev_value > 0 and pv != self._var_prev_value:
+                r = (pv - self._var_prev_value) / self._var_prev_value
+                self._portfolio_returns.append(r)
+                if len(self._portfolio_returns) > 252:
+                    self._portfolio_returns = self._portfolio_returns[-252:]
+                # Compute VaR/CVaR at 60 periods
+                if len(self._portfolio_returns) >= 60:
+                    rets = sorted(self._portfolio_returns[-60:])
+                    var_95 = rets[2]  # 3rd smallest of 60 = 5th percentile
+                    loss_idx = [r for r in rets if r <= var_95]
+                    cvar_95 = sum(loss_idx) / max(len(loss_idx), 1)
+                    results["var_95"] = round(var_95, 6)
+                    results["cvar_95"] = round(cvar_95, 6)
+            self._var_prev_value = pv
+
+        # RecoveryScheduler: probe HALTED actors for recovery
+        recovered: list[str] = []
+        for name, actor in self._actors.items():
+            eng = getattr(actor, "_engine", None)
+            if eng is None:
+                continue
+            pos_mgr = getattr(eng, "pos_mgr", None)
+            if pos_mgr is None:
+                continue
+            is_halted = getattr(pos_mgr, "halted", False) or getattr(eng, "_halted", False)
+            if is_halted and self._recovery_scheduler.is_due(name):
+                # Attempt recovery by resetting halt state
+                logger.info("RecoveryScheduler: attempting recovery for %s", name)
+                try:
+                    if hasattr(pos_mgr, "halted"):
+                        pos_mgr.halted = False
+                    if hasattr(eng, "_halted"):
+                        eng._halted = False
+                    self._recovery_scheduler.record_result(name, success=True)
+                    recovered.append(name)
+                except Exception as exc:
+                    self._recovery_scheduler.record_result(name, success=False, error=str(exc))
+                    logger.error("RecoveryScheduler: recovery failed for %s: %s", name, exc)
+        if recovered:
+            results["actors_recovered"] = recovered
+            logger.info("RecoveryScheduler: recovered %d actor(s): %s", len(recovered), recovered)
 
         # ── Phase 4: Persist all queues ───────────────────────────────────
         results["phasetimestamps"][EnginePhase.PERSIST] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
@@ -539,6 +624,45 @@ class EngineOrchestrator:
                     mt5_ticket,
                 )
                 engine.position.pop("mt5_ticket", None)
+
+    def get_total_portfolio_value(self) -> float | None:
+        """Sum of all actor positions' current market value + cash."""
+        total: float = 0.0
+        has_any = False
+        for actor in self._actors.values():
+            eng = getattr(actor, "_engine", None)
+            if eng is None:
+                continue
+            pos_mgr = getattr(eng, "pos_mgr", None)
+            if pos_mgr is not None and hasattr(pos_mgr, "position") and pos_mgr.position is not None:
+                qty = getattr(pos_mgr.position, "quantity", 0) or 0
+                px = getattr(eng, "current_price", None)
+                if px is not None and qty:
+                    try:
+                        total += float(abs(qty)) * float(px)
+                        has_any = True
+                    except (TypeError, ValueError):
+                        pass
+            # Add cash balance if available (guard against MagicMock in tests)
+            for attr in ("_cash_balance", "cash_balance"):
+                try:
+                    val = getattr(eng, attr, None)
+                    if val is not None:
+                        cash = float(val)
+                        total += cash
+                        has_any = True
+                except (TypeError, ValueError):
+                    continue
+        return total if has_any else None
+
+    def _portfolio_vol_estimate(self) -> float | None:
+        """Estimate daily portfolio return vol from rolling returns (60-day)."""
+        if len(self._portfolio_returns) < 30:
+            return None
+        arr = self._portfolio_returns[-60:]
+        mean = sum(arr) / len(arr)
+        var = sum((x - mean) ** 2 for x in arr) / len(arr)
+        return math.sqrt(var)
 
     def shutdown(self) -> None:
         """Shut down the persistent thread pool (called on exit via atexit)."""

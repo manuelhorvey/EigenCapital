@@ -16,7 +16,8 @@ logger = logging.getLogger("quantforge.state_store")
 
 ET = pytz.timezone("US/Eastern")
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.0.0"  # JSON snapshot schema
+DB_SCHEMA_VERSION = "2.0.0"  # SQLite DB schema (bumped from implicit v1)
 
 
 @dataclass
@@ -251,7 +252,61 @@ class _DatabaseStore:
             with contextlib.suppress(sqlite3.OperationalError):
                 conn.execute("ALTER TABLE equity_history ADD COLUMN assets TEXT")
             self._migrate_exit_reasons(conn)
+            self._run_migrations(conn)
         self.verify()
+
+    @staticmethod
+    def _parse_version(v: str) -> tuple[int, ...]:
+        return tuple(int(x) for x in v.split("."))
+
+    def _read_db_version(self, conn) -> str:
+        try:
+            row = conn.execute("SELECT value FROM strategy_metadata WHERE key='db_schema_version'").fetchone()
+            if row is not None:
+                return str(row["value"])
+        except sqlite3.OperationalError:
+            pass
+        return "0.0.0"
+
+    def _write_db_version(self, conn, version: str) -> None:
+        conn.execute(
+            "INSERT OR REPLACE INTO strategy_metadata (key, value) VALUES ('db_schema_version', ?)",
+            (version,),
+        )
+
+    MIGRATIONS: dict[str, list[str]] = {
+        "2.0.0": [
+            # Add cycle_id to trades for cross-referencing with WAL
+            "ALTER TABLE trades ADD COLUMN cycle_id INTEGER",
+            # Add vol_spike and var_95 to equity_history for risk monitoring
+            "ALTER TABLE equity_history ADD COLUMN vol_spike REAL",
+            "ALTER TABLE equity_history ADD COLUMN var_95 REAL",
+            # Index for common queries
+            "CREATE INDEX IF NOT EXISTS idx_trades_asset_entry ON trades(asset, entry_date)",
+            "CREATE INDEX IF NOT EXISTS idx_attribution_entry ON attribution(entry_date)",
+        ],
+    }
+
+    def _run_migrations(self, conn) -> None:
+        current = self._read_db_version(conn)
+        target = DB_SCHEMA_VERSION
+        if self._parse_version(current) >= self._parse_version(target):
+            return
+        logger.info("DB schema migration: %s → %s", current, target)
+        # Sort migration keys and run each in order
+        current_t = self._parse_version(current)
+        versions = sorted((v for v in self.MIGRATIONS if self._parse_version(v) > current_t), key=self._parse_version)
+        for version in versions:
+            for stmt in self.MIGRATIONS[version]:
+                try:
+                    conn.execute(stmt)
+                except sqlite3.OperationalError as e:
+                    # Column already exists or index already exists — safe to skip
+                    if "duplicate column name" in str(e) or "already exists" in str(e):
+                        logger.debug("Migration %s: skipped (%s)", version, e)
+                    else:
+                        logger.warning("Migration %s: %s (%s)", version, e, stmt)
+        self._write_db_version(conn, target)
 
     def verify(self) -> None:
         with self._connect() as conn:

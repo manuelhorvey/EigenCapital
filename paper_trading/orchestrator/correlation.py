@@ -76,9 +76,7 @@ class CorrelationMonitor:
         if min_len < self._min_periods:
             return report
 
-        returns = pd.DataFrame(
-            {name: s.pct_change().dropna() for name, s in self._price_data.items()}
-        )
+        returns = pd.DataFrame({name: s.pct_change().dropna() for name, s in self._price_data.items()})
         returns = returns.iloc[-self._window :]
 
         corr = returns.corr(min_periods=self._min_periods)
@@ -86,8 +84,7 @@ class CorrelationMonitor:
             return report
 
         report["correlation_matrix"] = {
-            str(a): {str(b): float(corr.loc[a, b]) for b in corr.columns}
-            for a in corr.columns
+            str(a): {str(b): float(corr.loc[a, b]) for b in corr.columns} for a in corr.columns
         }
 
         high_pairs = []
@@ -104,9 +101,7 @@ class CorrelationMonitor:
 
         return report
 
-    def _check_clusters(
-        self, corr: pd.DataFrame, positions: dict[str, dict]
-    ) -> list[str]:
+    def _check_clusters(self, corr: pd.DataFrame, positions: dict[str, dict]) -> list[str]:
         """Detect clusters of highly-correlated assets on the same side."""
         alerts: list[str] = []
         assets = list(corr.columns)
@@ -124,10 +119,7 @@ class CorrelationMonitor:
                     cluster.add(other)
 
             if len(cluster) >= self._cluster_same_side_threshold:
-                sides = [
-                    (a, positions.get(a, {}).get("side"))
-                    for a in cluster
-                ]
+                sides = [(a, positions.get(a, {}).get("side")) for a in cluster]
                 side_counts: dict[str | None, int] = defaultdict(int)
                 for _, s in sides:
                     side_counts[s] += 1

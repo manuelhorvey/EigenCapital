@@ -9,10 +9,9 @@ import {
   Zap,
   BarChart3,
   Heart,
-  Sigma,
 } from 'lucide-react'
 
-type TabId = 'dashboard' | 'trading' | 'execution' | 'research' | 'risk'
+type TabId = 'dashboard' | 'trading' | 'execution' | 'risk'
 
 interface NavItem {
   id: TabId
@@ -39,9 +38,8 @@ const NAV_GROUPS: { title: string; icon: LucideIcon; items: NavItem[] }[] = [
   },
   {
     title: 'Analysis',
-    icon: Sigma,
+    icon: Heart,
     items: [
-      { id: 'research', label: 'Research', icon: Sigma, desc: 'Sharpe, PSR, calibration' },
       { id: 'risk', label: 'Risk', icon: Heart, desc: 'Health scores, governance, constraints' },
     ],
   },

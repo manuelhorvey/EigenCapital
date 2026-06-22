@@ -22,8 +22,7 @@ import FillQualityGauge from './components/execution/FillQualityGauge'
 import TradeExecutionTable from './components/execution/TradeExecutionTable'
 import MonitoringDashboard from './components/monitor/MonitoringDashboard'
 import GovernanceRadar from './components/governance/GovernanceRadar'
-import StatisticalMetricsTable from './components/StatisticalMetricsTable'
-import CalibrationCurve from './components/CalibrationCurve'
+
 import WeeklyReviewModal from './components/WeeklyReviewModal'
 import AssetDetailPanel from './components/AssetDetailPanel'
 import AssetDeepDive from './components/AssetDeepDive'
@@ -32,7 +31,7 @@ import ExecutionFeed from './components/ExecutionFeed'
 import Sidebar from './components/layout/Sidebar'
 import ErrorBoundary from './components/ErrorBoundary'
 
-type TabId = 'dashboard' | 'trading' | 'execution' | 'research' | 'risk'
+type TabId = 'dashboard' | 'trading' | 'execution' | 'risk'
 
 export default function App() {
   const { data: state, isPending, isError } = usePortfolioState()
@@ -95,16 +94,6 @@ export default function App() {
             <PnLWaterfall />
           </div>
           <MaeMfeScatter />
-        </Section>
-      </div>
-    ),
-    research: (
-      <div className="space-y-6 sm:space-y-8">
-        <Section id="calibration" errorTitle="Calibration">
-          <CalibrationCurve />
-        </Section>
-        <Section id="statistics" errorTitle="Statistical Metrics">
-          <StatisticalMetricsTable />
         </Section>
       </div>
     ),

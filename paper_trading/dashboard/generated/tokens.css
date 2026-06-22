@@ -45,6 +45,9 @@
   --color-border-strong: #2a3040;
   --color-glass: rgba(12, 13, 18, 0.92);
   --color-focus-ring: rgba(20, 184, 166, 0.45);
+  --color-interactive-hover: rgba(255, 255, 255, 0.04);
+  --color-interactive-active: rgba(255, 255, 255, 0.08);
+  --color-interactive-selected: rgba(20, 184, 166, 0.08);
   --color-gov-green: #25d065;
   --color-gov-green-muted: rgba(37, 208, 101, 0.12);
   --color-gov-green-muted2: rgba(37, 208, 101, 0.06);
@@ -63,6 +66,9 @@
   --color-gov-init: #64748b;
   --color-gov-init-muted: rgba(100, 116, 139, 0.12);
   --color-gov-init-muted2: rgba(100, 116, 139, 0.06);
+  --color-gov-gray: #6b7280;
+  --color-gov-gray-muted: rgba(107, 114, 128, 0.12);
+  --color-gov-gray-muted2: rgba(107, 114, 128, 0.06);
   --color-accent-emerald: #2dd4bf;
   --color-accent-blue: #60a5fa;
   --color-accent-purple: #a78bfa;
@@ -174,6 +180,17 @@
   }
 }
 
+@keyframes state-pulse-red {
+  0%, 100% {
+    opacity: 0.4;
+    box-shadow: 0 0 0 rgba(240, 68, 68, 0);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(240, 68, 68, 0.3);
+  }
+}
+
 .light {
   --color-app: #f3f6f5;
   --color-surface: #ffffff;
@@ -187,6 +204,9 @@
   --color-border: #9eada6;
   --color-border-strong: #7a8d85;
   --color-glass: rgba(255, 255, 255, 0.92);
+  --color-interactive-hover: rgba(0, 0, 0, 0.04);
+  --color-interactive-active: rgba(0, 0, 0, 0.08);
+  --color-interactive-selected: rgba(20, 184, 166, 0.08);
   --shadow-panel: 0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08);
   --shadow-card: 0 1px 0 rgba(0,0,0,0.03) inset, 0 8px 32px rgba(0,0,0,0.1);
   --shadow-modal: 0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.15);

@@ -3,7 +3,7 @@ import { chart } from '../../design/color-system'
 
 export const CHART_PALETTE = chart
 
-export const CHART_PRIMARY = '#14b8a6'
+export const CHART_PRIMARY = chart[0]
 export const CHART_GRID = 'var(--color-border)'
 export const CHART_AXIS = 'var(--color-text-tertiary)'
 

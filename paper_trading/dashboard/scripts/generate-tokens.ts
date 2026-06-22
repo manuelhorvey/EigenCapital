@@ -22,6 +22,8 @@ function setDeep(obj: Obj, path: string, value: unknown) {
 
 const FONT_SIZES = ['2xs', 'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl']
 
+const camelToKebab = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
+
 // ── Step 1: Generate tokens.css ────────────────────────
 
 let css = ':root {\n'
@@ -35,7 +37,7 @@ for (const [name, frames] of Object.entries(tailwindOnly.keyframes)) {
   for (const [pct, props] of Object.entries(frames)) {
     css += `  ${pct} {\n`
     for (const [prop, val] of Object.entries(props)) {
-      css += `    ${prop}: ${val};\n`
+      css += `    ${camelToKebab(prop)}: ${val};\n`
     }
     css += '  }\n'
   }
@@ -68,6 +70,9 @@ const COLOR_MAP: Record<string, string> = {
   'color-border': 'default',
   'color-border-strong': 'strong',
   'color-glass': 'glass',
+  'color-interactive-hover': 'interactive-hover',
+  'color-interactive-active': 'interactive-active',
+  'color-interactive-selected': 'interactive-selected',
   'color-gov-green': 'gov-green.DEFAULT',
   'color-gov-green-muted': 'gov-green.muted',
   'color-gov-green-muted2': 'gov-green.muted2',
@@ -80,6 +85,9 @@ const COLOR_MAP: Record<string, string> = {
   'color-gov-init': 'gov-init.DEFAULT',
   'color-gov-init-muted': 'gov-init.muted',
   'color-gov-init-muted2': 'gov-init.muted2',
+  'color-gov-gray': 'gov-gray.DEFAULT',
+  'color-gov-gray-muted': 'gov-gray.muted',
+  'color-gov-gray-muted2': 'gov-gray.muted2',
   'color-accent-emerald': 'accent-emerald',
   'color-accent-blue': 'accent-blue',
   'color-accent-purple': 'accent-purple',

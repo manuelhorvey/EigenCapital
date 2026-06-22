@@ -53,6 +53,9 @@ export default {
     "default": "var(--color-border)",
     "strong": "var(--color-border-strong)",
     "glass": "var(--color-glass)",
+    "interactive-hover": "var(--color-interactive-hover)",
+    "interactive-active": "var(--color-interactive-active)",
+    "interactive-selected": "var(--color-interactive-selected)",
     "gov-green": {
       "DEFAULT": "var(--color-gov-green)",
       "muted": "var(--color-gov-green-muted)",
@@ -72,6 +75,11 @@ export default {
       "DEFAULT": "var(--color-gov-init)",
       "muted": "var(--color-gov-init-muted)",
       "muted2": "var(--color-gov-init-muted2)"
+    },
+    "gov-gray": {
+      "DEFAULT": "var(--color-gov-gray)",
+      "muted": "var(--color-gov-gray-muted)",
+      "muted2": "var(--color-gov-gray-muted2)"
     },
     "accent-emerald": "var(--color-accent-emerald)",
     "accent-blue": "var(--color-accent-blue)",
@@ -222,6 +230,16 @@ export default {
       },
       "100%": {
         "opacity": "1"
+      }
+    },
+    "state-pulse-red": {
+      "0%, 100%": {
+        "opacity": "0.4",
+        "boxShadow": "0 0 0 rgba(240, 68, 68, 0)"
+      },
+      "50%": {
+        "opacity": "1",
+        "boxShadow": "0 0 8px rgba(240, 68, 68, 0.3)"
       }
     }
   }

@@ -69,6 +69,11 @@ export const rawTokens = {
   // ── Focus ring ────────────────────────────────────
   'color-focus-ring': 'rgba(20, 184, 166, 0.45)',
 
+  // ── Interactive states ────────────────────────────
+  'color-interactive-hover': 'rgba(255, 255, 255, 0.04)',
+  'color-interactive-active': 'rgba(255, 255, 255, 0.08)',
+  'color-interactive-selected': 'rgba(20, 184, 166, 0.08)',
+
   // ── Governance (semantic) ─────────────────────────
   'color-gov-green': '#25d065',
   'color-gov-green-muted': 'rgba(37, 208, 101, 0.12)',
@@ -91,6 +96,10 @@ export const rawTokens = {
   'color-gov-init': '#64748b',
   'color-gov-init-muted': 'rgba(100, 116, 139, 0.12)',
   'color-gov-init-muted2': 'rgba(100, 116, 139, 0.06)',
+
+  'color-gov-gray': '#6b7280',
+  'color-gov-gray-muted': 'rgba(107, 114, 128, 0.12)',
+  'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.06)',
 
   // ── Extended accent palette ───────────────────────
   'color-accent-emerald': '#2dd4bf',
@@ -204,6 +213,11 @@ export const rawLightTokens = {
   // Glass
   'color-glass': 'rgba(255, 255, 255, 0.92)',
 
+  // Interactive states (light bg → dark overlays)
+  'color-interactive-hover': 'rgba(0, 0, 0, 0.04)',
+  'color-interactive-active': 'rgba(0, 0, 0, 0.08)',
+  'color-interactive-selected': 'rgba(20, 184, 166, 0.08)',
+
   // Shadows (softer on light backgrounds)
   'shadow-panel': '0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08)',
   'shadow-card': '0 1px 0 rgba(0,0,0,0.03) inset, 0 8px 32px rgba(0,0,0,0.1)',
@@ -236,6 +250,10 @@ export const tailwindOnly = {
     'fade-in': {
       '0%': { opacity: '0' },
       '100%': { opacity: '1' },
+    },
+    'state-pulse-red': {
+      '0%, 100%': { opacity: '0.4', boxShadow: '0 0 0 rgba(240, 68, 68, 0)' },
+      '50%': { opacity: '1', boxShadow: '0 0 8px rgba(240, 68, 68, 0.3)' },
     },
   },
 } as const
@@ -319,6 +337,12 @@ export const neutral_semantic = {
   muted2: _['color-gov-init-muted2'],
 }
 
+export const neutral_gray = {
+  DEFAULT: _['color-gov-gray'],
+  muted: _['color-gov-gray-muted'],
+  muted2: _['color-gov-gray-muted2'],
+}
+
 export const accents = {
   emerald: _['color-accent-emerald'],
   blue: _['color-accent-blue'],
@@ -376,7 +400,7 @@ export const usage = {
 
 export const colorTokens = {
   teal, indigo, neutral,
-  success, warning, error, neutral_semantic,
+  success, warning, error, neutral_semantic, neutral_gray,
   accents, chart, background, text, border, glass, usage,
 } as const
 
@@ -423,11 +447,40 @@ export const typography = {
   fontWeight: tailwindOnly.fontWeight,
 } as const
 
+export const elevation = {
+  low: _['shadow-panel'],
+  medium: _['shadow-card'],
+  high: _['shadow-modal'],
+  tooltip: _['shadow-tooltip'],
+} as const
+
 export const shadows = {
   panel: _['shadow-panel'],
   card: _['shadow-card'],
   modal: _['shadow-modal'],
   tooltip: _['shadow-tooltip'],
+} as const
+
+// ── Semantic type roles ──────────────────────────────
+// Maps design context → font-size token key
+export const typeRoles = {
+  display: '3xl',
+  heading: 'xl',
+  subheading: 'sm',
+  body: 'xs',
+  caption: '2xs',
+  mono: 'xs',
+} as const
+
+// ── Gap role system ──────────────────────────────────
+// Rationale for each gap value so all components use consistent spacing
+export const gapRoles = {
+  section: 8,
+  cardCluster: 6,
+  cardInternal: 4,
+  metricCluster: 3,
+  metricInternal: 2,
+  tight: 1.5,
 } as const
 
 export const borderRadius = {
@@ -458,10 +511,14 @@ export const tokens = {
     default: _['color-border'],
     strong: _['color-border-strong'],
     glass: _['color-glass'],
+    'interactive-hover': _['color-interactive-hover'],
+    'interactive-active': _['color-interactive-active'],
+    'interactive-selected': _['color-interactive-selected'],
     'gov-green': success.DEFAULT,
     'gov-yellow': warning.DEFAULT,
     'gov-red': error.DEFAULT,
     'gov-init': neutral_semantic.DEFAULT,
+    'gov-gray': neutral_gray.DEFAULT,
     'accent-emerald': accents.emerald,
     'accent-blue': accents.blue,
     'accent-purple': accents.purple,
@@ -474,6 +531,9 @@ export const tokens = {
   spacing,
   typography,
   shadows,
+  elevation,
   borderRadius,
   animation,
+  typeRoles,
+  gapRoles,
 } as const

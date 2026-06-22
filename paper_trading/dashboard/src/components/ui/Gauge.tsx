@@ -9,9 +9,9 @@ interface GaugeProps {
 }
 
 function valueColor(pct: number): string {
-  if (pct >= 0.8) return '#22c55e'
-  if (pct >= 0.5) return '#f97316'
-  return '#ef4444'
+  if (pct >= 0.8) return 'var(--color-gov-green)'
+  if (pct >= 0.5) return 'var(--color-gov-yellow)'
+  return 'var(--color-gov-red)'
 }
 
 export default function Gauge({

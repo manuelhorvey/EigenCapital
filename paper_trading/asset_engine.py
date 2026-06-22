@@ -394,7 +394,7 @@ class AssetEngine:
     def _open_position(self, side, entry_price, entry_date, df=None, tp_geo=None):
         self._entry.open_position(side, entry_price, entry_date, self, df, tp_geo)
 
-    def _close_position(self, exit_price, exit_date, reason):
+    def _close_position(self, exit_price, exit_date, reason) -> bool:
         mutations = self._position.close_position(
             exit_price,
             exit_date,
@@ -415,7 +415,7 @@ class AssetEngine:
             last_blend_dir=self._last_blend_dir,
         )
         if not mutations:
-            return
+            return False
         self.position = mutations.get("position", self.position)
         self.current_value = mutations.get("current_value", self.current_value)
         self.trade_log = mutations.get("trade_log", self.trade_log)
@@ -437,10 +437,7 @@ class AssetEngine:
             ),
             regime_features=self._last_regime_features,
         )
-        orphan = mutations.pop("mt5_orphan", None)
-        if orphan:
-            self._mt5_cleanup_queue.append(orphan)
-            self._mt5_cleanup_retries = 0
+        return True
 
     def _record_stop_out(self, side: str, exit_price: float) -> None:
         mutations = self._position.record_stop_out(

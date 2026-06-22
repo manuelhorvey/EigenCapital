@@ -36,7 +36,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
     return {
       signal: asset.final_signal ?? sig?.signal ?? 'FLAT',
       confidence: confidenceToPercent(sig?.confidence),
-      price: sig?.close_price,
+      price: m.current_price ?? sig?.close_price,
       totalReturn: m.mtm_return ?? m.total_return ?? 0,
       drawdown: m.drawdown ?? 0,
       meanConf: confidenceToPercent(m.mean_confidence),

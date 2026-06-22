@@ -273,8 +273,7 @@ class SlackAlerter:
                     {
                         "type": "mrkdwn",
                         "text": (
-                            f"Portfolio drawdown reached *{pct}%* "
-                            f"(threshold: {abs(DRAWDOWN_THRESHOLD * 100):.0f}%)."
+                            f"Portfolio drawdown reached *{pct}%* (threshold: {abs(DRAWDOWN_THRESHOLD * 100):.0f}%)."
                         ),
                     },
                 ],

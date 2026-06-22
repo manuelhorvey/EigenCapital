@@ -103,14 +103,19 @@ class PositionService:
                     mt5_symbol = broker.ticker_to_mt5_symbol(self.ticker)
                     logger.error(
                         "%s: MT5 close returned failure for ticket=%s on %s — aborting paper close",
-                        self.name, mt5_ticket, mt5_symbol,
+                        self.name,
+                        mt5_ticket,
+                        mt5_symbol,
                     )
                     return {}
             except Exception as e:
                 mt5_symbol = broker.ticker_to_mt5_symbol(self.ticker)
                 logger.error(
                     "%s: MT5 close raised exception for ticket=%s on %s: %s — aborting paper close",
-                    self.name, mt5_ticket, mt5_symbol, e,
+                    self.name,
+                    mt5_ticket,
+                    mt5_symbol,
+                    e,
                 )
                 return {}
 

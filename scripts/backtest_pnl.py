@@ -39,6 +39,7 @@ from quantforge.domain.value_objects.statistical_metrics import (
     minimum_track_record_length,
     probabilistic_sharpe_ratio,
 )
+from shared.portfolio_weights import rolling_weight_matrix
 
 logger = logging.getLogger("backtest_pnl")
 
@@ -213,6 +214,8 @@ def asset_metrics(daily_r: pd.Series) -> dict:
 def build_portfolio_daily_r(
     asset_series: dict[str, pd.Series],
     min_assets: int = 15,
+    weight_method: str = "equal_v1",
+    weight_window: int = 252,
 ) -> pd.DataFrame:
     """Build equal-weight portfolio daily R series.
 
@@ -232,7 +235,12 @@ def build_portfolio_daily_r(
     n_assets = combined.notna().sum(axis=1)
     frac_red = (combined < 0).sum(axis=1) / n_assets.replace(0, 1)
 
-    portfolio_r = combined.mean(axis=1)  # equal-weight across available assets
+    if weight_method == "equal_v1":
+        portfolio_r = combined.mean(axis=1)
+    else:
+        weights = rolling_weight_matrix(combined, weight_method, window=weight_window)
+        weights = weights.reindex(combined.index, method="ffill").bfill().fillna(1.0 / len(combined.columns))
+        portfolio_r = (combined * weights.values).sum(axis=1)
 
     result = pd.DataFrame(
         {
@@ -342,6 +350,12 @@ def main():
         "--ensemble-tag",
         default=None,
         help="Second tag for ensemble-vs-base comparison (e.g. 'ensemble')",
+    )
+    parser.add_argument(
+        "--weight-method",
+        default="equal_v1",
+        choices=["equal_v1", "risk_parity_v1", "hrp_v1"],
+        help="Portfolio weight method (default 'equal_v1' → legacy equal-weight)",
     )
     parser.add_argument(
         "--output",
@@ -465,6 +479,7 @@ def main():
     pf_df = build_portfolio_daily_r(
         all_daily_r,
         min_assets=args.min_assets,
+        weight_method=args.weight_method,
     )
     pf_metrics = portfolio_metrics(
         pf_df,
@@ -531,6 +546,7 @@ def main():
         pf_ensemble = build_portfolio_daily_r(
             ensemble_map,
             min_assets=args.min_assets,
+            weight_method=args.weight_method,
         )
         # Align dates
         common_dates = pf_df.index.intersection(pf_ensemble.index)

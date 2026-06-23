@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
 
 
 def risk_contribution(weights: np.ndarray, cov: np.ndarray) -> np.ndarray:
@@ -12,28 +11,10 @@ def risk_contribution(weights: np.ndarray, cov: np.ndarray) -> np.ndarray:
     return risk_contrib
 
 
-def risk_parity_weights(cov: np.ndarray, target_risk: np.ndarray | None = None) -> np.ndarray:
-    n = cov.shape[0]
-    if target_risk is None:
-        target_risk = np.ones(n) / n
-
-    def objective(w):
-        w = np.clip(w, 0, 1)
-        w = w / w.sum()
-        rc = risk_contribution(w, cov)
-        return np.sum((rc - target_risk * rc.sum()) ** 2)
-
-    constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
-    bounds = [(0.0, 1.0) for _ in range(n)]
-    result = minimize(objective, np.ones(n) / n, bounds=bounds, constraints=constraints, method="SLSQP")
-    return result.x / result.x.sum()
-
-
-def compute_equal_risk_weights(returns: pd.DataFrame, target_risk: dict[str, float] | None = None) -> dict[str, float]:
-    cov = returns.cov() * 252
-    assets = returns.columns.tolist()
-    w = risk_parity_weights(cov.values)
-    return dict(zip(assets, w))
+# DEPRECATED: risk_parity_weights and compute_equal_risk_weights moved to
+# shared/portfolio_weights.py. All new code should use:
+#   from shared.portfolio_weights import compute_weights
+# These will be removed in a future cleanup pass.
 
 
 class PositionSizingStrategy(ABC):

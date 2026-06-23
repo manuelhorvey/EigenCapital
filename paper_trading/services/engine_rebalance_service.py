@@ -4,9 +4,8 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
-from paper_trading.governance.multipliers import compute_effective_multipliers
 from paper_trading.ops.data_fetcher import fetch_history
-from shared.sizing import compute_equal_risk_weights
+from shared.portfolio_weights import WeightMethod, compute_weights
 
 logger = logging.getLogger("quantforge.engine_rebalance_service")
 
@@ -54,7 +53,18 @@ class EngineRebalanceService:
                 return True
         return False
 
-    def rebalance_portfolio(self) -> None:
+    def rebalance_portfolio(self, method: WeightMethod = "risk_parity_v1") -> None:
+        """Rebalance portfolio using canonical weight computation.
+
+        Covariance is computed from RAW historical returns — no governance
+        scaling, no regime adjustment. Governance affects per-position
+        sizing at trade time, not the portfolio weight matrix.
+
+        Parameters
+        ----------
+        method : WeightMethod
+            Weight strategy to use (default 'risk_parity_v1').
+        """
         engine = self.engine
         window = 252
         returns = self._collect_daily_returns(window)
@@ -64,45 +74,20 @@ class EngineRebalanceService:
 
         total_value = engine._state.compute_mtm_total()
 
-        adjusted = returns.copy()
-        for col in adjusted.columns:
-            if col not in engine.assets:
-                continue
-            asset = engine.assets[col]
-            _, _, combined_size = compute_effective_multipliers(
-                base_sl=asset.sl_mult,
-                base_tp=asset.tp_mult,
-                validity_state=asset.validity_sm.current_state.value if asset.validity_sm else "YELLOW",
-                regime_geometry=asset.regime_geometry,
-                narrative_sl_mult=asset.governance._narrative_sl_mult,
-                liquidity_sl_mult=asset.governance._liquidity_sl_mult,
-                narrative_size_scalar=asset.governance._narrative_size_scalar,
-                liquidity_size_scalar=asset.governance._liquidity_size_scalar,
-            )
-            vol_scale = 1.0 / combined_size if combined_size > 0 else 1.0
-            adjusted[col] = adjusted[col] * vol_scale
-
         try:
-            weights = compute_equal_risk_weights(adjusted)
+            pw = compute_weights(method, returns)
         except Exception as e:
             logger.error("Risk parity optimization failed: %s", e)
             return
 
-        if not weights:
-            return
-
-        total_w = sum(weights.get(n, 0.0) for n in engine.assets)
-        if total_w <= 0:
-            return
-
-        engine._rebalance_weights = {n: weights.get(n, 0.0) / total_w for n in engine.assets}
+        engine._rebalance_weights = pw.weights
 
         for name, asset in engine.assets.items():
-            target = total_value * engine._rebalance_weights[name]
+            target = total_value * pw.weights.get(name, 0.0)
             asset.set_capital_base(target)
 
         logger.info(
             "Risk parity rebalanced %d assets — weights: %s",
             len(engine.assets),
-            {n: f"{w:.3f}" for n, w in engine._rebalance_weights.items()},
+            {n: f"{w:.3f}" for n, w in pw.weights.items() if w > 0.01},
         )

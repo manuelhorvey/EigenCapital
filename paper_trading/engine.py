@@ -355,6 +355,22 @@ class PaperTradingEngine:
         if self._should_rebalance():
             self._rebalance_portfolio()
 
+        # ── WAL: persist current portfolio weights ────────────────────
+        if self._rebalance_weights and self._wal is not None:
+            try:
+                self._wal.write(
+                    "portfolio_weights",
+                    {
+                        "timestamp": datetime.now(tz=ET).isoformat(),
+                        "cycle": self._cycle_count,
+                        "method": "risk_parity_v1",
+                        "weights": {n: round(w, 4) for n, w in self._rebalance_weights.items()},
+                        "n_assets": len(self._rebalance_weights),
+                    },
+                )
+            except Exception:
+                logger.exception("WAL write failed for portfolio_weights")
+
         _t3 = time.perf_counter()
 
         self.last_update = datetime.now(tz=ET)

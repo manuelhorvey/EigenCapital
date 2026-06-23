@@ -389,6 +389,10 @@ class EngineOrchestrator:
             }
             self._position_concentration = results["position_concentration"]
 
+        # ── WAL: position concentration event ──────────────────────────────
+        if self._wal is not None:
+            self._wal.write("position_concentration", results["position_concentration"])
+
         # ── Phase 3f: Cross-asset correlation monitoring ──────────────────
         prices: dict[str, float] = {}
         positions: dict[str, dict] = {}

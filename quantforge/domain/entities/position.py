@@ -68,7 +68,7 @@ class PositionIntent:
     # Risk envelope fields
     breakeven_set: bool = False
     risk_floor: float = 0.0  # position-level risk floor (most protective SL)
-    peak_price: float = 0.0   # highest (long) / lowest (short) price reached
+    peak_price: float = 0.0  # highest (long) / lowest (short) price reached
     last_stack_bar_id: int = 0  # bar index of last stack (IV-8)
 
     @property

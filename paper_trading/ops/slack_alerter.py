@@ -30,6 +30,7 @@ ENGINE_STALE_SECONDS = 120  # no WAL event in this window = engine likely down
 COOLDOWN_HALT = 300  # per-asset halt cooldown (5 min)
 COOLDOWN_EMERGENCY = 600  # emergency halt cooldown (10 min)
 DRAWDOWN_THRESHOLD = -0.10  # portfolio drawdown alert threshold (10%)
+CONCENTRATION_HEARTBEAT_INTERVAL = 3600  # heartbeat every hour when skew sustained
 
 
 def _send_slack(webhook_url: str, message: dict) -> bool:
@@ -54,7 +55,16 @@ def _load_alert_state() -> dict:
             return json.loads(ALERT_STATE_PATH.read_text())
         except Exception:
             logger.warning("Corrupt alert state, resetting")
-    return {"wal_position": 0, "cooldowns": {}, "last_state_drawdown": None}
+    return {
+        "wal_position": 0,
+        "cooldowns": {},
+        "last_state_drawdown": None,
+        "concentration_state": "below_threshold",
+        "concentration_last_skew": 0.0,
+        "concentration_dominant_side": "none",
+        "concentration_alert_time": None,
+        "concentration_heartbeat_due": None,
+    }
 
 
 def _save_alert_state(state: dict) -> None:
@@ -153,6 +163,8 @@ class SlackAlerter:
         payload = event.get("payload", {})
         if event_type == "state_committed":
             self._handle_state_committed(payload)
+        elif event_type == "position_concentration":
+            self._handle_concentration(payload)
 
     def _handle_state_committed(self, payload: dict) -> None:
         actors = payload.get("actors", {})
@@ -176,6 +188,73 @@ class SlackAlerter:
 
         if any_sent:
             _save_alert_state(self.state)
+
+    def _handle_concentration(self, payload: dict) -> None:
+        skew = payload.get("skew", 0.0)
+        threshold = payload.get("threshold", 0.75)
+        alert = payload.get("alert", False)
+        dominant_side = payload.get("dominant_side", "none")
+
+        prev_state = self.state.get("concentration_state", "below_threshold")
+        current_state = "above_threshold" if alert else "below_threshold"
+        now = time.time()
+
+        if prev_state != current_state:
+            self.state["concentration_state"] = current_state
+            self.state["concentration_last_skew"] = skew
+            self.state["concentration_dominant_side"] = dominant_side
+            self.state["concentration_alert_time"] = now
+            self.state["concentration_heartbeat_due"] = now + CONCENTRATION_HEARTBEAT_INTERVAL
+
+            if current_state == "above_threshold":
+                self._send_concentration_alert(skew, threshold, dominant_side, alert_type="onset")
+            else:
+                self._send_concentration_alert(skew, threshold, dominant_side, alert_type="clear")
+            _save_alert_state(self.state)
+
+        elif current_state == "above_threshold":
+            heartbeat_due = self.state.get("concentration_heartbeat_due")
+            if heartbeat_due is not None and now >= heartbeat_due:
+                self.state["concentration_heartbeat_due"] = now + CONCENTRATION_HEARTBEAT_INTERVAL
+                self.state["concentration_last_skew"] = skew
+                self._send_concentration_alert(skew, threshold, dominant_side, alert_type="heartbeat")
+                _save_alert_state(self.state)
+
+    def _send_concentration_alert(self, skew: float, threshold: float, dominant_side: str, alert_type: str) -> None:
+        pct = round(skew * 100, 1)
+        thresh_pct = round(threshold * 100, 0)
+
+        if alert_type == "onset":
+            header = f"Skew {pct}% — Threshold Crossed"
+            title = f"⚠️ Position Concentration: {pct}% {dominant_side}"
+            body = f"Portfolio skew crossed *{thresh_pct:.0f}%* threshold: *{pct}%* on the {dominant_side} side."
+        elif alert_type == "clear":
+            header = "Skew Cleared"
+            title = "✅ Position Concentration Normalized"
+            body = f"Portfolio skew has returned below *{thresh_pct:.0f}%* threshold."
+        elif alert_type == "heartbeat":
+            header = f"Skew Sustained {pct}%"
+            title = f"⚠️ Position Concentration Sustained: {pct}% {dominant_side}"
+            body = (
+                f"Portfolio skew has been above *{thresh_pct:.0f}%* for over an hour "
+                f"(currently *{pct}%* {dominant_side})."
+            )
+
+        msg = {
+            "text": title,
+            "blocks": _build_blocks(
+                header,
+                "⚠️",
+                [
+                    {"type": "mrkdwn", "text": body},
+                    {"type": "mrkdwn", "text": f"*Threshold:* {thresh_pct:.0f}%" if dominant_side != "none" else ""},
+                ],
+            ),
+        }
+        if _send_slack(self.webhook_url, msg):
+            logger.info("Concentration %s alert sent (skew=%.1f%%)", alert_type, pct)
+        else:
+            logger.warning("Concentration %s alert FAILED (skew=%.1f%%)", alert_type, pct)
 
     def _send_asset_halted(self, asset: str, info: dict) -> None:
         msg = {

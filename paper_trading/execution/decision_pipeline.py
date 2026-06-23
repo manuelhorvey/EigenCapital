@@ -796,7 +796,6 @@ def apply_risk_off_suppression(ctx: DecisionContext) -> None:
 SELL_ONLY_ASSETS: frozenset[str] = frozenset(
     {
         "CADCHF",
-        "AUDUSD",
         "ES",
         "NQ",
         "NZDCHF",
@@ -804,8 +803,6 @@ SELL_ONLY_ASSETS: frozenset[str] = frozenset(
         "^DJI",
         "USDCHF",
         "EURCHF",
-        "NZDUSD",
-        "EURNZD",
     }
 )
 

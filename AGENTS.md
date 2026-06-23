@@ -10,6 +10,8 @@ Cross-sectional multi-asset paper trading engine. 19-asset portfolio (FX, commod
 
 **2026-06-22: GBPUSD promoted to portfolio.** Walk-forward shows IC 0.186 (4/4 folds positive), HR 0.371. Feature registry pt_sl=(1.97, 0.52) gives favorable R:R=3.79. Added to paper_trading.yaml and mt5_symbol_map. 18+1=19 assets.
 
+**2026-06-23: AUDUSD, EURNZD, NZDUSD removed from SELL_ONLY filter.** Corrected walk-forward methodology shows BUY WR > 50% for all three (AUDUSD 64.5%, EURNZD 57.6%, NZDUSD 57.7%) — BUY is no longer inverted. The original SELL_ONLY diagnosis was based on a broken walk-forward (no purging, EWM labels, validation-split early stopping). The filter no longer trades BUY on the remaining 8 assets (CADCHF, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF) where BUY WR remains 11-31%.
+
 ## Architecture Quick Reference
 
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
@@ -333,22 +335,22 @@ The original "directional flip" narrative was wrong as a portfolio-wide diagnosi
 
 ### Evidence Chain
 
-1. **BUY is flat at ~17% win rate from p_long=0.57 to p_long=1.0** across all 11 assets. p_long=0.50-0.575 bucket: 0 wins out of 144 predictions (0%). This is NOT miscalibration — it's an **inverted signal**.
+1. **BUY is flat at ~17% win rate from p_long=0.57 to p_long=1.0** across all flagged assets. p_long=0.50-0.575 bucket: 0 wins out of 144 predictions (0%). This is NOT miscalibration — it's an **inverted signal**.
 
-2. **SELL is well-calibrated at ~77% win rate** on the same 11 assets. p_long < 0.425 bucket: 1,273 predictions at 77% win rate.
+2. **SELL is well-calibrated at ~77% win rate** on the same assets. p_long < 0.425 bucket: 1,273 predictions at 77% win rate.
 
 3. **The pattern is not trend-conditional**: confident BUY wins 15% in trending windows and 23% in non-trending windows. The model simply misprices these assets regardless of regime.
 
-4. **The pattern is uniform across all 11 assets**: every single one shows 0% win rate in the 50-57% p_long bucket.
+4. **The pattern is uniform across all flagged assets**: every single one shows 0% win rate in the 50-57% p_long bucket.
 
-5. **Portfolio-wide, not concentrated**: 77% of assets have at least one fold with >50% wrong rate. The BUY inversion is a specific subset of a broader miscalibration.
+5. **Portfolio-wide, not concentrated**: 77% of assets had at least one fold with >50% wrong rate under the old methodology.
 
 ### Correction to Prior Findings
 
 - The "directional flip" (AUDNZD confident SELL during uptrend) was an asset-specific anomaly, not portfolio pattern
-- The portfolio-wide problem is **BUY overconfidence on 9 specific assets**, not "confident wrong-direction bets during trends"
+- The portfolio-wide problem was originally diagnosed as **BUY overconfidence on 9 specific assets**, not "confident wrong-direction bets during trends"
 - DXY correlation, trend duration, and regime-conditional factors were all tested and ruled out as mechanisms
-- Three of the 11 assets (^DJI, EURCHF, USDCHF) are marginally net-positive on BUY due to favorable tp/sl ratios masking the inverted signal — this is still a trust issue, not a returns issue
+- Three of the 11 originally-flagged assets (^DJI, EURCHF, USDCHF) were marginally net-positive on BUY due to favorable tp/sl ratios masking the inverted signal — this was still a trust issue, not a returns issue
 
 ### Fix Applied
 
@@ -356,7 +358,7 @@ The original "directional flip" narrative was wrong as a portfolio-wide diagnosi
 
 ```python
 SELL_ONLY_ASSETS: frozenset[str] = frozenset({
-    "CADCHF", "AUDUSD", "ES", "NQ", "NZDCHF",
+    "CADCHF", "ES", "NQ", "NZDCHF",
     "EURAUD", "^DJI", "USDCHF", "EURCHF",
 })
 ```

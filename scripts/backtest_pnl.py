@@ -419,12 +419,11 @@ def main():
             logger.warning("%s: empty signal parquet — skipping", asset)
             continue
 
-        # SELL-only filter for 9 assets with inverted BUY calibration
+        # SELL-only filter for assets with inverted BUY calibration
         if args.sell_only:
             SELL_ONLY_ASSETS = frozenset(
                 {
                     "CADCHF",
-                    "AUDUSD",
                     "ES",
                     "NQ",
                     "NZDCHF",
@@ -432,8 +431,6 @@ def main():
                     "^DJI",
                     "USDCHF",
                     "EURCHF",
-                    "NZDUSD",
-                    "EURNZD",
                 }
             )
             if asset in SELL_ONLY_ASSETS:

@@ -391,7 +391,10 @@ class EngineOrchestrator:
 
         # ── WAL: position concentration event ──────────────────────────────
         if self._wal is not None:
-            self._wal.write("position_concentration", results["position_concentration"])
+            try:
+                self._wal.write("position_concentration", results["position_concentration"])
+            except Exception:
+                logger.exception("WAL write failed for position_concentration")
 
         # ── Phase 3f: Cross-asset correlation monitoring ──────────────────
         prices: dict[str, float] = {}
@@ -518,8 +521,11 @@ class EngineOrchestrator:
             "system_healthy": health.is_system_healthy,
         }
         if current != self._last_health:
-            self._wal.write("actor_health", current)
-            self._last_health = current
+            try:
+                self._wal.write("actor_health", current)
+                self._last_health = current
+            except Exception:
+                logger.exception("WAL write failed for actor_health")
 
     def _write_state_committed(self) -> None:
         if self._wal is None:
@@ -533,7 +539,10 @@ class EngineOrchestrator:
                 "has_position": actor._engine.pos_mgr.has_position() if hasattr(actor._engine, "pos_mgr") else False,
             }
         snapshot["emergency_halt"] = self._emergency_halt
-        self._wal.write("state_committed", snapshot)
+        try:
+            self._wal.write("state_committed", snapshot)
+        except Exception:
+            logger.exception("WAL write failed for state_committed")
 
     def drain_persist_buffer(self) -> list[dict]:
         """Return and clear the global persist buffer."""

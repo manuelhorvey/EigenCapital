@@ -199,9 +199,12 @@ def manage_position(ctx: DecisionContext) -> None:
     engine = ctx.engine
     d = ctx.decision
     has_pos = engine.pos_mgr.has_position()
-    same_side = has_pos and ctx.new_side == ctx.current_side
 
-    if same_side:
+    # ── Position protection (every cycle, any position) ────────────
+    # Breakeven SL and trailing stop — not stacking-specific.
+    _update_position_protection(ctx)
+
+    if has_pos and ctx.new_side == ctx.current_side:
         stacking_enabled = engine.config.get("stacking", {}).get("enabled", False)
         if stacking_enabled and _should_stack(ctx):
             _execute_stack(ctx)
@@ -248,6 +251,15 @@ def manage_position(ctx: DecisionContext) -> None:
                 )
                 ctx.new_side = None
                 return
+        stack_layer_count = engine.pos_mgr.stack_layer_count()
+        if stack_layer_count > 0:
+            logger.info(
+                "%s: flipping %s->%s — clearing %d stacking layer(s)",
+                engine.name,
+                ctx.current_side,
+                ctx.new_side,
+                stack_layer_count,
+            )
         ok = engine._close_position(d.close_price, d.timestamp, "FLIP")
         if not ok:
             ctx.new_side = None
@@ -257,51 +269,214 @@ def manage_position(ctx: DecisionContext) -> None:
         return
 
 
-def _should_stack(ctx: DecisionContext) -> bool:
+# ── Stacking helpers ─────────────────────────────────────────────────────────
+
+
+def _position_unrealized_r(ctx: DecisionContext, current_price: float) -> float:
+    """Position unrealised PnL in R-units (relative to position vol estimate)."""
+    pos = ctx.engine.pos_mgr.position
+    if pos is None:
+        return 0.0
+    entry = pos.avg_price
+    vol_est = pos.vol
+    if vol_est <= 0 or entry <= 0:
+        return 0.0
+    if pos.is_long:
+        return (current_price - entry) / (entry * vol_est)
+    else:
+        return (entry - current_price) / (entry * vol_est)
+
+
+def _last_stack_entry_price(pos) -> float | None:
+    """Return the entry price of the last stack layer, or None."""
+    if not pos or not pos.layers:
+        return None
+    return pos.layers[-1].entry_price
+
+
+def _stack_sl_price(pos, current_price: float, stack_sl_tighten: float) -> float:
+    """Stack layer's SL price given position params and tightening factor."""
+    base_sl_distance_pct = abs(pos.entry_price - pos.stop_loss) / max(pos.entry_price, 1e-9)
+    stack_sl_distance_pct = base_sl_distance_pct * stack_sl_tighten
+    if pos.is_long:
+        return current_price * (1 - stack_sl_distance_pct)
+    else:
+        return current_price * (1 + stack_sl_distance_pct)
+
+
+def _get_adx(ctx: DecisionContext) -> float | None:
+    """Extract ADX from the features DataFrame if available."""
+    try:
+        val = float(ctx.df["adx"].iloc[-1])
+        if not pd.isna(val):
+            return val
+    except (KeyError, IndexError, TypeError, ValueError):
+        pass
+    return None
+
+
+def _is_trending(ctx: DecisionContext) -> bool:
+    """IV-6: trending regime check via ADX > threshold."""
     engine = ctx.engine
     cfg = engine.config.get("stacking", {})
+    threshold = cfg.get("adx_threshold", 25)
+    adx = _get_adx(ctx)
+    if adx is not None:
+        return adx > threshold
+    # Fallback: no ADX available — fail-open (allow stacking)
+    return True
 
-    # 1. Position must be winning
+
+def _log_stack_rejection(ctx: DecisionContext, gate: str, value: float, required: float) -> None:
+    """Log a structured stack rejection for dry-run validation."""
+    engine = ctx.engine
     current_price = getattr(engine, "current_price", None)
+    logger.info(
+        "%s: STACK REJECTED gate=%s value=%.4f required=%.4f price=%s pnl_r=%.2f layers=%d",
+        engine.name,
+        gate,
+        value,
+        required,
+        f"{current_price:.5f}" if current_price else "None",
+        _position_unrealized_r(ctx, current_price) if current_price else 0.0,
+        len(engine.pos_mgr.position.layers) if engine.pos_mgr.position else 0,
+    )
+
+
+def _position_risk_at_sl(pos, current_price: float) -> float:
+    """Current notional risk at SL (dollar equivalent)."""
+    return pos.notional_risk(current_price)
+
+
+def _projected_risk_for_stack(ctx: DecisionContext, stack_size: float) -> float:
+    """IV-3: projected total position risk after adding the stack layer.
+
+    Computes the notional risk of the combined position (existing + stack)
+    at the new effective SL (tightest across all layers including the
+    stack's tighter SL). This CAN be <= current risk if the tightened SL
+    compensates for the increased size.
+    """
+    engine = ctx.engine
+    pos = engine.pos_mgr.position
+    current_price = getattr(engine, "current_price", None)
+    if pos is None or current_price is None or current_price <= 0:
+        return 0.0
+
+    cfg = engine.config.get("stacking", {})
+    stack_sl_tighten = cfg.get("stack_sl_tighten", 0.5)
+
+    # Stack's tighter SL
+    stack_sl = _stack_sl_price(pos, current_price, stack_sl_tighten)
+
+    # New effective SL across ALL layers (existing risk envelope + new stack)
+    existing_effective = pos.effective_sl
+    if pos.is_long:
+        new_effective = max(existing_effective, stack_sl) if stack_sl > 0 else existing_effective
+    else:
+        new_effective = (
+            min(existing_effective, stack_sl)
+            if existing_effective > 0 and stack_sl > 0
+            else stack_sl
+            if stack_sl > 0
+            else existing_effective
+        )
+
+    # Total notional after stacking
+    total_after = pos.total_size + stack_size
+
+    # Projected notional risk at the new effective SL
+    if pos.is_long:
+        return total_after * max(current_price - new_effective, 0)
+    else:
+        return total_after * max(new_effective - current_price, 0)
+
+
+def _should_stack(ctx: DecisionContext) -> bool:
+    """8-gate stacking approval with all invariants enforced.
+
+    Returns True only if ALL 8 invariants pass.
+    Logs the first failing gate for dry-run validation.
+    """
+    engine = ctx.engine
+    cfg = engine.config.get("stacking", {})
+    pos = engine.pos_mgr.position
+    current_price = getattr(engine, "current_price", None)
+
     if current_price is None or current_price <= 0:
+        _log_stack_rejection(ctx, "NO_PRICE", 0.0, 0.0)
         return False
-    pnl = engine.pos_mgr.position_pnl(current_price)
-    if pnl <= 0:
+    if pos is None:
         return False
 
-    # 2. Confidence must be >= threshold
+    # ── IV-4: Position must be sufficiently profitable ─────────────
+    min_r = cfg.get("min_stack_r", 0.5)
+    unrealized_r = _position_unrealized_r(ctx, current_price)
+    if unrealized_r < min_r:
+        _log_stack_rejection(ctx, "MIN_R", unrealized_r, min_r)
+        return False
+
+    # ── Confidence gate ────────────────────────────────────────────
     min_conf = cfg.get("min_confidence", 0.60)
     if ctx.decision.confidence < min_conf:
+        _log_stack_rejection(ctx, "CONFIDENCE", ctx.decision.confidence, min_conf)
         return False
 
-    # 3. Max layers check
+    # ── IV-1: Max layers ----------------------------
     max_layers = cfg.get("max_layers", 3)
     if engine.pos_mgr.max_layers_reached(max_layers):
+        _log_stack_rejection(ctx, "MAX_LAYERS", float(engine.pos_mgr.stack_layer_count()), float(max_layers))
         return False
 
-    # 4. Regime / risk override hook (hardwired False for v1)
-    if _stack_risk_override(ctx):
+    # ── IV-8: One stack per bar ─────────────────────
+    bar_counter = getattr(engine, "_bar_counter", 0)
+    if pos.last_stack_bar_id > 0 and pos.last_stack_bar_id == bar_counter:
+        _log_stack_rejection(ctx, "DUPLICATE_BAR", float(bar_counter), float(pos.last_stack_bar_id + 1))
         return False
 
-    # 5. Stack cooldown hook (hardwired False for v1)
-    return not _stack_cooldown_active(ctx)
+    # ── IV-5: Stack spacing ─────────────────────────
+    spacing_r = cfg.get("stack_spacing_r", 0.5)
+    last_entry = _last_stack_entry_price(pos)
+    if last_entry is not None:
+        vol_est = pos.vol
+        if vol_est > 0:
+            price_gap_r = abs(current_price - last_entry) / (pos.avg_price * vol_est)
+            if price_gap_r < spacing_r:
+                _log_stack_rejection(ctx, "STACK_SPACING", price_gap_r, spacing_r)
+                return False
 
+    # ── IV-6: Trending regime ───────────────────────
+    if not _is_trending(ctx):
+        adx_val = _get_adx(ctx) or 0.0
+        _log_stack_rejection(ctx, "ADX", adx_val, float(cfg.get("adx_threshold", 25)))
+        return False
 
-def _stack_risk_override(ctx: DecisionContext) -> bool:
-    return False
+    # ── Compute stack size (needed for IV-2 and IV-3) ──
+    stack_size = _compute_stack_size(ctx)
 
+    # ── IV-2: Stack size <= base entry size ─────────
+    base_size = pos.base_entry_size
+    if base_size > 0 and stack_size > base_size:
+        _log_stack_rejection(ctx, "STACK_SIZE", stack_size, base_size)
+        return False
 
-def _stack_cooldown_active(ctx: DecisionContext) -> bool:
-    return False
+    # ── IV-3: Projected risk <= current risk ─────────
+    current_risk = _position_risk_at_sl(pos, current_price)
+    projected_risk = _projected_risk_for_stack(ctx, stack_size)
+    if projected_risk > current_risk:
+        _log_stack_rejection(ctx, "RISK_INVARIANT", projected_risk, current_risk)
+        return False
+
+    return True
 
 
 def _compute_stack_size(ctx: DecisionContext) -> float:
     engine = ctx.engine
     cfg = engine.config.get("stacking", {})
     pos_mgr = engine.pos_mgr
+    pos = pos_mgr.position
 
     # Base anchor: frozen at first entry, never drifts
-    base_entry_size = pos_mgr.position.base_entry_size if pos_mgr.position else pos_mgr.position_size
+    base_entry_size = pos.base_entry_size if pos else pos_mgr.position_size
 
     # Layer multiplier (diminishing)
     layer_mults = cfg.get("layer_multipliers", [0.8, 0.5, 0.3])
@@ -316,6 +491,10 @@ def _compute_stack_size(ctx: DecisionContext) -> float:
     vol_adj = max(vol_clamp[0], min(vol_adj, vol_clamp[1]))
 
     base = base_entry_size * mult * vol_adj
+
+    # Size cap (IV-2): stack <= base_entry_size
+    size_cap = cfg.get("size_cap", 1.0)
+    base = min(base, base_entry_size * size_cap)
 
     # Min floor
     min_entry = cfg.get("min_viable_position_pct", 0.01) * engine.capital_base
@@ -337,14 +516,20 @@ def _execute_stack(ctx: DecisionContext) -> None:
     # Dry-run mode: log without executing
     dry_run = engine.config.get("stacking", {}).get("dry_run", True)
     logger.info(
-        "%s: STACK dry_run=%s size=%.4f layer=%d pnl=%.2f%% reason=%s",
+        "%s: STACK approved dry_run=%s size=%.4f layer=%d pnl_r=%.2f reason=%s",
         engine.name,
         dry_run,
         stack_cmd.size,
         stack_cmd.expected_layer_idx,
-        engine.pos_mgr.position_pnl(d.close_price),
+        _position_unrealized_r(ctx, d.close_price),
         stack_cmd.reason,
     )
+
+    # Remember bar for IV-8
+    pos = engine.pos_mgr.position
+    if pos is not None:
+        bar_counter = getattr(engine, "_bar_counter", 0)
+        pos.last_stack_bar_id = bar_counter
 
     if not dry_run:
         engine._open_position(
@@ -355,6 +540,81 @@ def _execute_stack(ctx: DecisionContext) -> None:
             order_type=OrderType.STACK,
             stack_cmd=stack_cmd,
         )
+
+
+def _update_position_protection(ctx: DecisionContext) -> None:
+    """Event-driven position protection: breakeven SL and trailing stop.
+
+    Called every cycle for any open position (not stacking-specific).
+    Only modifies the risk floor when price moves meaningfully.
+    """
+    engine = ctx.engine
+    pos = engine.pos_mgr.position
+    current_price = getattr(engine, "current_price", None)
+    if pos is None or current_price is None or current_price <= 0:
+        return
+
+    cfg = engine.config.get("stacking", {})
+
+    # ── Track peak (HWM for longs, LWM for shorts) ─────────────────
+    if pos.is_long:
+        pos.peak_price = max(pos.peak_price, current_price)
+    else:
+        pos.peak_price = min(pos.peak_price, current_price) if pos.peak_price > 0 else current_price
+
+    unrealized_r = _position_unrealized_r(ctx, current_price)
+
+    # ── Breakeven SL ───────────────────────────────────────────────
+    be_threshold = cfg.get("breakeven_threshold_r", 0.5)
+    if not pos.breakeven_set and unrealized_r >= be_threshold:
+        if pos.is_long:
+            pos.risk_floor = max(pos.risk_floor, pos.avg_price)
+        else:
+            pos.risk_floor = min(pos.risk_floor, pos.avg_price)
+        pos.breakeven_set = True
+        logger.info(
+            "%s: breakeven SL activated at %.5f (unrealized_r=%.2f >= %.2f)",
+            engine.name,
+            pos.risk_floor,
+            unrealized_r,
+            be_threshold,
+        )
+
+    # ── Event-driven trailing stop ─────────────────────────────────
+    trail_activate = cfg.get("trail_activate_r", 1.0)
+    trail_distance = cfg.get("trail_distance_r", 0.5)
+    trail_step = cfg.get("trail_step_r", 0.25)
+    vol_est = pos.vol
+
+    if unrealized_r >= trail_activate and vol_est > 0:
+        # Check if price has moved enough to warrant a trail
+        distance_from_peak = (pos.peak_price - current_price) if pos.is_long else (current_price - pos.peak_price)
+        peak_to_current_r = distance_from_peak / max(pos.avg_price * vol_est, 1e-9)
+
+        if peak_to_current_r <= 0:
+            # At or above peak — tighten SL
+            if pos.is_long:
+                new_floor = current_price * (1 - trail_distance * vol_est)
+                if new_floor > pos.risk_floor:
+                    pos.risk_floor = new_floor
+                    logger.info(
+                        "%s: trailing SL tightened to %.5f (peak_r=%.2f trail_step=%.2f)",
+                        engine.name,
+                        new_floor,
+                        unrealized_r,
+                        trail_step,
+                    )
+            else:
+                new_floor = current_price * (1 + trail_distance * vol_est)
+                if pos.risk_floor == 0 or new_floor < pos.risk_floor:
+                    pos.risk_floor = new_floor
+                    logger.info(
+                        "%s: trailing SL tightened to %.5f (peak_r=%.2f trail_step=%.2f)",
+                        engine.name,
+                        new_floor,
+                        unrealized_r,
+                        trail_step,
+                    )
 
 
 def build_entry_artifacts(ctx: DecisionContext) -> None:

@@ -450,9 +450,6 @@ assets:
         sl_mult: 1.2
         tp_mult: 0.8
     config:
-      stacking:
-        enabled: true
-        dry_run: true
       shadow_sltp:
         enabled: true
         method: trailing
@@ -539,9 +536,6 @@ assets:
         sl_mult: 1.2
         tp_mult: 0.8
     config:
-      stacking:
-        enabled: true
-        dry_run: true
       shadow_sltp:
         enabled: true
         method: trailing

@@ -1,0 +1,693 @@
+from unittest.mock import MagicMock
+
+import pandas as pd
+import pytest
+
+from paper_trading.entry.decision import PositionSide, TradeDecision
+from paper_trading.execution.decision_pipeline import (
+    DecisionContext,
+    _compute_stack_size,
+    _get_adx,
+    _is_trending,
+    _last_stack_entry_price,
+    _position_unrealized_r,
+    _projected_risk_for_stack,
+    _should_stack,
+    _stack_sl_price,
+    _update_position_protection,
+    manage_position,
+)
+from quantforge.domain.entities.position import PositionIntent, StackLayer
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _pos_long(entry=100.0, vol=0.02, size=0.02, layers=None):
+    """Position with vol as SL distance pct, size as position notional."""
+    if layers is None:
+        layers = [StackLayer(entry_price=entry, size=size, timestamp="t0")]
+    return PositionIntent(
+        side=PositionSide.LONG,
+        entry_price=entry,
+        entry_date="2026-06-22",
+        stop_loss=entry * (1 - vol),
+        take_profit=entry * (1 + 2.5 * vol),
+        vol=vol,
+        layers=layers,
+        base_entry_size=size,
+    )
+
+
+def _pos_short(entry=100.0, vol=0.02, size=0.02, layers=None):
+    if layers is None:
+        layers = [StackLayer(entry_price=entry, size=size, timestamp="t0")]
+    return PositionIntent(
+        side=PositionSide.SHORT,
+        entry_price=entry,
+        entry_date="2026-06-22",
+        stop_loss=entry * (1 + vol),
+        take_profit=entry * (1 - 2.5 * vol),
+        vol=vol,
+        layers=layers,
+        base_entry_size=size,
+    )
+
+
+def _decision(signal="BUY", close=100.0, confidence=0.8):
+    return TradeDecision(
+        asset="TEST",
+        signal=signal,
+        label=2,
+        confidence=confidence,
+        prob_long=confidence,
+        prob_short=1.0 - confidence - 0.1,
+        prob_neutral=0.1,
+        close_price=close,
+        timestamp="2026-06-22T12:00:00",
+        position_size=1.0,
+    )
+
+
+def _mock_engine(config=None, has_position=True, position=None, current_price=105.0):
+    engine = MagicMock()
+    engine.name = "TEST"
+    engine.current_price = current_price
+    engine.config = config or {}
+    engine._bar_counter = 42
+    engine._realized_volatility = 0.15
+    engine._close_position = MagicMock(return_value=True)
+    engine._can_enter = MagicMock(return_value=(True, "ok"))
+    engine.capital_base = 100.0
+    engine._open_position = MagicMock()
+
+    # pos_mgr mock with linked position
+    pos_mgr = MagicMock()
+    pos_mgr.has_position.return_value = has_position
+    pos_mgr.position = position
+    pos_mgr.position_size = 1.0
+    n_layers = len(position.layers) if position and position.layers else 0
+    pos_mgr.stack_layer_count.return_value = max(0, n_layers - 1)  # real code excludes base layer
+    pos_mgr.max_layers_reached.return_value = n_layers >= 3 if position else True
+    pos_mgr.position_pnl.return_value = 5.0
+    engine.pos_mgr = pos_mgr
+
+    return engine
+
+
+def _ctx(engine, decision=None, df=None, new_side=None, flip_allowed=True, current_side=None):
+    if decision is None:
+        decision = _decision()
+    if df is None:
+        df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
+    if current_side is None:
+        current_side = new_side
+    return DecisionContext(
+        engine=engine,
+        decision=decision,
+        df=df,
+        new_side=new_side,
+        flip_allowed=flip_allowed,
+        current_side=current_side,
+    )
+
+
+# ── _position_unrealized_r ──────────────────────────────────────────────────
+
+
+class TestPositionUnrealizedR:
+    def test_long_positive(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        engine = _mock_engine(position=pos)
+        ctx = _ctx(engine)
+        r = _position_unrealized_r(ctx, 103.0)
+        assert r == pytest.approx(1.5, rel=1e-3)  # (103-100)/(100*0.02)
+
+    def test_long_negative(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        engine = _mock_engine(position=pos)
+        ctx = _ctx(engine)
+        r = _position_unrealized_r(ctx, 99.5)
+        assert r == pytest.approx(-0.25, rel=1e-3)
+
+    def test_short_positive(self):
+        pos = _pos_short(entry=100.0, vol=0.02)
+        engine = _mock_engine(position=pos)
+        ctx = _ctx(engine)
+        r = _position_unrealized_r(ctx, 98.0)
+        assert r == pytest.approx(1.0, rel=1e-3)  # (100-98)/(100*0.02)
+
+    def test_short_negative(self):
+        pos = _pos_short(entry=100.0, vol=0.02)
+        engine = _mock_engine(position=pos)
+        ctx = _ctx(engine)
+        r = _position_unrealized_r(ctx, 101.0)
+        assert r == pytest.approx(-0.5, rel=1e-3)
+
+    def test_zero_position_returns_zero(self):
+        engine = _mock_engine(position=None, has_position=False)
+        ctx = _ctx(engine)
+        assert _position_unrealized_r(ctx, 100.0) == 0.0
+
+    def test_zero_vol_returns_zero(self):
+        pos = _pos_long(entry=100.0, vol=0.0)
+        engine = _mock_engine(position=pos)
+        ctx = _ctx(engine)
+        assert _position_unrealized_r(ctx, 105.0) == 0.0
+
+
+# ── _stack_sl_price ─────────────────────────────────────────────────────────
+
+
+class TestStackSlPrice:
+    def test_long_tightened(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        sl = _stack_sl_price(pos, current_price=102.0, stack_sl_tighten=0.5)
+        expected = 102.0 * (1 - 0.02 * 0.5)
+        assert sl == pytest.approx(expected, rel=1e-4)
+
+    def test_short_tightened(self):
+        pos = _pos_short(entry=100.0, vol=0.02)
+        sl = _stack_sl_price(pos, current_price=98.0, stack_sl_tighten=0.3)
+        expected = 98.0 * (1 + 0.02 * 0.3)
+        assert sl == pytest.approx(expected, rel=1e-4)
+
+    def test_no_tightening(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        sl = _stack_sl_price(pos, current_price=102.0, stack_sl_tighten=1.0)
+        expected = 102.0 * (1 - 0.02)
+        assert sl == pytest.approx(expected, rel=1e-4)
+
+    def test_zero_tighten(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        sl = _stack_sl_price(pos, current_price=102.0, stack_sl_tighten=0.0)
+        assert sl == 102.0  # no distance = at price
+
+
+# ── _get_adx / _is_trending ────────────────────────────────────────────────
+
+
+class TestGetAdx:
+    def test_adx_present(self):
+        df = pd.DataFrame({"adx": [30.0, 28.0, 26.0]})
+        engine = _mock_engine()
+        ctx = _ctx(engine, df=df)
+        assert _get_adx(ctx) == 26.0
+
+    def test_adx_nan_returns_none(self):
+        df = pd.DataFrame({"adx": [float("nan")]})
+        engine = _mock_engine()
+        ctx = _ctx(engine, df=df)
+        assert _get_adx(ctx) is None
+
+    def test_adx_missing_column_returns_none(self):
+        df = pd.DataFrame({"close": [100.0]})
+        engine = _mock_engine()
+        ctx = _ctx(engine, df=df)
+        assert _get_adx(ctx) is None
+
+    def test_empty_df_returns_none(self):
+        df = pd.DataFrame({"adx": []})
+        engine = _mock_engine()
+        ctx = _ctx(engine, df=df)
+        assert _get_adx(ctx) is None
+
+
+class TestIsTrending:
+    def test_trending_above_threshold(self):
+        df = pd.DataFrame({"adx": [30.0]})
+        engine = _mock_engine(config={"stacking": {"adx_threshold": 25}})
+        ctx = _ctx(engine, df=df)
+        assert _is_trending(ctx) is True
+
+    def test_not_trending_below_threshold(self):
+        df = pd.DataFrame({"adx": [20.0]})
+        engine = _mock_engine(config={"stacking": {"adx_threshold": 25}})
+        ctx = _ctx(engine, df=df)
+        assert _is_trending(ctx) is False
+
+    def test_fallback_on_missing_adx(self):
+        df = pd.DataFrame({"close": [100.0]})
+        engine = _mock_engine(config={"stacking": {}})
+        ctx = _ctx(engine, df=df)
+        assert _is_trending(ctx) is True  # fail-open
+
+    def test_default_threshold_25(self):
+        df = pd.DataFrame({"adx": [26.0]})
+        engine = _mock_engine(config={"stacking": {}})
+        ctx = _ctx(engine, df=df)
+        assert _is_trending(ctx) is True
+
+    def test_below_default_threshold(self):
+        df = pd.DataFrame({"adx": [24.0]})
+        engine = _mock_engine(config={"stacking": {}})
+        ctx = _ctx(engine, df=df)
+        assert _is_trending(ctx) is False
+
+
+# ── _last_stack_entry_price ────────────────────────────────────────────────
+
+
+class TestLastStackEntryPrice:
+    def test_no_layers_returns_none(self):
+        pos = _pos_long(layers=[])
+        assert _last_stack_entry_price(pos) is None
+        assert _last_stack_entry_price(pos) is None
+
+    def test_returns_last_layer_entry(self):
+        layers = [
+            StackLayer(entry_price=101.0, size=0.5, timestamp="t1"),
+            StackLayer(entry_price=102.0, size=0.3, timestamp="t2"),
+        ]
+        pos = _pos_long(layers=layers)
+        assert _last_stack_entry_price(pos) == 102.0
+
+    def test_none_position_returns_none(self):
+        assert _last_stack_entry_price(None) is None
+
+
+# ── _projected_risk_for_stack (IV-3) ───────────────────────────────────────
+
+
+class TestProjectedRiskForStack:
+    def test_long_projected_risk_lower_with_tighten(self):
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0)  # sl=98, total_size=1.0
+        engine = _mock_engine(position=pos)
+        engine.current_price = 103.0
+        engine.config = {"stacking": {"stack_sl_tighten": 0.5}}
+        ctx = _ctx(engine)
+        risk = _projected_risk_for_stack(ctx, stack_size=0.5)
+        # existing_effective = stop_loss = 98.0 (one layer, no risk_floor)
+        # stack_sl = 103 * (1 - 0.02*0.5) = 101.97
+        # new_effective = max(98.0, 101.97) = 101.97
+        # total_after = 1.0 + 0.5 = 1.5
+        # projected = 1.5 * max(103 - 101.97, 0) = 1.5 * 1.03 = 1.545
+        assert risk == pytest.approx(1.545, rel=1e-3)
+
+    def test_no_position_returns_zero(self):
+        engine = _mock_engine(position=None, has_position=False)
+        engine.current_price = 103.0
+        ctx = _ctx(engine)
+        assert _projected_risk_for_stack(ctx, stack_size=0.5) == 0.0
+
+    def test_no_current_price_returns_zero(self):
+        pos = _pos_long()
+        engine = _mock_engine(position=pos)
+        engine.current_price = None
+        ctx = _ctx(engine)
+        assert _projected_risk_for_stack(ctx, stack_size=0.5) == 0.0
+
+
+# ── _compute_stack_size ────────────────────────────────────────────────────
+
+
+class TestComputeStackSize:
+    def test_first_layer_full_multiplier(self):
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0, layers=[])
+        engine = _mock_engine(position=pos)
+        engine.config = {
+            "stacking": {
+                "layer_multipliers": [0.8, 0.5, 0.3],
+                "stack_target_vol": 0.15,
+                "stack_vol_clamp": [0.3, 1.2],
+                "size_cap": 1.0,
+                "min_viable_position_pct": 0.0001,
+                "min_stack_size_factor": 0.5,
+                "stack_micro_threshold": 0.0,
+            }
+        }
+        engine.capital_base = 100.0
+        engine.pos_mgr.stack_layer_count.return_value = 0
+        engine._realized_volatility = 0.15
+        size = _compute_stack_size(ctx=_ctx(engine))
+        # base_entry_size=1.0, mult=0.8, vol_adj=1.0 (target/realized=1.0)
+        # base = 1.0 * 0.8 * 1.0 = 0.8
+        # size_cap = min(0.8, 1.0*1.0) = 0.8
+        assert size == 0.8
+
+    def test_second_layer_half_multiplier(self):
+        layers = [StackLayer(entry_price=101.0, size=0.8, timestamp="t1")]
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0, layers=layers)
+        engine = _mock_engine(position=pos)
+        engine.config = {
+            "stacking": {
+                "layer_multipliers": [0.8, 0.5, 0.3],
+                "stack_target_vol": 0.15,
+                "stack_vol_clamp": [0.3, 1.2],
+                "size_cap": 1.0,
+                "min_viable_position_pct": 0.0001,
+                "min_stack_size_factor": 0.5,
+                "stack_micro_threshold": 0.0,
+            }
+        }
+        engine.capital_base = 100.0
+        engine.pos_mgr.stack_layer_count.return_value = 1
+        engine._realized_volatility = 0.15
+        size = _compute_stack_size(ctx=_ctx(engine))
+        # base_entry_size=1.0, mult=0.5, vol_adj=1.0 → 0.5
+        assert size == 0.5
+
+    def test_clamps_to_size_cap(self):
+        layers = [StackLayer(entry_price=101.0, size=0.8, timestamp="t1")]
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0, layers=layers)
+        engine = _mock_engine(position=pos)
+        engine.config = {
+            "stacking": {
+                "layer_multipliers": [0.8, 0.5, 0.3],
+                "stack_target_vol": 0.15,
+                "stack_vol_clamp": [0.3, 1.2],
+                "size_cap": 0.3,
+                "min_viable_position_pct": 0.0001,
+                "min_stack_size_factor": 0.5,
+                "stack_micro_threshold": 0.0,
+            }
+        }
+        engine.capital_base = 100.0
+        engine.pos_mgr.stack_layer_count.return_value = 0
+        engine._realized_volatility = 0.15
+        size = _compute_stack_size(ctx=_ctx(engine))
+        # base_entry_size=1.0, mult=0.8, vol_adj=1.0 → 0.8, cap=0.3*1.0=0.3
+        assert size == 0.3
+
+
+# ── _should_stack — 8-gate approval ─────────────────────────────────────────
+
+
+class TestShouldStack:
+    def _make_context(
+        self, position, config=None, df=None, current_price=105.0, decision=None, side=None, engine_mutate=None
+    ):
+        if config is None:
+            config = {
+                "stacking": {
+                    "enabled": True,
+                    "max_layers": 3,
+                    "min_confidence": 0.60,
+                    "min_stack_r": 0.5,
+                    "stack_spacing_r": 0.5,
+                    "adx_threshold": 25,
+                    "stack_sl_tighten": 0.5,
+                    "size_cap": 1.0,
+                    "layer_multipliers": [0.8, 0.5, 0.3],
+                    "stack_target_vol": 0.15,
+                    "stack_vol_clamp": [0.3, 1.2],
+                    "min_viable_position_pct": 0.0001,
+                    "min_stack_size_factor": 0.5,
+                    "stack_micro_threshold": 0.0,
+                }
+            }
+        if df is None:
+            df = pd.DataFrame({"adx": [30.0]})  # trending
+        if decision is None:
+            decision = _decision(close=current_price, confidence=0.80)
+        if side is None:
+            side = PositionSide.LONG
+        engine = _mock_engine(position=position, config=config, current_price=current_price)
+        engine.capital_base = 100.0
+        n_layers = len(position.layers) if position else 0
+        engine.pos_mgr.stack_layer_count.return_value = max(0, n_layers - 1)  # real code excludes base layer
+        engine.pos_mgr.max_layers_reached.return_value = (
+            n_layers >= config["stacking"]["max_layers"] if position else False
+        )
+        if engine_mutate:
+            engine_mutate(engine)
+        return _ctx(engine=engine, decision=decision, df=df, new_side=side)
+
+    def test_all_gates_pass(self):
+        # IV-3 needs meaningful existing size so tightened SL compensates the added notional
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0)  # sl=98, total_size=1.0
+        ctx = self._make_context(pos, current_price=105.0)
+        assert _should_stack(ctx) is True
+
+    def test_gate_iv4_min_r_fails(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        ctx = self._make_context(pos, current_price=100.3)  # only 0.15R
+        assert _should_stack(ctx) is False
+
+    def test_gate_max_layers_fails(self):
+        layers = [StackLayer(entry_price=p, size=0.5, timestamp=f"t{i}") for i, p in enumerate([101, 102, 103])]
+        pos = _pos_long(entry=100.0, vol=0.02, layers=layers)
+        ctx = self._make_context(pos, current_price=105.0)
+        assert _should_stack(ctx) is False
+
+    def test_gate_confidence_fails(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        ctx = self._make_context(pos, current_price=105.0, decision=_decision(confidence=0.55))
+        assert _should_stack(ctx) is False
+
+    def test_gate_iv8_duplicate_bar_fails(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        pos.last_stack_bar_id = 42  # same as engine._bar_counter
+        ctx = self._make_context(pos, current_price=105.0)
+        assert _should_stack(ctx) is False
+
+    def test_gate_iv5_spacing_fails(self):
+        layers = [StackLayer(entry_price=104.5, size=0.5, timestamp="t1")]
+        pos = _pos_long(entry=100.0, vol=0.02, layers=layers)
+        ctx = self._make_context(pos, current_price=105.0)
+        # last_entry=104.5, current=105.0, gap_r = |105-104.5|/(100*0.02) = 0.25 < 0.5
+        assert _should_stack(ctx) is False
+
+    def test_gate_iv5_spacing_passes_with_gap(self):
+        layers = [StackLayer(entry_price=102.0, size=0.5, timestamp="t1")]
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0, layers=layers)
+        ctx = self._make_context(pos, current_price=105.0)
+        # last_entry=102.0, current=105.0, gap_r = |105-102|/(100*0.02) = 1.5 >= 0.5
+        assert _should_stack(ctx) is True
+
+    def test_gate_iv6_adx_fails(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        df = pd.DataFrame({"adx": [20.0]})
+        ctx = self._make_context(pos, current_price=105.0, df=df)
+        assert _should_stack(ctx) is False
+
+    def test_gate_iv6_adx_passes_when_trending(self):
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0)
+        df = pd.DataFrame({"adx": [26.0]})
+        ctx = self._make_context(pos, current_price=105.0, df=df)
+        assert _should_stack(ctx) is True
+
+    def test_gate_iv2_size_cap_fails(self):
+        """IV-2: stack_size exceeds base_entry_size when size_cap > 1.0 permits it."""
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0)
+        ctx = self._make_context(pos, current_price=105.0)
+        ctx.engine.config["stacking"]["layer_multipliers"] = [1.5, 1.0, 0.5]
+        ctx.engine.config["stacking"]["size_cap"] = 2.0
+        ctx.engine._realized_volatility = 0.15
+        assert _should_stack(ctx) is False
+        # Actually size = 0.8 (layer_mult=0.8 * base_entry=1.0 * vol_adj=1.0) = 0.8
+        # base_size = 0.1, so 0.8 > 0.1 -> IV-2 fails
+
+    def test_no_price_returns_false(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        ctx = self._make_context(pos, current_price=0.0)
+        assert _should_stack(ctx) is False
+
+    def test_none_position_returns_false(self):
+        ctx = self._make_context(None, side=PositionSide.LONG)
+        # Guard: stack_layer_count on None position would raise, so force handle it
+        engine = ctx.engine
+        engine.pos_mgr.stack_layer_count.return_value = 0
+        engine.pos_mgr.max_layers_reached.return_value = False
+        assert _should_stack(ctx) is False
+
+
+# ── _update_position_protection ────────────────────────────────────────────
+
+
+class TestUpdatePositionProtection:
+    def _make_ctx(self, position, config=None, current_price=105.0):
+        if config is None:
+            config = {
+                "stacking": {
+                    "breakeven_threshold_r": 0.5,
+                    "trail_activate_r": 1.0,
+                    "trail_distance_r": 0.5,
+                    "trail_step_r": 0.25,
+                }
+            }
+        engine = _mock_engine(position=position, config=config, current_price=current_price)
+        return _ctx(engine)
+
+    def test_breakeven_activates_at_threshold(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        # Use a config that trails after breakeven activates
+        ctx = self._make_ctx(pos, current_price=101.0)  # 0.5R == breakeven_threshold
+        assert pos.breakeven_set is False
+        _update_position_protection(ctx)
+        assert pos.breakeven_set is True
+        # At 1.0R, trail_activate is also 1.0 — not triggered here since 0.5R < 1.0
+        assert pos.risk_floor == pos.avg_price  # 100.0
+
+    def test_breakeven_not_activated_below_threshold(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        ctx = self._make_ctx(pos, current_price=100.3)  # 0.15R < 0.5
+        _update_position_protection(ctx)
+        assert pos.breakeven_set is False
+
+    def test_breakeven_only_activates_once(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        ctx = self._make_ctx(pos, current_price=103.0)
+        _update_position_protection(ctx)
+        assert pos.breakeven_set is True
+        risk_floor = pos.risk_floor
+        # Second call at same price should not change anything
+        _update_position_protection(ctx)
+        assert pos.risk_floor == risk_floor
+
+    def test_trailing_stop_on_long(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        pos.peak_price = 108.0  # HWM
+        ctx = self._make_ctx(pos, current_price=108.0)  # at peak, 4.0R >= trail_activate=1.0
+        _update_position_protection(ctx)
+        # At peak: new_floor = 108 * (1 - 0.5 * 0.02) = 108 * 0.99 = 106.92
+        expected_floor = 108.0 * (1 - 0.5 * 0.02)
+        assert pos.risk_floor == pytest.approx(expected_floor, rel=1e-4)
+
+    def test_trailing_stop_on_short(self):
+        pos = _pos_short(entry=100.0, vol=0.02)
+        pos.peak_price = 95.0  # LWM for short
+        ctx = self._make_ctx(pos, current_price=95.0)
+        _update_position_protection(ctx)
+        # At LWM: new_floor = 95 * (1 + 0.5 * 0.02) = 95 * 1.01 = 95.95
+        expected_floor = 95.0 * (1 + 0.5 * 0.02)
+        assert pos.risk_floor == pytest.approx(expected_floor, rel=1e-4)
+
+    def test_trailing_does_not_tighten_below_activation(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        pos.peak_price = 102.0
+        ctx = self._make_ctx(pos, current_price=102.0)  # 1.0R == trail_activate, at peak
+        _update_position_protection(ctx)
+        # peak_to_current_r = 0 (at peak), so trail should activate
+        assert pos.risk_floor > 0
+
+    def test_no_position_does_nothing(self):
+        ctx = self._make_ctx(None)
+        _update_position_protection(ctx)  # should not raise
+
+    def test_peak_price_tracking_long(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        ctx = self._make_ctx(pos, current_price=106.0)
+        _update_position_protection(ctx)
+        assert pos.peak_price == 106.0
+        ctx2 = self._make_ctx(pos, current_price=104.0)
+        _update_position_protection(ctx2)
+        assert pos.peak_price == 106.0  # HWM preserved
+
+    def test_peak_price_tracking_short(self):
+        pos = _pos_short(entry=100.0, vol=0.02)
+        ctx = self._make_ctx(pos, current_price=97.0)
+        _update_position_protection(ctx)
+        assert pos.peak_price == 97.0
+        ctx2 = self._make_ctx(pos, current_price=99.0)
+        _update_position_protection(ctx2)
+        assert pos.peak_price == 97.0  # LWM preserved
+
+
+# ── manage_position — stacking path ─────────────────────────────────────────
+
+
+class TestManagePositionStacking:
+    def test_same_side_stacking_enabled_and_approved(self):
+        pos = _pos_long(entry=100.0, vol=0.02, size=1.0)
+        config = {
+            "stacking": {
+                "enabled": True,
+                "dry_run": True,
+                "max_layers": 3,
+                "min_confidence": 0.60,
+                "min_stack_r": 0.5,
+                "stack_spacing_r": 0.5,
+                "adx_threshold": 25,
+                "stack_sl_tighten": 0.5,
+                "size_cap": 1.0,
+                "layer_multipliers": [0.8, 0.5, 0.3],
+                "stack_target_vol": 0.15,
+                "stack_vol_clamp": [0.3, 1.2],
+                "min_viable_position_pct": 0.01,
+                "min_stack_size_factor": 0.5,
+                "stack_micro_threshold": 0.0,
+            }
+        }
+        engine = _mock_engine(position=pos, config=config, current_price=105.0)
+        engine.capital_base = 100.0
+        engine.pos_mgr.stack_layer_count.return_value = 0
+        engine.pos_mgr.max_layers_reached.return_value = False
+        df = pd.DataFrame({"adx": [30.0]})
+        ctx = _ctx(
+            engine,
+            decision=_decision(close=105.0, confidence=0.80),
+            df=df,
+            new_side=PositionSide.LONG,
+            current_side=PositionSide.LONG,
+        )
+        manage_position(ctx)
+        assert ctx.new_side is None
+        engine._open_position.assert_not_called()  # dry_run
+
+    def test_same_side_stacking_enabled_but_rejected(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        config = {
+            "stacking": {
+                "enabled": True,
+                "max_layers": 3,
+                "min_stack_r": 0.5,
+            }
+        }
+        engine = _mock_engine(position=pos, config=config, current_price=100.3)  # only 0.15R
+        engine.pos_mgr.stack_layer_count.return_value = 0
+        engine.pos_mgr.max_layers_reached.return_value = False
+        ctx = _ctx(
+            engine,
+            decision=_decision(close=100.3, confidence=0.80),
+            new_side=PositionSide.LONG,
+            current_side=PositionSide.LONG,
+        )
+        manage_position(ctx)
+        assert ctx.new_side is None
+        assert engine._close_position.called is False
+
+    def test_same_side_suppress_when_disabled(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        config = {"stacking": {"enabled": False}}
+        engine = _mock_engine(position=pos, config=config, current_price=105.0)
+        ctx = _ctx(
+            engine,
+            new_side=PositionSide.LONG,
+            current_side=PositionSide.LONG,
+        )
+        manage_position(ctx)
+        assert ctx.new_side is None
+        assert engine._close_position.called is False
+
+    def test_opposite_side_flip_clears_layers(self):
+        layers = [StackLayer(entry_price=102.0, size=0.5, timestamp="t1")]
+        pos = _pos_long(entry=100.0, vol=0.02, layers=layers)
+        config = {"profit_lock_threshold_pct": 15.0}
+        engine = _mock_engine(position=pos, config=config, current_price=105.0)
+        engine.pos_mgr.stack_layer_count.return_value = 1
+        ctx = _ctx(
+            engine,
+            decision=_decision(signal="SELL", close=105.0),
+            new_side=PositionSide.SHORT,
+            flip_allowed=True,
+            current_side=PositionSide.LONG,
+        )
+        manage_position(ctx)
+        assert ctx.new_side == PositionSide.SHORT
+        engine._close_position.assert_called_once()
+
+    def test_profit_lock_blocks_opposite_flip(self):
+        pos = _pos_long(entry=100.0, vol=0.02)
+        config = {"profit_lock_threshold_pct": 10.0}
+        engine = _mock_engine(position=pos, config=config, current_price=105.0)
+        engine.pos_mgr.position_pnl.return_value = 15.0  # above threshold
+        ctx = _ctx(
+            engine,
+            decision=_decision(signal="SELL", close=105.0),
+            new_side=PositionSide.SHORT,
+            flip_allowed=True,
+            current_side=PositionSide.LONG,
+        )
+        manage_position(ctx)
+        assert ctx.new_side is None
+        engine._close_position.assert_not_called()

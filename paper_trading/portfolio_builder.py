@@ -72,6 +72,8 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
             baseline = cfg.vol_baselines.get(name)
             if baseline is not None:
                 config["vol_baseline"] = baseline
+            if "stacking" not in config:
+                config["stacking"] = dict(defaults.get("stacking", {}))
             sl_mult = spec.get("sl_mult", 1.0)
             tp_mult = spec.get("tp_mult", 2.5)
             max_depth = spec.get("max_depth", 2)

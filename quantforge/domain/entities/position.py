@@ -33,6 +33,7 @@ class StackLayer:
     timestamp: str
     signal_id: str = ""
     pnl_at_time: float = 0.0
+    stop_loss: float = 0.0  # layer-specific SL for risk envelope
 
 
 class OrderType(str, Enum):
@@ -64,6 +65,35 @@ class PositionIntent:
     confidence: float = 0.0
     layers: list[StackLayer] = field(default_factory=list)
     base_entry_size: float = 0.0
+    # Risk envelope fields
+    breakeven_set: bool = False
+    risk_floor: float = 0.0  # position-level risk floor (most protective SL)
+    peak_price: float = 0.0   # highest (long) / lowest (short) price reached
+    last_stack_bar_id: int = 0  # bar index of last stack (IV-8)
+
+    @property
+    def effective_sl(self) -> float:
+        """Monotonic risk envelope: best (most protective) SL across all layers.
+
+        For longs: highest SL (closest to current price).
+        For shorts: lowest SL (closest to current price).
+        Never moves backward.
+        """
+        best = self.stop_loss
+        if self.risk_floor > 0:
+            best = max(best, self.risk_floor) if self.side == PositionSide.LONG else min(best, self.risk_floor)
+        for layer in self.layers:
+            if layer.stop_loss > 0:
+                best = max(best, layer.stop_loss) if self.side == PositionSide.LONG else min(best, layer.stop_loss)
+        return best
+
+    def notional_risk(self, current_price: float) -> float:
+        """Notional at risk from current_price to effective_sl."""
+        effective = self.effective_sl
+        if self.side == PositionSide.LONG:
+            return self.total_size * max(current_price - effective, 0)
+        else:
+            return self.total_size * max(effective - current_price, 0)
 
     @classmethod
     def from_price_and_vol(

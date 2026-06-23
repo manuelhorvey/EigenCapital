@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 from paper_trading.entry.decision import PositionSide, TradeDecision
 from paper_trading.execution.decision_pipeline import DecisionContext, manage_position
+from quantforge.domain.entities.position import PositionIntent, StackLayer
 
 
 def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True):
@@ -11,8 +12,24 @@ def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True):
     engine.config = config or {}
     engine.pos_mgr.has_position.return_value = has_position
     engine.pos_mgr.position_pnl.return_value = pnl
+    engine.pos_mgr.stack_layer_count.return_value = 0
     engine._close_position = MagicMock()
     engine._can_enter.return_value = (True, "ok")
+    # Provide a real PositionIntent so _update_position_protection doesn't fail
+    engine.pos_mgr.position = (
+        PositionIntent(
+            side=PositionSide.LONG,
+            entry_price=current_price or 100.0,
+            entry_date="2026-06-22",
+            stop_loss=(current_price or 100.0) * 0.98,
+            take_profit=(current_price or 100.0) * 1.05,
+            vol=0.02,
+            layers=[StackLayer(entry_price=current_price or 100.0, size=0.02, timestamp="t0")],
+            base_entry_size=0.02,
+        )
+        if has_position
+        else None
+    )
     return engine
 
 
@@ -85,7 +102,7 @@ class TestProfitLockGate:
             current_side=PositionSide.LONG,
         )
         manage_position(ctx)
-        assert ctx.new_side == PositionSide.LONG
+        assert ctx.new_side is None  # same-side suppressed
         engine._close_position.assert_not_called()
 
     def test_noop_when_new_side_is_none(self):

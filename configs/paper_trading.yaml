@@ -26,6 +26,11 @@ calibration:
   n_bins: 10
   min_samples_per_bin: 5
   model_dir: paper_trading/models/calibration
+kelly:
+  enabled: false
+  fraction: 0.25
+  max_cap: 1.0
+  min_edge: 0.0
 portfolio_drawdown_limit: -0.15
 defaults:
   churn_ratio_threshold: 0.35

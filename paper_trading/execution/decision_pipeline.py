@@ -195,6 +195,58 @@ def evaluate_conviction_gate(ctx: DecisionContext) -> None:
     ctx.flip_allowed = flip_allowed
 
 
+# ── Kelly sizing stage ──────────────────────────────────────────────────
+
+
+def apply_kelly_sizing(ctx: DecisionContext) -> None:
+    """Scale position size by Kelly criterion using calibrated probabilities.
+
+    Reads edge from calibrated probability and TP/SL config, stores the
+    Kelly multiplier on the engine for the sizing chain to consume.
+
+    Stage position: after signal/gates decide direction, before entry sizing.
+    """
+    if ctx.new_side is None:
+        return
+
+    engine = ctx.engine
+    d = ctx.decision
+
+    kelly_cfg = engine.config.get("kelly", {})
+    if not kelly_cfg.get("enabled", False):
+        return
+
+    fraction = float(kelly_cfg.get("fraction", 0.25))
+    max_cap = float(kelly_cfg.get("max_cap", 1.0))
+    min_edge = float(kelly_cfg.get("min_edge", 0.0))
+
+    prob_long = getattr(d, "prob_long", 0.5)
+    tp_mult = float(engine.config.get("tp_mult", 2.0))
+    sl_mult = float(engine.config.get("sl_mult", 2.0))
+
+    from shared.kelly import compute_kelly_multiplier, edge_description
+
+    multiplier = compute_kelly_multiplier(
+        prob_long=prob_long,
+        tp_mult=tp_mult,
+        sl_mult=sl_mult,
+        fraction=fraction,
+        max_cap=max_cap,
+        min_edge=min_edge,
+    )
+
+    engine._kelly_multiplier = multiplier
+
+    if multiplier <= 0:
+        ctx.new_side = None
+        desc = edge_description(prob_long, tp_mult, sl_mult)
+        logger.info("%s: Kelly blocks — %s", engine.name, desc)
+        return
+
+    desc = edge_description(prob_long, tp_mult, sl_mult)
+    logger.debug("%s: Kelly multiplier=%.4f — %s", engine.name, multiplier, desc)
+
+
 def manage_position(ctx: DecisionContext) -> None:
     engine = ctx.engine
     d = ctx.decision
@@ -946,6 +998,7 @@ DEFAULT_STAGES: list[StageFn] = [
     apply_meta_label_advisory,
     update_regime_bar_counter,
     evaluate_conviction_gate,
+    apply_kelly_sizing,
     manage_position,
     build_entry_artifacts,
     route_execution_policy,

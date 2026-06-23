@@ -112,6 +112,7 @@ class AssetEngine:
         self.prob_history = []
         self._trained = False
         self._cycle_counter: int = 0
+        self._kelly_multiplier = 1.0
         self._research_mode = engine_cfg.research_mode
         self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
         self.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
@@ -356,8 +357,9 @@ class AssetEngine:
 
     def _composite_size_scalar(self, extra_scalar: float = 1.0) -> float:
         state = self.validity_sm.current_state.value if self.validity_sm else "YELLOW"
+        kelly = getattr(self, "_kelly_multiplier", 1.0)
         return self._entry.composite_size_scalar(
-            extra_scalar,
+            extra_scalar * kelly,
             validity_state=state,
             sl_mult=self.sl_mult,
             tp_mult=self.tp_mult,

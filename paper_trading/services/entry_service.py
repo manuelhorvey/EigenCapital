@@ -8,6 +8,7 @@ from paper_trading.entry.decision import EntryAction, PositionIntent, PositionSi
 from paper_trading.entry.deferred_entry import DeferredEntryStatus
 from paper_trading.governance.multipliers import compute_effective_multipliers
 from quantforge.domain.entities.position import OrderType, StackLayer
+from shared.volatility import estimate_ewm_vol
 
 logger = logging.getLogger("quantforge.entry_service")
 
@@ -151,11 +152,23 @@ class EntryService:
             if stack_cmd is None:
                 logger.error("%s: STACK order missing StackCommand", asset.name)
                 return
-            intent_sl = asset.position.get("sl") if asset.position else None
-            if intent_sl is None:
+
+            # Compute stack's tighter SL via risk envelope model
+            stack_config = asset.config.get("stacking", {})
+            stack_sl_tighten = stack_config.get("stack_sl_tighten", 0.5)
+            existing_sl = asset.position.get("sl") if asset.position else None
+            if existing_sl is not None and vol > 0 and entry_price > 0:
+                base_sl_distance_pct = abs(entry_price - existing_sl) / entry_price
+                stack_sl_distance_pct = base_sl_distance_pct * stack_sl_tighten
+                if side == "long":
+                    intent_sl = entry_price * (1 - stack_sl_distance_pct)
+                else:
+                    intent_sl = entry_price * (1 + stack_sl_distance_pct)
+            else:
                 intent_sl = self._compute_stop_loss(asset, data, side, entry_price, 1.0, 1.0, 0.01)
             if intent_sl is None:
                 return
+
             final_tp = asset.position.get("tp") if asset.position else None
             fill_price, entry_slippage_bps, mt5_ticket = self._submit_to_broker(
                 asset,
@@ -174,15 +187,17 @@ class EntryService:
                 timestamp=entry_date,
                 signal_id=stack_cmd.reason,
                 pnl_at_time=0.0,
+                stop_loss=float(intent_sl),
             )
             self._record_stack_layer(asset, layer, mt5_ticket)
             self._record_attribution(asset, side, entry_date, entry_price, fill_price, entry_slippage_bps, None, None)
             logger.info(
-                "%s: STACK layer=%d size=%.4f price=%.5f total_size=%.4f avg_price=%.5f",
+                "%s: STACK layer=%d size=%.4f price=%.5f sl=%.5f total_size=%.4f avg_price=%.5f",
                 asset.name,
                 stack_cmd.expected_layer_idx,
                 stack_cmd.size,
                 fill_price,
+                intent_sl,
                 asset.position.get("total_size", 0) if asset.position else 0,
                 asset.position.get("avg_price", 0) if asset.position else 0,
             )
@@ -229,7 +244,7 @@ class EntryService:
     # ── Private helpers for open_position ─────────────────────────────────────
 
     def _validate_price_vol(self, asset, data, entry_price):
-        vol = self.tb_vol(data["close"])
+        vol = estimate_ewm_vol(data["close"], span=100)
         logger.debug(
             "%s tb_vol: vol=%.6f entry=%.4f close_last=%.4f close_min=%.4f close_max=%.4f close_len=%d",
             asset.name,
@@ -734,15 +749,16 @@ class EntryService:
             logger.error("%s: cannot stack — no existing position", asset.name)
             return
         layers = asset.position.setdefault("layers", [])
-        layers.append(
-            {
-                "entry_price": layer.entry_price,
-                "size": layer.size,
-                "timestamp": layer.timestamp,
-                "signal_id": layer.signal_id,
-                "pnl_at_time": layer.pnl_at_time,
-            }
-        )
+        layer_dict = {
+            "entry_price": layer.entry_price,
+            "size": layer.size,
+            "timestamp": layer.timestamp,
+            "signal_id": layer.signal_id,
+            "pnl_at_time": layer.pnl_at_time,
+        }
+        if layer.stop_loss > 0:
+            layer_dict["stop_loss"] = layer.stop_loss
+        layers.append(layer_dict)
         total_sz = sum(_l["size"] for _l in layers)
         avg = sum(_l["entry_price"] * _l["size"] for _l in layers) / max(total_sz, 1e-9)
         asset.position["avg_price"] = avg
@@ -751,6 +767,14 @@ class EntryService:
         asset.position["vol"] = total_sz
         if mt5_ticket is not None:
             asset.position["mt5_ticket"] = mt5_ticket
+        # Update risk floor: the tightest SL across all layers
+        if layer.stop_loss > 0:
+            pos_side = asset.position.get("side", "long")
+            if pos_side == "long":
+                asset.position["risk_floor"] = max(asset.position.get("risk_floor", 0), layer.stop_loss)
+            else:
+                floor = asset.position.get("risk_floor", 0)
+                asset.position["risk_floor"] = min(floor, layer.stop_loss) if floor > 0 else layer.stop_loss
         asset.pos_mgr.position.base_entry_size = asset.position.get("base_entry_size", total_sz)
         asset.pos_mgr.enforce_invariant(asset.name)
 

@@ -99,7 +99,7 @@ class DynamicSLTPEngine:
         trailing_activation_mult: float = 1.5,
         trailing_distance_mult: float = 2.0,
         post_adjust_interval_bars: int = 3,
-        max_sl_widen_pct: float = 0.0,
+        max_sl_widen_pct: float = 0.10,
         use_gap_protection: bool = True,
         calibration_scale: float = 1.0,
         confidence_sl_adjust: float = 0.0,
@@ -121,10 +121,12 @@ class DynamicSLTPEngine:
             period=atr_period,
         )
         self._best_price_seen: float | None = None
+        self._last_vol_tighten_bars: int = -999
 
     def reset_best_price(self, entry_price: float) -> None:
         """Reset the best-price tracker at entry (start of a new position)."""
         self._best_price_seen = entry_price
+        self._last_vol_tighten_bars = -999
 
     # ── Public API ────────────────────────────────────────────────
 
@@ -270,13 +272,21 @@ class DynamicSLTPEngine:
         if vol is not None and current_vol > 0:
             vol_ratio = current_vol / vol
             if vol_ratio > 1.3:
-                # Vol spike — tighten SL to protect
-                new_sl = self._propose_tighter_sl(side, entry_price, current_sl, 1.0 / vol_ratio)
-                if new_sl is not None:
-                    return PostEntryAdjustment(
-                        new_sl=new_sl,
-                        reason=f"vol_spike_{vol_ratio:.2f}x_tighten_sl",
+                cooldown = self.post_adjust_interval_bars * 3
+                if bars_since_entry - self._last_vol_tighten_bars < cooldown:
+                    logger.debug(
+                        "vol_spike cooldown active (%d < %d)",
+                        bars_since_entry - self._last_vol_tighten_bars,
+                        cooldown,
                     )
+                else:
+                    new_sl = self._propose_tighter_sl(side, entry_price, current_sl, 1.0 / vol_ratio)
+                    if new_sl is not None:
+                        self._last_vol_tighten_bars = bars_since_entry
+                        return PostEntryAdjustment(
+                            new_sl=new_sl,
+                            reason=f"vol_spike_{vol_ratio:.2f}x_tighten_sl",
+                        )
             # Vol collapse (<0.7x): no action — trade is safer
 
         price = float(df["close"].iloc[-1])

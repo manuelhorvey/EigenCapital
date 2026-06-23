@@ -46,6 +46,16 @@ defaults:
     min_stack_size_factor: 0.5
     stack_micro_threshold: 0.0
     cooldown_minutes: 0
+    min_stack_r: 0.5
+    stack_spacing_r: 0.5
+    stack_sl_tighten: 0.5
+    breakeven_threshold_r: 0.5
+    trail_activate_r: 1.0
+    trail_distance_r: 1.0
+    trail_step_r: 0.25
+    adx_threshold: 25
+    size_cap: 1.0
+    stack_max_risk_growth: 1.0
   portfolio_max_leverage: 2.0
   portfolio_leverage_tolerance: 0.001
   net_short_concentration_threshold: 0.75
@@ -128,12 +138,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
         min_rr_ratio: 2.0
   USDCHF:
@@ -157,12 +167,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
         min_rr_ratio: 1.5
   
@@ -175,24 +185,24 @@ assets:
     max_depth: 5
     regime_geometry:
       GREEN:
-        sl_mult: 0.59
-        tp_mult: 0.74
+        sl_mult: 0.9
+        tp_mult: 0.9
       YELLOW:
-        sl_mult: 0.59
-        tp_mult: 0.62
+        sl_mult: 0.9
+        tp_mult: 0.9
       RED:
-        sl_mult: 0.59
-        tp_mult: 0.74
+        sl_mult: 0.8
+        tp_mult: 0.8
     config:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
         min_rr_ratio: 1.5
   ES:
@@ -215,12 +225,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 0.5
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 0.5
         min_rr_ratio: 1.5
   NQ:
@@ -271,12 +281,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.5
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.5
         min_rr_ratio: 1.5
   # GBPNZD removed 2026-06-20 — tp/sl ratio 0.33 required 75% breakeven WR,
@@ -300,12 +310,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 0.8
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 0.8
         min_rr_ratio: 1.5
   ^DJI:
@@ -329,12 +339,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 0.5
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.3
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 0.5
         min_rr_ratio: 1.5
   
@@ -359,12 +369,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 0.8
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 0.8
         min_rr_ratio: 1.5
   GBPAUD:
@@ -387,12 +397,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.33
+        trailing_activation_mult: 1.5
         trailing_distance_mult: 1.0
         min_rr_ratio: 1.5
   NZDCHF:
@@ -440,6 +450,9 @@ assets:
         sl_mult: 1.2
         tp_mult: 0.8
     config:
+      stacking:
+        enabled: true
+        dry_run: true
       shadow_sltp:
         enabled: true
         method: trailing
@@ -526,15 +539,18 @@ assets:
         sl_mult: 1.2
         tp_mult: 0.8
     config:
+      stacking:
+        enabled: true
+        dry_run: true
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.0
         min_rr_ratio: 1.5
   EURNZD:
@@ -557,12 +573,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.5
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.5
         min_rr_ratio: 1.5
   GBPCHF:
@@ -614,12 +630,12 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.0
         min_rr_ratio: 1.5
   EURAUD:
@@ -645,11 +661,11 @@ assets:
       shadow_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.0
       dynamic_sltp:
         enabled: true
         method: trailing
-        trailing_activation_mult: 0.5
+        trailing_activation_mult: 1.0
         trailing_distance_mult: 1.0
         min_rr_ratio: 1.5

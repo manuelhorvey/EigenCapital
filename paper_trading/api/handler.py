@@ -109,7 +109,7 @@ class Handler:
                 token = _load_auth_token()
                 if token:
                     tag = f'<meta name="api-token" content="{token}">\n    '
-                    data = data.replace(b"<meta name=\"color-scheme\"", tag.encode() + b"<meta name=\"color-scheme\"")
+                    data = data.replace(b'<meta name="color-scheme"', tag.encode() + b'<meta name="color-scheme"')
                 ext = os.path.splitext(idx_path)[1]
                 ct = MIME_TYPES.get(ext, "text/html; charset=utf-8")
                 self.send_response(200)

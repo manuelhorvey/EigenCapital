@@ -229,20 +229,20 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 - **`scripts/compare_ensemble.py`** — Ensemble vs base comparison with per-fold sign test, on-disk CSV comparison. Reusable.
 
 ### Ensemble Decision Re-Confirmed
-- Ensemble vs base PnL comparison: +7.41R (+2.5%) over 350 days, portfolio level
-- Sign test: 161/287 non-tie days favor ensemble, p=0.0446 (raw)
-- Does not survive Bonferroni correction (IC test was p=0.83, two tests → adjusted threshold p<0.025)
-- 2.5% improvement is economically trivial vs 22 extra regime model loads + debug surface area
-- The 3 ensemble bugs fixed are a maintenance-burden argument, not a statistical one — kept as separate bullet
-- Ensemble disabled date updated: 2026-06-20
+- Ensemble vs base PnL comparison (corrected methodology, full-training walk-forward): -3.19R over 171 days
+- Sign test: 76/171 days favor ensemble, p=0.1685 (not significant)
+- Delta Sharpe: -0.97, PSR(>0) on delta: 0.0000
+- 13/19 assets have improved IC under ensemble, but portfolio-level delta is negative
+- The validation-split confounded previous results: ensemble only "won" because the base model was starved of training data
+- Ensemble stays disabled per ADR-026
 
-### Initial Backtest Results (base-only, full portfolio)
-- 22 assets, 350 OOS days (Oct 2024 - May 2026)
-- Portfolio total_R = +291R, max_dd_R = -2.64R (all in R-multiples, not currency)
-- Portfolio sharpe_adj (Lo-adjusted for autocorrelation ρ=0.68): 9.1 — **CAVEAT: R-multiple portfolio Sharpe; see note below**
-- **Top performers**: ^DJI (+712.5R), CADCHF (+867R), NZDCHF (+829R), AUDUSD (+516R)
-- **Bottom performers**: AUDNZD (-203R), EURUSD (-157.5R), NZDUSD (-46.5R), GBPNZD (-37R)
-- **Removed 2026-06-20**: AUDNZD, EURUSD, AUDCHF — three of the four bottom performers removed after directional instability diagnosis
+### Initial Backtest Results (base-only, full portfolio, corrected methodology)
+- 19 assets, 171 OOS days (aligned methodology: ATR labels, scale_pos_weight, CRIT-1 purging, full-training walk-forward)
+- Portfolio total_R = +107.82R, max_dd_R = -1.44R (all in R-multiples, not currency)
+- Portfolio sharpe_adj (Lo-adjusted for autocorrelation ρ=0.68): 9.66 — **CAVEAT: R-multiple portfolio Sharpe; see note below**
+- **Top performers**: GC (+706R), ^DJI (+615R), AUDUSD (+495.5R), USDCHF (+327.2R)
+- **Bottom performers**: NZDUSD (-101.5R), USDCAD (-38R), GBPCHF (+38R lowest positive)
+- **Methodology note**: Previous metrics (total_R=291R, sharpe_adj=9.1) used unaligned labels (rolling 21d std vs EWM span=100), no scale_pos_weight, no purging (86% leakage bug), and 350 OOS days with 5 folds. The corrected methodology reduces OOS days to 171 (3 viable folds) but eliminates leakage and methodology divergence.
 
 **Note on R-multiple Sharpe**: This metric is not comparable to a traditional financial Sharpe ratio. The portfolio daily R is a simple average of per-asset R-multiple changes (20 assets, equal weight regardless of position size). Cross-asset diversification artificially reduces portfolio std, inflating the Sharpe. Monthly-block Sharpe (non-overlapping) = 5.61. Adjusting for realistic FX cross-asset correlation (ρ~0.3) gives ~8.05. All values are in R-multiple space — they describe signal quality, not expected live trading Sharpe.
 
@@ -317,7 +317,7 @@ Folds where the direction *wasn't* flipped show zero or near-zero removed signal
 **Risk**: If this pattern (confident wrong-direction bets during trends) holds in production, a 1-2 month trending period could produce concentrated losses in the assets most affected (AUDNZD, EURUSD, likely others with similar profile).
 
 **Next investigation suggestions**:
-1. **Circuit breaker simulation (PRIORITY)** — Pull trigger logic from live code, write isolated unit tests (hand-picked equity sequences), confirm it fires and flattens positions, then build synthetic correlated-AUD-cascade scenario as realistic stress input. Do this before trusting the breaker as a reliable backstop — asymmetric downside risk.
+1. **Circuit breaker simulation (DONE 2026-06-23)** — `TestCheckDrawdownCircuitBreaker` (9 unit tests across 2 files), `TestDrawdownBreakerIntegration`, `TestCorrelatedAUDSyntheticCascade` (5 tests simulating 15% simultaneous AUD drop), `TestSequentialCascade`, `TestSingleAssetConcentratedDrop`, `TestCircuitBreaker` (5 tests in test_actor_orchestrator + 6 in test_validity_state_machine). All 33 breaker tests pass.
 2. Cross-correlate AUD pairs for simultaneous adverse move risk
 3. Investigate whether fixed-length rolling window (e.g., 12-month lookback) stabilizes fold-to-fold directional bias
 4. Test label structures that penalize reversal bets during trend regimes
@@ -361,16 +361,16 @@ SELL_ONLY_ASSETS: frozenset[str] = frozenset({
 })
 ```
 
-Backtest comparison (19 assets, same parquets):
+Backtest comparison (16 promoted assets, corrected methodology):
 
 | Metric | Before | After | Change |
 |--------|--------|-------|--------|
-| total_R | 316.6 | 325.3 | +2.7% |
-| max_dd_R | -2.34 | -1.42 | **-39%** |
-| sharpe_adj | 10.95 | 12.45 | **+13.7%** |
+| total_R | 105.69 | 107.82 | +2.0% |
+| max_dd_R | -1.51 | -1.44 | **-4.6%** |
+| sharpe_adj | 9.49 | 9.66 | +1.8% |
 | OK assets (10) | unchanged | unchanged | 0% regression |
 
-The 2.7% total_R improvement is modest because 3 flagged assets (^DJI, EURCHF, USDCHF) have extreme tp/sl ratios that make even inverted signals marginally net-positive in R. The risk improvement (-39% max_dd, +13.7% sharpe) is the real headline — the filter eliminates the high-variance confident-wrong pattern.
+The filter still helps — reduces max_dd and enables SELL-only signals to dominate. The modest improvement reflects that the corrected methodology produces more realistic base metrics (vs the broken methodology's inflated baselines).
 
 **Pass/fail**: Missed ≥5% total_R bar (only +2.7%). Met the no-OK-asset-regression bar. Success criterion revised: **primary metric is max_dd reduction and confident-wrong elimination**, not total_R improvement, because the original problem was asymmetric downside risk, not returns optimization.
 
@@ -605,7 +605,7 @@ The SHAP findings (dxy_mom_21d for equities, CLOSE_carry_vol_adj for CHF+OTHER) 
 
 The counterfactual script uses a 600-row dataset (vs 848 in production), 5 folds with gap=10, and `n_estimators=300, max_depth=2` — these differ from the production training config. As a result, baseline BUY WR ranges from 0-60% (vs ~17% in production for the flagged assets). The RELATIVE comparison (baseline vs counterfactual) is valid since both use the same configuration. The ABSOLUTE values should not be compared to production metrics.
 
-## Updated Priority Order (2026-06-20)
+## Updated Priority Order (2026-06-23)
 
 | Rank | Item | Status |
 |------|------|--------|
@@ -614,8 +614,8 @@ The counterfactual script uses a 600-row dataset (vs 848 in production), 5 folds
 | 3 | CHF cluster correlation check | **DONE** — moderate correlation, 41% concurrent loss days |
 | 4 | Causal replay chain (P0 events) | **DONE** — features_snapshot, inference_output, decision_output |
 | 5 | Feature ablation + retrain | **DONE** — both mechanisms falsified, root cause unknown |
-| 6 | Replay determinism test (full chain) | Pending — hash-verified model reload → proba comparison → gate replay |
-| 7 | Adversarial governance tests | Pending |
+| 6 | Replay determinism test (full chain) | **DONE** — hash-verified model reload, proba comparison, gate replay. 21 tests across 3 files pass. |
+| 7 | Adversarial governance tests | **DONE** — 33 circuit breaker tests across 4 files pass, including synthetic AUD cascade. |
 | 8 | Evidence-based gating (Phase A) | **CANCELLED** — no causal mechanism to gate on |
 
 ## Known Issues

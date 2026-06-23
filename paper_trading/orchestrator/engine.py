@@ -167,6 +167,7 @@ class EngineOrchestrator:
         # Exposure multiplier: computed from current drawdown BEFORE entries
         # so Phase 2 sizing uses the correct multiplier (not one cycle late).
         from paper_trading.governance.drawdown_controls import compute_exposure_multiplier as _compute_exp_mult
+
         exp_mult, _ = _compute_exp_mult(current_dd)
 
         for actor in self._actors.values():

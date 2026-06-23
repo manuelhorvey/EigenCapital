@@ -110,7 +110,7 @@ class ExecutionBridge:
         if self._is_real_broker:
             slip_bps = 2.0
             fill = mid_price * (1 + slip_bps / 10000) if side == "buy" else mid_price * (1 - slip_bps / 10000)
-            logger.debug("%s %s fill: mid=%.4f fill=%.4f slip=%.1fbps (real broker)", asset, side, mid_price, fill, slip_bps)
+            logger.debug("%s %s fill: mid=%.4f fill=%.4f slip=%.1fbps (real)", asset, side, mid_price, fill, slip_bps)
             return fill, slip_bps, 0.0
 
         self.broker.set_price(asset, mid_price)

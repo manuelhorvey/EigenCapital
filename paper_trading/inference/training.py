@@ -203,7 +203,8 @@ class AssetTrainingPipeline:
                 asset._meta_label_model.train(ev_data, oos_pred, asset._alpha_feature_cols, asset.name)
                 logger.info(
                     "%s: meta model trained on %d OOS samples",
-                    asset.name, len(ev_data),
+                    asset.name,
+                    len(ev_data),
                 )
             except Exception as e:
                 logger.warning("%s: meta-label training failed: %s", asset.name, e)

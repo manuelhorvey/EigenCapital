@@ -118,9 +118,10 @@ def _compute_shadow_agreement(drift_scores: dict, intelligence: dict) -> float:
     return 1.0 - effective_drift
 
 
-def compute(asset: str) -> dict:
+def compute(asset: str, assets: dict | None = None) -> dict:
     try:
-        assets = _load_state_assets()
+        if assets is None:
+            assets = _load_state_assets()
         asset_data = assets.get(asset, {})
         validity_state = asset_data.get("validity_state", "YELLOW")
 
@@ -189,11 +190,11 @@ def get_latest(asset: str | None = None):
 
 
 def compute_all() -> dict:
-    assets = _load_state_assets()
+    all_assets = _load_state_assets()
     results = {}
-    for asset_name in assets:
+    for asset_name in all_assets:
         try:
-            results[asset_name] = compute(asset_name)
+            results[asset_name] = compute(asset_name, assets=all_assets)
         except Exception:
             results[asset_name] = _fallback(asset_name)
 

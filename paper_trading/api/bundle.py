@@ -20,7 +20,7 @@ logger = logging.getLogger("quantforge.bundle")
 
 BUNDLE_VERSION = "1.0.0"
 BUNDLE_CACHE_TTL = 5.0
-LIVE_FETCH_TIMEOUT = 2.0
+LIVE_FETCH_TIMEOUT = 5.0  # compute_health_all iterates 19 assets with per-file I/O; 2s was too tight
 _LIVE_CACHE_TTL = 5.0
 _MAX_LIVE_AGE_SECONDS = 10.0  # beyond this, live source is stale regardless of cache
 

@@ -158,6 +158,10 @@ export const rawTokens = {
   'font-mono': "'JetBrains Mono', ui-monospace, monospace",
 
   // ── Typography: Font sizes & line heights ──────────
+  'font-size-hero': '48px',
+  'line-height-hero': '1.1',
+  'font-size-display': '36px',
+  'line-height-display': '1.15',
   'font-size-2xs': '10px',
   'line-height-2xs': '1.4',
   'font-size-xs': '12px',
@@ -174,6 +178,18 @@ export const rawTokens = {
   'line-height-2xl': '1.3333',
   'font-size-3xl': '30px',
   'line-height-3xl': '1.2',
+  'font-size-4xl': '40px',
+  'line-height-4xl': '1.15',
+
+  // ── Typography: Letter spacing ─────────────────────
+  'tracking-tight': '-0.025em',
+  'tracking-normal': '0em',
+  'tracking-wide': '0.04em',
+  'tracking-wider': '0.06em',
+  'tracking-widest': '0.1em',
+  'tracking-mono': '-0.02em',
+  'tracking-display': '-0.03em',
+  'tracking-hero': '-0.04em',
 
   // ── Border radius ─────────────────────────────────
   'radius-DEFAULT': '6px',
@@ -435,6 +451,8 @@ export const typography = {
     mono: [_['font-mono'], 'ui-monospace', 'monospace'],
   },
   fontSize: {
+    hero: [rawTokens['font-size-hero'], { lineHeight: rawTokens['line-height-hero'], letterSpacing: rawTokens['tracking-hero'] }],
+    display: [rawTokens['font-size-display'], { lineHeight: rawTokens['line-height-display'], letterSpacing: rawTokens['tracking-display'] }],
     '2xs': [rawTokens['font-size-2xs'], { lineHeight: rawTokens['line-height-2xs'] }],
     xs: [rawTokens['font-size-xs'], { lineHeight: rawTokens['line-height-xs'] }],
     sm: [rawTokens['font-size-sm'], { lineHeight: rawTokens['line-height-sm'] }],
@@ -443,8 +461,23 @@ export const typography = {
     xl: [rawTokens['font-size-xl'], { lineHeight: rawTokens['line-height-xl'] }],
     '2xl': [rawTokens['font-size-2xl'], { lineHeight: rawTokens['line-height-2xl'] }],
     '3xl': [rawTokens['font-size-3xl'], { lineHeight: rawTokens['line-height-3xl'] }],
+    '4xl': [rawTokens['font-size-4xl'], { lineHeight: rawTokens['line-height-4xl'] }],
   },
-  fontWeight: tailwindOnly.fontWeight,
+  fontWeight: {
+    ...tailwindOnly.fontWeight,
+    extrabold: 800,
+    black: 900,
+  },
+  letterSpacing: {
+    tight: rawTokens['tracking-tight'],
+    normal: rawTokens['tracking-normal'],
+    wide: rawTokens['tracking-wide'],
+    wider: rawTokens['tracking-wider'],
+    widest: rawTokens['tracking-widest'],
+    mono: rawTokens['tracking-mono'],
+    display: rawTokens['tracking-display'],
+    hero: rawTokens['tracking-hero'],
+  },
 } as const
 
 export const elevation = {

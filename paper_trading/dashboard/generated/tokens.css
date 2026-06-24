@@ -114,6 +114,10 @@
   --spacing-16: 64px;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-size-hero: 48px;
+  --line-height-hero: 1.1;
+  --font-size-display: 36px;
+  --line-height-display: 1.15;
   --font-size-2xs: 10px;
   --line-height-2xs: 1.4;
   --font-size-xs: 12px;
@@ -130,6 +134,16 @@
   --line-height-2xl: 1.3333;
   --font-size-3xl: 30px;
   --line-height-3xl: 1.2;
+  --font-size-4xl: 40px;
+  --line-height-4xl: 1.15;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.06em;
+  --tracking-widest: 0.1em;
+  --tracking-mono: -0.02em;
+  --tracking-display: -0.03em;
+  --tracking-hero: -0.04em;
   --radius-DEFAULT: 6px;
   --radius-lg: 8px;
   --radius-xl: 10px;

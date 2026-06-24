@@ -95,6 +95,18 @@ export default {
     "mono": "var(--font-mono)"
   },
   "fontSize": {
+    "hero": [
+      "var(--font-size-hero)",
+      {
+        "lineHeight": "var(--line-height-hero)"
+      }
+    ],
+    "display": [
+      "var(--font-size-display)",
+      {
+        "lineHeight": "var(--line-height-display)"
+      }
+    ],
     "2xs": [
       "var(--font-size-2xs)",
       {
@@ -142,9 +154,17 @@ export default {
       {
         "lineHeight": "var(--line-height-3xl)"
       }
+    ],
+    "4xl": [
+      "var(--font-size-4xl)",
+      {
+        "lineHeight": "var(--line-height-4xl)"
+      }
     ]
   },
   "lineHeight": {
+    "hero": "var(--line-height-hero)",
+    "display": "var(--line-height-display)",
     "2xs": "var(--line-height-2xs)",
     "xs": "var(--line-height-xs)",
     "sm": "var(--line-height-sm)",
@@ -152,7 +172,18 @@ export default {
     "lg": "var(--line-height-lg)",
     "xl": "var(--line-height-xl)",
     "2xl": "var(--line-height-2xl)",
-    "3xl": "var(--line-height-3xl)"
+    "3xl": "var(--line-height-3xl)",
+    "4xl": "var(--line-height-4xl)"
+  },
+  "letterSpacing": {
+    "tight": "var(--tracking-tight)",
+    "normal": "var(--tracking-normal)",
+    "wide": "var(--tracking-wide)",
+    "wider": "var(--tracking-wider)",
+    "widest": "var(--tracking-widest)",
+    "mono": "var(--tracking-mono)",
+    "display": "var(--tracking-display)",
+    "hero": "var(--tracking-hero)"
   },
   "boxShadow": {
     "panel": "var(--shadow-panel)",

@@ -106,7 +106,7 @@ function Header({ onMenuClick }: HeaderProps) {
           <button
             type="button"
             onClick={onMenuClick}
-            className="p-1.5 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors lg:hidden active:scale-95 focus-ring"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors lg:hidden active:scale-95 focus-ring"
             title="Toggle navigation"
             aria-label="Toggle navigation"
           >
@@ -130,7 +130,7 @@ function Header({ onMenuClick }: HeaderProps) {
           <button
             type="button"
             onClick={openSystemHealth}
-            className="p-1.5 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring hidden sm:inline-flex"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring hidden sm:inline-flex"
             title="System Health"
             aria-label="Open system health monitor"
           >
@@ -143,7 +143,7 @@ function Header({ onMenuClick }: HeaderProps) {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-1.5 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors disabled:opacity-40 active:scale-95 focus-ring"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors disabled:opacity-40 active:scale-95 focus-ring"
             title="Refresh all data"
             aria-label="Refresh all dashboard data"
           >

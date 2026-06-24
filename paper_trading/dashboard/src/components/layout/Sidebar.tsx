@@ -178,7 +178,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md hover:bg-panel transition-colors lg:hidden focus-ring shrink-0"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-panel transition-colors lg:hidden focus-ring shrink-0 active:scale-95"
             aria-label="Close navigation"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />

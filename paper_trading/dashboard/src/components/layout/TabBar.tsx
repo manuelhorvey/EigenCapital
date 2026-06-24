@@ -24,11 +24,11 @@ export default function TabBar() {
           to={tab.to}
           end
           className={({ isActive }) =>
-            `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            `flex items-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-md transition-colors ${
               isActive
                 ? 'bg-accent-emerald/8 text-accent-emerald border border-accent-emerald/20'
                 : 'text-tertiary hover:text-secondary hover:bg-panel/60 border border-transparent'
-            }`
+            } active:scale-95 sm:active:scale-100`
           }
         >
           {tab.icon}

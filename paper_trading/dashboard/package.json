@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:tokens": "tsx scripts/generate-tokens.ts",
+    "generate-palette": "tsx scripts/generate-palette.ts",
     "build:dtcg": "tsx scripts/generate-dtcg.ts",
     "dev": "tsx scripts/generate-tokens.ts && vite --port 3000",
     "build": "tsx scripts/generate-tokens.ts && tsc -b && vite build",

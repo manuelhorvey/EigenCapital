@@ -52,7 +52,7 @@ export default function AnchorNav() {
               e.preventDefault()
               document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
             }}
-            className={`shrink-0 px-3 py-2 text-2xs font-medium transition-all duration-150 border-b-2 ${
+            className={`shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 text-2xs font-medium transition-all duration-150 border-b-2 active:scale-95 sm:active:scale-100 ${
               active === id
                 ? 'text-primary border-accent-emerald'
                 : 'text-tertiary border-transparent hover:text-secondary hover:border-default/40'

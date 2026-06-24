@@ -34,11 +34,20 @@
   .focus-ring {
     outline: 2px solid transparent;
     outline-offset: 2px;
-    transition: outline-color 150ms ease;
+    transition: outline-color 150ms ease, box-shadow 150ms ease;
   }
 
   .focus-ring:focus-visible {
     outline-color: var(--color-focus-ring);
+    box-shadow: 0 0 0 4px var(--color-interactive-selected);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
   }
 
   .skeleton-shimmer {
@@ -90,8 +99,17 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv05' 1;
+    font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv05' 1, 'ss01' 1, 'ss03' 1;
     letter-spacing: -0.01em;
+    font-optical-sizing: auto;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   ::selection {

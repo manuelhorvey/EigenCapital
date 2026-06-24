@@ -20,7 +20,7 @@ function setDeep(obj: Obj, path: string, value: unknown) {
   cur[parts[parts.length - 1]] = value
 }
 
-const FONT_SIZES = ['2xs', 'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl']
+const FONT_SIZES = ['hero', 'display', '2xs', 'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl']
 
 const camelToKebab = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 
@@ -131,6 +131,11 @@ const partial = {
   ),
   lineHeight: Object.fromEntries(
     FONT_SIZES.map((s) => [s, `var(--line-height-${s})`]),
+  ),
+  letterSpacing: Object.fromEntries(
+    Object.entries(rawTokens)
+      .filter(([k]) => k.startsWith('tracking-'))
+      .map(([k]) => [k.replace('tracking-', '').replace(/-/g, '-'), `var(--${k})`]),
   ),
   boxShadow: Object.fromEntries(
     Object.entries(rawTokens)

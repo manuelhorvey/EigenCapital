@@ -89,7 +89,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
       tabIndex={0}
       onClick={() => setSelectedAsset(name)}
       onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedAsset(name) } }}
-      className={`relative bg-panel border border-default rounded-lg px-4 py-3 overflow-hidden group shadow-panel transition-all duration-200 hover:border-strong hover:shadow-card cursor-pointer border-l-2 ${governanceBorder[cardState]} ${governanceBgMuted[cardState]}`}>
+      className={`relative bg-panel border border-default rounded-lg px-4 py-3 overflow-hidden group shadow-panel transition-all duration-200 hover:border-strong hover:shadow-card cursor-pointer border-l-2 active:scale-[0.98] sm:active:scale-100 ${governanceBorder[cardState]} ${governanceBgMuted[cardState]}`}>
       <div className="flex items-center gap-2 mb-2">
         <span className="font-semibold text-sm text-primary">{name}</span>
         {info.sellOnly && (

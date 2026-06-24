@@ -151,7 +151,7 @@ class TestEvaluateAdversarialManifold:
         result = evaluate_adversarial_manifold(
             asset="TEST",
             model=FakeModel(),
-            X=X,
+            x=X,
             close=close,
             threshold=0.45,
         )

@@ -1,3 +1,4 @@
+import errno
 import gzip
 import json
 import logging
@@ -20,6 +21,17 @@ logger = logging.getLogger("quantforge.auth")
 
 
 class Handler:
+    @staticmethod
+    def _safe_write(wfile, data: bytes) -> None:
+        """Write data to wfile, silently ignoring client disconnection errors."""
+        try:
+            wfile.write(data)
+        except OSError as e:
+            if e.errno in (errno.EPIPE, errno.ECONNRESET, errno.ECONNABORTED):
+                pass  # client disconnected — nothing to do
+            else:
+                raise
+
     def _send_json(self, data: str, status: int = 200) -> None:
         # Wrap in state metadata envelope so every JSON endpoint has state_timestamp + sequence_id
         payload = json.loads(data)
@@ -40,7 +52,7 @@ class Handler:
             self.send_header(k, v)
         self.end_headers()
         if getattr(self, "_send_body", True):
-            self.wfile.write(body)
+            self._safe_write(self.wfile, body)
 
     def _send_text(self, data: str, status: int = 200) -> None:
         self.send_response(status)
@@ -50,7 +62,7 @@ class Handler:
             self.send_header(k, v)
         self.end_headers()
         if getattr(self, "_send_body", True):
-            self.wfile.write(data.encode("utf-8"))
+            self._safe_write(self.wfile, data.encode("utf-8"))
 
     def _send_unauthorized(self) -> None:
         body = json_dumps({"error": "unauthorized", "message": "Valid Bearer token required"})
@@ -59,7 +71,7 @@ class Handler:
         for k, v in auth_headers().items():
             self.send_header(k, v)
         self.end_headers()
-        self.wfile.write(body.encode("utf-8"))
+        self._safe_write(self.wfile, body.encode("utf-8"))
 
     def _requires_auth(self) -> bool:
         """Check auth for the current request. Returns True if authorized."""
@@ -116,7 +128,7 @@ class Handler:
                 self.send_header("Content-Type", ct)
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
-                self.wfile.write(data)
+                self._safe_write(self.wfile, data)
             except FileNotFoundError:
                 self.send_response(404)
                 self.end_headers()
@@ -166,7 +178,7 @@ class Handler:
             self.send_header("Content-Type", ct)
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(data)
+            self._safe_write(self.wfile, data)
             return
         except FileNotFoundError:
             pass
@@ -191,4 +203,4 @@ class Handler:
             for k, v in auth_headers().items():
                 self.send_header(k, v)
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "not found"}).encode())
+            self._safe_write(self.wfile, json.dumps({"error": "not found"}).encode())

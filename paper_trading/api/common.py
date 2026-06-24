@@ -1,3 +1,4 @@
+import errno
 import json
 import logging
 import os
@@ -260,7 +261,13 @@ def try_serve_file(path, resp):
                 resp.send_header("Content-Type", ct)
                 resp.send_header("Cache-Control", "no-cache")
                 resp.end_headers()
-                resp.wfile.write(data)
+                try:
+                    resp.wfile.write(data)
+                except OSError as e:
+                    if e.errno in (errno.EPIPE, errno.ECONNRESET, errno.ECONNABORTED):
+                        pass  # client disconnected — continue to return True
+                    else:
+                        raise
                 return True
             except Exception:
                 pass

@@ -108,9 +108,9 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 
 Applied at decision pipeline stage `g`. Overrides BUY signals to FLAT for assets where the model's BUY calibration is inverted (p_long > 0.5 → ~17% win rate). SELL signals pass through unchanged. See `2026-06-20 diagnostic chain` for full evidence.
 
-**SELL_ONLY_ASSETS** (`paper_trading/execution/decision_pipeline.py:415`):
+**SELL_ONLY_ASSETS** (`paper_trading/execution/decision_pipeline.py:848`):
 ```
-CADCHF, AUDUSD, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF, NZDUSD, EURNZD
+CADCHF, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF
 ```
 
 **Epistemic status:** Empirically-grounded — two leading causal hypotheses (carry for CHF+OTHER, DXY for equities) tested via walk-forward counterfactual ablation and **falsified**. Removing SELL_ONLY requires discovering a causal mechanism that does not currently exist in any tested hypothesis.
@@ -238,19 +238,20 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 8. PSI drift check (rolling 21d vs baseline; skipped on first cycle)
 9. Inference truncation validation — if proven safe, predict only last row
 10. XGBoost predict → 3-column proba expansion `[p_short, 0, p_long]`
-11. Ensemble blend skipped (regime model not loaded — disabled portfolio-wide)
-12. Optional meta-label inference
-13. `FixedThresholdStrategy(0.45)` → BUY/SELL/FLAT
-14. Archetype classification → `TradeDecision`
-15. Refresh MT5 spread for spread gate
-16. Decision pipeline stages (applied sequentially):
+11. Calibrate probabilities — apply per-asset `BinnedCalibrator` to raw `p_long` (config-gated via `calibration.enabled`; default `true`). See Section 16.1 (P1).
+12. Ensemble blend skipped (regime model not loaded — disabled portfolio-wide)
+13. Optional meta-label inference
+14. `FixedThresholdStrategy(0.45)` → BUY/SELL/FLAT
+15. Archetype classification → `TradeDecision`
+16. Refresh MT5 spread for spread gate
+17. Decision pipeline stages (applied sequentially):
     a. First-cycle suppression — suppress trading on cold-start cycle 1
     b. Bar-jump suppression — suppress 60min if bar count changed >100
     c. Store prediction metadata — record pre-decision signal state
     d. Update MAE/MFE — update max adverse/favorable excursion
     e. Resolve signal — map proba to BUY/SELL/FLAT
     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed from trading)
-    g. Sell-only filter — override BUY→FLAT for 11 SELL_ONLY assets (inverted BUY calibration)
+    g. Sell-only filter — override BUY→FLAT for 8 SELL_ONLY assets (inverted BUY calibration)
     h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
     i. Confidence gate — abort if net confidence below threshold
     j. Signal stability filter — require >0.65 max(prob_long, prob_short)
@@ -258,15 +259,16 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
     l. Meta-label advisory — record meta-label recommendation without enforcement
     m. Update regime bar counter — track bars since last regime shift
     n. Conviction gate — flip gate based on regime conviction
-    o. Profit lock gate — block flip if unrealized PnL > threshold
-    p. Manage position — close/re-open with entry gate check
-    q. Build entry artifacts — construct TradeDecision for execution
-    r. Route execution policy — direct to PaperBroker or MT5Broker
-    s. Poll deferred entries — execute previously deferred pending orders
-17. Route through governance layers (9 layers)
-18. Position sizing chain (drawdown taper → cap → risk cap → leverage budget → backstop)
-19. Independent MT5 sizing (`_compute_mt5_qty` with broker equity)
-20. Execute position lifecycle:
+    o. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 16.2 (P2).
+    p. Profit lock gate — block flip if unrealized PnL > threshold
+    q. Manage position — close/re-open with entry gate check
+    r. Build entry artifacts — construct TradeDecision for execution
+    s. Route execution policy — direct to PaperBroker or MT5Broker
+    t. Poll deferred entries — execute previously deferred pending orders
+18. Route through governance layers (9 layers)
+19. Position sizing chain: Kelly multiplier → drawdown taper → cap → risk cap → leverage budget → backstop
+20. Independent MT5 sizing (`_compute_mt5_qty` with broker equity)
+21. Execute position lifecycle:
       - **Open**: `pos_mgr.open(intent)` + MT5 `place_order` (SL/TP attached); entry skipped if current price deviated > `max_entry_slippage_pct` from signal price (entry service gate)
       - **SL/TP hit**: `pos_mgr.close()` + MT5 `close_position(ticket)`
       - **Flip**: profit-lock check first — if unrealized PnL > `profit_lock_threshold_pct`, flip is blocked and position holds; else close + re-open in same cycle (MT5 close + place_order)
@@ -443,7 +445,10 @@ desired-vs-actual notional diverge wildly for small accounts).
 | Liquidity regime | Per signal | THIN: SL +15%, size −15% (soft) | `liquidity_config` |
 | | | STRESSED: SL +30%, size −30%, hard halt | |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE | — |
-| Sell-only filter | Per decision | Override BUY→FLAT for 11 inverted-BUY assets | `SELL_ONLY_ASSETS` (hardcoded) |
+| Sell-only filter | Per decision | Override BUY→FLAT for 8 inverted-BUY assets | `SELL_ONLY_ASSETS` (hardcoded) |
+| Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
+| Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
+| Factor model (P3) | Per cycle | Factor exposures via 9 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
 | Equity cluster alarm | Per cycle | Flags ES/NQ/^DJI all on same side (recommendation) | (hardcoded, 60s throttle) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) | (hardcoded in `CircuitBreaker`) |
@@ -470,7 +475,7 @@ desired-vs-actual notional diverge wildly for small accounts).
 | Update MAE/MFE | Update max adverse/favorable excursion | — |
 | Resolve signal | Map proba to BUY/SELL/FLAT via `FixedThresholdStrategy(0.45)` | `threshold` (default 0.45) |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed) | (hardcoded, per-asset pair) |
-| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` | (hardcoded frozenset, 11 assets) |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` | (hardcoded frozenset, 8 assets) |
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
 | Confidence gate | Abort if net confidence below threshold | `min_confidence` (default 50) |
 | Signal stability filter | Require >0.65 max(prob_long, prob_short) | `stability_margin` (default 0.15) |
@@ -478,6 +483,7 @@ desired-vs-actual notional diverge wildly for small accounts).
 | Meta-label advisory | Record meta-label recommendation (no enforcement) | — |
 | Update regime bar counter | Track bars since last regime shift | — |
 | Conviction gate | Flip gate based on regime conviction | `_evaluate_flip_gate()` |
+| Kelly sizing (P2) | Scale position by Kelly criterion (config-gated, disabled by default) | `kelly.*` |
 | Profit lock gate | Block flip if unrealized PnL > `profit_lock_threshold_pct` | `profit_lock_threshold_pct` (default 15%) |
 | Manage position | Close/re-open with entry gate check | `_can_enter()` |
 | Build entry artifacts | Construct `TradeDecision` for execution | — |
@@ -553,7 +559,136 @@ Where:
 
 ---
 
-## 15. DISCLAIMER
+## 15. PORTFOLIO MATURITY FRAMEWORK — P0–P4
+
+The system implements a 4-layer portfolio maturity framework. Each layer is
+config-gated — no behavior change until explicitly enabled.
+
+### 15.1 P0 — Portfolio Truth Layer (live: enabled)
+
+**File:** `shared/portfolio_weights.py` — canonical weight computation, SINGLE source of truth.
+
+**Contract:**
+- `compute_weights()` is PURE — same returns → same weights.
+- Covariance computed from RAW historical returns only (no governance scaling).
+- Governance multipliers affect per-position sizing at trade time, NOT the portfolio weight matrix.
+- WeightMethod strings are versioned (e.g. `"risk_parity_v1"`). Old versions remain callable for reproducible backtests.
+
+**Registered strategies (4):**
+
+| Method | Strategy | Description |
+|--------|----------|-------------|
+| `equal_v1` | Equal weight | Simple 1/N allocation |
+| `risk_parity_v1` | Risk parity | Equal risk contribution via scipy SLSQP |
+| `hrp_v1` | Hierarchical Risk Parity | Lopez de Prado HRP with `optimal_leaf_ordering` for deterministic quasi-diagonalization |
+| `factor_constrained_v1` | Factor-constrained risk parity | Risk parity with penalty term for factor exposure limits; falls back to base risk parity on optimizer failure |
+
+**Active config:** `portfolio.weight_method: factor_constrained_v1` (enabled 2026-06-24).
+
+**Supporting tools:**
+- `scripts/replay_rebalance.py` — reconstruct historical weights via `rolling_weight_matrix()` and compare with live.
+- `scripts/backtest_pnl.py --weight-method <method>` — backtest with any registered strategy.
+- `engine_rebalance_service.py` — reads `weight_method` from config, calls `compute_weights()` on schedule.
+
+### 15.2 P1 — Calibration Layer (live: enabled)
+
+**Files:** `shared/calibration/` — `calibrator.py`, `registry.py`, `ece_tracker.py`
+
+**Calibrators:**
+- `BinnedCalibrator` — divides `[0, 1]` into `n_bins` equal-width bins, maps raw p_long → empirical P(label=1) per bin. Linear interpolation between bin centers. Default: 10 bins, min 5 samples per bin.
+- `BetaCalibrator` — parametric beta regression (used as alternative; default is binned).
+
+**CalibrationRegistry:**
+- Loads/saves calibrator models per asset from `paper_trading/models/calibration/`.
+- Called at AssetEngine init (`asset_engine.py:121`).
+- Applied in `pipeline.py:_generate_and_apply()` after `_run_inference()` (step 11 of the inference pipeline).
+
+**Integration:**
+- Config key: `calibration.enabled: true` (default).
+- `ECETracker` — rolling ECE tracked per asset; drift detection via configurable threshold.
+- Calibration operator in `state.json`: each asset reports `calibration_applied: true/false`.
+
+**Known performance:** ECE reduced from 0.36 → 0.02 (94.3% avg reduction, 19/19 assets >80%).
+
+**Training:** `scripts/train_calibration.py` — fits calibrators from walk-forward signal parquets. Run when walk-forward parquets are regenerated.
+
+### 15.3 P2 — Fractional Kelly Sizing (live: disabled)
+
+**File:** `shared/kelly.py` — 143 lines, P2 in the portfolio maturity framework.
+
+**Formula (standard Kelly for binary bets with asymmetric payoffs):**
+```
+f* = p - q × sl_mult / tp_mult
+edge = p × tp_mult - q × sl_mult
+```
+Where `p` = calibrated P(TP hit), `q = 1-p`.
+
+**Fractional Kelly:** `f = f* × fraction` (default fraction=0.25 for quarter-Kelly).
+
+**Functions:**
+| Function | Purpose |
+|----------|---------|
+| `compute_kelly_fraction(prob, tp_mult, sl_mult)` | Full Kelly fraction f*; 0.0 if no edge |
+| `compute_kelly_multiplier(prob, tp_mult, sl_mult, fraction, max_cap, min_edge)` | Multiplier applied to base size |
+| `compute_kelly_size(base_size, ...)` | Returns `base_size × multiplier`; 0.0 if no edge |
+| `compute_edge(prob, tp_mult, sl_mult)` | Expected return in R units |
+| `edge_description(prob, tp_mult, sl_mult)` | Human-readable edge summary |
+
+**Integration:**
+- Decision pipeline stage `apply_kelly_sizing` (stage o in DEFAULT_STAGES — after conviction gate, before manage_position).
+- Config key: `kelly.enabled: false` (disabled by default).
+- Kelly multiplier stored in `asset._kelly_multiplier`, consumed by `_composite_size_scalar()` before position cap/risk cap.
+- **Requires calibrated probabilities.** Kelly reads probabilities AFTER calibration (P1) — if calibration is off, Kelly operates on raw model probabilities.
+
+**Status:** Disabled pending 2+ weeks of live data to validate calibration-vs-win-rate alignment across all 19 assets.
+
+### 15.4 P3 — Factor Model (live: enabled for monitoring)
+
+**File:** `shared/factor_model.py` — 325 lines, P3 in the portfolio maturity framework.
+
+**Factor groups (9):**
+
+| Group | Assets |
+|-------|--------|
+| USD | EURUSD, AUDUSD, NZDUSD, USDCHF, USDCAD, GBPUSD, GBPCHF, CADCHF, NZDCHF, EURCAD |
+| EUR | EURUSD, EURAUD, EURCHF, EURNZD, EURCAD |
+| AUD | AUDUSD, AUDNZD, EURAUD |
+| NZD | NZDUSD, NZDCHF, AUDNZD, EURNZD |
+| CHF | EURCHF, USDCHF, NZDCHF, CADCHF, GBPCHF |
+| CAD | USDCAD, CADCHF, EURCAD |
+| GBP | GBPUSD, GBPCHF |
+| US_EQUITY | ES, NQ, ^DJI |
+| COMMODITY | GC |
+
+**Functions:**
+| Function | Purpose |
+|----------|---------|
+| `compute_factor_exposures(returns, dates)` | Factor exposure matrix for a given date range |
+| `exposure_violations(exposures, limits, tolerance)` | Returns list of violations against per-factor limits |
+| `factor_exposure_penalty(exposures, limits, scale)` | Penalty term for constrained optimization |
+| `factor_constrained_weights(cov, limits, scale, ...)` | Penalized SLSQP risk parity with factor constraints |
+| `compute_factor_returns(returns, simple=True)` | Simple equal-weight or regression factor returns |
+| `summary(weight_vector)` | One-call summary: exposures, violations, n_violations, within_limits |
+
+**Integration:**
+- Factor exposures computed per-cycle in `engine_state_service.py:_compute_factor_exposures()`.
+- Exposed in `state.json` portfolio summary as `factor_exposures`.
+- `factor_constrained_v1` weight strategy uses `factor_exposure_penalty()` (scaled by `penalty_scale`, default 10.0).
+- Active config: `portfolio.weight_method: factor_constrained_v1` (enabled for monitoring; `factor_constraints.enabled: false` applies no hard constraints — uses risk parity fallback).
+
+### 15.5 P4 — HRP Fix (2026-06-24)
+
+**File:** `portfolio/hrp_allocator.py` — 102 lines.
+
+**Fix applied:** `_get_quasi_diag()` now accepts optional `dist` parameter. When provided, `optimal_leaf_ordering` is applied to the linkage matrix before leaf-order traversal, guaranteeing a consistent dendrogram leaf order even when the distance matrix violates the metric triangle inequality.
+
+**Root cause:** `scipy.cluster.hierarchy.linkage` with `method='single'` can produce SERIAL-index-ordered dendrograms when the distance matrix is near-singular (common with highly correlated financial returns). The leaf order becomes arbitrary, producing volatile HRP weights across rebalance periods.
+
+**Verification:** 17 tests pass (was 14 + 1 skipped before fix). `optimal_leaf_ordering` is deterministic for any input — confirmed by bit-for-bit identical output across repeated calls.
+
+---
+
+## 16. DISCLAIMER
 
 Paper trading system only. No live capital execution. Not financial advice.
 Past walk-forward performance is not indicative of future results.

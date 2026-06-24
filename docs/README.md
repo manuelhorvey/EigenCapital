@@ -44,6 +44,11 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
 | Portfolio | `paper_trading/portfolio_builder.py` | 21-asset risk-parity portfolio from YAML config |
 | Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator (HealthMonitor + VaR/CVaR in Phase 3g) |
+| Portfolio weights | `shared/portfolio_weights.py` | P0 portfolio weight computation |
+| Calibration | `shared/calibration/` | P1 calibration layer |
+| Kelly sizing | `shared/kelly.py` | P2 fractional Kelly sizing |
+| Factor model | `shared/factor_model.py` | P3 factor model monitoring |
+| HRP fix | `portfolio/hrp_allocator.py` | P4 HRP fix |
 | Dashboard | `paper_trading/dashboard/` | React SPA (Vite + TypeScript + Tailwind) on port 5000 |
 
 ## Current Portfolio

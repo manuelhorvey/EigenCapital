@@ -13,7 +13,7 @@
 | Liquidity regime | Per signal | Per asset | THIN: SL +15%, size −15% (soft) |
 | | | | STRESSED: SL +30%, size −30%, halt |
 | PSI drift | Per cycle | Per asset | Validity penalty, halt at 3+ SEVERE |
-| Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 11 inverted-BUY assets |
+| Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 8 inverted-BUY assets |
 | Equity cluster alarm | Per cycle | Global | Flags ES/NQ/^DJI all same side (recommendation, 60s throttle) |
 | Circuit breaker | Per cycle | Portfolio | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Global | Circuit breaker at −15% |
@@ -34,7 +34,7 @@
 | Update MAE/MFE | Update max adverse/favorable excursion |
 | Resolve signal | Map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45) |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
-| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (11 assets) |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (8 assets) |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles first) |
 | Confidence gate | Abort if net confidence below threshold |
 | Signal stability filter | Require >0.65 max(prob_long, prob_short) to proceed |
@@ -42,6 +42,7 @@
 | Meta-label advisory | Record meta-label recommendation (no enforcement) |
 | Update regime bar counter | Track bars since last regime shift |
 | Conviction gate | Flip gate based on regime conviction |
+| Kelly sizing (P2) | Apply fractional Kelly multiplier from calibrated probability and tp/sl |
 | Profit lock gate | Block flip if unrealized PnL > threshold |
 | Manage position | Close/re-open with entry gate check |
 | Build entry artifacts | Construct TradeDecision for execution |

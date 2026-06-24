@@ -17,11 +17,12 @@ Cross-sectional multi-asset paper trading engine. 19-asset portfolio (FX, commod
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
 - **Features**: 13 alpha (includes COT flag) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile)
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
-- **Config**: `configs/paper_trading.yaml` — global defaults + per-asset (18 assets)
-- **Inference**: `paper_trading/inference/pipeline.py` — alpha features → base model → governance → execute (ensemble disabled; regime features still generated for trace logging)
+- **Config**: `configs/paper_trading.yaml` — global defaults + per-asset (19 assets)
+- **Portfolio Maturity Framework (4-layer)**: P0 portfolio weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly sizing (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP fix (`portfolio/hrp_allocator.py`). All config-gated. See `LIVE_CONTRACT.md §15`.
+- **Inference**: `paper_trading/inference/pipeline.py` — alpha features → base model → **calibration (P1)** → governance → execute (ensemble disabled; regime features still generated for trace logging)
 - **Training**: `paper_trading/inference/training.py` — base model only (regime model skipped when base_weight >= 1.0), scale_pos_weight, meta-labeling. Expanding-window (all history, never drops old data) — known contributor to directional instability across folds.
 - **Entry gates**: `entry_service.py` price deviation check (skips if price deviated > max_entry_slippage_pct); `decision_pipeline.py` profit lock (blocks flips when unrealized PnL > profit_lock_threshold_pct)
-- **Position sizing guardrails**: Drawdown taper, per-position equity cap, risk-per-trade cap, portfolio leverage budget (atomic lock), backstop decay multiplier
+- **Position sizing guardrails**: Kelly multiplier (P2, disabled) → drawdown taper → per-position equity cap → risk-per-trade cap → portfolio leverage budget (atomic lock) → backstop decay multiplier
 - **Independent MT5 sizing**: Paper sized from paper equity ($100K mtm_value); MT5 sized from real broker account balance via `_compute_mt5_qty()` with its own drawdown taper + risk cap
 - **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), 3-phase cycle (signal → entry → backstop)
 - **MT5 Bridge**: `paper_trading/ops/mt5_client.py` — TCP frame protocol to Wine-hosted MT5 (port 9879)
@@ -31,27 +32,35 @@ Cross-sectional multi-asset paper trading engine. 19-asset portfolio (FX, commod
 
 | File | Purpose |
 |------|---------|
-| `configs/paper_trading.yaml` | All config (capital, assets, SL/TP, depth, regime_geometry, sizing guardrail defaults) |
+| `configs/paper_trading.yaml` | All config (capital, assets, SL/TP, depth, regime_geometry, sizing guardrail defaults, calibration, kelly, portfolio weight method) |
+| `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies, decorator pattern, pure functions |
+| `shared/calibration/` | P1 calibration layer — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
+| `shared/kelly.py` | P2 fractional Kelly sizing — `compute_kelly_fraction`, `compute_kelly_multiplier` |
+| `shared/factor_model.py` | P3 factor model — 9 factor groups, factor-constrained weight optimization |
+| `portfolio/hrp_allocator.py` | P4 HRP fix — `_get_quasi_diag` with `optimal_leaf_ordering` |
 | `paper_trading/engine.py` | `PaperTradingEngine` — main loop, capital sync, parallel orchestrator |
-| `paper_trading/asset_engine.py` | `AssetEngine` — per-asset lifecycle, train(), generate_signal() |
+| `paper_trading/asset_engine.py` | `AssetEngine` — per-asset lifecycle, train(), generate_signal(), `_kelly_multiplier`, `_calibration_registry` |
 | `paper_trading/inference/training.py` | `AssetTrainingPipeline` — base + regime model training |
-| `paper_trading/inference/pipeline.py` | `AssetInferencePipeline` — live inference with ensemble |
+| `paper_trading/inference/pipeline.py` | `AssetInferencePipeline` — live inference with calibration (P1) |
 | `paper_trading/inference/regime_model.py` | `RegimeConditionalModel` — per-asset regime classifier |
 | `paper_trading/inference/ensemble.py` | `EnsembleSignal` — 60/40 blend logic |
 | `paper_trading/ops/monitor.py` | Main entry point — loads models, runs engine, serves dashboard |
-| `paper_trading/execution/decision_pipeline.py` | Decision pipeline stages — includes profit lock gate |
-| `paper_trading/services/entry_service.py` | Entry validation, full sizing chain (drawdown taper → position cap → risk cap → leverage budget), price deviation gate |
-| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-3 (parallel signal, atomic entry, portfolio backstop) |
+| `paper_trading/execution/decision_pipeline.py` | Decision pipeline stages — includes `apply_kelly_sizing` (P2), profit lock gate |
+| `paper_trading/services/entry_service.py` | Entry validation, full sizing chain (Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget), price deviation gate |
+| `paper_trading/services/engine_rebalance_service.py` | Live rebalance — reads `weight_method` from config, calls `compute_weights()` |
+| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-3 (parallel signal, atomic entry, portfolio phase with factor exposures, MT5 orphan reconciliation, position concentration check) |
 | `paper_trading/execution/mt5_broker.py` | `MT5Broker` — MT5 execution with `current_mt5_drawdown_pct()` |
 | `features/alpha_features.py` | Alpha feature builder (13 cols) |
 | `features/regime_features.py` | Regime feature builder (7 cols) |
 | `features/data_fetch.py` | Data fetching with MT5/yfinance fallback |
 | `features/labels.py` | Triple-barrier labeling + PurgedWalkForwardFolds |
 | `LIVE_CONTRACT.md` | Immutable system contract (update when architecture changes) |
-| `scripts/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
+| `scripts/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe, `--weight-method` option) |
 | `scripts/compare_ensemble.py` | Ensemble vs base PnL comparison with per-fold sign test |
+| `scripts/train_calibration.py` | Train calibrators from walk-forward signal parquets |
+| `scripts/replay_rebalance.py` | Reconstruct historical portfolio weights + compare with live |
 | `paper_trading/governance/risk.py` | Risk evaluation, SL hit rate, drift scoring, **SELL tripwire** (per-asset deque, TP=1/SL=0, win, 20-trade window, 65% threshold, WARNING log on trip) |
-| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-3 (parallel signal, atomic entry, portfolio phase with correlation monitoring, MT5 orphan reconciliation, position concentration check) |
+| `paper_trading/services/engine_state_service.py` | Portfolio summary with `factor_exposures`, `position_concentration` |
 
 ## Position Sizing Chain
 
@@ -65,6 +74,13 @@ notional = effective_cap × size_scalar
 → cap by risk_per_trade_pct (skip if below min_viable_position_pct)
 → atomic decrement from shared leverage_budget (lock-protected)
 ```
+
+**Kelly multiplier (P2, disabled by default):**
+```
+size_scalar = base × kelly_multiplier × exposure × governance × meta × drawdown_taper
+```
+Where `kelly_multiplier = compute_kelly_multiplier(calibrated_prob, tp_mult, sl_mult)`.
+Kelly flows through the sizing chain as an extra scalar before position caps.
 
 MT5 positions are sized independently:
 
@@ -114,9 +130,24 @@ PYTHONPATH=$PYTHONPATH:. python scripts/walk_forward_backtest.py --asset EURUSD
 PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py
 ```
 
+### PnL Backtest with Weight Strategy
+```bash
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py --weight-method factor_constrained_v1
+```
+
 ### Compare Ensemble vs Base
 ```bash
 PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py --tag base --ensemble-tag ensemble
+```
+
+### Train Calibration Models
+```bash
+PYTHONPATH=$PYTHONPATH:. python scripts/train_calibration.py
+```
+
+### Reconstruct Historical Portfolio Weights
+```bash
+PYTHONPATH=$PYTHONPATH:. python scripts/replay_rebalance.py --verify
 ```
 
 ### Daily Monitoring

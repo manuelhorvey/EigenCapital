@@ -11,6 +11,9 @@ Operational procedures for the paper trading system. This document is for the pe
 | Start command | `./monitor_all` |
 | Dashboard URL | `http://127.0.0.1:5000` |
 | Config file | `configs/paper_trading.yaml` |
+| `calibration.enabled` | `true` — BinnedCalibrator applied per inference, reduces ECE 0.36→0.02 |
+| `portfolio.weight_method` | `factor_constrained_v1` — active weight strategy (P0) |
+| `kelly.enabled` | `false` — P2 Kelly sizing disabled pending live data |
 | State file (JSON) | `data/live/state.json` |
 | State store (SQLite) | `data/live/state.db` (5 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history) |
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
@@ -205,7 +208,7 @@ curl http://127.0.0.1:5000/ping
 - After restart: cycle 1 shows `first-cycle suppression` in logs (normal), trades resume cycle 2+
 - After MT5 reconnect: check for `bar-jump suppression` log — suppresses ~60min if bar count changed >100 (normal after source switch)
 - Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD showing `risk-off suppression — holding flat` (validated behavior)
-- Sell-only filter: 11 flagged assets (CADCHF, AUDUSD, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF, NZDUSD, EURNZD) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
+- Sell-only filter: 8 flagged assets (CADCHF, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
 - Equity cluster alarm: if ES/NQ/^DJI all have open positions on the same side, expect `equity_cluster_all_LONG_ES_NQ_^DJI` or `equity_cluster_all_SHORT_ES_NQ_^DJI` recommendation logged by HealthMonitor
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
 - Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) on weekends
@@ -277,7 +280,7 @@ for name, a in s['assets'].items():
 
 **Expectations:**
 
-All 19 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 11 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
+All 19 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 8 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
 
 ### Narrative Check (Monday Morning)
 
@@ -705,7 +708,7 @@ Live paper trading applies **spread + impact** on entries and exits via `Executi
 **Position sizing guardrails** (applied multiplicatively in `entry_service.py:_submit_to_broker()`):
 
 ```
-effective_cap × position_size × exposure × governance × meta × drawdown_taper
+effective_cap × position_size × exposure × governance × kelly_multiplier × meta × drawdown_taper
   → cap by max_position_pct_of_equity
   → cap by max_risk_per_trade_pct (skip if below min_viable_position_pct)
   → atomically decrement from portfolio leverage budget
@@ -803,7 +806,13 @@ Project Root/
 │   ├── asset_pnl_controller.py   # Per-asset PnL management
 │   └── serve.py                  # Dashboard server entry point
 ├── scripts/                      # Backtesting, training, scoring, migrations
-├── shared/                       # Pluggable strategy interfaces, execution config
+├── shared/
+│   ├── portfolio_weights.py      # P0 portfolio weight computation
+│   ├── calibration/              # P1 calibration layer
+│   ├── kelly.py                  # P2 fractional Kelly sizing
+│   └── factor_model.py           # P3 factor model monitoring
+├── portfolio/
+│   └── hrp_allocator.py          # P4 HRP fix
 ├── monitoring/                   # PSI drift, validity state machine
 └── monitor_all                   # Entry point script
 ```
@@ -820,7 +829,7 @@ Before transitioning from paper to live, verify all checks below. 6/7 must pass 
 | 4 | Cross-asset correlation | No unexplained >0.7 | `python scripts/signal_correlation_check.py` | Hard |
 | 5 | MT5 errors | Zero across all cycles | `grep ERROR /tmp/paper_trading.log` | Hard |
 | 6 | Trades executed | ≥10 across portfolio | MT5 terminal or dashboard trades panel | Hard |
-| 7 | SELL_ONLY filter | BUY→FLAT overrides active for 11 assets | `grep "sell-only filter" /tmp/paper_trading.log` | Hard |
+| 7 | SELL_ONLY filter | BUY→FLAT overrides active for 8 assets | `grep "sell-only filter" /tmp/paper_trading.log` | Hard |
 
 **Decision:** 6/7 pass → go live at 50% position size for 2 weeks, then full size if live Sharpe tracks within 0.2 of backtest Sharpe.
 

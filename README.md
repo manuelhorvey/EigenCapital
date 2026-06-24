@@ -194,6 +194,65 @@ No shared multi-asset model exists.
 
 ---
 
+## Portfolio Maturity Framework (P0–P4)
+
+The system implements a 4-layer portfolio maturity framework. Each layer is
+config-gated — no behavior change until explicitly enabled.
+
+### P0 — Portfolio Truth Layer (enabled: `factor_constrained_v1`)
+**File:** `shared/portfolio_weights.py`
+
+Pure function weight computation. 4 registered strategies:
+
+| Method | Description | Status |
+|--------|-------------|--------|
+| `equal_v1` | Simple 1/N allocation | Available |
+| `risk_parity_v1` | Equal risk contribution via scipy SLSQP | Available |
+| `hrp_v1` | Lopez de Prado HRP with deterministic `optimal_leaf_ordering` | Available |
+| `factor_constrained_v1` | Risk parity with factor exposure penalty; falls back to base RP on optimizer failure | **Default** |
+
+**Integration:** `engine_rebalance_service.py` reads `portfolio.weight_method` from config,
+calls `compute_weights()` on schedule. Pure functions — same returns → same weights.
+
+### P1 — Calibration Layer (enabled)
+**Files:** `shared/calibration/` — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker`
+
+Raw XGBoost probabilities are binned-calibrated per asset. Applied in `pipeline.py`
+after `_run_inference()`, before the decision pipeline.
+
+- **ECE reduction**: 0.36 → 0.02 (94.3% avg, 19/19 assets >80%)
+- **Config:** `calibration.enabled: true`, `calibration.method: binned`, `calibration.n_bins: 10`
+- **Training:** `scripts/train_calibration.py` — fits calibrators from walk-forward parquets
+
+### P2 — Fractional Kelly Sizing (disabled)
+**File:** `shared/kelly.py`
+
+Converts calibrated probability + TP/SL barriers → position size multiplier.
+Kelly multiplier flows through `_composite_size_scalar()` before position caps.
+
+```
+f* = p - q × sl_mult / tp_mult
+edge = p × tp_mult - q × sl_mult
+```
+
+- **Status:** Disabled pending 2+ weeks live data to validate calibration-vs-win-rate alignment
+- **Config:** `kelly.enabled: false`
+
+### P3 — Factor Model (enabled for monitoring)
+**File:** `shared/factor_model.py`
+
+9 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, US_EQUITY, COMMODITY)
+covering all 19 assets. Factor exposures computed per-cycle in `engine_state_service.py`.
+
+### P4 — HRP Fix
+**File:** `portfolio/hrp_allocator.py`
+
+`_get_quasi_diag()` uses `optimal_leaf_ordering` for deterministic dendrogram
+leaf order, fixing arbitrary weight volatility from near-singular correlation matrices.
+17 tests confirm deterministic output.
+
+---
+
 # Feature Engineering
 
 Three feature sets feed the inference pipeline: alpha, regime, and archetype.
@@ -321,11 +380,14 @@ Two additional gates protect entry quality and existing winners:
 
 Paper positions pass through a multiplicative guardrail chain in `_submit_to_broker()`:
 
-1. **Drawdown taper** — linear taper from 1.0 to `size_taper_min` (default 50%) between `size_taper_start_dd` (-5%) and `size_taper_end_dd` (-15%)
-2. **Per-position equity cap** — notional clipped to `max_position_pct_of_equity` (default 15%) of total equity
-3. **Risk-per-trade cap** — SL risk capped at `max_risk_per_trade_pct` (default 2%) of equity; entry skipped if capped below `min_viable_position_pct` (default 1%)
-4. **Portfolio leverage budget** — atomic lock-decremented from `portfolio_max_leverage × equity` pool; skip on exhaustion
-5. **Backstop multiplier** — Phase 3 catch: ratchets down on notional breach, decays 0.9/cycle otherwise
+```
+effective_cap = capital_base × min(current_value / initial_capital, 3.0)
+size_scalar = base × kelly_multiplier × exposure × governance × meta × drawdown_taper
+notional = effective_cap × size_scalar
+→ cap by max_position_pct_of_equity
+→ cap by risk_per_trade_pct (skip if below min_viable_position_pct)
+→ atomic decrement from shared leverage_budget (lock-protected)
+```
 
 MT5 positions run the same chain independently using real broker equity (minus the leverage budget). Both paths log decomposed factors (`SIZING` and `MT5_SIZING`).
 
@@ -528,6 +590,8 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | `scripts/ensemble_pilot_backtest.py`           | 3-asset ensemble pilot backtest |
 | `scripts/monitor_paper_trading.py`             | Poll dashboard + CSV logging    |
 | `scripts/backtest_pnl.py`                      | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
+| `scripts/train_calibration.py`                 | Train calibration models from walk-forward signal parquets |
+| `scripts/replay_rebalance.py`                  | Reconstruct historical portfolio weights and compare with live |
 | `scripts/compare_ensemble.py`                  | Ensemble vs base PnL comparison with per-fold sign test |
 | `scripts/filter_direction.py`                  | Directional filter diagnostic   |
 | `scripts/crisis_replay.py`                     | Crisis replay against 4 historical windows (dec 2024, tariff, selloffs) |
@@ -576,7 +640,15 @@ scripts/                      # CLI tools
 models/
     regime/                   # Per-asset regime-conditional models (gitignored)
 docs/                         # Documentation + ADRs
-shared/                       # Strategy registry, sizing, execution config
+shared/
+    portfolio_weights.py    # P0 — portfolio weight computation
+    kelly.py                # P2 — fractional Kelly sizing
+    factor_model.py         # P3 — factor model
+    calibration/            # P1 — calibration layer
+        calibrator.py       # BinnedCalibrator, BetaCalibrator
+        registry.py         # CalibrationRegistry
+        ece_tracker.py      # ECETracker
+    sizing.py               # Deprecated (replaced by P0–P2)
 labels/                       # Triple-barrier labeling, meta-labeling
 signals/                      # Signal generation, alpha weighting
 risk/                         # Drawdown controls, exposure limits

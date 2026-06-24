@@ -21,7 +21,7 @@ Known open risks in the QuantForge system, ordered by severity.
 
 **Status**: Closed as "known unknown, monitored." Root cause unknown. Two causal hypotheses (carry for CHF+OTHER, DXY for equities) falsified by walk-forward counterfactual ablation 2026-06-20. SELL_ONLY filter is the empirically validated treatment.
 
-**Risk**: 11 assets have an inverted BUY signal (p_long > 0.5 predicts the wrong direction). The filter suppresses BUY, so the system never acts on these signals — but if the underlying inversion were to change (asymmetry healing or the SELL side also degrading), the filter would need updating.
+**Risk**: 8 assets have an inverted BUY signal (p_long > 0.5 predicts the wrong direction). The filter suppresses BUY, so the system never acts on these signals — but if the underlying inversion were to change (asymmetry healing or the SELL side also degrading), the filter would need updating.
 
 **Monitoring**:
 - `scripts/check_direction_win_rates.py` provides two signals:

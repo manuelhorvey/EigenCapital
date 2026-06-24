@@ -60,11 +60,12 @@ export default function SystemHealthModal() {
     },
     {
       name: 'Drawdown Control',
-      status: healthMean !== null && healthMean >= 0.8 ? 'healthy' as const
-        : healthMean !== null && healthMean >= 0.5 ? 'warning' as const
+      status: healthMean === null ? 'unknown' as const
+        : healthMean >= 0.8 ? 'healthy' as const
+        : healthMean >= 0.5 ? 'warning' as const
         : 'critical' as const,
       detail: healthMean !== null ? `Mean health ${(healthMean * 100).toFixed(0)}%` : 'N/A',
-      metric: `${health?.system_health?.n_healthy ?? 0} healthy`,
+      metric: healthMean !== null ? `${health?.system_health?.n_healthy ?? 0} healthy` : '—',
     },
     {
       name: 'System Status',

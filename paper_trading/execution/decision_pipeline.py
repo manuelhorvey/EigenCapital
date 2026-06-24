@@ -14,6 +14,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
@@ -966,6 +967,132 @@ def apply_spread_gate(ctx: DecisionContext) -> None:
         ctx.new_side = None
 
 
+# ── Session gate stage ───────────────────────────────────────────────────
+
+SESSION_GATE_MIN_OBSERVE_CYCLES = 720  # ~6h at 30s — covers opens, mid-session, closes
+
+SESSION_TIER_WINDOWS: dict[str, tuple[int, int]] = {
+    "fx_major": (7, 17),  # London+NY overlap 07:00–17:00 UTC
+    "fx_cross": (7, 17),  # London+NY overlap 07:00–17:00 UTC
+    "indices": (13, 20),  # US cash session 13:30–20:00 UTC
+    "metals": (8, 18),  # London fix + NY 08:00–18:00 UTC
+}
+
+
+def apply_session_gate(ctx: DecisionContext) -> None:
+    """Block new entries outside configurable UTC session windows.
+
+    The model produces daily-bar signals but the engine runs every ~30s.
+    Entering at 02:00 UTC or Sunday open exposes positions to wide spreads
+    and low-liquidity conditions absent in training data.
+
+    Observe mode: for the first ``SESSION_GATE_MIN_OBSERVE_CYCLES`` cycles
+    (~6h) the gate logs what it would do but does not block, to validate
+    windows against real market conditions before going live.
+    """
+    # Only applies to new entries (existing positions unaffected)
+    if ctx.new_side is None:
+        return
+
+    engine = ctx.engine
+    current_hour = datetime.now(timezone.utc).hour
+    tier = getattr(engine, "_spread_tier", "fx_cross")
+    window = SESSION_TIER_WINDOWS.get(tier)
+    cycle = getattr(engine, "_cycle_counter", 0)
+
+    if window is None:
+        # Unknown tier — fail-open (allow entry)
+        return
+
+    start, end = window
+    in_session = start <= current_hour < end
+
+    if in_session:
+        return
+
+    # ── Observe mode — log without blocking ────────────────────────
+    if cycle < SESSION_GATE_MIN_OBSERVE_CYCLES:
+        logger.info(
+            "%s: SESSION_GATE [OBSERVE] hour=%d outside tier=%s window=%02d-%02d "
+            "— would block entry in live mode (gate active after %d cycles)",
+            engine.name,
+            current_hour,
+            tier,
+            start,
+            end,
+            SESSION_GATE_MIN_OBSERVE_CYCLES,
+        )
+        return
+
+    # ── Live blocking ─────────────────────────────────────────────
+    logger.info(
+        "%s: SESSION_GATE blocking entry — hour=%d outside tier=%s window=%02d-%02d",
+        engine.name,
+        current_hour,
+        tier,
+        start,
+        end,
+    )
+    ctx.new_side = None
+
+
+# ── ADX entry gate stage ─────────────────────────────────────────────────
+
+ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18
+
+
+def apply_adx_entry_gate(ctx: DecisionContext) -> None:
+    """Block new entries when ADX is below threshold (choppy market).
+
+    The model's momentum/carry features work best in trending markets.
+    Entering when ADX < 20 (confirmed chop) amplifies false positives,
+    particularly for SELL-only assets that can only express one direction.
+
+    Disabled by default (``enabled: false``). When enabled and
+    ``observe_only: true`` the gate logs but does not block, to validate
+    thresholds before enforcement.
+    """
+    # Only applies to new entries
+    if ctx.new_side is None:
+        return
+
+    engine = ctx.engine
+
+    # Gate must be explicitly enabled
+    adx_cfg = engine.config.get("adx_entry_gate", {})
+    if not adx_cfg.get("enabled", False):
+        return
+
+    threshold = adx_cfg.get("adx_threshold", ADX_ENTRY_GATE_DEFAULT_THRESHOLD)
+    observe_only = adx_cfg.get("observe_only", True)
+
+    # Extract ADX from the features DataFrame
+    adx_val = _get_adx(ctx)
+    if adx_val is None:
+        return
+
+    if adx_val >= threshold:
+        return
+
+    if observe_only:
+        logger.info(
+            "%s: ADX_ENTRY_GATE [OBSERVE] adx=%.1f < threshold=%.1f "
+            "— would block entry in enforce mode",
+            engine.name,
+            adx_val,
+            threshold,
+        )
+        return
+
+    logger.info(
+        "%s: ADX_ENTRY_GATE blocking entry — adx=%.1f < threshold=%.1f",
+        engine.name,
+        adx_val,
+        threshold,
+    )
+    ctx.new_side = None
+
+
 # ── Pipeline definition ─────────────────────────────────────────────────
 
 
@@ -992,6 +1119,8 @@ DEFAULT_STAGES: list[StageFn] = [
     apply_risk_off_suppression,
     apply_sell_only_filter,
     apply_spread_gate,
+    apply_session_gate,
+    apply_adx_entry_gate,
     apply_confidence_gate,
     apply_signal_stability_filter,
     apply_signal_hysteresis,

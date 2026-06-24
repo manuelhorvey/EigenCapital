@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { selectPortfolioSummary } from '../selectors/portfolio'
@@ -21,7 +22,7 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
   )
 }
 
-function QuickStatsGrid() {
+const QuickStatsGrid = memo(function QuickStatsGrid() {
   const { data: bundle } = useSystemSnapshot()
   const portfolio = selectPortfolioSummary(bundle)
   const alerts = useMonitorAlerts()
@@ -62,14 +63,22 @@ function QuickStatsGrid() {
       />
     </div>
   )
-}
+})
+
+const PortfolioSnapshotPanel = memo(function PortfolioSnapshotPanel() {
+  return <PortfolioSummary />
+})
+
+const RiskSignalPanel = memo(function RiskSignalPanel() {
+  return <HaltConditions />
+})
 
 export default function DashboardOverview() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <QuickStatsGrid />
-      <PortfolioSummary />
-      <HaltConditions />
+      <PortfolioSnapshotPanel />
+      <RiskSignalPanel />
     </div>
   )
 }

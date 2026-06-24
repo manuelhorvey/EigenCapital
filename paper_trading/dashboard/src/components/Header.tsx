@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react'
-import { Menu, RefreshCw, TrendingUp } from 'lucide-react'
+import { Menu, RefreshCw, TrendingUp, DollarSign } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../hooks/useEngineHealth'
@@ -37,6 +37,32 @@ function EngineDotMobile() {
     />
   )
 }
+
+const QuickStatsBar = memo(function QuickStatsBar() {
+  const { data: bundle } = useSystemSnapshot()
+  const portfolio = bundle?.snapshot?.portfolio
+  if (!portfolio) return null
+
+  const pnl = portfolio.mtm_value - portfolio.capital
+  const pnlPct = portfolio.capital > 0 ? (pnl / portfolio.capital) * 100 : 0
+
+  return (
+    <div className="hidden md:flex items-center gap-4 text-2xs font-mono tabular-nums">
+      <div className="flex items-center gap-1.5 text-tertiary">
+        <DollarSign className="w-3 h-3 text-tertiary/60" strokeWidth={1.5} />
+        <span className="text-primary font-semibold">
+          {portfolio.mtm_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+        </span>
+      </div>
+      <span className={`${pnlPct >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+        {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%
+      </span>
+      <span className="text-tertiary">
+        {portfolio.open_positions} pos
+      </span>
+    </div>
+  )
+})
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -93,6 +119,8 @@ function Header({ onMenuClick }: HeaderProps) {
             <p className="text-[9px] text-tertiary font-mono tracking-wider uppercase leading-none mt-0.5">Paper Trading</p>
           </div>
         </div>
+
+        <QuickStatsBar />
 
         <div className="flex items-center gap-2">
           <EngineDot />

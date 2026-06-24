@@ -32,6 +32,14 @@ BASE_DIR = os.path.join(
 )
 
 _STATE_STORE: StateStore | None = None
+_ENGINE: object | None = None
+
+
+def register_engine(engine: object) -> None:
+    """Register the live engine instance so compute_all reads directly
+    from engine assets instead of the state store file."""
+    global _ENGINE
+    _ENGINE = engine
 
 
 def _get_state_store() -> StateStore:
@@ -42,6 +50,16 @@ def _get_state_store() -> StateStore:
 
 
 def _load_state_assets() -> dict:
+    # Live engine path — no file round-trip, always current.
+    if _ENGINE is not None:
+        try:
+            state = _ENGINE.get_state()
+            assets = state.get("assets", {})
+            if assets:
+                return assets
+        except Exception:
+            pass
+    # Fallback: state store snapshot
     try:
         snapshot = _get_state_store().load_snapshot()
         if snapshot is not None and snapshot.assets:

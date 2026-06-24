@@ -7,6 +7,7 @@ import time
 import warnings
 
 from paper_trading.engine import LOG_PATH, PaperTradingEngine  # noqa: E402
+from paper_trading.governance.health import register_engine  # noqa: E402
 from paper_trading.serve import serve  # noqa: E402
 from quantforge import setup_logging  # noqa: E402
 
@@ -28,6 +29,7 @@ def main():
     sigmod.signal(sigmod.SIGINT, _signal_handler)
 
     engine = PaperTradingEngine()
+    register_engine(engine)
 
     for name, asset in engine.assets.items():
         if _shutdown.is_set():

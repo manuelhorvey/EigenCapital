@@ -502,15 +502,15 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | ------------------------- | --------------------------------------------- |
 | Start engine + dashboard  | `./monitor_all`                               |
 | Run engine only           | `python -m paper_trading.ops.monitor`         |
-| Retrain all assets        | `python scripts/retrain_all_fixed.py`         |
-| Train regime models       | `python scripts/train_regime_models.py`       |
-| Walk-forward backtest     | `python scripts/walk_forward_backtest.py`     |
-| PnL backtest              | `python scripts/backtest_pnl.py --weight-method factor_constrained_v1` |
-| Train calibration models  | `python scripts/train_calibration.py`         |
-| Replay historical weights | `python scripts/replay_rebalance.py --verify` |
-| Score tickers             | `python scripts/score_tickers.py`             |
-| Generate promotion report | `python scripts/generate_promotion_report.py` |
-| Daily monitoring          | `python scripts/monitor_paper_trading.py`     |
+| Retrain all assets        | `python scripts/training/retrain_all_fixed.py`         |
+| Train regime models       | `python scripts/training/train_regime_models.py`       |
+| Walk-forward backtest     | `python scripts/backtest/walk_forward_backtest.py`     |
+| PnL backtest              | `python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v1` |
+| Train calibration models  | `python scripts/training/train_calibration.py`         |
+| Replay historical weights | `python scripts/replay/replay_rebalance.py --verify` |
+| Score tickers             | `python scripts/research/score_tickers.py`             |
+| Generate promotion report | `python scripts/research/generate_promotion_report.py` |
+| Daily monitoring          | `python scripts/ops/monitor_paper_trading.py`     |
 | Run microbenchmark        | `python benchmarks/microbenchmark.py`         |
 | Run tests                 | `pytest tests/ -q --tb=short`                 |
 | Lint                      | `ruff check . && ruff format .`               |

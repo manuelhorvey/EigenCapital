@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.backtest_pnl import (
+from scripts.backtest.backtest_pnl import (
     _asset_pt_sl_from_config,
     build_portfolio_daily_r,
     compute_asset_daily_r,

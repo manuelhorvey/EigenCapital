@@ -55,10 +55,10 @@ Cross-sectional multi-asset paper trading engine. 19-asset portfolio (FX, commod
 | `features/data_fetch.py` | Data fetching with MT5/yfinance fallback |
 | `features/labels.py` | Triple-barrier labeling + PurgedWalkForwardFolds |
 | `LIVE_CONTRACT.md` | Immutable system contract (update when architecture changes) |
-| `scripts/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe, `--weight-method` option) |
-| `scripts/compare_ensemble.py` | Ensemble vs base PnL comparison with per-fold sign test |
-| `scripts/train_calibration.py` | Train calibrators from walk-forward signal parquets |
-| `scripts/replay_rebalance.py` | Reconstruct historical portfolio weights + compare with live |
+| `scripts/backtest/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe, `--weight-method` option) |
+| `scripts/backtest/compare_ensemble.py` | Ensemble vs base PnL comparison with per-fold sign test |
+| `scripts/training/train_calibration.py` | Train calibrators from walk-forward signal parquets |
+| `scripts/replay/replay_rebalance.py` | Reconstruct historical portfolio weights + compare with live |
 | `paper_trading/governance/risk.py` | Risk evaluation, SL hit rate, drift scoring, **SELL tripwire** (per-asset deque, TP=1/SL=0, win, 20-trade window, 65% threshold, WARNING log on trip) |
 | `paper_trading/services/engine_state_service.py` | Portfolio summary with `factor_exposures`, `position_concentration` |
 
@@ -112,47 +112,47 @@ PYTHONPATH=$PYTHONPATH:. python paper_trading/ops/slack_alerter.py
 
 ### Retrain All Assets
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/retrain_all_fixed.py
+PYTHONPATH=$PYTHONPATH:. python scripts/training/retrain_all_fixed.py
 ```
 
 ### Train Regime Models
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/train_regime_models.py
+PYTHONPATH=$PYTHONPATH:. python scripts/training/train_regime_models.py
 ```
 
 ### Walk-Forward Backtest (diagnostic)
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/walk_forward_backtest.py --asset EURUSD
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/walk_forward_backtest.py --asset EURUSD
 ```
 
 ### PnL Backtest from Signal Parquets
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/backtest_pnl.py
 ```
 
 ### PnL Backtest with Weight Strategy
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py --weight-method factor_constrained_v1
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v1
 ```
 
 ### Compare Ensemble vs Base
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py --tag base --ensemble-tag ensemble
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/backtest_pnl.py --tag base --ensemble-tag ensemble
 ```
 
 ### Train Calibration Models
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/train_calibration.py
+PYTHONPATH=$PYTHONPATH:. python scripts/training/train_calibration.py
 ```
 
 ### Reconstruct Historical Portfolio Weights
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/replay_rebalance.py --verify
+PYTHONPATH=$PYTHONPATH:. python scripts/replay/replay_rebalance.py --verify
 ```
 
 ### Daily Monitoring
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/monitor_paper_trading.py
+PYTHONPATH=$PYTHONPATH:. python scripts/ops/monitor_paper_trading.py
 ```
 
 ### Check Dashboard
@@ -252,14 +252,14 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 
 - **Position concentration alert (IMPLEMENTED 2026-06-23)**: `orchestrator/engine.py:392` emits a `position_concentration` WAL event every cycle with skew, threshold, dominant_side, and alert boolean. The slack alerter at `slack_alerter.py:166` handles it with state-transition cooldown: fires immediately on onset, sends an "all clear" when skew drops below threshold, and sends a heartbeat every hour while sustained. The emit-every-cycle design (not just on alert conditions) enables the alerter to detect both below→above and above→below transitions by diffing the continuous signal.
 - **WAL `os.fsync` exception gap (IDENTIFIED 2026-06-23)**: `WalWriter.write()` (`paper_trading/replay/wal.py:92-108`) calls `os.fsync(f.fileno())` with no try/except. Actor-level WAL writes (`price_update`, `position_closed`, `signal_generated`) are caught by the `except Exception` around `future.result()` in `orchestrator/engine.py:187` — actor marked failed, orchestrator continues. Orchestrator-level WAL writes (`_write_health_events` line 219, `_write_state_committed` line 499, `position_concentration` line 393) propagate to `monitor.py:69`'s catch-all — that cycle's WAL events are lost but `state.json` is saved and the next cycle runs. This means a concentration alert WAL event could silently fail to write on the exact cycle where skew crosses threshold; the alerter would never detect the transition because it would never see the event. Fix: wrap each orchestrator-level `self._wal.write()` call in a try/except that logs the failure and continues. Estimated effort: ~5 minutes, no logic changes. Pre-existing gap shared by all orchestrator-level WAL writes, not introduced by the concentration alert.
-- **NZDCAD/NZDUSD confidence gate (PROPOSED 2026-06-23, not implemented)**: As of 2026-06-22 live observation, NZDCAD and NZDUSD show 92-96% confidence every cycle, with no win-rate data to assess whether this reflects genuine skill or miscalibration. The calibration question (does confidence track actual win rate?) is gated on N≥20 trades — fewer than 20 trades is insufficient to distinguish. Proposal: add a check to `scripts/monitor_paper_trading.py` that prints "READY FOR REVIEW" once either asset reaches `n_trades >= 20`. What "READY FOR REVIEW" should trigger: compare the asset's mean confidence (from `mean_confidence` in state.json) against its actual win rate across those trades. If win rate tracks confidence within ±10pp, the model is calibrated and the high confidence is explanatory. If win rate lags confidence by >15pp (e.g., 92% confidence with 60% win rate), the model is overconfident on these pairs — same pattern as the BUY inversion discovery. The `n_trades >= 20` floor is the gate; the comparison script does not exist yet.
+- **NZDCAD/NZDUSD confidence gate (PROPOSED 2026-06-23, not implemented)**: As of 2026-06-22 live observation, NZDCAD and NZDUSD show 92-96% confidence every cycle, with no win-rate data to assess whether this reflects genuine skill or miscalibration. The calibration question (does confidence track actual win rate?) is gated on N≥20 trades — fewer than 20 trades is insufficient to distinguish. Proposal: add a check to `scripts/ops/monitor_paper_trading.py` that prints "READY FOR REVIEW" once either asset reaches `n_trades >= 20`. What "READY FOR REVIEW" should trigger: compare the asset's mean confidence (from `mean_confidence` in state.json) against its actual win rate across those trades. If win rate tracks confidence within ±10pp, the model is calibrated and the high confidence is explanatory. If win rate lags confidence by >15pp (e.g., 92% confidence with 60% win rate), the model is overconfident on these pairs — same pattern as the BUY inversion discovery. The `n_trades >= 20` floor is the gate; the comparison script does not exist yet.
 
 ---
 ## Walk-Forward PnL Backtest & Calibration Deep-Dive (2026-06-20)
 
 ### Tools Built
-- **`scripts/backtest_pnl.py`** — PnL backtest from OOS signal parquets (R-multiples, verified PnL function with 12 test cases, per-asset + portfolio equity curve, drawdown in R-units, autocorrelation-adjusted Sharpe). Usage: `PYTHONPATH=$PYTHONPATH:. python scripts/backtest_pnl.py`.
-- **`scripts/compare_ensemble.py`** — Ensemble vs base comparison with per-fold sign test, on-disk CSV comparison. Reusable.
+- **`scripts/backtest/backtest_pnl.py`** — PnL backtest from OOS signal parquets (R-multiples, verified PnL function with 12 test cases, per-asset + portfolio equity curve, drawdown in R-units, autocorrelation-adjusted Sharpe). Usage: `PYTHONPATH=$PYTHONPATH:. python scripts/backtest/backtest_pnl.py`.
+- **`scripts/backtest/compare_ensemble.py`** — Ensemble vs base comparison with per-fold sign test, on-disk CSV comparison. Reusable.
 
 ### Ensemble Decision Re-Confirmed
 - Ensemble vs base PnL comparison (corrected methodology, full-training walk-forward): -3.19R over 171 days
@@ -327,7 +327,7 @@ Folds where the direction *wasn't* flipped show zero or near-zero removed signal
 
 **Interpretation**: The filter defangs the directional instability symptom — it prevents the model from acting on its confirmed trend-period wrong-direction flip. It does NOT identify a structurally bad per-asset direction. The improvement lives where the flip happens (specific historical trend periods) and will re-apply the next time the model flips into a trend. This is a valid production guard but is best understood as a secondary consequence of the terminal finding (directional instability), not an independent discovery.
 
-**script**: `scripts/filter_direction.py`
+**script**: `scripts/backtest/filter_direction.py`
 
 ### Terminal Finding: Base Model Directional Instability
 
@@ -551,8 +551,8 @@ New handlers in `replay/runner.py`:
 | `paper_trading/replay/wal.py` | Docstring updated with causal vs observability event tiers |
 | `paper_trading/inference/training.py` | Model hash sidecar file written at save time |
 | `quantforge/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
-| `scripts/retrain_counterfactual.py` | **NEW** — feature ablation walk-forward test |
-| `scripts/check_chf_correlation.py` | **NEW** — CHF cluster independence verification |
+| `scripts/training/retrain_counterfactual.py` | **NEW** — feature ablation walk-forward test |
+| `scripts/diagnostics/check_chf_correlation.py` | **NEW** — CHF cluster independence verification |
 | `paper_trading/ops/slack_alerter.py` | **NEW** — WAL-tailing Slack alert daemon |
 | `paper_trading/dashboard/src/hooks/useEngineHealth.ts` | **NEW** — 5s health poll for liveness indicator |
 | `paper_trading/dashboard/src/components/WalTimeline.tsx` | **NEW** — per-asset WAL causal-boundary event timeline |
@@ -578,25 +578,25 @@ New handlers in `replay/runner.py`:
 
 ## CHF Cluster Correlation Check (2026-06-20)
 
-**Script**: `scripts/check_chf_correlation.py` — verifies whether 4 SELL-on-CHF positions (CADCHF, NZDCHF, USDCHF, EURCHF) are independent bets or one leveraged CHF-strength position.
+**Script**: `scripts/diagnostics/check_chf_correlation.py` — verifies whether 4 SELL-on-CHF positions (CADCHF, NZDCHF, USDCHF, EURCHF) are independent bets or one leveraged CHF-strength position.
 
 **Output**: Pairwise return correlations, concurrent direction agreement, worst-case concurrent drawdown days, 3+ concurrent loss day frequency. Run with:
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/check_chf_correlation.py
+PYTHONPATH=$PYTHONPATH:. python scripts/diagnostics/check_chf_correlation.py
 ```
 
 ## Feature Ablation Script (2026-06-20)
 
-**Script**: `scripts/retrain_counterfactual.py` — isolates causal mechanism of BUY inversion by removing feature groups and observing effect on BUY WR.
+**Script**: `scripts/training/retrain_counterfactual.py` — isolates causal mechanism of BUY inversion by removing feature groups and observing effect on BUY WR.
 
 **Usage**:
 ```bash
 # Ablate carry on CHF cluster
-PYTHONPATH=$PYTHONPATH:. python scripts/retrain_counterfactual.py \
+PYTHONPATH=$PYTHONPATH:. python scripts/training/retrain_counterfactual.py \
     --assets CADCHF,NZDCHF,USDCHF,EURCHF,AUDUSD --remove-carry
 
 # Ablate DXY on equity cluster
-PYTHONPATH=$PYTHONPATH:. python scripts/retrain_counterfactual.py \
+PYTHONPATH=$PYTHONPATH:. python scripts/training/retrain_counterfactual.py \
     --assets ^DJI,ES,NQ --remove-dxy
 ```
 

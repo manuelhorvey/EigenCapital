@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
 from features.registry import FEATURE_REGISTRY, ASSET_LABEL_PARAMS
 from features.builder import build_features, compute_macro_derived
 from labels.triple_barrier import apply_triple_barrier
-from scripts.train_all_assets import fetch_history
+from scripts.training.train_all_assets import fetch_history
 
 TICKERS = list(FEATURE_REGISTRY.keys())
 

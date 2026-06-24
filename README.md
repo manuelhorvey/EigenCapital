@@ -180,7 +180,7 @@ Saved to `paper_trading/models/{ASSET}_model.json`.
 Second `binary:logistic` classifier trained on the same alpha features **plus** 7 regime
 features (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile).
 Generates a separate P(LONG) conditioned on market regime context.
-Saved to `models/regime/{ASSET}_regime.json`. Requires `scripts/train_regime_models.py` to generate.
+Saved to `models/regime/{ASSET}_regime.json`. Requires `scripts/training/train_regime_models.py` to generate.
 Not currently loaded in production (ensemble disabled).
 
 ### Ensemble (Disabled 2026-06-20)
@@ -222,7 +222,7 @@ after `_run_inference()`, before the decision pipeline.
 
 - **ECE reduction**: 0.36 → 0.02 (94.3% avg, 19/19 assets >80%)
 - **Config:** `calibration.enabled: true`, `calibration.method: binned`, `calibration.n_bins: 10`
-- **Training:** `scripts/train_calibration.py` — fits calibrators from walk-forward parquets
+- **Training:** `scripts/training/train_calibration.py` — fits calibrators from walk-forward parquets
 
 ### P2 — Fractional Kelly Sizing (disabled)
 **File:** `shared/kelly.py`
@@ -533,7 +533,7 @@ Only needed if you want to use the MetaTrader 5 bridge for live demo execution:
 
 ```bash
 # Install MT5 terminal in Wine prefix
-./scripts/setup_mt5_wine.sh
+./scripts/setup/setup_mt5_wine.sh
 
 # Configure credentials in .env
 cp .env.example .env
@@ -579,25 +579,25 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | `./monitor_all`                                | One-command launch (terminal + bridge + engine + dashboard) |
 | `~/.local/bin/mt5-terminal`                    | Launch MT5 terminal via Wine    |
 | `~/.local/bin/mt5-bridge`                      | Launch MT5 bridge server        |
-| `backtests/trade_analysis.py`                  | Walk-forward backtest + optimization |
-| `scripts/walk_forward_backtest.py`             | Multi-ticker validation         |
-| `scripts/score_tickers.py`                     | Asset scoring                   |
-| `scripts/generate_promotion_report.py`         | Portfolio report generation     |
-| `scripts/train_all_assets.py`                  | Full retraining (legacy)        |
-| `scripts/retrain_all_fixed.py`                 | Retrain with all pipeline fixes |
-| `scripts/train_regime_models.py`               | Train regime-conditional models |
-| `scripts/retrain_counterfactual.py`            | Feature ablation walk-forward test (SHAP mechanism falsification) |
-| `scripts/ensemble_pilot_backtest.py`           | 3-asset ensemble pilot backtest |
-| `scripts/monitor_paper_trading.py`             | Poll dashboard + CSV logging    |
-| `scripts/backtest_pnl.py`                      | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
-| `scripts/train_calibration.py`                 | Train calibration models from walk-forward signal parquets |
-| `scripts/replay_rebalance.py`                  | Reconstruct historical portfolio weights and compare with live |
-| `scripts/compare_ensemble.py`                  | Ensemble vs base PnL comparison with per-fold sign test |
-| `scripts/filter_direction.py`                  | Directional filter diagnostic   |
-| `scripts/crisis_replay.py`                     | Crisis replay against 4 historical windows (dec 2024, tariff, selloffs) |
-| `scripts/monte_carlo_drawdown.py`              | Block-bootstrap drawdown simulation (3 horizons, 10K sims) |
-| `scripts/check_chf_correlation.py`             | CHF cluster independence verification |
-| `scripts/setup_mt5_wine.sh`                    | MT5 Wine environment setup      |
+| `scripts/research/trade_analysis.py`            | Walk-forward backtest + optimization |
+| `scripts/backtest/walk_forward_backtest.py`             | Multi-ticker validation         |
+| `scripts/research/score_tickers.py`                     | Asset scoring                   |
+| `scripts/research/generate_promotion_report.py`         | Portfolio report generation     |
+| `scripts/training/train_all_assets.py`                  | Full retraining (legacy)        |
+| `scripts/training/retrain_all_fixed.py`                 | Retrain with all pipeline fixes |
+| `scripts/training/train_regime_models.py`               | Train regime-conditional models |
+| `scripts/training/retrain_counterfactual.py`            | Feature ablation walk-forward test (SHAP mechanism falsification) |
+| `scripts/backtest/ensemble_pilot_backtest.py`           | 3-asset ensemble pilot backtest |
+| `scripts/ops/monitor_paper_trading.py`             | Poll dashboard + CSV logging    |
+| `scripts/backtest/backtest_pnl.py`                      | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
+| `scripts/training/train_calibration.py`                 | Train calibration models from walk-forward signal parquets |
+| `scripts/replay/replay_rebalance.py`                  | Reconstruct historical portfolio weights and compare with live |
+| `scripts/backtest/compare_ensemble.py`                  | Ensemble vs base PnL comparison with per-fold sign test |
+| `scripts/backtest/filter_direction.py`                  | Directional filter diagnostic   |
+| `scripts/backtest/crisis_replay.py`                     | Crisis replay against 4 historical windows (dec 2024, tariff, selloffs) |
+| `scripts/backtest/monte_carlo_drawdown.py`              | Block-bootstrap drawdown simulation (3 horizons, 10K sims) |
+| `scripts/diagnostics/check_chf_correlation.py`             | CHF cluster independence verification |
+| `scripts/setup/setup_mt5_wine.sh`                    | MT5 Wine environment setup      |
 | `benchmarks/microbenchmark.py`                 | Runtime benchmarking            |
 
 ---
@@ -608,7 +608,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 configs/
     paper_trading.yaml        # Primary engine config
     mt5_symbol_map.yaml       # MT5 symbol mapping
-backtests/                   # Backtest + optimization scripts
+scripts/research/             # Screening, research sweeps, model analysis
     trade_analysis.py         # Main backtest engine
 features/
     builder.py                # Per-asset feature construction

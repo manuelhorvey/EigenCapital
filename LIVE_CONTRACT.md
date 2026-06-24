@@ -419,9 +419,9 @@ desired-vs-actual notional diverge wildly for small accounts).
 ## 11. ASSET SCREENING & PROMOTION CONTRACT
 
 **Screening pipeline:**
-1. `backtests/trade_analysis.py` — walk-forward style backtest with per-asset SL/TP/depth
-2. `scripts/walk_forward_backtest.py` — multi-ticker validation
-3. `scripts/score_tickers.py` — composite score (IC + hit rate + consistency + bidirectionality)
+1. `scripts/research/trade_analysis.py` — walk-forward style backtest with per-asset SL/TP/depth
+2. `scripts/backtest/walk_forward_backtest.py` — multi-ticker validation
+3. `scripts/research/score_tickers.py` — composite score (IC + hit rate + consistency + bidirectionality)
 
 **Promotion criteria:**
 | Condition | Threshold |
@@ -586,8 +586,8 @@ config-gated — no behavior change until explicitly enabled.
 **Active config:** `portfolio.weight_method: factor_constrained_v1` (enabled 2026-06-24).
 
 **Supporting tools:**
-- `scripts/replay_rebalance.py` — reconstruct historical weights via `rolling_weight_matrix()` and compare with live.
-- `scripts/backtest_pnl.py --weight-method <method>` — backtest with any registered strategy.
+- `scripts/replay/replay_rebalance.py` — reconstruct historical weights via `rolling_weight_matrix()` and compare with live.
+- `scripts/backtest/backtest_pnl.py --weight-method <method>` — backtest with any registered strategy.
 - `engine_rebalance_service.py` — reads `weight_method` from config, calls `compute_weights()` on schedule.
 
 ### 15.2 P1 — Calibration Layer (live: enabled)
@@ -610,7 +610,7 @@ config-gated — no behavior change until explicitly enabled.
 
 **Known performance:** ECE reduced from 0.36 → 0.02 (94.3% avg reduction, 19/19 assets >80%).
 
-**Training:** `scripts/train_calibration.py` — fits calibrators from walk-forward signal parquets. Run when walk-forward parquets are regenerated.
+**Training:** `scripts/training/train_calibration.py` — fits calibrators from walk-forward signal parquets. Run when walk-forward parquets are regenerated.
 
 ### 15.3 P2 — Fractional Kelly Sizing (live: disabled)
 

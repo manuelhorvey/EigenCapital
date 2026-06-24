@@ -182,11 +182,11 @@ The script:
 9. Serves dashboard on port 5000
 10. Repeats every refresh interval (default 30s, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
 
-**Signal logging:** The `scripts/monitor_paper_trading.py` script polls the dashboard every 6 hours
+**Signal logging:** The `scripts/ops/monitor_paper_trading.py` script polls the dashboard every 6 hours
 and appends a CSV row to `data/monitoring/paper_trade_monitor.csv`. Use it for daily signal checks:
 
 ```bash
-python scripts/monitor_paper_trading.py
+python scripts/ops/monitor_paper_trading.py
 ```
 
 **Weekend / after-hours:** The engine auto-detects market closure (Fri after 17:00 ET, all day Sat/Sun). Refresh cycles are skipped — no yfinance data pulls, no signal generation, no SL/TP checks. The dashboard stays live showing the last pre-close state with a yellow **CLSD** badge. Normal operation resumes at the next scheduled refresh after Sun 17:00 ET.
@@ -826,7 +826,7 @@ Before transitioning from paper to live, verify all checks below. 6/7 must pass 
 | 1 | Gate override rate | <40% across all assets | `data/monitoring/paper_trade_monitor.csv` — column `gate_overrides` | Hard |
 | 2 | Mean confidence | >0.52 for ≥16/19 assets | Monitor CSV — column `mean_confidence` per snapshot | Hard |
 | 3 | Signal flips | ≤3/day for ≥16/19 assets | Monitor CSV — column `signal_flips` | Hard |
-| 4 | Cross-asset correlation | No unexplained >0.7 | `python scripts/signal_correlation_check.py` | Hard |
+| 4 | Cross-asset correlation | No unexplained >0.7 | `python scripts/diagnostics/signal_correlation_check.py` | Hard |
 | 5 | MT5 errors | Zero across all cycles | `grep ERROR /tmp/paper_trading.log` | Hard |
 | 6 | Trades executed | ≥10 across portfolio | MT5 terminal or dashboard trades panel | Hard |
 | 7 | SELL_ONLY filter | BUY→FLAT overrides active for 8 assets | `grep "sell-only filter" /tmp/paper_trading.log` | Hard |

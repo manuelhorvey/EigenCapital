@@ -57,7 +57,7 @@ def _get_pt_sl(name: str) -> tuple[float, float]:
 
 
 def main():
-    from scripts.walk_forward_backtest import run_walk_forward
+    from scripts.backtest.walk_forward_backtest import run_walk_forward
 
     all_summaries = []
     for name, ticker in CANDIDATES.items():

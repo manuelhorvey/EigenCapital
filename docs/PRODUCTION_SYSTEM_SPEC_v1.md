@@ -112,7 +112,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 ### 3.1 Walk-Forward Backtest
 
-**Entry point**: `python scripts/walk_forward_backtest.py --tickers T1,T2,T3,...`
+**Entry point**: `python scripts/backtest/walk_forward_backtest.py --tickers T1,T2,T3,...`
 
 | Parameter | Value |
 |---|---|
@@ -130,7 +130,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 ### 3.2 Scoring & Promotion
 
-**Entry point**: `python scripts/score_tickers.py`
+**Entry point**: `python scripts/research/score_tickers.py`
 
 **Composite score formula**:
 - IC normalized (weight: 30%)
@@ -215,7 +215,7 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 **Post-training**:
 - PSI baseline persist
 - Meta-label model (XGBoost)
-- Regime-conditional model (trained via `scripts/train_regime_models.py`, not loaded in production — ensemble disabled)
+- Regime-conditional model (trained via `scripts/training/train_regime_models.py`, not loaded in production — ensemble disabled)
 - Feature importance + stability logging
 
 ### 4.5 Model Files
@@ -468,18 +468,18 @@ In-memory TTL cache per download type:
 | `shared/kelly.py` | P2 fractional Kelly sizing |
 | `shared/factor_model.py` | P3 factor model — 9 groups, constrained optimization |
 | `portfolio/hrp_allocator.py` | P4 HRP fix — optimal_leaf_ordering |
-| `scripts/train_calibration.py` | Train calibrators from walk-forward parquets |
-| `scripts/replay_rebalance.py` | Reconstruct historical portfolio weights |
+| `scripts/training/train_calibration.py` | Train calibrators from walk-forward parquets |
+| `scripts/replay/replay_rebalance.py` | Reconstruct historical portfolio weights |
 | `paper_trading/services/entry_service.py` | Entry validation + deferred-entry sell-only bypass fix |
 | `benchmarks/microbenchmark.py` | Isolated performance benchmark (`--state-dir`) |
-| `scripts/walk_forward_backtest.py` | Multi-ticker screening |
-| `scripts/score_tickers.py` | Promotion scoring |
-| `scripts/generate_promotion_report.py` | Report + YAML generation |
-| `scripts/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
-| `scripts/crisis_replay.py` | Crisis replay against 4 historical windows |
-| `scripts/monte_carlo_drawdown.py` | Block-bootstrap drawdown simulation |
-| `scripts/retrain_counterfactual.py` | Feature ablation walk-forward test |
-| `scripts/check_chf_correlation.py` | CHF cluster independence verification |
+| `scripts/backtest/walk_forward_backtest.py` | Multi-ticker screening |
+| `scripts/research/score_tickers.py` | Promotion scoring |
+| `scripts/research/generate_promotion_report.py` | Report + YAML generation |
+| `scripts/backtest/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
+| `scripts/backtest/crisis_replay.py` | Crisis replay against 4 historical windows |
+| `scripts/backtest/monte_carlo_drawdown.py` | Block-bootstrap drawdown simulation |
+| `scripts/training/retrain_counterfactual.py` | Feature ablation walk-forward test |
+| `scripts/diagnostics/check_chf_correlation.py` | CHF cluster independence verification |
 | `walkforward/` | Screening results + counterfactual ablations |
 | `LIVE_CONTRACT.md` | Immutable system contract |
 

@@ -84,7 +84,7 @@ def score_candidate(group: pd.DataFrame) -> dict:
 
 def run_one(asset_name: str, ticker: str, pt_sl: tuple[float, float],
             ensemble_threshold: float, max_depth: int) -> dict | None:
-    from scripts.walk_forward_backtest import run_walk_forward
+    from scripts.backtest.walk_forward_backtest import run_walk_forward
     try:
         df = run_walk_forward(asset_name, ticker, window_years=3, step_years=1,
                               ensemble_weight=0.6, ensemble_threshold=ensemble_threshold,

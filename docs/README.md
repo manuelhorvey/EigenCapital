@@ -20,20 +20,20 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 | `mt5-terminal` | Launch MT5 terminal in Wine |
 | `mt5-bridge` | Launch MT5 TCP bridge server on :9879 |
 | `python -m paper_trading.ops.monitor` | Run engine + dashboard only |
-| `python backtests/trade_analysis.py` | Walk-forward style backtest + per-asset optimization |
-| `python scripts/walk_forward_backtest.py` | Multi-ticker walk-forward validation |
-| `python scripts/score_tickers.py` | Asset scoring and promotion classification |
-| `python scripts/train_all_assets.py` | Full retraining (legacy) |
-| `python scripts/retrain_all_fixed.py` | Retrain with all pipeline fixes |
-| `python scripts/train_regime_models.py` | Train regime-conditional models |
-| `python scripts/ensemble_pilot_backtest.py` | 3-asset ensemble pilot backtest |
-| `python scripts/monitor_paper_trading.py` | Poll dashboard + CSV logging |
+| `python scripts/research/trade_analysis.py` | Walk-forward style backtest + per-asset optimization |
+| `python scripts/backtest/walk_forward_backtest.py` | Multi-ticker walk-forward validation |
+| `python scripts/research/score_tickers.py` | Asset scoring and promotion classification |
+| `python scripts/training/train_all_assets.py` | Full retraining (legacy) |
+| `python scripts/training/retrain_all_fixed.py` | Retrain with all pipeline fixes |
+| `python scripts/training/train_regime_models.py` | Train regime-conditional models |
+| `python scripts/backtest/ensemble_pilot_backtest.py` | 3-asset ensemble pilot backtest |
+| `python scripts/ops/monitor_paper_trading.py` | Poll dashboard + CSV logging |
 
 ## Core Pipeline
 
 | Stage | Module | Purpose |
 |-------|--------|---------|
-| Screening | `backtests/trade_analysis.py`, `scripts/walk_forward_backtest.py` | Multi-ticker walk-forward backtest, promotion scoring |
+| Screening | `scripts/research/trade_analysis.py`, `scripts/backtest/walk_forward_backtest.py` | Multi-ticker walk-forward backtest, promotion scoring |
 | Training | `paper_trading/inference/training.py` | XGBoost training with per-asset features |
 | Inference | `paper_trading/inference/pipeline.py` | Live pipeline: OHLCV → features → XGBoost → decision |
 | Async diagnostics | `paper_trading/inference/async_diagnostics.py` | DiagnosticsSnapshot + daemon consumer thread |

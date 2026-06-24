@@ -8,14 +8,7 @@ import pandas as pd
 import xgboost as xgb
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
-from scripts.cadjpy_walk_forward import (
-    FEATURES as CADJPY_FEATURES,
-)
-from scripts.cadjpy_walk_forward import (
-    compute_features_v7,
-)
-
-from scripts.train_all_assets import (
+from scripts.training.train_all_assets import (
     _slug,
     compute_features,
     fetch_history,

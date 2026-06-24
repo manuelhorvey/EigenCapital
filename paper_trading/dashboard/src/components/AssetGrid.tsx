@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import AssetCard from './AssetCard'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
@@ -7,7 +7,8 @@ import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
 
 export default function AssetGrid() {
-  const { data, isPending } = usePortfolioState()
+  const { data: bundle, isPending } = useSystemSnapshot()
+  const data = bundle?.snapshot
   const assetNames = useMemo(() => {
     if (!data?.assets) return []
     return Object.keys(data.assets).sort()

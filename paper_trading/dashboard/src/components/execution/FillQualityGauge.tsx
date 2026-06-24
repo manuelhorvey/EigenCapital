@@ -1,4 +1,4 @@
-import { useExecutionQuality } from '../../hooks/useExecutionQuality'
+import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import { Skeleton } from '../ui/Skeleton'
@@ -6,7 +6,8 @@ import EmptyState from '../ui/EmptyState'
 import Gauge from '../ui/Gauge'
 
 export default function FillQualityGauge() {
-  const { data, isPending } = useExecutionQuality()
+  const { data: bundle, isPending } = useAttributionBundle()
+  const data = bundle?.executionQuality
 
   if (isPending) {
     return (

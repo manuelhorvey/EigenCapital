@@ -1,11 +1,11 @@
 import { useCallback, useRef } from 'react'
-import { X } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { X, TrendingUp } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { usePortfolioState } from '../../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import Divider from '../ui/Divider'
 import {
   LayoutDashboard,
-  TrendingUp,
   Zap,
   BarChart3,
   Heart,
@@ -15,6 +15,7 @@ type TabId = 'dashboard' | 'trading' | 'execution' | 'risk'
 
 interface NavItem {
   id: TabId
+  to: string
   label: string
   icon: LucideIcon
   desc: string
@@ -25,22 +26,22 @@ const NAV_GROUPS: { title: string; icon: LucideIcon; items: NavItem[] }[] = [
     title: 'Overview',
     icon: LayoutDashboard,
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, desc: 'Health + alerts + portfolio summary' },
+      { id: 'dashboard', to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, desc: 'Health + alerts + portfolio summary' },
     ],
   },
   {
     title: 'Trading',
     icon: TrendingUp,
     items: [
-      { id: 'trading', label: 'Trading', icon: Zap, desc: 'Signals, fills, open trades' },
-      { id: 'execution', label: 'Execution', icon: BarChart3, desc: 'Slippage, quality, attribution' },
+      { id: 'trading', to: '/trading', label: 'Trading', icon: Zap, desc: 'Signals, fills, open trades' },
+      { id: 'execution', to: '/execution', label: 'Execution', icon: BarChart3, desc: 'Slippage, quality, attribution' },
     ],
   },
   {
     title: 'Analysis',
     icon: Heart,
     items: [
-      { id: 'risk', label: 'Risk', icon: Heart, desc: 'Health scores, governance, constraints' },
+      { id: 'risk', to: '/risk', label: 'Risk', icon: Heart, desc: 'Health scores, governance, constraints' },
     ],
   },
 ]
@@ -49,14 +50,13 @@ const allItems = NAV_GROUPS.flatMap(g => g.items)
 
 interface SidebarProps {
   open: boolean
-  activeTab: TabId
-  onTabChange: (tab: TabId) => void
   onClose: () => void
 }
 
-export default function Sidebar({ open, activeTab, onTabChange, onClose }: SidebarProps) {
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null)
-  const { data: state } = usePortfolioState()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
 
   const engine = state?.engine_status
   const isRunning = engine?.initialized && !engine?.market_closed
@@ -96,10 +96,9 @@ export default function Sidebar({ open, activeTab, onTabChange, onClose }: Sideb
     }
   }, [onClose])
 
-  const handleNav = useCallback((id: TabId) => {
-    onTabChange(id)
+  const handleNav = useCallback(() => {
     onClose()
-  }, [onTabChange, onClose])
+  }, [onClose])
 
   return (
     <>
@@ -161,37 +160,40 @@ export default function Sidebar({ open, activeTab, onTabChange, onClose }: Sideb
                 {group.title}
               </p>
               <div className="space-y-0.5 ml-1">
-                {group.items.map(item => {
-                  const isActive = activeTab === item.id
-                  return (
-                    <button
-                      key={item.id}
-                      id={`nav-${item.id}`}
-                      role="treeitem"
-                      aria-current={isActive ? 'page' : undefined}
-                      tabIndex={isActive ? 0 : -1}
-                      onClick={() => handleNav(item.id)}
-                      onKeyDown={e => handleKeyDown(e, item.id)}
-                      className={`
-                        w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium
-                        transition-all duration-150 relative focus-ring
-                        ${isActive
+                {group.items.map(item => (
+                  <NavLink
+                    key={item.id}
+                    id={`nav-${item.id}`}
+                    to={item.to}
+                    end
+                    role="treeitem"
+                    aria-current={undefined}
+                    tabIndex={undefined}
+                    onClick={handleNav}
+                    onKeyDown={e => handleKeyDown(e, item.id)}
+                    className={({ isActive }) =>
+                      `w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium
+                      transition-all duration-150 relative focus-ring ${
+                        isActive
                           ? 'bg-accent-emerald/8 text-accent-emerald border border-accent-emerald/20 shadow-[inset_0_0_0_1px_rgba(20,184,166,0.08)]'
                           : 'text-tertiary hover:text-secondary hover:bg-panel/60 border border-transparent'
-                        }
-                      `}
-                    >
-                      {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-accent-emerald rounded-full shadow-[0_0_4px_rgba(20,184,166,0.4)]" />
-                      )}
-                      <item.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                      <div className="flex flex-col min-w-0">
-                        <span className="truncate">{item.label}</span>
-                        <span className="text-[9px] text-tertiary/60 truncate">{item.desc}</span>
-                      </div>
-                    </button>
-                  )
-                })}
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-accent-emerald rounded-full shadow-[0_0_4px_rgba(20,184,166,0.4)]" />
+                        )}
+                        <item.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate">{item.label}</span>
+                          <span className="text-[9px] text-tertiary/60 truncate">{item.desc}</span>
+                        </div>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
               </div>
               {gi < NAV_GROUPS.length - 1 && <Divider className="my-1.5 mx-2" />}
             </div>

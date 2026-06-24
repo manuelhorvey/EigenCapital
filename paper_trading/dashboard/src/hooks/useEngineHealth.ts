@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
+import { QUERY_KEYS } from '../lib/queryKeys'
 
 export interface EngineHealth {
   status: 'ok' | 'stale' | 'no_state'
@@ -21,10 +22,10 @@ const FALLBACK: EngineHealth = {
 
 export function useEngineHealth() {
   return useQuery({
-    queryKey: ['engineHealth'],
+    queryKey: QUERY_KEYS.engine,
     queryFn: () => fetchApi<EngineHealth>('/health'),
     refetchInterval: 5_000,
-    staleTime: 4_000,
+    staleTime: 0,
     retry: 2,
     retryDelay: 1_000,
     placeholderData: FALLBACK,

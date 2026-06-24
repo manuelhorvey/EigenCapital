@@ -7,7 +7,7 @@ import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { TableSkeleton } from './ui/Skeleton'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import Badge, { reasonToBadge, signalToBadge } from './ui/Badge'
 import type { TradeEntry } from '../hooks/useTrades'
 import TradeInspectorModal from './trades/TradeInspectorModal'
@@ -28,7 +28,8 @@ export default function TradeFeed() {
   const handleRowClick = useCallback((trade: TradeEntry) => setSelectedTrade(trade), [])
   const offset = page * PAGE_SIZE
   const { data: trades, isPending } = useTrades(PAGE_SIZE + 1, offset)
-  const { data: portfolio } = usePortfolioState()
+  const { data: bundle } = useSystemSnapshot()
+  const portfolio = bundle?.snapshot
   const rows = useMemo(() => (trades ?? []).slice(0, PAGE_SIZE), [trades])
   const hasMore = (trades?.length ?? 0) > PAGE_SIZE
 

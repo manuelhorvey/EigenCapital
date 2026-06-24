@@ -1,4 +1,4 @@
-import { useHealthScores } from '../hooks/useHealthScores'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { Skeleton } from './ui/Skeleton'
@@ -28,7 +28,8 @@ function healthLabel(score: number): string {
 }
 
 export default function HealthScores() {
-  const { data, isPending } = useHealthScores()
+  const { data: bundle, isPending } = useSystemSnapshot()
+  const data = bundle?.live?.health
 
   if (isPending) {
     return (

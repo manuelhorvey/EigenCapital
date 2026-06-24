@@ -1,11 +1,12 @@
-import { useAttributionSummary } from '../../hooks/useAttributionSummary'
+import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { Skeleton } from '../ui/Skeleton'
 
 export default function AttributionBreakdownCard() {
-  const { data, isPending } = useAttributionSummary()
+  const { data: bundle, isPending } = useAttributionBundle()
+  const data = bundle?.attributionSummary
 
   if (isPending) {
     return (

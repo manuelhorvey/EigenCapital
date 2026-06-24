@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { useStatisticalMetrics } from '../hooks/useStatisticalMetrics'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
+import { selectStatisticalMetrics } from '../selectors/metrics'
 import DataTable, { type ColumnDef } from './ui/DataTable'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
@@ -44,11 +45,12 @@ interface Row {
 }
 
 export default function StatisticalMetricsTable() {
-  const { data, isPending } = useStatisticalMetrics()
+  const { data: bundle } = useSystemSnapshot()
+  const stats = selectStatisticalMetrics(bundle)
 
   const rows = useMemo(() => {
-    if (!data) return []
-    return Object.entries(data)
+    if (!stats) return []
+    return Object.entries(stats)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([asset, m]) => ({
         asset,
@@ -59,7 +61,7 @@ export default function StatisticalMetricsTable() {
         crs: m.crs ?? null,
         hhi: m.hhi ?? null,
       }))
-  }, [data])
+  }, [stats])
 
   const columns: ColumnDef<Row>[] = useMemo(() => [
     {
@@ -154,7 +156,7 @@ export default function StatisticalMetricsTable() {
     },
   ], [])
 
-  if (isPending) return <TableSkeleton rows={6} />
+  if (!bundle) return <TableSkeleton rows={6} />
 
   if (rows.length === 0) {
     return (

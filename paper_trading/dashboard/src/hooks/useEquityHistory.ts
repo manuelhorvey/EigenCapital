@@ -1,10 +1,11 @@
 import { z } from 'zod'
 import { createApiQuery } from '../lib/api'
+import { QUERY_KEYS } from '../lib/queryKeys'
 import { EquityHistoryPointSchema } from '../lib/schemas'
 
 export type EquityHistoryPoint = z.infer<typeof EquityHistoryPointSchema>
 
-const useEquityHistoryQuery = createApiQuery<EquityHistoryPoint[]>('/equity_history.json', z.array(EquityHistoryPointSchema))
+const useEquityHistoryQuery = createApiQuery<EquityHistoryPoint[]>('/equity_history.json', z.array(EquityHistoryPointSchema), 'equityHistory')
 
 export function useEquityHistory() {
   return useEquityHistoryQuery({

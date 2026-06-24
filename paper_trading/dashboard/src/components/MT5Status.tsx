@@ -1,8 +1,9 @@
-import { useMT5Status } from '../hooks/useMT5Status'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { Wifi, WifiOff, AlertTriangle, Loader2 } from 'lucide-react'
 
 export default function MT5Status() {
-  const { data, isPending, isError } = useMT5Status()
+  const { data: bundle, isPending, isError } = useSystemSnapshot()
+  const data = bundle?.live?.mt5
 
   const connected = data?.status === 'CONNECTED'
   const status = data?.status ?? 'UNKNOWN'

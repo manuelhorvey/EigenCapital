@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import { confidenceToPercent, formatAssetPrice } from '../utils/format'
 import {
@@ -18,7 +18,8 @@ interface Props {
 }
 
 const AssetCard: React.FC<Props> = React.memo(({ name }) => {
-  const { data } = usePortfolioState()
+  const { data: bundle } = useSystemSnapshot()
+  const data = bundle?.snapshot
   const { setSelectedAsset } = useSelectedAsset()
   const asset = data?.assets?.[name]
 

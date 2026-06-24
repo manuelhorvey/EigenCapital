@@ -3,7 +3,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer, Legend,
 } from 'recharts'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { Skeleton } from './ui/Skeleton'
@@ -19,7 +19,8 @@ interface CalibrationPoint {
 }
 
 export default function CalibrationCurve() {
-  const { data: state, isPending } = usePortfolioState()
+  const { data: bundle, isPending } = useSystemSnapshot()
+  const state = bundle?.snapshot
 
   const points = useMemo(() => {
     if (!state?.assets) return []

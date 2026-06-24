@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { usePortfolioState } from './usePortfolioState'
-import { useHealthScores } from './useHealthScores'
+import { useSystemSnapshot } from './useSystemSnapshot'
 
 export interface Alert {
   id: string
@@ -38,8 +37,9 @@ function shortenMessage(msg: string): string {
 }
 
 export function useMonitorAlerts(): Alert[] {
-  const { data: state } = usePortfolioState()
-  const { data: health } = useHealthScores()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
+  const health = bundle?.live?.health
 
   return useMemo(() => {
     const alerts: Alert[] = []
@@ -144,5 +144,5 @@ export function useMonitorAlerts(): Alert[] {
     }
 
     return alerts.filter(a => !dismissed.has(a.id))
-  }, [health, state])
+  }, [bundle])
 }

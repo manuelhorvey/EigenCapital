@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { usePortfolioState } from '../../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import { Skeleton } from '../ui/Skeleton'
@@ -30,7 +30,8 @@ function estimateTrades(current: Allocation[], target: Allocation[], threshold =
 }
 
 export default function RebalancingDashboard() {
-  const { data: state } = usePortfolioState()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
   const portfolio = state?.portfolio
 
   const allocations: Allocation[] = useMemo(() => {

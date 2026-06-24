@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { X, TrendingUp } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { usePortfolioState } from '../../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import Divider from '../ui/Divider'
 import {
   LayoutDashboard,
@@ -55,7 +55,8 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null)
-  const { data: state } = usePortfolioState()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
 
   const engine = state?.engine_status
   const isRunning = engine?.initialized && !engine?.market_closed

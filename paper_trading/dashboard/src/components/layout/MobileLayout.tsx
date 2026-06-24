@@ -3,8 +3,7 @@ import {
   Activity, Shield, Zap, BarChart3, TrendingUp, ChevronDown, AlertTriangle, Heart,
   type LucideIcon,
 } from 'lucide-react'
-import { usePortfolioState } from '../../hooks/usePortfolioState'
-import { useHealthScores } from '../../hooks/useHealthScores'
+import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import { useMonitorAlerts } from '../../hooks/useMonitorAlerts'
 import StateIndicatorDot from '../ui/StateIndicatorDot'
 import ProgressBar from '../ui/ProgressBar'
@@ -51,8 +50,9 @@ function scrollToSection(id: string) {
 }
 
 export default function MobileLayout() {
-  const { data: state } = usePortfolioState()
-  const { data: health } = useHealthScores()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
+  const health = bundle?.live?.health
   const alerts = useMonitorAlerts()
   const portfolio = state?.portfolio
 

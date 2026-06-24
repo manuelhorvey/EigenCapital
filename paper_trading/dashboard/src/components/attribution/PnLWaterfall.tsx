@@ -1,5 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { useAttributionWaterfall } from '../../hooks/useAttributionWaterfall'
+import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import ChartContainer from '../ui/ChartContainer'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
@@ -11,7 +11,8 @@ const COLORS = {
 }
 
 export default function PnLWaterfall() {
-  const { data, isPending } = useAttributionWaterfall()
+  const { data: bundle, isPending } = useAttributionBundle()
+  const data = bundle?.attributionWaterfall
 
   const chartData = data ? [
     { name: 'Prediction', value: data.prediction_pnl, fill: COLORS.prediction_pnl },

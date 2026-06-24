@@ -1,5 +1,4 @@
-import { usePortfolioState } from '../../hooks/usePortfolioState'
-import { useHealthScores } from '../../hooks/useHealthScores'
+import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import { useMonitorAlerts } from '../../hooks/useMonitorAlerts'
 import HealthSnapshotCard from './HealthSnapshotCard'
 import AlertFeed from './AlertFeed'
@@ -17,8 +16,9 @@ function avgHealth(health: { assets: Record<string, { health_score: number }> } 
 }
 
 export default function MonitoringDashboard() {
-  const { data: state } = usePortfolioState()
-  const { data: health } = useHealthScores()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
+  const health = bundle?.live?.health
   const alerts = useMonitorAlerts()
 
   const isPending = !state && !health

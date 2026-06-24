@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, ExternalLink } from 'lucide-react'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import { confidenceToPercent, formatAssetPrice } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
@@ -33,7 +33,8 @@ interface SignalRow {
 
 export default function SignalsTable() {
   const [search, setSearch] = useState('')
-  const { data, isPending } = usePortfolioState()
+  const { data: bundle, isPending } = useSystemSnapshot()
+  const data = bundle?.snapshot
   const { setSelectedAsset, setDeepDiveAsset } = useSelectedAsset()
 
   const rows = useMemo(() => {

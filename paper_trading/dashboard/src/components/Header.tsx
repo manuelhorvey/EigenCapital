@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Menu, RefreshCw, TrendingUp } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../hooks/useEngineHealth'
 import ThemeToggle from './ui/ThemeToggle'
 import MT5Status from './MT5Status'
@@ -12,7 +12,8 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const { data, isError, dataUpdatedAt } = usePortfolioState()
+  const { data: bundle, isError, dataUpdatedAt } = useSystemSnapshot()
+  const data = bundle?.snapshot
   const health = useEngineHealth()
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import StatCard from './ui/StatCard'
 import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
@@ -7,7 +7,8 @@ import { MetricCardSkeleton } from './ui/Skeleton'
 import { formatTimeAgo } from '../utils/format'
 
 export default function PortfolioSummary() {
-  const { data, isPending, isError } = usePortfolioState()
+  const { data: bundle, isPending, isError } = useSystemSnapshot()
+  const data = bundle?.snapshot
   const p = data?.portfolio
   const lastUpdate = p?.last_update ?? data?.engine_status?.last_update ?? data?.timestamp
 

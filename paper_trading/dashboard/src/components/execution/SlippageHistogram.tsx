@@ -1,5 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { useExecutionSlippage } from '../../hooks/useExecutionSlippage'
+import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import ChartContainer from '../ui/ChartContainer'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
@@ -20,7 +20,8 @@ function bucketize(values: number[], bins = 10): { range: string; count: number;
 }
 
 export default function SlippageHistogram() {
-  const { data, isPending } = useExecutionSlippage()
+  const { data: bundle, isPending } = useAttributionBundle()
+  const data = bundle?.executionSlippage
 
   const entryData = data ? bucketize(data.entry_slippage) : []
   const exitData = data ? bucketize(data.exit_slippage) : []

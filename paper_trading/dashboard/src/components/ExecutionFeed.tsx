@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Ban, CheckCircle, XCircle } from 'lucide-react'
-import { usePortfolioState } from '../hooks/usePortfolioState'
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
@@ -21,7 +21,8 @@ interface CycleEvent {
 }
 
 export default function ExecutionFeed() {
-  const { data, isPending } = usePortfolioState()
+  const { data: bundle, isPending } = useSystemSnapshot()
+  const data = bundle?.snapshot
   const { setSelectedAsset } = useSelectedAsset()
   const [showAll, setShowAll] = useState(false)
 

@@ -1,11 +1,12 @@
-import { useExecutionQuality } from '../../hooks/useExecutionQuality'
+import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { Skeleton } from '../ui/Skeleton'
 
 export default function ExecutionQualityStrip() {
-  const { data, isPending } = useExecutionQuality()
+  const { data: bundle, isPending } = useAttributionBundle()
+  const data = bundle?.executionQuality
 
   if (isPending) {
     return (

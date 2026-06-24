@@ -12,11 +12,12 @@ import AssetDetailPanel from './components/AssetDetailPanel'
 import AssetDeepDive from './components/AssetDeepDive'
 import WeeklyReviewModal from './components/WeeklyReviewModal'
 
-import { usePortfolioState } from './hooks/usePortfolioState'
+import { useSystemSnapshot } from './hooks/useSystemSnapshot'
 import { useSelectedAsset } from './hooks/useSelectedAsset'
 
 function AppContent() {
-  const { data: state } = usePortfolioState()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
   const { selectedAsset, deepDiveAsset, setSelectedAsset, setDeepDiveAsset } = useSelectedAsset()
 
   const detailAsset = selectedAsset && state?.assets?.[selectedAsset]

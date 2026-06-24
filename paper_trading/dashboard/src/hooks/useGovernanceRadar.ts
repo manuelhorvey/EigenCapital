@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { usePortfolioState } from './usePortfolioState'
-import { useHealthScores } from './useHealthScores'
+import { useSystemSnapshot } from './useSystemSnapshot'
 
 export interface RadarAxis {
   label: string
@@ -21,8 +20,9 @@ export function useGovernanceRadar(): {
   bottlenecks: BottleneckEntry[]
   avgValidityImpact: number
 } {
-  const { data: state } = usePortfolioState()
-  const { data: health } = useHealthScores()
+  const { data: bundle } = useSystemSnapshot()
+  const state = bundle?.snapshot
+  const health = bundle?.live?.health
 
   return useMemo(() => {
     // Compute exposure score (0-1, higher means governance allows more deployable exposure)
@@ -133,5 +133,5 @@ export function useGovernanceRadar(): {
       : 0
 
     return { axes, bottlenecks, avgValidityImpact: avgPenalty }
-  }, [state, health])
+  }, [bundle])
 }

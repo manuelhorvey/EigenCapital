@@ -24,7 +24,7 @@ export function useEngineHealth() {
     queryKey: ['engineHealth'],
     queryFn: () => fetchApi<EngineHealth>('/health'),
     refetchInterval: 5_000,
-    staleTime: 4_000,
+    staleTime: 0,
     retry: 2,
     retryDelay: 1_000,
     placeholderData: FALLBACK,

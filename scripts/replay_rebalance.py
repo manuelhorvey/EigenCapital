@@ -111,6 +111,8 @@ def compute_portfolio_r_from_signals(
 ) -> pd.Series:
     """Compute weighted portfolio daily R from weight matrix and per-asset daily R."""
     combined = pd.DataFrame(asset_daily_r)
+    if hasattr(combined.index, "tz") and combined.index.tz is not None:
+        combined.index = combined.index.tz_localize(None)
     aligned_w = weights_df.reindex(combined.index, method="ffill").bfill()
     valid_dates = aligned_w.index.intersection(combined.index)
     portfolio_r = (combined.loc[valid_dates] * aligned_w.loc[valid_dates].values).sum(axis=1)

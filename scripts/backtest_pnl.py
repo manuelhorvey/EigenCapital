@@ -354,7 +354,7 @@ def main():
     parser.add_argument(
         "--weight-method",
         default="equal_v1",
-        choices=["equal_v1", "risk_parity_v1", "hrp_v1"],
+        choices=["equal_v1", "risk_parity_v1", "hrp_v1", "factor_constrained_v1"],
         help="Portfolio weight method (default 'equal_v1' → legacy equal-weight)",
     )
     parser.add_argument(

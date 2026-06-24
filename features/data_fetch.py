@@ -438,8 +438,14 @@ def fetch_asset_data(
             alt = _fallback_tenor.get(base_ticker)
             if alt is not None and alt in macro:
                 base_ticker = alt
-        base_yield = macro.get(base_ticker, tnx).reindex(common).ffill()
-        quote_yield = macro.get(quote_ticker, tnx).reindex(common).ffill()
+        base_yield = macro.get(base_ticker, tnx)
+        if not base_yield.empty and base_yield.index.duplicated().any():
+            base_yield = base_yield[~base_yield.index.duplicated(keep="last")]
+        base_yield = base_yield.reindex(common).ffill()
+        quote_yield = macro.get(quote_ticker, tnx)
+        if not quote_yield.empty and quote_yield.index.duplicated().any():
+            quote_yield = quote_yield[~quote_yield.index.duplicated(keep="last")]
+        quote_yield = quote_yield.reindex(common).ffill()
         rate_diff_series = base_yield - quote_yield
     else:
         rate_diff_series = pd.Series(0.0, index=common)

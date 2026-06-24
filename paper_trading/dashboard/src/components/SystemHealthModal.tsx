@@ -64,7 +64,7 @@ export default function SystemHealthModal() {
         : healthMean !== null && healthMean >= 0.5 ? 'warning' as const
         : 'critical' as const,
       detail: healthMean !== null ? `Mean health ${(healthMean * 100).toFixed(0)}%` : 'N/A',
-      metric: `${health?.system_health.n_healthy ?? 0} healthy`,
+      metric: `${health?.system_health?.n_healthy ?? 0} healthy`,
     },
     {
       name: 'System Status',
@@ -172,9 +172,9 @@ export default function SystemHealthModal() {
                   },
                   {
                     label: 'Degraded / Critical',
-                    value: `${health?.system_health.n_degraded ?? '—'} / ${health?.system_health.n_critical ?? '—'}`,
-                    status: (health?.system_health.n_critical ?? 0) > 0 ? 'critical'
-                      : (health?.system_health.n_degraded ?? 0) > 0 ? 'warning'
+                    value: `${health?.system_health?.n_degraded ?? '—'} / ${health?.system_health?.n_critical ?? '—'}`,
+                    status: (health?.system_health?.n_critical ?? 0) > 0 ? 'critical'
+                      : (health?.system_health?.n_degraded ?? 0) > 0 ? 'warning'
                       : 'good',
                   },
                 ]}

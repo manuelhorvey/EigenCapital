@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 
@@ -191,12 +192,19 @@ def get_latest(asset: str | None = None):
 
 def compute_all() -> dict:
     all_assets = _load_state_assets()
-    results = {}
-    for asset_name in all_assets:
-        try:
-            results[asset_name] = compute(asset_name, assets=all_assets)
-        except Exception:
-            results[asset_name] = _fallback(asset_name)
+    results: dict[str, dict] = {}
+
+    with ThreadPoolExecutor(max_workers=min(len(all_assets) or 1, 8)) as pool:
+        future_map = {
+            pool.submit(compute, name, all_assets): name
+            for name in all_assets
+        }
+        for future in as_completed(future_map):
+            name = future_map[future]
+            try:
+                results[name] = future.result()
+            except Exception:
+                results[name] = _fallback(name)
 
     if results:
         mean_health = np.mean([r["health_score"] for r in results.values()])

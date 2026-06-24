@@ -1,8 +1,9 @@
 import { memo, useState, useEffect } from 'react'
-import { Menu, RefreshCw, TrendingUp, DollarSign } from 'lucide-react'
+import { Menu, RefreshCw, TrendingUp, DollarSign, Activity } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../hooks/useEngineHealth'
+import { useSystemHealthModal } from '../hooks/useSystemHealthModal'
 import ThemeToggle from './ui/ThemeToggle'
 import MT5Status from './MT5Status'
 import { formatTimeAgo } from '../utils/format'
@@ -74,6 +75,7 @@ function Header({ onMenuClick }: HeaderProps) {
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const { open: openSystemHealth } = useSystemHealthModal()
   const lastServerUpdate = data?.portfolio?.last_update ?? data?.engine_status?.last_update ?? data?.timestamp
   const lastClientUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : ''
   const freshnessLabel = lastServerUpdate
@@ -126,6 +128,15 @@ function Header({ onMenuClick }: HeaderProps) {
           <EngineDot />
           <EngineDotMobile />
 
+          <button
+            type="button"
+            onClick={openSystemHealth}
+            className="p-1.5 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring hidden sm:inline-flex"
+            title="System Health"
+            aria-label="Open system health monitor"
+          >
+            <Activity className="w-3.5 h-3.5 text-secondary" strokeWidth={2} />
+          </button>
           <ThemeToggle />
           <MT5Status />
 

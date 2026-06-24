@@ -12,6 +12,8 @@ import AssetDetailPanel from './components/AssetDetailPanel'
 import AssetDeepDive from './components/AssetDeepDive'
 import WeeklyReviewModal from './components/WeeklyReviewModal'
 
+import { SystemHealthModalProvider } from './hooks/useSystemHealthModal'
+import SystemHealthModal from './components/SystemHealthModal'
 import { useSystemSnapshot } from './hooks/useSystemSnapshot'
 import { useSelectedAsset } from './hooks/useSelectedAsset'
 
@@ -46,6 +48,7 @@ function AppContent() {
         />
       )}
       <WeeklyReviewModal />
+      <SystemHealthModal />
     </>
   )
 }
@@ -55,9 +58,11 @@ export default function App() {
     <ErrorBoundary title="Application">
       <HashRouter>
         <SelectedAssetProvider>
+          <SystemHealthModalProvider>
           <AppShell>
             <AppContent />
           </AppShell>
+          </SystemHealthModalProvider>
         </SelectedAssetProvider>
       </HashRouter>
     </ErrorBoundary>

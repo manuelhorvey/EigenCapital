@@ -31,7 +31,7 @@ export default function MT5Status() {
 
   return (
     <div
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-2xs font-medium ${
+      className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-2xs font-medium ${
         connected
           ? 'border-gov-green/30 bg-gov-green-muted/20 text-gov-green'
           : 'border-gov-yellow/30 bg-gov-yellow-muted/20 text-gov-yellow'

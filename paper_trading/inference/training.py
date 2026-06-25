@@ -163,8 +163,9 @@ class AssetTrainingPipeline:
             n_jobs=1,
             tree_method="hist",
             verbosity=0,
+            early_stopping_rounds=50,
         )
-        model.fit(x_tr, y_tr, eval_set=[(x_ev, y_ev)], verbose=False, early_stopping_rounds=50)
+        model.fit(x_tr, y_tr, eval_set=[(x_ev, y_ev)], verbose=False)
 
         asset.model = model
         asset._trained = True

@@ -696,6 +696,23 @@ close_price and current_price in trace.jsonl — actual fill prices from MT5 may
 **Future work**: Add fill-price-based slippage from MT5 broker positions once sufficient
 trade history accumulates. Daily Sharpe becomes reliable after ~20 trading days.
 
+## USDCAD tp/sl Swap (2026-06-25)
+
+**Problem**: USDCAD ranked 18/19 assets by total R (+61.8R) with Sharpe 1.4 vs portfolio
+average ~10. The model has genuine skill (59.8% WR, 67.4% BUY WR) but tp=2.03/sl=2.5
+gives breakeven WR=55.2% — only 4.6pp margin. SELL side loses -33.7R (49.2% WR) while
+BUY earns +95.5R.
+
+**Fix**: Swapped tp_mult from 2.03→2.5 and sl_mult from 2.5→2.03:
+- tp/sl ratio improves from 0.81→1.23
+- Breakeven WR drops from 55.2%→44.8%
+- Same signals at 59.8% WR would produce +200.9R (3.2x improvement)
+- SELL side flips from -33.7R to +24.6R at unchanged WR
+
+**Files**: `configs/paper_trading.yaml` (live execution), `features/registry.py` (label
+generation for next retrain). Retrain required for full effect; config change applies
+immediately to live SL/TP placement.
+
 ## Monte Carlo Drawdown Simulation — V2 Fix (2026-06-25)
 
 **Problem**: `monte_carlo_drawdown.py` V1 bootstrapped raw R-multiples (additive, dimensionless), which have high mean (~1.0 R/day from walk-forward), guaranteeing p_positive_return ≈ 1.0 regardless of horizon. The results answered the wrong question — they showed "probability cumulative R > 0" not "probability portfolio % return > 0."
@@ -725,6 +742,39 @@ return_pct = R × ATR_pct  (per asset),  portfolio_return = mean(return_pct) acr
 **What remains unaddressed** (optimistic bias): slippage, spread, commissions, position sizing guardrails, MT5 lot quantization, partial fills, intraday risk. Results are upper-bound estimates. Future work: bootstrap from live equity curve once sufficient trading history accumulates.
 
 **Files**: `scripts/backtest/monte_carlo_drawdown.py`, `mc_results_v2.json`
+
+## Portfolio tp/sl Optimization (2026-06-25)
+
+**Method**: Scanned ratio space [0.5, 8.0] for each of 19 assets against walk-forward signal parquets. Optimal ratio found by maximizing total_R while preserving geometric mean (keeping average barrier distance constant). SELL_ONLY assets evaluated on SELL leg only. Ratio=2.0 chosen as conservative target — the unconstrained optimum was ratio=4.0-8.0 for most assets, but changing labels (next retrain) introduces uncertainty; a moderate improvement with known bounds is safer than an extreme change.
+
+**Assets improved (6 of 19)**:
+
+| Asset | Old tp/sl | Old ratio | Old BE_WR | New tp/sl | New ratio | New BE_WR | ΔR |
+|-------|-----------|-----------|-----------|-----------|-----------|-----------|-----|
+| NZDUSD | 2.0/2.5 | 0.80 | 55.6% | 2.5/2.0 | 1.25 | 44.4% | +166.0 |
+| GBPCAD | 2.5/2.5 | 1.00 | 50.0% | 3.54/1.77 | 2.00 | 33.3% | +289.5 |
+| USDCAD | 2.5/2.03 | 1.23 | 44.8% | 3.19/1.59 | 2.01 | 33.3% | +173.4 |
+| NZDCAD | 4.0/2.5 | 1.60 | 38.5% | 4.47/2.24 | 2.00 | 33.3% | +95.4 |
+| EURNZD | 2.5/1.5 | 1.67 | 37.5% | 2.74/1.37 | 2.00 | 33.3% | +63.1 |
+| EURCAD | 1.5/1.0 | 1.50 | 40.0% | 1.73/0.87 | 1.99 | 33.5% | +62.1 |
+
+**NZDUSD rationale**: Only asset with ratio < 1.0 (tp smaller than sl), penalizing the model despite both directions having genuine skill (BUY WR=58.3%, SELL WR=54.8%). Walk-forward R was +25.0R (18/19). Swapping to tp=2.5/sl=2.0 gives ratio=1.25 and +166R. This config change applies immediately to SL/TP placement; the registry was also stale (pt=1.5 → now 2.5) and is now synced.
+
+**GBPCAD rationale**: Ratio=1.0 (symmetrical) despite BUY WR=60.1% and SELL WR=80.4% — both well above 50%. Increasing to ratio=2.0 captures more profit from both directions. +289.5R.
+
+**USDCAD rationale**: Already swapped once (2026-06-25 earlier, tp=2.03→2.5, sl=2.5→2.03), but BUY WR=67.4% deserves a higher ratio. Moving from 1.23→2.0 on the same GM. +173.4R.
+
+**NZDCAD rationale**: SELL WR=77.1% with ratio=1.6. Moving to 2.0. +95.4R.
+
+**EURNZD rationale**: Both directions above 55% WR. Moving ratio 1.67→2.0. +63.1R.
+
+**EURCAD rationale**: Both directions above 52% WR. Moving ratio 1.5→2.0. +62.1R.
+
+**Not changed (13 assets)**: 5 already at ratio ≥ 3.0 (^DJI=8.0, CADCHF=4.0, NZDCHF=4.0, GC=4.0, EURAUD=3.28) or near their optimum. 2 at ratio=2.0 (GBPAUD, GBPCHF) already optimal for current signal quality. 2 (GBPUSD=3.79, EURCHF=3.0) near-optimal with ΔR < 20. 1 (AUDUSD=2.67) the optimizer suggests ratio=4.0 (+185R) but model has inverted BUY (16% WR) making SELL-only the dominant leg; current ratio already captures SELL profit well. 3 (ES=2.75, NQ=2.0, USDCHF=3.53) are SELL_ONLY with high SELL WR and adequate ratios.
+
+**Caveats**: Walk-forward data uses current labels (retrained with old pt/sl). Changing tp/sl changes labels on the next retrain, which changes the model. The ΔR figures are upper-bound estimates for the immediate SL/TP placement change; the label change may shift the optimum. Re-analyze after next retrain.
+
+**Files**: `configs/paper_trading.yaml`, `features/registry.py`
 
 ## Ruff
 

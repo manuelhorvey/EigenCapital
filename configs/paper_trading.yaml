@@ -210,8 +210,8 @@ assets:
   USDCAD:
     ticker: USDCAD=X
     allocation: 0.025
-    sl_mult: 2.5
-    tp_mult: 2.03
+    sl_mult: 1.59
+    tp_mult: 3.19  # ratio 1.23→2.0 2026-06-25: BUY WR=67.4% (strong), SELL WR=49.2% (marginal). Walk-forward R improvement +173.4R. GM=2.25 preserved.
     spread_tier: fx_major
     max_depth: 5
     regime_geometry:
@@ -296,8 +296,8 @@ assets:
   GBPCAD:
     ticker: GBPCAD=X
     allocation: 0.05
-    sl_mult: 2.5
-    tp_mult: 2.5
+    sl_mult: 1.77
+    tp_mult: 3.54  # ratio 1.0→2.0 2026-06-25: BUY WR=60.1%, SELL WR=80.4%, both directions skilled. Walk-forward R improvement +289.5R. GM=2.5 preserved.
     regime_geometry:
       GREEN:
         sl_mult: 1.0
@@ -325,8 +325,8 @@ assets:
   NZDCAD:
     ticker: NZDCAD=X
     allocation: 0.05
-    sl_mult: 2.5
-    tp_mult: 4.0
+    sl_mult: 2.24
+    tp_mult: 4.47  # ratio 1.6→2.0 2026-06-25: BUY WR=48.1%, SELL WR=77.1%. Walk-forward R improvement +95.4R. GM=3.16 preserved.
     regime_geometry:
       GREEN:
         sl_mult: 1.0
@@ -382,8 +382,8 @@ assets:
   NZDUSD:
     ticker: NZDUSD=X
     allocation: 0.025
-    sl_mult: 2.5
-    tp_mult: 2.0  # raised from 1.5: R:R was 0.6, breakeven WR 62.5% > validated HR 57.7% (net-negative). R:R now 0.8, breakeven WR 55.6%.
+    sl_mult: 2.0
+    tp_mult: 2.5  # swapped tp/sl 2026-06-25: ratio was 0.8 (BE_WR=55.6%), WR=57.2% — margin was +1.7%. Swapped to ratio=1.25 (BE_WR=44.4%), walk-forward R improvement +166R. Config change: immediate SL/TP placement; registry change: next retrain.
     spread_tier: fx_major
     max_depth: 5
     regime_geometry:
@@ -553,8 +553,8 @@ assets:
   EURCAD:
     ticker: EURCAD=X
     allocation: 0.02
-    sl_mult: 1.0
-    tp_mult: 1.5  # raised from 1.0: HYPOTHESIS — no validated walk-forward HR yet. Directionally correct nudge (loosens breakeven WR 50%→40%). Revisit after data accumulates.
+    sl_mult: 0.87
+    tp_mult: 1.73  # ratio 1.5→2.0 2026-06-25: BUY WR=61.7%, SELL WR=52.5%. Walk-forward R improvement +62.1R. GM=1.22 preserved.
     max_depth: 3
     regime_geometry:
       GREEN:
@@ -581,8 +581,8 @@ assets:
   EURNZD:
     ticker: EURNZD=X
     allocation: 0.03
-    sl_mult: 1.5
-    tp_mult: 2.5
+    sl_mult: 1.37
+    tp_mult: 2.74  # ratio 1.67→2.0 2026-06-25: BUY WR=55.1%, SELL WR=63.1%. Walk-forward R improvement +63.1R. GM=1.94 preserved.
     max_depth: 3
     regime_geometry:
       GREEN:

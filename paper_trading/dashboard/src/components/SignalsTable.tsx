@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from 'react'
-import { Search, ExternalLink } from 'lucide-react'
+import { Search, TrendingUp, TrendingDown, Minus, Activity } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import { systemSelectors } from '../selectors/system'
@@ -9,7 +9,6 @@ import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { TableSkeleton } from './ui/Skeleton'
-import Badge, { signalToBadge } from './ui/Badge'
 import { confToState, ddToState, governanceText } from './ui/governance'
 
 interface SignalRow {
@@ -24,12 +23,60 @@ interface SignalRow {
   tripwireActive: boolean
   halted: boolean
   haltReasons: string[]
-  gatesPassed: string | null
-  finalSize: string | null
   unrealizedPnl: number | null
-  tradeDuration: string | null
-  tpPct: number | null
-  slPct: number | null
+  nTrades: number
+  winRate: number | null
+  sharpe: number | null
+  exitTpRate: number | null
+  exitSlRate: number | null
+}
+
+// One word per state, used for the left accent + the inline label. No icon soup.
+function rowState(r: SignalRow): 'halted' | 'tripwire' | 'sellOnly' | 'normal' {
+  if (r.halted) return 'halted'
+  if (r.sellOnly && r.tripwireActive) return 'tripwire'
+  if (r.sellOnly) return 'sellOnly'
+  return 'normal'
+}
+
+const stateAccent: Record<ReturnType<typeof rowState>, string> = {
+  halted: 'border-l-gov-red',
+  tripwire: 'border-l-gov-red',
+  sellOnly: 'border-l-gov-yellow',
+  normal: 'border-l-transparent',
+}
+
+const stateLabel: Record<ReturnType<typeof rowState>, string | null> = {
+  halted: 'Halted',
+  tripwire: 'Tripwire',
+  sellOnly: 'Sell only',
+  normal: null,
+}
+
+const stateLabelClass: Record<ReturnType<typeof rowState>, string> = {
+  halted: 'text-gov-red',
+  tripwire: 'text-gov-red',
+  sellOnly: 'text-gov-yellow',
+  normal: '',
+}
+
+function DirectionGlyph({ signal }: { signal: string }) {
+  if (signal === 'BUY') return <TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} />
+  if (signal === 'SELL') return <TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} />
+  return <Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
+}
+
+// Single horizontal bar, used for confidence and exit mix alike so the table
+// has one visual language for "a quantity out of 100" instead of three.
+function Bar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div className="w-12 h-1 bg-surface rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all duration-300"
+        style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, backgroundColor: color }}
+      />
+    </div>
+  )
 }
 
 function SignalsTable() {
@@ -48,40 +95,7 @@ function SignalsTable() {
         const m = asset.metrics
         const alloc = data.portfolio?.allocations?.[name] ?? 0
         const pos = m?.position
-        const openPos = data?.open_positions?.[name]
-        let tpPct: number | null = null
-        let slPct: number | null = null
-        if (pos?.entry && pos?.tp && pos?.sl) {
-          if (pos.side === 'long') {
-            tpPct = ((pos.tp - pos.entry) / pos.entry) * 100
-            slPct = ((pos.entry - pos.sl) / pos.entry) * 100
-          } else {
-            tpPct = ((pos.entry - pos.tp) / pos.entry) * 100
-            slPct = ((pos.sl - pos.entry) / pos.entry) * 100
-          }
-        }
-
-        // Determine gates trace summary
-        const gt = asset.gates_trace
-        const gatesAborted = gt ? Object.entries(gt).filter(([, v]) => !v).map(([k]) => k) : []
-        const gatesPassed = gatesAborted.length === 0 ? 'PASS' : `BLOCKED:${gatesAborted.join(',')}`
-
-        // Determine sizing result
-        const sc = asset.sizing_chain
-        const finalSize = sc?.final_pct != null ? `${(Number(sc.final_pct) * 100).toFixed(1)}%` : null
-
-        // Determine trade duration
-        const probHist = openPos?.prob_history
-        let tradeDuration: string | null = null
-        if (probHist && probHist.length > 0 && pos) {
-          const entryDate = probHist[0]?.date
-          if (entryDate) {
-            const elapsed = Date.now() - new Date(entryDate).getTime()
-            const hours = Math.floor(elapsed / 3600000)
-            tradeDuration = hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`
-          }
-        }
-
+        const exitReasons = m?.exit_reasons
         return {
           name,
           signal: asset.final_signal ?? sig?.signal ?? 'FLAT',
@@ -94,167 +108,183 @@ function SignalsTable() {
           tripwireActive: asset.tripwire_active ?? false,
           halted: asset.halt?.halted ?? false,
           haltReasons: asset.halt?.reasons ?? [],
-          gatesPassed,
-          finalSize,
-          unrealizedPnl: pos?.unrealized_pnl != null ? pos.unrealized_pnl : null,
-          tradeDuration,
-          tpPct,
-          slPct,
+          unrealizedPnl: pos?.unrealized_pnl ?? null,
+          nTrades: m?.n_trades ?? 0,
+          winRate: m?.win_rate ?? null,
+          sharpe: m?.sharpe_ratio ?? null,
+          exitTpRate: exitReasons?.tp_rate ?? null,
+          exitSlRate: exitReasons?.sl_rate ?? null,
         }
       })
   }, [data, search])
 
   const columns: ColumnDef<SignalRow>[] = useMemo(() => [
+    // Asset — name plus a one-word state label when it isn't trading normally.
+    // The row's left border (applied by rowClassName below) already carries
+    // the halted/tripwire/sell-only color, so this cell just needs the word.
     {
       key: 'name',
       label: 'Asset',
       sortable: true,
-      minWidth: '80px',
-      render: r => (
-        <span className="flex items-center gap-1.5">
-          <span className="font-semibold text-primary text-xs font-mono">{r.name}</span>
-          {r.halted && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none bg-gov-red-muted text-gov-red border border-gov-red/20">
-              HALT
-            </span>
-          )}
-          {!r.halted && r.sellOnly && (
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-              r.tripwireActive
-                ? 'bg-gov-red-muted text-gov-red border border-gov-red/20 animate-pulse'
-                : 'bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/20'
-            }`}>
-              {r.tripwireActive ? 'TRIPWIRE' : 'S-O'}
-            </span>
-          )}
-        </span>
-      ),
+      minWidth: '90px',
+      render: r => {
+        const state = rowState(r)
+        const label = stateLabel[state]
+        return (
+          <div className="min-w-0">
+            <span className="font-semibold text-primary text-xs font-mono">{r.name}</span>
+            {label && (
+              <div className={`text-[10px] leading-tight ${stateLabelClass[state]}`}>{label}</div>
+            )}
+          </div>
+        )
+      },
     },
+
+    // Signal — direction and confidence belong together: a confidence number
+    // means nothing without knowing which way it's pointing.
     {
       key: 'signal',
       label: 'Signal',
-      sortable: true,
-      minWidth: '70px',
-      render: r => {
-        const { variant, icon } = signalToBadge(r.signal)
-        return <Badge variant={variant} icon={icon}>{r.signal === 'BUY' ? 'LONG' : r.signal === 'SELL' ? 'SHORT' : 'FLAT'}</Badge>
-      },
-    },
-    {
-      key: 'confidence',
-      label: 'Conf',
-      align: 'right',
+      minWidth: '90px',
       sortable: true,
       sortKey: r => r.confidence,
       render: r => (
-        <div className="flex items-center gap-1.5 justify-end">
-          <div className="w-12 h-1 bg-panel rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                r.confidence >= 60 ? 'bg-gov-green' : r.confidence >= 45 ? 'bg-gov-yellow' : 'bg-gov-red'
-              }`}
-              style={{ width: `${r.confidence}%` }}
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <DirectionGlyph signal={r.signal} />
+          <Bar
+            pct={r.confidence}
+            color={
+              r.confidence >= 60
+                ? 'var(--color-gov-green)'
+                : r.confidence >= 45
+                  ? 'var(--color-gov-yellow)'
+                  : 'var(--color-gov-red)'
+            }
+          />
           <span className={`font-mono tabular-nums text-[10px] ${governanceText[confToState(r.confidence)]}`}>
             {r.confidence.toFixed(0)}
           </span>
         </div>
       ),
     },
+
+    // Track record — Sharpe is the headline number; trade count and win rate
+    // are the context that tells you whether to trust the Sharpe at all.
+    // A Sharpe of 2.4 on 3 trades and a Sharpe of 2.4 on 80 trades are
+    // different facts, so they're printed together, not three columns apart.
     {
-      key: 'gatesPassed',
-      label: 'Gates',
-      sortable: true,
-      minWidth: '80px',
-      sortKey: r => r.gatesPassed === 'PASS' ? 1 : 0,
-      render: r => (
-        <span className={`text-[10px] font-mono font-semibold ${r.gatesPassed === 'PASS' ? 'text-gov-green' : 'text-gov-red'}`}>
-          {r.gatesPassed === 'PASS' ? '✓ PASS' : r.gatesPassed ?? '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'finalSize',
-      label: 'Size',
+      key: 'trackRecord',
+      label: 'Track record',
       align: 'right',
+      minWidth: '90px',
       sortable: true,
-      sortKey: r => r.finalSize ? parseFloat(r.finalSize) : -1,
-      render: r => (
-        <span className={`font-mono tabular-nums text-[10px] ${r.finalSize ? 'text-primary' : 'text-tertiary'}`}>
-          {r.finalSize ?? '—'}
-        </span>
-      ),
+      sortKey: r => r.sharpe ?? -999,
+      render: r => {
+        if (r.sharpe == null) return <span className="text-[10px] text-tertiary">—</span>
+        const good = r.sharpe >= 0.5
+        return (
+          <div className="text-right">
+            <span className={`font-mono tabular-nums text-xs font-semibold ${good ? 'text-gov-green' : 'text-gov-red'}`}>
+              {r.sharpe.toFixed(1)}
+            </span>
+            <div className="font-mono tabular-nums text-[10px] text-tertiary">
+              {r.nTrades} tr{r.winRate != null ? ` · ${(r.winRate * 100).toFixed(0)}%` : ''}
+            </div>
+          </div>
+        )
+      },
     },
+
+    // Return / drawdown — the realized risk-reward pair. Return on top,
+    // drawdown below it in the governance color scale, same cell because
+    // you read these as a ratio, not as two separate facts.
     {
-      key: 'unrealizedPnl',
-      label: 'uPnL',
+      key: 'returnDd',
+      label: 'Ret / DD',
       align: 'right',
-      sortable: true,
-      sortKey: r => r.unrealizedPnl ?? 0,
-      render: r => (
-        <span className={`font-mono tabular-nums ${r.unrealizedPnl != null ? (r.unrealizedPnl >= 0 ? 'text-gov-green' : 'text-gov-red') : 'text-tertiary'}`}>
-          {r.unrealizedPnl != null ? `${r.unrealizedPnl >= 0 ? '+' : ''}${r.unrealizedPnl.toFixed(2)}%` : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'tradeDuration',
-      label: 'Age',
-      align: 'right',
-      sortable: true,
-      sortKey: r => r.tradeDuration ? (r.tradeDuration.endsWith('d') ? parseInt(r.tradeDuration) * 24 : parseInt(r.tradeDuration)) : -1,
-      render: r => (
-        <span className="font-mono tabular-nums text-tertiary text-[10px]">
-          {r.tradeDuration ?? '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'price',
-      label: 'Price',
-      align: 'right',
-      sortable: true,
-      sortKey: r => r.price,
-      render: r => <span className="font-mono text-secondary tabular-nums">{formatAssetPrice(r.price)}</span>,
-    },
-    {
-      key: 'ret',
-      label: 'Ret',
-      align: 'right',
+      minWidth: '64px',
       sortable: true,
       sortKey: r => r.ret,
       render: r => (
-        <span className={`font-mono tabular-nums ${r.ret >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
-          {r.ret.toFixed(2)}
-        </span>
+        <div className="text-right">
+          <span className={`font-mono tabular-nums text-xs ${r.ret >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+            {r.ret >= 0 ? '+' : ''}{r.ret.toFixed(2)}
+          </span>
+          <div className={`font-mono tabular-nums text-[10px] ${governanceText[ddToState(r.dd)]}`}>
+            {r.dd.toFixed(1)} dd
+          </div>
+        </div>
       ),
     },
+
+    // Exit mix — replaces the old TP%/SL%/spark trio with one stacked bar.
+    // Green segment is take-profit share, red is stop-loss share; the split
+    // itself is the information, so it doesn't need two numbers next to it.
     {
-      key: 'dd',
-      label: 'DD',
+      key: 'exitMix',
+      label: 'Exit mix',
       align: 'right',
+      minWidth: '64px',
       sortable: true,
-      sortKey: r => r.dd,
-      render: r => <span className={`font-mono tabular-nums ${governanceText[ddToState(r.dd)]}`}>{r.dd.toFixed(2)}</span>,
+      sortKey: r => (r.exitTpRate ?? 0) - (r.exitSlRate ?? 0),
+      render: r => {
+        if (r.exitTpRate == null || r.exitSlRate == null || r.nTrades === 0) {
+          return <span className="text-[10px] text-tertiary">—</span>
+        }
+        const total = r.exitTpRate + r.exitSlRate
+        const tpShare = total > 0 ? (r.exitTpRate / total) * 100 : 50
+        return (
+          <div className="flex justify-end">
+            <div className="w-12 h-1.5 rounded-full overflow-hidden flex bg-surface">
+              <div className="h-full bg-gov-green" style={{ width: `${tpShare}%` }} />
+              <div className="h-full bg-gov-red" style={{ width: `${100 - tpShare}%` }} />
+            </div>
+          </div>
+        )
+      },
     },
+
+    // Allocation — current exposure, with unrealized P&L as a colored sign
+    // next to the percentage rather than an unlabeled bar with no number on it.
+    {
+      key: 'alloc',
+      label: 'Alloc',
+      align: 'right',
+      minWidth: '56px',
+      sortable: true,
+      sortKey: r => r.alloc,
+      render: r => (
+        <div className="text-right">
+          <span className="font-mono tabular-nums text-xs text-secondary">{(r.alloc * 100).toFixed(1)}%</span>
+          {r.unrealizedPnl != null && (
+            <div className={`font-mono tabular-nums text-[10px] ${r.unrealizedPnl >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+              {r.unrealizedPnl >= 0 ? '+' : ''}{r.unrealizedPnl.toFixed(0)} uPnL
+            </div>
+          )}
+        </div>
+      ),
+    },
+
+    // Deep dive — hidden until hover so it doesn't sit on the row at 50%
+    // opacity competing for attention all the time.
     {
       key: 'actions',
       label: '',
       align: 'center',
-      width: '32px',
+      width: '28px',
       render: r => (
         <button
           type="button"
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeepDiveAsset(r.name) }}
-          className="p-1 rounded hover:bg-panel transition-colors text-tertiary hover:text-primary"
+          className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-panel transition-opacity text-tertiary hover:text-primary"
           title={`Deep dive: ${r.name}`}
         >
-          <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
+          <Activity className="w-3.5 h-3.5" strokeWidth={1.5} />
         </button>
       ),
     },
-  ], [])
+  ], [setDeepDiveAsset])
 
   if (isPending) return <TableSkeleton rows={6} />
 
@@ -281,10 +311,15 @@ function SignalsTable() {
                 placeholder="Filter…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="input-terminal w-28 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(20,184,166,0.2)] min-h-[36px] sm:min-h-0"
+                className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(20,184,166,0.2)] min-h-[36px] sm:min-h-0"
               />
             </div>
-            <span className="text-[10px] text-tertiary font-mono tabular-nums bg-surface/50 px-1.5 py-0.5 rounded">{rows.length}</span>
+            <span className="text-[10px] text-tertiary font-mono tabular-nums bg-surface/50 px-1.5 py-0.5 rounded">
+              {rows.length}
+            </span>
+            <span className="hidden sm:inline-flex text-[10px] text-tertiary font-mono tabular-nums bg-surface/50 px-1.5 py-0.5 rounded">
+              {rows.filter(r => r.signal !== 'FLAT').length} active
+            </span>
           </div>
         }
       />
@@ -296,10 +331,11 @@ function SignalsTable() {
           data={rows}
           keyExtractor={r => r.name}
           sortable
-          defaultSortKey="confidence"
+          defaultSortKey="trackRecord"
           defaultSortDir="desc"
           storageKey="signals"
           onRowClick={r => setSelectedAsset(r.name)}
+          rowClassName={r => `group border-l-2 ${stateAccent[rowState(r)]}`}
         />
       )}
     </Panel>

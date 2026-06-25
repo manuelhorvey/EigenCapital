@@ -27,6 +27,7 @@ interface DataTableProps<T> {
   storageKey?: string
   onSortChange?: (col: string | null, dir: 'asc' | 'desc' | null) => void
   mobileAccent?: (row: T) => string | undefined
+  rowClassName?: (row: T) => string
 }
 
 type SortDir = 'asc' | 'desc' | null
@@ -46,7 +47,7 @@ export default function DataTable<T>({
   columns, data, keyExtractor, sortable = false,
   defaultSortKey, defaultSortDir = 'desc',
   stickyHeader = true, compact = false, emptyMessage = 'No data',
-  onRowClick, className = '', storageKey, onSortChange, mobileAccent,
+  onRowClick, className = '', storageKey, onSortChange, mobileAccent, rowClassName,
 }: DataTableProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrolled, setScrolled] = useState(false)
@@ -208,7 +209,8 @@ export default function DataTable<T>({
                   'border-b border-default/30 table-row-hover',
                   onRowClick ? 'cursor-pointer' : '',
                   i % 2 === 1 ? 'bg-panel/30' : '',
-                ].join(' ')}
+                  rowClassName?.(row) ?? '',
+                ].filter(Boolean).join(' ')}
                 style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 32px' }}
               >
                 {columns.map(col => (

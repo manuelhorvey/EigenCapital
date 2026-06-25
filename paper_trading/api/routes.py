@@ -746,8 +746,9 @@ def handle_asset_detail(path: str, query: dict) -> tuple[str, int]:
     asset = snapshot.assets[asset_name]
     metrics = asset.get("metrics") or {}
 
-    # Feature importance from saved model JSON
-    model_path = f"paper_trading/models/{asset_name}.json"
+    # Feature importance from saved model JSON (name mapping needed for ^ → no prefix)
+    _model_name = asset_name.lstrip("^")
+    model_path = f"paper_trading/models/{_model_name}_model.json"
     feature_importance: list[dict] = []
     if os.path.exists(model_path):
         try:

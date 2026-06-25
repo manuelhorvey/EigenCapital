@@ -1,5 +1,4 @@
 import logging
-import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
@@ -20,7 +19,7 @@ logger = logging.getLogger("quantforge.bundle")
 
 BUNDLE_VERSION = "1.0.0"
 BUNDLE_CACHE_TTL = 5.0
-LIVE_FETCH_TIMEOUT = 5.0  # compute_health_all iterates 19 assets with per-file I/O; 2s was too tight
+LIVE_FETCH_TIMEOUT = 15.0  # compute_health_all iterates 19 assets with per-file I/O; 5s was too tight
 _LIVE_CACHE_TTL = 5.0
 _MAX_LIVE_AGE_SECONDS = 10.0  # beyond this, live source is stale regardless of cache
 
@@ -28,10 +27,6 @@ _LIVE_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bundle-li
 
 # Each cached live entry: (data, wall_clock_expiry, fetch_timestamp, is_fallback)
 _LIVE_CACHE: dict[str, tuple[dict, float, float, bool]] = {}
-
-# Request coalescing: one in-flight bundle build at a time
-_IN_FLIGHT: dict[str, str | None] = {"request_id": None, "result": None}
-_IN_FLIGHT_LOCK = threading.Lock()
 
 
 def _fetch_live(name: str, fetch_fn) -> dict:
@@ -88,12 +83,6 @@ def handle_state_bundle(path: str, query: dict) -> str:
     cached = cache_get("/state-bundle.json")
     if cached is not None:
         return cached
-
-    # Request coalescing: if another bundle build is already in flight, block and reuse
-    with _IN_FLIGHT_LOCK:
-        if _IN_FLIGHT["result"] is not None:
-            logger.debug("bundle coalesced — reusing in-flight result")
-            return _IN_FLIGHT["result"]
 
     snapshot_obj = _STORE.load_snapshot()
     now = datetime.now(UTC)
@@ -167,9 +156,5 @@ def handle_state_bundle(path: str, query: dict) -> str:
 
     # Also store under standard key for backward compat
     cache_set("/state-bundle.json", data, ttl=BUNDLE_CACHE_TTL)
-
-    # Store result for coalescing guard (short window)
-    with _IN_FLIGHT_LOCK:
-        _IN_FLIGHT["result"] = data
 
     return data

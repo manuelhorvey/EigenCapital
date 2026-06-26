@@ -12,13 +12,13 @@ Operational procedures for the paper trading system. This document is for the pe
 | Dashboard URL | `http://127.0.0.1:5000` |
 | Config file | `configs/paper_trading.yaml` |
 | `calibration.enabled` | `true` — BinnedCalibrator applied per inference, reduces ECE 0.36→0.02 |
-| `portfolio.weight_method` | `factor_constrained_v1` — active weight strategy (P0) |
+| `portfolio.weight_method` | `factor_constrained_v2` — active weight strategy (P0, hard linear constraints) |
 | `kelly.enabled` | `false` — P2 Kelly sizing disabled pending live data |
 | State file (JSON) | `data/live/state.json` |
 | State store (SQLite) | `data/live/state.db` (5 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history) |
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
 | Logs | stdout (redirect to file as needed) |
-| Refresh interval | 30s (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var) |
+| Refresh interval | 60s (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var) |
 | Weekend behavior | Auto-pauses Fri 17:00 ET — Sun 17:00 ET; no signal computation occurs |
 | Weekend polling | Reduced to every 120s (state) / 5 min (secondary endpoints) |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
@@ -42,20 +42,20 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 |---|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 2.50 | 2.03 | 5 |
+| USDCAD | USDCAD=X | 2.5% | 1.59 | 3.19 | 5 |
 | ES | ES=F | 7.0% | 2.00 | 5.50 | 2 |
 | NQ | NQ=F | 7.0% | 2.50 | 5.00 | 2 |
-| GBPCAD | GBPCAD=X | 5.0% | 2.50 | 2.50 | 2 |
-| NZDCAD | NZDCAD=X | 5.0% | 2.50 | 4.00 | 2 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.77 | 3.54 | 2 |
+| NZDCAD | NZDCAD=X | 5.0% | 2.24 | 4.47 | 2 |
 | ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
-| NZDUSD | NZDUSD=X | 2.5% | 2.50 | 1.50 | 5 |
-| GBPAUD | GBPAUD=X | 5.0% | 1.00 | 2.00 | 3 |
+| NZDUSD | NZDUSD=X | 2.5% | 2.00 | 2.50 | 5 |
+| GBPAUD | GBPAUD=X | 5.0% | 1.50 | 2.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
 | CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
 | AUDUSD | AUDUSD=X | 4.0% | 1.50 | 4.00 | 2 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
-| EURCAD | EURCAD=X | 2.0% | 1.00 | 1.00 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.50 | 2.50 | 3 |
+| EURCAD | EURCAD=X | 2.0% | 0.87 | 1.73 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.37 | 2.74 | 3 |
 | GBPCHF | GBPCHF=X | 3.0% | 1.00 | 2.00 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
@@ -176,8 +176,8 @@ The script:
 3. Downloads macro data (DXY, VIX, SPX, WTI, TNX) via yfinance
 4. Computes alpha + regime + archetype features
 5. Runs inference on all assets (base model — ensemble disabled portfolio-wide)
-6. Applies decision pipeline stages (22 stages: first-cycle suppression → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → profit lock → manage position → build artifacts → route execution → poll deferred → update prob history)
-7. Routes through 14 governance layers + HealthMonitor (circuit breaker, VaR/CVaR, equity cluster alarm) + RecoveryScheduler
+6. Applies decision pipeline stages (22 stages: first-cycle suppression → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
+7. Routes through 15 governance layers + HealthMonitor (circuit breaker, VaR/CVaR, equity cluster alarm) + RecoveryScheduler
 8. Opens/closes positions based on signal vs current position (MT5 bridge + paper)
 9. Serves dashboard on port 5000
 10. Repeats every refresh interval (default 30s, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)

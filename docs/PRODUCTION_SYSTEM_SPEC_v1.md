@@ -17,7 +17,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 1. **Screening output**: Composite scores + promotion classifications (GREEN/YELLOW/RED) for 30+ tickers
 2. **Per-asset models**: Binary XGBoost classifiers, one per promoted asset
 3. **Live signals**: BUY/SELL/FLAT decisions every 30s for 19 assets (SELL_ONLY filter overrides BUY→FLAT for 8 assets)
-4. **Portfolio allocation**: Config-gated portfolio weight strategy (P0, active: factor_constrained_v1) with governance overlay
+4. **Portfolio allocation**: Config-gated portfolio weight strategy (P0, active: factor_constrained_v2) with governance overlay
 5. **Execution traces**: Full attribution records (prediction, execution, exit, friction) per trade
 
 ### What the system does NOT do
@@ -58,7 +58,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
                               │  (model loaded by engine)
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    INFERENCE LAYER (per cycle, every 300s)               │
+│                    INFERENCE LAYER (per cycle, every 30s)                │
 │  Parallel asset fetch (ThreadPoolExecutor, max_workers=8)               │
 │                                                                         │
 │  ┌─────────────┐   ┌──────────────────┐   ┌───────────────────┐        │
@@ -98,11 +98,11 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    PORTFOLIO LAYER                                       │
 │                                                                         │
-│  19 assets, config-gated portfolio weight strategy (active: factor_constrained_v1)   │
+│  19 assets, config-gated portfolio weight strategy (active: factor_constrained_v2)   │
 │  SQLite state store (WAL mode, schema v2.0.0): trades, attribution,    │
 │    equity_history, strategy_metadata                                    │
 │  PaperBroker → StateStore → state.json + state.db → dashboard           │
-│  14-layer governance + HealthMonitor + VaR/CVaR + sell-only filter      │
+│  15-layer governance + HealthMonitor + VaR/CVaR + sell-only filter      │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -272,13 +272,13 @@ Format: XGBoost `.json` (not pickle)
     o. Update regime bar counter — track bars since last regime shift
     p. Conviction gate — flip gate based on regime conviction
     q. Kelly sizing (P2) — scale position by Kelly criterion (config-gated, disabled)
-    r. Profit lock gate — block flip if unrealized PnL > threshold
+    r. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > threshold)
     s. Manage position — close/re-open with entry gate check
     t. Build entry artifacts — construct TradeDecision for execution
     u. Route execution policy — direct to PaperBroker or MT5Broker
     v. Poll deferred entries — execute pending deferred orders
     w. Update prob history — record probability history for drift monitoring
-18. Governance (14 mechanisms + HealthMonitor + VaR/CVaR): validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, calibration (P1), Kelly sizing (P2), factor model (P3), equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock
+18. Governance (15 mechanisms + HealthMonitor + VaR/CVaR): validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, calibration (P1), Kelly sizing (P2), factor model (P3), equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock
 19. Position sizing chain (P2 Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget → backstop) + independent MT5 sizing
 20. MT5 lifecycle: open → bridge `place_order` with SL/TP; close → bridge `close_position`; SL/TP adjust → bridge `modify_position`
 
@@ -309,7 +309,7 @@ Computed from OHLCV feature vector (no model inference):
 
 ### 6.1 Current Composition
 
-**19 assets** promoted from 36-ticker walk-forward screening, P0 factor_constrained_v1 weighted.
+**19 assets** promoted from 36-ticker walk-forward screening, P0 factor_constrained_v2 weighted.
 
 **Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
@@ -321,28 +321,28 @@ Computed from OHLCV feature vector (no model inference):
 |---|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 2.50 | 2.03 | 5 |
+| USDCAD | USDCAD=X | 2.5% | 1.59 | 3.19 | 5 |
 | ES | ES=F | 7.0% | 2.00 | 5.50 | 2 |
 | NQ | NQ=F | 7.0% | 2.50 | 5.00 | 2 |
-| GBPCAD | GBPCAD=X | 5.0% | 2.50 | 2.50 | 2 |
-| NZDCAD | NZDCAD=X | 5.0% | 2.50 | 4.00 | 2 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.77 | 3.54 | 2 |
+| NZDCAD | NZDCAD=X | 5.0% | 2.24 | 4.47 | 2 |
 | ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
-| NZDUSD | NZDUSD=X | 2.5% | 2.50 | 1.50 | 5 |
-| GBPAUD | GBPAUD=X | 5.0% | 1.00 | 2.00 | 3 |
+| NZDUSD | NZDUSD=X | 2.5% | 2.00 | 2.50 | 5 |
+| GBPAUD | GBPAUD=X | 5.0% | 1.50 | 2.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
 | CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
 | AUDUSD | AUDUSD=X | 4.0% | 1.50 | 4.00 | 2 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
-| EURCAD | EURCAD=X | 2.0% | 1.00 | 1.00 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.50 | 2.50 | 3 |
+| EURCAD | EURCAD=X | 2.0% | 0.87 | 1.73 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.37 | 2.74 | 3 |
 | GBPCHF | GBPCHF=X | 3.0% | 1.00 | 2.00 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
 
 ### 6.2 Position Sizing
 
-**Strategy**: Config-gated via `portfolio.weight_method` (active: `factor_constrained_v1`).
-**4 registered strategies**: `equal_v1`, `risk_parity_v1`, `hrp_v1`, `factor_constrained_v1`.
+**Strategy**: Config-gated via `portfolio.weight_method` (active: `factor_constrained_v2`).
+**8 registered strategies**: `equal_v1`, `risk_parity_v1`, `risk_parity_v2`, `risk_parity_v3`, `hrp_v1`, `factor_constrained_v1`, `factor_constrained_v2`, `conviction_weighted_v1`.
 **Computation**: `shared/portfolio_weights.py:compute_weights()` — PURE function (same returns → same weights).
 **Covariance**: Raw historical returns only (no governance scaling).
 
@@ -358,7 +358,7 @@ final_size = base × kelly_multiplier × governance_scalar × meta_confidence_sc
 **Drawdown taper**: Linear between start_dd/end_dd.
 **Backstop Phase 3**: Ratchets down on leverage budget breach, decays 0.9/cycle otherwise.
 
-### 6.3 Governance Layers (11 + HealthMonitor)
+### 6.3 Governance Layers (15 + HealthMonitor)
 
 | Layer | Frequency | Effect |
 |---|---|---|
@@ -376,14 +376,15 @@ final_size = base × kelly_multiplier × governance_scalar × meta_confidence_sc
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% |
 | Entry price deviation gate | Per entry | Skip if price drifted >2% |
-| Profit lock gate | Per flip | Block flip if PnL >15% |
+| Sell tripwire | Per exit | SELL-only 20-trade window, 65% WARNING threshold |
+| Profit lock gate | Per flip (embedded in manage_position) | Block flip if PnL >15% |
 
 **HealthMonitor** runs in Phase 3g: portfolio vol, VaR(95), CVaR, halt ratio, equity cluster alarm, circuit breaker checks.
 **RecoveryScheduler** probes halted actors with exponential backoff in Phase 3g.
 **Live VaR/CVaR**: Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail.
 **Schema migration**: SQLite at `DB_SCHEMA_VERSION = "2.0.0"`. Auto-migrates at connect time — adds `cycle_id` to trades, `vol_spike`/`var_95` to equity_history, and indexes.
 
-Plus decision pipeline stages (22 stages: first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, stability, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, profit lock, manage position, build artifacts, route execution, poll deferred, update prob history) and position sizing guardrails (drawdown taper, per-position cap, risk-per-trade cap, leverage budget, backstop multiplier).
+Plus decision pipeline stages (22 stages: first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, stability, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) and position sizing guardrails (drawdown taper, per-position cap, risk-per-trade cap, leverage budget, backstop multiplier).
 
 ---
 
@@ -501,7 +502,7 @@ In-memory TTL cache per download type:
 10. **BUY inversion root cause unknown** — SELL_ONLY filter is empirically correct (76% of profit, outperforms in 3/4 crisis windows) but the underlying cause of inverted BUY calibration is unidentified. Two leading hypotheses (carry, DXY) were falsified by walk-forward ablation.
 11. **Circuit breaker threshold=7** — lowered from 15 after crisis replay showed max 4 consecutive losses. Provides realistic safety margin while being reachable during severe drawdowns.
 12. **Spread gate observe mode** — first 720 cycles (~6h) log what would be blocked without acting; enforcement activates automatically after observation window.
-13. **P0 (factor_constrained_v1) and P1 (calibration) are enabled**; P2 (Kelly) is disabled pending 2+ weeks live data
+13. **P0 (factor_constrained_v2) and P1 (calibration) are enabled**; P2 (Kelly) is disabled pending 2+ weeks live data
 14. **Calibration reduces ECE by 94.3%** but requires walk-forward parquet regeneration for retraining
 
 ---

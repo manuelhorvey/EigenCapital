@@ -8,7 +8,7 @@ Project documentation for the QuantForge cross-sectional factor ranking and pape
 |-------|-------------|
 | [`PAPER_TRADING_RUNBOOK.md`](PAPER_TRADING_RUNBOOK.md) | Daily/weekly ops, halt responses, troubleshooting |
 | [`SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) | Architecture, components, data flow, governance |
-| [`GOVERNANCE_LAYER.md`](GOVERNANCE_LAYER.md) | 9-layer governance + decision pipeline stages + position sizing guardrails |
+| [`GOVERNANCE_LAYER.md`](GOVERNANCE_LAYER.md) | 15-layer governance + decision pipeline stages + position sizing guardrails |
 | [`FEATURES.md`](FEATURES.md) | Alpha features (13 cols), regime features (7 cols), archetype, labeling |
 | [`LIVE_CONTRACT.md`](../LIVE_CONTRACT.md) | Immutable production system contract |
 
@@ -69,7 +69,7 @@ AUDCHF, AUDNZD, EURUSD, GBPNZD, CADJPY, CHFJPY, CL, USDJPY, BTCUSD, EURGBP, EURJ
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| Engine | — | Main trading loop (300s cycle) |
+| Engine | — | Main trading loop (60s cycle) |
 | Dashboard | 5000 | React SPA + JSON API endpoints |
 | MT5 bridge | 9879 | Wine-hosted TCP bridge to MetaTrader 5 terminal |
 | MT5 terminal | — | MetaTrader 5 under Wine + xvfb-run |

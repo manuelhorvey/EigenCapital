@@ -43,7 +43,7 @@ Calibration (P1 — BinnedCalibrator, per-asset, config-gated)
         ↓
 Governance Filters (11 layers + P2 Kelly sizing + P3 factor model)
         ↓
-Decision Pipeline Stages (22 stages: first-cycle → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → profit lock → manage position → build artifacts → route execution → poll deferred → update prob history)
+Decision Pipeline Stages (22 stages: first-cycle → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
         ↓
 Portfolio Weight Rebalance (P0 — 4 strategies: equal, risk parity, HRP, factor-constrained)
         ↓
@@ -220,7 +220,7 @@ Per-asset max_depth from `configs/paper_trading.yaml`. Regime model: 200 trees, 
 
 # Live Inference Pipeline
 
-The live engine executes every 300 seconds.
+The live engine executes every 60 seconds by default (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var).
 
 ## Runtime Pipeline
 
@@ -248,20 +248,21 @@ The live engine executes every 300 seconds.
      e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
      f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed)
      g. Sell-only filter — override BUY→FLAT for 8 inverted-BUY assets
-     h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
-     i. Confidence gate — abort if net confidence below threshold
+   h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
+      i. Session gate — block entry outside regular trading hours for index futures
+      j. ADX entry gate — skip if ADX < threshold (configurable per asset)
+      k. Confidence gate — abort if net confidence below threshold
      j. Signal stability filter — require >0.65 max(prob_long, prob_short)
      k. Signal hysteresis — 2-of-3 agreement before flip
      l. Meta-label advisory — record meta-label recommendation (no enforcement)
      m. Update regime bar counter — track bars since last regime shift
      n. Conviction gate — flip gate based on regime conviction
      o. **Kelly sizing (P2)** — scale position by Kelly criterion (config-gated via `kelly.enabled`, default `false`)
-     p. Profit lock gate — block flip if unrealized PnL > threshold
-     q. Manage position — close/re-open with entry gate check
+      p. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > threshold)
      r. Build entry artifacts — construct TradeDecision for execution
      s. Route execution policy — direct to PaperBroker or MT5Broker
      t. Poll deferred entries — execute pending deferred orders
-  17. Route through governance (11 layers + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
+  17. Route through governance (15 layers + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
   19. Position sizing chain (P2 Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget → backstop)
   20. Independent MT5 sizing (same chain with real broker equity)
@@ -274,7 +275,7 @@ The live engine executes every 300 seconds.
 
 QuantForge uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
 
-## Governance Layers (11 + HealthMonitor)
+## Governance Layers (15 + HealthMonitor)
 
 | Layer                  | Scope      | Effect                    |
 | ---------------------- | ---------- | ------------------------- |
@@ -362,18 +363,22 @@ Persistent state is stored in SQLite WAL mode.
 The system implements a 5-layer portfolio maturity framework (P0–P4). All layers are
 config-gated and independently enablable.
 
-## P0 — Portfolio Truth Layer (enabled: `factor_constrained_v1`)
+## P0 — Portfolio Truth Layer (enabled: `factor_constrained_v2`)
 
 **File:** `shared/portfolio_weights.py`
 
-Pure function weight computation. 4 registered strategies:
+Pure function weight computation. 8 registered strategies:
 
 | Method | Strategy |
 |--------|----------|
 | `equal_v1` | Simple 1/N allocation |
 | `risk_parity_v1` | Equal risk contribution via scipy SLSQP |
+| `risk_parity_v2` | Ledoit-Wolf shrinkage covariance |
+| `risk_parity_v3` | EWMA span=60 covariance |
 | `hrp_v1` | Lopez de Prado HRP with `optimal_leaf_ordering` |
-| `factor_constrained_v1` | Risk parity with factor exposure penalty (default) |
+| `factor_constrained_v1` | Risk parity with factor exposure penalty (legacy) |
+| `factor_constrained_v2` | Risk parity with hard linear inequality constraints — binds CHF ≤0.20 (default) |
+| `conviction_weighted_v1` | Risk parity tilted by model conviction scores |
 
 **Integration:** `engine_rebalance_service.py` reads `portfolio.weight_method` from config, calls `compute_weights()`.
 
@@ -523,7 +528,7 @@ Dashboard URL: http://127.0.0.1:5000
 
 * Paper trading only (MT5 Exness demo — no live capital)
 * Ensemble disabled portfolio-wide (base_weight=1.0; ADR-026)
-* Calibration (P1) enabled; factor_constrained_v1 (P0) enabled; Kelly (P2) disabled pending live data
+* Calibration (P1) enabled; factor_constrained_v2 (P0) enabled with hard linear constraints; Kelly (P2) disabled pending live data
 * Some FX crosses may produce incomplete first-cycle bars
 * Macro data sourced from Yahoo Finance (DXY, VIX, SPX, WTI, TNX)
 * THIN liquidity regime is soft warning (SL/size adjust, no halt); only STRESSED halts

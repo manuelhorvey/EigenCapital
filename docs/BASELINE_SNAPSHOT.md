@@ -20,13 +20,13 @@ Source: `configs/paper_trading.yaml`, `LIVE_CONTRACT.md`
 | Drawdown limit | -0.15 |
 | Data source | MT5 (yfinance fallback) |
 | Ensemble | disabled portfolio-wide (base_weight=1.0; see ADR-026) |
-| Governance layers | 11 + HealthMonitor (validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock) |
-| Decision pipeline stages | 22 stages (`DEFAULT_STAGES`: first-cycle suppression, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, stability, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, profit lock, manage position, build artifacts, route execution, poll deferred, update prob history) |
+| Governance layers | 15 + HealthMonitor (validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock) |
+| Decision pipeline stages | 22 stages (`DEFAULT_STAGES`: first-cycle suppression, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, stability, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) |
 | Position sizing guardrails | drawdown taper, per-position cap, risk-per-trade cap, leverage budget, backstop multiplier |
 | Spread gate tiers | fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps |
 | Circuit breaker | max_consecutive_losses=7 (was 15) |
 | Exit reasons | UPPERCASE canonical (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, PORTFOLIO_CIRCUIT_BREAKER, SELL_ONLY_FILTER) |
-| Cycle interval | 30s (configurable via QUANTFORGE_REFRESH_INTERVAL) |
+| Cycle interval | 60s (configurable via QUANTFORGE_REFRESH_INTERVAL) |
 | Schema migration | DB_SCHEMA_VERSION=2.0.0 (adds cycle_id, vol_spike, var_95) |
 
 ---
@@ -140,7 +140,7 @@ Key invariants from the contract:
 - Per-asset max_depth (2–5)
 - Dynamic SL/TP with trailing stops and per-asset min_rr_ratio
 - Ensemble disabled portfolio-wide (base_weight=1.0)
-- Decision pipeline: 22 stages (first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, stability, hysteresis, meta-label advisory, regime bar counter, conviction gate, Kelly sizing, profit lock, manage position, build artifacts, route execution, poll deferred, update prob history)
+- Decision pipeline: 22 stages (first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, stability, hysteresis, meta-label advisory, regime bar counter, conviction gate, Kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history)
 - Sell-only filter for 8 inverted-BUY assets
 - HealthMonitor with VaR(95)/CVaR in Phase 3g
 - Schema migration at DB_SCHEMA_VERSION=2.0.0

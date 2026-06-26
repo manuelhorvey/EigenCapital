@@ -1,8 +1,8 @@
 # QuantForge — Risk & Governance Layer
 
-14 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
+15 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
 
-## Governance Layers (14 + HealthMonitor)
+## Governance Layers (15 + HealthMonitor)
 
 | Layer | Frequency | Scope | Effect |
 |---|---|---|---|
@@ -48,8 +48,7 @@
 | Update regime bar counter | Track bars since last regime shift |
 | Conviction gate | Flip gate based on regime conviction |
 | Kelly sizing (P2) | Apply fractional Kelly multiplier from calibrated probability and tp/sl |
-| Profit lock gate | Block flip if unrealized PnL > threshold |
-| Manage position | Close/re-open with entry gate check |
+| Manage position | Close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > threshold) |
 | Build entry artifacts | Construct TradeDecision for execution |
 | Route execution policy | Direct to PaperBroker or MT5Broker |
 | Poll deferred entries | Execute pending deferred orders |

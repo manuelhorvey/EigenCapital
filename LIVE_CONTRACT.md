@@ -259,16 +259,15 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
     l. Signal stability filter — require >0.65 max(prob_long, prob_short)
     m. Signal hysteresis — 2-of-3 agreement before flip
     n. Meta-label advisory — record meta-label recommendation without enforcement
-    o. Update regime bar counter — track bars since last regime shift
-    p. Conviction gate — flip gate based on regime conviction
-    q. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 15.3 (P2).
-    r. Profit lock gate — block flip if unrealized PnL > threshold
-    s. Manage position — close/re-open with entry gate check
+     o. Update regime bar counter — track bars since last regime shift
+     p. Conviction gate — flip gate based on regime conviction
+     q. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 15.3 (P2).
+     r. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > `profit_lock_threshold_pct`, default 15%)
     t. Build entry artifacts — construct TradeDecision for execution
     u. Route execution policy — direct to PaperBroker or MT5Broker
     v. Poll deferred entries — execute previously deferred pending orders
     w. Update prob history — record probability history for drift monitoring
-18. Route through governance layers (14 mechanisms)
+18. Route through governance layers (15 mechanisms)
 19. Position sizing chain: Kelly multiplier → drawdown taper → cap → risk cap → leverage budget → backstop
 20. Independent MT5 sizing (`_compute_mt5_qty` with broker equity)
 21. Execute position lifecycle:
@@ -311,23 +310,23 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 
 ### Current assets (19 promoted)
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 2.50 | 2.03 | 5 |
+| USDCAD | USDCAD=X | 2.5% | 1.59 | 3.19 | 5 |
 | ES | ES=F | 7.0% | 2.00 | 5.50 | 2 |
 | NQ | NQ=F | 7.0% | 2.50 | 5.00 | 2 |
-| GBPCAD | GBPCAD=X | 5.0% | 2.50 | 2.50 | 2 |
-| NZDCAD | NZDCAD=X | 5.0% | 2.50 | 4.00 | 2 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.77 | 3.54 | 2 |
+| NZDCAD | NZDCAD=X | 5.0% | 2.24 | 4.47 | 2 |
 | ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
-| NZDUSD | NZDUSD=X | 2.5% | 2.50 | 2.00 | 5 |
-| GBPAUD | GBPAUD=X | 5.0% | 1.00 | 2.00 | 3 |
+| NZDUSD | NZDUSD=X | 2.5% | 2.00 | 2.50 | 5 |
+| GBPAUD | GBPAUD=X | 5.0% | 1.50 | 2.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
 | CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
 | AUDUSD | AUDUSD=X | 4.0% | 1.50 | 4.00 | 2 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
-| EURCAD | EURCAD=X | 2.0% | 1.00 | 1.50 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.50 | 2.50 | 3 |
+| EURCAD | EURCAD=X | 2.0% | 0.87 | 1.73 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.37 | 2.74 | 3 |
 | GBPCHF | GBPCHF=X | 3.0% | 1.00 | 2.00 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
@@ -465,7 +464,7 @@ max_layers: 3
 
 ## 12. GOVERNANCE CONTRACT
 
-14 layered governance mechanisms plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
+15 layered governance mechanisms plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
 
 | Layer | Frequency | Effect | Config key |
 |---|---|---|---|---|---|
@@ -481,10 +480,10 @@ max_layers: 3
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
 | Factor model (P3) | Per cycle | Factor exposures via 9 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
 | Equity cluster alarm | Per cycle | Flags ES/NQ/^DJI all on same side (recommendation) | (hardcoded, 60s throttle) |
-| Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) | (hardcoded in `CircuitBreaker`) |
+| Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
 | Entry price deviation | Per entry | Skips entry if price moved > `max_entry_slippage_pct` (def 2%) | `max_entry_slippage_pct` |
-| Profit lock | Per flip | Blocks flip if unrealized PnL > `profit_lock_threshold_pct` (def 15%) | `profit_lock_threshold_pct` |
+| Profit lock | Per flip (embedded in manage_position) | Blocks flip if unrealized PnL > `profit_lock_threshold_pct` (def 15%) | `profit_lock_threshold_pct` |
 
 **Position sizing guardrails (multiply into final notional):**
 
@@ -608,16 +607,18 @@ config-gated — no behavior change until explicitly enabled.
 - Governance multipliers affect per-position sizing at trade time, NOT the portfolio weight matrix.
 - WeightMethod strings are versioned (e.g. `"risk_parity_v1"`). Old versions remain callable for reproducible backtests.
 
-**Registered strategies (4):**
+**Registered strategies (8):**
 
 | Method | Strategy | Description |
 |--------|----------|-------------|
 | `equal_v1` | Equal weight | Simple 1/N allocation |
 | `risk_parity_v1` | Risk parity | Equal risk contribution via scipy SLSQP |
 | `hrp_v1` | Hierarchical Risk Parity | Lopez de Prado HRP with `optimal_leaf_ordering` for deterministic quasi-diagonalization |
-| `factor_constrained_v1` | Factor-constrained risk parity | Risk parity with penalty term for factor exposure limits; falls back to base risk parity on optimizer failure |
+| `factor_constrained_v1` | Factor-constrained risk parity (legacy) | Risk parity with penalty term for factor exposure limits; falls back to base risk parity on optimizer failure |
+| `factor_constrained_v2` | Factor-constrained risk parity (hard constraints) | Risk parity with direct linear inequality constraints (SLSQP). Guarantees factor limits bind (CHF ≤ 0.20). Best total_R/sharpe tradeoff — 124.45R / 15.40 / -0.62 max_dd. |
+| `conviction_weighted_v1` | Conviction-tilted risk parity | Risk parity tilted by model conviction scores |
 
-**Active config:** `portfolio.weight_method: factor_constrained_v1` (enabled 2026-06-24).
+**Active config:** `portfolio.weight_method: factor_constrained_v2` (enabled 2026-06-25).
 
 **Supporting tools:**
 - `scripts/replay/replay_rebalance.py` — reconstruct historical weights via `rolling_weight_matrix()` and compare with live.
@@ -707,8 +708,8 @@ Where `p` = calibrated P(TP hit), `q = 1-p`.
 **Integration:**
 - Factor exposures computed per-cycle in `engine_state_service.py:_compute_factor_exposures()`.
 - Exposed in `state.json` portfolio summary as `factor_exposures`.
-- `factor_constrained_v1` weight strategy uses `factor_exposure_penalty()` (scaled by `penalty_scale`, default 10.0).
-- Active config: `portfolio.weight_method: factor_constrained_v1` (enabled for monitoring; `factor_constraints.enabled: false` applies no hard constraints — uses risk parity fallback).
+- `factor_constrained_v2` weight strategy uses `factor_constrained_weights_v2()` with hard linear inequality constraints.
+- Active config: `portfolio.weight_method: factor_constrained_v2` (enabled — binds CHF to ≤0.20, all 9 factor groups constrained).
 
 ### 15.5 P4 — HRP Fix (2026-06-24)
 

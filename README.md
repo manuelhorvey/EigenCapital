@@ -9,7 +9,7 @@
 
 ---
 
-Cross-sectional multi-asset research and paper trading engine with walk-forward asset selection, per-asset XGBoost models, 14-layer governance + HealthMonitor circuit breaker, decision pipeline suppression stages (including sell-only filter for 8 assets with inverted BUY calibration), MetaTrader 5 bridge execution (with full order lifecycle support), and a React dashboard.
+Cross-sectional multi-asset research and paper trading engine with walk-forward asset selection, per-asset XGBoost models, 15-layer governance + HealthMonitor circuit breaker, decision pipeline suppression stages (including sell-only filter for 8 assets with inverted BUY calibration), MetaTrader 5 bridge execution (with full order lifecycle support), and a React dashboard.
 
 ---
 
@@ -199,17 +199,21 @@ No shared multi-asset model exists.
 The system implements a 5-layer portfolio maturity framework (P0–P4). Each layer is
 config-gated — no behavior change until explicitly enabled.
 
-### P0 — Portfolio Truth Layer (enabled: `factor_constrained_v1`)
+### P0 — Portfolio Truth Layer (enabled: `factor_constrained_v2`)
 **File:** `shared/portfolio_weights.py`
 
-Pure function weight computation. 4 registered strategies:
+Pure function weight computation. 8 registered strategies:
 
 | Method | Description | Status |
 |--------|-------------|--------|
 | `equal_v1` | Simple 1/N allocation | Available |
 | `risk_parity_v1` | Equal risk contribution via scipy SLSQP | Available |
+| `risk_parity_v2` | Ledoit-Wolf shrinkage covariance | Available |
+| `risk_parity_v3` | EWMA span=60 covariance | Available |
 | `hrp_v1` | Lopez de Prado HRP with deterministic `optimal_leaf_ordering` | Available |
-| `factor_constrained_v1` | Risk parity with factor exposure penalty; falls back to base RP on optimizer failure | **Default** |
+| `factor_constrained_v1` | Risk parity with factor exposure penalty (legacy) | Legacy |
+| `factor_constrained_v2` | Risk parity with hard linear inequality constraints — binds CHF ≤0.20 | **Default** |
+| `conviction_weighted_v1` | Risk parity tilted by model conviction scores | Available |
 
 **Integration:** `engine_rebalance_service.py` reads `portfolio.weight_method` from config,
 calls `compute_weights()` on schedule. Pure functions — same returns → same weights.
@@ -346,7 +350,7 @@ Derived from OHLCV for execution conditioning:
       u. Route execution policy — direct to PaperBroker or MT5Broker
       v. Poll deferred entries — execute pending deferred orders
       w. Update prob history — record probability history for drift monitoring
-  17. Route through 14 governance mechanisms + HealthMonitor + VaR/CVaR
+  17. Route through 15 governance mechanisms + HealthMonitor + VaR/CVaR
  18. Position sizing guardrails (drawdown taper → cap → risk cap → leverage budget → backstop)
  19. Independent MT5 sizing (same chain with broker equity)
  20. Execute or defer (MT5 bridge for real broker)
@@ -571,7 +575,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | Variable                      | Required | Purpose                                |
 | ----------------------------- | -------- | -------------------------------------- |
 | `PYTHONPATH`                  | Yes      | Set to `.`                             |
-| `QUANTFORGE_REFRESH_INTERVAL` | No       | Engine loop interval (default 300s)     |
+| `QUANTFORGE_REFRESH_INTERVAL` | No       | Engine loop interval (default 60s)      |
 | `MT5_ACCOUNT`                 | No*      | Exness MT5 account number              |
 | `MT5_PASSWORD`                | No*      | Exness MT5 account password            |
 | `MT5_SERVER`                  | No*      | Exness MT5 server (e.g. Exness-MT5Trial2) |

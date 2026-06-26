@@ -429,6 +429,10 @@ def main():
         "--calibrate", action="store_true", default=False,
         help="Apply DirectionalCalibrator after each fold.",
     )
+    parser.add_argument(
+        "--n-folds", type=int, default=3,
+        help="Number of walk-forward folds (default 3; reduce for assets with sparse labels)",
+    )
     args = parser.parse_args()
 
     # Load per-asset pt_sl from production config
@@ -488,6 +492,7 @@ def main():
             name, ticker,
             window_years=args.years,
             step_years=args.step,
+            n_folds=args.n_folds,
             ensemble_weight=args.ensemble_weight,
             ensemble_threshold=args.ensemble_threshold,
             pt_sl=pt_sl,

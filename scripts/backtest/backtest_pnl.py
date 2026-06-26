@@ -448,6 +448,9 @@ def main():
 
         # SELL-only filter for assets with inverted BUY calibration
         if args.sell_only:
+            # Current production SELL_ONLY list (5 assets).
+            # Step 3 features restored GBPJPY, USDCHF, EURCHF, USDJPY, ^DJI.
+            # See AGENTS.md "Trend-Exhaustion Features — Tier 1+2 (2026-06-26)".
             SELL_ONLY_ASSETS = frozenset(
                 {
                     "CADCHF",
@@ -455,9 +458,6 @@ def main():
                     "NQ",
                     "NZDCHF",
                     "EURAUD",
-                    "^DJI",
-                    "USDCHF",
-                    "EURCHF",
                 }
             )
             if asset in SELL_ONLY_ASSETS:

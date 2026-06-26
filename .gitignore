@@ -31,6 +31,7 @@ walkforward/
 ensemble_pilot/
 data/archive/
 data/monitoring/
+diagnostics_output/
 diagnostic_data_events.py
 crisis_reports/
 mc_results.json

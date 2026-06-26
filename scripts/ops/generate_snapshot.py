@@ -10,9 +10,9 @@ import yaml
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _git(cmd: str) -> str:
+def _git(args: list[str]) -> str:
     try:
-        return subprocess.check_output(f"git {cmd}", shell=True, cwd=BASE, stderr=subprocess.DEVNULL, text=True).strip()
+        return subprocess.check_output(["git"] + args, cwd=BASE, stderr=subprocess.DEVNULL, text=True).strip()
     except Exception:
         return "unknown"
 
@@ -37,8 +37,8 @@ def main():
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
 
-    commit_hash = _git("rev-parse --short HEAD")
-    commit_date = _git("log -1 --format=%cd --date=short")
+    commit_hash = _git(["rev-parse", "--short", "HEAD"])
+    commit_date = _git(["log", "-1", "--format=%cd", "--date=short"])
 
     model_files = sorted(f for f in os.listdir(models_dir) if f.endswith(".json")) if os.path.isdir(models_dir) else []
 

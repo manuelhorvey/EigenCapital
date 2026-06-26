@@ -9,6 +9,9 @@ load_dotenv()
 
 logger = logging.getLogger("quantforge.config_manager")
 
+# Shared MT5 bridge port — single source of truth
+DEFAULT_MT5_BRIDGE_PORT = 9879
+
 DEFAULT_CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "configs",
@@ -34,7 +37,7 @@ class MT5Config:
     password: str = ""
     server: str = ""
     bridge_host: str = "127.0.0.1"
-    bridge_port: int = 9879
+    bridge_port: int = DEFAULT_MT5_BRIDGE_PORT
     min_lot: float = 0.05
     symbol_map_path: str = ""
 
@@ -51,7 +54,7 @@ class MT5Config:
             password=password,
             server=server,
             bridge_host=data.get("bridge_host", "127.0.0.1"),
-            bridge_port=int(data.get("bridge_port", 9879)),
+            bridge_port=int(data.get("bridge_port", DEFAULT_MT5_BRIDGE_PORT)),
             min_lot=float(data.get("min_lot", 0.05)),
             symbol_map_path=data.get("symbol_map_path", ""),
         )
@@ -94,6 +97,25 @@ class EngineConfig:
     )
     mt5: MT5Config = field(default_factory=MT5Config)
     data_source: str = "yfinance"  # "yfinance" or "mt5"
+
+    def __post_init__(self) -> None:
+        errors: list[str] = []
+        if self.capital <= 0:
+            errors.append(f"capital must be positive, got {self.capital}")
+        if not 0 < self.position_size <= 1.0:
+            errors.append(f"position_size must be in (0, 1], got {self.position_size}")
+        if self.rebalance not in ("daily", "weekly", "monthly", "none"):
+            errors.append(f"rebalance must be 'daily', 'weekly', 'monthly', or 'none', got '{self.rebalance}'")
+        if self.retrain_window < 1:
+            errors.append(f"retrain_window must be >= 1, got {self.retrain_window}")
+        if self.data_source not in ("yfinance", "mt5"):
+            errors.append(f"data_source must be 'yfinance' or 'mt5', got '{self.data_source}'")
+        if not -1.0 <= self.portfolio_drawdown_limit <= 0.0:
+            errors.append(f"portfolio_drawdown_limit must be in [-1.0, 0.0], got {self.portfolio_drawdown_limit}")
+        if self.mt5.bridge_port <= 0 or self.mt5.bridge_port > 65535:
+            errors.append(f"mt5.bridge_port must be in [1, 65535], got {self.mt5.bridge_port}")
+        if errors:
+            raise ValueError("EngineConfig validation failed:\n  " + "\n  ".join(errors))
 
     @classmethod
     def from_dict(cls, data: dict) -> "EngineConfig":

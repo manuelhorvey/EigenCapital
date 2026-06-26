@@ -239,7 +239,7 @@ def handle_risk_asset(path: str, query: dict) -> tuple[str, int]:
     signal = _get_risk_latest(asset)
     if signal is not None:
         return json_dumps(signal, indent=2), 200
-    return json_dumps({"error": f"No risk signal for {asset}", "asset": asset}), 404
+    return json_dumps({"error": "Not found", "code": 404}), 404
 
 
 def handle_shadow_actions(path: str, query: dict) -> str:
@@ -257,7 +257,7 @@ def handle_shadow_actions_asset(path: str, query: dict) -> tuple[str, int]:
     action = (actions or {}).get(asset)
     if action is not None:
         return json_dumps(action, indent=2), 200
-    return json_dumps({"error": f"No shadow action for {asset}", "asset": asset}), 404
+    return json_dumps({"error": "Not found", "code": 404}), 404
 
 
 def handle_health(path: str, query: dict) -> str:
@@ -741,7 +741,7 @@ def handle_asset_detail(path: str, query: dict) -> tuple[str, int]:
     asset_name = path[len("/asset/") : -len(".json")]
     snapshot = _STORE.load_snapshot()
     if not snapshot or not snapshot.assets or asset_name not in snapshot.assets:
-        return json_dumps({"error": f"No data for {asset_name}"}), 404
+        return json_dumps({"error": "Not found", "code": 404}), 404
 
     asset = snapshot.assets[asset_name]
     metrics = asset.get("metrics") or {}
@@ -776,7 +776,7 @@ def handle_asset_detail(path: str, query: dict) -> tuple[str, int]:
                 for i, (f, v) in enumerate(sorted(importance.items(), key=lambda x: -x[1]))
             ]
         except Exception as exc:
-            feature_importance = [{"error": str(exc)}]
+            feature_importance = [{"error": "Model parse error"}]
 
     # Trade history with MAE/MFE estimates
     trade_log = metrics.get("trade_log") or []
@@ -856,8 +856,8 @@ def handle_wal_asset(path: str, query: dict) -> tuple[str, int]:
                                 "payload": payload,
                             }
                         )
-    except (json.JSONDecodeError, OSError) as exc:
-        return json_dumps({"error": f"WAL read error: {exc}"}), 500
+    except (json.JSONDecodeError, OSError):
+        return json_dumps({"error": "Internal error", "code": 500}), 500
 
     if not events:
         return json_dumps({"events": []}), 200

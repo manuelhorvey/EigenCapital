@@ -11,10 +11,12 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import uuid
 
 import pandas as pd
 import pytz
 
+from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 from paper_trading.execution.broker_interface import AccountSummary, BrokerInterface, Order, Position
 from paper_trading.ops.mt5_client import MT5Client
 
@@ -42,7 +44,7 @@ class MT5Broker(BrokerInterface):
         server: str = "",
         symbol_map: dict[str, str] | None = None,
         bridge_host: str = "127.0.0.1",
-        bridge_port: int = 9876,
+        bridge_port: int = DEFAULT_MT5_BRIDGE_PORT,
         lot_size_map: dict[str, float] | None = None,
         min_lot: float = 0.05,
         client: MT5Client | None = None,
@@ -161,6 +163,8 @@ class MT5Broker(BrokerInterface):
             logger.error("Invalid volume for %s: qty=%s", order.asset, order.quantity)
             return ""
 
+        id_key = f"{order.asset}_{order.side}_{int(time.time() / 30)}"
+
         try:
             result = self._client.place_order(
                 ticker=order.asset,
@@ -169,6 +173,7 @@ class MT5Broker(BrokerInterface):
                 sl=0.0 if (order.sl is None or pd.isna(order.sl)) else order.sl,
                 tp=0.0 if (order.tp is None or pd.isna(order.tp)) else order.tp,
                 comment="QuantForge",
+                idempotency_key=id_key,
             )
         except Exception as e:
             logger.error("Order placement failed for %s: %s", order.asset, e)

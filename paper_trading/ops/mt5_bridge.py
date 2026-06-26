@@ -3,14 +3,17 @@
 Connects to the MT5 terminal, listens on a local TCP socket, and
 executes MetaTrader5 operations on behalf of the host QuantForge process.
 
-Protocol: JSON-line over TCP (127.0.0.1:9876).
-Each line is a complete JSON object.
+Protocol: JSON-RPC over TCP with 4-byte length-prefixed frames.
+Each frame: [4-byte big-endian payload length][UTF-8 JSON payload].
 
 Request:  {"id": 1, "method": "...", "params": {}}
 Response: {"id": 1, "result": ...}  or  {"id": 1, "error": "..."}
 
-Credentials are supplied to the bridge via CLI args
-(--account, --password, --server).  The TCP protocol never
+Request:  {"id": 1, "method": "...", "params": {}}
+Response: {"id": 1, "result": ...}  or  {"id": 1, "error": "..."}
+
+Credentials are supplied to the bridge via environment variables
+(MT5_ACCOUNT, MT5_PASSWORD, MT5_SERVER).  The TCP protocol never
 transmits the MT5 password — it would be cleartext.
 
 Supports:
@@ -52,12 +55,16 @@ logger = logging.getLogger("mt5_bridge")
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("MT5_BRIDGE_PORT") or 9879)
 
+# Credentials: supplied via MT5_PASSWORD env var only (never CLI args)
+# to prevent password exposure via `ps aux`.
+
 # Frame format: 4-byte big-endian length prefix + JSON payload
 _HEADER_FMT = "!I"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
 
 _config: dict[str, Any] = {}
 _running = threading.Event()
+_placed_orders: dict[str, int] = {}
 
 
 def _send_frame(conn: socket.socket, data: dict) -> None:
@@ -198,7 +205,13 @@ def _handle_symbol_info(params: dict) -> dict:
 
 def _handle_place_order(params: dict) -> dict:
     symbol = params["symbol"]
-    side = params["side"]
+    side = params.get("side", "")
+    id_key = params.get("idempotency_key")
+    if id_key:
+        dedup_key = f"{symbol}_{side}_{id_key}"
+        if dedup_key in _placed_orders:
+            logger.info("Dedup: order %s already placed (ticket=%s)", dedup_key, _placed_orders[dedup_key])
+            return {"result": {"retcode": 10009, "ticket": _placed_orders[dedup_key], "dedup": True}}
     volume = params["volume"]
     sl = params.get("sl", 0.0)
     tp = params.get("tp", 0.0)
@@ -449,14 +462,12 @@ def _handle_client(conn: socket.socket) -> None:
 def main() -> None:
     global _config
 
-    # Parse CLI overrides: --account 123 --password xxx --server Exness-MT5Trial
-    args = sys.argv[1:]
-    for i in range(0, len(args) - 1, 2):
-        key = args[i].lstrip("-")
-        _config[key] = args[i + 1]
-
-    if "account" in _config:
-        _config["account"] = int(_config["account"])
+    # Read credentials from environment variables ONLY.
+    # CLI --password is intentionally not supported — it would be visible
+    # in `ps aux` to any user on the system.
+    _config["password"] = os.environ.get("MT5_PASSWORD", "")
+    _config["account"] = int(os.environ.get("MT5_ACCOUNT", "0"))
+    _config["server"] = os.environ.get("MT5_SERVER", "")
 
     _running.set()
 

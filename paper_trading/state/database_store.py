@@ -397,22 +397,23 @@ class _DatabaseStore:
     ) -> list:
         try:
             with self._connect() as conn:
-                where_parts = []
-                params = []
+                query = "SELECT * FROM attribution WHERE 1=1"
+                clause_strings = []
+                clause_params = []
                 if archetype:
-                    where_parts.append("pred_archetype_at_entry = ?")
-                    params.append(archetype)
+                    clause_strings.append("AND pred_archetype_at_entry = ?")
+                    clause_params.append(archetype)
                 if regime:
-                    where_parts.append("pred_regime_at_entry = ?")
-                    params.append(regime)
+                    clause_strings.append("AND pred_regime_at_entry = ?")
+                    clause_params.append(regime)
                 if asset:
-                    where_parts.append("asset = ?")
-                    params.append(asset)
-                where_sql = " AND ".join(where_parts) if where_parts else "1=1"
-                params.extend([limit, offset])
+                    clause_strings.append("AND asset = ?")
+                    clause_params.append(asset)
+                query += " " + " ".join(clause_strings)
+                clause_params.extend([limit, offset])
                 rows = conn.execute(
-                    f"SELECT * FROM attribution WHERE {where_sql} ORDER BY exit_date DESC LIMIT ? OFFSET ?",
-                    tuple(params),
+                    query + " ORDER BY exit_date DESC LIMIT ? OFFSET ?",
+                    tuple(clause_params),
                 ).fetchall()
                 records = [dict(r) for r in rows]
                 for rec in records:

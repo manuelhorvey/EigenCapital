@@ -164,8 +164,9 @@ class MockMT5Client:
         tp: float = 0.0,
         comment: str = "QuantForge",
         deviation: int = 20,
+        idempotency_key: str | None = None,
     ) -> dict:
-        self._record("place_order", ticker, side, volume, sl, tp, comment, deviation)
+        self._record("place_order", ticker, side, volume, sl, tp, comment, deviation, idempotency_key)
         return self._order_result
 
     def get_positions(self) -> list[dict]:

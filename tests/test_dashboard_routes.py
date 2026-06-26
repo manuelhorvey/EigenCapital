@@ -218,7 +218,7 @@ class TestShadowActions:
         tmp_store.save_snapshot(sample_snapshot)
         data, status = handle_shadow_actions_asset("/shadow-actions/UNKNOWN.json", {})
         assert status == 404
-        assert "No shadow action" in json.loads(data)["error"]
+        assert "Not found" in json.loads(data)["error"]
 
 
 class TestRiskParity:

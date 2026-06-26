@@ -146,6 +146,13 @@ def evaluate(asset: str) -> dict:
             details["sl_hit_rate"] = round(sl_rate, 4)
             details["sl_hit_rate_window"] = SL_HIT_RATE_WINDOW
 
+        # Incorporate SELL tripwire as an additive risk factor
+        sell_wr = get_sell_win_rate(asset)
+        if sell_wr is not None and sell_wr < TRIPWIRE_THRESHOLD:
+            risk_score += 0.25
+            details["sell_tripwire_risk"] = "TRIPPED"
+            details["sell_win_rate"] = round(sell_wr, 4)
+
         if risk_score < 0.3:
             risk_level = "LOW"
         elif risk_score < 0.6:
@@ -170,6 +177,7 @@ def evaluate(asset: str) -> dict:
                     "pnl_drift": "PNL_DEGRADATION",
                     "feature_stability": "FEATURE_UNSTABLE",
                     "regime_consistency": "REGIME_SHIFT",
+                    "sell_win_rate": "SELL_TRIPWIRE",
                 }
                 risk_flags.append(flag_map[key])
 
@@ -179,8 +187,11 @@ def evaluate(asset: str) -> dict:
             elif sl_rate > SL_HIT_RATE_ALERT:
                 risk_flags.append("ELEVATED_SL_HITS")
 
+        if sell_wr is not None and sell_wr < TRIPWIRE_THRESHOLD:
+            risk_flags.append("SELL_TRIPWIRE")
+
         recommended_action = _recommend(risk_level, risk_flags)
-        explanations = _generate_explanations(drift_scores, risk_flags, sl_rate)
+        explanations = _generate_explanations(drift_scores, risk_flags, sl_rate, sell_wr)
 
         signal = {
             "asset": asset,
@@ -217,6 +228,8 @@ def get_latest(asset: str | None = None):
 def _recommend(risk_level: str, risk_flags: list) -> str:
     if "EXCESSIVE_SL_HITS" in risk_flags:
         return "PAUSE"
+    if "SELL_TRIPWIRE" in risk_flags:
+        return "PAUSE"
     if risk_level == "HIGH":
         return "PAUSE"
     elif risk_level == "MEDIUM":
@@ -226,7 +239,7 @@ def _recommend(risk_level: str, risk_flags: list) -> str:
     return "NORMAL"
 
 
-def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float | None = None) -> list:
+def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float | None = None, sell_wr: float | None = None) -> list:
     templates = {
         "MODEL_DRIFT": "Model probability distribution deviates significantly from baseline (KL {score:.2f})",
         "SIGNAL_INSTABILITY": "Signal flip rate increased beyond historical percentile (mismatch rate {score:.2f})",
@@ -237,6 +250,7 @@ def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float 
         ),
         "ELEVATED_SL_HITS": "SL hit rate elevated ({score:.1%}) — consider wider stops or lower sizing",
         "EXCESSIVE_SL_HITS": "SL hit rate critical ({score:.1%}) — halting, stops too tight or model broken",
+        "SELL_TRIPWIRE": "SELL win rate below threshold ({score:.1%}) — possible calibration shift or directional inversion",
     }
     key_map = {
         "MODEL_DRIFT": "model_drift",
@@ -244,6 +258,7 @@ def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float 
         "PNL_DEGRADATION": "pnl_drift",
         "FEATURE_UNSTABLE": "feature_stability",
         "REGIME_SHIFT": "regime_consistency",
+        "SELL_TRIPWIRE": "sell_win_rate",
     }
     explanations = []
     for flag in risk_flags:
@@ -251,6 +266,8 @@ def _generate_explanations(drift_scores: dict, risk_flags: list, sl_rate: float 
         score = drift_scores.get(key, 0.0) if key else 0.0
         if flag in ("ELEVATED_SL_HITS", "EXCESSIVE_SL_HITS"):
             score = sl_rate or 0.0
+        if flag == "SELL_TRIPWIRE":
+            score = sell_wr or 0.0
         template = templates.get(flag, "")
         if template:
             explanations.append(template.format(score=score))

@@ -9,28 +9,29 @@ logger = logging.getLogger("quantforge.paper_trading.tp_compiler")
 # At 5.0 R:R even MOMENTUM_IGNITION (base convexity 6.0) gets capped.
 MAX_RR = 5.0
 
-# 1. Archetype → Convexity Mapping (Finalized Spec)
-ARCHETYPE_CONVEXITY = {
-    "BREAKOUT_TEST": 5.0,
-    "BREAKOUT": 5.0,
-    "TREND_PULLBACK": 4.0,
-    "MEAN_REVERSION": 3.0,
-    "VOL_EXPANSION": 4.5,
-    "MOMENTUM_IGNITION": 6.0,
-    "UNKNOWN": 3.0,
-}
-
-# 2. Regime Layer Modifiers (Finalized Spec)
-REGIME_MULTIPLIERS = {
-    ValidityState.GREEN: 1.0,
-    ValidityState.YELLOW: 0.9,
-    ValidityState.RED: 0.8,
-    "calm": 1.0,
-    "range": 0.9,
-    "trend": 1.2,
-    "volatile": 1.1,
-    "crisis": 0.6,
-}
+def _load_tp_config() -> tuple[dict[str, float], dict[str, float]]:
+    from paper_trading.config_manager import get_config
+    cfg = get_config().defaults.get("tp_compiler", {})
+    archetype_convexity = {
+        "BREAKOUT_TEST": cfg.get("breakout_test_convexity", 5.0),
+        "BREAKOUT": cfg.get("breakout_convexity", 5.0),
+        "TREND_PULLBACK": cfg.get("trend_pullback_convexity", 4.0),
+        "MEAN_REVERSION": cfg.get("mean_reversion_convexity", 3.0),
+        "VOL_EXPANSION": cfg.get("vol_expansion_convexity", 4.5),
+        "MOMENTUM_IGNITION": cfg.get("momentum_ignition_convexity", 6.0),
+        "UNKNOWN": cfg.get("unknown_convexity", 3.0),
+    }
+    regime_multipliers = {
+        "GREEN": cfg.get("regime_green", 1.0),
+        "YELLOW": cfg.get("regime_yellow", 0.9),
+        "RED": cfg.get("regime_red", 0.8),
+        "calm": cfg.get("regime_calm", 1.0),
+        "range": cfg.get("regime_range", 0.9),
+        "trend": cfg.get("regime_trend", 1.2),
+        "volatile": cfg.get("regime_volatile", 1.1),
+        "crisis": cfg.get("regime_crisis", 0.6),
+    }
+    return archetype_convexity, regime_multipliers
 
 
 def compute_take_profit(
@@ -46,12 +47,13 @@ def compute_take_profit(
     Locked at entry, zero path dependency.
     """
     # 1. Resolve Convexity
-    convexity = ARCHETYPE_CONVEXITY.get(archetype.upper(), 1.0)
+    archetype_convexity, regime_multipliers = _load_tp_config()
+    convexity = archetype_convexity.get(archetype.upper(), 1.0)
 
     # 2. Resolve Regime Multiplier
     # Allow passing either ValidityState or raw string from diagnostics
     reg_key = regime.value if isinstance(regime, ValidityState) else str(regime).lower()
-    reg_mult = REGIME_MULTIPLIERS.get(reg_key, 1.0)
+    reg_mult = regime_multipliers.get(reg_key, 1.0)
 
     # 3. Final TP Distance Calculation
     # tp_distance = f(sl_distance) * multiplier * config_override

@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy as np
 import pandas as pd
@@ -860,6 +861,41 @@ class EntryService:
         if not asset._pending_entries:
             return
 
+        # ── Bypass-protection checks ─────────────────────────────────
+        # Deferred entries bypass the governance pipeline's spread gate
+        # and profit lock. Apply these checks inline here.
+
+        # 1. Spread gate check
+        from paper_trading.execution.decision_pipeline import SPREAD_TIER_BPS, SPREAD_GATE_STALENESS_SECS
+
+        last_spread = getattr(asset, "_last_spread_bps", None)
+        last_spread_time = getattr(asset, "_last_spread_time", 0.0)
+        if last_spread is not None and last_spread_time > 0:
+            spread_age = time.time() - last_spread_time
+            if spread_age > SPREAD_GATE_STALENESS_SECS:
+                logger.info("%s: deferred entry blocked — spread data stale (%ds old)", asset.name, spread_age)
+                self._cancel_all_pending(asset, reason="stale_spread")
+                return
+            tier = asset.config.get("spread_tier", "fx_cross")
+            threshold = SPREAD_TIER_BPS.get(tier, 20.0)
+            if last_spread > threshold:
+                logger.info("%s: deferred entry blocked — spread %.1fbps > %s threshold %.1fbps",
+                            asset.name, last_spread, tier, threshold)
+                self._cancel_all_pending(asset, reason="spread_gate")
+                return
+
+        # 2. Profit lock check (flip protection)
+        profit_lock_pct = asset.config.get("profit_lock_threshold_pct", 15.0)
+        if asset.pos_mgr.has_position():
+            current_price = getattr(asset, "current_price", None)
+            if current_price is not None and current_price > 0:
+                unrealized_pnl = asset.pos_mgr.position_pnl(current_price)
+                if unrealized_pnl > profit_lock_pct:
+                    logger.info("%s: deferred flip blocked — unrealized PnL %.1f%% > profit lock %.1f%%",
+                                asset.name, unrealized_pnl, profit_lock_pct)
+                    self._cancel_all_pending(asset, reason="profit_lock")
+                    return
+
         to_remove = []
         structure = asset._structure_detector.detect(df)
         today = str(pd.Timestamp.now(tz=ET).date())
@@ -976,3 +1012,8 @@ class EntryService:
 
         for direction in to_remove:
             del asset._pending_entries[direction]
+
+    def _cancel_all_pending(self, asset, reason: str) -> None:
+        for direction, entry in list(asset._pending_entries.items()):
+            entry.cancel(reason=reason)
+        asset._pending_entries.clear()

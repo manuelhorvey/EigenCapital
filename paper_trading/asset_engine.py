@@ -114,6 +114,8 @@ class AssetEngine:
         self._sl_exits = 0
         self._research_mode = engine_cfg.research_mode
         self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
+        self._rolling_window = engine_cfg.defaults.get("rolling_window_bars", None)
+        self._rolling_window_bars = self.config.get("rolling_window_bars", 756)
         self.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
         self._wal_writer = wal_writer
         self._model_hash = self._load_model_hash()

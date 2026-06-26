@@ -39,6 +39,7 @@ portfolio:
   # constraints (CHF ≤ 0.20) bind via SLSQP direct linear constraints.
   weight_method: factor_constrained_v2
 defaults:
+  rolling_window_bars: 756  # 3 years of daily bars for rolling training window; null/omitted = expanding window
   churn_ratio_threshold: 0.35
   cooldown_half_life_hours: 4.0
   cooldown_max_penalty_pct: 20.0

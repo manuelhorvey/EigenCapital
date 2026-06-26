@@ -36,12 +36,18 @@ from typing import Any
 
 import pandas as pd
 
+from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
+
 logger = logging.getLogger("quantforge.mt5_client")
 
 _HEADER_FMT = "!I"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
 _RECONNECT_DELAY = 2.0
 _MAX_RECONNECT_ATTEMPTS = 3
+_CIRCUIT_BREAKER_FAILURES = 0
+_CIRCUIT_BREAKER_LAST_FAILURE = 0.0
+_CIRCUIT_BREAKER_TIMEOUTS = [30.0, 60.0, 120.0, 300.0]
+_CIRCUIT_BREAKER_LOCK = threading.Lock()
 
 
 class MT5ConnectionError(Exception):
@@ -222,6 +228,13 @@ class _FrameProtocol:
         self.disconnect()
 
 
+def reset_circuit_breaker() -> None:
+    global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
+    with _CIRCUIT_BREAKER_LOCK:
+        _CIRCUIT_BREAKER_FAILURES = 0
+        _CIRCUIT_BREAKER_LAST_FAILURE = 0.0
+
+
 class MT5Client:
     """High-level client for the Wine-hosted MT5 bridge.
 
@@ -242,7 +255,7 @@ class MT5Client:
         self._password = password
         self._server = server
         self._bridge_host = bridge_host
-        self._bridge_port = bridge_port or int(os.environ.get("MT5_BRIDGE_PORT", "9879"))
+        self._bridge_port = bridge_port or int(os.environ.get("MT5_BRIDGE_PORT", str(DEFAULT_MT5_BRIDGE_PORT)))
         self._symbol_map = symbol_map or {}
         self._proto = _FrameProtocol(bridge_host, bridge_port)
         self._last_heartbeat = 0.0
@@ -272,6 +285,22 @@ class MT5Client:
         logger.info("MT5 client disconnected")
 
     def ensure_connected(self) -> bool:
+        global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
+
+        # Circuit breaker: if too many recent failures, back off
+        with _CIRCUIT_BREAKER_LOCK:
+            if _CIRCUIT_BREAKER_FAILURES > 0:
+                elapsed = time.monotonic() - _CIRCUIT_BREAKER_LAST_FAILURE
+                timeout_idx = min(_CIRCUIT_BREAKER_FAILURES - 1, len(_CIRCUIT_BREAKER_TIMEOUTS) - 1)
+                backoff = _CIRCUIT_BREAKER_TIMEOUTS[timeout_idx]
+                if elapsed < backoff:
+                    logger.warning(
+                        "MT5 circuit breaker open: %.0fs remaining (failures=%d)",
+                        backoff - elapsed,
+                        _CIRCUIT_BREAKER_FAILURES,
+                    )
+                    return False
+
         if not self._proto.connected:
             logger.warning("MT5 bridge disconnected — reconnecting")
             for attempt in range(_MAX_RECONNECT_ATTEMPTS):
@@ -279,11 +308,16 @@ class MT5Client:
                     self._proto.connect()
                     self._configure()
                     self._last_heartbeat = time.monotonic()
+                    with _CIRCUIT_BREAKER_LOCK:
+                        _CIRCUIT_BREAKER_FAILURES = 0  # reset on success
                     return True
                 except MT5ConnectionError as e:
                     logger.warning("Reconnect attempt %d failed: %s", attempt + 1, e)
                     time.sleep(_RECONNECT_DELAY * (attempt + 1))
             logger.error("MT5 bridge reconnect failed after %d attempts", _MAX_RECONNECT_ATTEMPTS)
+            with _CIRCUIT_BREAKER_LOCK:
+                _CIRCUIT_BREAKER_FAILURES += 1
+                _CIRCUIT_BREAKER_LAST_FAILURE = time.monotonic()
             return False
 
         now = time.monotonic()
@@ -433,20 +467,21 @@ class MT5Client:
         tp: float = 0.0,
         comment: str = "QuantForge",
         deviation: int = 20,
+        idempotency_key: str | None = None,
     ) -> dict:
         symbol = self._map_symbol(ticker)
-        return self._proto.send_request(
-            "place_order",
-            {
-                "symbol": symbol,
-                "side": side,
-                "volume": volume,
-                "sl": sl,
-                "tp": tp,
-                "comment": comment,
-                "deviation": deviation,
-            },
-        )
+        params = {
+            "symbol": symbol,
+            "side": side,
+            "volume": volume,
+            "sl": sl,
+            "tp": tp,
+            "comment": comment,
+            "deviation": deviation,
+        }
+        if idempotency_key:
+            params["idempotency_key"] = idempotency_key
+        return self._proto.send_request("place_order", params)
 
     def get_positions(self) -> list[dict]:
         return self._proto.send_request("get_positions")

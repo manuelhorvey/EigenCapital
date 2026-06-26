@@ -118,10 +118,9 @@ class Handler:
             try:
                 with open(idx_path, "rb") as f:
                     data = f.read()
-                token = _load_auth_token()
-                if token:
-                    tag = f'<meta name="api-token" content="{token}">\n    '
-                    data = data.replace(b'<meta name="color-scheme"', tag.encode() + b'<meta name="color-scheme"')
+                # Auth token is NOT embedded in HTML (security — prevents XSS token exfiltration).
+                # The React frontend reads the token from a dedicated /api/token endpoint
+                # on first load and stores it in memory only.
                 ext = os.path.splitext(idx_path)[1]
                 ct = MIME_TYPES.get(ext, "text/html; charset=utf-8")
                 self.send_response(200)

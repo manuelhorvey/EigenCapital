@@ -11,6 +11,8 @@ Meta-label = 0  → trade will hit SL first
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import os
 import pickle
@@ -216,11 +218,19 @@ class MetaLabelModel:
     def _load(self, path: str) -> None:
         try:
             with open(path, "rb") as f:
-                obj = pickle.load(f)
-                self.model = obj.model
-                self._feature_names = obj._feature_names
-                self._trained = obj._trained
-                self.threshold = obj.threshold
+                content = f.read()
+            sig_path = path + ".sig"
+            if os.path.exists(sig_path):
+                with open(sig_path, "r") as sf:
+                    expected = sf.read().strip()
+                actual = hashlib.sha256(content).hexdigest()
+                if not hmac.compare_digest(expected, actual):
+                    raise ValueError(f"Model integrity check failed for {path}")
+            obj = pickle.loads(content)
+            self.model = obj.model
+            self._feature_names = obj._feature_names
+            self._trained = obj._trained
+            self.threshold = obj.threshold
             logger.info("Loaded meta model from %s", path)
         except Exception as e:
             logger.warning("Failed to load meta model: %s", e)

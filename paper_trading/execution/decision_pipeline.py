@@ -112,24 +112,6 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
         ctx.new_side = None
 
 
-def apply_signal_stability_filter(ctx: DecisionContext) -> None:
-    if ctx.new_side is None:
-        return
-    engine = ctx.engine
-    prob_long = ctx.decision.prob_long
-    prob_short = ctx.decision.prob_short
-    max_prob = max(prob_long, prob_short)
-    margin = max_prob - 0.5
-    if margin < 0.00:  # effectively disabled — threshold=0.00 per portfolio sweep (see AGENTS.md)
-        logger.debug(
-            "%s: signal too close to boundary (margin=%.4f, max_prob=%.4f) — holding flat",
-            engine.name,
-            margin,
-            max_prob,
-        )
-        ctx.new_side = None
-
-
 HYSTERESIS_WINDOW = 3
 HYSTERESIS_MIN_AGREE = 2
 
@@ -948,6 +930,13 @@ def apply_spread_gate(ctx: DecisionContext) -> None:
     at 30s cadence) the gate logs what it *would* do but does not block, to
     validate thresholds against real market conditions before going live.
     """
+    from paper_trading.config_manager import get_config
+
+    _cfg = get_config()
+    spread_gate_cfg = (_cfg.defaults or {}).get("spread_gate", {})
+    if not spread_gate_cfg.get("enabled", True):
+        return
+
     engine = ctx.engine
     # ── Gather spread data ─────────────────────────────────────────
     spread_bps = getattr(engine, "_last_spread_bps", None)
@@ -1160,7 +1149,6 @@ DEFAULT_STAGES: list[StageFn] = [
     apply_session_gate,
     apply_adx_entry_gate,
     apply_confidence_gate,
-    apply_signal_stability_filter,
     apply_signal_hysteresis,
     apply_meta_label_advisory,
     update_regime_bar_counter,

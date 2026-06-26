@@ -111,11 +111,25 @@ class AssetTrainingPipeline:
             # Drop rows where regime features are NaN (warmup period)
             features = features.dropna(subset=asset.regime_feature_names)
 
-        end_date = features.index[-1]
-        start_date = end_date - pd.DateOffset(years=getattr(asset, "_retrain_window", 5))
-        train = features[features.index >= start_date]
+        rolling_bars = getattr(asset, "_rolling_window_bars", 756)
+        if rolling_bars and len(features) > rolling_bars:
+            train = features.iloc[-rolling_bars:]
+            start_date = train.index[0]
+            end_date = train.index[-1]
+        elif getattr(asset, "_rolling_window", None) is not None:
+            n = len(features)
+            start_idx = max(0, n - asset._rolling_window)
+            train = features.iloc[start_idx:]
+            start_date = train.index[0]
+            end_date = train.index[-1]
+        else:
+            end_date = features.index[-1]
+            start_date = end_date - pd.DateOffset(years=getattr(asset, "_retrain_window", 5))
+            train = features[features.index >= start_date]
         if len(train) < 200:
             train = features
+            start_date = train.index[0]
+            end_date = train.index[-1]
 
         x = train[asset._alpha_feature_cols]
         y = train["label"].astype(int)

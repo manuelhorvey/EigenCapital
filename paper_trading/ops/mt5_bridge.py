@@ -60,6 +60,7 @@ PORT = int(os.environ.get("MT5_BRIDGE_PORT") or 9879)
 # Frame format: 4-byte big-endian length prefix + JSON payload
 _HEADER_FMT = "!I"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
+_MAX_PAYLOAD = 4 * 1024 * 1024  # 4 MiB max request/response body
 
 _config: dict[str, Any] = {}
 _running = threading.Event()
@@ -87,6 +88,9 @@ def _recv_frame(conn: socket.socket) -> dict | None:
     if header is None:
         return None
     size = struct.unpack(_HEADER_FMT, header)[0]
+    if size > _MAX_PAYLOAD:
+        logger.error("Request payload %d exceeds max %d", size, _MAX_PAYLOAD)
+        return None
     payload = _recv_exactly(conn, size)
     if payload is None:
         return None

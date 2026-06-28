@@ -596,8 +596,13 @@ class EntryService:
             tp=mt5_tp,
         )
         mt5_ticket = int(order_id) if order_id else None
-        if order_id:
-            logger.info("%s: MT5 order submitted — ticket=%s sl=%.5f tp=%.5f", asset.name, order_id, mt5_sl, mt5_tp)
+        if not order_id:
+            logger.error(
+                "%s: MT5 order rejected — no ticket returned (fill_price=%s, qty=%s)",
+                asset.name, fill_price, qty,
+            )
+            return None, 0.0, None
+        logger.info("%s: MT5 order submitted — ticket=%s sl=%.5f tp=%.5f", asset.name, order_id, mt5_sl, mt5_tp)
 
         stored_sl, stored_tp = float(intent_sl), float(final_tp)
         if abs(mt5_sl - stored_sl) / max(abs(stored_sl), 1e-9) > 0.001:

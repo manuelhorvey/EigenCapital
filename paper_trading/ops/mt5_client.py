@@ -42,6 +42,7 @@ logger = logging.getLogger("quantforge.mt5_client")
 
 _HEADER_FMT = "!I"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
+_MAX_PAYLOAD = 4 * 1024 * 1024  # 4 MiB max response body
 _RECONNECT_DELAY = 2.0
 _MAX_RECONNECT_ATTEMPTS = 3
 _CIRCUIT_BREAKER_FAILURES = 0
@@ -111,6 +112,10 @@ class _FrameConnection:
                 self._sock.sendall(struct.pack(_HEADER_FMT, len(payload)) + payload)
                 header = _recv_exactly(self._sock, _HEADER_SIZE)
                 size = struct.unpack(_HEADER_FMT, header)[0]
+                if size > _MAX_PAYLOAD:
+                    raise MT5ConnectionError(
+                        f"Response payload {size} exceeds max {_MAX_PAYLOAD}"
+                    )
                 data = _recv_exactly(self._sock, size)
                 resp = json.loads(data.decode("utf-8"))
                 if resp.get("id") != req_id:

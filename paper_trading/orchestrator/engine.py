@@ -554,8 +554,10 @@ class EngineOrchestrator:
                     self._portfolio_returns = self._portfolio_returns[-252:]
                 if len(self._portfolio_returns) >= 60:
                     rets = sorted(self._portfolio_returns[-60:])
-                    var_95 = rets[2]
-                    loss_idx = [r for r in rets if r <= var_95]
+                    n = len(rets)
+                    idx = max(0, min(n - 1, int(0.05 * n)))
+                    var_95 = rets[idx]
+                    loss_idx = rets[:idx + 1]
                     cvar_95 = sum(loss_idx) / max(len(loss_idx), 1)
                     results["var_95"] = round(var_95, 6)
                     results["cvar_95"] = round(cvar_95, 6)

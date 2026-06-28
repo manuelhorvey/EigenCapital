@@ -1,4 +1,5 @@
 import errno
+import hmac
 import json
 import logging
 import os
@@ -260,7 +261,7 @@ def require_auth(headers: dict) -> bool:
         return True  # no auth configured — open access
     provided = headers.get("Authorization", "")
     if provided.startswith("Bearer "):
-        return provided[7:] == token
+        return hmac.compare_digest(provided[7:], token)
     return False
 
 

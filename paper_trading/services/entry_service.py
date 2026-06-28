@@ -2,6 +2,8 @@ import logging
 import threading
 import time
 
+_LOCK_TYPE = type(threading.Lock())
+
 import numpy as np
 import pandas as pd
 import pytz
@@ -505,7 +507,7 @@ class EntryService:
         mt5_lock = getattr(asset, "_mt5_leverage_lock", None)
         if not isinstance(mt5_budget_ref, list):
             mt5_budget_ref = None
-        if not isinstance(mt5_lock, threading.Lock):
+        if type(mt5_lock) is not _LOCK_TYPE and mt5_lock is not None:
             mt5_lock = None
 
         sizing_input = SizingInput(

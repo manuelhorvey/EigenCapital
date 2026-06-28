@@ -76,8 +76,7 @@ def mock_asset():
 def _make_price_df(n=300):
     np.random.seed(42)
     prices = 100 + np.cumsum(np.random.randn(n) * 0.5)
-    idx = pd.DatetimeIndex([_dt.datetime(2025, 1, 1) + _dt.timedelta(days=i) for i in range(n)])
-    return pd.DataFrame({"close": prices, "high": prices * 1.01, "low": prices * 0.99, "volume": 1000000}, index=idx)
+    return pd.DataFrame({"close": prices, "high": prices * 1.01, "low": prices * 0.99, "volume": 1000000})
 
 
 @pytest.fixture

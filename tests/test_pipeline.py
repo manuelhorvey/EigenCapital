@@ -382,7 +382,8 @@ class TestGenerateAndApply:
         asset = pipeline.asset
         asset._model_iface.predict.return_value = np.array([[0.3, 0.7]])
 
-        with patch("paper_trading.inference.pipeline.fetch_live", return_value=_make_price_df(300)):
+        prep_df = _make_price_df(300)
+        with patch.object(pipeline, "_fetch_and_prepare_data", return_value=prep_df):
             with patch("features.data_fetch.fetch_asset_data") as mock_fad:
                 mock_fad.return_value = (
                     _make_price_df(300), pd.DataFrame(), pd.DataFrame({"close": [1.0]}),

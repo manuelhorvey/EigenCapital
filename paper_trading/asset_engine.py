@@ -241,13 +241,40 @@ class AssetEngine:
         )
 
     def _load_model_hash(self) -> str:
+        """Load model hash, verifying integrity against the stored sidecar.
+
+        Returns the expected hash from the sidecar file (or computed from the
+        model file if no sidecar exists).  Sets ``_model_hash_verified`` to
+        indicate whether the current model file matches the stored hash.
+        Corruption (mismatch) is logged as a WARNING — the engine continues
+        to allow the model to load, but downstream monitoring can react.
+        """
+        self._model_hash_verified = True
         hash_path = self.model_path.replace(".json", "_hash.txt")
+        stored_hash: str | None = None
         if os.path.exists(hash_path):
             with open(hash_path) as f:
-                return f.read().strip()
+                stored_hash = f.read().strip()
+        # Compute actual hash from the model file on disk
+        current_hash: str | None = None
         if os.path.exists(self.model_path):
             with open(self.model_path, "rb") as f:
-                return hashlib.sha256(f.read()).hexdigest()[:16]
+                current_hash = hashlib.sha256(f.read()).hexdigest()[:16]
+        # Integrity check
+        if stored_hash and current_hash and stored_hash != current_hash:
+                logger.warning(
+                    "%s: MODEL HASH MISMATCH — sidecar=%s, computed=%s. "
+                    "Model file may be corrupted.",
+                    self.name,
+                    stored_hash,
+                    current_hash,
+                )
+                self._model_hash_verified = False
+        # Return the best available identifier
+        if stored_hash:
+            return stored_hash
+        if current_hash:
+            return current_hash
         return "unknown"
 
     def _load_calibration_registry(self) -> None:

@@ -1,11 +1,13 @@
 import logging
 
+from paper_trading.logging.correlation import CorrelationIdFilter
+
 __version__ = "0.1.0"
 
 
 def setup_logging(level=logging.INFO, log_file=None):
     fmt = logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        fmt="%(asctime)s [%(levelname)s] [%(correlation_id)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
@@ -21,5 +23,7 @@ def setup_logging(level=logging.INFO, log_file=None):
         fh = logging.FileHandler(log_file)
         fh.setFormatter(fmt)
         root.addHandler(fh)
+
+    root.addFilter(CorrelationIdFilter())
 
     return root

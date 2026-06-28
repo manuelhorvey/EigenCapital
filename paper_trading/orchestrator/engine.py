@@ -29,6 +29,7 @@ from typing import Any
 
 from paper_trading.config_manager import get_config
 from paper_trading.governance.drawdown_controls import check_drawdown_circuit_breaker, compute_exposure_multiplier
+from paper_trading.logging.correlation import set_correlation_id
 from paper_trading.orchestrator.actor import (
     AssetActor,
     AssetResult,
@@ -175,6 +176,10 @@ class EngineOrchestrator:
             "circuit_breaker": None,
             "health": None,
         }
+
+        # Generate a correlation ID for this cycle — propagates to all
+        # actor threads automatically via contextvars (Python 3.12+).
+        set_correlation_id()
 
         if self._emergency_halt:
             self._check_auto_unhalt_eligibility()

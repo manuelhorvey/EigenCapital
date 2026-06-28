@@ -219,14 +219,12 @@ class TestModelComparatorEdgeCases:
     @pytest.fixture
     def X(self):  # noqa: N802
         np.random.seed(42)
-        dates = pd.date_range("2020-01-01", periods=30, freq="D")
-        return pd.DataFrame({"f1": np.random.randn(30), "f2": np.random.randn(30)}, index=dates)
+        return pd.DataFrame({"f1": np.random.randn(30), "f2": np.random.randn(30)})
 
     @pytest.fixture
     def close(self):
-        dates = pd.date_range("2020-01-01", periods=30, freq="D")
         np.random.seed(42)
-        return pd.Series(100 + np.cumsum(np.random.randn(30) * 0.5), index=dates)
+        return pd.Series(100 + np.cumsum(np.random.randn(30) * 0.5))
 
     def test_compare_portfolio_with_trades(self, X, close):
         """Cover lines 174-178: simulate portfolio with actual trades being opened and closed."""

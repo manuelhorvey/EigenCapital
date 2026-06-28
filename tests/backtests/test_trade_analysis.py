@@ -17,13 +17,12 @@ from backtests.trade_analysis import (
 class TestSignals:
     def test_basic_signal_generation(self):
         n = 10
-        dates = pd.date_range("2020-01-01", periods=n, freq="D")
         proba = np.zeros((n, 3))
         proba[:, 0] = [0.6, 0.2, 0.2, 0.3, 0.1, 0.5, 0.4, 0.2, 0.3, 0.5]
         proba[:, 1] = 0.3
         proba[:, 2] = [0.1, 0.5, 0.6, 0.4, 0.7, 0.2, 0.3, 0.6, 0.4, 0.2]
 
-        result = _signals(proba, dates)
+        result = _signals(proba)
         assert "signal" in result
         assert "pl" in result
         assert "ps" in result
@@ -31,24 +30,22 @@ class TestSignals:
 
     def test_threshold_parameter(self):
         n = 5
-        dates = pd.date_range("2020-01-01", periods=n, freq="D")
         proba = np.zeros((n, 3))
         proba[:, 2] = [0.4, 0.5, 0.6, 0.3, 0.46]
 
-        result = _signals(proba, dates, thr=0.5)
+        result = _signals(proba, thr=0.5)
         # Default signal is 1 (neutral); only > thr activates
         expected = [1, 1, 2, 1, 1]
         assert list(result["signal"]) == expected
 
     def test_ambiguous_signals_resolved(self):
         n = 3
-        dates = pd.date_range("2020-01-01", periods=n, freq="D")
         proba = np.zeros((n, 3))
         proba[:, 0] = [0.6, 0.4, 0.5]
         proba[:, 1] = [0.1, 0.1, 0.1]
         proba[:, 2] = [0.3, 0.5, 0.4]
 
-        result = _signals(proba, dates, thr=0.45)
+        result = _signals(proba, thr=0.45)
         # Default signal is 1 (neutral)
         # Row 0: short=0.6 > 0.45 -> 0, long=0.3 no -> 0
         # Row 1: short=0.4 no, long=0.5 > 0.45 -> 2

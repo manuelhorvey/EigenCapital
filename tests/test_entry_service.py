@@ -14,9 +14,8 @@ def mock_asset():
     asset.current_price = 105.0
     asset.config = {}
     # price_data for tb_vol
-    dates = pd.date_range("2026-01-01", periods=50, freq="D")
     prices = np.linspace(100, 110, 50)
-    asset.price_data = pd.DataFrame({"close": prices}, index=dates)
+    asset.price_data = pd.DataFrame({"close": prices}, index=pd.RangeIndex(50))
     # validity
     asset.validity_sm = MagicMock()
     asset.validity_sm.current_state.value = "GREEN"

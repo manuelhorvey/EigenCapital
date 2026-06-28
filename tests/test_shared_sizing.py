@@ -184,7 +184,6 @@ def test_rolling_weight_matrix_shape_and_sums():
     returns = pd.DataFrame(
         np.random.randn(n, 3) * 0.01,
         columns=["A", "B", "C"],
-        index=pd.date_range("2024-01-01", periods=n, freq="B"),
     )
     window = 60
     wm = rolling_weight_matrix(returns, "equal_v1", window=window, min_periods=window)

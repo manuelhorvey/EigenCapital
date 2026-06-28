@@ -26,7 +26,7 @@ def cot_series():
         "Open_Interest_All": np.random.randint(100000, 500000, n),
         "Other_Rept_Positions_Long_All": np.random.randint(1000, 5000, n),
         "Other_Rept_Positions_Short_All": np.random.randint(500, 3000, n),
-    }, index=pd.date_range("2024-01-01", periods=n, freq="W-FRI"))
+    }, index=pd.RangeIndex(n))
 
 
 # ── cot_index ────────────────────────────────────────────────────────────────

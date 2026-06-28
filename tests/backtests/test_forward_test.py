@@ -95,24 +95,21 @@ class TestMaxDrawdown:
 
 class TestClassifyVolRegime:
     def test_returns_series(self):
-        dates = pd.date_range("2020-01-01", periods=100, freq="D")
         np.random.seed(42)
-        close = pd.Series(100 + np.cumsum(np.random.randn(100) * 0.5), index=dates)
+        close = pd.Series(100 + np.cumsum(np.random.randn(100) * 0.5))
         regime = _classify_vol_regime(close)
         assert isinstance(regime, pd.Series)
         assert all(r in ("low_vol", "mid", "transition", "high_vol") for r in regime.unique())
 
     def test_output_length(self):
-        dates = pd.date_range("2020-01-01", periods=50, freq="D")
         np.random.seed(42)
-        close = pd.Series(100 + np.cumsum(np.random.randn(50) * 0.5), index=dates)
+        close = pd.Series(100 + np.cumsum(np.random.randn(50) * 0.5))
         regime = _classify_vol_regime(close)
         assert len(regime) == len(close)
 
     def test_includes_all_expected_regimes(self):
-        dates = pd.date_range("2020-01-01", periods=500, freq="D")
         np.random.seed(42)
-        close = pd.Series(100 + np.cumsum(np.random.randn(500) * 0.5), index=dates)
+        close = pd.Series(100 + np.cumsum(np.random.randn(500) * 0.5))
         regime = _classify_vol_regime(close)
         expected = {"low_vol", "transition", "high_vol"}
         assert expected.issuperset(regime.unique())
@@ -122,9 +119,8 @@ class TestForwardMetrics:
     def test_returns_dict_with_expected_keys(self):
         np.random.seed(42)
         n = 100
-        dates = pd.date_range("2020-01-01", periods=n, freq="D")
         proba = np.random.dirichlet(np.ones(3), size=n)
-        close = pd.Series(100 + np.cumsum(np.random.randn(n) * 0.5), index=dates)
+        close = pd.Series(100 + np.cumsum(np.random.randn(n) * 0.5))
 
         metrics = _forward_metrics(proba, close)
         assert "sharpe" in metrics
@@ -137,10 +133,9 @@ class TestForwardMetrics:
 
     def test_no_signals(self):
         n = 50
-        dates = pd.date_range("2020-01-01", periods=n, freq="D")
         proba = np.zeros((n, 3))
         proba[:, 1] = 1.0  # all neutral
-        close = pd.Series(np.ones(n) * 100, index=dates)
+        close = pd.Series(np.ones(n) * 100)
 
         metrics = _forward_metrics(proba, close)
         assert metrics["hit_rate"] == 0.0
@@ -173,10 +168,9 @@ class TestRegimeMetrics:
     def test_returns_dict_by_regime(self):
         np.random.seed(42)
         n = 200
-        dates = pd.date_range("2020-01-01", periods=n, freq="D")
         proba = np.random.dirichlet(np.ones(3), size=n)
-        close = pd.Series(100 + np.cumsum(np.random.randn(n) * 0.5), index=dates)
-        regime = pd.Series(np.random.choice(["low_vol", "high_vol", "transition"], size=n), index=dates)
+        close = pd.Series(100 + np.cumsum(np.random.randn(n) * 0.5))
+        regime = pd.Series(np.random.choice(["low_vol", "high_vol", "transition"], size=n))
 
         result = _regime_metrics(proba, close, regime)
         assert "low_vol" in result

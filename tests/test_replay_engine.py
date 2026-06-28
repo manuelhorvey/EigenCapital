@@ -33,12 +33,11 @@ class TestUpdatePnlDeterministic:
         )
 
     def _make_signal_data(self, prices, signals):
-        dates = pd.date_range("2026-06-01", periods=len(prices), freq="D")
         return pd.DataFrame({
             "close": prices,
             "signal": signals,
             "position_size": [1.0] * len(prices),
-        }, index=dates)
+        }, index=pd.RangeIndex(len(prices)))
 
     def test_monotonic_long_profits(self, engine):
         """Prices go up, signal is long -> positive PnL."""

@@ -24,7 +24,6 @@ def price_series():
     rng = np.random.default_rng(SEED)
     return pd.Series(
         100 + rng.standard_normal(N).cumsum(),
-        index=pd.date_range("2024-01-01", periods=N, freq="B"),
         name="close",
     )
 
@@ -38,10 +37,8 @@ def rate_series(price_series):
 @pytest.fixture
 def sample_prices():
     rng = np.random.default_rng(SEED)
-    idx = pd.date_range("2024-01-01", periods=N, freq="B")
     return pd.DataFrame(
         {a: 100 + rng.standard_normal(N).cumsum() for a in ["AUDJPY", "EURCAD"]},
-        index=idx,
     )
 
 

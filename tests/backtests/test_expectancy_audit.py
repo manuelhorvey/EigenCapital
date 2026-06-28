@@ -61,16 +61,14 @@ class TestCalculateExpectancy:
 
 class TestRunExpectancyAudit:
     def test_runs_with_valid_data(self):
-        dates = pd.date_range("2020-01-01", periods=10, freq="D")
         signals = pd.DataFrame(
             {
                 "signal": [0, 2, 0, 2, 0, 2, 0, 2, 0, 2],
                 "risk_multiplier": [1.0] * 10,
                 "regime": ["low", "low", "mid", "mid", "mid", "high", "high", "high", "low", "low"],
             },
-            index=dates,
         )
-        returns = pd.Series(np.random.randn(10) * 0.01, index=dates)
+        returns = pd.Series(np.random.randn(10) * 0.01)
 
         results = run_expectancy_audit(signals, returns)
         assert isinstance(results, dict)

@@ -87,9 +87,8 @@ class TestValidityStateMachine:
 
     def test_process_timeline_returns_dataframe(self):
         np.random.seed(42)
-        dates = pd.date_range("2020-01-01", periods=50, freq="D")
         validity = np.clip(np.random.randn(50) * 0.2 + 0.6, 0, 1)
-        df = pd.DataFrame({"window": dates, "validity": validity})
+        df = pd.DataFrame({"window": list(range(50)), "validity": validity})
         sm = ValidityStateMachine(regime_lock_periods=2)
         result = sm.process_timeline(df)
         assert isinstance(result, pd.DataFrame)

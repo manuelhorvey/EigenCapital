@@ -26,7 +26,7 @@ def classify_regime(close):
     return regime
 
 
-def _compute_signals(proba, dates, threshold=0.45):
+def _compute_signals(proba, threshold=0.45):
     """Convert probability array to signals DataFrame.
 
     proba is (n, 3) with columns [short, neutral, long].
@@ -36,14 +36,13 @@ def _compute_signals(proba, dates, threshold=0.45):
     n = len(proba)
     signals = np.full(n, 0, dtype=int)  # default short
     signals[proba[:, 2] > threshold] = 2  # long
-    return pd.DataFrame({"signal": signals}, index=dates)
+    return pd.DataFrame({"signal": signals})
 
 
 def _simulate_portfolio(proba, close, initial_capital=100000.0, threshold=0.45):
     """Simple portfolio simulation from probabilities."""
     n = len(proba)
-    dates = pd.date_range("2020-01-01", periods=n, freq="D")
-    signals_df = _compute_signals(proba, dates, threshold=threshold)
+    signals_df = _compute_signals(proba, threshold=threshold)
     signals = signals_df["signal"].values
 
     close_arr = close.values
@@ -186,10 +185,9 @@ def compare_signals(old, new, x, close):
         return {"error": str(e)}
 
     n = len(x)
-    dates = pd.date_range("2020-01-01", periods=n, freq="D")
 
-    old_signals = _compute_signals(old_proba, dates)["signal"].values
-    new_signals = _compute_signals(new_proba, dates)["signal"].values
+    old_signals = _compute_signals(old_proba)["signal"].values
+    new_signals = _compute_signals(new_proba)["signal"].values
 
     agreement = (old_signals == new_signals).mean()
     total_flips = int((old_signals != new_signals).sum())
@@ -289,10 +287,9 @@ def compare_shadow_intel(old, new, x, close, asset=None):
         return {"error": str(e)}
 
     n = len(x)
-    dates = pd.date_range("2020-01-01", periods=n, freq="D")
 
-    old_signals = _compute_signals(old_proba, dates)["signal"].values
-    new_signals = _compute_signals(new_proba, dates)["signal"].values
+    old_signals = _compute_signals(old_proba)["signal"].values
+    new_signals = _compute_signals(new_proba)["signal"].values
 
     def _class_dist(signals):
         return {

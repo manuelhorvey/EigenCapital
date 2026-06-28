@@ -1,12 +1,14 @@
+import { Suspense, lazy } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import AppShell from './components/layout/AppShell'
 import ErrorBoundary from './components/ErrorBoundary'
+import { Skeleton } from './components/ui/Skeleton'
 
-import DashboardOverview from './pages/DashboardOverview'
-import TradingWorkspace from './pages/TradingWorkspace'
-import ExecutionWorkspace from './pages/ExecutionWorkspace'
-import RiskWorkspace from './pages/RiskWorkspace'
+const DashboardOverview = lazy(() => import('./pages/DashboardOverview'))
+const TradingWorkspace = lazy(() => import('./pages/TradingWorkspace'))
+const ExecutionWorkspace = lazy(() => import('./pages/ExecutionWorkspace'))
+const RiskWorkspace = lazy(() => import('./pages/RiskWorkspace'))
 
 import AssetDetailPanel from './components/AssetDetailPanel'
 import AssetDeepDive from './components/AssetDeepDive'
@@ -26,13 +28,15 @@ function AppContent() {
 
   return (
     <>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardOverview />} />
-        <Route path="/trading" element={<TradingWorkspace />} />
-        <Route path="/execution" element={<ExecutionWorkspace />} />
-        <Route path="/risk" element={<RiskWorkspace />} />
-      </Routes>
+      <Suspense fallback={<div className="p-8"><Skeleton className="h-64 rounded-lg" shimmer /></div>}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardOverview />} />
+          <Route path="/trading" element={<TradingWorkspace />} />
+          <Route path="/execution" element={<ExecutionWorkspace />} />
+          <Route path="/risk" element={<RiskWorkspace />} />
+        </Routes>
+      </Suspense>
 
       {detailAsset && (
         <AssetDetailPanel

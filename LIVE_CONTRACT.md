@@ -118,10 +118,12 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 
 Applied at decision pipeline stage `g`. Overrides BUY signals to FLAT for assets where the model's BUY calibration is inverted (p_long > 0.5 → ~17% win rate). SELL signals pass through unchanged. See `2026-06-20 diagnostic chain` for full evidence.
 
-**SELL_ONLY_ASSETS** (`paper_trading/execution/decision_pipeline.py`):
+**SELL_ONLY_ASSETS** (config-driven via `configs/paper_trading.yaml:defaults.sell_only_assets`, resolved by `paper_trading/execution/gate_constants.py:get_sell_only_assets()`):
+
 ```
 CADCHF, ES, NQ, NZDCHF, EURAUD
 ```
+
 **Reduced from 10→5 on 2026-06-26.** Removed GBPJPY, USDCHF, EURCHF, USDJPY, ^DJI after Step 3 trend-exhaustion features improved their BuyWR above breakeven WR thresholds. Remaining 5 assets are confirmed as permanent SELL_ONLY — impervious to all tested interventions (loss weighting, calibration, feature addition, label inversion).
 
 **Epistemic status:** Empirically-grounded — two leading causal hypotheses (carry for CHF+OTHER, DXY for equities) tested via walk-forward counterfactual ablation and **falsified**. Removing SELL_ONLY requires discovering a causal mechanism that does not currently exist in any tested hypothesis.
@@ -490,7 +492,7 @@ max_layers: 3
 | Liquidity regime | Per signal | THIN: SL +15%, size −15% (soft) | `liquidity_config` |
 | | | STRESSED: SL +30%, size −30%, hard halt | |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE | — |
-| Sell-only filter | Per decision | Override BUY→FLAT for 5 inverted-BUY assets | `SELL_ONLY_ASSETS` (hardcoded, reduced from 10 on 2026-06-26) |
+| Sell-only filter | Per decision | Override BUY→FLAT for 5 inverted-BUY assets | `get_sell_only_assets()` (config-driven, paper_trading.yaml defaults.sell_only_assets) |
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
 | Factor model (P3) | Per cycle | Factor exposures via 9 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
@@ -520,7 +522,7 @@ max_layers: 3
 | Update MAE/MFE | Update max adverse/favorable excursion | — |
 | Resolve signal | Map proba to BUY/SELL/FLAT via `FixedThresholdStrategy(0.45)` | `threshold` (default 0.45) |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 | (hardcoded, per-asset pair) |
-| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` | (hardcoded frozenset, 5 assets, reduced from 10 on 2026-06-26) |
+| Sell-only filter | Override BUY→FLAT for `get_sell_only_assets()` | (config-driven, paper_trading.yaml defaults.sell_only_assets, 5 assets, reduced from 10 on 2026-06-26) |
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
 | Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) | `session_gate.tiers` (fx_major=[7,17], fx_cross=[7,17], indices=[13,20], metals=[8,18]) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) | `adx_entry_gate` (adx_threshold=18) |

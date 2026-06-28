@@ -78,6 +78,9 @@ class EngineConfig:
     narrative_config: dict = field(default_factory=dict)
     liquidity_config: dict = field(default_factory=dict)
     defaults: dict = field(default_factory=dict)
+    sell_only_assets: frozenset = field(default_factory=lambda: frozenset({
+        "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
+    }))
     portfolio: dict = field(default_factory=dict)
     execution: dict = field(default_factory=dict)
     optimizations: dict = field(
@@ -146,6 +149,10 @@ class EngineConfig:
             narrative_config=governance.get("narrative_config", data.get("narrative_config", {})),
             liquidity_config=governance.get("liquidity_config", data.get("liquidity_config", {})),
             defaults=data.get("defaults", {}),
+            sell_only_assets=frozenset(
+                data.get("defaults", {}).get("sell_only_assets", [])
+                or ["CADCHF", "ES", "NQ", "NZDCHF", "EURAUD"]
+            ),
             portfolio=data.get("portfolio", {}),
             execution=execution,
             optimizations=data.get("optimizations", {}),

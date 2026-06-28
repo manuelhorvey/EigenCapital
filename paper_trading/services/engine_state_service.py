@@ -7,7 +7,7 @@ import pytz
 
 from paper_trading.api.common import set_mt5_status
 from paper_trading.config_manager import get_config
-from paper_trading.execution.gate_constants import SELL_ONLY_ASSETS
+from paper_trading.execution.gate_constants import get_sell_only_assets
 from paper_trading.governance.risk import get_sell_tripwire_state
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.simulation_snapshot import build_asset_snapshot
@@ -90,8 +90,8 @@ class EngineStateService:
                 "meta_decision": meta_inf.get("meta_decision"),
                 "feature_stability_jaccard": feat_stab.get("jaccard_top_10"),
                 "feature_stability_spearman": feat_stab.get("spearman_rank_corr"),
-                "sell_only": name in SELL_ONLY_ASSETS,
-                "tripwire_active": get_sell_tripwire_state(name, sell_only=name in SELL_ONLY_ASSETS)["tripped"],
+                "sell_only": name in get_sell_only_assets(),
+                "tripwire_active": get_sell_tripwire_state(name, sell_only=name in get_sell_only_assets())["tripped"],
                 "liquidity_regime": asset.governance._liquidity_regime,
                 "liquidity_sl_mult": asset.governance._liquidity_sl_mult,
                 "liquidity_size_scalar": asset.governance._liquidity_size_scalar,

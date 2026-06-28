@@ -20,7 +20,7 @@ from typing import Any
 import pandas as pd
 
 from paper_trading.entry.decision import EntryAction, PositionSide, SignalType, TradeDecision
-from paper_trading.execution.gate_constants import SELL_ONLY_ASSETS, SPREAD_TIER_BPS
+from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_only_assets
 from paper_trading.execution.stacking import StackingGate
 from paper_trading.position.protection import PositionProtection
 
@@ -515,7 +515,7 @@ def apply_risk_off_suppression(ctx: DecisionContext) -> None:
 
 # ── Sell-only filter stage ────────────────────────────────────────────────
 
-# SELL_ONLY_ASSETS imported from paper_trading.execution.gate_constants
+# SELL_ONLY_ASSETS resolved via get_sell_only_assets() from paper_trading.execution.gate_constants
 
 
 def apply_sell_only_filter(ctx: DecisionContext) -> None:
@@ -551,7 +551,7 @@ def apply_sell_only_filter(ctx: DecisionContext) -> None:
     BUY now profitable. SELL_ONLY no longer needed.
     """
     engine = ctx.engine
-    if engine.name not in SELL_ONLY_ASSETS:
+    if engine.name not in get_sell_only_assets():
         return
 
     # Force-close any existing LONG position (stale from pre-filter era)

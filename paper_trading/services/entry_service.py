@@ -823,9 +823,9 @@ class EntryService:
 
             # SELL_ONLY filter: suppress deferred BUY entries on flagged assets
             if direction == "long":
-                from paper_trading.execution.gate_constants import SELL_ONLY_ASSETS
+                from paper_trading.execution.gate_constants import get_sell_only_assets
 
-                if asset.name in SELL_ONLY_ASSETS:
+                if asset.name in get_sell_only_assets():
                     logger.info(
                         "%s: sell-only filter — canceling deferred BUY entry",
                         asset.name,

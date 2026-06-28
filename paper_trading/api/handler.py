@@ -229,6 +229,9 @@ class Handler:
             return
 
         length = int(self.headers.get("Content-Length", 0))
+        if length > 4 * 1024 * 1024:  # 4 MiB max payload
+            self._send_json({"error": "payload too large"}, 413)
+            return
         body = self.rfile.read(length) if length > 0 else b""
         path = self.path.split("?")[0]
         fn = POST_ROUTES.get(path)

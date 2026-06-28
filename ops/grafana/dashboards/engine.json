@@ -1,0 +1,73 @@
+{
+  "title": "QuantForge Engine",
+  "uid": "quantforge-engine",
+  "version": 1,
+  "panels": [
+    {
+      "title": "HTTP Requests Rate",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total[1m])",
+          "legendFormat": "{{method}} {{path}}"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Latency (p95)",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "title": "Portfolio MTM",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "engine_mtm_total_usd",
+          "legendFormat": "MTM"
+        }
+      ]
+    },
+    {
+      "title": "Drawdown %",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "engine_drawdown_pct",
+          "legendFormat": "Drawdown"
+        }
+      ]
+    },
+    {
+      "title": "Open Positions",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "engine_positions{asset=\"__portfolio__\"}",
+          "legendFormat": "{{direction}}"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(http_errors_total[1m])",
+          "legendFormat": "{{status_code}}"
+        }
+      ]
+    }
+  ]
+}

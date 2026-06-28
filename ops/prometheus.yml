@@ -1,0 +1,6 @@
+scrape_configs:
+  - job_name: "quantforge-engine"
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["engine:5000"]

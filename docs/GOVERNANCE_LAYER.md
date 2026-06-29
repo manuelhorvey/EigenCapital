@@ -23,6 +23,10 @@
 | Entry price deviation | Per entry | Per asset | Skip entry if price drifted >2% |
 | Profit lock | Per flip | Per asset | Block flip if PnL >15% |
 
+| RiskEngineV2 (adaptive budget) | Per cycle | Portfolio | Scalar → adaptive risk budget [min, base]; reduces risk as drawdown deepens or performance degrades |
+| PEK admission controller | Per cycle | Portfolio | Collect intents → fast filter (hard gates) → rank (composite score) → allocate budget → close over-budget |
+| PerformanceState velocity | Per cycle | Portfolio | Outcome tracker + velocity processor (trend, shock, health) → anticipatory scalar ∈ [0.5, 1.5] |
+
 **Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail, computed in Phase 3g.
 
 **RecoveryScheduler:** Exponential-backoff probe of halted actors via `is_due()`/`record_result()` in Phase 3g.
@@ -51,6 +55,7 @@
 | Build entry artifacts | Construct TradeDecision for execution |
 | Route execution policy | Direct to PaperBroker or MT5Broker |
 | Poll deferred entries | Execute pending deferred orders |
+| PEK admission review | Portfolio-level budget enforcement; closes lowest-ranked positions if total notional exceeds max_leverage × equity × tolerance |
 | Update prob history | Record probability history for drift monitoring |
 
 ## Position Sizing Guardrails
@@ -59,8 +64,10 @@ Applied multiplicatively in entry sizing:
 1. Drawdown taper — linear 1.0→min between start_dd/end_dd
 2. Per-position cap — clip to max_position_pct_of_equity
 3. Risk-per-trade cap — clip or skip if SL risk exceeds max_risk_per_trade_pct
-4. Leverage budget — atomic lock from max_leverage × equity pool
-5. Backstop multiplier — ratchet down on breach, 0.9 decay/cycle
+
+PEK budget enforcement (Phase 1b) replaces the old leverage budget + backstop:
+total notional across all positions must not exceed max_leverage × equity × tolerance.
+If exceeded, lowest-ranked admitted positions are closed until within budget.
 
 ## 1. Validity State Machine
 

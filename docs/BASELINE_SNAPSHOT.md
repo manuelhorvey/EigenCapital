@@ -20,9 +20,9 @@ Source: `configs/paper_trading.yaml`, `LIVE_CONTRACT.md`
 | Drawdown limit | -0.15 |
 | Data source | MT5 (yfinance fallback) |
 | Ensemble | disabled portfolio-wide (base_weight=1.0; see ADR-026) |
-| Governance layers | 15 + HealthMonitor (validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock) |
-| Decision pipeline stages | 21 stages (`DEFAULT_STAGES`: first-cycle suppression, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) |
-| Position sizing guardrails | drawdown taper, per-position cap, risk-per-trade cap, leverage budget, backstop multiplier |
+| Governance layers | 15 + HealthMonitor (validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock) + RiskEngineV2 + PEK admission + PerformanceState |
+| Decision pipeline stages | 22 stages (`DEFAULT_STAGES`: first-cycle suppression, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, PEK admission review, update prob history) |
+| Position sizing guardrails | drawdown taper, per-position cap, risk-per-trade cap, min viable gate → PEK budget enforcement (Phase 1b) |
 | Spread gate tiers | fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps |
 | Circuit breaker | max_consecutive_losses=7 (was 15) |
 | Exit reasons | UPPERCASE canonical (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, PORTFOLIO_CIRCUIT_BREAKER, SELL_ONLY_FILTER) |

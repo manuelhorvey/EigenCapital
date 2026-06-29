@@ -28,12 +28,14 @@ The repository intentionally treats trading infrastructure as a distributed stat
 
 # High-Level Architecture
 
-The engine runs a continuous 4-phase orchestrator cycle. Each tick (every 30s) executes the following loop:
+The engine runs a continuous 5-phase orchestrator cycle. Each tick (every 30s) executes the following loop:
 
 ```mermaid
 graph TD
-    Start((Start Cycle)) --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
+    PRE --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
+    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
     P2 --> P3[Phase 3: PORTFOLIO HEALTH]
     P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
     CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
@@ -45,7 +47,7 @@ graph TD
     MT5B --> MT5C[Phase C: Dry-run orphan report]
     MT5C --> MT5D[Phase D: Self-healing adoption]
     MT5D --> CONC[Position Concentration\nNet-short skew threshold]
-    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nRecord outcomes → PerformanceState\nState snapshot → state.json]
     P4 --> Start
 ```
 
@@ -257,7 +259,8 @@ The live engine executes every 60 seconds by default (configurable via `QUANTFOR
       u. Update prob history — record probability history for drift monitoring
   17. Route through governance (15 layers + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
-  19. Position sizing chain (P2 Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget → backstop)
+  19. Position sizing chain (drawdown taper → position cap → risk cap → min viable gate)
+    → PEK budget enforcement (closes lowest-ranked positions if portfolio notional exceeds max)
   20. Independent MT5 sizing (same chain with real broker equity)
   21. Execute position lifecycle (open/close/flip/trailing)
 ```

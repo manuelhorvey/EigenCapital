@@ -61,6 +61,14 @@ systemSelectors = {
 }
 ```
 
+### State Bundle Fields (Portfolio)
+
+The `portfolio` object in the state bundle includes these additional fields:
+
+- `portfolio.admission`: `{ n_intents, n_admitted, n_rejected, budget_notional, admitted[], rejected[] }`
+- `portfolio.backstop`: `{ total_entered, fair_budget, anomaly }`
+- `portfolio.performance`: `{ n_trades }`
+
 **Structural sharing contract:** React Query's built-in `structuralSharing` preserves sub-object references across polls when the server payload hasn't changed. The `select` function returns these stable references → `memo` guards work correctly.
 
 ### 3. UI Domain Layer

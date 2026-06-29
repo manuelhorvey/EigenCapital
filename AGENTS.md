@@ -19,19 +19,22 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
 - **Features**: 21 alpha (11 core + 6 trend-exhaustion + 4 cross-asset, include COT z/change) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile)
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
-- **Config**: `configs/paper_trading.yaml` — global defaults + per-asset (21 assets)
-- **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 portfolio weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly sizing (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP fix (`portfolio/hrp_allocator.py`). All config-gated. See `LIVE_CONTRACT.md §15`.
-- **Inference**: `paper_trading/inference/pipeline.py` — alpha features → base model → **calibration (P1)** → governance → execute (ensemble disabled; regime features still generated for trace logging)
-- **Training**: `paper_trading/inference/training.py` — base model only (regime model skipped when base_weight >= 1.0), scale_pos_weight, meta-labeling. Expanding-window (all history, never drops old data) — known contributor to directional instability across folds.
-- **Entry gates**: `entry_service.py` price deviation check (skips if price deviated > max_entry_slippage_pct); profit lock embedded in `manage_position` stage (blocks flips when unrealized PnL > profit_lock_threshold_pct)
-- **Position sizing guardrails**: Kelly multiplier (P2, disabled) → drawdown taper → per-position equity cap → risk-per-trade cap → portfolio leverage budget (atomic lock) → backstop decay multiplier
-- **Independent MT5 sizing**: Paper sized from paper equity ($100K mtm_value); MT5 sized from real broker account balance via `_compute_mt5_qty()` with its own drawdown taper + risk cap
-- **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), 4-phase cycle (Refresh+Signal → Validity → Portfolio Health → Persist) with MT5 orphan sub-phases (A-D)
+- **Config**: `configs/paper_trading.yaml` — `mode:` selector + `modes:` overrides (production/ftmo/live), global defaults + per-asset (19 assets)
+- **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
+- **PEK (Portfolio Execution Kernel)**: `PortfolioStateSnapshot` (built pre-phase) + `RiskEngineV2` (adaptive budget) + `PerformanceState` (velocity + outcome telemetry) + `PortfolioAdmissionController` (two-stage filter → rank → enforce)
+- **Inference**: `paper_trading/inference/pipeline.py` → base model → calibration (P1) → governance → execute (ensemble disabled)
+- **Training**: `paper_trading/inference/training.py` — base model only, scale_pos_weight, meta-labeling. Expanding-window.
+- **Entry gates**: `entry_service.py` price deviation check; profit lock in `manage_position` (blocks flips when PnL > profit_lock_threshold_pct); **PEK budget enforcement** (closes lowest-ranked if portfolio notional exceeds max)
+- **Position sizing guardrails**: drawdown taper → per-position equity cap → risk-per-trade cap → min viable gate (leverage budget removed — replaced by PEK central admission)
+- **Independent MT5 sizing**: Paper from $100K mtm_value; MT5 from broker balance via `_compute_mt5_qty()`
+- **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), **5-phase cycle**: PRE (PEK state) → 1a (signal) → 1b (admission) → 2 (validity) → 3 (health) → 4 (persist) with MT5 orphan sub-phases (A-D)
 
 ```mermaid
 graph TD
-    Start((Start Cycle)) --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
+    PRE --> P1A[Phase 1a: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1A --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
+    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
     P2 --> P3[Phase 3: PORTFOLIO HEALTH]
     P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
     CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
@@ -43,11 +46,11 @@ graph TD
     MT5B --> MT5C[Phase C: Dry-run orphan report]
     MT5C --> MT5D[Phase D: Self-healing adoption]
     MT5D --> CONC[Position Concentration\nNet-short skew check]
-    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nRecord outcomes → PerformanceState\nState snapshot → state.json]
     P4 --> Start
 ```
 
-- **Governance**: 15-layer governance + HealthMonitor + VaR/CVaR + RecoveryScheduler
+- **Governance**: 15-layer governance + HealthMonitor + VaR/CVaR + RiskEngineV2 + PEK admission + PerformanceState velocity + RecoveryScheduler
 - **MT5 Bridge**: `paper_trading/ops/mt5_client.py` — TCP frame protocol to Wine-hosted MT5 (port 9879)
 - **Dashboard**: React SPA on port 5000, state via `state.json`
 
@@ -59,6 +62,14 @@ graph TD
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies, decorator pattern, pure functions |
 | `shared/calibration/` | P1 calibration layer — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
 | `shared/kelly.py` | P2 fractional Kelly sizing — `compute_kelly_fraction`, `compute_kelly_multiplier` |
+| `risk/contracts/portfolio_state.py` | Immutable `PortfolioStateSnapshot` — single source of truth for portfolio exposure |
+| `risk/contracts/performance_state.py` | Immutable `PerformanceState` with `RegimeVelocity` — system behavioral telemetry |
+| `risk/contracts/risk_budget.py` | `RiskBudget` — adaptive risk limits consumed by PEK |
+| `risk/state/portfolio_state_builder.py` | `PortfolioStateBuilder` — factory for `PortfolioStateSnapshot` |
+| `risk/perf/performance_state_builder.py` | `PerformanceStateBuilder` — outcome tracker + velocity processor |
+| `risk/engine_v2.py` | `RiskEngineV2` — adaptive budget from snapshot + performance state |
+| `paper_trading/orchestrator/admission/controller.py` | `PortfolioAdmissionController` — PEK two-stage admission (filter → rank) |
+| `paper_trading/orchestrator/admission/signal.py` | `AdmissionSignal` — immutable signal admission contract |
 | `shared/factor_model.py` | P3 factor model — 9 factor groups, factor-constrained weight optimization |
 | `portfolio/hrp_allocator.py` | P4 HRP fix — `_get_quasi_diag` with `optimal_leaf_ordering` |
 | `paper_trading/engine.py` | `PaperTradingEngine` — main loop, capital sync, parallel orchestrator |
@@ -69,9 +80,9 @@ graph TD
 | `paper_trading/inference/ensemble.py` | `EnsembleSignal` — 60/40 blend logic |
 | `paper_trading/ops/monitor.py` | Main entry point — loads models, runs engine, serves dashboard |
 | `paper_trading/execution/decision_pipeline.py` | Decision pipeline stages — includes `apply_kelly_sizing` (P2), profit lock gate |
-| `paper_trading/services/entry_service.py` | Entry validation, full sizing chain (Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget), price deviation gate |
+| `paper_trading/services/entry_service.py` | Entry validation, full sizing chain (Kelly multiplier → drawdown taper → position cap → risk cap), price deviation gate |
 | `paper_trading/services/engine_rebalance_service.py` | Live rebalance — reads `weight_method` from config, calls `compute_weights()` |
-| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-3 (parallel signal, atomic entry, portfolio phase with factor exposures, MT5 orphan reconciliation, position concentration check) |
+| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-4 (pre-phase PEK state, parallel signal, PEK admission, validity, portfolio health, persist) with MT5 orphan sub-phases (A-D) |
 | `paper_trading/execution/mt5_broker.py` | `MT5Broker` — MT5 execution with `current_mt5_drawdown_pct()` |
 | `features/alpha_features.py` | Alpha feature builder (13 cols) |
 | `features/regime_features.py` | Regime feature builder (7 cols) |
@@ -104,6 +115,11 @@ size_scalar = base × kelly_multiplier × exposure × governance × meta × draw
 ```
 Where `kelly_multiplier = compute_kelly_multiplier(calibrated_prob, tp_mult, sl_mult)`.
 Kelly flows through the sizing chain as an extra scalar before position caps.
+
+**PEK budget enforcement (Phase 1b):**
+If total portfolio notional exceeds `max_leverage × equity × tolerance`, the lowest-ranked
+admitted positions are closed by `_phase_1b_admission_review()`. This replaces the old
+per-cycle shared leverage budget and backstop multiplier pattern.
 
 MT5 positions are sized independently:
 
@@ -211,7 +227,7 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 - **GBPNZD (REMOVED 2026-06-20)**: tp/sl ratio 0.33 required 75% breakeven WR, model achieved 72.3% — net-negative. Removed from trading.
 - **AUDNZD ensemble**: Ensemble degrades signal quality (IC -0.020 in pilot). Confirmed portfolio-wide by walk-forward (p=0.83 pooled); ensemble disabled 2026-06-20 (see ADR-026).
 - **Small MT5 equity ($107 demo)**: 0.01 lot minimum for forex (≈$1,150 notional on EURUSD) far exceeds the MT5 position budget (≈$15.67 at 15% of $104). MT5 positions quantize to 0.01 lots regardless of computed size. Leverage budget is deferred for MT5 — revisit when equity > $10K.
-- **Leverage budget deferred for MT5**: 0.01 lot granularity makes desired-vs-actual notional diverge wildly for small accounts. No leverage cap check on MT5 side until equity supports meaningful multi-position sizing.
+- **Small MT5 equity ($107 demo)**: 0.01 lot minimum for forex (≈$1,150 notional on EURUSD) far exceeds the MT5 position budget (≈$15.67 at 15% of $104). MT5 positions quantize to 0.01 lots regardless of computed size. Leverage budget is deferred for MT5 — revisit when equity > $10K.
 - **SL/TP triple bug (FIXED 2026-06-16)**: Three independent issues (deactivated `atr_mult_tp`, uncalibrated `atr_mult_sl`, TP compiler convexity applied to inflated SL distance) produced TP distances up to 44%. Fixes: (1) `_atr_barriers()` now uses `atr_mult_tp` for TP vol basis, (2) `tp_compiler.py` caps R:R at `MAX_RR=5.0`.
 - **THIN liquidity (FIXED 2026-06-17)**: THIN regime was routing to hard_reasons (halted all assets). Fixed: only STRESSED halts; THIN → soft_warnings (SL/size adjust, no halt).
 - **Prob drift min samples (FIXED 2026-06-17)**: Raised from 3 to 10 for stable mean estimate before confidence drift halt check activates.
@@ -412,8 +428,7 @@ The original "directional flip" narrative was wrong as a portfolio-wide diagnosi
 
 ```python
 SELL_ONLY_ASSETS: frozenset[str] = frozenset({
-    "CADCHF", "ES", "NQ", "NZDCHF",
-    "EURAUD", "^DJI", "USDCHF", "EURCHF",
+    "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
 })
 ```
 

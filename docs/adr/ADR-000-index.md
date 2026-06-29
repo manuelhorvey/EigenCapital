@@ -41,7 +41,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 | 024 | [Macro Narrative Governance — Weekly LLM Overlay](ADR-024-macro-narrative-governance.md) | Accepted | 2026-05 |
 | 025 | [Liquidity Regime Model — Volume/Amihud Proxy Governance](ADR-025-liquidity-regime-model.md) | Accepted | 2026-05 |
 | 026 | [Regime-Conditional Ensemble Disabled](ADR-026-ensemble-disabled.md) | Accepted | 2026-06 |
-
+| 027 | [Portfolio Execution Kernel — Centralized Admission Control](ADR-027-portfolio-execution-kernel.md) | Accepted | 2026-06 |
 ## By Topic
 
 ### Labeling & Signal
@@ -75,6 +75,7 @@ Architecture Decision Records for the QuantForge quantitative trading framework.
 - ADR-023: Fast scale-out and dynamic SL/TP calibration
 - ADR-024: Macro narrative governance (weekly LLM overlay)
 - ADR-025: Liquidity regime model (volume/Amihud proxy)
+- ADR-027: Portfolio Execution Kernel (centralized admission control)
 
 ### Signal Processing
 - ADR-020: Meta-labeling as confidence filter

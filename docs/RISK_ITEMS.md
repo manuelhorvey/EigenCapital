@@ -99,9 +99,9 @@ Comparable scope to `scripts/diagnostics/check_chf_correlation.py` (~120 lines, 
 
 **Status**: Monitored via HealthMonitor alarm (2026-06-20).
 
-**Risk**: ES, NQ, ^DJI (all SELL_ONLY) share concentrated directional exposure. If the equities cluster all go flat in a regime change where selling equities is correct, the system's filtering logic means it would miss that opportunity. The CHF cluster (CADCHF, NZDCHF, USDCHF, EURCHF) has moderate pairwise correlation (r≈0.581) and a 41% concurrent-loss-day frequency.
+**Risk**: ES and NQ (both SELL_ONLY) share concentrated directional exposure. If the equities cluster all go flat in a regime change where selling equities is correct, the system's filtering logic means it would miss that opportunity. ^DJI was removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved its BuyWR above breakeven — it now trades both directions. The CHF cluster (CADCHF, NZDCHF) has 2 SELL_ONLY members remaining (USDCHF and EURCHF were removed 2026-06-26).
 
-**Mitigation**: Equity cluster alarm in HealthMonitor flags when all 3 have same-side positions. No force-flatten — the alarm is a recommendation only.
+**Mitigation**: Equity cluster alarm in HealthMonitor flags when multiple equity SELL_ONLY assets have same-side positions. No force-flatten — the alarm is a recommendation only.
 
 ---
 

@@ -14,6 +14,10 @@ Operational procedures for the paper trading system. This document is for the pe
 | `calibration.enabled` | `true` — BinnedCalibrator applied per inference, reduces ECE 0.36→0.02 |
 | `portfolio.weight_method` | `factor_constrained_v2` — active weight strategy (P0, hard linear constraints) |
 | `kelly.enabled` | `false` — P2 Kelly sizing disabled pending live data |
+| Active mode | `production` (config: `mode:` in `configs/paper_trading.yaml`) |
+| Switch mode | Edit `mode:` key in config and restart engine |
+| PEK admission event | Logged as `PEK_BUDGET_OVERRUN` + `PEK_BUDGET_CLOSE` — check engine logs |
+| PEK dashboard state | `state.json → portfolio → admission` (n_intents, n_admitted, n_rejected, admitted[], rejected[]) |
 | State file (JSON) | `data/live/state.json` |
 | State store (SQLite) | `data/live/state.db` (5 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history) |
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
@@ -163,6 +167,20 @@ config:
 | `size_taper_min` | 50% | Minimum size multiplier when drawdown exceeds end_dd |
 | `portfolio_max_leverage` | 2.0x | Max portfolio notional leverage against equity |
 | `portfolio_leverage_tolerance` | 0.1% | Tolerance factor for backstop floating-point comparison |
+
+---
+
+## Mode Configuration
+
+The engine supports three operational modes via the `mode:` key in `configs/paper_trading.yaml`:
+
+| Mode | Capital | Max Risk/Trade | Max Concurrent | DD Limit | Use Case |
+|------|---------|---------------|----------------|----------|----------|
+| `production` | $100K | 2.0% | 8 | -15% | Standard paper trading |
+| `challenge_ftmo_10k` | $10K | 3.0% | 5 | -8% | FTMO 10K challenge |
+| `live` | $100K | 3.0% | 6 | -10% | Live funded account |
+
+Mode overrides are merged at config load time. See `configs/paper_trading.yaml` → `modes:` for full definitions.
 
 ---
 
@@ -877,3 +895,11 @@ curl -s http://127.0.0.1:5000/trades.json | python3 -c "import sys,json; d=json.
 | Clustered SL sequence (6+ same side, same day) | Deferred entry bypassing cooldown (pre-fix) | Should no longer occur after `_can_enter()` gate — file issue if seen |
 | State API `market_closed: true` | Engine correctly detected weekend | N/A — server-driven indicator |
 | Dashboard polling slower than usual | Intended — hooks reduce refetch rate 4-20x when markets closed | Saves bandwidth; restore normal rate on market open |
+
+### PEK Budget Overrun
+
+When `PEK_BUDGET_OVERRUN` appears in logs:
+1. The PEK admission controller determined total portfolio notional exceeds `max_leverage × equity`
+2. Lowest-ranked positions were automatically closed — check `PEK_BUDGET_CLOSE` log lines for which assets
+3. Verify in dashboard: `state.json → portfolio → admission` shows `n_admitted` vs `n_rejected`
+4. No manual action required — the system self-corrects

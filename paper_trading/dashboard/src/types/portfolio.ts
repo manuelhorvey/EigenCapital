@@ -62,6 +62,134 @@ export interface EngineSnapshot {
   halt_conditions: HaltConditions
   risk_signals?: Record<string, RiskSignal> | null
   shadow_actions?: Record<string, ShadowAction> | null
+  risk_parity?: Record<string, unknown> | null
+  emergency_halt?: boolean
+  halt_reason?: string
+  halt_detail?: string
+  peak_portfolio_value?: number | null
+  breaker_daily_pnl?: number[] | null
+}
+
+export interface PositionConcentration {
+  long: number
+  short: number
+  total: number
+  skew: number
+  dominant_side: string
+  threshold: number
+  alert: boolean
+}
+
+export interface FactorExposures {
+  exposures: Record<string, number>
+  violations: Record<string, { exposure: number; limit_lo: number; limit_hi: number; violation: string | null }>
+  n_violations: number
+  within_limits: boolean
+}
+
+export interface LiveSharpeData {
+  available: boolean
+  reason?: string
+  n_cycles?: number
+  n_days?: number
+  date_range?: { start: string; end: string }
+  portfolio?: {
+    initial_value: number
+    current_value: number
+    total_return_pct: number
+    max_drawdown_pct: number
+  }
+  cycle_level?: {
+    n_cycles: number
+    mean_return: number
+    std_return: number
+    sharpe_raw: number
+    sharpe_adj: number
+    autocorrelation: number
+  }
+  daily_level?: Record<string, {
+    n_days: number
+    mean_daily_return_pct: number
+    std_daily_return_pct: number
+    sharpe: number
+    sharpe_adj: number
+    psr_gt_0: number
+  } | null>
+  slippage?: {
+    available: boolean
+    reason?: string
+    n_samples?: number
+    mean_gap_pct?: number
+    median_gap_pct?: number
+    rms_gap_pct?: number
+    p90_gap_pct?: number
+    max_gap_pct?: number
+  }
+}
+
+export interface PortfolioAdmission {
+  n_intents: number
+  n_admitted: number
+  n_rejected: number
+  budget_notional: number
+  admitted: string[]
+  rejected: string[]
+}
+
+export interface PekVelocity {
+  pnl_velocity: number
+  pnl_acceleration: number
+  vol_velocity: number
+  degradation_velocity: number
+  execution_velocity: number
+}
+
+export interface PekPerformanceState {
+  outcome_scalar: number
+  degradation_scalar: number
+  market_scalar: number
+  execution_scalar: number
+  velocity_scalar: number
+  composite_scalar: number
+  velocity?: PekVelocity
+  win_rate_20: number
+  consecutive_losses: number
+  r_cumulative_20: number
+  calibration_ece: number
+  atr_ratio: number
+  regime_label: string
+  slippage_p90: number
+}
+
+export interface PekRiskBudget {
+  max_risk_per_trade_pct: number
+  max_portfolio_heat: number
+  max_concurrent_positions: number
+  volatility_scalar: number
+  drawdown_scalar: number
+  performance_scalar: number
+  velocity_scalar: number
+}
+
+export interface PekPortfolioSnapshot {
+  total_equity: number
+  drawdown_pct: number
+  gross_exposure: number
+  net_exposure: number
+  open_position_count: number
+  daily_pnl: number
+  max_daily_loss: number
+  drawdown_remaining: number
+  leverage_remaining: number
+  max_leverage: number
+  concurrent_remaining: number
+  max_concurrent: number
+}
+
+export interface PekData {
+  performance_state?: PekPerformanceState
+  risk_budget?: PekRiskBudget
+  portfolio_snapshot?: PekPortfolioSnapshot
 }
 
 export interface Portfolio {
@@ -83,6 +211,13 @@ export interface Portfolio {
   closed_trades: number
   execution_state?: string
   average_validity_exposure?: number
+  portfolio_drawdown?: number
+  portfolio_peak_value?: number | null
+  position_concentration?: PositionConcentration
+  factor_exposures?: FactorExposures
+  live_sharpe?: LiveSharpeData
+  admission?: PortfolioAdmission
+  pek?: PekData
 }
 
 export interface FeatureStability {

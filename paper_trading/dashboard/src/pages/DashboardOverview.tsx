@@ -4,10 +4,11 @@ import { systemSelectors } from '../selectors/system'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import PortfolioSummary from '../components/PortfolioSummary'
 import HaltConditions from '../components/HaltConditions'
+import LiveSharpeCard from '../components/LiveSharpeCard'
 import Panel from '../components/ui/Panel'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 import { Skeleton } from '../components/ui/Skeleton'
-import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Activity, ArrowDown, Goal } from 'lucide-react'
 
 function StatCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
@@ -30,17 +31,19 @@ const QuickStatsGrid = memo(function QuickStatsGrid() {
 
   if (!portfolio) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" shimmer />)}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" shimmer />)}
       </div>
     )
   }
 
   const totalReturn = portfolio.total_return ?? 0
+  const drawdown = portfolio.portfolio_drawdown ?? 0
+  const peakValue = portfolio.portfolio_peak_value
 
   return (
     <EntranceAnimator>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard
           label="Portfolio Value"
           value={`$${portfolio.mtm_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
@@ -52,14 +55,19 @@ const QuickStatsGrid = memo(function QuickStatsGrid() {
           icon={totalReturn >= 0 ? <TrendingUp className="w-5 h-5 text-gov-green" strokeWidth={1.5} /> : <TrendingDown className="w-5 h-5 text-gov-red" strokeWidth={1.5} />}
         />
         <StatCard
+          label="Drawdown"
+          value={`${drawdown.toFixed(2)}%`}
+          icon={<ArrowDown className="w-5 h-5 text-gov-red" strokeWidth={1.5} />}
+        />
+        <StatCard
           label="Open Positions"
           value={String(portfolio.open_positions)}
           icon={<Activity className="w-5 h-5 text-accent-blue" strokeWidth={1.5} />}
         />
         <StatCard
-          label="Alerts"
-          value={String(criticalAlerts)}
-          icon={<TrendingUp className="w-5 h-5 text-gov-yellow" strokeWidth={1.5} />}
+          label="Peak Value"
+          value={peakValue != null ? `$${peakValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'}
+          icon={<Goal className="w-5 h-5 text-gov-yellow" strokeWidth={1.5} />}
         />
       </div>
     </EntranceAnimator>
@@ -74,9 +82,20 @@ const PortfolioSnapshotPanel = memo(function PortfolioSnapshotPanel() {
   )
 })
 
-const RiskSignalPanel = memo(function RiskSignalPanel() {
+const LiveSharpePanel = memo(function LiveSharpePanel() {
   return (
     <EntranceAnimator variant="fade-up" delay={120}>
+      <div className="space-y-2">
+        <span className="text-xs text-tertiary font-medium uppercase tracking-wider">Live Sharpe</span>
+        <LiveSharpeCard />
+      </div>
+    </EntranceAnimator>
+  )
+})
+
+const RiskSignalPanel = memo(function RiskSignalPanel() {
+  return (
+    <EntranceAnimator variant="fade-up" delay={180}>
       <HaltConditions />
     </EntranceAnimator>
   )
@@ -87,6 +106,7 @@ const DashboardOverview = memo(function DashboardOverview() {
     <div className="space-y-6 sm:space-y-8">
       <QuickStatsGrid />
       <PortfolioSnapshotPanel />
+      <LiveSharpePanel />
       <RiskSignalPanel />
     </div>
   )

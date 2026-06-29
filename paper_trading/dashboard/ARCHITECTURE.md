@@ -63,11 +63,31 @@ systemSelectors = {
 
 ### State Bundle Fields (Portfolio)
 
-The `portfolio` object in the state bundle includes these additional fields:
+The `portfolio` object in the state bundle includes these additional fields beyond the core `Portfolio` type:
 
-- `portfolio.admission`: `{ n_intents, n_admitted, n_rejected, budget_notional, admitted[], rejected[] }`
-- `portfolio.backstop`: `{ total_entered, fair_budget, anomaly }`
-- `portfolio.performance`: `{ n_trades }`
+| Field | Shape | Source |
+|-------|-------|--------|
+| `portfolio_drawdown` | `number` — current portfolio drawdown % | `engine_state_service` |
+| `portfolio_peak_value` | `number \| null` — all-time peak portfolio value | `engine_state_service` |
+| `position_concentration` | `{ long, short, total, skew, dominant_side, threshold, alert }` — net-short skew | orchestrator Phase 3e |
+| `factor_exposures` | `{ exposures, violations, n_violations, within_limits }` — 9-factor limit check | `shared.factor_model.summary()` |
+| `live_sharpe` | `{ available, cycle_level, daily_level, portfolio, slippage }` — live Sharpe tracker | `LiveSharpeTracker.compute()` |
+| `admission` | `{ n_intents, n_admitted, n_rejected, budget_notional, admitted[], rejected[] }` | PEK Phase 1b |
+
+### EngineSnapshot Top-Level Fields
+
+Beyond `portfolio`, the `EngineSnapshot` includes these top-level fields:
+
+| Field | Shape | Source |
+|-------|-------|--------|
+| `risk_signals` | `Record<string, RiskSignal> \| null` | per-asset risk signal |
+| `shadow_actions` | `Record<string, ShadowAction> \| null` | per-asset shadow governance |
+| `emergency_halt` | `boolean` — circuit breaker triggered | orchestrator Phase 3 |
+| `halt_reason` | `string` — breaker reason enum | orchestrator Phase 3 |
+| `halt_detail` | `string` — verbose breaker reason | orchestrator Phase 3 |
+| `peak_portfolio_value` | `number \| null` — all-time peak (orchestrator) | orchestrator |
+| `breaker_daily_pnl` | `number[] \| null` — daily P&L list from breaker | `CircuitBreaker.snapshot_state()` |
+| `risk_parity` | `dict \| null` — risk parity weights snapshot | `engine_state_service` |
 
 **Structural sharing contract:** React Query's built-in `structuralSharing` preserves sub-object references across polls when the server payload hasn't changed. The `select` function returns these stable references → `memo` guards work correctly.
 

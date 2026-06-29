@@ -39,11 +39,20 @@ interface RiskGeometry {
   rr: number
 }
 
-// One badge wins — tripwire beats sell-only beats "new". Stacking badges
-// of equal visual weight is how a card stops reading at a glance.
-function pickBadge(info: { sellOnly: boolean; tripwireActive: boolean; isNew: boolean }) {
+interface BadgeInfo {
+  sellOnly: boolean
+  tripwireActive: boolean
+  isNew: boolean
+  riskSignal?: { risk_level: string; risk_score: number } | null
+  shadowAction?: { action_type: string } | null
+}
+
+// One badge wins — tripwire beats sell-only beats risk-signal beats shadow-action beats "new".
+function pickBadge(info: BadgeInfo) {
   if (info.tripwireActive) return { label: 'Tripwire', tone: 'red' as const, pulse: true }
   if (info.sellOnly) return { label: 'Sell only', tone: 'yellow' as const, pulse: false }
+  if (info.riskSignal && info.riskSignal.risk_level === 'HIGH') return { label: 'Risk HIGH', tone: 'red' as const, pulse: false }
+  if (info.shadowAction && info.shadowAction.action_type === 'PAUSE_TRADING') return { label: 'Shadow PAUSE', tone: 'red' as const, pulse: false }
   if (info.isNew) return { label: 'New', tone: 'yellow' as const, pulse: true }
   return null
 }
@@ -118,6 +127,8 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
       scaleOutTiers: (m.scale_out_tiers ?? null) as ScaleOutTier[] | null,
       remainingFraction: m.remaining_fraction ?? 1,
       isNew,
+      riskSignal: (data?.risk_signals?.[name] ?? null) as { risk_level: string; risk_score: number } | null,
+      shadowAction: (data?.shadow_actions?.[name] ?? null) as { action_type: string } | null,
     }
   }, [asset, data, name])
 
@@ -153,7 +164,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
   const signalTextClass =
     info.signal === 'BUY' ? governanceText.GREEN : info.signal === 'SELL' ? governanceText.RED : 'text-muted'
 
-  const badge = pickBadge({ sellOnly: info.sellOnly, tripwireActive: info.tripwireActive, isNew: info.isNew || recentEntryBadge })
+  const badge = pickBadge({ sellOnly: info.sellOnly, tripwireActive: info.tripwireActive, isNew: info.isNew || recentEntryBadge, riskSignal: info.riskSignal, shadowAction: info.shadowAction })
 
   return (
     <div

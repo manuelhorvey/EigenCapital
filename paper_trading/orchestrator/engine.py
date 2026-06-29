@@ -110,6 +110,9 @@ class EngineOrchestrator:
         self._risk_budget: RiskBudget | None = None
         self._performance_state: PerformanceState | None = None
 
+        # Last cycle's admission results (stored for state.json export)
+        self._last_admission: dict | None = None
+
         # PEK admission controller (lazy init)
         self._pek: PortfolioAdmissionController | None = None
 
@@ -443,7 +446,7 @@ class EngineOrchestrator:
                             },
                         )
 
-        results["admission"] = {
+        adm = {
             "n_intents": len(intents),
             "n_admitted": len(admitted),
             "n_rejected": len(rejected),
@@ -451,6 +454,8 @@ class EngineOrchestrator:
             "admitted": [s.asset for s in admitted],
             "rejected": [s.asset for s in rejected],
         }
+        results["admission"] = adm
+        self._last_admission = adm
 
     def _phase_2_validity(self, results: dict) -> None:
         """Parallel validity updates (Phase 2)."""

@@ -8,6 +8,7 @@ import ErrorScreen from '../ui/ErrorScreen'
 import Header from '../Header'
 import TabBar from './TabBar'
 import Sidebar from './Sidebar'
+import EmergencyHaltBanner from '../EmergencyHaltBanner'
 
 interface AppShellProps {
   children: ReactNode
@@ -37,6 +38,7 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen bg-app text-secondary flex flex-col">
       <Header onMenuClick={toggleSidebar} />
       <SystemDegradedBanner integrity={integrity} />
+      <EmergencyHaltBanner />
 
       <div className="flex-1 flex relative max-w-[90rem] mx-auto w-full">
         <Sidebar open={sidebarOpen} onClose={closeSidebar} />

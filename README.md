@@ -35,26 +35,25 @@ Every promoted asset must survive expanding-window validation before entering th
 
 # System Lifecycle
 
-```
-Research Universe (36 assets screened)
-        ↓
-Walk-Forward Screening (expanding window)
-        ↓
-Asset Selection (GREEN / YELLOW / RED)
-        ↓
-Per-Asset Model Training (XGBoost, per-asset depth)
-        ↓
-        Live Inference (every 30s)
-        ↓
-Decision Pipeline Stages (first-cycle → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label → conviction → kelly → profit lock → manage position → build artifacts → route execution → poll deferred → update prob history)
-        ↓
-Governance Filters (14 mechanisms + HealthMonitor + VaR/CVaR)
-        ↓
-Position Sizing Guardrails (5 multiplicative)
-        ↓
-Execution & Positioning (MT5 or PaperBroker)
-        ↓
-State Persistence + Replay
+The engine runs a continuous 4-phase orchestrator cycle. Below is the core loop for each tick (every 30s):
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
+    CB -- passed --> FX[Factor Exposures\n9 factor groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew threshold check]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    P4 --> Start
 ```
 
 ---
@@ -322,50 +321,45 @@ Derived from OHLCV for execution conditioning:
 
 # Inference Pipeline
 
-```text
- 1. Fetch live OHLCV (MT5 or yfinance, 5y window)
- 2. Refresh latest price
- 3. Fetch macro data
-  4. Build alpha features (build_alpha_features, 21 cols)
- 5. Build regime features from OHLCV (generate_regime_features, 7 cols)
- 6. Build archetype features (ema_spread, adx, rsi, bb_zscore)
- 7. Optional truncation validation (predict last row only)
- 8. PSI drift check (rolling 21d vs baseline)
- 9. Base XGBoost inference (binary:logistic → P(LONG)_base)
-10. Regime model inference skipped (ensemble disabled portfolio-wide)
-11. No ensemble blend — base model only
-12. Optional meta-label inference
-13. FixedThresholdStrategy(0.45) → BUY/SELL/FLAT
-14. Archetype classification
-15. Refresh MT5 spread (for spread gate)
- 16. Decision pipeline stages (applied sequentially as `DEFAULT_STAGES`):
-     a. First-cycle suppression — suppress trading on cold-start cycle 1
-     b. Bar-jump suppression — suppress 60min if bar count changed >100
-     c. Store prediction metadata — record pre-decision signal state
-     d. Update MAE/MFE — update max adverse/favorable excursion
-     e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
-     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
-      g. Sell-only filter — override BUY→FLAT for 5 assets with inverted BUY calibration (reduced from 10 on 2026-06-26)
-      h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
-      i. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles)
-      j. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
-      k. Confidence gate — abort if net confidence below threshold
-      l. Signal stability filter — require >0.65 max(prob_long, prob_short)
-      m. Signal hysteresis — 2-of-3 agreement before flip
-      n. Meta-label advisory — record meta-label recommendation (no enforcement)
-      o. Update regime bar counter — track bars since last regime shift
-      p. Conviction gate — flip gate based on regime conviction
-      q. Kelly sizing — apply fractional Kelly multiplier (config-gated, disabled by default)
-      r. Profit lock gate — block flip if unrealized PnL > threshold
-      s. Manage position — close/re-open with entry gate check
-      t. Build entry artifacts — construct TradeDecision for execution
-      u. Route execution policy — direct to PaperBroker or MT5Broker
-      v. Poll deferred entries — execute pending deferred orders
-      w. Update prob history — record probability history for drift monitoring
-  17. Route through 15 governance mechanisms + HealthMonitor + VaR/CVaR
- 18. Position sizing guardrails (drawdown taper → cap → risk cap → leverage budget → backstop)
- 19. Independent MT5 sizing (same chain with broker equity)
- 20. Execute or defer (MT5 bridge for real broker)
+Each per-asset inference cycle follows this flow (every 30s per asset, 8 parallel workers):
+
+```mermaid
+flowchart TD
+    subgraph Data
+        A[Fetch 5y OHLCV\nMT5 or yfinance]
+        B[Refresh latest price\nMT5 or 5d fallback]
+        C[Build alpha features\n21 cols + trend-exhaustion]
+        D[Build regime features\n7 cols from OHLCV]
+        E[Build archetype features\nema_spread, adx, rsi, bb_zscore]
+    end
+    subgraph Model
+        F[PSI drift check\nrolling 21d vs baseline]
+        G[XGBoost inference\nbinary:logistic > p_long]
+        H[Calibrate p_long\nP1 BinnedCalibrator\nconfig-gated]
+        I[FixedThreshold\n0.45 > BUY/SELL/FLAT]
+    end
+    subgraph Decision[Decision Pipeline — 21 stages]
+        J[Suppress: first-cycle,\nbar-jump]
+        K[Signal: store meta,\nMAE/MFE, resolve, risk-off,\nsell-only filter]
+        L[Gate: spread, session,\nADX, confidence]
+        M[Position: stability filter,\nhysteresis 2-of-3,\nmeta-label advisory,\nconviction gate,\nKelly sizing, profit lock,\nmanage position]
+        N[Execute: build artifacts,\nroute execution,\npoll deferred,\nupdate prob history]
+    end
+    subgraph Governance
+        O[15 governance layers\n+ HealthMonitor\n+ VaR / CVaR]
+    end
+    subgraph Sizing
+        P[Position sizing chain\ndrawdown taper > equity cap\n> risk cap > leverage budget\n> backstop multiplier]
+    end
+    subgraph Execution
+        Q[PaperBroker\n$100K simulated equity]
+        R[MT5Broker\nindependent sizing\nfrom real broker balance]
+    end
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+    I --> J --> K --> L --> M --> N
+    N --> O --> P --> Q
+    P --> R
 ```
 
 ---
@@ -400,13 +394,16 @@ Two additional gates protect entry quality and existing winners:
 
 Paper positions pass through a multiplicative guardrail chain in `_submit_to_broker()`:
 
-```
-effective_cap = capital_base × min(current_value / initial_capital, 3.0)
-size_scalar = base × kelly_multiplier × exposure × governance × meta × drawdown_taper
-notional = effective_cap × size_scalar
-→ cap by max_position_pct_of_equity
-→ cap by risk_per_trade_pct (skip if below min_viable_position_pct)
-→ atomic decrement from shared leverage_budget (lock-protected)
+```mermaid
+graph LR
+    A[effective_cap =\ncapital_base × min(mtm/init, 3.0)] --> B[notional =\neffective_cap × size_scalar]
+    B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
+    C --> D[Risk-per-Trade Cap\nskip if below min_viable]
+    D --> E[Leverage Budget\natomic decrement from\nmax_leverage × equity pool]
+    E --> F[Backstop Multiplier\nratchet-down on breach\n0.9 decay/cycle]
+    F --> G{Final Notional}
+    G --> Paper[Paper Broker\n$100K simulated equity]
+    G --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
 ```
 
 MT5 positions run the same chain independently using real broker equity (minus the leverage budget). Both paths log decomposed factors (`SIZING` and `MT5_SIZING`).

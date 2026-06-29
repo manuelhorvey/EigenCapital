@@ -32,78 +32,44 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 ## 2. Architecture Overview
 
+The engine runs a continuous 4-phase orchestrator cycle. Each tick (every 30s) executes the following loop:
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> PRE[PRE: Equity snapshot\nLeverage budget\nExposure multiplier]
+    PRE --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
+    CB -- passed --> FX[Factor Exposures\n9 factor groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew threshold]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    P4 --> Start
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    SCREENING LAYER (offline, run once)                   │
-│                                                                         │
-│  36+ tickers ──▶ walk_forward_backtest.py ──▶ score_tickers.py          │
-│                   3y window, 1y step        composite score:            │
-│                   5 folds, per-asset pt_sl    IC + hit rate + bidir     │
-│                                              GREEN/YELLOW/RED           │
-│                                              ──▶ promotion_report.json  │
-└─────────────────────────────────────────────────────────────────────────┘
-                              │  (top N assets promoted to live)
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    TRAINING LAYER (on-demand, per asset)                 │
-│                                                                         │
-│  yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_barrier    │
-│   10y                           ~30 feature cols      label (pt_sl)     │
-│                                                       binary reduce      │
-│                                                       ──▶ XGBoost       │
-│                                                       binary:logistic   │
-│                                                       300 trees, d=2   │
-│                                                       ──▶ .json model  │
-└─────────────────────────────────────────────────────────────────────────┘
-                              │  (model loaded by engine)
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    INFERENCE LAYER (per cycle, every 30s)                │
-│  Parallel asset fetch (ThreadPoolExecutor, max_workers=8)               │
-│                                                                         │
-│  ┌─────────────┐   ┌──────────────────┐   ┌───────────────────┐        │
-│  │ fetch_live  │──▶│ alpha+archetype  │──▶│ XGBoost predict   │        │
-│  │ 500d OHLCV  │   │ features         │   │ binary → 3-col    │        │
-│  │ (truncated  │   │                  │   │ proba expansion   │        │
-│  │  to 250d    │   └──────────────────┘   └───────────────────┘        │
-│  │  for XGB)   │         │                          │                  │
-│  │ + realtime  │         │                          ▼                  │
-│  │ price patch │         │          ┌─────────────────────┐            │
-│  └─────────────┘         │          │ Calibrate p_long    │            │
-│                          │          │ (P1 BinnedCalibrator│            │
-│                          │          │  config-gated)      │            │
-│                          │          └─────────────────────┘            │
-│                          ▼                        │                    │
-│              ┌───────────────────┐                ▼                    │
-│              │ Archetype         │   ┌─────────────────────┐            │
-│              │ classification   │   │ Decision Pipeline   │            │
-│              │ 5 types from OHLCV│   │ (21 stages, incl.  │            │
-│              └───────────────────┘   │  P2 Kelly sizing)   │            │
-│                        │             └─────────────────────┘            │
-│                        ▼                        │                       │
-│              ┌──────────────────────────────────────────┐               │
-│              │ FixedThreshold Strategy(0.45)            │               │
-│              │ BUY/SELL/FLAT                            │               │
-│              └──────────────────────────────────────────┘               │
-│                        │                                                │
-│                        ▼                                                │
-│  ┌──────────────────┐   ┌──────────────────┐   ┌───────────────────┐   │
-│  │ Position Manager │◀──│ EntryOptimizer   │◀──│ FixedThreshold   │   │
-│  │ SL/TP/scale-out  │   │ + Policy Layer   │   │ Strategy(0.45)   │   │
-│  │                  │   │ + _can_enter()   │   │ BUY/SELL/FLAT    │   │
-│  └──────────────────┘   └──────────────────┘   └───────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    PORTFOLIO LAYER                                       │
-│                                                                         │
-│  19 assets, config-gated portfolio weight strategy (active: factor_constrained_v2)   │
-│  SQLite state store (WAL mode, schema v2.0.0): trades, attribution,    │
-│    equity_history, strategy_metadata                                    │
-│  PaperBroker → StateStore → state.json + state.db → dashboard           │
-│  15-layer governance + HealthMonitor + VaR/CVaR + sell-only filter      │
-└─────────────────────────────────────────────────────────────────────────┘
+
+**Research & Training Pipeline** (offline, runs before deployment):
+
+```
+36+ tickers ──▶ walk_forward_backtest.py ──▶ score_tickers.py
+                   3y window, 1y step        composite score
+                   5 folds, per-asset pt_sl    IC + hit rate + bidir
+                                              GREEN/YELLOW/RED
+                                              ──▶ promotion_report.json
+
+yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_barrier
+  10y                           ~30 feature cols      label (pt_sl)
+                                                       binary reduce
+                                                       ──▶ XGBoost
+                                                       binary:logistic
+                                                       300 trees, d=2
+                                                       ──▶ .json model
 ```
 
 ---

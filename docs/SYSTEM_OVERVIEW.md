@@ -28,32 +28,25 @@ The repository intentionally treats trading infrastructure as a distributed stat
 
 # High-Level Architecture
 
-```text
-Research Universe (36 assets)
-        ↓
-Walk-Forward Validation (expanding window)
-        ↓
-Asset Selection (GREEN / YELLOW / RED)
-        ↓
-Per-Asset Training (XGBoost, per-asset depth)
-        ↓
-Live Inference
-        ↓
-Calibration (P1 — BinnedCalibrator, per-asset, config-gated)
-        ↓
-Governance Filters (15 layers + P2 Kelly sizing + P3 factor model)
-        ↓
-Decision Pipeline Stages (21 stages: first-cycle → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
-        ↓
-Portfolio Weight Rebalance (P0 — 4 strategies: equal, risk parity, HRP, factor-constrained)
-        ↓
-Position Sizing Guardrails (P2 Kelly multiplier → drawdown taper → caps → leverage budget)
-        ↓
-Execution & Positioning (MT5 or PaperBroker)
-        ↓
-Persistence & Replay (schema migration, DB_SCHEMA_VERSION=2.0.0)
-        ↓
-Monitoring & Attribution
+The engine runs a continuous 4-phase orchestrator cycle. Each tick (every 30s) executes the following loop:
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
+    CB -- passed --> FX[Factor Exposures\n9 factor groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew threshold]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    P4 --> Start
 ```
 
 ---
@@ -327,6 +320,43 @@ QuantForge uses independently configurable governance layers with worst-wins agg
 | Poll deferred entries | Execute pending deferred orders |
 | Update prob history | Record probability history for drift monitoring |
 
+```mermaid
+flowchart LR
+    subgraph Suppress
+        A[First-Cycle\nSuppress]
+        B[Bar-Jump\nSuppress]
+    end
+    subgraph Signal
+        C[Store Meta]
+        D[Update\nMAE/MFE]
+        E[Resolve\nBUY/SELL/FLAT]
+        F[Risk-Off\nSuppress]
+        G[Sell-Only\nFilter]
+    end
+    subgraph Gate
+        H[Spread\nGate]
+        I[Session\nGate]
+        J[ADX\nGate]
+        K[Confidence\nGate]
+    end
+    subgraph Position
+        L[Stability\nFilter]
+        M[Hysteresis\n2-of-3]
+        N[Meta-Label\nAdvisory]
+        O[Conviction\nGate]
+        P[Kelly\nSizing]
+        Q[Profit\nLock]
+        R[Manage\nPosition]
+    end
+    subgraph Execute
+        S[Build\nArtifacts]
+        T[Route\nExecution]
+        U[Poll\nDeferred]
+        V[Update\nProb History]
+    end
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N --> O --> P --> Q --> R --> S --> T --> U --> V
+```
+
 ## Position Sizing Guardrails
 
 Applied multiplicatively in `EntryService._submit_to_broker()`:
@@ -340,6 +370,18 @@ Applied multiplicatively in `EntryService._submit_to_broker()`:
 | Backstop multiplier | Ratchet-down on breach, 0.9 decay/cycle | (fixed) |
 
 MT5 sizing runs the same chain independently using real broker equity (via `_compute_mt5_qty()`), excluding the leverage budget.
+
+```mermaid
+graph LR
+    A[effective_cap =\ncapital_base × min(mtm/init, 3.0)] --> B[notional =\neffective_cap × size_scalar]
+    B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
+    C --> D[Risk-per-Trade Cap\nskip if below min_viable]
+    D --> E[Leverage Budget\natomic decrement from\nmax_leverage × equity pool]
+    E --> F[Backstop Multiplier\nratchet-down on breach\n0.9 decay/cycle]
+    F --> G{Final Notional}
+    G --> Paper[Paper Broker\n$100K simulated equity]
+    G --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
+```
 
 ---
 

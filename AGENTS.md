@@ -27,6 +27,26 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 - **Position sizing guardrails**: Kelly multiplier (P2, disabled) → drawdown taper → per-position equity cap → risk-per-trade cap → portfolio leverage budget (atomic lock) → backstop decay multiplier
 - **Independent MT5 sizing**: Paper sized from paper equity ($100K mtm_value); MT5 sized from real broker account balance via `_compute_mt5_qty()` with its own drawdown taper + risk cap
 - **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), 4-phase cycle (Refresh+Signal → Validity → Portfolio Health → Persist) with MT5 orphan sub-phases (A-D)
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
+    CB -- passed --> FX[Factor Exposures\n9 groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew check]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    P4 --> Start
+```
+
 - **Governance**: 15-layer governance + HealthMonitor + VaR/CVaR + RecoveryScheduler
 - **MT5 Bridge**: `paper_trading/ops/mt5_client.py` — TCP frame protocol to Wine-hosted MT5 (port 9879)
 - **Dashboard**: React SPA on port 5000, state via `state.json`

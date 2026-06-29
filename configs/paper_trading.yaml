@@ -1,3 +1,73 @@
+# ── Mode selector ───────────────────────────────────────────────────────────
+# Active mode name; resolves overrides from the `modes:` section below.
+# Values set at the top level (capital, portfolio_drawdown_limit, defaults.*)
+# serve as the base config, then mode-specific overrides are merged on top.
+mode: production
+
+modes:
+  production:
+    description: "Standard paper trading — 19-asset, 0.95 base size, factor-constrained RP"
+    capital: 100000
+    defaults:
+      max_risk_per_trade_pct: 2.0
+      min_risk_per_trade_pct: 0.001
+      risk_per_trade_pct: 0.02
+      max_daily_loss_pct: 0.08
+      max_concurrent_positions: 8
+      factor_exposure_limits:
+        CHF: 0.20
+        US_EQUITY: 0.25
+        OIL: 0.15
+        GOLD: 0.15
+        AUD: 0.25
+        NZD: 0.25
+        FX_MAJOR: 0.40
+        FX_CROSS: 0.40
+        FX_COMMODITY: 0.25
+    portfolio_drawdown_limit: -0.15
+
+  challenge_ftmo_10k:
+    description: "FTMO 10K challenge — tighter risk, 5% DD max, 5 concurrent"
+    capital: 10000
+    defaults:
+      max_risk_per_trade_pct: 0.03
+      min_risk_per_trade_pct: 0.001
+      risk_per_trade_pct: 0.01
+      max_daily_loss_pct: 0.04
+      max_concurrent_positions: 5
+      factor_exposure_limits:
+        CHF: 0.15
+        US_EQUITY: 0.15
+        OIL: 0.10
+        GOLD: 0.10
+        AUD: 0.20
+        NZD: 0.20
+        FX_MAJOR: 0.30
+        FX_CROSS: 0.30
+        FX_COMMODITY: 0.15
+    portfolio_drawdown_limit: -0.08
+
+  live:
+    description: "Live funded account — full conservatism, 10% DD max, 6 concurrent"
+    capital: 100000
+    defaults:
+      max_risk_per_trade_pct: 0.03
+      min_risk_per_trade_pct: 0.002
+      risk_per_trade_pct: 0.01
+      max_daily_loss_pct: 0.05
+      max_concurrent_positions: 6
+      factor_exposure_limits:
+        CHF: 0.15
+        US_EQUITY: 0.20
+        OIL: 0.10
+        GOLD: 0.10
+        AUD: 0.20
+        NZD: 0.20
+        FX_MAJOR: 0.30
+        FX_CROSS: 0.30
+        FX_COMMODITY: 0.15
+    portfolio_drawdown_limit: -0.10
+
 capital: 100000
 position_size: 0.95
 rebalance: daily

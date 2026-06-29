@@ -96,16 +96,18 @@ class PortfolioStateBuilder:
             if sl_price and entry_price > 0:
                 sl_distance_pct = abs(entry_price - sl_price) / entry_price
 
-            positions.append(PositionInfo(
-                asset=name,
-                side=side,
-                notional=notional,
-                entry_price=entry_price,
-                current_price=current_price,
-                sl_distance_pct=sl_distance_pct,
-                current_pnl_pct=pnl_pct,
-                mtm_value=mtm,
-            ))
+            positions.append(
+                PositionInfo(
+                    asset=name,
+                    side=side,
+                    notional=notional,
+                    entry_price=entry_price,
+                    current_price=current_price,
+                    sl_distance_pct=sl_distance_pct,
+                    current_pnl_pct=pnl_pct,
+                    mtm_value=mtm,
+                )
+            )
 
         # ── Core equity numbers ──
         peak = max(peak_value, total_equity)
@@ -139,10 +141,7 @@ class PortfolioStateBuilder:
             factor_exposures_list.append((factor, round(exposure, 6)))
             lo, hi = DEFAULT_FACTOR_LIMITS.get(factor, (-1.0, 1.0))
             factor_limits_list.append((factor, lo, hi))
-            if exposure >= 0:
-                headroom = max(0.0, hi - exposure)
-            else:
-                headroom = max(0.0, exposure - lo)
+            headroom = max(0.0, hi - exposure) if exposure >= 0 else max(0.0, exposure - lo)
             factor_headroom_list.append((factor, round(headroom, 6)))
 
         # ── Cluster exposures ──
@@ -155,14 +154,16 @@ class PortfolioStateBuilder:
             shorts = sum(1 for p in cluster_positions if p.side == "short")
             dominant = "long" if longs > shorts else ("short" if shorts > longs else None)
             total_cluster_notional = sum(p.notional for p in cluster_positions)
-            clusters_list.append(ClusterInfo(
-                factor_group=cluster_name,
-                assets=tuple(p.asset for p in cluster_positions),
-                dominant_side=dominant,
-                total_notional=total_cluster_notional,
-                position_count=len(cluster_positions),
-                average_correlation=0.0,  # computed by CorrelationMonitor; placeholder
-            ))
+            clusters_list.append(
+                ClusterInfo(
+                    factor_group=cluster_name,
+                    assets=tuple(p.asset for p in cluster_positions),
+                    dominant_side=dominant,
+                    total_notional=total_cluster_notional,
+                    position_count=len(cluster_positions),
+                    average_correlation=0.0,  # computed by CorrelationMonitor; placeholder
+                )
+            )
 
         # ── Per-asset gate pre-compute ──
         gates_list: list[AssetGateState] = []
@@ -211,25 +212,23 @@ class PortfolioStateBuilder:
     def _compute_asset_gates(self, name: str, engine: Any) -> AssetGateState:
         """Snapshot per-asset gate state. Each bool represents whether
         the asset CAN trade (True = ok, False = blocked)."""
-        pos_mgr = getattr(engine, "pos_mgr", None)
-        has_pos = pos_mgr is not None and pos_mgr.has_position()
-
         sell_only = False
         try:
             from paper_trading.execution.gate_constants import get_sell_only_assets
+
             sell_only = name in get_sell_only_assets()
         except ImportError:
             pass
 
         return AssetGateState(
             asset=name,
-            spread_ok=True,          # populated by spread gate live check
-            session_ok=True,         # populated by session gate
+            spread_ok=True,  # populated by spread gate live check
+            session_ok=True,  # populated by session gate
             sell_only_ok=not sell_only,
             confidence_ok=(lambda v: v >= 55.0 if isinstance(v, (int, float)) else True)(
                 getattr(engine, "_last_confidence", 100.0)
             ),
-            risk_off_ok=True,        # populated by risk-off detector
-            hysteresis_ok=True,      # populated by signal hysteresis
-            conviction_ok=True,      # populated by conviction gate
+            risk_off_ok=True,  # populated by risk-off detector
+            hysteresis_ok=True,  # populated by signal hysteresis
+            conviction_ok=True,  # populated by conviction gate
         )

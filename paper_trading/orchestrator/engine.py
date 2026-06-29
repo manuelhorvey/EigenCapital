@@ -40,14 +40,14 @@ from paper_trading.orchestrator.admission import AdmissionSignal, PortfolioAdmis
 from paper_trading.orchestrator.admission.signal import PositionSide
 from paper_trading.orchestrator.correlation import CorrelationMonitor
 from paper_trading.orchestrator.health import CircuitBreaker, HaltReason, HealthMonitor, RecoveryScheduler
-from paper_trading.replay.wal import WalWriter
-from paper_trading.state_store import EngineSnapshot
 from paper_trading.pek.contracts.performance_state import PerformanceState
 from paper_trading.pek.contracts.portfolio_state import PortfolioStateSnapshot
 from paper_trading.pek.contracts.risk_budget import RiskBudget
 from paper_trading.pek.engine_v2 import RiskEngineV2
 from paper_trading.pek.perf.performance_state_builder import PerformanceStateBuilder
 from paper_trading.pek.state.portfolio_state_builder import PortfolioStateBuilder
+from paper_trading.replay.wal import WalWriter
+from paper_trading.state_store import EngineSnapshot
 
 logger = logging.getLogger("quantforge.orchestrator.engine")
 
@@ -391,8 +391,7 @@ class EngineOrchestrator:
         if self._risk_budget is not None and budget_ref:
             max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
             current_notional = sum(
-                getattr(actor._engine, "_last_entry_notional", 0.0)
-                for actor in self._actors.values()
+                getattr(actor._engine, "_last_entry_notional", 0.0) for actor in self._actors.values()
             )
             if current_notional > max_notional:
                 logger.warning(
@@ -795,7 +794,9 @@ class EngineOrchestrator:
                 persist_count += 1
         results["persist_count"] = persist_count
         results["performance"] = {
-            "n_trades": len(self._perf_builder._outcome_tracker._outcomes) if hasattr(self._perf_builder, "_outcome_tracker") else 0,
+            "n_trades": len(self._perf_builder._outcome_tracker._outcomes)
+            if hasattr(self._perf_builder, "_outcome_tracker")
+            else 0,
         }
         self._write_state_committed()
 

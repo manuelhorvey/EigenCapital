@@ -75,10 +75,7 @@ class RiskEngineV2:
         # ── Portfolio heat ──
         max_heat = self._mode.get("max_leverage", 2.0)
         current_heat = portfolio.gross_exposure / max(portfolio.total_equity, 1.0)
-        if current_heat > max_heat * 0.9:
-            heat_cap = max_heat * 0.9
-        else:
-            heat_cap = max_heat
+        heat_cap = max_heat * 0.9 if current_heat > max_heat * 0.9 else max_heat
 
         # ── Max concurrent positions ──
         max_concurrent = self._mode.get("max_concurrent_positions", 21)

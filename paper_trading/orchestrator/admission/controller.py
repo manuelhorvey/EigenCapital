@@ -35,6 +35,7 @@ class FilterResult:
 class BudgetDelta:
     """What was consumed by the admitted signals this cycle.
     Applied to the next cycle's snapshot."""
+
     leverage_consumed: float = 0.0
     daily_loss_consumed: float = 0.0
     positions_added: int = 0
@@ -89,29 +90,17 @@ class PortfolioAdmissionController:
 
         # 4. Drawdown headroom
         projected_dd_pct = signal.risk_usd / max(snapshot.total_equity, 1.0)
-        if abs(snapshot.drawdown_pct) + projected_dd_pct > abs(snapshot.max_daily_loss) / max(snapshot.total_equity, 1.0):
+        max_loss_frac = abs(snapshot.max_daily_loss) / max(snapshot.total_equity, 1.0)
+        if abs(snapshot.drawdown_pct) + projected_dd_pct > max_loss_frac:
             return FilterResult(False, "drawdown_limit_would_be_exceeded")
 
         # 5. Factor exposure headroom
+        from shared.factor_model import FACTOR_GROUPS
+
         for factor_name, headroom in snapshot.factor_headroom:
-            asset_groups = {
-                "EURUSD": "USD", "AUDUSD": "USD", "NZDUSD": "USD",
-                "USDCHF": "USD", "USDCAD": "USD", "GBPUSD": "USD",
-                "GBPCHF": "USD", "CADCHF": "USD", "NZDCHF": "USD",
-                "EURCAD": "USD",
-                "EURAUD": "EUR", "EURCHF": "EUR", "EURNZD": "EUR", "EURCAD": "EUR",
-                "AUDNZD": "AUD", "EURAUD": "AUD",
-                "NZDCHF": "NZD", "EURNZD": "NZD",
-                "EURCHF": "CHF", "USDCHF": "CHF", "NZDCHF": "CHF", "CADCHF": "CHF", "GBPCHF": "CHF",
-                "USDCAD": "CAD", "CADCHF": "CAD", "EURCAD": "CAD",
-                "GBPUSD": "GBP", "GBPCHF": "GBP",
-                "ES": "US_EQUITY", "NQ": "US_EQUITY", "^DJI": "US_EQUITY",
-                "GC": "COMMODITY",
-            }
-            matching_factors = [f for f, _ in snapshot.factor_headroom if factor_name == f and signal.asset in {a for a_list in [list(assets) for fa, assets in FACTOR_GROUPS.items() if fa == f] for a in a_list}]
-            # Simplified: check if this signal's asset belongs to this factor
-            asset_factor = asset_groups.get(signal.asset, "")
-            if factor_name == asset_factor and headroom < signal.notional_requested / max(snapshot.total_equity, 1.0):
+            assets_in_factor = FACTOR_GROUPS.get(factor_name, frozenset())
+            notional_frac = signal.notional_requested / max(snapshot.total_equity, 1.0)
+            if signal.asset in assets_in_factor and headroom < notional_frac:
                 return FilterResult(False, f"factor_exposure_limit_{factor_name}")
 
         # 6. Per-asset gates
@@ -143,10 +132,7 @@ class PortfolioAdmissionController:
         # Build scoring
         scored: list[tuple[float, AdmissionSignal]] = []
         for sig in candidates:
-            if self._ranking_enabled:
-                score = self._compute_score(sig, snapshot)
-            else:
-                score = sig.calibrated_prob  # fallback: rank by confidence
+            score = self._compute_score(sig, snapshot) if self._ranking_enabled else sig.calibrated_prob
             scored.append((score, sig))
 
         # Sort descending by score
@@ -213,7 +199,7 @@ class PortfolioAdmissionController:
                 break
 
         # Age decay for deferred entries
-        age_decay = self._deferred_decay ** signal.deferred_cycles
+        age_decay = self._deferred_decay**signal.deferred_cycles
 
         raw = (
             w_prob * signal.calibrated_prob
@@ -242,7 +228,6 @@ class PortfolioAdmissionController:
         # Stage A: fast filter
         passed: list[AdmissionSignal] = []
         rejected: list[tuple[AdmissionSignal, str]] = []
-        deferred: list[tuple[AdmissionSignal, int]] = []
 
         for sig in candidates:
             result = self.fast_filter(sig, snapshot)
@@ -263,7 +248,9 @@ class PortfolioAdmissionController:
             len(result.admitted),
             len(result.rejected),
             len(result.deferred),
-            result.budget_delta.leverage_consumed / max(snapshot.leverage_remaining + result.budget_delta.leverage_consumed, 1.0) * 100,
+            result.budget_delta.leverage_consumed
+            / max(snapshot.leverage_remaining + result.budget_delta.leverage_consumed, 1.0)
+            * 100,
         )
 
         return result

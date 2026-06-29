@@ -455,8 +455,7 @@ class EntryService:
             asset._last_sizing_chain = result.chain_breakdown
 
             logger.info(
-                "SIZING %s: eff_cap=%.2f scalar=%.4f dd=%.2f pos_cap=%.2f risk_cap=%.2f "
-                "-> final_not=%.2f qty=%.6f",
+                "SIZING %s: eff_cap=%.2f scalar=%.4f dd=%.2f pos_cap=%.2f risk_cap=%.2f -> final_not=%.2f qty=%.6f",
                 asset.name,
                 result.effective_cap,
                 result.size_scalar_applied,

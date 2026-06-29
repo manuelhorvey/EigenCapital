@@ -409,14 +409,14 @@ class MT5Broker(BrokerInterface):
         info = self._client.symbol_info(asset)
         if info:
             contract_size = info.get("contract_size", 100000.0)
-            step = info.get("volume_step", self._min_lot)
-            broker_min = info.get("min_volume", self._min_lot)
-            min_vol = max(broker_min, self._min_lot)
+            step = info.get("volume_step", 0.01)
+            broker_min = info.get("min_volume", 0.01)
             max_vol = info.get("max_volume", 100.0)
             lots = quantity / contract_size
             lots = round(lots / step) * step
-            lots = max(min_vol, min(lots, max_vol))
-            return lots
+            if lots < broker_min or lots <= 0:
+                return 0.0
+            return min(lots, max_vol)
         return quantity
 
     def _lots_to_quantity(self, mt5_symbol: str, lots: float) -> float:

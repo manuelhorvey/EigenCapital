@@ -28,13 +28,15 @@ class OutcomeTracker:
     ) -> None:
         """Record a completed trade outcome."""
         is_win = exit_reason == "TP"
-        self._outcomes.append({
-            "exit_reason": exit_reason,
-            "r_multiple": r_multiple,
-            "mae_pct": mae_pct,
-            "mfe_pct": mfe_pct,
-            "is_win": is_win,
-        })
+        self._outcomes.append(
+            {
+                "exit_reason": exit_reason,
+                "r_multiple": r_multiple,
+                "mae_pct": mae_pct,
+                "mfe_pct": mfe_pct,
+                "is_win": is_win,
+            }
+        )
         if is_win:
             self._consecutive_losses = 0
         else:

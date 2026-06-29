@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("quantforge.sizing_chain")
@@ -38,7 +37,7 @@ class SizingInput:
     is_mt5: bool = False
     """If True, use MT5 sizing path (kelly + max_position_pct instead of size_scalar)."""
 
-    lot_converter: Callable[[str, float], float] | None = None
+
     """broker._quantity_to_lots or None."""
     ticker: str = ""
 
@@ -147,19 +146,6 @@ class SizingChain:
 
         res.notional = notional
         qty = max(notional / entry_price, 1e-6) if entry_price > 0 else 0.0
-
-        # 5 — MT5 min-volume gate
-        if inp.is_mt5 and inp.lot_converter is not None and qty > 0:
-            lots = inp.lot_converter(inp.ticker, qty)
-            if lots <= 0:
-                res.skip_reason = "below_min_volume"
-                logger.info(
-                    "%s MT5: qty %.6f below min volume, skipping MT5 order",
-                    inp.ticker,
-                    qty,
-                )
-                return res
-            qty = lots
 
         res.quantity = qty
         res.is_viable = True

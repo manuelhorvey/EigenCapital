@@ -509,7 +509,6 @@ class EntryService:
             entry_price=entry_price,
             sl_distance=sl_dist,
             is_mt5=True,
-            lot_converter=getattr(broker, "_quantity_to_lots", None),
             ticker=asset.ticker,
         )
         result = SizingChain.compute(sizing_input)

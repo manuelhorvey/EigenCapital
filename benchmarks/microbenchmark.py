@@ -91,7 +91,7 @@ def _make_dummy_model(asset) -> None:
         asset._truncate_inference = True
         logger = logging.getLogger("benchmark")
         logger.info("%s: dummy model trained on %d rows x %d cols", asset.name, n, len(features.columns))
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError) as e:
         raise RuntimeError(f"Failed to create dummy model for {asset.name}: {e}")
 
 

@@ -59,7 +59,7 @@ class PSIMonitor:
             return None
         try:
             return pd.read_parquet(path)
-        except Exception as e:
+        except (OSError, pd.errors.EmptyDataError, ValueError) as e:
             logger.warning("%s: failed to load PSI baseline: %s", asset, e)
             return None
 

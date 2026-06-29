@@ -516,9 +516,36 @@ class EntryService:
         if not result.is_viable:
             return 0.0
 
+        # MT5 lot conversion: sizing_chain computes qty = notional / entry_price (base units).
+        # For pairs where quote ≠ account currency (USD), entry_price is not the correct
+        # divisor. Determine the correct base-to-account-currency rate.
+        ticker = asset.ticker
+        if ticker.startswith("USD") and "=X" in ticker:
+            # Base is account currency (USDJPY, USDCAD, USDCHF)
+            base_to_acc = 1.0
+        elif "=X" in ticker:
+            quote = ticker[3:6]
+            if quote != "USD":
+                # Cross pair (e.g., GBPJPY, EURCHF) — need base-to-USD rate
+                base = ticker[:3]
+                base_usd = f"{base}USD=X"
+                try:
+                    cross_rate = broker.get_current_price(base_usd)
+                    base_to_acc = cross_rate if cross_rate and cross_rate > 0 else entry_price
+                except Exception:
+                    base_to_acc = entry_price
+            else:
+                # Quote is USD (EURUSD, GBPUSD, etc.) — entry_price is correct
+                base_to_acc = entry_price
+        else:
+            # Futures/indices (^DJI, NQ=F, GC=F, ES=F) — priced in USD
+            base_to_acc = entry_price
+
+        mt5_qty = result.notional / base_to_acc
+
         logger.info(
             "MT5_SIZING %s: equity=%.2f dd=%.2f kelly=%.4f max_pct=%.2f%% risk_cap=%.2f "
-            "min_viable=%.2f -> final_not=%.2f qty=%.4f",
+            "min_viable=%.2f -> final_not=%.2f base_to_acc=%.4f qty=%.4f",
             asset.name,
             mt5_equity,
             result.drawdown_taper,
@@ -527,9 +554,10 @@ class EntryService:
             result.risk_cap_used,
             result.min_viable_notional,
             result.notional,
-            result.quantity,
+            base_to_acc,
+            mt5_qty,
         )
-        return result.quantity
+        return mt5_qty
 
     def _submit_mt5_order(self, asset, broker_side, entry_price, intent_sl, final_tp, order_type=OrderType.ENTRY):
         qty = self._compute_mt5_qty(asset, entry_price, intent_sl)

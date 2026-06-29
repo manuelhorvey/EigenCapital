@@ -37,7 +37,6 @@ class SizingInput:
     is_mt5: bool = False
     """If True, use MT5 sizing path (kelly + max_position_pct instead of size_scalar)."""
 
-
     """broker._quantity_to_lots or None."""
     ticker: str = ""
 

@@ -6,6 +6,7 @@ import EmergencyHaltBanner from '../components/EmergencyHaltBanner'
 import AssetMiniGrid from '../components/AssetMiniGrid'
 import HaltConditions from '../components/HaltConditions'
 import LiveSharpeCard from '../components/LiveSharpeCard'
+import OptimizerRecommendations from '../components/OptimizerRecommendations'
 import Panel from '../components/ui/Panel'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -182,6 +183,7 @@ const DashboardOverview = memo(function DashboardOverview() {
         <AssetMiniGrid />
       </EntranceAnimator>
       <LiveSharpePanel />
+      <OptimizerRecommendations />
       <RiskSignalPanel />
     </div>
   )

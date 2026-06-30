@@ -9,6 +9,7 @@ from paper_trading.api.common import (
     _STORE,
     CONFIDENCE_PATH,
     LOG_PATH,
+    OPTIMIZATION_PATH,
     cache_get,
     cache_set,
     get_vol_baselines,
@@ -253,6 +254,18 @@ def handle_engine_health(path: str, query: dict) -> str:
         indent=2,
     )
 
+
+def handle_optimization(path: str, query: dict) -> str:
+    """Serve drift detector optimization output from data/live/optimization.json."""
+    try:
+        with open(OPTIMIZATION_PATH) as f:
+            data = f.read()
+        cache_set("/optimization.json", data)
+        return data
+    except FileNotFoundError:
+        return json_dumps({"error": "not_found", "message": "No optimization data available yet"}, indent=2)
+    except json.JSONDecodeError:
+        return json_dumps({"error": "invalid_json", "message": "optimization.json is corrupt"}, indent=2)
 
 def handle_metrics(path: str, query: dict) -> str:
     return global_registry().render()

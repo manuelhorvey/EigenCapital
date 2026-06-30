@@ -90,6 +90,9 @@ LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 CONFIDENCE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "confidence_buckets.parquet"
 )
+OPTIMIZATION_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "optimization.json"
+)
 
 MIME_TYPES = {
     ".html": "text/html; charset=utf-8",

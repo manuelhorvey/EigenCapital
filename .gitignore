@@ -15,6 +15,7 @@ paper_trading/models/*
 !paper_trading/models/*_hash.txt
 *.pkl
 data/live/
+data/retrain_output_*.log
 data/shadow_memory/
 data/shadow_feedback/
 data/shadow_learning/

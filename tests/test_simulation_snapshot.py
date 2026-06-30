@@ -291,3 +291,55 @@ class TestSimulationStore:
         import json
         reloaded = json.loads(raw)
         assert reloaded["schema"] == "1.0"
+
+    def test_trade_log_round_trips_mixed_types(self, store):
+        """Regression: trade_log = list[list|dict] used to break PyArrow.
+
+        After the fix, mixed-type trade logs survive parquet round-trip
+        via JSON encoding inside ``trade_log``/``prob_history``.
+        """
+        snap = AssetSnapshot(
+            asset="EURUSD",
+            timestamp="2026-06-30T12:00:00",
+            current_value=100.0,
+            peak_value=110.0,
+            initial_capital=100.0,
+            position_side="long",
+            position_entry=100.0,
+            position_sl=95.0,
+            position_tp=110.0,
+            position_entry_date="2026-06-01",
+            position_vol=0.02,
+            n_trades=3,
+            n_signals=4,
+            trade_log=[
+                {"side": "long", "pnl": 12.0},
+                {"side": "short", "pnl": -3.0},
+                [1, 2, 3],  # mixed inside the same list
+            ],
+            prob_history=[
+                [0.6, 0.2, 0.2],
+                [0.55, 0.30, 0.15],
+            ],
+        )
+        store.capture(
+            portfolio_value=100.0,
+            total_return=0.02,
+            cash_buffer=0.0,
+            asset_snapshots=[snap],
+        )
+        loaded = store.load_snapshot("2026-06-30T12:00:00")
+        assert loaded is not None
+        assert "EURUSD" in loaded.assets
+        rows = loaded.assets["EURUSD"]
+
+        # trade_log and prob_history must survive intact
+        assert rows.trade_log == [
+            {"side": "long", "pnl": 12.0},
+            {"side": "short", "pnl": -3.0},
+            [1, 2, 3],
+        ]
+        assert rows.prob_history == [
+            [0.6, 0.2, 0.2],
+            [0.55, 0.30, 0.15],
+        ]

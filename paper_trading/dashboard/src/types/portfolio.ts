@@ -8,11 +8,16 @@ export interface ProbHistoryEntry {
 }
 
 export interface OpenPositionState {
-  position: Position & { entry_date: string; vol: number }
+  position: Position & { entry_date: string; vol: number; mt5_ticket: string | number | null; layers?: unknown[]; avg_price: number; total_size: number; base_entry_size: number }
   current_value: number
   peak_value: number
+  running_mae: number | null
+  running_mfe: number | null
   trade_log: TradeEntry[]
   prob_history: ProbHistoryEntry[]
+  bars_at_entry: number
+  initial_sl: number | null
+  initial_tp: number | null
 }
 
 export interface RiskSignal {
@@ -134,6 +139,8 @@ export interface PortfolioAdmission {
   budget_notional: number
   admitted: string[]
   rejected: string[]
+  rejection_reasons: Record<string, string>
+  ranking_scores: Record<string, number>
 }
 
 export interface PekVelocity {
@@ -178,6 +185,7 @@ export interface PekPortfolioSnapshot {
   net_exposure: number
   open_position_count: number
   daily_pnl: number
+  daily_loss_remaining: number
   max_daily_loss: number
   drawdown_remaining: number
   leverage_remaining: number
@@ -292,6 +300,10 @@ export interface AssetState {
   last_regime_features: Record<string, number> | null
   gates_trace: Record<string, boolean> | null
   sizing_chain: Record<string, number | string | null> | null
+  total_exits: number
+  sl_exits: number
+  sl_hit_rate: number | null
+  calibration: { applied: boolean; registry_loaded: boolean }
 }
 
 export interface ExitReasons {
@@ -319,7 +331,7 @@ export interface AssetMetrics {
   settled_return: number
   mtm_return: number
   drawdown: number
-  profit_factor: number
+  profit_factor: number | null
   win_rate: number
   n_trades: number
   n_signals: number

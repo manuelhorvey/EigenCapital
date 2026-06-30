@@ -32,18 +32,21 @@ export default function OptimizerRecommendations() {
     retry: 1,
   })
 
+  const flags = report?.flagged_assets
+  const healthy = report?.healthy_assets
+
   const cards = useMemo(() => {
-    if (!report) return null
+    if (!report || !flags) return null
     const items: { label: string; value: string; sub: string; accent: string }[] = []
 
     items.push({
       label: 'Assets Checked',
-      value: (report.n_assets ?? (report.flagged_assets.length + report.healthy_assets.length)).toString(),
-      sub: `${report.flagged_assets.length} flagged, ${report.healthy_assets.length} healthy`,
+      value: (report.n_assets ?? (flags.length + (healthy ?? []).length)).toString(),
+      sub: `${flags.length} flagged, ${(healthy ?? []).length} healthy`,
       accent: '#3b82f6',
     })
 
-    for (const flagged of report.flagged_assets.slice(0, 5)) {
+    for (const flagged of flags.slice(0, 5)) {
       items.push({
         label: flagged.asset,
         value: `${(flagged.wr_margin >= 0 ? '+' : '')}${(flagged.wr_margin * 100).toFixed(1)}%`,
@@ -53,7 +56,7 @@ export default function OptimizerRecommendations() {
     }
 
     return items.length > 0 ? items : null
-  }, [report])
+  }, [report, flags, healthy])
 
   if (isLoading) {
     return (
@@ -63,7 +66,7 @@ export default function OptimizerRecommendations() {
     )
   }
 
-  if (!report || report.flagged_assets.length === 0) {
+  if (!report || !flags || flags.length === 0) {
     return (
       <Panel padding="md">
         <EmptyState message="All assets healthy — no optimization flags" compact />

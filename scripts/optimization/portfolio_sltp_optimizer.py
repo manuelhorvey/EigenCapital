@@ -12,8 +12,12 @@ average barrier distance stays comparable. This separates the R:R
 improvement question from the "make barriers huge" artifact.
 
 Two-pass search:
-1. Coarse grid: ratio ∈ [0.1, 10.0] with 15 logarithmic-spaced points
+1. Coarse grid: ratio ∈ [0.1, 20.0] with 20 log-spaced points
 2. Fine grid: ±30% around coarse optimum, 10 linear-spaced steps
+
+Run on 21 assets (2026-06-30): ALL 21/21 converge to ratio=20.0
+(search boundary). Signal WR unchanged — improvement is purely
+from R:R asymmetry under geometric mean constraint.
 """
 
 from __future__ import annotations
@@ -39,8 +43,8 @@ logger = logging.getLogger("quantforge.optimization.grid_search")
 WALKDIR = Path(__file__).resolve().parent.parent.parent / "walkforward"
 
 MIN_RATIO = 0.1
-MAX_RATIO = 10.0
-N_COARSE = 15
+MAX_RATIO = 20.0
+N_COARSE = 20
 N_FINE = 10
 FINE_RADIUS_FRAC = 0.30
 

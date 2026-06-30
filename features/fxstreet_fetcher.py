@@ -16,7 +16,7 @@ from features.macro_narrative import (
     save_narrative_json,
 )
 
-logger = logging.getLogger("quantforge.fxstreet_fetcher")
+logger = logging.getLogger("quorrin.fxstreet_fetcher")
 
 FXSTREET_URL = "https://www.fxstreet.com/analysis"
 NARRATIVE_DIR = os.path.join(

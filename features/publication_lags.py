@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 
-logger = logging.getLogger("quantforge.publication_lags")
+logger = logging.getLogger("quorrin.publication_lags")
 
 # Publication delays in CALENDAR DAYS for raw FRED series.
 # FRED observation dates are the period the data is *for*.

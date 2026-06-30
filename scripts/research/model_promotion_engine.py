@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime
 
-logger = logging.getLogger("quantforge.model_promotion")
+logger = logging.getLogger("quorrin.model_promotion")
 
 
 def _safe(val, default=0.0):

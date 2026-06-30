@@ -55,7 +55,7 @@ class ExecutionState(Enum):
 
 ET = pytz.timezone("US/Eastern")
 
-logger = logging.getLogger("quantforge.engine")
+logger = logging.getLogger("quorrin.engine")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _STORE = StateStore(BASE)

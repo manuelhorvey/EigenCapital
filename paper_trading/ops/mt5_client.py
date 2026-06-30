@@ -38,7 +38,7 @@ import pandas as pd
 
 from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 
-logger = logging.getLogger("quantforge.mt5_client")
+logger = logging.getLogger("quorrin.mt5_client")
 
 _HEADER_FMT = "!I"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
@@ -468,7 +468,7 @@ class MT5Client:
         volume: float,
         sl: float = 0.0,
         tp: float = 0.0,
-        comment: str = "QuantForge",
+        comment: str = "Quorrin",
         deviation: int = 20,
         idempotency_key: str | None = None,
     ) -> dict:

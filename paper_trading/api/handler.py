@@ -17,7 +17,7 @@ from paper_trading.api.common import (
 )
 from paper_trading.api.routes import GET_ROUTES, GET_ROUTES_PREFIX, POST_ROUTES
 
-logger = logging.getLogger("quantforge.auth")
+logger = logging.getLogger("quorrin.auth")
 
 
 class Handler:

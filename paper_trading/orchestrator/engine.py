@@ -49,7 +49,7 @@ from paper_trading.pek.state.portfolio_state_builder import PortfolioStateBuilde
 from paper_trading.replay.wal import WalWriter
 from paper_trading.state_store import EngineSnapshot
 
-logger = logging.getLogger("quantforge.orchestrator.engine")
+logger = logging.getLogger("quorrin.orchestrator.engine")
 
 # Drawdown recovery threshold for automatic unhalt (must be above trip threshold to avoid flapping).
 # Named separate constant — must NOT be derived from the drawdown_limit passed to
@@ -1136,7 +1136,7 @@ class EngineOrchestrator:
             mt5_sym = broker.ticker_to_mt5_symbol(engine.ticker)
             sym_actors.setdefault(mt5_sym, []).append((name, engine))
 
-        # Build reverse symbol map: MT5 symbol → QuantForge ticker
+        # Build reverse symbol map: MT5 symbol → Quorrin ticker
         reverse_map: dict[str, str] = {}
         for ticker, mt5_sym in broker._symbol_map.items():
             reverse_map[mt5_sym] = ticker

@@ -9,7 +9,7 @@ from typing import Any
 from paper_trading.alerting.channel import Alert, Channel, Severity
 from paper_trading.logging.correlation import get_correlation_id
 
-logger = logging.getLogger("quantforge.alerting.manager")
+logger = logging.getLogger("quorrin.alerting.manager")
 
 
 class AlertManager:

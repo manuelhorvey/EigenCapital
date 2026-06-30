@@ -1,6 +1,6 @@
 # Risk Items
 
-Known open risks in the QuantForge system, ordered by severity.
+Known open risks in the Quorrin system, ordered by severity.
 
 ## 1. Circuit Breaker Calibration (Group 1)
 

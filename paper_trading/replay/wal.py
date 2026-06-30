@@ -40,7 +40,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-logger = logging.getLogger("quantforge.replay.wal")
+logger = logging.getLogger("quorrin.replay.wal")
 
 WAL_DIR = "data/live/wal"
 

@@ -1,5 +1,5 @@
 const TOKEN_META_SELECTOR = 'meta[name="api-token"]'
-const LS_KEY = "quantforge_api_token"
+const LS_KEY = "quorrin_api_token"
 
 function getToken(): string | null {
   const meta = document.querySelector<HTMLMetaElement>(TOKEN_META_SELECTOR)

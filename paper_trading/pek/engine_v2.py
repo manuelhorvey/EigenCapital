@@ -18,7 +18,7 @@ from paper_trading.pek.contracts.performance_state import PerformanceState
 from paper_trading.pek.contracts.portfolio_state import PortfolioStateSnapshot
 from paper_trading.pek.contracts.risk_budget import RiskBudget
 
-logger = logging.getLogger("quantforge.pek.engine_v2")
+logger = logging.getLogger("quorrin.pek.engine_v2")
 
 
 class RiskEngineV2:

@@ -21,7 +21,7 @@ from backtests import compute_per_fold_labels
 from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quantforge.sl_sensitivity")
+logger = logging.getLogger("quorrin.sl_sensitivity")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

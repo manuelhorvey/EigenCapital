@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-logger = logging.getLogger("quantforge.shadow.actions")
+logger = logging.getLogger("quorrin.shadow.actions")
 
 
 def compute_shadow_actions(

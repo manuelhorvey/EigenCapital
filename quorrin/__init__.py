@@ -11,7 +11,7 @@ def setup_logging(level=logging.INFO, log_file=None):
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    root = logging.getLogger("quantforge")
+    root = logging.getLogger("quorrin")
     root.setLevel(level)
 
     if not any(isinstance(h, logging.StreamHandler) for h in root.handlers):
@@ -25,7 +25,7 @@ def setup_logging(level=logging.INFO, log_file=None):
         root.addHandler(fh)
 
     # Add the filter to the handlers, not just the logger. Python's logging
-    # propagates records from child loggers (e.g. "quantforge.asset_engine")
+    # propagates records from child loggers (e.g. "quorrin.asset_engine")
     # through to the parent's callHandlers() which bypasses the parent logger's
     # own filter() — meaning a logger-level filter never runs for propagated
     # records.  Adding the filter to the handlers ensures it always fires
@@ -33,6 +33,6 @@ def setup_logging(level=logging.INFO, log_file=None):
     filter_ = CorrelationIdFilter()
     for h in root.handlers:
         h.addFilter(filter_)
-    root.addFilter(filter_)  # defensive — catches direct emit on the quantforge logger
+    root.addFilter(filter_)  # defensive — catches direct emit on the quorrin logger
 
     return root

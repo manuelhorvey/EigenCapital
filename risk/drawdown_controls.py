@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("quantforge.drawdown_controls")
+logger = logging.getLogger("quorrin.drawdown_controls")
 
 
 def compute_drawdown(current_value: float, peak_value: float) -> float:

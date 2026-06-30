@@ -6,7 +6,7 @@ from enum import Enum
 
 from paper_trading.entry.decision import TradeDecision
 
-logger = logging.getLogger("quantforge.paper_trading.deferred_entry")
+logger = logging.getLogger("quorrin.paper_trading.deferred_entry")
 
 
 class DeferredEntryStatus(Enum):

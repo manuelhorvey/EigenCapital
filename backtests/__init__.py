@@ -1,4 +1,4 @@
-"""Backtesting and model assessment utilities for QuantForge."""
+"""Backtesting and model assessment utilities for Quorrin."""
 
 
 def compute_per_fold_labels(df, *args, **kwargs):

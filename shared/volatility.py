@@ -25,7 +25,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quantforge.volatility")
+logger = logging.getLogger("quorrin.volatility")
 
 VOLATILITY_PRIMITIVE_VERSION = "v1"
 

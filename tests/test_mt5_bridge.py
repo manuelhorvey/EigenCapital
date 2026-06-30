@@ -137,7 +137,7 @@ class TestFillPrice:
 
 
 def _make_pos(side="long", **kw):
-    from quantforge.domain.entities.position import PositionIntent, PositionSide
+    from quorrin.domain.entities.position import PositionIntent, PositionSide
 
     s = PositionSide.LONG if side == "long" else PositionSide.SHORT
     defaults = dict(

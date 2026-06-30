@@ -6,7 +6,7 @@ import pytest
 
 from paper_trading.entry.decision import PositionSide
 from paper_trading.services.entry_service import EntryService
-from quantforge.domain.entities.position import OrderType, StackLayer
+from quorrin.domain.entities.position import OrderType, StackLayer
 
 
 @pytest.fixture

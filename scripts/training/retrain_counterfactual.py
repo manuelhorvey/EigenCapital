@@ -42,7 +42,7 @@ from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
 from labels.compat import PurgedWalkForwardFolds
 from labels.triple_barrier import apply_triple_barrier
-from quantforge.domain.value_objects.statistical_metrics import (
+from quorrin.domain.value_objects.statistical_metrics import (
     _moments,
     deflated_sharpe_ratio,
     probabilistic_sharpe_ratio,

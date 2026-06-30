@@ -162,7 +162,7 @@ class TestFetchAssetData:
                     with patch("features.data_fetch._normalize_index", side_effect=lambda idx: idx):
                         result = fetch_asset_data("EURUSD", "EURUSD=X")
                         prices, rate_diffs, *_ = result
-                        assert "close" in prices.columns
+                        assert "EURUSD" in prices.columns
 
     def test_raises_on_insufficient_history(self):
         series = pd.Series([1.0], name="close")
@@ -197,7 +197,7 @@ class TestFetchAssetData:
                 ):
                     result = fetch_asset_data("EURUSD", "EURUSD=X")
                     prices, rate_diffs, *_ = result
-                    assert "close" in prices.columns
+                    assert "EURUSD" in prices.columns
 
 
 # ── fetch_asset_ohlcv ──────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-# QuantForge Dashboard — Architecture v1.0
+# Quorrin Dashboard — Architecture v1.0
 
 ## System Boundary
 

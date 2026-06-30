@@ -33,9 +33,9 @@ import numpy as np
 import pandas as pd
 
 from paper_trading.state_store import StateStore
-from quantforge.domain.value_objects.statistical_metrics import probabilistic_sharpe_ratio
+from quorrin.domain.value_objects.statistical_metrics import probabilistic_sharpe_ratio
 
-logger = logging.getLogger("quantforge.live_sharpe")
+logger = logging.getLogger("quorrin.live_sharpe")
 
 SECONDS_PER_CYCLE = 30
 CYCLES_PER_DAY = int(24 * 3600 / SECONDS_PER_CYCLE)  # 2880

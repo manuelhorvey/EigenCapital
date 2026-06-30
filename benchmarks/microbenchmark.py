@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone hot-path microbenchmark for QuantForge.
+"""Standalone hot-path microbenchmark for Quorrin.
 
 Mocks at the network boundary (data_fetch.fetch_live / features.data_fetch.*)
 so the full feature build, inference, and state-write path runs without
@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s:%(name)s:%(message)s")
 # Suppress noisy loggers during benchmark
-for name in ["quantforge", "yfinance", "matplotlib", "urllib3"]:
+for name in ["quorrin", "yfinance", "matplotlib", "urllib3"]:
     logging.getLogger(name).setLevel(logging.ERROR)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -290,7 +290,7 @@ def run_profiled(args) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="QuantForge hot-path microbenchmark")
+    parser = argparse.ArgumentParser(description="Quorrin hot-path microbenchmark")
     parser.add_argument("--assets", type=int, default=15, help="number of assets (default: 15)")
     parser.add_argument("--workers", type=int, default=8, help="ThreadPoolExecutor workers (default: 8)")
     parser.add_argument("--cycles", type=int, default=5, help="warm cycles after cold run (default: 5)")

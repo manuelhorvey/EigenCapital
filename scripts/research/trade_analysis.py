@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trade win/loss rate and duration analysis for QuantForge."""
+"""Trade win/loss rate and duration analysis for Quorrin."""
 
 import json
 import logging
@@ -19,7 +19,7 @@ from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quantforge.trade_analysis")
+logger = logging.getLogger("quorrin.trade_analysis")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -423,7 +423,7 @@ def aggregate(trades: list[dict]) -> dict:
 def print_report(pt: dict, hist: dict, fq: dict | None = None):
     sep = "=" * 74
     print(f"\n{sep}")
-    print("  QUANTFORGE TRADE ANALYSIS REPORT")
+    print("  QUORRIN TRADE ANALYSIS REPORT")
     print(sep)
     if pt and pt.get("n_trades", 0) > 0:
         print(f"\n  PHASE 1: PAPER TRADING ({pt['n_trades']} trades)")

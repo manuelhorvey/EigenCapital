@@ -267,5 +267,6 @@ def handle_optimization(path: str, query: dict) -> str:
     except json.JSONDecodeError:
         return json_dumps({"error": "invalid_json", "message": "optimization.json is corrupt"}, indent=2)
 
+
 def handle_metrics(path: str, query: dict) -> str:
     return global_registry().render()

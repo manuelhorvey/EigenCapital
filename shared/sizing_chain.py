@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("quantforge.sizing_chain")
+logger = logging.getLogger("quorrin.sizing_chain")
 
 
 @dataclass

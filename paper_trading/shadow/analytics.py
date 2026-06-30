@@ -6,7 +6,7 @@ import numpy as np
 from paper_trading.shadow.feedback import read_feedback
 from paper_trading.shadow.learning import compile_shadow_learning
 
-logger = logging.getLogger("quantforge.shadow.analytics")
+logger = logging.getLogger("quorrin.shadow.analytics")
 
 PAPER_PORTFOLIO = [
     "GC",

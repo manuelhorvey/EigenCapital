@@ -2,7 +2,7 @@ import logging
 import math
 from typing import Optional
 
-logger = logging.getLogger("quantforge.mas")
+logger = logging.getLogger("quorrin.mas")
 
 
 def _safe(val, default=0.0):

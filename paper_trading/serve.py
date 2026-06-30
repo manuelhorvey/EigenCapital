@@ -8,10 +8,10 @@ from socketserver import ThreadingMixIn
 from paper_trading.api.handler import Handler
 from paper_trading.metrics.exposition import global_registry
 
-logger = logging.getLogger("quantforge.serve")
+logger = logging.getLogger("quorrin.serve")
 
 DEFAULT_PORT = 5000
-DEFAULT_BIND = os.environ.get("QUANTFORGE_BIND", "127.0.0.1")
+DEFAULT_BIND = os.environ.get("QUORRIN_BIND", "127.0.0.1")
 
 # ── Prometheus metrics ────────────────────────────────────────────────────
 _metrics = global_registry()
@@ -52,7 +52,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
     if bind != "127.0.0.1":
         logger.warning(
             "⚠  Dashboard binding to %s (not localhost). "
-            "Ensure API auth token is configured via QUANTFORGE_API_TOKEN or paper_trading.yaml.",
+            "Ensure API auth token is configured via QUORRIN_API_TOKEN or paper_trading.yaml.",
             bind,
         )
         from paper_trading.api.common import _load_auth_token

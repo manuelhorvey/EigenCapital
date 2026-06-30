@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 
 import pandas as pd
 
-logger = logging.getLogger("quantforge.simulation_snapshot")
+logger = logging.getLogger("quorrin.simulation_snapshot")
 
 SNAPSHOT_DIR = "data/live/snapshots"
 SNAPSHOT_FILE = "simulation_history.parquet"

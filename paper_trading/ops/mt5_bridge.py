@@ -1,7 +1,7 @@
 """MT5 Bridge Server — runs under Wine Python.
 
 Connects to the MT5 terminal, listens on a local TCP socket, and
-executes MetaTrader5 operations on behalf of the host QuantForge process.
+executes MetaTrader5 operations on behalf of the host Quorrin process.
 
 Protocol: JSON-RPC over TCP with 4-byte length-prefixed frames.
 Each frame: [4-byte big-endian payload length][UTF-8 JSON payload].
@@ -218,7 +218,7 @@ def _handle_place_order(params: dict) -> dict:
     volume = params["volume"]
     sl = params.get("sl", 0.0)
     tp = params.get("tp", 0.0)
-    comment = params.get("comment", "QuantForge")
+    comment = params.get("comment", "Quorrin")
     deviation = params.get("deviation", 20)
 
     order_type = mt5.ORDER_TYPE_BUY if side == "buy" else mt5.ORDER_TYPE_SELL
@@ -332,7 +332,7 @@ def _handle_modify_position(params: dict) -> dict:
         "price": pos.price_open,
         "deviation": 20,
         "magic": 202406,
-        "comment": "QuantForge mod",
+        "comment": "Quorrin mod",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_IOC,
     }
@@ -374,7 +374,7 @@ def _handle_close_position(params: dict) -> dict:
         "price": price,
         "deviation": 20,
         "magic": 202406,
-        "comment": "QuantForge close",
+        "comment": "Quorrin close",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_IOC,
     }

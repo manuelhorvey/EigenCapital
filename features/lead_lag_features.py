@@ -9,7 +9,7 @@ import pandas as pd
 
 from features.pair_specific import build_lead_lag_features
 
-logger = logging.getLogger("quantforge.lead_lag_features")
+logger = logging.getLogger("quorrin.lead_lag_features")
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_EDGES_PATH = os.path.join(PROJECT_ROOT, "data", "research", "lead_lag_edges.yaml")

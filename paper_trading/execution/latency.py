@@ -12,7 +12,7 @@ import random
 
 from shared.execution_config import ExecutionConfig
 
-logger = logging.getLogger("quantforge.latency_model")
+logger = logging.getLogger("quorrin.latency_model")
 
 
 class LatencyModel:

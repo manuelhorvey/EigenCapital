@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-logger = logging.getLogger("quantforge.ensemble")
+logger = logging.getLogger("quorrin.ensemble")
 
 
 class EnsembleSignal:

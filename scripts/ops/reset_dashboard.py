@@ -29,7 +29,7 @@ def clean_directory_contents(dir_path):
 
 def main():
     print("========================================================")
-    print("  QuantForge Dashboard & Paper Trading State Reset Tool ")
+    print("  Quorrin Dashboard & Paper Trading State Reset Tool ")
     print("========================================================")
     
     force = len(sys.argv) > 1 and sys.argv[1] in ("-y", "--yes")

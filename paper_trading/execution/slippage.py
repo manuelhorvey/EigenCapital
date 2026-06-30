@@ -12,7 +12,7 @@ import logging
 
 from shared.execution_config import ExecutionConfig
 
-logger = logging.getLogger("quantforge.slippage_model")
+logger = logging.getLogger("quorrin.slippage_model")
 
 
 class SlippageModel:

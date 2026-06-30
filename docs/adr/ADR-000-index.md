@@ -1,8 +1,8 @@
-# ADR Index — QuantForge
+# ADR Index — Quorrin
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
 
-Architecture Decision Records for the QuantForge quantitative trading framework.
+Architecture Decision Records for the Quorrin quantitative trading framework.
 
 ## Status Legend
 

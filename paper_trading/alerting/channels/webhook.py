@@ -10,7 +10,7 @@ from typing import Any
 
 from paper_trading.alerting.channel import Alert, Channel, Severity
 
-logger = logging.getLogger("quantforge.alerting.webhook")
+logger = logging.getLogger("quorrin.alerting.webhook")
 
 _COLOR_MAP: dict[Severity, str] = {
     Severity.CRITICAL: "danger",

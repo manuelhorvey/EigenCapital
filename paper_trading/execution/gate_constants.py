@@ -5,7 +5,7 @@ from typing import Final
 
 from paper_trading.config_manager import get_config
 
-logger = logging.getLogger("quantforge.gate_constants")
+logger = logging.getLogger("quorrin.gate_constants")
 
 
 def get_sell_only_assets() -> frozenset[str]:

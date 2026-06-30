@@ -21,7 +21,7 @@ import pandas as pd
 
 from scripts.optimization.trade_outcome_repository import TradeOutcomeRepository
 
-logger = logging.getLogger("quantforge.optimization.per_asset_quality")
+logger = logging.getLogger("quorrin.optimization.per_asset_quality")
 
 TP_TIGHT_THRESHOLD = 0.80
 SL_WIDE_THRESHOLD = 0.50

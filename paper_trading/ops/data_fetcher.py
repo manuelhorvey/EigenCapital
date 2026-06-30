@@ -8,7 +8,7 @@ import pandas as pd
 import pytz
 import yfinance as yf
 
-logger = logging.getLogger("quantforge.data_fetcher")
+logger = logging.getLogger("quorrin.data_fetcher")
 
 ET = pytz.timezone("US/Eastern")
 

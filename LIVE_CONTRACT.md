@@ -303,7 +303,7 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 **Client:** `paper_trading/ops/mt5_client.py` — host-side TCP client
 **Broker:** `paper_trading/execution/mt5_broker.py` — implements `BrokerInterface`
 **Port:** `9879` (configurable via `MT5_BRIDGE_PORT` env var, default in `configs/paper_trading.yaml`)
-**Symbol map:** `configs/mt5_symbol_map.yaml` — maps QuantForge tickers to MT5 symbols
+**Symbol map:** `configs/mt5_symbol_map.yaml` — maps Quorrin tickers to MT5 symbols
 
 ### Operations actively routed to MT5
 

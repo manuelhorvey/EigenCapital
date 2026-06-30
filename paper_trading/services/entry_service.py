@@ -8,11 +8,11 @@ import pytz
 from paper_trading.entry.decision import EntryAction, PositionIntent, PositionSide
 from paper_trading.entry.deferred_entry import DeferredEntryStatus
 from paper_trading.governance.multipliers import compute_effective_multipliers
-from quantforge.domain.entities.position import OrderType, StackLayer
+from quorrin.domain.entities.position import OrderType, StackLayer
 from shared.sizing_chain import SizingChain, SizingInput, SizingResult
 from shared.volatility import estimate_ewm_vol
 
-logger = logging.getLogger("quantforge.entry_service")
+logger = logging.getLogger("quorrin.entry_service")
 
 ET = pytz.timezone("US/Eastern")
 

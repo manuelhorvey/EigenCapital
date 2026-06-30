@@ -12,7 +12,7 @@ from features.publication_lags import (
 from features.registry import FEATURE_CONTRACT_VALIDATION, FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
 
-logger = logging.getLogger("quantforge.features.builder")
+logger = logging.getLogger("quorrin.features.builder")
 
 
 def _normalize(df: pd.DataFrame) -> pd.DataFrame:

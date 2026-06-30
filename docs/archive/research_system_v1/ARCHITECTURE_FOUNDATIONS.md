@@ -1,4 +1,4 @@
-# QuantForge — Architecture Foundations
+# Quorrin — Architecture Foundations
 
 ## Status: Locked
 
@@ -115,7 +115,7 @@ Tested in Phase H across BTC (endogenous vol, reflexive order flow) and GC (macr
 
 The research pipeline is complete when all three expansion axes and the generalization boundary have been tested, and the empirical decomposition matches the theoretical decomposition.
 
-**For QuantForge, this condition is met:**
+**For Quorrin, this condition is met:**
 
 - ✔ Representation layer: tested and generalizable (FX, BTC, GC)
 - ✔ Labeling layer: identified as dominant control knob; three distinct label types characterized

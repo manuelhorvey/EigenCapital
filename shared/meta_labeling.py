@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-logger = logging.getLogger("quantforge.meta_labeling")
+logger = logging.getLogger("quorrin.meta_labeling")
 
 META_CONFIDENCE_THRESHOLD_FULL = 0.55
 META_CONFIDENCE_THRESHOLD_REDUCED = 0.40

@@ -1,4 +1,4 @@
-from quantforge.domain.entities import (
+from quorrin.domain.entities import (
     AssetContract,
     AssetSpec,
     Portfolio,
@@ -12,7 +12,7 @@ from quantforge.domain.entities import (
     TradeDecision,
     TradeLog,
 )
-from quantforge.domain.value_objects import (
+from quorrin.domain.value_objects import (
     DriftMetrics,
     ExecutionConfig,
     FillResult,

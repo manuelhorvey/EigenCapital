@@ -32,7 +32,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-logger = logging.getLogger("quantforge.calibration")
+logger = logging.getLogger("quorrin.calibration")
 
 
 def compute_ece(

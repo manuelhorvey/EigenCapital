@@ -13,7 +13,7 @@ include = [
     "monitoring*",
     "paper_trading*",
     "portfolio*",
-    "quantforge*",
+    "quorrin*",
     "risk*",
     "shared*",
     "signals*",
@@ -26,13 +26,13 @@ data = ["processed/*.parquet", "processed/*.csv", "research/*.json", "research/*
 
 
 [project]
-name = "quantforge"
+name = "quorrin"
 version = "0.1.0"
 description = "Modular quantitative research framework for regime-conditioned equity and FX strategy research"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{name = "MktOwl"}]
+authors = [{name = "Eleven Forge"}]
 keywords = ["quantitative-finance", "trading", "machine-learning", "xgboost"]
 classifiers = [
     "Development Status :: 3 - Alpha",

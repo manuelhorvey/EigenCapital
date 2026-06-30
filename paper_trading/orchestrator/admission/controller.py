@@ -20,7 +20,7 @@ from paper_trading.orchestrator.admission.signal import AdmissionSignal
 from paper_trading.pek.contracts.portfolio_state import PortfolioStateSnapshot
 from paper_trading.pek.contracts.risk_budget import RiskBudget
 
-logger = logging.getLogger("quantforge.orchestrator.admission")
+logger = logging.getLogger("quorrin.orchestrator.admission")
 
 
 @dataclass

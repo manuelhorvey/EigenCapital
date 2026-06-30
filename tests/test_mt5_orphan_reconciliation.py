@@ -348,7 +348,7 @@ class TestReconcilePhaseB:
             {"ticket": 12345, "symbol": "EURUSD.fx", "type": "buy",
              "volume": 0.1, "price_open": 1.0500, "price_current": 1.0600,
              "profit": 100.0, "commission": 0.0, "sl": 1.0400, "tp": 1.0700,
-             "time": 0, "comment": "QuantForge"},
+             "time": 0, "comment": "Quorrin"},
         ]
         actor = _OrphanActor("EURUSD", position={
             "side": "long", "mt5_ticket": 12345,
@@ -378,7 +378,7 @@ class TestPreOpenGuard:
             {"ticket": 99999, "symbol": "EURUSD.fx", "type": "buy",
              "volume": 0.1, "price_open": 1.0500, "price_current": 1.0600,
              "profit": 100.0, "commission": 0.0, "sl": 1.0400, "tp": 1.0700,
-             "time": 0, "comment": "QuantForge"},
+             "time": 0, "comment": "Quorrin"},
         ]
         mock_client._close_result = {"result": {"retcode": 10009, "ticket": 99999}}
 

@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("quantforge.kelly")
+logger = logging.getLogger("quorrin.kelly")
 
 
 def compute_edge(prob_long: float, tp_mult: float, sl_mult: float) -> float:

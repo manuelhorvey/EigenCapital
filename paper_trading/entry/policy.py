@@ -9,7 +9,7 @@ from paper_trading.entry.decision import (
 )
 from paper_trading.entry.deferred_entry import DeferredEntry
 
-logger = logging.getLogger("quantforge.paper_trading.execution_policy")
+logger = logging.getLogger("quorrin.paper_trading.execution_policy")
 
 
 class BasePolicy:

@@ -1,10 +1,10 @@
-# QuantForge
+# Quorrin
 
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Status](https://img.shields.io/badge/status-paper%20trading-green)
 ![WalkForward](https://img.shields.io/badge/walk--forward-36%20assets%20screened-success)
 ![Portfolio](https://img.shields.io/badge/portfolio-19%20dashboard%20assets-blue)
-[![codecov](https://codecov.io/gh/manuelhorvey/QuantForge/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/QuantForge)
+[![codecov](https://codecov.io/gh/manuelhorvey/Quorrin/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/Quorrin)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
@@ -119,7 +119,7 @@ Allocation sums to ~0.90. Remaining capacity held as cash buffer.
 
 # MT5 Bridge Integration
 
-QuantForge can route data fetching and order execution through a live MetaTrader 5 terminal (Exness demo) running under Wine.
+Quorrin can route data fetching and order execution through a live MetaTrader 5 terminal (Exness demo) running under Wine.
 
 ## Architecture
 
@@ -147,7 +147,7 @@ Linux Host                          Wine Prefix
 
 ## Symbol Mapping
 
-QuantForge tickers (e.g. `GC=F`) are mapped to MT5 symbols (e.g. `XAUUSD`) via `configs/mt5_symbol_map.yaml`.
+Quorrin tickers (e.g. `GC=F`) are mapped to MT5 symbols (e.g. `XAUUSD`) via `configs/mt5_symbol_map.yaml`.
 
 ## Capital Sync & Independent Sizing
 
@@ -434,7 +434,7 @@ Persistent state is stored in SQLite WAL mode with append-oriented semantics.
 
 # Governance Framework
 
-QuantForge uses independently configurable governance layers with worst-wins aggregation,
+Quorrin uses independently configurable governance layers with worst-wins aggregation,
 plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
 
 ## Governance Layers (15 + HealthMonitor)
@@ -575,8 +575,8 @@ A React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000.
 ## Install
 
 ```bash
-git clone https://github.com/manuelhorvey/QuantForge.git
-cd QuantForge
+git clone https://github.com/manuelhorvey/Quorrin.git
+cd Quorrin
 
 python -m venv .venv
 source .venv/bin/activate
@@ -617,7 +617,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | Variable                      | Required | Purpose                                |
 | ----------------------------- | -------- | -------------------------------------- |
 | `PYTHONPATH`                  | Yes      | Set to `.`                             |
-| `QUANTFORGE_REFRESH_INTERVAL` | No       | Engine loop interval (default 30s)      |
+| `QUORRIN_REFRESH_INTERVAL` | No       | Engine loop interval (default 30s)      |
 | `MT5_ACCOUNT`                 | No*      | Exness MT5 account number              |
 | `MT5_PASSWORD`                | No*      | Exness MT5 account password            |
 | `MT5_SERVER`                  | No*      | Exness MT5 server (e.g. Exness-MT5Trial2) |
@@ -718,7 +718,7 @@ labels/                       # Triple-barrier labeling, meta-labeling
 signals/                      # Signal generation, alpha weighting
 risk/                         # Drawdown controls, exposure limits
 portfolio/                    # HRP allocation, risk parity
-quantforge/                   # DDD-structured application core
+quorrin/                   # DDD-structured application core
 monitoring/                   # PSI drift, validity state machine, MLflow
 benchmarks/                   # Performance benchmarks
 tests/                        # Test suite

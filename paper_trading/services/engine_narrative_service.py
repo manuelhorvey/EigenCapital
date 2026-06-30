@@ -11,7 +11,7 @@ from features.fxstreet_fetcher import (
 )
 from paper_trading.config_manager import get_config
 
-logger = logging.getLogger("quantforge.engine_narrative_service")
+logger = logging.getLogger("quorrin.engine_narrative_service")
 
 ET = pytz.timezone("US/Eastern")
 

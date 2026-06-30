@@ -74,7 +74,7 @@ function Header({ onMenuClick }: HeaderProps) {
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline gap-1.5">
-              <h1 className="text-xs sm:text-sm font-bold tracking-tight text-primary leading-none truncate">QuantForge</h1>
+              <h1 className="text-xs sm:text-sm font-bold tracking-tight text-primary leading-none truncate">Quorrin</h1>
               {sequenceId != null && (
                 <span className="hidden sm:inline text-[8px] text-tertiary/40 font-mono leading-none">#{sequenceId}</span>
               )}

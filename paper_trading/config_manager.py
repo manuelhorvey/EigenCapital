@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger("quantforge.config_manager")
+logger = logging.getLogger("quorrin.config_manager")
 
 # Shared MT5 bridge port — single source of truth
 DEFAULT_MT5_BRIDGE_PORT = 9879
@@ -163,7 +163,7 @@ class EngineConfig:
         if mode_overrides:
             data = cls._merge_mode_overrides(data, mode_overrides)
 
-        api_token = os.environ.get("QUANTFORGE_API_TOKEN", data.get("api_token", ""))
+        api_token = os.environ.get("QUORRIN_API_TOKEN", data.get("api_token", ""))
 
         return cls(
             mode=mode_name,

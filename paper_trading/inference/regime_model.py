@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-logger = logging.getLogger("quantforge.regime_model")
+logger = logging.getLogger("quorrin.regime_model")
 
 REGIME_MODEL_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

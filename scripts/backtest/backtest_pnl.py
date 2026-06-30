@@ -32,7 +32,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from quantforge.domain.value_objects.statistical_metrics import (
+from quorrin.domain.value_objects.statistical_metrics import (
     _moments,
     deflated_sharpe_ratio,
     herfindahl_index,

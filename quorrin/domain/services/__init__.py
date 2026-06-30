@@ -1,4 +1,4 @@
-from quantforge.domain.services.volatility_service import (
+from quorrin.domain.services.volatility_service import (
     compute_atr_series,
     compute_atr_pct,
     compute_latest_atr,
@@ -6,14 +6,14 @@ from quantforge.domain.services.volatility_service import (
     estimate_gap_risk,
     estimate_ewm_vol,
 )
-from quantforge.domain.services.sizing_service import (
+from quorrin.domain.services.sizing_service import (
     calculate_position_size,
     risk_contribution,
     risk_parity_weights,
     compute_equal_risk_weights,
 )
-from quantforge.domain.services.signal_service import SignalService, FixedThresholdService
-from quantforge.domain.services.pnl_service import PnLService
+from quorrin.domain.services.signal_service import SignalService, FixedThresholdService
+from quorrin.domain.services.pnl_service import PnLService
 
 __all__ = [
     "compute_atr_series",

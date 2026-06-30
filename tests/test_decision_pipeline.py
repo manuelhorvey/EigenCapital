@@ -26,7 +26,7 @@ from paper_trading.execution.decision_pipeline import (
     update_prob_history,
     update_regime_bar_counter,
 )
-from quantforge.domain.entities.position import PositionIntent, StackLayer
+from quorrin.domain.entities.position import PositionIntent, StackLayer
 
 
 def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True, name="TEST"):

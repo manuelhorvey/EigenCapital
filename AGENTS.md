@@ -1,4 +1,4 @@
-# QuantForge — Agent Operating Guide
+# Quorrin — Agent Operating Guide
 
 ## Project Identity
 
@@ -216,10 +216,10 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 
 The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-token authentication.
 
-- **Config**: Set `QUANTFORGE_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
+- **Config**: Set `QUORRIN_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
 - **Behavior**: If a token is configured, all JSON API endpoints and POST endpoints require `Authorization: Bearer <token>`. Static files (HTML/CSS/JS) are accessible without auth.
 - **Default**: No token configured = open access (safe because the server binds to 127.0.0.1 by default).
-- **Bind address**: Override with `QUANTFORGE_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.
+- **Bind address**: Override with `QUORRIN_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.
 - **CORS**: Restricted to `http://127.0.0.1:3000` (Vite dev server) and same-origin. No wildcard.
 
 ## Known Issues
@@ -453,7 +453,7 @@ The filter still helps — reduces max_dd and enables SELL-only signals to domin
 
 `scipy.stats.norm.cdf(z)` saturates at exactly **1.0 in float64** for z > ~8.2 and at **0.0** for z < ~-8.2. This means PSR and DSR cannot discriminate between "strongly significant" and "overwhelmingly significant" once the z-score exceeds ~8.2.
 
-**Practical implication for QuantForge**: With n ≈ 300 observations (typical walk-forward test window), PSR(>0) saturates at 1.0 for any Sharpe > ~0.3. The "mediocre" scenario (Sharpe=0.7, n=252) produces z ≈ 11, well into the saturation zone. PSR(>0) = 1.0000 for 16 of 18 assets in the portfolio backtest — this doesn't mean those assets are equally significant; it means they all exceed the float64 ceiling.
+**Practical implication for Quorrin**: With n ≈ 300 observations (typical walk-forward test window), PSR(>0) saturates at 1.0 for any Sharpe > ~0.3. The "mediocre" scenario (Sharpe=0.7, n=252) produces z ≈ 11, well into the saturation zone. PSR(>0) = 1.0000 for 16 of 18 assets in the portfolio backtest — this doesn't mean those assets are equally significant; it means they all exceed the float64 ceiling.
 
 **Where DSR is discriminative**: DSR's useful range is Sharpe in approximately [0.0, 0.8] for n ≈ 250, and narrower for larger n. Outside this range, DSR is a binary pass/fail indicator (1.0 for strong signals, 0.0 for negative). At the current portfolio Sharpe of 29, DSR(18) being 1.0 is correct but provides zero selective information — it will say "PASS" regardless of whether num_trials is 18 or 1800. This is a ceiling effect of float64, not a calculation error. DSR will only become a meaningful gate when portfolio Sharpe drops into the 0.5–2.5 range.
 
@@ -588,7 +588,7 @@ New handlers in `replay/runner.py`:
 | `paper_trading/replay/runner.py` | Three new handlers for causal boundary events |
 | `paper_trading/replay/wal.py` | Docstring updated with causal vs observability event tiers |
 | `paper_trading/inference/training.py` | Model hash sidecar file written at save time |
-| `quantforge/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
+| `quorrin/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
 | `scripts/training/retrain_counterfactual.py` | **NEW** — feature ablation walk-forward test |
 | `scripts/diagnostics/check_chf_correlation.py` | **NEW** — CHF cluster independence verification |
 | `paper_trading/ops/slack_alerter.py` | **NEW** — WAL-tailing Slack alert daemon |

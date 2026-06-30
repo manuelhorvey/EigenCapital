@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
-logger = logging.getLogger("quantforge.governance_service")
+logger = logging.getLogger("quorrin.governance_service")
 
 ET = pytz.timezone("US/Eastern")
 

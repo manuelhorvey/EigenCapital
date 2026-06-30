@@ -28,7 +28,7 @@ from paper_trading.execution.latency import LatencyModel
 from paper_trading.execution.slippage import SlippageModel
 from shared.execution_config import ExecutionConfig
 
-logger = logging.getLogger("quantforge.execution_simulator")
+logger = logging.getLogger("quorrin.execution_simulator")
 
 OrderType = Literal["entry", "stop_loss", "take_profit"]
 Side = Literal["buy", "sell"]

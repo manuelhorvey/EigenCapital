@@ -6,9 +6,9 @@ from typing import Any
 
 import pandas as pd
 
-from quantforge.domain.entities.position import OrderType, StackCommand
+from quorrin.domain.entities.position import OrderType, StackCommand
 
-logger = logging.getLogger("quantforge.stacking")
+logger = logging.getLogger("quorrin.stacking")
 
 
 @dataclass

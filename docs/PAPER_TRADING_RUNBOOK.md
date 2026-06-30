@@ -1,4 +1,4 @@
-# QuantForge — Paper Trading Runbook
+# Quorrin — Paper Trading Runbook
 
 Operational procedures for the paper trading system. This document is for the person responsible for monitoring and maintaining the live paper trading instance.
 
@@ -22,7 +22,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | State store (SQLite) | `data/live/state.db` (5 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history) |
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
 | Logs | stdout (redirect to file as needed) |
-| Refresh interval | 60s (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var) |
+| Refresh interval | 60s (configurable via `QUORRIN_REFRESH_INTERVAL` env var) |
 | Weekend behavior | Auto-pauses Fri 17:00 ET — Sun 17:00 ET; no signal computation occurs |
 | Weekend polling | Reduced to every 120s (state) / 5 min (secondary endpoints) |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
@@ -202,7 +202,7 @@ The script:
 7. Routes through 15 governance layers + HealthMonitor (circuit breaker, VaR/CVaR, equity cluster alarm) + RecoveryScheduler
 8. Opens/closes positions based on signal vs current position (MT5 bridge + paper)
 9. Serves dashboard on port 5000
-10. Repeats every refresh interval (default 30s, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
+10. Repeats every refresh interval (default 30s, configurable via `QUORRIN_REFRESH_INTERVAL` env var)
 
 **Signal logging:** The `scripts/ops/monitor_paper_trading.py` script polls the dashboard every 6 hours
 and appends a CSV row to `data/monitoring/paper_trade_monitor.csv`. Use it for daily signal checks:
@@ -378,7 +378,7 @@ Check the model file modification dates are within the expected retrain window.
 
 If retrain failed:
 ```bash
-cd /home/manuelhorveydaniel/Projects/QuantForge
+cd /home/manuelhorveydaniel/Projects/Quorrin
 source .venv/bin/activate
 python -c "
 from paper_trading.engine import PaperTradingEngine

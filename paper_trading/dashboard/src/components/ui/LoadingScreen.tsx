@@ -6,7 +6,7 @@ interface LoadingScreenProps {
 }
 
 export default function LoadingScreen({
-  title = 'Connecting to QuantForge Engine',
+  title = 'Connecting to Quorrin Engine',
   subtitle = 'Waiting for paper trading data…',
 }: LoadingScreenProps) {
   return (

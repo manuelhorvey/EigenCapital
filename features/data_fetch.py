@@ -7,7 +7,7 @@ import pandas as pd
 
 from paper_trading.ops.data_fetcher import fetch_live as _provider_fetch_live
 
-logger = logging.getLogger("quantforge.data_fetch")
+logger = logging.getLogger("quorrin.data_fetch")
 
 # Fetch ~5 years for training — tight-SL assets (AUDCHF, ES, NQ, ^DJI)
 # need more binary samples to reach the 100 minimum.

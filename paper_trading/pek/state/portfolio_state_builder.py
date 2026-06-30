@@ -18,7 +18,7 @@ from paper_trading.pek.contracts.portfolio_state import (
 )
 from shared.factor_model import DEFAULT_FACTOR_LIMITS, FACTOR_GROUPS
 
-logger = logging.getLogger("quantforge.pek.state")
+logger = logging.getLogger("quorrin.pek.state")
 
 # ── Correlated cluster definitions (mirrors factor groups that exhibit high intra-group correlation) ──
 # These are the factor groups where members tend to move together.

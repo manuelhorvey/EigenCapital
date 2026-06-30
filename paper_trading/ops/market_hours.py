@@ -1,4 +1,4 @@
-"""Weekend market-hours check for QuantForge paper trading engine.
+"""Weekend market-hours check for Quorrin paper trading engine.
 
 Forex markets are effectively closed from Friday 5pm ET to Sunday 5pm ET.
 """

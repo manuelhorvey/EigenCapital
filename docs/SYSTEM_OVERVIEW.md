@@ -1,12 +1,12 @@
-# QuantForge — System Overview
+# Quorrin — System Overview
 
-Architecture, component responsibilities, execution lifecycle, and persistence model for the QuantForge cross-sectional research and paper trading platform.
+Architecture, component responsibilities, execution lifecycle, and persistence model for the Quorrin cross-sectional research and paper trading platform.
 
 ---
 
 # System Philosophy
 
-QuantForge is designed around a simple operational principle:
+Quorrin is designed around a simple operational principle:
 
 > robustness matters more than alpha complexity.
 
@@ -215,7 +215,7 @@ Per-asset max_depth from `configs/paper_trading.yaml`. Regime model: 200 trees, 
 
 # Live Inference Pipeline
 
-The live engine executes every 60 seconds by default (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var).
+The live engine executes every 60 seconds by default (configurable via `QUORRIN_REFRESH_INTERVAL` env var).
 
 ## Runtime Pipeline
 
@@ -269,7 +269,7 @@ The live engine executes every 60 seconds by default (configurable via `QUANTFOR
 
 # Governance Architecture
 
-QuantForge uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
+Quorrin uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
 
 ## Governance Layers (15 + HealthMonitor)
 

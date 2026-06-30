@@ -10,7 +10,7 @@ import pytz
 
 from paper_trading.state import atomic_write_json
 
-logger = logging.getLogger("quantforge.state_store")
+logger = logging.getLogger("quorrin.state_store")
 
 ET = pytz.timezone("US/Eastern")
 

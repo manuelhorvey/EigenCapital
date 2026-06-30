@@ -6,7 +6,7 @@ from typing import Optional
 
 import numpy as np
 
-logger = logging.getLogger("quantforge.model_evolution")
+logger = logging.getLogger("quorrin.model_evolution")
 
 BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "sandbox")
 EVOLUTION_DIR = os.path.join(BASE, "evolution")

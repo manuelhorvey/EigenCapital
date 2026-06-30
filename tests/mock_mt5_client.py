@@ -162,7 +162,7 @@ class MockMT5Client:
         volume: float,
         sl: float = 0.0,
         tp: float = 0.0,
-        comment: str = "QuantForge",
+        comment: str = "Quorrin",
         deviation: int = 20,
         idempotency_key: str | None = None,
     ) -> dict:

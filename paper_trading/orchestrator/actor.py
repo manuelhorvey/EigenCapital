@@ -28,7 +28,7 @@ import pandas as pd
 
 from paper_trading.replay.wal import WalWriter
 
-logger = logging.getLogger("quantforge.orchestrator.actor")
+logger = logging.getLogger("quorrin.orchestrator.actor")
 
 
 class ActorHealth(Enum):

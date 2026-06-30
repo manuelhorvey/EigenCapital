@@ -1,4 +1,4 @@
-# QuantForge — Executive Summary (Updated)
+# Quorrin — Executive Summary (Updated)
 
 **Date:** 2026-06-23 (updated same-day)
 **Status:** All findings from the original audit have been resolved or have a confirmed permanent treatment.

@@ -19,7 +19,7 @@ from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 from paper_trading.execution.broker_interface import AccountSummary, BrokerInterface, Order, Position
 from paper_trading.ops.mt5_client import MT5Client
 
-logger = logging.getLogger("quantforge.mt5_broker")
+logger = logging.getLogger("quorrin.mt5_broker")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -212,7 +212,7 @@ class MT5Broker(BrokerInterface):
                 volume=volume,
                 sl=0.0 if (order.sl is None or pd.isna(order.sl)) else order.sl,
                 tp=0.0 if (order.tp is None or pd.isna(order.tp)) else order.tp,
-                comment="QuantForge",
+                comment="Quorrin",
                 idempotency_key=id_key,
             )
         except Exception as e:

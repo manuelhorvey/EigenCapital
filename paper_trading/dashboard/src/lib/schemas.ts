@@ -198,6 +198,145 @@ export const HealthResponseSchema = z.object({
   system_health: SystemHealthSchema,
 })
 
+// ── Position concentration ─────────────────────────────────────────
+
+export const PositionConcentrationSchema = z.object({
+  long: z.number(),
+  short: z.number(),
+  total: z.number(),
+  skew: z.number(),
+  dominant_side: z.string(),
+  threshold: z.number(),
+  alert: z.boolean(),
+})
+
+// ── Factor exposures ───────────────────────────────────────────────
+
+export const FactorExposuresSchema = z.object({
+  exposures: z.record(z.string(), z.number()),
+  violations: z.record(z.string(), z.object({
+    exposure: z.number(),
+    limit_lo: z.number(),
+    limit_hi: z.number(),
+    violation: z.string().nullable(),
+  })),
+  n_violations: z.number(),
+  within_limits: z.boolean(),
+})
+
+// ── Live Sharpe ────────────────────────────────────────────────────
+
+export const LiveSharpeSchema = z.object({
+  available: z.boolean(),
+  reason: z.string().optional(),
+  n_cycles: z.number().optional(),
+  n_days: z.number().optional(),
+  date_range: z.object({ start: z.string(), end: z.string() }).optional(),
+  portfolio: z.object({
+    initial_value: z.number(),
+    current_value: z.number(),
+    total_return_pct: z.number(),
+    max_drawdown_pct: z.number(),
+  }).optional(),
+  cycle_level: z.object({
+    n_cycles: z.number(),
+    mean_return: z.number(),
+    std_return: z.number(),
+    sharpe_raw: z.number(),
+    sharpe_adj: z.number(),
+    autocorrelation: z.number(),
+  }).optional(),
+  daily_level: z.record(z.string(), z.object({
+    n_days: z.number(),
+    mean_daily_return_pct: z.number(),
+    std_daily_return_pct: z.number(),
+    sharpe: z.number(),
+    sharpe_adj: z.number(),
+    psr_gt_0: z.number(),
+  }).nullable()).optional(),
+  slippage: z.object({
+    available: z.boolean(),
+    reason: z.string().optional(),
+    n_samples: z.number().optional(),
+    mean_gap_pct: z.number().optional(),
+    median_gap_pct: z.number().optional(),
+    rms_gap_pct: z.number().optional(),
+    p90_gap_pct: z.number().optional(),
+    max_gap_pct: z.number().optional(),
+  }).optional(),
+})
+
+// ── Portfolio admission ────────────────────────────────────────────
+
+export const PortfolioAdmissionSchema = z.object({
+  n_intents: z.number(),
+  n_admitted: z.number(),
+  n_rejected: z.number(),
+  budget_notional: z.number(),
+  admitted: z.array(z.string()),
+  rejected: z.array(z.string()),
+  rejection_reasons: z.record(z.string(), z.string()).optional().default({}),
+  ranking_scores: z.record(z.string(), z.number()).optional().default({}),
+}).passthrough()
+
+// ── PEK state (portfolio execution kernel) ─────────────────────────
+
+export const PekVelocitySchema = z.object({
+  pnl_velocity: z.number(),
+  pnl_acceleration: z.number(),
+  vol_velocity: z.number(),
+  degradation_velocity: z.number(),
+  execution_velocity: z.number(),
+})
+
+export const PekPerformanceStateSchema = z.object({
+  outcome_scalar: z.number(),
+  degradation_scalar: z.number(),
+  market_scalar: z.number(),
+  execution_scalar: z.number(),
+  velocity_scalar: z.number(),
+  composite_scalar: z.number(),
+  velocity: PekVelocitySchema.optional(),
+  win_rate_20: z.number(),
+  consecutive_losses: z.number().int(),
+  r_cumulative_20: z.number(),
+  calibration_ece: z.number(),
+  atr_ratio: z.number(),
+  regime_label: z.string(),
+  slippage_p90: z.number(),
+})
+
+export const PekRiskBudgetSchema = z.object({
+  max_risk_per_trade_pct: z.number(),
+  max_portfolio_heat: z.number(),
+  max_concurrent_positions: z.number().int(),
+  volatility_scalar: z.number(),
+  drawdown_scalar: z.number(),
+  performance_scalar: z.number(),
+  velocity_scalar: z.number(),
+})
+
+export const PekPortfolioSnapshotSchema = z.object({
+  total_equity: z.number(),
+  drawdown_pct: z.number(),
+  gross_exposure: z.number(),
+  net_exposure: z.number(),
+  open_position_count: z.number().int(),
+  daily_pnl: z.number(),
+  max_daily_loss: z.number(),
+  drawdown_remaining: z.number(),
+  leverage_remaining: z.number(),
+  max_leverage: z.number(),
+  concurrent_remaining: z.number().int(),
+  max_concurrent: z.number().int(),
+})
+
+export const PekDataSchema = z.object({
+  performance_state: PekPerformanceStateSchema.optional(),
+  risk_budget: PekRiskBudgetSchema.optional(),
+  portfolio_snapshot: PekPortfolioSnapshotSchema.optional(),
+})
+
 export const PortfolioSummarySchema = z.object({
   total_value: z.number(),
   mtm_value: z.number().optional(),
@@ -219,6 +358,11 @@ export const PortfolioSummarySchema = z.object({
   average_validity_exposure: z.number().optional(),
   portfolio_drawdown: z.number().optional(),
   portfolio_peak_value: z.number().nullable().optional(),
+  position_concentration: PositionConcentrationSchema.optional(),
+  factor_exposures: FactorExposuresSchema.optional(),
+  live_sharpe: LiveSharpeSchema.optional(),
+  admission: PortfolioAdmissionSchema.optional(),
+  pek: PekDataSchema.optional(),
 }).passthrough()
 
 export const EngineStatusSchema = z.object({
@@ -408,6 +552,13 @@ export const AssetStateSchema = z.object({
   last_regime_features: z.record(z.string(), z.number()).nullable(),
   gates_trace: z.record(z.string(), z.boolean()).nullable(),
   sizing_chain: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).nullable(),
+  total_exits: z.number().optional().default(0),
+  sl_exits: z.number().optional().default(0),
+  sl_hit_rate: z.number().nullable().optional().default(null),
+  calibration: z.object({
+    applied: z.boolean(),
+    registry_loaded: z.boolean(),
+  }).optional().default({ applied: false, registry_loaded: false }),
 })
 
 // ── Open position (per-asset with metadata) ───────────────────────
@@ -421,6 +572,10 @@ export const OpenPositionStateSchema = z.object({
     entry_date: z.string(),
     vol: z.number(),
     mt5_ticket: z.union([z.string(), z.number()]).nullable(),
+    layers: z.array(z.unknown()).optional(),
+    avg_price: z.number().optional().default(0),
+    total_size: z.number().optional().default(0),
+    base_entry_size: z.number().optional().default(0),
   }),
   current_value: z.number(),
   peak_value: z.number(),
@@ -428,6 +583,9 @@ export const OpenPositionStateSchema = z.object({
   running_mfe: z.number().nullable(),
   trade_log: z.array(z.unknown()),
   prob_history: z.array(ProbHistoryEntrySchema),
+  bars_at_entry: z.number().optional().default(0),
+  initial_sl: z.number().nullable().optional().default(null),
+  initial_tp: z.number().nullable().optional().default(null),
 })
 
 // ── Risk signals ──────────────────────────────────────────────────
@@ -492,4 +650,10 @@ export const EngineSnapshotSchema = z.object({
   }),
   risk_signals: z.record(z.string(), RiskSignalSchema).nullable().optional(),
   shadow_actions: z.record(z.string(), ShadowActionSchema).nullable().optional(),
+  risk_parity: RiskParityDataSchema.nullable().optional(),
+  emergency_halt: z.boolean().optional().default(false),
+  halt_reason: z.string().optional().default(''),
+  halt_detail: z.string().optional().default(''),
+  peak_portfolio_value: z.number().nullable().optional(),
+  breaker_daily_pnl: z.array(z.number()).nullable().optional(),
 })

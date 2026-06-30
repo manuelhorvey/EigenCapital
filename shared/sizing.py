@@ -45,7 +45,8 @@ class VolTargetSizing(PositionSizingStrategy):
             }
             target *= multipliers.get(str(regime).lower(), 1.0)
 
-        rets = close.pct_change().dropna()
+        rets = close.diff() / close.shift(1)
+        rets = rets.iloc[1:]
         if len(rets) < self.window:
             return 1.0
         rv = rets.iloc[-self.window :].std() * np.sqrt(252)

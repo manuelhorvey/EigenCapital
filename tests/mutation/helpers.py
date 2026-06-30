@@ -9,8 +9,7 @@ import pandas as pd
 def synthetic_series(n: int = 300, seed: int = 42) -> pd.Series:
     rng = np.random.default_rng(seed)
     steps = rng.normal(0, 0.005, n)
-    idx = pd.date_range("2020-01-01", periods=n, freq="D", tz="UTC")
-    return pd.Series(100.0 * np.exp(np.cumsum(steps)), index=idx, name="close")
+    return pd.Series(100.0 * np.exp(np.cumsum(steps)), name="close")
 
 
 def synthetic_asset_data(
@@ -19,7 +18,6 @@ def synthetic_asset_data(
     rng = np.random.default_rng(seed)
     close = pd.Series(
         100.0 * np.exp(np.cumsum(rng.normal(0, 0.005, n))),
-        index=pd.date_range("2020-01-01", periods=n, freq="D", tz="UTC"),
         name="TEST",
     )
     idx = close.index

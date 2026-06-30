@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from unittest.mock import patch
 
 from paper_trading.execution.broker_interface import Order
 from paper_trading.execution.paper_broker import PaperBroker
@@ -30,6 +31,11 @@ def priced_broker(zero_spread_config):
 
 
 class TestPaperBroker:
+    @pytest.fixture(autouse=True)
+    def _mock_yfinance(self):
+        with patch("paper_trading.execution.paper_broker.yf.Ticker", side_effect=RuntimeError("yfinance unavailable")):
+            yield
+
     @pytest.fixture
     def broker(self, zero_spread_config):
         return PaperBroker(

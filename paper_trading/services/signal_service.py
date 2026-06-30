@@ -2,7 +2,7 @@ import logging
 
 from labels.meta_labels import MetaLabelModel
 
-logger = logging.getLogger("quantforge.signal_service")
+logger = logging.getLogger("quorrin.signal_service")
 
 
 class SignalService:

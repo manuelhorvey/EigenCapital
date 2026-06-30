@@ -36,14 +36,12 @@ class FakeDegradedModel:
 @pytest.fixture
 def sample_X():  # noqa: N802
     np.random.seed(42)
-    dates = pd.date_range("2020-01-01", periods=50, freq="D")
     return pd.DataFrame(
         {
             "feature_1": np.random.randn(50),
             "feature_2": np.random.randn(50),
             "feature_3": np.random.randn(50),
         },
-        index=dates,
     )
 
 
@@ -55,8 +53,7 @@ def sample_y():
 @pytest.fixture
 def sample_close():
     np.random.seed(42)
-    dates = pd.date_range("2020-01-01", periods=50, freq="D")
-    return pd.Series(100 + np.cumsum(np.random.randn(50) * 0.5), index=dates)
+    return pd.Series(100 + np.cumsum(np.random.randn(50) * 0.5))
 
 
 class TestClassifyRegime:
@@ -77,7 +74,6 @@ class TestClassifyRegime:
 
 class TestComputeSignals:
     def test_basic_signal_generation(self):
-        dates = pd.date_range("2020-01-01", periods=5, freq="D")
         proba = np.array(
             [
                 [0.1, 0.2, 0.7],
@@ -87,7 +83,7 @@ class TestComputeSignals:
                 [0.5, 0.3, 0.2],
             ]
         )
-        df = _compute_signals(proba, dates, threshold=0.45)
+        df = _compute_signals(proba, threshold=0.45)
         # Default is 0 (short), signals[long > thr] = 2, signals[short > thr] = 0
         # Row 0: long=0.7>0.45 -> 2, short=0.1-> stays 2
         # Row 1: long=0.1 -> no, short=0.6>0.45 -> 0
@@ -97,7 +93,6 @@ class TestComputeSignals:
         assert list(df["signal"]) == [2, 0, 0, 2, 0]
 
     def test_all_neutral(self):
-        dates = pd.date_range("2020-01-01", periods=3, freq="D")
         proba = np.array(
             [
                 [0.33, 0.34, 0.33],
@@ -105,7 +100,7 @@ class TestComputeSignals:
                 [0.33, 0.34, 0.33],
             ]
         )
-        df = _compute_signals(proba, dates, threshold=0.45)
+        df = _compute_signals(proba, threshold=0.45)
         # Neither > 0.45, default is 0 (short), not 1 (neutral)
         assert list(df["signal"]) == [0, 0, 0]
 

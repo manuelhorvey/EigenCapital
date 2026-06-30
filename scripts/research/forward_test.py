@@ -8,7 +8,7 @@ import xgboost as xgb
 from features.registry import FEATURE_REGISTRY
 from shared.model import XGBoostModel
 
-logger = logging.getLogger("quantforge.forward_test")
+logger = logging.getLogger("quorrin.forward_test")
 
 
 def _classify_vol_regime(close: pd.Series) -> pd.Series:
@@ -89,10 +89,10 @@ def _forward_metrics(
     n_obs = len(trade_returns)
     skew_val, exkurt_val = (0.0, 0.0)
     if n_obs >= 3:
-        from quantforge.domain.value_objects.statistical_metrics import _moments as _stats_moments
+        from quorrin.domain.value_objects.statistical_metrics import _moments as _stats_moments
         skew_val, exkurt_val = _stats_moments(trade_returns)
 
-    from quantforge.domain.value_objects.statistical_metrics import (
+    from quorrin.domain.value_objects.statistical_metrics import (
         probabilistic_sharpe_ratio,
         minimum_track_record_length,
         expected_calibration_error,

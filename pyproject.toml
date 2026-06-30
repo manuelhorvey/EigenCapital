@@ -13,7 +13,7 @@ include = [
     "monitoring*",
     "paper_trading*",
     "portfolio*",
-    "quantforge*",
+    "quorrin*",
     "risk*",
     "shared*",
     "signals*",
@@ -26,13 +26,13 @@ data = ["processed/*.parquet", "processed/*.csv", "research/*.json", "research/*
 
 
 [project]
-name = "quantforge"
-version = "0.1.0"
+name = "quorrin"
+version = "1.5.0"
 description = "Modular quantitative research framework for regime-conditioned equity and FX strategy research"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{name = "MktOwl"}]
+authors = [{name = "Eleven Forge"}]
 keywords = ["quantitative-finance", "trading", "machine-learning", "xgboost"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -42,7 +42,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "pandas>=2.0",
+    "pandas>=2.3.3,<3.0",
     "numpy>=1.24",
     "yfinance>=0.2",
     "scikit-learn>=1.2",
@@ -88,7 +88,8 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["I", "E", "F", "W", "UP", "N", "SIM"]
+select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
+# BLE001 grandfathered across most files — 101 violations remain repo-wide.
 
 [tool.ruff.lint.per-file-ignores]
 "paper_trading/__init__.py" = ["N999"]
@@ -96,14 +97,14 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM"]
 "labels/__init__.py" = ["N999"]
 "tests/__init__.py" = ["N999"]
 # ML convention: X (uppercase) for feature matrices, y for targets
-"paper_trading/asset_engine.py" = ["N803", "N806"]
+"paper_trading/asset_engine.py" = ["N803", "N806", "BLE001"]
 "paper_trading/asset_inference_pipeline.py" = ["N803", "N806"]
 "paper_trading/asset_training_pipeline.py" = ["N803", "N806"]
 "paper_trading/serve_handler.py" = ["N802"]
 "paper_trading/diagnostics.py" = ["N803", "N806"]
 "paper_trading/wrappers.py" = ["N803", "N806"]
 # ML convention: X (uppercase) for feature matrices, y for targets
-"labels/meta_labels.py" = ["N803", "N806"]
+"labels/meta_labels.py" = ["N803", "N806", "BLE001"]
 # Research scripts use uppercase X for ML feature matrix convention
 "scripts/*.py" = ["N806", "N803"]
 "tests/*.py" = ["N806", "N803"]
@@ -114,6 +115,58 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM"]
 "paper_trading/risk_governance.py" = ["E501"]
 "paper_trading/shadow_learning.py" = ["E501"]
 "paper_trading/simulation_snapshot.py" = ["E501"]
+
+# Grandfathered BLE001 (blind-except) — 59 files, root-caused in #findings-v2
+"labels/generator.py" = ["BLE001"]
+"labels/triple_barrier.py" = ["BLE001"]
+"paper_trading/alerting/channels/pagerduty.py" = ["BLE001"]
+"paper_trading/alerting/channels/webhook.py" = ["BLE001"]
+"paper_trading/alerting/manager.py" = ["BLE001"]
+"paper_trading/api/asset_routes.py" = ["BLE001"]
+"paper_trading/api/bundle.py" = ["BLE001"]
+"paper_trading/api/common.py" = ["BLE001"]
+"paper_trading/api/governance_routes.py" = ["BLE001"]
+"paper_trading/api/state_routes.py" = ["BLE001"]
+
+"paper_trading/asset_pnl_controller.py" = ["BLE001"]
+"paper_trading/engine.py" = ["BLE001"]
+"paper_trading/entry/optimizer.py" = ["BLE001"]
+"paper_trading/entry/policy.py" = ["BLE001"]
+"paper_trading/execution/gate_constants.py" = ["BLE001"]
+"paper_trading/execution/mt5_broker.py" = ["BLE001"]
+"paper_trading/execution/paper_broker.py" = ["BLE001"]
+"paper_trading/governance/asset.py" = ["BLE001"]
+"paper_trading/governance/health.py" = ["BLE001"]
+"paper_trading/governance/risk_registry.py" = ["BLE001"]
+"paper_trading/inference/async_diagnostics.py" = ["BLE001"]
+"paper_trading/inference/training.py" = ["BLE001"]
+"paper_trading/metrics/engine_metrics.py" = ["BLE001"]
+"paper_trading/ops/data_fetcher.py" = ["BLE001"]
+"paper_trading/ops/diagnostics.py" = ["BLE001"]
+"paper_trading/ops/market_data_service.py" = ["BLE001"]
+"paper_trading/ops/monitor.py" = ["BLE001"]
+"paper_trading/ops/mt5_bridge.py" = ["BLE001"]
+"paper_trading/ops/mt5_client.py" = ["BLE001"]
+"paper_trading/ops/simulation_snapshot.py" = ["BLE001"]
+"paper_trading/ops/slack_alerter.py" = ["BLE001"]
+"paper_trading/orchestrator/actor.py" = ["BLE001"]
+"paper_trading/orchestrator/engine.py" = ["BLE001"]
+"paper_trading/position/manager.py" = ["BLE001"]
+"paper_trading/services/engine_rebalance_service.py" = ["BLE001"]
+"paper_trading/services/engine_state_service.py" = ["BLE001"]
+"paper_trading/services/entry_service.py" = ["BLE001"]
+"paper_trading/services/position_service.py" = ["BLE001"]
+"paper_trading/services/signal_service.py" = ["BLE001"]
+"paper_trading/shadow/actions.py" = ["BLE001"]
+"paper_trading/shadow/analytics.py" = ["BLE001"]
+"paper_trading/shadow/feedback.py" = ["BLE001"]
+"paper_trading/shadow/learning.py" = ["BLE001"]
+"paper_trading/shadow/memory.py" = ["BLE001"]
+"paper_trading/state/analytics_store.py" = ["BLE001"]
+"paper_trading/state/database_store.py" = ["BLE001"]
+"paper_trading/state/data_cache.py" = ["BLE001"]
+"paper_trading/state/snapshot_manager.py" = ["BLE001"]
+"shared/calibration/registry.py" = ["BLE001"]
 
 
 [tool.ruff.format]

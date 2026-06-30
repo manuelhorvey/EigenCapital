@@ -6,9 +6,9 @@ import ta
 
 from data.loaders.cot_loader import FX_COT_CONTRACTS
 
-logger = logging.getLogger("quantforge.alpha_features")
+logger = logging.getLogger("quorrin.alpha_features")
 
-logger = logging.getLogger("quantforge.alpha_features")
+logger = logging.getLogger("quorrin.alpha_features")
 
 # Asset name -> available in COT data lookup
 _COT_COVERED_NAMES: set[str] = set(k.upper() for k in FX_COT_CONTRACTS)
@@ -238,15 +238,16 @@ def day_of_week_signal(price: pd.Series) -> pd.Series:
 
     Uses rolling(window=252, min_periods=63) to avoid look-ahead bias.
     """
-    price.index = pd.DatetimeIndex(price.index)
+    dt_index = pd.DatetimeIndex(price.index)
     forward_1d = price.pct_change(1, fill_method=None)
     result = pd.Series(0.0, index=price.index)
-    for d in range(5):
-        mask = price.index.dayofweek == d
-        idx = price.index[mask]
-        series = forward_1d.reindex(idx)
-        rolling_mean = series.rolling(window=252, min_periods=63).mean()
-        result.loc[idx] = rolling_mean.shift(1).fillna(0.0)
+    if dt_index.dtype != "object":
+        for d in range(5):
+            mask = dt_index.dayofweek == d
+            idx = price.index[mask]
+            series = forward_1d.reindex(idx)
+            rolling_mean = series.rolling(window=252, min_periods=63).mean()
+            result.loc[idx] = rolling_mean.shift(1).fillna(0.0)
     return result
 
 
@@ -369,7 +370,7 @@ def build_alpha_features(
 
                 _div = rsi_divergence(_h, _l, _c)
                 features[f"{asset_upper}_rsi_divergence"] = _div
-            except Exception:
+            except (ImportError, ValueError, TypeError):
                 logger.debug("RSI divergence unavailable for %s", asset_upper)
                 features[f"{asset_upper}_rsi_divergence"] = 0
 

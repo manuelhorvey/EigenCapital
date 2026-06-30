@@ -8,8 +8,10 @@ import { MetricCardSkeleton } from './ui/Skeleton'
 import { formatTimeAgo } from '../utils/format'
 
 export default function PortfolioSummary() {
-  const { data: snapshot, isPending, isError } = useSystemSnapshot(systemSelectors.snapshot)
+  const { data: bundle, isPending, isError } = useSystemSnapshot()
+  const snapshot = bundle?.snapshot
   const p = snapshot?.portfolio
+  const mt5Equity = bundle?.live?.mt5?.account?.portfolio_value
   const lastUpdate = p?.last_update ?? snapshot?.engine_status?.last_update ?? snapshot?.timestamp
 
   const cards = useMemo(() => {
@@ -18,11 +20,17 @@ export default function PortfolioSummary() {
     const posRealized = (p.realized_return ?? 0) >= 0
     return [
       {
-        label: 'Portfolio Value',
+        label: 'Paper Value',
         value: `$${(p.total_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         sub: `Capital $${(p.capital ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         accent: '#22c55e',
       },
+      ...(mt5Equity != null ? [{
+        label: 'MT5 Equity',
+        value: `$${mt5Equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        sub: 'Broker account',
+        accent: '#60a5fa',
+      }] : []),
       {
         label: 'Total Return %',
         value: `${(p.total_return ?? 0).toFixed(2)}%`,
@@ -42,7 +50,7 @@ export default function PortfolioSummary() {
         accent: '#60a5fa',
       },
     ]
-  }, [p])
+  }, [p, mt5Equity])
 
   if (isPending) {
     return <MetricCardSkeleton count={4} />
@@ -66,7 +74,7 @@ export default function PortfolioSummary() {
           {p?.start_date ? `Since ${p.start_date}` : 'Return window unavailable'}
         </span>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
         {cards.map(c => (
           <StatCard
             key={c.label}

@@ -499,7 +499,9 @@ def rolling_weight_matrix(
         hist = returns.iloc[i - window : i]
         if hist.dropna(how="all").shape[0] < min_periods:
             continue
-        wv = compute_weights(method, hist, date=str(returns.index[i].date()), **kwargs)
+        idx_val = returns.index[i]
+        date_str = str(idx_val.date()) if isinstance(idx_val, pd.Timestamp) else str(idx_val)
+        wv = compute_weights(method, hist, date=date_str, **kwargs)
         records.append(wv.to_series())
     if not records:
         return pd.DataFrame(columns=returns.columns)

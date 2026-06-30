@@ -8,7 +8,7 @@ from typing import Optional, Callable
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quantforge.adversarial_manifold")
+logger = logging.getLogger("quorrin.adversarial_manifold")
 
 BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "sandbox")
 

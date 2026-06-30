@@ -13,7 +13,7 @@ from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
 
-logger = logging.getLogger("quantforge.training_pipeline")
+logger = logging.getLogger("quorrin.training_pipeline")
 
 
 def _prepare_binary_labels(

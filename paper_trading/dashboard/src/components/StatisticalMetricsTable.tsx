@@ -14,12 +14,6 @@ function valClass(val: number | null, lo: number, hi: number): string {
   return 'text-gov-red'
 }
 
-function renderVal(val: number | null, lo: number, hi: number, decimals = 4): string {
-  if (val === null) return '—'
-  const cls = valClass(val, lo, hi)
-  return `<span class="font-mono tabular-nums ${cls}">${val.toFixed(decimals)}</span>`
-}
-
 function minTrlClass(val: number | null): string {
   if (val === null) return 'text-tertiary'
   if (val <= 100) return 'text-gov-green'
@@ -45,8 +39,7 @@ interface Row {
 }
 
 export default function StatisticalMetricsTable() {
-  const { data: bundle } = useSystemSnapshot()
-  const stats = selectStatisticalMetrics(bundle)
+  const { data: stats } = useSystemSnapshot(selectStatisticalMetrics)
 
   const rows = useMemo(() => {
     if (!stats) return []
@@ -80,8 +73,9 @@ export default function StatisticalMetricsTable() {
       render: r => (
         <span
           className={`font-mono tabular-nums ${r.sharpe !== null ? (r.sharpe >= 0 ? 'text-gov-green' : 'text-gov-red') : 'text-tertiary'}`}
-          dangerouslySetInnerHTML={{ __html: r.sharpe !== null ? r.sharpe.toFixed(2) : '—' }}
-        />
+        >
+          {r.sharpe !== null ? r.sharpe.toFixed(2) : '—'}
+        </span>
       ),
     },
     {
@@ -91,14 +85,11 @@ export default function StatisticalMetricsTable() {
       sortable: true,
       sortKey: r => r.psr0 ?? 0,
       render: r => (
-        <span
-          className={`font-mono tabular-nums ${valClass(r.psr0, 0.5, 0.95)}`}
-          dangerouslySetInnerHTML={{
-            __html: r.psr0 !== null
-              ? r.psr0 >= 0.99995 ? '>0.9999' : r.psr0.toFixed(4)
-              : '—',
-          }}
-        />
+        <span className={`font-mono tabular-nums ${valClass(r.psr0, 0.5, 0.95)}`}>
+          {r.psr0 !== null
+            ? r.psr0 >= 0.99995 ? '>0.9999' : r.psr0.toFixed(4)
+            : '—'}
+        </span>
       ),
     },
     {
@@ -108,14 +99,11 @@ export default function StatisticalMetricsTable() {
       sortable: true,
       sortKey: r => r.psr1 ?? 0,
       render: r => (
-        <span
-          className={`font-mono tabular-nums ${valClass(r.psr1, 0.5, 0.95)}`}
-          dangerouslySetInnerHTML={{
-            __html: r.psr1 !== null
-              ? r.psr1 >= 0.99995 ? '>0.9999' : r.psr1.toFixed(4)
-              : '—',
-          }}
-        />
+        <span className={`font-mono tabular-nums ${valClass(r.psr1, 0.5, 0.95)}`}>
+          {r.psr1 !== null
+            ? r.psr1 >= 0.99995 ? '>0.9999' : r.psr1.toFixed(4)
+            : '—'}
+        </span>
       ),
     },
     {
@@ -156,7 +144,9 @@ export default function StatisticalMetricsTable() {
     },
   ], [])
 
-  if (!bundle) return <TableSkeleton rows={6} />
+  if (!stats || Object.keys(stats).length === 0) return <TableSkeleton rows={6} />
+
+
 
   if (rows.length === 0) {
     return (

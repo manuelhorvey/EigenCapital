@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any
 
-logger = logging.getLogger("quantforge.writer")
+logger = logging.getLogger("quorrin.writer")
 
 
 class WriteOp(Enum):

@@ -40,11 +40,9 @@ logger = logging.getLogger("circuit_breaker_sim")
 
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 
-SELL_ONLY_ASSETS: frozenset[str] = frozenset(
-    {
-        "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
-    }
-)
+SELL_ONLY_ASSETS: frozenset[str] = frozenset({
+    "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
+})
 
 # ── Data loading (shared with monte_carlo_drawdown) ────────────────────────
 

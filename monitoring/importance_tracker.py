@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
-logger = logging.getLogger("quantforge.importance_tracker")
+logger = logging.getLogger("quorrin.importance_tracker")
 
 STABILITY_PENALTIES = {
     "jaccard_soft": (0.6, -0.10),
@@ -133,7 +133,7 @@ class ImportanceStore:
             try:
                 existing = pd.read_parquet(self.path)
                 df = pd.concat([existing, df], ignore_index=True)
-            except Exception:
+            except (OSError, pd.errors.EmptyDataError, ValueError):
                 logger.warning("could not read existing importance history, overwriting")
         df.to_parquet(self.path)
         logger.info("logged %d feature importances for %s (window=%s)", len(records), asset, window_id)
@@ -146,7 +146,7 @@ class ImportanceStore:
             if asset is not None:
                 df = df[df["asset"] == asset]
             return df
-        except Exception as e:
+        except (OSError, pd.errors.EmptyDataError, ValueError) as e:
             logger.warning("failed to load importance history: %s", e)
             return pd.DataFrame()
 

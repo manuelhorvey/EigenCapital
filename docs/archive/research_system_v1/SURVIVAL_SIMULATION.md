@@ -1,4 +1,4 @@
-# QuantForge — Survival Monte Carlo Simulation
+# Quorrin — Survival Monte Carlo Simulation
 
 Multi-layer survival simulation framework at `research/risk/` that evaluates portfolio robustness under extreme market conditions with progressively increasing realism.
 

@@ -24,7 +24,7 @@ from paper_trading.execution.simulator import (
 )
 from shared.execution_config import compute_market_impact, compute_slippage_cost
 
-logger = logging.getLogger("quantforge.execution_bridge")
+logger = logging.getLogger("quorrin.execution_bridge")
 
 
 class ExecutionBridge:

@@ -2,7 +2,7 @@ import logging
 
 from paper_trading.entry.decision import EntryAction, MarketStructureState, SignalType
 
-logger = logging.getLogger("quantforge.paper_trading.entry_optimizer")
+logger = logging.getLogger("quorrin.paper_trading.entry_optimizer")
 
 
 class EntryOptimizer:

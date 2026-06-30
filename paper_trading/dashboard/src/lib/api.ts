@@ -5,7 +5,10 @@ import { authHeaders } from './auth'
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers = { ...authHeaders(), ...options?.headers } as Record<string, string>
-  const res = await fetch(endpoint, { ...options, headers })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000)
+  const res = await fetch(endpoint, { ...options, headers, signal: controller.signal })
+  clearTimeout(timeoutId)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = await res.json()
   // Auto-unwrap state metadata envelope if present

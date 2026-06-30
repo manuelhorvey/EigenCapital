@@ -1,5 +1,4 @@
 import logging
-import threading
 import time
 
 import numpy as np
@@ -9,11 +8,11 @@ import pytz
 from paper_trading.entry.decision import EntryAction, PositionIntent, PositionSide
 from paper_trading.entry.deferred_entry import DeferredEntryStatus
 from paper_trading.governance.multipliers import compute_effective_multipliers
-from quantforge.domain.entities.position import OrderType, StackLayer
+from quorrin.domain.entities.position import OrderType, StackLayer
 from shared.sizing_chain import SizingChain, SizingInput, SizingResult
 from shared.volatility import estimate_ewm_vol
 
-logger = logging.getLogger("quantforge.entry_service")
+logger = logging.getLogger("quorrin.entry_service")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -448,8 +447,6 @@ class EntryService:
                 drawdown_taper_min=cfg.get("size_taper_min", 0.50),
                 entry_price=entry_price,
                 sl_distance=sl_dist,
-                leverage_budget_ref=getattr(asset, "_leverage_budget_ref", None),
-                leverage_lock=getattr(asset, "_leverage_lock", None),
                 is_mt5=False,
                 ticker=asset.name,
             )
@@ -474,15 +471,13 @@ class EntryService:
             asset._last_sizing_chain = result.chain_breakdown
 
             logger.info(
-                "SIZING %s: eff_cap=%.2f scalar=%.4f dd=%.2f pos_cap=%.2f risk_cap=%.2f "
-                "lev=%.2f -> final_not=%.2f qty=%.6f",
+                "SIZING %s: eff_cap=%.2f scalar=%.4f dd=%.2f pos_cap=%.2f risk_cap=%.2f -> final_not=%.2f qty=%.6f",
                 asset.name,
                 result.effective_cap,
                 result.size_scalar_applied,
                 result.drawdown_taper,
                 result.position_cap,
                 result.risk_cap_used,
-                result.leverage_budget_total,
                 notional,
                 qty,
             )
@@ -517,13 +512,6 @@ class EntryService:
         mt5_dd = getattr(broker, "current_mt5_drawdown_pct", lambda: 0.0)()
         sl_dist = abs(intent_sl - entry_price)
 
-        mt5_budget_ref = getattr(asset, "_mt5_leverage_budget_ref", None)
-        mt5_lock = getattr(asset, "_mt5_leverage_lock", None)
-        if not isinstance(mt5_budget_ref, list):
-            mt5_budget_ref = None
-        if not isinstance(mt5_lock, threading.Lock):
-            mt5_lock = None
-
         sizing_input = SizingInput(
             equity=mt5_equity,
             drawdown_pct=mt5_dd,
@@ -536,11 +524,7 @@ class EntryService:
             drawdown_taper_min=cfg.get("size_taper_min", 0.50),
             entry_price=entry_price,
             sl_distance=sl_dist,
-            leverage_budget_ref=mt5_budget_ref,
-            leverage_lock=mt5_lock,
-            leverage_budget_soft=cfg.get("mt5_leverage_budget_soft", True),
             is_mt5=True,
-            lot_converter=getattr(broker, "_quantity_to_lots", None),
             ticker=asset.ticker,
         )
         result = SizingChain.compute(sizing_input)
@@ -548,21 +532,48 @@ class EntryService:
         if not result.is_viable:
             return 0.0
 
+        # MT5 lot conversion: sizing_chain computes qty = notional / entry_price (base units).
+        # For pairs where quote ≠ account currency (USD), entry_price is not the correct
+        # divisor. Determine the correct base-to-account-currency rate.
+        ticker = asset.ticker
+        if ticker.startswith("USD") and "=X" in ticker:
+            # Base is account currency (USDJPY, USDCAD, USDCHF)
+            base_to_acc = 1.0
+        elif "=X" in ticker:
+            quote = ticker[3:6]
+            if quote != "USD":
+                # Cross pair (e.g., GBPJPY, EURCHF) — need base-to-USD rate
+                base = ticker[:3]
+                base_usd = f"{base}USD=X"
+                try:
+                    cross_rate = broker.get_current_price(base_usd)
+                    base_to_acc = cross_rate if cross_rate and cross_rate > 0 else entry_price
+                except Exception:
+                    base_to_acc = entry_price
+            else:
+                # Quote is USD (EURUSD, GBPUSD, etc.) — entry_price is correct
+                base_to_acc = entry_price
+        else:
+            # Futures/indices (^DJI, NQ=F, GC=F, ES=F) — priced in USD
+            base_to_acc = entry_price
+
+        mt5_qty = result.notional / base_to_acc
+
         logger.info(
             "MT5_SIZING %s: equity=%.2f dd=%.2f kelly=%.4f max_pct=%.2f%% risk_cap=%.2f "
-            "lev_budget=%.2f min_viable=%.2f -> final_not=%.2f qty=%.4f",
+            "min_viable=%.2f -> final_not=%.2f base_to_acc=%.4f qty=%.4f",
             asset.name,
             mt5_equity,
             result.drawdown_taper,
             result.kelly_applied,
             sizing_input.max_position_pct * 100,
             result.risk_cap_used,
-            result.leverage_budget_total,
             result.min_viable_notional,
             result.notional,
-            result.quantity,
+            base_to_acc,
+            mt5_qty,
         )
-        return result.quantity
+        return mt5_qty
 
     def _submit_mt5_order(self, asset, broker_side, entry_price, intent_sl, final_tp, order_type=OrderType.ENTRY):
         qty = self._compute_mt5_qty(asset, entry_price, intent_sl)

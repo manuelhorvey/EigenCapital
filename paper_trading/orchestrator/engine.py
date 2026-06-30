@@ -22,7 +22,6 @@ import atexit
 import contextlib
 import logging
 import math
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -37,12 +36,20 @@ from paper_trading.orchestrator.actor import (
     AssetResult,
     compute_health_snapshot,
 )
+from paper_trading.orchestrator.admission import AdmissionSignal, PortfolioAdmissionController
+from paper_trading.orchestrator.admission.signal import PositionSide
 from paper_trading.orchestrator.correlation import CorrelationMonitor
 from paper_trading.orchestrator.health import CircuitBreaker, HaltReason, HealthMonitor, RecoveryScheduler
+from paper_trading.pek.contracts.performance_state import PerformanceState
+from paper_trading.pek.contracts.portfolio_state import PortfolioStateSnapshot
+from paper_trading.pek.contracts.risk_budget import RiskBudget
+from paper_trading.pek.engine_v2 import RiskEngineV2
+from paper_trading.pek.perf.performance_state_builder import PerformanceStateBuilder
+from paper_trading.pek.state.portfolio_state_builder import PortfolioStateBuilder
 from paper_trading.replay.wal import WalWriter
 from paper_trading.state_store import EngineSnapshot
 
-logger = logging.getLogger("quantforge.orchestrator.engine")
+logger = logging.getLogger("quorrin.orchestrator.engine")
 
 # Drawdown recovery threshold for automatic unhalt (must be above trip threshold to avoid flapping).
 # Named separate constant — must NOT be derived from the drawdown_limit passed to
@@ -98,10 +105,19 @@ class EngineOrchestrator:
         self._wal = wal_writer
         self._last_health: dict | None = None
 
-        # Portfolio leverage guardrail (Phase 2)
-        self._leverage_lock = threading.Lock()
-        self._backstop_multiplier: float = 1.0
-        self._backstop_decay_cycles: int = 0
+        # PEK state — built in pre-phase, consumed by admission
+        self._portfolio_snapshot: PortfolioStateSnapshot | None = None
+        self._risk_budget: RiskBudget | None = None
+        self._performance_state: PerformanceState | None = None
+
+        # Last cycle's admission results (stored for state.json export)
+        self._last_admission: dict | None = None
+
+        # PEK admission controller (lazy init)
+        self._pek: PortfolioAdmissionController | None = None
+
+        # Performance state builder — records trade outcomes each cycle
+        self._perf_builder = PerformanceStateBuilder()
 
         # Portfolio circuit breaker (vol spike + consecutive loss)
         self._circuit_breaker = CircuitBreaker()
@@ -167,8 +183,9 @@ class EngineOrchestrator:
         """Execute one orchestrator cycle.  Returns phased results dict.
 
         Phases:
-            PRE    — equity snapshot, leverage budget, exposure multiplier
-            1. REFRESH  — parallel actor cycles (price + PnL + signal)
+            PRE    — PortfolioStateSnapshot + RiskBudget + PerformanceState
+            1a. REFRESH  — parallel actor cycles (price + PnL + signal)
+            1b. ADMIT    — PEK admission review (observability + budget check)
             2. VALIDITY — parallel validity updates
             3. PORTFOLIO — aggregate health, circuit breakers, VaR, recovery
             4. PERSIST  — flush all persist queues to WAL
@@ -195,10 +212,13 @@ class EngineOrchestrator:
         t0 = time.monotonic()
 
         # ── Pre-phase ────────────────────────────────────────────────────
-        defaults, max_leverage, budget_ref = self._pre_phase_equity_snapshot()
+        defaults, max_leverage, budget_ref = self._pre_phase_pek()
 
-        # ── Phase 1 ──────────────────────────────────────────────────────
+        # ── Phase 1a: Signal generation ──────────────────────────────────
         self._phase_1_refresh_signal(market_data, results)
+
+        # ── Phase 1b: PEK admission review ───────────────────────────────
+        self._phase_1b_admission_review(results, defaults, max_leverage, budget_ref)
 
         # ── Phase 2 ──────────────────────────────────────────────────────
         self._phase_2_validity(results)
@@ -216,9 +236,16 @@ class EngineOrchestrator:
 
     # ── Phase helpers ───────────────────────────────────────────────────────────
 
-    def _pre_phase_equity_snapshot(self) -> tuple[dict, float, list]:
-        """Compute equity snapshot, leverage budget, and exposure multiplier
-        for the current cycle.  Returns (defaults, max_leverage, budget_ref)."""
+    def _pre_phase_pek(self) -> tuple[dict, float, list]:
+        """Build PEK state: PortfolioStateSnapshot, PerformanceState, RiskBudget.
+
+        Distributes cycle equity/drawdown to actors (no longer distributes
+        leverage_budget_ref — that is now managed by the PEK).
+
+        Returns (defaults, max_leverage, dummy_budget_ref) — keeping the
+        same return signature as the old _pre_phase_equity_snapshot for
+        backward compat with Phase 3 helpers.
+        """
         defaults = get_config().defaults or {}
         max_leverage = defaults.get("portfolio_max_leverage", 2.0)
         total_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
@@ -228,42 +255,57 @@ class EngineOrchestrator:
             if self._peak_portfolio_value is not None and self._peak_portfolio_value > 0
             else 0.0
         )
-        leverage_budget = max_leverage * total_equity * self._backstop_multiplier
-        self._backstop_initial_budget = leverage_budget
-        self._backstop_initial_equity = total_equity
-        with self._leverage_lock:
-            self._leverage_budget_remaining = leverage_budget
-        budget_ref = [leverage_budget]
         self._cycles_elapsed += 1
 
-        # MT5 leverage budget — independent from paper budget, based on MT5 equity
-        mt5_total_equity = 0.0
-        mt5_leverage_budget_enabled = defaults.get("mt5_leverage_budget_enabled", False)
-        for actor in self._actors.values():
-            engine = actor._engine
-            try:
-                bridge = getattr(engine, "execution_bridge", None)
-                if bridge is not None and hasattr(bridge, "broker"):
-                    broker = bridge.broker
-                    if hasattr(broker, "get_account_summary"):
-                        summary = broker.get_account_summary()
-                        if summary and hasattr(summary, "portfolio_value"):
-                            mt5_total_equity += summary.portfolio_value
-            except Exception:
-                pass
-        mt5_leverage_budget = max_leverage * mt5_total_equity * self._backstop_multiplier
-        mt5_budget_ref = [mt5_leverage_budget] if mt5_leverage_budget_enabled else None
+        # Build portfolio state snapshot from live actors
+        daily_pnl = 0.0
+        if self._var_prev_value is not None:
+            current_value = sum(
+                getattr(a._engine, "mtm_value", 0.0) for a in self._actors.values() if hasattr(a._engine, "mtm_value")
+            )
+            daily_pnl = (current_value - self._var_prev_value) if self._var_prev_value > 0 else 0.0
+        self._portfolio_snapshot = PortfolioStateBuilder(
+            mode_config=get_config().defaults or {},
+        ).build(
+            engine=self,
+            cycle_count=self._cycles_elapsed,
+            daily_pnl=daily_pnl,
+            peak_value=self._peak_portfolio_value or total_equity,
+        )
 
+        # Build performance state from recorded outcomes
+        self._performance_state = self._perf_builder.build(
+            portfolio_value=total_equity,
+        )
+
+        # Compute adaptive risk budget
+        if self._portfolio_snapshot is not None and self._performance_state is not None:
+            risk_engine = RiskEngineV2(
+                mode_config=get_config().defaults or {},
+            )
+            self._risk_budget = risk_engine.compute_budget(
+                portfolio=self._portfolio_snapshot,
+                perf=self._performance_state,
+            )
+        else:
+            self._risk_budget = RiskBudget()
+
+        # Lazy-init PEK admission controller
+        if self._pek is None:
+            self._pek = PortfolioAdmissionController(
+                mode_config=get_config().defaults or {},
+            )
+
+        # Distribute cycle values to actors (no leverage_budget_ref)
         exp_mult, _ = compute_exposure_multiplier(current_dd)
         for actor in self._actors.values():
             actor._engine._cycle_total_equity = total_equity
             actor._engine._cycle_drawdown_pct = current_dd
-            actor._engine._leverage_budget_ref = budget_ref
-            actor._engine._leverage_lock = self._leverage_lock
-            actor._engine._mt5_leverage_budget_ref = mt5_budget_ref
-            actor._engine._mt5_leverage_lock = self._leverage_lock
             if hasattr(actor._engine, "pos_mgr"):
                 actor._engine.pos_mgr.exposure_multiplier = exp_mult
+
+        # Dummy budget_ref for backward compat with any remaining callers
+        budget_ref = [max_leverage * total_equity]
         return defaults, max_leverage, budget_ref
 
     def _phase_1_refresh_signal(self, market_data: dict | None, results: dict) -> None:
@@ -290,6 +332,165 @@ class EngineOrchestrator:
                 results["assets"][name] = result.signal
             else:
                 results["assets"][name] = {"error": result.error}
+
+    def _phase_1b_admission_review(self, results: dict, defaults: dict, max_leverage: float, budget_ref: list) -> None:
+        """PEK admission review — observe and enforce budget after signal gen.
+
+        Collects intents from Phase 1a signals, runs PEK admission (observability),
+        and if budget is exceeded, closes lowest-ranked positions immediately.
+        """
+        if self._pek is None or self._portfolio_snapshot is None:
+            return
+
+        # Collect trade intents from actor results
+        intents: list[AdmissionSignal] = []
+        rejection_reasons: dict[str, str] = {}
+        for name, actor in self._actors.items():
+            signal = results.get("assets", {}).get(name)
+            if signal is None or not isinstance(signal, dict) or "error" in signal:
+                continue
+
+            side_str = signal.get("side")
+            if side_str is None or side_str == "none":
+                continue
+
+            try:
+                pos_side = PositionSide(side_str)
+            except ValueError:
+                rejection_reasons[name] = f"unknown_side:{side_str}"
+                continue
+
+            prob_long = signal.get("prob_long", 0.5)
+            prob_short = signal.get("prob_short", 0.5)
+            calibrated_prob = signal.get("calibrated_prob", max(prob_long, prob_short))
+            entry_price = signal.get("close_price", 0.0)
+            position_size = signal.get("position_size", 0.0)
+
+            # Compute stop-loss and take-profit from existing position if available
+            engine = getattr(actor, "_engine", None)
+            pos_mgr = getattr(engine, "pos_mgr", None) if engine else None
+            stop_loss = 0.0
+            take_profit = 0.0
+            if pos_mgr and pos_mgr.has_position():
+                pos = getattr(pos_mgr, "position", None)
+                if pos:
+                    stop_loss = getattr(pos, "stop_loss", 0.0) or 0.0
+                    take_profit = getattr(pos, "take_profit", 0.0) or 0.0
+
+            sl_distance_pct = abs(entry_price - stop_loss) / max(entry_price, 0.0001) if stop_loss > 0 else 0.0
+            tp_distance_pct = abs(take_profit - entry_price) / max(entry_price, 0.0001) if take_profit > 0 else 0.0
+            notional_requested = position_size * entry_price if entry_price > 0 else 0.0
+            risk_usd = notional_requested * sl_distance_pct
+            tp_sl_ratio = tp_distance_pct / max(sl_distance_pct, 0.0001) if sl_distance_pct > 0 else 0.0
+
+            # Regime confidence from asset's last regime row
+            regime_confidence = 0.5
+            if engine:
+                last_regime = getattr(engine, "_last_regime_row", None)
+                if last_regime:
+                    regime_confidence = getattr(last_regime, "P_trend", 0.5)
+
+            intent = AdmissionSignal(
+                asset=name,
+                side=pos_side,
+                entry_price=entry_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                sl_distance_pct=sl_distance_pct,
+                tp_distance_pct=tp_distance_pct,
+                notional_requested=notional_requested,
+                risk_usd=risk_usd,
+                calibrated_prob=calibrated_prob,
+                expected_value_r=0.0,
+                tp_sl_ratio=tp_sl_ratio,
+                regime_confidence=regime_confidence,
+                feature_hash=signal.get("feature_hash", ""),
+            )
+            intents.append(intent)
+
+        # Run PEK admission
+        result = self._pek.run_admission(
+            candidates=intents,
+            snapshot=self._portfolio_snapshot,
+            risk_budget=self._risk_budget,
+        )
+        admitted = result.admitted if result else []
+        rejected_list = result.rejected if result else []
+
+        # Build rejection reason dict: merge pre-PEK rejections (side errors) with PEK rejections
+        for sig, reason in rejected_list:
+            rejection_reasons[sig.asset] = reason
+        rejected_assets = list(rejection_reasons.keys())
+
+        # Budget enforcement: if actual notional > budget × tolerance, close
+        # lowest-ranked admitted positions until within budget.
+        if self._risk_budget is not None and budget_ref:
+            max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
+            current_notional = sum(
+                getattr(actor._engine, "_last_entry_notional", 0.0) for actor in self._actors.values()
+            )
+            if current_notional > max_notional:
+                logger.warning(
+                    "PEK_BUDGET_OVERRUN: notional=%.2f max=%.2f over=%.2f%% — reviewing %d admitted",
+                    current_notional,
+                    max_notional,
+                    (current_notional / max_notional - 1) * 100,
+                    len(admitted),
+                )
+                # Sort admitted by score ascending (worst first) and close until within budget
+                closed_names: list[str] = []
+                for sig in sorted(admitted, key=lambda s: s.peking_score or 0.0):
+                    if current_notional <= max_notional:
+                        break
+                    actor = self._actors.get(sig.asset)
+                    if actor is None:
+                        continue
+                    engine = getattr(actor, "_engine", None)
+                    if engine is None:
+                        continue
+                    pos_mgr = getattr(engine, "pos_mgr", None)
+                    if pos_mgr is None or not pos_mgr.has_position():
+                        continue
+                    entry_notional = getattr(engine, "_last_entry_notional", 0.0)
+                    try:
+                        exit_price = getattr(engine, "current_price", None)
+                        if exit_price is not None and exit_price > 0:
+                            engine._close_position(exit_price, datetime.now(timezone.utc), "PEK_BUDGET_OVERRUN")
+                            current_notional -= entry_notional
+                            closed_names.append(sig.asset)
+                            logger.warning(
+                                "PEK_BUDGET_CLOSE: %s closed (score=%.4f) — freed %.2f notional",
+                                sig.asset,
+                                sig.peking_score or 0.0,
+                                entry_notional,
+                            )
+                    except (ValueError, TypeError, RuntimeError) as exc:
+                        logger.error("PEK_BUDGET_CLOSE failed for %s: %s", sig.asset, exc)
+
+                if closed_names:
+                    with contextlib.suppress(Exception):
+                        global_alert_manager().warning(
+                            "PEK budget overrun — positions closed",
+                            f"Closed {len(closed_names)} lowest-ranked positions: {closed_names}",
+                            details={
+                                "current_notional": round(current_notional, 2),
+                                "max_notional": round(max_notional, 2),
+                                "closed": closed_names,
+                            },
+                        )
+
+        adm = {
+            "n_intents": len(intents),
+            "n_admitted": len(admitted),
+            "n_rejected": len(rejected_assets),
+            "budget_notional": budget_ref[0] if budget_ref else 0.0,
+            "admitted": [s.asset for s in admitted],
+            "rejected": rejected_assets,
+            "rejection_reasons": rejection_reasons,
+            "ranking_scores": getattr(result, "ranking_scores", {}),
+        }
+        results["admission"] = adm
+        self._last_admission = adm
 
     def _phase_2_validity(self, results: dict) -> None:
         """Parallel validity updates (Phase 2)."""
@@ -416,27 +617,26 @@ class EngineOrchestrator:
             results["circuit_breaker"] = {"triggered": True, "reason": breaker_result.reason}
             return True
 
-        # ── 3d: Portfolio leverage backstop ───────────────────────────────
+        # ── 3d: Leverage anomaly detector (observability only) ────────────
+        # Backstop no longer takes corrective action — that is handled by
+        # the PEK in Phase 1b. This sub-phase only logs anomalies for
+        # post-hoc analysis and dashboard observability.
         total_entered = sum(getattr(actor._engine, "_last_entry_notional", 0.0) for actor in self._actors.values())
         tolerance = defaults.get("portfolio_leverage_tolerance", 0.001)
-        fair_budget = max_leverage * self._backstop_initial_equity
-        if total_entered > fair_budget * (1.0 + tolerance):
-            correction = fair_budget / max(total_entered, 1e-9)
-            self._backstop_multiplier = min(self._backstop_multiplier, correction)
-            self._backstop_decay_cycles = 0
+        fair_budget = max_leverage * self._cycle_total_equity
+        anomaly_detected = total_entered > fair_budget * (1.0 + tolerance)
+        if anomaly_detected:
             logger.warning(
-                "LEVERAGE BACKSTOP FIRED: entered=%.2f fair_budget=%.2f overshoot=%.2f%% correction=%.4f new_mult=%.4f",
+                "BACKSTOP_ANOMALY: entered=%.2f budget=%.2f overshoot=%.2f%% — PEK should have prevented",
                 total_entered,
                 fair_budget,
                 (total_entered / fair_budget - 1) * 100,
-                correction,
-                self._backstop_multiplier,
             )
-        else:
-            self._backstop_decay_cycles += 1
-            penalty = 1.0 - self._backstop_multiplier
-            penalty *= 0.9
-            self._backstop_multiplier = 1.0 - penalty
+        results["backstop"] = {
+            "total_entered": round(total_entered, 2),
+            "fair_budget": round(fair_budget, 2),
+            "anomaly": anomaly_detected,
+        }
 
         # ── 3e: Position concentration check ─────────────────────────────
         conc = self._compute_position_concentration()
@@ -604,7 +804,7 @@ class EngineOrchestrator:
                         eng._halted = False
                     self._recovery_scheduler.record_result(name, success=True)
                     recovered.append(name)
-                except Exception as exc:
+                except (AttributeError, TypeError) as exc:
                     self._recovery_scheduler.record_result(name, success=False, error=str(exc))
                     logger.error("RecoveryScheduler: recovery failed for %s: %s", name, exc)
         if recovered:
@@ -612,15 +812,32 @@ class EngineOrchestrator:
             logger.info("RecoveryScheduler: recovered %d actor(s): %s", len(recovered), recovered)
 
     def _phase_4_persist(self, results: dict) -> None:
-        """Flush persist queues to buffer and commit WAL state snapshot."""
+        """Flush persist queues to buffer, record trade outcomes, commit WAL."""
         results["phasetimestamps"][EnginePhase.PERSIST] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         persist_count = 0
         for name, actor in self._actors.items():
             commands = actor.drain_persist_queue()
             for cmd in commands:
                 self._persist_buffer.append(cmd.__dict__)
+                # Record completed trades to PerformanceStateBuilder
+                if cmd.kind == "trade":
+                    payload = cmd.payload
+                    exit_reason = payload.get("exit_reason", "unknown")
+                    if exit_reason in ("TP", "SL", "manual", "circuit_breaker", "PEK_BUDGET_OVERRUN"):
+                        self._perf_builder.record_trade(
+                            asset=cmd.asset or name,
+                            exit_reason=exit_reason,
+                            r_multiple=payload.get("r_multiple", 0.0),
+                            mae_pct=payload.get("mae_pct", 0.0),
+                            mfe_pct=payload.get("mfe_pct", 0.0),
+                        )
                 persist_count += 1
         results["persist_count"] = persist_count
+        results["performance"] = {
+            "n_trades": len(self._perf_builder._outcome_tracker._outcomes)
+            if hasattr(self._perf_builder, "_outcome_tracker")
+            else 0,
+        }
         self._write_state_committed()
 
     # ── WAL event emission ──────────────────────────────────────────────────────
@@ -742,7 +959,7 @@ class EngineOrchestrator:
                 engine._close_position(exit_price=exit_price, exit_date=now_iso, reason=reason)
                 flattened.append(name)
                 logger.warning("%s: position closed by circuit breaker (%.4f)", name, exit_price)
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                 logger.error("%s: circuit breaker flatten failed: %s", name, e)
         if flattened:
             logger.error(
@@ -827,7 +1044,7 @@ class EngineOrchestrator:
                             ticket,
                             mt5_symbol,
                         )
-                except Exception as e:
+                except (OSError, ValueError, TypeError) as e:
                     still_pending.append((mt5_symbol, ticket))
                     logger.error(
                         "MT5_ORPHAN exception on retry %d: %s ticket=%s on %s: %s",
@@ -851,7 +1068,7 @@ class EngineOrchestrator:
         try:
             broker._position_cache_time = 0.0  # invalidate cache for fresh data
             mt5_positions = broker.get_positions()
-        except Exception:
+        except (OSError, ValueError, TypeError):
             return
 
         mt5_by_ticket: dict[str, object] = {}
@@ -919,7 +1136,7 @@ class EngineOrchestrator:
             mt5_sym = broker.ticker_to_mt5_symbol(engine.ticker)
             sym_actors.setdefault(mt5_sym, []).append((name, engine))
 
-        # Build reverse symbol map: MT5 symbol → QuantForge ticker
+        # Build reverse symbol map: MT5 symbol → Quorrin ticker
         reverse_map: dict[str, str] = {}
         for ticker, mt5_sym in broker._symbol_map.items():
             reverse_map[mt5_sym] = ticker

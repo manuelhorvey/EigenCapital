@@ -26,7 +26,6 @@ def price_data():
     import numpy as np
 
     np.random.seed(42)
-    dates = pd.date_range("2025-01-01", periods=100, freq="h")
     prices = 100.0 + np.cumsum(np.random.randn(100) * 0.1) + np.linspace(0, 2, 100)
     return pd.DataFrame({
         "open": prices * 0.999,
@@ -34,7 +33,7 @@ def price_data():
         "low": prices * 0.995,
         "close": prices,
         "volume": 1_000_000,
-    }, index=dates)
+    }, index=pd.RangeIndex(100))
 
 
 class TestShadowTradeRecord:

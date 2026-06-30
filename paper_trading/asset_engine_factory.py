@@ -34,7 +34,7 @@ from paper_trading.services.position_service import PositionService
 from paper_trading.shadow.engine import ShadowSLTPEngine
 from shared.registry import StrategyRegistry
 
-logger = logging.getLogger("quantforge.asset_engine_factory")
+logger = logging.getLogger("quorrin.asset_engine_factory")
 
 ET = pytz.timezone("US/Eastern")
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

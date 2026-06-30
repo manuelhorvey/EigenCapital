@@ -1,6 +1,8 @@
 import json
 import os
+
 import pytest
+import requests.exceptions
 from unittest.mock import patch, MagicMock, mock_open
 from datetime import datetime, timedelta
 
@@ -128,7 +130,7 @@ def test_fetch_fxstreet_handles_network_error(mock_get):
 @patch("features.fxstreet_fetcher.requests.get")
 def test_fetch_fxstreet_handles_http_error(mock_get):
     mock_get.return_value = _make_fxstreet_mock_resp("", status_code=503)
-    mock_get.return_value.raise_for_status.side_effect = Exception("HTTP 503")
+    mock_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError("HTTP 503")
     result = fetch_fxstreet_article()
     assert result is None
 

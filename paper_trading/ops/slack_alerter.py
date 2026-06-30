@@ -102,7 +102,7 @@ def _build_blocks(header_text: str, emoji: str, fields: list[dict], context: str
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": context or f"QuantForge · {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                    "text": context or f"Quorrin · {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
                 },
             ],
         }

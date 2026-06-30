@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react'
-import { Menu, RefreshCw, TrendingUp, DollarSign, Activity } from 'lucide-react'
+import { Menu, RefreshCw, TrendingUp } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../hooks/useEngineHealth'
@@ -7,68 +7,30 @@ import { useSystemHealthModal } from '../hooks/useSystemHealthModal'
 import { systemSelectors } from '../selectors/system'
 import ThemeToggle from './ui/ThemeToggle'
 import MT5Status from './MT5Status'
-import { formatTimeAgo } from '../utils/format'
-
-function EngineDot() {
-  const health = useEngineHealth()
-  const engineAlive = health.data?.engine_alive ?? false
-  const label = health.isError ? 'Disconnected' : health.isLoading ? '...' : engineAlive ? 'Live' : 'Stale'
-  const dot = health.isError ? 'bg-gov-red' : engineAlive ? 'bg-gov-green' : 'bg-gov-yellow'
-  return (
-    <span className="hidden sm:inline-flex items-center gap-1.5 text-2xs text-tertiary font-mono tabular-nums">
-      <span
-        className={`relative inline-flex w-2 h-2 rounded-full ${dot}`}
-        title={`Engine: ${label}`}
-        aria-label={`Engine: ${label}`}
-      />
-      {label}
-    </span>
-  )
-}
-
-function EngineDotMobile() {
-  const health = useEngineHealth()
-  const engineAlive = health.data?.engine_alive ?? false
-  const label = health.isError ? 'Disconnected' : health.isLoading ? '...' : engineAlive ? 'Live' : 'Stale'
-  const dot = health.isError ? 'bg-gov-red' : engineAlive ? 'bg-gov-green' : 'bg-gov-yellow'
-  return (
-    <span
-      className={`sm:hidden relative inline-flex w-2 h-2 rounded-full ${dot}`}
-      title={`Engine: ${label}`}
-      aria-label={`Engine: ${label}`}
-    />
-  )
-}
-
-const QuickStatsBar = memo(function QuickStatsBar() {
-  const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
-  if (!portfolio) return null
-
-  // Use the backend's total_return (deployed-capital denominator) rather than
-  // recomputing (mtm_value − capital)/capital — that denom-mismatch treats
-  // undeployed cash as a permanent loss and freezes the readout near −16%.
-  const totalReturn = portfolio.total_return ?? 0
-
-  return (
-    <div className="hidden md:flex items-center gap-4 text-2xs font-mono tabular-nums">
-      <div className="flex items-center gap-1.5 text-tertiary">
-        <DollarSign className="w-3 h-3 text-tertiary/60" strokeWidth={1.5} />
-        <span className="text-primary font-semibold">
-          {portfolio.mtm_value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-        </span>
-      </div>
-      <span className={`${totalReturn >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
-        {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-      </span>
-      <span className="text-tertiary">
-        {portfolio.open_positions} pos
-      </span>
-    </div>
-  )
-})
 
 interface HeaderProps {
   onMenuClick?: () => void
+}
+
+function HealthBadge() {
+  const health = useEngineHealth()
+  const { open: openSystemHealth } = useSystemHealthModal()
+  const engineAlive = health.data?.engine_alive ?? false
+  const label = health.isError ? 'Disconnected' : health.isLoading ? '...' : engineAlive ? 'Live' : 'Stale'
+  const dot = health.isError ? 'bg-gov-red' : engineAlive ? 'bg-gov-green' : 'bg-gov-yellow'
+
+  return (
+    <button
+      type="button"
+      onClick={openSystemHealth}
+      className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-1.5 px-2 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring text-2xs font-mono tabular-nums"
+      title={`Engine: ${label} — click for details`}
+      aria-label="Open system health monitor"
+    >
+      <span className={`relative inline-flex w-2 h-2 rounded-full ${dot}`} />
+      <span className="hidden sm:inline text-tertiary">{label}</span>
+    </button>
+  )
 }
 
 function Header({ onMenuClick }: HeaderProps) {
@@ -76,14 +38,7 @@ function Header({ onMenuClick }: HeaderProps) {
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const { open: openSystemHealth } = useSystemHealthModal()
-  const lastServerUpdate = snapshot?.portfolio?.last_update ?? snapshot?.engine_status?.last_update ?? snapshot?.timestamp
-  const lastClientUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : ''
-  const freshnessLabel = lastServerUpdate
-    ? `Updated ${formatTimeAgo(lastServerUpdate)}`
-    : lastClientUpdate
-      ? `Fetched ${formatTimeAgo(lastClientUpdate)}`
-      : ''
+  const sequenceId = snapshot?.sequence_id
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
@@ -103,8 +58,8 @@ function Header({ onMenuClick }: HeaderProps) {
         scrolled ? 'border-default shadow-[0_1px_0_rgba(255,255,255,0.04)]' : 'border-default/60'
       }`}
     >
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-7 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="max-w-[90rem] mx-auto px-2 sm:px-6 py-1.5 flex items-center justify-between gap-1 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <button
             type="button"
             onClick={onMenuClick}
@@ -114,30 +69,21 @@ function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="w-3.5 h-3.5 text-secondary" strokeWidth={2} />
           </button>
-          <div className="w-8 h-8 rounded-lg bg-accent-emerald/90 flex items-center justify-center shrink-0 shadow-sm">
-            <TrendingUp className="w-4 h-4 text-[#08090c]" strokeWidth={2.25} />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-accent-emerald/90 flex items-center justify-center shrink-0 shadow-sm">
+            <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#08090c]" strokeWidth={2.25} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-bold tracking-tight text-primary leading-none truncate">QuantForge</h1>
-            <p className="text-[9px] text-tertiary font-mono tracking-wider uppercase leading-none mt-0.5">Paper Trading</p>
+            <div className="flex items-baseline gap-1.5">
+              <h1 className="text-xs sm:text-sm font-bold tracking-tight text-primary leading-none truncate">Quorrin</h1>
+              {sequenceId != null && (
+                <span className="hidden sm:inline text-[8px] text-tertiary/40 font-mono leading-none">#{sequenceId}</span>
+              )}
+            </div>
           </div>
         </div>
 
-        <QuickStatsBar />
-
-        <div className="flex items-center gap-2">
-          <EngineDot />
-          <EngineDotMobile />
-
-          <button
-            type="button"
-            onClick={openSystemHealth}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring hidden sm:inline-flex"
-            title="System Health"
-            aria-label="Open system health monitor"
-          >
-            <Activity className="w-3.5 h-3.5 text-secondary" strokeWidth={2} />
-          </button>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <HealthBadge />
           <ThemeToggle />
           <MT5Status />
 

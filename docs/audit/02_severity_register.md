@@ -1,4 +1,4 @@
-# QuantForge — Re-Prioritized Severity Register
+# Quorrin — Re-Prioritized Severity Register
 
 **Date (original):** 2026-06-23
 **Status as of:** 2026-06-23 (all Track A items resolved; Track B BUY inversion closed)
@@ -7,7 +7,7 @@
 
 ## Status Update (Same-Day Close)
 
-All 13 Track A items were completed in <8h of engineering work. Track B BUY inversion root cause investigation closed after calibration/prior shift analysis confirmed the SELL_ONLY filter is the permanent answer for 8 assets. Full remediation summary:
+All 13 Track A items were completed in <8h of engineering work. Track B BUY inversion root cause investigation closed after calibration/prior shift analysis confirmed the SELL_ONLY filter is the permanent answer for 5 assets (reduced from 8 on 2026-06-26 after trend-exhaustion features). Full remediation summary:
 
 - 12/13 Track A items **fixed and committed** (rank 9 — expanding window — investigated, found unactionable at current data depth).
 - Track B walk-forward re-run, data-source mismatch check, and realistic Sharpe estimate **all completed**.

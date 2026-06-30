@@ -14,6 +14,8 @@ export interface SystemIntegrity {
   shouldBlockRender: boolean
   /** Human label for display in header / degraded banner */
   label: 'healthy' | 'degraded' | 'partial_failure' | 'no_data'
+  /** Specific stale source names for targeted messaging */
+  staleSources: string[]
 }
 
 const INITIAL: SystemIntegrity = {
@@ -23,6 +25,7 @@ const INITIAL: SystemIntegrity = {
   hasStaleLive: false,
   shouldBlockRender: true,
   label: 'no_data',
+  staleSources: [],
 } as const
 
 export function useSystemIntegrity(bundle: SystemBundle | undefined): SystemIntegrity {
@@ -36,6 +39,10 @@ export function useSystemIntegrity(bundle: SystemBundle | undefined): SystemInte
     const mt5Fresh = bundle.live?.mt5?.is_fresh !== false
     const hasStaleLive = !healthFresh || !mt5Fresh
 
+    const staleSources: string[] = []
+    if (!healthFresh) staleSources.push('health')
+    if (!mt5Fresh) staleSources.push('MT5')
+
     const isBroken = status === 'partial_failure'
     const isDegraded = status === 'degraded' || hasStaleLive
 
@@ -46,6 +53,7 @@ export function useSystemIntegrity(bundle: SystemBundle | undefined): SystemInte
       hasStaleLive,
       shouldBlockRender: isBroken,
       label: isBroken ? 'partial_failure' : isDegraded ? 'degraded' : 'healthy',
+      staleSources,
     }
   }, [bundle])
 }

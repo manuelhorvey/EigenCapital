@@ -6,16 +6,14 @@ from backtests.performance_metrics import calculate_regime_performance
 
 class TestCalculateRegimePerformance:
     def test_basic_regime_decomposition(self):
-        dates = pd.date_range("2020-01-01", periods=10, freq="D")
         signals = pd.DataFrame(
             {
                 "signal": [1, 2, 0, 1, 2, 0, 1, 2, 0, 1],
                 "risk_multiplier": [1.0] * 10,
                 "regime": ["low", "low", "low", "mid", "mid", "mid", "high", "high", "high", "high"],
             },
-            index=dates,
         )
-        returns = pd.Series([0.01, -0.005, 0.02, -0.01, 0.015, -0.02, 0.005, -0.01, 0.025, 0.0], index=dates)
+        returns = pd.Series([0.01, -0.005, 0.02, -0.01, 0.015, -0.02, 0.005, -0.01, 0.025, 0.0])
 
         metrics = calculate_regime_performance(signals, returns)
 
@@ -29,31 +27,27 @@ class TestCalculateRegimePerformance:
             assert 0 <= m["win_rate"] <= 1
 
     def test_single_regime(self):
-        dates = pd.date_range("2020-01-01", periods=5, freq="D")
         signals = pd.DataFrame(
             {
                 "signal": [1, 1, 1, 1, 1],
                 "risk_multiplier": [1.0] * 5,
                 "regime": ["low"] * 5,
             },
-            index=dates,
         )
-        returns = pd.Series([0.01, 0.02, -0.01, 0.005, 0.015], index=dates)
+        returns = pd.Series([0.01, 0.02, -0.01, 0.005, 0.015])
 
         metrics = calculate_regime_performance(signals, returns)
         assert list(metrics.keys()) == ["low"]
 
     def test_signal_alignment_with_next_bar_return(self):
-        dates = pd.date_range("2020-01-01", periods=5, freq="D")
         signals = pd.DataFrame(
             {
                 "signal": [2, 2, 2, 2, 2],
                 "risk_multiplier": [1.0] * 5,
                 "regime": ["low"] * 5,
             },
-            index=dates,
         )
-        returns = pd.Series([0.01, 0.02, 0.03, 0.04, 0.05], index=dates)
+        returns = pd.Series([0.01, 0.02, 0.03, 0.04, 0.05])
 
         metrics = calculate_regime_performance(signals, returns)
         # signal[t] * return[t+1]: last signal has no next return (NaN), gets dropped
@@ -61,32 +55,28 @@ class TestCalculateRegimePerformance:
         assert metrics["low"]["total_return"] == pytest.approx(0.28, abs=1e-6)
 
     def test_empty_regime_skipped(self):
-        dates = pd.date_range("2020-01-01", periods=5, freq="D")
         signals = pd.DataFrame(
             {
                 "signal": [0, 0, 0, 0, 0],
                 "risk_multiplier": [1.0] * 5,
                 "regime": ["low", "low", "mid", "mid", "mid"],
             },
-            index=dates,
         )
-        returns = pd.Series([0.01] * 5, index=dates)
+        returns = pd.Series([0.01] * 5)
 
         metrics = calculate_regime_performance(signals, returns)
         # regime "high" does not appear, so not in output
         assert "high" not in metrics
 
     def test_sharpe_zero_when_std_zero(self):
-        dates = pd.date_range("2020-01-01", periods=5, freq="D")
         signals = pd.DataFrame(
             {
                 "signal": [1, 1, 1, 1, 1],
                 "risk_multiplier": [1.0] * 5,
                 "regime": ["low"] * 5,
             },
-            index=dates,
         )
-        returns = pd.Series([0.01] * 5, index=dates)
+        returns = pd.Series([0.01] * 5)
 
         metrics = calculate_regime_performance(signals, returns)
         assert metrics["low"]["sharpe"] == 0.0

@@ -55,7 +55,7 @@ class ExecutionState(Enum):
 
 ET = pytz.timezone("US/Eastern")
 
-logger = logging.getLogger("quantforge.engine")
+logger = logging.getLogger("quorrin.engine")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _STORE = StateStore(BASE)
@@ -209,7 +209,6 @@ class PaperTradingEngine:
             symbol_map=symbol_map,
             bridge_host=mt5.bridge_host,
             bridge_port=mt5.bridge_port,
-            min_lot=mt5.min_lot,
         )
 
     def _install_mt5_data_provider(self, cfg) -> None:

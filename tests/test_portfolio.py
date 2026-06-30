@@ -21,7 +21,6 @@ from portfolio.risk_parity import compute_risk_parity_portfolio
 def asset_returns():
     np.random.seed(42)
     n = 252
-    dates = pd.date_range("2024-01-01", periods=n, freq="B")
     returns = pd.DataFrame(
         {
             "ASSET_A": np.random.randn(n) * 0.01,
@@ -29,7 +28,7 @@ def asset_returns():
             "ASSET_C": np.random.randn(n) * 0.02,
             "ASSET_D": np.random.randn(n) * 0.008,
         },
-        index=dates,
+        index=pd.RangeIndex(n),
     )
     returns["ASSET_E"] = returns["ASSET_A"] * 0.9 + np.random.randn(n) * 0.001
     return returns
@@ -39,7 +38,6 @@ def asset_returns():
 def correlated_returns():
     np.random.seed(99)
     n = 252
-    dates = pd.date_range("2024-01-01", periods=n, freq="B")
     base = np.random.randn(n) * 0.01
     return pd.DataFrame(
         {
@@ -49,7 +47,7 @@ def correlated_returns():
             "D": np.random.randn(n) * 0.015,
             "E": np.random.randn(n) * 0.02,
         },
-        index=dates,
+        index=pd.RangeIndex(n),
     )
 
 

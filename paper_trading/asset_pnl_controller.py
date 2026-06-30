@@ -14,7 +14,7 @@ from paper_trading.ops.tracer import (
 )
 from paper_trading.shadow.memory import store_event as _shadow_store
 
-logger = logging.getLogger("quantforge.pnl_controller")
+logger = logging.getLogger("quorrin.pnl_controller")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -124,7 +124,7 @@ class AssetPnlController:
             asset._structure_detector.detect(data),
         )
 
-        from quantforge.domain.entities.position import PositionSide
+        from quorrin.domain.entities.position import PositionSide
 
         correct_tp = entry_price + (
             tp_geo.tp_distance if asset.pos_mgr.position.side == PositionSide.LONG else -tp_geo.tp_distance
@@ -153,7 +153,7 @@ class AssetPnlController:
             return
         raw_return = (cp - entry) / entry
         side = asset.pos_mgr.position.side
-        from quantforge.domain.entities.position import PositionSide
+        from quorrin.domain.entities.position import PositionSide
 
         excursion = raw_return if side == PositionSide.LONG else -raw_return
         asset._running_mae = max(getattr(asset, "_running_mae", 0.0), -excursion)

@@ -81,7 +81,7 @@ export function validityToState(state: string): GovernanceState {
 
 export function scoreToState(score: number): GovernanceState {
   if (score >= 0.8) return 'GREEN'
-  if (score >= 0.55) return 'YELLOW'
+  if (score >= 0.5) return 'YELLOW'
   return 'RED'
 }
 

@@ -1,12 +1,12 @@
-# QuantForge — System Overview
+# Quorrin — System Overview
 
-Architecture, component responsibilities, execution lifecycle, and persistence model for the QuantForge cross-sectional research and paper trading platform.
+Architecture, component responsibilities, execution lifecycle, and persistence model for the Quorrin cross-sectional research and paper trading platform.
 
 ---
 
 # System Philosophy
 
-QuantForge is designed around a simple operational principle:
+Quorrin is designed around a simple operational principle:
 
 > robustness matters more than alpha complexity.
 
@@ -28,32 +28,27 @@ The repository intentionally treats trading infrastructure as a distributed stat
 
 # High-Level Architecture
 
-```text
-Research Universe (36 assets)
-        ↓
-Walk-Forward Validation (expanding window)
-        ↓
-Asset Selection (GREEN / YELLOW / RED)
-        ↓
-Per-Asset Training (XGBoost, per-asset depth)
-        ↓
-Live Inference
-        ↓
-Calibration (P1 — BinnedCalibrator, per-asset, config-gated)
-        ↓
-Governance Filters (11 layers + P2 Kelly sizing + P3 factor model)
-        ↓
-Decision Pipeline Stages (22 stages: first-cycle → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
-        ↓
-Portfolio Weight Rebalance (P0 — 4 strategies: equal, risk parity, HRP, factor-constrained)
-        ↓
-Position Sizing Guardrails (P2 Kelly multiplier → drawdown taper → caps → leverage budget)
-        ↓
-Execution & Positioning (MT5 or PaperBroker)
-        ↓
-Persistence & Replay (schema migration, DB_SCHEMA_VERSION=2.0.0)
-        ↓
-Monitoring & Attribution
+The engine runs a continuous 5-phase orchestrator cycle. Each tick (every 30s) executes the following loop:
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
+    PRE --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
+    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
+    CB -- passed --> FX[Factor Exposures\n9 factor groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew threshold]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nRecord outcomes → PerformanceState\nState snapshot → state.json]
+    P4 --> Start
 ```
 
 ---
@@ -220,7 +215,7 @@ Per-asset max_depth from `configs/paper_trading.yaml`. Regime model: 200 trees, 
 
 # Live Inference Pipeline
 
-The live engine executes every 60 seconds by default (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var).
+The live engine executes every 60 seconds by default (configurable via `QUORRIN_REFRESH_INTERVAL` env var).
 
 ## Runtime Pipeline
 
@@ -240,31 +235,32 @@ The live engine executes every 60 seconds by default (configurable via `QUANTFOR
  13. FixedThresholdStrategy(0.45) → BUY/SELL/FLAT
  14. Archetype classification → TradeDecision
  15. Refresh MT5 spread for spread gate
- 16. Decision pipeline stages (22 stages, `DEFAULT_STAGES`):
-     a. First-cycle suppression — suppress trading on cold-start cycle 1
-     b. Bar-jump suppression — suppress 60min if bar count changed >100
-     c. Store prediction metadata — record pre-decision signal state
-     d. Update MAE/MFE — update max adverse/favorable excursion
-     e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
-     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0 (AUDCHF removed)
-     g. Sell-only filter — override BUY→FLAT for 8 inverted-BUY assets
-   h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
-      i. Session gate — block entry outside regular trading hours for index futures
-      j. ADX entry gate — skip if ADX < threshold (configurable per asset)
+  16. Decision pipeline stages (21 stages, `DEFAULT_STAGES`):
+      a. First-cycle suppression — suppress trading on cold-start cycle 1
+      b. Bar-jump suppression — suppress 60min if bar count changed >100
+      c. Store prediction metadata — record pre-decision signal state
+      d. Update MAE/MFE — update max adverse/favorable excursion
+      e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
+      f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
+      g. Sell-only filter — override BUY→FLAT for 5 inverted-BUY assets
+      h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
+      i. Session gate — block entry outside market session hours per asset-class tier
+      j. ADX entry gate — skip if ADX < threshold (observe-only, disabled by default)
       k. Confidence gate — abort if net confidence below threshold
-     j. Signal stability filter — require >0.65 max(prob_long, prob_short)
-     k. Signal hysteresis — 2-of-3 agreement before flip
-     l. Meta-label advisory — record meta-label recommendation (no enforcement)
-     m. Update regime bar counter — track bars since last regime shift
-     n. Conviction gate — flip gate based on regime conviction
-     o. **Kelly sizing (P2)** — scale position by Kelly criterion (config-gated via `kelly.enabled`, default `false`)
-      p. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > threshold)
-     r. Build entry artifacts — construct TradeDecision for execution
-     s. Route execution policy — direct to PaperBroker or MT5Broker
-     t. Poll deferred entries — execute pending deferred orders
+      l. Signal hysteresis — 2-of-3 agreement before flip
+      m. Meta-label advisory — record meta-label recommendation (no enforcement)
+      n. Update regime bar counter — track bars since last regime shift
+      o. Conviction gate — flip gate based on regime conviction
+      p. **Kelly sizing (P2)** — scale position by Kelly criterion (config-gated, disabled by default)
+      q. Manage position — close/re-open with entry gate check (includes embedded profit lock)
+      r. Build entry artifacts — construct TradeDecision for execution
+      s. Route execution policy — direct to PaperBroker or MT5Broker
+      t. Poll deferred entries — execute pending deferred orders
+      u. Update prob history — record probability history for drift monitoring
   17. Route through governance (15 layers + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
-  19. Position sizing chain (P2 Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget → backstop)
+  19. Position sizing chain (drawdown taper → position cap → risk cap → min viable gate)
+    → PEK budget enforcement (closes lowest-ranked positions if portfolio notional exceeds max)
   20. Independent MT5 sizing (same chain with real broker equity)
   21. Execute position lifecycle (open/close/flip/trailing)
 ```
@@ -273,7 +269,7 @@ The live engine executes every 60 seconds by default (configurable via `QUANTFOR
 
 # Governance Architecture
 
-QuantForge uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
+Quorrin uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
 
 ## Governance Layers (15 + HealthMonitor)
 
@@ -285,7 +281,7 @@ QuantForge uses independently configurable governance layers with worst-wins agg
 | Macro narrative        | Global     | SL +10%, size −20%        |
 | Liquidity regime       | Per asset  | THIN: soft adjust, STRESSED: halt |
 | PSI drift              | Per asset  | Penalties + halt at 3+ SEVERE |
-| Sell-only filter       | Per asset  | Override BUY→FLAT for 8 inverted-BUY assets |
+| Sell-only filter       | Per asset  | Override BUY→FLAT for 5 inverted-BUY assets |
 | Calibration (P1)       | Per asset  | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
 | Kelly sizing (P2)      | Per asset  | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3)      | Portfolio  | Factor exposure monitoring via 9 groups (monitoring only) |
@@ -311,20 +307,58 @@ QuantForge uses independently configurable governance layers with worst-wins agg
 | Update MAE/MFE | Update max adverse/favorable excursion |
 | Resolve signal | Map proba to BUY/SELL/FLAT |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
-| Sell-only filter | Override BUY→FLAT for 8 inverted-BUY assets |
-| Kelly sizing (P2) | Scale position by Kelly criterion (config-gated, disabled by default) |
+| Sell-only filter | Override BUY→FLAT for 5 inverted-BUY assets |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles) |
+| Session gate | Block entry outside market session hours per asset-class tier |
+| ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) |
 | Confidence gate | Abort if net confidence below threshold |
-| Signal stability filter | Require >0.65 max(prob_long, prob_short) |
 | Signal hysteresis | 2-of-3 agreement before flip |
 | Meta-label advisory | Record meta-label recommendation (no enforcement) |
 | Update regime bar counter | Track bars since last regime shift |
 | Conviction gate | Flip gate based on regime conviction |
-| Profit lock gate | Block flip if unrealized PnL > threshold |
-| Manage position | Close/re-open with entry gate check |
+| Kelly sizing (P2) | Scale position by Kelly criterion (config-gated, disabled by default) |
+| Manage position | Close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > threshold) |
 | Build entry artifacts | Construct TradeDecision for execution |
 | Route execution policy | Direct to PaperBroker or MT5Broker |
 | Poll deferred entries | Execute pending deferred orders |
+| Update prob history | Record probability history for drift monitoring |
+
+```mermaid
+flowchart LR
+    subgraph Suppress
+        A[First-Cycle\nSuppress]
+        B[Bar-Jump\nSuppress]
+    end
+    subgraph Signal
+        C[Store Meta]
+        D[Update\nMAE/MFE]
+        E[Resolve\nBUY/SELL/FLAT]
+        F[Risk-Off\nSuppress]
+        G[Sell-Only\nFilter]
+    end
+    subgraph Gate
+        H[Spread\nGate]
+        I[Session\nGate]
+        J[ADX\nGate]
+        K[Confidence\nGate]
+    end
+    subgraph Position
+        L[Stability\nFilter]
+        M[Hysteresis\n2-of-3]
+        N[Meta-Label\nAdvisory]
+        O[Conviction\nGate]
+        P[Kelly\nSizing]
+        Q[Profit\nLock]
+        R[Manage\nPosition]
+    end
+    subgraph Execute
+        S[Build\nArtifacts]
+        T[Route\nExecution]
+        U[Poll\nDeferred]
+        V[Update\nProb History]
+    end
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N --> O --> P --> Q --> R --> S --> T --> U --> V
+```
 
 ## Position Sizing Guardrails
 
@@ -339,6 +373,18 @@ Applied multiplicatively in `EntryService._submit_to_broker()`:
 | Backstop multiplier | Ratchet-down on breach, 0.9 decay/cycle | (fixed) |
 
 MT5 sizing runs the same chain independently using real broker equity (via `_compute_mt5_qty()`), excluding the leverage budget.
+
+```mermaid
+graph LR
+    A["effective_cap =\ncapital_base × min(mtm/init, 3.0)"] --> B["notional =\neffective_cap × size_scalar"]
+    B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
+    C --> D[Risk-per-Trade Cap\nskip if below min_viable]
+    D --> E[Leverage Budget\natomic decrement from\nmax_leverage × equity pool]
+    E --> F[Backstop Multiplier\nratchet-down on breach\n0.9 decay/cycle]
+    F --> G{Final Notional}
+    G --> Paper[Paper Broker\n$100K simulated equity]
+    G --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
+```
 
 ---
 
@@ -402,7 +448,7 @@ Converts calibrated probability + TP/SL barriers → position size multiplier. K
 
 **File:** `shared/factor_model.py`
 
-9 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, US_EQUITY, COMMODITY) covering all 19 assets. Factor exposures computed per-cycle in `engine_state_service.py`, exposed in `state.json`.
+9 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, US_EQUITY, COMMODITY) covering all 21 assets. Factor exposures computed per-cycle in `engine_state_service.py`, exposed in `state.json`.
 
 ## P4 — HRP Fix (2026-06-24)
 
@@ -454,7 +500,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | `AssetInferencePipeline` | Live inference + calibration (P1) |
 | `AssetTrainingPipeline`  | Training pipeline           |
 | `PortfolioBuilder`       | Asset registry construction |
-| `DecisionPipeline`       | 20-stage decision pipeline with Kelly sizing |
+| `DecisionPipeline`       | 21-stage decision pipeline with Kelly sizing |
 | `EngineRebalanceService` | Live portfolio rebalance via `compute_weights()` (P0) |
 | `StateStore`             | SQLite persistence          |
 | `EntryOptimizer`         | Entry conditioning          |
@@ -510,7 +556,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | Retrain all assets        | `python scripts/training/retrain_all_fixed.py`         |
 | Train regime models       | `python scripts/training/train_regime_models.py`       |
 | Walk-forward backtest     | `python scripts/backtest/walk_forward_backtest.py`     |
-| PnL backtest              | `python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v1` |
+| PnL backtest              | `python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v2` |
 | Train calibration models  | `python scripts/training/train_calibration.py`         |
 | Replay historical weights | `python scripts/replay/replay_rebalance.py --verify` |
 | Score tickers             | `python scripts/research/score_tickers.py`             |

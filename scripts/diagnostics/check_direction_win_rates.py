@@ -35,11 +35,9 @@ logger = logging.getLogger("check_direction_wr")
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 BASELINE_CSV = WALKDIR / "pnl_backtest_base.csv"
 
-SELL_ONLY_ASSETS: frozenset[str] = frozenset(
-    {
-        "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
-    }
-)
+SELL_ONLY_ASSETS: frozenset[str] = frozenset({
+    "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
+})
 
 ALERT_SELL_DRIFT_PP = 10.0  # SELL WR drop >10pp → alert
 ALERT_BUY_OOS_WR = 0.30  # OOS BUY WR > 30% → asymmetry may be healing

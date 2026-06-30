@@ -19,7 +19,7 @@ from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 from paper_trading.execution.broker_interface import AccountSummary, BrokerInterface, Order, Position
 from paper_trading.ops.mt5_client import MT5Client
 
-logger = logging.getLogger("quantforge.mt5_broker")
+logger = logging.getLogger("quorrin.mt5_broker")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -45,7 +45,6 @@ class MT5Broker(BrokerInterface):
         bridge_host: str = "127.0.0.1",
         bridge_port: int = DEFAULT_MT5_BRIDGE_PORT,
         lot_size_map: dict[str, float] | None = None,
-        min_lot: float = 0.05,
         client: MT5Client | None = None,
     ):
         if client is not None:
@@ -61,7 +60,6 @@ class MT5Broker(BrokerInterface):
             )
         self._symbol_map = symbol_map or {}
         self._lot_size_map = lot_size_map or {}
-        self._min_lot = min_lot
         self._connected = False
 
         # Cache for positions (avoids hammering the bridge)
@@ -214,7 +212,7 @@ class MT5Broker(BrokerInterface):
                 volume=volume,
                 sl=0.0 if (order.sl is None or pd.isna(order.sl)) else order.sl,
                 tp=0.0 if (order.tp is None or pd.isna(order.tp)) else order.tp,
-                comment="QuantForge",
+                comment="Quorrin",
                 idempotency_key=id_key,
             )
         except Exception as e:
@@ -409,14 +407,14 @@ class MT5Broker(BrokerInterface):
         info = self._client.symbol_info(asset)
         if info:
             contract_size = info.get("contract_size", 100000.0)
-            step = info.get("volume_step", self._min_lot)
-            broker_min = info.get("min_volume", self._min_lot)
-            min_vol = max(broker_min, self._min_lot)
+            step = info.get("volume_step", 0.01)
+            broker_min = info.get("min_volume", 0.01)
             max_vol = info.get("max_volume", 100.0)
             lots = quantity / contract_size
             lots = round(lots / step) * step
-            lots = max(min_vol, min(lots, max_vol))
-            return lots
+            if lots < broker_min or lots <= 0:
+                return 0.0
+            return min(lots, max_vol)
         return quantity
 
     def _lots_to_quantity(self, mt5_symbol: str, lots: float) -> float:

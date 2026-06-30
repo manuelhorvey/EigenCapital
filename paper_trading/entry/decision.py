@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
-from quantforge.domain.entities.position import PositionIntent, PositionSide  # noqa: F401
-from quantforge.domain.entities.signal import SignalType, TradeDecision  # noqa: F401
+from quorrin.domain.entities.position import PositionIntent, PositionSide  # noqa: F401
+from quorrin.domain.entities.signal import SignalType, TradeDecision  # noqa: F401
 
 ExitReason = Literal["SL", "TP", "BREAKEVEN", "EXPIRY", "FLIP", "MANUAL"]
 

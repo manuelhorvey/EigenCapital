@@ -3,7 +3,7 @@ version: "3.9"
 services:
   engine:
     build: .
-    container_name: quantforge-engine
+    container_name: Quorrin-engine
     restart: unless-stopped
     ports:
       - "5000:5000"   # Dashboard
@@ -14,8 +14,8 @@ services:
       - ./configs:/app/configs:ro
     environment:
       - PYTHONPATH=/app
-      - QUANTFORGE_BIND=0.0.0.0
-      - QUANTFORGE_REFRESH_INTERVAL=${QUANTFORGE_REFRESH_INTERVAL:-60}
+      - QUORRIN_BIND=0.0.0.0
+      - QUORRIN_REFRESH_INTERVAL=${QUORRIN_REFRESH_INTERVAL:-60}
       - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY:-}
       - ALERTING_WEBHOOK_URL=${ALERTING_WEBHOOK_URL:-}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
@@ -34,7 +34,7 @@ services:
   # Optional: Prometheus + Grafana for /metrics scraping
   prometheus:
     image: prom/prometheus:v3.2.0
-    container_name: quantforge-prometheus
+    container_name: Quorrin-prometheus
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -51,7 +51,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.4.0
-    container_name: quantforge-grafana
+    container_name: Quorrin-grafana
     restart: unless-stopped
     ports:
       - "3000:3000"

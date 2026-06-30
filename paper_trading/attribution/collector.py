@@ -24,7 +24,7 @@ from datetime import datetime
 
 from paper_trading.entry.decision import PositionSide
 
-logger = logging.getLogger("quantforge.trade_attribution")
+logger = logging.getLogger("quorrin.trade_attribution")
 
 
 # ── Four Attribution Domains ──────────────────────────────────────

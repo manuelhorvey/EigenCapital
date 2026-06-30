@@ -15,7 +15,7 @@ from paper_trading.ops.simulation_snapshot import build_asset_snapshot
 from paper_trading.performance.live_sharpe import LiveSharpeTracker
 from paper_trading.state_store import EngineSnapshot
 
-logger = logging.getLogger("quantforge.engine_state_service")
+logger = logging.getLogger("quorrin.engine_state_service")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -211,6 +211,77 @@ class EngineStateService:
             "factor_exposures": self._compute_factor_exposures(),
         }
 
+    @staticmethod
+    def _extract_pek(orch: object) -> dict:
+        """Extract PEK state from orchestrator for dashboard display.
+
+        Returns a dict with optional keys: performance_state, risk_budget,
+        portfolio_snapshot.  Each sub-key is populated only if the
+        corresponding orchestrator instance variable is set.
+        """
+        pek: dict = {}
+
+        # PerformanceState scalars + velocity
+        perf = getattr(orch, "_performance_state", None)
+        if perf is not None:
+            vel = getattr(perf, "velocity", None)
+            pek["performance_state"] = {
+                "outcome_scalar": round(perf.outcome_scalar, 4),
+                "degradation_scalar": round(perf.degradation_scalar, 4),
+                "market_scalar": round(perf.market_scalar, 4),
+                "execution_scalar": round(perf.execution_scalar, 4),
+                "velocity_scalar": round(perf.velocity_scalar, 4),
+                "composite_scalar": round(perf.composite_scalar, 4),
+                "win_rate_20": round(perf.win_rate_20, 4),
+                "consecutive_losses": perf.consecutive_losses,
+                "r_cumulative_20": round(perf.r_cumulative_20, 4),
+                "calibration_ece": round(perf.calibration_ece, 6),
+                "atr_ratio": round(perf.atr_ratio, 4),
+                "regime_label": perf.regime_label,
+                "slippage_p90": round(perf.slippage_p90, 6),
+            }
+            if vel is not None:
+                pek["performance_state"]["velocity"] = {
+                    "pnl_velocity": round(vel.pnl_velocity, 6),
+                    "pnl_acceleration": round(vel.pnl_acceleration, 6),
+                    "vol_velocity": round(vel.vol_velocity, 6),
+                    "degradation_velocity": round(vel.degradation_velocity, 6),
+                    "execution_velocity": round(vel.execution_velocity, 6),
+                }
+
+        # RiskBudget scalars
+        budget = getattr(orch, "_risk_budget", None)
+        if budget is not None:
+            pek["risk_budget"] = {
+                "max_risk_per_trade_pct": round(budget.max_risk_per_trade_pct, 4),
+                "max_portfolio_heat": round(budget.max_portfolio_heat, 4),
+                "max_concurrent_positions": budget.max_concurrent_positions,
+                "volatility_scalar": round(budget.volatility_scalar, 4),
+                "drawdown_scalar": round(budget.drawdown_scalar, 4),
+                "performance_scalar": round(budget.performance_scalar, 4),
+                "velocity_scalar": round(budget.velocity_scalar, 4),
+            }
+
+        # PortfolioStateSnapshot summary (scalar fields only)
+        snap = getattr(orch, "_portfolio_snapshot", None)
+        if snap is not None:
+            pek["portfolio_snapshot"] = {
+                "total_equity": round(snap.total_equity, 2),
+                "drawdown_pct": round(snap.drawdown_pct, 6),
+                "gross_exposure": round(snap.gross_exposure, 4),
+                "net_exposure": round(snap.net_exposure, 4),
+                "open_position_count": snap.open_position_count,
+                "daily_pnl": round(snap.daily_pnl, 2),
+                "max_daily_loss": round(snap.max_daily_loss, 2),
+                "drawdown_remaining": round(snap.drawdown_remaining, 4),
+                "leverage_remaining": round(snap.leverage_remaining, 4),
+                "max_leverage": snap.max_leverage,
+                "concurrent_remaining": snap.concurrent_remaining,
+                "max_concurrent": snap.max_concurrent,
+            }
+
+        return pek
+
     def _compute_factor_exposures(self) -> dict:
         from shared.factor_model import summary as factor_summary
 
@@ -236,6 +307,19 @@ class EngineStateService:
         except Exception as exc:
             logger.debug("Failed to compute live Sharpe: %s", exc)
             state["portfolio"]["live_sharpe"] = {"available": False}
+
+        # PEK state from orchestrator
+        try:
+            orch = getattr(engine, "_orchestrator", None)
+            if orch is not None:
+                pek_data = self._extract_pek(orch)
+                if pek_data:
+                    state["portfolio"]["pek"] = pek_data
+                adm = getattr(orch, "_last_admission", None)
+                if adm is not None:
+                    state["portfolio"]["admission"] = adm
+        except Exception as exc:
+            logger.debug("Failed to extract PEK state: %s", exc)
 
         # Capture MT5 connection status for the API endpoint
         try:

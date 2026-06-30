@@ -1,4 +1,4 @@
-# MT5 Symbol Map — QuantForge ticker → MetaTrader5 symbol name
+# MT5 Symbol Map — Quorrin ticker → MetaTrader5 symbol name
 #
 # Edit this file to match your broker's symbol names.
 # Exness demo symbols are shown as defaults.
@@ -6,7 +6,7 @@
 
 # ── Forex ─────────────────────────────────────────────────────────────────────
 # AUDCHF=X: AUDCHF    # REMOVED from trading (directional filter diagnostic — BUY was anti-skill)
-AUDJPY=X: AUDJPY
+AUDJPY=X: AUDJPY   # Research/data collection only — not in trading portfolio
 # AUDNZD=X: AUDNZD    # REMOVED from trading (directional filter diagnostic — SELL was anti-skill)
 AUDUSD=X: AUDUSD
 CADCHF=X: CADCHF
@@ -16,7 +16,7 @@ EURAUD=X: EURAUD
 EURCAD=X: EURCAD
 EURCHF=X: EURCHF
 EURNZD=X: EURNZD
-EURUSD=X: EURUSD
+# EURUSD=X: EURUSD    # REMOVED from trading 2026-06-20 (directional instability)
 GBPAUD=X: GBPAUD
 GBPCAD=X: GBPCAD
 GBPCHF=X: GBPCHF
@@ -26,32 +26,32 @@ NZDCHF=X: NZDCHF
 NZDUSD=X: NZDUSD
 USDCAD=X: USDCAD
 USDCHF=X: USDCHF
-USDJPY=X: USDJPY      # PROMOTED 2026-06-26 — Group A sweep: total_R=+281.19, sharpe_adj=4.68, SELL WR=63.8%. SELL_ONLY.
+USDJPY=X: USDJPY # PROMOTED 2026-06-26 — Group A sweep: total_R=+281.19, sharpe_adj=4.68, SELL WR=63.8%. SELL_ONLY.
 # AUDCAD=X:  AUDCAD     # FAIL — negative expectancy
 # EURCHF=X:  EURCHF     # WEAK — low consistency
 # EURGBP=X:  EURGBP     # FAIL — negative expectancy
 # EURJPY=X:  EURJPY     # WEAK — low sharpe
 # EURNZD=X:  EURNZD     # FAIL — negative expectancy
 # GBPAUD=X:  GBPAUD     # WEAK — low consistency
-GBPJPY=X:  GBPJPY     # PROMOTED 2026-06-26 — Group A sweep: total_R=+359.94, sharpe_adj=5.88, SELL WR=66.5%. SELL_ONLY.
-GBPUSD=X:  GBPUSD
+GBPJPY=X: GBPJPY # PROMOTED 2026-06-26 — Group A sweep: total_R=+359.94, sharpe_adj=5.88, SELL WR=66.5%. SELL_ONLY.
+GBPUSD=X: GBPUSD
 # NZDCHF=X:  NZDCHF     # WEAK — low consistency
 # NZDJPY=X:  NZDJPY     # WEAK — near-zero trades
 
 # ── Metals ────────────────────────────────────────────────────────────────────
 GC=F: XAUUSD
-SI=F: XAGUSD
+# SI=F: XAGUSD
 
 # ── Indices ───────────────────────────────────────────────────────────────────
 # Exact Exness names may vary; adjust as needed.
 # Common variants: US500, SP500m, US500Cash, SPX, ES
 ES=F: US500
 NQ=F: USTEC
-YM=F: US30
+YM=F: US30           # Same symbol as ^DJI (Dow futures); only ^DJI is in portfolio
 ^DJI: US30
 
 # ── Energy ────────────────────────────────────────────────────────────────────
-CL=F: USOIL
+CL=F: USOIL          # Kept for WTI cross-asset feature (WTI_mom_21d); not traded directly
 # NG=F:      NATGAS
 
 # ── Crypto ────────────────────────────────────────────────────────────────────

@@ -16,8 +16,7 @@ SEED = 42
 @pytest.fixture
 def alpha_df():
     rng = np.random.default_rng(SEED)
-    idx = pd.date_range("2024-01-01", periods=N, freq="B")
-    df = pd.DataFrame(index=idx)
+    df = pd.DataFrame(index=range(N))
     for asset in ["AUDJPY", "EURCAD"]:
         df[f"{asset}_carry_vol_adj"] = rng.uniform(-1, 1, N)
         df[f"{asset}_mom_21d"] = rng.uniform(-0.2, 0.2, N)

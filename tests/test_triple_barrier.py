@@ -41,7 +41,7 @@ class TestApplyTripleBarrier:
         assert "label" in result.columns
 
     def test_short_window(self):
-        short = pd.DataFrame({"close": [100, 101, 102]}, index=pd.date_range("2020-01-01", periods=3))
+        short = pd.DataFrame({"close": [100, 101, 102]})
         result = apply_triple_barrier(short, pt_sl=[2, 2], vertical_barrier=5)
         assert "label" in result.columns
 
@@ -55,10 +55,9 @@ class TestApplyTripleBarrier:
         assert hasattr(tb, "apply_triple_barrier")
 
     def test_all_three_labels_appear_with_enough_data(self):
-        dates = pd.date_range("2020-01-01", periods=500, freq="D")
         np.random.seed(42)
         prices = 100 + np.cumsum(np.random.randn(500) * 0.5)
-        df = pd.DataFrame({"close": prices}, index=dates)
+        df = pd.DataFrame({"close": prices})
         result = apply_triple_barrier(df, pt_sl=[1, 1], vertical_barrier=20)
         labels = result["label"].dropna()
         unique_labels = set(labels.unique())

@@ -348,7 +348,7 @@ class TestReconcilePhaseB:
             {"ticket": 12345, "symbol": "EURUSD.fx", "type": "buy",
              "volume": 0.1, "price_open": 1.0500, "price_current": 1.0600,
              "profit": 100.0, "commission": 0.0, "sl": 1.0400, "tp": 1.0700,
-             "time": 0, "comment": "QuantForge"},
+             "time": 0, "comment": "Quorrin"},
         ]
         actor = _OrphanActor("EURUSD", position={
             "side": "long", "mt5_ticket": 12345,
@@ -378,7 +378,7 @@ class TestPreOpenGuard:
             {"ticket": 99999, "symbol": "EURUSD.fx", "type": "buy",
              "volume": 0.1, "price_open": 1.0500, "price_current": 1.0600,
              "profit": 100.0, "commission": 0.0, "sl": 1.0400, "tp": 1.0700,
-             "time": 0, "comment": "QuantForge"},
+             "time": 0, "comment": "Quorrin"},
         ]
         mock_client._close_result = {"result": {"retcode": 10009, "ticket": 99999}}
 
@@ -404,8 +404,6 @@ class TestPreOpenGuard:
         engine.initial_capital = 100000
         engine.capital_base = 100000
         engine.current_value = 100000
-        engine._leverage_lock = None  # skip leverage budget check
-        engine._leverage_budget_ref = None
         engine.pos_mgr.position_size = 0.95
         engine.pos_mgr.exposure_multiplier = 1.0
         engine._attribution = MagicMock()

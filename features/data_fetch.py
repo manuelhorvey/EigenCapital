@@ -7,7 +7,7 @@ import pandas as pd
 
 from paper_trading.ops.data_fetcher import fetch_live as _provider_fetch_live
 
-logger = logging.getLogger("quantforge.data_fetch")
+logger = logging.getLogger("quorrin.data_fetch")
 
 # Fetch ~5 years for training — tight-SL assets (AUDCHF, ES, NQ, ^DJI)
 # need more binary samples to reach the 100 minimum.
@@ -159,7 +159,7 @@ def _fetch_macro_batch() -> dict[str, pd.Series]:
                 progress=False,
                 group_by="ticker",
             )
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError):
             df = pd.DataFrame()
 
         if not df.empty and isinstance(df.columns, pd.MultiIndex):
@@ -179,7 +179,7 @@ def _fetch_macro_batch() -> dict[str, pd.Series]:
                 s = _fetch_single_series(ticker)
                 if not s.empty:
                     result[ticker] = s
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 pass
 
     # Normalise all yield tickers from percentage to decimal
@@ -248,7 +248,7 @@ def _fetch_fred_series(ticker: str) -> pd.Series:
         s.index = _normalize_index(s.index)
         logger.debug("FRED fallback succeeded for %s (%s): %d rows", ticker, series_id, len(s))
         return s
-    except Exception as exc:
+    except (OSError, ValueError, TypeError, KeyError) as exc:
         logger.debug("FRED fallback failed for %s (%s): %s", ticker, series_id, exc)
         return pd.Series(dtype=float)
 
@@ -308,7 +308,7 @@ def fetch_cot_features(
                 result[f"{symbol}_cot_change_4w"] = val.fillna(0.0)
 
         return result
-    except Exception as exc:
+    except (OSError, ValueError, TypeError, KeyError) as exc:
         logger.debug("COT features unavailable: %s", exc)
         return pd.DataFrame()
 
@@ -335,7 +335,7 @@ def fetch_asset_data(
             raise ValueError("empty DataFrame")
         close = raw["close"].copy()
         close.index = _normalize_index(close.index)
-    except Exception as exc:
+    except (OSError, ValueError, TypeError) as exc:
         logger.debug(
             "MT5 fetch_live failed for %s (%s): %s — falling back to yfinance",
             asset_name,
@@ -349,7 +349,7 @@ def fetch_asset_data(
             f"{asset_name} ({ticker}): insufficient history ({len(close)} rows, need >= {_MIN_HISTORY_ROWS})"
         )
 
-    prices = close.to_frame("close")
+    prices = close.to_frame(asset_name)
 
     # Macro data is batch-fetched once per cycle and cached
     logger.debug("  fetching macro (DXY, VIX, SPY, CL=F, TNX)...")
@@ -458,7 +458,7 @@ def fetch_asset_data(
     else:
         rate_diff_series = pd.Series(0.0, index=common)
 
-    rate_diffs = pd.DataFrame({"close": rate_diff_series}, index=common)
+    rate_diffs = pd.DataFrame({asset_name: rate_diff_series}, index=common)
 
     commodities = wti.to_frame("WTI")
 
@@ -495,7 +495,7 @@ def fetch_asset_ohlcv(
         df.index = _normalize_index(df.index)
         _set_cycle_cache(cache_key, df)
         return df
-    except Exception as exc:
+    except (OSError, ValueError, TypeError) as exc:
         logger.debug(
             "MT5 fetch_live failed for %s: %s — falling back to yfinance",
             ticker,

@@ -1,6 +1,6 @@
-# QuantForge — Research Decisions
+# Quorrin — Research Decisions
 
-This document summarizes the 6-month investigation arc that shaped QuantForge's architecture. It is written for a quant developer joining the project who needs to understand why the system looks the way it does without repeating the experiments that produced the answers.
+This document summarizes the 6-month investigation arc that shaped Quorrin's architecture. It is written for a quant developer joining the project who needs to understand why the system looks the way it does without repeating the experiments that produced the answers.
 
 ---
 

@@ -59,7 +59,7 @@ DEF_TP = 2.5
 # ──────────────────────────────────────────────
 
 
-def _signals(proba, dates, thr=0.45):
+def _signals(proba, thr=0.45):
     """Convert probability array to signal DataFrame.
 
     proba is (n, 3) with columns [short, neutral, long].
@@ -85,7 +85,6 @@ def _signals(proba, dates, thr=0.45):
 
     return pd.DataFrame(
         {"signal": signals, "pl": long_proba, "ps": short_proba},
-        index=dates,
     )
 
 

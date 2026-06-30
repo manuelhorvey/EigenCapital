@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trade win/loss rate and duration analysis for QuantForge."""
+"""Trade win/loss rate and duration analysis for Quorrin."""
 
 import json
 import logging
@@ -19,65 +19,58 @@ from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quantforge.trade_analysis")
+logger = logging.getLogger("quorrin.trade_analysis")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SLTP_CFG = {
     "GC":     {"sl": 1.00, "tp": 4.00},
     "USDCHF": {"sl": 0.85, "tp": 3.00},
-    "AUDCHF": {"sl": 2.75, "tp": 3.50},
-    "USDCAD": {"sl": 2.50, "tp": 2.00},
+    "USDCAD": {"sl": 1.59, "tp": 3.19},
     "ES":     {"sl": 2.00, "tp": 5.50},
     "NQ":     {"sl": 2.50, "tp": 5.00},
-    "GBPCAD": {"sl": 2.50, "tp": 2.50},
-    "GBPNZD": {"sl": 3.00, "tp": 1.00},
-    "NZDCAD": {"sl": 2.50, "tp": 4.00},
+    "GBPCAD": {"sl": 1.77, "tp": 3.54},
+    "NZDCAD": {"sl": 2.24, "tp": 4.47},
     "DJI":    {"sl": 0.50, "tp": 4.00},
-    # New additions (candidate sweep 2026-06)
-    "EURUSD": {"sl": 3.00, "tp": 1.50},
-    "NZDUSD": {"sl": 2.50, "tp": 1.50},
-    # New additions (filter sweep 2026-06)
-    "GBPAUD": {"sl": 1.00, "tp": 2.00},
+    "NZDUSD": {"sl": 2.00, "tp": 2.50},
+    "GBPAUD": {"sl": 1.50, "tp": 2.00},
     "NZDCHF": {"sl": 1.00, "tp": 4.00},
     "CADCHF": {"sl": 1.00, "tp": 4.00},
     "AUDUSD": {"sl": 1.50, "tp": 4.00},
-    "AUDNZD": {"sl": 2.00, "tp": 1.00},
-    # New additions (remaining filter 2026-06)
     "EURCHF": {"sl": 1.00, "tp": 3.00},
-    "EURCAD": {"sl": 1.00, "tp": 1.00},
-    "EURNZD": {"sl": 1.50, "tp": 2.50},
+    "EURCAD": {"sl": 0.87, "tp": 1.73},
+    "EURNZD": {"sl": 1.37, "tp": 2.74},
     "GBPCHF": {"sl": 1.00, "tp": 2.00},
+    "GBPUSD": {"sl": 0.52, "tp": 1.97},
+    "EURAUD": {"sl": 0.54, "tp": 1.77},
+    "USDJPY": {"sl": 0.52, "tp": 1.97},
+    "GBPJPY": {"sl": 0.50, "tp": 2.22},
 }
 DASHBOARD_TICKERS = {
     "GC=F": "GC",
-    "USDCHF=X": "USDCHF", "AUDCHF=X": "AUDCHF",
+    "USDCHF=X": "USDCHF",
     "USDCAD=X": "USDCAD", "ES=F": "ES",
-    "NQ=F": "NQ", "GBPCAD=X": "GBPCAD", "GBPNZD=X": "GBPNZD",
+    "NQ=F": "NQ", "GBPCAD=X": "GBPCAD",
     "NZDCAD=X": "NZDCAD", "^DJI": "DJI",
-    # New additions (candidate sweep 2026-06)
-    "EURUSD=X": "EURUSD", "NZDUSD=X": "NZDUSD",
-    # New additions (filter sweep 2026-06)
+    "NZDUSD=X": "NZDUSD",
     "GBPAUD=X": "GBPAUD", "NZDCHF=X": "NZDCHF",
     "CADCHF=X": "CADCHF", "AUDUSD=X": "AUDUSD",
-    "AUDNZD=X": "AUDNZD",
-    # New additions (remaining filter 2026-06)
     "EURCHF=X": "EURCHF", "EURCAD=X": "EURCAD",
     "EURNZD=X": "EURNZD", "GBPCHF=X": "GBPCHF",
+    "GBPUSD=X": "GBPUSD", "EURAUD=X": "EURAUD",
+    "USDJPY=X": "USDJPY", "GBPJPY=X": "GBPJPY",
 }
 MODEL_DEPTH = {
     "GC": 2, "USDCHF": 4,
-    "AUDCHF": 2, "USDCAD": 5, "ES": 2,
-    "NQ": 2, "GBPCAD": 2, "GBPNZD": 3, "NZDCAD": 2, "DJI": 4,
-    # New additions (candidate sweep 2026-06)
-    "EURUSD": 3, "NZDUSD": 5,
-    # New additions (filter sweep 2026-06)
+    "USDCAD": 5, "ES": 2,
+    "NQ": 2, "GBPCAD": 2, "NZDCAD": 2, "DJI": 4,
+    "NZDUSD": 5,
     "GBPAUD": 2, "NZDCHF": 2,
     "CADCHF": 2, "AUDUSD": 2,
-    "AUDNZD": 2,
-    # New additions (remaining filter 2026-06)
     "EURCHF": 4, "EURCAD": 3,
     "EURNZD": 3, "GBPCHF": 2,
+    "GBPUSD": 2, "EURAUD": 2,
+    "USDJPY": 2, "GBPJPY": 2,
 }
 
 DEF_SL, DEF_TP = 1.0, 2.0
@@ -430,7 +423,7 @@ def aggregate(trades: list[dict]) -> dict:
 def print_report(pt: dict, hist: dict, fq: dict | None = None):
     sep = "=" * 74
     print(f"\n{sep}")
-    print("  QUANTFORGE TRADE ANALYSIS REPORT")
+    print("  QUORRIN TRADE ANALYSIS REPORT")
     print(sep)
     if pt and pt.get("n_trades", 0) > 0:
         print(f"\n  PHASE 1: PAPER TRADING ({pt['n_trades']} trades)")

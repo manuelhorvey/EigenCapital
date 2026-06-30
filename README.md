@@ -1,10 +1,10 @@
-# QuantForge
+# Quorrin
 
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Status](https://img.shields.io/badge/status-paper%20trading-green)
 ![WalkForward](https://img.shields.io/badge/walk--forward-36%20assets%20screened-success)
 ![Portfolio](https://img.shields.io/badge/portfolio-19%20dashboard%20assets-blue)
-[![codecov](https://codecov.io/gh/manuelhorvey/QuantForge/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/QuantForge)
+[![codecov](https://codecov.io/gh/manuelhorvey/Quorrin/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/Quorrin)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
@@ -35,26 +35,25 @@ Every promoted asset must survive expanding-window validation before entering th
 
 # System Lifecycle
 
-```
-Research Universe (36 assets screened)
-        ↓
-Walk-Forward Screening (expanding window)
-        ↓
-Asset Selection (GREEN / YELLOW / RED)
-        ↓
-Per-Asset Model Training (XGBoost, per-asset depth)
-        ↓
-        Live Inference (every 30s)
-        ↓
-Decision Pipeline Stages (first-cycle → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label → conviction → kelly → profit lock → manage position → build artifacts → route execution → poll deferred → update prob history)
-        ↓
-Governance Filters (14 mechanisms + HealthMonitor + VaR/CVaR)
-        ↓
-Position Sizing Guardrails (5 multiplicative)
-        ↓
-Execution & Positioning (MT5 or PaperBroker)
-        ↓
-State Persistence + Replay
+The engine runs a continuous 4-phase orchestrator cycle. Below is the core loop for each tick (every 30s):
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
+    CB -- passed --> FX[Factor Exposures\n9 factor groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew threshold check]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
+    P4 --> Start
 ```
 
 ---
@@ -67,27 +66,32 @@ State Persistence + Replay
 
 **Added 2026-06-26:** USDJPY and GBPJPY promoted (trend-exhaustion features improved BuyWR above breakeven; removed from SELL_ONLY same day).
 
+**2026-06-30:** 11 assets bumped to ratio=3.0 via optimizer (USDCAD, ES, NQ, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF). All 21 models retrained. Dashboard `/optimization.json` endpoint added. Full optimizer suite in `scripts/optimization/`.
+
 **Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability failure mode — confident wrong-direction bets during trends). USDCAD and NZDUSD allocations halved from 5%→2.5% to limit drawdown impact.
+
+> **2026-06-30 update:** Portfolio table reflects the ratio=3.0 optimizer pass (11 assets bumped).
+> Methodology: `scripts/optimization/portfolio_sltp_optimizer.py`. All models retrained.
 
 | Asset      | Ticker       | sl_mult | tp_mult | Allocation | max_depth |
 | ---------- | ------------ | ------- | ------- | ---------- | --------- |
 | GC         | GC=F         | 1.00    | 4.00    | 7.0%       | 2         |
 | USDCHF     | USDCHF=X     | 0.85    | 3.00    | 4.0%       | 4         |
-| USDCAD     | USDCAD=X     | 1.59    | 3.19    | 2.5%       | 5         |
-| ES         | ES=F         | 2.00    | 5.50    | 7.0%       | 2         |
-| NQ         | NQ=F         | 2.50    | 5.00    | 7.0%       | 2         |
-| GBPCAD     | GBPCAD=X     | 1.77    | 3.54    | 5.0%       | 2         |
-| NZDCAD     | NZDCAD=X     | 2.24    | 4.47    | 5.0%       | 2         |
+| USDCAD     | USDCAD=X     | 1.30    | 3.90    | 2.5%       | 5         |
+| ES         | ES=F         | 1.91    | 5.74    | 7.0%       | 2         |
+| NQ         | NQ=F         | 2.04    | 6.12    | 7.0%       | 2         |
+| GBPCAD     | GBPCAD=X     | 1.45    | 4.34    | 5.0%       | 2         |
+| NZDCAD     | NZDCAD=X     | 1.83    | 5.48    | 5.0%       | 2         |
 | ^DJI       | ^DJI         | 0.50    | 4.00    | 4.0%       | 4         |
-| NZDUSD     | NZDUSD=X     | 2.50    | 2.00    | 2.5%       | 5         |
-| GBPAUD     | GBPAUD=X     | 1.00    | 2.00    | 5.0%       | 3         |
+| NZDUSD     | NZDUSD=X     | 1.29    | 3.87    | 2.5%       | 5         |
+| GBPAUD     | GBPAUD=X     | 1.00    | 3.00    | 5.0%       | 3         |
 | NZDCHF     | NZDCHF=X     | 1.00    | 4.00    | 7.0%       | 2         |
 | CADCHF     | CADCHF=X     | 1.00    | 4.00    | 5.0%       | 2         |
-| AUDUSD     | AUDUSD=X     | 1.50    | 4.00    | 4.0%       | 2         |
+| AUDUSD     | AUDUSD=X     | 1.41    | 4.24    | 4.0%       | 2         |
 | EURCHF     | EURCHF=X     | 1.00    | 3.00    | 5.0%       | 4         |
-| EURCAD     | EURCAD=X     | 0.87    | 1.73    | 2.0%       | 3         |
-| EURNZD     | EURNZD=X     | 1.37    | 2.74    | 3.0%       | 3         |
-| GBPCHF     | GBPCHF=X     | 1.00    | 2.00    | 3.0%       | 2         |
+| EURCAD     | EURCAD=X     | 0.71    | 2.12    | 2.0%       | 3         |
+| EURNZD     | EURNZD=X     | 1.12    | 3.36    | 3.0%       | 3         |
+| GBPCHF     | GBPCHF=X     | 0.82    | 2.45    | 3.0%       | 2         |
 | GBPUSD     | GBPUSD=X     | 0.52    | 1.97    | 4.0%       | 2         |
 | EURAUD     | EURAUD=X     | 0.54    | 1.77    | 1.0%       | 2         |
 | USDJPY     | USDJPY=X     | 0.52    | 1.97    | 4.0%       | 2         |
@@ -115,7 +119,7 @@ Allocation sums to ~0.90. Remaining capacity held as cash buffer.
 
 # MT5 Bridge Integration
 
-QuantForge can route data fetching and order execution through a live MetaTrader 5 terminal (Exness demo) running under Wine.
+Quorrin can route data fetching and order execution through a live MetaTrader 5 terminal (Exness demo) running under Wine.
 
 ## Architecture
 
@@ -143,7 +147,7 @@ Linux Host                          Wine Prefix
 
 ## Symbol Mapping
 
-QuantForge tickers (e.g. `GC=F`) are mapped to MT5 symbols (e.g. `XAUUSD`) via `configs/mt5_symbol_map.yaml`.
+Quorrin tickers (e.g. `GC=F`) are mapped to MT5 symbols (e.g. `XAUUSD`) via `configs/mt5_symbol_map.yaml`.
 
 ## Capital Sync & Independent Sizing
 
@@ -294,7 +298,7 @@ Built in `features/alpha_features.py:build_alpha_features()`.
 | `spx_mom_5d` | SPX 5-day return |
 | `WTI_mom_21d` | WTI crude 21-day return |
 
-Some assets additionally include `yield_slope` (GBPAUD, CADCHF, AUDNZD, EURNZD, GBPCHF) or `mom126` (EURCHF, NZDUSD).
+> **Note:** Per-asset features use the asset ticker prefix (e.g. `EURUSD_carry_vol_adj`). The `{ASSET}_` placeholder in this table resolves to the actual asset name.
 
 ## Regime Features (inference + regime model training)
 
@@ -322,50 +326,45 @@ Derived from OHLCV for execution conditioning:
 
 # Inference Pipeline
 
-```text
- 1. Fetch live OHLCV (MT5 or yfinance, 5y window)
- 2. Refresh latest price
- 3. Fetch macro data
-  4. Build alpha features (build_alpha_features, 21 cols)
- 5. Build regime features from OHLCV (generate_regime_features, 7 cols)
- 6. Build archetype features (ema_spread, adx, rsi, bb_zscore)
- 7. Optional truncation validation (predict last row only)
- 8. PSI drift check (rolling 21d vs baseline)
- 9. Base XGBoost inference (binary:logistic → P(LONG)_base)
-10. Regime model inference skipped (ensemble disabled portfolio-wide)
-11. No ensemble blend — base model only
-12. Optional meta-label inference
-13. FixedThresholdStrategy(0.45) → BUY/SELL/FLAT
-14. Archetype classification
-15. Refresh MT5 spread (for spread gate)
- 16. Decision pipeline stages (applied sequentially as `DEFAULT_STAGES`):
-     a. First-cycle suppression — suppress trading on cold-start cycle 1
-     b. Bar-jump suppression — suppress 60min if bar count changed >100
-     c. Store prediction metadata — record pre-decision signal state
-     d. Update MAE/MFE — update max adverse/favorable excursion
-     e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
-     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
-      g. Sell-only filter — override BUY→FLAT for 5 assets with inverted BUY calibration (reduced from 10 on 2026-06-26)
-      h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
-      i. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles)
-      j. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
-      k. Confidence gate — abort if net confidence below threshold
-      l. Signal stability filter — require >0.65 max(prob_long, prob_short)
-      m. Signal hysteresis — 2-of-3 agreement before flip
-      n. Meta-label advisory — record meta-label recommendation (no enforcement)
-      o. Update regime bar counter — track bars since last regime shift
-      p. Conviction gate — flip gate based on regime conviction
-      q. Kelly sizing — apply fractional Kelly multiplier (config-gated, disabled by default)
-      r. Profit lock gate — block flip if unrealized PnL > threshold
-      s. Manage position — close/re-open with entry gate check
-      t. Build entry artifacts — construct TradeDecision for execution
-      u. Route execution policy — direct to PaperBroker or MT5Broker
-      v. Poll deferred entries — execute pending deferred orders
-      w. Update prob history — record probability history for drift monitoring
-  17. Route through 15 governance mechanisms + HealthMonitor + VaR/CVaR
- 18. Position sizing guardrails (drawdown taper → cap → risk cap → leverage budget → backstop)
- 19. Independent MT5 sizing (same chain with broker equity)
- 20. Execute or defer (MT5 bridge for real broker)
+Each per-asset inference cycle follows this flow (every 30s per asset, 8 parallel workers):
+
+```mermaid
+flowchart TD
+    subgraph Data
+        A[Fetch 5y OHLCV\nMT5 or yfinance]
+        B[Refresh latest price\nMT5 or 5d fallback]
+        C[Build alpha features\n21 cols + trend-exhaustion]
+        D[Build regime features\n7 cols from OHLCV]
+        E[Build archetype features\nema_spread, adx, rsi, bb_zscore]
+    end
+    subgraph Model
+        F[PSI drift check\nrolling 21d vs baseline]
+        G[XGBoost inference\nbinary:logistic > p_long]
+        H[Calibrate p_long\nP1 BinnedCalibrator\nconfig-gated]
+        I[FixedThreshold\n0.45 > BUY/SELL/FLAT]
+    end
+    subgraph Decision[Decision Pipeline — 21 stages]
+        J[Suppress: first-cycle,\nbar-jump]
+        K[Signal: store meta,\nMAE/MFE, resolve, risk-off,\nsell-only filter]
+        L[Gate: spread, session,\nADX, confidence]
+        M[Position: stability filter,\nhysteresis 2-of-3,\nmeta-label advisory,\nconviction gate,\nKelly sizing, profit lock,\nmanage position]
+        N[Execute: build artifacts,\nroute execution,\npoll deferred,\nupdate prob history]
+    end
+    subgraph Governance
+        O[15 governance layers\n+ HealthMonitor\n+ VaR / CVaR]
+    end
+    subgraph Sizing
+        P[Position sizing chain\ndrawdown taper > equity cap\n> risk cap > leverage budget\n> backstop multiplier]
+    end
+    subgraph Execution
+        Q[PaperBroker\n$100K simulated equity]
+        R[MT5Broker\nindependent sizing\nfrom real broker balance]
+    end
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+    I --> J --> K --> L --> M --> N
+    N --> O --> P --> Q
+    P --> R
 ```
 
 ---
@@ -400,13 +399,16 @@ Two additional gates protect entry quality and existing winners:
 
 Paper positions pass through a multiplicative guardrail chain in `_submit_to_broker()`:
 
-```
-effective_cap = capital_base × min(current_value / initial_capital, 3.0)
-size_scalar = base × kelly_multiplier × exposure × governance × meta × drawdown_taper
-notional = effective_cap × size_scalar
-→ cap by max_position_pct_of_equity
-→ cap by risk_per_trade_pct (skip if below min_viable_position_pct)
-→ atomic decrement from shared leverage_budget (lock-protected)
+```mermaid
+graph LR
+    A["effective_cap =\ncapital_base × min(mtm/init, 3.0)"] --> B["notional =\neffective_cap × size_scalar"]
+    B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
+    C --> D[Risk-per-Trade Cap\nskip if below min_viable]
+    D --> E[Leverage Budget\natomic decrement from\nmax_leverage × equity pool]
+    E --> F[Backstop Multiplier\nratchet-down on breach\n0.9 decay/cycle]
+    F --> G{Final Notional}
+    G --> Paper[Paper Broker\n$100K simulated equity]
+    G --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
 ```
 
 MT5 positions run the same chain independently using real broker equity (minus the leverage budget). Both paths log decomposed factors (`SIZING` and `MT5_SIZING`).
@@ -432,7 +434,7 @@ Persistent state is stored in SQLite WAL mode with append-oriented semantics.
 
 # Governance Framework
 
-QuantForge uses independently configurable governance layers with worst-wins aggregation,
+Quorrin uses independently configurable governance layers with worst-wins aggregation,
 plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
 
 ## Governance Layers (15 + HealthMonitor)
@@ -513,23 +515,51 @@ A React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000.
 * Governance overlays (narrative status, liquidity badges, PSI drift panel, connection status)
 * Risk-parity rebalancing visualization
 * Historical trade log with attribution decomposition
+* Optimizer recommendations panel (drift detector output overlaid on dashboard)
 * Zod-validated API responses
 
 ### API Endpoints
 
-| Endpoint            | Format | Purpose                     |
-| ------------------- | ------ | --------------------------- |
-| `state.json`        | JSON   | Engine snapshot             |
-| `trades.json`       | JSON   | Trade history               |
-| `attribution.json`  | JSON   | Execution decomposition     |
-| `narrative.json`    | JSON   | Macro narrative status      |
-| `liquidity.json`    | JSON   | Liquidity regime per asset  |
-| `psi.json`          | JSON   | PSI drift monitoring        |
-| `governance.json`   | JSON   | Governance layer state      |
-| `risk_parity.json`  | JSON   | Risk-parity weights         |
-| `execution.json`    | JSON   | Execution quality metrics   |
-| `shadow.json`       | JSON   | Shadow trade comparison     |
-| `analytics.json`    | JSON   | Portfolio analytics         |
+| Path                             | Purpose                                  |
+| -------------------------------- | ---------------------------------------- |
+| `state.json`                     | Engine snapshot (portfolio + per-asset)  |
+| `state-bundle.json`              | Full system bundle (state + live + health) |
+| `trades.json`                    | Trade history                            |
+| `equity_history.json`            | Equity curve history                     |
+| `optimization.json`              | Optimizer drift detector output          |
+| `governance.json`                | Governance layer state                   |
+| `risk.json`                      | Risk metrics summary                     |
+| `risk/{asset}.json`              | Per-asset risk detail                    |
+| `risk-parity.json`               | Risk-parity weights                      |
+| `statistical-metrics.json`       | PSR/DSR/MinTRL metrics                   |
+| `narrative.json`                 | Macro narrative status                   |
+| `liquidity.json`                 | Liquidity regime per asset               |
+| `psi.json`                       | PSI drift monitoring                     |
+| `confidence.json`                | Per-asset confidence distributions       |
+| `volatility.json`                | Per-asset volatility metrics             |
+| `trade-outcomes.json`            | Trade outcome breakdown                  |
+| `weekly-review.json`             | Weekly performance review                |
+| `attribution/trades.json`        | Trade-level attribution decomposition    |
+| `attribution/summary.json`       | Attribution summary                      |
+| `attribution/live.json`          | Live attribution breakdown               |
+| `attribution/waterfall.json`     | Attribution waterfall chart data         |
+| `execution/quality.json`         | Execution quality metrics                |
+| `execution/slippage.json`        | Slippage analysis                        |
+| `shadow/trades.json`             | Shadow trade comparison                  |
+| `shadow/summary.json`            | Shadow trade summary                     |
+| `shadow-actions`                 | Shadow action queue                      |
+| `shadow-actions/{id}.json`       | Single shadow action detail              |
+| `archetype/stats.json`           | Archetype classification stats           |
+| `analytics/snapshot.json`        | Portfolio analytics snapshot             |
+| `mt5/status.json`                | MT5 bridge/account status                |
+| `health.json`                    | Governance health scores                 |
+| `health/{asset}.json`            | Per-asset health detail                  |
+| `health`                         | Engine liveness (pings engine loop)      |
+| `asset/{name}.json`              | Full per-asset detail                    |
+| `wal/{asset}.json`               | WAL event timeline for an asset          |
+| `logs`                           | Live engine log stream (SSE)             |
+| `metrics`                        | Prometheus-style metrics                 |
+| `ping`                           | Liveness check                           |
 
 ---
 
@@ -545,8 +575,8 @@ A React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000.
 ## Install
 
 ```bash
-git clone https://github.com/manuelhorvey/QuantForge.git
-cd QuantForge
+git clone https://github.com/manuelhorvey/Quorrin.git
+cd Quorrin
 
 python -m venv .venv
 source .venv/bin/activate
@@ -587,7 +617,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | Variable                      | Required | Purpose                                |
 | ----------------------------- | -------- | -------------------------------------- |
 | `PYTHONPATH`                  | Yes      | Set to `.`                             |
-| `QUANTFORGE_REFRESH_INTERVAL` | No       | Engine loop interval (default 60s)      |
+| `QUORRIN_REFRESH_INTERVAL` | No       | Engine loop interval (default 30s)      |
 | `MT5_ACCOUNT`                 | No*      | Exness MT5 account number              |
 | `MT5_PASSWORD`                | No*      | Exness MT5 account password            |
 | `MT5_SERVER`                  | No*      | Exness MT5 server (e.g. Exness-MT5Trial2) |
@@ -624,6 +654,14 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | `scripts/backtest/crisis_replay.py`                     | Crisis replay against 4 historical windows (dec 2024, tariff, selloffs) |
 | `scripts/backtest/monte_carlo_drawdown.py`              | Block-bootstrap drawdown simulation (3 horizons, 10K sims) |
 | `scripts/diagnostics/check_chf_correlation.py`             | CHF cluster independence verification |
+| `scripts/optimization/portfolio_sltp_optimizer.py`         | TP/SL ratio-space grid search (ratio=3.0 pass) |
+| `scripts/optimization/sl_fragility_test.py`               | Intraday vs daily SL hit rate validation |
+| `scripts/optimization/drift_detector.py`                   | Live win-rate drift against breakeven WR |
+| `scripts/optimization/trade_outcome_repository.py`         | Flat trade outcome export from SQLite |
+| `scripts/optimization/portfolio_balancer.py`               | Correlation-aware cluster risk penalty |
+| `scripts/optimization/per_asset_quality.py`                | EV/breakeven/MFE/MAE quality classification |
+| `scripts/optimization/risk_compression.py`                 | Stress scenario injection for TP/SL |
+| `scripts/optimization/directional_win_rate.py`             | Per-direction BUY/SELL win-rate tracker |
 | `scripts/setup/setup_mt5_wine.sh`                    | MT5 Wine environment setup      |
 | `benchmarks/microbenchmark.py`                 | Runtime benchmarking            |
 
@@ -680,7 +718,7 @@ labels/                       # Triple-barrier labeling, meta-labeling
 signals/                      # Signal generation, alpha weighting
 risk/                         # Drawdown controls, exposure limits
 portfolio/                    # HRP allocation, risk parity
-quantforge/                   # DDD-structured application core
+quorrin/                   # DDD-structured application core
 monitoring/                   # PSI drift, validity state machine, MLflow
 benchmarks/                   # Performance benchmarks
 tests/                        # Test suite

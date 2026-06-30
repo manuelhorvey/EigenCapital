@@ -7,7 +7,7 @@ import pandas as pd
 import pytz
 
 from paper_trading.governance.multipliers import compute_effective_multipliers
-from quantforge.domain.value_objects.statistical_metrics import (
+from quorrin.domain.value_objects.statistical_metrics import (
     _moments,
     confidence_reliability_score,
     herfindahl_index,
@@ -16,7 +16,7 @@ from quantforge.domain.value_objects.statistical_metrics import (
     sharpe_ratio,
 )
 
-logger = logging.getLogger("quantforge.metrics_service")
+logger = logging.getLogger("quorrin.metrics_service")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -30,9 +30,12 @@ class MetricsService:
         if macro_head is not None:
             macro_weight = round(float(getattr(macro_head, "current_weight", 0.45)), 4)
 
+        signal_str = decision.signal.value if hasattr(decision.signal, "value") else str(decision.signal)
+        side = {"BUY": "long", "SELL": "short", "LONG": "long", "SHORT": "short"}.get(signal_str, "none")
+
         return {
             "asset": name,
-            "signal": decision.signal,
+            "signal": signal_str,
             "final_signal": final_signal,
             "confidence": decision.confidence,
             "archetype": decision.archetype,
@@ -40,6 +43,12 @@ class MetricsService:
             "close_price": decision.close_price,
             "date": decision.timestamp,
             "label": decision.label,
+            "side": side,
+            "prob_long": getattr(decision, "prob_long", 0.0),
+            "prob_short": getattr(decision, "prob_short", 0.0),
+            "prob_neutral": getattr(decision, "prob_neutral", 0.0),
+            "position_size": getattr(decision, "position_size", 0.0),
+            "feature_hash": getattr(decision, "feature_hash", ""),
             "position": (
                 {
                     "side": pos.side if pos else None,
@@ -96,11 +105,9 @@ class MetricsService:
     ):
         if ensure_position_synced:
             ensure_position_synced()
-        cv = current_value if not pd.isna(current_value) else initial_capital
         mtm_val = mtm_value
         pv = peak_value if not pd.isna(peak_value) else mtm_val
         dd = min(0, (mtm_val - pv) / pv) if pv > 0 else 0
-        total_return = (cv - initial_capital) / initial_capital if initial_capital > 0 else 0
 
         monthly_pfs = []
         if trade_log:
@@ -264,11 +271,11 @@ class MetricsService:
             "settled_value": round(current_value, 2),
             "mtm_value": round(mtm_val, 2),
             "total_return": round(mtm_return, 2),
-            "settled_return": round(total_return * 100, 2),
+            "settled_return": round(mtm_return, 2),
             "mtm_return": round(mtm_return, 2),
             "drawdown": round(dd * 100, 2),
             "profit_factor": round(pf, 2) if math.isfinite(pf) else None,
-            "win_rate": round(win_rate * 100, 2),
+            "win_rate": round(win_rate, 4),
             "n_trades": len(trade_log),
             "n_signals": len(prob_history),
             "signal_distribution": sc,

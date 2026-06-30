@@ -15,7 +15,7 @@ def test_audit_lookahead_single_row_returns_early():
     """audit_lookahead returns early when df has < 2 rows (line 136)."""
     df = pd.DataFrame(
         {"rate_diff": [1.0]},
-        index=pd.date_range("2026-01-01", periods=1, freq="D"),
+        index=pd.RangeIndex(1),
     )
     audit_lookahead(df, contract_name="TEST_SINGLE")
 
@@ -30,7 +30,7 @@ def test_audit_lookahead_skips_unknown_columns():
     """Columns not in FEATURE_LAG_MATRIX are skipped (line 140)."""
     df = pd.DataFrame(
         {"rate_diff": np.random.randn(10), "unknown_col": np.random.randn(10)},
-        index=pd.date_range("2026-01-01", periods=10, freq="D"),
+        index=pd.RangeIndex(10),
     )
     audit_lookahead(df, contract_name="TEST_UNKNOWN")
 
@@ -42,7 +42,7 @@ def test_audit_lookahead_skips_columns_with_nan():
             "rate_diff": [np.nan] + list(np.random.randn(9)),
             "us_jp_10y_spread": list(np.random.randn(9)) + [np.nan],
         },
-        index=pd.date_range("2026-01-01", periods=10, freq="D"),
+        index=pd.RangeIndex(10),
     )
     audit_lookahead(df, contract_name="TEST_NAN_COLUMNS")
 
@@ -57,7 +57,7 @@ def test_audit_lookahead_skips_momentum_columns():
             "dxy_mom_63": np.random.randn(50),
             "some_mom_21": np.random.randn(50),
         },
-        index=pd.date_range("2026-01-01", periods=50, freq="D"),
+        index=pd.RangeIndex(50),
     )
     audit_lookahead(df, contract_name="TEST_MOM_SKIP")
 
@@ -66,7 +66,7 @@ def test_audit_lookahead_with_lag_override():
     """audit_lookahead accepts a lag_override dict."""
     df = pd.DataFrame(
         {"rate_diff": np.random.randn(50), "custom_feat": np.random.randn(50)},
-        index=pd.date_range("2026-01-01", periods=50, freq="D"),
+        index=pd.RangeIndex(50),
     )
     audit_lookahead(df, contract_name="TEST_OVERRIDE", lag_override={"custom_feat": 5})
 
@@ -79,7 +79,7 @@ def test_audit_lookahead_finds_lag_columns():
             "us_jp_10y_spread": np.random.randn(50),
             "vix_ma21": np.random.randn(50),
         },
-        index=pd.date_range("2026-01-01", periods=50, freq="D"),
+        index=pd.RangeIndex(50),
     )
     audit_lookahead(df, contract_name="TEST_FEATURES")
 

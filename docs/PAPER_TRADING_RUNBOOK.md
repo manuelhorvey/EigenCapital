@@ -1,4 +1,4 @@
-# QuantForge — Paper Trading Runbook
+# Quorrin — Paper Trading Runbook
 
 Operational procedures for the paper trading system. This document is for the person responsible for monitoring and maintaining the live paper trading instance.
 
@@ -14,11 +14,15 @@ Operational procedures for the paper trading system. This document is for the pe
 | `calibration.enabled` | `true` — BinnedCalibrator applied per inference, reduces ECE 0.36→0.02 |
 | `portfolio.weight_method` | `factor_constrained_v2` — active weight strategy (P0, hard linear constraints) |
 | `kelly.enabled` | `false` — P2 Kelly sizing disabled pending live data |
+| Active mode | `production` (config: `mode:` in `configs/paper_trading.yaml`) |
+| Switch mode | Edit `mode:` key in config and restart engine |
+| PEK admission event | Logged as `PEK_BUDGET_OVERRUN` + `PEK_BUDGET_CLOSE` — check engine logs |
+| PEK dashboard state | `state.json → portfolio → admission` (n_intents, n_admitted, n_rejected, admitted[], rejected[]) |
 | State file (JSON) | `data/live/state.json` |
 | State store (SQLite) | `data/live/state.db` (5 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history) |
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
 | Logs | stdout (redirect to file as needed) |
-| Refresh interval | 60s (configurable via `QUANTFORGE_REFRESH_INTERVAL` env var) |
+| Refresh interval | 60s (configurable via `QUORRIN_REFRESH_INTERVAL` env var) |
 | Weekend behavior | Auto-pauses Fri 17:00 ET — Sun 17:00 ET; no signal computation occurs |
 | Weekend polling | Reduced to every 120s (state) / 5 min (secondary endpoints) |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
@@ -30,16 +34,18 @@ Operational procedures for the paper trading system. This document is for the pe
 
 ### Assets
 
-**Core portfolio (19 assets promoted from walk-forward screening):**
+**Core portfolio (21 assets promoted from walk-forward screening):**
 
 Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_depth calibrated via walk-forward optimization.
 
 **Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
+**Added 2026-06-26:** USDJPY, GBPJPY re-promoted after Step 3 trend-exhaustion features improved BuyWR above breakeven WR.
+
 **Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability failure mode). USDCAD and NZDUSD halved from 5%→2.5%.
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
 | USDCAD | USDCAD=X | 2.5% | 1.59 | 3.19 | 5 |
@@ -59,8 +65,10 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 | GBPCHF | GBPCHF=X | 3.0% | 1.00 | 2.00 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
+| USDJPY | USDJPY=X | 4.0% | 0.52 | 1.97 | 2 |
+| GBPJPY | GBPJPY=X | 3.0% | 0.50 | 2.22 | 2 |
 
-**Total allocation: ~0.83** (remaining capacity held as cash buffer).
+**Total allocation: ~0.90** (remaining capacity held as cash buffer).
 
 **Backtest performance (pre-leak-fix baseline, 5-year: 2021–2025):** PF 1.908, avgR +0.268, 2383 trades, 18 assets.
 > Note: These are the screening baseline. Current walk-forward diagnostics after look-ahead fixes
@@ -162,6 +170,20 @@ config:
 
 ---
 
+## Mode Configuration
+
+The engine supports three operational modes via the `mode:` key in `configs/paper_trading.yaml`:
+
+| Mode | Capital | Max Risk/Trade | Max Concurrent | DD Limit | Use Case |
+|------|---------|---------------|----------------|----------|----------|
+| `production` | $100K | 2.0% | 8 | -15% | Standard paper trading |
+| `challenge_ftmo_10k` | $10K | 3.0% | 5 | -8% | FTMO 10K challenge |
+| `live` | $100K | 3.0% | 6 | -10% | Live funded account |
+
+Mode overrides are merged at config load time. See `configs/paper_trading.yaml` → `modes:` for full definitions.
+
+---
+
 ## 1. Daily Procedure
 
 ### Morning Check (before market open, ~08:30 ET, Mon–Fri)
@@ -176,11 +198,11 @@ The script:
 3. Downloads macro data (DXY, VIX, SPX, WTI, TNX) via yfinance
 4. Computes alpha + regime + archetype features
 5. Runs inference on all assets (base model — ensemble disabled portfolio-wide)
-6. Applies decision pipeline stages (22 stages: first-cycle suppression → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → stability → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
+6. Applies decision pipeline stages (21 stages: first-cycle suppression → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
 7. Routes through 15 governance layers + HealthMonitor (circuit breaker, VaR/CVaR, equity cluster alarm) + RecoveryScheduler
 8. Opens/closes positions based on signal vs current position (MT5 bridge + paper)
 9. Serves dashboard on port 5000
-10. Repeats every refresh interval (default 30s, configurable via `QUANTFORGE_REFRESH_INTERVAL` env var)
+10. Repeats every refresh interval (default 30s, configurable via `QUORRIN_REFRESH_INTERVAL` env var)
 
 **Signal logging:** The `scripts/ops/monitor_paper_trading.py` script polls the dashboard every 6 hours
 and appends a CSV row to `data/monitoring/paper_trade_monitor.csv`. Use it for daily signal checks:
@@ -200,7 +222,7 @@ curl http://127.0.0.1:5000/ping
 **What to verify on the dashboard (use the anchor nav bar to jump between sections):**
 
 - Portfolio total value and daily return are updating (trend arrows on metric cards show direction)
-- All 19 assets show a signal (BUY/SELL/FLAT) with confidence — click column headers in the Signals table to sort by confidence descending
+- All 21 assets show a signal (BUY/SELL/FLAT) with confidence — click column headers in the Signals table to sort by confidence descending
 - Current price is within ~0.5% of market price
 - No asset is in halt (check asset cards for RED status)
 - Per-asset drawdown % is not approaching per-asset limits
@@ -208,7 +230,7 @@ curl http://127.0.0.1:5000/ping
 - After restart: cycle 1 shows `first-cycle suppression` in logs (normal), trades resume cycle 2+
 - After MT5 reconnect: check for `bar-jump suppression` log — suppresses ~60min if bar count changed >100 (normal after source switch)
 - Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD showing `risk-off suppression — holding flat` (validated behavior)
-- Sell-only filter: 8 flagged assets (CADCHF, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
+- Sell-only filter: 5 SELL_ONLY assets (CADCHF, ES, NQ, NZDCHF, EURAUD) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
 - Equity cluster alarm: if ES/NQ/^DJI all have open positions on the same side, expect `equity_cluster_all_LONG_ES_NQ_^DJI` or `equity_cluster_all_SHORT_ES_NQ_^DJI` recommendation logged by HealthMonitor
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
 - Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) on weekends
@@ -226,7 +248,7 @@ curl http://127.0.0.1:5000/ping
 
 ### Log Check
 
-After startup (Mon–Fri during market hours), verify log output shows signal lines for all 19 assets:
+After startup (Mon–Fri during market hours), verify log output shows signal lines for all 21 assets:
 ```
 GC: BUY conf=XX% @ $XX.XX
 USDCHF: BUY conf=XX% @ $XX.XX
@@ -280,7 +302,7 @@ for name, a in s['assets'].items():
 
 **Expectations:**
 
-All 19 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 8 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
+All 21 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 5 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
 
 ### Narrative Check (Monday Morning)
 
@@ -356,7 +378,7 @@ Check the model file modification dates are within the expected retrain window.
 
 If retrain failed:
 ```bash
-cd /home/manuelhorveydaniel/Projects/QuantForge
+cd /home/manuelhorveydaniel/Projects/Quorrin
 source .venv/bin/activate
 python -c "
 from paper_trading.engine import PaperTradingEngine
@@ -824,12 +846,12 @@ Before transitioning from paper to live, verify all checks below. 6/7 must pass 
 | # | Check | Target | Source | Criticality |
 |---|-------|--------|--------|-------------|
 | 1 | Gate override rate | <40% across all assets | `data/monitoring/paper_trade_monitor.csv` — column `gate_overrides` | Hard |
-| 2 | Mean confidence | >0.52 for ≥16/19 assets | Monitor CSV — column `mean_confidence` per snapshot | Hard |
-| 3 | Signal flips | ≤3/day for ≥16/19 assets | Monitor CSV — column `signal_flips` | Hard |
+| 2 | Mean confidence | >0.52 for ≥18/21 assets | Monitor CSV — column `mean_confidence` per snapshot | Hard |
+| 3 | Signal flips | ≤3/day for ≥18/21 assets | Monitor CSV — column `signal_flips` | Hard |
 | 4 | Cross-asset correlation | No unexplained >0.7 | `python scripts/diagnostics/signal_correlation_check.py` | Hard |
 | 5 | MT5 errors | Zero across all cycles | `grep ERROR /tmp/paper_trading.log` | Hard |
 | 6 | Trades executed | ≥10 across portfolio | MT5 terminal or dashboard trades panel | Hard |
-| 7 | SELL_ONLY filter | BUY→FLAT overrides active for 8 assets | `grep "sell-only filter" /tmp/paper_trading.log` | Hard |
+| 7 | SELL_ONLY filter | BUY→FLAT overrides active for 5 assets | `grep "sell-only filter" /tmp/paper_trading.log` | Hard |
 
 **Decision:** 6/7 pass → go live at 50% position size for 2 weeks, then full size if live Sharpe tracks within 0.2 of backtest Sharpe.
 
@@ -873,3 +895,11 @@ curl -s http://127.0.0.1:5000/trades.json | python3 -c "import sys,json; d=json.
 | Clustered SL sequence (6+ same side, same day) | Deferred entry bypassing cooldown (pre-fix) | Should no longer occur after `_can_enter()` gate — file issue if seen |
 | State API `market_closed: true` | Engine correctly detected weekend | N/A — server-driven indicator |
 | Dashboard polling slower than usual | Intended — hooks reduce refetch rate 4-20x when markets closed | Saves bandwidth; restore normal rate on market open |
+
+### PEK Budget Overrun
+
+When `PEK_BUDGET_OVERRUN` appears in logs:
+1. The PEK admission controller determined total portfolio notional exceeds `max_leverage × equity`
+2. Lowest-ranked positions were automatically closed — check `PEK_BUDGET_CLOSE` log lines for which assets
+3. Verify in dashboard: `state.json → portfolio → admission` shows `n_admitted` vs `n_rejected`
+4. No manual action required — the system self-corrects

@@ -22,7 +22,7 @@ from backtests import compute_per_fold_labels
 from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, SLTP_CFG, DEF_SL, DEF_TP
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quantforge.sl_sweep")
+logger = logging.getLogger("quorrin.sl_sweep")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

@@ -4,6 +4,7 @@ import {
   Tooltip, ReferenceLine, ResponsiveContainer, Legend,
 } from 'recharts'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
+import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { Skeleton } from './ui/Skeleton'
@@ -19,14 +20,13 @@ interface CalibrationPoint {
 }
 
 export default function CalibrationCurve() {
-  const { data: bundle, isPending } = useSystemSnapshot()
-  const state = bundle?.snapshot
+  const { data: assets, isPending } = useSystemSnapshot(systemSelectors.assets)
 
   const points = useMemo(() => {
-    if (!state?.assets) return []
+    if (!assets) return []
     const result: CalibrationPoint[] = []
 
-    for (const [name, asset] of Object.entries(state.assets)) {
+    for (const [name, asset] of Object.entries(assets)) {
       const m = asset.metrics
       if (!m || m.n_trades < 3) continue
 
@@ -51,7 +51,7 @@ export default function CalibrationCurve() {
 
     result.sort((a, b) => a.confidence - b.confidence)
     return result
-  }, [state])
+  }, [assets])
 
   const normalPoints = points.filter(p => !p.sellOnly)
   const invertedPoints = points.filter(p => p.sellOnly)

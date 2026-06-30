@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from paper_trading.governance.drift import get_shadow_intelligence
 
-logger = logging.getLogger("quantforge.risk_registry")
+logger = logging.getLogger("quorrin.risk_registry")
 
 SELL_WIN_RATE_WINDOW = 20
 TRIPWIRE_THRESHOLD = 0.65

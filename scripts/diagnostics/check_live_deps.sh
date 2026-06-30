@@ -34,7 +34,7 @@ for file in "$LIVE_DIR"/*.py; do
         if echo "$line" | grep -qE "^from shared\."; then
             module=$(echo "$line" | sed -n 's/^from shared\.\([^ ]*\).*/\1/p')
             case "$module" in
-                model|signal|sizing|pnl|features|registry|meta_labeling|execution_config) ;;
+                model|signal|sizing|pnl|features|registry|meta_labeling|execution_config|calibration.*|metrics_snapshot) ;;
                 *)
                     echo "FORBIDDEN SHARED IMPORT: $line (in $file)"
                     HAD_ERROR=1

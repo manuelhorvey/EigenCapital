@@ -12,7 +12,7 @@ from features.publication_lags import (
 from features.registry import FEATURE_CONTRACT_VALIDATION, FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
 
-logger = logging.getLogger("quantforge.features.builder")
+logger = logging.getLogger("quorrin.features.builder")
 
 
 def _normalize(df: pd.DataFrame) -> pd.DataFrame:
@@ -97,7 +97,7 @@ def _resolve_leader_path(leader: str, raw_dir: str) -> str | None:
             path = os.path.join(raw_dir, f"{filename}_1d.parquet")
             df.to_parquet(path)
             return path
-        except Exception:
+        except (OSError, ValueError, TypeError):
             return None
 
 

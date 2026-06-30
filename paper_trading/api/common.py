@@ -90,6 +90,9 @@ LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 CONFIDENCE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "confidence_buckets.parquet"
 )
+OPTIMIZATION_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "optimization.json"
+)
 
 MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -176,7 +179,7 @@ def get_vol_baselines() -> dict:
 
 # ── Rate Limiting ───────────────────────────────────────────────────────────
 
-_RATE_LIMIT_MAX: int = int(os.environ.get("QUANTFORGE_RATE_LIMIT", "100"))
+_RATE_LIMIT_MAX: int = int(os.environ.get("QUORRIN_RATE_LIMIT", "100"))
 _RATE_LIMIT_WINDOW: float = 60.0
 
 
@@ -238,13 +241,13 @@ def _load_auth_token() -> str:
         cfg = get_config()
         _AUTH_TOKEN = cfg.api_token or ""
         if _AUTH_TOKEN:
-            logging.getLogger("quantforge.auth").info(
+            logging.getLogger("quorrin.auth").info(
                 "API auth enabled (token from %s)",
-                "env QUANTFORGE_API_TOKEN" if os.environ.get("QUANTFORGE_API_TOKEN") else "config file",
+                "env QUORRIN_API_TOKEN" if os.environ.get("QUORRIN_API_TOKEN") else "config file",
             )
         else:
-            logging.getLogger("quantforge.auth").warning(
-                "No API auth token configured. Set QUANTFORGE_API_TOKEN env var or api_token in config. "
+            logging.getLogger("quorrin.auth").warning(
+                "No API auth token configured. Set QUORRIN_API_TOKEN env var or api_token in config. "
                 "All API endpoints are accessible without authentication."
             )
     return _AUTH_TOKEN

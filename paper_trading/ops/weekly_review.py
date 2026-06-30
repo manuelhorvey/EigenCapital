@@ -10,7 +10,7 @@ from paper_trading.state_store import StateStore
 
 ET = pytz.timezone("US/Eastern")
 
-logger = logging.getLogger("quantforge.weekly_review")
+logger = logging.getLogger("quorrin.weekly_review")
 
 WINDOW_DAYS = 7
 

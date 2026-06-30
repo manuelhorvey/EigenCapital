@@ -27,5 +27,5 @@ if __name__ == "__main__":
         sizes = calculate_position_size(signals)
         print("\nPosition Sizes (Sample):")
         print(sizes.tail())
-    except Exception as e:
+    except (FileNotFoundError, pd.errors.EmptyDataError, ValueError) as e:
         print(f"Position sizing test failed: {e}")

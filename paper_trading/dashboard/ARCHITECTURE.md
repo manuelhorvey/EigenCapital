@@ -1,4 +1,4 @@
-# QuantForge Dashboard — Architecture v1.0
+# Quorrin Dashboard — Architecture v1.0
 
 ## System Boundary
 
@@ -61,6 +61,34 @@ systemSelectors = {
 }
 ```
 
+### State Bundle Fields (Portfolio)
+
+The `portfolio` object in the state bundle includes these additional fields beyond the core `Portfolio` type:
+
+| Field | Shape | Source |
+|-------|-------|--------|
+| `portfolio_drawdown` | `number` — current portfolio drawdown % | `engine_state_service` |
+| `portfolio_peak_value` | `number \| null` — all-time peak portfolio value | `engine_state_service` |
+| `position_concentration` | `{ long, short, total, skew, dominant_side, threshold, alert }` — net-short skew | orchestrator Phase 3e |
+| `factor_exposures` | `{ exposures, violations, n_violations, within_limits }` — 9-factor limit check | `shared.factor_model.summary()` |
+| `live_sharpe` | `{ available, cycle_level, daily_level, portfolio, slippage }` — live Sharpe tracker | `LiveSharpeTracker.compute()` |
+| `admission` | `{ n_intents, n_admitted, n_rejected, budget_notional, admitted[], rejected[] }` | PEK Phase 1b |
+
+### EngineSnapshot Top-Level Fields
+
+Beyond `portfolio`, the `EngineSnapshot` includes these top-level fields:
+
+| Field | Shape | Source |
+|-------|-------|--------|
+| `risk_signals` | `Record<string, RiskSignal> \| null` | per-asset risk signal |
+| `shadow_actions` | `Record<string, ShadowAction> \| null` | per-asset shadow governance |
+| `emergency_halt` | `boolean` — circuit breaker triggered | orchestrator Phase 3 |
+| `halt_reason` | `string` — breaker reason enum | orchestrator Phase 3 |
+| `halt_detail` | `string` — verbose breaker reason | orchestrator Phase 3 |
+| `peak_portfolio_value` | `number \| null` — all-time peak (orchestrator) | orchestrator |
+| `breaker_daily_pnl` | `number[] \| null` — daily P&L list from breaker | `CircuitBreaker.snapshot_state()` |
+| `risk_parity` | `dict \| null` — risk parity weights snapshot | `engine_state_service` |
+
 **Structural sharing contract:** React Query's built-in `structuralSharing` preserves sub-object references across polls when the server payload hasn't changed. The `select` function returns these stable references → `memo` guards work correctly.
 
 ### 3. UI Domain Layer
@@ -108,16 +136,15 @@ ErrorBoundary
 | Component | memo? | Key props | Re-render triggers |
 |-----------|-------|-----------|-------------------|
 | `Header` | Yes | `onMenuClick` (stable) | route change, snapshot tick |
-| `QuickStatsBar` | Yes | none | portfolio slice change |
-| `EngineBadge` | Yes | none | engine health tick |
-| `NavItem` | Yes | `item` (const), `onClose` (stable), `onKeyDown` (stable) | route change only |
 | `Sidebar` | Yes | `open`, `onClose` (stable) | sidebar toggle, route change |
 | `DashboardOverview` | Yes | none | snapshot slice change |
-| `QuickStatsGrid` | Yes | none | portfolio slice change |
-| `PortfolioSnapshotPanel` | Yes | none | snapshot slice change |
-| `RiskSignalPanel` | Yes | none | snapshot slice change |
 | `SignalsTable` | Yes | none | snapshot slice change + search input |
 | `TradeFeed` | Yes | none | trades + engine status slice change |
+
+> **Note:** `QuickStatsGrid` and `RiskSignalPanel` are defined inline in `DashboardOverview.tsx`,
+> not separate files. `EngineBadge`, `NavItem`, `QuickStatsBar`, and `PortfolioSnapshotPanel`
+> are documented in prior architecture but no longer exist as standalone components —
+> their functionality has been absorbed into inline definitions or removed.
 
 ---
 
@@ -186,7 +213,7 @@ Each of the 4 query keys is independent. Bundle updates never invalidate trade/e
 | `selectors/governance.ts` | Governance state selectors |
 | `selectors/health.ts` | Health score selectors |
 | `selectors/metrics.ts` | Statistical metrics selectors |
-| `lib/queryKeys.ts` | QUERY_KEYS contract (4 keys) |
+| `lib/queryKeys.ts` | QUERY_KEYS contract (4 keys: systemSnapshot, attributionBundle, equityHistory, engineHealth) |
 | `types/bundle.ts` | SystemBundle type definition |
 | `utils/motion.ts` | Motion tokens + className presets |
 | `components/layout/AppShell.tsx` | Integrity layer + persistent layout |
@@ -194,5 +221,6 @@ Each of the 4 query keys is independent. Bundle updates never invalidate trade/e
 | `components/layout/TabBar.tsx` | Route tab bar (NavLink) |
 | `components/Header.tsx` | App header (5 sub-components, memoed) |
 | `components/SystemHealthModal.tsx` | Engine monitoring modal |
-| `pages/DashboardOverview.tsx` | Dashboard (3 memo blocks) |
+| `pages/DashboardOverview.tsx` | Dashboard (6 memo blocks: QuickStatsGrid, PekStatusBar, AssetMiniGrid, LiveSharpePanel, OptimizerRecommendations, RiskSignalPanel) |
+| `components/OptimizerRecommendations.tsx` | Optimization drift detector panel (queries /optimization.json) |
 | `components/layout/MobileLayout.tsx` | *(deleted — dead code)* |

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -40,6 +41,14 @@ from paper_trading.api.routes import (
 )
 from paper_trading.state_store import EngineSnapshot, StateStore
 
+_STORE_MODULES = [
+    "paper_trading.api.state_routes",
+    "paper_trading.api.analytics_routes",
+    "paper_trading.api.shadow_routes",
+    "paper_trading.api.governance_routes",
+    "paper_trading.api.asset_routes",
+]
+
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
@@ -49,8 +58,9 @@ def _clear_cache():
 @pytest.fixture
 def tmp_store(tmp_path):
     store = StateStore(str(tmp_path))
-    # routes.py imports _STORE at module level, so we must patch routes._STORE
-    with patch("paper_trading.api.routes._STORE", store):
+    with contextlib.ExitStack() as stack:
+        for mod in _STORE_MODULES:
+            stack.enter_context(patch(f"{mod}._STORE", store))
         yield store
 
 
@@ -170,14 +180,14 @@ class TestEquityHistory:
 
 class TestLogs:
     def test_no_log_file(self):
-        with patch("paper_trading.api.routes.LOG_PATH", "/nonexistent/engine.log"):
+        with patch("paper_trading.api.state_routes.LOG_PATH", "/nonexistent/engine.log"):
             result = handle_logs("/logs", {})
             assert result == "[no log file yet]"
 
     def test_reads_log_file(self, tmp_path):
         log_file = tmp_path / "engine.log"
         log_file.write_text("line1\nline2\nline3\nServer stopped.\nline4\n", encoding="utf-8")
-        with patch("paper_trading.api.routes.LOG_PATH", str(log_file)):
+        with patch("paper_trading.api.state_routes.LOG_PATH", str(log_file)):
             result = handle_logs("/logs", {})
             assert "line4" in result
 
@@ -189,7 +199,7 @@ class TestVolatility:
 
     def test_with_snapshot_single_asset(self, tmp_store, sample_snapshot):
         tmp_store.save_snapshot(sample_snapshot)
-        with patch("paper_trading.api.routes.get_vol_baselines", return_value={"EURUSD": 0.0048}):
+        with patch("paper_trading.api.state_routes.get_vol_baselines", return_value={"EURUSD": 0.0048}):
             result = handle_volatility("/volatility.json", {})
             data = json.loads(result)
             assert len(data) == 1
@@ -274,43 +284,43 @@ class TestGovernance:
 
 class TestRisk:
     def test_calls_get_latest(self):
-        with patch("paper_trading.api.routes._get_risk_latest", return_value={"EURUSD": {"level": "LOW"}}):
+        with patch("paper_trading.api.governance_routes._get_risk_latest", return_value={"EURUSD": {"level": "LOW"}}):
             result = handle_risk("/risk.json", {})
             assert json.loads(result)["EURUSD"]["level"] == "LOW"
 
     def test_single_asset_found(self):
-        with patch("paper_trading.api.routes._get_risk_latest", return_value={"level": "LOW"}):
+        with patch("paper_trading.api.governance_routes._get_risk_latest", return_value={"level": "LOW"}):
             data, status = handle_risk_asset("/risk/EURUSD.json", {})
             assert status == 200
             assert json.loads(data)["level"] == "LOW"
 
     def test_single_asset_not_found(self):
-        with patch("paper_trading.api.routes._get_risk_latest", return_value=None):
+        with patch("paper_trading.api.governance_routes._get_risk_latest", return_value=None):
             data, status = handle_risk_asset("/risk/UNKNOWN.json", {})
             assert status == 404
 
 
 class TestHealth:
     def test_calls_compute_all(self):
-        with patch("paper_trading.api.routes._compute_health_all", return_value={"EURUSD": {"score": 0.8}}):
+        with patch("paper_trading.api.governance_routes._compute_health_all", return_value={"EURUSD": {"score": 0.8}}):
             result = handle_health("/health.json", {})
             assert json.loads(result)["EURUSD"]["score"] == 0.8
 
     def test_single_asset_found(self):
-        with patch("paper_trading.api.routes._get_health_latest", return_value={"score": 0.8}):
+        with patch("paper_trading.api.governance_routes._get_health_latest", return_value={"score": 0.8}):
             data, status = handle_health_asset("/health/EURUSD.json", {})
             assert status == 200
             assert json.loads(data)["score"] == 0.8
 
     def test_single_asset_not_found(self):
-        with patch("paper_trading.api.routes._get_health_latest", return_value=None):
+        with patch("paper_trading.api.governance_routes._get_health_latest", return_value=None):
             data, status = handle_health_asset("/health/UNKNOWN.json", {})
             assert status == 404
 
 
 class TestNarrative:
     def test_calls_get_narrative_status(self):
-        with patch("paper_trading.api.routes.get_narrative_status", return_value={"status": "NEUTRAL"}):
+        with patch("paper_trading.api.governance_routes.get_narrative_status", return_value={"status": "NEUTRAL"}):
             result = handle_narrative("/narrative.json", {})
             assert json.loads(result)["status"] == "NEUTRAL"
 
@@ -341,20 +351,20 @@ class TestTradeOutcomes:
 
 class TestWeeklyReview:
     def test_calls_compute_weekly_review(self, tmp_store):
-        with patch("paper_trading.api.routes.compute_weekly_review", return_value={"summary": "ok"}):
+        with patch("paper_trading.api.governance_routes.compute_weekly_review", return_value={"summary": "ok"}):
             result = handle_weekly_review("/weekly-review.json", {})
             assert json.loads(result)["summary"] == "ok"
 
 
 class TestNarrativeConfirm:
     def test_confirm_ok(self):
-        with patch("paper_trading.api.routes.confirm_pending_narrative", return_value=True):
+        with patch("paper_trading.api.governance_routes.confirm_pending_narrative", return_value=True):
             data, status = handle_narrative_confirm(b"")
             assert status == 200
             assert json.loads(data)["status"] == "confirmed"
 
     def test_confirm_fail(self):
-        with patch("paper_trading.api.routes.confirm_pending_narrative", return_value=False):
+        with patch("paper_trading.api.governance_routes.confirm_pending_narrative", return_value=False):
             data, status = handle_narrative_confirm(b"")
             assert status == 400
 

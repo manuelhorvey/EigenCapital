@@ -6,7 +6,7 @@ from scipy import stats
 
 from paper_trading.entry.decision import MarketStructureState
 
-logger = logging.getLogger("quantforge.features.market_structure")
+logger = logging.getLogger("quorrin.features.market_structure")
 
 
 class MarketStructureDetector:

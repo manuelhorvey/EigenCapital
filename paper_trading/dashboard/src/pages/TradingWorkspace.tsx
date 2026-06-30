@@ -3,6 +3,8 @@ import TradeOutcomes from '../components/TradeOutcomes'
 import TradeFeed from '../components/TradeFeed'
 import EquityChart from '../components/EquityChart'
 import ExecutionFeed from '../components/ExecutionFeed'
+import AdmissionPanel from '../components/AdmissionPanel'
+import RejectedSignalExplorer from '../components/RejectedSignalExplorer'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 
@@ -18,6 +20,12 @@ export default function TradingWorkspace() {
             <div className="xl:col-span-2 min-w-0">
               <EquityChart />
             </div>
+          </div>
+        </EntranceAnimator>
+        <EntranceAnimator variant="fade-up" delay={30}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AdmissionPanel />
+            <RejectedSignalExplorer />
           </div>
         </EntranceAnimator>
       </Section>

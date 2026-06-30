@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-logger = logging.getLogger("quantforge.experiment_context")
+logger = logging.getLogger("quorrin.experiment_context")
 
 BASE = Path(__file__).resolve().parent.parent.parent
 

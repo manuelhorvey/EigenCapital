@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quantforge.alpha_weighting")
+logger = logging.getLogger("quorrin.alpha_weighting")
 
 DEFAULT_WEIGHTS = {
     "carry_vol_adj": 0.25,

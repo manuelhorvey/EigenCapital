@@ -1,8 +1,9 @@
 import { memo, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
-import { X, TrendingUp, LayoutDashboard, Zap, BarChart3, Heart } from 'lucide-react'
+import { X, TrendingUp, LayoutDashboard, Zap, BarChart3, Heart, Shield } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEngineHealth } from '../../hooks/useEngineHealth'
+import { useSidebarBadges } from '../../hooks/useSidebarBadges'
 import Divider from '../ui/Divider'
 
 type TabId = 'dashboard' | 'trading' | 'execution' | 'risk'
@@ -13,6 +14,7 @@ interface NavItemDef {
   label: string
   icon: LucideIcon
   desc: string
+  badgeKey?: 'trading' | 'risk'
 }
 
 interface NavGroupDef {
@@ -33,15 +35,15 @@ const NAV_GROUPS: NavGroupDef[] = [
     title: 'Trading',
     icon: TrendingUp,
     items: [
-      { id: 'trading', to: '/trading', label: 'Trading', icon: Zap, desc: 'Signals, fills, open trades' },
+      { id: 'trading', to: '/trading', label: 'Trading', icon: Zap, desc: 'Signals, fills, open trades', badgeKey: 'trading' },
       { id: 'execution', to: '/execution', label: 'Execution', icon: BarChart3, desc: 'Slippage, quality, attribution' },
     ],
   },
   {
-    title: 'Analysis',
-    icon: Heart,
+    title: 'Risk',
+    icon: Shield,
     items: [
-      { id: 'risk', to: '/risk', label: 'Risk', icon: Heart, desc: 'Health scores, governance, constraints' },
+      { id: 'risk', to: '/risk', label: 'Risk', icon: Shield, desc: 'Health scores, governance, constraints', badgeKey: 'risk' },
     ],
   },
 ]
@@ -55,6 +57,7 @@ interface SidebarProps {
 
 interface NavItemProps {
   item: NavItemDef
+  badge?: number
   onClose: () => void
   onKeyDown: (e: React.KeyboardEvent, id: string) => void
 }
@@ -75,7 +78,7 @@ const EngineBadge = memo(function EngineBadge() {
   )
 })
 
-const NavItem = memo(function NavItem({ item, onClose, onKeyDown }: NavItemProps) {
+const NavItem = memo(function NavItem({ item, badge, onClose, onKeyDown }: NavItemProps) {
   return (
     <NavLink
       id={`nav-${item.id}`}
@@ -100,7 +103,14 @@ const NavItem = memo(function NavItem({ item, onClose, onKeyDown }: NavItemProps
           )}
           <item.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
           <div className="flex flex-col min-w-0">
-            <span className="truncate">{item.label}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="truncate">{item.label}</span>
+              {badge != null && badge > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-none bg-gov-red-muted text-gov-red border border-gov-red/25">
+                  {badge}
+                </span>
+              )}
+            </div>
             <span className="text-[9px] text-tertiary/60 truncate">{item.desc}</span>
           </div>
         </>
@@ -110,6 +120,7 @@ const NavItem = memo(function NavItem({ item, onClose, onKeyDown }: NavItemProps
 })
 
 function Sidebar({ open, onClose }: SidebarProps) {
+  const badges = useSidebarBadges()
   const handleKeyDown = useCallback((e: React.KeyboardEvent, currentId: string) => {
     const currentIndex = allItems.findIndex(item => item.id === currentId)
     if (currentIndex === -1) return
@@ -185,7 +196,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Region 2: Navigation shell (static — no data dependencies) */}
+        {/* Region 2: Navigation shell (light dynamic — useSidebarBadges only) */}
         <nav
           role="tree"
           aria-label="Dashboard sections"
@@ -199,7 +210,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
               </p>
               <div className="space-y-0.5 ml-1">
                 {group.items.map(item => (
-                  <NavItem key={item.id} item={item} onClose={onClose} onKeyDown={handleKeyDown} />
+                  <NavItem key={item.id} item={item} badge={item.badgeKey ? badges[item.badgeKey] : undefined} onClose={onClose} onKeyDown={handleKeyDown} />
                 ))}
               </div>
               {gi < NAV_GROUPS.length - 1 && <Divider className="my-1.5 mx-2" />}

@@ -11,7 +11,7 @@ Group B (sanity checks — net-positive or marginal):
   ES (BUY), NQ (BUY), AUDUSD (BUY), NZDCHF (BUY), GBPNZD (SELL), USDCAD (SELL)
 
 Usage:
-    PYTHONPATH=$PYTHONPATH:. python scripts/filter_direction.py
+    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/filter_direction.py
 """
 
 from __future__ import annotations

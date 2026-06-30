@@ -170,8 +170,7 @@ class TestBuildFeaturesFromTrade:
     @pytest.fixture
     def close(self):
         np.random.seed(42)
-        return pd.Series(100 + np.cumsum(np.random.randn(300) * 0.5),
-                         index=pd.date_range("2024-01-01", periods=300, freq="D"))
+        return pd.Series(100 + np.cumsum(np.random.randn(300) * 0.5))
 
     def test_basic_feature_building(self, trade, prob_history, close):
         features = build_meta_features_from_trade(

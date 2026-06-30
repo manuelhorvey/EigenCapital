@@ -1,10 +1,10 @@
-# QuantForge — Agent Operating Guide
+# Quorrin — Agent Operating Guide
 
 ## Project Identity
 
-Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commodities, equity indices) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20; see ADR-026 and PnL backtest section), 9-layer governance, position sizing guardrails, and MT5 bridge execution (Exness demo via Wine).
+Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commodities, equity indices) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20; see ADR-026 and PnL backtest section), 15-layer governance, position sizing guardrails, and MT5 bridge execution (Exness demo via Wine).
 
-**2026-06-20: AUDNZD, EURUSD, AUDCHF removed from trading.** These 3 assets accounted for the model's confirmed directional instability failure mode (confident wrong-direction bets during trends). Removed from paper_trading.yaml assets, mt5_symbol_map, shadow analytics, risk-off suppression lists, and API commission table. 22-3=19 remaining assets. See the Walk-Forward PnL Backtest section for the full diagnostic chain.
+**2026-06-20: AUDNZD, EURUSD, AUDCHF removed from trading.** These 3 assets accounted for the model's confirmed directional instability failure mode (confident wrong-direction bets during trends). Removed from paper_trading.yaml assets, mt5_symbol_map, shadow analytics, and risk-off suppression lists. 22-3=19 remaining assets (subsequent additions grew to 21; see timeline below). See the Walk-Forward PnL Backtest section for the full diagnostic chain.
 
 **2026-06-20 (late): GBPNZD removed from trading; USDCAD/NZDUSD allocation halved.** GBPNZD had tp/sl=1.0/3.0 (ratio 0.33), requiring 75% breakeven WR. Model achieved 72.3% — close but net-negative (-37R, -71R max_dd). USDCAD and NZDUSD reduced from 5% to 2.5% allocation to limit their drawdown impact while keeping diversification. 19-1=18 remaining assets.
 
@@ -12,21 +12,45 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 
 **2026-06-23: AUDUSD, EURNZD, NZDUSD removed from SELL_ONLY filter.** Corrected walk-forward methodology shows BUY WR > 50% for all three (AUDUSD 64.5%, EURNZD 57.6%, NZDUSD 57.7%) — BUY is no longer inverted. The original SELL_ONLY diagnosis was based on a broken walk-forward (no purging, EWM labels, validation-split early stopping). The filter no longer trades BUY on the remaining 5 assets (CADCHF, ES, NQ, NZDCHF, EURAUD) where BUY WR remains 11-31%. ^DJI, USDCHF, EURCHF removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven.
 
-**2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.
+**2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.
 
 ## Architecture Quick Reference
 
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
 - **Features**: 21 alpha (11 core + 6 trend-exhaustion + 4 cross-asset, include COT z/change) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile)
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
-- **Config**: `configs/paper_trading.yaml` — global defaults + per-asset (21 assets)
-- **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 portfolio weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly sizing (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP fix (`portfolio/hrp_allocator.py`). All config-gated. See `LIVE_CONTRACT.md §15`.
-- **Inference**: `paper_trading/inference/pipeline.py` — alpha features → base model → **calibration (P1)** → governance → execute (ensemble disabled; regime features still generated for trace logging)
-- **Training**: `paper_trading/inference/training.py` — base model only (regime model skipped when base_weight >= 1.0), scale_pos_weight, meta-labeling. Expanding-window (all history, never drops old data) — known contributor to directional instability across folds.
-- **Entry gates**: `entry_service.py` price deviation check (skips if price deviated > max_entry_slippage_pct); `decision_pipeline.py` profit lock (blocks flips when unrealized PnL > profit_lock_threshold_pct)
-- **Position sizing guardrails**: Kelly multiplier (P2, disabled) → drawdown taper → per-position equity cap → risk-per-trade cap → portfolio leverage budget (atomic lock) → backstop decay multiplier
-- **Independent MT5 sizing**: Paper sized from paper equity ($100K mtm_value); MT5 sized from real broker account balance via `_compute_mt5_qty()` with its own drawdown taper + risk cap
-- **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), 3-phase cycle (signal → entry → backstop)
+- **Config**: `configs/paper_trading.yaml` — `mode:` selector + `modes:` overrides (production/ftmo/live), global defaults + per-asset (21 assets)
+- **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
+- **PEK (Portfolio Execution Kernel)**: `PortfolioStateSnapshot` (built pre-phase) + `RiskEngineV2` (adaptive budget) + `PerformanceState` (velocity + outcome telemetry) + `PortfolioAdmissionController` (two-stage filter → rank → enforce)
+- **Inference**: `paper_trading/inference/pipeline.py` → base model → calibration (P1) → governance → execute (ensemble disabled)
+- **Training**: `paper_trading/inference/training.py` — base model only, scale_pos_weight, meta-labeling. Expanding-window.
+- **Entry gates**: `entry_service.py` price deviation check; profit lock in `manage_position` (blocks flips when PnL > profit_lock_threshold_pct); **PEK budget enforcement** (closes lowest-ranked if portfolio notional exceeds max)
+- **Position sizing guardrails**: drawdown taper → per-position equity cap → risk-per-trade cap → min viable gate (leverage budget removed — replaced by PEK central admission)
+- **Independent MT5 sizing**: Paper from $100K mtm_value; MT5 from broker balance via `_compute_mt5_qty()`
+- **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), **5-phase cycle**: PRE (PEK state) → 1a (signal) → 1b (admission) → 2 (validity) → 3 (health) → 4 (persist) with MT5 orphan sub-phases (A-D)
+
+```mermaid
+graph TD
+    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
+    PRE --> P1A[Phase 1a: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1A --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
+    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
+    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
+    CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
+    CB -- passed --> FX[Factor Exposures\n9 groups]
+    FX --> VAR[VaR / CVaR\nRolling 60-period]
+    VAR --> MT5[MT5 Orphan Recon]
+    MT5 --> MT5A[Phase A: Drain cleanup queues]
+    MT5A --> MT5B[Phase B: Stale ticket detection]
+    MT5B --> MT5C[Phase C: Dry-run orphan report]
+    MT5C --> MT5D[Phase D: Self-healing adoption]
+    MT5D --> CONC[Position Concentration\nNet-short skew check]
+    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nRecord outcomes → PerformanceState\nState snapshot → state.json]
+    P4 --> Start
+```
+
+- **Governance**: 15-layer governance + HealthMonitor + VaR/CVaR + RiskEngineV2 + PEK admission + PerformanceState velocity + RecoveryScheduler
 - **MT5 Bridge**: `paper_trading/ops/mt5_client.py` — TCP frame protocol to Wine-hosted MT5 (port 9879)
 - **Dashboard**: React SPA on port 5000, state via `state.json`
 
@@ -38,6 +62,14 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies, decorator pattern, pure functions |
 | `shared/calibration/` | P1 calibration layer — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
 | `shared/kelly.py` | P2 fractional Kelly sizing — `compute_kelly_fraction`, `compute_kelly_multiplier` |
+| `risk/contracts/portfolio_state.py` | Immutable `PortfolioStateSnapshot` — single source of truth for portfolio exposure |
+| `risk/contracts/performance_state.py` | Immutable `PerformanceState` with `RegimeVelocity` — system behavioral telemetry |
+| `risk/contracts/risk_budget.py` | `RiskBudget` — adaptive risk limits consumed by PEK |
+| `risk/state/portfolio_state_builder.py` | `PortfolioStateBuilder` — factory for `PortfolioStateSnapshot` |
+| `risk/perf/performance_state_builder.py` | `PerformanceStateBuilder` — outcome tracker + velocity processor |
+| `risk/engine_v2.py` | `RiskEngineV2` — adaptive budget from snapshot + performance state |
+| `paper_trading/orchestrator/admission/controller.py` | `PortfolioAdmissionController` — PEK two-stage admission (filter → rank) |
+| `paper_trading/orchestrator/admission/signal.py` | `AdmissionSignal` — immutable signal admission contract |
 | `shared/factor_model.py` | P3 factor model — 9 factor groups, factor-constrained weight optimization |
 | `portfolio/hrp_allocator.py` | P4 HRP fix — `_get_quasi_diag` with `optimal_leaf_ordering` |
 | `paper_trading/engine.py` | `PaperTradingEngine` — main loop, capital sync, parallel orchestrator |
@@ -48,9 +80,9 @@ Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commod
 | `paper_trading/inference/ensemble.py` | `EnsembleSignal` — 60/40 blend logic |
 | `paper_trading/ops/monitor.py` | Main entry point — loads models, runs engine, serves dashboard |
 | `paper_trading/execution/decision_pipeline.py` | Decision pipeline stages — includes `apply_kelly_sizing` (P2), profit lock gate |
-| `paper_trading/services/entry_service.py` | Entry validation, full sizing chain (Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget), price deviation gate |
+| `paper_trading/services/entry_service.py` | Entry validation, full sizing chain (Kelly multiplier → drawdown taper → position cap → risk cap), price deviation gate |
 | `paper_trading/services/engine_rebalance_service.py` | Live rebalance — reads `weight_method` from config, calls `compute_weights()` |
-| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-3 (parallel signal, atomic entry, portfolio phase with factor exposures, MT5 orphan reconciliation, position concentration check) |
+| `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-4 (pre-phase PEK state, parallel signal, PEK admission, validity, portfolio health, persist) with MT5 orphan sub-phases (A-D) |
 | `paper_trading/execution/mt5_broker.py` | `MT5Broker` — MT5 execution with `current_mt5_drawdown_pct()` |
 | `features/alpha_features.py` | Alpha feature builder (13 cols) |
 | `features/regime_features.py` | Regime feature builder (7 cols) |
@@ -83,6 +115,11 @@ size_scalar = base × kelly_multiplier × exposure × governance × meta × draw
 ```
 Where `kelly_multiplier = compute_kelly_multiplier(calibrated_prob, tp_mult, sl_mult)`.
 Kelly flows through the sizing chain as an extra scalar before position caps.
+
+**PEK budget enforcement (Phase 1b):**
+If total portfolio notional exceeds `max_leverage × equity × tolerance`, the lowest-ranked
+admitted positions are closed by `_phase_1b_admission_review()`. This replaces the old
+per-cycle shared leverage budget and backstop multiplier pattern.
 
 MT5 positions are sized independently:
 
@@ -124,7 +161,7 @@ PYTHONPATH=$PYTHONPATH:. python scripts/training/train_regime_models.py
 
 ### Walk-Forward Backtest (diagnostic)
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/backtest/walk_forward_backtest.py --asset EURUSD
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/walk_forward_backtest.py --asset GBPCAD
 ```
 
 ### PnL Backtest from Signal Parquets
@@ -179,10 +216,10 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 
 The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-token authentication.
 
-- **Config**: Set `QUANTFORGE_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
+- **Config**: Set `QUORRIN_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
 - **Behavior**: If a token is configured, all JSON API endpoints and POST endpoints require `Authorization: Bearer <token>`. Static files (HTML/CSS/JS) are accessible without auth.
 - **Default**: No token configured = open access (safe because the server binds to 127.0.0.1 by default).
-- **Bind address**: Override with `QUANTFORGE_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.
+- **Bind address**: Override with `QUORRIN_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.
 - **CORS**: Restricted to `http://127.0.0.1:3000` (Vite dev server) and same-origin. No wildcard.
 
 ## Known Issues
@@ -190,7 +227,7 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 - **GBPNZD (REMOVED 2026-06-20)**: tp/sl ratio 0.33 required 75% breakeven WR, model achieved 72.3% — net-negative. Removed from trading.
 - **AUDNZD ensemble**: Ensemble degrades signal quality (IC -0.020 in pilot). Confirmed portfolio-wide by walk-forward (p=0.83 pooled); ensemble disabled 2026-06-20 (see ADR-026).
 - **Small MT5 equity ($107 demo)**: 0.01 lot minimum for forex (≈$1,150 notional on EURUSD) far exceeds the MT5 position budget (≈$15.67 at 15% of $104). MT5 positions quantize to 0.01 lots regardless of computed size. Leverage budget is deferred for MT5 — revisit when equity > $10K.
-- **Leverage budget deferred for MT5**: 0.01 lot granularity makes desired-vs-actual notional diverge wildly for small accounts. No leverage cap check on MT5 side until equity supports meaningful multi-position sizing.
+- **Small MT5 equity ($107 demo)**: 0.01 lot minimum for forex (≈$1,150 notional on EURUSD) far exceeds the MT5 position budget (≈$15.67 at 15% of $104). MT5 positions quantize to 0.01 lots regardless of computed size. Leverage budget is deferred for MT5 — revisit when equity > $10K.
 - **SL/TP triple bug (FIXED 2026-06-16)**: Three independent issues (deactivated `atr_mult_tp`, uncalibrated `atr_mult_sl`, TP compiler convexity applied to inflated SL distance) produced TP distances up to 44%. Fixes: (1) `_atr_barriers()` now uses `atr_mult_tp` for TP vol basis, (2) `tp_compiler.py` caps R:R at `MAX_RR=5.0`.
 - **THIN liquidity (FIXED 2026-06-17)**: THIN regime was routing to hard_reasons (halted all assets). Fixed: only STRESSED halts; THIN → soft_warnings (SL/size adjust, no halt).
 - **Prob drift min samples (FIXED 2026-06-17)**: Raised from 3 to 10 for stable mean estimate before confidence drift halt check activates.
@@ -391,8 +428,7 @@ The original "directional flip" narrative was wrong as a portfolio-wide diagnosi
 
 ```python
 SELL_ONLY_ASSETS: frozenset[str] = frozenset({
-    "CADCHF", "ES", "NQ", "NZDCHF",
-    "EURAUD", "^DJI", "USDCHF", "EURCHF",
+    "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
 })
 ```
 
@@ -417,7 +453,7 @@ The filter still helps — reduces max_dd and enables SELL-only signals to domin
 
 `scipy.stats.norm.cdf(z)` saturates at exactly **1.0 in float64** for z > ~8.2 and at **0.0** for z < ~-8.2. This means PSR and DSR cannot discriminate between "strongly significant" and "overwhelmingly significant" once the z-score exceeds ~8.2.
 
-**Practical implication for QuantForge**: With n ≈ 300 observations (typical walk-forward test window), PSR(>0) saturates at 1.0 for any Sharpe > ~0.3. The "mediocre" scenario (Sharpe=0.7, n=252) produces z ≈ 11, well into the saturation zone. PSR(>0) = 1.0000 for 16 of 18 assets in the portfolio backtest — this doesn't mean those assets are equally significant; it means they all exceed the float64 ceiling.
+**Practical implication for Quorrin**: With n ≈ 300 observations (typical walk-forward test window), PSR(>0) saturates at 1.0 for any Sharpe > ~0.3. The "mediocre" scenario (Sharpe=0.7, n=252) produces z ≈ 11, well into the saturation zone. PSR(>0) = 1.0000 for 16 of 18 assets in the portfolio backtest — this doesn't mean those assets are equally significant; it means they all exceed the float64 ceiling.
 
 **Where DSR is discriminative**: DSR's useful range is Sharpe in approximately [0.0, 0.8] for n ≈ 250, and narrower for larger n. Outside this range, DSR is a binary pass/fail indicator (1.0 for strong signals, 0.0 for negative). At the current portfolio Sharpe of 29, DSR(18) being 1.0 is correct but provides zero selective information — it will say "PASS" regardless of whether num_trials is 18 or 1800. This is a ceiling effect of float64, not a calculation error. DSR will only become a meaningful gate when portfolio Sharpe drops into the 0.5–2.5 range.
 
@@ -552,7 +588,7 @@ New handlers in `replay/runner.py`:
 | `paper_trading/replay/runner.py` | Three new handlers for causal boundary events |
 | `paper_trading/replay/wal.py` | Docstring updated with causal vs observability event tiers |
 | `paper_trading/inference/training.py` | Model hash sidecar file written at save time |
-| `quantforge/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
+| `quorrin/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
 | `scripts/training/retrain_counterfactual.py` | **NEW** — feature ablation walk-forward test |
 | `scripts/diagnostics/check_chf_correlation.py` | **NEW** — CHF cluster independence verification |
 | `paper_trading/ops/slack_alerter.py` | **NEW** — WAL-tailing Slack alert daemon |
@@ -655,7 +691,7 @@ The counterfactual script uses a 600-row dataset (vs 848 in production), 5 folds
 
 ## Known Issues
 
-- **Stacking (ADDED 2026-06-22)**: Pyramiding layer support for existing winning positions. Default `enabled: false`, dry_run: true. When enabled, `manage_position` evaluates stacking before suppressing same-side re-entry. Stacking uses unrealized PnL > 0 + confidence >= min_confidence. Layers tracked via `PositionIntent.layers` (StackLayer dataclass) with avg_price invariant enforcement. MT5_ORPHAN guard bypassed for `OrderType.STACK`. Size: volatility-adjusted diminishing schedule anchored to `base_entry_size`. Phase-out plan: validate on EURCAD/CADCHF → FX majors → full portfolio.
+- **Stacking (ADDED 2026-06-22, DEFERRED 2026-06-28)**: Pyramiding layer support for existing winning positions. Default `enabled: false`, dry_run: true. Walk-forward analysis showed stacking does not improve portfolio risk-adjusted returns — it increases notional concentration during already-profitable trades without commensurate Sharpe benefit. Remains disabled by default with no active phase-in plan. If revisited, validate on EURCAD/CADCHF first.
 - **MT5 orphan/re-entry bug (FIXED 2026-06-22)**: 5-fix chain to resolve same-side re-entry orphan problem:
   1. `decision_pipeline.py:manage_position` — sets `ctx.new_side = None` when already in same-side position (was `logger.debug`, promoted to `logger.info` same session)
   2. `entry_service.py:_record_position_state` — preserves existing `mt5_ticket` when broker returns None
@@ -745,9 +781,12 @@ return_pct = R × ATR_pct  (per asset),  portfolio_return = mean(return_pct) acr
 
 **Files**: `scripts/backtest/monte_carlo_drawdown.py`, `mc_results_v2.json`
 
-## Portfolio tp/sl Optimization (2026-06-25)
+## Portfolio tp/sl Optimization — First Pass (2026-06-25)
 
 **Method**: Scanned ratio space [0.5, 8.0] for each of 21 assets against walk-forward signal parquets. Optimal ratio found by maximizing total_R while preserving geometric mean (keeping average barrier distance constant). SELL_ONLY assets evaluated on SELL leg only. Ratio=2.0 chosen as conservative target — the unconstrained optimum was ratio=4.0-8.0 for most assets, but changing labels (next retrain) introduces uncertainty; a moderate improvement with known bounds is safer than an extreme change.
+
+> **Follow-up (2026-06-30):** Ratio threshold raised to 3.0 for 11 assets after full optimizer iteration.
+> See the TP/SL Optimizer — Ratio=3.0 Bump section below.
 
 **Assets improved (6 of 21)**:
 
@@ -914,6 +953,71 @@ The SELL_ONLY filter is now a focused guard for the 5 assets with genuinely unre
 - EURUSD, AUDNZD, AUDCHF, GBPNZD (all removed 2026-06-20)
 
 21 models remain in `paper_trading/models/` — one per production asset.
+
+---
+## TP/SL Optimizer — Ratio=3.0 Bump (2026-06-30)
+
+### Methodology
+
+Grid search over ratio space [0.5, 20.0] log-scale for all 21 assets using `scripts/optimization/portfolio_sltp_optimizer.py`, estimating config-only PnL (current signals × new tp/sl). Geometric mean constraint preserves average barrier distance.
+
+**Key result:** All 21 assets converge to ratio=20.0 (search boundary) — the optimizer always wants more ratio. Ratio=3.0 chosen as conservative cap to keep SL (0.71–2.04%) above intraday noise. SL fragility test confirms 20/21 OK, 0 CRITICAL, 1 FRAGILE (NZDCAD frag=2.00, hit rate 0.22%).
+
+### Assets Bumped (<3.0 → 3.0, 11 assets)
+
+| Asset | Old ratio | New ratio | Old sl | Old tp | New sl | New tp |
+|-------|-----------|-----------|--------|--------|--------|--------|
+| USDCAD | 2.01 | 3.00 | 1.59 | 3.19 | 1.30 | 3.90 |
+| ES | 2.75 | 3.01 | 2.00 | 5.50 | 1.91 | 5.74 |
+| NQ | 2.00 | 3.00 | 2.50 | 5.00 | 2.04 | 6.12 |
+| GBPCAD | 2.00 | 2.99 | 1.77 | 3.54 | 1.45 | 4.34 |
+| NZDCAD | 2.00 | 2.99 | 2.24 | 4.47 | 1.83 | 5.48 |
+| NZDUSD | 1.25 | 3.00 | 2.00 | 2.50 | 1.29 | 3.87 |
+| GBPAUD | 1.33 | 3.00 | 1.50 | 2.00 | 1.00 | 3.00 |
+| AUDUSD | 2.67 | 3.01 | 1.50 | 4.00 | 1.41 | 4.24 |
+| EURCAD | 1.99 | 2.99 | 0.87 | 1.73 | 0.71 | 2.12 |
+| EURNZD | 2.00 | 3.00 | 1.37 | 2.74 | 1.12 | 3.36 |
+| GBPCHF | 2.00 | 2.99 | 1.00 | 2.00 | 0.82 | 2.45 |
+
+### Tools Built (8 scripts)
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/optimization/portfolio_sltp_optimizer.py` | Two-pass log-space grid search [0.1–20.0] with GM constraint |
+| `scripts/optimization/sl_fragility_test.py` | 4h OHLCV intraday SL hit rate vs daily |
+| `scripts/optimization/drift_detector.py` | Live win-rate drift against breakeven WR; powers dashboard |
+| `scripts/optimization/trade_outcome_repository.py` | Flat trade outcome DataFrame from SQLite |
+| `scripts/optimization/portfolio_balancer.py` | Correlation-aware cluster risk discounting (Equity 15%, CHF 5%) |
+| `scripts/optimization/per_asset_quality.py` | EV/breakeven/MFE/MAE quality classification |
+| `scripts/optimization/risk_compression.py` | Stress scenario injection for TP/SL configuration |
+| `scripts/optimization/directional_win_rate.py` | Per-direction BUY/SELL win rate tracking |
+
+### Dashboard Integration
+
+- **`/optimization.json`** endpoint (`state_routes.py:258`) serves drift detector output
+- **`OptimizerRecommendations.tsx`** component renders flagged assets on the DashboardOverview page
+- Populated by: `PYTHONPATH=$PYTHONPATH:. python scripts/optimization/drift_detector.py --json > data/live/optimization.json`
+
+### Validation (Backtest After Retrain)
+
+All 21 models retrained with new tp/sl labels. Walk-forward comparison:
+
+| Metric | Step 3 baseline | After ratio=3.0 | Δ |
+|--------|----------------|------------------|---|
+| total_R | 248.23 | **288.4** | **+16.2%** |
+| sharpe_adj | 19.56 | 15.96 | -18.4% (portfolio composition) |
+| max_dd_R | -0.29 | **-0.15** | **-54.7%** |
+| Assets profitable | 17/17 | 17/17 | unchanged |
+
+### SELL_ONLY List Update
+
+Confirmed unchanged (5 assets): CADCHF, ES, NQ, NZDCHF, EURAUD. No SELL_ONLY asset was affected by the ratio change — the filter is performance-independent.
+
+### Falsified Concern
+
+**Hypothesis:** Ratio=3.0 makes SL too tight for some assets, causing intraday wick-outs.
+**Test:** `sl_fragility_test.py` scans 4h OHLCV for any bar that would have hit the new SL intraday.
+**Result:** 20/21 OK, 0 CRITICAL. NZDCAD FRAGILE at frag=2.00 but absolute hit rate 0.22% — acceptable.
 
 ## Ruff
 

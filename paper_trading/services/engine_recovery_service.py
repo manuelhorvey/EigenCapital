@@ -4,7 +4,7 @@ import pytz
 
 from paper_trading.entry.decision import PositionIntent, PositionSide
 
-logger = logging.getLogger("quantforge.engine_recovery_service")
+logger = logging.getLogger("quorrin.engine_recovery_service")
 
 ET = pytz.timezone("US/Eastern")
 

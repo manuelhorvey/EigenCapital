@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-logger = logging.getLogger("quantforge.meta_labels")
+logger = logging.getLogger("quorrin.meta_labels")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 META_MODEL_DIR = os.path.join(BASE, "models", "meta")

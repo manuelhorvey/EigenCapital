@@ -18,7 +18,7 @@ COPY . .
 EXPOSE 5000 9879
 
 ENV PYTHONPATH=/app
-ENV QUANTFORGE_BIND=0.0.0.0
+ENV QUORRIN_BIND=0.0.0.0
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/ping', timeout=5)" || exit 1

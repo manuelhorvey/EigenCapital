@@ -6,7 +6,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quantforge.liquidity_regime")
+logger = logging.getLogger("quorrin.liquidity_regime")
 
 
 @dataclass

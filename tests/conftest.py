@@ -5,18 +5,16 @@ import pytest
 
 @pytest.fixture
 def sample_price_data():
-    dates = pd.date_range("2020-01-01", periods=100, freq="D")
     np.random.seed(42)
     prices = 100 + np.cumsum(np.random.randn(100) * 0.5)
-    return pd.DataFrame({"close": prices, "high": prices * 1.01, "low": prices * 0.99, "volume": 1000000}, index=dates)
+    return pd.DataFrame({"close": prices, "high": prices * 1.01, "low": prices * 0.99, "volume": 1000000})
 
 
 @pytest.fixture
 def sample_macro_data():
-    dates = pd.date_range("2020-01-01", periods=100, freq="D")
     return pd.DataFrame({
         "fed_funds": np.full(100, 2.5),
         "ecb_rate": np.full(100, 1.0),
         "us_2y": np.full(100, 3.0),
         "dxy": np.full(100, 96.0),
-    }, index=dates)
+    })

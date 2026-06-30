@@ -100,7 +100,7 @@ function SignalsTable() {
           name,
           signal: asset.final_signal ?? sig?.signal ?? 'FLAT',
           confidence: confidenceToPercent(sig?.confidence),
-          price: sig?.close_price ?? m?.current_price ?? 0,
+          price: m?.current_price ?? sig?.close_price ?? 0,
           alloc,
           ret: m?.mtm_return ?? 0,
           dd: m?.drawdown ?? 0,
@@ -311,7 +311,7 @@ function SignalsTable() {
                 placeholder="Filter…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(20,184,166,0.2)] min-h-[36px] sm:min-h-0"
+                className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(20,184,166,0.2)]"
               />
             </div>
             <span className="text-[10px] text-tertiary font-mono tabular-nums bg-surface/50 px-1.5 py-0.5 rounded">

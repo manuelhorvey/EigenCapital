@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import logging
-import threading
-from collections.abc import Callable
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("quantforge.sizing_chain")
+logger = logging.getLogger("quorrin.sizing_chain")
 
 
 @dataclass
@@ -36,18 +34,9 @@ class SizingInput:
     sl_distance: float = 0.0
     """Stop-loss distance from entry (absolute price difference)."""
 
-    leverage_budget_ref: list[float] | None = None
-    """Shared mutable ref [remaining] for atomic decrement. None = no cap."""
-
-    leverage_lock: threading.Lock | None = None
-
     is_mt5: bool = False
     """If True, use MT5 sizing path (kelly + max_position_pct instead of size_scalar)."""
 
-    leverage_budget_soft: bool = False
-    """If True, log WARNING on budget exhaustion but don't block. If False, block entry (default)."""
-
-    lot_converter: Callable[[str, float], float] | None = None
     """broker._quantity_to_lots or None."""
     ticker: str = ""
 
@@ -58,7 +47,6 @@ class SizingResult:
     quantity: float = 0.0
     is_viable: bool = False
     skip_reason: str | None = None
-    leverage_decremented: float = 0.0
 
     drawdown_taper: float = 1.0
     effective_cap: float = 0.0
@@ -66,7 +54,6 @@ class SizingResult:
     kelly_applied: float = 1.0
     position_cap: float = 0.0
     risk_cap_used: float = 0.0
-    leverage_budget_total: float = 0.0
     min_viable_notional: float = 0.0
     chain_breakdown: dict = field(default_factory=dict)
 
@@ -156,56 +143,8 @@ class SizingChain:
                 return res
             notional = capped_notional
 
-        # 4 — Leverage budget atomic decrement
-        lock = inp.leverage_lock
-        budget_ref = inp.leverage_budget_ref
-        budget_total: float = float("inf")
-
-        if lock is not None and budget_ref is not None:
-            with lock:
-                remaining = budget_ref[0]
-                if remaining <= 0:
-                    tag = "MT5" if inp.is_mt5 else ""
-                    if inp.leverage_budget_soft:
-                        logger.warning(
-                            "%s %s: leverage budget exhausted "
-                            "(remaining=%.2f equity=%.2f) — soft guard, allowing entry",
-                            inp.ticker,
-                            tag,
-                            remaining,
-                            inp.equity,
-                        )
-                    else:
-                        res.skip_reason = "leverage_exhausted"
-                        logger.info(
-                            "%s %s: entry skipped — leverage budget exhausted (remaining=%.2f equity=%.2f)",
-                            inp.ticker,
-                            tag,
-                            remaining,
-                            inp.equity,
-                        )
-                        return res
-                else:
-                    notional = min(notional, remaining)
-                    budget_ref[0] = remaining - notional
-                    budget_total = remaining
-
-        res.leverage_budget_total = budget_total
         res.notional = notional
         qty = max(notional / entry_price, 1e-6) if entry_price > 0 else 0.0
-
-        # 5 — MT5 min-volume gate
-        if inp.is_mt5 and inp.lot_converter is not None and qty > 0:
-            lots = inp.lot_converter(inp.ticker, qty)
-            if lots <= 0:
-                res.skip_reason = "below_min_volume"
-                logger.info(
-                    "%s MT5: qty %.6f below min volume, skipping MT5 order",
-                    inp.ticker,
-                    qty,
-                )
-                return res
-            qty = lots
 
         res.quantity = qty
         res.is_viable = True
@@ -217,7 +156,6 @@ class SizingChain:
             "kelly": round(res.kelly_applied, 4),
             "position_cap": round(res.position_cap, 2),
             "risk_cap": round(res.risk_cap_used, 2),
-            "leverage_budget": round(res.leverage_budget_total, 2),
             "final_notional": round(res.notional, 2),
             "quantity": round(res.quantity, 6),
         }

@@ -12,7 +12,9 @@ Changes require full regression validation.
 **Constructor:**
 ```
 n_estimators=300, max_depth=<per-asset>, learning_rate=0.02,
-random_state=42, n_jobs=1, tree_method='hist', verbosity=0
+objective='binary:logistic', scale_pos_weight=imbalance_ratio,
+random_state=42, n_jobs=1, tree_method='hist', verbosity=0,
+early_stopping_rounds=50
 ```
 **Per-asset max_depth:**
 | Depth | Assets |
@@ -72,9 +74,11 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 **Primary builder:** `features/alpha_features.py:build_alpha_features()`
 **Regime builder:** `features/regime_features.py:generate_regime_features()`
 **Per-asset contract:** Defined in `features/registry.py:FEATURE_REGISTRY` (36 tickers) — used for training custom features.
-**Input:** 21 standard alpha features (15 base + 6 trend-exhaustion) + 7 regime features per asset.
+**Input:** 15–35 alpha features per asset (15 per-asset + 4 cross-asset + up to 16 COT features from all covered pairs) + 7 regime features per asset.
 
-21 features total (17 per-asset + 4 cross-asset), all with per-asset prefix (`{ASSET}_`):
+**Feature naming:** Per-asset features use the asset ticker prefix (e.g. `EURUSD_carry_vol_adj`).
+
+15 per-asset features (9 core + 6 trend-exhaustion) + 4 cross-asset features + up to 16 COT features from all covered pairs (variable count, injected from `cot_data`):
 
 | Feature | Description |
 |---------|-------------|
@@ -87,8 +91,8 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 | `{ASSET}_vol_ratio` | Short/long-term vol ratio |
 | `{ASSET}_dow_signal` | Day-of-week encoding |
 | `{ASSET}_has_cot` | COT data availability flag (zero-filled for pairs not in COT data) |
-| `{ASSET}_cot_z` | COT speculative positioning z-score |
-| `{ASSET}_cot_change_4w` | 4-week change in COT net positioning |
+| `{COVERED}_cot_z` | COT speculative positioning z-score (all COT-covered pairs, not per-asset) |
+| `{COVERED}_cot_change_4w` | 4-week change in COT net positioning (all COT-covered pairs) |
 | `{ASSET}_macd_hist` | MACD histogram / close (normalized) — trend exhaustion |
 | `{ASSET}_stoch_k` | Stochastic %K — overbought/oversold |
 | `{ASSET}_stoch_d` | Stochastic %D — signal line confirmation |
@@ -99,6 +103,8 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 | `vix_mom_5d` | VIX 5-day return |
 | `spx_mom_5d` | SPX 5-day return |
 | `WTI_mom_21d` | WTI crude 21-day return |
+
+> **COT injection note:** COT features are NOT generated per-asset. The initialization loop (matching column names against `_COT_COVERED_NAMES`) does not fire because the DataFrame column is named `"close"`. Instead, ALL columns from `cot_data` (~16 cols × 2 features from 8 COT-covered pairs) are joined into every asset's feature vector. This means assets not in COT data (GC, ES, NQ) still receive COT positioning data for unrelated pairs. Flagged as tech debt: COT should be filtered per factor group.
 
 **Trend-exhaustion features** (added 2026-06-26) require OHLCV data passed to `build_alpha_features()`. Computed via the `ta` library. See `features/divergence.py` for RSI divergence detection logic (local extrema within 20-bar lookback window).
 
@@ -145,8 +151,8 @@ Built in `features/regime_features.py:generate_regime_features()`.
 | `utc_hour` | UTC hour of bar timestamp |
 | `session_vol_profile` | Hourly vol relative to 20-day norm |
 
-20 total features enter the regime model (13 alpha + 7 regime).
-The base model sees only the 13 alpha features.
+28 total features enter the regime model (21 alpha + 7 regime).
+The base model sees the full 21 alpha features.
 
 ### Archetype features (inference-only, from full-history OHLCV)
 
@@ -214,7 +220,7 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 
 **Pipeline:** `paper_trading/inference/training.py:AssetTrainingPipeline.train()`
 **Data window:** 5y history from yfinance (`_FETCH_PERIOD = "5y"`, `_FETCH_WARMUP_BUFFER = 1250`), train on last `retrain_window` years (default 5)
-**Feature builder:** `build_alpha_features()` — 13 alpha feature columns (9 per-asset + 4 cross-asset)
+**Feature builder:** `build_alpha_features()` — 21 alpha feature columns (17 per-asset + 4 cross-asset)
 **Minimum samples:** 100 binary labels; 2+ unique classes
 **Train/val split:** 80/20 chronological, stratified by label if minimum class count ≥ 2
 **Per-asset max_depth** from `yaml` config (default 2).
@@ -224,7 +230,7 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 
 #### Regime Model Training
 - Second XGBoost trained on alpha features + 7 regime features (generated from OHLCV via `fetch_asset_ohlcv()`)
-- 20 total features (13 alpha + 7 regime, all prefixed by asset name)
+- 28 total features (21 alpha + 7 regime, all prefixed by asset name)
 - Saved to `models/regime/{ASSET}_regime.json`
 - Loaded at engine startup by `_train_regime_if_configured()` — skipped when `base_weight >= 1.0`
 - Ensemble disabled portfolio-wide (base_weight=1.0) — regime models not loaded at inference
@@ -257,29 +263,28 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 14. `FixedThresholdStrategy(0.45)` → BUY/SELL/FLAT
 15. Archetype classification → `TradeDecision`
 16. Refresh MT5 spread for spread gate
-17. Decision pipeline stages (applied sequentially):
+17. Decision pipeline stages (applied sequentially, 21 stages):
     a. First-cycle suppression — suppress trading on cold-start cycle 1
     b. Bar-jump suppression — suppress 60min if bar count changed >100
     c. Store prediction metadata — record pre-decision signal state
     d. Update MAE/MFE — update max adverse/favorable excursion
     e. Resolve signal — map proba to BUY/SELL/FLAT
     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
-    g. Sell-only filter — override BUY→FLAT for 8 SELL_ONLY assets (inverted BUY calibration)
+    g. Sell-only filter — override BUY→FLAT for 5 SELL_ONLY assets (inverted BUY calibration)
     h. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
     i. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles first)
     j. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
     k. Confidence gate — abort if net confidence below threshold
-    l. Signal stability filter — require >0.65 max(prob_long, prob_short)
-    m. Signal hysteresis — 2-of-3 agreement before flip
-    n. Meta-label advisory — record meta-label recommendation without enforcement
-     o. Update regime bar counter — track bars since last regime shift
-     p. Conviction gate — flip gate based on regime conviction
-     q. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 15.3 (P2).
-     r. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > `profit_lock_threshold_pct`, default 15%)
-     s. Build entry artifacts — construct TradeDecision for execution
-     t. Route execution policy — direct to PaperBroker or MT5Broker
-     u. Poll deferred entries — execute previously deferred pending orders
-     v. Update prob history — record probability history for drift monitoring
+    l. Signal hysteresis — 2-of-3 agreement before flip
+    m. Meta-label advisory — record meta-label recommendation without enforcement
+    n. Update regime bar counter — track bars since last regime shift
+    o. Conviction gate — flip gate based on regime conviction
+    p. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 15.3 (P2).
+    q. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > `profit_lock_threshold_pct`, default 15%)
+    r. Build entry artifacts — construct TradeDecision for execution
+    s. Route execution policy — direct to PaperBroker or MT5Broker
+    t. Poll deferred entries — execute previously deferred pending orders
+    u. Update prob history — record probability history for drift monitoring
 18. Route through governance layers (15 mechanisms)
 19. Position sizing chain: Kelly multiplier → drawdown taper → cap → risk cap → leverage budget → backstop
 20. Independent MT5 sizing (`_compute_mt5_qty` with broker equity)
@@ -298,7 +303,7 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 **Client:** `paper_trading/ops/mt5_client.py` — host-side TCP client
 **Broker:** `paper_trading/execution/mt5_broker.py` — implements `BrokerInterface`
 **Port:** `9879` (configurable via `MT5_BRIDGE_PORT` env var, default in `configs/paper_trading.yaml`)
-**Symbol map:** `configs/mt5_symbol_map.yaml` — maps QuantForge tickers to MT5 symbols
+**Symbol map:** `configs/mt5_symbol_map.yaml` — maps Quorrin tickers to MT5 symbols
 
 ### Operations actively routed to MT5
 
@@ -321,32 +326,36 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 **Builder:** `paper_trading/portfolio_builder.py:build_paper_portfolio()`
 **Source:** `configs/paper_trading.yaml`
 
+> **2026-06-30 update:** 11 assets adjusted to ratio=3.0 via geometric mean constraint.
+> Methodology: `scripts/optimization/portfolio_sltp_optimizer.py`. See AGENTS.md for full chronology.
+> All 21 assets retrained with new labels. Backtest: total_R=288.4, max_dd_R=-0.15.
+
 ### Current assets (21 promoted)
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 1.59 | 3.19 | 5 |
-| ES | ES=F | 7.0% | 2.00 | 5.50 | 2 |
-| NQ | NQ=F | 7.0% | 2.50 | 5.00 | 2 |
-| GBPCAD | GBPCAD=X | 5.0% | 1.77 | 3.54 | 2 |
-| NZDCAD | NZDCAD=X | 5.0% | 2.24 | 4.47 | 2 |
+| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 5 |
+| ES | ES=F | 7.0% | 1.91 | 5.74 | 2 |
+| NQ | NQ=F | 7.0% | 2.04 | 6.12 | 2 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 2 |
+| NZDCAD | NZDCAD=X | 5.0% | 1.83 | 5.48 | 2 |
 | ^DJI | ^DJI | 4.0% | 0.50 | 4.00 | 4 |
-| NZDUSD | NZDUSD=X | 2.5% | 2.00 | 2.50 | 5 |
-| GBPAUD | GBPAUD=X | 5.0% | 1.50 | 2.00 | 3 |
+| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 5 |
+| GBPAUD | GBPAUD=X | 5.0% | 1.00 | 3.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
 | CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
-| AUDUSD | AUDUSD=X | 4.0% | 1.50 | 4.00 | 2 |
+| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 2 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
-| EURCAD | EURCAD=X | 2.0% | 0.87 | 1.73 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.37 | 2.74 | 3 |
-| GBPCHF | GBPCHF=X | 3.0% | 1.00 | 2.00 | 2 |
+| EURCAD | EURCAD=X | 2.0% | 0.71 | 2.12 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 3 |
+| GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
 | USDJPY | USDJPY=X | 4.0% | 0.52 | 1.97 | 2 |
 | GBPJPY | GBPJPY=X | 3.0% | 0.50 | 2.22 | 2 |
 
-**Total allocation: ~0.90** (remaining capacity held as cash buffer).
+**Total allocation: ~0.91** (remaining capacity held as cash buffer).
 
 ### Removed from trading (2026-06-20)
 AUDCHF, EURUSD, AUDNZD — removed after walk-forward diagnostic confirmed base model directional instability (confident wrong-direction bets during trend periods).
@@ -358,6 +367,8 @@ AUDCHF, EURUSD, AUDNZD — removed after walk-forward diagnostic confirmed base 
 **2026-06-22: GBPUSD promoted** to portfolio after walk-forward showed IC 0.186 (4/4 folds positive), HR 0.371, pt_sl=(1.97, 0.52) giving R:R=3.79.
 
 **2026-06-26: USDJPY, GBPJPY re-promoted** after Step 3 trend-exhaustion features improved BuyWR above breakeven WR thresholds, enabling two-way trading.
+
+**2026-06-30: 11 assets bumped to ratio=3.0** via geometric mean constraint (USDCAD, ES, NQ, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF). Full optimizer suite in `scripts/optimization/`. All 21 models retrained with new labels. Dashboard endpoint `/optimization.json` added.
 
 ### Previously removed (post walk-forward, insufficient edge)
 CHFJPY, CADJPY, CL, BTCUSD, EURGBP, EURJPY, AUDCAD, NZDJPY, ^VIX, IWM
@@ -526,7 +537,7 @@ max_layers: 3
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
 | Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) | `session_gate.tiers` (fx_major=[7,17], fx_cross=[7,17], indices=[13,20], metals=[8,18]) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) | `adx_entry_gate` (adx_threshold=18) |
-| Confidence gate | Abort if net confidence below threshold | `min_confidence` (default 50) |
+| Confidence gate | Abort if net confidence below threshold | `min_confidence` (default 55.0) |
 | Signal stability filter | Require >0.65 max(prob_long, prob_short) | `stability_margin` (default 0.15) |
 | Signal hysteresis | 2-of-3 agreement before flip allowed | HYSTERESIS_WINDOW=3, HYSTERESIS_MIN_AGREE=2 |
 | Meta-label advisory | Record meta-label recommendation (no enforcement) | — |
@@ -557,7 +568,7 @@ See `docs/GOVERNANCE_LAYER.md` for full detail.
 9. Binary signal — model trains on {-1, 1} labels only; HOLD dropped
 10. Walk-forward validated — every promoted asset passes expanding-window backtest
 11. Per-asset model depth — `max_depth` configured per-asset, not global
-12. Exit reason canonicalization — all exit reasons are UPPERCASE (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, PORTFOLIO_CIRCUIT_BREAKER, SELL_ONLY_FILTER)
+12. Exit reason canonicalization — all exit reasons are UPPERCASE (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, MANUAL, PORTFOLIO_CIRCUIT_BREAKER, PEK_BUDGET_OVERRUN, SELL_ONLY_FILTER)
 13. **MT5 order lifecycle symmetry** — Every paper position open has a corresponding MT5 `place_order`; every paper close has a corresponding MT5 `close_position`; every SL/TP adjustment has a corresponding MT5 `modify_position`.
 14. **Paper engine is source of truth** — If an MT5 bridge operation fails (close, modify), the paper engine state is NOT rolled back. The next open cycle will detect the orphaned MT5 position and skip the duplicate order.
 15. **Independent paper/MT5 sizing** — Paper positions are sized from paper mtm_value ($100K capital) with paper-specific drawdown and leverage budget. MT5 positions are sized from the real broker account balance with MT5-specific drawdown. The two sizing paths never interfere.

@@ -12,7 +12,7 @@ import random
 
 from shared.execution_config import ExecutionConfig
 
-logger = logging.getLogger("quantforge.fill_model")
+logger = logging.getLogger("quorrin.fill_model")
 
 
 class FillModel:

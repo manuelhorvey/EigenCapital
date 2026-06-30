@@ -8,7 +8,7 @@ All tiers have been implemented, validated, and merged to `main`. 845 tests pass
 
 ## Phases 0–6: Execution Research Framework
 
-Transforms QuantForge from a prediction-driven system into a policy-driven execution research framework with causal attribution.
+Transforms Quorrin from a prediction-driven system into a policy-driven execution research framework with causal attribution.
 
 ### Phase 0 — Frozen Kernel + Labels
 

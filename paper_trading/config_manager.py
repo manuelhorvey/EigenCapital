@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger("quantforge.config_manager")
+logger = logging.getLogger("quorrin.config_manager")
 
 _SENSITIVE_ENV_VARS = frozenset(
     {
@@ -73,7 +73,6 @@ class MT5Config:
     server: str = ""
     bridge_host: str = "127.0.0.1"
     bridge_port: int = DEFAULT_MT5_BRIDGE_PORT
-    min_lot: float = 0.05
     symbol_map_path: str = ""
 
     @classmethod
@@ -90,7 +89,6 @@ class MT5Config:
             server=server,
             bridge_host=data.get("bridge_host", "127.0.0.1"),
             bridge_port=int(data.get("bridge_port", DEFAULT_MT5_BRIDGE_PORT)),
-            min_lot=float(data.get("min_lot", 0.05)),
             symbol_map_path=data.get("symbol_map_path", ""),
         )
 
@@ -104,6 +102,8 @@ class EngineConfig:
     retrain_window: int = 5
     research_mode: bool = False
     api_token: str = ""
+    mode: str = "production"
+    modes: dict = field(default_factory=dict)
     halt: dict = field(default_factory=_default_halt)
     assets: dict = field(default_factory=dict)
     vol_baselines: dict = field(default_factory=dict)
@@ -164,6 +164,24 @@ class EngineConfig:
             raise ValueError("EngineConfig validation failed:\n  " + "\n  ".join(errors))
 
     @classmethod
+    def _merge_mode_overrides(cls, base: dict, mode_overrides: dict) -> dict:
+        """Deep-merge mode overrides into base config dict.
+
+        Top-level scalars from mode_overrides replace base values.
+        Nested dicts (e.g. defaults) are merged key-by-key.
+        Lists are replaced (not merged).
+        """
+        merged = dict(base)
+        for key, value in mode_overrides.items():
+            if key in ("description",):
+                continue
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = {**merged[key], **value}
+            else:
+                merged[key] = value
+        return merged
+
+    @classmethod
     def from_dict(cls, data: dict) -> "EngineConfig":
         halt = dict(data.get("halt", _default_halt()))
         defaults_halt = _default_halt()
@@ -173,9 +191,18 @@ class EngineConfig:
         execution = data.get("execution", {})
         governance = execution.get("governance", {})
 
-        api_token = os.environ.get("QUANTFORGE_API_TOKEN", data.get("api_token", ""))
+        # Resolve mode overrides after base load
+        mode_name = data.get("mode", "production")
+        modes = data.get("modes", {})
+        mode_overrides = modes.get(mode_name, {})
+        if mode_overrides:
+            data = cls._merge_mode_overrides(data, mode_overrides)
+
+        api_token = os.environ.get("QUORRIN_API_TOKEN", data.get("api_token", ""))
 
         return cls(
+            mode=mode_name,
+            modes=modes,
             capital=data.get("capital", 100_000),
             position_size=data.get("position_size", 0.95),
             rebalance=data.get("rebalance", "daily"),
@@ -204,6 +231,8 @@ class EngineConfig:
 
     def to_dict(self) -> dict:
         return {
+            "mode": self.mode,
+            "modes": self.modes,
             "capital": self.capital,
             "position_size": self.position_size,
             "rebalance": self.rebalance,

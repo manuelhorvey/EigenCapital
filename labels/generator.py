@@ -7,7 +7,7 @@ from features.registry import FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
 from shared.volatility import VOLATILITY_PRIMITIVE_VERSION, VolatilityPrimitive
 
-logger = logging.getLogger("quantforge.labels.generator")
+logger = logging.getLogger("quorrin.labels.generator")
 
 
 class LabelGenerator:

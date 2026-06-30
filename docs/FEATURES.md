@@ -1,4 +1,4 @@
-# QuantForge — Feature Engineering
+# Quorrin — Feature Engineering
 
 ## Alpha Features
 
@@ -33,6 +33,8 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 | `{ASSET}_has_cot` | COT data availability flag (zero-filled for pairs not in CFTC data) |
 | `{ASSET}_cot_z` | COT speculative positioning z-score |
 | `{ASSET}_cot_change_4w` | 4-week change in COT net positioning |
+
+> COT features are initialized to `0.0` for all COT-covered assets (those in CFTC data), then overwritten by `cot_data` after a 3-day publication lag. If COT data is unavailable, the zero-fallback prevents NaN columns. See `features/alpha_features.py:395-405`.
 
 #### Per-Asset Trend-Exhaustion Features (6 cols, added 2026-06-26)
 

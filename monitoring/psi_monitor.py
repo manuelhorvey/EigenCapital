@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quantforge.psi_monitor")
+logger = logging.getLogger("quorrin.psi_monitor")
 
 PSI_TREND_EPSILON = 0.02
 
@@ -59,7 +59,7 @@ class PSIMonitor:
             return None
         try:
             return pd.read_parquet(path)
-        except Exception as e:
+        except (OSError, pd.errors.EmptyDataError, ValueError) as e:
             logger.warning("%s: failed to load PSI baseline: %s", asset, e)
             return None
 

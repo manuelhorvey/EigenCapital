@@ -70,7 +70,7 @@ def _kl_divergence(p: list, q: list) -> float:
     # Avoid NaN from log(0/0) when both are zero; KL only sums over
     # bins where p > 0 (convention: 0 * log(0/q) = 0).
     mask = p > 0
-    q_safe = np.where(mask, q, 1.0)
+    q_safe = np.maximum(q, 1e-10)
     return float(np.sum(p[mask] * np.log(p[mask] / q_safe[mask])))
 
 

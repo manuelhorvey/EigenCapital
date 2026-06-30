@@ -3,7 +3,7 @@ from enum import Enum
 
 import pandas as pd
 
-logger = logging.getLogger("quantforge.features.archetypes")
+logger = logging.getLogger("quorrin.features.archetypes")
 
 
 class SetupArchetype(Enum):
@@ -59,7 +59,7 @@ class ArchetypeClassifier:
                 return SetupArchetype.VOL_EXPANSION
 
             return SetupArchetype.UNKNOWN
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.error(f"Archetype classification failed: {e}")
             return SetupArchetype.UNKNOWN
 

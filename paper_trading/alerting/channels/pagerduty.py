@@ -10,7 +10,7 @@ from typing import Any
 
 from paper_trading.alerting.channel import Alert, Channel, Severity
 
-logger = logging.getLogger("quantforge.alerting.pagerduty")
+logger = logging.getLogger("quorrin.alerting.pagerduty")
 
 _EVENT_API = "https://events.pagerduty.com/v2/enqueue"
 
@@ -31,7 +31,7 @@ class PagerDutyChannel(Channel):
     def __init__(
         self,
         routing_key: str,
-        dedup_key_template: str = "quantforge/{asset}",
+        dedup_key_template: str = "quorrin/{asset}",
         min_interval: float = 30.0,
     ):
         self._routing_key = routing_key
@@ -69,7 +69,7 @@ class PagerDutyChannel(Channel):
             "payload": {
                 "summary": f"{alert.title}: {alert.message}",
                 "severity": _SEVERITY_MAP.get(alert.severity, "info"),
-                "source": "quantforge",
+                "source": "quorrin",
                 "component": alert.asset or "portfolio",
                 "group": "paper-trading",
                 "class": alert.severity.value.lower(),

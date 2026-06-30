@@ -9,7 +9,7 @@ TRACE_LOG_PATH = os.path.join(
 )
 
 _lock = threading.Lock()
-_logger = logging.getLogger("quantforge.tracer")
+_logger = logging.getLogger("quorrin.tracer")
 
 
 def _append(line: dict) -> None:

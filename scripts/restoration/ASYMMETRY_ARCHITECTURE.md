@@ -2,7 +2,7 @@
 
 ## Core Finding (2026-06-25)
 
-The system has a **structural directional asymmetry**: SELL predictions achieve 62-90% WR while BUY predictions achieve 0-32% WR for 8 assets. Three independent experiments confirm this is a **feature-space encoding limit**, not a modeling artifact:
+The system has a **structural directional asymmetry**: SELL predictions achieve 62-90% WR while BUY predictions achieve 0-32% WR for 5 assets (reduced from 8 on 2026-06-26 when ^DJI, USDCHF, EURCHF BuyWR improved above breakeven after trend-exhaustion feature addition). Three independent experiments confirm this is a **feature-space encoding limit**, not a modeling artifact:
 
 | Experiment | Result | What it proves |
 |------------|--------|---------------|
@@ -12,7 +12,7 @@ The system has a **structural directional asymmetry**: SELL predictions achieve 
 
 ## System Design Principle
 
-> The system is a **pure SELL alpha engine** for 8 assets. BUY direction is not recoverable under the current feature/label design.
+> The system is a **pure SELL alpha engine** for the remaining 5 assets (CADCHF, ES, NQ, NZDCHF, EURAUD). BUY direction is not recoverable under the current feature/label design for these 5; 3 assets (^DJI, USDCHF, EURCHF) were restored to two-way trading on 2026-06-26 after trend-exhaustion features crossed the BuyWR > breakeven WR threshold.
 
 For these assets, the feature space encodes:
 - **SELL side**: mean reversion, downside continuation, volatility expansion — structurally learnable (62-90% WR)
@@ -22,7 +22,7 @@ This is consistent with a well-documented financial ML phenomenon: downside move
 
 ## Architecture Decision (Path A)
 
-SELL_ONLY filter stays as the permanent production architecture for the 8 flagged assets:
+SELL_ONLY filter stays as the permanent production architecture for the remaining 5 flagged assets:
 
 ```
 For each SELL_ONLY asset:
@@ -51,4 +51,4 @@ See `GATEKEEPER.md` for the full criteria.
 
 ## Portfolio-Level Note
 
-The asymmetry extends beyond the 8 SELL_ONLY assets. Of 12 non-SELL_ONLY assets, 4 show severe asymmetry (AUDUSD 16% BUY WR, GBPCHF 25%, GBPAUD 36%, NZDCAD 48%). These survive due to favorable tp/sl ratios and SELL-leg profitability. A portfolio-wide asymmetry study is deferred — the current system tolerates these within bounds.
+The asymmetry extends beyond the 5 SELL_ONLY assets. Of 16 non-SELL_ONLY assets, several showed severe asymmetry but were mitigated by trend-exhaustion features. A portfolio-wide asymmetry study is deferred — the current system tolerates these within bounds.

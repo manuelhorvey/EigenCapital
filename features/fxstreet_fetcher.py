@@ -16,7 +16,7 @@ from features.macro_narrative import (
     save_narrative_json,
 )
 
-logger = logging.getLogger("quantforge.fxstreet_fetcher")
+logger = logging.getLogger("quorrin.fxstreet_fetcher")
 
 FXSTREET_URL = "https://www.fxstreet.com/analysis"
 NARRATIVE_DIR = os.path.join(
@@ -88,7 +88,7 @@ def fetch_fxstreet_article() -> str | None:
                     text = body.get_text(separator="\n", strip=True)
                     if len(text) > 200:
                         return text
-            except Exception:
+            except (requests.exceptions.RequestException, OSError):
                 pass
 
         # Strategy 2: concatenate article preview snippets from the listing page
@@ -103,7 +103,7 @@ def fetch_fxstreet_article() -> str | None:
             return combined
 
         return None
-    except Exception as e:
+    except (requests.exceptions.RequestException, OSError, ValueError) as e:
         logger.error("Failed to fetch FXStreet: %s", e)
         return None
 
@@ -133,7 +133,7 @@ def call_llm(text: str, api_key: str, model: str = "deepseek-v4-flash-free", ret
             if json_match:
                 return json.loads(json_match.group())
             logger.warning("LLM attempt %d: no JSON in response (len=%d)", attempt + 1, len(content))
-        except Exception as e:
+        except (requests.exceptions.RequestException, OSError, ValueError, KeyError) as e:
             logger.warning("LLM attempt %d failed: %s", attempt + 1, e)
         if attempt < retries:
             time.sleep(2**attempt)
@@ -187,7 +187,7 @@ def confirm_pending_narrative() -> bool:
         if os.path.exists(NARRATIVE_ERROR):
             os.remove(NARRATIVE_ERROR)
         return True
-    except Exception as e:
+    except (OSError, shutil.Error) as e:
         logger.error("Failed to confirm narrative: %s", e)
         return False
 
@@ -197,7 +197,7 @@ def get_active_narrative() -> MacroNarrativeFeatures | None:
         return None
     try:
         return load_narrative_json(NARRATIVE_ACTIVE)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         logger.error("Failed to load active narrative: %s", e)
         return None
 
@@ -207,7 +207,7 @@ def get_pending_narrative() -> MacroNarrativeFeatures | None:
         return None
     try:
         return load_narrative_json(NARRATIVE_PENDING)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         logger.warning("Failed to load pending narrative: %s", e)
         return None
 
@@ -226,7 +226,7 @@ def _write_error(reason: str, detail: str) -> None:
     try:
         with open(NARRATIVE_ERROR, "w") as f:
             json.dump({"reason": reason, "detail": detail, "timestamp": datetime.now().isoformat()}, f)
-    except Exception:
+    except OSError:
         pass
 
 
@@ -236,7 +236,7 @@ def get_fetch_error() -> dict | None:
     try:
         with open(NARRATIVE_ERROR) as f:
             return json.load(f)
-    except Exception:
+    except (OSError, ValueError):
         return None
 
 

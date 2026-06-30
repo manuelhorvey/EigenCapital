@@ -131,8 +131,7 @@ def _forward_metrics(proba, close):
         pnl_std, stability.
     """
     n = len(proba)
-    dates = pd.date_range("2020-01-01", periods=n, freq="D")
-    signals_df = _signals(proba, dates)
+    signals_df = _signals(proba)
     signals = signals_df["signal"].values
     close_arr = close.values
 
@@ -217,8 +216,7 @@ def _regime_metrics(proba, close, regime):
         dict mapping regime label -> {sharpe, max_drawdown}.
     """
     n = len(proba)
-    dates = pd.date_range("2020-01-01", periods=n, freq="D")
-    signals_df = _signals(proba, dates)
+    signals_df = _signals(proba)
     signals = signals_df["signal"].values
 
     regimes = regime.unique()
@@ -245,7 +243,7 @@ def run_forward_test(*args, **kwargs):
     raise NotImplementedError("Reimplement if needed")
 
 
-def _signals(proba, dates, thr=0.45):
+def _signals(proba, thr=0.45):
     """Convert probability array to signal DataFrame (local, same as trade_analysis)."""
     n = len(proba)
     short_proba = proba[:, 0]
@@ -261,5 +259,4 @@ def _signals(proba, dates, thr=0.45):
 
     return pd.DataFrame(
         {"signal": signals, "pl": long_proba, "ps": short_proba},
-        index=dates,
     )

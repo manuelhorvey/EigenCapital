@@ -9,7 +9,7 @@ from paper_trading.entry.decision import (
 )
 from paper_trading.entry.deferred_entry import DeferredEntry
 
-logger = logging.getLogger("quantforge.paper_trading.execution_policy")
+logger = logging.getLogger("quorrin.paper_trading.execution_policy")
 
 
 class BasePolicy:
@@ -54,36 +54,6 @@ class MomentumPolicy(BasePolicy):
         )
 
 
-class MeanReversionPolicy(BasePolicy):
-    """Routing for Mean Reversion."""
-
-    @staticmethod
-    def route(action, decision, archetype, structure, tp_geo, deferred):
-        return PolicyDecision(
-            action=action,
-            entry_plan=deferred if action == EntryAction.DEFER else None,
-            exit_plan=tp_geo if action == EntryAction.ENTER else None,
-            reason=f"Mean reversion routing: {action}",
-            archetype=archetype,
-            metadata={"source": "MeanReversionPolicy"},
-        )
-
-
-class BreakoutPolicy(BasePolicy):
-    """Routing for Breakouts."""
-
-    @staticmethod
-    def route(action, decision, archetype, structure, tp_geo, deferred):
-        return PolicyDecision(
-            action=action,
-            entry_plan=deferred if action == EntryAction.DEFER else None,
-            exit_plan=tp_geo if action == EntryAction.ENTER else None,
-            reason=f"Breakout routing: {action}",
-            archetype=archetype,
-            metadata={"source": "BreakoutPolicy"},
-        )
-
-
 class ExecutionPolicyLayer:
     """
     Phase 4: Execution Policy Layer Switchboard.
@@ -93,8 +63,8 @@ class ExecutionPolicyLayer:
 
     POLICY_MAP = {
         "MOMENTUM_IGNITION": MomentumPolicy,
-        "MEAN_REVERSION": MeanReversionPolicy,
-        "BREAKOUT_TEST": BreakoutPolicy,
+        "MEAN_REVERSION": BasePolicy,
+        "BREAKOUT_TEST": BasePolicy,
         "TREND_PULLBACK": BasePolicy,
         "VOL_EXPANSION": BasePolicy,
         "UNKNOWN": BasePolicy,

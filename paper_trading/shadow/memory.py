@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-logger = logging.getLogger("quantforge.shadow.memory")
+logger = logging.getLogger("quorrin.shadow.memory")
 
 _lock = threading.Lock()
 

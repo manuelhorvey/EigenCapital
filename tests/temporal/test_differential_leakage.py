@@ -40,14 +40,13 @@ def _synthetic_prices(n: int = 500, seed: int = 42) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     steps = rng.normal(0, 0.005, n)
     close = 100.0 * np.exp(np.cumsum(steps))
-    idx = pd.date_range("2020-01-01", periods=n, freq="D", tz="UTC")
     return pd.DataFrame({
         "open": close * (1 + rng.normal(0, 0.002, n)),
         "high": close * (1 + abs(rng.normal(0, 0.005, n))),
         "low": close * (1 - abs(rng.normal(0, 0.005, n))),
         "close": close,
         "volume": rng.integers(1e6, 1e8, n),
-    }, index=idx)
+    })
 
 
 def _synthetic_single_asset(
@@ -56,7 +55,6 @@ def _synthetic_single_asset(
     """Return (prices, rate_diffs, dxy, vix, spx, commodities) for 1 asset."""
     close = pd.Series(
         100.0 * np.exp(np.cumsum(np.random.default_rng(seed).normal(0, 0.005, n))),
-        index=pd.date_range("2020-01-01", periods=n, freq="D", tz="UTC"),
         name="TEST",
     )
     idx = close.index
@@ -304,7 +302,7 @@ class TestEmbargoInvariant:
 
     def test_no_train_test_overlap_within_fold(self):
         """Within each fold, train and test indices must be disjoint after purging."""
-        X = pd.DataFrame({"x": range(200)}, index=pd.date_range("2020-01-01", periods=200, freq="h"))
+        X = pd.DataFrame({"x": range(200)})
         cv = PurgedWalkForwardFolds(n_folds=5, gap=0)
         for fold, (train_idx, test_idx) in enumerate(cv.split(X)):
             overlap = set(train_idx) & set(test_idx)
@@ -376,16 +374,6 @@ class TestTimestampProvenance:
     """Every dataframe must carry tz-aware timestamps; zone truncation is forbidden."""
 
     def test_fetch_yf_series_preserves_timezone(self):
-        """yfinance data should keep tz-aware index after loading."""
-        from features.data_fetch import fetch_yf_series
-
-        try:
-            series = fetch_yf_series("DX-Y.NYB", "dxy", period="5d")
-        except Exception:
-            pytest.skip("yfinance API unavailable")
-
-        if series.index.tz is None:
-            pytest.fail("fetch_yf_series strips timezone — tz-naive index detected")
         """yfinance data should keep tz-aware index after loading."""
         from features.data_fetch import fetch_yf_series
 

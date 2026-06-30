@@ -27,7 +27,7 @@ from paper_trading.ops.tracer import (
 )
 from shared.calibration.registry import CalibrationRegistry
 
-logger = logging.getLogger("quantforge.inference_pipeline")
+logger = logging.getLogger("quorrin.inference_pipeline")
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ET = pytz.timezone("US/Eastern")
@@ -86,7 +86,7 @@ class AssetInferencePipeline:
                     proba[:, 2] = cal_p_long
                     proba[:, 0] = 1.0 - cal_p_long
                     asset._calibration_applied = True
-                except Exception as e:
+                except (ValueError, TypeError, IndexError) as e:
                     logger.error("%s: calibration inference failed: %s", asset.name, e)
                     asset._calibration_applied = False
             else:
@@ -143,7 +143,7 @@ class AssetInferencePipeline:
         """
         import logging
 
-        logger = logging.getLogger("quantforge.pipeline")
+        logger = logging.getLogger("quorrin.pipeline")
         threshold = 100
         suppress_secs = 3600
 
@@ -310,7 +310,7 @@ class AssetInferencePipeline:
                 if len(x_current) < 21:
                     x_current = x.tail(21)
                 asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, x_current, top_features)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.debug("%s: PSI drift skipped: %s", asset.name, e)
 
     def _validate_and_truncate(self, asset, x, features_df):
@@ -360,7 +360,7 @@ class AssetInferencePipeline:
                             asset._last_regime_features = {
                                 str(k): float(v) for k, v in features_df[regime_available].iloc[-1].items()
                             }
-                        except Exception as e:
+                        except (IndexError, TypeError, ValueError) as e:
                             logger.warning("%s: regime feature storage failed: %s", asset.name, e)
                         logger.debug(
                             "%s: ensemble blended (base=%.2f regime=%.2f)",
@@ -368,7 +368,7 @@ class AssetInferencePipeline:
                             ensemble.base_weight,
                             ensemble.regime_weight,
                         )
-                    except Exception as e:
+                    except (ValueError, TypeError) as e:
                         logger.debug("%s: ensemble inference failed: %s", asset.name, e)
                         asset._last_regime_raw_probas = None
                         asset._last_regime_long_prob = None
@@ -382,7 +382,7 @@ class AssetInferencePipeline:
         if asset._meta_label_model is not None and asset._meta_label_model._trained:
             try:
                 asset._last_meta_proba = asset._meta_label_model.predict_proba(x, proba)
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.debug("%s: meta-label inference failed: %s", asset.name, e)
 
         # ── Inference output WAL event (causal boundary P0.3, pre-gate) ──
@@ -438,7 +438,7 @@ class AssetInferencePipeline:
         asset._ensemble_breakdown = {}
         try:
             latest_row = alpha_df.iloc[-1]
-            prefix = "CLOSE"
+            prefix = asset.name.upper()
             carry_val = latest_row.get(f"{prefix}_carry_vol_adj", np.nan)
             mom_21 = latest_row.get(f"{prefix}_mom_21d", np.nan)
             mom_63 = latest_row.get(f"{prefix}_mom_63d", np.nan)
@@ -473,7 +473,7 @@ class AssetInferencePipeline:
                 asset._ensemble_breakdown["vol_ratio"],
                 asset._ensemble_breakdown["ensemble_score"],
             )
-        except Exception as e:
+        except (KeyError, ValueError, TypeError) as e:
             logger.debug("%s: ensemble breakdown logging failed: %s", asset.name, e)
 
     def _classify_archetype(self, asset, features_df) -> str:
@@ -482,7 +482,7 @@ class AssetInferencePipeline:
             try:
                 archetype_enum = asset._archetype_classifier.classify(features_df.iloc[-1])
                 archetype = archetype_enum.value
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 logger.debug("%s: archetype classification failed: %s", asset.name, e)
         return archetype
 
@@ -678,7 +678,7 @@ class AssetInferencePipeline:
                 drift_history=asset._shadow_drift_intel,
                 risk_history=asset._risk_signal,
             )
-        except Exception:
+        except (ValueError, TypeError, KeyError):
             logger.debug("%s: shadow learning feedback skipped", asset.name)
 
     def _log_pipeline_benchmark(self, asset, x, t0, t_fetch, t_features, t_infer, t_total) -> None:
@@ -711,7 +711,7 @@ class AssetInferencePipeline:
         try:
             full = asset._model_iface.predict(asset.model, x_warm)
             truncated = asset._model_iface.predict(asset.model, x_warm.iloc[-1:])
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.warning("%s: truncation validation failed — %s", asset.name, e)
             self._truncate_inference = False
             return
@@ -748,5 +748,5 @@ class AssetInferencePipeline:
             macro_probs = macro_head.predict_proba(signal_data.iloc[[-1]][macro_cols])[0]
             asset._last_macro_dir = int(np.argmax(macro_probs)) - 1
             asset._last_blend_dir = int(np.argmax(signal_data.iloc[-1].values)) - 1
-        except Exception:
+        except (ValueError, TypeError, IndexError):
             logger.debug("%s: macro proxy inference failed", asset.name)

@@ -24,7 +24,7 @@ from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_onl
 from paper_trading.execution.stacking import StackingGate
 from paper_trading.position.protection import PositionProtection
 
-logger = logging.getLogger("quantforge.decision_pipeline")
+logger = logging.getLogger("quorrin.decision_pipeline")
 
 
 @dataclass

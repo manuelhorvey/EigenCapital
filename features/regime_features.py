@@ -108,5 +108,5 @@ if __name__ == "__main__":
         # Save to data/processed
         regime_df.to_parquet("data/processed/EURUSD_regime_features.parquet")
         print("\nSaved regime features to data/processed/EURUSD_regime_features.parquet")
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, OSError) as e:
         print(f"Feature generation failed: {e}")

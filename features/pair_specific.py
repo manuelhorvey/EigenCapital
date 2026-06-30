@@ -15,7 +15,7 @@ def yf_download_safe(symbol, start="2008-01-01", end="2026-12-31"):
         df = df.rename(columns={"Close": "close", "High": "high", "Low": "low", "Open": "open", "Volume": "volume"})
         df.index = pd.to_datetime(df.index)
         return df
-    except Exception:
+    except (KeyError, ValueError, TypeError, OSError):
         return None
 
 

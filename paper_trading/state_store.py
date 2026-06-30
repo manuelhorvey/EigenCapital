@@ -19,7 +19,7 @@ from paper_trading.state import (
     sanitize,  # noqa: F401 — re-export for engine.py, tests
 )
 
-logger = logging.getLogger("quantforge.state_store")
+logger = logging.getLogger("quorrin.state_store")
 
 _SKIP_JOURNAL = object()
 

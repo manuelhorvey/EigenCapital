@@ -12,7 +12,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quantforge.orchestrator.correlation")
+logger = logging.getLogger("quorrin.orchestrator.correlation")
 
 
 class CorrelationMonitor:

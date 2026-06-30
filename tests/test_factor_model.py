@@ -181,9 +181,8 @@ class TestComputeFactorReturns:
     @pytest.fixture
     def sample_returns(self):
         rng = np.random.default_rng(42)
-        dates = pd.date_range("2025-01-01", periods=100, freq="D")
         data = {a: rng.normal(0, 0.01, 100) for a in ["EURUSD", "AUDUSD", "USDCHF", "GC", "ES"]}
-        return pd.DataFrame(data, index=dates)
+        return pd.DataFrame(data, index=pd.RangeIndex(100))
 
     def test_simple_method_shape(self, sample_returns):
         result = compute_factor_returns(sample_returns, method="simple")

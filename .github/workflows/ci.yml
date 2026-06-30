@@ -31,13 +31,17 @@ jobs:
           python tools/check_config_schema.py
 
       - name: Check live dependency boundaries
-        run: |
-          bash scripts/check_live_deps.sh
+        run: bash scripts/diagnostics/check_live_deps.sh
 
       - name: Lint with ruff
         run: |
           ruff check . --output-format=github
           ruff format . --check
+
+      - name: Build dashboard
+        run: |
+          cd paper_trading/dashboard
+          npm ci && npm run build
 
       - name: Run tests
         run: |
@@ -47,7 +51,7 @@ jobs:
         run: |
           PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ \
             --cov=. --cov-report=xml --cov-report=term-missing \
-            --cov-fail-under=30 -v --tb=short
+            --cov-fail-under=70 -v --tb=short
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

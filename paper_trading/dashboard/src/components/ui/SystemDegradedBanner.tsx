@@ -24,7 +24,9 @@ export function SystemDegradedBanner({ integrity, onDismiss }: Props) {
       }
       <span className="flex-1">
         {integrity.label === 'partial_failure' && 'System snapshot unavailable — some data may be missing'}
-        {integrity.label === 'degraded' && integrity.hasStaleLive && 'Live data source degraded (MT5 or health check) — data may lag'}
+        {integrity.label === 'degraded' && integrity.hasStaleLive && (
+          `Live data source degraded (${integrity.staleSources.join(', ')}) — data may lag`
+        )}
         {integrity.label === 'degraded' && !integrity.hasStaleLive && 'System operating in degraded mode'}
         {integrity.label === 'no_data' && 'Waiting for system data...'}
       </span>

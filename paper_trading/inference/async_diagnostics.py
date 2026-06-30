@@ -5,7 +5,7 @@ import queue
 import threading
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("quantforge.async_diagnostics")
+logger = logging.getLogger("quorrin.async_diagnostics")
 
 
 @dataclass

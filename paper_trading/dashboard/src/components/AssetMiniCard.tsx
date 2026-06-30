@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import { confidenceToPercent } from '../utils/format'
-import type { AssetState, SignalDistribution } from '../types/portfolio'
+import type { AssetState, Position, SignalDistribution } from '../types/portfolio'
 
 interface Props {
   name: string
@@ -71,8 +71,7 @@ const AssetMiniCard = memo(function AssetMiniCard({ name }: Props) {
       signalDistribution: m.signal_distribution,
       sellOnly: asset.sell_only ?? false,
       tripwireActive: asset.tripwire_active ?? false,
-      slMult: m.current_sl_mult ?? asset.sl_mult ?? 0,
-      tpMult: m.current_tp_mult ?? asset.tp_mult ?? 0,
+      position: m.position ?? null,
     }
   }, [asset])
 
@@ -135,10 +134,12 @@ const AssetMiniCard = memo(function AssetMiniCard({ name }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-1 text-[9px] font-mono tabular-nums text-tertiary">
-        <span>SL <span className="text-primary">{info.slMult.toFixed(2)}</span></span>
-        <span>TP <span className="text-primary">{info.tpMult.toFixed(2)}</span></span>
-      </div>
+      {info.position && (
+        <div className="flex items-center gap-3 mt-1 text-[9px] font-mono tabular-nums text-tertiary">
+          <span>SL <span className="text-gov-red">{info.position.sl.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
+          <span>TP <span className="text-gov-green">{info.position.tp.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
+        </div>
+      )}
     </button>
   )
 })

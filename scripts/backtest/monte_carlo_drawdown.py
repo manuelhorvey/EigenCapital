@@ -54,7 +54,7 @@ from shared.volatility import compute_atr_pct
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger("monte_carlo")
 
-WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
+WALKDIR = Path(__file__).resolve().parent.parent.parent / "walkforward"
 RAWDIR = Path(__file__).resolve().parent.parent.parent / "data" / "raw"
 
 SELL_ONLY_ASSETS: frozenset[str] = frozenset(

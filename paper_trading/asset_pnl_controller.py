@@ -252,13 +252,26 @@ class AssetPnlController:
             asset.peak_value = asset.current_value
         return True
 
-    def _apply_trailing_stop(self, asset) -> None:
+    @staticmethod
+    def _load_sltp_data(asset):
+        """Load price data for SL/TP operations.
+
+        Shared helper used by _apply_trailing_stop and _apply_post_entry_adjust_only
+        to avoid duplicating the guard checks and data-fetching logic.
+        Returns (df, False) on failure, (df, True) on success.
+        """
         if not asset.config.get("dynamic_sltp", {}).get("enabled", False) or asset._entry_vol is None:
-            return
+            return None, False
         data = getattr(asset, "price_data", None)
         if data is None:
             data = getattr(asset, "_price_df", None)
         if data is None or asset.pos_mgr.position is None:
+            return None, False
+        return data, True
+
+    def _apply_trailing_stop(self, asset) -> None:
+        data, ok = self._load_sltp_data(asset)
+        if not ok:
             return
 
         trailing = asset._sltp_engine.compute_trailing_stop(
@@ -296,12 +309,8 @@ class AssetPnlController:
 
         Called when adaptive_exit is the active trailing system. This runs
         independently of the trailing stop logic to avoid SL ping-pong."""
-        if not asset.config.get("dynamic_sltp", {}).get("enabled", False) or asset._entry_vol is None:
-            return
-        data = getattr(asset, "price_data", None)
-        if data is None:
-            data = getattr(asset, "_price_df", None)
-        if data is None or asset.pos_mgr.position is None:
+        data, ok = self._load_sltp_data(asset)
+        if not ok:
             return
         self._apply_post_entry_adjust(asset, data)
 

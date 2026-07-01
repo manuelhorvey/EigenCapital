@@ -27,6 +27,8 @@ class Position:
     unrealized_pnl: float
     realized_pnl: float
     position_id: str | None = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
 
 
 @dataclass

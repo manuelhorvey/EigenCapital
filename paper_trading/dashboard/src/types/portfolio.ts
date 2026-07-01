@@ -298,15 +298,11 @@ export interface AssetState {
   stop_out_last_side: string | null
   stop_out_last_cycle: number | null
   last_regime_long_prob: number | null
-  last_regime_raw_probas: [number, number] | null
   last_regime_label: string | null
-  last_regime_features: Record<string, number> | null
-  gates_trace: Record<string, boolean> | null
   sizing_chain: Record<string, number | string | null> | null
   total_exits: number
   sl_exits: number
   sl_hit_rate: number | null
-  calibration: { applied: boolean; registry_loaded: boolean }
 }
 
 export interface ExitReasons {

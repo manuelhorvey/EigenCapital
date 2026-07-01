@@ -112,19 +112,12 @@ class EngineStateService:
                     asset._sl_exits / asset._total_exits if getattr(asset, "_total_exits", 0) > 0 else None
                 ),
                 "last_regime_long_prob": getattr(asset, "_last_regime_long_prob", None),
-                "last_regime_raw_probas": getattr(asset, "_last_regime_raw_probas", None),
                 "last_regime_label": (
                     asset._last_regime_row.regime_label
                     if getattr(asset, "_last_regime_row", None) is not None
                     else None
                 ),
-                "last_regime_features": getattr(asset, "_last_regime_features", None),
-                "gates_trace": getattr(asset, "_last_gates_trace", None),
                 "sizing_chain": getattr(asset, "_last_sizing_chain", None),
-                "calibration": {
-                    "applied": bool(getattr(asset, "_calibration_applied", False)),
-                    "registry_loaded": getattr(asset, "_calibration_registry", None) is not None,
-                },
             }
         total_value = self.compute_mtm_total()
         rp_weights = {}

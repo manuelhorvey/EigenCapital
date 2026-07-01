@@ -326,14 +326,34 @@ class MT5Broker(BrokerInterface):
     ) -> bool:
         """Read back position from broker to verify SL/TP was applied correctly.
 
-        Invalidates the position cache to ensure a fresh read. Logs ERROR
-        on mismatch and returns False so the caller can escalate."""
-        with self._cache_lock:
-            self._position_cache_time = 0.0  # force cache refresh
+        Fetches positions directly from the bridge (bypassing the TTL cache)
+        to ensure a fresh read. Logs ERROR on mismatch and returns False so
+        the caller can escalate."""
         try:
-            positions = self.get_positions()
-        except Exception:
-            logger.error("SLTP_VERIFY: failed to fetch positions for ticket=%s asset=%s", ticket, asset)
+            # Bypass cache: directly fetch from bridge for verification
+            raw = self._client.get_positions()
+            positions = []
+            for p in raw:
+                side = "buy" if p.get("type") == "buy" else "sell"
+                quantity = self._lots_to_quantity(p.get("symbol", ""), p.get("volume", 0))
+                pos = Position(
+                    asset=p.get("symbol", ""),
+                    quantity=quantity if side == "buy" else -quantity,
+                    avg_entry_price=float(p.get("price_open", 0)),
+                    current_price=float(p.get("price_current", 0)),
+                    unrealized_pnl=float(p.get("profit", 0)),
+                    realized_pnl=0.0,
+                    stop_loss=p.get("sl", 0.0),
+                    take_profit=p.get("tp", 0.0),
+                    position_id=str(p.get("ticket", "")),
+                )
+                positions.append(pos)
+            # Update cache with fresh data
+            with self._cache_lock:
+                self._position_cache = positions
+                self._position_cache_time = time.monotonic()
+        except Exception as e:
+            logger.error("SLTP_VERIFY: failed to fetch positions for ticket=%s asset=%s: %s", ticket, asset, e)
             return False
         for p in positions:
             if p.position_id == str(ticket):

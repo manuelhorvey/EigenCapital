@@ -437,6 +437,9 @@ class EngineStateService:
                     "initial_tp": getattr(asset, "_initial_tp", None),
                     "trade_log": asset.pos_mgr.trade_log,
                     "prob_history": asset.prob_history,
+                    "adaptive_exit_phase": getattr(getattr(asset, "_adaptive_exit_engine", None), "phase", "STATIC"),
+                    "peak_mfe_r": getattr(getattr(asset, "_adaptive_exit_engine", None), "peak_mfe_r", None),
+                    "sl_update_count": getattr(getattr(asset, "_adaptive_exit_engine", None), "sl_update_count", 0),
                 }
         self._append_equity_history(state)
         engine.state_store.save_snapshot(snapshot)

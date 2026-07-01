@@ -32,6 +32,9 @@ class AdaptiveExitEngine:
         self._best_price: float | None = None
         self._breakeven_activated: bool = False
         self._trail_activated: bool = False
+        self._sl_update_count: int = 0
+        self._current_phase: str = "STATIC"
+        self._peak_r: float | None = None
 
     def compute(
         self,
@@ -60,6 +63,7 @@ class AdaptiveExitEngine:
             peak_r = (best - entry_price) / (entry_price * vol)
         else:
             peak_r = (entry_price - best) / (entry_price * vol)
+        self._peak_r = peak_r
 
         result = AdaptiveExitResult()
 
@@ -73,6 +77,8 @@ class AdaptiveExitEngine:
                 result.action = "breakeven"
                 result.description = f"breakeven at {be_lock_r}R MFE"
                 self._breakeven_activated = True
+                self._sl_update_count += 1
+                self._current_phase = "BREAKEVEN"
                 return result
 
         # Stage 2: Retracement trailing
@@ -116,4 +122,31 @@ class AdaptiveExitEngine:
                         result.new_sl = tighter_level
                         result.action = "time_decay"
 
+        if result.new_sl is not None:
+            self._sl_update_count += 1
+
+        if self._trail_activated and max_hold > 0 and bars_since_entry >= decay_start and bars_since_entry < max_hold:
+            self._current_phase = "DECAY"
+        elif self._trail_activated:
+            self._current_phase = "TRAILING"
+        elif self._breakeven_activated:
+            self._current_phase = "BREAKEVEN"
+        else:
+            self._current_phase = "STATIC"
+
         return result
+
+    @property
+    def phase(self) -> str:
+        """BREAKEVEN | TRAILING | DECAY | STATIC"""
+        return self._current_phase
+
+    @property
+    def peak_mfe_r(self) -> float | None:
+        """Best MFE reached this trade in R-units."""
+        return self._peak_r
+
+    @property
+    def sl_update_count(self) -> int:
+        """Number of times SL was updated this trade."""
+        return self._sl_update_count

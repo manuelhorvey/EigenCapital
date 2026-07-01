@@ -35,21 +35,15 @@ export default function ExecutionFeed() {
       if (!(name in (data.portfolio?.allocations ?? {}))) continue
 
       const sig = asset.last_signal
-      const gt = asset.gates_trace
       let abortedGate: string | null = null
       let gatesResult = 'PASS'
-
-      if (gt) {
-        const blocked = Object.entries(gt).filter(([, v]) => !v)
-        if (blocked.length > 0) {
-          gatesResult = 'BLOCKED'
-          abortedGate = blocked[0][0].replace(/_/g, ' ')
-        }
-      }
 
       if (asset.halt?.halted) {
         gatesResult = 'HALTED'
         abortedGate = (asset.halt.reasons ?? ['unknown']).join('; ')
+      } else if (asset.final_signal == null && sig?.signal) {
+        gatesResult = 'BLOCKED'
+        abortedGate = 'gate_aborted'
       }
 
       const sc = asset.sizing_chain

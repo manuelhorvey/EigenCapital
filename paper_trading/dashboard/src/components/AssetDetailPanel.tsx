@@ -166,7 +166,6 @@ function GovernanceTab({ asset }: { asset: AssetState }) {
   const m = asset.metrics
   const h = asset.halt
   const psi = m.psi_drift
-  const gt = asset.gates_trace
   return (
     <>
       <div className="flex items-center justify-between py-1.5">
@@ -209,19 +208,6 @@ function GovernanceTab({ asset }: { asset: AssetState }) {
           <div className="text-xs text-gov-red font-medium mt-1">⛔ {h.reasons.join('; ')}</div>
         )}
       </Section>
-
-      {gt && (
-        <Section title="Governance Trace">
-          {Object.entries(gt).map(([stage, passed]) => (
-            <div key={stage} className="flex items-center justify-between py-1">
-              <span className="text-xs text-tertiary">{stage.replace(/_/g, ' ')}</span>
-              <span className={`text-xs font-mono font-medium ${passed ? 'text-gov-green' : 'text-gov-red'}`}>
-                {passed ? 'PASS' : 'ABORT'}
-              </span>
-            </div>
-          ))}
-        </Section>
-      )}
 
       {psi && (
         <Section title="PSI Drift">
@@ -332,16 +318,6 @@ function DiagnosticsTab({ asset }: { asset: AssetState }) {
       <Section title="Regime Model">
         <MetricRow label="Last Regime" value={asset.last_regime_label ?? '—'} />
         <MetricRow label="Regime Long Prob" value={asset.last_regime_long_prob?.toFixed(4) ?? '—'} />
-        {asset.last_regime_raw_probas && (
-          <MetricRow label="Raw Probs" value={`[${asset.last_regime_raw_probas.map(p => p.toFixed(4)).join(', ')}]`} />
-        )}
-        {asset.last_regime_features && Object.keys(asset.last_regime_features).length > 0 && (
-          <CollapsibleSection title="Regime Features">
-            {Object.entries(asset.last_regime_features).map(([k, v]) => (
-              <MetricRow key={k} label={k} value={typeof v === 'number' ? v.toFixed(4) : String(v)} />
-            ))}
-          </CollapsibleSection>
-        )}
       </Section>
 
       <Section title="Archetype Stats">

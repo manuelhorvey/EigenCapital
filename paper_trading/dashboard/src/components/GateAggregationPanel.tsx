@@ -14,23 +14,22 @@ export default function GateAggregationPanel() {
     let totalAssets = 0
 
     for (const [name, state] of Object.entries(assets)) {
-      const trace = state.gates_trace
-      if (!trace) continue
       totalAssets++
 
-      // Find the last gate in the trace — if it differs from the total stages,
-      // that gate blocked. Since the trace records True before running,
-      // the blocking gate is the last key in the trace.
-      const gateNames = Object.keys(trace)
-      if (gateNames.length === 0) continue
-
-      // The final signal column tells us if a signal was produced
+      // A blocked asset has final_signal == null and execution_state != 'open'
       const wasBlocked = state.final_signal == null && state.execution_state !== 'open'
       if (!wasBlocked) continue
 
-      // The blocking gate is the last one in the trace
-      const blockingGate = gateNames[gateNames.length - 1]
-      counts[blockingGate] = (counts[blockingGate] || 0) + 1
+      // Since gates_trace is no longer emitted, infer which gate blocked
+      // from the halt state and signal availability
+      if (state.halt?.halted) {
+        const reasons = state.halt.reasons ?? ['unknown']
+        for (const reason of reasons) {
+          counts[reason] = (counts[reason] || 0) + 1
+        }
+      } else {
+        counts['signal_aborted'] = (counts['signal_aborted'] || 0) + 1
+      }
     }
 
     if (Object.keys(counts).length === 0) return null

@@ -5,7 +5,6 @@ import type {
   PortfolioTradingState,
   ExitPhase,
   RiskLevel,
-  Conviction,
   EdgeTrend,
   SystemStatus,
   Mt5SyncStatus,
@@ -24,6 +23,8 @@ function efficiencyToNumeric(efficiency: AssetTradingState["pnl_state"]["efficie
 }
 
 // ── Domain types ───────────────────────────────────────────────────
+
+export type SortKey = "name" | "risk" | "pnl" | "exit_phase"
 
 export interface EdgeHealthSummary {
   reversal_rate: number | null
@@ -152,11 +153,6 @@ export function toAssetTradingState(
   else if (drawdownPressure > 0.3) riskLevel = "MEDIUM"
 
   // ── Alpha state ──────────────────────────────────────────────
-  const confidence = raw.last_signal?.confidence ?? 0
-  let conviction: Conviction = "DECOUPLED"
-  if (confidence > 0.7) conviction = "STRONG"
-  else if (confidence > 0.45) conviction = "WEAK"
-
   let mfeCaptureQuality: number | null = null
   if (peakMfeR != null && peakMfeR > 0 && rMultiple != null) {
     mfeCaptureQuality = clamp(rMultiple / peakMfeR, 0, 1)
@@ -193,7 +189,6 @@ export function toAssetTradingState(
       drivers,
     },
     alpha_state: {
-      conviction,
       mfe_capture_quality: mfeCaptureQuality,
       reversal_probability: reversalProbability,
     },

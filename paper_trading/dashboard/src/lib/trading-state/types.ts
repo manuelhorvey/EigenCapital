@@ -6,9 +6,6 @@ export type ExitPhase = "BREAKEVEN" | "TRAILING" | "DECAY" | "STATIC"
 /** Subjective risk level — derived from drawdown, concentration, and volatility. */
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH"
 
-/** How much trust the UI should place in the model's current prediction. */
-export type Conviction = "STRONG" | "WEAK" | "DECOUPLED"
-
 /** Whether the model's edge is improving, stable, or deteriorating over recent trades. */
 export type EdgeTrend = "EXPANDING" | "STABLE" | "DECAYING"
 
@@ -98,8 +95,6 @@ export interface AssetTradingState {
 
   /** Alpha / model-quality signals. */
   alpha_state: {
-    /** Trust in the model's current prediction direction. */
-    conviction: Conviction
     /** Fraction of peak MFE captured [0–1] across recent trades. Null when no trades. */
     mfe_capture_quality: number | null
     /** Estimated probability that a winning trade reverses before exit [0–1]. Null when unknown. */

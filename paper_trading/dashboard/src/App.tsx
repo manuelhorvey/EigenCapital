@@ -5,8 +5,7 @@ import AppShell from './components/layout/AppShell'
 import ErrorBoundary from './components/ErrorBoundary'
 import { Skeleton } from './components/ui/Skeleton'
 
-const DashboardOverview = lazy(() => import('./pages/DashboardOverview'))
-const TradingDashboard = lazy(() => import('./pages/TradingDashboard'))
+const CommandCenter = lazy(() => import('./pages/CommandCenter'))
 const TradingWorkspace = lazy(() => import('./pages/TradingWorkspace'))
 const ExecutionWorkspace = lazy(() => import('./pages/ExecutionWorkspace'))
 const RiskWorkspace = lazy(() => import('./pages/RiskWorkspace'))
@@ -31,8 +30,8 @@ function AppContent() {
     <>
       <Suspense fallback={<div className="p-8"><Skeleton className="h-64 rounded-lg" shimmer /></div>}>
         <Routes>
-          <Route path="/" element={<TradingDashboard />} />
-          <Route path="/engine" element={<DashboardOverview />} />
+          <Route path="/" element={<CommandCenter onSelectAsset={(name) => setSelectedAsset(name)} />} />
+          <Route path="/engine" element={<CommandCenter onSelectAsset={(name) => setSelectedAsset(name)} />} />
           <Route path="/trading" element={<TradingWorkspace />} />
           <Route path="/execution" element={<ExecutionWorkspace />} />
           <Route path="/risk" element={<RiskWorkspace />} />

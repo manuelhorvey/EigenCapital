@@ -8,6 +8,7 @@ import ErrorScreen from '../ui/ErrorScreen'
 import Header from '../Header'
 import TabBar from './TabBar'
 import Sidebar from './Sidebar'
+import TickerRail from './TickerRail'
 import EmergencyHaltBanner from '../EmergencyHaltBanner'
 
 interface AppShellProps {
@@ -36,6 +37,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-app text-secondary flex flex-col">
+      <TickerRail />
       <Header onMenuClick={toggleSidebar} />
       <SystemDegradedBanner integrity={integrity} />
       <EmergencyHaltBanner />

@@ -27,8 +27,6 @@ def get_sell_only_assets() -> frozenset[str]:
     return frozenset(
         {
             "CADCHF",
-            "ES",
-            "NQ",
             "NZDCHF",
             "EURAUD",
         }

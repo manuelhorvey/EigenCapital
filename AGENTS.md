@@ -1429,3 +1429,54 @@ Branch: `redesign/operator-console-terminal-precision`. Visual identity: **opera
 After Phase 6: 4 routes (`/`, `/trading`, `/execution`, `/risk`), each with a single primary job. CommandCenter sits at 6 rather than 8 sections (no redundant equity chart, no redundant banner). The rail's status chip from Phase 4 plus the Header's `HealthBadge` provide engine-state-without-scrolling from two persistent surfaces.
 
 **Audit items deferred to dedicated PRs** (not in this branch): #1 (QuickStatCard → StatCard), #2 (PekStatusBar fold-in), #7 (TradingAssetRow extraction), #11 (Panel variant collapse), #13 (PekScalarPanel relocation — IA-4 closed without code), #14 (EquityChart migration — done in 6.7), #16 (Header health chip move). Each has large file-fan-out and is its own reviewable commit when picked up.
+
+---
+
+### Phases 7–9 (final months of the redesign)
+
+After Phase 6 the branch continued into copy + visual identity. Roughly thirty commits landed that complete the operator-console surface treatment. Section IDs are by phase / commit prefix.
+
+**Phase 7 — operator-voice copy** (commit `aa1577b`)
+
+- Header.tsx health badge: title `'Engine: {label} — click for details'` → `'Engine {label}'`, aria-label `'Engine status: {label}. Open details.'`
+- Header.tsx refresh button: `'Refresh all dashboard data'` → `'Refresh dashboard data'`
+- Header.tsx menu button: `'Toggle navigation'` → `'Open navigation menu'`
+- AppShell.tsx ErrorScreen: title `'System Unavailable'` → `'Engine unavailable'`; message moved to active voice (`"Couldn't load the engine snapshot. It may be restarting."`)
+- Other copy audited and intentionally left: `SAFE` / `MONITOR` / `ALERT` (operator-standard triad); "All systems nominal" (in-domain status idiom for the audience); SectionHeader / EmptyState section hints already operator-natural
+
+**Phase 8 — design system implementation**
+
+Three commits shipped the operator-console signature.
+
+- Phase 8.1 `ef624ee` — **`TickerRail` signature element**: 32px-tall mono breadcrumb pinned above `<Header>` on every route. Reads as `Q ·QUORRIN · seq #N · engine <state> · tick <N>s · pek <a>/<i> · halt <yes|no> · assets <N>` in mono. Morphs to a halt-channel when `emergency_halt` is set; positions-frozen annotation; not rendered when `integrity.shouldBlockRender` (display uses `ErrorScreen`). Data: `useEngineHealth` + `useSystemSnapshot`. Tone-coded GREEN / YELLOW / RED on each token.
+- Phase 8.2 `7ea43b6` — **Design tokens**: `color-app` `#08090c → #07080b` (deeper ink); `color-accent-emerald` `#2dd4bf → #3dd9ae` (lifted accent); matching `rgba` updates in `index.css` focus-ring + input-terminal; `usage.*` updated to source lifted palette; `generated/tokens.css|json|tailwind.partial.js` regenerated automatically.
+- Phase 8.3 `dc4e3a1` — **Quick-stats row on CommandCenter migrated**. The 7-card grid (each labelled card with icon and padding) collapsed to a single hairline-rule mono dl/div row. Five reserved audit items addressed in this commit at no additional cost (dead `QuickStatCard` definition and 7 unused icon imports removed by reconstruction).
+
+**Phase 9 — component-by-component visual redesign**
+
+Six commits. The pattern is unchanged from the audit: terminal-precision treatment means *one* mono headline per row, governance semantic colors only on values that read green/yellow/red, and a single hairline rule between cells on desktop.
+
+- Phase 9.1 (4 commits: `16ea6f8`, `f252e13`, `8172a29`) — `/trading` surfaces: `SignalsTable` filter-input focus ring → lifted accent rgba; `TradeOutcomes` 6 KPI accents recoloured to `var(--color-gov-{green,yellow,red})` for the semantic cells (TP / SL / Flip / Avg R) and `var(--color-text-secondary)` for the percentage cells (Win Rate, Profit Factor — chart palette dropped); `AdmissionPanel` 3-stat row migrated to dl/div hairline pattern (Intents / Admitted / Rejected mono cells).
+- Phase 9.2 (3 commits: `f932f48`, `35c5831`, `18290e5`) — `/execution` surfaces: `ExecutionQualityStrip` 4 KPI row → dl/div treatment, accents via `tone='good'|'warn'|'bad'`. `AttributionBreakdownCard` 4 attribution KPIs retained their multi-color palette (Prediction blue / Execution purple / Exit green / Friction amber is the *attribution legend*) but re-sourced via `var()` tokens. `TradeExecutionTable`, `FillQualityGauge`, `SlippageHistogram` accents off the chart palette (blue/purple) → single accent emerald.
+- Phase 9.3 (1 commit: `bee7be9`) — `/risk` and adjacent surfaces: 8 panel accents (`accent="blue|purple|pink|indigo"` on CalibrationCurve, ExecutionFeed, HealthScores, StatisticalMetricsTable, TradeFeed, TradeOutcomes, GovernanceRadar, PerformancePanel) → `accent="emerald"`. `AlertFeed` left on `amber` (alerts legitimately warn). `AttributionBreakdownCard` left on its multi-color legend.
+- Phase 9.4 (1 commit: `a2dfc8b`) — `AssetCard` layers-badge inline Tailwind blue (`bg-blue-900/30 text-blue-400 border-blue-500/30`) → lifted-accent `bg-accent-emerald/15 text-accent-emerald border-accent-emerald/30`.
+- Phase 9.5 (1 commit: `d76ccd9`) — Modal chrome: 3 modals (`WeeklyReviewModal`, `TradeInspectorModal`, `SystemHealthModal`) plus loading/error screens migrated off Tailwind default `rounded-xl` + `shadow-2xl` to single 4px corner + `var(--shadow-modal)` token, which gives the right elevation for the page's highest layer.
+- Phase 9.6 — this section.
+
+**Deliberate non-targets for Phase 9** (audited and left alone):
+
+- **rounded-lg → rounded collapse across panels/cards/table cell treatments.** Phase 2's spec preferred a single 4px corner everywhere; doing it now would ripple across 40+ files. Best as a separate PR when there is time to refresh every Panel render.
+- **Chart palette elimination.** Audit step 2 reserved the chart palette for *attribution surfaces where colour carries domain meaning*. AttributionBreakdownCard preserves it intentionally. Everywhere else collapses to single accent emerald + governance semantic.
+- **14 audit items previously deferred** (Panel variant collapse, TradingAssetRow extraction, PekStatusBar fold-in, etc.) still belong in dedicated PRs of their own.
+
+**Visual identity landed**
+
+The operator-console surfaces as designed:
+1. **TickerRail** above Header reads the engine pulse continuously in mono
+2. **Rail status chip** (Phase 4) plus Header HealthBadge (Phase 7 copy) answer "is the engine OK" without scrolling, from either of two persistent surfaces
+3. **Quick-stats row** (Phase 8.3) is one mono headline per metric, divided by hairline rules, semantic-coloured only where the value reads green/yellow/red
+4. **SectionHeader** dots are static single pixels (Phase 2.8a)
+5. **Hairline 1px border** is the only surface separation at rest; no shadow contrast between panels of the same elevation
+6. **Single accent** (lifted emerald) reserved for primary actions and one-shot highlights; **governance semantic** the only signal colors
+
+Branch is stable, builds clean (`tsc -b --noEmit`, `vite build`), commit-per-change history preserved.

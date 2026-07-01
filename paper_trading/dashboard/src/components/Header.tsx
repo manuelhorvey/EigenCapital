@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react'
-import { Menu, RefreshCw, TrendingUp } from 'lucide-react'
+import { Menu, RefreshCw, TrendingUp, Activity } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../hooks/useEngineHealth'
@@ -11,29 +11,45 @@ interface HeaderProps {
   onMenuClick?: () => void
 }
 
-function HealthBadge() {
+/**
+ * Header is the chrome band above the page content. After Phase 8.1
+ * the engine state is already visible at all times via the
+ * TickerRail at the top of every page, and after Phase 4 the
+ * Sidebar's bottom caption reads the engine state too. A third
+ * visible pill in the Header would be redundant.
+ *
+ * HealthButton therefore collapses to an icon-only click target
+ * that opens the SystemHealthModal — the visual cue is the activity
+ * icon, with the runtime tone (green/yellow/red) of that icon
+ * encoding the engine state. The status text is no longer readable
+ * visually in the band; it remains in the title and aria-label so
+ * keyboard / screen-reader users get the state.
+ */
+function HealthButton() {
   const health = useEngineHealth()
   const { open: openSystemHealth } = useSystemHealthModal()
   const engineAlive = health.data?.engine_alive ?? false
-  const label = health.isError ? 'Disconnected' : health.isLoading ? '...' : engineAlive ? 'Live' : 'Stale'
-  const dot = health.isError ? 'bg-gov-red' : engineAlive ? 'bg-gov-green' : 'bg-gov-yellow'
+  const state = health.isError ? 'dead' : health.isLoading ? 'loading' : engineAlive ? 'alive' : 'stale'
+  const tone = state === 'alive' ? 'text-gov-green'
+    : state === 'stale' ? 'text-gov-yellow'
+    : state === 'dead' ? 'text-gov-red'
+    : 'text-tertiary'
 
   return (
     <button
       type="button"
       onClick={openSystemHealth}
-      className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-1.5 px-2 rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring text-2xs font-mono tabular-nums"
-      title={`Engine ${label}`}
-      aria-label={`Engine status: ${label}. Open details.`}
+      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring"
+      title={`Engine ${state}`}
+      aria-label={`Engine status: ${state}. Open details.`}
     >
-      <span className={`relative inline-flex w-2 h-2 rounded-full ${dot}`} />
-      <span className="hidden sm:inline text-tertiary">{label}</span>
+      <Activity className={`w-3.5 h-3.5 ${tone}`} strokeWidth={2} />
     </button>
   )
 }
 
 function Header({ onMenuClick }: HeaderProps) {
-  const { data: snapshot, dataUpdatedAt } = useSystemSnapshot(systemSelectors.snapshot)
+  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -62,7 +78,7 @@ function Header({ onMenuClick }: HeaderProps) {
           <button
             type="button"
             onClick={onMenuClick}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors lg:hidden active:scale-95 focus-ring"
+            className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-ring"
             title="Menu"
             aria-label="Open navigation menu"
           >
@@ -71,18 +87,10 @@ function Header({ onMenuClick }: HeaderProps) {
           <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-accent-emerald/90 flex items-center justify-center shrink-0 shadow-sm">
             <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#08090c]" strokeWidth={2.25} />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-1.5">
-              <h1 className="text-xs sm:text-sm font-bold tracking-tight text-primary leading-none truncate">Quorrin</h1>
-              {sequenceId != null && (
-                <span className="hidden sm:inline text-[8px] text-tertiary/40 font-mono leading-none">#{sequenceId}</span>
-              )}
-            </div>
-          </div>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <HealthBadge />
+          <HealthButton />
           <MT5Status />
 
           <button

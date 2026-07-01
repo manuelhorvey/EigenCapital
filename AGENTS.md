@@ -1412,12 +1412,20 @@ Branch: `redesign/operator-console-terminal-precision`. Visual identity: **opera
 - **Phase 3** `a7329eb` — Removed duplicate `<EmergencyHaltBanner>` render in `pages/CommandCenter.tsx`. `AppShell.tsx` already mounts it once at top level.
 - **Phase 4** `d3d322e` — **IA-1**: nav-rail status chip. `useSidebarBadges` extended to expose engine `'alive'|'stale'|'dead'` state. Inline engine dot on the Dashboard nav item, bottom-of-rail `engine STATUS` caption row, removed the redundant top strip widget. Header still shows engine health as a separate glance surface.
 
-**Phase 5 — IA-3 HOLD**: Per the explicit decision from the design lead — "IA-1 and IA-3 both solve the same glance-check; ship IA-1 first, hold off on IA-3's CommandCenter 4-tab split until IA-1 has been confirmed against the operator's actual workflow." Phase 5 is the decision pause. **Do not implement IA-3** in this branch without an explicit re-approval. Re-evaluation criteria:
+**Phase 5 — IA-3 HOLD-AND-OBSOLETED**: Per the design lead's explicit decision, IA-1 (nav-rail status chip, Phase 4) shipped first to test whether it alone satisfies the glance-check without IA-3's tab split. After Phase 4 + Phase 6.1 (IA-2 deleted `/engine`), the IA-3 prescription has effectively become obsolete: with `/engine` gone, the rail has a single Overview item ("Dashboard") pointing to a single CommandCenter — there is no ambiguity left for a tab strip inside the route to resolve. **Decision recorded; do not implement IA-3 in any branch without re-approval.**
 
-1. Does the operator still open CommandCenter and scroll to find a status field that isn't in the rail?
-2. Does the Dashboard nav item dot+bottom-caption row, combined with the Header heartbeat button, give the glance-check in < 1 second without scrolling?
-3. Is the existing 8-section CommandCenter overwhelming on a 13" laptop, or is it scannable with the rail status chip and the bottom rail caption?
+**Phase 6 — IA resolutions (12 commits added after Phase 5)**:
 
-If (1) is yes or (3) is yes → revisit IA-3 (split into Status / Positions / Signal Queue / Review). If (2) is yes, CommandCenter needs no further split — proceed to Phase 6 (remaining IA moves) and Phase 7+ (design system implementation, visual redesign).
+| IA | Resolution | Outcome |
+|---|---|---|
+| **IA-2** | Dropped `/engine` route dual-mount in `App.tsx`; removed `Heart`/`engine` nav item from `Sidebar`; updated description from "Raw metrics + full data" to "Status, equity, positions". | **Code change** — commit `f7a21cd`. |
+| **IA-4** | Move `PekScalarPanel`, `PerformanceStateVelocityChart`, `RiskBudgetChart` off `/risk` onto `/engine`. Post-IA-2 there is no `/engine`, so the move has no destination. **Decision: leave them on `/risk`.** They are auxiliary telemetry, not risks, but the correct location is a separate `/behavior` route which is out of scope here. | **No code change**; debate closed. |
+| **IA-5** | `GateAggregationPanel` + `GovernanceRadar` already live in `/risk/risk` workspace under their respective sections. | **No change needed**; verified. |
+| **IA-6** | `PositionConcentrationPanel` + `FactorExposureBreakdown` already on `/risk` only. | **No change needed**; verified. |
+| **IA-7** | Moved full-recharts `EquityChart` from `TradingWorkspace / Signals` section to new `ExecutionWorkspace / Equity Curve` section. The chart shows portfolio time-series, drawdown, and per-asset overlays — performance surfaces, not signal surfaces. The small `EquityCurveSparkline` (80px) stays on `CommandCenter`'s status row as the operator's glance-only summary. | **Code change** — commit `ee30ccc`. |
+| **IA-8** | `AnchorNav` already removed in Phase 1.1. | **No change needed**. |
+| **IA-9** | `ExecutionFeed` (live stream) is on `/trading`; `TradeExecutionTable` (full table) is on `/execution`. The two surfaces serve different primary jobs (live signal vs historical record) and are correctly split. The "duplicate rows" concern was inaccurate. | **No change needed**; verified. |
 
-**Audit items deferred to dedicated PRs** (not in this branch): #1 (QuickStatCard → StatCard), #2 (PekStatusBar fold-in), #7 (TradingAssetRow extraction), #11 (Panel variant collapse), #13 (rawLightTokens exposure already partly done), #14 (EquityChart/Attribution migration), #16 (Header health chip move). Each has large file-fan-out and is its own reviewable commit when picked up.
+After Phase 6: 4 routes (`/`, `/trading`, `/execution`, `/risk`), each with a single primary job. CommandCenter sits at 6 rather than 8 sections (no redundant equity chart, no redundant banner). The rail's status chip from Phase 4 plus the Header's `HealthBadge` provide engine-state-without-scrolling from two persistent surfaces.
+
+**Audit items deferred to dedicated PRs** (not in this branch): #1 (QuickStatCard → StatCard), #2 (PekStatusBar fold-in), #7 (TradingAssetRow extraction), #11 (Panel variant collapse), #13 (PekScalarPanel relocation — IA-4 closed without code), #14 (EquityChart migration — done in 6.7), #16 (Header health chip move). Each has large file-fan-out and is its own reviewable commit when picked up.

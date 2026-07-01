@@ -167,6 +167,7 @@ class AssetEngine:
         self._psi_monitor = PSIMonitor(base_dir)
         self.regime_classifier = RegimeClassifier()
         self.validity_sm = _ValidityStateMachine()
+        self._gate_blocked_counts: dict[str, int] = {}
         self.governance = AssetGovernance(self.name, self.config, self.halt_config)
         self.governance.load_narrative_state()
         self.governance.load_liquidity_state(getattr(self, "price_data", None))

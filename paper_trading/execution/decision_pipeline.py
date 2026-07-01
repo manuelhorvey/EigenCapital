@@ -922,10 +922,15 @@ def run_decision_pipeline(
     ctx.gates_trace = {}
     for stage in stages:
         stage_name = stage.__name__
+        prev_new_side = ctx.new_side
+        prev_abort = ctx.abort
         ctx.gates_trace[stage_name] = not ctx.abort
         stage(ctx)
-        if ctx.abort:
+        if ctx.abort and not prev_abort:
+            ctx.engine._gate_blocked_counts[stage_name] = ctx.engine._gate_blocked_counts.get(stage_name, 0) + 1
             break
+        if not prev_abort and prev_new_side is not None and ctx.new_side is None and not ctx.abort:
+            ctx.engine._gate_blocked_counts[stage_name] = ctx.engine._gate_blocked_counts.get(stage_name, 0) + 1
 
     # ── Decision output WAL event (causal boundary P0.3, post-gate) ──
     wal = getattr(engine, "_wal_writer", None)

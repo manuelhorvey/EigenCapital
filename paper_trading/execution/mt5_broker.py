@@ -390,7 +390,7 @@ class MT5Broker(BrokerInterface):
                 avg_entry_price=float(p.get("price_open", 0)),
                 current_price=float(p.get("price_current", 0)),
                 unrealized_pnl=float(p.get("profit", 0)),
-                realized_pnl=float(p.get("commission", 0)),
+                realized_pnl=0.0,
                 position_id=str(p.get("ticket", "")),
             )
             positions.append(pos)

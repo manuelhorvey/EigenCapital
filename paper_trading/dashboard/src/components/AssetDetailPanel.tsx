@@ -118,9 +118,14 @@ function OverviewTab({ asset }: { asset: AssetState }) {
   const m = asset.metrics
   const sd = m.signal_distribution
   const pos = m.position
+  // Final signal falls back to current position side when pipeline returns
+  // null (which happens when the asset is already in a position and no new
+  // entry is attempted).  This prevents the dashboard from displaying FLAT
+  // for assets that are actively holding a position.
+  const finalSignal = asset.final_signal ?? (pos?.side === 'long' ? 'BUY' : pos?.side === 'short' ? 'SELL' : 'FLAT')
   return (
     <>
-      <MetricRow label="Final Signal" value={asset.final_signal ?? 'FLAT'} valueClass={asset.final_signal === 'BUY' ? governanceText.GREEN : asset.final_signal === 'SELL' ? governanceText.RED : ''} />
+      <MetricRow label="Final Signal" value={finalSignal} valueClass={finalSignal === 'BUY' ? governanceText.GREEN : finalSignal === 'SELL' ? governanceText.RED : ''} />
       <MetricRow label="Raw Signal" value={asset.last_signal?.signal ?? 'FLAT'} />
       <MetricRow label="Confidence" value={m.mean_confidence?.toFixed(1) ?? '—'} />
       <MetricRow label="Current Price" value={m.current_price?.toFixed(4) ?? '—'} />

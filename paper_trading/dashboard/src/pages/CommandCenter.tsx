@@ -10,6 +10,7 @@ import OptimizerRecommendations from '../components/OptimizerRecommendations'
 import HaltConditions from '../components/HaltConditions'
 import EquityCurveSparkline from '../components/EquityCurveSparkline'
 import EmergencyHaltBanner from '../components/EmergencyHaltBanner'
+import AssetMiniGrid from '../components/AssetMiniGrid'
 import Panel from '../components/ui/Panel'
 import Badge from '../components/ui/Badge'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
@@ -299,6 +300,11 @@ const CommandCenter = memo(function CommandCenter({ onSelectAsset }: CommandCent
           <EdgeHealthAlert />
         </div>
       </div>
+
+      {/* Asset cards grid — open positions only */}
+      <EntranceAnimator variant="fade-up" delay={45}>
+        <AssetMiniGrid openOnly />
+      </EntranceAnimator>
 
       {/* Asset list with sort controls — main trading view */}
       <EntranceAnimator variant="fade-up" delay={60}>

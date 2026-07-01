@@ -22,12 +22,20 @@ function getSortSignal(asset: AssetState): string {
     'FLAT'
 }
 
-export default function AssetMiniGrid() {
+interface AssetMiniGridProps {
+  /** Show only assets with an open position. */
+  openOnly?: boolean
+}
+
+export default function AssetMiniGrid({ openOnly }: AssetMiniGridProps) {
   const { data: assets, isPending } = useSystemSnapshot(systemSelectors.assets)
 
   const sorted = useMemo(() => {
     if (!assets) return []
-    return Object.entries(assets)
+    const entries = Object.entries(assets).filter(
+      ([_, a]) => !openOnly || a.metrics.position != null,
+    )
+    return entries
       .sort(([aName, aData], [bName, bData]) => {
         const aRank = signalRank(getSortSignal(aData))
         const bRank = signalRank(getSortSignal(bData))
@@ -35,7 +43,9 @@ export default function AssetMiniGrid() {
         return aName.localeCompare(bName)
       })
       .map(([name]) => name)
-  }, [assets])
+  }, [assets, openOnly])
+
+  const title = openOnly ? 'Open Positions' : 'Asset Overview'
 
   if (isPending) {
     return (
@@ -50,15 +60,15 @@ export default function AssetMiniGrid() {
   if (sorted.length === 0) {
     return (
       <div className="py-2">
-        <SectionHeader title="Asset Overview" accent="neutral" />
-        <EmptyState message="No asset data yet" compact />
+        <SectionHeader title={title} accent="neutral" />
+        <EmptyState message={openOnly ? 'No open positions' : 'No asset data yet'} compact />
       </div>
     )
   }
 
   return (
     <div>
-      <SectionHeader title="Asset Overview" accent="neutral" />
+      <SectionHeader title={title} accent="neutral" />
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
         {sorted.map(name => (
           <AssetMiniCard key={name} name={name} />

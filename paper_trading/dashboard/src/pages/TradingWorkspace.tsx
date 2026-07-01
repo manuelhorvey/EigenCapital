@@ -5,6 +5,7 @@ import EquityChart from '../components/EquityChart'
 import ExecutionFeed from '../components/ExecutionFeed'
 import AdmissionPanel from '../components/AdmissionPanel'
 import RejectedSignalExplorer from '../components/RejectedSignalExplorer'
+import AssetMiniGrid from '../components/AssetMiniGrid'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 
@@ -27,6 +28,11 @@ export default function TradingWorkspace() {
             <AdmissionPanel />
             <RejectedSignalExplorer />
           </div>
+        </EntranceAnimator>
+      </Section>
+      <Section id="open-positions" errorTitle="Open Positions">
+        <EntranceAnimator variant="fade-up" delay={45}>
+          <AssetMiniGrid openOnly />
         </EntranceAnimator>
       </Section>
       <Section id="trades" errorTitle="Trades">

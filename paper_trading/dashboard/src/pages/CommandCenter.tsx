@@ -3,15 +3,14 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { useTradingState } from '../lib/trading-state/hook'
 import SystemHealthSummary from '../components/SystemHealthSummary'
-import ExitPhaseIndicator from '../components/ExitPhaseIndicator'
 import EdgeHealthAlert from '../components/EdgeHealthAlert'
 import LiveSharpeCard from '../components/LiveSharpeCard'
 import OptimizerRecommendations from '../components/OptimizerRecommendations'
 import HaltConditions from '../components/HaltConditions'
 import EquityCurveSparkline from '../components/EquityCurveSparkline'
 import AssetMiniGrid from '../components/AssetMiniGrid'
+import TradingAssetRow from '../components/TradingAssetRow'
 import Panel from '../components/ui/Panel'
-import Badge from '../components/ui/Badge'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 import EmptyState from '../components/ui/EmptyState'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -95,74 +94,6 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'go
     </div>
   )
 }
-
-// ── Trading Asset Row ──────────────────────────────────────────────
-
-interface TradingAssetRowProps {
-  asset: ReturnType<typeof useTradingState>['assetList'][number]
-  onSelect?: (name: string) => void
-}
-
-const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: TradingAssetRowProps) {
-  const pnlColor = asset.pnl_state.unrealized >= 0 ? '#22c55e' : '#ef4444'
-
-  return (
-    <button
-      onClick={() => onSelect?.(asset.identity)}
-      className="w-full flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-panel/60 transition-colors border border-transparent hover:border-default group text-left"
-    >
-      {/* Asset name + direction */}
-      <div className="flex items-center gap-2 w-28 shrink-0">
-        <span className="text-xs font-semibold text-primary font-mono">{asset.identity}</span>
-        {asset.direction && (
-          <Badge
-            variant={asset.direction === 'LONG' ? 'success' : 'error'}
-            size="sm"
-            icon={asset.direction === 'LONG' ? 'long' : 'short'}
-          >
-            {asset.direction === 'LONG' ? 'L' : 'S'}
-          </Badge>
-        )}
-      </div>
-
-      {/* PnL */}
-      <div className="w-20 shrink-0 text-right">
-        <span className="text-xs font-mono tabular-nums font-semibold" style={{ color: pnlColor }}>
-          {asset.pnl_state.unrealized >= 0 ? '+' : ''}{asset.pnl_state.unrealized.toFixed(2)}
-        </span>
-      </div>
-
-      {/* Exit phase */}
-      <div className="w-36 shrink-0">
-        <ExitPhaseIndicator
-          phase={asset.exit_state.phase}
-          slIsDynamic={asset.exit_state.sl_is_dynamic}
-          peakMfeR={asset.exit_state.peak_mfe_r}
-        />
-      </div>
-
-      {/* Risk level */}
-      <div className="w-20 shrink-0">
-        <Badge
-          variant={asset.risk_state.level === 'HIGH' ? 'error' : asset.risk_state.level === 'MEDIUM' ? 'warning' : 'success'}
-          size="sm"
-          dot
-        >
-          {asset.risk_state.level}
-        </Badge>
-      </div>
-
-      {/* Flags */}
-      <div className="flex-1 flex items-center gap-1 min-w-0">
-        {asset.flags.slice(0, 2).map((flag) => (
-          <Badge key={flag} variant="neutral" size="sm">
-            {flag.replace(/_/g, ' ')}
-          </Badge>
-        ))}
-      </div>
-    </button>
-  )
-})
 
 // ── Asset List Panel ───────────────────────────────────────────────
 

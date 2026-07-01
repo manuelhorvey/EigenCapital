@@ -651,4 +651,4 @@ class TestDefaultStages:
             assert callable(stage)
 
     def test_default_stages_has_expected_count(self):
-        assert len(DEFAULT_STAGES) == 21
+        assert len(DEFAULT_STAGES) == 22

@@ -71,6 +71,7 @@ ASSETS = {
     "EURCAD": "EURCAD=X",
     "EURNZD": "EURNZD=X",
     "GBPCHF": "GBPCHF=X",
+    "GBPUSD": "GBPUSD=X",
     "EURAUD": "EURAUD=X",
 }
 

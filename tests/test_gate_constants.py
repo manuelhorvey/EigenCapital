@@ -13,7 +13,7 @@ from paper_trading.execution.gate_constants import (
 )
 
 _KNOWN_SELL_ONLY: Final[frozenset[str]] = frozenset({
-    "CADCHF", "ES", "NQ", "NZDCHF", "EURAUD",
+    "CADCHF", "NZDCHF", "EURAUD",
 })
 
 
@@ -25,7 +25,7 @@ def test_get_sell_only_assets_returns_default_set() -> None:
     assets = get_sell_only_assets()
     assert isinstance(assets, frozenset)
     assert assets == _KNOWN_SELL_ONLY
-    assert len(assets) == 5
+    assert len(assets) == 3
     cm.reset_config()
 
 

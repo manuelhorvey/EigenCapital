@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
-import AssetMiniCard from './AssetMiniCard'
+import AssetCard from './AssetCard'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
@@ -71,7 +71,7 @@ export default function AssetMiniGrid({ openOnly }: AssetMiniGridProps) {
       <SectionHeader title={title} accent="neutral" />
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
         {sorted.map(name => (
-          <AssetMiniCard key={name} name={name} />
+          <AssetCard key={name} name={name} density="compact" />
         ))}
       </div>
     </div>

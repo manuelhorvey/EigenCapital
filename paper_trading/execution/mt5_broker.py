@@ -513,6 +513,20 @@ class MT5Broker(BrokerInterface):
 
     # ── Lot / Quantity conversion ──────────────────────────────────────
 
+    def min_viable_qty(self, ticker: str) -> float:
+        """Return the minimum viable quantity for a symbol (in base-currency units).
+
+        Returns 0.0 if symbol_info is unavailable.
+        For standard forex: min_volume=0.01 lots × contract_size=100,000 = 1,000 base units.
+        For GC=F: min_volume=0.01 lots × contract_size=100 = 1 troy ounce.
+        """
+        info = self._client.symbol_info(ticker)
+        if not info:
+            return 0.0
+        contract_size = info.get("contract_size", 100000.0)
+        min_vol = info.get("min_volume", 0.01)
+        return min_vol * contract_size
+
     def normalize_volume(self, ticker: str, raw_qty: float) -> float:
         """Normalize qty to broker volume constraints.
 

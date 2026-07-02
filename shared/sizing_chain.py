@@ -101,9 +101,14 @@ class SizingChain:
         if inp.is_mt5:
             effective_cap = inp.equity
             res.effective_cap = effective_cap
-            notional = effective_cap * inp.max_position_pct * res.drawdown_taper * inp.kelly_multiplier
+            # MT5: leverage allows notional >> equity. Don't cap by
+            # max_position_pct. The real constraint is risk-per-trade
+            # (applied in step 3) and the min-viable lot bump in
+            # _compute_mt5_qty. Use 100% of equity as starting notional.
+            mt5_floor = max(inp.max_position_pct, 1.0)
+            notional = effective_cap * mt5_floor * res.drawdown_taper * inp.kelly_multiplier
             res.kelly_applied = inp.kelly_multiplier
-            res.size_scalar_applied = inp.max_position_pct * res.drawdown_taper * inp.kelly_multiplier
+            res.size_scalar_applied = mt5_floor * res.drawdown_taper * inp.kelly_multiplier
         else:
             effective_cap = inp.equity
             res.effective_cap = effective_cap
@@ -111,7 +116,12 @@ class SizingChain:
             res.size_scalar_applied = inp.size_scalar
 
         # 2 — Per-position equity cap
-        max_pos_notional = inp.max_position_pct * inp.equity if inp.equity > 0 else float("inf")
+        if inp.is_mt5:
+            # MT5: use full equity as position cap (leverage covers the rest)
+            mt5_cap = max(inp.max_position_pct, 1.0)
+            max_pos_notional = mt5_cap * inp.equity if inp.equity > 0 else float("inf")
+        else:
+            max_pos_notional = inp.max_position_pct * inp.equity if inp.equity > 0 else float("inf")
         res.position_cap = max_pos_notional
         if notional > max_pos_notional:
             notional = max_pos_notional

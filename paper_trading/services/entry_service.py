@@ -556,9 +556,34 @@ class EntryService:
 
         mt5_qty = result.notional / base_to_acc
 
+        # ── Bump to minimum viable lot if sized position is too small ──
+        # The sizing chain caps notional at max_position_pct × equity (~$16),
+        # which is correct for paper (no leverage) but wrong for MT5 where
+        # 0.01 lot forex requires ~$568-1,300 notional. With leverage, the
+        # real constraint is risk-per-trade, not notional-per-equity.
+        if hasattr(broker, "min_viable_qty"):
+            try:
+                min_viable = broker.min_viable_qty(asset.ticker)
+            except Exception:
+                min_viable = 0.0
+        else:
+            min_viable = 0.0
+
+        if min_viable > 0 and 0 < mt5_qty < min_viable:
+            # Bump to minimum viable lot. The broker's margin controls are the
+            # real risk gate for MT5 — if buying power is exceeded, the broker
+            # rejects the order. Skip the paper-style risk-per-trade cap here.
+            logger.info(
+                "%s: MT5 bumped qty from %.4f to min_viable=%.4f (broker handles margin enforcement)",
+                asset.name,
+                mt5_qty,
+                min_viable,
+            )
+            mt5_qty = min_viable
+
         logger.info(
             "MT5_SIZING %s: equity=%.2f dd=%.2f kelly=%.4f max_pct=%.2f%% risk_cap=%.2f "
-            "min_viable=%.2f -> final_not=%.2f base_to_acc=%.4f qty=%.4f",
+            "min_viable=%.2f -> final_not=%.2f base_to_acc=%.4f qty=%.4f%s",
             asset.name,
             mt5_equity,
             result.drawdown_taper,
@@ -569,6 +594,7 @@ class EntryService:
             result.notional,
             base_to_acc,
             mt5_qty,
+            f" (bumped to min_viable={min_viable:.4f})" if min_viable > 0 and mt5_qty >= min_viable and result.notional / base_to_acc < min_viable else "",
         )
         return mt5_qty
 

@@ -206,9 +206,11 @@ export function toPortfolioTradingState(
   else if (highRiskCount > 3) systemStatus = "MONITOR"
 
   // ── PnL ──────────────────────────────────────────────────────
-  // Portfolio total return in percentage terms (consistent with per-asset display)
-  const pnlTotal = portfolio.capital > 0
-    ? (portfolio.total_value - portfolio.capital) / portfolio.capital
+  // Use the engine's total_return (computed against deployed capital),
+  // not raw (total_value - capital) / capital which compares deployed
+  // assets against total capital (incorrect when allocations < 100%).
+  const pnlTotal = portfolio.total_return != null
+    ? portfolio.total_return / 100
     : 0
 
   const effSum = assetList.reduce((sum, a) => sum + efficiencyToNumeric(a.pnl_state.efficiency), 0)

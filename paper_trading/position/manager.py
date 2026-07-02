@@ -113,11 +113,13 @@ class PositionManager:
         if self.current_value > self.peak_value:
             self.peak_value = self.current_value
 
-        # Re-apply partial close PnLs that may not have been settled yet
-        for pc in self._partial_closes:
-            if not pc.get("settled", False):
-                self.current_value += pc["pnl"]
-                pc["settled"] = True
+        # All partial closes are settled immediately in partial_close(),
+        # so this loop is intentionally empty — kept as documentation.
+        # If partial_close ever defers settlement, re-enable:
+        # for pc in self._partial_closes:
+        #     if not pc.get("settled", False):
+        #         self.current_value += pc["pnl"]
+        #         pc["settled"] = True
 
         return trade
 

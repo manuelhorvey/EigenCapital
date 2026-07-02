@@ -509,12 +509,19 @@ class AssetPnlController:
 
 
 def _compute_r(asset, exit_price: float) -> float:
-    """Compute the realized R-multiple from a trade."""
+    """Compute the realized R-multiple from a trade.
+
+    Uses ``effective_sl`` (which reflects trailing/adaptive stop adjustments)
+    rather than ``stop_loss`` (the original entry SL) to correctly measure
+    risk for R-multiple calculation.  When trailing stops tighten the SL,
+    the original ``stop_loss`` would understate risk and inflate apparent
+    risk-adjusted returns.
+    """
     if asset.pos_mgr is None or asset.pos_mgr.position is None:
         return 0.0
     entry = asset.pos_mgr.position.entry_price
-    sl = asset.pos_mgr.position.stop_loss
-    if entry <= 0 or sl == entry:
+    sl = asset.pos_mgr.position.effective_sl
+    if entry <= 0 or sl == entry or sl is None or sl <= 0:
         return 0.0
     side = asset.pos_mgr.position.side
     ret = (exit_price / entry - 1) if side == "long" else (entry / exit_price - 1)

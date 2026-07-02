@@ -97,11 +97,13 @@ Comparable scope to `scripts/diagnostics/check_chf_correlation.py` (~120 lines, 
 
 ## 6. Equity Cluster Concentration
 
-**Status**: Monitored via HealthMonitor alarm (2026-06-20).
+**Status**: Closed as "alarm removed 2026-07-01." ES, NQ, ^DJI no longer in the portfolio — the equity cluster alarm it was guarding against no longer exists in the live pipeline.
 
-**Risk**: ES and NQ (both SELL_ONLY) share concentrated directional exposure. If the equities cluster all go flat in a regime change where selling equities is correct, the system's filtering logic means it would miss that opportunity. ^DJI was removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved its BuyWR above breakeven — it now trades both directions. The CHF cluster (CADCHF, NZDCHF) has 2 SELL_ONLY members remaining (USDCHF and EURCHF were removed 2026-06-26).
+**Historical risk**: When ES and NQ were both SELL_ONLY (2026-06-20 through 2026-06-30), they shared concentrated directional exposure with ^DJI. The HealthMonitor equity cluster alarm flagged same-side positions across the three equity-Index assets but did not force-flatten. ^DJI was removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved its BuyWR above breakeven. ES, NQ, ^DJI were then removed from the portfolio entirely on 2026-07-01 as part of the portfolio remediation.
 
-**Mitigation**: Equity cluster alarm in HealthMonitor flags when multiple equity SELL_ONLY assets have same-side positions. No force-flatten — the alarm is a recommendation only.
+**Mitigation (historical)**: Equity cluster alarm in HealthMonitor was a recommendation-only signal — no force-flatten path. Alarm code is now a comment in `paper_trading/orchestrator/health.py:105` marking removal.
+
+**Active risk substitute**: None. With no equity indices in the portfolio, the concentration cluster has zero holdings. The position concentration check (Phase 3e, `net_short_concentration_threshold`) covers portfolio-wide same-side skew if a future caught regime arises.
 
 ---
 

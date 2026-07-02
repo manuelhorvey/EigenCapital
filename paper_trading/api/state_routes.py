@@ -279,8 +279,8 @@ def handle_clear_cache(path: str, query: dict) -> str:
     and the live data cache (bundle.clear_live_cache) so the next
     request returns fresh data instead of stale cached responses.
     """
-    from paper_trading.api.common import clear_cache
     from paper_trading.api.bundle import clear_live_cache
+    from paper_trading.api.common import clear_cache
 
     clear_cache()
     clear_live_cache()

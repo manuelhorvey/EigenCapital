@@ -518,11 +518,7 @@ class EntryService:
         # mt5_bypass_risk_cap_at_min_lot: when risk cap IS enabled, allows
         #   the bump to min viable lot even if it exceeds the cap.
         mt5_risk_enabled = cfg.get("mt5_enable_max_risk_per_trade_pct", False)
-        if mt5_risk_enabled:
-            max_risk_pct = cfg.get("mt5_max_risk_per_trade_pct", 10.0)
-        else:
-            # Risk cap disabled — pass inf so sizing chain step 3 never binds.
-            max_risk_pct = float("inf")
+        max_risk_pct = cfg.get("mt5_max_risk_per_trade_pct", 10.0) if mt5_risk_enabled else float("inf")
 
         sizing_input = SizingInput(
             equity=mt5_equity,
@@ -631,7 +627,12 @@ class EntryService:
             result.notional,
             base_to_acc,
             mt5_qty,
-            f" (bumped)" if min_viable > 0 and mt5_qty >= min_viable and not bump_blocked and result.notional / base_to_acc < min_viable else "",
+            " (bumped)"
+            if min_viable > 0
+            and mt5_qty >= min_viable
+            and not bump_blocked
+            and result.notional / base_to_acc < min_viable
+            else "",
         )
         return mt5_qty
 
@@ -648,14 +649,14 @@ class EntryService:
         normalized = broker.normalize_volume(asset.ticker, qty)
         if normalized <= 0:
             logger.error(
-                "%s: MT5 volume normalization failed for qty=%.6f — position too small for broker min volume, skipping order",
+                "%s: MT5 volume normalization failed for qty=%.6f — "
+                "position too small for broker min volume, skipping order",
                 asset.name,
                 qty,
             )
             return entry_price, 0.0, None
         # Round DOWN to volume_step (never submit more risk than sized)
         qty = normalized
-
 
         matching = [p for p in existing_positions if p.asset == mt5_symbol]
         if matching:

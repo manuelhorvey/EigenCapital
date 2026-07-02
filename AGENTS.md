@@ -109,7 +109,7 @@ flowchart TD
 | `paper_trading/services/engine_rebalance_service.py` | Live rebalance — reads `weight_method` from config, calls `compute_weights()` |
 | `paper_trading/orchestrator/engine.py` | `EngineOrchestrator` — phases 1-4 (pre-phase PEK state, parallel signal, PEK admission, validity, portfolio health, persist) with MT5 orphan sub-phases (A-D) |
 | `paper_trading/execution/mt5_broker.py` | `MT5Broker` — MT5 execution with `current_mt5_drawdown_pct()` |
-| `features/alpha_features.py` | Alpha feature builder (13 cols) |
+| `features/alpha_features.py` | Alpha feature builder (9 base + 6 trend-exhaustion per asset + 4 cross-asset + COT per covered pair) |
 | `features/regime_features.py` | Regime feature builder (7 cols) |
 | `features/data_fetch.py` | Data fetching with MT5/yfinance fallback |
 | `features/labels.py` | Triple-barrier labeling + PurgedWalkForwardFolds |

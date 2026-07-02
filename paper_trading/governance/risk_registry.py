@@ -189,7 +189,6 @@ class RiskRegistry:
                         "pnl_drift": "PNL_DEGRADATION",
                         "feature_stability": "FEATURE_UNSTABLE",
                         "regime_consistency": "REGIME_SHIFT",
-                        "sell_win_rate": "SELL_TRIPWIRE",
                     }
                     risk_flags.append(flag_map[key])
 
@@ -230,6 +229,7 @@ class RiskRegistry:
 
             return signal
         except Exception:
+            logger.exception("risk_registry.evaluate(%s) failed — returning fallback signal", asset)
             return self._fallback_signal(asset)
 
     def get_latest(self, asset: str | None = None):

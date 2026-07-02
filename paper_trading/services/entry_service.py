@@ -392,9 +392,6 @@ class EntryService:
                 final_tp,
             )
             return False
-        if pd.isna(intent_sl) or pd.isna(final_tp):
-            logger.error("%s: NaN SL=%.6f or TP=%.6f, aborting entry", asset.name, intent_sl, final_tp)
-            return False
         return True
 
     def _submit_to_broker(self, asset, side, entry_price, intent_sl, final_tp, state, order_type=OrderType.ENTRY):
@@ -956,7 +953,12 @@ class EntryService:
                     entry.cancel(reason=reason)
                     to_remove.append(direction)
                     continue
-                logger.info(f"{asset.name}: TRIGGERING deferred {direction} entry (Policy: {policy_dec.reason})")
+                logger.info(
+                    "%s: TRIGGERING deferred %s entry (Policy: %s)",
+                    asset.name,
+                    direction,
+                    policy_dec.reason,
+                )
                 entry.trigger(float(df["close"].iloc[-1]))
                 self.open_position(side, entry.decision.close_price, today, df, tp_geo=policy_dec.exit_plan)
                 if asset.position is not None:
@@ -966,7 +968,12 @@ class EntryService:
                 to_remove.append(direction)
 
             elif policy_dec.action == EntryAction.SKIP:
-                logger.info(f"{asset.name}: CANCELLING deferred {direction} entry (Policy: {policy_dec.reason})")
+                logger.info(
+                    "%s: CANCELLING deferred %s entry (Policy: %s)",
+                    asset.name,
+                    direction,
+                    policy_dec.reason,
+                )
                 entry.cancel(reason=policy_dec.reason)
                 to_remove.append(direction)
 

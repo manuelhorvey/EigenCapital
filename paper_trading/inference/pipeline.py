@@ -29,6 +29,58 @@ from shared.calibration.registry import CalibrationRegistry
 
 logger = logging.getLogger("eigencapital.inference_pipeline")
 
+# ── Eagerly hoist shadow/diagnostics imports (issue #3 pattern) ──────
+# ``_run_shadow_feedback`` previously imported these inside the function
+# body after inference state had already been written.  Hoist to module
+# level so import errors surface at process start rather than mid-cycle.
+try:
+    from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
+except ImportError as _exc:
+    _get_drift = None  # type: ignore[assignment]
+    logger.warning("shadow_intelligence import unavailable — %s", _exc)
+
+try:
+    from paper_trading.governance.risk import evaluate as _risk_evaluate
+except ImportError as _exc:
+    _risk_evaluate = None  # type: ignore[assignment]
+    logger.warning("risk.evaluate import unavailable — %s", _exc)
+
+try:
+    from paper_trading.ops import diagnostics as _diag
+except ImportError as _exc:
+    _diag = None  # type: ignore[assignment]
+    logger.warning("ops.diagnostics import unavailable — %s", _exc)
+
+try:
+    from paper_trading.ops.tracer import trace_diagnostic_report as _trace_diag
+except ImportError as _exc:
+    _trace_diag = None  # type: ignore[assignment]
+    logger.warning("tracer.trace_diagnostic_report import unavailable — %s", _exc)
+
+try:
+    from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
+except ImportError as _exc:
+    _compute_shadow = None  # type: ignore[assignment]
+    logger.warning("shadow.actions import unavailable — %s", _exc)
+
+try:
+    from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
+except ImportError as _exc:
+    _record_feedback = None  # type: ignore[assignment]
+    logger.warning("shadow.feedback import unavailable — %s", _exc)
+
+try:
+    from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
+except ImportError as _exc:
+    _compile_learning = None  # type: ignore[assignment]
+    logger.warning("shadow.learning import unavailable — %s", _exc)
+
+try:
+    from paper_trading.shadow.memory import store_event as _shadow_store
+except ImportError as _exc:
+    _shadow_store = None  # type: ignore[assignment]
+    logger.warning("shadow.memory import unavailable — %s", _exc)
+
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ET = pytz.timezone("US/Eastern")
 
@@ -141,9 +193,6 @@ class AssetInferencePipeline:
         contaminates feature vectors.  Suppress trading decisions for
         60 minutes after detection.
         """
-        import logging
-
-        logger = logging.getLogger("eigencapital.pipeline")
         threshold = 100
         suppress_secs = 3600
 
@@ -624,18 +673,26 @@ class AssetInferencePipeline:
             self._run_shadow_feedback(asset, decision, proba, x, df, threshold, _shadow_stype, _shadow_conf_pct)
 
     def _run_shadow_feedback(self, asset, decision, proba, x, df, threshold, shadow_stype, shadow_conf_pct) -> None:
-        try:
-            from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
-            from paper_trading.governance.risk import evaluate as _risk_evaluate
-            from paper_trading.ops import diagnostics as diag
-            from paper_trading.ops.tracer import trace_diagnostic_report
-            from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
-            from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
-            from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
-            from paper_trading.shadow.memory import store_event as _shadow_store
+        # Guard: all shadow imports must be available
+        if any(
+            dep is None
+            for dep in (
+                _get_drift,
+                _risk_evaluate,
+                _diag,
+                _trace_diag,
+                _compute_shadow,
+                _record_feedback,
+                _compile_learning,
+                _shadow_store,
+            )
+        ):
+            logger.debug("%s: shadow feedback skipped — one or more modules unavailable at process start", asset.name)
+            return
 
+        try:
             _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
-            _sig_div = diag.analyze_signal_divergence(
+            _sig_div = _diag.analyze_signal_divergence(
                 _proba_list,
                 threshold,
                 decision.signal,
@@ -643,10 +700,10 @@ class AssetInferencePipeline:
                 shadow_stype,
                 shadow_conf_pct,
             )
-            _mod_div = diag.analyze_model_distribution(asset.name, _proba_list)
-            _feat_drivers = diag.analyze_feature_impact(asset.model, x.iloc[[-1]], asset.features, proba[-1:])
-            _regime = diag.analyze_regime_context(df["close"])
-            _report = diag.build_shadow_report(
+            _mod_div = _diag.analyze_model_distribution(asset.name, _proba_list)
+            _feat_drivers = _diag.analyze_feature_impact(asset.model, x.iloc[[-1]], asset.features, proba[-1:])
+            _regime = _diag.analyze_regime_context(df["close"])
+            _report = _diag.build_shadow_report(
                 asset=asset.name,
                 timestamp=str(datetime.now(tz=ET).date()),
                 signal_match=_sig_div["match"],
@@ -655,8 +712,9 @@ class AssetInferencePipeline:
                 feature_drivers=_feat_drivers,
                 regime_context=_regime,
             )
-            trace_diagnostic_report(_report)
-            _shadow_store(asset.name, _report)
+            _trace_diag(_report)
+            if _shadow_store is not None:
+                _shadow_store(asset.name, _report)
             asset._risk_signal = _risk_evaluate(asset.name)
             asset._shadow_drift_intel = _get_drift(asset.name)
             asset._shadow_action = _compute_shadow(
@@ -665,13 +723,14 @@ class AssetInferencePipeline:
                 drift_report=asset._shadow_drift_intel,
                 risk_signal=asset._risk_signal,
             )
-            _record_feedback(
-                asset=asset.name,
-                signal_data={"signal": decision.signal, "confidence": decision.confidence},
-                drift=asset._shadow_drift_intel,
-                risk=asset._risk_signal,
-                action=asset._shadow_action,
-            )
+            if _record_feedback is not None:
+                _record_feedback(
+                    asset=asset.name,
+                    signal_data={"signal": decision.signal, "confidence": decision.confidence},
+                    drift=asset._shadow_drift_intel,
+                    risk=asset._risk_signal,
+                    action=asset._shadow_action,
+                )
             asset._shadow_learning = _compile_learning(
                 asset=asset.name,
                 feedback_logs=None,

@@ -165,10 +165,12 @@ defaults:
   adaptive_exit:
     enabled: true
     be_lock_r: 0.5
-    trail_activation_r: 0.8
-    trail_retrace_pct: 0.50
+    trail_activation_r: 0.5
+    trail_retrace_pct: 0.15
     max_hold_candles: 40
     time_decay_start: 20
+    scale_out_fraction: 0.7
+    scale_out_r: 2.5
   portfolio_max_leverage: 2.0
   portfolio_leverage_tolerance: 0.001
   mt5_leverage_budget_enabled: false

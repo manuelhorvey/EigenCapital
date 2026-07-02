@@ -346,6 +346,24 @@ class AssetPnlController:
             bars_since_entry=getattr(asset, "_bars_at_entry", 0),
             config=cfg,
         )
+
+        # Scale-out: close a fraction of the position at target R-multiple
+        if result.scale_out_fraction is not None and result.scale_out_price is not None:
+            last_bar = str(datetime.now(tz=ET).date())
+            asset.pos_mgr.partial_close(
+                result.scale_out_fraction,
+                result.scale_out_price,
+                last_bar,
+                f"r_scale_out_{cfg.get('scale_out_r', '?')}R",
+            )
+            logger.info(
+                "%s: adaptive exit scale-out — closed %.0f%% at %.4f (%.1fR)",
+                asset.name,
+                result.scale_out_fraction * 100,
+                result.scale_out_price,
+                cfg.get("scale_out_r", 0),
+            )
+
         if result.new_sl is not None and not pd.isna(result.new_sl):
             asset.pos_mgr.update_stop_loss(float(result.new_sl))
             _sync_broker_sltp(asset)

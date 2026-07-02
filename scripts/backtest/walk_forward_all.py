@@ -16,7 +16,7 @@ TICKERS = list(FEATURE_REGISTRY.keys())
 
 
 def _slug(ticker: str) -> str:
-    return ticker.replace('=', '').replace('-', '_').lower()
+    return ticker.replace("=", "").replace("-", "_").lower()
 
 
 def compute_features(df, ref, macro, ticker):
@@ -31,30 +31,31 @@ def compute_features(df, ref, macro, ticker):
 
 
 def load_macro():
-    path = os.path.join(BASE, 'data', 'processed', 'macro_factors.parquet')
+    path = os.path.join(BASE, "data", "processed", "macro_factors.parquet")
     m = pd.read_parquet(path)
     return compute_macro_derived(m)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
-logger = logging.getLogger('walkforward')
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("walkforward")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_threshold=0.45):
-    slug = _slug(ticker)
-    logger.info('  %s: downloading history...', ticker)
+    _slug(ticker)
+    logger.info("  %s: downloading history...", ticker)
     df = fetch_history(ticker)
     features_df, feats = compute_features(df, ref, macro, ticker)
-    logger.info('  %s: %d feature rows, features=%s', ticker, len(features_df), feats)
+    logger.info("  %s: %d feature rows, features=%s", ticker, len(features_df), feats)
 
     if len(features_df) < 500:
-        logger.warning('  %s: insufficient data (%d rows), skipping', ticker, len(features_df))
+        logger.warning("  %s: insufficient data (%d rows), skipping", ticker, len(features_df))
         return None
 
     # Strip tz from close to match features_df's tz-unaware index (build_features
     # returns tz-unaware in the inference path).  Use .copy() to avoid mutating df.
-    close_series = df['close'].copy()
+    close_series = df["close"].copy()
     if close_series.index.tz is not None:
         close_series.index = close_series.index.tz_localize(None)
     closes = close_series.reindex(features_df.index)
@@ -90,7 +91,7 @@ def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_thre
         train_close_ext = closes.iloc[:train_extended_end].to_frame("close")
         train_labels = apply_triple_barrier(train_close_ext, pt_sl=pt_sl, vertical_barrier=vb)
         if train_labels is not None and not train_labels.empty:
-            y_train = train_labels.reindex(train_close.index)['label'].dropna().astype(int)
+            y_train = train_labels.reindex(train_close.index)["label"].dropna().astype(int)
             # Triple-barrier labels are -1/0/1; XGBoost multi:softprob expects 0/1/2
             y_train = (y_train + 1).astype(int)
         else:
@@ -102,10 +103,10 @@ def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_thre
         # OOS labels: extend close by vb rows past OOS for complete lookahead.
         oos_close = closes.loc[oos_mask]
         oos_extended_end = min(len(closes), oos_mask.sum() + vb + train_mask.sum())
-        oos_close_ext = closes.iloc[train_mask.sum():oos_extended_end].to_frame("close")
+        oos_close_ext = closes.iloc[train_mask.sum() : oos_extended_end].to_frame("close")
         oos_labels = apply_triple_barrier(oos_close_ext, pt_sl=pt_sl, vertical_barrier=vb)
         if oos_labels is not None and not oos_labels.empty:
-            y_oos = oos_labels.reindex(oos_close.index)['label'].dropna().astype(int)
+            y_oos = oos_labels.reindex(oos_close.index)["label"].dropna().astype(int)
             # Triple-barrier labels are -1/0/1; XGBoost multi:softprob expects 0/1/2
             y_oos = (y_oos + 1).astype(int)
         else:
@@ -119,13 +120,19 @@ def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_thre
 
         # XGBoost multi:softprob requires all 3 label classes present in training
         if len(np.unique(y_train)) < 3:
-            logger.warning('  %s [%d]: not all 3 label classes in train, skipping', ticker, oos_year)
+            logger.warning("  %s [%d]: not all 3 label classes in train, skipping", ticker, oos_year)
             continue
 
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=2, learning_rate=0.02,
-            objective='multi:softprob', num_class=3,
-            random_state=42, n_jobs=1, tree_method='hist', verbosity=0,
+            n_estimators=300,
+            max_depth=2,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
         )
         model.fit(X_train, y_train, eval_set=[(X_oos, y_oos)], verbose=False)
 
@@ -157,48 +164,58 @@ def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_thre
         daily_vol = pnl.std() * np.sqrt(252)
         sharpe = pnl.mean() / pnl.std() * np.sqrt(252) if pnl.std() > 0 else 0
 
-        windows.append({
-            'ticker': ticker,
-            'window': oos_year,
-            'n_trades': n_trades,
-            'win_rate': round(win_rate, 4),
-            'expectancy': round(expectancy, 6),
-            'profit_factor': round(profit_factor, 2),
-            'sharpe': round(sharpe, 3),
-            'total_return': round(total_pnl, 6),
-            'daily_vol': round(daily_vol, 6),
-            'n_train': len(X_train),
-            'n_test': len(X_oos),
-        })
-        logger.info('  %s [%d]: trades=%d win=%.2f%% exp=%.6f pf=%.2f sharpe=%.3f',
-                     ticker, oos_year, n_trades, win_rate*100, expectancy, profit_factor, sharpe)
+        windows.append(
+            {
+                "ticker": ticker,
+                "window": oos_year,
+                "n_trades": n_trades,
+                "win_rate": round(win_rate, 4),
+                "expectancy": round(expectancy, 6),
+                "profit_factor": round(profit_factor, 2),
+                "sharpe": round(sharpe, 3),
+                "total_return": round(total_pnl, 6),
+                "daily_vol": round(daily_vol, 6),
+                "n_train": len(X_train),
+                "n_test": len(X_oos),
+            }
+        )
+        logger.info(
+            "  %s [%d]: trades=%d win=%.2f%% exp=%.6f pf=%.2f sharpe=%.3f",
+            ticker,
+            oos_year,
+            n_trades,
+            win_rate * 100,
+            expectancy,
+            profit_factor,
+            sharpe,
+        )
 
     if not windows:
         return None
 
     df_windows = pd.DataFrame(windows)
-    pf_values = df_windows['profit_factor'].replace(0, np.nan)
+    pf_values = df_windows["profit_factor"].replace(0, np.nan)
     summary = {
-        'ticker': ticker,
-        'n_windows': len(df_windows),
-        'avg_expectancy': df_windows['expectancy'].mean(),
-        'std_expectancy': df_windows['expectancy'].std(),
-        'avg_win_rate': df_windows['win_rate'].mean(),
-        'avg_profit_factor': pf_values.mean() if pf_values.notna().any() else 0.0,
-        'median_profit_factor': pf_values.median() if pf_values.notna().any() else 0.0,
-        'avg_sharpe': df_windows['sharpe'].mean(),
-        'avg_trades_per_window': df_windows['n_trades'].mean(),
-        'pct_positive_exp': (df_windows['expectancy'] > 0).mean(),
-        'pct_profitable': (df_windows['profit_factor'] > 1.0).mean(),
-        'total_return_all': df_windows['total_return'].sum(),
+        "ticker": ticker,
+        "n_windows": len(df_windows),
+        "avg_expectancy": df_windows["expectancy"].mean(),
+        "std_expectancy": df_windows["expectancy"].std(),
+        "avg_win_rate": df_windows["win_rate"].mean(),
+        "avg_profit_factor": pf_values.mean() if pf_values.notna().any() else 0.0,
+        "median_profit_factor": pf_values.median() if pf_values.notna().any() else 0.0,
+        "avg_sharpe": df_windows["sharpe"].mean(),
+        "avg_trades_per_window": df_windows["n_trades"].mean(),
+        "pct_positive_exp": (df_windows["expectancy"] > 0).mean(),
+        "pct_profitable": (df_windows["profit_factor"] > 1.0).mean(),
+        "total_return_all": df_windows["total_return"].sum(),
     }
     return df_windows, summary
 
 
 def main():
-    logger.info('Loading macro data...')
+    logger.info("Loading macro data...")
     macro = load_macro()
-    ref = fetch_history('SPY', years=10)
+    ref = fetch_history("SPY", years=10)
 
     all_summaries = []
     all_windows = []
@@ -207,64 +224,72 @@ def main():
         try:
             result = walk_forward_one(ticker, macro, ref)
             if result is None:
-                logger.warning('  ✗ %s: walk-forward failed', ticker)
+                logger.warning("  ✗ %s: walk-forward failed", ticker)
                 continue
             df_w, summary = result
             all_windows.append(df_w)
             all_summaries.append(summary)
-            logger.info('  ✓ %s: avg_exp=%.6f avg_pf=%.2f avg_sharpe=%.3f pos_windows=%.0f%%',
-                         ticker, summary['avg_expectancy'], summary['avg_profit_factor'],
-                         summary['avg_sharpe'], summary['pct_profitable']*100)
-        except Exception as e:
-            logger.error('  ✗ %s: error: %s', ticker, e)
-            import traceback; traceback.print_exc()
+            logger.info(
+                "  ✓ %s: avg_exp=%.6f avg_pf=%.2f avg_sharpe=%.3f pos_windows=%.0f%%",
+                ticker,
+                summary["avg_expectancy"],
+                summary["avg_profit_factor"],
+                summary["avg_sharpe"],
+                summary["pct_profitable"] * 100,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error("  ✗ %s: error: %s", ticker, e)
+            import traceback
+
+            traceback.print_exc()
 
     if not all_summaries:
-        print('No results.')
+        print("No results.")
         return
 
-    summary_df = pd.DataFrame(all_summaries).sort_values('avg_expectancy', ascending=False)
+    summary_df = pd.DataFrame(all_summaries).sort_values("avg_expectancy", ascending=False)
     windows_df = pd.concat(all_windows, ignore_index=True)
 
-    print('\n' + '=' * 100)
-    print('WALK-FORWARD SUMMARY (sorted by avg expectancy)')
-    print('=' * 100)
-    cols = ['ticker', 'n_windows', 'avg_expectancy', 'std_expectancy',
-            'avg_win_rate', 'avg_profit_factor', 'avg_sharpe',
-            'avg_trades_per_window', 'pct_positive_exp', 'pct_profitable']
-    print(f'{"Ticker":>10s}  {"Win":>4s}  {"AvgExp":>10s}  {"StdExp":>10s}  '
-          f'{"WinRate":>8s}  {"AvgPF":>7s}  {"Sharpe":>7s}  {"Trades":>6s}  '
-          f'{"Pos%":>5s}  {"Prof%":>5s}')
-    print('-' * 100)
+    print("\n" + "=" * 100)
+    print("WALK-FORWARD SUMMARY (sorted by avg expectancy)")
+    print("=" * 100)
+    print(
+        f"{'Ticker':>10s}  {'Win':>4s}  {'AvgExp':>10s}  {'StdExp':>10s}  "
+        f"{'WinRate':>8s}  {'AvgPF':>7s}  {'Sharpe':>7s}  {'Trades':>6s}  "
+        f"{'Pos%':>5s}  {'Prof%':>5s}"
+    )
+    print("-" * 100)
     for _, r in summary_df.iterrows():
-        print(f'{r["ticker"]:>10s}  {int(r["n_windows"]):>4d}  '
-              f'{r["avg_expectancy"]:>10.6f}  {r["std_expectancy"]:>10.6f}  '
-              f'{r["avg_win_rate"]:>8.4f}  {r["avg_profit_factor"]:>7.2f}  '
-              f'{r["avg_sharpe"]:>7.3f}  {int(r["avg_trades_per_window"]):>6d}  '
-              f'{r["pct_positive_exp"]:>5.0%}  {r["pct_profitable"]:>5.0%}')
+        print(
+            f"{r['ticker']:>10s}  {int(r['n_windows']):>4d}  "
+            f"{r['avg_expectancy']:>10.6f}  {r['std_expectancy']:>10.6f}  "
+            f"{r['avg_win_rate']:>8.4f}  {r['avg_profit_factor']:>7.2f}  "
+            f"{r['avg_sharpe']:>7.3f}  {int(r['avg_trades_per_window']):>6d}  "
+            f"{r['pct_positive_exp']:>5.0%}  {r['pct_profitable']:>5.0%}"
+        )
 
-    mean_exp = summary_df['avg_expectancy'].mean()
-    mean_wr = summary_df['avg_win_rate'].mean()
-    med_pf = summary_df['median_profit_factor'].median()
-    mean_sharpe = summary_df['avg_sharpe'].mean()
-    mean_prof = summary_df['pct_profitable'].mean()
-    print('\nPortfolio averages:')
-    print(f'  Avg expectancy:          {mean_exp:.6f}')
-    print(f'  Avg win rate:            {mean_wr:.4f}')
-    print(f'  Median profit factor:    {med_pf:.2f}')
-    print(f'  Avg sharpe:              {mean_sharpe:.3f}')
-    print(f'  Avg profitable windows:  {mean_prof:.2%}')
+    mean_exp = summary_df["avg_expectancy"].mean()
+    mean_wr = summary_df["avg_win_rate"].mean()
+    med_pf = summary_df["median_profit_factor"].median()
+    mean_sharpe = summary_df["avg_sharpe"].mean()
+    mean_prof = summary_df["pct_profitable"].mean()
+    print("\nPortfolio averages:")
+    print(f"  Avg expectancy:          {mean_exp:.6f}")
+    print(f"  Avg win rate:            {mean_wr:.4f}")
+    print(f"  Median profit factor:    {med_pf:.2f}")
+    print(f"  Avg sharpe:              {mean_sharpe:.3f}")
+    print(f"  Avg profitable windows:  {mean_prof:.2%}")
 
-    n_pass = (summary_df['avg_expectancy'] > 0).sum()
-    n_pf = (summary_df['median_profit_factor'] > 1.0).sum()
-    print(f'\n  Assets with positive avg expectancy: {n_pass}/{len(summary_df)}')
-    print(f'  Assets with median PF > 1.0:         {n_pf}/{len(summary_df)}')
+    n_pass = (summary_df["avg_expectancy"] > 0).sum()
+    n_pf = (summary_df["median_profit_factor"] > 1.0).sum()
+    print(f"\n  Assets with positive avg expectancy: {n_pass}/{len(summary_df)}")
+    print(f"  Assets with median PF > 1.0:         {n_pf}/{len(summary_df)}")
 
-    os.makedirs(os.path.join(BASE, 'data', 'processed'), exist_ok=True)
-    summary_df.to_csv(os.path.join(BASE, 'data', 'processed', 'walkforward_summary.csv'), index=False)
-    windows_df.to_csv(os.path.join(BASE, 'data', 'processed', 'walkforward_windows.csv'), index=False)
-    logger.info('Results saved to data/processed/walkforward_summary.csv')
+    os.makedirs(os.path.join(BASE, "data", "processed"), exist_ok=True)
+    summary_df.to_csv(os.path.join(BASE, "data", "processed", "walkforward_summary.csv"), index=False)
+    windows_df.to_csv(os.path.join(BASE, "data", "processed", "walkforward_windows.csv"), index=False)
+    logger.info("Results saved to data/processed/walkforward_summary.csv")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

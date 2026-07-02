@@ -6,6 +6,7 @@ Tests multiple trailing stop rules against all 16 assets.
 Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/trailing_stop_sim.py
 """
+
 import json
 import sys
 from pathlib import Path
@@ -29,7 +30,7 @@ def simulate_trailing(
     for t in trades:
         orig = t["r_multiple"]
         mfe_r = t.get("mfe_r", 0.0)
-        sl_r = abs(t.get("sl_price", 0) - t.get("entry_price", 0)) / max(
+        abs(t.get("sl_price", 0) - t.get("entry_price", 0)) / max(
             abs(t.get("sl_price", 0) - t.get("entry_price", 0)), 1e-10
         )
 
@@ -55,9 +56,9 @@ def simulate_trailing(
             sl_mult = abs(t["sl_price"] - t["entry_price"])
             atr_entry = t.get("atr_pct_entry", 0.01)
             entry_px = t["entry_price"]
-            sl_r = sl_mult / (atr_entry * entry_px) if atr_entry > 0 and entry_px > 0 else abs(sl_mult)
+            sl_mult / (atr_entry * entry_px) if atr_entry > 0 and entry_px > 0 else abs(sl_mult)
         else:
-            sl_r = 1.0
+            pass
 
         new_r += captured
         if captured > 0:
@@ -80,7 +81,7 @@ def main():
     results = {}
     for retrace in [0.33, 0.50, 0.67, 0.75]:
         print(f"\n{'=' * 70}")
-        print(f"TRAILING STOP: exit at {(1-retrace)*100:.0f}% of MFE (retrace {retrace*100:.0f}%)")
+        print(f"TRAILING STOP: exit at {(1 - retrace) * 100:.0f}% of MFE (retrace {retrace * 100:.0f}%)")
         print(f"{'=' * 70}")
         print(f"{'Asset':<10} {'Orig R':>8} {'New R':>8} {'ΔR':>8} {'Saved':>6} {'WR':>6} {'NWR':>6}")
         print("-" * 55)
@@ -106,7 +107,7 @@ def main():
             all_new += n
             all_saved += s
         print("-" * 55)
-        print(f"{'PORTFOLIO':<10} {all_orig:>+8.1f} {all_new:>+8.1f} {all_new-all_orig:>+8.1f} {all_saved:>5d}")
+        print(f"{'PORTFOLIO':<10} {all_orig:>+8.1f} {all_new:>+8.1f} {all_new - all_orig:>+8.1f} {all_saved:>5d}")
 
     # Per-asset recommendation table
     print(f"\n{'=' * 70}")
@@ -127,8 +128,7 @@ def main():
     print(f"\n{'=' * 70}")
     print("SENSITIVITY — retrace % sweep on losing assets")
     print(f"{'=' * 70}")
-    losers = [a for a in sorted(all_trades.keys())
-              if sum(t["r_multiple"] for t in all_trades[a]) < 0]
+    losers = [a for a in sorted(all_trades.keys()) if sum(t["r_multiple"] for t in all_trades[a]) < 0]
     print(f"{'Asset':<10} {'33%':>8} {'50%':>8} {'67%':>8} {'75%':>8}")
     print("-" * 45)
     for asset in losers:

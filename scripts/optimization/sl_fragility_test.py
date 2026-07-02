@@ -22,8 +22,8 @@ logger = logging.getLogger("eigencapital.sl_fragility")
 
 RAWDIR = Path("data/raw")
 MIN_PERIODS = 20
-SL_FRAGILITY_WARN = 1.5   # intraday_hit / daily_hit > 1.5x = fragile
-SL_FRAGILITY_CRIT = 4.0   # > 4x = critically fragile (avoid tight SL)
+SL_FRAGILITY_WARN = 1.5  # intraday_hit / daily_hit > 1.5x = fragile
+SL_FRAGILITY_CRIT = 4.0  # > 4x = critically fragile (avoid tight SL)
 
 
 def resolve_ohlcv_path(asset_name: str, suffix: str = "_1d.parquet") -> str | None:

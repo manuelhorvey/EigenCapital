@@ -10,6 +10,7 @@ Validates whether the trailing stop improvement is robust to:
 Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/mfe_stationarity.py
 """
+
 import json
 from pathlib import Path
 
@@ -68,6 +69,7 @@ def mfe_stationarity(all_trades: dict) -> dict:
 
     # KS test for distribution shift
     from scipy.stats import ks_2samp
+
     ks_stat, ks_p = ks_2samp(
         [t.get("mfe_r", 0) for t in early],
         [t.get("mfe_r", 0) for t in late],
@@ -165,7 +167,7 @@ def wf_retrace_stability(all_trades: dict) -> dict:
 # ─────────────────────────────────────────────────────────────
 def regime_transition_test(all_trades: dict) -> dict:
     """Compare trailing benefit on losers-with-MFE across assets.
-    
+
     Tests whether the reversal pattern (MFE >= 1.0R on losers) is
     distributed across time or concentrated in specific regimes."""
     flat = []
@@ -178,7 +180,7 @@ def regime_transition_test(all_trades: dict) -> dict:
     n = len(flat)
     quartiles = []
     for i in range(4):
-        q = flat[i * n // 4: (i + 1) * n // 4] if i < 3 else flat[3 * n // 4:]
+        q = flat[i * n // 4 : (i + 1) * n // 4] if i < 3 else flat[3 * n // 4 :]
         losers = [t for t in q if t["r_multiple"] <= 0]
         losers_with_mfe = [t for t in losers if t.get("mfe_r", 0) >= 1.0]
 
@@ -193,13 +195,15 @@ def regime_transition_test(all_trades: dict) -> dict:
 
         start_date = q[0]["entry_date"] if q else "?"
         end_date = q[-1]["entry_date"] if q else "?"
-        quartiles.append({
-            "period": f"Q{i+1} ({start_date[:7]} → {end_date[:7]})",
-            "n_trades": len(q),
-            "n_losers": len(losers),
-            "losers_with_mfe_gt1": len(losers_with_mfe),
-            "pct_losers_with_mfe": round(len(losers_with_mfe) / max(len(losers), 1) * 100, 1),
-        })
+        quartiles.append(
+            {
+                "period": f"Q{i + 1} ({start_date[:7]} → {end_date[:7]})",
+                "n_trades": len(q),
+                "n_losers": len(losers),
+                "losers_with_mfe_gt1": len(losers_with_mfe),
+                "pct_losers_with_mfe": round(len(losers_with_mfe) / max(len(losers), 1) * 100, 1),
+            }
+        )
 
     return {"quartiles": quartiles}
 
@@ -224,47 +228,58 @@ def main():
     # 1. MFE stationarity
     print("\n[1/3] MFE STATIONARITY (early vs late half)")
     s = mfe_stationarity(all_trades)
-    print(f"  Early half:  N={s['n_early']:>5d}  mean MFE={s['early_mfe_mean']:>6.2f}R  "
-          f"median={s['early_mfe_median']:>5.2f}R  p95={s['early_mfe_p95']:>5.2f}R  "
-          f"std={s['early_mfe_std']:>5.2f}")
-    print(f"  Late half:   N={s['n_late']:>5d}  mean MFE={s['late_mfe_mean']:>6.2f}R  "
-          f"median={s['late_mfe_median']:>5.2f}R  p95={s['late_mfe_p95']:>5.2f}R  "
-          f"std={s['late_mfe_std']:>5.2f}")
-    print(f"  KS test:     statistic={s['ks_statistic']:.4f}  p={s['ks_pvalue']:.4f}  "
-          f"{'PASS' if s['ks_passed'] else 'FAIL'} (H0: same distribution)")
+    print(
+        f"  Early half:  N={s['n_early']:>5d}  mean MFE={s['early_mfe_mean']:>6.2f}R  "
+        f"median={s['early_mfe_median']:>5.2f}R  p95={s['early_mfe_p95']:>5.2f}R  "
+        f"std={s['early_mfe_std']:>5.2f}"
+    )
+    print(
+        f"  Late half:   N={s['n_late']:>5d}  mean MFE={s['late_mfe_mean']:>6.2f}R  "
+        f"median={s['late_mfe_median']:>5.2f}R  p95={s['late_mfe_p95']:>5.2f}R  "
+        f"std={s['late_mfe_std']:>5.2f}"
+    )
+    print(
+        f"  KS test:     statistic={s['ks_statistic']:.4f}  p={s['ks_pvalue']:.4f}  "
+        f"{'PASS' if s['ks_passed'] else 'FAIL'} (H0: same distribution)"
+    )
     print("")
-    print(f"  Early:  fixed={s['early_fixed']:>+8.1f}R  trailing={s['early_trail']:>+8.1f}R  "
-          f"Δ={s['early_trail']-s['early_fixed']:+>+8.1f}")
-    print(f"  Late:   fixed={s['late_fixed']:>+8.1f}R  trailing={s['late_trail']:>+8.1f}R  "
-          f"Δ={s['late_trail']-s['late_fixed']:+>+8.1f}")
+    print(
+        f"  Early:  fixed={s['early_fixed']:>+8.1f}R  trailing={s['early_trail']:>+8.1f}R  "
+        f"Δ={s['early_trail'] - s['early_fixed']:+>+8.1f}"
+    )
+    print(
+        f"  Late:   fixed={s['late_fixed']:>+8.1f}R  trailing={s['late_trail']:>+8.1f}R  "
+        f"Δ={s['late_trail'] - s['late_fixed']:+>+8.1f}"
+    )
 
     # 2. Walk-forward retrace stability
     print("\n[2/3] WALK-FORWARD RETRACE STABILITY (optimize period A → test period B)")
     wf = wf_retrace_stability(all_trades)
-    print(f"  Period A: N={wf['period_a_n']}, "
-          f"fixed={wf['fixed_a']:+>+7.1f}R")
-    print(f"  Period B: N={wf['period_b_n']}, "
-          f"fixed={wf['fixed_b']:+>+7.1f}R")
+    print(f"  Period A: N={wf['period_a_n']}, fixed={wf['fixed_a']:+>+7.1f}R")
+    print(f"  Period B: N={wf['period_b_n']}, fixed={wf['fixed_b']:+>+7.1f}R")
     print("")
-    print(f"  Best retrace on A: {wf['best_retrace_a']*100:.0f}% → "
-          f"{wf['best_pf_a']:+>+7.1f}R (B result: {wf['best_a_on_b_pf']:+>+7.1f}R)")
-    print(f"  Best retrace on B: {wf['best_retrace_b']*100:.0f}% → "
-          f"{wf['best_pf_b']:+>+7.1f}R")
+    print(
+        f"  Best retrace on A: {wf['best_retrace_a'] * 100:.0f}% → "
+        f"{wf['best_pf_a']:+>+7.1f}R (B result: {wf['best_a_on_b_pf']:+>+7.1f}R)"
+    )
+    print(f"  Best retrace on B: {wf['best_retrace_b'] * 100:.0f}% → {wf['best_pf_b']:+>+7.1f}R")
     print("")
     print("  Retrace sweep:")
     print(f"  {'Retrace':<10} {'PF_A':>10} {'PF_B':>10}")
-    print(f"  {'-'*30}")
+    print(f"  {'-' * 30}")
     for r in wf["sweep"]:
-        print(f"  {r['retrace']*100:.0f}%{'':7s} {r['pf_a']:>+10.1f} {r['pf_b']:>+10.1f}")
+        print(f"  {r['retrace'] * 100:.0f}%{'':7s} {r['pf_a']:>+10.1f} {r['pf_b']:>+10.1f}")
 
     # 3. Regime transition
     print("\n[3/3] REGIME TRANSITION — reversal pattern by quartile")
     rt = regime_transition_test(all_trades)
     print(f"  {'Period':<30} {'N':>5} {'Losers':>7} {'MFE>1R':>8} {'%':>5}")
-    print(f"  {'-'*55}")
+    print(f"  {'-' * 55}")
     for q in rt["quartiles"]:
-        print(f"  {q['period']:<30} {q['n_trades']:>5d} {q['n_losers']:>7d} "
-              f"{q['losers_with_mfe_gt1']:>7d} {q['pct_losers_with_mfe']:>4.1f}%")
+        print(
+            f"  {q['period']:<30} {q['n_trades']:>5d} {q['n_losers']:>7d} "
+            f"{q['losers_with_mfe_gt1']:>7d} {q['pct_losers_with_mfe']:>4.1f}%"
+        )
 
     print("\n" + "=" * 72)
     print("DONE")

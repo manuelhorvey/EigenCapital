@@ -41,7 +41,7 @@ def _perturb_volatility(X: pd.DataFrame, method: str = "shock") -> pd.DataFrame:
     else:
         vol = np.abs(np.random.randn(n)) * 0.5 + 0.5
         for i in range(n):
-            X_p.iloc[i] *= (1.0 + (vol[i] - 0.5))
+            X_p.iloc[i] *= 1.0 + (vol[i] - 0.5)
     return X_p
 
 
@@ -132,15 +132,18 @@ def _compute_regime_score(
     predict_fn: Callable | None = None,
 ) -> float:
     if predict_fn is None:
-        predict_fn = lambda m, x: m.predict_proba(x)
+
+        def predict_fn(m, x):
+            return m.predict_proba(x)
+
     try:
         pert_proba = predict_fn(model, X_pert)
         n = len(pert_proba)
-        base_sig = (baseline_proba[:, 2] > threshold).astype(int) * 2 + \
-                   (baseline_proba[:, 0] > threshold).astype(int) * 0
+        base_sig = (baseline_proba[:, 2] > threshold).astype(int) * 2 + (baseline_proba[:, 0] > threshold).astype(
+            int
+        ) * 0
         base_sig = np.clip(base_sig, 0, 2)
-        pert_sig = (pert_proba[:, 2] > threshold).astype(int) * 2 + \
-                   (pert_proba[:, 0] > threshold).astype(int) * 0
+        pert_sig = (pert_proba[:, 2] > threshold).astype(int) * 2 + (pert_proba[:, 0] > threshold).astype(int) * 0
         pert_sig = np.clip(pert_sig, 0, 2)
         signal_agreement = float((base_sig == pert_sig).mean())
         base_ent = _entropy(baseline_proba)
@@ -157,7 +160,7 @@ def _compute_regime_score(
         conf_score = _clip01(1.0 - conf_drift * 10)
         dist_score = _clip01(1.0 - dist_shift * 2)
         return _clip01(0.4 * agreement_score + 0.2 * ent_score + 0.2 * conf_score + 0.2 * dist_score)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("regime_score failed: %s", e)
         return 0.0
 
@@ -171,15 +174,15 @@ def evaluate_adversarial_manifold(
     predict_fn: Callable | None = None,
 ) -> dict:
     if predict_fn is None:
-        predict_fn = lambda m, x: m.predict_proba(x)
+
+        def predict_fn(m, x):
+            return m.predict_proba(x)
+
     np.random.seed(42)
     baseline_proba = predict_fn(model, X)
     regime_scores = {}
     for name, pert_fn in PERTURBATIONS.items():
-        if pert_fn is None:
-            X_pert = X
-        else:
-            X_pert = pert_fn(X)
+        X_pert = X if pert_fn is None else pert_fn(X)
         score = float(_compute_regime_score(model, X, X_pert, close, baseline_proba, threshold, predict_fn))
         regime_scores[name] = round(score, 4)
     score_vals = list(regime_scores.values())

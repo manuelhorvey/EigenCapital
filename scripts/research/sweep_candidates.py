@@ -52,7 +52,9 @@ def run_3yr(asset_name, ticker, slm, tpm, depth, contract):
 
     atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
     atr_pct = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-    regime = atr_pct.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    regime = (
+        atr_pct.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    )  # noqa: E501
 
     all_trades = []
     for ty in range(2023, 2026):
@@ -63,7 +65,8 @@ def run_3yr(asset_name, ticker, slm, tpm, depth, contract):
         if test_mask.sum() < 20:
             continue
 
-        X_tr = X[train_mask]; y_tr, y_te = compute_per_fold_labels(close, train_mask, test_mask, contract)
+        X_tr = X[train_mask]
+        y_tr, y_te = compute_per_fold_labels(close, train_mask, test_mask, contract)
         X_te = X[test_mask]
 
         if len(X_tr) < 200:
@@ -74,14 +77,18 @@ def run_3yr(asset_name, ticker, slm, tpm, depth, contract):
 
         mc = y_tr.value_counts().min()
         strat = y_tr if mc >= 2 else None
-        X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-            X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat
-        )
+        X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
 
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=depth, learning_rate=0.02,
-            objective="multi:softprob", num_class=3, random_state=42,
-            n_jobs=1, tree_method="hist", verbosity=0,
+            n_estimators=300,
+            max_depth=depth,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
         )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
@@ -110,9 +117,9 @@ def main():
         if contract is None:
             continue
 
-        print(f"\n{'='*60}", flush=True)
+        print(f"\n{'=' * 60}", flush=True)
         print(f"{target_name} ({ticker}) — features={contract.features}", flush=True)
-        print(f"{'='*60}", flush=True)
+        print(f"{'=' * 60}", flush=True)
 
         best = {"pf": 0, "tp": 2.0, "depth": 2, "sl": SL_DEFAULT, "avg_r": 0, "n": 0}
 
@@ -130,28 +137,39 @@ def main():
             if pf > best["pf"]:
                 best = {"pf": pf, "tp": tpm, "depth": depth, "sl": SL_DEFAULT, "avg_r": ar, "n": n}
 
-            print(f"  TP={tpm:3.1f} depth={depth} (SL={SL_DEFAULT:.1f}): PF={pf:.3f} avgR={ar:+.4f} n={n}{marker}", flush=True)
+            print(
+                f"  TP={tpm:3.1f} depth={depth} (SL={SL_DEFAULT:.1f}): PF={pf:.3f} avgR={ar:+.4f} n={n}{marker}",
+                flush=True,
+            )  # noqa: E501
 
-        results.append({
-            "asset": target_name,
-            "ticker": ticker,
-            "best_pf": round(best["pf"], 3),
-            "best_avg_r": round(best["avg_r"], 4),
-            "best_tp": best["tp"],
-            "best_depth": best["depth"],
-            "best_sl": best["sl"],
-            "n_trades": best["n"],
-        })
+        results.append(
+            {
+                "asset": target_name,
+                "ticker": ticker,
+                "best_pf": round(best["pf"], 3),
+                "best_avg_r": round(best["avg_r"], 4),
+                "best_tp": best["tp"],
+                "best_depth": best["depth"],
+                "best_sl": best["sl"],
+                "n_trades": best["n"],
+            }
+        )
 
-        print(f"\n  >> BEST: {target_name}: TP={best['tp']} depth={best['depth']} SL={best['sl']:.1f} -> PF={best['pf']:.3f} avgR={best['avg_r']:+.4f} n={best['n']}", flush=True)
+        print(
+            f"\n  >> BEST: {target_name}: TP={best['tp']} depth={best['depth']} SL={best['sl']:.1f} -> PF={best['pf']:.3f} avgR={best['avg_r']:+.4f} n={best['n']}",  # noqa: E501
+            flush=True,
+        )  # noqa: E501
 
-    print(f"\n{'='*60}", flush=True)
+    print(f"\n{'=' * 60}", flush=True)
     print("SUMMARY", flush=True)
-    print(f"{'='*60}", flush=True)
+    print(f"{'=' * 60}", flush=True)
     print(f"{'Asset':10s} {'PF':>8s} {'avgR':>8s} {'TP':>5s} {'Depth':>6s} {'SL':>5s} {'Trades':>7s}", flush=True)
     print("-" * 55, flush=True)
     for r in sorted(results, key=lambda x: -x["best_pf"]):
-        print(f"{r['asset']:10s} {r['best_pf']:>8.3f} {r['best_avg_r']:>+8.4f} {r['best_tp']:>5.1f} {r['best_depth']:>6d} {r['best_sl']:>5.1f} {r['n_trades']:>7d}", flush=True)
+        print(
+            f"{r['asset']:10s} {r['best_pf']:>8.3f} {r['best_avg_r']:>+8.4f} {r['best_tp']:>5.1f} {r['best_depth']:>6d} {r['best_sl']:>5.1f} {r['n_trades']:>7d}",  # noqa: E501
+            flush=True,
+        )  # noqa: E501
 
     out_path = os.path.join(BASE_DIR, "candidate_sweep_results.json")
     with open(out_path, "w") as f:

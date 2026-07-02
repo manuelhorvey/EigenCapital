@@ -143,7 +143,10 @@ def run_walk_forward(
 
     logger.info(
         "=== %s walk-forward (%dy windows, %dy step, pt_sl=%s) ===",
-        asset_name, window_years, step_years, pt_sl,
+        asset_name,
+        window_years,
+        step_years,
+        pt_sl,
     )
 
     prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset_name, ticker)
@@ -157,8 +160,14 @@ def run_walk_forward(
     gap = max(gap, 20)
     cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
-        prices, rate_diffs, dxy=dxy, vix=vix, spx=spx,
-        commodities=commodities, cot_data=cot_data, ohlcv=ohlcv,
+        prices,
+        rate_diffs,
+        dxy=dxy,
+        vix=vix,
+        spx=spx,
+        commodities=commodities,
+        cot_data=cot_data,
+        ohlcv=ohlcv,
     )
 
     alpha_df["label"] = labels.reindex(alpha_df.index).fillna(0).astype(int)
@@ -202,7 +211,9 @@ def run_walk_forward(
         logger.info("%s: labels inverted (training on DOWN=1, UP=0)", asset_name)
 
     cv = PurgedWalkForwardFolds(
-        n_folds=n_folds, gap=gap, min_train=100,
+        n_folds=n_folds,
+        gap=gap,
+        min_train=100,
         window_type=window_type,
         rolling_window_bars=rolling_window_bars or (window_years * 252),
     )
@@ -252,8 +263,8 @@ def run_walk_forward(
         # penalize BUY misclassifications more heavily in the loss function.
         fit_kwargs = {}
         if sample_weight_flag:
-            y_tr_vals = y_tr.values if hasattr(y_tr, 'values') else np.asarray(y_tr)
-            fit_kwargs['sample_weight'] = np.where(y_tr_vals == 1, 2.0, 1.0)
+            y_tr_vals = y_tr.values if hasattr(y_tr, "values") else np.asarray(y_tr)
+            fit_kwargs["sample_weight"] = np.where(y_tr_vals == 1, 2.0, 1.0)
 
         model.fit(X_tr[alpha_cols], y_tr, **fit_kwargs)
 
@@ -285,7 +296,9 @@ def run_walk_forward(
             p_long = cal.calibrate(p_long)
             logger.info(
                 "  fold %d: calibration applied (buy_fitted=%s sell_fitted=%s)",
-                fold, cal._buy_fitted, cal._sell_fitted,
+                fold,
+                cal._buy_fitted,
+                cal._sell_fitted,
             )
 
         # Signal from binary P(LONG)
@@ -335,9 +348,16 @@ def run_walk_forward(
         logger.info(
             "  fold %d: train=%s..%s (%d) | test=%s..%s (%d) | hit=%.3f dir=%.3f long=%.2f short=%.2f",
             fold,
-            window["train_start"], window["train_end"], len(X_tr),
-            window["test_start"], window["test_end"], len(X_te),
-            hit_rate, directional, long_rate, short_rate,
+            window["train_start"],
+            window["train_end"],
+            len(X_tr),
+            window["test_start"],
+            window["test_end"],
+            len(X_te),
+            hit_rate,
+            directional,
+            long_rate,
+            short_rate,
         )
 
     if not windows:
@@ -352,15 +372,17 @@ def run_walk_forward(
     # Save per-fold IC data
     fold_data = []
     for w in windows:
-        fold_data.append({
-            "fold": w["fold"],
-            "train_start": w["train_start"],
-            "train_end": w["train_end"],
-            "test_start": w["test_start"],
-            "test_end": w["test_end"],
-            "ic": w["directional"],
-            "hit_rate": w["hit_rate"],
-        })
+        fold_data.append(
+            {
+                "fold": w["fold"],
+                "train_start": w["train_start"],
+                "train_end": w["train_end"],
+                "test_start": w["test_start"],
+                "test_end": w["test_end"],
+                "ic": w["directional"],
+                "hit_rate": w["hit_rate"],
+            }
+        )
     ic_record = {
         "ticker": asset_name,
         "folds": fold_data,
@@ -369,6 +391,7 @@ def run_walk_forward(
         "total_folds": len(windows),
     }
     import json
+
     fold_ic_path = os.path.join(OUTPUT_DIR, _tag_path(f"{asset_name}_fold_ic.json", tag))
     with open(fold_ic_path, "w") as f:
         json.dump(ic_record, f, indent=2)
@@ -391,53 +414,74 @@ def main():
     parser.add_argument("--years", type=int, default=3, help="Training window in years")
     parser.add_argument("--step", type=int, default=1, help="Step size in years")
     parser.add_argument(
-        "--ensemble-weight", type=float, default=1.0,
+        "--ensemble-weight",
+        type=float,
+        default=1.0,
         help="Base model weight in ensemble (1.0 = base only)",
     )
     parser.add_argument("--ensemble-threshold", type=float, default=0.15, help="Ensemble signal threshold")
     parser.add_argument(
-        "--pt-sl", type=str, default=None,
+        "--pt-sl",
+        type=str,
+        default=None,
         help="Override pt_sl as tp,sl (e.g. --pt-sl 1.0,2.0). Default: from production config.",
     )
     parser.add_argument("--tag", type=str, default="", help="Suffix for output filenames")
     parser.add_argument(
-        "--window-type", type=str, default="expanding",
+        "--window-type",
+        type=str,
+        default="expanding",
         choices=["expanding", "rolling"],
         help="Training window: expanding (all history) or rolling (fixed lookback)",
     )
     parser.add_argument(
-        "--rolling-window-bars", type=int, default=None,
+        "--rolling-window-bars",
+        type=int,
+        default=None,
         help="Fixed lookback in bars for rolling window (default: years * 252)",
     )
     parser.add_argument(
-        "--label-type", type=str, default="standard",
+        "--label-type",
+        type=str,
+        default="standard",
         choices=["standard", "trend_adjusted"],
         help="Label type: standard (triple-barrier) or trend_adjusted (per-timestep pt_sl)",
     )
     parser.add_argument(
-        "--invert-labels", action="store_true", default=False,
+        "--invert-labels",
+        action="store_true",
+        default=False,
         help="Flip labels (y -> 1-y) so model learns P(DOWN) instead of P(UP).",
     )
     parser.add_argument(
-        "--weighted", action="store_true", default=False,
+        "--weighted",
+        action="store_true",
+        default=False,
         help="Apply direction-weighted training: BUY samples get 2x sample weight in loss.",
     )
     parser.add_argument(
-        "--calibrate", action="store_true", default=False,
+        "--calibrate",
+        action="store_true",
+        default=False,
         help="Apply DirectionalCalibrator after each fold.",
     )
     parser.add_argument(
-        "--n-folds", type=int, default=3,
+        "--n-folds",
+        type=int,
+        default=3,
         help="Number of walk-forward folds (default 3; reduce for assets with sparse labels)",
     )
     parser.add_argument(
-        "--max-depth", type=int, default=None,
+        "--max-depth",
+        type=int,
+        default=None,
         help="Override max_depth for all assets (default: from production config)",
     )
     args = parser.parse_args()
 
     # Load per-asset pt_sl from production config
     from paper_trading.config_manager import get_config
+
     _cfg = get_config()
     _asset_pt_sl: dict[str, tuple[float, float]] = {}
     for _name, _acfg in _cfg.assets.items():
@@ -473,6 +517,7 @@ def main():
 
     # Save ticker map for report generation
     import json as _json
+
     ticker_map_path = os.path.join(OUTPUT_DIR, _tag_path("ticker_map.json", args.tag))
     with open(ticker_map_path, "w") as _f:
         _json.dump(assets_to_run, _f, indent=2)
@@ -490,7 +535,8 @@ def main():
         _acfg = _cfg.assets.get(name, {})
         _md = args.max_depth if args.max_depth is not None else int(_acfg.get("max_depth", 2))
         result = run_walk_forward(
-            name, ticker,
+            name,
+            ticker,
             window_years=args.years,
             step_years=args.step,
             n_folds=args.n_folds,

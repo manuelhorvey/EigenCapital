@@ -23,14 +23,14 @@ logger = logging.getLogger("eigencapital.trade_analysis")
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SLTP_CFG = {
-    "GC":     {"sl": 1.00, "tp": 4.00},
+    "GC": {"sl": 1.00, "tp": 4.00},
     "USDCHF": {"sl": 0.85, "tp": 3.00},
     "USDCAD": {"sl": 1.59, "tp": 3.19},
-    "ES":     {"sl": 2.00, "tp": 5.50},
-    "NQ":     {"sl": 2.50, "tp": 5.00},
+    "ES": {"sl": 2.00, "tp": 5.50},
+    "NQ": {"sl": 2.50, "tp": 5.00},
     "GBPCAD": {"sl": 1.77, "tp": 3.54},
     "NZDCAD": {"sl": 2.24, "tp": 4.47},
-    "DJI":    {"sl": 0.50, "tp": 4.00},
+    "DJI": {"sl": 0.50, "tp": 4.00},
     "NZDUSD": {"sl": 2.00, "tp": 2.50},
     "GBPAUD": {"sl": 1.50, "tp": 2.00},
     "NZDCHF": {"sl": 1.00, "tp": 4.00},
@@ -48,28 +48,48 @@ SLTP_CFG = {
 DASHBOARD_TICKERS = {
     "GC=F": "GC",
     "USDCHF=X": "USDCHF",
-    "USDCAD=X": "USDCAD", "ES=F": "ES",
-    "NQ=F": "NQ", "GBPCAD=X": "GBPCAD",
-    "NZDCAD=X": "NZDCAD", "^DJI": "DJI",
+    "USDCAD=X": "USDCAD",
+    "ES=F": "ES",
+    "NQ=F": "NQ",
+    "GBPCAD=X": "GBPCAD",
+    "NZDCAD=X": "NZDCAD",
+    "^DJI": "DJI",
     "NZDUSD=X": "NZDUSD",
-    "GBPAUD=X": "GBPAUD", "NZDCHF=X": "NZDCHF",
-    "CADCHF=X": "CADCHF", "AUDUSD=X": "AUDUSD",
-    "EURCHF=X": "EURCHF", "EURCAD=X": "EURCAD",
-    "EURNZD=X": "EURNZD", "GBPCHF=X": "GBPCHF",
-    "GBPUSD=X": "GBPUSD", "EURAUD=X": "EURAUD",
-    "USDJPY=X": "USDJPY", "GBPJPY=X": "GBPJPY",
+    "GBPAUD=X": "GBPAUD",
+    "NZDCHF=X": "NZDCHF",
+    "CADCHF=X": "CADCHF",
+    "AUDUSD=X": "AUDUSD",
+    "EURCHF=X": "EURCHF",
+    "EURCAD=X": "EURCAD",
+    "EURNZD=X": "EURNZD",
+    "GBPCHF=X": "GBPCHF",
+    "GBPUSD=X": "GBPUSD",
+    "EURAUD=X": "EURAUD",
+    "USDJPY=X": "USDJPY",
+    "GBPJPY=X": "GBPJPY",
 }
 MODEL_DEPTH = {
-    "GC": 2, "USDCHF": 4,
-    "USDCAD": 5, "ES": 2,
-    "NQ": 2, "GBPCAD": 2, "NZDCAD": 2, "DJI": 4,
+    "GC": 2,
+    "USDCHF": 4,
+    "USDCAD": 5,
+    "ES": 2,
+    "NQ": 2,
+    "GBPCAD": 2,
+    "NZDCAD": 2,
+    "DJI": 4,
     "NZDUSD": 5,
-    "GBPAUD": 2, "NZDCHF": 2,
-    "CADCHF": 2, "AUDUSD": 2,
-    "EURCHF": 4, "EURCAD": 3,
-    "EURNZD": 3, "GBPCHF": 2,
-    "GBPUSD": 2, "EURAUD": 2,
-    "USDJPY": 2, "GBPJPY": 2,
+    "GBPAUD": 2,
+    "NZDCHF": 2,
+    "CADCHF": 2,
+    "AUDUSD": 2,
+    "EURCHF": 4,
+    "EURCAD": 3,
+    "EURNZD": 3,
+    "GBPCHF": 2,
+    "GBPUSD": 2,
+    "EURAUD": 2,
+    "USDJPY": 2,
+    "GBPJPY": 2,
 }
 
 DEF_SL, DEF_TP = 1.0, 2.0
@@ -79,8 +99,8 @@ CONFIRM = 2
 # Volatility regime geometry — mimics paper_trading.yaml regime_geometry
 # LOW/MID/HIGH vol mapped to GREEN/YELLOW/RED behavior
 REGIME_GEOM = {
-    "low":  {"sl": 0.80, "tp": 1.10},
-    "mid":  {"sl": 1.00, "tp": 1.00},
+    "low": {"sl": 0.80, "tp": 1.10},
+    "mid": {"sl": 1.00, "tp": 1.00},
     "high": {"sl": 1.00, "tp": 1.00},
 }  # min bars before allowing signal flip
 
@@ -90,6 +110,7 @@ def analyze_paper_trades() -> list[dict]:
     if not os.path.exists(db):
         return []
     import sqlite3
+
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     rows = conn.execute("SELECT * FROM trades").fetchall()
@@ -115,14 +136,20 @@ def paper_stats(trades: list[dict]) -> dict:
     s["avg_bars"] = float(df[bc].mean())
     ba = {}
     for a, g in df.groupby("asset"):
-        ba[a] = {"n": len(g), "win_rate": float((g[rtc] > 0).mean()), "avg_bars": float(g[bc].mean()),
-                 "tp_rate": float((g[rc] == "tp").mean()), "sl_rate": float((g[rc] == "sl").mean())}
+        ba[a] = {
+            "n": len(g),
+            "win_rate": float((g[rtc] > 0).mean()),
+            "avg_bars": float(g[bc].mean()),
+            "tp_rate": float((g[rc] == "tp").mean()),
+            "sl_rate": float((g[rc] == "sl").mean()),
+        }
     s["by_asset"] = ba
     return s
 
 
 def fetch_ohlcv(ticker: str, years: int = 10) -> pd.DataFrame:
     import yfinance as yf
+
     safe = ticker.replace("=", "_").replace("-", "_").replace("^", "")
     path = os.path.join(BASE, "data", "raw", f"{safe}_1d.parquet")
     if os.path.exists(path):
@@ -134,8 +161,9 @@ def fetch_ohlcv(ticker: str, years: int = 10) -> pd.DataFrame:
                 df.index = df.index.tz_convert("US/Eastern")
             return df
     end = pd.Timestamp.now()
-    df = yf.download(ticker, start=f"{end.year - years}-01-01", end=end.strftime("%Y-%m-%d"),
-                     auto_adjust=True, progress=False)
+    df = yf.download(
+        ticker, start=f"{end.year - years}-01-01", end=end.strftime("%Y-%m-%d"), auto_adjust=True, progress=False
+    )
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [c[0] for c in df.columns]
     df = df.rename(columns={"Close": "close", "High": "high", "Low": "low", "Open": "open", "Volume": "volume"})
@@ -166,9 +194,17 @@ def _signals(proba: np.ndarray, idx: pd.Index, thr: float | None = None) -> pd.D
     return pd.DataFrame({"signal": s, "pl": proba[:, 2], "ps": proba[:, 0]}, index=idx)
 
 
-def _simulate(sigs: pd.DataFrame, close: pd.Series, high: pd.Series, low: pd.Series,
-              name: str, slm: float, tpm: float, atr: pd.Series,
-              regime: pd.Series | None = None) -> list[dict]:
+def _simulate(
+    sigs: pd.DataFrame,
+    close: pd.Series,
+    high: pd.Series,
+    low: pd.Series,
+    name: str,
+    slm: float,
+    tpm: float,
+    atr: pd.Series,
+    regime: pd.Series | None = None,
+) -> list[dict]:
     trades = []
     in_pos = False
     pos = entry_px = sl = tp = 0.0
@@ -209,13 +245,23 @@ def _simulate(sigs: pd.DataFrame, close: pd.Series, high: pd.Series, low: pd.Ser
                 else:
                     mae_r = (hi_water - entry_px) / (entry_px * risk) if risk else 0.0
                     mfe_r = (entry_px - lo_water) / (entry_px * risk) if risk else 0.0
-                trades.append({"asset": name, "side": "long" if pos == 2 else "short",
-                               "entry_price": round(entry_px, 6), "entry_date": str(entry_dt.date()),
-                               "exit_price": round(ep, 6), "exit_date": dt, "exit_reason": reason,
-                               "bars_held": held, "return": round(ret, 6),
-                               "r_multiple": round(ret / risk, 4) if risk else 0.0,
-                               "mae_r": round(mae_r, 4), "mfe_r": round(mfe_r, 4),
-                               "entry_regime": rg})
+                trades.append(
+                    {
+                        "asset": name,
+                        "side": "long" if pos == 2 else "short",
+                        "entry_price": round(entry_px, 6),
+                        "entry_date": str(entry_dt.date()),
+                        "exit_price": round(ep, 6),
+                        "exit_date": dt,
+                        "exit_reason": reason,
+                        "bars_held": held,
+                        "return": round(ret, 6),
+                        "r_multiple": round(ret / risk, 4) if risk else 0.0,
+                        "mae_r": round(mae_r, 4),
+                        "mfe_r": round(mfe_r, 4),
+                        "entry_regime": active_regime,  # noqa: F821
+                    }
+                )
                 in_pos = False
                 continue
         if not in_pos and cs != 1:
@@ -226,9 +272,9 @@ def _simulate(sigs: pd.DataFrame, close: pd.Series, high: pd.Series, low: pd.Ser
             entry_i = i
             entry_dt = sigs.index[i]
             v = max(float(atr.iloc[i]) if i < len(atr) else 0.01, 0.001)
-            rg = regime.iloc[i] if regime is not None else "mid"
-            rg_sl = REGIME_GEOM.get(rg, {}).get("sl", 1.0)
-            rg_tp = REGIME_GEOM.get(rg, {}).get("tp", 1.0)
+            active_regime = regime.iloc[i] if regime is not None else "mid"
+            rg_sl = REGIME_GEOM.get(active_regime, {}).get("sl", 1.0)
+            rg_tp = REGIME_GEOM.get(active_regime, {}).get("tp", 1.0)
             sl = entry_px * (1 - v * slm * rg_sl) if pos == 2 else entry_px * (1 + v * slm * rg_sl)
             tp = entry_px * (1 + v * tpm * rg_tp) if pos == 2 else entry_px * (1 - v * tpm * rg_tp)
             hi_water = ch
@@ -239,6 +285,7 @@ def _simulate(sigs: pd.DataFrame, close: pd.Series, high: pd.Series, low: pd.Ser
 def backtest_asset(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None, years: int = 3) -> list[dict]:
     import xgboost as xgb
     from sklearn.model_selection import train_test_split
+
     contract = FEATURE_REGISTRY.get(ticker)
     if not contract:
         return []
@@ -250,7 +297,7 @@ def backtest_asset(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None, y
         return []
     try:
         fdf = build_features(df, macro, ref, contract, compute_labels=False)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("    features failed: %s", e)
         return []
     X = fdf[list(contract.features)]
@@ -278,27 +325,49 @@ def backtest_asset(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None, y
         if len(X_tr) < 200 or set(y_tr.unique()) != {0, 1, 2}:
             continue
         mc = y_tr.value_counts().min()
-        X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42,
-                                                     stratify=y_tr if mc >= 2 else None)
+        X_tr2, X_ev, y_tr2, y_ev = train_test_split(
+            X_tr, y_tr, test_size=0.2, random_state=42, stratify=y_tr if mc >= 2 else None
+        )
         if set(y_tr2.unique()) != {0, 1, 2}:
             continue
         depth = MODEL_DEPTH.get(name, 2)
-        model = xgb.XGBClassifier(n_estimators=300, max_depth=depth, learning_rate=0.02,
-                                   objective="multi:softprob", num_class=3, random_state=42,
-                                   n_jobs=1, tree_method="hist", verbosity=0)
+        model = xgb.XGBClassifier(
+            n_estimators=300,
+            max_depth=depth,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
+        )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
         sigs = _signals(proba, X_te.index)
         slm = SLTP_CFG.get(name, {}).get("sl", DEF_SL)
         tpm = SLTP_CFG.get(name, {}).get("tp", DEF_TP)
-        tr = _simulate(sigs, close.reindex(X_te.index), high.reindex(X_te.index),
-                       low.reindex(X_te.index), name, slm, tpm, atr, regime)
+        tr = _simulate(
+            sigs,
+            close.reindex(X_te.index),
+            high.reindex(X_te.index),
+            low.reindex(X_te.index),
+            name,
+            slm,
+            tpm,
+            atr,
+            regime,
+        )
         if tr:
-            logger.info("    %d: %d trades (TP=%d SL=%d flip=%d time=%d)", ty, len(tr),
-                        sum(1 for t in tr if t["exit_reason"] == "tp"),
-                        sum(1 for t in tr if t["exit_reason"] == "sl"),
-                        sum(1 for t in tr if t["exit_reason"] == "signal_flip"),
-                        sum(1 for t in tr if t["exit_reason"] == "time_stop"))
+            logger.info(
+                "    %d: %d trades (TP=%d SL=%d flip=%d time=%d)",
+                ty,
+                len(tr),
+                sum(1 for t in tr if t["exit_reason"] == "tp"),
+                sum(1 for t in tr if t["exit_reason"] == "sl"),
+                sum(1 for t in tr if t["exit_reason"] == "signal_flip"),
+                sum(1 for t in tr if t["exit_reason"] == "time_stop"),
+            )
         all_trades.extend(tr)
     return all_trades
 
@@ -321,14 +390,21 @@ def flip_quality(trades: list[dict]) -> dict:
             else:
                 drift_r = 0.0
                 drift_good = False
-            flip_data.append({
-                "asset": asset, "entry_date": t_cur["entry_date"],
-                "bars_held": t_cur["bars_held"], "r_multiple": t_cur["r_multiple"],
-                "mae_r": t_cur["mae_r"], "mfe_r": t_cur["mfe_r"],
-                "exit_price": t_cur["exit_price"], "side": t_cur["side"],
-                "entry_price": t_cur["entry_price"],
-                "next_r": drift_r, "next_positive": drift_good,
-            })
+            flip_data.append(
+                {
+                    "asset": asset,
+                    "entry_date": t_cur["entry_date"],
+                    "bars_held": t_cur["bars_held"],
+                    "r_multiple": t_cur["r_multiple"],
+                    "mae_r": t_cur["mae_r"],
+                    "mfe_r": t_cur["mfe_r"],
+                    "exit_price": t_cur["exit_price"],
+                    "side": t_cur["side"],
+                    "entry_price": t_cur["entry_price"],
+                    "next_r": drift_r,
+                    "next_positive": drift_good,
+                }
+            )
     if not flip_data:
         return {}
     fd = pd.DataFrame(flip_data)
@@ -336,24 +412,28 @@ def flip_quality(trades: list[dict]) -> dict:
     n_neg_next = (~fd["next_positive"]).sum()
     ff = {
         "total_flips_analyzed": len(fd),
-        "next_positive": int(n_pos_next), "next_negative": int(n_neg_next),
+        "next_positive": int(n_pos_next),
+        "next_negative": int(n_neg_next),
         "next_positive_rate": float(n_pos_next / len(fd)),
         "avg_r": float(fd["r_multiple"].mean()),
         "avg_next_r": float(fd["next_r"].mean()),
         "avg_r_pos_next": float(fd[fd["next_positive"]]["r_multiple"].mean()),
         "avg_r_neg_next": float(fd[~fd["next_positive"]]["r_multiple"].mean()),
-        "avg_mae_r": float(fd["mae_r"].mean()), "avg_mfe_r": float(fd["mfe_r"].mean()),
+        "avg_mae_r": float(fd["mae_r"].mean()),
+        "avg_mfe_r": float(fd["mfe_r"].mean()),
         "avg_bars": float(fd["bars_held"].mean()),
         "mae_mfe_ratio": float(fd["mfe_r"].mean() / max(fd["mae_r"].mean(), 0.001)),
     }
     ba = {}
     for asset, g in fd.groupby("asset"):
         if len(g) >= 3:
-            ba[asset] = {"total": int(len(g)),
-                         "next_positive_rate": float(g["next_positive"].mean()),
-                         "avg_r": float(g["r_multiple"].mean()),
-                         "avg_next_r": float(g["next_r"].mean()),
-                         "mae_mfe": float(g["mfe_r"].mean() / max(g["mae_r"].mean(), 0.001))}
+            ba[asset] = {
+                "total": int(len(g)),
+                "next_positive_rate": float(g["next_positive"].mean()),
+                "avg_r": float(g["r_multiple"].mean()),
+                "avg_next_r": float(g["next_r"].mean()),
+                "mae_mfe": float(g["mfe_r"].mean() / max(g["mae_r"].mean(), 0.001)),
+            }
     ff["by_asset"] = ba
     return ff
 
@@ -362,49 +442,74 @@ def aggregate(trades: list[dict]) -> dict:
     if not trades:
         return {"n_trades": 0}
     df = pd.DataFrame(trades)
-    o = {"n_trades": len(df), "n_assets": df["asset"].nunique(),
-         "date_range": {"start": df["entry_date"].min(), "end": df["exit_date"].max()}}
+    o = {
+        "n_trades": len(df),
+        "n_assets": df["asset"].nunique(),
+        "date_range": {"start": df["entry_date"].min(), "end": df["exit_date"].max()},
+    }
     ret = df["return"]
     o["overall"] = {
-        "win_rate": float((ret > 0).mean()), "loss_rate": float((ret < 0).mean()),
+        "win_rate": float((ret > 0).mean()),
+        "loss_rate": float((ret < 0).mean()),
         "tp_rate": float((df["exit_reason"] == "tp").mean()),
         "sl_rate": float((df["exit_reason"] == "sl").mean()),
         "flip_rate": float((df["exit_reason"] == "signal_flip").mean()),
         "time_stop_rate": float((df["exit_reason"] == "time_stop").mean()),
-        "avg_return": float(ret.mean()), "avg_r": float(df["r_multiple"].mean()),
+        "avg_return": float(ret.mean()),
+        "avg_r": float(df["r_multiple"].mean()),
         "median_r": float(df["r_multiple"].median()),
-        "profit_factor": float(ret[ret > 0].sum() / abs(ret[ret < 0].sum() + 1e-9))}
+        "profit_factor": float(ret[ret > 0].sum() / abs(ret[ret < 0].sum() + 1e-9)),
+    }
     dur = {}
     for r in ["tp", "sl", "signal_flip", "time_stop"]:
         m = df["exit_reason"] == r
         if m.any():
             sd = df[m]
-            dur[r] = {"count": int(m.sum()), "avg_bars": float(sd["bars_held"].mean()),
-                       "median_bars": float(sd["bars_held"].median()),
-                       "min_bars": int(sd["bars_held"].min()), "max_bars": int(sd["bars_held"].max()),
-                       "std_bars": float(sd["bars_held"].std()), "avg_return": float(sd["return"].mean()),
-                       "avg_r": float(sd["r_multiple"].mean())}
+            dur[r] = {
+                "count": int(m.sum()),
+                "avg_bars": float(sd["bars_held"].mean()),
+                "median_bars": float(sd["bars_held"].median()),
+                "min_bars": int(sd["bars_held"].min()),
+                "max_bars": int(sd["bars_held"].max()),
+                "std_bars": float(sd["bars_held"].std()),
+                "avg_return": float(sd["return"].mean()),
+                "avg_r": float(sd["r_multiple"].mean()),
+            }
     o["duration_by_reason"] = dur
     bins, labels = [0, 3, 7, 14, 30, 60, 999], ["1-3d", "4-7d", "8-14d", "15-30d", "31-60d", "60d+"]
     df["bucket"] = pd.cut(df["bars_held"], bins=bins, labels=labels, right=True)
     dist = {}
     for bk, g in df.groupby("bucket", observed=True):
-        dist[str(bk)] = {"count": len(g), "tp_rate": float((g["exit_reason"] == "tp").mean()),
-                          "sl_rate": float((g["exit_reason"] == "sl").mean()),
-                          "flip_rate": float((g["exit_reason"] == "signal_flip").mean()),
-                          "win_rate": float((g["return"] > 0).mean()), "avg_r": float(g["r_multiple"].mean())}
+        dist[str(bk)] = {
+            "count": len(g),
+            "tp_rate": float((g["exit_reason"] == "tp").mean()),
+            "sl_rate": float((g["exit_reason"] == "sl").mean()),
+            "flip_rate": float((g["exit_reason"] == "signal_flip").mean()),
+            "win_rate": float((g["return"] > 0).mean()),
+            "avg_r": float(g["r_multiple"].mean()),
+        }
     o["duration_distribution"] = dist
     ba = {}
     for a, g in df.groupby("asset"):
-        ba[a] = {"n_trades": len(g), "win_rate": float((g["return"] > 0).mean()),
-                  "avg_bars": float(g["bars_held"].mean()), "avg_r": float(g["r_multiple"].mean()),
-                  "tp_rate": float((g["exit_reason"] == "tp").mean()),
-                  "sl_rate": float((g["exit_reason"] == "sl").mean()),
-                  "flip_rate": float((g["exit_reason"] == "signal_flip").mean()),
-                  "avg_bars_tp": float(g[g["exit_reason"] == "tp"]["bars_held"].mean()) if (g["exit_reason"] == "tp").any() else 0,
-                  "avg_bars_sl": float(g[g["exit_reason"] == "sl"]["bars_held"].mean()) if (g["exit_reason"] == "sl").any() else 0,
-                  "avg_mae_r": float(g["mae_r"].mean()), "avg_mfe_r": float(g["mfe_r"].mean()),
-                  "med_mae_r": float(g["mae_r"].median()), "med_mfe_r": float(g["mfe_r"].median())}
+        ba[a] = {
+            "n_trades": len(g),
+            "win_rate": float((g["return"] > 0).mean()),
+            "avg_bars": float(g["bars_held"].mean()),
+            "avg_r": float(g["r_multiple"].mean()),
+            "tp_rate": float((g["exit_reason"] == "tp").mean()),
+            "sl_rate": float((g["exit_reason"] == "sl").mean()),
+            "flip_rate": float((g["exit_reason"] == "signal_flip").mean()),
+            "avg_bars_tp": float(g[g["exit_reason"] == "tp"]["bars_held"].mean())
+            if (g["exit_reason"] == "tp").any()
+            else 0,  # noqa: E501
+            "avg_bars_sl": float(g[g["exit_reason"] == "sl"]["bars_held"].mean())
+            if (g["exit_reason"] == "sl").any()
+            else 0,  # noqa: E501
+            "avg_mae_r": float(g["mae_r"].mean()),
+            "avg_mfe_r": float(g["mfe_r"].mean()),
+            "med_mae_r": float(g["mae_r"].median()),
+            "med_mfe_r": float(g["mfe_r"].median()),
+        }
     o["by_asset"] = ba
     # Top performers by profit factor and avg R
     valid_ba = {k: v for k, v in ba.items() if v["n_trades"] >= 10}
@@ -432,9 +537,11 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
         print(f"  Avg return:      {pt['avg_return']:+.4f}")
         print("\n  By Asset:")
         print(f"  {'Asset':14s} {'Trades':>7s} {'Win%':>7s} {'AvgBars':>8s} {'TP%':>6s} {'SL%':>6s}")
-        print(f"  {'-'*54}")
+        print(f"  {'-' * 54}")
         for a, ba in sorted(pt.get("by_asset", {}).items()):
-            print(f"  {a:14s} {ba['n']:>7d} {ba['win_rate']:>6.1%} {ba['avg_bars']:>7.1f} {ba['tp_rate']:>5.0%} {ba['sl_rate']:>5.0%}")
+            print(
+                f"  {a:14s} {ba['n']:>7d} {ba['win_rate']:>6.1%} {ba['avg_bars']:>7.1f} {ba['tp_rate']:>5.0%} {ba['sl_rate']:>5.0%}"  # noqa: E501
+            )  # noqa: E501
     if hist and hist.get("n_trades", 0) > 0:
         o = hist["overall"]
         print("\n  PHASE 2: HISTORICAL WALK-FORWARD BACKTEST")
@@ -450,60 +557,81 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
         dur = hist.get("duration_by_reason", {})
         print("\n  Trade Duration by Exit Reason:")
         print(f"  {'Reason':14s} {'Count':>6s} {'AvgBars':>8s} {'MedBars':>8s} {'Std':>7s} {'AvgR':>8s}")
-        print(f"  {'-'*50}")
+        print(f"  {'-' * 50}")
         for r in ["tp", "sl", "signal_flip", "time_stop"]:
             d = dur.get(r)
             if d and d["count"] > 0:
-                print(f"  {r:14s} {d['count']:>6d} {d['avg_bars']:>7.1f} {d['median_bars']:>7.1f} {d['std_bars']:>6.1f} {d['avg_r']:>+7.3f}")
+                print(
+                    f"  {r:14s} {d['count']:>6d} {d['avg_bars']:>7.1f} {d['median_bars']:>7.1f} {d['std_bars']:>6.1f} {d['avg_r']:>+7.3f}"  # noqa: E501
+                )  # noqa: E501
         dist = hist.get("duration_distribution", {})
         print("\n  Duration Distribution:")
         print(f"  {'Bucket':8s} {'Count':>6s} {'TP%':>6s} {'SL%':>6s} {'Flip%':>7s} {'Win%':>6s} {'AvgR':>7s}")
-        print(f"  {'-'*55}")
+        print(f"  {'-' * 55}")
         for b in ["1-3d", "4-7d", "8-14d", "15-30d", "31-60d", "60d+"]:
             d = dist.get(b)
             if d:
-                print(f"  {b:8s} {d['count']:>6d} {d['tp_rate']:>5.0%} {d['sl_rate']:>5.0%} {d['flip_rate']:>6.0%} {d['win_rate']:>5.0%} {d['avg_r']:>+6.3f}")
+                print(
+                    f"  {b:8s} {d['count']:>6d} {d['tp_rate']:>5.0%} {d['sl_rate']:>5.0%} {d['flip_rate']:>6.0%} {d['win_rate']:>5.0%} {d['avg_r']:>+6.3f}"  # noqa: E501
+                )  # noqa: E501
         oo = hist.get("overall", {})
         if "avg_mae_r" in oo:
-            print(f"\n  MAE / MFE (avg R):  {oo['avg_mae_r']:+.2f}R / {oo['avg_mfe_r']:+.2f}R  "
-                  f"(med: {oo['med_mae_r']:+.2f}R / {oo['med_mfe_r']:+.2f}R)")
+            print(
+                f"\n  MAE / MFE (avg R):  {oo['avg_mae_r']:+.2f}R / {oo['avg_mfe_r']:+.2f}R  "
+                f"(med: {oo['med_mae_r']:+.2f}R / {oo['med_mfe_r']:+.2f}R)"
+            )
             print(f"  Efficiency (MFE/MAE):  {oo['efficiency']:.2f}")
         if fq:
             print("\n  Flip Quality Analysis:")
             print(f"  Total flips: {fq['total_flips_analyzed']}")
-            print(f"  Next trade positive: {fq['next_positive']} ({fq['next_positive_rate']:.1%})   "
-                  f"Negative: {fq['next_negative']} ({1 - fq['next_positive_rate']:.1%})")
+            print(
+                f"  Next trade positive: {fq['next_positive']} ({fq['next_positive_rate']:.1%})   "
+                f"Negative: {fq['next_negative']} ({1 - fq['next_positive_rate']:.1%})"
+            )
             print(f"  Avg R on flip exit: {fq['avg_r']:+.3f}   Avg next R: {fq['avg_next_r']:+.3f}")
-            print(f"  Avg R (next pos): {fq['avg_r_pos_next']:+.3f}   "
-                  f"(next neg): {fq['avg_r_neg_next']:+.3f}")
-            print(f"  Avg MAE R: {fq['avg_mae_r']:+.2f}   Avg MFE R: {fq['avg_mfe_r']:+.2f}   "
-                  f"MFE/MAE: {fq['mae_mfe_ratio']:.2f}")
+            print(f"  Avg R (next pos): {fq['avg_r_pos_next']:+.3f}   (next neg): {fq['avg_r_neg_next']:+.3f}")
+            print(
+                f"  Avg MAE R: {fq['avg_mae_r']:+.2f}   Avg MFE R: {fq['avg_mfe_r']:+.2f}   "
+                f"MFE/MAE: {fq['mae_mfe_ratio']:.2f}"
+            )
             fba = fq.get("by_asset", {})
             if fba:
                 ranked = sorted(fba.items(), key=lambda kv: kv[1]["next_positive_rate"])
                 print("\n  Worst flip quality (>=3 flips):")
                 print(f"  {'Asset':12s} {'Total':>6s} {'PosNext%':>9s} {'AvgR':>7s} {'AvgNextR':>9s} {'MaeMfe':>7s}")
-                print(f"  {'-'*55}")
+                print(f"  {'-' * 55}")
                 for a, b in ranked[:8]:
-                    print(f"  {a:12s} {b['total']:>6d} {b['next_positive_rate']:>8.0%} {b['avg_r']:>+6.3f} {b['avg_next_r']:>+8.3f} {b['mae_mfe']:>6.2f}")
+                    print(
+                        f"  {a:12s} {b['total']:>6d} {b['next_positive_rate']:>8.0%} {b['avg_r']:>+6.3f} {b['avg_next_r']:>+8.3f} {b['mae_mfe']:>6.2f}"  # noqa: E501
+                    )  # noqa: E501
         ba = hist.get("by_asset", {})
         print("\n  By Asset:")
-        print(f"  {'Asset':12s} {'Trades':>7s} {'Win%':>7s} {'AvgBars':>8s} {'AvgR':>7s} {'TP%':>6s} {'SL%':>6s} {'BarsTP':>7s} {'BarsSL':>7s} {'MAE_R':>7s} {'MFE_R':>7s}")
-        print(f"  {'-'*95}")
+        print(
+            f"  {'Asset':12s} {'Trades':>7s} {'Win%':>7s} {'AvgBars':>8s} {'AvgR':>7s} {'TP%':>6s} {'SL%':>6s} {'BarsTP':>7s} {'BarsSL':>7s} {'MAE_R':>7s} {'MFE_R':>7s}"  # noqa: E501
+        )  # noqa: E501
+        print(f"  {'-' * 95}")
         for a in sorted(ba.keys()):
             b = ba[a]
-            print(f"  {a:12s} {b['n_trades']:>7d} {b['win_rate']:>6.1%} {b['avg_bars']:>7.1f} {b['avg_r']:>+6.3f} {b['tp_rate']:>5.0%} {b['sl_rate']:>5.0%} {b['avg_bars_tp']:>6.1f} {b['avg_bars_sl']:>6.1f} {b['avg_mae_r']:>+6.2f} {b['avg_mfe_r']:>+6.2f}")
+            print(
+                f"  {a:12s} {b['n_trades']:>7d} {b['win_rate']:>6.1%} {b['avg_bars']:>7.1f} {b['avg_r']:>+6.3f} {b['tp_rate']:>5.0%} {b['sl_rate']:>5.0%} {b['avg_bars_tp']:>6.1f} {b['avg_bars_sl']:>6.1f} {b['avg_mae_r']:>+6.2f} {b['avg_mfe_r']:>+6.2f}"  # noqa: E501
+            )  # noqa: E501
         # Top performers by efficiency (MFE/MAE ratio)
         valid = {k: v for k, v in ba.items() if v["n_trades"] >= 10}
         if valid:
-            ranked = sorted(valid.items(), key=lambda kv: kv[1]["avg_mfe_r"] / max(kv[1]["avg_mae_r"], 0.001), reverse=True)
+            ranked = sorted(
+                valid.items(), key=lambda kv: kv[1]["avg_mfe_r"] / max(kv[1]["avg_mae_r"], 0.001), reverse=True
+            )  # noqa: E501
             print("\n  ---")
             print("  Top performers by MFE/MAE efficiency (>=10 trades):")
-            print(f"  {'Asset':12s} {'Trades':>7s} {'Win%':>7s} {'AvgR':>8s} {'MFE/MAE':>8s} {'MAE_R':>7s} {'MFE_R':>7s}")
-            print(f"  {'-'*64}")
+            print(
+                f"  {'Asset':12s} {'Trades':>7s} {'Win%':>7s} {'AvgR':>8s} {'MFE/MAE':>8s} {'MAE_R':>7s} {'MFE_R':>7s}"
+            )  # noqa: E501
+            print(f"  {'-' * 64}")
             for a, b in ranked[:10]:
                 eff = b["avg_mfe_r"] / max(b["avg_mae_r"], 0.001)
-                print(f"  {a:12s} {b['n_trades']:>7d} {b['win_rate']:>6.1%} {b['avg_r']:>+7.3f} {eff:>7.2f} {b['avg_mae_r']:>+6.2f} {b['avg_mfe_r']:>+6.2f}")
+                print(
+                    f"  {a:12s} {b['n_trades']:>7d} {b['win_rate']:>6.1%} {b['avg_r']:>+7.3f} {eff:>7.2f} {b['avg_mae_r']:>+6.2f} {b['avg_mfe_r']:>+6.2f}"  # noqa: E501
+                )  # noqa: E501
     print()
 
 
@@ -532,7 +660,7 @@ def main(targets: list | None = None, years: int = 3):
             r = ref if FEATURE_REGISTRY[t].requires_ref else None
             tr = backtest_asset(t, macro, r, years)
             all_trades.extend(tr)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("  %s: %s", t, e)
             failed.append(t)
     print(f"\n    {len(all_trades)} trades across {len(assets) - len(failed)} assets")
@@ -550,6 +678,7 @@ def main(targets: list | None = None, years: int = 3):
 
 if __name__ == "__main__":
     import argparse
+
     p = argparse.ArgumentParser()
     p.add_argument("--assets", nargs="+", help="Specific tickers (default: dashboard assets)")
     p.add_argument("--years", type=int, default=3, help="Walk-forward years (default: 3)")

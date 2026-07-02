@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+import pickle
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -220,7 +221,8 @@ def run_one_asset(
 
     close = df["close"].reindex(X.index).ffill()
 
-    predict_fn = lambda m, x: XGBoostModel().predict(m, x)
+    def predict_fn(m, x):
+        return XGBoostModel().predict(m, x)
 
     logger.info("  Model comparison...")
     model_result = compare_models(production_model, sandbox_model, X, y, predict_fn=predict_fn)
@@ -393,7 +395,7 @@ def main(force: bool = False, target_assets: list | None = None):
         try:
             r = run_one_asset(ticker, macro, ref, force=force)
             results.append(r)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Fatal error for %s: %s", ticker, e)
             import traceback
 
@@ -438,8 +440,8 @@ def main(force: bool = False, target_assets: list | None = None):
         acc_old = a.get("accuracy_old") or 0
         acc_new = a.get("accuracy_new") or 0
         agree = a.get("signal_agreement") or 0
-        ret_old = a.get("return_old") or 0
-        ret_new = a.get("return_new") or 0
+        a.get("return_old") or 0
+        a.get("return_new") or 0
         mas = a.get("mas")
         mas_d = a.get("mas_decision", "")
         if mas is not None:
@@ -562,7 +564,10 @@ def run_historical(
         if len(X) < 200:
             logger.warning("  %s: insufficient data after augmentation", ticker)
             continue
-        predict_fn = lambda m, x: XGBoostModel().predict(m, x)
+
+        def predict_fn(m, x):
+            return XGBoostModel().predict(m, x)
+
         year_results = []
         for ty in test_years:
             cutoff = pd.Timestamp(f"{ty}-01-01", tz="US/Eastern")

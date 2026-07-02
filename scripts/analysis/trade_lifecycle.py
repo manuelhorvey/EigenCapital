@@ -27,27 +27,45 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("trade_lifecycle")
 
 # ── Portfolio config ─────────────────────────────────────────────────────────
 PORTFOLIO_ASSETS: dict[str, str] = {
-    "GC": "GC=F", "USDCHF": "USDCHF=X", "USDCAD": "USDCAD=X",
-    "GBPCAD": "GBPCAD=X", "NZDCAD": "NZDCAD=X", "NZDUSD": "NZDUSD=X",
-    "GBPAUD": "GBPAUD=X", "NZDCHF": "NZDCHF=X", "CADCHF": "CADCHF=X",
-    "AUDUSD": "AUDUSD=X", "EURCHF": "EURCHF=X", "EURCAD": "EURCAD=X",
-    "EURNZD": "EURNZD=X", "GBPCHF": "GBPCHF=X", "GBPUSD": "GBPUSD=X",
+    "GC": "GC=F",
+    "USDCHF": "USDCHF=X",
+    "USDCAD": "USDCAD=X",
+    "GBPCAD": "GBPCAD=X",
+    "NZDCAD": "NZDCAD=X",
+    "NZDUSD": "NZDUSD=X",
+    "GBPAUD": "GBPAUD=X",
+    "NZDCHF": "NZDCHF=X",
+    "CADCHF": "CADCHF=X",
+    "AUDUSD": "AUDUSD=X",
+    "EURCHF": "EURCHF=X",
+    "EURCAD": "EURCAD=X",
+    "EURNZD": "EURNZD=X",
+    "GBPCHF": "GBPCHF=X",
+    "GBPUSD": "GBPUSD=X",
     "EURAUD": "EURAUD=X",
 }
 
 TP_SL: dict[str, tuple[float, float]] = {
-    "GC": (4.0, 1.0), "USDCHF": (3.0, 0.85), "USDCAD": (3.9, 1.30),
-    "GBPCAD": (4.34, 1.45), "NZDCAD": (5.48, 1.83), "NZDUSD": (3.87, 1.29),
-    "GBPAUD": (3.0, 1.0), "NZDCHF": (4.0, 1.0), "CADCHF": (4.0, 1.0),
-    "AUDUSD": (4.24, 1.41), "EURCHF": (3.0, 1.0), "EURCAD": (2.12, 0.71),
-    "EURNZD": (3.36, 1.12), "GBPCHF": (2.45, 0.82), "GBPUSD": (2.22, 0.50),
+    "GC": (4.0, 1.0),
+    "USDCHF": (3.0, 0.85),
+    "USDCAD": (3.9, 1.30),
+    "GBPCAD": (4.34, 1.45),
+    "NZDCAD": (5.48, 1.83),
+    "NZDUSD": (3.87, 1.29),
+    "GBPAUD": (3.0, 1.0),
+    "NZDCHF": (4.0, 1.0),
+    "CADCHF": (4.0, 1.0),
+    "AUDUSD": (4.24, 1.41),
+    "EURCHF": (3.0, 1.0),
+    "EURCAD": (2.12, 0.71),
+    "EURNZD": (3.36, 1.12),
+    "GBPCHF": (2.45, 0.82),
+    "GBPUSD": (2.22, 0.50),
     "EURAUD": (3.28, 1.0),
 }
 
@@ -58,6 +76,7 @@ WALKDIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / "walk
 @dataclass
 class TradeRecord:
     """Reconstructed trade with full lifecycle data."""
+
     asset: str
     side: str  # "BUY" or "SELL"
     entry_date: pd.Timestamp
@@ -87,12 +106,12 @@ class TradeRecord:
     profitable_streak_max: int = 0
     largest_intra_reversal: float = 0.0
     # ── MAE / MFE ──
-    mae: float = 0.0       # max adverse excursion (negative in price units)
-    mfe: float = 0.0       # max favorable excursion (positive in price units)
-    mae_r: float = 0.0     # MAE in R-multiples
-    mfe_r: float = 0.0     # MFE in R-multiples
-    mae_atr: float = 0.0   # MAE / ATR at entry
-    mfe_atr: float = 0.0   # MFE / ATR at entry
+    mae: float = 0.0  # max adverse excursion (negative in price units)
+    mfe: float = 0.0  # max favorable excursion (positive in price units)
+    mae_r: float = 0.0  # MAE in R-multiples
+    mfe_r: float = 0.0  # MFE in R-multiples
+    mae_atr: float = 0.0  # MAE / ATR at entry
+    mfe_atr: float = 0.0  # MFE / ATR at entry
     candle_of_mae: int = 0
     candle_of_mfe: int = 0
     recovered_from_mae: bool = False
@@ -122,6 +141,7 @@ def load_signal_data(asset: str, tag: str = "remediation") -> pd.DataFrame | Non
 def fetch_ohlcv(ticker: str) -> pd.DataFrame:
     """Fetch OHLCV data from yfinance or local cache."""
     from features.data_fetch import fetch_asset_ohlcv
+
     return fetch_asset_ohlcv(ticker)
 
 
@@ -133,9 +153,7 @@ def compute_atr_pct(ohlcv: pd.DataFrame, period: int = 14) -> pd.Series:
     return atr / close.replace(0, np.nan)
 
 
-def reconstruct_trades(
-    asset: str, signal_df: pd.DataFrame, ohlcv: pd.DataFrame
-) -> list[TradeRecord]:
+def reconstruct_trades(asset: str, signal_df: pd.DataFrame, ohlcv: pd.DataFrame) -> list[TradeRecord]:
     """Reconstruct all trades from signal parquet + OHLCV data."""
     tp_mult, sl_mult = TP_SL.get(asset, (2.0, 2.0))
     is_sell_only = asset in SELL_ONLY
@@ -275,10 +293,7 @@ def reconstruct_trades(
 
         # Lifecycle metrics
         cumulative_pnl = np.zeros(path_len)
-        if sig == 1:
-            cumulative_pnl = actual_prices - entry_price
-        else:
-            cumulative_pnl = entry_price - actual_prices
+        cumulative_pnl = actual_prices - entry_price if sig == 1 else entry_price - actual_prices
 
         # First profit
         first_profit_idx = np.where(cumulative_pnl > 0)[0]
@@ -324,26 +339,20 @@ def reconstruct_trades(
         max_profitable = max(profitable_streaks) if profitable_streaks else 0
 
         # Largest reversal
-        if len(cumulative_pnl) > 1:
-            rev = float(abs(np.diff(cumulative_pnl)).max())
-        else:
-            rev = 0.0
+        rev = float(abs(np.diff(cumulative_pnl)).max()) if len(cumulative_pnl) > 1 else 0.0
 
         # Recovery from MAE
         recovered = mae_val > 0 and cumulative_pnl[-1] > -mae_val * 0.5
         recovery_candles = None
         if recovered and candle_of_mae < len(cumulative_pnl) - 1:
-            after_mae = cumulative_pnl[candle_of_mae + 1:]
+            after_mae = cumulative_pnl[candle_of_mae + 1 :]
             above_mae_half = np.where(after_mae > -mae_val * 0.5)[0]
             if len(above_mae_half) > 0:
                 recovery_candles = int(above_mae_half[0]) + 1
 
         # Efficiency
         capture_amount = abs(r) * dollar_risk if dollar_risk > 0 else abs(exit_price_val - entry_price)
-        if mfe_val > 0:
-            efficiency = min(capture_amount / mfe_val, 1.0)
-        else:
-            efficiency = 1.0 if r > 0 else 0.0
+        efficiency = min(capture_amount / mfe_val, 1.0) if mfe_val > 0 else 1.0 if r > 0 else 0.0
 
         profit_left = max(0.0, mfe_val - capture_amount)
 
@@ -398,6 +407,7 @@ def reconstruct_trades(
 
 # ── Analysis Phases ──────────────────────────────────────────────────────────
 
+
 def phase1_trade_lifecycle(trades: list[TradeRecord]) -> dict:
     """Measure entry/exit timing, durations, sessions."""
     if not trades:
@@ -414,14 +424,25 @@ def phase1_trade_lifecycle(trades: list[TradeRecord]) -> dict:
         "median_candle_duration": float(np.median(candle_durations)) if candle_durations else 0,
         "max_candle_duration": int(np.max(candle_durations)) if candle_durations else 0,
         "min_candle_duration": int(np.min(candle_durations)) if candle_durations else 1,
-        "avg_first_profit_candle": float(np.mean([t.candles_to_first_profit for t in trades if t.candles_to_first_profit is not None])),
-        "median_first_profit_candle": float(np.median([t.candles_to_first_profit for t in trades if t.candles_to_first_profit is not None])),
+        "avg_first_profit_candle": float(
+            np.mean([t.candles_to_first_profit for t in trades if t.candles_to_first_profit is not None])
+        ),  # noqa: E501
+        "median_first_profit_candle": float(
+            np.median([t.candles_to_first_profit for t in trades if t.candles_to_first_profit is not None])
+        ),  # noqa: E501
         "pct_never_profitable": sum(1 for t in trades if t.candles_to_first_profit is None) / len(trades) * 100,
         "avg_underwater_pct": float(np.mean([t.candles_underwater / max(len(t.prices), 1) * 100 for t in trades])),
         "avg_profitable_pct": float(np.mean([t.candles_profitable / max(len(t.prices), 1) * 100 for t in trades])),
         "avg_pnl_crossings": float(np.mean([t.pnl_crossings for t in trades])),
         "avg_underwater_streak": float(np.mean([t.underwater_streak_max for t in trades])),
-        "avg_reversal_size_r": float(np.mean([t.largest_intra_reversal / (t.entry_price * t.atr_pct_entry) if t.atr_pct_entry > 0 else 0 for t in trades])),
+        "avg_reversal_size_r": float(
+            np.mean(
+                [
+                    t.largest_intra_reversal / (t.entry_price * t.atr_pct_entry) if t.atr_pct_entry > 0 else 0
+                    for t in trades
+                ]
+            )
+        ),  # noqa: E501
     }
     return results
 
@@ -457,10 +478,9 @@ def phase4_mfe(trades: list[TradeRecord]) -> dict:
 
     mfe_r_vals = np.array([t.mfe_r for t in trades])
     efficiency_vals = np.array([t.efficiency_score for t in trades])
-    profit_left_r = np.array([
-        t.profit_left / (t.entry_price * t.atr_pct_entry) if t.atr_pct_entry > 0 else 0
-        for t in trades
-    ])
+    profit_left_r = np.array(
+        [t.profit_left / (t.entry_price * t.atr_pct_entry) if t.atr_pct_entry > 0 else 0 for t in trades]
+    )
 
     results = {
         "avg_mfe_r": float(mfe_r_vals.mean()),
@@ -485,8 +505,7 @@ def phase12_confidence_buckets(trades: list[TradeRecord]) -> dict:
     if not trades:
         return {"error": "no trades"}
 
-    bins = [(0.0, 0.25), (0.25, 0.40), (0.40, 0.45), (0.45, 0.55),
-            (0.55, 0.60), (0.60, 0.75), (0.75, 1.0)]
+    bins = [(0.0, 0.25), (0.25, 0.40), (0.40, 0.45), (0.45, 0.55), (0.55, 0.60), (0.60, 0.75), (0.75, 1.0)]
 
     bucket_results = {}
     for lo, hi in bins:
@@ -528,10 +547,7 @@ def phase13_regime_analysis(trades: list[TradeRecord], ohlcv: pd.DataFrame) -> d
     for t in trades:
         idx = t.entry_date
         idx_utc = idx.tz_localize(None) if hasattr(idx, "tz") and idx.tz is not None else idx
-        if idx_utc in atr_pct.index:
-            entry_atr = float(atr_pct.loc[idx_utc])
-        else:
-            entry_atr = atr_median
+        entry_atr = float(atr_pct.loc[idx_utc]) if idx_utc in atr_pct.index else atr_median
 
         # Vol regime
         if entry_atr > atr_median:
@@ -605,7 +621,9 @@ def phase16_portfolio_level(all_trades: dict[str, list[TradeRecord]]) -> dict:
         "win_rate": float((all_rs > 0).mean() * 100),
         "avg_duration_candles": float(all_durations.mean()),
         "avg_efficiency": float(np.mean([t.efficiency_score for ts in all_trades.values() for t in ts])),
-        "tp_rate": float(np.mean([1 for ts in all_trades.values() for t in ts if t.exit_reason == "tp"]) * 100) if any(ts for ts in all_trades.values()) else 0,
+        "tp_rate": float(np.mean([1 for ts in all_trades.values() for t in ts if t.exit_reason == "tp"]) * 100)
+        if any(ts for ts in all_trades.values())
+        else 0,  # noqa: E501
         "r_per_100_candles": float(all_rs.sum() / max(all_durations.sum(), 1) * 100),
         "asset_metrics": asset_metrics,
     }
@@ -687,6 +705,7 @@ def compute_all_phases(
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+
 def run_for_assets(asset_names: list[str], tag: str = "remediation") -> dict[str, Any]:
     """Run full analysis for a list of assets."""
     all_trades: dict[str, list[TradeRecord]] = {}
@@ -762,7 +781,9 @@ def print_summary(results: dict) -> None:
         print("-" * 60)
         for asset in sorted(am.keys()):
             m = am[asset]
-            print(f"{asset:<10} {m['n_trades']:>7} {m['total_r']:>+8.1f} {m['win_rate']:>5.1f}% {m['avg_efficiency']:>5.1%} {m['avg_duration']:>4.0f} {m['tp_rate']:>4.0f}% {m['r_per_candle']*100:>+7.2f}")
+            print(
+                f"{asset:<10} {m['n_trades']:>7} {m['total_r']:>+8.1f} {m['win_rate']:>5.1f}% {m['avg_efficiency']:>5.1%} {m['avg_duration']:>4.0f} {m['tp_rate']:>4.0f}% {m['r_per_candle'] * 100:>+7.2f}"  # noqa: E501
+            )  # noqa: E501
 
     # Confidence buckets
     cb = results.get("phases", {}).get("confidence_buckets", {})
@@ -772,7 +793,9 @@ def print_summary(results: dict) -> None:
         print(f"{'Bucket':<12} {'N':>5} {'WR':>6} {'AvgR':>7} {'Eff':>6} {'Dur':>5} {'TP%':>5}")
         print("-" * 60)
         for label, b in sorted(cb.items()):
-            print(f"{label:<12} {b['n']:>5} {b['win_rate']:>5.1f}% {b['avg_r']:>+6.2f} {b['avg_efficiency']:>5.1%} {b['avg_duration']:>4.0f} {b['tp_rate']:>4.0f}%")
+            print(
+                f"{label:<12} {b['n']:>5} {b['win_rate']:>5.1f}% {b['avg_r']:>+6.2f} {b['avg_efficiency']:>5.1%} {b['avg_duration']:>4.0f} {b['tp_rate']:>4.0f}%"  # noqa: E501
+            )  # noqa: E501
 
     print("\n" + "=" * 60)
 
@@ -807,7 +830,9 @@ def main():
         print(f"\n{asset} sample trades (first 5):")
         for t in trades[:5]:
             if isinstance(t, dict):
-                print(f"  {t.get('side','?'):4s} | entry={t.get('entry_date','?')} | R={t.get('r_multiple',0):+.2f} | exit={t.get('exit_reason','?'):8s} | eff={t.get('efficiency_score',0):.0%} | MAE={t.get('mae_r',0):.2f}R | MFE={t.get('mfe_r',0):.2f}R")
+                print(
+                    f"  {t.get('side', '?'):4s} | entry={t.get('entry_date', '?')} | R={t.get('r_multiple', 0):+.2f} | exit={t.get('exit_reason', '?'):8s} | eff={t.get('efficiency_score', 0):.0%} | MAE={t.get('mae_r', 0):.2f}R | MFE={t.get('mfe_r', 0):.2f}R"  # noqa: E501
+                )  # noqa: E501
 
 
 if __name__ == "__main__":

@@ -8,12 +8,12 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests.trade_analysis import fetch_ohlcv, load_macro
-from features.builder import build_features
-from features.registry import FEATURE_REGISTRY
+from backtests.trade_analysis import fetch_ohlcv, load_macro  # noqa: E402
+from features.builder import build_features  # noqa: E402
+from features.registry import FEATURE_REGISTRY  # noqa: E402
 
 BASE = os.path.join(os.path.dirname(__file__), "..", "paper_trading", "models")
 
@@ -49,15 +49,19 @@ for name, ticker, s_cfg, depth in NEW_ASSETS:
     y = (fdf["label"] > LABEL_THRESH).astype(int).values
 
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.15, shuffle=False)
-    X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-        X_tr, y_tr, test_size=0.12, random_state=42, stratify=y_tr
-    )
+    X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.12, random_state=42, stratify=y_tr)
 
     model = xgb.XGBClassifier(
-        n_estimators=300, max_depth=depth, learning_rate=0.05,
-        subsample=0.8, colsample_bytree=0.8, reg_lambda=1.0,
-        objective="binary:logistic", eval_metric="logloss",
-        use_label_encoder=False, random_state=42,
+        n_estimators=300,
+        max_depth=depth,
+        learning_rate=0.05,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_lambda=1.0,
+        objective="binary:logistic",
+        eval_metric="logloss",
+        use_label_encoder=False,
+        random_state=42,
     )
     model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
 

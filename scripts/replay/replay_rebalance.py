@@ -47,7 +47,7 @@ def load_price_data(
             hist = yf.download(ticker, period="2y", interval="1d", progress=False, auto_adjust=True)
             if hist is not None and not hist.empty and "Close" in hist.columns:
                 price_data[asset] = hist["Close"].squeeze()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("Failed to fetch %s: %s", asset, e)
 
     if not price_data:

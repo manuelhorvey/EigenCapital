@@ -82,28 +82,27 @@ def main():
 
         # Two-sided sign test against p=0.5 (H0: ensemble no better than base)
         n_non_ties = n_wins + n_losses
-        if n_non_ties > 0:
-            sign_p = binomtest(n_wins, n_non_ties, p=0.5, alternative="two-sided").pvalue
-        else:
-            sign_p = 1.0
+        sign_p = binomtest(n_wins, n_non_ties, p=0.5, alternative="two-sided").pvalue if n_non_ties > 0 else 1.0
 
         # Paired t-test
         if n > 1 and std_delta > 0:
             t_stat, t_p = ttest_rel(grp["directional_ens"], grp["directional_base"])
         else:
-            t_stat, t_p = 0.0, 1.0
+            _t_stat, t_p = 0.0, 1.0
 
-        results.append({
-            "asset": asset,
-            "n_folds": n,
-            "delta_mean": round(mean_delta, 4),
-            "delta_std": round(std_delta, 4),
-            "wins": n_wins,
-            "losses": n_losses,
-            "ties": n_ties,
-            "sign_p": sign_p,
-            "t_p": t_p,
-        })
+        results.append(
+            {
+                "asset": asset,
+                "n_folds": n,
+                "delta_mean": round(mean_delta, 4),
+                "delta_std": round(std_delta, 4),
+                "wins": n_wins,
+                "losses": n_losses,
+                "ties": n_ties,
+                "sign_p": sign_p,
+                "t_p": t_p,
+            }
+        )
 
     per_asset = pd.DataFrame(results)
 

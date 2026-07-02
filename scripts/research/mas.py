@@ -32,7 +32,7 @@ def hard_gates(
     failures = []
 
     agreement = _safe(signal_result.get("overall_agreement", 1.0))
-    flip_rate = _safe(signal_result.get("flip_rate", 0.0))
+    _safe(signal_result.get("flip_rate", 0.0))
     if agreement < 0.95:
         failures.append(f"Gate A: signal agreement {agreement:.4f} < 0.95")
     if "error" not in signal_result:
@@ -85,15 +85,12 @@ def score_model(model_result: dict) -> float:
 
     old_dist = model_result.get("class_distribution", {}).get("old", {})
     new_dist = model_result.get("class_distribution", {}).get("new", {})
-    stability = 1.0 - sum(abs(_safe(new_dist.get(k)) - _safe(old_dist.get(k))) for k in ("short", "neutral", "long")) / 2
+    stability = (
+        1.0 - sum(abs(_safe(new_dist.get(k)) - _safe(old_dist.get(k))) for k in ("short", "neutral", "long")) / 2
+    )  # noqa: E501
     stability = _clip01(stability)
 
-    return _clip01(
-        0.3 * auc_component
-        + 0.2 * ll_component
-        + 0.2 * stability
-        + 0.3 * stability
-    )
+    return _clip01(0.3 * auc_component + 0.2 * ll_component + 0.2 * stability + 0.3 * stability)
 
 
 def score_signal(signal_result: dict) -> float:
@@ -110,10 +107,7 @@ def score_signal(signal_result: dict) -> float:
 
     reg_agree = _safe(signal_result.get("regime_stratified_agreement", {}))
     reg_vals = [v for v in reg_agree.values() if v is not None]
-    if reg_vals:
-        reg_instability = 1.0 - (sum(reg_vals) / len(reg_vals))
-    else:
-        reg_instability = 0.0
+    reg_instability = 1.0 - sum(reg_vals) / len(reg_vals) if reg_vals else 0.0
 
     raw = 0.5 * agreement_score + 0.3 * flip_score + 0.2 * conf_stability - 0.1 * reg_instability
     return _clip01(raw)
@@ -145,12 +139,7 @@ def score_portfolio(portfolio_result: dict) -> float:
 
     pnl_consistency = _clip01(1.0 - abs(new_ret - old_ret) / (abs(old_ret) + 1e-9 + max_abs_ret))
 
-    return _clip01(
-        0.4 * sharpe_norm
-        + 0.3 * dd_norm
-        + 0.2 * trade_eff
-        + 0.1 * pnl_consistency
-    )
+    return _clip01(0.4 * sharpe_norm + 0.3 * dd_norm + 0.2 * trade_eff + 0.1 * pnl_consistency)
 
 
 def score_shadow(shadow_result: dict) -> float:
@@ -204,11 +193,7 @@ def score_forward(forward_result: dict) -> float:
     fw_stab = _safe(new.get("stability"), 1.0)
     stability_fw = _clip01(fw_stab / (bl_stab + 1e-9))
 
-    return _clip01(
-        0.5 * sharpe_fw
-        + 0.3 * hit_fw
-        + 0.2 * stability_fw
-    )
+    return _clip01(0.5 * sharpe_fw + 0.3 * hit_fw + 0.2 * stability_fw)
 
 
 def score_stress(forward_result: dict) -> float:
@@ -246,8 +231,12 @@ def compute_mas(
         weights = {"model": 0.22, "signal": 0.18, "portfolio": 0.20, "shadow": 0.12, "forward": 0.15, "stress": 0.13}
 
     gates_passed, gate_failures = hard_gates(
-        signal_result, portfolio_result, model_result,
-        shadow_result, forward_result, drift_score,
+        signal_result,
+        portfolio_result,
+        model_result,
+        shadow_result,
+        forward_result,
+        drift_score,
     )
 
     if not gates_passed:
@@ -277,10 +266,7 @@ def compute_mas(
         + weights["stress"] * m_stress
     )
 
-    if baseline_mas is not None:
-        delta_mas = mas - baseline_mas
-    else:
-        delta_mas = 0.0
+    delta_mas = mas - baseline_mas if baseline_mas is not None else 0.0
 
     if mas >= 88 and m_stress > 0.6:
         decision = "ACCEPT"

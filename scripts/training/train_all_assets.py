@@ -1,4 +1,5 @@
 """Deprecated: use retrain_all_fixed.py instead."""
+
 import logging
 import os
 import sys
@@ -16,8 +17,8 @@ warnings.warn(
 )
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
-from features.builder import compute_macro_derived, compute_training_data, model_path
-from features.registry import FEATURE_REGISTRY
+from features.builder import compute_macro_derived, compute_training_data, model_path  # noqa: E402
+from features.registry import FEATURE_REGISTRY  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("train_all")
@@ -139,7 +140,7 @@ def main():
                 logger.info("  ✓ %s: acc=%.4f logloss=%.4f", ticker, stats["accuracy"], stats["logloss"])
             else:
                 logger.warning("  ✗ %s: failed (no data)", ticker)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("  ✗ %s: error: %s", ticker, e)
             import traceback
 
@@ -171,6 +172,7 @@ def load_macro_data():
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Legacy training script (deprecated)")
     parser.add_argument("--allow-legacy", action="store_true", help="Run despite deprecation")
     args = parser.parse_args()

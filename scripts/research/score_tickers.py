@@ -74,7 +74,7 @@ def score_ticker(group: pd.DataFrame) -> dict:
         symbol = "GREEN  \u2713 PROMOTE"
     elif score >= 40 and mean_ic > 0:
         status = "YELLOW"
-        symbol = "YELLOW \u25D0 WATCH"
+        symbol = "YELLOW \u25d0 WATCH"
     else:
         status = "RED"
         symbol = "RED    \u2717 SKIP"
@@ -97,10 +97,7 @@ def score_ticker(group: pd.DataFrame) -> dict:
 
 def print_table(scored: list[dict]):
     """Print ranked table to stdout."""
-    header = (
-        f"{'Rank':>4}  {'Ticker':<8} {'Score':>6} {'IC':>7} "
-        f"{'HitRate':>8} {'FlatRate':>9} {'PosFolds':>9}  Status"
-    )
+    header = f"{'Rank':>4}  {'Ticker':<8} {'Score':>6} {'IC':>7} {'HitRate':>8} {'FlatRate':>9} {'PosFolds':>9}  Status"
     sep = "-" * len(header)
     print(f"\n{sep}")
     print("  PROMOTION SCREENING RESULTS")
@@ -141,9 +138,17 @@ def save_report(scored: list[dict]):
     print(f"Saved: {report_json}")
 
     cols = [
-        "ticker", "score", "ic", "hit_rate", "flat_rate",
-        "long_rate", "short_rate", "positive_ic_folds", "total_folds",
-        "criteria_met", "status",
+        "ticker",
+        "score",
+        "ic",
+        "hit_rate",
+        "flat_rate",
+        "long_rate",
+        "short_rate",
+        "positive_ic_folds",
+        "total_folds",
+        "criteria_met",
+        "status",
     ]
     df = pd.DataFrame(scored)[cols]
     report_csv = os.path.join(OUTPUT_DIR, "promotion_report.csv")

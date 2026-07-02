@@ -69,10 +69,9 @@ def evaluate_promotion(
         confidence = round(met_count / total, 2)
 
     mas_val = _safe(mas_result.get("mas"))
-    if mas_val >= 88 and decision != "LIVE_CANDIDATE":
-        if "stability" not in [f for f in failure_modes]:
-            decision = "LIVE_CANDIDATE"
-            confidence = max(confidence, 0.85)
+    if mas_val >= 88 and decision != "LIVE_CANDIDATE" and "stability" not in [f for f in failure_modes]:
+        decision = "LIVE_CANDIDATE"
+        confidence = max(confidence, 0.85)
 
     if mas_val < 70 and decision != "REJECT":
         decision = "REJECT"
@@ -123,7 +122,10 @@ def evaluate_promotion(
     if obs:
         obs_path = os.path.join(result_path, "observed_statistical_failures.jsonl")
         with open(obs_path, "a") as f:
-            f.write(json.dumps({"asset": asset, "timestamp": result["timestamp"], "observed_failures": obs}, default=str) + "\n")
+            f.write(
+                json.dumps({"asset": asset, "timestamp": result["timestamp"], "observed_failures": obs}, default=str)
+                + "\n"
+            )  # noqa: E501
 
     return result
 

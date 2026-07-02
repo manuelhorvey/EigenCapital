@@ -89,6 +89,7 @@ def _forward_metrics(
     skew_val, exkurt_val = (0.0, 0.0)
     if n_obs >= 3:
         from eigencapital.domain.value_objects.statistical_metrics import _moments as _stats_moments
+
         skew_val, exkurt_val = _stats_moments(trade_returns)
 
     from eigencapital.domain.value_objects.statistical_metrics import (
@@ -110,9 +111,11 @@ def _forward_metrics(
         elif signals[i] == 0:
             pred_confs.append(float(proba[i, 0]))
             pred_correct.append(forward_ret[i] < 0)
-    crs = 1.0 - expected_calibration_error(
-        np.array(pred_confs), np.array(pred_correct, dtype=int)
-    ) if len(pred_confs) >= 10 else 0.0
+    crs = (
+        1.0 - expected_calibration_error(np.array(pred_confs), np.array(pred_correct, dtype=int))
+        if len(pred_confs) >= 10
+        else 0.0
+    )
 
     return {
         "sharpe": round(float(sharpe), 4),
@@ -157,7 +160,7 @@ def _regime_metrics(proba: np.ndarray, close: pd.Series, regime: pd.Series, thre
     trade_pnl, equity = _regime_trade_returns(signals, close_arr)
     regime_results = {}
     for r in ["low_vol", "high_vol", "transition"]:
-        mask = (regime.values == r)
+        mask = regime.values == r
         if mask.sum() < 3:
             regime_results[r] = {"sharpe": 0.0, "max_drawdown": 0.0}
             continue
@@ -185,7 +188,9 @@ def run_forward_test(
 ) -> dict:
     try:
         if predict_fn is None:
-            predict_fn = lambda m, x: XGBoostModel().predict(m, x)
+
+            def predict_fn(m, x):
+                return XGBoostModel().predict(m, x)
 
         cutoff = X.index[-1] - pd.DateOffset(months=forward_months)
         train_mask = X.index < cutoff
@@ -202,8 +207,13 @@ def run_forward_test(
         X_fwd = X[fwd_mask]
         close_fwd = close[fwd_mask]
 
-        logger.info("  %s forward: train=%d rows, forward=%d rows (%.1f months cutoff)",
-                     ticker, len(X_train_fw), len(X_fwd), forward_months)
+        logger.info(
+            "  %s forward: train=%d rows, forward=%d rows (%.1f months cutoff)",
+            ticker,
+            len(X_train_fw),
+            len(X_fwd),
+            forward_months,
+        )
 
         n_est = 300
         depth = 2
@@ -211,12 +221,19 @@ def run_forward_test(
         fw_split = int(len(X_train_fw) * 0.8) if len(X_train_fw) >= 200 else int(len(X_train_fw) * 0.5)
 
         fw_model = xgb.XGBClassifier(
-            n_estimators=n_est, max_depth=depth, learning_rate=lr,
-            objective="multi:softprob", num_class=3,
-            random_state=42, n_jobs=1, tree_method="hist", verbosity=0,
+            n_estimators=n_est,
+            max_depth=depth,
+            learning_rate=lr,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
         )
         fw_model.fit(
-            X_train_fw.iloc[:fw_split], y_train_fw.iloc[:fw_split],
+            X_train_fw.iloc[:fw_split],
+            y_train_fw.iloc[:fw_split],
             eval_set=[(X_train_fw.iloc[fw_split:], y_train_fw.iloc[fw_split:])],
             verbose=False,
         )
@@ -244,7 +261,9 @@ def run_forward_test(
                 "stability_diff": round(fw_metrics["stability"] - baseline_metrics["stability"], 4),
             },
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("run_forward_test failed for %s: %s", ticker, e)
-        import traceback; traceback.print_exc()
+        import traceback
+
+        traceback.print_exc()
         return {"ticker": ticker, "error": str(e)}

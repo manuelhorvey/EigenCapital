@@ -28,9 +28,13 @@ logger = logging.getLogger("threshold_opt")
 
 WALKDIR = Path(__file__).resolve().parent.parent.parent / "walkforward"
 
-SELL_ONLY_ASSETS: frozenset[str] = frozenset({
-    "CADCHF", "NZDCHF", "EURAUD",
-})
+SELL_ONLY_ASSETS: frozenset[str] = frozenset(
+    {
+        "CADCHF",
+        "NZDCHF",
+        "EURAUD",
+    }
+)
 # ^DJI, USDCHF, EURCHF removed 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven.
 
 DEFAULT_THRESHOLDS = {
@@ -41,6 +45,7 @@ DEFAULT_THRESHOLDS = {
 
 def load_pt_sl() -> dict[str, tuple[float, float]]:
     from paper_trading.config_manager import get_config
+
     cfg = get_config()
     result: dict[str, tuple[float, float]] = {}
     for name, acfg in cfg.assets.items():
@@ -148,10 +153,10 @@ def find_optimal_thresholds(
         if buy_r > best_buy_r:
             best_buy_r = buy_r
             best_buy_theta = theta
-            best_buy_wr = buy_wr
-            best_buy_n = n_b
 
-        buy_curve.append({"threshold": round(theta, 2), "total_r": round(buy_r, 2), "n_trades": n_b, "wr": round(buy_wr, 4)})
+        buy_curve.append(
+            {"threshold": round(theta, 2), "total_r": round(buy_r, 2), "n_trades": n_b, "wr": round(buy_wr, 4)}
+        )  # noqa: E501
 
         # SELL: p_long < 1-theta (i.e., p_long < threshold maps to complement)
         # Actually: SELL if p_long < sell_threshold. scan sell_threshold from 0.01 to 0.99
@@ -169,10 +174,10 @@ def find_optimal_thresholds(
         if sell_r > best_sell_r:
             best_sell_r = sell_r
             best_sell_theta = theta
-            best_sell_wr = sell_wr
-            best_sell_n = n_s
 
-        sell_curve.append({"threshold": round(theta, 2), "total_r": round(sell_r, 2), "n_trades": n_s, "wr": round(sell_wr, 4)})
+        sell_curve.append(
+            {"threshold": round(theta, 2), "total_r": round(sell_r, 2), "n_trades": n_s, "wr": round(sell_wr, 4)}
+        )  # noqa: E501
 
     # Current default threshold metrics
     default = compute_metrics(df, 0.575, 0.425, tp, sl)
@@ -200,7 +205,11 @@ def find_optimal_thresholds(
 
     return {
         "default": default,
-        "best_combined": {**best_combined, "buy_th": round(best_combined_buy_th, 3), "sell_th": round(best_combined_sell_th, 3)},
+        "best_combined": {
+            **best_combined,
+            "buy_th": round(best_combined_buy_th, 3),
+            "sell_th": round(best_combined_sell_th, 3),
+        },  # noqa: E501
         "best_buy_only": {**best_buy_only, "buy_th": round(best_buy_theta, 3)},
         "best_sell_only": {**best_sell_only, "sell_th": round(best_sell_theta, 3)},
         "buy_curve": buy_curve,
@@ -212,15 +221,14 @@ def find_optimal_thresholds(
 
 def main():
     parser = argparse.ArgumentParser(description="Threshold optimization for SELL_ONLY assets")
-    parser.add_argument("--assets", type=str, default=None, help="Comma-separated asset names (default: all 8 SELL_ONLY)")
+    parser.add_argument(
+        "--assets", type=str, default=None, help="Comma-separated asset names (default: all 8 SELL_ONLY)"
+    )  # noqa: E501
     parser.add_argument("--step", type=float, default=0.01, help="Threshold scan step (default 0.01)")
     parser.add_argument("--min-trades", type=int, default=5, help="Minimum trades per bucket")
     args = parser.parse_args()
 
-    if args.assets:
-        assets = [a.strip() for a in args.assets.split(",")]
-    else:
-        assets = sorted(SELL_ONLY_ASSETS)
+    assets = [a.strip() for a in args.assets.split(",")] if args.assets else sorted(SELL_ONLY_ASSETS)
 
     pt_sl = load_pt_sl()
 
@@ -272,7 +280,7 @@ def main():
     # ── Detail: Best combined thresholds ─────────────────────────────
     print("DETAIL: Best Combined Threshold vs Default")
     print("-" * 72)
-    det_header = f"{'Asset':>9s}  {'Config':>12s}  {'buy_th':>6s}  {'sell_th':>6s}  {'n_buy':>6s}  {'n_sell':>6s}  {'BUY_WR':>7s}  {'SELL_WR':>7s}  {'Total R':>8s}"
+    det_header = f"{'Asset':>9s}  {'Config':>12s}  {'buy_th':>6s}  {'sell_th':>6s}  {'n_buy':>6s}  {'n_sell':>6s}  {'BUY_WR':>7s}  {'SELL_WR':>7s}  {'Total R':>8s}"  # noqa: E501
     print(det_header)
     print("-" * len(det_header))
     for asset in assets:
@@ -314,10 +322,7 @@ def main():
         can_restore = best_buy_wr > 0.50
         restore_tag = "YES" if can_restore else "NO"
 
-        print(
-            f"{asset:>9s}  {default_buy_wr:>14.1%}  {best_buy_wr:>12.1%}  "
-            f"{delta_r:>+9.2f}  {restore_tag:>9s}"
-        )
+        print(f"{asset:>9s}  {default_buy_wr:>14.1%}  {best_buy_wr:>12.1%}  {delta_r:>+9.2f}  {restore_tag:>9s}")
 
     print()
     print("NOTE: 'Best BUY WR' uses the optimal BUY-only threshold (may reduce trade count).")

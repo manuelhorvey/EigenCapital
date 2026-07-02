@@ -48,15 +48,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger("buy_signal_existence")
 
-SELL_ONLY_ASSETS: frozenset[str] = frozenset({
-    "CADCHF", "NZDCHF", "EURAUD",
-})
+SELL_ONLY_ASSETS: frozenset[str] = frozenset(
+    {
+        "CADCHF",
+        "NZDCHF",
+        "EURAUD",
+    }
+)
 # ^DJI, USDCHF, EURCHF removed 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven.
 
 NON_SELL_ONLY_ASSETS: list[str] = [
-    "GBPUSD", "AUDUSD", "EURNZD", "NZDUSD", "GBPAUD",
-    "GBPCAD", "NZDCAD", "EURCAD", "GBPCHF", "GC",
-    "USDCAD", "AUDNZD",
+    "GBPUSD",
+    "AUDUSD",
+    "EURNZD",
+    "NZDUSD",
+    "GBPAUD",
+    "GBPCAD",
+    "NZDCAD",
+    "EURCAD",
+    "GBPCHF",
+    "GC",
+    "USDCAD",
+    "AUDNZD",
 ]
 
 PER_ASSET_PT_SL: dict[str, tuple[float, float]] = {
@@ -119,19 +132,26 @@ def compute_direction_stats(df: pd.DataFrame, tp: float, sl: float) -> dict:
     total_r = buy_r + sell_r
 
     return {
-        "n_buy": n_buy, "n_sell": n_sell, "n_flat": n_flat, "n_total": len(df),
-        "buy_wr": round(buy_wr, 4), "sell_wr": round(sell_wr, 4),
+        "n_buy": n_buy,
+        "n_sell": n_sell,
+        "n_flat": n_flat,
+        "n_total": len(df),
+        "buy_wr": round(buy_wr, 4),
+        "sell_wr": round(sell_wr, 4),
         "total_wr": round(total_wr, 4),
-        "buy_r": round(buy_r, 2), "sell_r": round(sell_r, 2), "total_r": round(total_r, 2),
+        "buy_r": round(buy_r, 2),
+        "sell_r": round(sell_r, 2),
+        "total_r": round(total_r, 2),
         "up_rate": round(float(y.mean()), 4),
     }
 
 
 # ── Test B: Symmetry Test ────────────────────────────────────────────
 
+
 def run_symmetry_test(asset: str) -> dict:
     """Compare SELL-only vs BUY-only performance on existing walk-forward data.
-    
+
     Quantifies the asymmetry magnitude:
       asymmetry = sell_wr - buy_wr
       if asymmetry >> 0 → structural imbalance favoring SELL
@@ -174,9 +194,10 @@ def run_symmetry_test(asset: str) -> dict:
 
 # ── Test C: Information Sufficiency ──────────────────────────────────
 
+
 def run_sufficiency_test() -> dict:
     """Compare BUY WR across SELL_ONLY vs non-SELL_ONLY assets.
-    
+
     Determines whether the issue is:
       - Global: no assets have BUY WR > 50% → representation failure
       - Asset-specific: non-SELL_ONLY have BUY WR > 50% → domain-specific issue
@@ -241,12 +262,13 @@ def run_sufficiency_test() -> dict:
 
 # ── Test A: Label Inversion ──────────────────────────────────────────
 
+
 def run_label_inversion_test(asset: str, rerun: bool = False) -> dict:
     """Train with flipped labels, evaluate BUY WR against original labels.
-    
+
     If the inverted model's BUY signal (p_long > threshold) produces BUY WR > 50%
     against ORIGINAL labels, then the BUY signal is recoverable via label reorientation.
-    
+
     Steps:
     1. Check if inverted-model parquet already exists
     2. If not (or --rerun), call walk_forward_backtest.py --invert-labels
@@ -267,14 +289,18 @@ def run_label_inversion_test(asset: str, rerun: bool = False) -> dict:
         # We need to set PYTHONPATH and run the backtest script
         wfb_path = Path(__file__).resolve().parent.parent / "backtest" / "walk_forward_backtest.py"
         cmd = [
-            sys.executable, str(wfb_path),
-            "--assets", asset,
-            "--tag", inv_tag,
+            sys.executable,
+            str(wfb_path),
+            "--assets",
+            asset,
+            "--tag",
+            inv_tag,
             "--invert-labels",
         ]
         logger.info("Running: %s", " ".join(cmd))
-        result = subprocess.run(cmd, cwd=Path(__file__).resolve().parent.parent.parent,
-                                capture_output=True, text=True, timeout=600)
+        result = subprocess.run(
+            cmd, cwd=Path(__file__).resolve().parent.parent.parent, capture_output=True, text=True, timeout=600
+        )
         if result.returncode != 0:
             logger.error("Walk-forward failed for %s:\n%s", asset, result.stderr)
             return {"asset": asset, "status": "FAILED", "error": result.stderr[:500]}
@@ -332,13 +358,10 @@ def run_label_inversion_test(asset: str, rerun: bool = False) -> dict:
 
 def compute_corrected_stats(df: pd.DataFrame, tp: float, sl: float) -> dict:
     """If we flip signal interpretation: SELL when model says BUY, BUY when model says SELL.
-    
+
     This tests whether the model has correct DIRECTIONAL information but wrong signal assignment.
     """
-    if "label_original" in df.columns:
-        y = df["label_original"].values
-    else:
-        y = df["label"].values
+    y = df["label_original"].values if "label_original" in df.columns else df["label"].values
 
     p = df["p_long"].values
     # Original signals: BUY on p > 0.575, SELL on p < 0.425
@@ -376,26 +399,33 @@ def compute_corrected_stats(df: pd.DataFrame, tp: float, sl: float) -> dict:
 
 # ── Output formatting ────────────────────────────────────────────────
 
+
 def fmt_pct(v: float) -> str:
     return f"{v:.1%}"
+
 
 def fmt_r(v: float) -> str:
     return f"{v:+.1f}"
 
+
 def print_symmetry_results(results: list[dict], label: str):
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"  {label}")
-    print(f"{'='*80}")
-    print(f"{'Asset':>10s}  {'Status':>25s}  {'BUY WR':>8s}  {'SELL WR':>8s}  {'Asym':>7s}  {'nBUY':>5s}  {'nSELL':>5s}  {'BUY R':>8s}  {'SELL R':>8s}  {'Total R':>9s}")
-    print("-"*100)
+    print(f"{'=' * 80}")
+    print(
+        f"{'Asset':>10s}  {'Status':>25s}  {'BUY WR':>8s}  {'SELL WR':>8s}  {'Asym':>7s}  {'nBUY':>5s}  {'nSELL':>5s}  {'BUY R':>8s}  {'SELL R':>8s}  {'Total R':>9s}"  # noqa: E501
+    )  # noqa: E501
+    print("-" * 100)
     for r in results:
-        print(f"{r['asset']:>10s}  {r['status']:>25s}  {fmt_pct(r['buy_wr']):>8s}  {fmt_pct(r['sell_wr']):>8s}  {r['asymmetry']:>+7.3f}  {r['n_buy']:>5d}  {r['n_sell']:>5d}  {fmt_r(r['buy_r']):>8s}  {fmt_r(r['sell_r']):>8s}  {fmt_r(r['total_r']):>9s}")
+        print(
+            f"{r['asset']:>10s}  {r['status']:>25s}  {fmt_pct(r['buy_wr']):>8s}  {fmt_pct(r['sell_wr']):>8s}  {r['asymmetry']:>+7.3f}  {r['n_buy']:>5d}  {r['n_sell']:>5d}  {fmt_r(r['buy_r']):>8s}  {fmt_r(r['sell_r']):>8s}  {fmt_r(r['total_r']):>9s}"  # noqa: E501
+        )  # noqa: E501
 
 
 def print_inversion_result(r: dict):
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"  Test A: Label Inversion — {r['asset']}")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(f"  Status:          {r['status']}")
     print(f"  Baseline BUY WR: {fmt_pct(r['base_buy_wr'])}")
     print(f"  Inverted BUY WR: {fmt_pct(r['buy_wr'])}  (Δ {r['buy_wr_delta']:+.1%})")
@@ -412,9 +442,9 @@ def print_inversion_result(r: dict):
 
 
 def print_verdict(so_results: list[dict], sufficiency: dict, inv_result: dict | None):
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("  SYNTHESIS AND RECOMMENDATION")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     # How many SELL_ONLY assets have severe asymmetry?
     severe = sum(1 for r in so_results if r["status"] == "SEVERE_ASYMMETRY")
@@ -446,18 +476,23 @@ def print_verdict(so_results: list[dict], sufficiency: dict, inv_result: dict | 
 
 # ── Main ─────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="BUY Signal Existence Diagnostic")
     parser.add_argument("--asset", default=None, help="Single asset to test (default: all SELL_ONLY)")
-    parser.add_argument("--rerun-inversion", action="store_true", default=False,
-                        help="Regenerate inverted-label walk-forward even if parquet exists")
+    parser.add_argument(
+        "--rerun-inversion",
+        action="store_true",
+        default=False,
+        help="Regenerate inverted-label walk-forward even if parquet exists",
+    )
     args = parser.parse_args()
 
     # ── Test C: Information Sufficiency (global comparison) ──
-    print(f"\n{'#'*80}")
+    print(f"\n{'#' * 80}")
     print("  TEST C: Information Sufficiency")
     print("  Comparing BUY WR: SELL_ONLY cluster vs non-SELL_ONLY cluster")
-    print(f"{'#'*80}")
+    print(f"{'#' * 80}")
     sufficiency = run_sufficiency_test()
 
     so_results = sufficiency["sell_only"]["results"]
@@ -468,19 +503,19 @@ def main():
     print(f"\n  Sufficiency verdict: {sufficiency['verdict']}")
 
     # ── Test B: Symmetry Test (per-asset asymmetry) ──
-    print(f"\n{'#'*80}")
+    print(f"\n{'#' * 80}")
     print("  TEST B: Asymmetry Analysis (per-asset)")
     print("  asymmetry = sell_wr - buy_wr at default 0.575/0.425 threshold")
-    print(f"{'#'*80}")
+    print(f"{'#' * 80}")
 
     # Already computed in sufficiency
 
     # ── Test A: Label Inversion (EURAUD pilot) ──
-    print(f"\n{'#'*80}")
+    print(f"\n{'#' * 80}")
     print("  TEST A: Label Inversion")
     print("  Training model with y' = 1-y to test if BUY signal is recoverable")
     print("  via label reorientation")
-    print(f"{'#'*80}")
+    print(f"{'#' * 80}")
 
     inv_target = args.asset if args.asset else "EURAUD"
     if inv_target in SELL_ONLY_ASSETS:
@@ -494,9 +529,9 @@ def main():
     print_verdict(so_results, sufficiency, inv_result)
 
     # ── Recommendations for gatekeeper ──
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("  RECOMMENDED GATEKEEPER CRITERIA")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print("""
   Before any SELL_ONLY asset can be restored to two-way trading:
 

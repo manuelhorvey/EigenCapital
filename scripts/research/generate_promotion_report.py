@@ -20,6 +20,7 @@ def load_report() -> dict:
     with open(path) as f:
         return json.load(f)
 
+
 def load_ticker_map() -> dict:
     path = os.path.join(OUTPUT_DIR, "ticker_map.json")
     if os.path.exists(path):
@@ -77,8 +78,10 @@ def generate(report: dict) -> str:
         top3 = green[:3]
         a("**Top 3 tickers:**")
         for i, s in enumerate(top3, 1):
-            a(f"  {i}. **{s['ticker']}** — score {s['score']}/100, IC {s['ic']:.4f}, "
-              f"hit rate {s['hit_rate']:.1%}, {s['positive_ic_folds']}/{s['total_folds']} positive folds")
+            a(
+                f"  {i}. **{s['ticker']}** — score {s['score']}/100, IC {s['ic']:.4f}, "
+                f"hit rate {s['hit_rate']:.1%}, {s['positive_ic_folds']}/{s['total_folds']} positive folds"
+            )
         a("")
 
     # Section 2: GREEN
@@ -87,12 +90,18 @@ def generate(report: dict) -> str:
     for s in green:
         a(f"### {s['ticker']}")
         a("")
-        a(f"**Score:** {s['score']}/100  |  **IC:** {s['ic']:.4f}  |  "
-          f"**Hit Rate:** {s['hit_rate']:.1%}  |  **Flat Rate:** {s['flat_rate']:.1%}")
-        a(f"**Positive IC folds:** {s['positive_ic_folds']}/{s['total_folds']}  |  "
-          f"**Long:** {s['long_rate']:.1%}  |  **Short:** {s['short_rate']:.1%}")
-        a(f"**Recommendation:** PROMOTE — consistent edge across {s['positive_ic_folds']}/{s['total_folds']} folds, "
-          f"bidirectional signal (long {s['long_rate']:.1%}, short {s['short_rate']:.1%})")
+        a(
+            f"**Score:** {s['score']}/100  |  **IC:** {s['ic']:.4f}  |  "
+            f"**Hit Rate:** {s['hit_rate']:.1%}  |  **Flat Rate:** {s['flat_rate']:.1%}"
+        )
+        a(
+            f"**Positive IC folds:** {s['positive_ic_folds']}/{s['total_folds']}  |  "
+            f"**Long:** {s['long_rate']:.1%}  |  **Short:** {s['short_rate']:.1%}"
+        )
+        a(
+            f"**Recommendation:** PROMOTE — consistent edge across {s['positive_ic_folds']}/{s['total_folds']} folds, "
+            f"bidirectional signal (long {s['long_rate']:.1%}, short {s['short_rate']:.1%})"
+        )
         a("")
 
     # Section 3: YELLOW
@@ -101,8 +110,10 @@ def generate(report: dict) -> str:
     for s in yellow:
         a(f"### {s['ticker']}")
         a("")
-        a(f"**Score:** {s['score']}/100  |  **IC:** {s['ic']:.4f}  |  "
-          f"**Hit Rate:** {s['hit_rate']:.1%}  |  **Flat Rate:** {s['flat_rate']:.1%}")
+        a(
+            f"**Score:** {s['score']}/100  |  **IC:** {s['ic']:.4f}  |  "
+            f"**Hit Rate:** {s['hit_rate']:.1%}  |  **Flat Rate:** {s['flat_rate']:.1%}"
+        )
         a(f"**Positive IC folds:** {s['positive_ic_folds']}/{s['total_folds']}")
         a(f"**Note:** {note_reason(s)}")
         a("")

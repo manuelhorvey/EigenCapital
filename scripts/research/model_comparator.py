@@ -28,12 +28,15 @@ def _compute_signals(
     signals = pd.Series(0, index=index)
     signals[probs_long > threshold] = 2
     signals[probs_short > threshold] = 0
-    return pd.DataFrame({
-        "signal": signals,
-        "prob_long": probs_long,
-        "prob_short": probs_short,
-        "prob_neutral": proba[:, 1],
-    }, index=index)
+    return pd.DataFrame(
+        {
+            "signal": signals,
+            "prob_long": probs_long,
+            "prob_short": probs_short,
+            "prob_neutral": proba[:, 1],
+        },
+        index=index,
+    )
 
 
 def compare_models(
@@ -45,7 +48,9 @@ def compare_models(
 ) -> dict:
     try:
         if predict_fn is None:
-            predict_fn = lambda m, x: m.predict_proba(x)
+
+            def predict_fn(m, x):
+                return m.predict_proba(x)
 
         old_proba = predict_fn(old_model, X)
         new_proba = predict_fn(new_model, X)
@@ -54,6 +59,7 @@ def compare_models(
 
         if y is not None:
             from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
+
             labels = sorted(y.unique())
             result["old"] = {
                 "accuracy": round(float(accuracy_score(y, np.argmax(old_proba, axis=1))), 4),
@@ -64,20 +70,32 @@ def compare_models(
                 "logloss": round(float(log_loss(y, new_proba, labels=labels)), 4),
             }
             try:
-                result["old"]["auc_macro"] = round(float(roc_auc_score(y, old_proba, multi_class="ovr", labels=labels)), 4)
-                result["new"]["auc_macro"] = round(float(roc_auc_score(y, new_proba, multi_class="ovr", labels=labels)), 4)
-            except Exception:
+                result["old"]["auc_macro"] = round(
+                    float(roc_auc_score(y, old_proba, multi_class="ovr", labels=labels)), 4
+                )  # noqa: E501
+                result["new"]["auc_macro"] = round(
+                    float(roc_auc_score(y, new_proba, multi_class="ovr", labels=labels)), 4
+                )  # noqa: E501
+            except Exception:  # noqa: BLE001
                 pass
 
         old_class_dist = np.bincount(np.argmax(old_proba, axis=1), minlength=3) / len(old_proba)
         new_class_dist = np.bincount(np.argmax(new_proba, axis=1), minlength=3) / len(new_proba)
         result["class_distribution"] = {
-            "old": {"short": round(float(old_class_dist[0]), 4), "neutral": round(float(old_class_dist[1]), 4), "long": round(float(old_class_dist[2]), 4)},
-            "new": {"short": round(float(new_class_dist[0]), 4), "neutral": round(float(new_class_dist[1]), 4), "long": round(float(new_class_dist[2]), 4)},
+            "old": {
+                "short": round(float(old_class_dist[0]), 4),
+                "neutral": round(float(old_class_dist[1]), 4),
+                "long": round(float(old_class_dist[2]), 4),
+            },  # noqa: E501
+            "new": {
+                "short": round(float(new_class_dist[0]), 4),
+                "neutral": round(float(new_class_dist[1]), 4),
+                "long": round(float(new_class_dist[2]), 4),
+            },  # noqa: E501
         }
 
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("compare_models failed: %s", e)
         return {"n_samples": 0, "error": str(e)}
 
@@ -92,7 +110,9 @@ def compare_signals(
 ) -> dict:
     try:
         if predict_fn is None:
-            predict_fn = lambda m, x: m.predict_proba(x)
+
+            def predict_fn(m, x):
+                return m.predict_proba(x)
 
         old_proba = predict_fn(old_model, X)
         new_proba = predict_fn(new_model, X)
@@ -133,7 +153,7 @@ def compare_signals(
             "mean_confidence_shift": round(mean_conf_shift, 4),
             "regime_stratified_agreement": regime_agreement,
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("compare_signals failed: %s", e)
         return {"n_samples": 0, "error": str(e)}
 
@@ -150,7 +170,9 @@ def compare_portfolio(
 ) -> dict:
     try:
         if predict_fn is None:
-            predict_fn = lambda m, x: m.predict_proba(x)
+
+            def predict_fn(m, x):
+                return m.predict_proba(x)
 
         old_proba = predict_fn(old_model, X)
         new_proba = predict_fn(new_model, X)
@@ -167,7 +189,7 @@ def compare_portfolio(
                 prev_s = sig["signal"].iloc[i - 1]
                 curr_s = sig["signal"].iloc[i]
                 curr_close = float(close.iloc[i])
-                prev_close = float(close.iloc[i - 1])
+                float(close.iloc[i - 1])
 
                 if pos != 0 and curr_s != prev_s:
                     ret = (curr_close / entry_price - 1) if pos == 2 else (entry_price / curr_close - 1)
@@ -201,7 +223,7 @@ def compare_portfolio(
                 "trade_diff": new_result["total_trades"] - old_result["total_trades"],
             },
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("compare_portfolio failed: %s", e)
         return {"error": str(e), "initial_capital": initial_capital}
 
@@ -217,7 +239,9 @@ def compare_shadow_intel(
 ) -> dict:
     try:
         if predict_fn is None:
-            predict_fn = lambda m, x: m.predict_proba(x)
+
+            def predict_fn(m, x):
+                return m.predict_proba(x)
 
         old_proba = predict_fn(old_model, X)
         new_proba = predict_fn(new_model, X)
@@ -251,8 +275,16 @@ def compare_shadow_intel(
         return {
             "asset": asset,
             "class_distribution_shift": {
-                "old": {"short": round(float(old_dist[0]), 4), "neutral": round(float(old_dist[1]), 4), "long": round(float(old_dist[2]), 4)},
-                "new": {"short": round(float(new_dist[0]), 4), "neutral": round(float(new_dist[1]), 4), "long": round(float(new_dist[2]), 4)},
+                "old": {
+                    "short": round(float(old_dist[0]), 4),
+                    "neutral": round(float(old_dist[1]), 4),
+                    "long": round(float(old_dist[2]), 4),
+                },  # noqa: E501
+                "new": {
+                    "short": round(float(new_dist[0]), 4),
+                    "neutral": round(float(new_dist[1]), 4),
+                    "long": round(float(new_dist[2]), 4),
+                },  # noqa: E501
             },
             "entropy_shift": round(float(entropy_shift), 4),
             "signal_agreement": round(float(signal_agreement), 4),
@@ -260,7 +292,7 @@ def compare_shadow_intel(
             "mean_confidence_new": {"short": round(float(new_short_conf), 4), "long": round(float(new_long_conf), 4)},
             "regime_stability": regime_stability,
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("compare_shadow_intel failed: %s", e)
         return {"asset": asset, "error": str(e)}
 
@@ -288,35 +320,43 @@ def build_summary(
         old_acc = model_result.get("old", {}).get("accuracy", 0)
         new_acc = model_result.get("new", {}).get("accuracy", 0)
         acc_drop = old_acc - new_acc
-        checks.append({
-            "check": "accuracy_drop",
-            "value": round(acc_drop, 4),
-            "pass": acc_drop <= thresholds["accuracy_drop"],
-        })
+        checks.append(
+            {
+                "check": "accuracy_drop",
+                "value": round(acc_drop, 4),
+                "pass": acc_drop <= thresholds["accuracy_drop"],
+            }
+        )
 
     if "error" not in signal_result:
         agreement = signal_result.get("overall_agreement", 1.0)
         flip_rate = signal_result.get("flip_rate", 0.0)
-        checks.append({"check": "signal_agreement", "value": agreement, "pass": agreement >= thresholds["agreement_min"]})
+        checks.append(
+            {"check": "signal_agreement", "value": agreement, "pass": agreement >= thresholds["agreement_min"]}
+        )  # noqa: E501
         checks.append({"check": "flip_rate", "value": flip_rate, "pass": flip_rate <= thresholds["flip_rate_max"]})
 
     if "error" not in portfolio_result:
         old_ret = portfolio_result.get("old", {}).get("total_return", 0)
         new_ret = portfolio_result.get("new", {}).get("total_return", 0)
         ret_diff = new_ret - old_ret
-        checks.append({
-            "check": "return_delta",
-            "value": round(ret_diff, 4),
-            "pass": ret_diff >= -thresholds["return_drop"],
-        })
+        checks.append(
+            {
+                "check": "return_delta",
+                "value": round(ret_diff, 4),
+                "pass": ret_diff >= -thresholds["return_drop"],
+            }
+        )
 
     if "error" not in shadow_result:
         entropy = abs(shadow_result.get("entropy_shift", 0))
-        checks.append({
-            "check": "entropy_stability",
-            "value": entropy,
-            "pass": entropy <= thresholds["entropy_shift_max"],
-        })
+        checks.append(
+            {
+                "check": "entropy_stability",
+                "value": entropy,
+                "pass": entropy <= thresholds["entropy_shift_max"],
+            }
+        )
 
     all_pass = all(c["pass"] for c in checks)
     return {

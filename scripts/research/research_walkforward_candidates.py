@@ -66,7 +66,8 @@ def main():
         logger.info("=== %s (%s) pt_sl=%s ===", name, ticker, pt_sl)
         try:
             result = run_walk_forward(
-                name, ticker,
+                name,
+                ticker,
                 window_years=3,
                 step_years=1,
                 ensemble_weight=0.6,
@@ -75,9 +76,10 @@ def main():
             )
             if result is not None:
                 all_summaries.append(result)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("  ✗ %s: %s", name, e)
             import traceback
+
             traceback.print_exc()
 
     # Save ticker map for promotion report

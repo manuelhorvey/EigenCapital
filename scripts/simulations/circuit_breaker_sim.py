@@ -39,9 +39,13 @@ logger = logging.getLogger("circuit_breaker_sim")
 
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 
-SELL_ONLY_ASSETS: frozenset[str] = frozenset({
-    "CADCHF", "NZDCHF", "EURAUD",
-})
+SELL_ONLY_ASSETS: frozenset[str] = frozenset(
+    {
+        "CADCHF",
+        "NZDCHF",
+        "EURAUD",
+    }
+)
 
 # ── Data loading (shared with monte_carlo_drawdown) ────────────────────────
 
@@ -156,7 +160,9 @@ def simulate_paths(
 
     logger.info(
         "Running %d simulations across %d horizons (block_size=%d)...",
-        n_simulations, len(horizons_days), block_size,
+        n_simulations,
+        len(horizons_days),
+        block_size,
     )
     t0 = time.monotonic()
 
@@ -174,7 +180,7 @@ def simulate_paths(
 
             for b in range(n_blocks_needed):
                 start = rng.integers(0, n_blocks_total)
-                sampled[b * block_size: (b + 1) * block_size] = daily_returns[start: start + block_size]
+                sampled[b * block_size : (b + 1) * block_size] = daily_returns[start : start + block_size]
 
             returns = sampled[:h]
             equity = np.cumsum(returns)
@@ -247,7 +253,7 @@ def breaker_replay(
     # 2. Vol spike: rolling 10-day vol vs baseline
     if baseline_vol is not None and baseline_vol > 0:
         for t in range(20, n):
-            window = returns[t - 20: t]
+            window = returns[t - 20 : t]
             rolling_vol = float(np.std(window))
             if rolling_vol >= baseline_vol * vol_spike_threshold:
                 first_trip["vol_spike"] = (t, rolling_vol / baseline_vol if baseline_vol else 0.0)
@@ -376,9 +382,7 @@ def analyze_breaker_replay(
 
             # False positive: tripped by this threshold but total_R > 0
             false_positives = [
-                (t, p)
-                for t, p in zip(tripped, paths)
-                if key in t.get("conditions", {}) and p["total_r"] > 0
+                (t, p) for t, p in zip(tripped, paths) if key in t.get("conditions", {}) and p["total_r"] > 0
             ]
             fp_rate = len(false_positives) / len(tripped) if tripped else 0.0
 
@@ -392,10 +396,7 @@ def analyze_breaker_replay(
             median_dd = float(np.median(dd_at_trip)) if dd_at_trip else 0.0
 
             # Recovered? (total_R > 0 at horizon end after tripping)
-            recovered = [
-                p for t, p in zip(tripped, paths)
-                if key in t.get("conditions", {}) and p["total_r"] > 0
-            ]
+            recovered = [p for t, p in zip(tripped, paths) if key in t.get("conditions", {}) and p["total_r"] > 0]
             recovery_rate = len(recovered) / len(tripped) if tripped else 0.0
 
             threshold_metrics[th] = {
@@ -459,12 +460,8 @@ def make_threshold_recommendation(
     lines.append("THRESHOLD RECOMMENDATION")
     lines.append("=" * 72)
     lines.append("")
-    lines.append(
-        f"  Recommended max_consecutive_losses: {best_th}"
-    )
-    lines.append(
-        f"  (Assuming the next 12 months resemble the last {n_empirical_days} trading days.)"
-    )
+    lines.append(f"  Recommended max_consecutive_losses: {best_th}")
+    lines.append(f"  (Assuming the next 12 months resemble the last {n_empirical_days} trading days.)")
     lines.append("")
     lines.append("  At this threshold (1-year horizon):")
     lines.append(f"    P(streak ≥ {best_th}):          {p_streak_ge_best}")
@@ -486,10 +483,7 @@ def make_threshold_recommendation(
         "or at the wrong severity level during a genuine regime break."
     )
     lines.append("")
-    lines.append(
-        "  The breaker's real test is a regime it has never seen, not the one "
-        "it is being calibrated against."
-    )
+    lines.append("  The breaker's real test is a regime it has never seen, not the one it is being calibrated against.")
     lines.append("")
     lines.append("  WHEN TO REVISIT THIS NUMBER:")
     lines.append(
@@ -526,10 +520,12 @@ def format_report(
     lines.append(f"Empirical window: {n_empirical_days} trading days (Oct 2024 - May 2026)")
     lines.append("Block bootstrap: 10-day blocks, 10,000 simulations")
     lines.append("")
-    lines.append(f"Empirical portfolio: total_R={empirical_stats['total_r']:.2f}  "
-                 f"max_dd={empirical_stats['max_dd']:.2f}R  "
-                 f"max_streak={empirical_stats['max_streak']}  "
-                 f"sharpe={empirical_stats['sharpe']:.2f}")
+    lines.append(
+        f"Empirical portfolio: total_R={empirical_stats['total_r']:.2f}  "
+        f"max_dd={empirical_stats['max_dd']:.2f}R  "
+        f"max_streak={empirical_stats['max_streak']}  "
+        f"sharpe={empirical_stats['sharpe']:.2f}"
+    )
     lines.append("")
 
     for h in sorted(streak_summary.keys()):
@@ -563,10 +559,11 @@ def format_report(
             lines.append(f"    {cond:>20s}:  {count:>6d} ({pct:>5.1f}%)")
         lines.append("")
         lines.append("  ── Threshold sensitivity table ──")
-        lines.append(f"  {'Threshold':>10s}  {'P(trip)':>8s}  {'N(trip)':>8s}  "
-                     f"{'FP rate':>8s}  {'Recov rate':>10s}  {'Med DD@trip':>12s}")
-        lines.append(f"  {'-' * 10}  {'-' * 8}  {'-' * 8}  {'-' * 8}  "
-                     f"{'-' * 10}  {'-' * 12}")
+        lines.append(
+            f"  {'Threshold':>10s}  {'P(trip)':>8s}  {'N(trip)':>8s}  "
+            f"{'FP rate':>8s}  {'Recov rate':>10s}  {'Med DD@trip':>12s}"
+        )
+        lines.append(f"  {'-' * 10}  {'-' * 8}  {'-' * 8}  {'-' * 8}  {'-' * 10}  {'-' * 12}")
         for th in sorted(b["threshold_metrics"].keys()):
             m = b["threshold_metrics"][th]
             lines.append(
@@ -600,15 +597,16 @@ def format_report(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Circuit breaker Monte Carlo calibration from walk-forward OOS data"
-    )
+    parser = argparse.ArgumentParser(description="Circuit breaker Monte Carlo calibration from walk-forward OOS data")
     parser.add_argument(
-        "--n-sim", type=int, default=10_000,
+        "--n-sim",
+        type=int,
+        default=10_000,
         help="Number of simulations (default: 10,000)",
     )
     parser.add_argument(
-        "--output", default=None,
+        "--output",
+        default=None,
         help="Path to save JSON results (optional)",
     )
     args = parser.parse_args()

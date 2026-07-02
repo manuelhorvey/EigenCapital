@@ -73,20 +73,36 @@ def score_candidate(group: pd.DataFrame) -> dict:
     else:
         status = "RED"
 
-    return {"asset": asset, "score": score, "ic": round(float(mean_ic), 4),
-            "hit_rate": round(float(hit_rate), 4), "flat_rate": round(float(flat_rate), 4),
-            "long_rate": round(float(long_rate), 4), "short_rate": round(float(short_rate), 4),
-            "pos_folds": int(pos_folds), "total_folds": int(n_folds),
-            "criteria_met": bool(criteria_met), "status": status}
+    return {
+        "asset": asset,
+        "score": score,
+        "ic": round(float(mean_ic), 4),
+        "hit_rate": round(float(hit_rate), 4),
+        "flat_rate": round(float(flat_rate), 4),
+        "long_rate": round(float(long_rate), 4),
+        "short_rate": round(float(short_rate), 4),
+        "pos_folds": int(pos_folds),
+        "total_folds": int(n_folds),
+        "criteria_met": bool(criteria_met),
+        "status": status,
+    }
 
 
-def run_one(asset_name: str, ticker: str, pt_sl: tuple[float, float],
-            ensemble_threshold: float, max_depth: int) -> dict | None:
+def run_one(
+    asset_name: str, ticker: str, pt_sl: tuple[float, float], ensemble_threshold: float, max_depth: int
+) -> dict | None:
     from scripts.backtest.walk_forward_backtest import run_walk_forward
+
     try:
-        df = run_walk_forward(asset_name, ticker, window_years=3, step_years=1,
-                              ensemble_weight=0.6, ensemble_threshold=ensemble_threshold,
-                              pt_sl=pt_sl)
+        df = run_walk_forward(
+            asset_name,
+            ticker,
+            window_years=3,
+            step_years=1,
+            ensemble_weight=0.6,
+            ensemble_threshold=ensemble_threshold,
+            pt_sl=pt_sl,
+        )
         if df is None or df.empty:
             return None
         result = score_candidate(df)
@@ -94,7 +110,7 @@ def run_one(asset_name: str, ticker: str, pt_sl: tuple[float, float],
         result["ensemble_threshold"] = ensemble_threshold
         result["max_depth"] = max_depth
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("  %s: %s", asset_name, e)
         return None
 
@@ -142,22 +158,23 @@ def main():
             best = green.loc[green["score"].idxmax()]
         else:
             yellow = sub[sub["status"] == "YELLOW"]
-            if not yellow.empty:
-                best = yellow.loc[yellow["score"].idxmax()]
-            else:
-                best = sub.loc[sub["score"].idxmax()]
+            best = yellow.loc[yellow["score"].idxmax()] if not yellow.empty else sub.loc[sub["score"].idxmax()]
         best_per.append(best.to_dict())
 
     print("\n" + "=" * 120)
     print("BEST CONFIG PER ASSET")
     print("=" * 120)
-    print(f"{'Asset':<8} {'Score':>6} {'IC':>7} {'Hit':>6} {'Flat':>6} {'Long':>6} "
-          f"{'Short':>6} {'Stat':>6}  pt_sl          et   md")
+    print(
+        f"{'Asset':<8} {'Score':>6} {'IC':>7} {'Hit':>6} {'Flat':>6} {'Long':>6} "
+        f"{'Short':>6} {'Stat':>6}  pt_sl          et   md"
+    )
     print("-" * 120)
     for r in sorted(best_per, key=lambda x: x["score"], reverse=True):
-        print(f"{r['asset']:<8} {r['score']:>6.1f} {r['ic']:>7.4f} {r['hit_rate']:>6.3f} "
-              f"{r['flat_rate']:>6.3f} {r['long_rate']:>6.3f} {r['short_rate']:>6.3f} "
-              f"{r['status']:>6}  {r['pt_sl']}  {r['ensemble_threshold']:.2f}  {r['max_depth']}")
+        print(
+            f"{r['asset']:<8} {r['score']:>6.1f} {r['ic']:>7.4f} {r['hit_rate']:>6.3f} "
+            f"{r['flat_rate']:>6.3f} {r['long_rate']:>6.3f} {r['short_rate']:>6.3f} "
+            f"{r['status']:>6}  {r['pt_sl']}  {r['ensemble_threshold']:.2f}  {r['max_depth']}"
+        )
 
     n_g = sum(1 for r in best_per if r["status"] == "GREEN")
     n_y = sum(1 for r in best_per if r["status"] == "YELLOW")
@@ -169,8 +186,10 @@ def main():
     for et in thresholds:
         sub = df[df["ensemble_threshold"] == et]
         g = len(sub[sub["status"] == "GREEN"])
-        print(f"  et={et:.2f}:  score={sub['score'].mean():.1f}  hr={sub['hit_rate'].mean():.3f}  "
-              f"flat={sub['flat_rate'].mean():.3f}  green={g}/{len(sub)}")
+        print(
+            f"  et={et:.2f}:  score={sub['score'].mean():.1f}  hr={sub['hit_rate'].mean():.3f}  "
+            f"flat={sub['flat_rate'].mean():.3f}  green={g}/{len(sub)}"
+        )
 
     print("\n--- Impact: pt_sl type ---")
     for name in YELLOW_ASSETS:
@@ -187,8 +206,7 @@ def main():
     for md in max_depths:
         sub = df[df["max_depth"] == md]
         g = len(sub[sub["status"] == "GREEN"])
-        print(f"  md={md}:  score={sub['score'].mean():.1f}  hr={sub['hit_rate'].mean():.3f}  "
-              f"green={g}/{len(sub)}")
+        print(f"  md={md}:  score={sub['score'].mean():.1f}  hr={sub['hit_rate'].mean():.3f}  green={g}/{len(sub)}")
 
 
 if __name__ == "__main__":

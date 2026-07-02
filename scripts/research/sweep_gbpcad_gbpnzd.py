@@ -8,15 +8,15 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import pandas as pd
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import pandas as pd  # noqa: E402
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests import compute_per_fold_labels
-from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro
-from features.builder import build_features
-from features.registry import ASSET_LABEL_PARAMS, FeatureContract
-from shared.volatility import compute_atr_pct
+from backtests import compute_per_fold_labels  # noqa: E402
+from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro  # noqa: E402
+from features.builder import build_features  # noqa: E402
+from features.registry import ASSET_LABEL_PARAMS, FeatureContract  # noqa: E402
+from shared.volatility import compute_atr_pct  # noqa: E402
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -58,7 +58,14 @@ VARIANTS = {
         "price_mom_windows": (21, 63),
     },
     "+real_yield+rate_diff_delta": {
-        "macro_filters": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5", "real_yield_delta_63", "rate_diff_delta_3m"),
+        "macro_filters": (
+            "rate_diff",
+            "dxy_mom_21",
+            "vix_ma21",
+            "vix_delta_5",
+            "real_yield_delta_63",
+            "rate_diff_delta_3m",
+        ),  # noqa: E501
         "price_mom_windows": (21, 63),
     },
 }
@@ -67,7 +74,9 @@ VARIANTS = {
 def run_5yr(name, ticker, variant, tp, sl, depth):
     lp = dict(ASSET_LABEL_PARAMS.get(name, {"pt": 2.0, "sl": 2.0}))
     vc = FeatureContract(
-        ticker=ticker, name=name, contract_prefix=ticker.lower(),
+        ticker=ticker,
+        name=name,
+        contract_prefix=ticker.lower(),
         label_type="tb20",
         label_params={
             "pt_sl": [lp["pt"], lp["sl"]],
@@ -87,16 +96,15 @@ def run_5yr(name, ticker, variant, tp, sl, depth):
 
     X = fdf[[c for c in vc.features if c in fdf.columns]]
 
-
     close = df["close"].reindex(X.index)
     high = df["high"].reindex(X.index)
     low = df["low"].reindex(X.index)
 
     atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
     atr_pct = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-    regime = atr_pct.fillna(0.5).apply(
-        lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")
-    ).astype(str)
+    regime = (
+        atr_pct.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    )
 
     all_trades = []
     for ty in range(2023, 2026):
@@ -119,14 +127,18 @@ def run_5yr(name, ticker, variant, tp, sl, depth):
 
         mc = y_tr.value_counts().min()
         strat = y_tr if mc >= 2 else None
-        X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-            X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat
-        )
+        X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
 
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=depth, learning_rate=0.02,
-            objective="multi:softprob", num_class=3, random_state=42,
-            n_jobs=1, tree_method="hist", verbosity=0,
+            n_estimators=300,
+            max_depth=depth,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
         )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
@@ -154,9 +166,9 @@ def main():
         sl = cfg["sl"]
         depth = cfg["depth"]
 
-        print(f"\n{'='*65}", flush=True)
+        print(f"\n{'=' * 65}", flush=True)
         print(f"{asset_name} ({ticker}) — TP={tp}, SL={sl}, depth={depth}", flush=True)
-        print(f"{'='*65}", flush=True)
+        print(f"{'=' * 65}", flush=True)
 
         results = []
         best_pf = 0
@@ -173,7 +185,10 @@ def main():
                 best_pf = r["pf"]
             results.append((vname, r))
             marker = " <<<" if is_best else ""
-            print(f"{vname:30s} {r['pf']:>8.3f} {r['avg_r']:>+8.4f} {r['n']:>7d} {r['feature_count']:>5d}{marker}", flush=True)
+            print(
+                f"{vname:30s} {r['pf']:>8.3f} {r['avg_r']:>+8.4f} {r['n']:>7d} {r['feature_count']:>5d}{marker}",
+                flush=True,
+            )  # noqa: E501
 
         print(f"\n  SUMMARY ({asset_name}, sorted by PF):", flush=True)
         for vname, r in sorted(results, key=lambda x: -x[1]["pf"]):

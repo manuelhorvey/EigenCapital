@@ -90,7 +90,7 @@ def compute_mas_velocity(trajectory: list[dict], window: int = 3) -> list[float]
         smoothed = []
         for i in range(len(velocities)):
             lo = max(0, i - window + 1)
-            smoothed.append(sum(velocities[lo:i + 1]) / (i - lo + 1))
+            smoothed.append(sum(velocities[lo : i + 1]) / (i - lo + 1))
         return smoothed
     return velocities
 
@@ -147,7 +147,13 @@ def compute_convergence(all_trajectories: dict[str, list[dict]]) -> dict:
     result["variance_timeline"] = variance_over_time
     if variance_over_time:
         v_vals = list(variance_over_time.values())
-        result["convergence_direction"] = "converging" if len(v_vals) >= 2 and v_vals[-1] < v_vals[0] else "diverging" if len(v_vals) >= 2 else "stable"
+        result["convergence_direction"] = (
+            "converging"
+            if len(v_vals) >= 2 and v_vals[-1] < v_vals[0]
+            else "diverging"
+            if len(v_vals) >= 2
+            else "stable"
+        )  # noqa: E501
     else:
         result["convergence_direction"] = "insufficient_data"
 
@@ -220,11 +226,15 @@ def print_equilibrium_report():
         eq_str = f"band [{eq.get('lower', '?')}, {eq.get('upper', '?')}]" if eq.get("mean") else "N/A"
         vel = info.get("velocity_latest")
         vel_str = f"{vel:+.4f}" if vel is not None else "N/A"
-        print(f"  {asset:10s}  MAS={info['latest_mas']:6.2f}  ∇={vel_str:>8s}  "
-              f"decision={info['latest_decision']:16s}  eq={eq_str}")
+        print(
+            f"  {asset:10s}  MAS={info['latest_mas']:6.2f}  ∇={vel_str:>8s}  "
+            f"decision={info['latest_decision']:16s}  eq={eq_str}"
+        )
     conv = system.get("system", {})
-    print(f"\n  Cross-asset variance: {conv.get('current_variance', 'N/A')}  "
-          f"std={conv.get('current_std', 'N/A')}  "
-          f"direction={conv.get('convergence_direction', 'N/A')}")
+    print(
+        f"\n  Cross-asset variance: {conv.get('current_variance', 'N/A')}  "
+        f"std={conv.get('current_std', 'N/A')}  "
+        f"direction={conv.get('convergence_direction', 'N/A')}"
+    )
     print("=" * 80)
     return system

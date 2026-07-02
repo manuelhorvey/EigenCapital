@@ -9,6 +9,7 @@ SHADOW_FEEDBACK_DIR = os.path.join(BASE_DIR, "data", "shadow_feedback")
 SHADOW_MEMORY_DIR = os.path.join(BASE_DIR, "data", "shadow_memory")
 SHADOW_LEARNING_DIR = os.path.join(BASE_DIR, "data", "shadow_learning")
 
+
 def clean_directory_contents(dir_path):
     if not os.path.exists(dir_path):
         print(f"Directory {dir_path} does not exist, skipping.")
@@ -24,8 +25,9 @@ def clean_directory_contents(dir_path):
             else:
                 os.remove(item_path)
                 print(f"  Removed file: {item}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  Error removing {item}: {e}")
+
 
 def main():
     print("========================================================")
@@ -42,7 +44,7 @@ def main():
         print("\nMake sure the paper trading engine/monitor is NOT running before proceeding!\n")
 
         confirm = input("Are you sure you want to reset everything to a clean slate? (y/N): ").strip().lower()
-        if confirm != 'y':
+        if confirm != "y":
             print("Reset aborted.")
             sys.exit(0)
 
@@ -60,6 +62,7 @@ def main():
     clean_directory_contents(SHADOW_LEARNING_DIR)
 
     print("\n✅ Reset completed successfully! Your paper trading engine and dashboard are now at a clean slate.")
+
 
 if __name__ == "__main__":
     main()

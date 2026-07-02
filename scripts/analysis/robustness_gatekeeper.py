@@ -7,6 +7,7 @@ execution realism.
 Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/robustness_gatekeeper.py
 """
+
 import json
 import random
 from pathlib import Path
@@ -14,8 +15,9 @@ from pathlib import Path
 import numpy as np
 
 
-def simulate_trailing(trades: list[dict], retrace_pct: float = 0.50,
-                      require_min_mfe: float = 0.0) -> tuple[float, float, int]:
+def simulate_trailing(
+    trades: list[dict], retrace_pct: float = 0.50, require_min_mfe: float = 0.0
+) -> tuple[float, float, int]:
     original_r = sum(t["r_multiple"] for t in trades)
     new_r = 0.0
     n_saved = 0
@@ -58,8 +60,12 @@ def regime_robustness(all_trades: dict[str, list[dict]], ohlcv_map: dict) -> dic
         low_vol = [t for t in trades if t.get("atr_pct_entry", 0) <= median_atr]
         high_vol = [t for t in trades if t.get("atr_pct_entry", 0) > median_atr]
 
-        def fixed_r(ts): return sum(t["r_multiple"] for t in ts)
-        def trail_r(ts): _, nr, _ = simulate_trailing(ts); return nr
+        def fixed_r(ts):
+            return sum(t["r_multiple"] for t in ts)
+
+        def trail_r(ts):
+            _, nr, _ = simulate_trailing(ts)
+            return nr
 
         results[asset] = {
             "n_trades": len(trades),
@@ -78,8 +84,7 @@ def regime_robustness(all_trades: dict[str, list[dict]], ohlcv_map: dict) -> dic
 # ──────────────────────────────────────────────────────────────
 # 2. PER-TRADE BENEFIT DISTRIBUTION
 # ──────────────────────────────────────────────────────────────
-def per_trade_benefit(all_trades: dict[str, list[dict]],
-                      retrace_pct: float = 0.50) -> dict:
+def per_trade_benefit(all_trades: dict[str, list[dict]], retrace_pct: float = 0.50) -> dict:
     """Analyze per-trade delta of trailing vs fixed. Tests whether
     the improvement is broadly distributed or concentrated in a few trades."""
     deltas = []
@@ -125,9 +130,7 @@ def per_trade_benefit(all_trades: dict[str, list[dict]],
 # ──────────────────────────────────────────────────────────────
 # 2b. BOOTSTRAP ROBUSTNESS
 # ──────────────────────────────────────────────────────────────
-def bootstrap_robustness(all_trades: dict[str, list[dict]],
-                         n_iter: int = 500,
-                         retrace_pct: float = 0.50) -> dict:
+def bootstrap_robustness(all_trades: dict[str, list[dict]], n_iter: int = 500, retrace_pct: float = 0.50) -> dict:
     """Bootstrap resample trades (with replacement) and compare
     trailing vs fixed for each resample."""
     flat = []
@@ -291,8 +294,10 @@ def main():
     regime = regime_robustness(all_trades, {})
     for asset in sorted(regime.keys()):
         r = regime[asset]
-        print(f"{asset:<10} {r['n_trades']:>4} {r['fixed_low']:>+10.1f} {r['trail_low']:>+10.1f} "
-              f"{r['fixed_high']:>+10.1f} {r['trail_high']:>+10.1f}")
+        print(
+            f"{asset:<10} {r['n_trades']:>4} {r['fixed_low']:>+10.1f} {r['trail_low']:>+10.1f} "
+            f"{r['fixed_high']:>+10.1f} {r['trail_high']:>+10.1f}"
+        )
 
     # 2. Per-trade benefit distribution
     print("\n[2/5] PER-TRADE BENEFIT DISTRIBUTION (50% retracement)")
@@ -328,8 +333,10 @@ def main():
     print("-" * 70)
     for method in ["fixed_barriers", "be_lock_only", "trail_33pct", "trail_50pct", "trail_67pct"]:
         a = ablation[method]
-        print(f"{method:<20} {a['total_r']:>+8.1f} {a['mean_per_asset']:>+7.2f} "
-              f"{a['std_per_asset']:>7.2f} {a['sharpe']:>8.3f} {a['max_dd_r']:>+8.2f} {a['n_positive']:>3d}")
+        print(
+            f"{method:<20} {a['total_r']:>+8.1f} {a['mean_per_asset']:>+7.2f} "
+            f"{a['std_per_asset']:>7.2f} {a['sharpe']:>8.3f} {a['max_dd_r']:>+8.2f} {a['n_positive']:>3d}"
+        )
 
     # 5. TRAIL CONCENTRATION ANALYSIS
     print("\n[5/5] TRAIL CONCENTRATION — how many trades drive the benefit?")
@@ -339,8 +346,12 @@ def main():
     print(f"  Avg benefit per trade: {bd['mean_delta']:>+7.4f}R")
     print(f"  Top 10% trades: {bd['top10_pct_of_benefit']:.1f}% of benefit")
     print(f"  {bd['pct_improved']:.1f}% of trades (N={bd['n_improved']}) show any improvement")
-    print(f"  Skew={bd['skew']:>+.2f}: {'HIGH concentration risk' if abs(bd['skew']) > 3 else 'Moderate — benefit distributed'}")
-    print(f"  Worst-case delta: {bd['min_delta']:>+.2f}R (trades that would have been improved but trailing clipped them)")
+    print(
+        f"  Skew={bd['skew']:>+.2f}: {'HIGH concentration risk' if abs(bd['skew']) > 3 else 'Moderate — benefit distributed'}"  # noqa: E501
+    )  # noqa: E501
+    print(
+        f"  Worst-case delta: {bd['min_delta']:>+.2f}R (trades that would have been improved but trailing clipped them)"
+    )  # noqa: E501
 
     print("\n" + "=" * 72)
     print("GATEKEEPER COMPLETE")

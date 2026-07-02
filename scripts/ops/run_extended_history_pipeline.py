@@ -13,8 +13,8 @@ import pandas as pd
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from data.loaders.backfill_to_2000 import backfill
-from paper_trading.config_manager import get_config
+from data.loaders.backfill_to_2000 import backfill  # noqa: E402
+from paper_trading.config_manager import get_config  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("extended_history_pipeline")

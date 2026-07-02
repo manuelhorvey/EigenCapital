@@ -31,17 +31,60 @@ ET = pytz.timezone("US/Eastern")
 
 CANDIDATES = [
     {"name": "VIX", "ticker": "^VIX", "tp_mult": 1.5, "sl_mult": 1.5, "ensemble_threshold": 0.15, "max_depth": 2},
-    {"name": "EURAUD", "ticker": "EURAUD=X", "tp_mult": 1.77, "sl_mult": 0.54, "ensemble_threshold": 0.20, "max_depth": 2},
-    {"name": "GBPUSD", "ticker": "GBPUSD=X", "tp_mult": 0.52, "sl_mult": 1.97, "ensemble_threshold": 0.05, "max_depth": 2},
-    {"name": "AUDJPY", "ticker": "AUDJPY=X", "tp_mult": 0.52, "sl_mult": 2.01, "ensemble_threshold": 0.05, "max_depth": 2},
-    {"name": "CADJPY", "ticker": "CADJPY=X", "tp_mult": 0.52, "sl_mult": 1.65, "ensemble_threshold": 0.05, "max_depth": 2},
-    {"name": "USDJPY", "ticker": "USDJPY=X", "tp_mult": 0.52, "sl_mult": 1.97, "ensemble_threshold": 0.05, "max_depth": 2},
-    {"name": "NZDJPY", "ticker": "NZDJPY=X", "tp_mult": 0.51, "sl_mult": 2.02, "ensemble_threshold": 0.05, "max_depth": 2},
+    {
+        "name": "EURAUD",
+        "ticker": "EURAUD=X",
+        "tp_mult": 1.77,
+        "sl_mult": 0.54,
+        "ensemble_threshold": 0.20,
+        "max_depth": 2,
+    },  # noqa: E501
+    {
+        "name": "GBPUSD",
+        "ticker": "GBPUSD=X",
+        "tp_mult": 0.52,
+        "sl_mult": 1.97,
+        "ensemble_threshold": 0.05,
+        "max_depth": 2,
+    },  # noqa: E501
+    {
+        "name": "AUDJPY",
+        "ticker": "AUDJPY=X",
+        "tp_mult": 0.52,
+        "sl_mult": 2.01,
+        "ensemble_threshold": 0.05,
+        "max_depth": 2,
+    },  # noqa: E501
+    {
+        "name": "CADJPY",
+        "ticker": "CADJPY=X",
+        "tp_mult": 0.52,
+        "sl_mult": 1.65,
+        "ensemble_threshold": 0.05,
+        "max_depth": 2,
+    },  # noqa: E501
+    {
+        "name": "USDJPY",
+        "ticker": "USDJPY=X",
+        "tp_mult": 0.52,
+        "sl_mult": 1.97,
+        "ensemble_threshold": 0.05,
+        "max_depth": 2,
+    },  # noqa: E501
+    {
+        "name": "NZDJPY",
+        "ticker": "NZDJPY=X",
+        "tp_mult": 0.51,
+        "sl_mult": 2.02,
+        "ensemble_threshold": 0.05,
+        "max_depth": 2,
+    },  # noqa: E501
 ]
 
 
 def build_contract(name: str, ticker: str) -> object:
     from features.registry import FEATURE_REGISTRY
+
     contract = FEATURE_REGISTRY.get(ticker)
     if contract is None:
         logger.error("No contract for %s (%s)", name, ticker)
@@ -75,8 +118,7 @@ def main():
         et = cand["ensemble_threshold"]
         depth = cand.get("max_depth", 2)
 
-        logger.info("=== %s (%s) — tp=%.2f sl=%.2f et=%.2f depth=%d ===",
-                     name, ticker, tp_mult, sl_mult, et, depth)
+        logger.info("=== %s (%s) — tp=%.2f sl=%.2f et=%.2f depth=%d ===", name, ticker, tp_mult, sl_mult, et, depth)
 
         contract = build_contract(name, ticker)
         if contract is None:
@@ -115,33 +157,41 @@ def main():
                 elif hasattr(engine.contract, "label_params"):
                     vb = getattr(engine.contract.label_params, "vertical_barrier", 20)
 
-                results.append({
-                    "asset": name,
-                    "ticker": ticker,
-                    "tp_mult": tp_mult,
-                    "sl_mult": sl_mult,
-                    "ensemble_threshold": et,
-                    "max_depth": depth,
-                    "vertical_barrier": vb,
-                    "n_features": len(getattr(engine, "_alpha_feature_cols", [])),
-                    "n_regime_features": len(getattr(engine, "regime_feature_names", [])),
-                    "has_regime_model": getattr(engine, "_regime_model", None) is not None,
-                    "has_ensemble": getattr(engine, "_ensemble", None) is not None,
-                    "train_time_s": round(elapsed, 1),
-                    "model_path": engine.model_path,
-                    "status": "OK",
-                })
-                logger.info("  ✓ %s: trained in %.1fs (%d features, %d regime features, tp=%.2f, sl=%.2f)",
-                            name, elapsed, results[-1]["n_features"],
-                            results[-1]["n_regime_features"], tp_mult, sl_mult)
+                results.append(
+                    {
+                        "asset": name,
+                        "ticker": ticker,
+                        "tp_mult": tp_mult,
+                        "sl_mult": sl_mult,
+                        "ensemble_threshold": et,
+                        "max_depth": depth,
+                        "vertical_barrier": vb,
+                        "n_features": len(getattr(engine, "_alpha_feature_cols", [])),
+                        "n_regime_features": len(getattr(engine, "regime_feature_names", [])),
+                        "has_regime_model": getattr(engine, "_regime_model", None) is not None,
+                        "has_ensemble": getattr(engine, "_ensemble", None) is not None,
+                        "train_time_s": round(elapsed, 1),
+                        "model_path": engine.model_path,
+                        "status": "OK",
+                    }
+                )
+                logger.info(
+                    "  ✓ %s: trained in %.1fs (%d features, %d regime features, tp=%.2f, sl=%.2f)",
+                    name,
+                    elapsed,
+                    results[-1]["n_features"],
+                    results[-1]["n_regime_features"],
+                    tp_mult,
+                    sl_mult,
+                )
             else:
-                results.append({"asset": name, "ticker": ticker, "status": "FAILED",
-                                "train_time_s": round(elapsed, 1)})
+                results.append({"asset": name, "ticker": ticker, "status": "FAILED", "train_time_s": round(elapsed, 1)})
                 logger.warning("  ✗ %s: training returned no model", name)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("  ✗ %s: ERROR — %s", name, e)
             import traceback
+
             traceback.print_exc()
             results.append({"asset": name, "ticker": ticker, "status": f"ERROR: {e}"})
 
@@ -173,17 +223,21 @@ def main():
     print(f"  Total: {len(results)}  OK: {ok_count}  Failed: {fail_count}")
     print()
     if ok_count:
-        print(f"{'Asset':<8} {'tp_mult':>8} {'sl_mult':>8} {'et':>5} {'depth':>6} "
-              f"{'n_feat':>7} {'n_regime':>9} {'regime?':>8} {'ensemble?':>10} {'time':>6}")
+        print(
+            f"{'Asset':<8} {'tp_mult':>8} {'sl_mult':>8} {'et':>5} {'depth':>6} "
+            f"{'n_feat':>7} {'n_regime':>9} {'regime?':>8} {'ensemble?':>10} {'time':>6}"
+        )
         print("-" * 80)
         for r in results:
             if r.get("status") == "OK":
-                print(f"{r['asset']:<8} {r['tp_mult']:>8.2f} {r['sl_mult']:>8.2f} "
-                      f"{r['ensemble_threshold']:>5.2f} {r['max_depth']:>6d} "
-                      f"{r['n_features']:>7d} {r['n_regime_features']:>9d} "
-                      f"{'yes' if r.get('has_regime_model') else 'no':>8} "
-                      f"{'yes' if r.get('has_ensemble') else 'no':>10} "
-                      f"{r['train_time_s']:>6.1f}s")
+                print(
+                    f"{r['asset']:<8} {r['tp_mult']:>8.2f} {r['sl_mult']:>8.2f} "
+                    f"{r['ensemble_threshold']:>5.2f} {r['max_depth']:>6d} "
+                    f"{r['n_features']:>7d} {r['n_regime_features']:>9d} "
+                    f"{'yes' if r.get('has_regime_model') else 'no':>8} "
+                    f"{'yes' if r.get('has_ensemble') else 'no':>10} "
+                    f"{r['train_time_s']:>6.1f}s"
+                )
         print()
         print(f"Models: {RESEARCH_MODEL_DIR}/")
         for r in results:

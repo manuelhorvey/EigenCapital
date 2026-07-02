@@ -33,7 +33,7 @@ def poll() -> dict:
     try:
         with urllib.request.urlopen(DASHBOARD_URL, timeout=10) as resp:
             return json.loads(resp.read())
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 
@@ -141,11 +141,13 @@ def main():
             else:
                 metrics = compute_metrics(state)
                 append_row(metrics)
-                print(f"[{metrics['timestamp']}] value={metrics['total_value']:.0f} "
-                      f"unrealized={metrics['unrealized_pnl']:.0f} "
-                      f"conf={metrics['mean_confidence']:.3f} "
-                      f"gate={metrics['gate_overrides']} flips={metrics['signal_flips']} "
-                      f"B/S/F={metrics['n_buy']}/{metrics['n_sell']}/{metrics['n_flat']}")
+                print(
+                    f"[{metrics['timestamp']}] value={metrics['total_value']:.0f} "
+                    f"unrealized={metrics['unrealized_pnl']:.0f} "
+                    f"conf={metrics['mean_confidence']:.3f} "
+                    f"gate={metrics['gate_overrides']} flips={metrics['signal_flips']} "
+                    f"B/S/F={metrics['n_buy']}/{metrics['n_sell']}/{metrics['n_flat']}"
+                )
                 for msg in check_calibration(state):
                     print(f"  {msg}")
             time.sleep(args.interval * 3600)

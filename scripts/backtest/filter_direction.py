@@ -37,9 +37,9 @@ WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 # -1 = filter SELL (set SELL signals → FLAT)
 FILTER_MAP: dict[str, int] = {
     # Group A — repair candidates
-    "AUDNZD": -1,   # SELL anti-skill (17.9%)
-    "EURUSD": -1,   # SELL anti-skill (27.6%)
-    "AUDCHF": 1,    # BUY anti-skill (30.4%)
+    "AUDNZD": -1,  # SELL anti-skill (17.9%)
+    "EURUSD": -1,  # SELL anti-skill (27.6%)
+    "AUDCHF": 1,  # BUY anti-skill (30.4%)
     # Group B — sanity checks
     "ES": 1,
     "NQ": 1,
@@ -118,17 +118,19 @@ def run_filter(asset: str, filter_sig: int) -> dict | None:
         R_pre = float(mask_pre.sum())
         R_post = float(mask_post.sum())
 
-        rows.append({
-            "asset": asset,
-            "group": "A" if asset in GROUP_A else "B",
-            "filter": "BUY" if filter_sig == 1 else "SELL",
-            "fold": int(f),
-            "n_pre": n_pre,
-            "n_post": n_post,
-            "R_pre": round(R_pre, 2),
-            "R_post": round(R_post, 2),
-            "delta": round(R_post - R_pre, 2),
-        })
+        rows.append(
+            {
+                "asset": asset,
+                "group": "A" if asset in GROUP_A else "B",
+                "filter": "BUY" if filter_sig == 1 else "SELL",
+                "fold": int(f),
+                "n_pre": n_pre,
+                "n_post": n_post,
+                "R_pre": round(R_pre, 2),
+                "R_post": round(R_post, 2),
+                "delta": round(R_post - R_pre, 2),
+            }
+        )
 
     # Overall
     n_pre = int((r_pre != 0).sum())
@@ -142,7 +144,8 @@ def run_filter(asset: str, filter_sig: int) -> dict | None:
             "asset": asset,
             "group": "A" if asset in GROUP_A else "B",
             "filter": "BUY" if filter_sig == 1 else "SELL",
-            "n_pre": n_pre, "n_post": n_post,
+            "n_pre": n_pre,
+            "n_post": n_post,
             "R_pre": round(R_pre_tot, 2),
             "R_post": round(R_post_tot, 2),
             "delta": round(R_post_tot - R_pre_tot, 2),
@@ -176,10 +179,12 @@ def main():
 
         o = res["overall"]
         tag = "REPAIR" if o["group"] == "A" else "SANITY"
-        print(f"  {asset:8s} [{tag}] filter {o['filter']:5s}: "
-              f"{o['R_pre']:>+8.2f}R → {o['R_post']:>+8.2f}R  "
-              f"Δ={o['delta']:>+7.2f}R  "
-              f"trades: {o['n_pre']:3d} → {o['n_post']:3d}")
+        print(
+            f"  {asset:8s} [{tag}] filter {o['filter']:5s}: "
+            f"{o['R_pre']:>+8.2f}R → {o['R_post']:>+8.2f}R  "
+            f"Δ={o['delta']:>+7.2f}R  "
+            f"trades: {o['n_pre']:3d} → {o['n_post']:3d}"
+        )
 
     # Portfolio-level comparison
     print()
@@ -232,11 +237,13 @@ def main():
         print("-" * 72)
         for _, row in combined.iterrows():
             g = "A" if row["group"] == "A" else "B"
-            print(f"  {row['asset']:8s} [{g}] fold {int(row['fold'])}  "
-                  f"filter {row['filter']:5s}: "
-                  f"trades {int(row['n_pre']):3d}→{int(row['n_post']):3d}  "
-                  f"R {row['R_pre']:>+8.2f} → {row['R_post']:>+8.2f}  "
-                  f"Δ={row['delta']:>+7.2f}")
+            print(
+                f"  {row['asset']:8s} [{g}] fold {int(row['fold'])}  "
+                f"filter {row['filter']:5s}: "
+                f"trades {int(row['n_pre']):3d}→{int(row['n_post']):3d}  "
+                f"R {row['R_pre']:>+8.2f} → {row['R_post']:>+8.2f}  "
+                f"Δ={row['delta']:>+7.2f}"
+            )
 
         # Save
         out_path = WALKDIR / "filter_direction_results.csv"
@@ -257,9 +264,11 @@ def main():
             [all_results[a]["r_post"] for a in g_assets if a in all_results],
             axis=1,
         ).sum(axis=1)
-        print(f"  {g_name:20s}: pre={g_pre.sum():>+8.2f}R  "
-              f"post={g_post.sum():>+8.2f}R  "
-              f"Δ={g_post.sum()-g_pre.sum():>+7.2f}R")
+        print(
+            f"  {g_name:20s}: pre={g_pre.sum():>+8.2f}R  "
+            f"post={g_post.sum():>+8.2f}R  "
+            f"Δ={g_post.sum() - g_pre.sum():>+7.2f}R"
+        )
 
 
 if __name__ == "__main__":

@@ -53,8 +53,9 @@ def run_one(asset_name, ticker, pt_sl):
         return None
     labels = compute_labels(prices, pt_sl=pt_sl, vertical_barrier=20)
     cot_data = fetch_cot_features(prices.index)
-    alpha_df = build_alpha_features(prices, rate_diffs, dxy=dxy, vix=vix, spx=spx,
-                                     commodities=commodities, cot_data=cot_data)
+    alpha_df = build_alpha_features(
+        prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities, cot_data=cot_data
+    )
     alpha_df["label"] = labels.reindex(alpha_df.index).astype(int)
     alpha_df = alpha_df.dropna(subset=["label"])
     if len(alpha_df) < 300:
@@ -109,9 +110,16 @@ def run_one(asset_name, ticker, pt_sl):
                 continue  # 3-class requires all three labels in fold
 
             if is_binary:
-                model = xgb.XGBClassifier(n_estimators=300, max_depth=2, learning_rate=0.02,
-                                          objective="binary:logistic", random_state=42, n_jobs=1,
-                                          tree_method="hist", verbosity=0)
+                model = xgb.XGBClassifier(
+                    n_estimators=300,
+                    max_depth=2,
+                    learning_rate=0.02,
+                    objective="binary:logistic",
+                    random_state=42,
+                    n_jobs=1,
+                    tree_method="hist",
+                    verbosity=0,
+                )
                 if "balanced" in strat_name:
                     w = pd.Series(1.0, index=y_tr.index)
                     for cls in y_tr.unique():
@@ -124,10 +132,17 @@ def run_one(asset_name, ticker, pt_sl):
                     model.set_params(scale_pos_weight=n0 / max(n1, 1))
                     model.fit(X_tr, y_tr)
             else:
-                model = xgb.XGBClassifier(n_estimators=300, max_depth=2, learning_rate=0.02,
-                                          objective="multi:softprob", num_class=3,
-                                          random_state=42, n_jobs=1,
-                                          tree_method="hist", verbosity=0)
+                model = xgb.XGBClassifier(
+                    n_estimators=300,
+                    max_depth=2,
+                    learning_rate=0.02,
+                    objective="multi:softprob",
+                    num_class=3,
+                    random_state=42,
+                    n_jobs=1,
+                    tree_method="hist",
+                    verbosity=0,
+                )
                 y_tr_mapped = y_tr.map({-1: 0, 0: 1, 1: 2})
                 y_te_mapped = y_te.values  # keep original {-1, 0, 1}
                 if "balanced" in strat_name:
@@ -154,35 +169,49 @@ def run_one(asset_name, ticker, pt_sl):
                 signals = np.argmax(proba, axis=1) - 1  # {0,1,2} → {-1,0,1}
 
             tmask = signals != 0
-            if tmask.sum() > 0:
-                directional = (signals[tmask] * y_te_mapped[tmask]).sum() / tmask.sum()
-            else:
-                directional = 0.0
+            directional = (signals[tmask] * y_te_mapped[tmask]).sum() / tmask.sum() if tmask.sum() > 0 else 0.0
             hit_rate = (signals == y_te_mapped).mean()
             long_rate = (signals == 1).mean()
             short_rate = (signals == -1).mean()
             flat_rate = (signals == 0).mean()
 
-            window_results.append({
-                "fold": fold, "hit_rate": hit_rate, "directional": directional,
-                "long_rate": long_rate, "short_rate": short_rate, "flat_rate": flat_rate,
-            })
+            window_results.append(
+                {
+                    "fold": fold,
+                    "hit_rate": hit_rate,
+                    "directional": directional,
+                    "long_rate": long_rate,
+                    "short_rate": short_rate,
+                    "flat_rate": flat_rate,
+                }
+            )
             if fold == 0:
-                logger.info("  %s fold0 %s: dir=%.4f hit=%.3f long=%.3f short=%.3f flat=%.3f",
-                            asset_name, strat_name, directional, hit_rate, long_rate, short_rate, flat_rate)
+                logger.info(
+                    "  %s fold0 %s: dir=%.4f hit=%.3f long=%.3f short=%.3f flat=%.3f",
+                    asset_name,
+                    strat_name,
+                    directional,
+                    hit_rate,
+                    long_rate,
+                    short_rate,
+                    flat_rate,
+                )
 
         if len(window_results) >= 2:
             df = pd.DataFrame(window_results)
-            results.append({
-                "asset": asset_name, "strategy": strat_name,
-                "mean_ic": df["directional"].mean(),
-                "mean_hit_rate": df["hit_rate"].mean(),
-                "mean_long_rate": df["long_rate"].mean(),
-                "mean_short_rate": df["short_rate"].mean(),
-                "mean_flat_rate": df["flat_rate"].mean(),
-                "pos_folds": int((df["directional"] > 0).sum()),
-                "total_folds": len(df),
-            })
+            results.append(
+                {
+                    "asset": asset_name,
+                    "strategy": strat_name,
+                    "mean_ic": df["directional"].mean(),
+                    "mean_hit_rate": df["hit_rate"].mean(),
+                    "mean_long_rate": df["long_rate"].mean(),
+                    "mean_short_rate": df["short_rate"].mean(),
+                    "mean_flat_rate": df["flat_rate"].mean(),
+                    "pos_folds": int((df["directional"] > 0).sum()),
+                    "total_folds": len(df),
+                }
+            )
     return results
 
 
@@ -209,17 +238,21 @@ def main():
     print(f"{'Asset':<8} {'Strategy':<18} {'IC':>7} {'HitRate':>8} {'Long':>6} {'Short':>6} {'Flat':>6} {'PosFold':>8}")
     print("-" * 130)
     for _, r in df.sort_values(["asset", "mean_ic"], ascending=[True, False]).iterrows():
-        print(f"{r['asset']:<8} {r['strategy']:<18} {r['mean_ic']:>7.4f} {r['mean_hit_rate']:>8.3f} "
-              f"{r['mean_long_rate']:>6.3f} {r['mean_short_rate']:>6.3f} {r['mean_flat_rate']:>6.3f} "
-              f"{r['pos_folds']}/{r['total_folds']}")
+        print(
+            f"{r['asset']:<8} {r['strategy']:<18} {r['mean_ic']:>7.4f} {r['mean_hit_rate']:>8.3f} "
+            f"{r['mean_long_rate']:>6.3f} {r['mean_short_rate']:>6.3f} {r['mean_flat_rate']:>6.3f} "
+            f"{r['pos_folds']}/{r['total_folds']}"
+        )
 
     # Cross-asset summary
     print("\n--- Cross-asset average by strategy ---")
     for s in df["strategy"].unique():
         sub = df[df["strategy"] == s]
         g = (sub["pos_folds"] >= sub["total_folds"] / 2).sum()
-        print(f"  {s:<18}: mean_IC={sub['mean_ic'].mean():.4f}  mean_hit={sub['mean_hit_rate'].mean():.3f}  "
-              f"majority_pos={g}/{len(sub)}")
+        print(
+            f"  {s:<18}: mean_IC={sub['mean_ic'].mean():.4f}  mean_hit={sub['mean_hit_rate'].mean():.3f}  "
+            f"majority_pos={g}/{len(sub)}"
+        )
 
 
 if __name__ == "__main__":

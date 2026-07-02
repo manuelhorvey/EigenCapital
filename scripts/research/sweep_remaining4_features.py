@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Feature sweeps for remaining 4: EURCHF, EURCAD, EURNZD, GBPCHF."""
+
 import logging
 import os
 import sys
@@ -7,15 +8,15 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import pandas as pd
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import pandas as pd  # noqa: E402
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests import compute_per_fold_labels
-from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro
-from features.builder import build_features
-from features.registry import ASSET_LABEL_PARAMS, FeatureContract
-from shared.volatility import compute_atr_pct
+from backtests import compute_per_fold_labels  # noqa: E402
+from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro  # noqa: E402
+from features.builder import build_features  # noqa: E402
+from features.registry import ASSET_LABEL_PARAMS, FeatureContract  # noqa: E402
+from shared.volatility import compute_atr_pct  # noqa: E402
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -29,19 +30,40 @@ ASSETS = [
 ]
 
 COMMON_VARIANTS = {
-    "baseline":              {"macro": ("rate_diff","dxy_mom_21","vix_ma21","vix_delta_5"), "mom": (21,63), "custom": ()},
-    "+mom126":               {"macro": ("rate_diff","dxy_mom_21","vix_ma21","vix_delta_5"), "mom": (21,63,126), "custom": ()},
-    "+real_yield_delta":     {"macro": ("rate_diff","dxy_mom_21","vix_ma21","vix_delta_5","real_yield_delta_63"), "mom": (21,63), "custom": ()},
-    "+breakeven_delta":      {"macro": ("rate_diff","dxy_mom_21","vix_ma21","vix_delta_5","breakeven_delta_63"), "mom": (21,63), "custom": ()},
-    "+yield_slope":          {"macro": ("rate_diff","dxy_mom_21","vix_ma21","vix_delta_5","yield_slope"), "mom": (21,63), "custom": ()},
-    "+rate_diff_delta":      {"macro": ("rate_diff","rate_diff_delta_3m","dxy_mom_21","vix_ma21","vix_delta_5"), "mom": (21,63), "custom": ()},
-    "+de_10y":               {"macro": ("rate_diff","dxy_mom_21","vix_ma21","vix_delta_5","de_10y"), "mom": (21,63), "custom": ()},
+    "baseline": {"macro": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"), "mom": (21, 63), "custom": ()},  # noqa: E501
+    "+mom126": {"macro": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5"), "mom": (21, 63, 126), "custom": ()},  # noqa: E501
+    "+real_yield_delta": {
+        "macro": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5", "real_yield_delta_63"),
+        "mom": (21, 63),
+        "custom": (),
+    },  # noqa: E501
+    "+breakeven_delta": {
+        "macro": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5", "breakeven_delta_63"),
+        "mom": (21, 63),
+        "custom": (),
+    },  # noqa: E501
+    "+yield_slope": {
+        "macro": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5", "yield_slope"),
+        "mom": (21, 63),
+        "custom": (),
+    },  # noqa: E501
+    "+rate_diff_delta": {
+        "macro": ("rate_diff", "rate_diff_delta_3m", "dxy_mom_21", "vix_ma21", "vix_delta_5"),
+        "mom": (21, 63),
+        "custom": (),
+    },  # noqa: E501
+    "+de_10y": {
+        "macro": ("rate_diff", "dxy_mom_21", "vix_ma21", "vix_delta_5", "de_10y"),
+        "mom": (21, 63),
+        "custom": (),
+    },  # noqa: E501
 }
 
 
 def run_asset(ticker, name, sl, tp, depth, label_params, variant):
     vc = FeatureContract(
-        ticker=ticker, name=name,
+        ticker=ticker,
+        name=name,
         contract_prefix=ticker.lower().replace("=", "").replace("^", ""),
         label_type="tb20",
         label_params={"pt_sl": [label_params["pt"], label_params["sl"]], "vertical_barrier": 20},
@@ -64,9 +86,9 @@ def run_asset(ticker, name, sl, tp, depth, label_params, variant):
 
     atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
     atr_r = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-    regime = atr_r.fillna(0.5).apply(
-        lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")
-    ).astype(str)
+    regime = (
+        atr_r.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    )
 
     all_trades = []
     for ty in range(2023, 2026):
@@ -76,7 +98,8 @@ def run_asset(ticker, name, sl, tp, depth, label_params, variant):
         test = (X.index >= cut) & (X.index <= eoy)
         if test.sum() < 20:
             continue
-        X_tr = X[train]; y_tr, y_te = compute_per_fold_labels(close, train, test, vc)
+        X_tr = X[train]
+        y_tr, y_te = compute_per_fold_labels(close, train, test, vc)
         X_te = X[test]
         if len(X_tr) < 200 or set(y_tr.unique()) != {0, 1, 2}:
             continue
@@ -86,16 +109,30 @@ def run_asset(ticker, name, sl, tp, depth, label_params, variant):
         if set(y_tr2.unique()) != {0, 1, 2}:
             continue
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=depth, learning_rate=0.02,
-            objective="multi:softprob", num_class=3, random_state=42,
-            n_jobs=1, tree_method="hist", verbosity=0)
+            n_estimators=300,
+            max_depth=depth,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
+        )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
         sigs = _signals(proba, X_te.index)
-        tr = _simulate(sigs,
-                       close.reindex(X_te.index), high.reindex(X_te.index),
-                       low.reindex(X_te.index),
-                       name, sl, tp, atr, regime)
+        tr = _simulate(
+            sigs,
+            close.reindex(X_te.index),
+            high.reindex(X_te.index),
+            low.reindex(X_te.index),
+            name,
+            sl,
+            tp,
+            atr,
+            regime,
+        )
         all_trades.extend(tr)
 
     if len(all_trades) < MIN_TRADES:
@@ -110,9 +147,9 @@ def main():
         ticker, name, tp, sl, depth = asset["ticker"], asset["name"], asset["tp"], asset["sl"], asset["depth"]
         label_params = ASSET_LABEL_PARAMS.get(name, {"pt": 2.0, "sl": 2.0})
 
-        print(f"\n{'='*70}", flush=True)
+        print(f"\n{'=' * 70}", flush=True)
         print(f"=== {name} (TP={tp}, SL={sl}, depth={depth}) ===", flush=True)
-        print(f"{'='*70}", flush=True)
+        print(f"{'=' * 70}", flush=True)
         print(f"{'Variant':25s} {'PF':>8s} {'avgR':>8s} {'Trades':>7s} {'Feat':>5s}", flush=True)
         print("-" * 60, flush=True)
 

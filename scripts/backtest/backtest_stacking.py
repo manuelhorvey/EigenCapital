@@ -39,18 +39,47 @@ logger = logging.getLogger("backtest_stacking")
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 
 ACTIVE_ASSETS = [
-    "AUDUSD", "CADCHF", "EURAUD", "EURCAD", "EURCHF", "EURNZD",
-    "GBPAUD", "GBPCAD", "GBPCHF", "GBPUSD", "GC", "ES", "NQ",
-    "^DJI", "NZDCAD", "NZDCHF", "NZDUSD", "USDCAD", "USDCHF",
+    "AUDUSD",
+    "CADCHF",
+    "EURAUD",
+    "EURCAD",
+    "EURCHF",
+    "EURNZD",
+    "GBPAUD",
+    "GBPCAD",
+    "GBPCHF",
+    "GBPUSD",
+    "GC",
+    "ES",
+    "NQ",
+    "^DJI",
+    "NZDCAD",
+    "NZDCHF",
+    "NZDUSD",
+    "USDCAD",
+    "USDCHF",
 ]
 
 TICKER_MAP: dict[str, str] = {
-    "AUDUSD": "AUDUSD=X", "CADCHF": "CADCHF=X", "EURAUD": "EURAUD=X",
-    "EURCAD": "EURCAD=X", "EURCHF": "EURCHF=X", "EURNZD": "EURNZD=X",
-    "GBPAUD": "GBPAUD=X", "GBPCAD": "GBPCAD=X", "GBPCHF": "GBPCHF=X",
-    "GBPUSD": "GBPUSD=X", "GC": "GC=F", "ES": "ES=F", "NQ": "NQ=F",
-    "^DJI": "^DJI", "NZDCAD": "NZDCAD=X", "NZDCHF": "NZDCHF=X",
-    "NZDUSD": "NZDUSD=X", "USDCAD": "USDCAD=X", "USDCHF": "USDCHF=X",
+    "AUDUSD": "AUDUSD=X",
+    "CADCHF": "CADCHF=X",
+    "EURAUD": "EURAUD=X",
+    "EURCAD": "EURCAD=X",
+    "EURCHF": "EURCHF=X",
+    "EURNZD": "EURNZD=X",
+    "GBPAUD": "GBPAUD=X",
+    "GBPCAD": "GBPCAD=X",
+    "GBPCHF": "GBPCHF=X",
+    "GBPUSD": "GBPUSD=X",
+    "GC": "GC=F",
+    "ES": "ES=F",
+    "NQ": "NQ=F",
+    "^DJI": "^DJI",
+    "NZDCAD": "NZDCAD=X",
+    "NZDCHF": "NZDCHF=X",
+    "NZDUSD": "NZDUSD=X",
+    "USDCAD": "USDCAD=X",
+    "USDCHF": "USDCHF=X",
 }
 
 
@@ -65,6 +94,7 @@ def fetch_close(ticker: str, start, end) -> pd.Series:
 
 def _load_asset_config() -> dict[str, dict]:
     from paper_trading.config_manager import get_config
+
     cfg = get_config()
     result: dict[str, dict] = {}
     for name in ACTIVE_ASSETS:
@@ -77,8 +107,7 @@ def _load_asset_config() -> dict[str, dict]:
     return result
 
 
-def compute_label_pnl(signals: np.ndarray, labels: np.ndarray,
-                      tp: float, sl: float) -> np.ndarray:
+def compute_label_pnl(signals: np.ndarray, labels: np.ndarray, tp: float, sl: float) -> np.ndarray:
     """Vectorised: compute R-multiple per signal from pre-computed labels."""
     r = np.zeros(len(signals), dtype=float)
     buy = signals == 1
@@ -102,12 +131,12 @@ def position_unrealized_r(
     is permitted.  It does NOT affect the official PnL (which comes from
     pre-computed labels).
     """
-    active = [l for l in layers if not l.get("closed")]
+    active = [l for l in layers if not l.get("closed")]  # noqa: E741
     if not active:
         return 0.0
-    total_sz = max(sum(l["size_factor"] for l in active), 1e-10)
-    avg_entry = sum(l["entry_price"] * l["size_factor"] for l in active) / total_sz
-    avg_vol = np.mean([l.get("entry_vol", vol) for l in active])
+    total_sz = max(sum(l["size_factor"] for l in active), 1e-10)  # noqa: E741
+    avg_entry = sum(l["entry_price"] * l["size_factor"] for l in active) / total_sz  # noqa: E741
+    avg_vol = np.mean([l.get("entry_vol", vol) for l in active])  # noqa: E741
     return (price - avg_entry) / (avg_entry * max(avg_vol, 1e-10)) * direction
 
 
@@ -136,9 +165,12 @@ def simulate_stacking_v4(
     if layer_multipliers is None:
         layer_multipliers = [1.0, 0.5, 0.25]
 
-    aligned = df[["signal", "label", "p_long"]].join(
-        close.to_frame("Close"), how="inner"
-    ).join(vol.to_frame("Vol"), how="inner").sort_index()
+    aligned = (
+        df[["signal", "label", "p_long"]]
+        .join(close.to_frame("Close"), how="inner")
+        .join(vol.to_frame("Vol"), how="inner")
+        .sort_index()
+    )
     n = len(aligned)
     if n == 0:
         return pd.Series(dtype=float, name="daily_r"), 0, 0, 0
@@ -180,15 +212,17 @@ def simulate_stacking_v4(
             # exactly once, on its entry day.
 
             direction = sig
-            layers = [{
-                "label_r": sig_label_r,
-                "size_factor": layer_multipliers[0],
-                "is_first": True,
-                "idx": i,
-                "entry_price": float(close_prices[i]),
-                "entry_vol": float(vol_values[i]),
-                "closed": False,
-            }]
+            layers = [
+                {
+                    "label_r": sig_label_r,
+                    "size_factor": layer_multipliers[0],
+                    "is_first": True,
+                    "idx": i,
+                    "entry_price": float(close_prices[i]),
+                    "entry_vol": float(vol_values[i]),
+                    "closed": False,
+                }
+            ]
             daily_r[i] += sig_label_r * layer_multipliers[0]
             protected = False
             n_positions += 1
@@ -196,7 +230,7 @@ def simulate_stacking_v4(
         else:
             # ── Same direction ────────────────────────────────────
             # Check max layers
-            active = [l for l in layers if not l.get("closed")]
+            active = [l for l in layers if not l.get("closed")]  # noqa: E741
             if len(active) >= max_layers or len(layers) >= max_layers:
                 # Signal is skipped — no PnL contribution
                 continue
@@ -210,7 +244,10 @@ def simulate_stacking_v4(
             # min_pnl_r gate
             if min_pnl_r > 0:
                 unr = position_unrealized_r(
-                    layers, float(close_prices[i]), float(vol_values[i]), direction,
+                    layers,
+                    float(close_prices[i]),
+                    float(vol_values[i]),
+                    direction,
                 )
                 if unr < min_pnl_r:
                     continue  # skip
@@ -221,21 +258,21 @@ def simulate_stacking_v4(
                 adj_r *= stack_tp_ratio  # tighter TP for stacked layers
 
             layer_factor = (
-                layer_multipliers[len(layers)]
-                if len(layers) < len(layer_multipliers)
-                else layer_multipliers[-1]
+                layer_multipliers[len(layers)] if len(layers) < len(layer_multipliers) else layer_multipliers[-1]
             )
 
-            layers.append({
-                "label_r": sig_label_r,
-                "adj_label_r": adj_r,
-                "size_factor": layer_factor,
-                "is_first": False,
-                "idx": i,
-                "entry_price": float(close_prices[i]),
-                "entry_vol": float(vol_values[i]),
-                "closed": False,
-            })
+            layers.append(
+                {
+                    "label_r": sig_label_r,
+                    "adj_label_r": adj_r,
+                    "size_factor": layer_factor,
+                    "is_first": False,
+                    "idx": i,
+                    "entry_price": float(close_prices[i]),
+                    "entry_vol": float(vol_values[i]),
+                    "closed": False,
+                }
+            )
 
             # Record this layer's PnL on its signal day
             daily_r[i] += adj_r * layer_factor
@@ -244,9 +281,7 @@ def simulate_stacking_v4(
             # Breakeven check
             if not protected and breakeven_threshold >= 0:
                 pos_r = sum(
-                    l.get("adj_label_r", l["label_r"]) * l["size_factor"]
-                    for l in layers
-                    if not l.get("closed")
+                    l.get("adj_label_r", l["label_r"]) * l["size_factor"] for l in layers if not l.get("closed")  # noqa: E741
                 )
                 if pos_r >= breakeven_threshold:
                     protected = True
@@ -307,7 +342,11 @@ def run_single(
     be: float,
 ) -> dict:
     stack_r, n_stacks, n_pos, n_be = simulate_stacking_v4(
-        df, close, tp, sl, vol,
+        df,
+        close,
+        tp,
+        sl,
+        vol,
         layer_multipliers=mults,
         max_layers=max_layers,
         min_confidence=min_conf,
@@ -338,14 +377,17 @@ def main() -> None:
     parser.add_argument("--output", default=None, help="Output CSV path")
     parser.add_argument("--multipliers", default="1.0,0.5,0.25", help="Comma-separated layer multipliers")
     parser.add_argument("--max-layers", type=int, default=3)
-    parser.add_argument("--min-confidence", type=float, default=0.0,
-                        help="Min abs(p_long - 0.5) (default 0.0 = no gate)")
-    parser.add_argument("--min-pnl-r", type=float, default=0.0,
-                        help="Min unrealized R (default 0.0 = no gate)")
-    parser.add_argument("--stack-tp-ratio", type=float, default=1.0,
-                        help="TP multiplier for stacked layers (default 1.0 = same as base)")
-    parser.add_argument("--breakeven", type=float, default=-1.0,
-                        help="Breakeven threshold (default -1.0 = disabled)")
+    parser.add_argument(
+        "--min-confidence", type=float, default=0.0, help="Min abs(p_long - 0.5) (default 0.0 = no gate)"
+    )
+    parser.add_argument("--min-pnl-r", type=float, default=0.0, help="Min unrealized R (default 0.0 = no gate)")
+    parser.add_argument(
+        "--stack-tp-ratio",
+        type=float,
+        default=1.0,
+        help="TP multiplier for stacked layers (default 1.0 = same as base)",
+    )
+    parser.add_argument("--breakeven", type=float, default=-1.0, help="Breakeven threshold (default -1.0 = disabled)")
     parser.add_argument("--grid", action="store_true", help="Run parameter grid search")
     args = parser.parse_args()
 
@@ -400,8 +442,12 @@ def main() -> None:
         vol_21 = log_rets.rolling(21).std()
         baseline_r = compute_asset_daily_r(df, tp, sl)
         cache[asset] = {
-            "df": df, "close": close, "baseline_r": baseline_r,
-            "tp": tp, "sl": sl, "vol": vol_21,
+            "df": df,
+            "close": close,
+            "baseline_r": baseline_r,
+            "tp": tp,
+            "sl": sl,
+            "vol": vol_21,
         }
 
     all_results: list[dict] = []
@@ -412,10 +458,7 @@ def main() -> None:
             for pnl_r in grid_pnl:
                 for tpr in grid_tpr:
                     for be in grid_be:
-                        tag = (
-                            f"m={'/'.join(str(x) for x in mults)}"
-                            f"_c={conf}_p={pnl_r}_tpr={tpr}_be={be}"
-                        )
+                        tag = f"m={'/'.join(str(x) for x in mults)}_c={conf}_p={pnl_r}_tpr={tpr}_be={be}"
                         if args.grid:
                             logger.info("Grid: %s", tag)
 
@@ -431,11 +474,19 @@ def main() -> None:
                                 continue
                             tot += 1
                             row = run_single(
-                                asset, c["df"], c["close"],
-                                c["baseline_r"], c["tp"], c["sl"],
+                                asset,
+                                c["df"],
+                                c["close"],
+                                c["baseline_r"],
+                                c["tp"],
+                                c["sl"],
                                 c["vol"],
-                                mults, args.max_layers, conf, pnl_r,
-                                tpr, be,
+                                mults,
+                                args.max_layers,
+                                conf,
+                                pnl_r,
+                                tpr,
+                                be,
                             )
                             row["tag"] = tag
                             row["asset"] = asset
@@ -444,7 +495,10 @@ def main() -> None:
                                 imp += 1
                             pf_baselines.append(c["baseline_r"])
                             s_r, _, _, _ = simulate_stacking_v4(
-                                c["df"], c["close"], c["tp"], c["sl"],
+                                c["df"],
+                                c["close"],
+                                c["tp"],
+                                c["sl"],
                                 c["vol"],
                                 layer_multipliers=mults,
                                 max_layers=args.max_layers,
@@ -458,12 +512,8 @@ def main() -> None:
                         if not pf_baselines:
                             continue
 
-                        base_pf = pd.DataFrame(
-                            {f"a{i}": s for i, s in enumerate(pf_baselines)}
-                        ).mean(axis=1)
-                        stack_pf = pd.DataFrame(
-                            {f"a{i}": s for i, s in enumerate(pf_stacks)}
-                        ).mean(axis=1)
+                        base_pf = pd.DataFrame({f"a{i}": s for i, s in enumerate(pf_baselines)}).mean(axis=1)
+                        stack_pf = pd.DataFrame({f"a{i}": s for i, s in enumerate(pf_stacks)}).mean(axis=1)
                         cidx = base_pf.index.intersection(stack_pf.index)
                         base_pf = base_pf.reindex(cidx).fillna(0)
                         stack_pf = stack_pf.reindex(cidx).fillna(0)
@@ -499,8 +549,16 @@ def main() -> None:
         print("GRID RESULTS (sorted by portfolio delta_R)")
         print("=" * 90)
         df_grid = pd.DataFrame(all_results).sort_values("delta_R", ascending=False)
-        cols = ["tag", "delta_R", "stack_R", "max_dd_stack",
-                "stack_sharpe", "sharpe_delta", "improved_count", "total_count"]
+        cols = [
+            "tag",
+            "delta_R",
+            "stack_R",
+            "max_dd_stack",
+            "stack_sharpe",
+            "sharpe_delta",
+            "improved_count",
+            "total_count",
+        ]
         print(df_grid[cols].to_string(index=False))
         print()
         if best_row:
@@ -537,23 +595,19 @@ def main() -> None:
             f"{r['stack_sharpe']:>+7.4f}"
         )
 
-    pf_b = sum(r.get("baseline_R", 0) for r in all_results
-               if r.get("asset") not in ("", "PF"))
-    pf_s = sum(r.get("stack_R", 0) for r in all_results
-               if r.get("asset") not in ("", "PF"))
-    pf_dd_b = min(r.get("max_dd_base", 0) for r in all_results
-                  if r.get("asset") not in ("", "PF"))
-    pf_dd_s = min(r.get("max_dd_stack", 0) for r in all_results
-                  if r.get("asset") not in ("", "PF"))
+    pf_b = sum(r.get("baseline_R", 0) for r in all_results if r.get("asset") not in ("", "PF"))
+    pf_s = sum(r.get("stack_R", 0) for r in all_results if r.get("asset") not in ("", "PF"))
+    pf_dd_b = min(r.get("max_dd_base", 0) for r in all_results if r.get("asset") not in ("", "PF"))
+    pf_dd_s = min(r.get("max_dd_stack", 0) for r in all_results if r.get("asset") not in ("", "PF"))
     improved = sum(1 for r in all_results if r.get("delta_R", 0) > 0)
     total = len(all_results)
     print()
     print("=" * len(hdr))
     print(
         f"{'SUM':<15s} | {pf_b:>+10.1f} | {pf_s:>+8.1f} | "
-        f"{(pf_s-pf_b):>+8.1f} | {pf_dd_b:>11.1f} | {pf_dd_s:>12.1f} |"
+        f"{(pf_s - pf_b):>+8.1f} | {pf_dd_b:>11.1f} | {pf_dd_s:>12.1f} |"
     )
-    print(f"Improved: {improved}/{total} = {improved/total*100:.0f}%")
+    print(f"Improved: {improved}/{total} = {improved / total * 100:.0f}%")
 
     out_path = args.output or str(WALKDIR / "stacking_backtest_v4.csv")
     result_df.to_csv(out_path, index=False)

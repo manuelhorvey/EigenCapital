@@ -8,15 +8,15 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import pandas as pd
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import pandas as pd  # noqa: E402
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests import compute_per_fold_labels
-from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro
-from features.builder import build_features
-from features.registry import FEATURE_REGISTRY, FeatureContract
-from shared.volatility import compute_atr_pct
+from backtests import compute_per_fold_labels  # noqa: E402
+from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro  # noqa: E402
+from features.builder import build_features  # noqa: E402
+from features.registry import FEATURE_REGISTRY, FeatureContract  # noqa: E402
+from shared.volatility import compute_atr_pct  # noqa: E402
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -111,16 +111,15 @@ def run_5yr(name, variant):
 
     X = fdf[[c for c in vc.features if c in fdf.columns]]
 
-
     close = df["close"].reindex(X.index)
     high = df["high"].reindex(X.index)
     low = df["low"].reindex(X.index)
 
     atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
     atr_pct = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-    regime = atr_pct.fillna(0.5).apply(
-        lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")
-    ).astype(str)
+    regime = (
+        atr_pct.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    )
 
     all_trades = []
     for ty in range(2023, 2026):
@@ -143,14 +142,18 @@ def run_5yr(name, variant):
 
         mc = y_tr.value_counts().min()
         strat = y_tr if mc >= 2 else None
-        X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-            X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat
-        )
+        X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
 
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=DEPTH, learning_rate=0.02,
-            objective="multi:softprob", num_class=3, random_state=42,
-            n_jobs=1, tree_method="hist", verbosity=0,
+            n_estimators=300,
+            max_depth=DEPTH,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
         )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
@@ -187,11 +190,13 @@ def main():
             best_pf = r["pf"]
         results.append((name, r))
         marker = " <<<" if is_best else ""
-        print(f"{name:25s} {r['pf']:>8.3f} {r['avg_r']:>+8.4f} {r['n']:>7d} {r['feature_count']:>9d}{marker}", flush=True)
+        print(
+            f"{name:25s} {r['pf']:>8.3f} {r['avg_r']:>+8.4f} {r['n']:>7d} {r['feature_count']:>9d}{marker}", flush=True
+        )  # noqa: E501
 
-    print("\n" + "="*60, flush=True)
+    print("\n" + "=" * 60, flush=True)
     print("SUMMARY (sorted by PF)", flush=True)
-    print("="*60, flush=True)
+    print("=" * 60, flush=True)
     for name, r in sorted(results, key=lambda x: -x[1]["pf"]):
         print(f"{name:25s} PF={r['pf']:.3f} avgR={r['avg_r']:+.4f} n={r['n']} feat={r['feature_count']}", flush=True)
 

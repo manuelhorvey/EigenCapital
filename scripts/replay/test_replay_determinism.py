@@ -93,17 +93,12 @@ def _load_wal_pairs() -> dict[str, list[dict]]:
     # Log any assets with unpaired snapshots
     for asset, snap in pending.items():
         if snap:
-            print(
-                f"  [WARN] {asset}: {len(pending)} unpaired features_snapshot "
-                f"(seq {snap['seq']})"
-            )
+            print(f"  [WARN] {asset}: {len(pending)} unpaired features_snapshot (seq {snap['seq']})")
 
     return dict(pairs)
 
 
-def _verify_model_hash(
-    asset: str, wal_hash: str
-) -> tuple[str, str, str]:
+def _verify_model_hash(asset: str, wal_hash: str) -> tuple[str, str, str]:
     """Verify on-disk model hash matches WAL. Returns (tier, status, detail).
 
     tier: 'historical' | 'test-time'
@@ -140,9 +135,7 @@ def _verify_model_hash(
     return (tier, "pass", disk_hash)
 
 
-def _replay_pair(
-    model: xgboost.XGBClassifier, features: dict, recorded: dict
-) -> dict:
+def _replay_pair(model: xgboost.XGBClassifier, features: dict, recorded: dict) -> dict:
     """Re-run inference on captured features and compare to recorded."""
     fn = model.get_booster().feature_names
     df = pd.DataFrame([{k: features[k] for k in fn}])
@@ -153,9 +146,7 @@ def _replay_pair(
     p1 = float(raw[0, 1])
     replayed = np.array([1.0 - p1, 0.0, p1])
 
-    recorded_arr = np.array(
-        [recorded["prob_short"], recorded["prob_neutral"], recorded["prob_long"]]
-    )
+    recorded_arr = np.array([recorded["prob_short"], recorded["prob_neutral"], recorded["prob_long"]])
 
     errors = np.abs(replayed - recorded_arr)
     max_error = float(np.max(errors))
@@ -260,7 +251,7 @@ def _run() -> int:
         model = xgboost.XGBClassifier()
         try:
             model.load_model(model_path)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             per_asset[asset] = {
                 "tested": 0,
                 "passed": 0,
@@ -306,17 +297,12 @@ def _run() -> int:
         all_failures.extend(asset_failures)
 
     # Print per-asset table
-    print(
-        f"{'Asset':>8} {'Tested':>8} {'Passed':>8} {'Failed':>8} {'Max Error':>12} {'Status':>14}"
-    )
+    print(f"{'Asset':>8} {'Tested':>8} {'Passed':>8} {'Failed':>8} {'Max Error':>12} {'Status':>14}")
     print("-" * 70)
     for asset in sorted(per_asset.keys()):
         r = per_asset[asset]
         err_str = f"{r['max_error']:.2e}" if r["max_error"] is not None else "N/A"
-        print(
-            f"{asset:>8} {r['tested']:>8} {r['passed']:>8} {r['failed']:>8} "
-            f"{err_str:>12} {r['status']:>14}"
-        )
+        print(f"{asset:>8} {r['tested']:>8} {r['passed']:>8} {r['failed']:>8} {err_str:>12} {r['status']:>14}")
     print()
 
     # ── Step 4: Failure detail ──
@@ -343,11 +329,7 @@ def _run() -> int:
     print("=" * 70)
     print("  SUMMARY")
     print("=" * 70)
-    skipped_assets = [
-        a
-        for a in per_asset
-        if per_asset[a]["tested"] == 0
-    ]
+    skipped_assets = [a for a in per_asset if per_asset[a]["tested"] == 0]
     print(f"  Assets tested:    {len([a for a in per_asset if per_asset[a]['tested'] > 0])}")
     print(f"  Assets skipped:   {len(skipped_assets)}")
     for a in skipped_assets:

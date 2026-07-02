@@ -94,7 +94,7 @@ def compute_kelly_scaled_daily_r(
             continue
 
         label = int(labels[i])
-        if signal == 1:  # BUY
+        if signal == 1:  # BUY  # noqa: SIM108
             base_r = tp if label == 1 else -sl
         else:  # SELL
             base_r = tp if label == 0 else -sl
@@ -113,7 +113,6 @@ def portfolio_metrics_from_r(r: pd.Series) -> dict:
     if n_days == 0:
         return {"n_days": 0, "total_R": 0.0, "avg_R": 0.0, "sharpe": 0.0, "sharpe_adj": 0.0, "max_dd_R": 0.0}
 
-    r_arr = r.values
     total_R = float(r.sum())
     avg_R = float(r.mean())
     sharpe = float(r.mean() / r.std() * np.sqrt(252)) if r.std() > 0 else 0.0
@@ -204,9 +203,7 @@ def main():
     for fraction in SWEEP_FRACTIONS:
         all_daily_r: dict[str, pd.Series] = {}
         for asset, data in all_asset_data.items():
-            daily_r = compute_kelly_scaled_daily_r(
-                data["df"], data["tp"], data["sl"], fraction=fraction
-            )
+            daily_r = compute_kelly_scaled_daily_r(data["df"], data["tp"], data["sl"], fraction=fraction)
             all_daily_r[asset] = daily_r
 
         conviction = asset_ic if WEIGHT_METHOD.startswith("conviction") else None
@@ -266,7 +263,9 @@ def main():
     best = max(results, key=lambda r: r["total_R"])
     best_low_dd = min(results, key=lambda r: r["max_dd_R"])
     print(f"Best by total_R: fraction={best['fraction']} (total_R={best['total_R']}, max_dd_R={best['max_dd_R']})")
-    print(f"Best by max_dd: fraction={best_low_dd['fraction']} (total_R={best_low_dd['total_R']}, max_dd_R={best_low_dd['max_dd_R']})")
+    print(
+        f"Best by max_dd: fraction={best_low_dd['fraction']} (total_R={best_low_dd['total_R']}, max_dd_R={best_low_dd['max_dd_R']})"  # noqa: E501
+    )  # noqa: E501
     print()
 
 

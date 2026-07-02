@@ -13,7 +13,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _git(args: list[str]) -> str:
     try:
         return subprocess.check_output(["git"] + args, cwd=BASE, stderr=subprocess.DEVNULL, text=True).strip()
-    except Exception:
+    except Exception:  # noqa: BLE001
         return "unknown"
 
 

@@ -65,11 +65,13 @@ def load_assets() -> dict[str, pd.DataFrame]:
         asset = os.path.basename(sp).replace("_wf_summary_base.csv", "")
         df = pd.read_csv(sp)
         for _, row in df.iterrows():
-            fold_ranges.setdefault(asset, []).append({
-                "fold": int(row["fold"]),
-                "test_start": pd.Timestamp(row["test_start"], tz="UTC"),
-                "test_end": pd.Timestamp(row["test_end"], tz="UTC"),
-            })
+            fold_ranges.setdefault(asset, []).append(
+                {
+                    "fold": int(row["fold"]),
+                    "test_start": pd.Timestamp(row["test_start"], tz="UTC"),
+                    "test_end": pd.Timestamp(row["test_end"], tz="UTC"),
+                }
+            )
 
     assets: dict[str, pd.DataFrame] = {}
     for p in paths:
@@ -89,7 +91,9 @@ def load_assets() -> dict[str, pd.DataFrame]:
         assets[name] = sig
         logger.info(
             "Loaded %s: %d rows, %d folds assigned",
-            name, len(sig), (sig["fold"] >= 0).sum(),
+            name,
+            len(sig),
+            (sig["fold"] >= 0).sum(),
         )
 
     return assets
@@ -134,16 +138,12 @@ def rule_b_flag(
 
 def row_is_wrong(df: pd.DataFrame) -> pd.Series:
     """Ground truth: signal is a directional bet AND it's wrong."""
-    return ((df["signal"] == 1) & (df["label"] == 0)) | (
-        (df["signal"] == -1) & (df["label"] == 1)
-    )
+    return ((df["signal"] == 1) & (df["label"] == 0)) | ((df["signal"] == -1) & (df["label"] == 1))
 
 
 def row_is_right(df: pd.DataFrame) -> pd.Series:
     """Ground truth: signal is a directional bet AND it's correct."""
-    return ((df["signal"] == 1) & (df["label"] == 1)) | (
-        (df["signal"] == -1) & (df["label"] == 0)
-    )
+    return ((df["signal"] == 1) & (df["label"] == 1)) | ((df["signal"] == -1) & (df["label"] == 0))
 
 
 def fold_stats(df: pd.DataFrame, fold: int) -> dict[str, float] | None:
@@ -201,40 +201,32 @@ def eval_rules(
             b_detects_wrong = (sub["flag_b"] & sub["wrong"]).sum()
             b_false_pos = (sub["flag_b"] & ~sub["wrong"]).sum()
 
-            is_design = (
-                asset_name in DESIGN_FOLDS and fold in DESIGN_FOLDS[asset_name]
-            )
+            is_design = asset_name in DESIGN_FOLDS and fold in DESIGN_FOLDS[asset_name]
 
-            rows.append({
-                "asset": asset_name,
-                "fold": fold,
-                "n": n,
-                "n_bets": n_bets,
-                "n_wrong": n_wrong,
-                "n_right": n_right,
-                "wrong_rate": round(n_wrong / max(n_bets, 1), 4),
-                "is_design": is_design,
-                # Rule A
-                "a_flag_rate": round(n_flag_a / max(n, 1), 4),
-                "a_detected_wrong": a_detects_wrong,
-                "a_false_positive": a_false_pos,
-                "a_precision": round(
-                    a_detects_wrong / max(n_flag_a, 1), 4
-                ),
-                "a_recall": round(
-                    a_detects_wrong / max(n_wrong, 1), 4
-                ),
-                # Rule B
-                "b_flag_rate": round(n_flag_b / max(n, 1), 4),
-                "b_detected_wrong": b_detects_wrong,
-                "b_false_positive": b_false_pos,
-                "b_precision": round(
-                    b_detects_wrong / max(n_flag_b, 1), 4
-                ),
-                "b_recall": round(
-                    b_detects_wrong / max(n_wrong, 1), 4
-                ),
-            })
+            rows.append(
+                {
+                    "asset": asset_name,
+                    "fold": fold,
+                    "n": n,
+                    "n_bets": n_bets,
+                    "n_wrong": n_wrong,
+                    "n_right": n_right,
+                    "wrong_rate": round(n_wrong / max(n_bets, 1), 4),
+                    "is_design": is_design,
+                    # Rule A
+                    "a_flag_rate": round(n_flag_a / max(n, 1), 4),
+                    "a_detected_wrong": a_detects_wrong,
+                    "a_false_positive": a_false_pos,
+                    "a_precision": round(a_detects_wrong / max(n_flag_a, 1), 4),
+                    "a_recall": round(a_detects_wrong / max(n_wrong, 1), 4),
+                    # Rule B
+                    "b_flag_rate": round(n_flag_b / max(n, 1), 4),
+                    "b_detected_wrong": b_detects_wrong,
+                    "b_false_positive": b_false_pos,
+                    "b_precision": round(b_detects_wrong / max(n_flag_b, 1), 4),
+                    "b_recall": round(b_detects_wrong / max(n_wrong, 1), 4),
+                }
+            )
 
     return pd.DataFrame(rows)
 
@@ -261,7 +253,7 @@ def print_results(results: pd.DataFrame) -> None:
                 f"  Rule {rule.upper()}: "
                 f"avg_precision={prec:.3f} "
                 f"avg_recall={rec:.3f} "
-                f"total_FP={fp}/{n} ({fp/max(n,1)*100:.1f}%)"
+                f"total_FP={fp}/{n} ({fp / max(n, 1) * 100:.1f}%)"
             )
 
     # Worst false-positive assets for Rule A

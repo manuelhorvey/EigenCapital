@@ -18,14 +18,14 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests import compute_per_fold_labels
-from backtests.trade_analysis import _signals, aggregate, fetch_ohlcv, load_macro
-from features.builder import build_features
-from features.registry import FEATURE_REGISTRY
-from shared.volatility import compute_atr_pct
+from backtests import compute_per_fold_labels  # noqa: E402
+from backtests.trade_analysis import _signals, aggregate, fetch_ohlcv, load_macro  # noqa: E402
+from features.builder import build_features  # noqa: E402
+from features.registry import FEATURE_REGISTRY  # noqa: E402
+from shared.volatility import compute_atr_pct  # noqa: E402
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -36,35 +36,75 @@ TRAILING_DISTANCES = [0.5, 0.8, 1.0, 1.5]
 
 # Assets to sweep (all 21 paper trading assets)
 CANDIDATES = [
-    ("AUDUSD", "AUDUSD=X"), ("AUDCHF", "AUDCHF=X"), ("AUDNZD", "AUDNZD=X"),
-    ("CADCHF", "CADCHF=X"), ("ES", "ES=F"), ("EURCAD", "EURCAD=X"),
-    ("EURCHF", "EURCHF=X"), ("EURNZD", "EURNZD=X"), ("EURUSD", "EURUSD=X"),
-    ("GBPAUD", "GBPAUD=X"), ("GBPCAD", "GBPCAD=X"), ("GBPCHF", "GBPCHF=X"),
-    ("GBPNZD", "GBPNZD=X"), ("GC", "GC=F"), ("NQ", "NQ=F"),
-    ("NZDCAD", "NZDCAD=X"), ("NZDCHF", "NZDCHF=X"), ("NZDUSD", "NZDUSD=X"),
-    ("USDCAD", "USDCAD=X"), ("USDCHF", "USDCHF=X"), ("^DJI", "^DJI"),
+    ("AUDUSD", "AUDUSD=X"),
+    ("AUDCHF", "AUDCHF=X"),
+    ("AUDNZD", "AUDNZD=X"),
+    ("CADCHF", "CADCHF=X"),
+    ("ES", "ES=F"),
+    ("EURCAD", "EURCAD=X"),
+    ("EURCHF", "EURCHF=X"),
+    ("EURNZD", "EURNZD=X"),
+    ("EURUSD", "EURUSD=X"),
+    ("GBPAUD", "GBPAUD=X"),
+    ("GBPCAD", "GBPCAD=X"),
+    ("GBPCHF", "GBPCHF=X"),
+    ("GBPNZD", "GBPNZD=X"),
+    ("GC", "GC=F"),
+    ("NQ", "NQ=F"),
+    ("NZDCAD", "NZDCAD=X"),
+    ("NZDCHF", "NZDCHF=X"),
+    ("NZDUSD", "NZDUSD=X"),
+    ("USDCAD", "USDCAD=X"),
+    ("USDCHF", "USDCHF=X"),
+    ("^DJI", "^DJI"),
 ]
 
 # Per-asset config from trade_analysis.py
 SLTP_CFG = {
-    "GC": {"sl": 1.0, "tp": 4.0}, "USDCHF": {"sl": 0.85, "tp": 3.0},
-    "AUDCHF": {"sl": 2.75, "tp": 3.5}, "USDCAD": {"sl": 2.5, "tp": 2.03},
-    "ES": {"sl": 2.0, "tp": 5.5}, "NQ": {"sl": 2.5, "tp": 5.0},
-    "GBPCAD": {"sl": 2.5, "tp": 2.5}, "GBPNZD": {"sl": 3.0, "tp": 1.0},
-    "NZDCAD": {"sl": 2.5, "tp": 4.0}, "^DJI": {"sl": 0.5, "tp": 4.0},
-    "EURUSD": {"sl": 3.0, "tp": 1.5}, "NZDUSD": {"sl": 2.5, "tp": 1.5},
-    "GBPAUD": {"sl": 1.0, "tp": 2.0}, "NZDCHF": {"sl": 1.0, "tp": 4.0},
-    "CADCHF": {"sl": 1.0, "tp": 4.0}, "AUDUSD": {"sl": 1.5, "tp": 4.0},
-    "AUDNZD": {"sl": 2.0, "tp": 1.0}, "EURCHF": {"sl": 1.0, "tp": 3.0},
-    "EURCAD": {"sl": 1.0, "tp": 1.0}, "EURNZD": {"sl": 1.5, "tp": 2.5},
+    "GC": {"sl": 1.0, "tp": 4.0},
+    "USDCHF": {"sl": 0.85, "tp": 3.0},
+    "AUDCHF": {"sl": 2.75, "tp": 3.5},
+    "USDCAD": {"sl": 2.5, "tp": 2.03},
+    "ES": {"sl": 2.0, "tp": 5.5},
+    "NQ": {"sl": 2.5, "tp": 5.0},
+    "GBPCAD": {"sl": 2.5, "tp": 2.5},
+    "GBPNZD": {"sl": 3.0, "tp": 1.0},
+    "NZDCAD": {"sl": 2.5, "tp": 4.0},
+    "^DJI": {"sl": 0.5, "tp": 4.0},
+    "EURUSD": {"sl": 3.0, "tp": 1.5},
+    "NZDUSD": {"sl": 2.5, "tp": 1.5},
+    "GBPAUD": {"sl": 1.0, "tp": 2.0},
+    "NZDCHF": {"sl": 1.0, "tp": 4.0},
+    "CADCHF": {"sl": 1.0, "tp": 4.0},
+    "AUDUSD": {"sl": 1.5, "tp": 4.0},
+    "AUDNZD": {"sl": 2.0, "tp": 1.0},
+    "EURCHF": {"sl": 1.0, "tp": 3.0},
+    "EURCAD": {"sl": 1.0, "tp": 1.0},
+    "EURNZD": {"sl": 1.5, "tp": 2.5},
     "GBPCHF": {"sl": 1.0, "tp": 2.0},
 }
 MODEL_DEPTH = {
-    "GC": 2, "USDCHF": 4, "AUDCHF": 2, "USDCAD": 5, "ES": 2,
-    "NQ": 2, "GBPCAD": 2, "GBPNZD": 3, "NZDCAD": 2, "^DJI": 4,
-    "EURUSD": 3, "NZDUSD": 5, "GBPAUD": 2, "NZDCHF": 2,
-    "CADCHF": 2, "AUDUSD": 2, "AUDNZD": 2, "EURCHF": 4,
-    "EURCAD": 3, "EURNZD": 3, "GBPCHF": 2,
+    "GC": 2,
+    "USDCHF": 4,
+    "AUDCHF": 2,
+    "USDCAD": 5,
+    "ES": 2,
+    "NQ": 2,
+    "GBPCAD": 2,
+    "GBPNZD": 3,
+    "NZDCAD": 2,
+    "^DJI": 4,
+    "EURUSD": 3,
+    "NZDUSD": 5,
+    "GBPAUD": 2,
+    "NZDCHF": 2,
+    "CADCHF": 2,
+    "AUDUSD": 2,
+    "AUDNZD": 2,
+    "EURCHF": 4,
+    "EURCAD": 3,
+    "EURNZD": 3,
+    "GBPCHF": 2,
 }
 REGIME_GEOM = {
     "low": {"sl": 0.80, "tp": 1.10},
@@ -76,8 +116,7 @@ MAX_BARS = 60
 MIN_TRADES = 10
 
 
-def _simulate_trailing(sigs, close, high, low, name, slm, tpm, atr, regime,
-                       trail_act=None, trail_dist=None):
+def _simulate_trailing(sigs, close, high, low, name, slm, tpm, atr, regime, trail_act=None, trail_dist=None):
     """Simulate trades with optional trailing stop.
 
     Parameters
@@ -109,10 +148,7 @@ def _simulate_trailing(sigs, close, high, low, name, slm, tpm, atr, regime,
             lo_water = min(lo_water, cl)
 
             # Track best price for trailing
-            if pos == 2:
-                best_price = max(best_price, ch)
-            else:
-                best_price = min(best_price, cl)
+            best_price = max(best_price, ch) if pos == 2 else min(best_price, cl)
 
             # Update trailing stop if active
             current_sl = sl
@@ -162,15 +198,23 @@ def _simulate_trailing(sigs, close, high, low, name, slm, tpm, atr, regime,
                 else:
                     mae_r = (hi_water - entry_px) / (entry_px * risk) if risk else 0.0
                     mfe_r = (entry_px - lo_water) / (entry_px * risk) if risk else 0.0
-                trades.append({
-                    "asset": name, "side": "long" if pos == 2 else "short",
-                    "entry_price": round(entry_px, 6), "entry_date": str(entry_dt.date()),
-                    "exit_price": round(ep, 6), "exit_date": dt, "exit_reason": reason,
-                    "bars_held": held, "return": round(ret, 6),
-                    "r_multiple": round(ret / risk, 4) if risk else 0.0,
-                    "mae_r": round(mae_r, 4), "mfe_r": round(mfe_r, 4),
-                    "sl_trailed": sl_trailing_active,
-                })
+                trades.append(
+                    {
+                        "asset": name,
+                        "side": "long" if pos == 2 else "short",
+                        "entry_price": round(entry_px, 6),
+                        "entry_date": str(entry_dt.date()),
+                        "exit_price": round(ep, 6),
+                        "exit_date": dt,
+                        "exit_reason": reason,
+                        "bars_held": held,
+                        "return": round(ret, 6),
+                        "r_multiple": round(ret / risk, 4) if risk else 0.0,
+                        "mae_r": round(mae_r, 4),
+                        "mfe_r": round(mfe_r, 4),
+                        "sl_trailed": sl_trailing_active,
+                    }
+                )
                 in_pos = False
                 continue
 
@@ -204,16 +248,15 @@ def run_asset(name, ticker, contract, trail_act, trail_dist):
 
     X = fdf[[c for c in contract.features if c in fdf.columns]]
 
-
     close = df["close"].reindex(X.index)
     high = df["high"].reindex(X.index)
     low = df["low"].reindex(X.index)
 
     atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
     atr_pct = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-    regime = atr_pct.fillna(0.5).apply(
-        lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")
-    ).astype(str)
+    regime = (
+        atr_pct.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    )
 
     slm = SLTP_CFG.get(name, {}).get("sl", DEF_SL)
     tpm = SLTP_CFG.get(name, {}).get("tp", DEF_TP)
@@ -240,22 +283,34 @@ def run_asset(name, ticker, contract, trail_act, trail_dist):
 
         mc = y_tr.value_counts().min()
         strat = y_tr if mc >= 2 else None
-        X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-            X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat
-        )
+        X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
 
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=depth, learning_rate=0.02,
-            objective="multi:softprob", num_class=3, random_state=42,
-            n_jobs=1, tree_method="hist", verbosity=0,
+            n_estimators=300,
+            max_depth=depth,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
         )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
         sigs = _signals(proba, X_te.index)
         tr = _simulate_trailing(
-            sigs, close.reindex(X_te.index), high.reindex(X_te.index),
-            low.reindex(X_te.index), name, slm, tpm, atr, regime,
-            trail_act=trail_act, trail_dist=trail_dist,
+            sigs,
+            close.reindex(X_te.index),
+            high.reindex(X_te.index),
+            low.reindex(X_te.index),
+            name,
+            slm,
+            tpm,
+            atr,
+            regime,
+            trail_act=trail_act,
+            trail_dist=trail_dist,
         )
         all_trades.extend(tr)
 
@@ -280,9 +335,9 @@ def main():
             print(f"SKIP {name}: no contract", flush=True)
             continue
 
-        print(f"\n{'='*60}", flush=True)
+        print(f"\n{'=' * 60}", flush=True)
         print(f"{name} ({ticker})", flush=True)
-        print(f"{'='*60}", flush=True)
+        print(f"{'=' * 60}", flush=True)
 
         asset_results = []
 
@@ -296,12 +351,20 @@ def main():
         baseline_pf = o.get("profit_factor", 0)
         baseline_wr = o.get("win_rate", 0)
         baseline_n = agg["n_trades"]
-        asset_results.append({
-            "config": "baseline", "trail_act": None, "trail_dist": None,
-            "pf": round(baseline_pf, 3), "avg_r": round(baseline_r, 4),
-            "win_rate": round(baseline_wr, 4), "n": baseline_n,
-        })
-        print(f"  BASELINE: PF={baseline_pf:.3f} avgR={baseline_r:+.4f} WR={baseline_wr:.1%} n={baseline_n}", flush=True)
+        asset_results.append(
+            {
+                "config": "baseline",
+                "trail_act": None,
+                "trail_dist": None,
+                "pf": round(baseline_pf, 3),
+                "avg_r": round(baseline_r, 4),
+                "win_rate": round(baseline_wr, 4),
+                "n": baseline_n,
+            }
+        )
+        print(
+            f"  BASELINE: PF={baseline_pf:.3f} avgR={baseline_r:+.4f} WR={baseline_wr:.1%} n={baseline_n}", flush=True
+        )  # noqa: E501
 
         # Trailing sweeps
         for act, dist in itertools.product(TRAILING_ACTIVATIONS, TRAILING_DISTANCES):
@@ -317,36 +380,52 @@ def main():
             n = agg["n_trades"]
             delta_r = ar - baseline_r
             marker = " <<<" if delta_r > 0.02 else ""
-            asset_results.append({
-                "config": label(act, dist),
-                "trail_act": act, "trail_dist": dist,
-                "pf": round(pf, 3), "avg_r": round(ar, 4),
-                "win_rate": round(wr, 4), "delta_r": round(delta_r, 4),
-                "n": n,
-            })
-            print(f"  {label(act, dist):>18s}: PF={pf:.3f} avgR={ar:+.4f} ΔR={delta_r:+.4f} WR={wr:.1%} n={n}{marker}", flush=True)
+            asset_results.append(
+                {
+                    "config": label(act, dist),
+                    "trail_act": act,
+                    "trail_dist": dist,
+                    "pf": round(pf, 3),
+                    "avg_r": round(ar, 4),
+                    "win_rate": round(wr, 4),
+                    "delta_r": round(delta_r, 4),
+                    "n": n,
+                }
+            )
+            print(
+                f"  {label(act, dist):>18s}: PF={pf:.3f} avgR={ar:+.4f} ΔR={delta_r:+.4f} WR={wr:.1%} n={n}{marker}",
+                flush=True,
+            )  # noqa: E501
 
         if asset_results:
             best = max(asset_results[1:], key=lambda x: x["avg_r"]) if len(asset_results) > 1 else asset_results[0]
             print(f"\n  >> BEST: {best['config']}: avgR={best['avg_r']:+.4f} PF={best['pf']:.3f}", flush=True)
-            results.append({
-                "asset": name, "ticker": ticker,
-                "baseline": asset_results[0],
-                "trailing_sweep": asset_results[1:],
-                "best": best,
-            })
+            results.append(
+                {
+                    "asset": name,
+                    "ticker": ticker,
+                    "baseline": asset_results[0],
+                    "trailing_sweep": asset_results[1:],
+                    "best": best,
+                }
+            )
 
     # Print summary table
-    print(f"\n{'='*80}", flush=True)
+    print(f"\n{'=' * 80}", flush=True)
     print("TRAILING SWEEP SUMMARY", flush=True)
-    print(f"{'='*80}", flush=True)
-    print(f"{'Asset':10s} {'Baseline_R':>10s} {'Best_R':>10s} {'ΔR':>8s} {'Best_Config':>20s} {'Best_PF':>8s}", flush=True)
+    print(f"{'=' * 80}", flush=True)
+    print(
+        f"{'Asset':10s} {'Baseline_R':>10s} {'Best_R':>10s} {'ΔR':>8s} {'Best_Config':>20s} {'Best_PF':>8s}", flush=True
+    )  # noqa: E501
     print("-" * 70, flush=True)
     for r in sorted(results, key=lambda x: -x["best"]["avg_r"]):
         bl = r["baseline"]
         best = r["best"]
         delta = best["avg_r"] - bl["avg_r"]
-        print(f"{r['asset']:10s} {bl['avg_r']:>+10.4f} {best['avg_r']:>+10.4f} {delta:>+8.4f} {best['config']:>20s} {best['pf']:>8.3f}", flush=True)
+        print(
+            f"{r['asset']:10s} {bl['avg_r']:>+10.4f} {best['avg_r']:>+10.4f} {delta:>+8.4f} {best['config']:>20s} {best['pf']:>8.3f}",  # noqa: E501
+            flush=True,
+        )  # noqa: E501
 
     # Save results
     out_dir = os.path.join(BASE_DIR, "..", "data", "research")

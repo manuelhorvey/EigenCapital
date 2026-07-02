@@ -63,6 +63,7 @@ def main():
     )
 
     from shared.registry import StrategyRegistry
+
     _reg = StrategyRegistry.get_instance()
     portfolio = build_paper_portfolio(cfg.halt)
     _reg.register_defaults(list(portfolio.keys()))
@@ -105,38 +106,54 @@ def main():
                 tp = engine.tp_mult
                 sl = engine.sl_mult
 
-                results.append({
-                    "asset": name,
-                    "ticker": ticker,
-                    "vertical_barrier": vb,
-                    "tp_mult": tp,
-                    "sl_mult": sl,
-                    "max_depth": engine.max_depth,
-                    "n_features": len(getattr(engine, "_alpha_feature_cols", [])),
-                    "train_start": getattr(engine, "_current_window_train_start", ""),
-                    "train_end": getattr(engine, "_current_window_train_end", ""),
-                    "train_time_s": round(elapsed, 1),
-                    "model_path": engine.model_path,
-                    "status": "OK",
-                })
+                results.append(
+                    {
+                        "asset": name,
+                        "ticker": ticker,
+                        "vertical_barrier": vb,
+                        "tp_mult": tp,
+                        "sl_mult": sl,
+                        "max_depth": engine.max_depth,
+                        "n_features": len(getattr(engine, "_alpha_feature_cols", [])),
+                        "train_start": getattr(engine, "_current_window_train_start", ""),
+                        "train_end": getattr(engine, "_current_window_train_end", ""),
+                        "train_time_s": round(elapsed, 1),
+                        "model_path": engine.model_path,
+                        "status": "OK",
+                    }
+                )
                 logger.info(
                     "  ✓ %s: trained in %.1fs (vb=%s, %d features, tp=%.2f, sl=%.2f)",
-                    name, elapsed, vb, results[-1]["n_features"], tp, sl,
+                    name,
+                    elapsed,
+                    vb,
+                    results[-1]["n_features"],
+                    tp,
+                    sl,
                 )
             else:
-                results.append({
-                    "asset": name, "ticker": ticker, "status": "FAILED",
-                    "train_time_s": round(elapsed, 1),
-                })
+                results.append(
+                    {
+                        "asset": name,
+                        "ticker": ticker,
+                        "status": "FAILED",
+                        "train_time_s": round(elapsed, 1),
+                    }
+                )
                 logger.warning("  ✗ %s: training returned no model", name)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("  ✗ %s: ERROR — %s", name, e)
             import traceback
+
             traceback.print_exc()
-            results.append({
-                "asset": name, "ticker": ticker, "status": f"ERROR: {e}",
-            })
+            results.append(
+                {
+                    "asset": name,
+                    "ticker": ticker,
+                    "status": f"ERROR: {e}",
+                }
+            )
 
     # Save report
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -153,14 +170,14 @@ def main():
     print(f"  Total: {n_total}  OK: {ok_count}  Failed: {fail_count}")
     if ok_count:
         print("\nTrained assets:")
-        print(report_df[report_df["status"] == "OK"][
-            ["asset", "vertical_barrier", "n_features", "train_time_s"]
-        ].to_string(index=False))
+        print(
+            report_df[report_df["status"] == "OK"][
+                ["asset", "vertical_barrier", "n_features", "train_time_s"]
+            ].to_string(index=False)
+        )
     if fail_count:
         print("\nFailed assets:")
-        print(report_df[report_df["status"] != "OK"][
-            ["asset", "status"]
-        ].to_string(index=False))
+        print(report_df[report_df["status"] != "OK"][["asset", "status"]].to_string(index=False))
     print(f"\nReport saved: {report_path}")
     print("=" * 80)
 

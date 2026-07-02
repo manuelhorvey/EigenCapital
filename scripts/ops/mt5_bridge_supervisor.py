@@ -14,6 +14,7 @@ Usage:
         [--bridge-port 9879] [--health-port 9880] [--watchdog-secs 30] \
         [--max-restarts 10] [--quiet]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,15 +57,11 @@ class HealthState:
             return {
                 "alive": self.bridge_alive,
                 "last_heartbeat_age_s": (
-                    round(time.monotonic() - self.last_heartbeat, 1)
-                    if self.last_heartbeat
-                    else None
+                    round(time.monotonic() - self.last_heartbeat, 1) if self.last_heartbeat else None
                 ),
                 "restart_count": self.restart_count,
                 "failing_for_s": (
-                    round(time.monotonic() - self.first_failure, 1)
-                    if self.first_failure is not None
-                    else None
+                    round(time.monotonic() - self.first_failure, 1) if self.first_failure is not None else None
                 ),
             }
 
@@ -139,7 +136,7 @@ def _send_heartbeat(host: str, port: int) -> bool:
                 data += chunk
             resp = json.loads(data.decode())
             return "result" in resp
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -178,9 +175,7 @@ class BridgeSupervisor:
     def start_health_server(self) -> None:
         """Start the HTTP health server in a background thread."""
         try:
-            self._health_server = ThreadingHTTPServer(
-                ("127.0.0.1", self.health_port), HealthHandler
-            )
+            self._health_server = ThreadingHTTPServer(("127.0.0.1", self.health_port), HealthHandler)
         except OSError as e:
             self._log(
                 logging.WARNING,
@@ -195,9 +190,7 @@ class BridgeSupervisor:
             name="qf-mt5-supervisor-health",
         )
         self._health_thread.start()
-        self._log(
-            logging.INFO, "MT5 supervisor health endpoint: http://127.0.0.1:%d/health", self.health_port
-        )
+        self._log(logging.INFO, "MT5 supervisor health endpoint: http://127.0.0.1:%d/health", self.health_port)
 
     def _start_bridge(self) -> None:
         """Spawn the MT5 bridge process (Wine path)."""
@@ -221,7 +214,7 @@ class BridgeSupervisor:
                     self._proc.terminate()
                     try:
                         self._proc.wait(timeout=5)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         self._proc.kill()
             self._proc = None
 
@@ -299,12 +292,8 @@ def main() -> int:
     parser.add_argument("--bridge-host", default="127.0.0.1")
     parser.add_argument("--bridge-port", type=int, default=9879)
     parser.add_argument("--health-port", type=int, default=9880)
-    parser.add_argument(
-        "--watchdog-secs", type=float, default=30.0, help="Poll interval (seconds)"
-    )
-    parser.add_argument(
-        "--max-restarts", type=int, default=10, help="Cap on restarts per session"
-    )
+    parser.add_argument("--watchdog-secs", type=float, default=30.0, help="Poll interval (seconds)")
+    parser.add_argument("--max-restarts", type=int, default=10, help="Cap on restarts per session")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
 

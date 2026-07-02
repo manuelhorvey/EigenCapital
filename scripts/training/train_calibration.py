@@ -121,12 +121,12 @@ def main():
         )
 
     # Summary
-    print(f"\n{'='*72}")
+    print(f"\n{'=' * 72}")
     print(f"CALIBRATION TRAINING SUMMARY (method={args.method})")
-    print(f"{'='*72}")
+    print(f"{'=' * 72}")
     _delta = "\u0394"
     print(f"{'Asset':<12} {'ECE Before':<12} {'ECE After':<12} {_delta:<12} {'Improvement':<12}")
-    print(f"{'-'*60}")
+    print(f"{'-' * 60}")
 
     total_before, total_after = 0.0, 0.0
     for asset, ece_info in results:
@@ -139,10 +139,10 @@ def main():
 
     if results:
         n = len(results)
-        print(f"{'-'*60}")
+        print(f"{'-' * 60}")
         print(
-            f"{'AVERAGE':<12} {total_before/n:<12.4f} {total_after/n:<12.4f} "
-            f"{(total_before-total_after)/n:<+12.4f}"
+            f"{'AVERAGE':<12} {total_before / n:<12.4f} {total_after / n:<12.4f} "
+            f"{(total_before - total_after) / n:<+12.4f}"
         )
 
     if not args.dry_run and results:

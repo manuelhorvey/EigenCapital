@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """SL sweep for top 5 filter survivors (correct data alignment)."""
+
 import logging
 import os
 import sys
@@ -7,15 +8,15 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import pandas as pd
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import pandas as pd  # noqa: E402
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests import compute_per_fold_labels
-from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro
-from features.builder import build_features
-from features.registry import FEATURE_REGISTRY
-from shared.volatility import compute_atr_pct
+from backtests import compute_per_fold_labels  # noqa: E402
+from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro  # noqa: E402
+from features.builder import build_features  # noqa: E402
+from features.registry import FEATURE_REGISTRY  # noqa: E402
+from shared.volatility import compute_atr_pct  # noqa: E402
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -46,9 +47,9 @@ def run_asset(ticker, name, sl, tp, depth):
 
     atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
     atr_r = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-    regime = atr_r.fillna(0.5).apply(
-        lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")
-    ).astype(str)
+    regime = (
+        atr_r.fillna(0.5).apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")).astype(str)
+    )
 
     all_trades = []
     for ty in range(2023, 2026):
@@ -58,27 +59,41 @@ def run_asset(ticker, name, sl, tp, depth):
         test = (X.index >= cut) & (X.index <= eoy)
         if test.sum() < 20:
             continue
-        X_tr = X[train]; y_tr, y_te = compute_per_fold_labels(close, train, test, contract)
+        X_tr = X[train]
+        y_tr, y_te = compute_per_fold_labels(close, train, test, contract)
         X_te = X[test]
         if len(X_tr) < 200 or set(y_tr.unique()) != {0, 1, 2}:
             continue
         mc = y_tr.value_counts().min()
         strat = y_tr if mc >= 2 else None
-        X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-            X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
+        X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
         if set(y_tr2.unique()) != {0, 1, 2}:
             continue
         model = xgb.XGBClassifier(
-            n_estimators=300, max_depth=depth, learning_rate=0.02,
-            objective="multi:softprob", num_class=3, random_state=42,
-            n_jobs=1, tree_method="hist", verbosity=0)
+            n_estimators=300,
+            max_depth=depth,
+            learning_rate=0.02,
+            objective="multi:softprob",
+            num_class=3,
+            random_state=42,
+            n_jobs=1,
+            tree_method="hist",
+            verbosity=0,
+        )
         model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
         proba = model.predict_proba(X_te)
         sigs = _signals(proba, X_te.index)
-        tr = _simulate(sigs,
-                       close.reindex(X_te.index), high.reindex(X_te.index),
-                       low.reindex(X_te.index),
-                       name, sl, tp, atr, regime)
+        tr = _simulate(
+            sigs,
+            close.reindex(X_te.index),
+            high.reindex(X_te.index),
+            low.reindex(X_te.index),
+            name,
+            sl,
+            tp,
+            atr,
+            regime,
+        )
         all_trades.extend(tr)
 
     if len(all_trades) < MIN_TRADES:
@@ -90,9 +105,9 @@ def run_asset(ticker, name, sl, tp, depth):
 
 def main():
     for ticker, name, tp, depth in ASSETS:
-        print(f"\n{'='*65}", flush=True)
+        print(f"\n{'=' * 65}", flush=True)
         print(f"=== {name} TP={tp} depth={depth} ===", flush=True)
-        print(f"{'='*65}", flush=True)
+        print(f"{'=' * 65}", flush=True)
         print(f"{'SL':>5s} {'PF':>8s} {'avgR':>8s} {'Trades':>7s}", flush=True)
         print("-" * 35, flush=True)
 
@@ -109,7 +124,9 @@ def main():
             print(f"{sl:>5.1f} {r['pf']:>8.3f} {r['avg_r']:>+8.4f} {r['n']:>7d}{marker}", flush=True)
 
         if best:
-            print(f"  Best: SL={best['sl']:.1f} PF={best['pf']:.3f} avgR={best['avg_r']:+.4f} n={best['n']}", flush=True)
+            print(
+                f"  Best: SL={best['sl']:.1f} PF={best['pf']:.3f} avgR={best['avg_r']:+.4f} n={best['n']}", flush=True
+            )  # noqa: E501
 
 
 if __name__ == "__main__":

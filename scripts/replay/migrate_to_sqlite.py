@@ -14,6 +14,7 @@ EQUITY_PATH = os.path.join(LIVE_DIR, "equity_history.json")
 
 ET = pytz.timezone("US/Eastern")
 
+
 def migrate():
     if not os.path.exists(DB_PATH):
         print(f"Error: Database not found at {DB_PATH}")
@@ -30,7 +31,7 @@ def migrate():
             # Check for duplicates
             exists = conn.execute(
                 "SELECT id FROM attribution WHERE asset = ? AND entry_date = ? AND exit_date = ?",
-                (row.get("asset"), str(row.get("entry_date", "")), str(row.get("exit_date", "")))
+                (row.get("asset"), str(row.get("entry_date", "")), str(row.get("exit_date", ""))),
             ).fetchone()
 
             if not exists:
@@ -50,19 +51,44 @@ def migrate():
                         exit_realized_r, exit_bars_held, exit_exit_archetype
                     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
-                        row.get("asset"), row.get("trade_id"), str(row.get("entry_date", "")), str(row.get("exit_date", "")),
-                        row.get("side"), row.get("exit_price"), row.get("exit_reason"),
-                        row.get("realized_r"), row.get("realized_return"), row.get("realized_pnl"), row.get("theoretical_r"),
-                        row.get("policy_hash"), row.get("archetype_version"), row.get("exit_archetype"),
-                        row.get("pred_signal"), row.get("pred_label"), row.get("pred_confidence"),
-                        row.get("pred_prob_long"), row.get("pred_prob_short"), row.get("pred_prob_neutral"), row.get("pred_meta_proba"),
-                        row.get("pred_regime_at_entry"), row.get("pred_archetype_at_entry"),
-                        row.get("exec_entry_type"), row.get("exec_deferred_bars"),
-                        row.get("exec_entry_price"), row.get("exec_mid_price_at_signal"), row.get("exec_entry_slippage_bps"),
-                        row.get("friction_entry_slippage_bps"), row.get("friction_exit_slippage_bps"),
-                        row.get("exit_mae"), row.get("exit_mfe"), row.get("exit_mae_per_bar"), row.get("exit_mfe_per_bar"),
-                        row.get("exit_realized_r"), row.get("exit_bars_held"), row.get("exit_exit_archetype")
-                    )
+                        row.get("asset"),
+                        row.get("trade_id"),
+                        str(row.get("entry_date", "")),
+                        str(row.get("exit_date", "")),  # noqa: E501
+                        row.get("side"),
+                        row.get("exit_price"),
+                        row.get("exit_reason"),
+                        row.get("realized_r"),
+                        row.get("realized_return"),
+                        row.get("realized_pnl"),
+                        row.get("theoretical_r"),  # noqa: E501
+                        row.get("policy_hash"),
+                        row.get("archetype_version"),
+                        row.get("exit_archetype"),
+                        row.get("pred_signal"),
+                        row.get("pred_label"),
+                        row.get("pred_confidence"),
+                        row.get("pred_prob_long"),
+                        row.get("pred_prob_short"),
+                        row.get("pred_prob_neutral"),
+                        row.get("pred_meta_proba"),  # noqa: E501
+                        row.get("pred_regime_at_entry"),
+                        row.get("pred_archetype_at_entry"),
+                        row.get("exec_entry_type"),
+                        row.get("exec_deferred_bars"),
+                        row.get("exec_entry_price"),
+                        row.get("exec_mid_price_at_signal"),
+                        row.get("exec_entry_slippage_bps"),  # noqa: E501
+                        row.get("friction_entry_slippage_bps"),
+                        row.get("friction_exit_slippage_bps"),
+                        row.get("exit_mae"),
+                        row.get("exit_mfe"),
+                        row.get("exit_mae_per_bar"),
+                        row.get("exit_mfe_per_bar"),  # noqa: E501
+                        row.get("exit_realized_r"),
+                        row.get("exit_bars_held"),
+                        row.get("exit_exit_archetype"),
+                    ),
                 )
         print("  Done migrating attribution.")
 
@@ -73,7 +99,7 @@ def migrate():
         for _, row in df_journal.iterrows():
             exists = conn.execute(
                 "SELECT id FROM trades WHERE asset = ? AND entry_date = ? AND exit_date = ?",
-                (row.get("asset"), str(row.get("entry_date", "")), str(row.get("exit_date", "")))
+                (row.get("asset"), str(row.get("entry_date", "")), str(row.get("exit_date", ""))),
             ).fetchone()
 
             if not exists:
@@ -88,16 +114,35 @@ def migrate():
                         pred_confidence, pred_archetype, pred_regime
                     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
-                        row.get("asset"), row.get("side"), row.get("entry"), row.get("exit"),
-                        str(row.get("entry_date", "")), str(row.get("exit_date", "")),
-                        row.get("return"), row.get("pnl"), row.get("total_pnl"), row.get("reason"),
-                        row.get("realized_r"), row.get("bars"), row.get("conf_at_entry"),
-                        row.get("archetype_at_entry"), row.get("attribution_trade_id"),
-                        row.get("mae"), row.get("mfe"), row.get("mae_per_bar"), row.get("mfe_per_bar"),
-                        row.get("entry_slippage_bps"), row.get("exit_slippage_bps"), row.get("fill_qty_ratio"),
-                        row.get("gap_fill"), row.get("partial_fill"), row.get("latency_bars"),
-                        row.get("pred_confidence"), row.get("pred_archetype"), row.get("pred_regime")
-                    )
+                        row.get("asset"),
+                        row.get("side"),
+                        row.get("entry"),
+                        row.get("exit"),
+                        str(row.get("entry_date", "")),
+                        str(row.get("exit_date", "")),
+                        row.get("return"),
+                        row.get("pnl"),
+                        row.get("total_pnl"),
+                        row.get("reason"),
+                        row.get("realized_r"),
+                        row.get("bars"),
+                        row.get("conf_at_entry"),
+                        row.get("archetype_at_entry"),
+                        row.get("attribution_trade_id"),
+                        row.get("mae"),
+                        row.get("mfe"),
+                        row.get("mae_per_bar"),
+                        row.get("mfe_per_bar"),
+                        row.get("entry_slippage_bps"),
+                        row.get("exit_slippage_bps"),
+                        row.get("fill_qty_ratio"),
+                        row.get("gap_fill"),
+                        row.get("partial_fill"),
+                        row.get("latency_bars"),
+                        row.get("pred_confidence"),
+                        row.get("pred_archetype"),
+                        row.get("pred_regime"),
+                    ),
                 )
         print("  Done migrating trades.")
 
@@ -109,8 +154,7 @@ def migrate():
                 history = json.load(f)
             for record in history:
                 exists = conn.execute(
-                    "SELECT id FROM equity_history WHERE timestamp = ?",
-                    (record.get("timestamp"),)
+                    "SELECT id FROM equity_history WHERE timestamp = ?", (record.get("timestamp"),)
                 ).fetchone()
 
                 if not exists:
@@ -120,13 +164,16 @@ def migrate():
                             gross_exposure, net_exposure
                         ) VALUES (?,?,?,?,?,?)""",
                         (
-                            record.get("timestamp"), record.get("portfolio_value"),
-                            record.get("portfolio_return"), record.get("drawdown"),
-                            record.get("gross_exposure"), record.get("net_exposure")
-                        )
+                            record.get("timestamp"),
+                            record.get("portfolio_value"),
+                            record.get("portfolio_return"),
+                            record.get("drawdown"),
+                            record.get("gross_exposure"),
+                            record.get("net_exposure"),
+                        ),
                     )
             print("  Done migrating equity history.")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  Failed to migrate equity history: {e}")
 
     conn.commit()
@@ -135,12 +182,14 @@ def migrate():
     # Trigger refresh of analytics
     print("Refreshing analytics snapshots...")
     from paper_trading.state_store import StateStore
+
     store = StateStore(BASE_DIR)
     store.write_trade_outcomes_cache()
     # Force analytics refresh by resetting counter
     store._analytics_snapshot_counter = store._analytics_snapshot_frequency
     store.write_analytics_snapshot()
     print("Migration complete!")
+
 
 if __name__ == "__main__":
     migrate()

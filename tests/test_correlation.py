@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from paper_trading.logging.correlation import (
     CorrelationIdFilter,
     get_correlation_id,
@@ -10,6 +12,10 @@ from paper_trading.logging.correlation import (
 
 
 class TestCorrelationId:
+    @pytest.fixture(autouse=True)
+    def _reset_cid(self) -> None:
+        set_correlation_id("")
+
     def test_default_is_empty_string(self):
         assert get_correlation_id() == ""
 

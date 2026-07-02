@@ -82,7 +82,9 @@ def run_ensemble_pilot(
 
     labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=20)
     cot_data = fetch_cot_features(prices.index)
-    alpha_df = build_alpha_features(prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities, cot_data=cot_data)
+    alpha_df = build_alpha_features(
+        prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities, cot_data=cot_data
+    )  # noqa: E501
 
     alpha_df["label"] = labels.reindex(alpha_df.index).astype(int)
     alpha_df = alpha_df.dropna()
@@ -95,7 +97,7 @@ def run_ensemble_pilot(
         regime_df = generate_regime_features(ohlcv)
         prefix = asset_name.upper()
         regime_renamed = regime_df.rename(columns={c: f"{prefix}_{c}" for c in regime_df.columns})
-        common_idx = alpha_df.index.intersection(regime_renamed.index)
+        alpha_df.index.intersection(regime_renamed.index)
         full_df = alpha_df.join(regime_renamed, how="left")
     else:
         full_df = alpha_df.copy()
@@ -174,17 +176,19 @@ def run_ensemble_pilot(
         base_long_prec = ((base_signals == 1) & (y_te.values == 1)).sum() / max((base_signals == 1).sum(), 1)
         base_short_prec = ((base_signals == -1) & (y_te.values == 0)).sum() / max((base_signals == -1).sum(), 1)
 
-        base_windows.append({
-            "fold": fold,
-            "train_start": str(train_start.date()),
-            "train_end": str(train_end.date()),
-            "test_start": str(test_start.date()),
-            "test_end": str(test_end.date()),
-            "hit_rate": float(f"{base_hit:.4f}"),
-            "directional_ic": float(f"{base_dir:.4f}"),
-            "long_precision": float(f"{base_long_prec:.4f}"),
-            "short_precision": float(f"{base_short_prec:.4f}"),
-        })
+        base_windows.append(
+            {
+                "fold": fold,
+                "train_start": str(train_start.date()),
+                "train_end": str(train_end.date()),
+                "test_start": str(test_start.date()),
+                "test_end": str(test_end.date()),
+                "hit_rate": float(f"{base_hit:.4f}"),
+                "directional_ic": float(f"{base_dir:.4f}"),
+                "long_precision": float(f"{base_long_prec:.4f}"),
+                "short_precision": float(f"{base_short_prec:.4f}"),
+            }
+        )
 
         # Ensemble signals
         if regime_p_long is not None:
@@ -201,20 +205,27 @@ def run_ensemble_pilot(
         ens_long_prec = ((ens_signals_arr == 1) & (y_te.values == 1)).sum() / max((ens_signals_arr == 1).sum(), 1)
         ens_short_prec = ((ens_signals_arr == -1) & (y_te.values == 0)).sum() / max((ens_signals_arr == -1).sum(), 1)
 
-        ensemble_windows.append({
-            "fold": fold,
-            "hit_rate": float(f"{ens_hit:.4f}"),
-            "directional_ic": float(f"{ens_dir:.4f}"),
-            "long_precision": float(f"{ens_long_prec:.4f}"),
-            "short_precision": float(f"{ens_short_prec:.4f}"),
-        })
+        ensemble_windows.append(
+            {
+                "fold": fold,
+                "hit_rate": float(f"{ens_hit:.4f}"),
+                "directional_ic": float(f"{ens_dir:.4f}"),
+                "long_precision": float(f"{ens_long_prec:.4f}"),
+                "short_precision": float(f"{ens_short_prec:.4f}"),
+            }
+        )
 
         logger.info(
-            "  fold %d: base=(hit=%.3f dir=%.3f long=%.3f short=%.3f) "
-            "ens=(hit=%.3f dir=%.3f long=%.3f short=%.3f)",
+            "  fold %d: base=(hit=%.3f dir=%.3f long=%.3f short=%.3f) ens=(hit=%.3f dir=%.3f long=%.3f short=%.3f)",
             fold,
-            base_hit, base_dir, base_long_prec, base_short_prec,
-            ens_hit, ens_dir, ens_long_prec, ens_short_prec,
+            base_hit,
+            base_dir,
+            base_long_prec,
+            base_short_prec,
+            ens_hit,
+            ens_dir,
+            ens_long_prec,
+            ens_short_prec,
         )
 
     if not base_windows:
@@ -253,12 +264,18 @@ def run_ensemble_pilot(
         "ens=(hit=%.3f ic=%.3f long_prec=%.3f short_prec=%.3f) "
         "delta=(hit=%.3f ic=%.3f long_prec=%.3f short_prec=%.3f)",
         asset_name,
-        comparison["base_mean_hit"], comparison["base_mean_ic"],
-        comparison["base_mean_long_prec"], comparison["base_mean_short_prec"],
-        comparison["ens_mean_hit"], comparison["ens_mean_ic"],
-        comparison["ens_mean_long_prec"], comparison["ens_mean_short_prec"],
-        comparison["delta_hit"], comparison["delta_ic"],
-        comparison["delta_long_prec"], comparison["delta_short_prec"],
+        comparison["base_mean_hit"],
+        comparison["base_mean_ic"],
+        comparison["base_mean_long_prec"],
+        comparison["base_mean_short_prec"],
+        comparison["ens_mean_hit"],
+        comparison["ens_mean_ic"],
+        comparison["ens_mean_long_prec"],
+        comparison["ens_mean_short_prec"],
+        comparison["delta_hit"],
+        comparison["delta_ic"],
+        comparison["delta_long_prec"],
+        comparison["delta_short_prec"],
     )
 
     return comparison
@@ -285,18 +302,23 @@ def main():
     r_df = pd.DataFrame(results)
     for _, r in r_df.iterrows():
         print(f"\n{r['asset']}:")
-        print(f"  Base:    hit={r['base_mean_hit']:.3f}  ic={r['base_mean_ic']:.3f}  "
-              f"long={r['base_mean_long_prec']:.3f}  short={r['base_mean_short_prec']:.3f}")
-        print(f"  Ens:     hit={r['ens_mean_hit']:.3f}  ic={r['ens_mean_ic']:.3f}  "
-              f"long={r['ens_mean_long_prec']:.3f}  short={r['ens_mean_short_prec']:.3f}")
-        print(f"  Delta:   hit={r['delta_hit']:+.3f}  ic={r['delta_ic']:+.3f}  "
-              f"long={r['delta_long_prec']:+.3f}  short={r['delta_short_prec']:+.3f}")
+        print(
+            f"  Base:    hit={r['base_mean_hit']:.3f}  ic={r['base_mean_ic']:.3f}  "
+            f"long={r['base_mean_long_prec']:.3f}  short={r['base_mean_short_prec']:.3f}"
+        )
+        print(
+            f"  Ens:     hit={r['ens_mean_hit']:.3f}  ic={r['ens_mean_ic']:.3f}  "
+            f"long={r['ens_mean_long_prec']:.3f}  short={r['ens_mean_short_prec']:.3f}"
+        )
+        print(
+            f"  Delta:   hit={r['delta_hit']:+.3f}  ic={r['delta_ic']:+.3f}  "
+            f"long={r['delta_long_prec']:+.3f}  short={r['delta_short_prec']:+.3f}"
+        )
         print(f"  Folds: {r['n_folds']}  Regime feats: {r['regime_feature_count']}")
 
     # Decision rule: IC (Sharpe proxy) + both precisions improve on >= 2/3 assets
     improved = sum(
-        1 for _, r in r_df.iterrows()
-        if r["delta_ic"] > 0 and r["delta_long_prec"] > 0 and r["delta_short_prec"] > 0
+        1 for _, r in r_df.iterrows() if r["delta_ic"] > 0 and r["delta_long_prec"] > 0 and r["delta_short_prec"] > 0
     )
     passed = improved >= 2
 
@@ -307,14 +329,18 @@ def main():
 
     summary_path = os.path.join(OUTPUT_DIR, "summary.json")
     with open(summary_path, "w") as f:
-        json.dump({
-            "results": results,
-            "passed": passed,
-            "improved_count": improved,
-            "total_assets": len(results),
-            "threshold": ">= 2/3",
-            "run_timestamp": datetime.utcnow().isoformat(),
-        }, f, indent=2)
+        json.dump(
+            {
+                "results": results,
+                "passed": passed,
+                "improved_count": improved,
+                "total_assets": len(results),
+                "threshold": ">= 2/3",
+                "run_timestamp": datetime.utcnow().isoformat(),
+            },
+            f,
+            indent=2,
+        )
     print(f"\nFull results -> {summary_path}")
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Sweep REGIME_GEOM configurations — tests global regime multiplier configs."""
+
 import logging
 import os
 import sys
@@ -7,13 +8,13 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import numpy as np
-import pandas as pd
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import xgboost as xgb  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
 
-from backtests import compute_per_fold_labels
-from backtests.trade_analysis import (
+from backtests import compute_per_fold_labels  # noqa: E402
+from backtests.trade_analysis import (  # noqa: E402
     DASHBOARD_TICKERS,
     MODEL_DEPTH,
     SLTP_CFG,
@@ -22,16 +23,16 @@ from backtests.trade_analysis import (
     fetch_ohlcv,
     load_macro,
 )
-from features.builder import build_features
-from features.registry import FEATURE_REGISTRY
-from shared.volatility import compute_atr_pct
+from features.builder import build_features  # noqa: E402
+from features.registry import FEATURE_REGISTRY  # noqa: E402
+from shared.volatility import compute_atr_pct  # noqa: E402
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
 
 # Override REGIME_GEOM with test config — replicated from trade_analysis.py so we can hot-swap
 # The _simulate function reads the module-level REGIME_GEOM, so we need to monkey-patch
-import backtests.trade_analysis as ta
+import backtests.trade_analysis as ta  # noqa: E402
 
 CONFIGS = {
     "baseline (all 1.0)": {"low": (1.0, 1.0), "mid": (1.0, 1.0), "high": (1.0, 1.0)},
@@ -44,6 +45,7 @@ CONFIGS = {
 }
 
 MIN_TRADES = 5
+
 
 def run_backtest(cfg_name, geom):
     ta.REGIME_GEOM.clear()
@@ -75,9 +77,11 @@ def run_backtest(cfg_name, geom):
 
         atr = compute_atr_pct(df, 14).reindex(X.index).ffill()
         atr_r = atr.rolling(252, min_periods=20).rank(pct=True).ffill()
-        regime = atr_r.fillna(0.5).apply(
-            lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid")
-        ).astype(str)
+        regime = (
+            atr_r.fillna(0.5)
+            .apply(lambda p: {0: "low", 1: "mid", 2: "high"}.get(min(int(p * 3), 2), "mid"))
+            .astype(str)
+        )
 
         for ty in range(2023, 2026):
             cut = pd.Timestamp(f"{ty}-01-01", tz="US/Eastern")
@@ -86,7 +90,8 @@ def run_backtest(cfg_name, geom):
             test_mask = (X.index >= cut) & (X.index <= eoy)
             if test_mask.sum() < 20:
                 continue
-            X_tr = X[train_mask]; y_tr, y_te = compute_per_fold_labels(close, train_mask, test_mask, contract)
+            X_tr = X[train_mask]
+            y_tr, y_te = compute_per_fold_labels(close, train_mask, test_mask, contract)
             X_te = X[test_mask]
             if len(X_tr) < 200:
                 continue
@@ -95,12 +100,18 @@ def run_backtest(cfg_name, geom):
                 continue
             mc = y_tr.value_counts().min()
             strat = y_tr if mc >= 2 else None
-            X_tr2, X_ev, y_tr2, y_ev = train_test_split(
-                X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
+            X_tr2, X_ev, y_tr2, y_ev = train_test_split(X_tr, y_tr, test_size=0.2, random_state=42, stratify=strat)
             model = xgb.XGBClassifier(
-                n_estimators=300, max_depth=depth, learning_rate=0.02,
-                objective="multi:softprob", num_class=3, random_state=42,
-                n_jobs=1, tree_method="hist", verbosity=0)
+                n_estimators=300,
+                max_depth=depth,
+                learning_rate=0.02,
+                objective="multi:softprob",
+                num_class=3,
+                random_state=42,
+                n_jobs=1,
+                tree_method="hist",
+                verbosity=0,
+            )
             model.fit(X_tr2, y_tr2, eval_set=[(X_ev, y_ev)], verbose=False)
             proba = model.predict_proba(X_te)
             sigs = _signals(proba, X_te.index)
@@ -122,11 +133,19 @@ def run_backtest(cfg_name, geom):
         wins = sum(1 for v in rs if v > 0)
         losses = sum(1 for v in rs if v < 0)
         avg_r = np.mean(rs) if rs else 0
-        pf = abs(sum(v for v in rs if v > 0) / sum(abs(v) for v in rs if v < 0)) if sum(abs(v) for v in rs if v < 0) > 0 else float('inf')
+        pf = (
+            abs(sum(v for v in rs if v > 0) / sum(abs(v) for v in rs if v < 0))
+            if sum(abs(v) for v in rs if v < 0) > 0
+            else float("inf")
+        )  # noqa: E501
         perfs[aname] = {"avg_r": avg_r, "pf": pf, "n": len(ts), "win": wins, "loss": losses}
         total_rs.extend(rs)
 
-    overall_pf = abs(sum(v for v in total_rs if v > 0) / sum(abs(v) for v in total_rs if v < 0)) if sum(abs(v) for v in total_rs if v < 0) > 0 else float('inf')
+    overall_pf = (
+        abs(sum(v for v in total_rs if v > 0) / sum(abs(v) for v in total_rs if v < 0))
+        if sum(abs(v) for v in total_rs if v < 0) > 0
+        else float("inf")
+    )  # noqa: E501
     overall_avg_r = np.mean(total_rs) if total_rs else 0
 
     return {
@@ -142,12 +161,12 @@ def main():
     best_pf = 0
 
     for cfg_name, geom in CONFIGS.items():
-        print(f"\n{'='*65}", flush=True)
+        print(f"\n{'=' * 65}", flush=True)
         print(f"Config: {cfg_name}", flush=True)
         print(f"  LOW:  sl={geom['low'][0]:.1f} tp={geom['low'][1]:.1f}", flush=True)
         print(f"  MID:  sl={geom['mid'][0]:.1f} tp={geom['mid'][1]:.1f}", flush=True)
         print(f"  HIGH: sl={geom['high'][0]:.1f} tp={geom['high'][1]:.1f}", flush=True)
-        print(f"{'='*65}", flush=True)
+        print(f"{'=' * 65}", flush=True)
 
         r = run_backtest(cfg_name, geom)
         if r is None:
@@ -163,15 +182,16 @@ def main():
         print("  By asset:", flush=True)
         for aname in sorted(r["perfs"]):
             p = r["perfs"][aname]
-            print(f"    {aname:10s} PF={p['pf']:.3f} avgR={p['avg_r']:+.4f} n={p['n']} "
-                  f"W={p['win']} L={p['loss']}", flush=True)
+            print(
+                f"    {aname:10s} PF={p['pf']:.3f} avgR={p['avg_r']:+.4f} n={p['n']} W={p['win']} L={p['loss']}",
+                flush=True,
+            )
 
-    print(f"\n{'='*65}", flush=True)
+    print(f"\n{'=' * 65}", flush=True)
     print("SUMMARY (sorted by PF)", flush=True)
-    print(f"{'='*65}", flush=True)
+    print(f"{'=' * 65}", flush=True)
     for cfg_name, r in sorted(results, key=lambda x: -x[1]["overall_pf"]):
-        print(f"{cfg_name:30s} PF={r['overall_pf']:.3f} avgR={r['overall_avg_r']:+.4f} n={r['n_trades']}",
-              flush=True)
+        print(f"{cfg_name:30s} PF={r['overall_pf']:.3f} avgR={r['overall_avg_r']:+.4f} n={r['n_trades']}", flush=True)
 
 
 if __name__ == "__main__":

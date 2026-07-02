@@ -43,6 +43,7 @@ def main():
     ctx = ExecutionContext(state_store=None, execution_bridge=bridge, engine_config=cfg)
 
     from shared.registry import StrategyRegistry
+
     _reg = StrategyRegistry.get_instance()
     portfolio = build_paper_portfolio(cfg.halt)
     _reg.register_defaults(list(portfolio.keys()))
@@ -61,10 +62,15 @@ def main():
 
         try:
             engine = build_asset_engine(
-                ticker=ticker, name=name, contract=spec["contract"],
-                allocation=spec["alloc"], halt_config=spec["halt"],
-                config=spec["config"], sl_mult=spec["sl_mult"],
-                tp_mult=spec["tp_mult"], max_depth=spec["max_depth"],
+                ticker=ticker,
+                name=name,
+                contract=spec["contract"],
+                allocation=spec["alloc"],
+                halt_config=spec["halt"],
+                config=spec["config"],
+                sl_mult=spec["sl_mult"],
+                tp_mult=spec["tp_mult"],
+                max_depth=spec["max_depth"],
                 regime_geometry=spec.get("regime_geometry", {}),
                 context=ctx,
             )
@@ -79,7 +85,11 @@ def main():
 
             logger.info(
                 "  %s: regime=%s ensemble=%s feats=%d (%.1fs)",
-                name, regime_ok, ensemble_ok, n_regime_feats, elapsed,
+                name,
+                regime_ok,
+                ensemble_ok,
+                n_regime_feats,
+                elapsed,
             )
 
             # Compute regime distribution from last 504 bars
@@ -88,6 +98,7 @@ def main():
                 try:
                     from features.data_fetch import fetch_asset_ohlcv
                     from features.regime_features import generate_regime_features
+
                     ohlcv = fetch_asset_ohlcv(ticker)
                     if ohlcv is not None and len(ohlcv) > 100:
                         rf = generate_regime_features(ohlcv.iloc[-504:])
@@ -96,23 +107,28 @@ def main():
                             trending = (hurst > 0.6).mean()
                             meanrev = (hurst < 0.4).mean()
                             neutral = ((hurst >= 0.4) & (hurst <= 0.6)).mean()
-                            dist = "  H=%.2f/%.2f/%.2f" % (trending, neutral, meanrev)
+                            dist = f"  H={trending:.2f}/{neutral:.2f}/{meanrev:.2f}"
                             if trending > 0.7 or meanrev > 0.7:
                                 logger.warning("  %s: >70%% single regime — ensemble adds little value", name)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
-            results.append({
-                "asset": name, "ticker": ticker,
-                "regime_trained": regime_ok, "ensemble_configured": ensemble_ok,
-                "n_regime_features": n_regime_feats,
-                "train_time_s": round(elapsed, 1),
-                "regime_dist": dist,
-            })
+            results.append(
+                {
+                    "asset": name,
+                    "ticker": ticker,
+                    "regime_trained": regime_ok,
+                    "ensemble_configured": ensemble_ok,
+                    "n_regime_features": n_regime_feats,
+                    "train_time_s": round(elapsed, 1),
+                    "regime_dist": dist,
+                }
+            )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("%s: ERROR — %s", name, e)
             import traceback
+
             traceback.print_exc()
             results.append({"asset": name, "ticker": ticker, "regime_trained": False, "error": str(e)})
 
@@ -121,12 +137,16 @@ def main():
     print("REGIME MODEL TRAINING REPORT")
     print("=" * 80)
     ok = sum(1 for r in results if r.get("regime_trained"))
-    print(f"  Total: {n_total}  Regime OK: {ok}  Ensemble configured: {sum(1 for r in results if r.get('ensemble_configured'))}")
+    print(
+        f"  Total: {n_total}  Regime OK: {ok}  Ensemble configured: {sum(1 for r in results if r.get('ensemble_configured'))}"  # noqa: E501
+    )  # noqa: E501
     print()
     for r in results:
         status = "OK" if r.get("regime_trained") else "FAIL"
         dist = r.get("regime_dist", "")
-        print(f"  {r['asset']:<12} {status:<6} feats={r.get('n_regime_features', 0):<2}  {r.get('train_time_s', 0):.1f}s{dist}")
+        print(
+            f"  {r['asset']:<12} {status:<6} feats={r.get('n_regime_features', 0):<2}  {r.get('train_time_s', 0):.1f}s{dist}"  # noqa: E501
+        )  # noqa: E501
     print("=" * 80)
 
     # Save report

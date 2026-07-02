@@ -274,7 +274,7 @@ def prune_equity_history(
             "pruned": pruned,
         }
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("Failed to prune equity_history: %s", e)
         dry_run_stats["equity_history"] = {"error": str(e)}
 

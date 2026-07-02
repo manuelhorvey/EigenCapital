@@ -23,10 +23,7 @@ for name in TARGET_ASSETS:
 
     # Remove signal_flip trade_log entries from metrics
     old_len = len(metrics.get("trade_log", []))
-    metrics["trade_log"] = [
-        t for t in metrics["trade_log"]
-        if t.get("reason") != "signal_flip"
-    ]
+    metrics["trade_log"] = [t for t in metrics["trade_log"] if t.get("reason") != "signal_flip"]
     removed = old_len - len(metrics["trade_log"])
 
     # Reset exit_reasons
@@ -58,10 +55,7 @@ for name in TARGET_ASSETS:
         print(f"{name} open_positions: removed {removed} signal_flip trades")
 
 # Recalculate portfolio closed_trades
-total_closed = sum(
-    len(a.get("metrics", {}).get("trade_log", []))
-    for a in state.get("assets", {}).values()
-)
+total_closed = sum(len(a.get("metrics", {}).get("trade_log", [])) for a in state.get("assets", {}).values())
 state.setdefault("portfolio", {})["closed_trades"] = total_closed
 print(f"portfolio closed_trades set to {total_closed}")
 
@@ -111,35 +105,49 @@ if os.path.exists(outcomes_path):
         overall_flips += reasons.count("signal_flip")
         profits = sum(t.get("pnl", 0) for t in tl if t.get("pnl", 0) > 0)
         losses = abs(sum(t.get("pnl", 0) for t in tl if t.get("pnl", 0) < 0))
-        by_asset.append({
-            "asset": name,
-            "n_trades": n,
-            "tp_rate": round(reasons.count("tp") / n, 4),
-            "sl_rate": round(reasons.count("sl") / n, 4),
-            "signal_flip_rate": round(reasons.count("signal_flip") / n, 4),
-            "avg_r": round(sum(t.get("realized_r", 0) for t in tl) / n, 4),
-            "win_rate": round(len([t for t in tl if t.get("pnl", 0) > 0]) / n, 4),
-            "profit_factor": profits / losses if losses > 0 else (float("inf") if profits > 0 else 0),
-        })
+        by_asset.append(
+            {
+                "asset": name,
+                "n_trades": n,
+                "tp_rate": round(reasons.count("tp") / n, 4),
+                "sl_rate": round(reasons.count("sl") / n, 4),
+                "signal_flip_rate": round(reasons.count("signal_flip") / n, 4),
+                "avg_r": round(sum(t.get("realized_r", 0) for t in tl) / n, 4),
+                "win_rate": round(len([t for t in tl if t.get("pnl", 0) > 0]) / n, 4),
+                "profit_factor": profits / losses if losses > 0 else (float("inf") if profits > 0 else 0),
+            }
+        )
 
     outcomes = {
         "overall": {
-            "tp_rate": 0.0 if overall_trades == 0 else round(sum(a["tp_rate"] * a["n_trades"] for a in by_asset) / overall_trades, 4),
-            "sl_rate": 0.0 if overall_trades == 0 else round(sum(a["sl_rate"] * a["n_trades"] for a in by_asset) / overall_trades, 4),
+            "tp_rate": 0.0
+            if overall_trades == 0
+            else round(sum(a["tp_rate"] * a["n_trades"] for a in by_asset) / overall_trades, 4),  # noqa: E501
+            "sl_rate": 0.0
+            if overall_trades == 0
+            else round(sum(a["sl_rate"] * a["n_trades"] for a in by_asset) / overall_trades, 4),  # noqa: E501
             "signal_flip_rate": 0.0 if overall_trades == 0 else round(overall_flips / overall_trades, 4),
-            "avg_r": 0.0 if not by_asset else round(sum(a["avg_r"] * a["n_trades"] for a in by_asset) / overall_trades, 4),
-            "win_rate": 0.0 if not by_asset else round(sum(a["win_rate"] * a["n_trades"] for a in by_asset) / overall_trades, 4),
+            "avg_r": 0.0
+            if not by_asset
+            else round(sum(a["avg_r"] * a["n_trades"] for a in by_asset) / overall_trades, 4),  # noqa: E501
+            "win_rate": 0.0
+            if not by_asset
+            else round(sum(a["win_rate"] * a["n_trades"] for a in by_asset) / overall_trades, 4),  # noqa: E501
             "profit_factor": None if not by_asset else by_asset[0]["profit_factor"],
         },
         "by_asset": by_asset,
-        "updated_at": json.load(open(outcomes_path)).get("updated_at", ""),
+        "updated_at": json.load(open(outcomes_path)).get("updated_at", ""),  # noqa: SIM115
     }
 
     # Ensure overall rates are 0 if no trades at all
     if overall_trades == 0:
         outcomes["overall"] = {
-            "tp_rate": 0.0, "sl_rate": 0.0, "signal_flip_rate": 0.0,
-            "avg_r": 0.0, "win_rate": 0.0, "profit_factor": None,
+            "tp_rate": 0.0,
+            "sl_rate": 0.0,
+            "signal_flip_rate": 0.0,
+            "avg_r": 0.0,
+            "win_rate": 0.0,
+            "profit_factor": None,
         }
         outcomes["by_asset"] = []
 

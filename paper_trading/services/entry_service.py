@@ -580,6 +580,20 @@ class EntryService:
         broker = asset.execution_bridge.broker
         existing_positions = broker.get_positions()
         mt5_symbol = broker.ticker_to_mt5_symbol(asset.ticker)
+
+        # Normalize qty to broker volume constraints before submission
+        normalized = broker.normalize_volume(asset.ticker, qty)
+        if normalized <= 0:
+            logger.error(
+                "%s: MT5 volume normalization failed for qty=%.6f — position too small for broker min volume, skipping order",
+                asset.name,
+                qty,
+            )
+            return entry_price, 0.0, None
+        # Round DOWN to volume_step (never submit more risk than sized)
+        qty = normalized
+
+
         matching = [p for p in existing_positions if p.asset == mt5_symbol]
         if matching:
             # Stacking bypass: MT5 netting absorbs additional same-side orders

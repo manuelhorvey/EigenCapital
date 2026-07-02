@@ -513,6 +513,69 @@ class MT5Broker(BrokerInterface):
 
     # ── Lot / Quantity conversion ──────────────────────────────────────
 
+    def normalize_volume(self, ticker: str, raw_qty: float) -> float:
+        """Normalize qty to broker volume constraints.
+
+        Converts raw_qty (in base currency / contract-equivalent units)
+        to lots, rounds DOWN to the symbol's volume_step, then converts
+        back to original units. Returns 0.0 if the normalized volume
+        rounds to zero or falls below broker min_volume.
+
+        This is the single shared choke point for volume normalization.
+        All MT5 order paths must call this before submitting to the
+        broker.
+        """
+        info = self._client.symbol_info(ticker)
+        if not info:
+            logger.warning(
+                "%s: no symbol_info available — can't normalize qty=%.6f, returning as-is",
+                ticker,
+                raw_qty,
+            )
+            return raw_qty
+
+        contract_size = info.get("contract_size", 100000.0)
+        step = info.get("volume_step", 0.01)
+        min_vol = info.get("min_volume", 0.01)
+        max_vol = info.get("max_volume", 100.0)
+
+        lots = raw_qty / contract_size
+        # Round DOWN — never submit more risk than sized
+        lots = int(lots / step) * step
+
+        if lots < min_vol or lots <= 0:
+            logger.warning(
+                "%s: qty=%.6f normalizes to lots=%.4f — below broker min_volume=%.2f (step=%.4f, contract_size=%.0f)",
+                ticker,
+                raw_qty,
+                lots,
+                min_vol,
+                step,
+                contract_size,
+            )
+            self._wal_event(
+                "mt5_order_rejected",
+                {
+                    "asset": ticker,
+                    "side": "unknown",
+                    "reason": f"volume_too_small:qty={raw_qty:.6f},lots={lots:.4f}<min={min_vol}",
+                },
+            )
+            return 0.0
+
+        lots = min(lots, max_vol)
+        normalized = lots * contract_size
+        logger.debug(
+            "%s: volume normalized qty=%.6f -> lots=%.4f (step=%.4f, min=%.2f, max=%.2f)",
+            ticker,
+            raw_qty,
+            lots,
+            step,
+            min_vol,
+            max_vol,
+        )
+        return normalized
+
     def _quantity_to_lots(self, asset: str, quantity: float) -> float:
         info = self._client.symbol_info(asset)
         if info:

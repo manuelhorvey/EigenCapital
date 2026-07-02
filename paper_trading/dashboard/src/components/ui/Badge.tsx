@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react'
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'neutral'
+export type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'neutral'
 
 interface BadgeProps {
   variant?: BadgeVariant

@@ -44,7 +44,7 @@ export function formatHeldDuration(bars?: number | null): string {
 export function formatTimeAgo(isoString: string): string {
   const now = Date.now()
   const then = new Date(isoString).getTime()
-  if (isNaN(then)) return ''
+  if (isNaN(then)) return 'unknown'
   const seconds = Math.floor((now - then) / 1000)
   if (seconds < 5) return 'just now'
   if (seconds < 60) return `${seconds}s ago`

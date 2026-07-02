@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from dataclasses import asdict
 from datetime import datetime
@@ -270,6 +271,23 @@ def handle_optimization(path: str, query: dict) -> str:
 
 def handle_metrics(path: str, query: dict) -> str:
     return global_registry().render()
+
+
+def handle_log_error(body: bytes) -> tuple[str, int]:
+    """POST handler — logs client-side errors sent from the dashboard."""
+    try:
+        import json as _json
+
+        payload = _json.loads(body.decode("utf-8"))
+        error = payload.get("error", "unknown")
+        stack = payload.get("stack", "")
+        name = payload.get("name", "Error")
+        logger = logging.getLogger("eigencapital.dashboard_error")
+        logger.warning("FE error [%s]: %s\n%s", name, error, stack)
+        return json_dumps({"status": "ok"}), 200
+    except Exception as exc:
+        logger.debug("Failed to log client error: %s", exc)
+        return json_dumps({"status": "error"}), 500
 
 
 def handle_clear_cache(path: str, query: dict) -> str:

@@ -43,6 +43,7 @@ from paper_trading.api.state_routes import (
     handle_confidence,
     handle_engine_health,
     handle_equity_history,
+    handle_log_error,
     handle_logs,
     handle_metrics,
     handle_optimization,
@@ -100,4 +101,5 @@ POST_ROUTES: dict[str, object] = {
     "/narrative/confirm": handle_narrative_confirm,
     "/weekly-review/acknowledge": handle_weekly_review_acknowledge,
     "/api/clear-cache": handle_clear_cache,
+    "/api/log-error": handle_log_error,
 }

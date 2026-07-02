@@ -1,14 +1,9 @@
 import { useTradingState } from '../lib/trading-state/hook'
+import { toBadgeConfig } from '../lib/ui/governance-status'
 import Panel from './ui/Panel'
 import Badge from './ui/Badge'
 import StatCard from './ui/StatCard'
 import { Skeleton } from './ui/Skeleton'
-
-const statusConfig = {
-  SAFE: { variant: 'success' as const, label: 'SAFE' },
-  MONITOR: { variant: 'warning' as const, label: 'MONITOR' },
-  ALERT: { variant: 'error' as const, label: 'ALERT' },
-} as const
 
 export default function SystemHealthSummary() {
   const { portfolio, isLoading } = useTradingState()
@@ -29,8 +24,8 @@ export default function SystemHealthSummary() {
     )
   }
 
-  const cfg = statusConfig[portfolio.system_status]
-  const pnlColor = portfolio.pnl.total >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
+  const cfg = toBadgeConfig(portfolio.system_status)
+  const pnlColor = (portfolio.pnl.total ?? 0) >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
   const mt5Color = portfolio.execution.mt5_sync === 'HEALTHY' ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)'
 
   return (
@@ -58,7 +53,7 @@ export default function SystemHealthSummary() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <StatCard
           label="PnL"
-          value={`${portfolio.pnl.total >= 0 ? '+' : ''}${(portfolio.pnl.total * 100).toFixed(2)}%`}
+          value={`${portfolio.pnl.total >= 0 ? '+' : ''}${portfolio.pnl.total.toFixed(2)}%`}
           sub={`Eff: ${(portfolio.pnl.efficiency * 100).toFixed(0)}%`}
           accent={pnlColor}
           variant="compact"
@@ -67,7 +62,7 @@ export default function SystemHealthSummary() {
           label="Drawdown"
           value={`${(portfolio.risk.drawdown * 100).toFixed(1)}%`}
           sub={`Conc: ${portfolio.risk.concentration_risk.toLowerCase()}`}
-          accent={portfolio.risk.drawdown > 0.05 ? '#eab308' : '#22c55e'}
+          accent={(portfolio.risk.drawdown ?? 0) > 0.05 ? '#eab308' : '#22c55e'}
           variant="compact"
         />
         <StatCard

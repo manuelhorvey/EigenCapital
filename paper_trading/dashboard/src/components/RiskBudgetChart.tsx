@@ -19,7 +19,7 @@ export default function RiskBudgetChart() {
     return [
       { label: 'Leverage Remaining', current: ps.leverage_remaining ?? 0, max: ps.max_leverage ?? 1 },
       { label: 'Concurrent Remaining', current: ps.concurrent_remaining ?? 0, max: ps.max_concurrent ?? 20 },
-      { label: 'Daily Loss Remaining', current: ps.daily_loss_remaining ?? 0, max: Math.abs(ps.max_daily_loss ?? 0) || 1 },
+      { label: 'Daily Loss Remaining', current: Math.max(0, (ps.max_daily_loss ?? 0) - Math.abs(ps.daily_pnl ?? 0)), max: Math.abs(ps.max_daily_loss ?? 0) || 1 },
     ]
   }, [ps])
 

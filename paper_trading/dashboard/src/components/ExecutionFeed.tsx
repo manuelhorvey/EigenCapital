@@ -86,7 +86,7 @@ export default function ExecutionFeed() {
           </div>
         }
       />
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" role="log" aria-live="polite">
         <table className="w-full text-xs min-w-[500px]">
           <thead>
             <tr className="border-b border-default">

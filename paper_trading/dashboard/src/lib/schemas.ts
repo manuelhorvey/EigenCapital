@@ -277,7 +277,7 @@ export const PortfolioAdmissionSchema = z.object({
   rejected: z.array(z.string()),
   rejection_reasons: z.record(z.string(), z.string()).optional().default({}),
   ranking_scores: z.record(z.string(), z.number()).optional().default({}),
-}).passthrough()
+})
 
 // ── PEK state (portfolio execution kernel) ─────────────────────────
 
@@ -363,21 +363,21 @@ export const PortfolioSummarySchema = z.object({
   live_sharpe: LiveSharpeSchema.optional(),
   admission: PortfolioAdmissionSchema.optional(),
   pek: PekDataSchema.optional(),
-}).passthrough()
+})
 
 export const EngineStatusSchema = z.object({
   initialized: z.boolean().optional().default(false),
   last_update: z.string().optional().default(''),
   start_time: z.string().optional().default(''),
   market_closed: z.boolean().optional(),
-}).passthrough()
+})
 
 export const HaltConditionsSchema = z.object({
   drawdown: z.number().optional().default(0),
   monthly_pf: z.number().optional().default(0),
   signal_drought: z.number().optional().default(0),
   prob_drift: z.number().optional().default(0),
-}).passthrough()
+})
 
 // ── Per-asset state sub-structures ────────────────────────────────
 
@@ -627,9 +627,9 @@ export const ShadowActionSchema = z.object({
 // ── Engine snapshot ───────────────────────────────────────────────
 
 export const EngineSnapshotSchema = z.object({
-  contract_version: z.number().int().positive(),
+  contract_version: z.number().int().nonnegative(),
   sequence_id: z.number().int().nonnegative(),
-  schema_version: z.string().optional().default('unknown'),
+  schema_version: z.string(),
   timestamp: z.string(),
   portfolio: PortfolioSummarySchema,
   assets: z.record(z.string(), AssetStateSchema),

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceDot } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
-import { systemSelectors } from '../selectors/system'
+import type { SystemBundle } from '../types/bundle'
 import ChartContainer from './ui/ChartContainer'
 import {
   CHART_PALETTE,
@@ -23,10 +23,11 @@ function formatValue(v: number): string {
   return v.toFixed(0)
 }
 
+const capitalSelector = (b: SystemBundle) => b.snapshot.portfolio.capital
+
 export default function EquityChart() {
   const { data, isPending } = useEquityHistory()
-  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
-  const state = snapshot
+  const { data: capital } = useSystemSnapshot(capitalSelector)
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
 
   const MAX_POINTS = 200
@@ -53,7 +54,7 @@ export default function EquityChart() {
   const firstVal = chartData.length > 0 ? chartData[0].portfolio : 0
   const lastVal = chartData.length > 0 ? chartData[chartData.length - 1].portfolio : 0
   const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
-  const startingCapital = data?.[0]?.portfolio_value ?? state?.portfolio?.capital ?? firstVal
+  const startingCapital = data?.[0]?.portfolio_value ?? capital ?? firstVal
   const latestDrawdown = chartData.length > 0 ? chartData[chartData.length - 1].drawdown : null
 
   const minPoint = useMemo(() => {

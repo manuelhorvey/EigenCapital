@@ -4,6 +4,7 @@ import type { AssetCardInfo } from './types'
 interface Props {
   name: string
   info: AssetCardInfo
+  recentlyClosed?: boolean
   onSelect: () => void
 }
 
@@ -37,18 +38,23 @@ function returnColor(v: number): string {
   return 'text-tertiary'
 }
 
-const AssetCardCompact: React.FC<Props> = ({ name, info, onSelect }) => (
+const AssetCardCompact: React.FC<Props> = ({ name, info, recentlyClosed, onSelect }) => (
   <button
     type="button"
     onClick={onSelect}
-    className={`w-full text-left p-3 rounded-lg border border-default bg-surface
+    className={`w-full text-left p-3 rounded-lg border ${recentlyClosed ? 'border-gov-gray/25 bg-surface/50' : 'border-default bg-surface'}
       hover:border-strong hover:bg-panel transition-all duration-200
-      border-l-4 ${borderColor(info.signal)}
-      focus-ring active:scale-[0.98]`}
+      border-l-4 ${recentlyClosed ? 'border-l-gov-gray/40' : borderColor(info.signal)}
+      focus-ring active:scale-[0.98] ${recentlyClosed ? 'opacity-60' : ''}`}
   >
     <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-xs font-semibold text-primary truncate">{name}</span>
+        {recentlyClosed && (
+          <span className="text-[9px] font-semibold px-1 py-0.5 rounded-sm leading-none bg-gov-gray-muted text-gov-gray border border-gov-gray/25">
+            Closed
+          </span>
+        )}
         {(info.sellOnly || info.tripwireActive) && (
           <span className={`text-[9px] font-semibold px-1 py-0.5 rounded-sm leading-none ${
             info.tripwireActive

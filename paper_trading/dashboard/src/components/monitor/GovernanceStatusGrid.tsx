@@ -1,4 +1,5 @@
 import Badge from '../ui/Badge'
+import { toBadgeConfig } from '../../lib/ui/governance-status'
 
 interface LayerStatus {
   name: string
@@ -27,10 +28,7 @@ export default function GovernanceStatusGrid({ layers }: GovernanceStatusGridPro
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="list">
         {layers.map(layer => {
-          const badgeVariant = layer.status === 'healthy' ? 'success'
-            : layer.status === 'warning' ? 'warning'
-            : layer.status === 'critical' ? 'error'
-            : 'neutral'
+          const badge = toBadgeConfig(layer.status)
 
           return (
             <div key={layer.name} className={`border border-default rounded-lg px-2.5 py-2 transition-all duration-200 hover:border-strong ${
@@ -38,11 +36,8 @@ export default function GovernanceStatusGrid({ layers }: GovernanceStatusGridPro
             }`} role="listitem">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="text-2xs font-semibold text-primary">{layer.name}</span>
-                <Badge variant={badgeVariant} size="sm" dot glow>
-                  {layer.status === 'healthy' ? 'OK'
-                    : layer.status === 'warning' ? 'WARN'
-                    : layer.status === 'critical' ? 'CRIT'
-                    : 'N/A'}
+                <Badge variant={badge.variant} size="sm" dot glow>
+                  {badge.label}
                 </Badge>
               </div>
               <p className="text-2xs text-tertiary truncate" title={layer.detail}>

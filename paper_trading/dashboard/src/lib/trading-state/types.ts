@@ -62,8 +62,8 @@ export interface AssetTradingState {
   pnl_state: {
     /** Unrealised PnL in account currency. */
     unrealized: number
-    /** Realised PnL in account currency. */
-    realized: number
+    /** Average R-multiple from closed trades. */
+    avg_r: number
     /** Subjective efficiency — based on how much of peak MFE was captured. */
     efficiency: "LOW" | "NORMAL" | "HIGH"
   }

@@ -42,7 +42,7 @@ function buildPath(
 
   const points = values.map((v, i) => ({
     x: i * stepX,
-    y: height - ((v - min) / range) * height * 0.85 - height * 0.075,
+    y: height - ((v - min) / range) * height * 0.95 - height * 0.025,
   }))
 
   const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
@@ -106,7 +106,7 @@ export default function EquityCurveSparkline({
         viewBox={`0 0 ${300} ${height}`}
         className="w-full shrink-0 min-w-0"
         style={{ height, maxWidth: typeof width === 'number' ? width : undefined }}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={`Equity curve: ${returnPct}% return`}
       >

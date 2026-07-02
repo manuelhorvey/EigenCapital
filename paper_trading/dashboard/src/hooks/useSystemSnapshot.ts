@@ -4,6 +4,8 @@ import { QUERY_KEYS } from '../lib/queryKeys'
 import { EngineSnapshotSchema } from '../lib/schemas'
 import type { SystemBundle } from '../types/bundle'
 
+let _lastContractVersion: number | null = null
+
 export function useSystemSnapshot<T = SystemBundle>(
   select?: (data: SystemBundle) => T
 ) {
@@ -14,6 +16,11 @@ export function useSystemSnapshot<T = SystemBundle>(
       const parsed = EngineSnapshotSchema.safeParse(json.snapshot)
       if (parsed.success) {
         json.snapshot = parsed.data as typeof json.snapshot
+        const cv = parsed.data.contract_version
+        if (_lastContractVersion !== null && _lastContractVersion !== cv) {
+          console.warn(`[SNAPSHOT] Contract version mismatch: was ${_lastContractVersion}, now ${cv}. Dashboard may be incompatible with engine.`)
+        }
+        _lastContractVersion = cv
       } else {
         console.warn('[SNAPSHOT] Zod validation failed:', parsed.error.issues)
       }

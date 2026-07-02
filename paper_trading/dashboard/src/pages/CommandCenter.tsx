@@ -48,7 +48,8 @@ const QuickStatsGrid = memo(function QuickStatsGrid() {
   const peakValue = p.portfolio_peak_value
   const posReturn = totalReturn >= 0
   const posRealized = (p.realized_return ?? 0) >= 0
-  const drawdownTone = drawdown >= 5 ? 'text-gov-red' : drawdown >= 1 ? 'text-gov-yellow' : 'text-secondary'
+  const drawdownPct = drawdown * 100
+  const drawdownTone = drawdownPct >= 5 ? 'text-gov-red' : drawdownPct >= 1 ? 'text-gov-yellow' : 'text-secondary'
 
   // Mono row, one tabular cell per metric, divided by hairline rules.
   // This row is the operator's first read after the rail; it should fit
@@ -68,7 +69,7 @@ const QuickStatsGrid = memo(function QuickStatsGrid() {
         <Stat label="Portfolio Value" value={`$${(p.mtm_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
         <Stat label="Total Return" value={`${posReturn ? '+' : ''}${totalReturn.toFixed(2)}%`} tone={posReturn ? 'good' : 'bad'} />
         <Stat label="Realized P&L" value={`${posRealized ? '+' : ''}${(p.realized_return ?? 0).toFixed(2)}%`} tone={posRealized ? 'good' : 'bad'} />
-        <Stat label="Drawdown" value={`-${Math.abs(drawdown).toFixed(2)}%`} tone={drawdownTone === 'text-secondary' ? undefined : drawdown >= 5 ? 'bad' : 'warn'} />
+        <Stat label="Drawdown" value={`-${drawdownPct.toFixed(2)}%`} tone={drawdownTone === 'text-secondary' ? undefined : drawdownPct >= 5 ? 'bad' : 'warn'} />
         <Stat label="Open / Closed" value={`${p.open_positions ?? 0} / ${p.closed_trades ?? 0}`} />
         <Stat label="Peak Value" value={peakValue != null ? `$${peakValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'} />
         <Stat
@@ -89,7 +90,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'go
     : 'text-primary'
   return (
     <div className="px-3 py-2 min-w-0">
-      <dt className="text-2xs text-tertiary font-medium uppercase tracking-wider truncate">{label}</dt>
+      <dt className="text-2xs text-secondary font-medium uppercase tracking-wider truncate">{label}</dt>
       <dd className={`text-base font-bold font-mono tabular-nums ${cls} mt-0.5 truncate`}>{value}</dd>
     </div>
   )
@@ -175,7 +176,10 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
                       <dd className="text-xs font-mono text-primary mt-0.5 truncate flex items-center gap-1.5">
                         {asset.identity}
                         {asset.direction && (
-                          <span className={`text-[10px] font-bold ${asset.direction === 'LONG' ? 'text-gov-green' : 'text-gov-red'}`}>
+                          <span
+                            className={`text-[10px] font-bold ${asset.direction === 'LONG' ? 'text-gov-green' : 'text-gov-red'}`}
+                            aria-label={asset.direction === 'LONG' ? 'Long position' : 'Short position'}
+                          >
                             {asset.direction === 'LONG' ? 'L' : 'S'}
                           </span>
                         )}
@@ -214,7 +218,7 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
           {/* Desktop table */}
           <div className="hidden sm:block">
             <div className="divide-y divide-border/50">
-              <div className="flex items-center gap-2 px-2 pb-1 text-[10px] text-tertiary font-medium uppercase tracking-wider">
+              <div className="flex items-center gap-2 px-2 pb-1 text-[11px] text-secondary font-medium uppercase tracking-wider">
                 <span className="w-24">Asset</span>
                 <span className="w-20 text-right">PnL</span>
                 <span className="w-36">Exit</span>

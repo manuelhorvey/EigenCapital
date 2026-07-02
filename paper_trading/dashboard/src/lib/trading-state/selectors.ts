@@ -93,7 +93,7 @@ export function toAssetTradingState(
 
   // ── PnL state ────────────────────────────────────────────────
   const unrealized = pos?.unrealized_pnl ?? 0
-  const realized = raw.metrics.exit_reasons?.avg_r ?? 0
+  const avgR = raw.metrics.exit_reasons?.avg_r ?? 0
 
   const peakMfeR: number | null = openPos?.peak_mfe_r ?? null
   const exitPhase: ExitPhase = (openPos?.adaptive_exit_phase as ExitPhase) ?? "STATIC"
@@ -163,7 +163,7 @@ export function toAssetTradingState(
     direction,
     pnl_state: {
       unrealized,
-      realized,
+      avg_r: avgR,
       efficiency,
     },
     exit_state: {
@@ -206,20 +206,16 @@ export function toPortfolioTradingState(
   else if (highRiskCount > 3) systemStatus = "MONITOR"
 
   // ── PnL ──────────────────────────────────────────────────────
-  // Use the engine's total_return (computed against deployed capital),
-  // not raw (total_value - capital) / capital which compares deployed
-  // assets against total capital (incorrect when allocations < 100%).
-  const pnlTotal = portfolio.total_return != null
-    ? portfolio.total_return / 100
-    : 0
+  // total_return from backend is a percentage (2.5 for 2.5%)
+  const pnlTotal = portfolio.total_return ?? 0
 
   const effSum = assetList.reduce((sum, a) => sum + efficiencyToNumeric(a.pnl_state.efficiency), 0)
   const pnlEfficiency = assetList.length > 0 ? effSum / assetList.length : 0
 
   // ── Risk ─────────────────────────────────────────────────────
+  // portfolio_drawdown from backend is a fraction (0-1 range)
   const drawdownPct = portfolio.portfolio_drawdown ?? 0
-  // Normalize drawdown to [0, 1] for display; if it's already a fraction use it, if > 1 treat as percentage
-  const drawdown = Math.abs(drawdownPct) > 1 ? Math.abs(drawdownPct) / 100 : Math.abs(drawdownPct)
+  const drawdown = Math.abs(drawdownPct)
 
   const longCount = assetList.filter((a) => a.direction === "LONG").length
   const shortCount = assetList.filter((a) => a.direction === "SHORT").length

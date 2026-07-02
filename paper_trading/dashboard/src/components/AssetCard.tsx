@@ -66,7 +66,9 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
   const asset = data?.assets?.[name]
 
   const prevEntryRef = useRef<number | null>(null)
+  const prevPositionEntryRef = useRef<number | null>(null)
   const [recentEntryBadge, setRecentEntryBadge] = useState(false)
+  const [recentCloseBadge, setRecentCloseBadge] = useState(false)
 
   const info: AssetCardInfo | null = useMemo(() => {
     if (!asset) return null
@@ -112,6 +114,23 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
     }
   }, [asset, data, name])
 
+  // Flag a position close for 60s — fires when position transitions from non-null to null.
+  useEffect(() => {
+    const positionEntry = info?.position?.entry
+    if (positionEntry != null) {
+      prevPositionEntryRef.current = positionEntry
+      return
+    }
+
+    const wasOpen = prevPositionEntryRef.current != null
+    prevPositionEntryRef.current = null
+    if (!wasOpen) return
+
+    setRecentCloseBadge(true)
+    const timer = setTimeout(() => setRecentCloseBadge(false), 60_000)
+    return () => clearTimeout(timer)
+  }, [info?.position?.entry])
+
   // Flag a fresh entry for 60s — only fires when entry price actually changes.
   useEffect(() => {
     const entry = info?.position?.entry
@@ -144,6 +163,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
       <AssetCardCompact
         name={name}
         info={info}
+        recentlyClosed={recentCloseBadge}
         onSelect={() => setSelectedAsset(name)}
       />
     )

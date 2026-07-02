@@ -188,7 +188,6 @@ export interface PekPortfolioSnapshot {
   net_exposure: number
   open_position_count: number
   daily_pnl: number
-  daily_loss_remaining: number
   max_daily_loss: number
   drawdown_remaining: number
   leverage_remaining: number
@@ -222,6 +221,7 @@ export interface Portfolio {
   closed_trades: number
   execution_state?: string
   average_validity_exposure?: number
+  /** @unit fraction (0-1) — e.g. 0.03 for 3% drawdown */
   portfolio_drawdown?: number
   portfolio_peak_value?: number | null
   position_concentration?: PositionConcentration

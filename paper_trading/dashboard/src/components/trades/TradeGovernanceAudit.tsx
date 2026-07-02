@@ -1,4 +1,5 @@
 import Badge from '../ui/Badge'
+import { toBadgeConfig } from '../../lib/ui/governance-status'
 import type { TradeAttributionRecord } from '../../types/attribution'
 
 interface TradeGovernanceAuditProps {
@@ -76,14 +77,6 @@ function computeAudit(data: TradeAttributionRecord): AuditEntry[] {
   return entries
 }
 
-function statusBadge(status: AuditEntry['status']) {
-  switch (status) {
-    case 'pass': return { variant: 'success' as const, label: 'PASS' }
-    case 'warn': return { variant: 'warning' as const, label: 'WARN' }
-    case 'fail': return { variant: 'error' as const, label: 'FAIL' }
-  }
-}
-
 function impactColor(impact: number): string {
   if (impact >= 0) return 'text-gov-green'
   if (impact > -0.1) return 'text-gov-yellow'
@@ -96,7 +89,7 @@ export default function TradeGovernanceAudit({ data }: TradeGovernanceAuditProps
   return (
     <div className="space-y-2">
       {audit.map(entry => {
-        const badge = statusBadge(entry.status)
+        const badge = toBadgeConfig(entry.status)
         return (
           <div key={entry.layer} className="flex items-center gap-3 px-3 py-2 bg-surface border border-default rounded-lg">
             <Badge variant={badge.variant} size="sm" dot>{badge.label}</Badge>

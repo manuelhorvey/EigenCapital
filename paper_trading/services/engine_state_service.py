@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from datetime import datetime
 
 import pandas as pd
@@ -33,24 +34,27 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class EngineStateService:
+    _mtm_lock = threading.Lock()
+
     def __init__(self, engine):
         self.engine = engine
 
     def compute_mtm_total(self) -> float:
         engine = self.engine
-        if not hasattr(engine, "_cycle_count"):
-            engine._cycle_count = 0
-            engine._mtm_cache_value = None
-            engine._mtm_cache_cycle = -1
-        elif not hasattr(engine, "_mtm_cache_value"):
-            engine._mtm_cache_value = None
-            engine._mtm_cache_cycle = -1
-        if engine._mtm_cache_value is not None and engine._mtm_cache_cycle == engine._cycle_count:
-            return engine._mtm_cache_value
-        mtm = sum(a.mtm_value for a in engine.assets.values())
-        engine._mtm_cache_value = mtm
-        engine._mtm_cache_cycle = engine._cycle_count
-        return mtm
+        with self._mtm_lock:
+            if not hasattr(engine, "_cycle_count"):
+                engine._cycle_count = 0
+                engine._mtm_cache_value = None
+                engine._mtm_cache_cycle = -1
+            elif not hasattr(engine, "_mtm_cache_value"):
+                engine._mtm_cache_value = None
+                engine._mtm_cache_cycle = -1
+            if engine._mtm_cache_value is not None and engine._mtm_cache_cycle == engine._cycle_count:
+                return engine._mtm_cache_value
+            mtm = sum(a.mtm_value for a in engine.assets.values())
+            engine._mtm_cache_value = mtm
+            engine._mtm_cache_cycle = engine._cycle_count
+            return mtm
 
     def get_state(self) -> dict:
         engine = self.engine
@@ -193,7 +197,7 @@ class EngineStateService:
             "closed_trades": sum(len(a.trade_log) for a in engine.assets.values()),
             "execution_state": exec_state.value,
             "average_validity_exposure": round(overall_validity / n, 4),
-            "portfolio_drawdown": round(portfolio_dd * 100, 2),
+            "portfolio_drawdown": round(portfolio_dd, 6),  # fraction (0-1 range)
             "portfolio_peak_value": round(engine.portfolio_peak_value, 2) if engine.portfolio_peak_value else None,
             "position_concentration": getattr(
                 getattr(engine, "_orchestrator", None),
@@ -266,6 +270,7 @@ class EngineStateService:
                 "open_position_count": snap.open_position_count,
                 "daily_pnl": round(snap.daily_pnl, 2),
                 "max_daily_loss": round(snap.max_daily_loss, 2),
+                "daily_loss_remaining": max(0.0, round(snap.max_daily_loss - abs(snap.daily_pnl), 2)),
                 "drawdown_remaining": round(snap.drawdown_remaining, 4),
                 "leverage_remaining": round(snap.leverage_remaining, 4),
                 "max_leverage": snap.max_leverage,
@@ -491,7 +496,7 @@ class EngineStateService:
         )
         net = (net_side / len(state.get("assets", {}))) * 2 - 1 if state.get("assets") else 0
 
-        drawdown = p.get("portfolio_drawdown", p.get("drawdown", 0.0))
+        drawdown = p.get("portfolio_drawdown", 0.0)
 
         record = {
             "timestamp": datetime.now(tz=ET).isoformat(),

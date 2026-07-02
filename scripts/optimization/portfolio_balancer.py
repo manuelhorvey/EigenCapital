@@ -45,7 +45,7 @@ from scripts.optimization.portfolio_sltp_optimizer import (
     ratio_to_tp_sl,
 )
 
-logger = logging.getLogger("quorrin.optimization.portfolio_balancer")
+logger = logging.getLogger("eigencapital.optimization.portfolio_balancer")
 
 # Quote-currency clusters with their member assets
 CLUSTERS: dict[str, set[str]] = {

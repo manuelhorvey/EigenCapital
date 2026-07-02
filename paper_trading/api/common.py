@@ -241,12 +241,12 @@ def _load_auth_token() -> str:
         cfg = get_config()
         _AUTH_TOKEN = cfg.api_token or ""
         if _AUTH_TOKEN:
-            logging.getLogger("quorrin.auth").info(
+            logging.getLogger("eigencapital.auth").info(
                 "API auth enabled (token from %s)",
                 "env QUORRIN_API_TOKEN" if os.environ.get("QUORRIN_API_TOKEN") else "config file",
             )
         else:
-            logging.getLogger("quorrin.auth").warning(
+            logging.getLogger("eigencapital.auth").warning(
                 "No API auth token configured. Set QUORRIN_API_TOKEN env var or api_token in config. "
                 "All API endpoints are accessible without authentication."
             )

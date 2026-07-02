@@ -38,7 +38,7 @@ import pandas as pd
 
 from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 
-logger = logging.getLogger("quorrin.mt5_client")
+logger = logging.getLogger("eigencapital.mt5_client")
 
 _HEADER_FMT = "!I"
 _HEADER_SIZE = struct.calcsize(_HEADER_FMT)

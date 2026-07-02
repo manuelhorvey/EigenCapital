@@ -6,7 +6,7 @@ import pandas as pd
 
 from paper_trading.entry.decision import PositionIntent
 
-logger = logging.getLogger("quorrin.position_manager")
+logger = logging.getLogger("eigencapital.position_manager")
 
 # Cap trade_log to prevent unbounded memory growth.
 _MAX_TRADE_LOG = 10_000

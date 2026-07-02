@@ -13,7 +13,7 @@ include = [
     "monitoring*",
     "paper_trading*",
     "portfolio*",
-    "quorrin*",
+    "eigencapital*",
     "risk*",
     "shared*",
     "signals*",
@@ -26,7 +26,7 @@ data = ["processed/*.parquet", "processed/*.csv", "research/*.json", "research/*
 
 
 [project]
-name = "quorrin"
+name = "eigencapital"
 version = "2.0.0"
 description = "Modular quantitative research framework for regime-conditioned equity and FX strategy research"
 readme = "README.md"

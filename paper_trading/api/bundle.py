@@ -49,7 +49,7 @@ from paper_trading.ops.market_hours import is_market_closed
 
 UTC = timezone.utc
 
-logger = logging.getLogger("quorrin.bundle")
+logger = logging.getLogger("eigencapital.bundle")
 
 BUNDLE_VERSION = "1.0.0"
 BUNDLE_CACHE_TTL = 5.0

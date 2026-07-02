@@ -16,7 +16,7 @@ Usage::
 Logging ``CorrelationIdFilter`` adds ``correlation_id`` to every log record.
 Add it to a root or per-logger handler::
 
-    root = logging.getLogger("quorrin")
+    root = logging.getLogger("eigencapital")
     root.addFilter(CorrelationIdFilter())
 """
 

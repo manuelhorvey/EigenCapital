@@ -10,7 +10,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger("quorrin.optimization.directional_win_rate")
+logger = logging.getLogger("eigencapital.optimization.directional_win_rate")
 
 
 @dataclass

@@ -4,7 +4,7 @@ import os
 import threading
 from datetime import datetime, timezone
 
-logger = logging.getLogger("quorrin.shadow.feedback")
+logger = logging.getLogger("eigencapital.shadow.feedback")
 
 _lock = threading.Lock()
 

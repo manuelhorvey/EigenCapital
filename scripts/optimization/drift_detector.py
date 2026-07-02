@@ -24,7 +24,7 @@ import pandas as pd
 from paper_trading.config_manager import get_config
 from scripts.backtest.monte_carlo_drawdown import SELL_ONLY_ASSETS
 
-logger = logging.getLogger("quorrin.optimization.drift_detector")
+logger = logging.getLogger("eigencapital.optimization.drift_detector")
 
 DEFAULT_DB_PATH = "data/live/trades.db"
 ROLLING_WINDOW = 20

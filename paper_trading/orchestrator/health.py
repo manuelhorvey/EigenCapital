@@ -18,7 +18,7 @@ from paper_trading.orchestrator.actor import (
     compute_health_snapshot,
 )
 
-logger = logging.getLogger("quorrin.orchestrator.health")
+logger = logging.getLogger("eigencapital.orchestrator.health")
 
 
 # ── HealthMonitor ─────────────────────────────────────────────────────────────

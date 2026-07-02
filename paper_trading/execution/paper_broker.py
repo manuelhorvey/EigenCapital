@@ -13,7 +13,7 @@ from shared.execution_config import (
     compute_slippage_cost,
 )
 
-logger = logging.getLogger("quorrin.paper_broker")
+logger = logging.getLogger("eigencapital.paper_broker")
 
 ET = pytz.timezone("US/Eastern")
 

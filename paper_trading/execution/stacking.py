@@ -6,9 +6,9 @@ from typing import Any
 
 import pandas as pd
 
-from quorrin.domain.entities.position import OrderType, StackCommand
+from eigencapital.domain.entities.position import OrderType, StackCommand
 
-logger = logging.getLogger("quorrin.stacking")
+logger = logging.getLogger("eigencapital.stacking")
 
 
 @dataclass

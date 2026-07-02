@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PROD_DIRS = ("paper_trading", "quorrin", "shared")
+PROD_DIRS = ("paper_trading", "eigencapital", "shared")
 EXCLUDE_PATTERNS = ("__pycache__", ".venv", ".git", "legacy_systems")
 
 

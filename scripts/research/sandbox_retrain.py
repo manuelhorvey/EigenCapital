@@ -32,7 +32,7 @@ from backtests.model_promotion_engine import evaluate_promotion
 from backtests.adversarial_manifold import evaluate_adversarial_manifold
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quorrin.sandbox_retrain")
+logger = logging.getLogger("eigencapital.sandbox_retrain")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SANDBOX_BASE = os.path.join(BASE, "data", "sandbox")

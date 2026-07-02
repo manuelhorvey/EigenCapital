@@ -3,7 +3,7 @@ import logging
 from features.registry import FEATURE_REGISTRY
 from paper_trading.config_manager import get_config
 
-logger = logging.getLogger("quorrin.portfolio_builder")
+logger = logging.getLogger("eigencapital.portfolio_builder")
 
 # JPY-carry cluster: assets where JPY is the funding leg (short JPY)
 JPY_CARRY_CLUSTER = {"NZDJPY", "CADJPY", "AUDJPY", "GBPJPY", "USDJPY", "CHFJPY"}

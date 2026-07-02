@@ -12,7 +12,7 @@ import random
 
 from shared.execution_config import ExecutionConfig
 
-logger = logging.getLogger("quorrin.fill_model")
+logger = logging.getLogger("eigencapital.fill_model")
 
 
 class FillModel:

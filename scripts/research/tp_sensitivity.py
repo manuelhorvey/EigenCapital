@@ -20,7 +20,7 @@ from features.registry import FEATURE_REGISTRY
 from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, SLTP_CFG, DEF_SL
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quorrin.tp_sensitivity")
+logger = logging.getLogger("eigencapital.tp_sensitivity")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

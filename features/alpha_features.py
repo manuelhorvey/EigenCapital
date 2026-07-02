@@ -6,9 +6,9 @@ import ta
 
 from data.loaders.cot_loader import FX_COT_CONTRACTS
 
-logger = logging.getLogger("quorrin.alpha_features")
+logger = logging.getLogger("eigencapital.alpha_features")
 
-logger = logging.getLogger("quorrin.alpha_features")
+logger = logging.getLogger("eigencapital.alpha_features")
 
 # Asset name -> available in COT data lookup
 _COT_COVERED_NAMES: set[str] = set(k.upper() for k in FX_COT_CONTRACTS)

@@ -3,7 +3,7 @@ import os
 
 import pandas as pd
 
-logger = logging.getLogger("quorrin.state_store")
+logger = logging.getLogger("eigencapital.state_store")
 
 
 class _DataCache:

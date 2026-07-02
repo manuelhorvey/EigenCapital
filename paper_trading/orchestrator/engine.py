@@ -49,7 +49,7 @@ from paper_trading.pek.state.portfolio_state_builder import PortfolioStateBuilde
 from paper_trading.replay.wal import WalWriter
 from paper_trading.state_store import EngineSnapshot
 
-logger = logging.getLogger("quorrin.orchestrator.engine")
+logger = logging.getLogger("eigencapital.orchestrator.engine")
 
 # Drawdown recovery threshold for automatic unhalt (must be above trip threshold to avoid flapping).
 # Named separate constant — must NOT be derived from the drawdown_limit passed to

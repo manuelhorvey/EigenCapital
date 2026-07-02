@@ -12,14 +12,14 @@ Usage::
 
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
-    logger = logging.getLogger("quorrin.engine")
+    logger = logging.getLogger("eigencapital.engine")
     logger.addHandler(handler)
 
     logger.info("signal_generated", extra={"asset": "EURUSD", "confidence": 0.72})
 
 Output::
 
-    {"ts":"2026-06-30T12:00:00+00:00","level":"INFO","logger":"quorrin.engine",
+    {"ts":"2026-06-30T12:00:00+00:00","level":"INFO","logger":"eigencapital.engine",
      "msg":"signal_generated","asset":"EURUSD","confidence":0.72,
      "correlation_id":"abc123def456"}
 """
@@ -125,7 +125,7 @@ def install_json_logging(
     Convenience function for ad-hoc adoption:
 
         from paper_trading.logging.json_formatter import install_json_logging
-        install_json_logging(logging.getLogger("quorrin"))
+        install_json_logging(logging.getLogger("eigencapital"))
 
     If *replace* is True (default), existing stream handlers are removed
     so the JSON output is not interleaved with human-readable text.

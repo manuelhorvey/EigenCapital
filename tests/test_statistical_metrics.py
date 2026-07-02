@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from quorrin.domain.value_objects.statistical_metrics import (
+from eigencapital.domain.value_objects.statistical_metrics import (
     _moments,
     _sharpe_variance,
     confidence_reliability_score,

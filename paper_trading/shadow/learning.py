@@ -9,7 +9,7 @@ import numpy as np
 
 from paper_trading.shadow.feedback import read_feedback
 
-logger = logging.getLogger("quorrin.shadow.learning")
+logger = logging.getLogger("eigencapital.shadow.learning")
 
 _lock = threading.Lock()
 

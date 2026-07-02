@@ -7,7 +7,7 @@ import pandas as pd
 
 from paper_trading.ops.data_fetcher import fetch_live as _provider_fetch_live
 
-logger = logging.getLogger("quorrin.data_fetch")
+logger = logging.getLogger("eigencapital.data_fetch")
 
 # Fetch ~5 years for training.
 # Indicator max lookback is 253 bars; 1250 provides ~1k-bar warmup margin.

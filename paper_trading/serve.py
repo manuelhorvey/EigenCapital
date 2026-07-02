@@ -8,7 +8,7 @@ from socketserver import ThreadingMixIn
 from paper_trading.api.handler import Handler
 from paper_trading.metrics.exposition import global_registry
 
-logger = logging.getLogger("quorrin.serve")
+logger = logging.getLogger("eigencapital.serve")
 
 DEFAULT_PORT = 5000
 DEFAULT_BIND = os.environ.get("QUORRIN_BIND", "127.0.0.1")

@@ -5,7 +5,7 @@ from typing import Optional, Callable
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger("quorrin.model_comparator")
+logger = logging.getLogger("eigencapital.model_comparator")
 
 
 def classify_regime(close: pd.Series) -> pd.Series:

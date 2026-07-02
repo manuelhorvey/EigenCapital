@@ -26,7 +26,7 @@ from shared.volatility import (
     estimate_gap_risk,
 )
 
-logger = logging.getLogger("quorrin.dynamic_sltp")
+logger = logging.getLogger("eigencapital.dynamic_sltp")
 
 
 @dataclass

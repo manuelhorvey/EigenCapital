@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from quorrin.domain.entities.portfolio import Portfolio, PortfolioSummary
+from eigencapital.domain.entities.portfolio import Portfolio, PortfolioSummary
 
 
 class TestPortfolio:

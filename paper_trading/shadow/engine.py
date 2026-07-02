@@ -30,7 +30,7 @@ from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, SLTPResult, T
 from paper_trading.position.manager import PositionManager
 from shared.volatility import VolatilityPrimitive
 
-logger = logging.getLogger("quorrin.shadow_sltp")
+logger = logging.getLogger("eigencapital.shadow_sltp")
 
 ShadowExitReason = Literal["sl", "tp", "breakeven", "time_stop", "trailing", "signal_flip"]
 

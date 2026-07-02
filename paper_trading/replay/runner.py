@@ -24,7 +24,7 @@ from typing import Any
 
 from paper_trading.replay.wal import WalEvent, WalReader
 
-logger = logging.getLogger("quorrin.replay.runner")
+logger = logging.getLogger("eigencapital.replay.runner")
 
 
 class ReplayMismatchError(AssertionError):

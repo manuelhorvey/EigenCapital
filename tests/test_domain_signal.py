@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quorrin.domain.entities.signal import SignalResult, SignalType, TradeDecision
+from eigencapital.domain.entities.signal import SignalResult, SignalType, TradeDecision
 
 
 class TestSignalType:

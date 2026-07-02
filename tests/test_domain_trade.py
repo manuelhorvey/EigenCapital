@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from quorrin.domain.entities.position import PositionSide
-from quorrin.domain.entities.trade import Trade, TradeLog
+from eigencapital.domain.entities.position import PositionSide
+from eigencapital.domain.entities.trade import Trade, TradeLog
 
 
 class TestTrade:

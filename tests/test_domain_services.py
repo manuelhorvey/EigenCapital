@@ -4,21 +4,21 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quorrin.domain.services.pnl_service import DefaultPnLService, PnLService
-from quorrin.domain.services.signal_service import (
+from eigencapital.domain.services.pnl_service import DefaultPnLService, PnLService
+from eigencapital.domain.services.signal_service import (
     FixedThresholdService,
     SignalService,
     _apply_threshold,
     generate_signal,
 )
-from quorrin.domain.services.sizing_service import (
+from eigencapital.domain.services.sizing_service import (
     _edge_decay,
     calculate_position_size,
     compute_equal_risk_weights,
     risk_contribution,
     risk_parity_weights,
 )
-from quorrin.domain.services.volatility_service import __all__ as vol_all
+from eigencapital.domain.services.volatility_service import __all__ as vol_all
 
 
 class TestRiskContribution:

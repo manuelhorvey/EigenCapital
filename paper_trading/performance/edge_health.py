@@ -23,7 +23,7 @@ from typing import Any
 
 import numpy as np
 
-logger = logging.getLogger("quorrin.edge_health")
+logger = logging.getLogger("eigencapital.edge_health")
 
 _DEFAULT_MAX_TRADES = 200
 _DEFAULT_WARNING_THRESHOLD = 0.15  # reversal rate below 15% triggers WARNING

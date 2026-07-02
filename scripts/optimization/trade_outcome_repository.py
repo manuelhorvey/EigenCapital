@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 
-logger = logging.getLogger("quorrin.optimization.trade_outcome_repository")
+logger = logging.getLogger("eigencapital.optimization.trade_outcome_repository")
 
 LIVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "live")
 DEFAULT_DB_PATH = os.path.join(LIVE_DIR, "state.db")

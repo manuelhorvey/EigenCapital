@@ -2,7 +2,7 @@ import logging
 import math
 from typing import Optional
 
-logger = logging.getLogger("quorrin.mas")
+logger = logging.getLogger("eigencapital.mas")
 
 
 def _safe(val, default=0.0):

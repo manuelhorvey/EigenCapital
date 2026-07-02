@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
-logger = logging.getLogger("quorrin.importance_tracker")
+logger = logging.getLogger("eigencapital.importance_tracker")
 
 STABILITY_PENALTIES = {
     "jaccard_soft": (0.6, -0.10),

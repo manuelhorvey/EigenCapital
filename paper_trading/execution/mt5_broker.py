@@ -19,7 +19,7 @@ from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 from paper_trading.execution.broker_interface import AccountSummary, BrokerInterface, Order, Position
 from paper_trading.ops.mt5_client import MT5Client
 
-logger = logging.getLogger("quorrin.mt5_broker")
+logger = logging.getLogger("eigencapital.mt5_broker")
 
 ET = pytz.timezone("US/Eastern")
 

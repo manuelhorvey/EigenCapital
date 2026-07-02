@@ -12,7 +12,7 @@ from features.liquidity_regime import (
 )
 from features.macro_narrative import narrative_governance_scalars as _narrative_scalars
 
-logger = logging.getLogger("quorrin.asset_governance")
+logger = logging.getLogger("eigencapital.asset_governance")
 
 
 class AssetGovernance:

@@ -27,7 +27,7 @@ from paper_trading.ops.tracer import (
 )
 from shared.calibration.registry import CalibrationRegistry
 
-logger = logging.getLogger("quorrin.inference_pipeline")
+logger = logging.getLogger("eigencapital.inference_pipeline")
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ET = pytz.timezone("US/Eastern")
@@ -143,7 +143,7 @@ class AssetInferencePipeline:
         """
         import logging
 
-        logger = logging.getLogger("quorrin.pipeline")
+        logger = logging.getLogger("eigencapital.pipeline")
         threshold = 100
         suppress_secs = 3600
 

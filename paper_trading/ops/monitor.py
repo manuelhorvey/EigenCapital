@@ -9,7 +9,7 @@ import warnings
 from paper_trading.engine import LOG_PATH, PaperTradingEngine  # noqa: E402
 from paper_trading.governance.health import register_engine  # noqa: E402
 from paper_trading.serve import serve  # noqa: E402
-from quorrin import setup_logging  # noqa: E402
+from eigencapital import setup_logging  # noqa: E402
 
 warnings.filterwarnings("ignore")
 

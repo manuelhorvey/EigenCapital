@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from quorrin.observability.metrics import (
+from eigencapital.observability.metrics import (
     MetricsRegistry,
     _escape,
     default_registry,
@@ -102,25 +102,25 @@ class TestDefaultRegistry:
         rendered = reg.render()
         # Spot-check several known metrics are present
         for metric in (
-            "quorrin_engine_cycles_total",
-            "quorrin_engine_signal_total",
-            "quorrin_engine_drawdown_pct",
-            "quorrin_engine_wal_events_total",
-            "quorrin_engine_skipped_entries_total",
-            "quorrin_engine_risk_exposure",
+            "eigencapital_engine_cycles_total",
+            "eigencapital_engine_signal_total",
+            "eigencapital_engine_drawdown_pct",
+            "eigencapital_engine_wal_events_total",
+            "eigencapital_engine_skipped_entries_total",
+            "eigencapital_engine_risk_exposure",
         ):
             assert f"# TYPE {metric}" in rendered
 
     def test_signal_total_labeled(self):
         reg = default_registry()
         signals = reg.counter(
-            "quorrin_engine_signal_total", "Sig", labelnames=("asset", "side")
+            "eigencapital_engine_signal_total", "Sig", labelnames=("asset", "side")
         )
         signals.inc(asset="EURUSD", side="long")
         signals.inc(asset="EURUSD", side="short")
         rendered = reg.render()
-        assert 'quorrin_engine_signal_total{asset="EURUSD",side="long"} 1.0' in rendered
-        assert 'quorrin_engine_signal_total{asset="EURUSD",side="short"} 1.0' in rendered
+        assert 'eigencapital_engine_signal_total{asset="EURUSD",side="long"} 1.0' in rendered
+        assert 'eigencapital_engine_signal_total{asset="EURUSD",side="short"} 1.0' in rendered
 
 
 class TestRenderOrdering:

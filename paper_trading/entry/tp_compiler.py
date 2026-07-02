@@ -2,7 +2,7 @@ import logging
 
 from paper_trading.entry.decision import MarketStructureState, TPGeometry, ValidityState
 
-logger = logging.getLogger("quorrin.paper_trading.tp_compiler")
+logger = logging.getLogger("eigencapital.paper_trading.tp_compiler")
 
 # Maximum reward-to-risk ratio — prevents absurd TP distances from
 # stacked convexity × regime × sl_mult multipliers.

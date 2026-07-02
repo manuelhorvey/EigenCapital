@@ -28,7 +28,7 @@ from paper_trading.ops.data_fetcher import (
     safe_download,
 )
 
-logger = logging.getLogger("quorrin.market_data_service")
+logger = logging.getLogger("eigencapital.market_data_service")
 
 
 class MarketDataService:

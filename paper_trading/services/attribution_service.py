@@ -5,7 +5,7 @@ import pandas as pd
 
 from paper_trading.attribution.collector import TradeAttributionRecord
 
-logger = logging.getLogger("quorrin.attribution_service")
+logger = logging.getLogger("eigencapital.attribution_service")
 
 
 class AttributionService:

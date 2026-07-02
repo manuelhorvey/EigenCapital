@@ -7,7 +7,7 @@ import pandas as pd
 import pytz
 
 from paper_trading.governance.multipliers import compute_effective_multipliers
-from quorrin.domain.value_objects.statistical_metrics import (
+from eigencapital.domain.value_objects.statistical_metrics import (
     _moments,
     confidence_reliability_score,
     herfindahl_index,
@@ -16,7 +16,7 @@ from quorrin.domain.value_objects.statistical_metrics import (
     sharpe_ratio,
 )
 
-logger = logging.getLogger("quorrin.metrics_service")
+logger = logging.getLogger("eigencapital.metrics_service")
 
 ET = pytz.timezone("US/Eastern")
 

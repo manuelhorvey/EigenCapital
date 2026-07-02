@@ -57,7 +57,7 @@ SCAN_DIRECTORIES = [
     "labels",
     "monitoring",
     "scripts",
-    "quorrin",
+    "eigencapital",
 ]
 
 EXCLUDE_PATTERNS = {

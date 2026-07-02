@@ -201,7 +201,7 @@ def print_comparison(
     weight_df: pd.DataFrame,
 ) -> None:
     """Print side-by-side comparison of equal-weight vs risk-parity metrics."""
-    from quorrin.domain.value_objects.statistical_metrics import sharpe_ratio
+    from eigencapital.domain.value_objects.statistical_metrics import sharpe_ratio
 
     def _metrics(r):
         sr = sharpe_ratio(r.values)

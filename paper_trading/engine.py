@@ -55,7 +55,7 @@ class ExecutionState(Enum):
 
 ET = pytz.timezone("US/Eastern")
 
-logger = logging.getLogger("quorrin.engine")
+logger = logging.getLogger("eigencapital.engine")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _STORE = StateStore(BASE)

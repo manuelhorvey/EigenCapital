@@ -19,7 +19,7 @@ def logger_with_stream():
     """Build an isolated logger backed by an in-memory stream."""
     from paper_trading.logging.correlation import CorrelationIdFilter
 
-    logger = logging.getLogger(f"quorrin.test.json.{id(object())}")
+    logger = logging.getLogger(f"eigencapital.test.json.{id(object())}")
     logger.setLevel(logging.DEBUG)
     logger.handlers.clear()
     stream = io.StringIO()
@@ -38,7 +38,7 @@ class TestJsonFormatterBasic:
         line = stream.getvalue().strip()
         data = json.loads(line)
         assert data["level"] == "INFO"
-        assert data["logger"].startswith("quorrin.test.json")
+        assert data["logger"].startswith("eigencapital.test.json")
         assert data["msg"] == "hello world"
         assert "ts" in data
 

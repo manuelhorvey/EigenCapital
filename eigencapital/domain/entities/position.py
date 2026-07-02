@@ -148,7 +148,7 @@ class PositionIntent:
         if abs(computed - self.avg_price) / max(computed, 1e-9) > 0.0001:
             import logging
 
-            _invariant_logger = logging.getLogger("quorrin.position_invariant")
+            _invariant_logger = logging.getLogger("eigencapital.position_invariant")
             _invariant_logger.warning(
                 "%s: position invariant VIOLATED — computed_avg=%.6f position.avg_price=%.6f",
                 asset_name,

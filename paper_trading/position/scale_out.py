@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("quorrin.scale_out")
+logger = logging.getLogger("eigencapital.scale_out")
 
 
 @dataclass

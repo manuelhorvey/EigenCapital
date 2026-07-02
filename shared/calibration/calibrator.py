@@ -32,7 +32,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-logger = logging.getLogger("quorrin.calibration")
+logger = logging.getLogger("eigencapital.calibration")
 
 
 def compute_ece(

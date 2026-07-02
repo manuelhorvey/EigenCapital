@@ -7,7 +7,7 @@ Prometheus text exposition format (v0.0.4).
 
 Wire into the existing dashboard HTTP server by adding::
 
-    from quorrin.observability.metrics import MetricsRegistry, render_prometheus
+    from eigencapital.observability.metrics import MetricsRegistry, render_prometheus
     REGISTRY = MetricsRegistry()
     app.metrics_registry = REGISTRY
     # In handler.py: return self.server.metrics_registry.render() for /metrics
@@ -215,51 +215,51 @@ def default_registry() -> MetricsRegistry:
     reg = MetricsRegistry()
 
     reg.counter(
-        "quorrin_engine_cycles_total",
+        "eigencapital_engine_cycles_total",
         "Engine cycles executed since start (one per inference round)",
     )
     reg.counter(
-        "quorrin_engine_signal_total",
+        "eigencapital_engine_signal_total",
         "Signals generated per asset/direction",
         labelnames=("asset", "side"),
     )
     reg.gauge(
-        "quorrin_engine_drawdown_pct",
+        "eigencapital_engine_drawdown_pct",
         "Current portfolio drawdown as fraction (negative)",
     )
     reg.gauge(
-        "quorrin_engine_uptime_seconds",
+        "eigencapital_engine_uptime_seconds",
         "Seconds since the metrics registry was constructed",
     )
     reg.counter(
-        "quorrin_engine_wal_events_total",
+        "eigencapital_engine_wal_events_total",
         "Total WAL events emitted by the orchestrator",
         labelnames=("event_type",),
     )
     reg.counter(
-        "quorrin_engine_skipped_entries_total",
+        "eigencapital_engine_skipped_entries_total",
         "Entries refused by decision gates",
         labelnames=("asset", "reason"),
     )
     reg.gauge(
-        "quorrin_engine_kelly_multiplier",
+        "eigencapital_engine_kelly_multiplier",
         "Last computed Kelly multiplier (1.0 = neutral)",
     )
     reg.counter(
-        "quorrin_engine_breakeven_count",
+        "eigencapital_engine_breakeven_count",
         "Outcome counters per asset",
         labelnames=("asset", "outcome"),
     )
     reg.gauge(
-        "quorrin_engine_calibration_applied",
+        "eigencapital_engine_calibration_applied",
         "1.0 if calibration was applied on the last inference cycle, else 0.0",
     )
     reg.gauge(
-        "quorrin_engine_risk_exposure",
+        "eigencapital_engine_risk_exposure",
         "Current gross portfolio exposure as fraction of equity",
     )
     reg.gauge(
-        "quorrin_engine_leverage_budget_remaining",
+        "eigencapital_engine_leverage_budget_remaining",
         "Remaining leverage budget (USD) — paper path",
     )
     return reg
@@ -276,7 +276,7 @@ class _AutoUptimeGauge:
         self._name = name
         self._source = source
         self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._loop, daemon=True, name=f"quorrin-prom-{name}")
+        self._thread = threading.Thread(target=self._loop, daemon=True, name=f"eigencapital-prom-{name}")
         self._thread.start()
 
     def _loop(self) -> None:

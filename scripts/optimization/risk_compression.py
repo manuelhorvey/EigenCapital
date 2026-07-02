@@ -23,7 +23,7 @@ from scripts.backtest.monte_carlo_drawdown import (
     load_daily_portfolio_returns,
 )
 
-logger = logging.getLogger("quorrin.optimization.risk_compression")
+logger = logging.getLogger("eigencapital.optimization.risk_compression")
 
 DEFAULT_DAILY_DD_LIMIT = -0.05
 DEFAULT_MAX_DD_LIMIT = -0.15

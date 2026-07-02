@@ -5,7 +5,7 @@ from shared.pnl import DefaultPnLStrategy
 from shared.signal import FixedThresholdStrategy
 from shared.sizing import VolTargetSizing
 
-_logger = logging.getLogger("quorrin.registry")
+_logger = logging.getLogger("eigencapital.registry")
 
 _BASELINE_CLASSES = {
     "model": XGBoostModel,

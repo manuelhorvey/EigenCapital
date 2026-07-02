@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from quorrin.observability.atlas import AtlasDetector, AtlasVerdict
+from eigencapital.observability.atlas import AtlasDetector, AtlasVerdict
 
 
 _TestAtlasKS = AtlasDetector._two_sample_ks  # pyright: ignore

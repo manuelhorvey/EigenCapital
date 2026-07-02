@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
-from quorrin.domain.entities.signal import SignalResult, SignalType
+from eigencapital.domain.entities.signal import SignalResult, SignalType
 
 
 class SignalService(ABC):

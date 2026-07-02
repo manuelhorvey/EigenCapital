@@ -19,7 +19,7 @@ import numpy as np
 
 from shared.calibration.calibrator import compute_ece
 
-logger = logging.getLogger("quorrin.calibration.ece_tracker")
+logger = logging.getLogger("eigencapital.calibration.ece_tracker")
 
 
 @dataclass

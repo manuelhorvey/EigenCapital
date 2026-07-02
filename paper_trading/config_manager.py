@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger("quorrin.config_manager")
+logger = logging.getLogger("eigencapital.config_manager")
 
 _SENSITIVE_ENV_VARS = frozenset(
     {

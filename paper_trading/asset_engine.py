@@ -41,12 +41,12 @@ from paper_trading.services.position_service import PositionService
 from paper_trading.services.signal_service import SignalService
 from paper_trading.shadow.engine import ShadowSLTPEngine
 from paper_trading.state_store import _SKIP_JOURNAL
-from quorrin.domain.entities.position import OrderType
+from eigencapital.domain.entities.position import OrderType
 from shared.calibration.registry import CalibrationRegistry
 from shared.metrics_snapshot import MetricsSnapshot
 from shared.registry import StrategyRegistry
 
-logger = logging.getLogger("quorrin.asset_engine")
+logger = logging.getLogger("eigencapital.asset_engine")
 
 ET = pytz.timezone("US/Eastern")
 

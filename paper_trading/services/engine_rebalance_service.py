@@ -8,7 +8,7 @@ from paper_trading.config_manager import get_config
 from paper_trading.ops.data_fetcher import fetch_history
 from shared.portfolio_weights import WeightMethod, compute_weights
 
-logger = logging.getLogger("quorrin.engine_rebalance_service")
+logger = logging.getLogger("eigencapital.engine_rebalance_service")
 
 ET = pytz.timezone("US/Eastern")
 

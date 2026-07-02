@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-logger = logging.getLogger("quorrin.ensemble")
+logger = logging.getLogger("eigencapital.ensemble")
 
 
 class EnsembleSignal:

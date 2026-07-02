@@ -19,7 +19,7 @@ from paper_trading.state import (
     sanitize,  # noqa: F401 — re-export for engine.py, tests
 )
 
-logger = logging.getLogger("quorrin.state_store")
+logger = logging.getLogger("eigencapital.state_store")
 
 _SKIP_JOURNAL = object()
 

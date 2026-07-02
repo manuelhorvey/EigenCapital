@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from paper_trading.pek.contracts.performance_state import PerformanceState, RegimeVelocity
 from paper_trading.pek.perf.outcome_tracker import OutcomeTracker
 
-logger = logging.getLogger("quorrin.pek.perf")
+logger = logging.getLogger("eigencapital.pek.perf")
 
 
 class DegradationMonitor:

@@ -20,7 +20,7 @@ import numpy as np
 
 from shared.calibration.calibrator import BetaCalibrator, BinnedCalibrator, CalibrationMethod, DirectionalCalibrator
 
-logger = logging.getLogger("quorrin.calibration.registry")
+logger = logging.getLogger("eigencapital.calibration.registry")
 
 CALIBRATOR_TYPES = {
     "BinnedCalibrator": BinnedCalibrator,

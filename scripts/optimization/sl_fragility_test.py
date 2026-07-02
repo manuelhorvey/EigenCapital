@@ -18,7 +18,7 @@ import pandas as pd
 from scripts.backtest.monte_carlo_drawdown import load_pt_sl
 from shared.volatility import compute_atr_pct
 
-logger = logging.getLogger("quorrin.sl_fragility")
+logger = logging.getLogger("eigencapital.sl_fragility")
 
 RAWDIR = Path("data/raw")
 MIN_PERIODS = 20

@@ -19,7 +19,7 @@ from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("quorrin.trade_analysis")
+logger = logging.getLogger("eigencapital.trade_analysis")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

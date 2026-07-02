@@ -19,7 +19,7 @@ from paper_trading.execution.stacking import (
     _stack_sl_price,
 )
 from paper_trading.position.protection import _update_position_protection
-from quorrin.domain.entities.position import PositionIntent, StackLayer
+from eigencapital.domain.entities.position import PositionIntent, StackLayer
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import BaseCrossValidator
 
-logger = logging.getLogger("quorrin.labels.compat")
+logger = logging.getLogger("eigencapital.labels.compat")
 
 
 def triple_barrier_labels(

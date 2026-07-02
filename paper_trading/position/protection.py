@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger("quorrin.position_protection")
+logger = logging.getLogger("eigencapital.position_protection")
 
 
 @dataclass

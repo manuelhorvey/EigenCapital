@@ -3,7 +3,7 @@ Tests for PositionIntent domain entity.
 Validates effective_sl composition and risk envelope invariants.
 """
 import pytest
-from quorrin.domain.entities.position import PositionIntent, PositionSide, StackLayer
+from eigencapital.domain.entities.position import PositionIntent, PositionSide, StackLayer
 
 
 class TestEffectiveSL:

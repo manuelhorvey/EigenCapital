@@ -15,7 +15,7 @@ from paper_trading.ops.simulation_snapshot import build_asset_snapshot
 from paper_trading.performance.live_sharpe import LiveSharpeTracker
 from paper_trading.state_store import EngineSnapshot
 
-logger = logging.getLogger("quorrin.engine_state_service")
+logger = logging.getLogger("eigencapital.engine_state_service")
 
 ET = pytz.timezone("US/Eastern")
 

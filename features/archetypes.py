@@ -3,7 +3,7 @@ from enum import Enum
 
 import pandas as pd
 
-logger = logging.getLogger("quorrin.features.archetypes")
+logger = logging.getLogger("eigencapital.features.archetypes")
 
 
 class SetupArchetype(Enum):

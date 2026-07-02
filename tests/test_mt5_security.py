@@ -58,21 +58,21 @@ class TestMT5ClientSecurityLogging:
     and must accept the same loopback host without warning."""
 
     def test_remote_bridge_logs_warning(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="quorrin.mt5_client"):
+        with caplog.at_level(logging.WARNING, logger="eigencapital.mt5_client"):
             MT5Client(account=12345, password="x", server="y", bridge_host="10.0.0.5")
         assert any(
             "non-loopback" in record.message for record in caplog.records
         ), "Expected a non-loopback warning"
 
     def test_loopback_bridge_silent(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="quorrin.mt5_client"):
+        with caplog.at_level(logging.WARNING, logger="eigencapital.mt5_client"):
             MT5Client(account=12345, password="x", server="y", bridge_host="127.0.0.1")
         assert all(
             "non-loopback" not in record.message for record in caplog.records
         ), "Loopback host should not produce warning"
 
     def test_remote_bridge_with_override_silent(self, caplog):
-        with caplog.at_level(logging.WARNING, logger="quorrin.mt5_client"):
+        with caplog.at_level(logging.WARNING, logger="eigencapital.mt5_client"):
             MT5Client(
                 account=12345,
                 password="x",
@@ -166,7 +166,7 @@ class TestMT5ClientStateSecurity:
             bridge_host="127.0.0.1",
             bridge_port=1,  # invalid port — connect will fail
         )
-        with caplog.at_level(logging.ERROR, logger="quorrin.mt5_client"):
+        with caplog.at_level(logging.ERROR, logger="eigencapital.mt5_client"):
             try:
                 client.connect()
             except (MT5ConnectionError, OSError):

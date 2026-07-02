@@ -20,7 +20,7 @@ construction. Defaults are conservative (low false-positive rate).
 
 Usage::
 
-    from quorrin.observability.atlas import AtlasDetector
+    from eigencapital.observability.atlas import AtlasDetector
 
     detector = AtlasDetector(lookback=63, cusum_k=0.5, ph_delta=0.005)
     verdict = detector.update("EURUSD", new_feature_value)
@@ -36,7 +36,7 @@ import math
 from collections import deque
 from dataclasses import dataclass, field
 
-logger = logging.getLogger("quorrin.atlas")
+logger = logging.getLogger("eigencapital.atlas")
 
 
 @dataclass

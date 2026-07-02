@@ -3,7 +3,7 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
-logger = logging.getLogger("quorrin.macro_narrative")
+logger = logging.getLogger("eigencapital.macro_narrative")
 
 
 @dataclass

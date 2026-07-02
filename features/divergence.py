@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import ta
 
-logger = logging.getLogger("quorrin.divergence")
+logger = logging.getLogger("eigencapital.divergence")
 
 
 def rsi_divergence(

@@ -1,4 +1,4 @@
-from quorrin.domain.entities import (
+from eigencapital.domain.entities import (
     AssetContract,
     AssetSpec,
     Portfolio,
@@ -12,7 +12,7 @@ from quorrin.domain.entities import (
     TradeDecision,
     TradeLog,
 )
-from quorrin.domain.value_objects import (
+from eigencapital.domain.value_objects import (
     DriftMetrics,
     ExecutionConfig,
     FillResult,

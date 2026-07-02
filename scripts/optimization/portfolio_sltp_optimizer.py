@@ -38,7 +38,7 @@ from scripts.backtest.monte_carlo_drawdown import (
     load_pt_sl,
 )
 
-logger = logging.getLogger("quorrin.optimization.grid_search")
+logger = logging.getLogger("eigencapital.optimization.grid_search")
 
 WALKDIR = Path(__file__).resolve().parent.parent.parent / "walkforward"
 

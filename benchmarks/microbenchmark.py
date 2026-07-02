@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s:%(name)s:%(message)s")
 # Suppress noisy loggers during benchmark
-for name in ["quorrin", "yfinance", "matplotlib", "urllib3"]:
+for name in ["eigencapital", "yfinance", "matplotlib", "urllib3"]:
     logging.getLogger(name).setLevel(logging.ERROR)
 
 HERE = os.path.dirname(os.path.abspath(__file__))

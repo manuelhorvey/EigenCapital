@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass, field
 
-from quorrin.domain.entities.position import PositionSide
+from eigencapital.domain.entities.position import PositionSide
 
 
 @dataclass

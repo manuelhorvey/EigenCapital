@@ -6,7 +6,7 @@ from dataclasses import asdict
 
 from paper_trading.state import CONTRACT_VERSION, EngineSnapshot, atomic_write_json, sanitize
 
-logger = logging.getLogger("quorrin.state_store")
+logger = logging.getLogger("eigencapital.state_store")
 
 
 class _SnapshotManager:

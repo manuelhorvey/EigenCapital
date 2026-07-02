@@ -2,7 +2,7 @@ import logging
 
 from paper_trading.entry.decision import PositionIntent, PositionSide
 
-logger = logging.getLogger("quorrin.position_service")
+logger = logging.getLogger("eigencapital.position_service")
 
 
 class PositionService:

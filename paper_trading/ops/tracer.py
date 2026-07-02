@@ -9,7 +9,7 @@ TRACE_LOG_PATH = os.path.join(
 )
 
 _lock = threading.Lock()
-_logger = logging.getLogger("quorrin.tracer")
+_logger = logging.getLogger("eigencapital.tracer")
 
 
 def _append(line: dict) -> None:

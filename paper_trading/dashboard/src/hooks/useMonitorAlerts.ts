@@ -10,6 +10,13 @@ function getChannel(): BroadcastChannel {
   return _channel
 }
 
+function destroyChannel(): void {
+  if (_channel) {
+    _channel.close()
+    _channel = null
+  }
+}
+
 export interface Alert {
   id: string
   type: 'health' | 'halt' | 'governance' | 'performance'
@@ -29,7 +36,7 @@ export function setDismissedVersion(version: string) {
 }
 
 function dismissedKey(): string {
-  return _dismissedVersion ? `qf-dismissed-alerts-${_dismissedVersion}` : 'qf-dismissed-alerts'
+  return _dismissedVersion ? `ec-dismissed-alerts-${_dismissedVersion}` : 'ec-dismissed-alerts'
 }
 
 function loadDismissed(): Set<string> {
@@ -81,7 +88,10 @@ export function useMonitorAlerts(): Alert[] {
       }
     }
     ch.addEventListener('message', handler)
-    return () => ch.removeEventListener('message', handler)
+    return () => {
+      ch.removeEventListener('message', handler)
+      destroyChannel()
+    }
   }, [])
 
   return useMemo(() => {

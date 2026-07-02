@@ -30,8 +30,8 @@ export default function SystemHealthSummary() {
   }
 
   const cfg = statusConfig[portfolio.system_status]
-  const pnlColor = portfolio.pnl.total >= 0 ? '#22c55e' : '#ef4444'
-  const mt5Color = portfolio.execution.mt5_sync === 'HEALTHY' ? '#22c55e' : '#eab308'
+  const pnlColor = portfolio.pnl.total >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
+  const mt5Color = portfolio.execution.mt5_sync === 'HEALTHY' ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)'
 
   return (
     <Panel padding="md" variant={portfolio.system_status === 'ALERT' ? 'elevated' : 'default'}>

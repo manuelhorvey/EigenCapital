@@ -1,4 +1,4 @@
-const FLAG_KEY = 'qf_feature_flags'
+const FLAG_KEY = 'ec_feature_flags'
 
 interface FeatureFlags {
   ENABLE_MAE_MFE_SCATTER?: boolean

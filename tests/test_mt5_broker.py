@@ -277,6 +277,148 @@ class TestLotConversion:
         assert broker.get_order_status("12345") == "filled"
 
 
+# ── Volume normalization ─────────────────────────────────────────
+
+
+class TestNormalizeVolume:
+    """Tests for normalize_volume — the shared qty normalization choke point.
+
+    Covers:
+    - GC=F failing case: small qty that rounds below min_volume returns 0.0
+    - GC=F viable qty: larger qty normalizes to a valid broker lot
+    - Volume_step rounding: qty rounded DOWN to step, never up
+    - EURUSD standard forex: 100k contract, 0.01 step
+    - Cross pair with different contract_size
+    - No symbol_info available: returns qty as-is (fail-open)
+    - Qty exactly at min_volume: valid
+    - Qty below min_volume: returns 0.0
+    - Qty above max_volume: clamped
+    """
+
+    def test_gcf_small_qty_returns_zero(self, mock_client):
+        """GC=F failing case: qty=0.3696 with contract_size=100, step=0.01 → lots=0.0 → return 0.0"""
+        mock_client._symbol_infos["GC=F"] = {
+            "contract_size": 100.0,
+            "volume_step": 0.01,
+            "min_volume": 0.01,
+            "max_volume": 100.0,
+        }
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("GC=F", 0.36960224655333174)
+        assert result == 0.0
+
+    def test_gcf_viable_qty_normalizes(self, mock_client):
+        """GC=F with enough qty to produce valid lots.
+
+        qty=3.5, contract_size=100 → 0.035 lots, floor(0.035/0.01)*0.01 = 0.03 lots
+        normalized qty = 0.03 * 100 = 3.0
+        """
+        mock_client._symbol_infos["GC=F"] = {
+            "contract_size": 100.0,
+            "volume_step": 0.01,
+            "min_volume": 0.01,
+            "max_volume": 100.0,
+        }
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("GC=F", 3.5)
+        assert result == pytest.approx(3.0, rel=1e-9)
+
+    def test_floor_rounding_never_rounds_up(self, mock_client):
+        """qty that would round up with round() instead uses floor.
+
+        qty=1.5, contract_size=100 → 0.015 lots, floor(0.015/0.01)*0.01 = 0.01 lots
+        round() would give 0.02, floor() gives 0.01
+        normalized qty = 0.01 * 100 = 1.0
+        """
+        mock_client._symbol_infos["XAUUSD"] = {
+            "contract_size": 100.0,
+            "volume_step": 0.01,
+            "min_volume": 0.01,
+            "max_volume": 100.0,
+        }
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("XAUUSD", 1.5)
+        # round(0.015/0.01)*0.01 = 0.02 lots → 2.0 qty (would oversize)
+        # floor(0.015/0.01)*0.01 = 0.01 lots → 1.0 qty (floor down)
+        assert result == pytest.approx(1.0, rel=1e-9)
+
+    def test_eurusd_forex_standard(self, mock_client):
+        """Standard forex: 100k contract, 0.01 step.
+
+        qty=15000, contract_size=100000 → 0.15 lots, floor(0.15/0.01)*0.01 = 0.15 lots
+        normalized qty = 0.15 * 100000 = 15000.0
+        """
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("EURUSD", 15000)
+        assert result == pytest.approx(15000.0, rel=1e-9)
+
+    def test_eurusd_qty_below_min_returns_zero(self, mock_client):
+        """qty too small for any lots.
+
+        qty=500, contract_size=100000 → 0.005 lots, below min_volume=0.01 → 0.0
+        """
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("EURUSD", 500)
+        assert result == 0.0
+
+    def test_no_symbol_info_returns_qty_as_is(self, mock_client):
+        """Fail-open: if no symbol_info available, return raw qty unmodified."""
+        # Default mock returns a dict for every ticker — use a ticker that
+        # the mock returns None for (set via explicit None in symbol_infos).
+        mock_client._symbol_infos["UNKNOWN"] = None
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("UNKNOWN", 42.5)
+        # None is falsy, so the function falls through to the fail-open path
+        assert result == 42.5
+
+    def test_qty_at_exact_min_volume(self, mock_client):
+        """qty that converts to lots exactly at min_volume.
+
+        qty=1000, contract_size=100000 → 0.01 lots = min_volume
+        """
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("EURUSD", 1000)
+        assert result == pytest.approx(1000.0, rel=1e-9)
+
+    def test_qty_above_max_volume_clamped(self, mock_client):
+        """qty that would exceed max_volume gets clamped."""
+        mock_client._symbol_infos["EURUSD"] = {
+            "contract_size": 100000.0,
+            "volume_step": 0.01,
+            "min_volume": 0.01,
+            "max_volume": 0.5,
+        }
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("EURUSD", 100000)
+        # 1.0 lots would exceed max 0.5, clamp to 0.5 lots × 100000 = 50000
+        assert result == pytest.approx(50000.0, rel=1e-9)
+
+    def test_gold_futures_larger_qty(self, mock_client):
+        """GC=F with a more realistic qty for a well-capitalized account.
+
+        qty=21.27 (≈ $50k / $2350), contract_size=100 → 0.2127 lots
+        floor(0.2127/0.01)*0.01 = 0.21 lots, normalized = 0.21 * 100 = 21.0
+        """
+        mock_client._symbol_infos["GC=F"] = {
+            "contract_size": 100.0,
+            "volume_step": 0.01,
+            "min_volume": 0.01,
+            "max_volume": 100.0,
+        }
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        result = broker.normalize_volume("GC=F", 21.27)
+        assert result == pytest.approx(21.0, rel=1e-9)
+
+
 class TestBatchPrices:
     def test_get_current_prices_returns_all(self, mock_client):
         mock_client._realtime_prices = {"EURUSD": 1.05, "GBPUSD": 1.25}

@@ -194,10 +194,14 @@ class AssetPnlController:
         from eigencapital.domain.entities.position import PositionSide
 
         excursion = raw_return if side == PositionSide.LONG else -raw_return
-        if excursion is None:
+        if excursion is None or pd.isna(excursion):
             return
-        asset._running_mae = max(getattr(asset, "_running_mae", 0.0), -excursion)
-        asset._running_mfe = max(getattr(asset, "_running_mfe", 0.0), excursion)
+        mae = getattr(asset, "_running_mae", 0.0)
+        mfe = getattr(asset, "_running_mfe", 0.0)
+        if mae is None or mfe is None:
+            return
+        asset._running_mae = max(mae, -excursion)
+        asset._running_mfe = max(mfe, excursion)
 
     def _check_scale_out_tiers(self, asset) -> None:
         if asset._scale_out_plan is None:

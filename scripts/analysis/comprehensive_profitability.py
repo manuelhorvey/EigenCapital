@@ -47,23 +47,27 @@ MIN_CONFIDENCE: dict[str, float] = {
     "NZDCAD": 40.0, "NZDUSD": 40.0, "EURCHF": 40.0,
 }
 
+PROD_RETRACE = 0.15
+PROD_SCALE_FRAC = 0.7
+PROD_SCALE_R = 2.5
+
 ASSET_CONFIG: dict[str, dict] = {
-    "GC":       {"tp_mult": 4.0,  "sl_mult": 1.0,  "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "USDCHF":   {"tp_mult": 3.0,  "sl_mult": 0.85, "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "USDCAD":   {"tp_mult": 3.9,  "sl_mult": 1.30, "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "GBPCAD":   {"tp_mult": 4.34, "sl_mult": 1.45, "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "NZDCAD":   {"tp_mult": 5.48, "sl_mult": 1.83, "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "NZDUSD":   {"tp_mult": 3.87, "sl_mult": 1.29, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "GBPAUD":   {"tp_mult": 3.0,  "sl_mult": 1.0,  "trail_activation_r": 0.5, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "NZDCHF":   {"tp_mult": 4.0,  "sl_mult": 1.0,  "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "CADCHF":   {"tp_mult": 4.0,  "sl_mult": 1.0,  "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "AUDUSD":   {"tp_mult": 4.24, "sl_mult": 1.41, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "EURCHF":   {"tp_mult": 3.0,  "sl_mult": 1.0,  "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "EURCAD":   {"tp_mult": 2.12, "sl_mult": 0.71, "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "EURNZD":   {"tp_mult": 3.36, "sl_mult": 1.12, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "GBPCHF":   {"tp_mult": 2.45, "sl_mult": 0.82, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "GBPUSD":   {"tp_mult": 1.97, "sl_mult": 0.52, "trail_activation_r": 0.8, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
-    "EURAUD":   {"tp_mult": 1.77, "sl_mult": 0.54, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50, "be_lock_r": 0.5},
+    "GC":       {"tp_mult": 4.0,  "sl_mult": 1.0,  "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "USDCHF":   {"tp_mult": 3.0,  "sl_mult": 0.85, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "USDCAD":   {"tp_mult": 3.9,  "sl_mult": 1.30, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "GBPCAD":   {"tp_mult": 4.34, "sl_mult": 1.45, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "NZDCAD":   {"tp_mult": 5.48, "sl_mult": 1.83, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "NZDUSD":   {"tp_mult": 3.87, "sl_mult": 1.29, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "GBPAUD":   {"tp_mult": 3.0,  "sl_mult": 1.0,  "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "NZDCHF":   {"tp_mult": 4.0,  "sl_mult": 1.0,  "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "CADCHF":   {"tp_mult": 4.0,  "sl_mult": 1.0,  "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "AUDUSD":   {"tp_mult": 4.24, "sl_mult": 1.41, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "EURCHF":   {"tp_mult": 3.0,  "sl_mult": 1.0,  "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "EURCAD":   {"tp_mult": 2.12, "sl_mult": 0.71, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "EURNZD":   {"tp_mult": 3.36, "sl_mult": 1.12, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "GBPCHF":   {"tp_mult": 2.45, "sl_mult": 0.82, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "GBPUSD":   {"tp_mult": 1.97, "sl_mult": 0.52, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
+    "EURAUD":   {"tp_mult": 1.77, "sl_mult": 0.54, "trail_activation_r": 0.5, "trail_retrace_pct": PROD_RETRACE, "be_lock_r": 0.5, "scale_out_fraction": PROD_SCALE_FRAC, "scale_out_r": PROD_SCALE_R},
 }
 
 SESSION_TIERS: dict[str, list[int]] = {
@@ -93,7 +97,10 @@ SESSION_OVERLAP_HOURS: dict[str, list[int]] = {
 # ── Core simulation ──────────────────────────────────────────────────────────
 
 def apply_current_config(trade: dict, asset: str) -> float:
-    """Apply the current live adaptive exit config to a trade. Returns modified R."""
+    """Apply the current live adaptive exit config to a trade. Returns modified R.
+
+    Config: scale_out 70% at 2.5R, trail remainder at 15% retrace, BE lock at 0.5R.
+    """
     orig_r = trade.get("r_multiple", 0.0)
     if orig_r >= 0:
         return orig_r
@@ -102,6 +109,12 @@ def apply_current_config(trade: dict, asset: str) -> float:
     cfg = ASSET_CONFIG.get(asset, ASSET_CONFIG["GBPUSD"])
     if mfe_r < cfg["be_lock_r"] or exit_reason == "tp":
         return orig_r
+    sf = cfg.get("scale_out_fraction", 0.0)
+    sr = cfg.get("scale_out_r", 999.0)
+    if sf > 0 and mfe_r >= sr:
+        locked = sf * sr
+        remainder = (1.0 - sf) * max(mfe_r * (1.0 - cfg["trail_retrace_pct"]), 0.0)
+        return locked + remainder
     if mfe_r >= cfg["trail_activation_r"]:
         captured = mfe_r * (1.0 - cfg["trail_retrace_pct"])
         return max(captured, 0.0)

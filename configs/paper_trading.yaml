@@ -174,10 +174,30 @@ defaults:
   mt5_leverage_budget_enabled: false
   mt5_leverage_budget_soft: true
   net_short_concentration_threshold: 0.75
-  # When true (default), small MT5 positions below the broker's minimum lot
-  # get bumped up to the min viable volume. The broker's margin controls
-  # handle risk enforcement — MT5 rejects if buying power is exceeded.
-  # Set to false to skip the bump and let the order be rejected naturally.
+  # ── MT5 Risk Control Flags ──────────────────────────────────────────
+  # Three flags with a clean separation of concerns:
+  #
+  #   mt5_enable_max_risk_per_trade_pct  master switch for the MT5 risk cap
+  #   mt5_max_risk_per_trade_pct         the percentage value (ignored when above is false)
+  #   mt5_bypass_risk_cap_at_min_lot     when risk cap IS enabled, allows min lot bump
+  #
+  # Truth table:
+  #   enable=false, bypass=X -> risk cap disabled entirely, bump handles min lots
+  #   enable=true,  bypass=true -> risk cap enforced, min lots bumped anyway
+  #   enable=true,  bypass=false -> risk cap fully enforced, no bump
+  #
+  # ── Master switch for MT5 risk-per-trade cap ───────────────────────
+  # When false (default), no percentage-based risk limit is applied to MT5
+  # positions. The broker's margin controls are the real gate — if buying
+  # power is exceeded, MT5 rejects the order. The min-viable lot bump in
+  # _compute_mt5_qty handles sub-minimum positions regardless.
+  mt5_enable_max_risk_per_trade_pct: false
+  # MT5-specific percentage (% of equity). Only inspected when the master
+  # switch above is true. Paper uses its own max_risk_per_trade_pct (2.0).
+  mt5_max_risk_per_trade_pct: 10.0
+  # When true AND mt5_enable_max_risk_per_trade_pct is true, MT5 positions
+  # below the broker's minimum lot get bumped up to the minimum viable
+  # volume even if the bump would exceed the configured risk percentage.
   mt5_bypass_risk_cap_at_min_lot: true
   # SELL_ONLY_ASSETS: assets where BUY signal is inverted (p_long > 0.5 → ~17% WR).
   # These assets trade SELL only; BUY signals are overridden to FLAT.

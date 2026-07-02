@@ -509,12 +509,27 @@ class EntryService:
         mt5_dd = getattr(broker, "current_mt5_drawdown_pct", lambda: 0.0)()
         sl_dist = abs(intent_sl - entry_price)
 
+        # ── MT5 risk control flags ────────────────────────────────────
+        # mt5_enable_max_risk_per_trade_pct: master switch (defaults to
+        # False). When false, pass inf as max_risk_pct so sizing chain
+        # step 3 never binds — the broker's margin controls handle risk.
+        # mt5_max_risk_per_trade_pct: the percentage value (only used when
+        #   above is true).
+        # mt5_bypass_risk_cap_at_min_lot: when risk cap IS enabled, allows
+        #   the bump to min viable lot even if it exceeds the cap.
+        mt5_risk_enabled = cfg.get("mt5_enable_max_risk_per_trade_pct", False)
+        if mt5_risk_enabled:
+            max_risk_pct = cfg.get("mt5_max_risk_per_trade_pct", 10.0)
+        else:
+            # Risk cap disabled — pass inf so sizing chain step 3 never binds.
+            max_risk_pct = float("inf")
+
         sizing_input = SizingInput(
             equity=mt5_equity,
             drawdown_pct=mt5_dd,
             kelly_multiplier=getattr(asset, "_kelly_multiplier", 1.0),
             max_position_pct=cfg.get("max_position_pct_of_equity", 0.15),
-            max_risk_pct=cfg.get("max_risk_per_trade_pct", 2.0),
+            max_risk_pct=max_risk_pct,
             min_viable_pct=cfg.get("min_viable_position_pct", 0.01),
             drawdown_taper_start=cfg.get("size_taper_start_dd", -0.05),
             drawdown_taper_end=cfg.get("size_taper_end_dd", -0.15),
@@ -569,34 +584,54 @@ class EntryService:
         else:
             min_viable = 0.0
 
+        # ── Min-viable lot bump ───────────────────────────────────────
+        # The bump fires UNLESS the risk cap is enabled AND bypass is false.
+        # When risk cap is disabled (mt5_enable_max_risk_per_trade_pct=false),
+        # the bump always fires — there's no cap to conflict with.
+        # When risk cap is enabled AND bypass is false, the sizing chain's
+        # step 3 handles the risk enforcement and may return not_viable.
+        risk_cap_active = mt5_risk_enabled
         bypass = cfg.get("mt5_bypass_risk_cap_at_min_lot", True)
-        if bypass and min_viable > 0 and 0 < mt5_qty < min_viable:
-            # Bump to minimum viable lot. The broker's margin controls are the
-            # real risk gate for MT5 — if buying power is exceeded, the broker
-            # rejects the order. Skip the paper-style risk-per-trade cap here.
-            logger.info(
-                "%s: MT5 bumped qty from %.4f to min_viable=%.4f (broker handles margin enforcement, bypass=%s)",
-                asset.name,
-                mt5_qty,
-                min_viable,
-                bypass,
-            )
-            mt5_qty = min_viable
+        bump_blocked = risk_cap_active and not bypass
 
+        if min_viable > 0 and 0 < mt5_qty < min_viable:
+            if bump_blocked:
+                logger.info(
+                    "%s: MT5 qty=%.4f below min_viable=%.4f — risk cap active with bypass=false, not bumping",
+                    asset.name,
+                    mt5_qty,
+                    min_viable,
+                )
+            else:
+                logger.info(
+                    "%s: MT5 bumped qty from %.4f to min_viable=%.4f (risk_cap=%s, bypass=%s)",
+                    asset.name,
+                    mt5_qty,
+                    min_viable,
+                    "on" if risk_cap_active else "off",
+                    bypass,
+                )
+                mt5_qty = min_viable
+
+        risk_label = "on" if risk_cap_active else "off"
+        bypass_label = "on" if bypass else "off"
         logger.info(
-            "MT5_SIZING %s: equity=%.2f dd=%.2f kelly=%.4f max_pct=%.2f%% risk_cap=%.2f "
+            "MT5_SIZING %s: equity=%.2f dd=%.2f kelly=%.4f max_pct=%.2f%% "
+            "risk_enabled=%s risk_cap=%.2f bypass=%s "
             "min_viable=%.2f -> final_not=%.2f base_to_acc=%.4f qty=%.4f%s",
             asset.name,
             mt5_equity,
             result.drawdown_taper,
             result.kelly_applied,
             sizing_input.max_position_pct * 100,
+            risk_label,
             result.risk_cap_used,
+            bypass_label,
             result.min_viable_notional,
             result.notional,
             base_to_acc,
             mt5_qty,
-            f" (bumped to min_viable={min_viable:.4f})" if min_viable > 0 and mt5_qty >= min_viable and result.notional / base_to_acc < min_viable else "",
+            f" (bumped)" if min_viable > 0 and mt5_qty >= min_viable and not bump_blocked and result.notional / base_to_acc < min_viable else "",
         )
         return mt5_qty
 

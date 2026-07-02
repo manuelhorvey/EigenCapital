@@ -450,6 +450,22 @@ class TestComputeTakeProfit:
 
 
 class TestComputeMt5Qty:
+    def _make_bridge(self, broker=None):
+        if broker is None:
+            broker = MagicMock()
+        bridge = MagicMock()
+        bridge._is_real_broker = True
+        bridge.broker = broker
+        return bridge
+
+    def _make_broker(self, equity=106.24, min_viable_qty=1000.0):
+        broker = MagicMock()
+        broker.get_account_summary.return_value = MagicMock(portfolio_value=equity)
+        broker.current_mt5_drawdown_pct = MagicMock(return_value=0.0)
+        broker.min_viable_qty = MagicMock(return_value=min_viable_qty)
+        broker.get_current_price = MagicMock(return_value=1.0)
+        return broker
+
     def test_returns_zero_when_no_broker(self, mock_asset):
         svc = EntryService()
         bridge = MagicMock()
@@ -461,14 +477,85 @@ class TestComputeMt5Qty:
 
     def test_returns_zero_when_equity_zero(self, mock_asset):
         svc = EntryService()
-        broker = MagicMock()
-        broker.get_account_summary.return_value = MagicMock(portfolio_value=0.0)
-        bridge = MagicMock()
-        bridge._is_real_broker = True
-        bridge.broker = broker
-        mock_asset.execution_bridge = bridge
+        broker = self._make_broker(equity=0.0)
+        mock_asset.execution_bridge = self._make_bridge(broker)
         qty = svc._compute_mt5_qty(mock_asset, 100.0, 95.0)
         assert qty == 0.0
+
+    # ── 4-mode truth table: mt5_enable_max_risk_per_trade_pct × mt5_bypass_risk_cap_at_min_lot ──
+    #
+    # | enable | bypass | Expected behaviour                                                  |
+    # | ------ | ------ | ------------------------------------------------------------------ |
+    # | false  | true   | Risk cap disabled entirely; bump fires to min lot.                 |
+    # | false  | false  | Risk cap disabled entirely; bump fires to min lot (bypass ignored).|
+    # | true   | true   | Risk cap enabled, but min lot bypassed — bump still fires.          |
+    # | true   | false  | Risk cap fully enforced, bump blocked — qty stays at sized value.   |
+
+    def test_mode_enable_false_bypass_true(self, mock_asset):
+        """Risk cap disabled (inf), bump fires → qty = min_viable_qty."""
+        svc = EntryService()
+        mock_asset.config = {
+            "mt5_enable_max_risk_per_trade_pct": False,
+            "mt5_bypass_risk_cap_at_min_lot": True,
+        }
+        mock_asset.ticker = "GBPUSD=X"
+        broker = self._make_broker(equity=106.24, min_viable_qty=1000.0)
+        mock_asset.execution_bridge = self._make_bridge(broker)
+        qty = svc._compute_mt5_qty(mock_asset, 1.3332, 1.3239)
+        # Risk cap = inf → sizing chain returns full equity notional.
+        # Sized qty = 106.24 / 1.3332 ≈ 79.7 < 1000 → bump to 1000.
+        assert qty == 1000.0
+
+    def test_mode_enable_false_bypass_false(self, mock_asset):
+        """Risk cap disabled, bypass=false ignored → bump fires → qty = min_viable_qty."""
+        svc = EntryService()
+        mock_asset.config = {
+            "mt5_enable_max_risk_per_trade_pct": False,
+            "mt5_bypass_risk_cap_at_min_lot": False,
+        }
+        mock_asset.ticker = "GBPUSD=X"
+        broker = self._make_broker(equity=106.24, min_viable_qty=1000.0)
+        mock_asset.execution_bridge = self._make_bridge(broker)
+        qty = svc._compute_mt5_qty(mock_asset, 1.3332, 1.3239)
+        # Risk cap = inf, bypass=false but risk cap is disabled so it's ignored.
+        # Sized qty ≈ 79.7 < 1000 → bump to 1000.
+        assert qty == 1000.0
+
+    def test_mode_enable_true_bypass_true(self, mock_asset):
+        """Risk cap enabled (10%), bypass=true → bump fires (no cap conflict at this equity)."""
+        svc = EntryService()
+        mock_asset.config = {
+            "mt5_enable_max_risk_per_trade_pct": True,
+            "mt5_max_risk_per_trade_pct": 10.0,
+            "mt5_bypass_risk_cap_at_min_lot": True,
+        }
+        mock_asset.ticker = "GBPUSD=X"
+        broker = self._make_broker(equity=106.24, min_viable_qty=1000.0)
+        mock_asset.execution_bridge = self._make_bridge(broker)
+        qty = svc._compute_mt5_qty(mock_asset, 1.3332, 1.3239)
+        # Risk cap = 10% → max_risk_usd = $10.62.
+        # For GBPUSD with sl=0.0093: risk_usd = 0.0093 * (106.24/1.3332) = $0.74
+        # $0.74 < $10.62 → cap doesn't bind → notional = $106.24
+        # Sized qty = 106.24 / 1.3332 ≈ 79.7 < 1000 → bypass=true → bump to 1000.
+        assert qty == 1000.0
+
+    def test_mode_enable_true_bypass_false(self, mock_asset):
+        """Risk cap enabled (10%), bypass=false → bump blocked, qty stays at sized value."""
+        svc = EntryService()
+        mock_asset.config = {
+            "mt5_enable_max_risk_per_trade_pct": True,
+            "mt5_max_risk_per_trade_pct": 10.0,
+            "mt5_bypass_risk_cap_at_min_lot": False,
+        }
+        mock_asset.ticker = "GBPUSD=X"
+        broker = self._make_broker(equity=106.24, min_viable_qty=1000.0)
+        mock_asset.execution_bridge = self._make_bridge(broker)
+        qty = svc._compute_mt5_qty(mock_asset, 1.3332, 1.3239)
+        # Risk cap = 10%, bypass=false.
+        # risk_usd = $0.74 < $10.62 → cap doesn't bind at this equity level.
+        # Sized qty = 79.7 < 1000 but bypass=false → no bump.
+        # Returns the sized qty (≈79.7), NOT bumped to min_viable=1000.
+        assert 79.0 < qty < 80.0  # sized qty, not bumped
 
 
 class TestPollPendingEntries:

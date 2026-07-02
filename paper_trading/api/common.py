@@ -179,7 +179,7 @@ def get_vol_baselines() -> dict:
 
 # ── Rate Limiting ───────────────────────────────────────────────────────────
 
-_RATE_LIMIT_MAX: int = int(os.environ.get("QUORRIN_RATE_LIMIT", "100"))
+_RATE_LIMIT_MAX: int = int(os.environ.get("EIGENCAPITAL_RATE_LIMIT", "100"))
 _RATE_LIMIT_WINDOW: float = 60.0
 
 
@@ -243,11 +243,11 @@ def _load_auth_token() -> str:
         if _AUTH_TOKEN:
             logging.getLogger("eigencapital.auth").info(
                 "API auth enabled (token from %s)",
-                "env QUORRIN_API_TOKEN" if os.environ.get("QUORRIN_API_TOKEN") else "config file",
+                "env EIGENCAPITAL_API_TOKEN" if os.environ.get("EIGENCAPITAL_API_TOKEN") else "config file",
             )
         else:
             logging.getLogger("eigencapital.auth").warning(
-                "No API auth token configured. Set QUORRIN_API_TOKEN env var or api_token in config. "
+                "No API auth token configured. Set EIGENCAPITAL_API_TOKEN env var or api_token in config. "
                 "All API endpoints are accessible without authentication."
             )
     return _AUTH_TOKEN

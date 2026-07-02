@@ -1,8 +1,8 @@
-# ADR Index — Quorrin
+# ADR Index — EigenCapital
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
 
-Architecture Decision Records for the Quorrin quantitative trading framework.
+Architecture Decision Records for the EigenCapital quantitative trading framework.
 
 ## Status Legend
 

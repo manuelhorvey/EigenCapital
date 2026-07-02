@@ -1,4 +1,4 @@
-// ── Design Tokens — Quorrin Operator Console ─────────────────────────
+// ── Design Tokens — EigenCapital Operator Console ─────────────────────────
 //
 // This file is the single source of truth for the dashboard's design
 // tokens. rawTokens keys are CSS custom-property names minus the `--`

@@ -1233,7 +1233,7 @@ class EngineOrchestrator:
             mt5_sym = broker.ticker_to_mt5_symbol(engine.ticker)
             sym_actors.setdefault(mt5_sym, []).append((name, engine))
 
-        # Build reverse symbol map: MT5 symbol → Quorrin ticker
+        # Build reverse symbol map: MT5 symbol → EigenCapital ticker
         reverse_map: dict[str, str] = {}
         for ticker, mt5_sym in broker._symbol_map.items():
             reverse_map[mt5_sym] = ticker

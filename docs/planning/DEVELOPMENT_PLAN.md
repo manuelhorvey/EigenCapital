@@ -1,4 +1,4 @@
-# Quorrin — Development Plan
+# EigenCapital — Development Plan
 
 *Generated 2026-06-22 from the dashboard architecture review and subsequent recalibration.*
 

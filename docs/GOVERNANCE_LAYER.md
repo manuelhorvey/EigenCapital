@@ -1,4 +1,4 @@
-# Quorrin — Risk & Governance Layer
+# EigenCapital — Risk & Governance Layer
 
 15 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
 

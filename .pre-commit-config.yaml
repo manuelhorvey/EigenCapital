@@ -1,4 +1,4 @@
-# Pre-commit hooks for Quorrin
+# Pre-commit hooks for EigenCapital
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 #
@@ -53,7 +53,7 @@ repos:
         name: no TODO/FIXME without owner
         entry: bash scripts/ops/scan_forbidden_patterns.sh
         language: system
-        files: '^paper_trading/.*\.py$|^quorrin/.*\.py$|^shared/.*\.py$'
+        files: '^paper_trading/.*\.py$|^eigencapital/.*\.py$|^shared/.*\.py$'
         require_serial: true
 
       # ── Assertion elimination guard ─────────────────────────
@@ -61,7 +61,7 @@ repos:
         name: no bare asserts (would be stripped under python -O)
         entry: python tools/check_no_bare_asserts.py
         language: system
-        files: '^paper_trading/.*\.py$|^quorrin/.*\.py$|^shared/.*\.py$'
+        files: '^paper_trading/.*\.py$|^eigencapital/.*\.py$|^shared/.*\.py$'
         pass_filenames: false
 
       # ── Secret detection ────────────────────────────────────

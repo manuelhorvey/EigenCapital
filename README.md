@@ -1,10 +1,10 @@
-# Quorrin
+# EigenCapital
 
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Status](https://img.shields.io/badge/status-paper%20trading-green)
 ![WalkForward](https://img.shields.io/badge/walk--forward-36%20assets%20screened-success)
 ![Portfolio](https://img.shields.io/badge/portfolio-16%20dashboard%20assets-blue)
-[![codecov](https://codecov.io/gh/manuelhorvey/Quorrin/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/Quorrin)
+[![codecov](https://codecov.io/gh/manuelhorvey/EigenCapital/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/EigenCapital)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
@@ -118,7 +118,7 @@ Allocation varies (factor_constrained_v2 adjusts dynamically).
 
 # MT5 Bridge Integration
 
-Quorrin can route data fetching and order execution through a live MetaTrader 5 terminal (Exness demo) running under Wine.
+EigenCapital can route data fetching and order execution through a live MetaTrader 5 terminal (Exness demo) running under Wine.
 
 ## Architecture
 
@@ -146,7 +146,7 @@ Linux Host                          Wine Prefix
 
 ## Symbol Mapping
 
-Quorrin tickers (e.g. `GC=F`) are mapped to MT5 symbols (e.g. `XAUUSD`) via `configs/mt5_symbol_map.yaml`.
+EigenCapital tickers (e.g. `GC=F`) are mapped to MT5 symbols (e.g. `XAUUSD`) via `configs/mt5_symbol_map.yaml`.
 
 ## Capital Sync & Independent Sizing
 
@@ -433,7 +433,7 @@ Persistent state is stored in SQLite WAL mode with append-oriented semantics.
 
 # Governance Framework
 
-Quorrin uses independently configurable governance layers with worst-wins aggregation,
+EigenCapital uses independently configurable governance layers with worst-wins aggregation,
 plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
 
 ## Governance Layers (15 + HealthMonitor)
@@ -574,8 +574,8 @@ A React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000.
 ## Install
 
 ```bash
-git clone https://github.com/manuelhorvey/Quorrin.git
-cd Quorrin
+git clone https://github.com/manuelhorvey/EigenCapital.git
+cd EigenCapital
 
 python -m venv .venv
 source .venv/bin/activate
@@ -616,7 +616,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | Variable                      | Required | Purpose                                |
 | ----------------------------- | -------- | -------------------------------------- |
 | `PYTHONPATH`                  | Yes      | Set to `.`                             |
-| `QUORRIN_REFRESH_INTERVAL` | No       | Engine loop interval (default 60s)      |
+| `EIGENCAPITAL_REFRESH_INTERVAL` | No       | Engine loop interval (default 60s)      |
 | `MT5_ACCOUNT`                 | No*      | Exness MT5 account number              |
 | `MT5_PASSWORD`                | No*      | Exness MT5 account password            |
 | `MT5_SERVER`                  | No*      | Exness MT5 server (e.g. Exness-MT5Trial2) |
@@ -717,7 +717,7 @@ labels/                       # Triple-barrier labeling, meta-labeling
 signals/                      # Signal generation, alpha weighting
 risk/                         # Drawdown controls, exposure limits
 portfolio/                    # HRP allocation, risk parity
-quorrin/                   # DDD-structured application core
+eigencapital/                   # DDD-structured application core
 monitoring/                   # PSI drift, validity state machine, MLflow
 benchmarks/                   # Performance benchmarks
 tests/                        # Test suite

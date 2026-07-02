@@ -212,7 +212,7 @@ class MT5Broker(BrokerInterface):
                 volume=volume,
                 sl=0.0 if (order.sl is None or pd.isna(order.sl)) else order.sl,
                 tp=0.0 if (order.tp is None or pd.isna(order.tp)) else order.tp,
-                comment="Quorrin",
+                comment="EigenCapital",
                 idempotency_key=id_key,
             )
         except Exception as e:

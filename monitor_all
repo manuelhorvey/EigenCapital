@@ -1,12 +1,12 @@
 #!/usr/bin/env zsh
-# Quorrin Paper Trading Monitor
+# EigenCapital Paper Trading Monitor
 # Starts MT5 terminal, bridge, and dashboard/engine in one pass.
 # Usage: ./monitor_all  |  Ctrl+C to stop.
 
 cd "$(dirname "$0")"
 
 echo "========================================================"
-echo "  Quorrin Paper Trading  |  MT5 + DASHBOARD"
+echo "  EigenCapital Paper Trading  |  MT5 + DASHBOARD"
 echo "========================================================"
 echo ""
 
@@ -20,10 +20,10 @@ MT5_EXE="$WINE_PREFIX/drive_c/Program Files/MetaTrader 5/terminal64.exe"
 SCRIPT_DIR="$(cd paper_trading/ops && pwd)"
 BRIDGE_PORT="${MT5_BRIDGE_PORT:-9879}"
 
-# ── Kill leftover Quorrin processes from previous runs ──
+# ── Kill leftover EigenCapital processes from previous runs ──
 PREV_MONITOR=$(pgrep -f 'python.*paper_trading.ops.monitor' 2>/dev/null | tr '\n' ' ')
 if [ -n "$PREV_MONITOR" ]; then
-    echo "  Killing previous Quorrin monitor(s) (PID $PREV_MONITOR)..."
+    echo "  Killing previous EigenCapital monitor(s) (PID $PREV_MONITOR)..."
     kill $PREV_MONITOR 2>/dev/null
     sleep 1
     kill -9 $PREV_MONITOR 2>/dev/null

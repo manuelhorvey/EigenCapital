@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 logger = setup_logging(logging.INFO, log_file=LOG_PATH)
 
-REFRESH_INTERVAL = int(os.environ.get("QUORRIN_REFRESH_INTERVAL") or 60)
+REFRESH_INTERVAL = int(os.environ.get("EIGENCAPITAL_REFRESH_INTERVAL") or 60)
 _shutdown = threading.Event()
 
 

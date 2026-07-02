@@ -1,4 +1,4 @@
-# Quorrin Dashboard — Failure Mode Analysis
+# EigenCapital Dashboard — Failure Mode Analysis
 
 > Pre-mortem for the state-bundle migration. Covers what breaks, how it manifests,
 > root cause, and exact mitigation — for every architectural seam in the target

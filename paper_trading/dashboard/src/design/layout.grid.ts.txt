@@ -1,4 +1,4 @@
-// ── Quorrin Layout Grid ───────────────────────────────────────────────
+// ── EigenCapital Layout Grid ───────────────────────────────────────────────
 //
 // Consensus: a 12-column grid, 16 px gutter, 32 px page margin on
 // desktop. Columns stay 12 at every breakpoint — what changes

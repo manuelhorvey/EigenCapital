@@ -1,6 +1,6 @@
 """Static import firewall — AST-scans the source tree for forbidden imports.
 
-Quorrin uses a runtime import firewall (``tools/import_guard.py``) which
+EigenCapital uses a runtime import firewall (``tools/import_guard.py``) which
 checks whether forbidden modules are *currently imported*.  This module
 provides a *static* check that fails CI even if the offender is only
 referenced in a script or vendored into a function body.

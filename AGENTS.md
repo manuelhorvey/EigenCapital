@@ -1,4 +1,4 @@
-# Quorrin — Agent Operating Guide
+# EigenCapital — Agent Operating Guide
 
 ## Project Identity
 
@@ -216,10 +216,10 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 
 The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-token authentication.
 
-- **Config**: Set `QUORRIN_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
+- **Config**: Set `EIGENCAPITAL_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
 - **Behavior**: If a token is configured, all JSON API endpoints and POST endpoints require `Authorization: Bearer <token>`. Static files (HTML/CSS/JS) are accessible without auth.
 - **Default**: No token configured = open access (safe because the server binds to 127.0.0.1 by default).
-- **Bind address**: Override with `QUORRIN_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.
+- **Bind address**: Override with `EIGENCAPITAL_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.
 - **CORS**: Restricted to `http://127.0.0.1:3000` (Vite dev server) and same-origin. No wildcard.
 
 ## Structural Limitations (Permanent)
@@ -475,7 +475,7 @@ The filter still helps — reduces max_dd and enables SELL-only signals to domin
 
 `scipy.stats.norm.cdf(z)` saturates at exactly **1.0 in float64** for z > ~8.2 and at **0.0** for z < ~-8.2. This means PSR and DSR cannot discriminate between "strongly significant" and "overwhelmingly significant" once the z-score exceeds ~8.2.
 
-**Practical implication for Quorrin**: With n ≈ 300 observations (typical walk-forward test window), PSR(>0) saturates at 1.0 for any Sharpe > ~0.3. The "mediocre" scenario (Sharpe=0.7, n=252) produces z ≈ 11, well into the saturation zone. PSR(>0) = 1.0000 for 16 of 18 assets in the portfolio backtest — this doesn't mean those assets are equally significant; it means they all exceed the float64 ceiling.
+**Practical implication for EigenCapital**: With n ≈ 300 observations (typical walk-forward test window), PSR(>0) saturates at 1.0 for any Sharpe > ~0.3. The "mediocre" scenario (Sharpe=0.7, n=252) produces z ≈ 11, well into the saturation zone. PSR(>0) = 1.0000 for 16 of 18 assets in the portfolio backtest — this doesn't mean those assets are equally significant; it means they all exceed the float64 ceiling.
 
 **Where DSR is discriminative**: DSR's useful range is Sharpe in approximately [0.0, 0.8] for n ≈ 250, and narrower for larger n. Outside this range, DSR is a binary pass/fail indicator (1.0 for strong signals, 0.0 for negative). At the current portfolio Sharpe of 29, DSR(18) being 1.0 is correct but provides zero selective information — it will say "PASS" regardless of whether num_trials is 18 or 1800. This is a ceiling effect of float64, not a calculation error. DSR will only become a meaningful gate when portfolio Sharpe drops into the 0.5–2.5 range.
 
@@ -610,7 +610,7 @@ New handlers in `replay/runner.py`:
 | `paper_trading/replay/runner.py` | Three new handlers for causal boundary events |
 | `paper_trading/replay/wal.py` | Docstring updated with causal vs observability event tiers |
 | `paper_trading/inference/training.py` | Model hash sidecar file written at save time |
-| `quorrin/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
+| `eigencapital/domain/entities/signal.py` | `TradeDecision.feature_hash` field added |
 | `scripts/training/retrain_counterfactual.py` | **NEW** — feature ablation walk-forward test |
 | `scripts/diagnostics/check_chf_correlation.py` | **NEW** — CHF cluster independence verification |
 | `paper_trading/ops/slack_alerter.py` | **NEW** — WAL-tailing Slack alert daemon |
@@ -1102,7 +1102,7 @@ readiness audit:
   bridge via JSON-RPC heartbeat, restarts it on consecutive failures,
   and exposes `/health` + `/ready` endpoints. Configurable interval,
   max-restart cap, graceful SIGTERM.
-- `scripts/ops/quorrin-mt5-supervisor.service` — systemd unit with
+- `scripts/ops/eigencapital-mt5-supervisor.service` — systemd unit with
   hardening (NoNewPrivileges, PrivateTmp, ProtectSystem).
 - `monitor_all` — removed `--password $MT5_PASSWORD` from the argv
   (was leaking the secret via `ps aux`).
@@ -1111,7 +1111,7 @@ readiness audit:
 
 ### 9. Structured JSON Logging
 - `paper_trading/logging/json_formatter.py:JsonFormatter` exports records
-  as single-line JSON with the canonical Quorrin key order. Handles
+  as single-line JSON with the canonical EigenCapital key order. Handles
   `extra=` payload, exception serialization, unicode. Optional
   replacement of stream handlers via `install_json_logging`.
 - 13 tests in `tests/test_json_logging.py` cover valid JSON output,
@@ -1119,11 +1119,11 @@ readiness audit:
   (no internal Python state leaks).
 
 ### 10. Prometheus Metrics
-- `quorrin/observability/metrics.py:MetricsRegistry` — thread-safe
+- `eigencapital/observability/metrics.py:MetricsRegistry` — thread-safe
   counter/gauge registry with `render()` for Prometheus v0.0.4 text
   exposition format. Validates metric names per `[a-zA-Z_:][a-zA-Z0-9_:]*`.
-  Pre-seeded `default_registry()` includes the Quorrin engine metric
-  namespace (`quorrin_engine_cycles_total`, `..._signal_total`,
+  Pre-seeded `default_registry()` includes the EigenCapital engine metric
+  namespace (`eigencapital_engine_cycles_total`, `..._signal_total`,
   `..._drawdown_pct`, `..._wal_events_total`, etc.).
 - 18 tests in `tests/test_prometheus_metrics.py` covering basic counter
   /gauge, label ordering/escaping, sample ordering, invalid names, and
@@ -1156,7 +1156,7 @@ readiness audit:
   transient-disconnect retry scenario.
 
 ### 13. ATLAS Covariate Shift Detector
-- `quorrin/observability/atlas.py:AtlasDetector` — layered change-point
+- `eigencapital/observability/atlas.py:AtlasDetector` — layered change-point
   detector combining:
     * Two-sided CUSUM (cumulative sum control chart) with standard
       deviation–scaled thresholds.
@@ -1448,7 +1448,7 @@ After Phase 6 the branch continued into copy + visual identity. Roughly thirty c
 
 Three commits shipped the operator-console signature.
 
-- Phase 8.1 `ef624ee` — **`TickerRail` signature element**: 32px-tall mono breadcrumb pinned above `<Header>` on every route. Reads as `Q ·QUORRIN · seq #N · engine <state> · tick <N>s · pek <a>/<i> · halt <yes|no> · assets <N>` in mono. Morphs to a halt-channel when `emergency_halt` is set; positions-frozen annotation; not rendered when `integrity.shouldBlockRender` (display uses `ErrorScreen`). Data: `useEngineHealth` + `useSystemSnapshot`. Tone-coded GREEN / YELLOW / RED on each token.
+- Phase 8.1 `ef624ee` — **`TickerRail` signature element**: 32px-tall mono breadcrumb pinned above `<Header>` on every route. Reads as `Q ·EIGENCAPITAL · seq #N · engine <state> · tick <N>s · pek <a>/<i> · halt <yes|no> · assets <N>` in mono. Morphs to a halt-channel when `emergency_halt` is set; positions-frozen annotation; not rendered when `integrity.shouldBlockRender` (display uses `ErrorScreen`). Data: `useEngineHealth` + `useSystemSnapshot`. Tone-coded GREEN / YELLOW / RED on each token.
 - Phase 8.2 `7ea43b6` — **Design tokens**: `color-app` `#08090c → #07080b` (deeper ink); `color-accent-emerald` `#2dd4bf → #3dd9ae` (lifted accent); matching `rgba` updates in `index.css` focus-ring + input-terminal; `usage.*` updated to source lifted palette; `generated/tokens.css|json|tailwind.partial.js` regenerated automatically.
 - Phase 8.3 `dc4e3a1` — **Quick-stats row on CommandCenter migrated**. The 7-card grid (each labelled card with icon and padding) collapsed to a single hairline-rule mono dl/div row. Five reserved audit items addressed in this commit at no additional cost (dead `QuickStatCard` definition and 7 unused icon imports removed by reconstruction).
 
@@ -1509,3 +1509,33 @@ Final route count: 4 (`/`, `/trading`, `/execution`, `/risk`). Each route has a 
 - `/trading` — operate surface: signal queue + admission/rejected + recent trades + execution feed
 - `/execution` — quality surface: equity curve + execution quality KPIs + trade attribution
 - `/risk` — governance surface: PEK telemetry + portfolio risk + governance + health scores
+
+---
+## Project Rename: Quorrin → EigenCapital (2026-07-02)
+
+### What Was Done (Phases 1–8)
+
+| Phase | Scope | Files Changed |
+|-------|-------|---------------|
+| 1 | Python package `quorrin/` → `eigencapital/` (git mv), imports, loggers, pyproject.toml | 179 |
+| 2 | Prometheus metric names `quorrin_engine_*` → `eigencapital_engine_*` | 2 |
+| 3 | Env vars `QUORRIN_*` → `EIGENCAPITAL_*` | ~50 |
+| 4 | Dashboard branding (TickerRail `Q` → `EC`, `·EIGENCAPITAL`, LS_KEY, alerts channel, index.html title, package.json name, loading screen) | 6 |
+| 5 | Infra rename (systemd unit file, monitor_all banner, Docker container names) | 4 |
+| 6 | External integrations (MT5 comment, Slack) | handled by Phases 1+4 |
+| 7 | Documentation updates (AGENTS.md, README.md was already updated) | 2+ |
+| 8 | Git remote updated from `Quorrin.git` → `EigenCapital.git` | 1 |
+
+### Remaining After Rename
+- `.env.example` has no EigenCapital refs (never had Quorrin refs either — uses `MT5_ACCOUNT` etc.)
+- `.env` content unchanged (user-specific; will regenerate)
+- Dashboard `generated/` tokens need re-generation if referenced paths changed (no path changes, so clean)
+- Verify `tests/test_prometheus_metrics.py` metric names align (Phase 2 sed covered this)
+
+### Conventions
+- Python package: `eigencapital` (one word, lowercase)
+- Logger names: `eigencapital.*`
+- Env vars: `EIGENCAPITAL_*`
+- Metrics prefix: `eigencapital_engine_*`
+- Dashboard package: `eigencapital-dashboard`
+- Container names: `EigenCapital-*`

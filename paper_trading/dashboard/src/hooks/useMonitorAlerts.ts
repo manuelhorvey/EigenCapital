@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSystemSnapshot } from './useSystemSnapshot'
 
-const ALERTS_CHANNEL = 'quorrin-alerts'
+const ALERTS_CHANNEL = 'eigencapital-alerts'
 
 let _channel: BroadcastChannel | null = null
 function getChannel(): BroadcastChannel {

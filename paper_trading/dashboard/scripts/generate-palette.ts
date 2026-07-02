@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * generate-palette.ts — Quorrin Color Palette Generator
+ * generate-palette.ts — EigenCapital Color Palette Generator
  *
  * Usage:
  *   tsx scripts/generate-palette.ts <seed-color> [--mode dark|light] [--output json|css|tailwind]

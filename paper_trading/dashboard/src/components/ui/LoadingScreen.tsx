@@ -6,7 +6,7 @@ interface LoadingScreenProps {
 }
 
 export default function LoadingScreen({
-  title = 'Connecting to Quorrin Engine',
+  title = 'Connecting to EigenCapital Engine',
   subtitle = 'Waiting for paper trading data…',
 }: LoadingScreenProps) {
   return (

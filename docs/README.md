@@ -1,6 +1,6 @@
-# Quorrin Documentation
+# EigenCapital Documentation
 
-Project documentation for the Quorrin cross-sectional factor ranking and paper trading system.
+Project documentation for the EigenCapital cross-sectional factor ranking and paper trading system.
 
 ## Guides
 

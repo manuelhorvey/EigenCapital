@@ -196,7 +196,7 @@ class EngineConfig:
         if mode_overrides:
             data = cls._merge_mode_overrides(data, mode_overrides)
 
-        api_token = os.environ.get("QUORRIN_API_TOKEN", data.get("api_token", ""))
+        api_token = os.environ.get("EIGENCAPITAL_API_TOKEN", data.get("api_token", ""))
 
         return cls(
             mode=mode_name,

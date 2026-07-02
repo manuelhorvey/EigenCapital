@@ -1,4 +1,4 @@
-"""Prometheus metrics exporter — exposes Quorrin engine state as Prometheus
+"""Prometheus metrics exporter — exposes EigenCapital engine state as Prometheus
 text format.
 
 The endpoint is intentionally lightweight (zero deps on `prometheus_client`):
@@ -14,15 +14,15 @@ Wire into the existing dashboard HTTP server by adding::
 
 Metrics registered by default:
 
-- quorrin_engine_cycles_total   — engine cycle counter
-- quorrin_engine_signal_total    — labelled by asset + signal long/short/flat
-- quorrin_engine_drawdown_pct    — current portfolio drawdown (gauge)
-- quorrin_engine_uptime_seconds  — since start (gauge)
-- quorrin_engine_wal_events_total — WAL events written
-- quorrin_engine_skipped_entries_total — entries refused by gates
-- quorrin_engine_kelly_multiplier — last computed kelly multiplier (gauge)
-- quorrin_engine_breakeven_count  — counters for OK / fail trades
-- quorrin_engine_calibration_applied — 1.0 if calibration ran on last inference
+- eigencapital_engine_cycles_total   — engine cycle counter
+- eigencapital_engine_signal_total    — labelled by asset + signal long/short/flat
+- eigencapital_engine_drawdown_pct    — current portfolio drawdown (gauge)
+- eigencapital_engine_uptime_seconds  — since start (gauge)
+- eigencapital_engine_wal_events_total — WAL events written
+- eigencapital_engine_skipped_entries_total — entries refused by gates
+- eigencapital_engine_kelly_multiplier — last computed kelly multiplier (gauge)
+- eigencapital_engine_breakeven_count  — counters for OK / fail trades
+- eigencapital_engine_calibration_applied — 1.0 if calibration ran on last inference
 
 Each metric supports labels via the ``labelnames`` argument at registration.
 """
@@ -211,7 +211,7 @@ class _GaugeHandle:
 
 
 def default_registry() -> MetricsRegistry:
-    """Build a registry pre-populated with the canonical Quorrin engine metrics."""
+    """Build a registry pre-populated with the canonical EigenCapital engine metrics."""
     reg = MetricsRegistry()
 
     reg.counter(

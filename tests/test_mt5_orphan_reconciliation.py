@@ -361,7 +361,7 @@ class TestReconcilePhaseB:
                     "commission": 0.0,
                     "swap": 0.0,
                     "time": 0,
-                    "comment": "Quorrin",
+                    "comment": "EigenCapital",
                 }
             }
         }
@@ -435,7 +435,7 @@ class TestReconcilePhaseB:
                     "commission": 0.0,
                     "swap": 0.0,
                     "time": 0,
-                    "comment": "Quorrin",
+                    "comment": "EigenCapital",
                 }
             }
         }
@@ -496,7 +496,7 @@ class TestReconcilePhaseB:
                 "sl": 1.0400,
                 "tp": 1.0700,
                 "time": 0,
-                "comment": "Quorrin",
+                "comment": "EigenCapital",
             },
         ]
         orch._reconcile_mt5_orphans()
@@ -528,7 +528,7 @@ class TestReconcilePhaseB:
                 "sl": 1.0400,
                 "tp": 1.0700,
                 "time": 0,
-                "comment": "Quorrin",
+                "comment": "EigenCapital",
             },
         ]
         actor = _OrphanActor(
@@ -573,7 +573,7 @@ class TestPreOpenGuard:
                 "sl": 1.0400,
                 "tp": 1.0700,
                 "time": 0,
-                "comment": "Quorrin",
+                "comment": "EigenCapital",
             },
         ]
         mock_client._close_result = {"result": {"retcode": 10009, "ticket": 99999}}

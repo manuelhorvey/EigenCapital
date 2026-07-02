@@ -1,4 +1,4 @@
-# Quorrin — Re-Prioritized Severity Register
+# EigenCapital — Re-Prioritized Severity Register
 
 **Date (original):** 2026-06-23
 **Status as of:** 2026-06-23 (all Track A items resolved; Track B BUY inversion closed)

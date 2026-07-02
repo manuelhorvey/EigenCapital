@@ -1,6 +1,6 @@
 # Operating Modes
 
-Quorrin ships three operating mode presets selected by `mode:` at the
+EigenCapital ships three operating mode presets selected by `mode:` at the
 top of `configs/paper_trading.yaml`. Top-level keys (capital, drawdown
 limit, `defaults.*`) serve as the base config; mode-specific overrides
 merge on top.

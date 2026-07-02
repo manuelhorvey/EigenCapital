@@ -1,4 +1,4 @@
-# Quorrin — Feature Engineering
+# EigenCapital — Feature Engineering
 
 ## Alpha Features
 

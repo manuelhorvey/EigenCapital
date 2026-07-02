@@ -1,6 +1,6 @@
 # Security
 
-Quorrin's security model is layered: the dashboard binds to loopback by
+EigenCapital's security model is layered: the dashboard binds to loopback by
 default, MT5 rejects non-loopback hosts, secrets live in environment
 variables (never argv), and the `.env` file is treated as a sensitive
 artifact.
@@ -11,14 +11,14 @@ artifact.
 
 | Setting | Default | Override |
 |---|---|---|
-| Bind address | `127.0.0.1` | `QUORRIN_BIND` env var |
+| Bind address | `127.0.0.1` | `EIGENCAPITAL_BIND` env var |
 | Port | `5000` | positional arg to `serve()` |
-| Auth | **Off** | `QUORRIN_API_TOKEN` env var OR `api_token` in `config` |
+| Auth | **Off** | `EIGENCAPITAL_API_TOKEN` env var OR `api_token` in `config` |
 
 **Behaviour:**
-- With `QUORRIN_API_TOKEN` unset: server is open to anyone who can reach
+- With `EIGENCAPITAL_API_TOKEN` unset: server is open to anyone who can reach
   the bound port (safe by default because the bind is loopback).
-- With `QUORRIN_API_TOKEN` set: all JSON API endpoints and POST endpoints
+- With `EIGENCAPITAL_API_TOKEN` set: all JSON API endpoints and POST endpoints
   require `Authorization: Bearer <token>`. Static files (HTML/CSS/JS)
   remain accessible without auth so the React SPA can poll.
 - The env var takes precedence over the config value.
@@ -29,10 +29,10 @@ artifact.
 
 ```bash
 # Enable auth
-export QUORRIN_API_TOKEN="$(openssl rand -hex 32)"
+export EIGENCAPITAL_API_TOKEN="$(openssl rand -hex 32)"
 
 # Bind to all interfaces (DANGEROUS — only for test envs)
-export QUORRIN_BIND=0.0.0.0  # warns on startup
+export EIGENCAPITAL_BIND=0.0.0.0  # warns on startup
 ```
 
 **CORS:** Restricted to `http://127.0.0.1:3000` (Vite dev server) and
@@ -137,5 +137,5 @@ A failed check fails the PR.
 
 ---
 
-**Reporting security issues:** Email `security@quorrin.local` (placeholder
+**Reporting security issues:** Email `security@eigencapital.local` (placeholder
 — replace before going live).

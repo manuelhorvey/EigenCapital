@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Quorrin are documented in this file. Releases are
+All notable changes to EigenCapital are documented in this file. Releases are
 pinned via git tags; this changelog is regenerable from git history.
 
 The format is broadly [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)-inspired
@@ -55,7 +55,7 @@ See `AGENTS.md` "Codebase Remediation (2026-06-30+)" for full list.
 
 ## v1.5.0 — 2026-06-29 (rename release)
 
-- Project renamed `QuantForge` → `Quorrin`.
+- Project renamed `QuantForge` → `EigenCapital`.
 - Author handle rotated `MktOwl` → `Eleven Forge`.
 - `CLOSE_*` feature naming artifact resolved — features now use real asset
   ticker prefixes (no more `prices.to_frame("close")` collision).
@@ -166,4 +166,4 @@ See `AGENTS.md` "Codebase Remediation (2026-06-30+)" for full list.
 | `docs/DASHBOARD_API.md` | `paper_trading/api/routes.py` | — (planned) |
 | `docs/CHAOS_AND_FAULTS.md` | `tests/chaos/chaos_tools.py` | — (planned) |
 | `docs/MT5_BRIDGE.md` | `paper_trading/ops/mt5_client.py`, `scripts/ops/mt5_bridge_supervisor.py` | — (planned) |
-| `docs/METRICS_AND_ALERTING.md` | `quorrin/observability/metrics.py`, `paper_trading/alerting/` | — (planned) |
+| `docs/METRICS_AND_ALERTING.md` | `eigencapital/observability/metrics.py`, `paper_trading/alerting/` | — (planned) |

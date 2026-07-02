@@ -33,6 +33,6 @@ def setup_logging(level=logging.INFO, log_file=None):
     filter_ = CorrelationIdFilter()
     for h in root.handlers:
         h.addFilter(filter_)
-    root.addFilter(filter_)  # defensive — catches direct emit on the quorrin logger
+    root.addFilter(filter_)  # defensive — catches direct emit on the eigencapital logger
 
     return root

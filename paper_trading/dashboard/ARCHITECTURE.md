@@ -1,4 +1,4 @@
-# Quorrin Dashboard — Architecture v1.0
+# EigenCapital Dashboard — Architecture v1.0
 
 ## System Boundary
 

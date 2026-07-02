@@ -26,7 +26,7 @@ Source: `configs/paper_trading.yaml`, `LIVE_CONTRACT.md`
 | Spread gate tiers | fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps |
 | Circuit breaker | max_consecutive_losses=7 (was 15) |
 | Exit reasons | UPPERCASE canonical (FLIP, SL, TP, BREAKEVEN, EXPIRY, GATE_CLOSED, PORTFOLIO_CIRCUIT_BREAKER, SELL_ONLY_FILTER) |
-| Cycle interval | 60s (configurable via QUORRIN_REFRESH_INTERVAL) |
+| Cycle interval | 60s (configurable via EIGENCAPITAL_REFRESH_INTERVAL) |
 | Schema migration | DB_SCHEMA_VERSION=2.0.0 (adds cycle_id, vol_spike, var_95) |
 
 ---

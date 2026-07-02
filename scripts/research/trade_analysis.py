@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trade win/loss rate and duration analysis for Quorrin."""
+"""Trade win/loss rate and duration analysis for EigenCapital."""
 
 import json
 import logging
@@ -423,7 +423,7 @@ def aggregate(trades: list[dict]) -> dict:
 def print_report(pt: dict, hist: dict, fq: dict | None = None):
     sep = "=" * 74
     print(f"\n{sep}")
-    print("  QUORRIN TRADE ANALYSIS REPORT")
+    print("  EIGENCAPITAL TRADE ANALYSIS REPORT")
     print(sep)
     if pt and pt.get("n_trades", 0) > 0:
         print(f"\n  PHASE 1: PAPER TRADING ({pt['n_trades']} trades)")

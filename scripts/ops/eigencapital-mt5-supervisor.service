@@ -1,16 +1,16 @@
 [Unit]
-Description=Quorrin MT5 Bridge Supervisor
+Description=EigenCapital MT5 Bridge Supervisor
 Documentation=https://github.com/anomalyco/opencode
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-EnvironmentFile=-/etc/quorrin/mt5.env
+EnvironmentFile=-/etc/eigencapital/mt5.env
 Environment="MT5_BRIDGE_PORT=9879"
 Environment="WINE_PREFIX=/root/.wine_mt5"
-WorkingDirectory=/home/quorrin/quorrin
-ExecStart=/home/quorrin/.venv/bin/python -m scripts.ops.mt5_bridge_supervisor \
+WorkingDirectory=/home/eigencapital/eigencapital
+ExecStart=/home/eigencapital/.venv/bin/python -m scripts.ops.mt5_bridge_supervisor \
     --bridge-host 127.0.0.1 \
     --bridge-port 9879 \
     --health-port 9880 \
@@ -20,14 +20,14 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=quorrin-mt5-supervisor
+SyslogIdentifier=eigencapital-mt5-supervisor
 
 # Hardening — match the monitor_all script's expectations
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=/home/quorrin/quorrin/data
+ReadWritePaths=/home/eigencapital/eigencapital/data
 
 [Install]
 WantedBy=multi-user.target

@@ -1,4 +1,4 @@
-"""Backtesting and model assessment utilities for Quorrin."""
+"""Backtesting and model assessment utilities for EigenCapital."""
 
 
 def compute_per_fold_labels(df, *args, **kwargs):

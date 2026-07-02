@@ -1,6 +1,6 @@
 # Production System Spec v1.0
 
-**Quorrin** — Cross-Sectional Factor Ranking & Paper Trading System
+**EigenCapital** — Cross-Sectional Factor Ranking & Paper Trading System
 
 *Final clean architecture document. Defines what the system IS, not what it evolved from.*
 
@@ -8,7 +8,7 @@
 
 ## 1. System Identity
 
-Quorrin is a **factor-based asset allocation system** with a **walk-forward validated screening pipeline**, **per-asset binary XGBoost models**, a **5-layer portfolio maturity framework (P0–P4)**, and a **paper trading execution layer**.
+EigenCapital is a **factor-based asset allocation system** with a **walk-forward validated screening pipeline**, **per-asset binary XGBoost models**, a **5-layer portfolio maturity framework (P0–P4)**, and a **paper trading execution layer**.
 
 It is NOT a directional prediction system. It does NOT attempt to forecast price movements. It ranks assets on weak but positive IC signals and constructs a long/short equity-style basket.
 
@@ -195,7 +195,7 @@ Format: XGBoost `.json` (not pickle)
 
 ### 5.1 Pipeline (`paper_trading/inference/pipeline.py`)
 
-**Frequency**: Every 60 seconds (configurable via `QUORRIN_REFRESH_INTERVAL`; default 60)
+**Frequency**: Every 60 seconds (configurable via `EIGENCAPITAL_REFRESH_INTERVAL`; default 60)
 
 **Parallel execution**: 16 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
 

@@ -117,7 +117,7 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
       : null
 
     const tokens: RailToken[] = []
-    tokens.push({ label: 'Q', value: '·QUORRIN', tone: 'muted' })
+    tokens.push({ label: 'EC', value: '·EIGENCAPITAL', tone: 'muted' })
     if (seqId != null) tokens.push({ label: 'seq', value: `#${seqId}` })
     if (engineState) {
       tokens.push({

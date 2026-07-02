@@ -109,8 +109,8 @@ describe('SystemHealthSummary', () => {
 
     render(<SystemHealthSummary />)
 
-    // PnL = +5.00% (0.05 * 100)
-    expect(screen.getByText('+5.00%')).toBeInTheDocument()
+    // PnL = +0.05% (backend sends percentage values as-is)
+    expect(screen.getByText('+0.05%')).toBeInTheDocument()
     // Efficiency = 60% (0.6 * 100)
     expect(screen.getByText('Eff: 60%')).toBeInTheDocument()
   })
@@ -129,8 +129,8 @@ describe('SystemHealthSummary', () => {
     })
 
     render(<SystemHealthSummary />)
-    // PnL = -3.00% (-0.03 * 100)
-    expect(screen.getByText('-3.00%')).toBeInTheDocument()
+    // PnL = -0.03% (backend sends percentage values as-is)
+    expect(screen.getByText('-0.03%')).toBeInTheDocument()
   })
 
   it('uses CSS variable references for PnL accent color', () => {

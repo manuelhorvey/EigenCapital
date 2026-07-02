@@ -158,34 +158,59 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
 
   if (parts.halted && parts.haltReason) {
     return (
-      <div className="h-8 w-full px-2 sm:px-4 flex items-center gap-3 text-xs font-mono tabular-nums border-b border-default bg-gov-red/15 text-gov-red">
-        <span className="font-bold">HALT</span>
-        <span className="truncate">— {parts.haltReason}</span>
-        <span className="ml-auto opacity-70">engine halted · all positions frozen</span>
-      </div>
+      <>
+        <div className="h-8 w-full px-2 sm:px-4 flex items-center gap-3 text-xs font-mono tabular-nums border-b border-default bg-gov-red/15 text-gov-red">
+          <span className="font-bold">HALT</span>
+          <span className="truncate">— {parts.haltReason}</span>
+          <span className="ml-auto opacity-70">engine halted · all positions frozen</span>
+        </div>
+        <div className="fixed top-0 right-0 z-50 flex flex-col items-center p-1.5 gap-0.5">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-gov-red/15"
+            title="Refresh dashboard data"
+            aria-label="Refresh dashboard data"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+              strokeWidth={2}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="lg:hidden min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-gov-red/15"
+            title="Open navigation"
+            aria-label="Open navigation"
+          >
+            <Menu className="w-3.5 h-3.5" strokeWidth={2} />
+          </button>
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="min-h-8 w-full px-2 sm:px-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-3 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary">
-      {parts.tokens.map((t, i) => (
-        <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1 sm:gap-1.5">
-          <span className="uppercase tracking-wider text-muted/70">{t.label}</span>
-          <span className={`font-semibold ${toneClass(t.tone)}`}>{t.value}</span>
-          {i < parts.tokens.length - 1 && <span className="text-muted/40" aria-hidden>·</span>}
-        </span>
-      ))}
+    <>
+      <div className="min-h-8 w-full px-2 sm:px-4 pr-9 sm:pr-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-3 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary">
+        {parts.tokens.map((t, i) => (
+          <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1 sm:gap-1.5">
+            <span className="uppercase tracking-wider text-muted/70">{t.label}</span>
+            <span className={`font-semibold ${toneClass(t.tone)}`}>{t.value}</span>
+            {i < parts.tokens.length - 1 && <span className="text-muted/40" aria-hidden>·</span>}
+          </span>
+        ))}
+      </div>
 
-      {/* Trailing control cluster — pinned to the right at all
-          viewports. Refresh always; menu only on mobile (lg:hidden)
-          so the desktop gets no spurious open-sidebar button while
-          the persistent Sidebar is already on-screen. */}
-      <div className="ml-auto flex flex-col sm:flex-row items-center gap-0.5 sm:gap-3">
+      {/* Control cluster — fixed top-right corner, outside rail flow */}
+      <div className="fixed top-0 right-0 z-50 flex flex-col items-center p-1.5 gap-0.5">
         <button
           type="button"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+          className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-app/80"
           title="Refresh dashboard data"
           aria-label="Refresh dashboard data"
         >
@@ -197,13 +222,13 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="lg:hidden min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+          className="lg:hidden min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-app/80"
           title="Open navigation"
           aria-label="Open navigation"
         >
           <Menu className="w-3.5 h-3.5" strokeWidth={2} />
         </button>
       </div>
-    </div>
+    </>
   )
 }

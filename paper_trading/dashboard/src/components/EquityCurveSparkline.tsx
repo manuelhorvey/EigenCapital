@@ -101,10 +101,10 @@ export default function EquityCurveSparkline({
   const color = isUp ? positiveColor : negativeColor
 
   return (
-    <div className="flex items-end gap-3">
+    <div className="flex flex-col sm:flex-row items-start sm:items-end gap-1 sm:gap-3">
       <svg
         viewBox={`0 0 ${300} ${height}`}
-        className="w-full shrink-0"
+        className="w-full shrink-0 min-w-0"
         style={{ height, maxWidth: typeof width === 'number' ? width : undefined }}
         preserveAspectRatio="none"
         role="img"
@@ -128,15 +128,15 @@ export default function EquityCurveSparkline({
           />
         )}
       </svg>
-      <div className="flex flex-col shrink-0 text-right min-w-[72px]">
-        <span className="text-xs font-semibold font-mono tabular-nums" style={{ color }}>
+      <div className="flex flex-col shrink-0 text-right min-w-[52px] sm:min-w-[72px]">
+        <span className="text-[10px] sm:text-xs font-semibold font-mono tabular-nums" style={{ color }}>
           {isUp ? '+' : ''}{returnPct}%
         </span>
-        <span className="text-[10px] text-tertiary">{formatAxisLabel(lastVal)}</span>
+        <span className="text-[9px] sm:text-[10px] text-tertiary">{formatAxisLabel(lastVal)}</span>
         {showLabels && (
           <>
-            <span className="text-[10px] text-tertiary/60">{history.length} points</span>
-            <span className="text-[10px] text-tertiary/60">Peak: {formatAxisLabel(Math.max(...history.map(r => r.portfolio_value)))}</span>
+            <span className="text-[9px] sm:text-[10px] text-tertiary/60">{history.length} points</span>
+            <span className="text-[9px] sm:text-[10px] text-tertiary/60">Peak: {formatAxisLabel(Math.max(...history.map(r => r.portfolio_value)))}</span>
           </>
         )}
       </div>

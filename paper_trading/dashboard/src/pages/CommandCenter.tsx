@@ -120,7 +120,7 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
             <button
               key={opt.key}
               onClick={() => setSortKey(opt.key)}
-              className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+              className={`text-[10px] px-1.5 py-1 sm:py-0.5 min-h-[32px] sm:min-h-0 rounded transition-colors ${
                 sortKey === opt.key
                   ? 'bg-panel text-primary font-semibold'
                   : 'text-tertiary hover:text-secondary'
@@ -131,7 +131,7 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
           ))}
           <button
             onClick={toggleSortDirection}
-            className="ml-1 p-0.5 rounded hover:bg-panel transition-colors"
+            className="ml-1 p-1.5 sm:p-0.5 rounded hover:bg-panel transition-colors min-h-[32px] sm:min-h-0"
             title={sortAsc ? 'Ascending' : 'Descending'}
           >
             <ArrowUpDown className="w-3 h-3 text-tertiary" strokeWidth={1.5} />
@@ -142,19 +142,76 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
       {assetList.length === 0 && !isLoading ? (
         <EmptyState message="No asset data available" compact />
       ) : (
-        <div className="divide-y divide-border/50">
-          {/* Column headers */}
-          <div className="flex items-center gap-3 px-2 pb-1.5 text-[10px] text-tertiary font-medium uppercase tracking-wider">
-            <span className="w-28">Asset</span>
-            <span className="w-20 text-right">PnL</span>
-            <span className="w-36">Exit Phase</span>
-            <span className="w-20">Risk</span>
-            <span className="flex-1">Flags</span>
+        <>
+          {/* Mobile card-list */}
+          <div className="sm:hidden space-y-2">
+            {assetList.map(asset => {
+              const pnl = asset.pnl_state.unrealized
+              const pnlCls = pnl >= 0 ? 'text-gov-green' : 'text-gov-red'
+              const riskCls = asset.risk_state.level === 'HIGH' ? 'text-gov-red'
+                : asset.risk_state.level === 'MEDIUM' ? 'text-gov-yellow'
+                : 'text-gov-green'
+              return (
+                <button
+                  key={asset.identity}
+                  type="button"
+                  onClick={() => onSelectAsset?.(asset.identity)}
+                  className="w-full text-left rounded-lg border border-default bg-panel/50 px-3 py-2.5 active:scale-[0.99] transition-transform"
+                >
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">Asset</dt>
+                      <dd className="text-xs font-mono text-primary mt-0.5 truncate flex items-center gap-1.5">
+                        {asset.identity}
+                        {asset.direction && (
+                          <span className={`text-[10px] font-bold ${asset.direction === 'LONG' ? 'text-gov-green' : 'text-gov-red'}`}>
+                            {asset.direction === 'LONG' ? 'L' : 'S'}
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="text-right">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">PnL</dt>
+                      <dd className={`text-xs font-mono tabular-nums mt-0.5 font-semibold ${pnlCls}`}>
+                        {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">Exit</dt>
+                      <dd className="text-xs text-primary mt-0.5 capitalize">{asset.exit_state.phase.replace(/_/g, ' ')}</dd>
+                    </div>
+                    <div className="text-right">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">Risk</dt>
+                      <dd className={`text-xs font-semibold mt-0.5 ${riskCls}`}>{asset.risk_state.level}</dd>
+                    </div>
+                  </dl>
+                  {asset.flags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-default/50">
+                      {asset.flags.slice(0, 2).map(f => (
+                        <span key={f} className="text-[10px] text-tertiary bg-surface/50 px-1.5 py-0.5 rounded">{f.replace(/_/g, ' ')}</span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
-          {assetList.map(asset => (
-            <TradingAssetRow key={asset.identity} asset={asset} onSelect={onSelectAsset} />
-          ))}
-        </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block">
+            <div className="divide-y divide-border/50">
+              <div className="flex items-center gap-3 px-2 pb-1.5 text-[10px] text-tertiary font-medium uppercase tracking-wider">
+                <span className="w-28">Asset</span>
+                <span className="w-20 text-right">PnL</span>
+                <span className="w-36">Exit Phase</span>
+                <span className="w-20">Risk</span>
+                <span className="flex-1">Flags</span>
+              </div>
+              {assetList.map(asset => (
+                <TradingAssetRow key={asset.identity} asset={asset} onSelect={onSelectAsset} />
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </Panel>
   )

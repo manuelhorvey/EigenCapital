@@ -73,14 +73,14 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
+            className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 px-3 border-b border-default shrink-0">
+        <div className="flex items-center gap-0 px-3 border-b border-default shrink-0 overflow-x-auto">
           {TABS.map(t => {
             const Icon = t.icon
             const isActive = tab === t.id

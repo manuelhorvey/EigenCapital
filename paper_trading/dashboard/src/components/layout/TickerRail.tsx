@@ -167,9 +167,9 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
   }
 
   return (
-    <div className="min-h-8 w-full px-2 sm:px-4 py-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary">
+    <div className="min-h-8 w-full px-2 sm:px-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-3 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary">
       {parts.tokens.map((t, i) => (
-        <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1.5">
+        <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1 sm:gap-1.5">
           <span className="uppercase tracking-wider text-muted/70">{t.label}</span>
           <span className={`font-semibold ${toneClass(t.tone)}`}>{t.value}</span>
           {i < parts.tokens.length - 1 && <span className="text-muted/40" aria-hidden>·</span>}

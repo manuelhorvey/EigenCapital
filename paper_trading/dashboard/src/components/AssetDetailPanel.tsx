@@ -61,10 +61,13 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
   const [tab, setTab] = useState<TabId>('overview')
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-[420px] bg-app border-l border-default shadow-2xl flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-default">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-sm text-primary">{name}</span>
+    <>
+      {/* Overlay backdrop for mobile full-screen panel */}
+      <div className="fixed inset-0 z-30 bg-black/40 sm:hidden" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 sm:inset-y-0 sm:right-0 z-40 w-full sm:w-[420px] bg-app sm:border-l border-default shadow-2xl flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-sm text-primary truncate">{name}</span>
           {asset.sell_only && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
               asset.tripwire_active
@@ -78,14 +81,14 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded-md hover:bg-panel transition-colors"
+          className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel transition-colors"
           aria-label="Close detail panel"
         >
           <X className="w-4 h-4 text-secondary" strokeWidth={2} />
         </button>
       </div>
 
-      <div className="flex border-b border-default">
+      <div className="flex border-b border-default overflow-x-auto">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -111,6 +114,7 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
         {tab === 'wal' && <WalTimeline assetName={name} />}
       </div>
     </div>
+    </>
   )
 }
 

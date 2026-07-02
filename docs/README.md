@@ -44,7 +44,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | MT5 client | `paper_trading/ops/mt5_client.py` | Host-side client with frame protocol + RLock |
 | Broker | `paper_trading/execution/` | PaperBroker (simulated) or MT5Broker (live Exness) |
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
-| Portfolio | `paper_trading/portfolio_builder.py` | 21-asset risk-parity portfolio from YAML config |
+| Portfolio | `paper_trading/portfolio_builder.py` | 16-asset risk-parity portfolio from YAML config |
 | Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator (HealthMonitor + VaR/CVaR in Phase 3g) |
 | Portfolio weights | `shared/portfolio_weights.py` | P0 portfolio weight computation |
 | Calibration | `shared/calibration/` | P1 calibration layer |
@@ -55,24 +55,22 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 
 ## Current Portfolio
 
-21 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
+16 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
 
 **Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
-**Added 2026-06-26:** USDJPY, GBPJPY re-promoted after Step 3 trend-exhaustion features improved BuyWR above breakeven WR.
-
-**2026-06-30:** 11 assets bumped to ratio=3.0 via `scripts/optimization/portfolio_sltp_optimizer.py`.
+**Removed 2026-07-01 (portfolio remediation):** ES, NQ, ^DJI removed from trading entirely. With them, USDJPY and GBPJPY were also dropped (they had been re-promoted 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven, then carried forward to the 2026-07-01 portfolio remediation).
 
 **Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability). USDCAD/NZDUSD halved 5%→2.5%.
 
-### Active (21)
-GC, USDCHF, USDCAD, ES, NQ, GBPCAD, NZDCAD, ^DJI, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF, GBPUSD, EURAUD, USDJPY, GBPJPY
+### Active (16)
+GC, USDCHF, USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF, GBPUSD, EURAUD
 
-### SELL_ONLY (5 — BUY→FLAT override)
-CADCHF, ES, NQ, NZDCHF, EURAUD
+### SELL_ONLY (3 — BUY→FLAT override)
+CADCHF, NZDCHF, EURAUD
 
 ### Removed (post walk-forward, insufficient edge)
-AUDCHF, AUDNZD, EURUSD, GBPNZD, CADJPY, CHFJPY, CL, BTCUSD, EURGBP, EURJPY, AUDCAD, NZDJPY, ^VIX, IWM
+AUDCHF, AUDNZD, EURUSD, GBPNZD, CADJPY, CHFJPY, CL, BTCUSD, EURGBP, EURJPY, AUDCAD, NZDJPY, ^VIX, IWM, ES, NQ, ^DJI, USDJPY, GBPJPY
 
 ## Services / Processes
 

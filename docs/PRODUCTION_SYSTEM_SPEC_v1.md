@@ -16,7 +16,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 1. **Screening output**: Composite scores + promotion classifications (GREEN/YELLOW/RED) for 30+ tickers
 2. **Per-asset models**: Binary XGBoost classifiers, one per promoted asset
-3. **Live signals**: BUY/SELL/FLAT decisions every 60s for 16 assets (SELL_ONLY filter overrides BUY→FLAT for 3 assets)
+ 3. **Live signals**: BUY/SELL/FLAT decisions every ~30s for 16 assets (SELL_ONLY filter overrides BUY→FLAT for 3 assets)
 4. **Portfolio allocation**: Config-gated portfolio weight strategy (P0, active: factor_constrained_v2) with governance overlay
 5. **Execution traces**: Full attribution records (prediction, execution, exit, friction) per trade
 
@@ -32,13 +32,14 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 ## 2. Architecture Overview
 
-The engine runs a continuous 5-phase orchestrator cycle (PRE → 1a → 1b → 2 → 3 → 4). Each tick (every 60s) executes the following loop:
+The engine runs a continuous 5-phase orchestrator cycle (PRE → 1a → 1b → 2 → 3 → 4). Each tick (every ~30s) executes the following loop:
 
 ```mermaid
 flowchart TD
     Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState]
-    PRE --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1 --> P2[Phase 2: VALIDITY\nParallel validity state updates]
+    PRE --> P1[Phase 1a: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
+    P1 --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
+    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
     P2 --> P3[Phase 3: PORTFOLIO HEALTH]
     P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
     CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
@@ -87,7 +88,7 @@ yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_ba
 | Folds | 5 (expanding) |
 | Label | triple barrier with per-asset pt_sl |
 | Feature window | 10 years from yfinance |
-| Per-asset pt_sl | BTC-USD: (2.5, 3.0); others: (1.5, 2.0) |
+| Per-asset pt_sl | From `configs/paper_trading.yaml` and `features/registry.py` (all 16 assets synced) |
 
 **Output** (per ticker in `walkforward/`):
 - Fold IC JSON (`{ticker}_fold_ic.json`)
@@ -147,11 +148,15 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 | `spx_mom_5d` | SPX 5-day return |
 | `WTI_mom_21d` | WTI 21-day return |
 
-13 feature columns per asset. Some assets have additional `yield_slope` or `mom126` variants.
+21 feature columns per asset (9 core + 6 trend-exhaustion when OHLCV available + 2 COT features + 4 cross-asset). Plus 7 regime features (inference-only, not passed to XGBoost), 4 archetype features (inference-only), and up to 16 COT z/change features across all covered pairs.
+
+**Trend-exhaustion features** (added 2026-06-26): `macd_hist`, `stoch_k`, `stoch_d`, `bb_pct_b`, `adx_slope`, `rsi_divergence`. All computed via the `ta` library from OHLCV.
+
+Some assets additionally use lead-lag custom features (`dji_lead_1`, `nzdjpy_lead_3`, `gc_lead_1`) — see `features/lead_lag_features.py`.
 
 ### 4.3 Labeling
 
-**Function**: `features/labels.py:triple_barrier_labels()`
+**Function**: `labels/triple_barrier.py:apply_triple_barrier()` (deprecated shim `features/labels.py` re-exports from `labels.compat`)
 
 1. Compute ATR-based barrier distances from `pt_sl = (tp_mult, sl_mult)`
 2. Triple-barrier touch → {-1 (SELL), 0 (HOLD), 1 (BUY)}
@@ -195,7 +200,7 @@ Format: XGBoost `.json` (not pickle)
 
 ### 5.1 Pipeline (`paper_trading/inference/pipeline.py`)
 
-**Frequency**: Every 60 seconds (configurable via `EIGENCAPITAL_REFRESH_INTERVAL`; default 60)
+**Frequency**: Every ~30 seconds (no configurable env var — cycle timing is fixed)
 
 **Parallel execution**: 16 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
 
@@ -204,7 +209,7 @@ Format: XGBoost `.json` (not pickle)
 2. Normalize index to UTC TZ-naive date (fixes FX cross date shift)
 3. `refresh_price()` — real-time price via MT5 bridge or 5d fallback
 4. `ffill()` close column, deduplicate index
-5. `fetch_asset_data()` + `build_alpha_features()` — alpha_df (13 feature cols)
+5. `fetch_asset_data()` + `build_alpha_features()` — alpha_df (21 feature cols: 9 core + 6 trend-exhaustion + 3 COT + 4 cross-asset)
 6. Generate regime features from OHLCV (7 cols via `generate_regime_features`)
 7. Archetype features from OHLCV: ema_spread, ADX(14), RSI(14), BB_zscore(20)
 8. PSI drift check (rolling 21d vs baseline; skipped first cycle)
@@ -243,8 +248,8 @@ Format: XGBoost `.json` (not pickle)
     t. Route execution policy — direct to PaperBroker or MT5Broker
     u. Poll deferred entries — execute pending deferred orders
     v. Update prob history — record probability history for drift monitoring
-18. Governance (15 mechanisms + HealthMonitor + VaR/CVaR): validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, calibration (P1), Kelly sizing (P2), factor model (P3), equity cluster alarm, circuit breaker, portfolio drawdown, entry deviation, profit lock
-19. Position sizing chain (P2 Kelly multiplier → drawdown taper → position cap → risk cap → leverage budget → backstop) + independent MT5 sizing
+18. Governance (14 mechanisms + HealthMonitor + VaR/CVaR + PEK): validity, feature stability, meta-label, macro narrative, liquidity, PSI drift, sell-only filter, calibration (P1), Kelly sizing (P2), factor model (P3), circuit breaker, portfolio drawdown, entry deviation, profit lock, sell tripwire
+19. Position sizing chain (size_scalar → drawdown taper → position cap → risk cap) + PEK budget enforcement in Phase 1b + independent MT5 sizing
 20. MT5 lifecycle: open → bridge `place_order` with SL/TP; close → bridge `close_position`; SL/TP adjust → bridge `modify_position`
 
 ### 5.2 Signal Contract
@@ -266,6 +271,8 @@ Computed from OHLCV feature vector (no model inference):
 | MEAN_REVERSION | Overextended BB + RSI extremes |
 | BREAKOUT_TEST | KER + ADX + vol contraction |
 | VOL_EXPANSION | Vol z-score spike + compression release |
+| TREND_PULLBACK | Pullback within trend structure |
+| LIQUIDITY_SWEEP | Sweep of recent swing high/low |
 | UNKNOWN | Default fallback |
 
 ---
@@ -314,17 +321,20 @@ Computed from OHLCV feature vector (no model inference):
 
 **Size scalar chain**:
 ```
-final_size = base × kelly_multiplier × governance_scalar × meta_confidence_scalar
+effective_cap × size_scalar (position_size × exposure × kelly × governance × meta)
+→ drawdown_taper multiplier
 → cap by max_position_pct_of_equity
-→ cap by risk_per_trade_pct
-→ atomic decrement from leverage budget
+→ cap by risk_per_trade_pct (skip if below min_viable)
 ```
+
+Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** — if total notional exceeds `max_leverage × equity × tolerance`, lowest-ranked positions are closed. The old atomic leverage budget decrement in the sizing chain was replaced by PEK central admission.
 
 **Kelly multiplier (P2, disabled by default)**: `compute_kelly_multiplier(calibrated_prob, tp_mult, sl_mult)`.
 **Drawdown taper**: Linear between start_dd/end_dd.
-**Backstop Phase 3**: Ratchets down on leverage budget breach, decays 0.9/cycle otherwise.
+**Adaptive Exit Engine**: Retracement-based trailing exits (3-stage: breakeven lock → retracement trail → time decay). Enabled globally. See `paper_trading/position/adaptive_exit.py`.
+**Stacking/pyramiding**: Disabled by default (`enabled: false, dry_run: true`) — walk-forward analysis showed no Sharpe benefit.
 
-### 6.3 Governance Layers (15 + HealthMonitor)
+### 6.3 Governance Layers (14 + HealthMonitor + PEK)
 
 | Layer | Frequency | Effect |
 |---|---|---|
@@ -338,19 +348,19 @@ final_size = base × kelly_multiplier × governance_scalar × meta_confidence_sc
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator; config-gated, enabled |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion; config-gated, disabled |
 | Factor model (P3) | Per cycle | Factor exposure monitoring in state.json; 9 groups |
-| Equity cluster alarm | Per cycle | Flags ES/NQ/^DJI all same side (recommendation, 60s throttle) |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% |
 | Entry price deviation gate | Per entry | Skip if price drifted >2% |
 | Sell tripwire | Per exit | SELL-only 20-trade window, 65% WARNING threshold |
 | Profit lock gate | Per flip (embedded in manage_position) | Block flip if PnL >15% |
 
-**HealthMonitor** runs in Phase 3g: portfolio vol, VaR(95), CVaR, halt ratio, equity cluster alarm, circuit breaker checks.
-**RecoveryScheduler** probes halted actors with exponential backoff in Phase 3g.
+**HealthMonitor** runs in Phase 3h: portfolio vol, VaR(95), CVaR, halt ratio, circuit breaker checks.
+**RecoveryScheduler** probes halted actors with exponential backoff in Phase 3h.
+**PEK admission** runs in Phase 1b: portfolio-wide admission control, over-budget position closure.
 **Live VaR/CVaR**: Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail.
 **Schema migration**: SQLite at `DB_SCHEMA_VERSION = "2.0.0"`. Auto-migrates at connect time — adds `cycle_id` to trades, `vol_spike`/`var_95` to equity_history, and indexes.
 
-Plus decision pipeline stages (22 stages: first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) and position sizing guardrails (drawdown taper, per-position cap, risk-per-trade cap, leverage budget, backstop multiplier).
+Plus decision pipeline stages (22 stages: first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, VIX gate, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) and position sizing guardrails (drawdown taper, per-position cap, risk-per-trade cap).
 
 ---
 
@@ -398,7 +408,7 @@ In-memory TTL cache per download type:
 10. **.json serialization**: No pickle in production
 11. **Inference truncation symmetry**: Training uses 5y data; live inference fetches 5y, truncates to `_MAX_INDICATOR_LOOKBACK + 50` when validated
 12. **SQLite state store**: All persistent state in single WAL-mode database; legacy JSON/parquet files are read-only fallbacks
-13. **Parallel asset isolation**: 21 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently
+13. **Parallel asset isolation**: 16 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently
 14. **MT5 order lifecycle symmetry**: Every paper open → MT5 `place_order`; paper close → MT5 `close_position`; SL/TP adjust → MT5 `modify_position`
 15. **HealthMonitor in Phase 3g**: VaR(95), CVaR, equity cluster alarm, circuit breaker check, RecoveryScheduler probe
 16. **Schema migration**: DB_SCHEMA_VERSION = "2.0.0"; auto-migrates at connect time; idempotent
@@ -412,7 +422,7 @@ In-memory TTL cache per download type:
 
 | Path | Role |
 |---|---|
-| `configs/paper_trading.yaml` | Production config (19 assets, params) |
+| `configs/paper_trading.yaml` | Production config (16 assets, params) |
 | `features/alpha_features.py` | Alpha feature factory |
 | `features/data_fetch.py` | YFinance data ingestion |
 | `features/labels.py` | Triple-barrier labeling |
@@ -460,7 +470,7 @@ In-memory TTL cache per download type:
 2. **Yahoo Finance / MT5 dual source** — MT5 primary data source with yfinance fallback
 3. **FX cross price NaN on first cycle** — incomplete daily bar; resolves after next cycle with full bar
 4. **Ensemble disabled** — base_weight=1.0 portfolio-wide; see ADR-026 for decision record and re-enable criteria
-5. **19/36 tickers promoted** — rest are RED; reflects weak IC for most FX pairs
+5. **16/36 tickers promoted** — rest are RED; reflects weak IC for most FX pairs
 6. **No FRED** — macro derived from yfinance tickers only; no FRED API dependency in production
 7. **JPY/CHF cross TZ issue** — fixed via UTC normalization + index deduplication in pipeline
 8. **MT5 bridge 5s timeout** — MT5 `realtime_mid_price()` has a 5s socket timeout; during volatile periods, prices may lag

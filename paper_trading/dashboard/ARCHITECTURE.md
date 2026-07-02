@@ -97,7 +97,7 @@ Beyond `portfolio`, the `EngineSnapshot` includes these top-level fields:
 
 | Route | Component | Data slices |
 |-------|-----------|-------------|
-| `/dashboard` | `DashboardOverview` | portfolio, snapshot, health |
+| `/` | `CommandCenter` | portfolio, snapshot, health |
 | `/trading` | `TradingWorkspace` | snapshot, equity history |
 | `/execution` | `ExecutionWorkspace` | snapshot, trades |
 | `/risk` | `RiskWorkspace` | snapshot |
@@ -110,14 +110,19 @@ ErrorBoundary
     └── SelectedAssetProvider (?asset=X)
         └── SystemHealthModalProvider
             └── AppShell
-                ├── Header (memo)
-                │   ├── EngineDot → useEngineHealth()
-                │   ├── QuickStatsBar (memo) → useSystemSnapshot(portfolio)
-                │   └── SystemHealthModal button
-                ├── SystemDegradedBanner
-                ├── Sidebar (memo) → useEngineHealth only
-                ├── TabBar
-                └── <Routes>
+                ├── TickerRail (engine pulse bar with refresh + menu)
+                ├── SystemDegradedBanner (integrity)
+                ├── EmergencyHaltBanner
+                ├── <div flex>
+                │   ├── Sidebar (sticky, off-canvas on mobile)
+                │   └── <div flex-col>
+                │       ├── TabBar (4 NavLink tabs)
+                │       └── <main> ← Routes
+                └── (modals rendered outside AppShell in AppContent)
+                    ├── AssetDetailPanel (conditional)
+                    ├── AssetDeepDive (conditional)
+                    ├── SystemHealthModal
+                    └── WeeklyReviewModal
 ```
 
 **Modals (always mounted, visibility-controlled):**
@@ -135,13 +140,13 @@ ErrorBoundary
 
 | Component | memo? | Key props | Re-render triggers |
 |-----------|-------|-----------|-------------------|
-| `Header` | Yes | `onMenuClick` (stable) | route change, snapshot tick |
+| `TickerRail` | Yes | `onToggleSidebar` (stable) | every bundle poll |
 | `Sidebar` | Yes | `open`, `onClose` (stable) | sidebar toggle, route change |
-| `DashboardOverview` | Yes | none | snapshot slice change |
+| `CommandCenter` | Yes | none | snapshot slice change |
 | `SignalsTable` | Yes | none | snapshot slice change + search input |
 | `TradeFeed` | Yes | none | trades + engine status slice change |
 
-> **Note:** `QuickStatsGrid` and `RiskSignalPanel` are defined inline in `DashboardOverview.tsx`,
+> **Note:** `QuickStatsGrid` and `RiskSignalPanel` are defined inline in `CommandCenter.tsx`,
 > not separate files. `EngineBadge`, `NavItem`, `QuickStatsBar`, and `PortfolioSnapshotPanel`
 > are documented in prior architecture but no longer exist as standalone components —
 > their functionality has been absorbed into inline definitions or removed.
@@ -219,8 +224,8 @@ Each of the 4 query keys is independent. Bundle updates never invalidate trade/e
 | `components/layout/AppShell.tsx` | Integrity layer + persistent layout |
 | `components/layout/Sidebar.tsx` | Navigation shell (3 regions) |
 | `components/layout/TabBar.tsx` | Route tab bar (NavLink) |
-| `components/Header.tsx` | App header (5 sub-components, memoed) |
+| `components/layout/TickerRail.tsx` | Engine pulse bar (seq, state, tick, PEK, MT5, halt, assets + refresh + menu) |
 | `components/SystemHealthModal.tsx` | Engine monitoring modal |
-| `pages/DashboardOverview.tsx` | Dashboard (6 memo blocks: QuickStatsGrid, PekStatusBar, AssetMiniGrid, LiveSharpePanel, OptimizerRecommendations, RiskSignalPanel) |
+| `pages/CommandCenter.tsx` | Dashboard glance surface (6 sections: SystemHealthSummary, EdgeHealthAlert, LiveSharpeCard, OptimizerRecommendations, HaltConditions, EquityCurveSparkline, AssetMiniGrid, TradingAssetRow table) |
 | `components/OptimizerRecommendations.tsx` | Optimization drift detector panel (queries /optimization.json) |
 | `components/layout/MobileLayout.tsx` | *(deleted — dead code)* |

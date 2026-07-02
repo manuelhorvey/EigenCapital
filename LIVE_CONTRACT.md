@@ -151,8 +151,8 @@ Built in `features/regime_features.py:generate_regime_features()`.
 | `utc_hour` | UTC hour of bar timestamp |
 | `session_vol_profile` | Hourly vol relative to 20-day norm |
 
-28 total features enter the regime model (21 alpha + 7 regime).
-The base model sees the full 21 alpha features.
+21 alpha features (9 core + 6 trend-exhaustion + has_cot + cot_z + cot_change_4w + 4 cross-asset) enter the base model. Up to 16 additional COT features are injected when COT data is available.
+28 total features enter the regime model (21 alpha + 7 regime) — but regime model is not loaded at inference (ensemble disabled).
 
 ### Archetype features (inference-only, from full-history OHLCV)
 
@@ -247,13 +247,13 @@ See Section 3 for the canonical taxonomy.
 ## 7. INFERENCE PIPELINE CONTRACT
 
 **Pipeline:** `paper_trading/inference/pipeline.py:AssetInferencePipeline._generate_and_apply()`
-**Per-cycle (every 60s):**
+**Per-cycle (every ~30s):**
 
 1. `fetch_live(ticker)` — 5y OHLCV, deduplicate index
 2. Normalize index to UTC TZ-naive
 3. `refresh_price()` — patch last close with real-time or 5d fallback
 4. `ffill()` close column
-5. `fetch_asset_data()` + `build_alpha_features()` — 13 alpha feature cols
+5. `fetch_asset_data()` + `build_alpha_features()` — 21 alpha feature cols (9 core + 6 trend-exhaustion + 3 COT + 4 cross-asset)
 6. Compute regime features from OHLCV (7 cols via `generate_regime_features`)
 7. Compute archetype features (ema_spread, adx, rsi, bb_zscore)
 8. PSI drift check (rolling 21d vs baseline; skipped on first cycle)
@@ -490,7 +490,7 @@ max_layers: 3
 
 ## 12. GOVERNANCE CONTRACT
 
-15 layered governance mechanisms plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
+14 layered governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ/^DJI no longer in portfolio) plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
 
 | Layer | Frequency | Effect | Config key |
 |---|---|---|---|---|---|
@@ -505,7 +505,7 @@ max_layers: 3
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
 | Factor model (P3) | Per cycle | Factor exposures via 9 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
-| Equity cluster alarm | Per cycle | Flags ES/NQ/^DJI all on same side (recommendation) | (hardcoded, 60s throttle) |
+| Position concentration | Per cycle | Flags >75% net-short skew | `net_short_concentration_threshold` |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) | (hardcoded in `CircuitBreaker`) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
 | Entry price deviation | Per entry | Skips entry if price moved > `max_entry_slippage_pct` (def 2%) | `max_entry_slippage_pct` |
@@ -701,7 +701,7 @@ Where `p` = calibrated P(TP hit), `q = 1-p`.
 - Kelly multiplier stored in `asset._kelly_multiplier`, consumed by `_composite_size_scalar()` before position cap/risk cap.
 - **Requires calibrated probabilities.** Kelly reads probabilities AFTER calibration (P1) — if calibration is off, Kelly operates on raw model probabilities.
 
-**Status:** Disabled pending 2+ weeks of live data to validate calibration-vs-win-rate alignment across all 19 assets.
+**Status:** Disabled pending 2+ weeks of live data to validate calibration-vs-win-rate alignment across all 16 assets.
 
 ### 15.4 P3 — Factor Model (live: enabled for monitoring)
 
@@ -718,7 +718,7 @@ Where `p` = calibrated P(TP hit), `q = 1-p`.
 | CHF | EURCHF, USDCHF, NZDCHF, CADCHF, GBPCHF |
 | CAD | USDCAD, CADCHF, EURCAD |
 | GBP | GBPUSD, GBPCHF |
-| US_EQUITY | (empty — none active) |
+| US_EQUITY | ES, NQ, ^DJI (none active — removed 2026-07-01) |
 | COMMODITY | GC |
 
 **Functions:**

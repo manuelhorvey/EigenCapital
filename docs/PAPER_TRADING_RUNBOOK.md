@@ -114,15 +114,19 @@ Validity stack: `score = base − penalties + stability_penalty + psi_penalty`
 
 | Key | Default | Description |
 |-----|---------|-------------|
+> **Note:** These keys are nested under `execution.governance.` in the YAML (e.g., `execution.governance.narrative_config.min_confidence`).
+
+| Key | Default | Description |
+|-----|---------|-------------|
 | `narrative_config.enabled` | true | Enable weekly macro narrative |
 | `narrative_config.geopol_sl_widen_pct` | 10 | SL widen % on geopol risk |
 | `narrative_config.risk_off_size_reduce_pct` | 20 | Size reduce % on risk_off |
 | `narrative_config.min_confidence` | 0.6 | Min LLM confidence |
 | `narrative_config.auto_confirm_deadline_hour` | 12 | Auto-confirm deadline (ET) |
 | `liquidity_config.volume_z_thin_threshold` | -1.5 | Volume z → THIN |
-| `liquidity_config.volume_z_stressed_threshold` | -2.5 | Volume z → STRESSED |
+| `liquidity_config.volume_z_stressed_threshold` | -3.0 | Volume z → STRESSED |
 | `liquidity_config.amihud_high_threshold` | 1.5 | Amihud z → THIN |
-| `liquidity_config.amihud_stressed_threshold` | 3.0 | Amihud z → STRESSED |
+| `liquidity_config.amihud_stressed_threshold` | 4.0 | Amihud z → STRESSED |
 | `liquidity_config.thin_sl_widen_pct` | 15 | SL widen in THIN |
 | `liquidity_config.thin_size_reduce_pct` | 15 | Size reduce in THIN |
 | `liquidity_config.stressed_sl_widen_pct` | 30 | SL widen in STRESSED |
@@ -146,7 +150,7 @@ portfolio_drawdown_limit: -0.15   # Force-close ALL positions when total equity 
 Per-asset trade quality config (all assets):
 ```
 config:
-  min_confidence: 50      # Skip entry if model confidence < 50%
+   min_confidence: 55.0    # Skip entry if model confidence < 55.0%
   max_holding_days: 30    # Force-close after N calendar days (reason: time_stop)
 ```
 
@@ -373,7 +377,7 @@ Check the model file modification dates are within the expected retrain window.
 
 If retrain failed:
 ```bash
-cd /home/manuelhorveydaniel/Projects/EigenCapital
+cd /home/manuelhorveydaniel/Projects/Quorrin
 source .venv/bin/activate
 python -c "
 from paper_trading.engine import PaperTradingEngine
@@ -560,24 +564,20 @@ curl http://127.0.0.1:5000/psi.json | python3 -m json.tool
 
 The position sizing guardrails log their decisions. Monitor these in engine output:
 
-**`SIZING <asset>: eff_cap=... base=... exp=... gov=... meta=... dd=... pos_cap=... risk_cap=... lev_budget=... -> final_not=... qty=...`**
+**`SIZING <asset>: eff_cap=... scalar=... dd=... pos_cap=... risk_cap=... -> final_not=... qty=...`**
 
 Decomposed factors (paper sizing attribution):
 - `eff_cap` — effective capital (base × min(growth, 3×))
-- `base` — position_size scalar
-- `exp` — exposure_multiplier
-- `gov` — governance-derived portion (effective_cap × size_scalar / (position_size × exposure))
-- `meta` — meta-confidence multiplier
+- `scalar` — composite size scalar (position_size × exposure × kelly × governance × meta combined)
 - `dd` — drawdown taper multiplier
 - `pos_cap` — max_position_pct_of_equity cap (absolute USD)
 - `risk_cap` — max_risk_per_trade_pct cap (absolute USD)
-- `lev_budget` — remaining leverage budget (absolute USD)
 - `final_not` — final notional after all caps
 - `qty` — final quantity
 
-**`MT5_SIZING <asset>: equity=... dd=... max_pct=... risk_cap=... min_viable=... -> final_not=... qty=...`**
+**`MT5_SIZING <asset>: equity=... dd=... kelly=... max_pct=... risk_cap=... min_viable=... -> final_not=... base_to_acc=... qty=...`**
 
-Same decomposed factors, sized against real broker equity.
+Same decomposed factors for MT5, sized against real broker equity. Includes `kelly` scalar and `base_to_acc` ratio (MT5 notional / account equity).
 
 **Guardrail skip reasons:**
 - `risk cap would shrink position below min viable` — risk cap clipped below min_viable_position_pct
@@ -589,12 +589,12 @@ Same decomposed factors, sized against real broker equity.
 If yfinance returns empty or stale data for any ticker:
 
 **Symptoms:**
-- `ERROR - No live data for BTC-USD` in logs
+- `ERROR - No live data for <ticker>` in logs (e.g., AUDUSD=X)
 - Dashboard shows stale prices (>24h old)
 - Missing signals for that asset
 
 **Response:**
-1. Verify yfinance availability: `python -c "import yfinance as yf; d=yf.download('BTC-USD',period='5d'); print(d.empty)"`
+1. Verify yfinance availability: `python -c "import yfinance as yf; d=yf.download('EURUSD=X',period='5d'); print(d.empty)"`
 2. Check internet connectivity
 3. If yfinance is down, the engine will continue running but cannot generate new signals
 4. If the outage exceeds one trading day, consider whether to halt
@@ -725,15 +725,17 @@ Live paper trading applies **spread + impact** on entries and exits via `Executi
 **Position sizing guardrails** (applied multiplicatively in `entry_service.py:_submit_to_broker()`):
 
 ```
-effective_cap × position_size × exposure × governance × kelly_multiplier × meta × drawdown_taper
+effective_cap × size_scalar  (size_scalar includes position_size, exposure, kelly, governance, meta)
+  → drawdown_taper multiplier
   → cap by max_position_pct_of_equity
   → cap by max_risk_per_trade_pct (skip if below min_viable_position_pct)
-  → atomically decrement from portfolio leverage budget
 ```
+
+Portfolio-level leverage budget is enforced by PEK admission in Phase 1b — if total notional exceeds `max_leverage × equity × tolerance`, lowest-ranked positions are closed. The atomic leverage budget decrement in the sizing chain was replaced by PEK central admission (2026-06-20).
 
 Paper logs decomposed factors via `SIZING` line; MT5 logs via `MT5_SIZING` line (independent sizing from real broker equity).
 
-**MT5 independent sizing**: `_compute_mt5_qty()` in `entry_service.py` fetches the real broker equity, applies drawdown taper + risk cap, validates against broker min_volume, and submits with the MT5-computed lot size (independently of paper's position size).
+**MT5 independent sizing**: `_compute_mt5_qty()` in `entry_service.py` fetches the real broker equity, applies drawdown taper + kelly scalar + risk cap, validates against broker min_volume, and submits with the MT5-computed lot size (independently of paper's position size).
 
 **Volatility dashboard** (`/volatility.json`) compares live vol to rolling baselines.
 
@@ -875,13 +877,13 @@ curl -s http://127.0.0.1:5000/trades.json | python3 -c "import sys,json; d=json.
 | Symptom | Likely Cause | Check |
 |---------|-------------|-------|
 | Dashboard not loading | Port 5000 in use | `fuser 5000/tcp` |
-| Stale prices | yfinance rate limited | `python -c "import yfinance as yf; d=yf.download('BTC-USD',period='1d'); print(d)"` |
+| Stale prices | yfinance rate limited | `python -c "import yfinance as yf; d=yf.download('EURUSD=X',period='1d'); print(d)"` |
 | Model file missing | First run or retrain failed | `ls -la paper_trading/models/*.json` |
 | All assets showing FLAT with low conf | Macro data stale | Check `data/live/cache/` modification dates |
 | Portfolio value not changing | Process not running | `ps aux | grep monitor.py` |
-| BTC drawdown > 15% | Normal for BTC (limit is -15%) | Let it run unless RED state persists > 5 days |
+| Portfolio drawdown > 15% | Normal during volatile periods (limit is -15%) | Let it run unless RED state persists > 5 days |
 | SELL_ONLY asset showing BUY signal | Deferred-entry BUY may bypass sell-only filter | Check `entry_service.py` logs; should be canceled with `sell_only_filter` reason |
-| Equity cluster alarm firing | ES/NQ/^DJI all on same side | Recommendation only — no forced flatten. Monitor for correlated risk. |
+| Position concentration alert | >75% of open positions on same side | Recommendation only — monitor dashboard `position_concentration` field |
 | JPY cross entering RED state | VIX spike or yield spread inversion | Check VIX level and US-JP 10y spread |
 | GC=F showing flat/neutral bias | Real yields not updating on weekends | Normal — gold macro features are daily |
 | Dashboard shows CLSD / "weekend — no refresh" | Normal — market is closed | Engine resumes automatically Sun 17:00 ET |

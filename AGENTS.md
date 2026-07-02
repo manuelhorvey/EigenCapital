@@ -234,9 +234,9 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 
 ## Per-Asset Decision Thresholds
 
-- **NZDCAD, NZDUSD, EURCHF**: Deployed with `min_confidence: 0.40` (down from
-  global default 0.45). Threshold validation (2026-07-01) showed trade counts
-  increase 140-420% with neutral-to-positive PnL impact at 0.40. These were
+- **NZDCAD, NZDUSD, EURCHF**: Deployed with `min_confidence: 40.0` (down from
+  global default 55.0). Threshold validation (2026-07-01) showed trade counts
+  increase 140-420% with neutral-to-positive PnL impact at 40.0. These were
   classified as "monitor live" bets — NZDCAD has only 46 total trades and 6/8
   zero-trade years at 0.45. Monitor first 3 months for unexpected behavior.
 

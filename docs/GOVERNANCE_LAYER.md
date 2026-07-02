@@ -1,8 +1,8 @@
 # EigenCapital — Risk & Governance Layer
 
-15 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
+14 independent governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ/^DJI no longer in portfolio), plus decision pipeline suppression stages, position sizing guardrails, PEK admission, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
 
-## Governance Layers (15 + HealthMonitor)
+## Governance Layers (14 + HealthMonitor + PEK)
 
 | Layer | Frequency | Scope | Effect |
 |---|---|---|---|
@@ -17,7 +17,7 @@
 | Calibration (P1) | Per inference | Per asset | Remap raw p_long via BinnedCalibrator, ECE 0.36→0.02 |
 | Kelly sizing (P2) | Per decision | Per asset | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3) | Per cycle | Portfolio | Factor exposures via 9 groups in state.json (monitoring only) |
-| Equity cluster alarm | Per cycle | Global | Flags ES/NQ/^DJI all same side (recommendation, 60s throttle) |
+| Position concentration | Per cycle | Portfolio | Flags >75% net-short skew (recommendation) |
 | Circuit breaker | Per cycle | Portfolio | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Global | Circuit breaker at −15% |
 | Entry price deviation | Per entry | Per asset | Skip entry if price drifted >2% |
@@ -27,7 +27,7 @@
 | PEK admission controller | Per cycle | Portfolio | Collect intents → fast filter (hard gates) → rank (composite score) → allocate budget → close over-budget |
 | PerformanceState velocity | Per cycle | Portfolio | Outcome tracker + velocity processor (trend, shock, health) → anticipatory scalar ∈ [0.5, 1.5] |
 
-**Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail, computed in Phase 3g.
+**Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail, computed in Phase 3h.
 
 **RecoveryScheduler:** Exponential-backoff probe of halted actors via `is_due()`/`record_result()` in Phase 3g.
 
@@ -56,7 +56,6 @@
 | Build entry artifacts | Construct TradeDecision for execution |
 | Route execution policy | Direct to PaperBroker or MT5Broker |
 | Poll deferred entries | Execute pending deferred orders |
-| PEK admission review | Portfolio-level budget enforcement; closes lowest-ranked positions if total notional exceeds max_leverage × equity × tolerance |
 | Update prob history | Record probability history for drift monitoring |
 
 ## Position Sizing Guardrails

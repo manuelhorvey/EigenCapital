@@ -28,7 +28,7 @@ The repository intentionally treats trading infrastructure as a distributed stat
 
 # High-Level Architecture
 
-The engine runs a continuous 5-phase orchestrator cycle. Each tick (every 60s) executes the following loop:
+The engine runs a continuous 5-phase orchestrator cycle. Each tick (every ~30s) executes the following loop:
 
 ```mermaid
 flowchart TD
@@ -216,7 +216,7 @@ Per-asset max_depth from `configs/paper_trading.yaml`. Regime model: 200 trees, 
 
 # Live Inference Pipeline
 
-The live engine executes every 60 seconds by default (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var).
+The live engine executes every ~30 seconds by default (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var).
 
 ## Runtime Pipeline
 
@@ -224,7 +224,7 @@ The live engine executes every 60 seconds by default (configurable via `EIGENCAP
  1. Fetch 5y OHLCV (MT5 or yfinance)
  2. Normalize timestamps (UTC TZ-naive)
  3. Refresh latest price (MT5 or 5d fallback)
- 4. Build alpha features (9 per-asset + 4 cross-asset)
+  4. Build alpha features (9 core + 6 trend-exhaustion + COT features + 4 cross-asset = 19-35 total)
  5. Generate regime features from OHLCV (7 cols)
  6. Compute archetype features (ema_spread, adx, rsi, bb_zscore)
  7. PSI drift check (rolling 21d vs baseline, skipped first cycle)
@@ -259,7 +259,7 @@ The live engine executes every 60 seconds by default (configurable via `EIGENCAP
       t. Route execution policy — direct to PaperBroker or MT5Broker
       u. Poll deferred entries — execute pending deferred orders
       v. Update prob history — record probability history for drift monitoring
-  17. Route through governance (15 layers + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
+  17. Route through governance (14 layers + PEK admission + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
   19. Position sizing chain (drawdown taper → position cap → risk cap → min viable gate)
     → PEK budget enforcement (closes lowest-ranked positions if portfolio notional exceeds max)
@@ -271,9 +271,9 @@ The live engine executes every 60 seconds by default (configurable via `EIGENCAP
 
 # Governance Architecture
 
-EigenCapital uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, and HealthMonitor circuit breaker.
+EigenCapital uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, PEK admission controller, and HealthMonitor circuit breaker.
 
-## Governance Layers (15 + HealthMonitor)
+## Governance Layers (14 + HealthMonitor + PEK)
 
 | Layer                  | Scope      | Effect                    |
 | ---------------------- | ---------- | ------------------------- |
@@ -287,15 +287,15 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Calibration (P1)       | Per asset  | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
 | Kelly sizing (P2)      | Per asset  | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3)      | Portfolio  | Factor exposure monitoring via 9 groups (monitoring only) |
-| Equity cluster alarm   | Global     | Flags ES/NQ/^DJI all same side (recommendation) |
 | Circuit breaker        | Portfolio  | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown     | Global     | Circuit breaker at −15%   |
+| Position concentration | Portfolio  | Flags >75% net-short skew (recommendation) |
 | Entry price deviation  | Per entry  | Skip if price drifted >2% |
 | Profit lock            | Per flip   | Block flip if PnL >15%    |
 
-**Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95) = 5th percentile, CVaR = mean of tail. Computed in Phase 3g.
+**Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95) = 5th percentile, CVaR = mean of tail. Computed in Phase 3h.
 
-**RecoveryScheduler:** Exponential-backoff probe of halted actors in Phase 3g (`is_due()`/`record_result()`).
+**RecoveryScheduler:** Exponential-backoff probe of halted actors in Phase 3h (`is_due()`/`record_result()`).
 
 **Schema migration:** SQLite at `DB_SCHEMA_VERSION = "2.0.0"`. Auto-migrates at connect time — adds `cycle_id`, `vol_spike`, `var_95`, indexes.
 
@@ -372,21 +372,19 @@ Applied multiplicatively in `EntryService._submit_to_broker()`:
 | Drawdown taper | Linear 1.0→min between start_dd/end_dd | `size_taper_start_dd`, `size_taper_end_dd`, `size_taper_min` |
 | Per-position cap | Clip to `max_position_pct_of_equity` of equity | `max_position_pct_of_equity` |
 | Risk-per-trade cap | Clip or skip if SL risk exceeds `max_risk_per_trade_pct` | `max_risk_per_trade_pct`, `min_viable_position_pct` |
-| Leverage budget | Atomic lock from `max_leverage × equity` pool | `portfolio_max_leverage` |
-| Backstop multiplier | Ratchet-down on breach, 0.9 decay/cycle | (fixed) |
+| PEK budget enforcement | Closes lowest-ranked positions if total notional exceeds `max_leverage × equity × tolerance` | (Phase 1b orchestrator-level) |
 
-MT5 sizing runs the same chain independently using real broker equity (via `_compute_mt5_qty()`), excluding the leverage budget.
+MT5 sizing runs the same chain independently using real broker equity (via `_compute_mt5_qty()`), excluding PEK budget enforcement.
 
 ```mermaid
 flowchart LR
     A["effective_cap =\ncapital_base × min(mtm/init, 3.0)"] --> B["notional =\neffective_cap × size_scalar"]
     B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
     C --> D[Risk-per-Trade Cap\nskip if below min_viable]
-    D --> E[Leverage Budget\natomic decrement from\nmax_leverage × equity pool]
-    E --> F[Backstop Multiplier\nratchet-down on breach\n0.9 decay/cycle]
-    F --> G{Final Notional}
-    G --> Paper[Paper Broker\n$100K simulated equity]
-    G --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
+    D --> E{Notional\nwithin PEK budget?}
+    E -- Yes --> F[Paper Broker\n$100K simulated equity]
+    E -- No --> G[PEK Admission Review\nclose lowest-ranked\npositions]
+    F --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
 ```
 
 ---
@@ -436,7 +434,7 @@ Pure function weight computation. 8 registered strategies:
 
 **Files:** `shared/calibration/` — `BinnedCalibrator`, `BetaCalibrator`, `CalibrationRegistry`, `ECETracker`
 
-Raw XGBoost probabilities are binned-calibrated per asset. Applied in `pipeline.py` after `_run_inference()`, before the decision pipeline. ECE reduced from 0.36→0.02 (94.3% avg, 19/19 assets >80%).
+Raw XGBoost probabilities are binned-calibrated per asset. Applied in `pipeline.py` after `_run_inference()`, before the decision pipeline. ECE reduced from 0.36→0.02 (94.3% avg, 16/16 assets >80%).
 
 **Config:** `calibration.enabled: true`, `calibration.method: binned`, `calibration.n_bins: 10`
 
@@ -504,7 +502,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | `AssetInferencePipeline` | Live inference + calibration (P1) |
 | `AssetTrainingPipeline`  | Training pipeline           |
 | `PortfolioBuilder`       | Asset registry construction |
-| `DecisionPipeline`       | 21-stage decision pipeline with Kelly sizing |
+| `DecisionPipeline`       | 22-stage decision pipeline with Kelly sizing (config-gated)
 | `EngineRebalanceService` | Live portfolio rebalance via `compute_weights()` (P0) |
 | `StateStore`             | SQLite persistence          |
 | `EntryOptimizer`         | Entry conditioning          |

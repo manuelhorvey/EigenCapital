@@ -146,7 +146,7 @@ defaults:
     dry_run: true
     max_layers: 3
     layer_multipliers: [0.8, 0.5, 0.3]
-    min_confidence: 0.60
+    min_confidence: 60.0
     stack_target_vol: 0.15
     stack_vol_clamp: [0.3, 1.2]
     min_stack_size_factor: 0.5
@@ -401,7 +401,7 @@ assets:
   NZDCAD:
     ticker: NZDCAD=X
     allocation: 0.05
-    min_confidence: 0.40
+    min_confidence: 40.0
     sl_mult: 1.83
     tp_mult: 5.48 # ratio 2.0→3.0 2026-06-30: BUY WR=48.1%, SELL WR=77.1%. Conservative cap at 3.0. GM=3.16 preserved.
     regime_geometry:
@@ -436,7 +436,7 @@ assets:
   NZDUSD:
     ticker: NZDUSD=X
     allocation: 0.025
-    min_confidence: 0.40
+    min_confidence: 40.0
     sl_mult: 1.29
     tp_mult: 3.87 # ratio 1.25→3.0 2026-06-30: BUY WR=58.3%, SELL WR=54.8%. Conservative cap at 3.0. GM=2.24 preserved.
     spread_tier: fx_major
@@ -615,7 +615,7 @@ assets:
   EURCHF:
     ticker: EURCHF=X
     allocation: 0.05
-    min_confidence: 0.40
+    min_confidence: 40.0
     sl_mult: 1.0
     tp_mult: 3.0
     max_depth: 4

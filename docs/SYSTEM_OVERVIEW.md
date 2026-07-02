@@ -243,7 +243,7 @@ The live engine executes every ~30 seconds by default (configurable via `EIGENCA
       d. Update MAE/MFE — update max adverse/favorable excursion
       e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
       f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
-      g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old)
+       g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio (gate applies only to `VIX_GATE_ASSETS = {"CL"}`).
       h. Sell-only filter — override BUY→FLAT for 3 inverted-BUY assets
       i. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
       j. Session gate — block entry outside market session hours per asset-class tier
@@ -309,7 +309,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Update MAE/MFE | Update max adverse/favorable excursion |
 | Resolve signal | Map proba to BUY/SELL/FLAT |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
-| VIX gate | Suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old) |
+| VIX gate | Suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio. |
 | Sell-only filter | Override BUY→FLAT for 3 inverted-BUY assets |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles) |
 | Session gate | Block entry outside market session hours per asset-class tier |
@@ -504,7 +504,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | `PortfolioBuilder`       | Asset registry construction |
 | `DecisionPipeline`       | 22-stage decision pipeline with Kelly sizing (config-gated)
 | `EngineRebalanceService` | Live portfolio rebalance via `compute_weights()` (P0) |
-| `StateStore`             | SQLite persistence          |
+| `StateStore`             | SQLite persistence facade (`paper_trading/state_store.py`) — delegates to `_DatabaseStore`, `_SnapshotManager`, `_AnalyticsStore`, `_DataCache` in `paper_trading/state/` |
 | `EntryOptimizer`         | Entry conditioning          |
 | `ExecutionPolicyLayer`   | Unified execution routing   |
 | `PositionManager`        | Position lifecycle          |

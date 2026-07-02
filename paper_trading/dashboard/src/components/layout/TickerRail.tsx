@@ -180,7 +180,7 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
           viewports. Refresh always; menu only on mobile (lg:hidden)
           so the desktop gets no spurious open-sidebar button while
           the persistent Sidebar is already on-screen. */}
-      <div className="ml-auto flex items-center gap-2 sm:gap-3">
+      <div className="ml-auto flex flex-col sm:flex-row items-center gap-0.5 sm:gap-3">
         <button
           type="button"
           onClick={handleRefresh}

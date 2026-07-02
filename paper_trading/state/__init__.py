@@ -60,17 +60,29 @@ def sanitize(obj):
         return {k: sanitize(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
         return [sanitize(v) for v in obj]
-    elif isinstance(obj, (float, np.floating)) and (math.isinf(obj) or math.isnan(obj)):
-        return None
+    elif isinstance(obj, (float, np.floating)):
+        try:
+            if math.isinf(obj) or math.isnan(obj):
+                return None
+        except TypeError:
+            pass
+        return obj
     return obj
 
 
 def atomic_write_json(path: str, data: dict) -> None:
     """Atomic JSON write using temp file + os.replace (atomic on POSIX)."""
     tmp_path = path + ".tmp"
-    with open(tmp_path, "w") as f:
-        json.dump(data, f, indent=2, default=str)
-    os.replace(tmp_path, path)
+    try:
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 from paper_trading.state.database_store import _DatabaseStore  # noqa: E402

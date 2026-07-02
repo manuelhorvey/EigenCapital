@@ -23,10 +23,10 @@ class _SnapshotManager:
         _SnapshotManager._sequence_counter += 1
         snapshot.sequence_id = _SnapshotManager._sequence_counter
         snapshot.contract_version = CONTRACT_VERSION
-        self._cache = (snapshot, time.monotonic())
         os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
         data = sanitize(asdict(snapshot))
         atomic_write_json(self._state_path, data)
+        self._cache = (snapshot, time.monotonic())
 
     def load(self) -> EngineSnapshot | None:
         if self._cache is not None:

@@ -34,13 +34,13 @@ type SortDir = 'asc' | 'desc' | null
 
 function loadSort(key: string): { col: string; dir: SortDir } | null {
   try {
-    const v = sessionStorage.getItem(`qf_sort_${key}`)
+    const v = sessionStorage.getItem(`ec_sort_${key}`)
     return v ? JSON.parse(v) : null
   } catch { return null }
 }
 
 function saveSort(key: string, col: string, dir: SortDir) {
-  try { sessionStorage.setItem(`qf_sort_${key}`, JSON.stringify({ col, dir })) } catch {}
+  try { sessionStorage.setItem(`ec_sort_${key}`, JSON.stringify({ col, dir })) } catch {}
 }
 
 export default function DataTable<T>({

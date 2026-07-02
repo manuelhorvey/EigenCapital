@@ -1,7 +1,7 @@
 import type { EngineSnapshot } from '../types/portfolio'
 import type { SystemBundle } from '../types/bundle'
 
-const MUTATION_SENTINEL = Symbol('qf-snapshot-guard')
+const MUTATION_SENTINEL = Symbol('ec-snapshot-guard')
 
 function guardSnapshot(snapshot: EngineSnapshot | undefined): EngineSnapshot | undefined {
   if (!snapshot) return snapshot

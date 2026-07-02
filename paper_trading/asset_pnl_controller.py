@@ -185,13 +185,17 @@ class AssetPnlController:
             return
         entry = asset.pos_mgr.position.entry_price
         cp = asset.current_price
-        if entry is None or cp is None:
+        if entry is None or cp is None or not entry or not cp:
+            return
+        if pd.isna(entry) or pd.isna(cp):
             return
         raw_return = (cp - entry) / entry
         side = asset.pos_mgr.position.side
         from eigencapital.domain.entities.position import PositionSide
 
         excursion = raw_return if side == PositionSide.LONG else -raw_return
+        if excursion is None:
+            return
         asset._running_mae = max(getattr(asset, "_running_mae", 0.0), -excursion)
         asset._running_mfe = max(getattr(asset, "_running_mfe", 0.0), excursion)
 

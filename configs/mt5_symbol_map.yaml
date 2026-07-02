@@ -6,52 +6,52 @@
 
 # ── Forex ─────────────────────────────────────────────────────────────────────
 # AUDCHF=X: AUDCHF    # REMOVED from trading (directional filter diagnostic — BUY was anti-skill)
-AUDJPY=X: AUDJPY   # Research/data collection only — not in trading portfolio
+AUDJPY=X: AUDJPYm   # Research/data collection only — not in trading portfolio
 # AUDNZD=X: AUDNZD    # REMOVED from trading (directional filter diagnostic — SELL was anti-skill)
-AUDUSD=X: AUDUSD
-CADCHF=X: CADCHF
+AUDUSD=X: AUDUSDm
+CADCHF=X: CADCHFm
 # CADJPY=X: CADJPY      # REMOVED from dashboard (PF < 1.0)
 # CHFJPY=X: CHFJPY      # REMOVED from dashboard (zero edge)
-EURAUD=X: EURAUD
-EURCAD=X: EURCAD
-EURCHF=X: EURCHF
-EURNZD=X: EURNZD
+EURAUD=X: EURAUDm
+EURCAD=X: EURCADm
+EURCHF=X: EURCHFm
+EURNZD=X: EURNZDm
 # EURUSD=X: EURUSD    # REMOVED from trading 2026-06-20 (directional instability)
-GBPAUD=X: GBPAUD
-GBPCAD=X: GBPCAD
-GBPCHF=X: GBPCHF
+GBPAUD=X: GBPAUDm
+GBPCAD=X: GBPCADm
+GBPCHF=X: GBPCHFm
 # GBPNZD=X: GBPNZD   # REMOVED from trading (tp/sl ratio 0.33, breakeven WR 75% vs actual 72%)
-NZDCAD=X: NZDCAD
-NZDCHF=X: NZDCHF
-NZDUSD=X: NZDUSD
-USDCAD=X: USDCAD
-USDCHF=X: USDCHF
-USDJPY=X: USDJPY # PROMOTED 2026-06-26 — Group A sweep: total_R=+281.19, sharpe_adj=4.68, SELL WR=63.8%. SELL_ONLY.
+NZDCAD=X: NZDCADm
+NZDCHF=X: NZDCHFm
+NZDUSD=X: NZDUSDm
+USDCAD=X: USDCADm
+USDCHF=X: USDCHFm
+USDJPY=X: USDJPYm # PROMOTED 2026-06-26 — Group A sweep: total_R=+281.19, sharpe_adj=4.68, SELL WR=63.8%. SELL_ONLY.
 # AUDCAD=X:  AUDCAD     # FAIL — negative expectancy
 # EURCHF=X:  EURCHF     # WEAK — low consistency
 # EURGBP=X:  EURGBP     # FAIL — negative expectancy
 # EURJPY=X:  EURJPY     # WEAK — low sharpe
 # EURNZD=X:  EURNZD     # FAIL — negative expectancy
 # GBPAUD=X:  GBPAUD     # WEAK — low consistency
-GBPJPY=X: GBPJPY # PROMOTED 2026-06-26 — Group A sweep: total_R=+359.94, sharpe_adj=5.88, SELL WR=66.5%. SELL_ONLY.
-GBPUSD=X: GBPUSD
+GBPJPY=X: GBPJPYm # PROMOTED 2026-06-26 — Group A sweep: total_R=+359.94, sharpe_adj=5.88, SELL WR=66.5%. SELL_ONLY.
+GBPUSD=X: GBPUSDm
 # NZDCHF=X:  NZDCHF     # WEAK — low consistency
 # NZDJPY=X:  NZDJPY     # WEAK — near-zero trades
 
 # ── Metals ────────────────────────────────────────────────────────────────────
-GC=F: XAUUSD
+GC=F: XAUUSDm
 # SI=F: XAGUSD
 
 # ── Indices ───────────────────────────────────────────────────────────────────
 # Exact Exness names may vary; adjust as needed.
 # Common variants: US500, SP500m, US500Cash, SPX, ES
-ES=F: US500
-NQ=F: USTEC
-YM=F: US30           # Same symbol as ^DJI (Dow futures); only ^DJI is in portfolio
-^DJI: US30
+ES=F: US500m
+NQ=F: USTECm
+YM=F: US30m           # Same symbol as ^DJI (Dow futures); only ^DJI is in portfolio
+^DJI: US30m
 
 # ── Energy ────────────────────────────────────────────────────────────────────
-CL=F: USOIL          # Kept for WTI cross-asset feature (WTI_mom_21d); not traded directly
+CL=F: USOILm          # Kept for WTI cross-asset feature (WTI_mom_21d); not traded directly
 # NG=F:      NATGAS
 
 # ── Crypto ────────────────────────────────────────────────────────────────────

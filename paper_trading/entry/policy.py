@@ -89,7 +89,7 @@ class ExecutionPolicyLayer:
         try:
             return policy_cls.route(action, decision, archetype, structure, tp_geo, deferred)
         except Exception as e:
-            logger.error(f"Policy routing failed for {archetype}: {e}")
+            logger.error("Policy routing failed for %s: %s", archetype, e)
             # Emergency Fallback: strictly follow action with no frills
             return PolicyDecision(
                 action=action,

@@ -213,18 +213,18 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
                 _get_store().save_cache(ticker, df)
                 _check_data_quality(df, ticker, source="live")
                 return df
-            logger.warning(f"{ticker} empty response attempt {attempt}/3")
+            logger.warning("%s empty response attempt %d/3", ticker, attempt)
         except Exception as e:
-            logger.warning(f"{ticker} download error attempt {attempt}/3: {e}")
+            logger.warning("%s download error attempt %d/3: %s", ticker, attempt, e)
         if attempt < len(delays):
             time.sleep(delay)
-    logger.error(f"{ticker} failed after 3 attempts — using cached data")
+    logger.error("%s failed after 3 attempts — using cached data", ticker)
     df = _get_store().load_cache(ticker)
     if df is not None:
-        logger.info(f"{ticker} using cached data from {_get_store().cache_path(ticker)}")
+        logger.info("%s using cached data from %s", ticker, _get_store().cache_path(ticker))
         _check_data_quality(df, ticker, source="cache")
         return df
-    logger.error(f"{ticker} no cached data available")
+    logger.error("%s no cached data available", ticker)
     return pd.DataFrame()
 
 

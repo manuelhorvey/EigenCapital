@@ -11,23 +11,20 @@ Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/shock_simulation.py --json shock_results.json
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/shock_simulation.py --scenario mfe_compression,correlated_crash
 """
+
 from __future__ import annotations
 
-import copy
 import json
 import logging
 import random
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-import numpy as np
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("shock_simulation")
 
 DATA_PATH = Path("data/processed/trade_lifecycle_results.json")
@@ -78,10 +75,7 @@ def per_asset_r(
     trades_map: dict[str, list[dict[str, Any]]],
     retrace_pct: float = BASELINE_RETRACE,
 ) -> dict[str, float]:
-    return {
-        asset: simulate_trailing(ts, retrace_pct=retrace_pct)[1]
-        for asset, ts in trades_map.items()
-    }
+    return {asset: simulate_trailing(ts, retrace_pct=retrace_pct)[1] for asset, ts in trades_map.items()}
 
 
 # ── Shock types ─────────────────────────────────────────────────────────────
@@ -226,9 +220,7 @@ def shock_execution_lag(trades_map: dict[str, list[dict]], params: dict) -> dict
     return result
 
 
-def shock_trend_fragmentation(
-    trades_map: dict[str, list[dict]], params: dict
-) -> dict[str, list[dict]]:
+def shock_trend_fragmentation(trades_map: dict[str, list[dict]], params: dict) -> dict[str, list[dict]]:
     """
     Trends become shorter and less persistent — fewer trades reach adequate MFE for
     trailing activation. Simulated by scaling down MFE across the board, biased
@@ -428,8 +420,13 @@ def run_sweep_scenario(
             )
         else:
             result = run_single_shock(
-                trades_map, shock_fn, params,
-                unshocked_trailing_r, unshocked_per_asset, fixed_r, name,
+                trades_map,
+                shock_fn,
+                params,
+                unshocked_trailing_r,
+                unshocked_per_asset,
+                fixed_r,
+                name,
             )
         results.append(result)
     return results
@@ -516,8 +513,10 @@ def print_summary_table(all_results: list[tuple[str, ShockResult]]):
         intensity = result.description[:24]
         severity_s = result.severity
         collapse_s = str(len(result.collapsed_assets)) if result.collapsed_assets else ""
-        print(f"{i+1:>3} {scenario_name:<28} {intensity:<25} {result.trailing_r:>+8.1f} "
-              f"{result.relative_retention:>6.1%} {severity_s:<14} {collapse_s:>10}")
+        print(
+            f"{i + 1:>3} {scenario_name:<28} {intensity:<25} {result.trailing_r:>+8.1f} "
+            f"{result.relative_retention:>6.1%} {severity_s:<14} {collapse_s:>10}"
+        )
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
@@ -525,13 +524,15 @@ def print_summary_table(all_results: list[tuple[str, ShockResult]]):
 
 def main():
     if not DATA_PATH.exists():
-        logger.error(f"Data file not found: {DATA_PATH}")
+        logger.error("Data file not found: %s", DATA_PATH)
         sys.exit(1)
 
     with open(DATA_PATH) as f:
         data = json.load(f)
     trades_map = data.get("_trades", {})
-    logger.info(f"Loaded trades for {len(trades_map)} assets, {sum(len(ts) for ts in trades_map.values())} total trades")
+    logger.info(
+        "Loaded trades for %d assets, %d total trades", len(trades_map), sum(len(ts) for ts in trades_map.values())
+    )
 
     # Baseline
     fixed_r = portfolio_fixed_r(trades_map)
@@ -541,7 +542,7 @@ def main():
     print("=" * 72)
     print("  SHOCK SIMULATION ENGINE — Failure Discovery System")
     print("=" * 72)
-    print(f"\n  Baseline (no shock):")
+    print("\n  Baseline (no shock):")
     print(f"    Fixed R:        {fixed_r:>+10.1f}")
     print(f"    Trailing R:     {unshocked_trailing_r:>+10.1f}")
     print(f"    Edge (trail - fixed): {unshocked_trailing_r - fixed_r:>+10.1f}")
@@ -553,9 +554,13 @@ def main():
     # ── 1. MFE Compression ──
     print_shock_header("MFE Compression — volatility decay")
     results = run_sweep_scenario(
-        trades_map, "mfe_compression", shock_mfe_compression,
+        trades_map,
+        "mfe_compression",
+        shock_mfe_compression,
         SHOCK_DEFAULTS["mfe_compression"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
     )
     for i, r in enumerate(results):
         print_shock_detail(r, i + 1)
@@ -563,9 +568,13 @@ def main():
 
     # Find break point for MFE compression
     break_pt, sweep_data = find_break_point(
-        trades_map, shock_mfe_compression, "compression_factor",
+        trades_map,
+        shock_mfe_compression,
+        "compression_factor",
         [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1],
-        {"label": "sweep"}, unshocked_trailing_r, fixed_r,
+        {"label": "sweep"},
+        unshocked_trailing_r,
+        fixed_r,
     )
     print(f"\n  MFE Compression break point: edge collapses at compression_factor = {break_pt}")
     print(f"  Sweep: {[(round(s[0], 2), round(s[1], 1), round(s[2], 3)) for s in sweep_data]}")
@@ -573,9 +582,13 @@ def main():
     # ── 2. Retrace Acceleration ──
     print_shock_header("Retrace Acceleration — spiky price action")
     results = run_sweep_scenario(
-        trades_map, "retrace_acceleration", shock_retrace_acceleration,
+        trades_map,
+        "retrace_acceleration",
+        shock_retrace_acceleration,
         SHOCK_DEFAULTS["retrace_acceleration"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
         is_retrace_shock=True,
     )
     for i, r in enumerate(results):
@@ -584,13 +597,17 @@ def main():
 
     # Find break point for retrace acceleration
     bp_retrace, sweep_retrace = find_break_point(
-        trades_map, shock_retrace_acceleration, "retrace_bump",
+        trades_map,
+        shock_retrace_acceleration,
+        "retrace_bump",
         [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50],
-        {"label": "sweep", "seed": 42}, unshocked_trailing_r, fixed_r,
+        {"label": "sweep", "seed": 42},
+        unshocked_trailing_r,
+        fixed_r,
         is_retrace_shock=True,
     )
     print(f"\n  Retrace Acceleration break point: edge collapses at retrace_bump = {bp_retrace}")
-    print(f"  (effective retrace / trailing R / retention):")
+    print("  (effective retrace / trailing R / retention):")
     for intensity, tr, retention in sweep_retrace:
         eff_r = min(BASELINE_RETRACE + intensity, 0.95)
         print(f"    retrace={intensity:>5.2f} (eff={eff_r:>4.2f}) → trailR={tr:>+8.1f}  retention={retention:>6.1%}")
@@ -598,9 +615,13 @@ def main():
     # ── 3. Gap Shock ──
     print_shock_header("Gap Shock — black swan fill gaps")
     results = run_sweep_scenario(
-        trades_map, "gap", shock_gap,
+        trades_map,
+        "gap",
+        shock_gap,
         SHOCK_DEFAULTS["gap"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
     )
     for i, r in enumerate(results):
         print_shock_detail(r, i + 1)
@@ -609,9 +630,13 @@ def main():
     # ── 4. Multi-Peak Decoy ──
     print_shock_header("Multi-Peak Decoy — fakeout rally traps")
     results = run_sweep_scenario(
-        trades_map, "multi_peak_decoy", shock_multi_peak_decoy,
+        trades_map,
+        "multi_peak_decoy",
+        shock_multi_peak_decoy,
         SHOCK_DEFAULTS["multi_peak_decoy"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
     )
     for i, r in enumerate(results):
         print_shock_detail(r, i + 1)
@@ -620,9 +645,13 @@ def main():
     # ── 5. Execution Lag ──
     print_shock_header("Execution Lag — delayed trailing fills")
     results = run_sweep_scenario(
-        trades_map, "execution_lag", shock_execution_lag,
+        trades_map,
+        "execution_lag",
+        shock_execution_lag,
         SHOCK_DEFAULTS["execution_lag"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
     )
     for i, r in enumerate(results):
         print_shock_detail(r, i + 1)
@@ -631,9 +660,13 @@ def main():
     # ── 6. Correlated Crash ──
     print_shock_header("Correlated Crash — cascade / contagion")
     results = run_sweep_scenario(
-        trades_map, "correlated_crash", shock_correlated_crash,
+        trades_map,
+        "correlated_crash",
+        shock_correlated_crash,
         SHOCK_DEFAULTS["correlated_crash"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
     )
     for i, r in enumerate(results):
         print_shock_detail(r, i + 1)
@@ -642,9 +675,13 @@ def main():
     # ── 7. Trend Fragmentation ──
     print_shock_header("Trend Fragmentation — shorter trend regimes")
     results = run_sweep_scenario(
-        trades_map, "trend_fragmentation", shock_trend_fragmentation,
+        trades_map,
+        "trend_fragmentation",
+        shock_trend_fragmentation,
         SHOCK_DEFAULTS["trend_fragmentation"],
-        unshocked_trailing_r, unshocked_per_asset, fixed_r,
+        unshocked_trailing_r,
+        unshocked_per_asset,
+        fixed_r,
     )
     for i, r in enumerate(results):
         print_shock_detail(r, i + 1)
@@ -669,23 +706,23 @@ def main():
     print(f"  PASS:         {len(passed)} scenarios — robust to structural change")
 
     if catastrophic:
-        print(f"\n  ⚠ CATASTROPHIC SCENARIOS:")
+        print("\n  ⚠ CATASTROPHIC SCENARIOS:")
         for sn, r in catastrophic:
             print(f"     {sn}: {r.description} — trailR={r.trailing_r:>+8.1f}, retention={r.relative_retention:>6.1%}")
-        print(f"\n  System is NOT shock-stationary.")
-        print(f"  Recommend (a) regime-conditioning exits, or (b) reducing position sizing under stress.")
+        print("\n  System is NOT shock-stationary.")
+        print("  Recommend (a) regime-conditioning exits, or (b) reducing position sizing under stress.")
     elif severe:
-        print(f"\n  ⚠ SEVERE SCENARIOS (high fragility):")
+        print("\n  ⚠ SEVERE SCENARIOS (high fragility):")
         for sn, r in severe:
             print(f"     {sn}: {r.description} — trailR={r.trailing_r:>+8.1f}, retention={r.relative_retention:>6.1%}")
-        print(f"\n  System is partially fragile. Deployable with monitoring — need exit regime conditioning.")
+        print("\n  System is partially fragile. Deployable with monitoring — need exit regime conditioning.")
     if moderate:
-        print(f"\n  ⚠ MODERATE SCENARIOS (notable degradation):")
+        print("\n  ⚠ MODERATE SCENARIOS (notable degradation):")
         for sn, r in moderate:
             print(f"     {sn}: {r.description} — trailR={r.trailing_r:>+8.1f}, retention={r.relative_retention:>6.1%}")
-        print(f"  Highest-risk condition: synchronized multi-asset drawdown.")
+        print("  Highest-risk condition: synchronized multi-asset drawdown.")
     if not severe and not catastrophic:
-        print(f"\n  System deploys with monitoring. Edge survives all tested structural shocks at >50% retention.")
+        print("\n  System deploys with monitoring. Edge survives all tested structural shocks at >50% retention.")
 
     print()
 

@@ -29,7 +29,7 @@ class LabelGenerator:
             try:
                 results[ticker] = self.generate_asset_labels(contract, force=force)
             except Exception as e:
-                logger.error(f"Failed to generate labels for {ticker}: {e}")
+                logger.error("Failed to generate labels for %s: %s", ticker, e)
         return results
 
     def generate_asset_labels(self, contract, force: bool = False):
@@ -41,7 +41,7 @@ class LabelGenerator:
         out_path = os.path.join(self.processed_dir, filename)
 
         if os.path.exists(out_path) and not force:
-            logger.info(f"Skipping {contract.name}: version {v_hash} already exists.")
+            logger.info("Skipping %s: version %s already exists.", contract.name, v_hash)
             return out_path
 
         # Load raw daily data
@@ -65,7 +65,7 @@ class LabelGenerator:
         vol_prim = VolatilityPrimitive.detect(df, period=atr_period) if vol_method == "atr" else None
 
         # New Labels (from current contract params)
-        logger.info(f"Computing NEW labels for {contract.name} (v:{v_hash})...")
+        logger.info("Computing NEW labels for %s (v:%s)...", contract.name, v_hash)
         new_labeled = apply_triple_barrier(
             df,
             pt_sl=contract.label_params.get("pt_sl", [2, 2]),
@@ -74,7 +74,7 @@ class LabelGenerator:
         )
 
         # Shadow Labels (Legacy/Reference — always EWM vol for baseline comparison)
-        logger.info(f"Computing SHADOW labels for {contract.name}...")
+        logger.info("Computing SHADOW labels for %s...", contract.name)
         shadow_labeled = apply_triple_barrier(df, pt_sl=[2, 2], vertical_barrier=20)
 
         final_df = df.copy()
@@ -88,7 +88,7 @@ class LabelGenerator:
         final_df.attrs["vol_primitive_version"] = VOLATILITY_PRIMITIVE_VERSION
 
         final_df.to_parquet(out_path)
-        logger.info(f"Saved {contract.name} labels to {out_path}")
+        logger.info("Saved %s labels to %s", contract.name, out_path)
 
         return out_path
 

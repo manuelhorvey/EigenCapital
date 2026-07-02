@@ -60,7 +60,7 @@ class ArchetypeClassifier:
 
             return SetupArchetype.UNKNOWN
         except (ValueError, TypeError, KeyError) as e:
-            logger.error(f"Archetype classification failed: {e}")
+            logger.error("Archetype classification failed: %s", e)
             return SetupArchetype.UNKNOWN
 
     def tag_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 
 import numpy as np
 import pandas as pd
@@ -20,7 +19,7 @@ import shap
 import xgboost as xgb
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from features.data_fetch import fetch_asset_data, fetch_cot_features
 from labels.compat import triple_barrier_labels
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -36,6 +35,7 @@ ALL_FLAGGED = AUX | CHF_CLUSTER
 
 # Load per-asset config
 from paper_trading.config_manager import get_config as _get_cfg
+
 _cfg = _get_cfg()
 ASSET_TICKER: dict[str, str] = {}
 ASSET_PT_SL: dict[str, tuple[float, float]] = {}
@@ -73,15 +73,12 @@ def fetch_features(
     Matches walk_forward_backtest.py logic exactly.
     Returns (X, y_binary, alpha_cols) where y_binary={0,1}.
     """
-    prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(
-        asset_name, ticker
-    )
+    prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset_name, ticker)
     if prices.empty:
-        raise ValueError(f"No data for {asset_name}")
+        msg = f"No data for {asset_name}"
+        raise ValueError(msg)
 
-    labels = triple_barrier_labels(
-        prices, pt_sl=pt_sl, vertical_barrier=20, vol_lookback=21
-    )
+    labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=20, vol_lookback=21)
     cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
         prices,
@@ -110,9 +107,7 @@ def fetch_features(
     return X_bin, y_bin, alpha_cols
 
 
-def run_shap_audit(
-    asset_name: str, ticker: str, pt_sl: tuple[float, float], max_depth: int
-) -> dict:
+def run_shap_audit(asset_name: str, ticker: str, pt_sl: tuple[float, float], max_depth: int) -> dict:
     """Run full SHAP audit for one asset.
 
     Returns dict with:
@@ -121,12 +116,12 @@ def run_shap_audit(
       - SHAP values for confident-BUY rows (p_long > 0.5)
       - Separated into wrong (label < 0) vs correct (label > 0)
     """
-    logger.info(f"\n{'='*60}")
-    logger.info(f"Asset: {asset_name} ({ticker}), pt_sl={pt_sl}, max_depth={max_depth}")
+    logger.info("\n%s", "=" * 60)
+    logger.info("Asset: %s (%s), pt_sl=%s, max_depth=%d", asset_name, ticker, pt_sl, max_depth)
 
     # Load features
     X, y, alpha_cols = fetch_features(asset_name, ticker, pt_sl)
-    logger.info(f"  Features: {X.shape}")
+    logger.info("  Features: %s", X.shape)
 
     # Load model
     mpath = _model_path(asset_name)
@@ -134,25 +129,20 @@ def run_shap_audit(
         raise FileNotFoundError(f"Model not found: {mpath}")
     model = xgb.XGBClassifier()
     model.load_model(mpath)
-    logger.info(f"  Model loaded: {mpath}")
+    logger.info("  Model loaded: %s", mpath)
 
     # Predict probabilities
     p_long_arr = model.predict_proba(X)[:, 1]
     p_long = pd.Series(p_long_arr, index=X.index)
 
     # Confident BUY: p_long > 0.5
-    buy_mask = p_long > 0.5
-    n_buy = buy_mask.sum()
-    n_buy_confident_high = (p_long > 0.75).sum()
 
     # Get original triples to determine correct/wrong
     # y=1 in binary = correct direction (label was BUY or SELL and model matched)
     # But we need the ORIGINAL triple-barrier label to know if BUY was right or wrong
     # Re-compute labels on the same data
     prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset_name, ticker)
-    labels = triple_barrier_labels(
-        prices, pt_sl=pt_sl, vertical_barrier=20, vol_lookback=21
-    )
+    labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=20, vol_lookback=21)
     cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
         prices,
@@ -176,12 +166,11 @@ def run_shap_audit(
     wrong_buy_idx = buy_idx[alpha_df.loc[buy_idx, "label"] < 0]
 
     logger.info(
-        f"  Confident BUY: {len(buy_idx)} rows "
-        f"(correct: {len(correct_buy_idx)}, wrong: {len(wrong_buy_idx)}"
+        "  Confident BUY: %d rows (correct: %d, wrong: %d", len(buy_idx), len(correct_buy_idx), len(wrong_buy_idx)
     )
 
     if len(buy_idx) < 10:
-        logger.info(f"  SKIP: too few confident-BUY rows")
+        logger.info("  SKIP: too few confident-BUY rows")
         return {
             "asset": asset_name,
             "n_buy": len(buy_idx),
@@ -191,7 +180,7 @@ def run_shap_audit(
         }
 
     # Compute SHAP on confident BUY rows
-    logger.info(f"  Computing SHAP ({len(buy_idx)} rows, {len(alpha_cols)} features)...")
+    logger.info("  Computing SHAP (%d rows, %d features)...", len(buy_idx), len(alpha_cols))
     X_buy = X_aligned.loc[buy_idx]
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_buy)
@@ -210,19 +199,25 @@ def run_shap_audit(
     correct_shap = shap_df.loc[correct_mask].mean() if correct_mask.any() else pd.Series(0, index=alpha_cols)
     diff = wrong_shap - correct_shap
 
-    logger.info(f"  Top features where wrong-BUY > correct-BUY SHAP:")
+    logger.info("  Top features where wrong-BUY > correct-BUY SHAP:")
     for feat in diff.nlargest(5).index:
-        logger.info(f"    {feat}: wrong={wrong_shap[feat]:+.4f}, correct={correct_shap[feat]:+.4f}, diff={diff[feat]:+.4f}")
-    logger.info(f"  Top features where correct-BUY > wrong-BUY SHAP:")
+        logger.info(
+            f"    {feat}: wrong={wrong_shap[feat]:+.4f}, correct={correct_shap[feat]:+.4f}, diff={diff[feat]:+.4f}"
+        )
+    logger.info("  Top features where correct-BUY > wrong-BUY SHAP:")
     for feat in diff.nsmallest(5).index:
-        logger.info(f"    {feat}: wrong={wrong_shap[feat]:+.4f}, correct={correct_shap[feat]:+.4f}, diff={diff[feat]:+.4f}")
+        logger.info(
+            f"    {feat}: wrong={wrong_shap[feat]:+.4f}, correct={correct_shap[feat]:+.4f}, diff={diff[feat]:+.4f}"
+        )
 
     # Check which features exceed threshold
     strong_feats = diff[diff.abs() >= SHAP_DIFF_THRESHOLD]
     if len(strong_feats) > 0:
-        logger.info(f"  Features with |diff| >= {SHAP_DIFF_THRESHOLD}:")
+        logger.info("  Features with |diff| >= %s:", SHAP_DIFF_THRESHOLD)
         for feat in strong_feats.index:
-            logger.info(f"    {feat}: {diff[feat]:+.4f} (wrong={wrong_shap[feat]:+.4f}, correct={correct_shap[feat]:+.4f})")
+            logger.info(
+                "    %s: %+.4f (wrong=%+.4f, correct=%+.4f)", feat, diff[feat], wrong_shap[feat], correct_shap[feat]
+            )
 
     return {
         "asset": asset_name,
@@ -251,7 +246,7 @@ def main():
             )
             results[asset_name] = result
         except Exception as e:
-            logger.error(f"  FAILED: {e}")
+            logger.error("  FAILED: %s", e)
             results[asset_name] = {"asset": asset_name, "error": str(e)}
 
     # --- Report per sub-cluster ---
@@ -286,13 +281,13 @@ def main():
 
         # Pooled mean diff across cluster
         pooled = pd.concat(cluster_diffs, axis=1).mean(axis=1)
-        print(f"\n  Pooled mean SHAP diff (wrong - correct) across cluster:")
+        print("\n  Pooled mean SHAP diff (wrong - correct) across cluster:")
         pooled_sorted = pooled.sort_values(key=lambda s: s.abs(), ascending=False)
         for feat in pooled_sorted.index[:8]:
             print(f"    {feat}: {pooled_sorted[feat]:+.4f}")
 
         # Check sign consistency: for each feature, what fraction of assets agree?
-        print(f"\n  Sign consistency (fraction of assets with same sign as pooled):")
+        print("\n  Sign consistency (fraction of assets with same sign as pooled):")
         for feat in pooled_sorted.index[:5]:
             signs = []
             for d in cluster_diffs:
@@ -332,13 +327,13 @@ def main():
     pooled_total = combined.mean(axis=1)
     max_total = pooled_total.abs().max()
     top_total = pooled_total.abs().idxmax()
-    print(f"Pooled across all 9 assets:")
+    print("Pooled across all 9 assets:")
     print(f"  Max |diff|: {max_total:.4f} (feature: {top_total})")
     if max_total >= SHAP_DIFF_THRESHOLD:
         print(f"  PASS — {top_total} separates wrong from correct confident-BUY calls.")
     else:
         print(f"  FAIL — no feature reaches {SHAP_DIFF_THRESHOLD} threshold.")
-        print(f"  Conclusion: no feature pair clearly separates wrong from right confident-BUY calls.")
+        print("  Conclusion: no feature pair clearly separates wrong from right confident-BUY calls.")
 
 
 if __name__ == "__main__":

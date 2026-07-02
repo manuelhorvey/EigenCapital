@@ -47,20 +47,20 @@ class DeferredEntry:
         self.bars_elapsed += 1
         if self.status == DeferredEntryStatus.PENDING and self.bars_elapsed > self.max_bars:
             self.status = DeferredEntryStatus.EXPIRED
-            logger.info(f"Entry {self.entry_id} EXPIRED after {self.max_bars} bars.")
+            logger.info("Entry %s EXPIRED after %d bars.", self.entry_id, self.max_bars)
 
     def trigger(self, fill_price: float) -> None:
         """Transitions to TRIGGERED state."""
         if self.status == DeferredEntryStatus.PENDING:
             self.status = DeferredEntryStatus.TRIGGERED
             self.trigger_price = fill_price
-            logger.info(f"Entry {self.entry_id} TRIGGERED at {fill_price}")
+            logger.info("Entry %s TRIGGERED at %s", self.entry_id, fill_price)
 
     def cancel(self, reason: str = "Manual") -> None:
         """Transitions to CANCELLED state."""
         if self.status in [DeferredEntryStatus.PENDING, DeferredEntryStatus.TRIGGERED]:
             self.status = DeferredEntryStatus.CANCELLED
-            logger.info(f"Entry {self.entry_id} CANCELLED. Reason: {reason}")
+            logger.info("Entry %s CANCELLED. Reason: %s", self.entry_id, reason)
 
     def close(self) -> None:
         """Transitions to CLOSED state."""

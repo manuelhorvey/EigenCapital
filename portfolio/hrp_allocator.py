@@ -22,8 +22,6 @@ def _get_quasi_diag(link: np.ndarray, dist: np.ndarray | None = None) -> list[in
     """
     if dist is not None:
         if dist.ndim == 2 and dist.shape[0] == dist.shape[1]:
-            from scipy.spatial.distance import squareform
-
             dist = squareform(dist, force="tovector", checks=False)
         link = optimal_leaf_ordering(link, dist)
     return _get_quasi_diag_single(link)

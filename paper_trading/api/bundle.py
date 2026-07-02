@@ -51,6 +51,19 @@ UTC = timezone.utc
 
 logger = logging.getLogger("eigencapital.bundle")
 
+
+def clear_live_cache() -> None:
+    """Clear the in-memory live data cache (health, MT5)._LIVE_CACHE
+
+    Called after reset_dashboard.py deletes persistence files so the
+    next bundle request returns fresh placeholders instead of stale
+    live data.
+    """
+    with _LIVE_CACHE_LOCK:
+        _LIVE_CACHE.clear()
+        _LIVE_REFRESH_IN_FLIGHT.clear()
+
+
 BUNDLE_VERSION = "1.0.0"
 BUNDLE_CACHE_TTL = 5.0
 LIVE_FETCH_TIMEOUT = 15.0  # compute_health_all: 19 assets × file I/O; 5s was too tight

@@ -39,6 +39,7 @@ from paper_trading.api.shadow_routes import (
     handle_shadow_trades_route,
 )
 from paper_trading.api.state_routes import (
+    handle_clear_cache,
     handle_confidence,
     handle_engine_health,
     handle_equity_history,
@@ -98,4 +99,5 @@ GET_ROUTES_PREFIX: list[tuple[str, object, bool]] = [
 POST_ROUTES: dict[str, object] = {
     "/narrative/confirm": handle_narrative_confirm,
     "/weekly-review/acknowledge": handle_weekly_review_acknowledge,
+    "/api/clear-cache": handle_clear_cache,
 }

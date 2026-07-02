@@ -270,3 +270,19 @@ def handle_optimization(path: str, query: dict) -> str:
 
 def handle_metrics(path: str, query: dict) -> str:
     return global_registry().render()
+
+
+def handle_clear_cache(path: str, query: dict) -> str:
+    """Clear all in-memory caches after a reset.
+
+    POST handler: clears the API response cache (common.clear_cache)
+    and the live data cache (bundle.clear_live_cache) so the next
+    request returns fresh data instead of stale cached responses.
+    """
+    from paper_trading.api.common import clear_cache
+    from paper_trading.api.bundle import clear_live_cache
+
+    clear_cache()
+    clear_live_cache()
+
+    return json_dumps({"status": "ok", "message": "Server caches cleared"}, indent=2)

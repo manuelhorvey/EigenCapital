@@ -135,6 +135,16 @@ _CACHE_TTL: dict[str, float] = {
 }
 
 
+def clear_cache() -> None:
+    """Clear the in-memory API response cache.
+
+    Called after reset_dashboard.py deletes persistence files so the
+    next request returns fresh (zero-state) data instead of stale
+    cached responses.
+    """
+    _CACHE.clear()
+
+
 def cache_get(key: str) -> str | None:
     entry = _CACHE.get(key)
     if entry is None:

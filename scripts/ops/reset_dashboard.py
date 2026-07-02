@@ -2,8 +2,28 @@
 import os
 import shutil
 import sys
+import urllib.request
+import urllib.error
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _flush_server_cache() -> None:
+    """POST to /api/clear-cache to flush the engine server's in-memory caches."""
+    for port in (5000, 5001):
+        try:
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/clear-cache",
+                method="POST",
+                data=b"",
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                if resp.status == 200:
+                    print(f"  Flushed server cache on port {port}")
+                else:
+                    print(f"  Server on port {port} returned status {resp.status}")
+        except (urllib.error.URLError, urllib.error.HTTPError, ConnectionRefusedError, OSError):
+            print(f"  No server on port {port} (expected if engine is stopped)")
 LIVE_DIR = os.path.join(BASE_DIR, "data", "live")
 SHADOW_FEEDBACK_DIR = os.path.join(BASE_DIR, "data", "shadow_feedback")
 SHADOW_MEMORY_DIR = os.path.join(BASE_DIR, "data", "shadow_memory")
@@ -60,6 +80,10 @@ def main():
     clean_directory_contents(SHADOW_FEEDBACK_DIR)
     clean_directory_contents(SHADOW_MEMORY_DIR)
     clean_directory_contents(SHADOW_LEARNING_DIR)
+
+    # 3. Flush server-side in-memory caches so stale data isn't served
+    print("Flushing server caches...")
+    _flush_server_cache()
 
     print("\n✅ Reset completed successfully! Your paper trading engine and dashboard are now at a clean slate.")
 

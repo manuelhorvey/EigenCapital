@@ -1,5 +1,30 @@
 # EigenCapital — Agent Operating Guide
 
+## Production Trade Lifecycle Audit (2026-07-02)
+
+**Save**: `data/processed/full_audit_results.json` (15 phases, 11 recommendations)
+
+```
+[ALPHA] (score=0.510) Deploy exit strategy: trail_33pct
+        Sharpe 0.06→0.50, total_R=+3587.1, max_dd=-23.5R (6.9× baseline)
+[INFO ] (score=0.510) Filters saved 66.4R (net beneficial)
+[ALPHA] (score=0.440) Optimal holding period: 200 candles (Sharpe 0.09 vs 0.06)
+[ALPHA] (score=0.412) Deploy per-asset exit strategies (15 assets)
+[SIGMA] (score=0.403) Reduce max concurrent positions (16)
+[SIGMA] (score=0.393) High risk of ruin (p95 DD=39.1%)
+[SIGMA] (score=0.378) 6 assets with poor session performance
+[INFO ] (score=0.375) 390 correlated entry clusters found
+[ALPHA] (score=0.362) 11 assets need individual holding periods
+[SIGMA] (score=0.351) Only 36% of entries are trend-aligned
+[SIGMA] (score=0.333) Regime transitions degrade performance (56% assets worse)
+```
+
+**Run**: `PYTHONPATH=$PYTHONPATH:. python scripts/analysis/production_audit.py --output data/processed/full_audit_results.json`
+
+**Architecture**: `scripts/analysis/audit_phases/` — 16 phase modules + orchestrator. Phase 0 (`phase_data.py`) augments trades with temporal metadata and defines shared constants. Phases 1–17 are independent forensics. Phase 18 aggregates and scores.
+
+**Fixed 2026-07-02**: Phase 6 now reconstructs price paths from OHLCV map (was silently returning original R for all holding periods); Phase 14 detects bull↔bear transitions instead of relying on `c == MA50` (which never fires in trending markets).
+
 ## Project Identity
 
 Cross-sectional multi-asset paper trading engine. 16-asset portfolio (FX, commodities) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 15-layer governance, position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).

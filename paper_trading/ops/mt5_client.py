@@ -204,24 +204,54 @@ class _FrameProtocol:
     def _reconnect(self) -> None:
         """Replace all pool connections with fresh ones.
 
-        Creates new connections first, then disconnects old ones only after
-        new ones are verified, so there's no window where both are broken.
+        Creates new connections in parallel, then swaps out the pool.
+        Partially successful reconnects (some failed, some succeeded) are
+        accepted — surviving fresh connections are kept.  If ALL fresh
+        connections fail, the old pool is left intact so the next cycle
+        can retry rather than leaving the pool empty.
         """
         logger.warning("MT5 bridge reconnecting all pool connections")
         fresh = [_FrameConnection(self._host, self._port) for _ in range(self._POOL_SIZE)]
 
-        def _connect_one(_conn: _FrameConnection) -> None:
-            _conn.connect()
+        def _connect_one(_conn: _FrameConnection) -> bool:
+            try:
+                _conn.connect()
+                return True
+            except MT5ConnectionError:
+                return False
 
-        try:
-            list(self._executor.map(_connect_one, fresh))
-        except Exception:
+        results = list(self._executor.map(_connect_one, fresh))
+        succeeded = sum(1 for r in results if r)
+        failed = self._POOL_SIZE - succeeded
+
+        if succeeded == 0:
+            # All failed — keep old pool, log error, raise
             for c in fresh:
                 c.disconnect()
-            raise
+            logger.error(
+                "MT5 bridge reconnect: all %d connections failed — keeping existing pool",
+                self._POOL_SIZE,
+            )
+            raise MT5ConnectionError(f"All {self._POOL_SIZE} reconnect attempts failed")
 
-        self.disconnect()
+        if failed > 0:
+            logger.warning(
+                "MT5 bridge reconnect: %d/%d connections succeeded (%d failed) — using partial pool",
+                succeeded,
+                self._POOL_SIZE,
+                failed,
+            )
+            # Clean up failed fresh connections
+            for i, r in enumerate(results):
+                if not r:
+                    fresh[i].disconnect()
+            # Keep only successful ones
+            fresh = [c for c, r in zip(fresh, results) if r]
+
+        old = self._conns
         self._conns = fresh
+        for c in old:
+            c.disconnect()
 
     def batch_request(self, method: str, param_list: list[dict]) -> list[dict]:
         """Fire N requests concurrently across the pool, return results."""

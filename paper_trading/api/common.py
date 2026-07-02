@@ -71,15 +71,25 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 
 class _LazyStore:
-    def __getattr__(self, name):
-        cls = type(self)
-        if cls._instance is None:
-            from paper_trading.state_store import StateStore
+    """Thread-safe lazy singleton for StateStore access.
 
-            cls._instance = StateStore(_PROJECT_ROOT)
-        return getattr(cls._instance, name)
+    The ``__getattr__`` trap lets callers access StateStore methods directly
+    on the module-level ``_STORE`` instance without manual init.  The double-
+    checked locking pattern prevents race conditions under ``ThreadingMixIn``
+    where concurrent requests could init two separate ``StateStore`` instances.
+    """
 
     _instance = None
+    _lock = threading.Lock()
+
+    def __getattr__(self, name):
+        if self._instance is None:
+            with self._lock:
+                if self._instance is None:
+                    from paper_trading.state_store import StateStore
+
+                    self._instance = StateStore(_PROJECT_ROOT)
+        return getattr(self._instance, name)
 
 
 _STORE = _LazyStore()

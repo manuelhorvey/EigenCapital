@@ -834,11 +834,13 @@ class EngineOrchestrator:
                         )
                 persist_count += 1
         results["persist_count"] = persist_count
-        results["performance"] = {
-            "n_trades": len(self._perf_builder._outcome_tracker._outcomes)
+        n_trades = (
+            len(getattr(self._perf_builder, "_outcome_tracker", None)._outcomes or [])
             if hasattr(self._perf_builder, "_outcome_tracker")
-            else 0,
-        }
+            and hasattr(self._perf_builder._outcome_tracker, "_outcomes")
+            else 0
+        )
+        results["performance"] = {"n_trades": n_trades}
         self._write_state_committed()
 
     # ── WAL event emission ──────────────────────────────────────────────────────

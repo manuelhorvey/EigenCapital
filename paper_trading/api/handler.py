@@ -39,12 +39,11 @@ class Handler:
             ts = payload.get("timestamp", "")
             if seq is not None and ts:
                 wrapped = {"data": payload, "state_timestamp": ts, "sequence_id": seq}
-                data = json_dumps(wrapped)
+                body = json_dumps(wrapped).encode("utf-8")
             else:
-                data = json_dumps(_with_state_meta(payload))
+                body = json_dumps(_with_state_meta(payload)).encode("utf-8")
         else:
-            data = json_dumps(_with_state_meta(payload))
-        body = data.encode("utf-8")
+            body = json_dumps(_with_state_meta(payload)).encode("utf-8")
         accept_gzip = self.headers.get("Accept-Encoding", "")
         if "gzip" in accept_gzip and len(body) > 512:
             body = gzip.compress(body)

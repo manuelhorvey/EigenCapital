@@ -186,8 +186,8 @@ class EngineConfig:
         for k, v in defaults_halt.items():
             halt.setdefault(k, v)
 
-        execution = data.get("execution", {})
-        governance = execution.get("governance", {})
+        execution = data.get("execution", {}) or {}
+        governance = execution.get("governance", {}) or {}
 
         # Resolve mode overrides after base load
         mode_name = data.get("mode", "production")
@@ -211,11 +211,11 @@ class EngineConfig:
             halt=halt,
             assets=data.get("assets", {}),
             vol_baselines=data.get("vol_baselines", {}),
-            regime_geometry=governance.get("regime_geometry", data.get("regime_geometry", {})),
+            regime_geometry=governance.get("regime_geometry") or data.get("regime_geometry", {}),
             execution_defaults=data.get("execution_defaults", {}),
             portfolio_drawdown_limit=data.get("portfolio_drawdown_limit", -0.15),
-            narrative_config=governance.get("narrative_config", data.get("narrative_config", {})),
-            liquidity_config=governance.get("liquidity_config", data.get("liquidity_config", {})),
+            narrative_config=governance.get("narrative_config") or data.get("narrative_config", {}),
+            liquidity_config=governance.get("liquidity_config") or data.get("liquidity_config", {}),
             defaults=data.get("defaults", {}),
             sell_only_assets=frozenset(
                 data.get("defaults", {}).get("sell_only_assets", []) or ["CADCHF", "NZDCHF", "EURAUD"]

@@ -1,12 +1,14 @@
-import logging, os, sys, pickle
-import pandas as pd
+import logging
+import os
+import sys
+
 import numpy as np
+import pandas as pd
 import xgboost as xgb
-from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
-from features.registry import FEATURE_REGISTRY, ASSET_LABEL_PARAMS
 from features.builder import build_features, compute_macro_derived
+from features.registry import FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
 from scripts.training.train_all_assets import fetch_history
 
@@ -246,7 +248,7 @@ def main():
     med_pf = summary_df['median_profit_factor'].median()
     mean_sharpe = summary_df['avg_sharpe'].mean()
     mean_prof = summary_df['pct_profitable'].mean()
-    print(f'\nPortfolio averages:')
+    print('\nPortfolio averages:')
     print(f'  Avg expectancy:          {mean_exp:.6f}')
     print(f'  Avg win rate:            {mean_wr:.4f}')
     print(f'  Median profit factor:    {med_pf:.2f}')

@@ -1,6 +1,5 @@
 import logging
-import os
-from typing import Optional, Callable
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -41,8 +40,8 @@ def compare_models(
     old_model,
     new_model,
     X: pd.DataFrame,
-    y: Optional[pd.Series] = None,
-    predict_fn: Optional[Callable] = None,
+    y: pd.Series | None = None,
+    predict_fn: Callable | None = None,
 ) -> dict:
     try:
         if predict_fn is None:
@@ -89,7 +88,7 @@ def compare_signals(
     X: pd.DataFrame,
     close: pd.Series,
     threshold: float = 0.45,
-    predict_fn: Optional[Callable] = None,
+    predict_fn: Callable | None = None,
 ) -> dict:
     try:
         if predict_fn is None:
@@ -108,7 +107,7 @@ def compare_signals(
         final_type_new = "BUY" if new_final == 2 else ("SELL" if new_final == 0 else "FLAT")
 
         agreement = (old_sig["signal"] == new_sig["signal"]).mean()
-        flips = ((old_sig["signal"] != new_sig["signal"])).sum()
+        flips = (old_sig["signal"] != new_sig["signal"]).sum()
 
         old_conf = old_sig[["prob_long", "prob_short"]].max(axis=1)
         new_conf = new_sig[["prob_long", "prob_short"]].max(axis=1)
@@ -147,7 +146,7 @@ def compare_portfolio(
     initial_capital: float = 100000.0,
     threshold: float = 0.45,
     position_size: float = 0.95,
-    predict_fn: Optional[Callable] = None,
+    predict_fn: Callable | None = None,
 ) -> dict:
     try:
         if predict_fn is None:
@@ -214,7 +213,7 @@ def compare_shadow_intel(
     close: pd.Series,
     asset: str = "unknown",
     threshold: float = 0.45,
-    predict_fn: Optional[Callable] = None,
+    predict_fn: Callable | None = None,
 ) -> dict:
     try:
         if predict_fn is None:
@@ -271,7 +270,7 @@ def build_summary(
     signal_result: dict,
     portfolio_result: dict,
     shadow_result: dict,
-    thresholds: Optional[dict] = None,
+    thresholds: dict | None = None,
 ) -> dict:
     if thresholds is None:
         thresholds = {

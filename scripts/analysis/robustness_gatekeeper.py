@@ -87,9 +87,7 @@ def per_trade_benefit(all_trades: dict[str, list[dict]],
         for t in ts:
             orig = t["r_multiple"]
             mfe_r = t.get("mfe_r", 0.0)
-            if mfe_r < 0.5 or t.get("exit_reason") == "tp":
-                new_val = orig
-            elif orig >= 0:
+            if mfe_r < 0.5 or t.get("exit_reason") == "tp" or orig >= 0:
                 new_val = orig
             else:
                 captured = mfe_r * (1.0 - retrace_pct)

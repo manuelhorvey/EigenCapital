@@ -2,7 +2,6 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 
@@ -25,7 +24,7 @@ def append_trajectory(
     decision: str,
     sub_scores: dict,
     forward_result: dict,
-    model_id: Optional[str] = None,
+    model_id: str | None = None,
 ):
     _ensure_dir(asset)
     entry = {
@@ -54,7 +53,7 @@ def append_trajectory(
     return entry
 
 
-def load_trajectory(asset: str, max_entries: Optional[int] = None) -> list[dict]:
+def load_trajectory(asset: str, max_entries: int | None = None) -> list[dict]:
     path = os.path.join(EVOLUTION_DIR, asset, "trajectory.jsonl")
     if not os.path.exists(path):
         return []

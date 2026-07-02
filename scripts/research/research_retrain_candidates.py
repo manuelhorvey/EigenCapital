@@ -50,12 +50,11 @@ def build_contract(name: str, ticker: str) -> object:
 
 
 def main():
+    from paper_trading.asset_engine_factory import build_asset_engine
     from paper_trading.config_manager import get_config
     from paper_trading.execution.bridge import ExecutionBridge
     from paper_trading.execution.paper_broker import PaperBroker
     from paper_trading.execution_context import ExecutionContext
-    from paper_trading.asset_engine_factory import build_asset_engine
-    from features.registry import FEATURE_REGISTRY
     from shared.registry import StrategyRegistry
 
     cfg = get_config()

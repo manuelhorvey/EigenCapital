@@ -7,21 +7,25 @@ multipliers on the same walk-forward framework used by sweep_sl.py.
 Results are saved to data/research/trailing_sweep_results.json for Phase 3 analysis.
 """
 
-import itertools, json, os, sys, logging
+import itertools
+import json
+import logging
+import os
+import sys
+
 import pandas as pd
-import numpy as np
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 
-from features.registry import FEATURE_REGISTRY
-from features.builder import build_features
 from backtests import compute_per_fold_labels
-
+from backtests.trade_analysis import _signals, aggregate, fetch_ohlcv, load_macro
+from features.builder import build_features
+from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
-from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, aggregate
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -285,7 +289,7 @@ def main():
         # Baseline: no trailing
         agg = run_asset(name, ticker, contract, trail_act=None, trail_dist=None)
         if agg is None:
-            print(f"  BASELINE: NO TRADES", flush=True)
+            print("  BASELINE: NO TRADES", flush=True)
             continue
         o = agg.get("overall", {})
         baseline_r = o.get("avg_r", 0)

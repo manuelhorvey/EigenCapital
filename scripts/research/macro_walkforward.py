@@ -1,8 +1,8 @@
 import pandas as pd
-import numpy as np
-from models.macro_only import MacroOnlyModel, FEATURES
-from signals.simple_threshold import THRESHOLD, generate_signals
+
 from features.publication_lags import apply_publication_lags
+from models.macro_only import FEATURES, MacroOnlyModel
+from signals.simple_threshold import THRESHOLD, generate_signals
 
 WF_CONFIG = {
     'train_years': 3,
@@ -84,7 +84,7 @@ def main():
     print(f"\n{'='*60}")
     print("MACRO-ONLY WALKFORWARD")
     print(f"{'='*60}")
-    print(f"Asset: XLF")
+    print("Asset: XLF")
     print(f"Features: {FEATURES}")
     print(f"Threshold: {THRESHOLD}")
     print(f"Data: {df.index.min().date()} to {df.index.max().date()} ({len(df)} rows)")
@@ -142,7 +142,7 @@ def main():
 
     print(f"{'='*48}")
     results = pd.DataFrame(rows)
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Windows: {len(results)}")
     print(f"  Avg PF: {results['pf'].mean():.4f}")
     print(f"  Avg Expectancy: {results['expectancy'].mean():+.6f}")
@@ -150,7 +150,7 @@ def main():
     print(f"  Positive PF windows: {(results['pf'] > 1).sum()}/{len(results)}")
     positive_2022_2024 = results[results['test_year'].isin([2022, 2023, 2024])]
     if len(positive_2022_2024) > 0:
-        print(f"\n2022-2024:")
+        print("\n2022-2024:")
         for _, r in positive_2022_2024.iterrows():
             print(f"  {r['window']}: PF={r['pf']:.2f}, Expectancy={r['expectancy']:+.6f}, Trades={r['trades']}")
         all_pos = (positive_2022_2024['pf'] > 1).all()

@@ -30,13 +30,12 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
-    from features.registry import FEATURE_REGISTRY
+    from paper_trading.asset_engine_factory import build_asset_engine
     from paper_trading.config_manager import get_config
     from paper_trading.execution.bridge import ExecutionBridge
     from paper_trading.execution.paper_broker import PaperBroker
     from paper_trading.execution_context import ExecutionContext
     from paper_trading.portfolio_builder import build_paper_portfolio
-    from paper_trading.asset_engine_factory import build_asset_engine
 
     cfg = get_config()
     broker = PaperBroker(initial_capital=cfg.capital, execution_configs={})
@@ -87,8 +86,8 @@ def main():
             dist = ""
             if regime_ok:
                 try:
-                    from features.regime_features import generate_regime_features
                     from features.data_fetch import fetch_asset_ohlcv
+                    from features.regime_features import generate_regime_features
                     ohlcv = fetch_asset_ohlcv(ticker)
                     if ohlcv is not None and len(ohlcv) > 100:
                         rf = generate_regime_features(ohlcv.iloc[-504:])
@@ -97,7 +96,7 @@ def main():
                             trending = (hurst > 0.6).mean()
                             meanrev = (hurst < 0.4).mean()
                             neutral = ((hurst >= 0.4) & (hurst <= 0.6)).mean()
-                            dist = f"  H=%.2f/%.2f/%.2f" % (trending, neutral, meanrev)
+                            dist = "  H=%.2f/%.2f/%.2f" % (trending, neutral, meanrev)
                             if trending > 0.7 or meanrev > 0.7:
                                 logger.warning("  %s: >70%% single regime — ensemble adds little value", name)
                 except Exception:

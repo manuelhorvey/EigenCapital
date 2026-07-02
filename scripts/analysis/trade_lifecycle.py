@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -408,7 +407,7 @@ def phase1_trade_lifecycle(trades: list[TradeRecord]) -> dict:
     for t in trades:
         if t.exit_date is not None and hasattr(t, "prices") and len(t.prices) > 0:
             candle_durations.append(len(t.prices))
-    
+
     results = {
         "n_trades": len(trades),
         "avg_candle_duration": float(np.mean(candle_durations)) if candle_durations else 0,
@@ -488,7 +487,7 @@ def phase12_confidence_buckets(trades: list[TradeRecord]) -> dict:
 
     bins = [(0.0, 0.25), (0.25, 0.40), (0.40, 0.45), (0.45, 0.55),
             (0.55, 0.60), (0.60, 0.75), (0.75, 1.0)]
-    
+
     bucket_results = {}
     for lo, hi in bins:
         bucket = [t for t in trades if lo <= t.prob_long < hi]
@@ -520,12 +519,12 @@ def phase13_regime_analysis(trades: list[TradeRecord], ohlcv: pd.DataFrame) -> d
     # Classify market regime using ATR percentile
     atr_pct = compute_atr_pct(ohlcv)
     atr_median = atr_pct.median()
-    
+
     high_vol = []
     low_vol = []
     bull = []
     bear = []
-    
+
     for t in trades:
         idx = t.entry_date
         idx_utc = idx.tz_localize(None) if hasattr(idx, "tz") and idx.tz is not None else idx

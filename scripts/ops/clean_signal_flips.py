@@ -2,8 +2,8 @@
 """Clean forced signal_flip trades from NQ and ^DJI from all persisted state."""
 
 import json
-import sqlite3
 import os
+import sqlite3
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIVE = os.path.join(BASE, "data", "live")

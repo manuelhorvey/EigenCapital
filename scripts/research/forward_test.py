@@ -1,11 +1,10 @@
 import logging
-from typing import Optional, Callable
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-from features.registry import FEATURE_REGISTRY
 from shared.model import XGBoostModel
 
 logger = logging.getLogger("eigencapital.forward_test")
@@ -93,9 +92,9 @@ def _forward_metrics(
         skew_val, exkurt_val = _stats_moments(trade_returns)
 
     from eigencapital.domain.value_objects.statistical_metrics import (
-        probabilistic_sharpe_ratio,
-        minimum_track_record_length,
         expected_calibration_error,
+        minimum_track_record_length,
+        probabilistic_sharpe_ratio,
     )
 
     psr_gt_0 = probabilistic_sharpe_ratio(float(sharpe), n_obs, skew_val, exkurt_val, 0.0)
@@ -182,7 +181,7 @@ def run_forward_test(
     production_model,
     forward_months: int = 6,
     threshold: float = 0.45,
-    predict_fn: Optional[Callable] = None,
+    predict_fn: Callable | None = None,
 ) -> dict:
     try:
         if predict_fn is None:

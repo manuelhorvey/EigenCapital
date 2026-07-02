@@ -16,9 +16,8 @@ from __future__ import annotations
 import argparse
 import sys
 
-import numpy as np
 import pandas as pd
-from scipy.stats import ttest_rel, binomtest
+from scipy.stats import binomtest, ttest_rel
 
 
 def load_and_validate(ens_path: str, base_path: str) -> pd.DataFrame:

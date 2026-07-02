@@ -7,8 +7,6 @@ Runs sequentially to avoid thread-safety issues with global caches.
 
 from __future__ import annotations
 
-import itertools
-import json
 import logging
 import os
 import sys

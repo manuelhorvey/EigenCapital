@@ -3,9 +3,8 @@ import json
 import logging
 import os
 import sys
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Optional
-from dataclasses import dataclass, asdict
 
 import numpy as np
 import pandas as pd
@@ -13,23 +12,22 @@ import xgboost as xgb
 import yfinance as yf
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
-from features.builder import compute_macro_derived, compute_training_data
-from features.registry import FEATURE_REGISTRY
 from backtests import compute_per_fold_labels
-from shared.model import XGBoostModel
-from backtests.model_comparator import (
-    compare_models,
-    compare_signals,
-    compare_portfolio,
-    compare_shadow_intel,
-    build_summary,
-    classify_regime,
-)
+from backtests.adversarial_manifold import evaluate_adversarial_manifold
 from backtests.forward_test import run_forward_test
 from backtests.mas import compute_mas
-from backtests.model_evolution import append_trajectory, print_equilibrium_report, load_trajectory, compute_mas_velocity
+from backtests.model_comparator import (
+    build_summary,
+    compare_models,
+    compare_portfolio,
+    compare_shadow_intel,
+    compare_signals,
+)
+from backtests.model_evolution import append_trajectory, compute_mas_velocity, load_trajectory, print_equilibrium_report
 from backtests.model_promotion_engine import evaluate_promotion
-from backtests.adversarial_manifold import evaluate_adversarial_manifold
+from features.builder import compute_macro_derived, compute_training_data
+from features.registry import FEATURE_REGISTRY
+from shared.model import XGBoostModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eigencapital.sandbox_retrain")
@@ -103,7 +101,7 @@ def load_production_model(ticker: str):
     return model
 
 
-def sandbox_model_path(ticker: str, version: Optional[str] = None) -> str:
+def sandbox_model_path(ticker: str, version: str | None = None) -> str:
     contract = FEATURE_REGISTRY[ticker]
     asset_dir = os.path.join(SANDBOX_BASE, contract.name, "models")
     os.makedirs(asset_dir, exist_ok=True)
@@ -117,7 +115,7 @@ def train_sandbox_model(
     macro: pd.DataFrame,
     ref: pd.DataFrame,
     force: bool = False,
-    version: Optional[str] = None,
+    version: str | None = None,
 ):
     out = sandbox_model_path(ticker, version)
     if os.path.exists(out) and not force:
@@ -380,7 +378,7 @@ def log_promotion(name, promotion):
     logger.info("─" * 50)
 
 
-def main(force: bool = False, target_assets: Optional[list] = None):
+def main(force: bool = False, target_assets: list | None = None):
     logger.info("Loading macro data...")
     macro = load_macro_data()
     ref = fetch_history("SPY", years=15)
@@ -497,10 +495,7 @@ def augment_features(
         aug["vix_ma21"] = m["vix_ma21"]
         aug[f"{slug}_mom_21"] = c.pct_change(21)
 
-    elif name == "NZDJPY":
-        aug[f"{slug}_mom_63"] = c.pct_change(63)
-
-    elif name == "USDCAD":
+    elif name == "NZDJPY" or name == "USDCAD":
         aug[f"{slug}_mom_63"] = c.pct_change(63)
 
     elif name == "EURAUD":
@@ -511,7 +506,7 @@ def augment_features(
 
 
 def run_historical(
-    force: bool = False, target_assets: Optional[list] = None, augmented: bool = False, tb20_cadjpy: bool = False
+    force: bool = False, target_assets: list | None = None, augmented: bool = False, tb20_cadjpy: bool = False
 ):
     logger.info("Loading macro data...")
     macro = load_macro_data()
@@ -620,8 +615,9 @@ def run_historical(
                 eval_set=[(X_ev, y_ev)],
                 verbose=False,
             )
-            from backtests.forward_test import _forward_metrics, _regime_metrics, _classify_vol_regime
             from sklearn.metrics import accuracy_score
+
+            from backtests.forward_test import _classify_vol_regime, _forward_metrics, _regime_metrics
 
             proba = predict_fn(model, X_test)
             max_probs = proba.max(axis=1)

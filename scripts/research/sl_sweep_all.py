@@ -12,14 +12,13 @@ import os
 import sys
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from features.registry import FEATURE_REGISTRY
 from backtests import compute_per_fold_labels
-from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, SLTP_CFG, DEF_SL, DEF_TP
+from backtests.trade_analysis import DEF_SL, DEF_TP, SLTP_CFG, _signals, _simulate, fetch_ohlcv, load_macro
+from features.registry import FEATURE_REGISTRY
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eigencapital.sl_sweep")
@@ -42,8 +41,8 @@ def backtest_with_sl(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None,
                      sl_mult: float, years: int = 3) -> list[dict]:
     import xgboost as xgb
     from sklearn.model_selection import train_test_split
+
     from features.builder import build_features
-    from backtests import compute_per_fold_labels
 
     contract = FEATURE_REGISTRY.get(ticker)
     if not contract:
@@ -161,7 +160,7 @@ def main(dashboard_only: bool = False):
 
     # Summary table
     print(f"\n{'='*100}")
-    print(f"  SUMMARY — BEST SL PER ASSET")
+    print("  SUMMARY — BEST SL PER ASSET")
     print(f"{'='*100}")
     header = f"  {'Asset':8s} {'CurrentSL':>10s} {'BestPF':>7s} {'BestWin':>8s} {'BestR':>7s} {'CurPF':>7s} {'CurWin':>7s} {'CurR':>6s} {'Trades':>7s} {'Improv?':>7s}"
     print(header)
@@ -186,8 +185,8 @@ def main(dashboard_only: bool = False):
               f"PF {cur_pf:.3f} \u2192 {best_pf:.3f}  win {win:.1%}  R {r_val:+.3f}  ({n} trades){mark}")
 
     top = sorted([r for r in rows if r[0] > 0.02], key=lambda x: x[0], reverse=True)
-    print(f"\n  ---")
-    print(f"  Assets with meaningful improvement (PF +>0.02):")
+    print("\n  ---")
+    print("  Assets with meaningful improvement (PF +>0.02):")
     for row in top:
         impr, name, cur_sl, best_sl, cur_pf, best_pf, win, r_val, n, _ = row
         print(f"    {name:8s}: SL {cur_sl:.2f} \u2192 {best_sl:.2f}  (PF {cur_pf:.3f} \u2192 {best_pf:.3f}, +{impr:.3f})")

@@ -5,13 +5,17 @@ comparison is apples-to-apples.
 
 Usage: PYTHONPATH=$PYTHONPATH:. python scripts/analysis/run_threshold_040.py
 """
-import sys, os, csv, logging, re
+import logging
+import os
+import re
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import numpy as np
 import pandas as pd
 
-from scripts.backtest.walk_forward_all import walk_forward_one, load_macro
+from scripts.backtest.walk_forward_all import load_macro, walk_forward_one
 from scripts.training.train_all_assets import fetch_history
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -87,7 +91,7 @@ def run():
         df_040 = run_threshold(ticker, macro, ref, 0.40, '0.40')
 
         if df_045 is None and df_040 is None:
-            print(f"  → SKIPPED (insufficient data at both thresholds)")
+            print("  → SKIPPED (insufficient data at both thresholds)")
             failed.append((ticker, "insufficient data"))
             continue
 
@@ -205,7 +209,7 @@ def run():
         print(f"  ⚠️ KEEP 0.45  ({len(keep)}): {', '.join(sorted(r['ticker'] for r in keep)) or '(none)'}")
         print(f"  ⚠️ MIXED      ({len(mixed)}): {', '.join(sorted(r['ticker'] for r in mixed))}")
         if mixed:
-            print(f"    Breakdown:")
+            print("    Breakdown:")
             no_data = [r for r in mixed if r['t040'] < MIN_TRADES]
             marginal = [r for r in mixed if r['t040'] >= MIN_TRADES]
             if no_data:

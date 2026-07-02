@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Sweep REGIME_GEOM configurations — tests global regime multiplier configs."""
-import os, sys, logging
+import logging
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
@@ -8,12 +11,20 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from features.registry import FEATURE_REGISTRY
-from features.builder import build_features
-from backtests import compute_per_fold_labels
 
+from backtests import compute_per_fold_labels
+from backtests.trade_analysis import (
+    DASHBOARD_TICKERS,
+    MODEL_DEPTH,
+    SLTP_CFG,
+    _signals,
+    _simulate,
+    fetch_ohlcv,
+    load_macro,
+)
+from features.builder import build_features
+from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
-from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, aggregate, SLTP_CFG, DASHBOARD_TICKERS, MODEL_DEPTH, REGIME_GEOM
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 macro = load_macro()
@@ -57,7 +68,7 @@ def run_backtest(cfg_name, geom):
             continue
 
         X = fdf[[col for col in contract.features if col in fdf.columns]]
-    
+
         close = df["close"].reindex(X.index)
         high = df["high"].reindex(X.index)
         low = df["low"].reindex(X.index)
@@ -149,7 +160,7 @@ def main():
             best_pf = r["overall_pf"]
 
         print(f"  Overall: PF={r['overall_pf']:.3f} avgR={r['overall_avg_r']:+.4f} n={r['n_trades']}", flush=True)
-        print(f"  By asset:", flush=True)
+        print("  By asset:", flush=True)
         for aname in sorted(r["perfs"]):
             p = r["perfs"][aname]
             print(f"    {aname:10s} PF={p['pf']:.3f} avgR={p['avg_r']:+.4f} n={p['n']} "

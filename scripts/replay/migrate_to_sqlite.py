@@ -1,8 +1,8 @@
+import json
 import os
 import sqlite3
+
 import pandas as pd
-import json
-from datetime import datetime
 import pytz
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,7 +32,7 @@ def migrate():
                 "SELECT id FROM attribution WHERE asset = ? AND entry_date = ? AND exit_date = ?",
                 (row.get("asset"), str(row.get("entry_date", "")), str(row.get("exit_date", "")))
             ).fetchone()
-            
+
             if not exists:
                 conn.execute(
                     """INSERT INTO attribution (
@@ -64,7 +64,7 @@ def migrate():
                         row.get("exit_realized_r"), row.get("exit_bars_held"), row.get("exit_exit_archetype")
                     )
                 )
-        print(f"  Done migrating attribution.")
+        print("  Done migrating attribution.")
 
     # 2. Migrate Trade Journal
     if os.path.exists(JOURNAL_PATH):
@@ -75,7 +75,7 @@ def migrate():
                 "SELECT id FROM trades WHERE asset = ? AND entry_date = ? AND exit_date = ?",
                 (row.get("asset"), str(row.get("entry_date", "")), str(row.get("exit_date", "")))
             ).fetchone()
-            
+
             if not exists:
                 conn.execute(
                     """INSERT INTO trades (
@@ -99,7 +99,7 @@ def migrate():
                         row.get("pred_confidence"), row.get("pred_archetype"), row.get("pred_regime")
                     )
                 )
-        print(f"  Done migrating trades.")
+        print("  Done migrating trades.")
 
     # 3. Migrate Equity History
     if os.path.exists(EQUITY_PATH):
@@ -112,7 +112,7 @@ def migrate():
                     "SELECT id FROM equity_history WHERE timestamp = ?",
                     (record.get("timestamp"),)
                 ).fetchone()
-                
+
                 if not exists:
                     conn.execute(
                         """INSERT INTO equity_history (
@@ -125,7 +125,7 @@ def migrate():
                             record.get("gross_exposure"), record.get("net_exposure")
                         )
                     )
-            print(f"  Done migrating equity history.")
+            print("  Done migrating equity history.")
         except Exception as e:
             print(f"  Failed to migrate equity history: {e}")
 

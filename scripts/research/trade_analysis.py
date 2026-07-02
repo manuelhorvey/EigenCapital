@@ -6,15 +6,14 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from features.builder import build_features, compute_macro_derived
 from backtests import compute_per_fold_labels
+from features.builder import build_features, compute_macro_derived
 from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
 
@@ -431,14 +430,14 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
         print(f"  TP / SL / Flip:  {pt['tp_rate']:.1%} / {pt['sl_rate']:.1%} / {pt['flip_rate']:.1%}")
         print(f"  Avg bars held:   {pt['avg_bars']:.1f}")
         print(f"  Avg return:      {pt['avg_return']:+.4f}")
-        print(f"\n  By Asset:")
+        print("\n  By Asset:")
         print(f"  {'Asset':14s} {'Trades':>7s} {'Win%':>7s} {'AvgBars':>8s} {'TP%':>6s} {'SL%':>6s}")
         print(f"  {'-'*54}")
         for a, ba in sorted(pt.get("by_asset", {}).items()):
             print(f"  {a:14s} {ba['n']:>7d} {ba['win_rate']:>6.1%} {ba['avg_bars']:>7.1f} {ba['tp_rate']:>5.0%} {ba['sl_rate']:>5.0%}")
     if hist and hist.get("n_trades", 0) > 0:
         o = hist["overall"]
-        print(f"\n  PHASE 2: HISTORICAL WALK-FORWARD BACKTEST")
+        print("\n  PHASE 2: HISTORICAL WALK-FORWARD BACKTEST")
         print(f"  {hist['n_trades']} trades, {hist['n_assets']} assets")
         print(f"  Period: {hist['date_range']['start']} to {hist['date_range']['end']}")
         print(f"  Win/Loss:        {o['win_rate']:.1%} / {o['loss_rate']:.1%}")
@@ -449,7 +448,7 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
         print(f"  Median R:        {o['median_r']:+.3f}")
         print(f"  Profit factor:   {o['profit_factor']:.3f}")
         dur = hist.get("duration_by_reason", {})
-        print(f"\n  Trade Duration by Exit Reason:")
+        print("\n  Trade Duration by Exit Reason:")
         print(f"  {'Reason':14s} {'Count':>6s} {'AvgBars':>8s} {'MedBars':>8s} {'Std':>7s} {'AvgR':>8s}")
         print(f"  {'-'*50}")
         for r in ["tp", "sl", "signal_flip", "time_stop"]:
@@ -457,7 +456,7 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
             if d and d["count"] > 0:
                 print(f"  {r:14s} {d['count']:>6d} {d['avg_bars']:>7.1f} {d['median_bars']:>7.1f} {d['std_bars']:>6.1f} {d['avg_r']:>+7.3f}")
         dist = hist.get("duration_distribution", {})
-        print(f"\n  Duration Distribution:")
+        print("\n  Duration Distribution:")
         print(f"  {'Bucket':8s} {'Count':>6s} {'TP%':>6s} {'SL%':>6s} {'Flip%':>7s} {'Win%':>6s} {'AvgR':>7s}")
         print(f"  {'-'*55}")
         for b in ["1-3d", "4-7d", "8-14d", "15-30d", "31-60d", "60d+"]:
@@ -470,7 +469,7 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
                   f"(med: {oo['med_mae_r']:+.2f}R / {oo['med_mfe_r']:+.2f}R)")
             print(f"  Efficiency (MFE/MAE):  {oo['efficiency']:.2f}")
         if fq:
-            print(f"\n  Flip Quality Analysis:")
+            print("\n  Flip Quality Analysis:")
             print(f"  Total flips: {fq['total_flips_analyzed']}")
             print(f"  Next trade positive: {fq['next_positive']} ({fq['next_positive_rate']:.1%})   "
                   f"Negative: {fq['next_negative']} ({1 - fq['next_positive_rate']:.1%})")
@@ -482,13 +481,13 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
             fba = fq.get("by_asset", {})
             if fba:
                 ranked = sorted(fba.items(), key=lambda kv: kv[1]["next_positive_rate"])
-                print(f"\n  Worst flip quality (>=3 flips):")
+                print("\n  Worst flip quality (>=3 flips):")
                 print(f"  {'Asset':12s} {'Total':>6s} {'PosNext%':>9s} {'AvgR':>7s} {'AvgNextR':>9s} {'MaeMfe':>7s}")
                 print(f"  {'-'*55}")
                 for a, b in ranked[:8]:
                     print(f"  {a:12s} {b['total']:>6d} {b['next_positive_rate']:>8.0%} {b['avg_r']:>+6.3f} {b['avg_next_r']:>+8.3f} {b['mae_mfe']:>6.2f}")
         ba = hist.get("by_asset", {})
-        print(f"\n  By Asset:")
+        print("\n  By Asset:")
         print(f"  {'Asset':12s} {'Trades':>7s} {'Win%':>7s} {'AvgBars':>8s} {'AvgR':>7s} {'TP%':>6s} {'SL%':>6s} {'BarsTP':>7s} {'BarsSL':>7s} {'MAE_R':>7s} {'MFE_R':>7s}")
         print(f"  {'-'*95}")
         for a in sorted(ba.keys()):
@@ -498,8 +497,8 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
         valid = {k: v for k, v in ba.items() if v["n_trades"] >= 10}
         if valid:
             ranked = sorted(valid.items(), key=lambda kv: kv[1]["avg_mfe_r"] / max(kv[1]["avg_mae_r"], 0.001), reverse=True)
-            print(f"\n  ---")
-            print(f"  Top performers by MFE/MAE efficiency (>=10 trades):")
+            print("\n  ---")
+            print("  Top performers by MFE/MAE efficiency (>=10 trades):")
             print(f"  {'Asset':12s} {'Trades':>7s} {'Win%':>7s} {'AvgR':>8s} {'MFE/MAE':>8s} {'MAE_R':>7s} {'MFE_R':>7s}")
             print(f"  {'-'*64}")
             for a, b in ranked[:10]:
@@ -508,7 +507,7 @@ def print_report(pt: dict, hist: dict, fq: dict | None = None):
     print()
 
 
-def main(targets: Optional[list] = None, years: int = 3):
+def main(targets: list | None = None, years: int = 3):
     if targets is None:
         targets = list(DASHBOARD_TICKERS.keys())
     print("\n  Phase 1: Paper trade analysis…")

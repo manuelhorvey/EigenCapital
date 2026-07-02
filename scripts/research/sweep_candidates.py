@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """Sweep candidate assets for re-promotion potential. Read-only — no prod changes."""
 
-import sys, os, json, logging, itertools
+import itertools
+import json
+import logging
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 
-from features.registry import FEATURE_REGISTRY
-from features.builder import build_features
 from backtests import compute_per_fold_labels
+from backtests.trade_analysis import _signals, _simulate, aggregate, fetch_ohlcv, load_macro
+from features.builder import build_features
+from features.registry import FEATURE_REGISTRY
 from shared.volatility import compute_atr_pct
-from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, aggregate
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("sweeper")

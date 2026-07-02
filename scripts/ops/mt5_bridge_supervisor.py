@@ -25,7 +25,6 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 logger = logging.getLogger("eigencapital.mt5_supervisor")
 
@@ -167,7 +166,7 @@ class BridgeSupervisor:
         HealthHandler.state = self.state
 
         self._stop = threading.Event()
-        self._proc: "os.Popen[bytes] | None" = None  # type: ignore[name-defined]
+        self._proc: os.Popen[bytes] | None = None  # type: ignore[name-defined]
         self._health_server: ThreadingHTTPServer | None = None
         self._health_thread: threading.Thread | None = None
         self._shutdown_lock = threading.Lock()

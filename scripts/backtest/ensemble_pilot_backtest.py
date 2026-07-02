@@ -27,8 +27,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
-from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from features.regime_features import generate_regime_features
+from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
 
@@ -303,7 +303,7 @@ def main():
     print(f"\n{'=' * 80}")
     print(f"DECISION: {'PASS — enable ensemble for all 21' if passed else 'FAIL — keep ensemble disabled'}")
     print(f"  Assets where IC + both precisions improved: {improved}/{len(results)}")
-    print(f"  Threshold: >= 2/3 required")
+    print("  Threshold: >= 2/3 required")
 
     summary_path = os.path.join(OUTPUT_DIR, "summary.json")
     with open(summary_path, "w") as f:

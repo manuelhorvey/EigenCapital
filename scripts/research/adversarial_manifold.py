@@ -1,9 +1,8 @@
 import json
 import logging
-import math
 import os
+from collections.abc import Callable
 from datetime import datetime
-from typing import Optional, Callable
 
 import numpy as np
 import pandas as pd
@@ -130,7 +129,7 @@ def _compute_regime_score(
     close: pd.Series,
     baseline_proba: np.ndarray,
     threshold: float = 0.45,
-    predict_fn: Optional[Callable] = None,
+    predict_fn: Callable | None = None,
 ) -> float:
     if predict_fn is None:
         predict_fn = lambda m, x: m.predict_proba(x)
@@ -169,7 +168,7 @@ def evaluate_adversarial_manifold(
     X: pd.DataFrame,
     close: pd.Series,
     threshold: float = 0.45,
-    predict_fn: Optional[Callable] = None,
+    predict_fn: Callable | None = None,
 ) -> dict:
     if predict_fn is None:
         predict_fn = lambda m, x: m.predict_proba(x)

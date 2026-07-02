@@ -21,7 +21,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import pandas as pd
-from features.registry import FEATURE_REGISTRY, ASSET_LABEL_PARAMS
+
+from features.registry import ASSET_LABEL_PARAMS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("research_walkforward")

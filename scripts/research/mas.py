@@ -1,6 +1,5 @@
 import logging
 import math
-from typing import Optional
 
 logger = logging.getLogger("eigencapital.mas")
 
@@ -28,7 +27,7 @@ def hard_gates(
     model_result: dict,
     shadow_result: dict,
     forward_result: dict,
-    drift_score: Optional[float] = None,
+    drift_score: float | None = None,
 ) -> tuple[bool, list[str]]:
     failures = []
 
@@ -239,9 +238,9 @@ def compute_mas(
     portfolio_result: dict,
     shadow_result: dict,
     forward_result: dict,
-    drift_score: Optional[float] = None,
-    baseline_mas: Optional[float] = None,
-    weights: Optional[dict] = None,
+    drift_score: float | None = None,
+    baseline_mas: float | None = None,
+    weights: dict | None = None,
 ) -> dict:
     if weights is None:
         weights = {"model": 0.22, "signal": 0.18, "portfolio": 0.20, "shadow": 0.12, "forward": 0.15, "stress": 0.13}

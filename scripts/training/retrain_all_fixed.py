@@ -40,13 +40,12 @@ ET = pytz.timezone("US/Eastern")
 
 
 def main():
-    from features.registry import FEATURE_REGISTRY
+    from paper_trading.asset_engine_factory import build_asset_engine
     from paper_trading.config_manager import get_config
     from paper_trading.execution.bridge import ExecutionBridge
     from paper_trading.execution.paper_broker import PaperBroker
     from paper_trading.execution_context import ExecutionContext
     from paper_trading.portfolio_builder import build_paper_portfolio
-    from paper_trading.asset_engine_factory import build_asset_engine
 
     cfg = get_config()
     logger.info("Loaded config: capital=%s, retrain_freq=%s", cfg.capital, cfg.retrain_freq)

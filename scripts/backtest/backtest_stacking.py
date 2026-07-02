@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from scripts.backtest.backtest_pnl import compute_asset_daily_r, compute_trade_pnl
+from scripts.backtest.backtest_pnl import compute_asset_daily_r
 
 logger = logging.getLogger("backtest_stacking")
 

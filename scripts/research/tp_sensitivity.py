@@ -11,13 +11,12 @@ import os
 import sys
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from backtests.trade_analysis import DEF_SL, SLTP_CFG, _signals, _simulate, fetch_ohlcv, load_macro
 from features.registry import FEATURE_REGISTRY
-from backtests.trade_analysis import fetch_ohlcv, load_macro, _signals, _simulate, SLTP_CFG, DEF_SL
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eigencapital.tp_sensitivity")
@@ -33,8 +32,9 @@ def backtest_with_tp(ticker: str, macro: pd.DataFrame, ref: pd.DataFrame | None,
                      tp_mult: float, years: int = 3) -> list[dict]:
     import xgboost as xgb
     from sklearn.model_selection import train_test_split
-    from features.builder import build_features
+
     from backtests import compute_per_fold_labels
+    from features.builder import build_features
 
     contract = FEATURE_REGISTRY.get(ticker)
     if not contract:
@@ -111,8 +111,8 @@ def main():
     print("\n" + "=" * 100)
     print("  TP MULTIPLIER SENSITIVITY SWEEP")
     print("=" * 100)
-    print(f"  Target: assets where barsTP >> barsSL (GC, AUDNZD, EURNZD, NQ, ES)")
-    print(f"  Sweep range: 0.50 \u2192 4.00  step=0.25")
+    print("  Target: assets where barsTP >> barsSL (GC, AUDNZD, EURNZD, NQ, ES)")
+    print("  Sweep range: 0.50 \u2192 4.00  step=0.25")
     print(f"  Walk-forward: {YEARS} years")
     print()
 

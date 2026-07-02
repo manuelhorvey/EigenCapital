@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Train initial binary XGBoost models for new assets (EURUSD, NZDUSD)."""
 
-import os, sys, logging, json
+import logging
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.WARNING)
 
-import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from features.registry import FEATURE_REGISTRY
-from features.builder import build_features
+
 from backtests.trade_analysis import fetch_ohlcv, load_macro
+from features.builder import build_features
+from features.registry import FEATURE_REGISTRY
 
 BASE = os.path.join(os.path.dirname(__file__), "..", "paper_trading", "models")
 

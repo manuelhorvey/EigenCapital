@@ -38,15 +38,15 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
-from labels.compat import PurgedWalkForwardFolds
-from labels.triple_barrier import apply_triple_barrier
 from eigencapital.domain.value_objects.statistical_metrics import (
     _moments,
     deflated_sharpe_ratio,
     probabilistic_sharpe_ratio,
 )
+from features.alpha_features import build_alpha_features
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from labels.compat import PurgedWalkForwardFolds
+from labels.triple_barrier import apply_triple_barrier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("counterfactual")

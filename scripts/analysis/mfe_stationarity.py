@@ -232,7 +232,7 @@ def main():
           f"std={s['late_mfe_std']:>5.2f}")
     print(f"  KS test:     statistic={s['ks_statistic']:.4f}  p={s['ks_pvalue']:.4f}  "
           f"{'PASS' if s['ks_passed'] else 'FAIL'} (H0: same distribution)")
-    print(f"")
+    print("")
     print(f"  Early:  fixed={s['early_fixed']:>+8.1f}R  trailing={s['early_trail']:>+8.1f}R  "
           f"Δ={s['early_trail']-s['early_fixed']:+>+8.1f}")
     print(f"  Late:   fixed={s['late_fixed']:>+8.1f}R  trailing={s['late_trail']:>+8.1f}R  "
@@ -245,13 +245,13 @@ def main():
           f"fixed={wf['fixed_a']:+>+7.1f}R")
     print(f"  Period B: N={wf['period_b_n']}, "
           f"fixed={wf['fixed_b']:+>+7.1f}R")
-    print(f"")
+    print("")
     print(f"  Best retrace on A: {wf['best_retrace_a']*100:.0f}% → "
           f"{wf['best_pf_a']:+>+7.1f}R (B result: {wf['best_a_on_b_pf']:+>+7.1f}R)")
     print(f"  Best retrace on B: {wf['best_retrace_b']*100:.0f}% → "
           f"{wf['best_pf_b']:+>+7.1f}R")
-    print(f"")
-    print(f"  Retrace sweep:")
+    print("")
+    print("  Retrace sweep:")
     print(f"  {'Retrace':<10} {'PF_A':>10} {'PF_B':>10}")
     print(f"  {'-'*30}")
     for r in wf["sweep"]:

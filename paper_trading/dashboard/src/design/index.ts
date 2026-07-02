@@ -1,6 +1,5 @@
 export {
   rawTokens,
-  rawLightTokens,
   tailwindOnly,
   teal,
   indigo,

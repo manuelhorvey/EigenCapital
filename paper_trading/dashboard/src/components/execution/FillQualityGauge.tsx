@@ -12,7 +12,7 @@ export default function FillQualityGauge() {
   if (isPending) {
     return (
       <Panel>
-        <SectionHeader title="Fill Quality" accent="purple" />
+        <SectionHeader title="Fill Quality" accent="emerald" />
         <div className="flex gap-4 justify-center py-4">
           <Skeleton className="h-20 w-20 rounded-full" />
           <Skeleton className="h-20 w-20 rounded-full" />
@@ -30,7 +30,7 @@ export default function FillQualityGauge() {
   if (!hasFqi && !hasEis) {
     return (
       <Panel padding="md">
-        <SectionHeader title="Fill Quality" accent="purple" />
+        <SectionHeader title="Fill Quality" accent="emerald" />
         <EmptyState message="Waiting for execution data…" compact />
       </Panel>
     )
@@ -41,7 +41,7 @@ export default function FillQualityGauge() {
 
   return (
     <Panel padding="md">
-      <SectionHeader title="Fill Quality" accent="purple" />
+      <SectionHeader title="Fill Quality" accent="emerald" />
       <div className="flex items-center justify-center gap-6 py-2">
         <Gauge label="Avg FQI" value={avgFqi} />
         <Gauge label="Fill Ratio" value={avgFillRatio} />

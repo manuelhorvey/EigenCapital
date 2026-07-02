@@ -1,3 +1,36 @@
+import type { ReactNode } from 'react'
+
+interface BarRowProps {
+  /** Label shown on the left, in mono caption colour. e.g. "TP" */
+  label: ReactNode
+  /** 0..1, displayed as 0..100% on the right cap */
+  value: number
+  /** Tailwind bg-* class controlling filled segment colour ('bg-gov-green' etc.) */
+  color: string
+  /** Override the default 8px track height */
+  height?: string
+  className?: string
+}
+
+export function BarRow({ label, value, color, height = 'h-2', className = '' }: BarRowProps) {
+  const pct = Math.min(Math.max(value, 0), 1)
+  const widthPct = pct * 100
+  const showPct = Math.round(widthPct)
+
+  return (
+    <div className={`flex items-center gap-1.5 w-full ${className}`}>
+      <span className="w-4 text-[10px] text-tertiary text-right shrink-0">{label}</span>
+      <div className={`flex-1 ${height} bg-panel rounded-full overflow-hidden`}>
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${color}`}
+          style={{ width: `${widthPct}%` }}
+        />
+      </div>
+      <span className="w-[38px] text-[10px] font-mono text-right tabular-nums shrink-0">{showPct}%</span>
+    </div>
+  )
+}
+
 interface ProgressBarProps {
   value: number
   max?: number

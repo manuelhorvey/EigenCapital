@@ -1,9 +1,8 @@
 import { memo, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
-import { X, TrendingUp, LayoutDashboard, Zap, BarChart3, Heart, Shield } from 'lucide-react'
+import { X, TrendingUp, LayoutDashboard, Zap, BarChart3, Shield } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useEngineHealth } from '../../hooks/useEngineHealth'
-import { useSidebarBadges } from '../../hooks/useSidebarBadges'
+import { useSidebarBadges, type EngineState } from '../../hooks/useSidebarBadges'
 import Divider from '../ui/Divider'
 
 type TabId = 'dashboard' | 'engine' | 'trading' | 'execution' | 'risk'
@@ -28,8 +27,7 @@ const NAV_GROUPS: NavGroupDef[] = [
     title: 'Overview',
     icon: LayoutDashboard,
     items: [
-      { id: 'dashboard', to: '/', label: 'Dashboard', icon: LayoutDashboard, desc: 'System health + exception view' },
-      { id: 'engine', to: '/engine', label: 'Engine', icon: Heart, desc: 'Raw metrics + full data' },
+      { id: 'dashboard', to: '/', label: 'Dashboard', icon: LayoutDashboard, desc: 'Status, equity, positions' },
     ],
   },
   {
@@ -59,27 +57,21 @@ interface SidebarProps {
 interface NavItemProps {
   item: NavItemDef
   badge?: number
+  /** Engine heartbeat dot rendered inline on the Dashboard nav item. */
+  engine?: EngineState
   onClose: () => void
   onKeyDown: (e: React.KeyboardEvent, id: string) => void
 }
 
-const EngineBadge = memo(function EngineBadge() {
-  const health = useEngineHealth()
-  const engineAlive = health.data?.engine_alive ?? false
-  const label = health.isError ? 'OFF' : health.isLoading ? '...' : engineAlive ? 'RUNNING' : 'OFF'
-  const isRunning = !health.isError && engineAlive
+function engineDotClass(state: EngineState | undefined): string | null {
+  if (state === 'alive') return 'bg-gov-green'
+  if (state === 'stale') return 'bg-gov-yellow'
+  if (state === 'dead') return 'bg-gov-red'
+  return null
+}
 
-  return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <span className={`inline-block w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-gov-green' : 'bg-gov-red'} ${isRunning ? '' : 'animate-pulse'}`} />
-      <span className={`text-[10px] font-semibold font-mono tracking-tight ${isRunning ? 'text-gov-green' : 'text-gov-red'}`}>
-        {label}
-      </span>
-    </div>
-  )
-})
-
-const NavItem = memo(function NavItem({ item, badge, onClose, onKeyDown }: NavItemProps) {
+const NavItem = memo(function NavItem({ item, badge, engine, onClose, onKeyDown }: NavItemProps) {
+  const dot = engineDotClass(engine)
   return (
     <NavLink
       id={`nav-${item.id}`}
@@ -103,9 +95,16 @@ const NavItem = memo(function NavItem({ item, badge, onClose, onKeyDown }: NavIt
             <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-accent-emerald rounded-full shadow-[0_0_4px_rgba(20,184,166,0.4)]" />
           )}
           <item.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="truncate">{item.label}</span>
+              {dot && (
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}
+                  aria-label={`Engine ${engine}`}
+                  title={`Engine ${engine}`}
+                />
+              )}
               {badge != null && badge > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-none bg-gov-red-muted text-gov-red border border-gov-red/25">
                   {badge}
@@ -179,25 +178,19 @@ function Sidebar({ open, onClose }: SidebarProps) {
           ${open ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Region 1: Engine status strip (light dynamic — useEngineHealth only) */}
-        <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 border-b border-default">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-accent-emerald/85 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-3 h-3 text-[#08090c]" strokeWidth={2.25} />
-            </div>
-            <EngineBadge />
-          </div>
+        {/* Close button — mobile only, lives at the top of the rail. */}
+        <div className="shrink-0 flex items-center justify-end px-2 py-1.5 border-b border-default lg:hidden">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-panel transition-colors lg:hidden focus-ring shrink-0 active:scale-95"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-panel transition-colors focus-ring shrink-0 active:scale-95"
             aria-label="Close navigation"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
           </button>
         </div>
 
-        {/* Region 2: Navigation shell (light dynamic — useSidebarBadges only) */}
+        {/* Navigation shell — engine heartbeat now inline on Dashboard nav item. */}
         <nav
           role="tree"
           aria-label="Dashboard sections"
@@ -211,12 +204,34 @@ function Sidebar({ open, onClose }: SidebarProps) {
               </p>
               <div className="space-y-0.5 ml-1">
                 {group.items.map(item => (
-                  <NavItem key={item.id} item={item} badge={item.badgeKey ? badges[item.badgeKey] : undefined} onClose={onClose} onKeyDown={handleKeyDown} />
+                  <NavItem
+                    key={item.id}
+                    item={item}
+                    badge={item.badgeKey ? badges[item.badgeKey] : undefined}
+                    engine={item.id === 'dashboard' ? badges.engine : undefined}
+                    onClose={onClose}
+                    onKeyDown={handleKeyDown}
+                  />
                 ))}
               </div>
               {gi < NAV_GROUPS.length - 1 && <Divider className="my-1.5 mx-2" />}
             </div>
           ))}
+
+          {/* Inline-pinned engine badge below the nav for at-a-glance status
+              without requiring the operator to focus the nav item — IA-1
+              adds an engine-state dot on the Dashboard nav item; this strip
+              gives the same state in tabular form for sighted scanning. */}
+          <div className="mt-3 px-2 pt-2 border-t border-default text-2xs font-mono tabular-nums text-tertiary flex items-center gap-1.5">
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                engineDotClass(badges.engine) ?? 'bg-gov-init/50'
+              }`}
+              aria-label={`Engine ${badges.engine ?? 'unknown'}`}
+            />
+            <span className="uppercase tracking-wider">engine</span>
+            <span className="ml-auto text-secondary">{badges.engine ?? 'loading…'}</span>
+          </div>
         </nav>
       </aside>
     </>

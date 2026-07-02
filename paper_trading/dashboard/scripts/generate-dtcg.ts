@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { rawTokens, rawLightTokens, tailwindOnly } from '../src/design/color-system.js'
+import { rawTokens, tailwindOnly } from '../src/design/color-system.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(__dirname, '../generated')
@@ -100,7 +100,6 @@ function buildGroup(source: Record<string, string>, groupLabel: string): Obj {
 const dtcg: Obj = {
   $schema: 'https://design-tokens.github.io/community-group/format/',
   ...buildGroup(rawTokens, 'dark'),
-  ...buildGroup(rawLightTokens, 'light'),
 }
 
 // ── Write ──────────────────────────────────────────

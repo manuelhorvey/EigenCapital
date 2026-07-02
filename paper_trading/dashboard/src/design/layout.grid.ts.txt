@@ -1,0 +1,85 @@
+// ── Quorrin Layout Grid ───────────────────────────────────────────────
+//
+// Consensus: a 12-column grid, 16 px gutter, 32 px page margin on
+// desktop. Columns stay 12 at every breakpoint — what changes
+// is *column occupancy*, not the count. A component placed on
+// desktop keeps its 12-col math; on smaller screens it spans more
+// columns, never reorders its source.
+//
+// ── Numbers per breakpoint ────────────────────────────────────────────
+//
+//        break-mobile(<640)   break-tablet(640-1024)  break-desktop(≥1024)
+// cols   12                   12                       12
+// gutter 12px                 12px                     16px
+// margin 16px outer           16px outer               32px outer
+// intent monitor only        near-full density         full work surface
+//
+// No bespoke mobile spacing scale. space-3 (12 px) is the same 12 px
+// across all three breakpoints. If a component needs tighter mobile
+// spacing, that is a signal the component is overloaded — collapse
+// content, don't introduce space-2c.
+//
+// Two breakpoints between mobile and full desktop — not three —
+// because the breakpoint between mobile and tablet-aligned-monitor is
+// the most consequential axis in the operator's workflow. Mobile
+// is "give me the four numbers I most need," tablet is "I'm at the
+// desk, smaller screen, give me near-full," desktop is full work.
+//
+// ── Tables strategy ────────────────────────────────────────────────────
+//
+// Data-dense components render a tradeoff on mobile:
+//
+//   - 7-column trade tables cannot render at 360 px.
+//   - horizontal scroll (overflow-x-auto) is the bad answer — the
+//     operator has to scroll to discover row presence at all.
+//   - The fixed answer: table → card-list transformation, ordered by
+//     the most important column first (R, asset, exit reason, time
+//     held, slip entry, slip exit, fill%, latency, MAE, MFE).
+//   - On tablet ≥640 px, tables keep their desktop column layout;
+//     the cell padding tightens to space-2 and the numeric cells
+//     get tabular-nums as always.
+//
+// ── Stack vs split ─────────────────────────────────────────────────────
+//
+// On tablet, cards stack vertically — never 50/50 split. A 50/50 split
+// at tablet width cuts each side's legibility below the operator's
+// barrier, and the layout doesn't unwrap to a wider view at desktop
+// (so the operator has to relearn the same screen twice). Two-column
+// splits are desktop-only.
+//
+// ── Per-component intent table ─────────────────────────────────────────
+//
+// See src/components/stats/StatCell.tsx for the canonical example.
+// It occupies 1/12 of the row at desktop, 1/6 at tablet, and is
+// hidden-from-grid at mobile in favour of the 4-cell monitor layout.
+//
+// ── Card tools available ────────────────────────────────────────────────
+//
+// - <Panel />: standard hairline-rule surface. 4px radius. 1px
+//   border in `rule` colour. Padding: `space-3` (12 px) mobile,
+//   `space-4` (16 px) tablet+, `space-5` (20 px) inside modals.
+// - <Panel variant="elevated">: identical surface, lifted by
+//   `shadow-card` for drill-down dialogs only. Reserved for
+//   alerts and exception surfaces.
+// - No other panel variants exist. Three-variant-or-fewer rule
+//   (audit step-2) is enforced.
+//
+// ── Touch targets ───────────────────────────────────────────────────────
+//
+// Any interactive element reachable on mobile or tablet must be at
+// least 44 px in tap-target size (button, nav item, refresh
+// glyph, menu glyph, table row). Smaller icons are visual cues
+// only — the tap target sits inside a padded container so the
+// interactive area stays ≥ 44 px.
+//
+// ── Mapping to Tailwind utilities ───────────────────────────────────────
+//
+//   grid-cols-12                      standard 12-col row
+//   divide-x divide-default           hairline separators between cells
+//   gap-px                            1 px column separator (panels/Cells)
+//   gap-3 gap-4                       gutters stack (intra-component)
+//   px-2 sm:px-4                      page margin mobile / desktop
+//   border-y border-default           hairline top + bottom
+//   text-2xs text-xs text-sm text-base
+//                                    labels / values / row copy / hero
+//

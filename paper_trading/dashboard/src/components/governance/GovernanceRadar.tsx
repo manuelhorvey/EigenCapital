@@ -32,7 +32,7 @@ export default function GovernanceRadar() {
     <Panel padding="lg">
       <SectionHeader
         title="Governance Constraint Analysis"
-        accent="purple"
+        accent="emerald"
         meta={
           bottlenecks.length > 0 ? (
             <span className="text-2xs text-tertiary font-mono bg-surface px-2 py-0.5 rounded border border-default">

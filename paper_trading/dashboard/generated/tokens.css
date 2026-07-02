@@ -32,11 +32,18 @@
   --color-neutral-800: #2e3835;
   --color-neutral-900: #1b221f;
   --color-neutral-950: #0b0e0c;
-  --color-app: #08090c;
+  --color-app: #07080b;
   --color-surface: #0c0d12;
   --color-card: #0c0d12;
   --color-panel: #13161f;
   --color-panel-hover: #161820;
+  --color-ink: #07080b;
+  --color-rule: #1e2233;
+  --color-signal-long: #25d065;
+  --color-signal-warn: #eab308;
+  --color-signal-short: #f04444;
+  --color-tripwire: #ff3864;
+  --color-accent-glow: rgba(61, 217, 174, 0.3);
   --color-text-primary: #f1f3f6;
   --color-text-secondary: #94a3b8;
   --color-text-tertiary: #64748b;
@@ -44,10 +51,10 @@
   --color-border: #1e2233;
   --color-border-strong: #2a3040;
   --color-glass: rgba(12, 13, 18, 0.92);
-  --color-focus-ring: rgba(20, 184, 166, 0.45);
+  --color-focus-ring: rgba(61, 217, 174, 0.45);
   --color-interactive-hover: rgba(255, 255, 255, 0.04);
   --color-interactive-active: rgba(255, 255, 255, 0.08);
-  --color-interactive-selected: rgba(20, 184, 166, 0.08);
+  --color-interactive-selected: rgba(61, 217, 174, 0.08);
   --color-gov-green: #25d065;
   --color-gov-green-muted: rgba(37, 208, 101, 0.12);
   --color-gov-green-muted2: rgba(37, 208, 101, 0.06);
@@ -69,7 +76,7 @@
   --color-gov-gray: #6b7280;
   --color-gov-gray-muted: rgba(107, 114, 128, 0.12);
   --color-gov-gray-muted2: rgba(107, 114, 128, 0.06);
-  --color-accent-emerald: #2dd4bf;
+  --color-accent-emerald: #3dd9ae;
   --color-accent-blue: #60a5fa;
   --color-accent-purple: #a78bfa;
   --color-accent-amber: #fbbf24;
@@ -203,27 +210,4 @@
     opacity: 1;
     box-shadow: 0 0 8px rgba(240, 68, 68, 0.3);
   }
-}
-
-.light {
-  --color-app: #f3f6f5;
-  --color-surface: #ffffff;
-  --color-card: #ffffff;
-  --color-panel: #e1e6e4;
-  --color-panel-hover: #c3cdc8;
-  --color-text-primary: #1b221f;
-  --color-text-secondary: #4b5b55;
-  --color-text-tertiary: #5f726b;
-  --color-text-muted: #7a8d85;
-  --color-border: #9eada6;
-  --color-border-strong: #7a8d85;
-  --color-glass: rgba(255, 255, 255, 0.92);
-  --color-interactive-hover: rgba(0, 0, 0, 0.04);
-  --color-interactive-active: rgba(0, 0, 0, 0.08);
-  --color-interactive-selected: rgba(20, 184, 166, 0.08);
-  --shadow-panel: 0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08);
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.03) inset, 0 8px 32px rgba(0,0,0,0.1);
-  --shadow-modal: 0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.15);
-  --shadow-tooltip: 0 4px 20px rgba(0,0,0,0.12);
-  --shadow-inner-subtle: inset 0 1px 3px rgba(0,0,0,0.05);
 }

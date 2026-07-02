@@ -121,7 +121,7 @@ function TradeFeed() {
   if (rows.length === 0) {
     return (
       <Panel padding="md">
-        <SectionHeader title="Recent Trades" accent="blue" />
+        <SectionHeader title="Recent Trades" accent="emerald" />
         <EmptyState
           message={engineStart ? `No trades recorded yet — engine started ${engineStart.split('T')[0]}` : 'No trades closed yet'}
           compact
@@ -134,7 +134,7 @@ function TradeFeed() {
     <Panel className="overflow-hidden">
       <SectionHeader
         title="Recent Trades"
-        accent="blue"
+        accent="emerald"
         meta={
           <TablePagination
             page={page}

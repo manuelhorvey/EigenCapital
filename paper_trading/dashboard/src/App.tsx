@@ -31,7 +31,6 @@ function AppContent() {
       <Suspense fallback={<div className="p-8"><Skeleton className="h-64 rounded-lg" shimmer /></div>}>
         <Routes>
           <Route path="/" element={<CommandCenter onSelectAsset={(name) => setSelectedAsset(name)} />} />
-          <Route path="/engine" element={<CommandCenter onSelectAsset={(name) => setSelectedAsset(name)} />} />
           <Route path="/trading" element={<TradingWorkspace />} />
           <Route path="/execution" element={<ExecutionWorkspace />} />
           <Route path="/risk" element={<RiskWorkspace />} />

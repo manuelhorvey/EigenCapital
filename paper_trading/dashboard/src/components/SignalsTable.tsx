@@ -311,7 +311,7 @@ function SignalsTable() {
                 placeholder="Filter…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(20,184,166,0.2)]"
+                className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(61,217,174,0.2)]"
               />
             </div>
             <span className="text-[10px] text-tertiary font-mono tabular-nums bg-surface/50 px-1.5 py-0.5 rounded">

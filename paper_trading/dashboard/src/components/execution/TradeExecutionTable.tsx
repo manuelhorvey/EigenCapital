@@ -167,7 +167,7 @@ export default function TradeExecutionTable() {
     <Panel className="overflow-hidden">
       <SectionHeader
         title="Trade Execution Detail"
-        accent="blue"
+        accent="emerald"
         meta={
           <Select
             options={archetypes.map(a => ({ value: a, label: a }))}

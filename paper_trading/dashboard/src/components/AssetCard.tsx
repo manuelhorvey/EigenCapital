@@ -15,6 +15,38 @@ import {
 
 interface Props {
   name: string
+  /** 'comfortable' = full detailed card; 'compact' = mini grid card */
+  density?: 'comfortable' | 'compact'
+}
+
+function signalColor(signal: string): string {
+  switch (signal) {
+    case 'BUY': return 'text-gov-green'
+    case 'SELL': return 'text-gov-red'
+    default: return 'text-gov-gray'
+  }
+}
+
+function signalBg(signal: string): string {
+  switch (signal) {
+    case 'BUY': return 'bg-gov-green-muted border-gov-green/25'
+    case 'SELL': return 'bg-gov-red-muted border-gov-red/25'
+    default: return 'bg-gov-gray-muted border-gov-gray/20'
+  }
+}
+
+function borderColor(signal: string): string {
+  switch (signal) {
+    case 'BUY': return 'border-l-gov-green'
+    case 'SELL': return 'border-l-gov-red'
+    default: return 'border-l-gov-gray'
+  }
+}
+
+function returnColor(v: number): string {
+  if (v > 0) return 'text-gov-green'
+  if (v < 0) return 'text-gov-red'
+  return 'text-tertiary'
 }
 
 interface PositionLeg {
@@ -76,7 +108,7 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): RiskGeometry {
   return { tpDistPct, slDistPct, rr }
 }
 
-const AssetCard: React.FC<Props> = React.memo(({ name }) => {
+const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
   const { data: bundle } = useSystemSnapshot()
   const data = bundle?.snapshot
   const { setSelectedAsset } = useSelectedAsset()
@@ -101,11 +133,6 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
     const risk = pos && price != null ? getRiskGeometry(pos, price) : null
 
     return {
-      // final_signal (post-pipeline, e.g. after SELL_ONLY filter) wins when present.
-      // When it's null (position already open, pipeline aborted), fall through to
-      // the current position side.  Then try the raw model signal.  For BUY on
-      // a sell_only asset the permanent SELL_ONLY filter blocked it, so FLAT.
-      // Absolute last resort: FLAT.
       signal:
         asset.final_signal ??
         (pos?.side === 'long' ? 'BUY' : pos?.side === 'short' ? 'SELL' :
@@ -168,6 +195,71 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
 
   const badge = pickBadge({ sellOnly: info.sellOnly, tripwireActive: info.tripwireActive, isNew: info.isNew || recentEntryBadge, riskSignal: info.riskSignal, shadowAction: info.shadowAction })
 
+  if (density === 'compact') {
+    return (
+      <button
+        type="button"
+        onClick={() => setSelectedAsset(name)}
+        className={`w-full text-left p-3 rounded-lg border border-default bg-surface
+          hover:border-strong hover:bg-panel transition-all duration-200
+          border-l-4 ${borderColor(info.signal)}
+          focus-ring active:scale-[0.98]`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs font-semibold text-primary truncate">{name}</span>
+            {(info.sellOnly || info.tripwireActive) && (
+              <span className={`text-[9px] font-semibold px-1 py-0.5 rounded-sm leading-none ${
+                info.tripwireActive
+                  ? 'bg-gov-red-muted text-gov-red border border-gov-red/25'
+                  : 'bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/25'
+              }`}>
+                {info.tripwireActive ? '⚠' : 'SO'}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${signalBg(info.signal)} ${signalColor(info.signal)}`}>
+              {info.signal}
+            </span>
+            <span className={`text-[10px] font-mono tabular-nums ${signalColor(info.signal)}`}>
+              {info.confidence}%
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 mt-1.5">
+          <div className="flex items-center gap-2 min-w-0">
+            {info.price != null && (
+              <span className="text-[10px] text-tertiary font-mono tabular-nums">
+                ${info.price.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}
+              </span>
+            )}
+            <span className={`text-[10px] font-mono tabular-nums ${returnColor(info.totalReturn)}`}>
+              {info.totalReturn >= 0 ? '+' : ''}{info.totalReturn.toFixed(1)}%
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[9px] text-tertiary font-mono tabular-nums">
+              DD {info.drawdown.toFixed(1)}%
+            </span>
+            <span className="text-[9px] text-tertiary">
+              {info.nTrades}tr
+            </span>
+          </div>
+        </div>
+
+        {info.position && (
+          <div className="flex items-center gap-3 mt-1 text-[9px] font-mono tabular-nums text-tertiary">
+            <span>SL <span className="text-gov-red">{info.position.sl.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
+            <span>TP <span className="text-gov-green">{info.position.tp.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
+          </div>
+        )}
+      </button>
+    )
+  }
+
+  // comfortable density (original rich card)
   return (
     <div
       role="button"
@@ -250,7 +342,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name }) => {
               />
               {info.position.side.toUpperCase()} @ ${formatAssetPrice(info.position.entry)}
               {info.position.layers && info.position.layers.length > 1 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-500/30 leading-none">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-accent-emerald/15 text-accent-emerald border border-accent-emerald/30 leading-none">
                   ×{info.position.layers.length}
                 </span>
               )}

@@ -26,7 +26,7 @@ export default function PerformancePanel({ metrics }: PerformancePanelProps) {
 
   return (
     <Panel padding="md">
-      <SectionHeader title="System Performance" accent="blue" />
+      <SectionHeader title="System Performance" accent="emerald" />
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {metrics.map(m => (
           <div key={m.label} className="border border-default rounded-lg px-2.5 py-2 bg-surface/30">

@@ -37,7 +37,7 @@ export default function SlippageHistogram() {
   return (
     <ChartContainer
       title="Slippage Distribution (bps)"
-      accent="blue"
+      accent="emerald"
       isPending={isPending}
       isEmpty={isEmpty}
       emptyMessage="No closed trades yet — appears on exit"

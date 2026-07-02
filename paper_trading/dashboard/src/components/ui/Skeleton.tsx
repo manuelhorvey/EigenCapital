@@ -2,25 +2,12 @@ import Panel from './Panel'
 
 interface SkeletonProps {
   className?: string
+  /** When true, renders with a sliding gradient bg; default uses simple pulse */
   shimmer?: boolean
 }
 
 export function Skeleton({ className = '', shimmer = false }: SkeletonProps) {
   return <div className={`${shimmer ? 'skeleton-shimmer' : 'skeleton'} ${className}`} aria-hidden />
-}
-
-export function SkeletonText({ lines = 3, className = '' }: { lines?: number; className?: string }) {
-  return (
-    <div className={`space-y-2 ${className}`}>
-      {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className={`h-3 rounded ${i === lines - 1 ? 'w-2/3' : 'w-full'}`}
-          shimmer
-        />
-      ))}
-    </div>
-  )
 }
 
 export function MetricCardSkeleton({ count = 4 }: { count?: number }) {
@@ -31,19 +18,6 @@ export function MetricCardSkeleton({ count = 4 }: { count?: number }) {
           <Skeleton className="h-2.5 w-16 mb-3 rounded" shimmer />
           <Skeleton className="h-7 w-24 mb-2 rounded" shimmer />
           <Skeleton className="h-2.5 w-20 rounded" shimmer />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-export function SkeletonKpi({ count = 4 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-panel/60 border border-default rounded-lg p-2.5">
-          <Skeleton className="h-2.5 w-14 mb-2 rounded" shimmer />
-          <Skeleton className="h-4 w-10 rounded" shimmer />
         </div>
       ))}
     </div>

@@ -19,7 +19,7 @@ export default function TradeOutcomes() {
   if (isPending) {
     return (
       <Panel className="animate-pulse">
-        <SectionHeader title="Trade Outcomes" accent="purple" />
+        <SectionHeader title="Trade Outcomes" accent="emerald" />
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-panel rounded-lg p-3">
@@ -36,7 +36,7 @@ export default function TradeOutcomes() {
   if (isError || !outcomes) {
     return (
       <Panel>
-        <SectionHeader title="Trade Outcomes" accent="purple" />
+        <SectionHeader title="Trade Outcomes" accent="emerald" />
         <div className="text-xs text-tertiary text-center py-8">Failed to load outcome data</div>
       </Panel>
     )
@@ -47,18 +47,18 @@ export default function TradeOutcomes() {
 
   return (
     <Panel padding="lg">
-      <SectionHeader title="Trade Outcomes" accent="purple" border />
+      <SectionHeader title="Trade Outcomes" accent="emerald" border />
       {!hasData ? (
         <div className="text-xs text-tertiary text-center py-8">No trades closed yet</div>
       ) : (
         <>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 mb-5">
-            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="#25d065" />
-            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="#f04444" />
-            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="#eab308" />
-            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? '#25d065' : '#f04444'} />
-            <StatCard variant="kpi" label="Win Rate" value={pct(overall.win_rate)} accent="#60a5fa" />
-            <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="#a78bfa" />
+            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="var(--color-gov-green)" />
+            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="var(--color-gov-red)" />
+            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="var(--color-gov-yellow)" />
+            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'} />
+            <StatCard variant="kpi" label="Win Rate" value={pct(overall.win_rate)} accent="var(--color-text-secondary)" />
+            <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="var(--color-text-secondary)" />
           </div>
 
           <div className="overflow-x-auto">

@@ -151,7 +151,7 @@ export default function StatisticalMetricsTable() {
   if (rows.length === 0) {
     return (
       <Panel className="p-4">
-        <SectionHeader title="Statistical Metrics" accent="purple" />
+        <SectionHeader title="Statistical Metrics" accent="emerald" />
         <EmptyState message="No asset metrics available yet" compact />
       </Panel>
     )
@@ -161,7 +161,7 @@ export default function StatisticalMetricsTable() {
     <Panel className="overflow-hidden p-3.5 sm:p-4">
       <SectionHeader
         title="Statistical Metrics"
-        accent="purple"
+        accent="emerald"
         meta={
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-tertiary font-mono tabular-nums bg-surface/50 px-1.5 py-0.5 rounded">

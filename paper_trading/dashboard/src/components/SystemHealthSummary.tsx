@@ -34,7 +34,7 @@ export default function SystemHealthSummary() {
   const mt5Color = portfolio.execution.mt5_sync === 'HEALTHY' ? '#22c55e' : '#eab308'
 
   return (
-    <Panel padding="md" variant={portfolio.system_status === 'ALERT' ? 'accent' : 'default'}>
+    <Panel padding="md" variant={portfolio.system_status === 'ALERT' ? 'elevated' : 'default'}>
       {/* Status row */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">

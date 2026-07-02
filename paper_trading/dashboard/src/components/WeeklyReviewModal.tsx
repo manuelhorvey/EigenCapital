@@ -3,7 +3,7 @@ import { X, TrendingUp, TrendingDown, Activity, BarChart3, Shield, AlertTriangle
 import { useWeeklyReview } from '../hooks/useWeeklyReview'
 import type { WeeklyReview } from '../types/portfolio'
 import Button from './ui/Button'
-import KpiCard from './ui/KpiCard'
+import StatCard from './ui/StatCard'
 
 function formatPnl(v: number): string {
   const prefix = v >= 0 ? '+' : ''
@@ -11,11 +11,17 @@ function formatPnl(v: number): string {
 }
 
 function pnlColor(v: number): string {
-  return v > 0 ? 'text-gov-green' : v < 0 ? 'text-gov-red' : 'text-secondary'
+  return v > 0 ? 'var(--color-gov-green)' : v < 0 ? 'var(--color-gov-red)' : 'var(--color-text-secondary)'
 }
 
 function pctColor(v: number): string {
-  return v > 0 ? 'text-gov-green' : v < 0 ? 'text-gov-red' : 'text-secondary'
+  return v > 0 ? 'var(--color-gov-green)' : v < 0 ? 'var(--color-gov-red)' : 'var(--color-text-secondary)'
+}
+
+function textClassToVar(cls: string): string {
+  if (cls === 'text-primary') return 'var(--color-text-primary)'
+  if (cls === 'text-tertiary') return 'var(--color-text-tertiary)'
+  return 'var(--color-text-secondary)'
 }
 
 function DeltaArrow({ value }: { value: number }) {
@@ -32,15 +38,15 @@ function DeltaArrow({ value }: { value: number }) {
 function SummaryGrid({ summary, vsPrior }: { summary: WeeklyReview['summary']; vsPrior: WeeklyReview['vs_prior_week'] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      <KpiCard label="Trades" value={String(summary.n_trades)} color={summary.n_trades > 0 ? 'text-primary' : 'text-tertiary'} />
-      <KpiCard label="Win Rate" value={`${(summary.win_rate * 100).toFixed(0)}%`} color={pctColor(summary.win_rate - 0.5)} />
-      <KpiCard label="Avg R" value={summary.avg_r.toFixed(2)} color={pnlColor(summary.avg_r)} />
-      <KpiCard label="Profit Factor" value={summary.profit_factor !== null ? summary.profit_factor.toFixed(2) : '—'} color={summary.profit_factor !== null && summary.profit_factor >= 1 ? 'text-gov-green' : 'text-tertiary'} />
-      <KpiCard label="Total PnL" value={formatPnl(summary.total_pnl)} color={pnlColor(summary.total_pnl)} />
-      <KpiCard label="TP Rate" value={`${(summary.tp_rate * 100).toFixed(0)}%`} color={summary.tp_rate > summary.sl_rate ? 'text-gov-green' : 'text-tertiary'} />
-      <KpiCard label="SL Rate" value={`${(summary.sl_rate * 100).toFixed(0)}%`} color={summary.sl_rate > 0.3 ? 'text-gov-red' : 'text-tertiary'} />
-      <KpiCard label="Best R" value={summary.best_r_multiple.toFixed(2)} color="text-gov-green" />
-      <KpiCard label="Worst R" value={summary.worst_r_multiple.toFixed(2)} color="text-gov-red" />
+      <StatCard label="Trades" value={String(summary.n_trades)} accent={textClassToVar(summary.n_trades > 0 ? 'text-primary' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="Win Rate" value={`${(summary.win_rate * 100).toFixed(0)}%`} accent={pctColor(summary.win_rate - 0.5)} variant="kpi" />
+      <StatCard label="Avg R" value={summary.avg_r.toFixed(2)} accent={pnlColor(summary.avg_r)} variant="kpi" />
+      <StatCard label="Profit Factor" value={summary.profit_factor !== null ? summary.profit_factor.toFixed(2) : '—'} accent={textClassToVar(summary.profit_factor !== null && summary.profit_factor >= 1 ? 'text-gov-green' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="Total PnL" value={formatPnl(summary.total_pnl)} accent={pnlColor(summary.total_pnl)} variant="kpi" />
+      <StatCard label="TP Rate" value={`${(summary.tp_rate * 100).toFixed(0)}%`} accent={textClassToVar(summary.tp_rate > summary.sl_rate ? 'text-gov-green' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="SL Rate" value={`${(summary.sl_rate * 100).toFixed(0)}%`} accent={textClassToVar(summary.sl_rate > 0.3 ? 'text-gov-red' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="Best R" value={summary.best_r_multiple.toFixed(2)} accent="var(--color-gov-green)" variant="kpi" />
+      <StatCard label="Worst R" value={summary.worst_r_multiple.toFixed(2)} accent="var(--color-gov-red)" variant="kpi" />
       {vsPrior && (
         <div className="col-span-full flex items-center gap-3 pt-1 border-t border-default">
           <span className="text-2xs text-tertiary font-medium uppercase tracking-wider">vs prior week</span>
@@ -76,10 +82,10 @@ function AssetBreakdown({ byAsset }: { byAsset: WeeklyReview['by_asset'] }) {
               <tr key={a.asset} className="border-b border-default/50">
                 <td className="py-1.5 pr-3 text-primary font-medium">{a.asset}</td>
                 <td className="py-1.5 px-2 text-right text-secondary">{a.n_trades}</td>
-                <td className={`py-1.5 px-2 text-right ${pctColor(a.win_rate - 0.5)}`}>{(a.win_rate * 100).toFixed(0)}%</td>
-                <td className={`py-1.5 px-2 text-right ${a.tp_rate > a.sl_rate ? 'text-gov-green' : 'text-tertiary'}`}>{(a.tp_rate * 100).toFixed(0)}%</td>
-                <td className={`py-1.5 px-2 text-right ${pnlColor(a.avg_r)}`}>{a.avg_r.toFixed(2)}</td>
-                <td className={`py-1.5 pl-2 text-right ${pnlColor(a.pnl)}`}>{formatPnl(a.pnl)}</td>
+                <td className="py-1.5 px-2 text-right" style={{ color: pctColor(a.win_rate - 0.5) }}>{(a.win_rate * 100).toFixed(0)}%</td>
+                <td className="py-1.5 px-2 text-right" style={{ color: a.tp_rate > a.sl_rate ? 'var(--color-gov-green)' : 'var(--color-text-tertiary)' }}>{(a.tp_rate * 100).toFixed(0)}%</td>
+                <td className="py-1.5 px-2 text-right" style={{ color: pnlColor(a.avg_r) }}>{a.avg_r.toFixed(2)}</td>
+                <td className="py-1.5 pl-2 text-right" style={{ color: pnlColor(a.pnl) }}>{formatPnl(a.pnl)}</td>
               </tr>
             ))}
           </tbody>
@@ -145,7 +151,7 @@ function RegimeCorrelation({ regimes }: { regimes: WeeklyReview['regime_correlat
             <span className="text-2xs text-primary font-medium">{r.regime}</span>
             <div className="flex items-center gap-3">
               <span className="text-[10px] text-tertiary">{r.n_trades} trades</span>
-              <span className={`text-2xs font-mono ${pctColor(r.win_rate - 0.5)}`}>{(r.win_rate * 100).toFixed(0)}%</span>
+              <span className="text-2xs font-mono" style={{ color: pctColor(r.win_rate - 0.5) }}>{(r.win_rate * 100).toFixed(0)}%</span>
             </div>
           </div>
         ))}
@@ -214,7 +220,7 @@ export default function WeeklyReviewModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16 px-4">
       <div className="fixed inset-0 bg-black/60" onClick={() => setOpen(false)} aria-hidden="true" />
-      <div ref={modalRef} className="relative w-full max-w-2xl bg-app border border-default rounded-xl shadow-2xl animate-fade-in max-h-[85vh] flex flex-col" role="dialog" aria-modal="true" aria-label="Weekly Review">
+      <div ref={modalRef} className="relative w-full max-w-2xl bg-surface border border-default rounded shadow-modal animate-fade-in max-h-[85vh] flex flex-col" role="dialog" aria-modal="true" aria-label="Weekly Review">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
           <div>
@@ -226,7 +232,7 @@ export default function WeeklyReviewModal() {
           </div>
           <button
             onClick={() => setOpen(false)}
-            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
+            className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
           </button>

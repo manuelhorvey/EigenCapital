@@ -20,43 +20,39 @@ export default function AdmissionPanel() {
 
   return (
     <Panel padding="md">
-      <div className="space-y-2">
+      <div className="space-y-3">
         <span className="text-2xs text-tertiary font-medium uppercase tracking-wider">PEK Admission</span>
 
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <div className="text-lg font-bold font-mono tabular-nums text-primary">{adm.n_intents}</div>
-            <div className="text-2xs text-tertiary">Intents</div>
+        <dl className="grid grid-cols-3 lg:divide-x lg:divide-default -mx-1">
+          <div className="px-3 py-1 min-w-0">
+            <dt className="text-2xs text-tertiary uppercase tracking-wider truncate">Intents</dt>
+            <dd className="text-base font-bold font-mono tabular-nums text-primary">{adm.n_intents}</dd>
           </div>
-          <div>
-            <div className="text-lg font-bold font-mono tabular-nums" style={{ color: pctColor(admittedPct) }}>
-              {adm.n_admitted}
-            </div>
-            <div className="text-2xs text-tertiary">Admitted</div>
+          <div className="px-3 py-1 min-w-0">
+            <dt className="text-2xs text-tertiary uppercase tracking-wider truncate">Admitted</dt>
+            <dd className="text-base font-bold font-mono tabular-nums" style={{ color: pctColor(admittedPct) }}>{adm.n_admitted}</dd>
           </div>
-          <div>
-            <div className="text-lg font-bold font-mono tabular-nums" style={{ color: pctColor(rejectedPct) }}>
-              {adm.n_rejected}
-            </div>
-            <div className="text-2xs text-tertiary">Rejected</div>
+          <div className="px-3 py-1 min-w-0">
+            <dt className="text-2xs text-tertiary uppercase tracking-wider truncate">Rejected</dt>
+            <dd className="text-base font-bold font-mono tabular-nums" style={{ color: pctColor(rejectedPct) }}>{adm.n_rejected}</dd>
           </div>
-        </div>
+        </dl>
 
-        <div className="text-2xs text-tertiary font-mono">
+        <div className="text-2xs text-tertiary font-mono pt-2 border-t border-default">
           Budget notional: ${(adm.budget_notional ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </div>
 
         {adm.admitted && adm.admitted.length > 0 && (
           <div className="text-2xs text-tertiary">
             <span className="font-medium text-gov-green/80">Admitted: </span>
-            {adm.admitted.join(', ')}
+            <span className="font-mono">{adm.admitted.join(', ')}</span>
           </div>
         )}
 
         {adm.rejected && adm.rejected.length > 0 && (
           <div className="text-2xs text-tertiary">
             <span className="font-medium text-gov-red/80">Rejected: </span>
-            <span className="text-gov-red/60">{adm.rejected.join(', ')}</span>
+            <span className="font-mono text-gov-red/70">{adm.rejected.join(', ')}</span>
           </div>
         )}
       </div>

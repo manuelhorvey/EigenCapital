@@ -13,7 +13,7 @@ export default function LoadingScreen({
     <div className="min-h-screen bg-app flex flex-col items-center justify-center gap-5 px-6 animate-fade-in">
       <div className="relative">
         <div className="absolute inset-0 rounded-full bg-accent-emerald/20 blur-xl animate-pulse-subtle" />
-        <div className="relative w-12 h-12 rounded-xl panel flex items-center justify-center border-strong">
+        <div className="relative w-12 h-12 rounded panel flex items-center justify-center border-strong">
           <Activity className="w-6 h-6 text-accent-emerald animate-pulse" strokeWidth={1.75} />
         </div>
       </div>

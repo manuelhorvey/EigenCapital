@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 interface SectionHeaderProps {
   title: string
   subtitle?: string
+  /** Kept for API stability; visually collapses to a single static dot. */
   accent?: 'emerald' | 'blue' | 'purple' | 'amber' | 'indigo' | 'pink' | 'neutral'
   meta?: ReactNode
   className?: string
@@ -18,16 +19,6 @@ const accentDot: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
   indigo: 'bg-accent-indigo',
   pink: 'bg-accent-pink',
   neutral: 'bg-gov-init/60',
-}
-
-const accentGlow: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
-  emerald: 'shadow-[0_0_6px_rgba(45,211,191,0.4)]',
-  blue: 'shadow-[0_0_6px_rgba(96,165,250,0.4)]',
-  purple: 'shadow-[0_0_6px_rgba(167,139,250,0.4)]',
-  amber: 'shadow-[0_0_6px_rgba(251,191,36,0.4)]',
-  indigo: 'shadow-[0_0_6px_rgba(129,140,248,0.4)]',
-  pink: 'shadow-[0_0_6px_rgba(244,114,182,0.4)]',
-  neutral: 'shadow-[0_0_6px_rgba(100,116,139,0.2)]',
 }
 
 const titleSize = {
@@ -53,13 +44,7 @@ export default function SectionHeader({
       ].join(' ')}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className={`relative flex items-center justify-center w-2 h-2 shrink-0`}>
-          <span className={`absolute inset-0 rounded-full opacity-60 ${accentDot[accent]} ${accentGlow[accent]}`} />
-          <span className={`absolute inset-0 rounded-full opacity-30 ${accentDot[accent]} animate-ping`}
-            style={{ animationDuration: '3s', animationDelay: '1s' }}
-          />
-          <span className={`w-2 h-2 rounded-full relative z-10 ${accentDot[accent]}`} />
-        </span>
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${accentDot[accent]}`} />
         <div className="min-w-0">
           <h2 className={[titleSize[size], 'font-semibold tracking-tight text-primary truncate'].join(' ')}>{title}</h2>
           {subtitle && <p className="text-[10px] text-tertiary font-mono truncate mt-0.5 tracking-wide">{subtitle}</p>}

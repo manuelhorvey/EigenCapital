@@ -1391,3 +1391,121 @@ Systematic 4-phase remediation of audit findings on `feature/production-audit-re
 **Phase 3 — Frontend UX Redesign (commit 4dbcf97)**: CommandCenter page merges TradingDashboard + DashboardOverview; EquityCurveSparkline SVG component from `/equity_history.json`; sortable asset list by risk/name/pnl/exit; Conviction badges removed (non-predictive — per audit finding); PEK status bar removed; dead field references cleaned from ExecutionFeed, GateAggregationPanel, AssetDetailPanel. TypeScript 0 errors.
 
 **Phase 4 — Polish & Cleanup (current)**: Stale asset refs cleaned (data_fetch.py _ZERO_RATE_ASSETS: removed ES/NQ/DJI; trade_analysis.py: cleared stale SLTP_CFG/DASHBOARD_TICKERS/MODEL_DEPTH); LIVE_CONTRACT.md US_EQUITY factor group updated; AGENTS.md changelog added. ruff format + check clean.
+
+---
+
+## Dashboard Operator-Console Redesign (in progress + paused)
+
+Branch: `redesign/operator-console-terminal-precision`. Visual identity: **operator-console / terminal-precision**, dark-only, mono supremacy, single accent (teal-emerald).
+
+**Phases 1–4 complete (8 commits)**:
+
+- **Phase 1.1** `ceda2d5` — Removed dead pages & token file: `pages/TradingDashboard.tsx`, `pages/DashboardOverview.tsx`, `components/AnchorNav.tsx`, `theme/tokens.ts`. Verified via `lazy(`/`dynamic(` grep that none of these were dynamically imported before deletion.
+- **Phase 1.2** `9c32101` — Collapsed `KpiCard` + `MetricCard` into `StatCard`. Migrated `WeeklyReviewModal`'s 10 instances to `StatCard variant="kpi"`.
+- **Phase 1.3** `f528020` — Cut light mode entirely for v1: removed `ThemeToggle.tsx`, `rawLightTokens` from color-system.ts, the `.light {}` block in `generated/tokens.css`, and the `light` DTCG group in `generated/tokens.json`.
+- **Phase 1.4** `900467d` — Removed dead CSS classes from `index.css` (`.metric-card`, `.section-title`, `.glass`, `.btn-primary`, `.btn-ghost`, `.signal-pill*`, `.metric-value`, `.interactive*`, `:root` smooth-theme transition). Living classes preserved: `.panel`, `.skeleton`, `.metric-label`, `.table-header`, `.sort-header`, `.table-row-hover`, `.anchor-nav`, `.input-terminal`, `.focus-ring`.
+- **Phase 2.5** `fbab2c6` — Extracted `BarRow` named export from `ProgressBar.tsx`; `SltpGauge.tsx` now stacks three `BarRow`s. Public APIs unchanged.
+- **Phase 2.7** `69b853b` — Removed unused `SkeletonText` + `SkeletonKpi` from `ui/Skeleton.tsx`. Kept `Skeleton`, `MetricCardSkeleton` (2 live consumers), `TableSkeleton` (4 live consumers).
+- **Phase 2.8a** `d46f101` — `SectionHeader`: dropped 3-layer pulsing accent (static dot + glow halo + animate-ping). API unchanged (7 accent variants still accepted).
+- **Phase 2.8b** `f219c42` — `EntranceAnimator`: dropped `stagger`/`staggerDelay`/internal `EntranceAnimatorItem` (zero external consumers). Single mode with `delay` retained.
+- **Phase 2.4** `6604fd5` — Merged `AssetMiniCard` into `AssetCard` with `density: 'comfortable' | 'compact'` prop. Shared signal-extraction logic. `AssetMiniCard.tsx` deleted; `AssetMiniGrid.tsx` updated to pass `density="compact"`.
+- **Phase 3** `a7329eb` — Removed duplicate `<EmergencyHaltBanner>` render in `pages/CommandCenter.tsx`. `AppShell.tsx` already mounts it once at top level.
+- **Phase 4** `d3d322e` — **IA-1**: nav-rail status chip. `useSidebarBadges` extended to expose engine `'alive'|'stale'|'dead'` state. Inline engine dot on the Dashboard nav item, bottom-of-rail `engine STATUS` caption row, removed the redundant top strip widget. Header still shows engine health as a separate glance surface.
+
+**Phase 5 — IA-3 HOLD-AND-OBSOLETED**: Per the design lead's explicit decision, IA-1 (nav-rail status chip, Phase 4) shipped first to test whether it alone satisfies the glance-check without IA-3's tab split. After Phase 4 + Phase 6.1 (IA-2 deleted `/engine`), the IA-3 prescription has effectively become obsolete: with `/engine` gone, the rail has a single Overview item ("Dashboard") pointing to a single CommandCenter — there is no ambiguity left for a tab strip inside the route to resolve. **Decision recorded; do not implement IA-3 in any branch without re-approval.**
+
+**Phase 6 — IA resolutions (12 commits added after Phase 5)**:
+
+| IA | Resolution | Outcome |
+|---|---|---|
+| **IA-2** | Dropped `/engine` route dual-mount in `App.tsx`; removed `Heart`/`engine` nav item from `Sidebar`; updated description from "Raw metrics + full data" to "Status, equity, positions". | **Code change** — commit `f7a21cd`. |
+| **IA-4** | Move `PekScalarPanel`, `PerformanceStateVelocityChart`, `RiskBudgetChart` off `/risk` onto `/engine`. Post-IA-2 there is no `/engine`, so the move has no destination. **Decision: leave them on `/risk`.** They are auxiliary telemetry, not risks, but the correct location is a separate `/behavior` route which is out of scope here. | **No code change**; debate closed. |
+| **IA-5** | `GateAggregationPanel` + `GovernanceRadar` already live in `/risk/risk` workspace under their respective sections. | **No change needed**; verified. |
+| **IA-6** | `PositionConcentrationPanel` + `FactorExposureBreakdown` already on `/risk` only. | **No change needed**; verified. |
+| **IA-7** | Moved full-recharts `EquityChart` from `TradingWorkspace / Signals` section to new `ExecutionWorkspace / Equity Curve` section. The chart shows portfolio time-series, drawdown, and per-asset overlays — performance surfaces, not signal surfaces. The small `EquityCurveSparkline` (80px) stays on `CommandCenter`'s status row as the operator's glance-only summary. | **Code change** — commit `ee30ccc`. |
+| **IA-8** | `AnchorNav` already removed in Phase 1.1. | **No change needed**. |
+| **IA-9** | `ExecutionFeed` (live stream) is on `/trading`; `TradeExecutionTable` (full table) is on `/execution`. The two surfaces serve different primary jobs (live signal vs historical record) and are correctly split. The "duplicate rows" concern was inaccurate. | **No change needed**; verified. |
+
+After Phase 6: 4 routes (`/`, `/trading`, `/execution`, `/risk`), each with a single primary job. CommandCenter sits at 6 rather than 8 sections (no redundant equity chart, no redundant banner). The rail's status chip from Phase 4 plus the Header's `HealthBadge` provide engine-state-without-scrolling from two persistent surfaces.
+
+**Audit items deferred to dedicated PRs** (not in this branch): #1 (QuickStatCard → StatCard), #2 (PekStatusBar fold-in), #7 (TradingAssetRow extraction), #11 (Panel variant collapse), #13 (PekScalarPanel relocation — IA-4 closed without code), #14 (EquityChart migration — done in 6.7), #16 (Header health chip move). Each has large file-fan-out and is its own reviewable commit when picked up.
+
+---
+
+### Phases 7–9 (final months of the redesign)
+
+After Phase 6 the branch continued into copy + visual identity. Roughly thirty commits landed that complete the operator-console surface treatment. Section IDs are by phase / commit prefix.
+
+**Phase 7 — operator-voice copy** (commit `aa1577b`)
+
+- Header.tsx health badge: title `'Engine: {label} — click for details'` → `'Engine {label}'`, aria-label `'Engine status: {label}. Open details.'`
+- Header.tsx refresh button: `'Refresh all dashboard data'` → `'Refresh dashboard data'`
+- Header.tsx menu button: `'Toggle navigation'` → `'Open navigation menu'`
+- AppShell.tsx ErrorScreen: title `'System Unavailable'` → `'Engine unavailable'`; message moved to active voice (`"Couldn't load the engine snapshot. It may be restarting."`)
+- Other copy audited and intentionally left: `SAFE` / `MONITOR` / `ALERT` (operator-standard triad); "All systems nominal" (in-domain status idiom for the audience); SectionHeader / EmptyState section hints already operator-natural
+
+**Phase 8 — design system implementation**
+
+Three commits shipped the operator-console signature.
+
+- Phase 8.1 `ef624ee` — **`TickerRail` signature element**: 32px-tall mono breadcrumb pinned above `<Header>` on every route. Reads as `Q ·QUORRIN · seq #N · engine <state> · tick <N>s · pek <a>/<i> · halt <yes|no> · assets <N>` in mono. Morphs to a halt-channel when `emergency_halt` is set; positions-frozen annotation; not rendered when `integrity.shouldBlockRender` (display uses `ErrorScreen`). Data: `useEngineHealth` + `useSystemSnapshot`. Tone-coded GREEN / YELLOW / RED on each token.
+- Phase 8.2 `7ea43b6` — **Design tokens**: `color-app` `#08090c → #07080b` (deeper ink); `color-accent-emerald` `#2dd4bf → #3dd9ae` (lifted accent); matching `rgba` updates in `index.css` focus-ring + input-terminal; `usage.*` updated to source lifted palette; `generated/tokens.css|json|tailwind.partial.js` regenerated automatically.
+- Phase 8.3 `dc4e3a1` — **Quick-stats row on CommandCenter migrated**. The 7-card grid (each labelled card with icon and padding) collapsed to a single hairline-rule mono dl/div row. Five reserved audit items addressed in this commit at no additional cost (dead `QuickStatCard` definition and 7 unused icon imports removed by reconstruction).
+
+**Phase 9 — component-by-component visual redesign**
+
+Six commits. The pattern is unchanged from the audit: terminal-precision treatment means *one* mono headline per row, governance semantic colors only on values that read green/yellow/red, and a single hairline rule between cells on desktop.
+
+- Phase 9.1 (4 commits: `16ea6f8`, `f252e13`, `8172a29`) — `/trading` surfaces: `SignalsTable` filter-input focus ring → lifted accent rgba; `TradeOutcomes` 6 KPI accents recoloured to `var(--color-gov-{green,yellow,red})` for the semantic cells (TP / SL / Flip / Avg R) and `var(--color-text-secondary)` for the percentage cells (Win Rate, Profit Factor — chart palette dropped); `AdmissionPanel` 3-stat row migrated to dl/div hairline pattern (Intents / Admitted / Rejected mono cells).
+- Phase 9.2 (3 commits: `f932f48`, `35c5831`, `18290e5`) — `/execution` surfaces: `ExecutionQualityStrip` 4 KPI row → dl/div treatment, accents via `tone='good'|'warn'|'bad'`. `AttributionBreakdownCard` 4 attribution KPIs retained their multi-color palette (Prediction blue / Execution purple / Exit green / Friction amber is the *attribution legend*) but re-sourced via `var()` tokens. `TradeExecutionTable`, `FillQualityGauge`, `SlippageHistogram` accents off the chart palette (blue/purple) → single accent emerald.
+- Phase 9.3 (1 commit: `bee7be9`) — `/risk` and adjacent surfaces: 8 panel accents (`accent="blue|purple|pink|indigo"` on CalibrationCurve, ExecutionFeed, HealthScores, StatisticalMetricsTable, TradeFeed, TradeOutcomes, GovernanceRadar, PerformancePanel) → `accent="emerald"`. `AlertFeed` left on `amber` (alerts legitimately warn). `AttributionBreakdownCard` left on its multi-color legend.
+- Phase 9.4 (1 commit: `a2dfc8b`) — `AssetCard` layers-badge inline Tailwind blue (`bg-blue-900/30 text-blue-400 border-blue-500/30`) → lifted-accent `bg-accent-emerald/15 text-accent-emerald border-accent-emerald/30`.
+- Phase 9.5 (1 commit: `d76ccd9`) — Modal chrome: 3 modals (`WeeklyReviewModal`, `TradeInspectorModal`, `SystemHealthModal`) plus loading/error screens migrated off Tailwind default `rounded-xl` + `shadow-2xl` to single 4px corner + `var(--shadow-modal)` token, which gives the right elevation for the page's highest layer.
+- Phase 9.6 — this section.
+
+**Deliberate non-targets for Phase 9** (audited and left alone):
+
+- **rounded-lg → rounded collapse across panels/cards/table cell treatments.** Phase 2's spec preferred a single 4px corner everywhere; doing it now would ripple across 40+ files. Best as a separate PR when there is time to refresh every Panel render.
+- **Chart palette elimination.** Audit step 2 reserved the chart palette for *attribution surfaces where colour carries domain meaning*. AttributionBreakdownCard preserves it intentionally. Everywhere else collapses to single accent emerald + governance semantic.
+- **14 audit items previously deferred** (Panel variant collapse, TradingAssetRow extraction, PekStatusBar fold-in, etc.) still belong in dedicated PRs of their own.
+
+**Visual identity landed**
+
+The operator-console surfaces as designed:
+1. **TickerRail** above Header reads the engine pulse continuously in mono
+2. **Rail status chip** (Phase 4) plus Header HealthBadge (Phase 7 copy) answer "is the engine OK" without scrolling, from either of two persistent surfaces
+3. **Quick-stats row** (Phase 8.3) is one mono headline per metric, divided by hairline rules, semantic-coloured only where the value reads green/yellow/red
+4. **SectionHeader** dots are static single pixels (Phase 2.8a)
+5. **Hairline 1px border** is the only surface separation at rest; no shadow contrast between panels of the same elevation
+6. **Single accent** (lifted emerald) reserved for primary actions and one-shot highlights; **governance semantic** the only signal colors
+
+Branch is stable, builds clean (`tsc -b --noEmit`, `vite build`), commit-per-change history preserved.
+
+---
+
+## Deferred-PR cleanup batch D (one-off unit commits)
+
+The audit had 14 deferred items flagged as "large-blaster, >30 file touch-points" — each its own dedicated PR. Over the next session the items that hadn't been resolved by other phases were closed out:
+
+| Phase | Item | Commit | Outcome |
+|-------|------|--------|---------|
+| D-1 | #1 QuickStatCard → StatCard | n/a (audit-crep) | already completed in Phase 8.3 — the inline `QuickStatCard` definition in `CommandCenter.tsx` was replaced by the dl/div terminal-precision treatment using `StatCard` import paths only. Zero references confirmed by grep. |
+| D-2 | #2 PekStatusBar fold into SystemHealthSummary | n/a (audit-crep) | already removed in Phase 1.1 (`DashboardOverview.tsx` itself deleted; PekStatusBar was its inline member). |
+| D-3 | #7 TradingAssetRow extraction | `cb9f5ad` | extracted to top-level `components/TradingAssetRow.tsx`. Now reusable from any route. `AssetTradingState` used as the explicit type (no longer `ReturnType<typeof useTradingState>['assetList'][number]`). Inline definition deleted in `CommandCenter.tsx`. |
+| D-4 | #16 Header health chip move | `7e70f74` | Header `HealthBadge` collapsed to an icon-only click target (`<HealthButton />` with an `Activity` icon coloured by engine tone). Visible state already lives in TickerRail + Sidebar caption — no further Header pill is needed. State text remains in title and aria-label. |
+| D-5 | open-positions card-grid duplication Dashboard ⇄ Trading | `b84a4ae` | `<AssetMiniGrid openOnly />` removed from `/trading` (TradingWorkspace) and the `Section id="open-positions"` wrapper deleted. The grid stays on `/` (Dashboard) as part of the glance surface. `/trading` retains the dense per-asset sortable table (`AssetListPanel → TradingAssetRow[]`) for operate-on-positions work — that's a separate surface, not the same view. |
+| D-6 | #11 Panel variant collapse | `1ee522e` | `Panel.tsx` variants collapsed from 5 (`default | elevated | flat | accent | glass`) to 2 (`default | elevated`). Ornamental props (`leftAccent`, `gradient`, `glowColor`) removed (zero callers). The only straggler (`SystemHealthSummary.tsx` was still passing `'accent'` for the ALERT state) rerouted to `'elevated'` — semantically correct, ALERT now lifts the panel above its row. |
+| D-7 | #13/#14 PekScalarPanel relocation + EquityChart migration | n/a (already in Phase 6.2/6.3) | Phase 6.2 moved `EquityChart` from `/trading` to `/execution` (commit `ee30ccc`). Phase 6.3 closed IA-4 by deciding PEK scalars stay on `/risk` (post-IA-2 `/engine` had no destination; left them where they were). No further action. |
+| D-9 | top-bar dedup (Header vs TickerRail) | `79cf345` | After Phase D-4 collapsed Header's `HealthBadge` to an icon, Header still carried the brand wordmark + sequence id + `<MT5Status />` + the `<HealthButton />` — all of which were already encoded in the TickerRail. TickerRail gained an `mt5` token (`live $X` / `disc` / `ERROR` tone-coded). Header collapsed to two icon-only buttons: mobile menu and refresh. `MT5Status.tsx` deleted (its sole consumer was the now-removed Header mount). |
+| D-12a | rail carries refresh glyph + responsive layout | `88f2dcb` | TickerRail tokens dropped `whitespace-nowrap` + `overflow-x-auto` in favour of `flex flex-wrap` so they wrap naturally on narrow viewports (no more horizontal scroll on a 360px viewport). A trailing control cluster (`ml-auto`) carries the refresh button (always rendered, calls React Query's `invalidateQueries`, gated 600ms minimum spin for visible feedback). The rail is now both read state and the single operator-control touchpoint above main content. |
+| D-12b | Header fully removed; menu moves to rail | `db6b2ba` | `Header.tsx` deleted in full. AppShell no longer mounts Header; the menu toggle (mobile-only, `lg:hidden`) and refresh button both live on the rail. Layout on every viewport is now `TickerRail → SystemDegradedBanner → EmergencyHaltBanner → Sidebar | TabBar | main`, with **one** top bar above page content. |
+| D-10 | equity-chart duplication Dashboard ⇄ /execution | n/a (operator-confirmed keep) | Operator deferred to the recommendation: small `EquityCurveSparkline` on Dashboard's status row is the *glance read*; full `EquityChart` (Recharts area + drawdown + per-asset overlays) on `/execution` is the *attribution drill-down*. Two views of the same `/equity_history.json` source at different drill depths. IA-7 already approved their coexistence. No code change. |
+
+Each item was its own small isolated commit so the work stays reviewable per the "small enough for one agent to finish in a single focused pass" rule. After this batch the dashboard has zero outstanding audit items.
+
+Final route count: 4 (`/`, `/trading`, `/execution`, `/risk`). Each route has a single primary job:
+
+- `/` — glance surface: status row + ticker rail + equity curve + open-positions grid + dense sortable asset list
+- `/trading` — operate surface: signal queue + admission/rejected + recent trades + execution feed
+- `/execution` — quality surface: equity curve + execution quality KPIs + trade attribution
+- `/risk` — governance surface: PEK telemetry + portfolio risk + governance + health scores

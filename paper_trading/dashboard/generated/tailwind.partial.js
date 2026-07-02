@@ -46,6 +46,19 @@ export default {
     "card": "var(--color-card)",
     "panel": "var(--color-panel)",
     "panel-hover": "var(--color-panel-hover)",
+    "ink": "var(--color-ink)",
+    "rule": "var(--color-rule)",
+    "signal-long": {
+      "DEFAULT": "var(--color-signal-long)"
+    },
+    "signal-warn": {
+      "DEFAULT": "var(--color-signal-warn)"
+    },
+    "signal-short": {
+      "DEFAULT": "var(--color-signal-short)"
+    },
+    "tripwire": "var(--color-tripwire)",
+    "accent-glow": "var(--color-accent-glow)",
     "primary": "var(--color-text-primary)",
     "secondary": "var(--color-text-secondary)",
     "tertiary": "var(--color-text-tertiary)",

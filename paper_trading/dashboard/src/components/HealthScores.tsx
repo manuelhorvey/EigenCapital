@@ -34,7 +34,7 @@ export default function HealthScores() {
   if (isPending) {
     return (
       <Panel padding="md">
-        <SectionHeader title="System Health" accent="purple" />
+        <SectionHeader title="System Health" accent="emerald" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-lg" />
@@ -53,7 +53,7 @@ export default function HealthScores() {
     <Panel padding="md">
       <SectionHeader
         title="System Health"
-        accent="purple"
+        accent="emerald"
         meta={
           <span className="text-[11px] text-tertiary font-mono bg-surface px-2 py-0.5 rounded border border-default tabular-nums">
             {sys?.n_healthy ?? 0} ok · {sys?.n_degraded ?? 0} deg · {sys?.n_critical ?? 0} crit

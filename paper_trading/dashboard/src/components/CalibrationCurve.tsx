@@ -63,7 +63,7 @@ export default function CalibrationCurve() {
     <Panel padding="lg">
       <SectionHeader
         title="Probability Calibration"
-        accent="purple"
+        accent="emerald"
         meta={
           <span className="text-2xs text-tertiary font-mono bg-surface px-2 py-0.5 rounded border border-default">
             {points.length} assets · {normalPoints.length} normal · {invertedPoints.length} SELL-only

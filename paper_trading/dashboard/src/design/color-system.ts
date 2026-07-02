@@ -1,9 +1,54 @@
-// ── Single Source of Truth ──────────────────────────
-// rawTokens keys are CSS custom property names minus the `--` prefix.
-// The generate-tokens script reads this map to produce:
-//   generated/tokens.css          →  :root { --color-teal-50: ... }
-//   generated/tailwind.partial.js →  { theme: { extend: { colors: ... } } }
-// All derived exports below are syntactic sugar on top of rawTokens.
+// ── Design Tokens — Quorrin Operator Console ─────────────────────────
+//
+// This file is the single source of truth for the dashboard's design
+// tokens. rawTokens keys are CSS custom-property names minus the `--`
+// prefix; the generate-tokens script reads this map to produce:
+//
+//   generated/tokens.css          →  :root { --color-app: ... }
+//   generated/tailwind.partial.js →  { theme: { extend: { colors: ... } }
+//
+// ── Naming policy ────────────────────────────────────────────────────
+//
+// Tokens name their *role*, not their look. Operators read 'accent',
+// 'signal-long', 'rule' — they don't read 'teal-500'. This is the
+// discipline that makes the system auditable: every value on every
+// page must trace to a token here.
+//
+// ── Color strategy ──────────────────────────────────────────────────
+//
+// Six surface depths describe the page silhouette; three tonal
+// semantics describe risk state; one accent describes brand presence.
+// Eleven semantic values total. Components needing a fourth colour
+// are usually computing layout (a hairline rule) — fold the value
+// into the rail and stop.
+//
+//   ink                                background depth
+//   panel / panel-hover                 section / card substrate
+//   surface                            modal / scrim substrate
+//   rule                               hairline separator (no shadow)
+//   text-primary / -secondary / -dim / -muted
+//                                       four-tone typography hierarchy
+//   accent / accent-pressed / accent-glow
+//                                       single brand accent (teal-emerald,
+//                                       lifted from the chart palette for
+//                                       hairline legibility)
+//   signal-long / signal-warn / signal-short
+//                                       governance semantic — used
+//                                       identically across all read state
+//                                       (green / yellow / red, in that
+//                                       order of severity)
+//   tripwire                           tripwire-ONLY signal; never
+//                                       decorative. Distinct from
+//                                       signal-short because tripwire
+//                                       pages should *also* enter
+//                                       EmergencyHaltBanner.
+//
+// Existing CSS-variable names below (color-app, color-text-primary,
+// color-gov-green, etc.) are preserved verbatim so the Tailwind
+// utility surface is unchanged for every consumer. The new token
+// names below (ink / panel / rule / signal-long / etc.) are layered
+// alongside for new components; migration to the role-named surface
+// is a future phase.
 // ──────────────────────────────────────────────────────────────────
 
 export const rawTokens = {
@@ -47,11 +92,24 @@ export const rawTokens = {
   'color-neutral-950': '#0b0e0c',
 
   // ── Application surfaces ──────────────────────────
-  'color-app': '#08090c',
+  // Terminal-precision: ink is one notch deeper than the previous #08090c
+  // so the chrome is more clearly the chrome against the working surface.
+  'color-app': '#07080b',
   'color-surface': '#0c0d12',
   'color-card': '#0c0d12',
   'color-panel': '#13161f',
   'color-panel-hover': '#161820',
+
+  // ── Role-named tokens (canonical names) ───────────
+  // These shadow the existing gov-*/border-* tokens. New components
+  // should prefer these; migration of existing consumers is incremental.
+  'color-ink': '#07080b',                    // same as color-app
+  'color-rule': '#1e2233',                   // same as color-border
+  'color-signal-long': '#25d065',            // same as color-gov-green
+  'color-signal-warn': '#eab308',            // same as color-gov-yellow
+  'color-signal-short': '#f04444',           // same as color-gov-red
+  'color-tripwire': '#ff3864',               // distinct from signal-short — brighter, more urgent
+  'color-accent-glow': 'rgba(61, 217, 174, 0.3)',
 
   // ── Text hierarchy ────────────────────────────────
   'color-text-primary': '#f1f3f6',
@@ -67,12 +125,12 @@ export const rawTokens = {
   'color-glass': 'rgba(12, 13, 18, 0.92)',
 
   // ── Focus ring ────────────────────────────────────
-  'color-focus-ring': 'rgba(20, 184, 166, 0.45)',
+  'color-focus-ring': 'rgba(61, 217, 174, 0.45)',
 
   // ── Interactive states ────────────────────────────
   'color-interactive-hover': 'rgba(255, 255, 255, 0.04)',
   'color-interactive-active': 'rgba(255, 255, 255, 0.08)',
-  'color-interactive-selected': 'rgba(20, 184, 166, 0.08)',
+  'color-interactive-selected': 'rgba(61, 217, 174, 0.08)',
 
   // ── Governance (semantic) ─────────────────────────
   'color-gov-green': '#25d065',
@@ -102,7 +160,11 @@ export const rawTokens = {
   'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.06)',
 
   // ── Extended accent palette ───────────────────────
-  'color-accent-emerald': '#2dd4bf',
+  // Emerald is the single accent for the operator-console identity: the
+  // teal-emerald that already anchors the rail (Phase 8.1) and the
+  // Header chip. Hotter (the previous #2dd4bf read as a teal at small
+  // sizes; #3dd9ae reads as readable on hairline rules).
+  'color-accent-emerald': '#3dd9ae',
   'color-accent-blue': '#60a5fa',
   'color-accent-purple': '#a78bfa',
   'color-accent-amber': '#fbbf24',
@@ -202,44 +264,6 @@ export const rawTokens = {
   'animation-scale-in': 'scale-in 0.2s ease-out',
   'animation-slide-up': 'slide-up 0.35s ease-out',
   'animation-fade-in': 'fade-in 0.4s ease-out',
-} as const
-
-// ── Light-mode overrides ────────────────────────────
-// Only role-mapping tokens that change in light mode.
-// Brand scales (teal, indigo, neutral), gov colors, accents, and
-// structural tokens (spacing, fonts, radii) stay the same.
-export const rawLightTokens = {
-  // Surfaces
-  'color-app': '#f3f6f5',
-  'color-surface': '#ffffff',
-  'color-card': '#ffffff',
-  'color-panel': '#e1e6e4',
-  'color-panel-hover': '#c3cdc8',
-
-  // Text
-  'color-text-primary': '#1b221f',
-  'color-text-secondary': '#4b5b55',
-  'color-text-tertiary': '#5f726b',
-  'color-text-muted': '#7a8d85',
-
-  // Borders
-  'color-border': '#9eada6',
-  'color-border-strong': '#7a8d85',
-
-  // Glass
-  'color-glass': 'rgba(255, 255, 255, 0.92)',
-
-  // Interactive states (light bg → dark overlays)
-  'color-interactive-hover': 'rgba(0, 0, 0, 0.04)',
-  'color-interactive-active': 'rgba(0, 0, 0, 0.08)',
-  'color-interactive-selected': 'rgba(20, 184, 166, 0.08)',
-
-  // Shadows (softer on light backgrounds)
-  'shadow-panel': '0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08)',
-  'shadow-card': '0 1px 0 rgba(0,0,0,0.03) inset, 0 8px 32px rgba(0,0,0,0.1)',
-  'shadow-modal': '0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.15)',
-  'shadow-tooltip': '0 4px 20px rgba(0,0,0,0.12)',
-  'shadow-inner-subtle': 'inset 0 1px 3px rgba(0,0,0,0.05)',
 } as const
 
 // ── Tailwind-only values (not expressible as single CSS vars) ──
@@ -401,8 +425,8 @@ export const usage = {
   primaryActionText: neutral[950],
   secondaryAction: neutral[800],
   secondaryActionHover: neutral[700],
-  activeBorder: teal[500],
-  activeGlow: 'rgba(20, 184, 166, 0.3)',
+  activeBorder: teal[400],
+  activeGlow: 'rgba(61, 217, 174, 0.3)',
   signalLong: success.DEFAULT,
   signalShort: error.DEFAULT,
   signalFlat: warning.DEFAULT,

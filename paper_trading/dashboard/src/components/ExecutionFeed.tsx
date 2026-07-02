@@ -76,7 +76,7 @@ export default function ExecutionFeed() {
     <Panel className="overflow-hidden">
       <SectionHeader
         title="Last Cycle — Execution Feed"
-        accent="blue"
+        accent="emerald"
         meta={
           <div className="flex items-center gap-2 text-[10px] text-tertiary font-mono">
             {blockedCount > 0 && (

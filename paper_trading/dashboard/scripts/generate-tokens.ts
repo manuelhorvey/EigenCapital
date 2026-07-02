@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { rawTokens, rawLightTokens, tailwindOnly } from '../src/design/color-system.js'
+import { rawTokens, tailwindOnly } from '../src/design/color-system.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(__dirname, '../generated')
@@ -40,15 +40,6 @@ for (const [name, frames] of Object.entries(tailwindOnly.keyframes)) {
       css += `    ${camelToKebab(prop)}: ${val};\n`
     }
     css += '  }\n'
-  }
-  css += '}\n\n'
-}
-
-// ── Light mode override block ─────────────────────────
-if (Object.keys(rawLightTokens).length > 0) {
-  css += '.light {\n'
-  for (const [key, value] of Object.entries(rawLightTokens)) {
-    css += `  --${key}: ${value};\n`
   }
   css += '}\n\n'
 }
@@ -94,9 +85,16 @@ const COLOR_MAP: Record<string, string> = {
   'color-accent-amber': 'accent-amber',
   'color-accent-indigo': 'accent-indigo',
   'color-accent-pink': 'accent-pink',
-  'color-chart-rose': 'chart-rose',
-  'color-chart-teal': 'chart-teal',
-}
+   'color-chart-rose': 'chart-rose',
+   'color-chart-teal': 'chart-teal',
+   'color-ink': 'ink',
+   'color-rule': 'rule',
+   'color-signal-long': 'signal-long.DEFAULT',
+   'color-signal-warn': 'signal-warn.DEFAULT',
+   'color-signal-short': 'signal-short.DEFAULT',
+   'color-tripwire': 'tripwire',
+   'color-accent-glow': 'accent-glow',
+ }
 
 const colors: Obj = {}
 

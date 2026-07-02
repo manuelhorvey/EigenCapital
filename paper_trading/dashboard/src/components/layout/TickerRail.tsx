@@ -158,77 +158,75 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
 
   if (parts.halted && parts.haltReason) {
     return (
-      <>
-        <div className="h-8 w-full px-2 sm:px-4 flex items-center gap-3 text-xs font-mono tabular-nums border-b border-default bg-gov-red/15 text-gov-red">
-          <span className="font-bold">HALT</span>
-          <span className="truncate">— {parts.haltReason}</span>
-          <span className="ml-auto opacity-70">engine halted · all positions frozen</span>
-        </div>
-        <div className="fixed top-0 right-0 z-50 flex flex-col items-center p-1.5 gap-0.5">
+      <div className="relative h-8 w-full px-2 sm:px-4 flex items-center gap-3 text-xs font-mono tabular-nums border-b border-default bg-gov-red/15 text-gov-red">
+        <span className="font-bold">HALT</span>
+        <span className="truncate">— {parts.haltReason}</span>
+        <span className="ml-auto opacity-70">engine halted · all positions frozen</span>
+        <div className="absolute top-0 right-1 z-10 flex flex-col items-center gap-0.5">
           <button
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-gov-red/15"
+            className="min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             title="Refresh dashboard data"
             aria-label="Refresh dashboard data"
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+              className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`}
               strokeWidth={2}
             />
           </button>
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="lg:hidden min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-gov-red/15"
+            className="lg:hidden min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             title="Open navigation"
             aria-label="Open navigation"
           >
-            <Menu className="w-3.5 h-3.5" strokeWidth={2} />
+            <Menu className="w-3 h-3" strokeWidth={2} />
           </button>
         </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <>
-      <div className="min-h-8 w-full px-2 sm:px-4 pr-9 sm:pr-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-3 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary">
-        {parts.tokens.map((t, i) => (
-          <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1 sm:gap-1.5">
-            <span className="uppercase tracking-wider text-muted/70">{t.label}</span>
-            <span className={`font-semibold ${toneClass(t.tone)}`}>{t.value}</span>
-            {i < parts.tokens.length - 1 && <span className="text-muted/40" aria-hidden>·</span>}
-          </span>
-        ))}
-      </div>
+    <div className="relative min-h-8 w-full px-2 sm:px-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-3 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary">
+      {parts.tokens.map((t, i) => (
+        <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1 sm:gap-1.5">
+          <span className="uppercase tracking-wider text-muted/70">{t.label}</span>
+          <span className={`font-semibold ${toneClass(t.tone)}`}>{t.value}</span>
+          {i < parts.tokens.length - 1 && <span className="text-muted/40" aria-hidden>·</span>}
+        </span>
+      ))}
 
-      {/* Control cluster — fixed top-right corner, outside rail flow */}
-      <div className="fixed top-0 right-0 z-50 flex flex-col items-center p-1.5 gap-0.5">
+      {/* Control cluster — top-right corner of the rail bar */}
+      <div className="absolute top-0 right-1 z-10 flex flex-col items-center gap-0.5">
         <button
           type="button"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-app/80"
+          className="min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
           title="Refresh dashboard data"
           aria-label="Refresh dashboard data"
         >
           <RefreshCw
-            className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+            className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`}
             strokeWidth={2}
           />
         </button>
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="lg:hidden min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors bg-app/80"
+          className="lg:hidden min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
           title="Open navigation"
           aria-label="Open navigation"
         >
-          <Menu className="w-3.5 h-3.5" strokeWidth={2} />
+          <Menu className="w-3 h-3" strokeWidth={2} />
         </button>
       </div>
-    </>
+      {/* Right padding so tokens don't hide behind the buttons */}
+      <div className="w-[22px] sm:w-0 shrink-0" />
+    </div>
   )
 }

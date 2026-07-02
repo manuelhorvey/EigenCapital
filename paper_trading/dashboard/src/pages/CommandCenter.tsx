@@ -148,9 +148,20 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
             {assetList.map(asset => {
               const pnl = asset.pnl_state.unrealized
               const pnlCls = pnl >= 0 ? 'text-gov-green' : 'text-gov-red'
+              const eff = asset.pnl_state.efficiency
+              const effCls = eff === 'HIGH' ? 'text-gov-green' : eff === 'LOW' ? 'text-gov-red' : 'text-tertiary'
               const riskCls = asset.risk_state.level === 'HIGH' ? 'text-gov-red'
                 : asset.risk_state.level === 'MEDIUM' ? 'text-gov-yellow'
                 : 'text-gov-green'
+              const exit = asset.exit_state
+              const phaseLabel = exit.phase === 'BREAKEVEN' ? 'BE'
+                : exit.phase === 'TRAILING' ? 'Trail'
+                : exit.phase === 'DECAY' ? 'Decay'
+                : 'Static'
+              const exitCls = exit.phase === 'TRAILING' ? 'text-gov-green'
+                : exit.phase === 'BREAKEVEN' || exit.phase === 'DECAY' ? 'text-gov-yellow'
+                : 'text-tertiary'
+              const driver = asset.risk_state.drivers[0]
               return (
                 <button
                   key={asset.identity}
@@ -174,15 +185,19 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">PnL</dt>
                       <dd className={`text-xs font-mono tabular-nums mt-0.5 font-semibold ${pnlCls}`}>
                         {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                        <span className={`text-[9px] ml-0.5 ${effCls}`}>{eff === 'HIGH' ? 'H' : eff === 'LOW' ? 'L' : 'N'}</span>
                       </dd>
                     </div>
                     <div>
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">Exit</dt>
-                      <dd className="text-xs text-primary mt-0.5 capitalize">{asset.exit_state.phase.replace(/_/g, ' ')}</dd>
+                      <dd className={`text-xs font-mono tabular-nums mt-0.5 ${exitCls}`}>
+                        {phaseLabel}{exit.peak_mfe_r != null ? ` @ ${exit.peak_mfe_r.toFixed(2)}R` : ''}
+                      </dd>
                     </div>
                     <div className="text-right">
                       <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">Risk</dt>
                       <dd className={`text-xs font-semibold mt-0.5 ${riskCls}`}>{asset.risk_state.level}</dd>
+                      {driver && <dd className="text-[10px] text-tertiary truncate">{driver}</dd>}
                     </div>
                   </dl>
                   {asset.flags.length > 0 && (
@@ -199,12 +214,12 @@ const AssetListPanel = memo(function AssetListPanel({ onSelectAsset }: AssetList
           {/* Desktop table */}
           <div className="hidden sm:block">
             <div className="divide-y divide-border/50">
-              <div className="flex items-center gap-3 px-2 pb-1.5 text-[10px] text-tertiary font-medium uppercase tracking-wider">
-                <span className="w-28">Asset</span>
+              <div className="flex items-center gap-2 px-2 pb-1 text-[10px] text-tertiary font-medium uppercase tracking-wider">
+                <span className="w-24">Asset</span>
                 <span className="w-20 text-right">PnL</span>
-                <span className="w-36">Exit Phase</span>
-                <span className="w-20">Risk</span>
-                <span className="flex-1">Flags</span>
+                <span className="w-36">Exit</span>
+                <span className="w-24">Risk</span>
+                <span className="flex-1 text-right">Flags</span>
               </div>
               {assetList.map(asset => (
                 <TradingAssetRow key={asset.identity} asset={asset} onSelect={onSelectAsset} />

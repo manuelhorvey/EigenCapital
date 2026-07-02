@@ -174,6 +174,11 @@ defaults:
   mt5_leverage_budget_enabled: false
   mt5_leverage_budget_soft: true
   net_short_concentration_threshold: 0.75
+  # When true (default), small MT5 positions below the broker's minimum lot
+  # get bumped up to the min viable volume. The broker's margin controls
+  # handle risk enforcement — MT5 rejects if buying power is exceeded.
+  # Set to false to skip the bump and let the order be rejected naturally.
+  mt5_bypass_risk_cap_at_min_lot: true
   # SELL_ONLY_ASSETS: assets where BUY signal is inverted (p_long > 0.5 → ~17% WR).
   # These assets trade SELL only; BUY signals are overridden to FLAT.
   # Derived from walk-forward BUY inversion discovery (2026-06-20).

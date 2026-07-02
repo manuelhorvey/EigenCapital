@@ -569,15 +569,17 @@ class EntryService:
         else:
             min_viable = 0.0
 
-        if min_viable > 0 and 0 < mt5_qty < min_viable:
+        bypass = cfg.get("mt5_bypass_risk_cap_at_min_lot", True)
+        if bypass and min_viable > 0 and 0 < mt5_qty < min_viable:
             # Bump to minimum viable lot. The broker's margin controls are the
             # real risk gate for MT5 — if buying power is exceeded, the broker
             # rejects the order. Skip the paper-style risk-per-trade cap here.
             logger.info(
-                "%s: MT5 bumped qty from %.4f to min_viable=%.4f (broker handles margin enforcement)",
+                "%s: MT5 bumped qty from %.4f to min_viable=%.4f (broker handles margin enforcement, bypass=%s)",
                 asset.name,
                 mt5_qty,
                 min_viable,
+                bypass,
             )
             mt5_qty = min_viable
 

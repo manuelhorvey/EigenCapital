@@ -5,9 +5,9 @@ services:
     build: .
     container_name: EigenCapital-engine
     restart: unless-stopped
+    env_file: .env
     ports:
       - "5000:5000"   # Dashboard
-      - "9879:9879"   # MT5 bridge
     volumes:
       - ./data:/app/data
       - ./paper_trading/models:/app/paper_trading/models
@@ -59,8 +59,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./ops/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./ops/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    environment: {}
     profiles:
       - monitoring
     depends_on:

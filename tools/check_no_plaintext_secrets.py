@@ -87,7 +87,7 @@ def _is_allowed_secret_match(text: str) -> bool:
 
 def _scan_paths() -> list[Path]:
     targets: list[Path] = []
-    extensions = {".py", ".yaml", ".yml", ".sh"}
+    extensions = {".py", ".yaml", ".yml", ".sh", ".env"}
     for path in REPO_ROOT.rglob("*"):
         if not path.is_file():
             continue

@@ -38,6 +38,16 @@ jobs:
           ruff check . --output-format=github
           ruff format . --check
 
+      - name: Bandit SAST
+        run: |
+          pip install bandit
+          bandit -r paper_trading/ eigencapital/ features/ shared/ --exit-zero --quiet
+
+      - name: Dependency audit
+        run: |
+          pip install pip-audit
+          pip-audit --desc on 2>&1 | head -50 || echo "pip-audit found issues (non-blocking)"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

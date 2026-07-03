@@ -40,6 +40,7 @@ class EngineRebalanceService:
                 if hist is not None and "close" in hist.columns and len(hist) >= window:
                     price_data[name] = hist["close"]
             except Exception:
+                logger.warning("Failed to fetch history for %s", name, exc_info=True)
                 continue
         if not price_data:
             return pd.DataFrame()

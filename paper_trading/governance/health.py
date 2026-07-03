@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -7,6 +8,8 @@ import numpy as np
 
 from paper_trading.governance.drift import get_shadow_intelligence
 from paper_trading.state_store import StateStore
+
+logger = logging.getLogger("eigencapital.health_monitor")
 
 _lock = threading.Lock()
 _cache: dict = {}
@@ -59,14 +62,14 @@ def _load_state_assets() -> dict:
             if assets:
                 return assets
         except Exception:
-            pass
+            logger.warning("Failed to load engine state from live engine", exc_info=True)
     # Fallback: state store snapshot
     try:
         snapshot = _get_state_store().load_snapshot()
         if snapshot is not None and snapshot.assets:
             return snapshot.assets
     except Exception:
-        pass
+        logger.warning("Failed to load snapshot from state store", exc_info=True)
     return {}
 
 
@@ -78,7 +81,7 @@ def _load_cmss(asset: str) -> float | None:
                 data = json.load(f)
             return data.get("cmss")
     except Exception:
-        pass
+        logger.warning("Failed to load CMSS for %s", asset, exc_info=True)
     return None
 
 
@@ -180,6 +183,7 @@ def compute(asset: str, assets: dict | None = None) -> dict:
 
         return result
     except Exception:
+        logger.exception("Health computation failed for %s", asset)
         return _fallback(asset)
 
 
@@ -201,6 +205,7 @@ def compute_all() -> dict:
             try:
                 results[name] = future.result()
             except Exception:
+                logger.exception("Health computation thread failed for %s", name)
                 results[name] = _fallback(name)
 
     if results:

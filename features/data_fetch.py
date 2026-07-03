@@ -18,24 +18,26 @@ _FETCH_WARMUP_BUFFER = 1250
 # Must be >= the largest lookback in alpha_features.py (_MAX_INDICATOR_LOOKBACK = 253).
 _MIN_HISTORY_ROWS = 253
 
-_MACRO_TICKERS = ["DX-Y.NYB", "^VIX", "^GSPC", "CL=F", "^TNX", "^FVX", "^TYX", "^IRX"]
+_MACRO_TICKERS = [
+    "DX-Y.NYB", "^VIX", "^GSPC", "CL=F",
+    "^TNX", "^FVX", "^TYX", "^IRX",
+    "^DE10Y", "^UK10Y", "^JP10Y", "^CH10Y", "^AU10Y", "^NZ10Y", "^CA10Y",
+]
 
-# Currency -> benchmark yield ticker mapping.
-# US Treasury yields at different maturities serve as proxies for
-# structurally similar yield levels in other developed economies.
-# ^TNX (10Y) = moderate yield (USD, GBP, CAD)
-# ^FVX  (5Y) = lower yield  (EUR)
-# ^TYX (30Y) = higher yield (AUD, NZD)
-# ^IRX (3M)  = near-zero     (JPY, CHF)
+# Currency -> benchmark 10-year sovereign yield ticker mapping.
+# Each currency maps to its own country's 10-year government bond yield.
+# All tickers are FRED-sourced via _FRED_FALLBACK (yfinance fallback when FRED misses).
+# US Treasury yields use native yfinance ticker (^TNX); sovereign yields use
+# FRED's IRLTLT01{CC}M156N series mapped through internal ticker symbols.
 CURRENCY_YIELD_TICKERS: dict[str, str] = {
     "USD": "^TNX",
-    "EUR": "^FVX",
-    "GBP": "^TNX",
-    "JPY": "^IRX",
-    "CHF": "^IRX",
-    "AUD": "^TYX",
-    "NZD": "^TYX",
-    "CAD": "^TNX",
+    "EUR": "^DE10Y",
+    "GBP": "^UK10Y",
+    "JPY": "^JP10Y",
+    "CHF": "^CH10Y",
+    "AUD": "^AU10Y",
+    "NZD": "^NZ10Y",
+    "CAD": "^CA10Y",
 }
 
 # Assets that have no meaningful interest rate differential (crypto, commodities)
@@ -54,6 +56,14 @@ _FRED_FALLBACK: dict[str, str] = {
     "^FVX": "DGS5",
     "^TYX": "DGS30",
     "^IRX": "DGS3MO",
+    # Sovereign 10-year benchmark yields via FRED IRLTLT01{CC}M156N series
+    "^DE10Y": "IRLTLT01DEM156N",
+    "^UK10Y": "IRLTLT01GBM156N",
+    "^JP10Y": "IRLTLT01JPM156N",
+    "^CH10Y": "IRLTLT01CHM156N",
+    "^AU10Y": "IRLTLT01AUM156N",
+    "^NZ10Y": "IRLTLT01NZM156N",
+    "^CA10Y": "IRLTLT01CAM156N",
 }
 
 
@@ -182,7 +192,7 @@ def _fetch_macro_batch() -> dict[str, pd.Series]:
                 pass
 
     # Normalise all yield tickers from percentage to decimal
-    _yield_tickers = {"^TNX", "^FVX", "^TYX", "^IRX"}
+    _yield_tickers = {"^TNX", "^FVX", "^TYX", "^IRX", "^DE10Y", "^UK10Y", "^JP10Y", "^CH10Y", "^AU10Y", "^NZ10Y", "^CA10Y"}
     for yt in _yield_tickers:
         if yt in result and not result[yt].empty:
             result[yt] = result[yt] / 100.0
@@ -436,15 +446,6 @@ def fetch_asset_data(
     if base_ccy is not None and quote_ccy is not None:
         base_ticker = CURRENCY_YIELD_TICKERS[base_ccy]
         quote_ticker = CURRENCY_YIELD_TICKERS[quote_ccy]
-        # When both currencies map to the same yield ticker (e.g. AUD/NZD
-        # both use ^TYX, GBP/CAD both use ^TNX), the rate_diff is always
-        # zero.  Fall back to the next shorter tenor for the base currency
-        # to preserve a non-zero differential.
-        if base_ticker == quote_ticker:
-            _fallback_tenor = {"^TYX": "^TNX", "^TNX": "^FVX", "^FVX": "^IRX"}
-            alt = _fallback_tenor.get(base_ticker)
-            if alt is not None and alt in macro:
-                base_ticker = alt
         base_yield = macro.get(base_ticker, tnx)
         if not base_yield.empty:
             base_yield = base_yield[~base_yield.index.duplicated(keep="last")]

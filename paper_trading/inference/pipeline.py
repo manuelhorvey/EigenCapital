@@ -450,7 +450,7 @@ class AssetInferencePipeline:
                     },
                 )
             except Exception:
-                logger.exception("WAL write failed for inference_output on %s", asset.name)
+                logger.warning("WAL write failed for inference_output on %s", asset.name, exc_info=True)
 
         return proba, _infer_idx
 
@@ -597,7 +597,7 @@ class AssetInferencePipeline:
                     },
                 )
             except Exception:
-                logger.exception("WAL write failed for features_snapshot on %s", asset.name)
+                logger.warning("WAL write failed for features_snapshot on %s", asset.name, exc_info=True)
 
         # ── Trace.jsonl decision entry (derives from same feature_vector) ──
         _regime_label = (

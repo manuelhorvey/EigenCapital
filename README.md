@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Status](https://img.shields.io/badge/status-paper%20trading-green)
 ![WalkForward](https://img.shields.io/badge/walk--forward-36%20assets%20screened-success)
-![Portfolio](https://img.shields.io/badge/portfolio-16%20dashboard%20assets-blue)
+![Portfolio](https://img.shields.io/badge/portfolio-22%20dashboard%20assets-blue)
 [![codecov](https://codecov.io/gh/manuelhorvey/EigenCapital/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/EigenCapital)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -37,42 +37,102 @@ Every promoted asset must survive expanding-window validation before entering th
 
 The engine runs a continuous 5-phase orchestrator cycle (PRE → 1a → 1b → 2 → 3 → 4) with MT5 orphan sub-phases (A→D) inside Phase 3. Below is the core loop for each tick (every 60s):
 
-```mermaid
-flowchart TD
-    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
-    PRE --> P1[Phase 1a: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1 --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
-    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
-    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
-    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
-    CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
-    CB -- passed --> FX[Factor Exposures\n9 factor groups]
-    FX --> VAR[VaR / CVaR\nRolling 60-period]
-    VAR --> MT5[MT5 Orphan Recon]
-    MT5 --> MT5A[Phase A: Drain cleanup queues]
-    MT5A --> MT5B[Phase B: Stale ticket detection]
-    MT5B --> MT5C[Phase C: Dry-run orphan report]
-    MT5C --> MT5D[Phase D: Self-healing adoption]
-    MT5D --> CONC[Position Concentration\nNet-short skew threshold check]
-    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
-    P4 --> Start
+```
+                ┌─────────────────────────────────────────┐
+                │  PRE: PortfolioStateSnapshot            │
+                │  RiskBudget + PerformanceState          │
+                │  RiskEngineV2 adaptive budget           │
+                └─────────────┬───────────────────────────┘
+                              │
+                ┌─────────────▼───────────────────────────┐
+                │  Phase 1a: REFRESH                      │
+                │  Parallel actor refresh + signal gen    │
+                │  ThreadPoolExecutor (8 workers)         │
+                └─────────────┬───────────────────────────┘
+                              │
+                ┌─────────────▼───────────────────────────┐
+                │  Phase 1b: ADMIT                        │
+                │  PEK collect intents → filter → rank    │
+                │  Close over-budget positions            │
+                └─────────────┬───────────────────────────┘
+                              │
+                ┌─────────────▼───────────────────────────┐
+                │  Phase 2: VALIDITY                      │
+                │  Parallel validity state updates        │
+                └─────────────┬───────────────────────────┘
+                              │
+                ┌─────────────▼───────────────────────────┐
+                │  Phase 3: PORTFOLIO HEALTH              │
+                └─────────────┬───────────────────────────┘
+                              │
+                   ┌──────────▼──────────┐
+                   │ Circuit Breaker?    │
+                   │ 7-consec-loss       │
+                   │ or -15% DD?         │
+                   └──────┬──────┬───────┘
+                     yes  │      │  no
+              ┌────────────┐      │
+              │ Flatten    │      │
+              │ positions  │      │
+              │ Emergency  │      │
+              │ halt via   │      │
+              │ Recovery-  │      │
+              │ Scheduler  │      │
+              └────────────┘      │
+                                  ▼
+                    ┌─────────────────────────────┐
+                    │ Factor Exposures            │
+                    │ 10 factor groups            │
+                    └─────────────┬───────────────┘
+                                  │
+                    ┌─────────────▼───────────────┐
+                    │ VaR / CVaR                  │
+                    │ Rolling 60-period           │
+                    └─────────────┬───────────────┘
+                                  │
+                    ┌─────────────▼───────────────┐
+                    │ MT5 Orphan Recon            │
+                    └─────────────┬───────────────┘
+                                  │
+              ┌───────────────────▼───────────────────┐
+              │ Phase A: Drain cleanup queues         │
+              │ Phase B: Stale ticket detection       │
+              │ Phase C: Dry-run orphan report        │
+              │ Phase D: Self-healing adoption        │
+              └───────────────────┬───────────────────┘
+                                  │
+                    ┌─────────────▼───────────────┐
+                    │ Position Concentration      │
+                    │ Net-short skew threshold    │
+                    └─────────────┬───────────────┘
+                                  │
+                    ┌─────────────▼───────────────┐
+                    │ Phase 4: PERSIST            │
+                    │ Flush buffers → SQLite WAL  │
+                    │ Record outcomes → PerfState │
+                    │ State snapshot → state.json │
+                    └─────────────┬───────────────┘
+                                  │
+                    ┌─────────────▼───────────────┐
+                    │ (next cycle)                │
+                    └─────────────────────────────┘
 ```
 
 ---
 
 # Current Portfolio
 
-16 assets promoted from the research universe via expanding-window walk-forward. Per-asset SL/TP/max_depth calibrated via grid sweep. Values sourced from `configs/paper_trading.yaml`.
+22 assets promoted from the research universe via expanding-window walk-forward. Per-asset SL/TP/max_depth calibrated via grid sweep. Values sourced from `configs/paper_trading.yaml`.
 
-**Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
+**2026-07-04:** BTCUSD (weekend-eligible, 24/7 crypto tier) and 4 JPY crosses (AUDJPY, NZDJPY, GBPJPY, USDJPY) added. Portfolio grows to 22 assets.
 
-**Added 2026-06-26:** USDJPY and GBPJPY promoted (trend-exhaustion features improved BuyWR above breakeven; removed from SELL_ONLY same day).
+**2026-06-30:** 11 assets bumped to ratio=3.0 via optimizer (USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF). All active models retrained. Dashboard `/optimization.json` endpoint added.
 
-**2026-06-30:** 11 assets bumped to ratio=3.0 via optimizer (USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF, plus ES and NQ which were subsequently dropped in the portfolio remediation). All active models retrained. Dashboard `/optimization.json` endpoint added. Full optimizer suite in `scripts/optimization/`.
+**2026-06-26:** Trend-exhaustion features (6 new alpha features) improved BuyWR above breakeven WR for 7 assets. SELL_ONLY reduced from 10→3 assets (CADCHF, NZDCHF, EURAUD remain). GBPJPY, USDCHF, EURCHF, USDJPY, ^DJI, ES, NQ removed from SELL_ONLY.
 
-**Removed 2026-07-01 (portfolio remediation):** ES, NQ, ^DJI removed from trading entirely. With them, USDJPY and GBPJPY (re-promoted 2026-06-26) were also dropped. Portfolio reduced to 16 assets.
+**2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
-**Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability failure mode — confident wrong-direction bets during trends). USDCAD and NZDUSD allocations halved from 5%→2.5% to limit drawdown impact.
+**2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD removed (directional instability). USDCAD and NZDUSD allocations halved from 5%→2.5%.
 
 > **2026-06-30 update:** Portfolio table reflects the ratio=3.0 optimizer pass (11 assets bumped).
 > Methodology: `scripts/optimization/portfolio_sltp_optimizer.py`. All models retrained.
@@ -108,11 +168,11 @@ Allocation varies (factor_constrained_v2 adjusts dynamically).
 
 > **Status (2026-06-30):** The pre-leak-fix baseline below is a **historical artifact**
 > describing the original screening that justified promotion. It does **not** reflect the
-> current 16-asset portfolio. Live metrics live in `/state.json:portfolio.live_sharpe` and
+> current 22-asset portfolio. Live metrics live in `/state.json:portfolio.live_sharpe` and
 > walk-forward may be regenerated from `scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v2`.
 
 > **Note:** The original 18-asset baseline was calculated before GBPUSD promotion.
-> The current 22-asset portfolio includes GBPUSD (2026-06-22)
+> The current 22-asset portfolio includes GBPUSD (2026-06-22), BTCUSD, and 4 JPY crosses,
 > with the 2026-06-30 tp/sl ratio=3.0 optimizer pass applied to 11 assets.
 
 | Metric | Value |
@@ -187,7 +247,7 @@ Ensemble:      disabled portfolio-wide (base_weight=1.0; see ADR-026)
 ```
 
 ### Base Model
-Per-asset `binary:logistic` classifier trained on 13 alpha features (9 per-asset + 4 cross-asset, includes COT flag, `has_cot` zero-filled for pairs not in CFTC data).
+Per-asset `binary:logistic` classifier trained on 21 alpha features (17 per-asset + 4 cross-asset, includes COT z/change and 6 trend-exhaustion features).
 Uses `scale_pos_weight` = imbalance ratio to correct the label skew.
 Saved to `paper_trading/models/{ASSET}_model.json`.
 
@@ -260,8 +320,8 @@ edge = p × tp_mult - q × sl_mult
 ### P3 — Factor Model (enabled for monitoring)
 **File:** `shared/factor_model.py`
 
-9 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, US_EQUITY, COMMODITY)
-covering all 16 assets. Factor exposures computed per-cycle in `engine_state_service.py`.
+9 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, JPY, US_EQUITY, COMMODITY)
+covering all 22 assets. Factor exposures computed per-cycle in `engine_state_service.py`.
 
 ### P4 — HRP Fix
 **File:** `portfolio/hrp_allocator.py`
@@ -335,43 +395,52 @@ Derived from OHLCV for execution conditioning:
 
 Each per-asset inference cycle follows this flow (every 30s per asset, 8 parallel workers):
 
-```mermaid
-flowchart TD
-    subgraph Data
-        A[Fetch 5y OHLCV\nMT5 or yfinance]
-        B[Refresh latest price\nMT5 or 5d fallback]
-        C[Build alpha features\n21 cols + trend-exhaustion]
-        D[Build regime features\n7 cols from OHLCV]
-        E[Build archetype features\nema_spread, adx, rsi, bb_zscore]
-    end
-    subgraph Model
-        F[PSI drift check\nrolling 21d vs baseline]
-        G[XGBoost inference\nbinary:logistic > p_long]
-        H[Calibrate p_long\nP1 BinnedCalibrator\nconfig-gated]
-        I[FixedThreshold\n0.45 > BUY/SELL/FLAT]
-    end
-    subgraph Decision[Decision Pipeline — 21 stages]
-        J[Suppress: first-cycle,\nbar-jump]
-        K[Signal: store meta,\nMAE/MFE, resolve, risk-off,\nsell-only filter]
-        L[Gate: spread, session,\nADX, confidence]
-        M[Position: stability filter,\nhysteresis 2-of-3,\nmeta-label advisory,\nconviction gate,\nKelly sizing, profit lock,\nmanage position]
-        N[Execute: build artifacts,\nroute execution,\npoll deferred,\nupdate prob history]
-    end
-    subgraph Governance
-        O[15 governance layers\n+ HealthMonitor\n+ VaR / CVaR]
-    end
-    subgraph Sizing
-        P[Position sizing chain\ndrawdown taper > equity cap\n> risk cap > leverage budget\n> backstop multiplier]
-    end
-    subgraph Execution
-        Q[PaperBroker\n$100K simulated equity]
-        R[MT5Broker\nindependent sizing\nfrom real broker balance]
-    end
-
-    A --> B --> C --> D --> E --> F --> G --> H --> I
-    I --> J --> K --> L --> M --> N
-    N --> O --> P --> Q
-    P --> R
+```
+  ┌─ Data ──────────────────────────────────────────────┐
+  │ Fetch 5y OHLCV     Refresh latest price             │
+  │ (MT5 or yfinance)  (MT5 or 5d fallback)            │
+  │ Build alpha feats  Build regime feats  Archetype    │
+  │ 21 cols + trend-exh  7 cols from OHLCV  feats      │
+  └────────┬──────────┬──────────┬──────────────────────┘
+           │          │          │
+           ▼          ▼          ▼
+  ┌────────┴──────────┴──────────┴──────────────────────┐
+  │ ─ Model ────────────────────────────────────────────│
+  │ PSI drift check → XGBoost inference → P1 Calibrate  │
+  │ (rolling 21d vs    binary:logistic  BinnedCalibrator │
+  │  baseline)         > p_long        config-gated     │
+  │ FixedThreshold(0.45) → BUY/SELL/FLAT               │
+  └────────────────────────┬────────────────────────────┘
+                           │
+  ┌────────────────────────▼────────────────────────────┐
+  │ ─ Decision Pipeline (22 stages) ────────────────────│
+  │ Suppress: first-cycle, bar-jump                     │
+  │ Signal: store meta, MAE/MFE, resolve, risk-off,     │
+  │         sell-only filter                             │
+  │ Gate: spread, session, ADX, confidence               │
+  │ Position: stability, hysteresis 2-of-3, meta-label, │
+  │           conviction, Kelly, profit lock, manage     │
+  │ Execute: build artifacts, route, poll deferred,     │
+  │          update prob history                         │
+  └────────────────────────┬────────────────────────────┘
+                           │
+  ┌────────────────────────▼────────────────────────────┐
+  │ ─ Governance ───────────────────────────────────────│
+  │ 15 governance layers + HealthMonitor + VaR/CVaR     │
+  └────────────────────────┬────────────────────────────┘
+                           │
+  ┌────────────────────────▼────────────────────────────┐
+  │ ─ Sizing ───────────────────────────────────────────│
+  │ Position sizing chain: drawdown taper → equity cap  │
+  │ → risk cap → PEK budget enforcement                 │
+  └───────────┬──────────────────────────────┬──────────┘
+               │                              │
+               ▼                              ▼
+  ┌──────────────────────────┐  ┌────────────────────────┐
+  │ PaperBroker              │  │ MT5Broker              │
+  │ $100K simulated equity   │  │ real broker balance    │
+  │                          │  │ independent sizing     │
+  └──────────────────────────┘  └────────────────────────┘
 ```
 
 ---
@@ -406,16 +475,36 @@ Two additional gates protect entry quality and existing winners:
 
 Paper positions pass through a multiplicative guardrail chain in `_submit_to_broker()`:
 
-```mermaid
-flowchart LR
-    A["effective_cap =\ncapital_base × min(mtm/init, 3.0)"] --> B["notional =\neffective_cap × size_scalar"]
-    B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
-    C --> D[Risk-per-Trade Cap\nskip if below min_viable]
-    D --> E[Leverage Budget\natomic decrement from\nmax_leverage × equity pool]
-    E --> F[Backstop Multiplier\nratchet-down on breach\n0.9 decay/cycle]
-    F --> G{Final Notional}
-    G --> Paper[Paper Broker\n$100K simulated equity]
-    G --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
+```
+  effective_cap = capital_base × min(mtm/init, 3.0)
+         │
+         ▼
+  notional = effective_cap × size_scalar
+         │
+         ▼
+  ┌─ Per-Position Equity Cap (max_position_pct_of_equity) ─┐
+  │  clip if exceeds limit                                   │
+  └───────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+  ┌─ Risk-per-Trade Cap (max_risk_per_trade_pct) ───────────┐
+  │  skip if below min_viable                                │
+  └───────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+  ┌─ PEK Budget Enforcement ────────────────────────────────┐
+  │  close lowest-ranked positions if over max_leverage     │
+  └───────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+                    ┌─ Final Notional ─┐
+                   /                   \
+                  ▼                     ▼
+  ┌─────────────────────┐   ┌─────────────────────────┐
+  │ Paper Broker        │   │ MT5 Broker              │
+  │ $100K simulated     │   │ real account balance    │
+  │ equity              │   │ independent sizing      │
+  └─────────────────────┘   └─────────────────────────┘
 ```
 
 MT5 positions run the same chain independently using real broker equity (minus the leverage budget). Both paths log decomposed factors (`SIZING` and `MT5_SIZING`).
@@ -458,7 +547,7 @@ plus decision pipeline suppression stages, position sizing guardrails, and Healt
 | Calibration (P1)           | Per inference| Per asset | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
 | Kelly sizing (P2)          | Per decision| Per asset | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3)          | Per cycle   | Portfolio | Factor exposures via 9 groups in state.json (monitoring only) |
-| Equity cluster alarm       | — | — | **Removed 2026-07-01.** Code marker at `paper_trading/orchestrator/health.py:105` — formerly flagged ES/NQ/^DJI same-side concentration; those assets are no longer in the portfolio. |
+| Equity cluster alarm       | — | — | **Removed 2026-07-01.** Code marker at `paper_trading/orchestrator/health.py:105` — formerly flagged US_EQUITY same-side concentration; ^DJI still in portfolio but US_EQUITY group has only one active member. |
 | Circuit breaker            | Per cycle   | Portfolio | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown         | Global      | Portfolio | Global throttling                   |
 | Entry price deviation gate | Per entry   | Per asset | Skips entry if price drifted >2%    |
@@ -643,17 +732,19 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 | `./monitor_all`                                | One-command launch (terminal + bridge + engine + dashboard) |
 | `~/.local/bin/mt5-terminal`                    | Launch MT5 terminal via Wine    |
 | `~/.local/bin/mt5-bridge`                      | Launch MT5 bridge server        |
-| `scripts/research/trade_analysis.py`            | Walk-forward backtest + optimization |
+| `scripts/analysis/production_audit.py`                  | 18-phase production audit + scoring |
+| `scripts/analysis/trade_lifecycle.py`                   | 18-phase trade lifecycle reconstruction |
+| `scripts/analysis/trailing_stop_sim.py`                 | Retracement trailing stop simulation |
+| `scripts/analysis/robustness_gatekeeper.py`             | 5-test robustness validation suite |
+| `scripts/analysis/mfe_stationarity.py`                  | MFE stationarity + retrace stability |
+| `scripts/analysis/shock_simulation.py`                  | Structural fragility (7 shock classes) |
 | `scripts/backtest/walk_forward_backtest.py`             | Multi-ticker validation         |
-| `scripts/research/score_tickers.py`                     | Asset scoring                   |
-| `scripts/research/generate_promotion_report.py`         | Portfolio report generation     |
 | `scripts/training/train_all_assets.py`                  | Full retraining (legacy)        |
 | `scripts/training/retrain_all_fixed.py`                 | Retrain with all pipeline fixes |
 | `scripts/training/train_regime_models.py`               | Train regime-conditional models |
+| `scripts/training/train_calibration.py`                 | Train calibration models from walk-forward signal parquets |
 | `scripts/training/retrain_counterfactual.py`            | Feature ablation walk-forward test (SHAP mechanism falsification) |
-| `scripts/backtest/ensemble_pilot_backtest.py`           | 3-asset ensemble pilot backtest |
 | `scripts/ops/monitor_paper_trading.py`             | Poll dashboard + CSV logging    |
-| `scripts/backtest/backtest_pnl.py`                      | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
 | `scripts/training/train_calibration.py`                 | Train calibration models from walk-forward signal parquets |
 | `scripts/replay/replay_rebalance.py`                  | Reconstruct historical portfolio weights and compare with live |
 | `scripts/backtest/compare_ensemble.py`                  | Ensemble vs base PnL comparison with per-fold sign test |
@@ -680,8 +771,9 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 configs/
     paper_trading.yaml        # Primary engine config
     mt5_symbol_map.yaml       # MT5 symbol mapping
-scripts/research/             # Screening, research sweeps, model analysis
-    trade_analysis.py         # Main backtest engine
+scripts/analysis/             # Production audit, trade lifecycle, robustness
+    production_audit.py       # 18-phase audit orchestrator
+scripts/optimization/         # TP/SL optimizer suite, drift detector
 features/
     builder.py                # Per-asset feature construction
     registry.py               # Feature contracts (36 assets)
@@ -743,7 +835,7 @@ tests/                        # Test suite
 * Dashboard requires `yarn build` after asset list changes
 * MT5 bridge is single-threaded — concurrent requests are serialized via RLock
 * **GBPNZD removed** (2026-06-20) — tp/sl=1.0/3.0 (ratio 0.33), breakeven WR 75%, achieved 72.3%. Net-negative (-37R total, -71R max_dd).
-* **SELL_ONLY filter active for 3 assets** (CADCHF, NZDCHF, EURAUD) — reduced from 10 on 2026-07-01 after Portfolio Remediation removed ES, NQ, ^DJI, USDJPY, GBPJPY from the portfolio. Remaining 3 are confirmed permanent SELL_ONLY.
+* **SELL_ONLY filter active for 3 assets** (CADCHF, NZDCHF, EURAUD) — confirmed permanent BUY signal inversion. Reduced from 10 on 2026-06-26 after trend-exhaustion features improved BuyWR for 7 assets.
 * **Equity cluster alarm** — removed 2026-07-01 alongside ES/NQ/^DJI exit from the portfolio. The alarm was recommendation-only (no forced flatten) and is replaced by Phase 3e net-short concentration alert (`net_short_concentration_threshold`, default 75%).
 * **Circuit breaker threshold lowered to 7** consecutive portfolio losses (was 15). Crisis replay showed max 4 consecutive losses — 15 would never trip.
 * **THIN liquidity regime** is a soft warning (SL/size adjustment, no halt);
@@ -763,10 +855,12 @@ tests/                        # Test suite
 
 # Roadmap
 
-* Circuit breaker synthetic stress test (simulate 10 consecutive -1R days)
-* Adversarial crisis replay (inject synthetic -3R shock across all assets)
+* ✅ Adaptive exit engine (retracement trailing, 3-stage) — deployed 2026-07-01
+* ✅ Shock simulation engine — 7 shock classes, 21 scenarios — deployed 2026-07-01
+* ✅ Trade lifecycle analysis — 18-phase reconstruction — deployed 2026-07-01
+* ✅ Weekend trading & BTCUSD 24/7 — deployed 2026-07-04
+* ✅ Dashboard operator-console redesign — Phases 1-9 complete
 * Retraining staleness decay measurement (accuracy at 30/60/90/120 days post-retrain)
-* BUY inversion root cause investigation (SELL_ONLY is empirically correct but root cause unknown)
 * Deterministic full-day replay reconstruction
 * Event-sequence validation tooling
 * Extended execution quality analytics

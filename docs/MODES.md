@@ -34,6 +34,7 @@ modes are ignored.
 | &nbsp;&nbsp;`GOLD` | 0.15 | 0.10 | 0.10 |
 | &nbsp;&nbsp;`AUD` | 0.25 | 0.20 | 0.20 |
 | &nbsp;&nbsp;`NZD` | 0.25 | 0.20 | 0.20 |
+| &nbsp;&nbsp;`JPY` | 0.25 | 0.20 | 0.20 |
 | &nbsp;&nbsp;`FX_MAJOR` | 0.40 | 0.30 | 0.30 |
 | &nbsp;&nbsp;`FX_CROSS` | 0.40 | 0.30 | 0.30 |
 | &nbsp;&nbsp;`FX_COMMODITY` | 0.25 | 0.15 | 0.15 |

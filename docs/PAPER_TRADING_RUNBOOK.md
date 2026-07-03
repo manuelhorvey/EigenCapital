@@ -23,7 +23,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
 | Logs | stdout (redirect to file as needed) |
 | Refresh interval | 60s (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var) |
-| Weekend behavior | BTCUSD runs 24/7 with 0.5× position multiplier; non-eligible assets pause and show stale data |
+| Weekend behavior | `weekend_eligible` assets (e.g. BTCUSD with `crypto: [0,24]` session tier) run 24/7 at 0.5× allocation multiplier; non-eligible assets pause and show stale data |
 | Weekend polling | Normal 60s for eligible assets; reduced to every 120s (state) / 5 min (secondary) for stale assets |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
 | Retrain frequency | Annual (January 1) |
@@ -34,18 +34,18 @@ Operational procedures for the paper trading system. This document is for the pe
 
 ### Assets
 
-**Core portfolio (16 assets promoted from walk-forward screening):**
+**Core portfolio (22 assets promoted from walk-forward screening):**
 
 Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_depth calibrated via walk-forward optimization.
 
-**Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
+**2026-07-04:** BTCUSD (weekend-eligible, crypto: [0,24]) and 4 JPY crosses (AUDJPY, NZDJPY, GBPJPY, USDJPY) added.
 
-**Added 2026-06-26:** USDJPY, GBPJPY re-promoted after Step 3 trend-exhaustion features improved BuyWR above breakeven WR.
+**2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
-**Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability failure mode). USDCAD and NZDUSD halved from 5%→2.5%.
+**2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD removed (directional instability). USDCAD and NZDUSD halved from 5%→2.5%.
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
 | USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 5 |
@@ -62,10 +62,16 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 | GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
+| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 3 |
+| BTCUSD | BTC-USD | 2.0% | 0.58 | 1.51 | 3 |
+| AUDJPY | AUDJPY=X | 2.0% | 0.52 | 2.01 | 2 |
+| NZDJPY | NZDJPY=X | 2.0% | 0.51 | 2.02 | 2 |
+| GBPJPY | GBPJPY=X | 2.0% | 0.50 | 2.22 | 2 |
+| USDJPY | USDJPY=X | 2.0% | 0.52 | 1.97 | 2 |
 
 **Total allocation: varies** (factor_constrained_v2 adjusts dynamically)
 
-**Backtest performance (pre-leak-fix baseline, 5-year: 2021–2025):** PF 1.908, avgR +0.268, 2383 trades, 18 assets.
+**Backtest performance (pre-leak-fix baseline, 5-year: 2021–2025):** PF 1.908, avgR +0.268, 2383 trades.
 > Note: These are the screening baseline. Current walk-forward diagnostics after look-ahead fixes
 > show lower, honest metrics. Live performance will differ.
 

@@ -68,7 +68,6 @@ Some assets have additional or replacement features beyond the 21-base set:
 | NZDUSD | `mom126` replaces base momentum |
 | GBPAUD | `yield_slope` (US yield curve slope) |
 | CADCHF | `yield_slope` |
-| AUDNZD | `yield_slope` |
 | EURNZD | `yield_slope` |
 | GBPCHF | `yield_slope` |
 

@@ -26,6 +26,7 @@ Architecture Decision Records for the EigenCapital quantitative trading framewor
 | 009 | [Accepted 150-250 Annual Trades for XLF](ADR-009-trade-count-accepted.md) | Accepted | 2024-Q2 |
 | 010 | [Driver Atlas Framework — Asset-Specific Feature Sets](ADR-010-driver-atlas.md) | Accepted | 2024-Q3 |
 | 011 | [EURUSD Blocked Pending COT Data Integration](ADR-011-eurusd-blocked.md) | Accepted | 2024-Q3 |
+| 011a | [EURUSD Unblocked — COT Integration Complete](ADR-011a-eurusd-unblocked.md) | Accepted | 2025-Q1 |
 | 012 | [Three-Asset Portfolio — XLF, BTC, NZDJPY](ADR-012-three-asset-portfolio.md) | Accepted | 2024-Q3 |
 | 013 | [Bootstrap Validation as Deployment Gate](ADR-013-bootstrap-validation.md) | Accepted | 2024-Q3 |
 | 014 | [Zero Manual Overrides Policy During Paper Trading](ADR-014-zero-overrides-policy.md) | Accepted | 2024-Q4 |

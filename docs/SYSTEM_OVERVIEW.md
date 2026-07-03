@@ -28,27 +28,87 @@ The repository intentionally treats trading infrastructure as a distributed stat
 
 # High-Level Architecture
 
-The engine runs a continuous 5-phase orchestrator cycle. Each tick (every ~30s) executes the following loop:
+The engine runs a continuous 5-phase orchestrator cycle. Each tick (every ~60s) executes the following loop:
 
-```mermaid
-flowchart TD
-    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
-    PRE --> P1[Phase 1: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1 --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
-    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
-    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
-    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
-    CB -- tripped --> Halt[Flatten positions\nEmergency halt via RecoveryScheduler]
-    CB -- passed --> FX[Factor Exposures\n9 factor groups]
-    FX --> VAR[VaR / CVaR\nRolling 60-period]
-    VAR --> MT5[MT5 Orphan Recon]
-    MT5 --> MT5A[Phase A: Drain cleanup queues]
-    MT5A --> MT5B[Phase B: Stale ticket detection]
-    MT5B --> MT5C[Phase C: Dry-run orphan report]
-    MT5C --> MT5D[Phase D: Self-healing adoption]
-    MT5D --> CONC[Position Concentration\nNet-short skew threshold]
-    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nRecord outcomes → PerformanceState\nState snapshot → state.json]
-    P4 --> Start
+```
+             ┌───────────────────────────────────────────┐
+             │ PRE: PortfolioStateSnapshot               │
+             │ RiskBudget + PerformanceState             │
+             │ RiskEngineV2 adaptive budget              │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 1: REFRESH                          │
+             │ Parallel actor refresh + signal gen       │
+             │ ThreadPoolExecutor 8 workers              │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 1b: ADMIT                           │
+             │ PEK collect intents → filter → rank       │
+             │ Close over-budget positions               │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 2: VALIDITY                         │
+             │ Parallel validity state updates           │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 3: PORTFOLIO HEALTH                 │
+             └─────────────┬─────────────────────────────┘
+                           │
+                ┌──────────▼──────────┐
+                │ Circuit Breaker?    │
+                │ 7-consec-loss /     │
+                │ -15% DD?            │
+                └──────┬──────┬───────┘
+                  yes  │      │  no
+           ┌────────────┐      │
+           │ Flatten    │      │
+           │ positions  │      │
+           │ Emergency  │      │
+           │ halt via   │      │
+           │ Recovery-  │      │
+           │ Scheduler  │      │
+           └────────────┘      │
+                               ▼
+                 ┌───────────────────────────────┐
+                │ Factor Exposures              │
+                │ 10 factor groups              │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ VaR / CVaR                    │
+                 │ Rolling 60-period             │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ MT5 Orphan Recon              │
+                 └─────────────┬─────────────────┘
+                               │
+           ┌───────────────────▼───────────────────┐
+           │ Phase A: Drain cleanup queues         │
+           │ Phase B: Stale ticket detection       │
+           │ Phase C: Dry-run orphan report        │
+           │ Phase D: Self-healing adoption        │
+           └───────────────────┬───────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ Position Concentration        │
+                 │ Net-short skew threshold      │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ Phase 4: PERSIST              │
+                 │ Flush buffers → SQLite WAL    │
+                 │ Record outcomes → PerfState   │
+                 │ State snapshot → state.json   │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ (next cycle)                  │
+                 └───────────────────────────────┘
 ```
 
 **Weekend branch:** When `is_market_closed()` returns true, `engine.py:362–375` checks for `weekend_eligible` assets. If any exist (e.g. BTCUSD with `crypto: [0,24]` session tier), a filtered cycle runs processing only those assets at 0.5× position multiplier. All other assets skip refresh and show stale data. If no eligible assets exist, the cycle returns `{}` (legacy skip behavior).
@@ -218,7 +278,7 @@ Per-asset max_depth from `configs/paper_trading.yaml`. Regime model: 200 trees, 
 
 # Live Inference Pipeline
 
-The live engine executes every ~30 seconds by default (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var).
+The live engine executes every ~60 seconds by default (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var).
 
 ## Runtime Pipeline
 
@@ -288,7 +348,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Sell-only filter       | Per asset  | Override BUY→FLAT for 3 inverted-BUY assets |
 | Calibration (P1)       | Per asset  | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
 | Kelly sizing (P2)      | Per asset  | Scale position by Kelly criterion (config-gated, disabled) |
-| Factor model (P3)      | Portfolio  | Factor exposure monitoring via 9 groups (monitoring only) |
+| Factor model (P3)      | Portfolio  | Factor exposure monitoring via 10 groups (monitoring only) |
 | Circuit breaker        | Portfolio  | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown     | Global     | Circuit breaker at −15%   |
 | Position concentration | Portfolio  | Flags >75% net-short skew (recommendation) |
@@ -328,41 +388,22 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Poll deferred entries | Execute pending deferred orders |
 | Update prob history | Record probability history for drift monitoring |
 
-```mermaid
-flowchart LR
-    subgraph Suppress
-        A[First-Cycle\nSuppress]
-        B[Bar-Jump\nSuppress]
-    end
-    subgraph Signal
-        C[Store Meta]
-        D[Update\nMAE/MFE]
-        E[Resolve\nBUY/SELL/FLAT]
-        F[Risk-Off\nSuppress]
-        G[Sell-Only\nFilter]
-    end
-    subgraph Gate
-        H[Spread\nGate]
-        I[Session\nGate]
-        J[ADX\nGate]
-        K[Confidence\nGate]
-    end
-    subgraph Position
-        L[Stability\nFilter]
-        M[Hysteresis\n2-of-3]
-        N[Meta-Label\nAdvisory]
-        O[Conviction\nGate]
-        P[Kelly\nSizing]
-        Q[Profit\nLock]
-        R[Manage\nPosition]
-    end
-    subgraph Execute
-        S[Build\nArtifacts]
-        T[Route\nExecution]
-        U[Poll\nDeferred]
-        V[Update\nProb History]
-    end
-    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N --> O --> P --> Q --> R --> S --> T --> U --> V
+```
+  SUPPRESS ── First-Cycle ──► Bar-Jump
+                                 │
+                                 ▼
+  SIGNAL   ── Store Meta ──► Update MAE/MFE ──► Resolve ──► Risk-Off ──► Sell-Only
+                                                 BUY/SELL     Suppress     Filter
+                                 │
+                                 ▼
+  GATE     ── Spread ──► Session ──► ADX ──► Confidence
+                             │
+                             ▼
+  POSITION ── Stability ──► Hysteresis ──► Meta-Label ──► Conviction ──► Kelly ──► Profit ──► Manage
+              Filter         2-of-3         Advisory        Gate          Sizing    Lock      Position
+                             │
+                             ▼
+  EXECUTE  ── Build Artifacts ──► Route Execution ──► Poll Deferred ──► Update Prob History
 ```
 
 ## Position Sizing Guardrails
@@ -378,15 +419,28 @@ Applied multiplicatively in `EntryService._submit_to_broker()`:
 
 MT5 sizing runs the same chain independently using real broker equity (via `_compute_mt5_qty()`), excluding PEK budget enforcement.
 
-```mermaid
-flowchart LR
-    A["effective_cap =\ncapital_base × min(mtm/init, 3.0)"] --> B["notional =\neffective_cap × size_scalar"]
-    B --> C[Per-Position Equity Cap\nmax_position_pct_of_equity]
-    C --> D[Risk-per-Trade Cap\nskip if below min_viable]
-    D --> E{Notional\nwithin PEK budget?}
-    E -- Yes --> F[Paper Broker\n$100K simulated equity]
-    E -- No --> G[PEK Admission Review\nclose lowest-ranked\npositions]
-    F --> MT5[MT5 Broker\nreal account balance\nindependent sizing chain]
+```
+  effective_cap = capital_base × min(mtm/init, 3.0)
+         │
+         ▼
+  notional = effective_cap × size_scalar
+         │
+         ▼
+  Per-Position Equity Cap (max_position_pct_of_equity)
+         │
+         ▼
+  Risk-per-Trade Cap — skip if below min_viable
+         │
+         ▼
+  ┌─ Notional within PEK budget? ─┐
+  │  Yes ──────────► Paper Broker │
+  │  No  ──► PEK Admission Review │
+  │         close lowest-ranked   │
+  │         positions             │
+  └───────────────────────────────┘
+         │
+         ▼
+  MT5 Broker (real account balance, independent sizing)
 ```
 
 ---
@@ -452,7 +506,7 @@ Converts calibrated probability + TP/SL barriers → position size multiplier. K
 
 **File:** `shared/factor_model.py`
 
-9 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, US_EQUITY, COMMODITY) covering all 16 assets. Factor exposures computed per-cycle in `engine_state_service.py`, exposed in `state.json`.
+10 factor groups (USD, EUR, AUD, NZD, CHF, CAD, GBP, JPY, US_EQUITY, COMMODITY) covering all 22 assets. Factor exposures computed per-cycle in `engine_state_service.py`, exposed in `state.json`.
 
 ## P4 — HRP Fix (2026-06-24)
 
@@ -489,10 +543,10 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 
 | Module | Role |
 |--------|------|
-| `portfolio_weights.py` | P0 — 4 weight strategies, decorator pattern, `compute_weights()` |
+| `portfolio_weights.py` | P0 — 8 weight strategies, decorator pattern, `compute_weights()` |
 | `calibration/` | P1 — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
 | `kelly.py` | P2 — `compute_kelly_fraction`, `compute_kelly_multiplier` |
-| `factor_model.py` | P3 — 9 factor groups, factor-constrained optimization |
+| `factor_model.py` | P3 — 10 factor groups, factor-constrained optimization |
 | `sizing.py` | Deprecated — replaced by P0–P2 layers |
 
 ## Paper Trading Engine (`paper_trading/`)

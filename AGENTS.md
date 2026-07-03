@@ -54,25 +54,84 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 - **Independent MT5 sizing**: Paper from $100K mtm_value; MT5 from broker balance via `_compute_mt5_qty()`
 - **Orchestrator**: `EngineOrchestrator` (ThreadPoolExecutor, 8 workers), **5-phase cycle**: PRE (PEK state) → 1a (signal) → 1b (admission) → 2 (validity) → 3 (health) → 4 (persist) with MT5 orphan sub-phases (A-D)
 
-```mermaid
-flowchart TD
-    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState\nRiskEngineV2 adaptive budget]
-    PRE --> P1A[Phase 1a: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1A --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
-    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
-    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
-    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
-    CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
-    CB -- passed --> FX[Factor Exposures\n9 groups]
-    FX --> VAR[VaR / CVaR\nRolling 60-period]
-    VAR --> MT5[MT5 Orphan Recon]
-    MT5 --> MT5A[Phase A: Drain cleanup queues]
-    MT5A --> MT5B[Phase B: Stale ticket detection]
-    MT5B --> MT5C[Phase C: Dry-run orphan report]
-    MT5C --> MT5D[Phase D: Self-healing adoption]
-    MT5D --> CONC[Position Concentration\nNet-short skew check]
-    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nRecord outcomes → PerformanceState\nState snapshot → state.json]
-    P4 --> Start
+```
+             ┌───────────────────────────────────────────┐
+             │ PRE: PortfolioStateSnapshot               │
+             │ RiskBudget + PerformanceState             │
+             │ RiskEngineV2 adaptive budget              │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 1a: REFRESH                         │
+             │ Parallel actor refresh + signal gen       │
+             │ ThreadPoolExecutor 8 workers              │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 1b: ADMIT                           │
+             │ PEK collect intents → filter → rank       │
+             │ Close over-budget positions               │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 2: VALIDITY                         │
+             │ Parallel validity state updates           │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 3: PORTFOLIO HEALTH                 │
+             └─────────────┬─────────────────────────────┘
+                           │
+                ┌──────────▼──────────┐
+                │ Circuit Breaker?    │
+                │ 7-consec-loss /     │
+                │ -15% DD?            │
+                └──────┬──────┬───────┘
+                  yes  │      │  no
+           ┌────────────┐      │
+           │ Flatten    │      │
+           │ positions  │      │
+           │ Emergency  │      │
+           │ halt       │      │
+           │ Recovery-  │      │
+           │ Scheduler  │      │
+           └────────────┘      │
+                               ▼
+                 ┌───────────────────────────────┐
+                 │ Factor Exposures (9 groups)   │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ VaR / CVaR                    │
+                 │ Rolling 60-period             │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ MT5 Orphan Recon              │
+                 └─────────────┬─────────────────┘
+                               │
+           ┌───────────────────▼───────────────────┐
+           │ Phase A: Drain cleanup queues         │
+           │ Phase B: Stale ticket detection       │
+           │ Phase C: Dry-run orphan report        │
+           │ Phase D: Self-healing adoption        │
+           └───────────────────┬───────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ Position Concentration        │
+                 │ Net-short skew check          │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ Phase 4: PERSIST              │
+                 │ Flush buffers → SQLite WAL    │
+                 │ Record outcomes → PerfState   │
+                 │ State snapshot → state.json   │
+                 └─────────────┬─────────────────┘
+                               │
+                 ┌─────────────▼─────────────────┐
+                 │ (next cycle)                  │
+                 └───────────────────────────────┘
 ```
 
 - **Governance**: 15-layer governance + HealthMonitor + VaR/CVaR + RiskEngineV2 + PEK admission + PerformanceState velocity + RecoveryScheduler

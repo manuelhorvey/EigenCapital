@@ -21,7 +21,7 @@ Known open risks in the EigenCapital system, ordered by severity.
 
 **Status**: Closed as "known unknown, monitored." Root cause unknown. Two causal hypotheses (carry for CHF+OTHER, DXY for equities) falsified by walk-forward counterfactual ablation 2026-06-20. SELL_ONLY filter is the empirically validated treatment.
 
-**Risk**: 5 assets have an inverted BUY signal (p_long > 0.5 predicts the wrong direction). The filter suppresses BUY, so the system never acts on these signals — but if the underlying inversion were to change (asymmetry healing or the SELL side also degrading), the filter would need updating.
+**Risk**: 3 assets have an inverted BUY signal (CADCHF, NZDCHF, EURAUD — p_long > 0.5 predicts the wrong direction). The filter suppresses BUY, so the system never acts on these signals — but if the underlying inversion were to change (asymmetry healing or the SELL side also degrading), the filter would need updating.
 
 **Monitoring**:
 - `scripts/diagnostics/check_direction_win_rates.py` provides two signals:
@@ -29,7 +29,7 @@ Known open risks in the EigenCapital system, ordered by severity.
   2. **Slow signal**: OOS BUY WR trend on SELL_ONLY assets. If >30%, reopen investigation — asymmetry may be healing.
 - Run this script monthly or after every retrain.
 
-**Trigger to reopen investigation**: OOS BUY WR on any SELL_ONLY asset exceeds 30%, or live SELL WR on any SELL_ONLY asset drops >10pp below baseline.
+**Trigger to reopen investigation**: OOS BUY WR on any of the 3 SELL_ONLY assets exceeds 30%, or live SELL WR on any SELL_ONLY asset drops >10pp below baseline.
 
 ---
 
@@ -97,9 +97,9 @@ Comparable scope to `scripts/diagnostics/check_chf_correlation.py` (~120 lines, 
 
 ## 6. Equity Cluster Concentration
 
-**Status**: Closed as "alarm removed 2026-07-01." ES, NQ, ^DJI no longer in the portfolio — the equity cluster alarm it was guarding against no longer exists in the live pipeline.
+**Status**: Closed as "alarm removed 2026-07-01." ^DJI remains in the portfolio as the sole US_EQUITY asset (ES, NQ removed). The equity cluster alarm was recommendation-only and guarded against ES/NQ/^DJI same-side concentration; with only one US equity survivor, the alarm is unnecessary.
 
-**Historical risk**: When ES and NQ were both SELL_ONLY (2026-06-20 through 2026-06-30), they shared concentrated directional exposure with ^DJI. The HealthMonitor equity cluster alarm flagged same-side positions across the three equity-Index assets but did not force-flatten. ^DJI was removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved its BuyWR above breakeven. ES, NQ, ^DJI were then removed from the portfolio entirely on 2026-07-01 as part of the portfolio remediation.
+**Historical risk**: When ES and NQ were both SELL_ONLY (2026-06-20 through 2026-06-30), they shared concentrated directional exposure with ^DJI. The HealthMonitor equity cluster alarm flagged same-side positions across the three equity-Index assets but did not force-flatten. ^DJI was removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved its BuyWR above breakeven. ES and NQ were removed from the portfolio on 2026-07-01; ^DJI was retained as the sole US_EQUITY asset.
 
 **Mitigation (historical)**: Equity cluster alarm in HealthMonitor was a recommendation-only signal — no force-flatten path. Alarm code is now a comment in `paper_trading/orchestrator/health.py:105` marking removal.
 

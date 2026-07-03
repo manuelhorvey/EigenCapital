@@ -22,13 +22,12 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | `mt5-terminal` | Launch MT5 terminal in Wine |
 | `mt5-bridge` | Launch MT5 TCP bridge server on :9879 |
 | `python -m paper_trading.ops.monitor` | Run engine + dashboard only |
-| `python scripts/research/trade_analysis.py` | Walk-forward style backtest + per-asset optimization |
 | `python scripts/backtest/walk_forward_backtest.py` | Multi-ticker walk-forward validation |
-| `python scripts/research/score_tickers.py` | Asset scoring and promotion classification |
-| `python scripts/training/train_all_assets.py` | Full retraining (legacy) |
-| `python scripts/training/retrain_all_fixed.py` | Retrain with all pipeline fixes |
-| `python scripts/training/train_regime_models.py` | Train regime-conditional models |
-| `python scripts/backtest/ensemble_pilot_backtest.py` | 3-asset ensemble pilot backtest |
+| `python scripts/training/retrain_all_fixed.py` | Retrain all assets with pipeline fixes |
+| `python scripts/training/train_calibration.py` | Train calibration models from walk-forward parquets |
+| `python scripts/backtest/backtest_pnl.py` | PnL backtest from OOS signal parquets |
+| `python scripts/optimization/drift_detector.py --json` | Live win-rate drift check |
+| `python scripts/analysis/production_audit.py` | 18-phase production audit |
 | `python scripts/ops/monitor_paper_trading.py` | Poll dashboard + CSV logging |
 
 ## Core Pipeline
@@ -44,7 +43,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | MT5 client | `paper_trading/ops/mt5_client.py` | Host-side client with frame protocol + RLock |
 | Broker | `paper_trading/execution/` | PaperBroker (simulated) or MT5Broker (live Exness) |
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
-| Portfolio | `paper_trading/portfolio_builder.py` | 16-asset risk-parity portfolio from YAML config |
+| Portfolio | `paper_trading/portfolio_builder.py` | 22-asset risk-parity portfolio from YAML config |
 | Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator (HealthMonitor + VaR/CVaR in Phase 3g) |
 | Portfolio weights | `shared/portfolio_weights.py` | P0 portfolio weight computation |
 | Calibration | `shared/calibration/` | P1 calibration layer |
@@ -55,22 +54,22 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 
 ## Current Portfolio
 
-16 assets across FX, commodities, and equity indices. See `configs/paper_trading.yaml` for full configuration and allocations.
+22 assets across FX, commodities, equity indices, and crypto. See `configs/paper_trading.yaml` for full configuration and allocations.
 
-**Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
+**2026-07-04:** BTCUSD (weekend-eligible, 24/7 crypto tier) and 4 JPY crosses (AUDJPY, NZDJPY, GBPJPY, USDJPY) added. Portfolio grows to 22 assets.
 
-**Removed 2026-07-01 (portfolio remediation):** ES, NQ, ^DJI removed from trading entirely. With them, USDJPY and GBPJPY were also dropped (they had been re-promoted 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven, then carried forward to the 2026-07-01 portfolio remediation).
+**2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
 **Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability). USDCAD/NZDUSD halved 5%→2.5%.
 
-### Active (16)
-GC, USDCHF, USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF, GBPUSD, EURAUD
+### Active (22)
+GC, USDCHF, USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF, GBPUSD, EURAUD, ^DJI, BTCUSD, AUDJPY, NZDJPY, GBPJPY, USDJPY
 
 ### SELL_ONLY (3 — BUY→FLAT override)
 CADCHF, NZDCHF, EURAUD
 
 ### Removed (post walk-forward, insufficient edge)
-AUDCHF, AUDNZD, EURUSD, GBPNZD, CADJPY, CHFJPY, CL, BTCUSD, EURGBP, EURJPY, AUDCAD, NZDJPY, ^VIX, IWM, ES, NQ, ^DJI, USDJPY, GBPJPY
+AUDCHF, AUDNZD, EURUSD, GBPNZD
 
 ## Services / Processes
 

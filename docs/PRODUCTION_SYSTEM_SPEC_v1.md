@@ -16,7 +16,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 1. **Screening output**: Composite scores + promotion classifications (GREEN/YELLOW/RED) for 30+ tickers
 2. **Per-asset models**: Binary XGBoost classifiers, one per promoted asset
- 3. **Live signals**: BUY/SELL/FLAT decisions every ~30s for 16 assets (SELL_ONLY filter overrides BUY→FLAT for 3 assets)
+ 3. **Live signals**: BUY/SELL/FLAT decisions every ~60s for 22 assets (SELL_ONLY filter overrides BUY→FLAT for 3 assets)
 4. **Portfolio allocation**: Config-gated portfolio weight strategy (P0, active: factor_constrained_v2) with governance overlay
 5. **Execution traces**: Full attribution records (prediction, execution, exit, friction) per trade
 
@@ -25,35 +25,109 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 - Does NOT predict price direction with consistent accuracy across all assets
 - Does NOT use ensemble/regime routing — disabled portfolio-wide (base_weight=1.0); see ADR-026
 - Does NOT use FRED macro data in the live pipeline
-- Does NOT operate with live capital (paper trading only)
-- Does NOT deploy every screened ticker (approximately 13 of 36+ screened RED, not promoted)
+- Does NOT operate with live capital (paper trading only — MT5 bridge executes on a small demo account (~$107 equity) for live-order practice, but no real capital is at risk)
+- Does NOT deploy every screened ticker (approximately 14 of 36+ screened RED, not promoted)
 
 ---
 
 ## 2. Architecture Overview
 
-The engine runs a continuous 5-phase orchestrator cycle (PRE → 1a → 1b → 2 → 3 → 4). Each tick (every ~30s) executes the following loop:
+The engine runs a continuous 5-phase orchestrator cycle (PRE → 1a → 1b → 2 → 3 → 4). Each tick (every ~60s) executes the following loop:
 
-```mermaid
-flowchart TD
-    Start((Start Cycle)) --> PRE[PRE: PortfolioStateSnapshot\nRiskBudget + PerformanceState]
-    PRE --> P1[Phase 1a: REFRESH\nParallel actor refresh + signal gen\nThreadPoolExecutor 8 workers]
-    P1 --> P1B[Phase 1b: ADMIT\nPEK collect intents → filter → rank\nClose over-budget positions]
-    P1B --> P2[Phase 2: VALIDITY\nParallel validity state updates]
-    P2 --> P3[Phase 3: PORTFOLIO HEALTH]
-    P3 --> CB{Circuit Breaker\n7-consecutive-loss / -15% DD?}
-    CB -- tripped --> Halt[Flatten positions\nEmergency halt\nRecoveryScheduler backoff]
-    CB -- passed --> FX[Factor Exposures\n9 factor groups]
-    FX --> VAR[VaR / CVaR\nRolling 60-period]
-    VAR --> MT5[MT5 Orphan Recon]
-    MT5 --> MT5A[Phase A: Drain cleanup queues]
-    MT5A --> MT5B[Phase B: Stale ticket detection]
-    MT5B --> MT5C[Phase C: Dry-run orphan report]
-    MT5C --> MT5D[Phase D: Self-healing adoption]
-    MT5D --> CONC[Position Concentration\nNet-short skew threshold]
-    CONC --> P4[Phase 4: PERSIST\nFlush buffers → SQLite WAL\nState snapshot → state.json]
-    P4 --> Start
 ```
+             ┌───────────────────────────────────────────┐
+             │ PRE: PortfolioStateSnapshot               │
+             │ RiskBudget + PerformanceState             │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 1a: REFRESH                         │
+             │ Parallel actor refresh + signal gen       │
+             │ ThreadPoolExecutor 8 workers              │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 1b: ADMIT                           │
+             │ PEK collect intents → filter → rank       │
+             │ Close over-budget positions               │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 2: VALIDITY                         │
+             │ Parallel validity state updates           │
+             └─────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────▼─────────────────────────────┐
+             │ Phase 3: PORTFOLIO HEALTH                 │
+             └─────────────┬─────────────────────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │ Market closed &&        │
+              │ weekend_eligible?       │
+              └─────┬──────┬──────┬─────┘
+         yes, no    │      │      │  no
+        eligible    │      │      │
+                    │      │      ▼
+                    │      │  ┌───────────────────────────┐
+                    │      │  │ Circuit Breaker?          │
+                    │      │  │ 7-consec-loss / -15% DD?  │
+                    │      │  └─────┬──────────────┬──────┘
+                    │      │    yes │              │ no
+                    │      │        ▼              ▼
+                    │      │  ┌────────────┐ ┌───────────┐
+                    │      │  │ Flatten    │ │ Factor    │
+                    │      │  │ positions  │ │ Exposures │
+                    │      │  │ Emergency  │ │ 10 groups │
+                    │      │  │ halt       │ └─────┬─────┘
+                    │      │  │ Recovery-  │       │
+                    │      │  │ Scheduler  │       ▼
+                    │      │  └────────────┘ ┌───────────┐
+                    │      │                 │ VaR/CVaR  │
+                    │      │                 │ Roll 60p  │
+                    │      │                 └─────┬─────┘
+                    │      │                       │
+                    │      │                 ┌─────▼─────┐
+                    │      │                 │ MT5 Recon │
+                    │      │                 └─────┬─────┘
+                    │      │                       │
+                    │      │           ┌───────────┴───────────┐
+                    │      │           │ A: Drain cleanup      │
+                    │      │           │ B: Stale tickets      │
+                    │      │           │ C: Orphan report      │
+                    │      │           │ D: Self-heal adopt    │
+                    │      │           └───────────┬───────────┘
+                    │      │                       │
+                    │      │                 ┌─────▼─────┐
+                    │      │                 │ Position  │
+                    │      │                 │ Concen-   │
+                    │      │                 │ tration   │
+                    │      │                 └─────┬─────┘
+                    │      │                       │
+                    │      │                 ┌─────▼─────┐
+                    │      │                 │ Phase 4:  │
+                    │      │                 │ PERSIST   │
+                    │      │                 │ SQLite    │
+                    │      │                 │ state.json│
+                    │      │                 └─────┬─────┘
+                    │      │                       │
+                    │      │                 ┌─────▼─────┐
+                    │      │                 │ next cycle│
+                    │      │                 └───────────┘
+                    │      │
+                    ▼      │
+  ┌────────────────────┐   │
+  │ Skip cycle /       │   │
+  │ legacy behavior    │   │
+  └────────────────────┘   │
+                           ▼
+  ┌──────────────────────────────────────┐
+  │ Filtered Weekend Cycle              │
+  │ 0.5× allocation multiplier          │
+  │ only weekend_eligible assets        │
+  └──────────────────────────────────────┘
+```
+
+**Weekend branch:** When `is_market_closed()` returns true, the engine checks for `weekend_eligible` assets via `_get_weekend_eligible_assets()`. If any exist (e.g. BTCUSD with `crypto: [0,24]` session tier), a filtered cycle runs processing only those assets at 0.5× position multiplier. Non-eligible assets show stale data. If no eligible assets exist, the cycle returns early (legacy skip behavior).
 
 **Research & Training Pipeline** (offline, runs before deployment):
 
@@ -120,7 +194,7 @@ yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_ba
 
 ### 4.1 Data Ingestion
 
-All data sourced from yfinance (no FRED in production):
+Data sourced from MT5 bridge (primary) with yfinance fallback:
 
 | Function | Returns | Period |
 |---|---|---|
@@ -202,7 +276,7 @@ Format: XGBoost `.json` (not pickle)
 
 **Frequency**: Every ~30 seconds (no configurable env var — cycle timing is fixed)
 
-**Parallel execution**: 16 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
+**Parallel execution**: 22 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
 
 **Steps**:
 1. `fetch_live(ticker)` — 5y OHLCV (`_FETCH_PERIOD = "5y"`)
@@ -281,7 +355,7 @@ Computed from OHLCV feature vector (no model inference):
 
 ### 6.1 Current Composition
 
-**16 assets** promoted from 36-ticker walk-forward screening, P0 factor_constrained_v2 weighted.
+**22 assets** promoted from 36-ticker walk-forward screening, P0 factor_constrained_v2 weighted.
 
 **Added 2026-06-22:** GBPUSD promoted (walk-forward IC 0.186, HR 0.371, pt_sl=(1.97, 0.52) → R:R=3.79).
 
@@ -294,7 +368,7 @@ Computed from OHLCV feature vector (no model inference):
 **SELL_ONLY filter active for 3 assets** (BUY→FLAT): CADCHF, NZDCHF, EURAUD.
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
 | USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
 | USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 5 |
@@ -311,6 +385,12 @@ Computed from OHLCV feature vector (no model inference):
 | GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
+| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 3 |
+| BTCUSD | BTC-USD | 2.0% | 0.58 | 1.51 | 3 |
+| AUDJPY | AUDJPY=X | 2.0% | 0.52 | 2.01 | 2 |
+| NZDJPY | NZDJPY=X | 2.0% | 0.51 | 2.02 | 2 |
+| GBPJPY | GBPJPY=X | 2.0% | 0.50 | 2.22 | 2 |
+| USDJPY | USDJPY=X | 2.0% | 0.52 | 1.97 | 2 |
 
 ### 6.2 Position Sizing
 
@@ -408,7 +488,7 @@ In-memory TTL cache per download type:
 10. **.json serialization**: No pickle in production
 11. **Inference truncation symmetry**: Training uses 5y data; live inference fetches 5y, truncates to `_MAX_INDICATOR_LOOKBACK + 50` when validated
 12. **SQLite state store**: All persistent state in single WAL-mode database; legacy JSON/parquet files are read-only fallbacks
-13. **Parallel asset isolation**: 16 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently
+13. **Parallel asset isolation**: 22 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently (weekend cycle processes only eligible assets)
 14. **MT5 order lifecycle symmetry**: Every paper open → MT5 `place_order`; paper close → MT5 `close_position`; SL/TP adjust → MT5 `modify_position`
 15. **HealthMonitor in Phase 3g**: VaR(95), CVaR, equity cluster alarm, circuit breaker check, RecoveryScheduler probe
 16. **Schema migration**: DB_SCHEMA_VERSION = "2.0.0"; auto-migrates at connect time; idempotent
@@ -422,7 +502,7 @@ In-memory TTL cache per download type:
 
 | Path | Role |
 |---|---|
-| `configs/paper_trading.yaml` | Production config (16 assets, params) |
+| `configs/paper_trading.yaml` | Production config (22 assets, params) |
 | `features/alpha_features.py` | Alpha feature factory |
 | `features/data_fetch.py` | YFinance data ingestion |
 | `features/labels.py` | Triple-barrier labeling |
@@ -439,7 +519,7 @@ In-memory TTL cache per download type:
 | `paper_trading/orchestrator/actor.py` | Per-asset actor with health state |
 | `paper_trading/orchestrator/health.py` | HealthMonitor, CircuitBreaker (max_consecutive_losses=7), RecoveryScheduler |
 | `paper_trading/orchestrator/engine.py` | EngineOrchestrator (ThreadPoolExecutor, 5 phases PRE→1a→1b→2→3→4 + MT5 sub-phases A–D inside Phase 3, VaR/CVaR in Phase 3g) |
-| `paper_trading/models/` | Trained models (.json) — 16 assets (9 archived in `orphaned/`) |
+| `paper_trading/models/` | Trained models (.json) — 22 assets (4 archived in `orphaned/`) |
 | `paper_trading/state_store.py` | SQLite state persistence + schema migration (DB_SCHEMA_VERSION=2.0.0) |
 | `paper_trading/execution/decision_pipeline.py` | DEFAULT_STAGES (22 stages), SELL_ONLY_ASSETS frozenset |
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies |
@@ -449,8 +529,20 @@ In-memory TTL cache per download type:
 | `portfolio/hrp_allocator.py` | P4 HRP fix — optimal_leaf_ordering |
 | `scripts/training/train_calibration.py` | Train calibrators from walk-forward parquets |
 | `scripts/replay/replay_rebalance.py` | Reconstruct historical portfolio weights |
+| `paper_trading/position/adaptive_exit.py` | 3-stage adaptive exit engine (breakeven lock → retracement trail → time decay) |
+| `paper_trading/pek/` | Portfolio Execution Kernel — contracts, state builder, engine v2, performance |
+| `paper_trading/performance/live_sharpe.py` | Live Sharpe tracker from SQLite equity history |
+| `paper_trading/logging/json_formatter.py` | Structured JSON logging |
+| `eigencapital/observability/atlas.py` | ATLAS covariate shift detector (CUSUM + Page-Hinkley + KS) |
+| `eigencapital/observability/metrics.py` | Prometheus MetricsRegistry |
 | `paper_trading/services/entry_service.py` | Entry validation + deferred-entry sell-only bypass fix |
 | `benchmarks/microbenchmark.py` | Isolated performance benchmark (`--state-dir`) |
+| `scripts/analysis/production_audit.py` | 18-phase production audit orchestrator |
+| `scripts/analysis/trade_lifecycle.py` | 18-phase trade lifecycle reconstruction |
+| `scripts/analysis/trailing_stop_sim.py` | Retracement trailing stop simulation |
+| `scripts/analysis/robustness_gatekeeper.py` | 5-test robustness validation suite |
+| `scripts/analysis/mfe_stationarity.py` | MFE stationarity + walk-forward retrace stability |
+| `scripts/analysis/shock_simulation.py` | Structural fragility simulation (7 shock classes) |
 | `scripts/backtest/walk_forward_backtest.py` | Multi-ticker screening |
 | `scripts/research/score_tickers.py` | Promotion scoring |
 | `scripts/research/generate_promotion_report.py` | Report + YAML generation |
@@ -470,7 +562,7 @@ In-memory TTL cache per download type:
 2. **Yahoo Finance / MT5 dual source** — MT5 primary data source with yfinance fallback
 3. **FX cross price NaN on first cycle** — incomplete daily bar; resolves after next cycle with full bar
 4. **Ensemble disabled** — base_weight=1.0 portfolio-wide; see ADR-026 for decision record and re-enable criteria
-5. **16/36 tickers promoted** — rest are RED; reflects weak IC for most FX pairs
+5. **22/36 tickers promoted** — rest are RED; reflects weak IC for most FX pairs
 6. **No FRED** — macro derived from yfinance tickers only; no FRED API dependency in production
 7. **JPY/CHF cross TZ issue** — fixed via UTC normalization + index deduplication in pipeline
 8. **MT5 bridge 5s timeout** — MT5 `realtime_mid_price()` has a 5s socket timeout; during volatile periods, prices may lag
@@ -480,6 +572,7 @@ In-memory TTL cache per download type:
 12. **Spread gate observe mode** — first 720 cycles (~6h) log what would be blocked without acting; enforcement activates automatically after observation window.
 13. **P0 (factor_constrained_v2) and P1 (calibration) are enabled**; P2 (Kelly) is disabled pending 2+ weeks live data
 14. **Calibration reduces ECE by 94.3%** but requires walk-forward parquet regeneration for retraining
+15. **Weekend trading**: BTCUSD runs 24/7 with `crypto: [0,24]` session tier at 0.5× allocation multiplier. JPY crosses follow standard market hours. Non-eligible assets show stale data on weekends.
 
 ---
 

@@ -19,8 +19,8 @@ early_stopping_rounds=50
 **Per-asset max_depth:**
 | Depth | Assets |
 |-------|--------|
-| 2 | GC, GBPCAD, NZDCAD, NZDCHF, CADCHF, AUDUSD, GBPCHF, GBPUSD, EURAUD |
-| 3 | GBPAUD, EURCAD, EURNZD |
+| 2 | GC, GBPCAD, NZDCAD, NZDCHF, CADCHF, AUDUSD, GBPCHF, GBPUSD, EURAUD, AUDJPY, NZDJPY, GBPJPY, USDJPY |
+| 3 | GBPAUD, EURCAD, EURNZD, ^DJI, BTCUSD |
 | 4 | USDCHF, EURCHF |
 | 5 | USDCAD, NZDUSD |
 
@@ -247,7 +247,7 @@ See Section 3 for the canonical taxonomy.
 ## 7. INFERENCE PIPELINE CONTRACT
 
 **Pipeline:** `paper_trading/inference/pipeline.py:AssetInferencePipeline._generate_and_apply()`
-**Per-cycle (every ~30s):**
+**Per-cycle (every ~60s):**
 
 1. `fetch_live(ticker)` — 5y OHLCV, deduplicate index
 2. Normalize index to UTC TZ-naive
@@ -500,7 +500,7 @@ max_layers: 3
 
 ## 12. GOVERNANCE CONTRACT
 
-14 layered governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ/^DJI no longer in portfolio) plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
+15 layered governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ removed; ^DJI retained as sole US_EQUITY asset) plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
 
 | Layer | Frequency | Effect | Config key |
 |---|---|---|---|---|---|
@@ -514,7 +514,7 @@ max_layers: 3
 | Sell-only filter | Per decision | Override BUY→FLAT for 3 inverted-BUY assets | `get_sell_only_assets()` (config-driven, paper_trading.yaml defaults.sell_only_assets) |
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
-| Factor model (P3) | Per cycle | Factor exposures via 9 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
+| Factor model (P3) | Per cycle | Factor exposures via 10 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
 | Position concentration | Per cycle | Flags >75% net-short skew | `net_short_concentration_threshold` |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) | (hardcoded in `CircuitBreaker`) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
@@ -711,24 +711,25 @@ Where `p` = calibrated P(TP hit), `q = 1-p`.
 - Kelly multiplier stored in `asset._kelly_multiplier`, consumed by `_composite_size_scalar()` before position cap/risk cap.
 - **Requires calibrated probabilities.** Kelly reads probabilities AFTER calibration (P1) — if calibration is off, Kelly operates on raw model probabilities.
 
-**Status:** Disabled pending 2+ weeks of live data to validate calibration-vs-win-rate alignment across all 16 assets.
+**Status:** Disabled pending 2+ weeks of live data to validate calibration-vs-win-rate alignment across all 22 assets.
 
 ### 15.4 P3 — Factor Model (live: enabled for monitoring)
 
 **File:** `shared/factor_model.py` — 325 lines, P3 in the portfolio maturity framework.
 
-**Factor groups (9):**
+**Factor groups (10):**
 
 | Group | Assets |
 |-------|--------|
 | USD | AUDUSD, NZDUSD, USDCHF, USDCAD, GBPUSD, GBPCHF, CADCHF, NZDCHF, EURCAD |
-| EUR | EURUSD, EURAUD, EURCHF, EURNZD, EURCAD |
-| AUD | AUDUSD, AUDNZD, EURAUD |
-| NZD | NZDUSD, NZDCHF, AUDNZD, EURNZD |
+| EUR | EURAUD, EURCHF, EURNZD, EURCAD |
+| AUD | AUDUSD, EURAUD, AUDJPY |
+| NZD | NZDUSD, NZDCHF, EURNZD, NZDJPY |
 | CHF | EURCHF, USDCHF, NZDCHF, CADCHF, GBPCHF |
 | CAD | USDCAD, CADCHF, EURCAD |
-| GBP | GBPUSD, GBPCHF |
-| US_EQUITY | ES, NQ, ^DJI (none active — removed 2026-07-01) |
+| GBP | GBPUSD, GBPCHF, GBPAUD, GBPCAD, GBPJPY |
+| JPY | USDJPY, GBPJPY, AUDJPY, NZDJPY |
+| US_EQUITY | ^DJI (ES, NQ removed 2026-07-01) |
 | COMMODITY | GC |
 
 **Functions:**
@@ -745,7 +746,7 @@ Where `p` = calibrated P(TP hit), `q = 1-p`.
 - Factor exposures computed per-cycle in `engine_state_service.py:_compute_factor_exposures()`.
 - Exposed in `state.json` portfolio summary as `factor_exposures`.
 - `factor_constrained_v2` weight strategy uses `factor_constrained_weights_v2()` with hard linear inequality constraints.
-- Active config: `portfolio.weight_method: factor_constrained_v2` (enabled — binds CHF to ≤0.20, all 9 factor groups constrained).
+- Active config: `portfolio.weight_method: factor_constrained_v2` (enabled — binds CHF to ≤0.20, all 10 factor groups constrained).
 
 ### 15.5 P4 — HRP Fix (2026-06-24)
 

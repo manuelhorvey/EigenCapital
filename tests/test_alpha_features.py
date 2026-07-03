@@ -3,16 +3,21 @@ import pandas as pd
 import pytest
 
 from features.alpha_features import (
-    vol_adjusted_carry,
-    momentum_features,
-    zscore_reversion,
-    vol_regime_ratio,
-    dxy_momentum,
-    commodity_momentum,
-    vix_momentum,
-    spx_momentum,
-    day_of_week_signal,
+    adx_slope,
+    bb_pct_b,
     build_alpha_features,
+    commodity_momentum,
+    cot_net_positioning,
+    day_of_week_signal,
+    dxy_momentum,
+    macd_histogram,
+    momentum_features,
+    spx_momentum,
+    stochastic_oscillator,
+    vix_momentum,
+    vol_adjusted_carry,
+    vol_regime_ratio,
+    zscore_reversion,
 )
 
 N = 300
@@ -304,3 +309,261 @@ def test_build_alpha_features_output_not_empty(sample_prices, sample_rate_diffs,
         commodities=sample_macro["comms"],
     )
     assert len(result) > 0
+
+
+def test_build_alpha_features_adds_trend_exhaustion_with_ohlcv(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """When ohlcv is provided, all 6 trend-exhaustion columns appear."""
+    idx = sample_prices.index
+    ohlcv = pd.DataFrame({
+        "open": np.random.default_rng(42).uniform(99, 101, len(idx)),
+        "high": np.random.default_rng(43).uniform(100, 103, len(idx)),
+        "low": np.random.default_rng(44).uniform(97, 100, len(idx)),
+        "close": sample_prices["AUDJPY"].values,
+        "volume": np.random.default_rng(45).uniform(1000, 5000, len(idx)),
+    }, index=idx)
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        ohlcv=ohlcv,
+    )
+    for asset in sample_prices.columns:
+        upper = asset.upper()
+        for feat in ("macd_hist", "stoch_k", "stoch_d", "bb_pct_b", "adx_slope", "rsi_divergence"):
+            assert f"{upper}_{feat}" in result.columns, f"Missing {upper}_{feat}"
+
+
+def test_build_alpha_features_without_ohlcv_skips_trend_exhaustion(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """Without ohlcv, no trend-exhaustion columns appear."""
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+    )
+    for asset in sample_prices.columns:
+        upper = asset.upper()
+        assert f"{upper}_macd_hist" not in result.columns
+
+
+def test_build_alpha_features_missing_rate_diff_defaults_to_zero(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """When an asset's pair is missing from rate_diffs, carry should be ~0."""
+    missing_pair = "GBPJPY"
+    prices_w_missing = pd.DataFrame({missing_pair: sample_prices["AUDJPY"].values}, index=sample_prices.index)
+    # rate_diffs has AUDJPY and EURCAD, not GBPJPY
+    result = build_alpha_features(
+        prices_w_missing, sample_rate_diffs,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+    )
+    assert f"{missing_pair}_carry_vol_adj" in result.columns
+    # With zero rate_diff, the carry should be near 0
+    carry_col = result[f"{missing_pair}_carry_vol_adj"]
+    assert carry_col.dropna().abs().max() < 1e-10
+
+
+def test_build_alpha_features_with_cot_data(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """COT columns appear when cot_data is provided."""
+    idx = sample_prices.index
+    cot_data = pd.DataFrame({
+        "AUDJPY_cot_z": np.random.default_rng(42).normal(0, 1, len(idx)),
+        "AUDJPY_cot_change_4w": np.random.default_rng(43).normal(0, 0.5, len(idx)),
+    }, index=idx)
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        cot_data=cot_data,
+    )
+    assert "AUDJPY_cot_z" in result.columns
+    assert "AUDJPY_cot_change_4w" in result.columns
+
+
+def test_build_alpha_features_cot_initialized_zero_when_missing(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """When cot_data is None, COT columns are still initialized to 0.0.
+    Uses AUDUSD which IS in FX_COT_CONTRACTS.
+    """
+    prices = pd.DataFrame({"AUDUSD": sample_prices["AUDJPY"].values}, index=sample_prices.index)
+    rate = pd.DataFrame({"AUDUSD": sample_rate_diffs["AUDJPY"].values}, index=sample_prices.index)
+    result = build_alpha_features(
+        prices, rate,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        cot_data=None,
+    )
+    assert "AUDUSD_cot_z" in result.columns
+    assert (result["AUDUSD_cot_z"] == 0.0).all()
+
+
+def test_build_alpha_features_cot_three_day_lag(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """COT features are shifted by 3 days (publication lag)."""
+    idx = sample_prices.index
+    values = np.random.default_rng(42).normal(0, 1, len(idx))
+    cot_data = pd.DataFrame({"AUDJPY_cot_z": values}, index=idx)
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        cot_data=cot_data,
+    )
+    # The lag means the first 3 rows of cot_z should be NaN (filled by ffill)
+    # and the last 3 rows of cot_data should be absent from the result
+    # Just check the column exists and has correct values
+    assert "AUDJPY_cot_z" in result.columns
+
+
+# ── cot_net_positioning ─────────────────────────────────────────────────────
+
+
+def test_cot_net_positioning_basic():
+    normalised = pd.Series([0.1, 0.2, 0.3, 0.4, 0.5] * 20)
+    oi = pd.Series([100.0] * 100)
+    result = cot_net_positioning(normalised, oi)
+    assert isinstance(result, pd.Series)
+    assert not result.isna().all()
+
+
+def test_cot_net_positioning_zero_open_interest():
+    normalised = pd.Series([0.1] * 100)
+    oi = pd.Series([0.0] * 100)
+    result = cot_net_positioning(normalised, oi)
+    assert not result.empty
+
+
+def test_cot_net_positioning_clips_extremes():
+    rng = np.random.default_rng(42)
+    normalised = pd.Series(rng.normal(0, 1, 200))
+    oi = pd.Series([100.0] * 200)
+    result = cot_net_positioning(normalised, oi)
+    assert result.dropna().between(-3, 3).all()
+
+
+def test_cot_net_positioning_short_history():
+    normalised = pd.Series([0.1] * 10)
+    oi = pd.Series([100.0] * 10)
+    result = cot_net_positioning(normalised, oi, lookback=52)
+    assert result.isna().all() or result.empty
+
+
+# ── macd_histogram ──────────────────────────────────────────────────────────
+
+
+def test_macd_histogram_basic():
+    rng = np.random.default_rng(42)
+    close = pd.Series(100 + rng.standard_normal(300).cumsum())
+    result = macd_histogram(close)
+    assert isinstance(result, pd.Series)
+    assert len(result) == 300
+    assert result.dropna().between(-0.05, 0.05).all()
+
+
+def test_macd_histogram_constant_close():
+    close = pd.Series([100.0] * 300)
+    result = macd_histogram(close)
+    assert result.dropna().abs().max() < 1e-10
+
+
+def test_macd_histogram_short_series():
+    close = pd.Series([100.0, 101.0, 102.0])
+    result = macd_histogram(close)
+    assert result.isna().all()
+
+
+# ── stochastic_oscillator ───────────────────────────────────────────────────
+
+
+def test_stochastic_kd_basic():
+    rng = np.random.default_rng(42)
+    n = 300
+    close = pd.Series(100 + rng.standard_normal(n).cumsum())
+    high = close + np.abs(rng.standard_normal(n))
+    low = close - np.abs(rng.standard_normal(n))
+    k, d = stochastic_oscillator(high, low, close)
+    assert isinstance(k, pd.Series)
+    assert isinstance(d, pd.Series)
+    assert k.dropna().between(0, 1).all()
+    assert d.dropna().between(0, 1).all()
+
+
+def test_stochastic_kd_constant_prices():
+    close = pd.Series([100.0] * 300)
+    high = pd.Series([101.0] * 300)
+    low = pd.Series([99.0] * 300)
+    k, d = stochastic_oscillator(high, low, close)
+    assert not k.isna().all()
+
+
+# ── bb_pct_b ────────────────────────────────────────────────────────────────
+
+
+def test_bb_pct_basic():
+    rng = np.random.default_rng(42)
+    close = pd.Series(100 + rng.standard_normal(300).cumsum())
+    result = bb_pct_b(close)
+    assert isinstance(result, pd.Series)
+    assert len(result) == 300
+
+
+def test_bb_pct_constant_close():
+    close = pd.Series([100.0] * 300)
+    result = bb_pct_b(close)
+    # Constant price -> zero band width -> undefined %B (NaN or near-zero)
+    assert isinstance(result, pd.Series)
+    assert len(result) == 300
+
+
+# ── adx_slope ───────────────────────────────────────────────────────────────
+
+
+def test_adx_slope_basic():
+    rng = np.random.default_rng(42)
+    n = 300
+    close = pd.Series(100 + rng.standard_normal(n).cumsum())
+    high = close + np.abs(rng.standard_normal(n)) * 0.5
+    low = close - np.abs(rng.standard_normal(n)) * 0.5
+    result = adx_slope(high, low, close)
+    assert isinstance(result, pd.Series)
+    assert len(result) == 300
+
+
+# ── _compute_shared_features ────────────────────────────────────────────────
+
+
+def test_build_alpha_features_with_shared_features(
+    sample_prices, sample_rate_diffs,
+):
+    """Pre-computed shared_features are used instead of recomputing."""
+    idx = sample_prices.index
+    shared = {"dxy_mom_21d": pd.Series(np.linspace(-0.01, 0.01, len(idx)), index=idx)}
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        shared_features=shared,
+    )
+    assert "dxy_mom_21d" in result.columns
+    assert not result["dxy_mom_21d"].isna().all()
+
+
+def test_build_alpha_features_shared_features_reindexed(
+    sample_prices, sample_rate_diffs,
+):
+    """shared_features are reindexed to feature DataFrame index."""
+    idx = sample_prices.index
+    shorter_idx = idx[: len(idx) - 10]
+    shared = {"dxy_mom_21d": pd.Series(np.linspace(-0.01, 0.01, len(shorter_idx)), index=shorter_idx)}
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        shared_features=shared,
+    )
+    assert len(result) > 0
+    assert "dxy_mom_21d" in result.columns

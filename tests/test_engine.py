@@ -432,6 +432,7 @@ class TestPaperTradingEngine:
             save_state=lambda: None,
         )
         eng._engine_cfg = SimpleNamespace(execution_defaults={})
+        eng._cycle_weekend = False
         return eng
 
     def test_shutdown_calls_orchestrator_and_background_writer(self, engine):
@@ -493,6 +494,87 @@ class TestPaperTradingEngine:
         with patch("paper_trading.engine.is_market_closed", return_value=True):
             result = engine.run_once()
         assert result == {}
+
+    def test_run_once_weekend_eligible_scopes_orchestrator(self, engine):
+        """Weekend cycle with eligible assets passes allowed_assets to orchestrator."""
+        engine.assets = {
+            "BTCUSD": SimpleNamespace(
+                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
+                sl_mult=1.0, tp_mult=2.0,
+                config={"weekend_eligible": True},
+            ),
+        }
+        orch_args = []
+        engine._orchestrator = SimpleNamespace(
+            run_once=lambda **kw: (orch_args.append(kw), {"assets": {}})[1],
+            drain_persist_buffer=lambda: [],
+        )
+        with patch("paper_trading.engine.is_market_closed", return_value=True):
+            result = engine.run_once()
+        assert result.get("weekend_cycle") is True
+        assert len(orch_args) == 1
+        assert orch_args[0].get("allowed_assets") == {"BTCUSD"}
+
+    def test_run_once_weekend_eligible_sets_and_resets_flag(self, engine):
+        engine.assets = {
+            "BTCUSD": SimpleNamespace(
+                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
+                sl_mult=1.0, tp_mult=2.0,
+                config={"weekend_eligible": True},
+            ),
+        }
+        engine._orchestrator = SimpleNamespace(
+            run_once=lambda **kw: {"assets": {"BTCUSD": {"signal": "SELL"}}},
+            drain_persist_buffer=lambda: [],
+        )
+        engine._cycle_weekend = False
+        with patch("paper_trading.engine.is_market_closed", return_value=True):
+            engine.run_once()
+        assert not engine._cycle_weekend  # should be reset after cycle
+
+    def test_run_once_weekend_flushes_wal_and_background_writer(self, engine):
+        engine.assets = {
+            "BTCUSD": SimpleNamespace(
+                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
+                sl_mult=1.0, tp_mult=2.0,
+                config={"weekend_eligible": True},
+            ),
+        }
+        wal_flushed = []
+        bw_flushed = []
+        engine._wal = SimpleNamespace(write=lambda kind, data: None, flush=lambda: wal_flushed.append(1))
+        engine._background_writer = SimpleNamespace(flush=lambda: bw_flushed.append(1), shutdown=lambda: None)
+        engine._orchestrator = SimpleNamespace(
+            run_once=lambda **kw: {"assets": {"BTCUSD": {"signal": "SELL"}}},
+            drain_persist_buffer=lambda: [],
+        )
+        with patch("paper_trading.engine.is_market_closed", return_value=True):
+            engine.run_once()
+        assert len(wal_flushed) >= 1
+        assert len(bw_flushed) >= 1
+
+    def test_run_once_weekend_noneligible_not_called(self, engine):
+        """Non-eligible assets should not appear in orchestrator results."""
+        engine.assets = {
+            "BTCUSD": SimpleNamespace(
+                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
+                sl_mult=1.0, tp_mult=2.0,
+                config={"weekend_eligible": True},
+            ),
+            "EURUSD": SimpleNamespace(
+                ticker="EURUSD=X", name="EURUSD", train=lambda force=None: None,
+                sl_mult=1.0, tp_mult=2.0,
+                config={},
+            ),
+        }
+        engine._orchestrator = SimpleNamespace(
+            run_once=lambda **kw: {"assets": {"BTCUSD": {"signal": "BUY"}}},
+            drain_persist_buffer=lambda: [],
+        )
+        with patch("paper_trading.engine.is_market_closed", return_value=True):
+            result = engine.run_once()
+        assert result.get("weekend_cycle") is True
+        assert "EURUSD" not in result.get("assets", {})
 
     def test_run_once_dispatch_to_orchestrator(self, engine):
         with patch("paper_trading.engine.is_market_closed", return_value=False):

@@ -5,16 +5,23 @@ from __future__ import annotations
 import time as _real_time
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from features.data_fetch import (
     _TTLCache,
+    _fetch_fred_series,
+    _fetch_macro_batch,
+    _fetch_single_series,
     _get_cycle_cached,
+    _KNOWN_CURRENCIES,
     _macro_cache,
     _normalize_index,
     _set_cycle_cache,
+    _ZERO_RATE_ASSETS,
     bump_cycle_id,
+    CURRENCY_YIELD_TICKERS,
     fetch_asset_data,
     fetch_asset_ohlcv,
     fetch_yf_series,
@@ -129,6 +136,188 @@ class TestFetchYfSeries:
             assert not result.empty
             mock_fetch.assert_not_called()
         _macro_cache.invalidate()
+
+
+# ── _fetch_fred_series ──────────────────────────────────────────────────────
+
+
+class TestFetchFredSeries:
+    CSV_OK = b"observation_date,value\n2020-01-02,1.50\n2020-01-03,1.52\n"
+
+    def test_parses_csv_successfully(self):
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value.__enter__.return_value.read.return_value = self.CSV_OK
+            result = _fetch_fred_series("^TNX")
+        assert not result.empty
+        assert len(result) == 2
+        assert result.iloc[0] == 1.50
+
+    def test_returns_empty_for_unknown_ticker(self):
+        result = _fetch_fred_series("NONEXIST")
+        assert result.empty
+
+    def test_returns_empty_on_network_error(self):
+        with patch("urllib.request.urlopen", side_effect=OSError("timeout")):
+            result = _fetch_fred_series("^TNX")
+        assert result.empty
+
+    def test_filters_before_2020(self):
+        csv = b"observation_date,value\n2019-12-01,1.00\n2020-01-02,1.50\n"
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value.__enter__.return_value.read.return_value = csv
+            result = _fetch_fred_series("^TNX")
+        assert len(result) == 1  # 2020 row only
+
+    def test_skips_empty_rows(self):
+        csv = b"observation_date,value\n2020-01-02,1.50\n2020-01-03,\n2020-01-04,1.55\n"
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value.__enter__.return_value.read.return_value = csv
+            result = _fetch_fred_series("^TNX")
+        assert not result.empty
+        assert len(result) == 2  # empty value skipped
+
+    def test_handles_no_date_column_variants(self):
+        csv = b"DATE,VAL\n2020-01-02,1.50\n2020-01-03,1.52\n"
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value.__enter__.return_value.read.return_value = csv
+            result = _fetch_fred_series("^DE10Y")
+        assert not result.empty
+
+
+# ── _fetch_macro_batch ──────────────────────────────────────────────────────
+
+
+class TestFetchMacroBatch:
+    def setup_method(self):
+        _macro_cache.invalidate()
+
+    def test_returns_cached_on_subsequent_call(self):
+        with patch("features.data_fetch._fetch_fred_series", return_value=pd.Series(dtype=float)):
+            with patch("features.data_fetch._fetch_single_series", return_value=pd.Series(dtype=float)):
+                r1 = _fetch_macro_batch()
+                r2 = _fetch_macro_batch()
+        assert r1 is r2
+
+    def test_fred_fills_some_tickers(self):
+        """When FRED serves some tickers but not others, missing go through yfinance."""
+        def _fred_side_effect(ticker):
+            if ticker == "^TNX":
+                return pd.Series([0.04, 0.05], index=pd.DatetimeIndex(["2026-01-02", "2026-01-05"]), name="^TNX")
+            return pd.Series(dtype=float)
+
+        with patch("features.data_fetch._fetch_fred_series", side_effect=_fred_side_effect):
+            with patch("features.data_fetch._fetch_single_series", return_value=pd.Series([15.0], name="^VIX")):
+                with patch("yfinance.download", return_value=pd.DataFrame()):
+                    result = _fetch_macro_batch()
+        assert "^TNX" in result
+        # ^TNX should be divided by 100
+        assert result["^TNX"].iloc[0] == 0.0004  # 0.04 / 100
+
+    def test_yield_tickers_none_handled_gracefully(self):
+        for ticker in ["^TNX", "^FVX", "^DE10Y", "^UK10Y"]:
+            with patch("features.data_fetch._fetch_fred_series", return_value=pd.Series(dtype=float)):
+                with patch("features.data_fetch._fetch_single_series", return_value=pd.Series(dtype=float)):
+                    with patch("yfinance.download", return_value=pd.DataFrame()):
+                        result = _fetch_macro_batch()
+            if ticker in result:
+                assert result[ticker].empty or result[ticker].iloc[0] != result[ticker].iloc[0] * 100
+
+
+# ── fetch_asset_data rate_diff edge cases ────────────────────────────────────
+
+
+class TestFetchAssetDataRateDiff:
+    """Tests for fetch_asset_data() rate_diff construction with edge cases."""
+
+    @pytest.fixture(autouse=True)
+    def _reset(self):
+        bump_cycle_id()
+        _macro_cache.invalidate()
+        yield
+
+    def _make_engine(self, n=260):
+        import datetime as _dt
+        base = _dt.datetime(2026, 1, 1)
+        idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(n)])
+        close = pd.Series(np.linspace(1.0, 1.1, n), index=idx, name="close")
+        return idx, close
+
+    def test_rate_diff_zero_for_non_fx(self):
+        """BTC, GC etc should get rate_diff = 0."""
+        idx, close = self._make_engine()
+        prices_df = close.to_frame("close")
+        with patch("features.data_fetch._provider_fetch_live", return_value=prices_df):
+            with patch("features.data_fetch._normalize_index", side_effect=lambda x: x):
+                with patch("features.data_fetch._fetch_macro_batch", return_value={}):
+                    result = fetch_asset_data("BTCUSD", "BTC-USD")
+        _, rate_diffs, *_ = result
+        assert (rate_diffs.values == 0.0).all()
+
+    def test_rate_diff_for_fx_pair(self):
+        """6-char asset with both currencies known -> rate_diff computed."""
+        idx, close = self._make_engine()
+        prices_df = close.to_frame("close")
+        # Macro series must share date range with close for alignment
+        macro = {
+            "^TNX": pd.Series([0.04] * len(idx), index=idx),
+            "^DE10Y": pd.Series([0.02] * len(idx), index=idx),
+            "^VIX": pd.Series([15.0] * len(idx), index=idx),
+            "^GSPC": pd.Series([5000.0] * len(idx), index=idx),
+            "CL=F": pd.Series([70.0] * len(idx), index=idx),
+        }
+        with patch("features.data_fetch._provider_fetch_live", return_value=prices_df):
+            with patch("features.data_fetch._normalize_index", side_effect=lambda x: x):
+                with patch("features.data_fetch._fetch_macro_batch", return_value=macro):
+                    result = fetch_asset_data("EURUSD", "EURUSD=X")
+        _, rate_diffs, *_ = result
+        # EUR is ^DE10Y (0.02), USD is ^TNX (0.04) -> rate_diff = -0.02
+        assert not rate_diffs.empty
+        last_val = rate_diffs.iloc[-1, 0]
+        assert abs(last_val - (-0.02)) < 1e-6
+
+    def test_rate_diff_falls_back_to_tnx_when_yield_missing(self):
+        """When a currency's yield ticker is not in macro, falls back to ^TNX."""
+        idx, close = self._make_engine()
+        prices_df = close.to_frame("close")
+        macro = {
+            "^TNX": pd.Series([0.04] * len(idx), index=idx),
+            "^DE10Y": pd.Series([0.02] * len(idx), index=idx),
+            "^VIX": pd.Series([15.0] * len(idx), index=idx),
+            "^GSPC": pd.Series([5000.0] * len(idx), index=idx),
+            "CL=F": pd.Series([70.0] * len(idx), index=idx),
+            # ^UK10Y intentionally missing
+        }
+        with patch("features.data_fetch._provider_fetch_live", return_value=prices_df):
+            with patch("features.data_fetch._normalize_index", side_effect=lambda x: x):
+                with patch("features.data_fetch._fetch_macro_batch", return_value=macro):
+                    result = fetch_asset_data("GBPUSD", "GBPUSD=X")
+        _, rate_diffs, *_ = result
+        # GBP ^UK10Y missing -> falls back to ^TNX (0.04)
+        # USD is ^TNX (0.04) -> rate_diff ~ 0.0
+        last_val = rate_diffs.iloc[-1, 0]
+        assert abs(last_val) < 1e-6
+
+    def test_rate_diff_zero_for_short_asset_name(self):
+        """Assets with name shorter than 6 chars get 0 rate_diff."""
+        idx, close = self._make_engine()
+        prices_df = close.to_frame("close")
+        with patch("features.data_fetch._provider_fetch_live", return_value=prices_df):
+            with patch("features.data_fetch._normalize_index", side_effect=lambda x: x):
+                with patch("features.data_fetch._fetch_macro_batch", return_value={}):
+                    result = fetch_asset_data("GC", "GC=F")
+        _, rate_diffs, *_ = result
+        assert (rate_diffs.values == 0.0).all()
+
+    def test_rate_diff_zero_when_currency_not_known(self):
+        """Asset with unknown currency prefix gets 0 rate_diff."""
+        idx, close = self._make_engine()
+        prices_df = close.to_frame("close")
+        with patch("features.data_fetch._provider_fetch_live", return_value=prices_df):
+            with patch("features.data_fetch._normalize_index", side_effect=lambda x: x):
+                with patch("features.data_fetch._fetch_macro_batch", return_value={}):
+                    result = fetch_asset_data("XXXYYY", "XXXYYY=X")
+        _, rate_diffs, *_ = result
+        assert (rate_diffs.values == 0.0).all()
 
 
 # ── fetch_asset_data ───────────────────────────────────────────────────────

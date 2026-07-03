@@ -85,12 +85,14 @@ class AssetTrainingPipeline:
             vol_primitive = VolatilityPrimitive(period=atr_period)
             logger.info(
                 "%s: using ATR vol (period=%d) for label barrier width",
-                asset.name, atr_period,
+                asset.name,
+                atr_period,
             )
         else:
             logger.info(
                 "%s: using EWM vol (span=100) for label barrier width (vol_method=%s)",
-                asset.name, vol_method,
+                asset.name,
+                vol_method,
             )
         if not ohlcv.empty:
             labeled = apply_triple_barrier(ohlcv, pt_sl=list(pt_sl), vertical_barrier=vb, vol_primitive=vol_primitive)

@@ -44,6 +44,7 @@ class _SnapshotManager:
             stored_checksum = data.pop("_checksum", None)
             if stored_checksum is not None:
                 import hashlib
+
                 computed = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
                 if computed != stored_checksum:
                     logger.error(

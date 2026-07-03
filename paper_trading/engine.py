@@ -115,6 +115,12 @@ class PaperTradingEngine:
             is_real_broker = True
             # Install MT5 client as global data provider for data_fetcher
             self._install_mt5_data_provider(cfg)
+            # Populate broker's MT5 connection pool before first cycle so
+            # refresh_spread() in Phase 1a doesn't hit "No connections in pool"
+            if self.broker.ensure_connected():
+                logger.debug("MT5 broker connection pool populated at init")
+            else:
+                logger.warning("MT5 broker pool unavailable at init - spreads will fail until connected")
         else:
             self.broker = PaperBroker(
                 initial_capital=cfg.capital,

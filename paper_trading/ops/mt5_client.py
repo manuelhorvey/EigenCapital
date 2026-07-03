@@ -193,7 +193,11 @@ class _FrameProtocol:
 
     def send_request(self, method: str, params: dict | None = None) -> dict:
         with self._lock:
-            conn = self._get_conn()
+            try:
+                conn = self._get_conn()
+            except MT5ConnectionError:
+                self._reconnect()
+                conn = self._get_conn()
             try:
                 return conn.send_request(method, params)
             except (MT5ConnectionError, OSError):

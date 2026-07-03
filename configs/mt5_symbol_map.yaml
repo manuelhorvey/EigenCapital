@@ -55,6 +55,6 @@ YM=F: US30 # Same symbol as ^DJI (Dow futures); only ^DJI is in portfolio
 # NG=F:      NATGAS
 
 # ── Crypto ────────────────────────────────────────────────────────────────────
-# BTC-USD:  BTCUSD     # FAIL — negative expectancy, inconsistent
+BTC-USD:  BTCUSD     # PROMOTED 2026-07-03 — walk-forward: +181R, BuyWR=38% SellWR=59% (BE=28%)
 # ETH-USD:   ETHUSD
 

@@ -22,6 +22,7 @@ import atexit
 import contextlib
 import logging
 import math
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -49,6 +50,7 @@ from paper_trading.pek.perf.performance_state_builder import PerformanceStateBui
 from paper_trading.pek.state.portfolio_state_builder import PortfolioStateBuilder
 from paper_trading.replay.wal import WalWriter
 from paper_trading.state_store import EngineSnapshot
+from shared.calibration import CalibrationRegistry
 
 logger = logging.getLogger("eigencapital.orchestrator.engine")
 
@@ -119,6 +121,11 @@ class EngineOrchestrator:
 
         # Performance state builder — records trade outcomes each cycle
         self._perf_builder = PerformanceStateBuilder()
+        # Wire CalibrationRegistry so calibration_ece reflects portfolio fit
+        # quality rather than the legacy silent-zero path. get_or_load is
+        # idempotent — every AssetEngine already populates this same singleton.
+        _cal_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "calibration")
+        self._perf_builder.set_calibration_registry(CalibrationRegistry.get_or_load(_cal_dir))
 
         # Portfolio circuit breaker (vol spike + consecutive loss)
         self._circuit_breaker = CircuitBreaker()

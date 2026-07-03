@@ -9,11 +9,38 @@ from __future__ import annotations
 import logging
 from collections import deque
 
+import numpy as np
+
 from eigencapital.domain.time import utc_now
 from paper_trading.pek.contracts.performance_state import PerformanceState, RegimeVelocity
 from paper_trading.pek.perf.outcome_tracker import OutcomeTracker
 
 logger = logging.getLogger("eigencapital.pek.perf")
+
+
+def _intrinsic_ece_of(calibrator) -> float | None:
+    """Mean per-bin absolute gap between empirical outcome rate and predicted
+    probability for a fitted ``BinnedCalibrator``.
+
+    Static metric — does not require live outcome observation, computed from
+    the calibrator's stored ``bin_centers`` (predicted probability for that
+    bin) and ``bin_empirical_probs`` (empirical outcome rate from training).
+    Returns ``None`` when the calibrator isn't fitted or doesn't expose bins.
+    """
+    try:
+        if not getattr(calibrator, "fitted", False):
+            return None
+        centers = calibrator.bin_centers
+        empirical = calibrator.bin_empirical_probs
+        if centers is None or empirical is None:
+            return None
+    except AttributeError:
+        return None
+    c = np.asarray(centers, dtype=float)
+    e = np.asarray(empirical, dtype=float)
+    if len(c) == 0:
+        return None
+    return float(np.mean(np.abs(c - e)))
 
 
 class DegradationMonitor:
@@ -238,9 +265,21 @@ class PerformanceStateBuilder:
         self.execution = ExecutionQualityTracker()
         self.velocity = VelocityProcessor()
         self._version = 0
+        self._calibration_registry = None
         self._ece_connected: bool = False
         self._ece_warned: bool = False
         self._portfolio_value_history: deque[float] = deque(maxlen=20)
+
+    def set_calibration_registry(self, registry) -> None:
+        """Wire a ``CalibrationRegistry`` so ``calibration_ece`` reports the
+        mean per-asset intrinsic calibration error of the fitted calibrators.
+
+        Once connected, the "ECETracker was never connected" warning is
+        suppressed — registry wiring counts as the intended connection
+        documented at the original ``eigencapital.calibration.ECE`` site.
+        """
+        self._calibration_registry = registry
+        self._ece_connected = True
 
     def build(self, portfolio_value: float) -> PerformanceState:
         self._version += 1
@@ -291,23 +330,44 @@ class PerformanceStateBuilder:
         )
 
     def _ece_value(self) -> float:
-        """Return calibration ECE, logging a warning once if ECETracker was
-        never connected by an external caller.
+        """Return calibration ECE.
 
-        The original design intended for ``calibration_ece`` to be populated
-        from an ``ECETracker`` instance (see ``eigencapital.calibration.ECE``).
-        That wiring was never completed.  This method returns 0.0 and warns
-        once per instance lifetime so the gap is visible in logs without
-        crashing or silently producing a misleading value.
+        When a ``CalibrationRegistry`` has been wired via
+        ``set_calibration_registry()``, returns the mean per-asset intrinsic
+        ECE of fitted calibrators — i.e. how well each calibrator's
+        binned empirical probabilities match its training outcomes. This
+        is a portfolio-wide calibration-quality scalar available at any
+        time post-load (no live outcome observation required).
+
+        Falls back to 0.0 and warns once per instance lifetime if no
+        registry was ever connected (legacy code path).
         """
-        if not self._ece_connected and not self._ece_warned:
-            logger.warning(
-                "PerformanceStateBuilder.calibration_ece=0.0 — "
-                "ECETracker was never connected. "
-                "See eigencapital.calibration.ECE for the intended wiring path."
-            )
-            self._ece_warned = True
-        return 0.0
+        if not self._ece_connected:
+            if not self._ece_warned:
+                logger.warning(
+                    "PerformanceStateBuilder.calibration_ece=0.0 - "
+                    "ECETracker was never connected. "
+                    "See eigencapital.calibration.ECE for the intended wiring path."
+                )
+                self._ece_warned = True
+            return 0.0
+        return self._registry_intrinsic_ece()
+
+    def _registry_intrinsic_ece(self) -> float:
+        registry = self._calibration_registry
+        if registry is None:
+            return 0.0
+        cals = getattr(registry, "_calibrators", None) or {}
+        if not cals:
+            return 0.0
+        eces: list[float] = []
+        for cal in cals.values():
+            intrinsic = _intrinsic_ece_of(cal)
+            if intrinsic is not None:
+                eces.append(intrinsic)
+        if not eces:
+            return 0.0
+        return sum(eces) / len(eces)
 
     def _compute_pnl_velocity(self) -> float:
         if len(self._portfolio_value_history) < 5:

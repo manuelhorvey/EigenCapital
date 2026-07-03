@@ -46,7 +46,11 @@ class _SnapshotManager:
                 import hashlib
                 computed = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
                 if computed != stored_checksum:
-                    logger.error("State checksum mismatch: computed=%s stored=%s — state may be corrupt", computed, stored_checksum)
+                    logger.error(
+                        "State checksum mismatch: computed=%s stored=%s — state may be corrupt",
+                        computed,
+                        stored_checksum,
+                    )
                     return None
 
             snapshot = EngineSnapshot.from_dict(data)

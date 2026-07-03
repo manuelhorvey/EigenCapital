@@ -12,6 +12,7 @@ from labels.meta_labels import MetaLabelModel
 from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
+from shared.volatility import VolatilityPrimitive
 
 logger = logging.getLogger("eigencapital.training_pipeline")
 

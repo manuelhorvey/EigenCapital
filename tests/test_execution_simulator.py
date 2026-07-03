@@ -213,18 +213,16 @@ class TestExecutionSimulator:
         assert result.fill_price < 100.0
 
     def test_simulate_stop_loss_no_gap(self, simulator, market, config):
-        """SL fill without gap.
+        """SL fill without gap adds adverse slippage.
 
-        NOTE: there is a known sign bug in simulator.simulate() for SL/TP fills
-        (see paper_trading/execution/simulator.py:127-141).  The SlippageModel
-        docstring says "For longs: fill = stop - factor (worse)" but the
-        simulator applies `fill_price + price_slip` for side="sell".  This test
-        captures the CURRENT behavior; a separate audit fix should flip the sign
-        so adverse SL fills are LOWER than the trigger for longs.
+        For a sell SL (closing a long position), adverse means LOWER fill than
+        the trigger (we get less for our long).  See simulator.py:127 sign
+        convention docstring and SlippageModel docstring.
         """
+        # market.open_price=99.5, stop=98.0 -> no gap (99.5 > 98.0 for sell)
         result = simulator.simulate("stop_loss", "sell", 98.0, 100.0, market, config)
-        # Current (buggy) behavior: fill_price > trigger.  See note above.
-        assert result.fill_price > 98.0
+        # Adverse SL sells LOWER than trigger
+        assert result.fill_price < 98.0
         assert result.gap_fill is False
 
     def test_simulate_stop_loss_gap_through(self, simulator, market, config):
@@ -238,18 +236,46 @@ class TestExecutionSimulator:
         assert result.fill_price == 97.0  # min(open, trigger) = 97.0
 
     def test_simulate_take_profit_small_slippage(self, simulator, market, config):
-        """TP fill has small slippage.
+        """TP fill has small adverse slippage.
 
-        NOTE: there is a known sign bug in simulator.simulate() for TP fills (see
-        test_simulate_stop_loss_no_gap docstring).  Current behavior applies
-        ``fill_price + price_slip`` for side="sell", making the TP fill HIGHER
-        than the target.  Capturing current behavior in this test.
+        For a sell TP (closing a long position), adverse means LOWER fill than
+        the target.  Match simulator.py:127 sign convention docstring.
         """
         result = simulator.simulate("take_profit", "sell", 105.0, 100.0, market, config)
-        # Current (buggy) behavior: fill_price > target.  See note in test_simulate_stop_loss_no_gap.
-        assert result.fill_price > 105.0
+        # Sell TP at adverse price: LOWER than target
+        assert result.fill_price < 105.0
         # But slippage should still be very small (0.1x spread)
         assert result.slippage_bps < 5.0
+
+    def test_simulate_stop_loss_sell_adverse(self, simulator, market, config):
+        """SL sell (long close): adverse fill is LOWER than trigger."""
+        # Use market where open_price is above trigger to avoid gap detection
+        market_no_gap = MarketSnapshot(
+            current_price=105.0, open_price=101.0, high_price=106.0, low_price=95.0, vol_zscore=1.0
+        )
+        result = simulator.simulate("stop_loss", "sell", 100.0, 100.0, market_no_gap, config)
+        assert result.fill_price < 100.0
+        assert not result.gap_fill
+
+    def test_simulate_stop_loss_buy_adverse(self, simulator, market, config):
+        """SL buy (short close): adverse fill is HIGHER than trigger."""
+        # Use market where open_price is below trigger to avoid gap detection
+        market_no_gap = MarketSnapshot(
+            current_price=95.0, open_price=99.0, high_price=106.0, low_price=93.0, vol_zscore=1.0
+        )
+        result = simulator.simulate("stop_loss", "buy", 100.0, 100.0, market_no_gap, config)
+        assert result.fill_price > 100.0
+        assert not result.gap_fill
+
+    def test_simulate_take_profit_sell_adverse(self, simulator, market, config):
+        """TP sell (long close): adverse fill is LOWER than target."""
+        result = simulator.simulate("take_profit", "sell", 100.0, 100.0, market, config)
+        assert result.fill_price < 100.0
+
+    def test_simulate_take_profit_buy_adverse(self, simulator, market, config):
+        """TP buy (short close): adverse fill is HIGHER than target."""
+        result = simulator.simulate("take_profit", "buy", 100.0, 100.0, market, config)
+        assert result.fill_price > 100.0
 
     def test_simulate_entry_with_no_plan_returns_zero(self, simulator, market, config):
         """simulate_entry with no entry_plan returns zero fill."""

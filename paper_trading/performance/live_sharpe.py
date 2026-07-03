@@ -207,15 +207,19 @@ class LiveSharpeTracker:
             return {"available": False, "reason": "no trace file"}
 
         n_read = 0
-        with open(trace_path) as f:
+        with open(trace_path, "rb") as f:
             file_size = os.fstat(f.fileno()).st_size
-            if self._trace_file_pos < file_size:
-                f.seek(self._trace_file_pos)
-            else:
+            if self._trace_file_pos >= file_size:
                 self._trace_file_pos = 0
                 self._slippage_gaps.clear()
+                f.seek(0)
+            elif self._trace_file_pos > 0:
+                f.seek(self._trace_file_pos)
 
-            for line in f:
+            while True:
+                line = f.readline()
+                if not line:
+                    break
                 try:
                     entry = json.loads(line)
                     cp = entry.get("close_price")
@@ -223,11 +227,11 @@ class LiveSharpeTracker:
                     if cp and mp and cp > 0:
                         gap_pct = abs(mp - cp) / cp * 100
                         self._slippage_gaps.append(gap_pct)
-                    n_read += 1
-                    if n_read >= 2000:
-                        break
                 except (json.JSONDecodeError, KeyError):
-                    continue
+                    pass
+                n_read += 1
+                if n_read >= 2000:
+                    break
 
             self._trace_file_pos = f.tell()
 

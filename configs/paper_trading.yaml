@@ -318,7 +318,7 @@ assets:
         time_decay_start: 20
   USDCHF:
     ticker: USDCHF=X
-    allocation: 0.04
+    allocation: 0.02
     sl_mult: 0.85
     tp_mult: 3.0
     spread_tier: fx_major

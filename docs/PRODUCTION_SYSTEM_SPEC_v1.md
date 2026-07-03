@@ -152,7 +152,7 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 
 **Trend-exhaustion features** (added 2026-06-26): `macd_hist`, `stoch_k`, `stoch_d`, `bb_pct_b`, `adx_slope`, `rsi_divergence`. All computed via the `ta` library from OHLCV.
 
-Some assets additionally use lead-lag custom features (`dji_lead_1`, `nzdjpy_lead_3`, `gc_lead_1`) — see `features/lead_lag_features.py`.
+Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`) defined in `features/registry.py`. Lead-lag features (`features/lead_lag_features.py`) are NOT in production — `features/builder.py` is not imported by any code in the `paper_trading/` package and is dead code in the live pipeline.
 
 ### 4.3 Labeling
 

@@ -68,7 +68,9 @@ flowchart TD
 
 **Added 2026-06-26:** USDJPY and GBPJPY promoted (trend-exhaustion features improved BuyWR above breakeven; removed from SELL_ONLY same day).
 
-**2026-06-30:** 11 assets bumped to ratio=3.0 via optimizer (USDCAD, ES, NQ, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF). All 21 models retrained. Dashboard `/optimization.json` endpoint added. Full optimizer suite in `scripts/optimization/`.
+**2026-06-30:** 11 assets bumped to ratio=3.0 via optimizer (USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF, plus ES and NQ which were subsequently dropped in the portfolio remediation). All active models retrained. Dashboard `/optimization.json` endpoint added. Full optimizer suite in `scripts/optimization/`.
+
+**Removed 2026-07-01 (portfolio remediation):** ES, NQ, ^DJI removed from trading entirely. With them, USDJPY and GBPJPY (re-promoted 2026-06-26) were also dropped. Portfolio reduced to 16 assets.
 
 **Removed 2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD (directional instability failure mode — confident wrong-direction bets during trends). USDCAD and NZDUSD allocations halved from 5%→2.5% to limit drawdown impact.
 
@@ -450,7 +452,7 @@ plus decision pipeline suppression stages, position sizing guardrails, and Healt
 | Calibration (P1)           | Per inference| Per asset | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
 | Kelly sizing (P2)          | Per decision| Per asset | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3)          | Per cycle   | Portfolio | Factor exposures via 9 groups in state.json (monitoring only) |
-| Equity cluster alarm       | Per cycle   | Global    | Flags ES/NQ/^DJI all same side (recommendation only) |
+| Equity cluster alarm       | — | — | **Removed 2026-07-01.** Code marker at `paper_trading/orchestrator/health.py:105` — formerly flagged ES/NQ/^DJI same-side concentration; those assets are no longer in the portfolio. |
 | Circuit breaker            | Per cycle   | Portfolio | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown         | Global      | Portfolio | Global throttling                   |
 | Entry price deviation gate | Per entry   | Per asset | Skips entry if price drifted >2%    |
@@ -736,7 +738,7 @@ tests/                        # Test suite
 * MT5 bridge is single-threaded — concurrent requests are serialized via RLock
 * **GBPNZD removed** (2026-06-20) — tp/sl=1.0/3.0 (ratio 0.33), breakeven WR 75%, achieved 72.3%. Net-negative (-37R total, -71R max_dd).
 * **SELL_ONLY filter active for 3 assets** (CADCHF, NZDCHF, EURAUD) — reduced from 10 on 2026-07-01 after Portfolio Remediation removed ES, NQ, ^DJI, USDJPY, GBPJPY from the portfolio. Remaining 3 are confirmed permanent SELL_ONLY.
-* **Equity cluster alarm** flags ES/NQ/^DJI all on same side — recommendation only, not a forced flatten.
+* **Equity cluster alarm** — removed 2026-07-01 alongside ES/NQ/^DJI exit from the portfolio. The alarm was recommendation-only (no forced flatten) and is replaced by Phase 3e net-short concentration alert (`net_short_concentration_threshold`, default 75%).
 * **Circuit breaker threshold lowered to 7** consecutive portfolio losses (was 15). Crisis replay showed max 4 consecutive losses — 15 would never trip.
 * **THIN liquidity regime** is a soft warning (SL/size adjustment, no halt);
    only **STRESSED** liquidity regime halts trading

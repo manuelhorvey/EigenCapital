@@ -48,7 +48,7 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 ### Ensemble (Disabled 2026-06-20)
 **Weight:** `base_weight = 1.0` (regime model not loaded at inference)
 **Status:** Disabled portfolio-wide after walk-forward PnL comparison (+2.5% / p=0.0446 raw, fails Bonferroni correction). Regime model training path still active for future re-enable; see `docs/adr/ADR-026-ensemble-disabled.md`.
-**Re-enable criteria:** Pooled sign test p < 0.10 across 25+ assets AND ≥3 assets with per-asset sign-p < 0.10 on ≥6 months fresh OOS data.
+**Re-enable criteria:** Pooled sign test p < 0.10 across the live portfolio AND ≥3 assets with per-asset sign-p < 0.10 on ≥6 months fresh OOS data.
 
 ---
 
@@ -571,7 +571,7 @@ See `docs/GOVERNANCE_LAYER.md` for full detail.
 14. **Paper engine is source of truth** — If an MT5 bridge operation fails (close, modify), the paper engine state is NOT rolled back. The next open cycle will detect the orphaned MT5 position and skip the duplicate order.
 15. **Independent paper/MT5 sizing** — Paper positions are sized from paper mtm_value ($100K capital) with paper-specific drawdown and leverage budget. MT5 positions are sized from the real broker account balance with MT5-specific drawdown. The two sizing paths never interfere.
 16. **No MT5 equity fetch in orchestrator** — The `EngineOrchestrator` does not fetch broker equity. MT5 sizing occurs at submission time (`_submit_mt5_order`) via `_compute_mt5_qty()`. Paper sizing uses the pre-Phase 1 equity snapshot from `sum(asset.mtm_value)`.
-17. **HealthMonitor runs in Phase 3g** — `HealthMonitor.observe()` computes portfolio vol, VaR(95), CVaR, halt ratio, equity cluster alarm, and circuit breaker checks. `RecoveryScheduler.probe()` checks halted actors with exponential backoff for re-enablement.
+17. **HealthMonitor runs in Phase 3g** — `HealthMonitor.observe()` computes portfolio vol, VaR(95), CVaR, halt ratio, and circuit breaker checks. `RecoveryScheduler.probe()` checks halted actors with exponential backoff for re-enablement. Equity cluster alarm was removed 2026-07-01 when ES/NQ/^DJI left the portfolio (see `paper_trading/orchestrator/health.py:105`).
 18. **Live VaR/CVaR** — Rolling 60-period portfolio returns feed VaR (5th percentile) and CVaR (mean of tail) computed in `EngineOrchestrator.run_once()` Phase 3g. Stored in `results["var_95"]` and `results["cvar_95"]`.
 19. **Schema migration** — SQLite state store uses `DB_SCHEMA_VERSION = "2.0.0"` (up from implicit v1). Migrations run at connect time via `_run_migrations()`. Current migration (v1→v2.0.0) adds `cycle_id` to trades, `vol_spike`/`var_95` to equity_history, and indexes.
 20. **SELL_ONLY_FILTER exit reason** — Deferred BUY entries canceled by sell-only filter record `sell_only_filter` as exit reason in trade history.

@@ -19,7 +19,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | PEK admission event | Logged as `PEK_BUDGET_OVERRUN` + `PEK_BUDGET_CLOSE` — check engine logs |
 | PEK dashboard state | `state.json → portfolio → admission` (n_intents, n_admitted, n_rejected, admitted[], rejected[]) |
 | State file (JSON) | `data/live/state.json` |
-| State store (SQLite) | `data/live/state.db` (5 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history) |
+| State store (SQLite) | `data/live/state.db` (6 tables: trades, attribution, shadow_trades, confidence_buckets, equity_history, strategy_metadata) |
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
 | Logs | stdout (redirect to file as needed) |
 | Refresh interval | 60s (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var) |
@@ -230,7 +230,7 @@ curl http://127.0.0.1:5000/ping
 - After MT5 reconnect: check for `bar-jump suppression` log — suppresses ~60min if bar count changed >100 (normal after source switch)
 - Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD showing `risk-off suppression — holding flat` (validated behavior)
 - Sell-only filter: 3 SELL_ONLY assets (CADCHF, NZDCHF, EURAUD) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
-- Equity cluster alarm: if ES/NQ/^DJI all have open positions on the same side, expect `equity_cluster_all_LONG_ES_NQ_^DJI` or `equity_cluster_all_SHORT_ES_NQ_^DJI` recommendation logged by HealthMonitor
+- Equity cluster alarm: removed 2026-07-01 (ES/NQ/^DJI no longer in portfolio — see `paper_trading/orchestrator/health.py:105`). Historical `equity_cluster_all_*` log lines reference retired assets.
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
 - Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) on weekends
 - **LAST** timestamp in the header shows when signals were last refreshed
@@ -795,7 +795,7 @@ Project Root/
 ├── paper_trading/
 │   ├── engine.py                 # PaperTradingEngine + PaperBroker
 │   ├── asset_engine.py           # Per-asset lifecycle + _can_enter() entry gate
-│   ├── state_store.py            # SQLite state store (5 tables, WAL mode)
+│   ├── state_store.py            # SQLite state store facade (6 tables, WAL mode) — delegates to paper_trading/state/*.py
 │   ├── inference/
 │   │   ├── pipeline.py           # Live inference pipeline (truncation, async diag)
 │   │   ├── async_diagnostics.py  # DiagnosticsSnapshot + DaignosticsQueue daemon

@@ -68,7 +68,7 @@ See `AGENTS.md` "Codebase Remediation (2026-06-30+)" for full list.
 - 11 assets bumped to ratio=3.0 via `scripts/optimization/portfolio_sltp_optimizer.py`.
   See `AGENTS.md` "TP/SL Optimizer — Ratio=3.0 Bump (2026-06-30)" for
   per-asset table.
-- All 21 models retrained with new labels.
+- All 16 models retrained with new labels.
 - Dashboard `/optimization.json` endpoint added.
 - SL fragility test (`scripts/optimization/sl_fragility_test.py`) confirmed
   20/21 OK, 0 CRITICAL, 1 FRAGILE (NZDCAD).

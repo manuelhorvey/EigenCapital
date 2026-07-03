@@ -55,7 +55,7 @@ same-origin. No wildcards.
 - missing-host / `None`
 - IPv6 link-local without explicit loopback prefix
 
-The Windows-side bridge (ZMQ/TCP frame protocol) is also expected to bind
+The bridge (TCP frame protocol — `paper_trading/ops/mt5_bridge.py` server + `paper_trading/ops/mt5_client.py` client) is also expected to bind
 to `127.0.0.1`; an AST-level guard in `tests/test_mt5_security.py`
 ensures the bridge source string doesn't drift.
 

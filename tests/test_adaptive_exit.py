@@ -5,8 +5,8 @@ Covers state machine transitions, peak tracking, short/long symmetry,
 and all failure modes identified in the Production Deployment Gate.
 """
 import pytest
-from paper_trading.position.adaptive_exit import AdaptiveExitEngine
 
+from paper_trading.position.adaptive_exit import AdaptiveExitEngine, AdaptiveExitResult
 
 # ── Standard configs ───────────────────────────────────────────────────────
 
@@ -215,8 +215,8 @@ class TestAdaptiveExitEdgeCases:
         assert r.action == "trail"  # trail triggered at 50% retrace from 103
         assert r.new_sl == pytest.approx(101.5)  # 103 - 0.5 * 3
         # New rally to 105
-        r2 = ae.compute(side="long", entry_price=100.0, current_price=105.0, current_sl=101.5,
-                        vol_at_entry=0.02, bars_since_entry=3, config=DEFAULT_CFG)
+        ae.compute(side="long", entry_price=100.0, current_price=105.0, current_sl=101.5,
+                   vol_at_entry=0.02, bars_since_entry=3, config=DEFAULT_CFG)
         assert ae._best_price == 105.0  # new peak tracked
         # Retrace to 103 from new peak
         r3 = ae.compute(side="long", entry_price=100.0, current_price=103.5, current_sl=101.5,
@@ -262,8 +262,8 @@ class TestAdaptiveExitEdgeCases:
         assert r.action == "breakeven"
         assert r.new_sl == 100.0  # entry price for short
         # Price drops further to 95
-        r2 = ae.compute(side="short", entry_price=100.0, current_price=95.0, current_sl=100.0,
-                        vol_at_entry=0.02, bars_since_entry=2, config=AGGRESSIVE_CFG)
+        ae.compute(side="short", entry_price=100.0, current_price=95.0, current_sl=100.0,
+                   vol_at_entry=0.02, bars_since_entry=2, config=AGGRESSIVE_CFG)
         assert ae._best_price == 95.0  # lowest price
         # Retrace to 97.5
         r3 = ae.compute(side="short", entry_price=100.0, current_price=97.5, current_sl=100.0,
@@ -329,3 +329,159 @@ class TestAdaptiveExitEdgeCases:
         r = ae.compute(side="long", entry_price=100.0, current_price=100.0, current_sl=95.0,
                        vol_at_entry=0.02, bars_since_entry=0, config=DEFAULT_CFG)
         assert r.action == "none"
+
+
+class TestAdaptiveExitEngine:
+    """Public-API coverage for AdaptiveExitEngine."""
+
+    def test_init_resets_state(self):
+        engine = AdaptiveExitEngine()
+        assert engine.phase == "STATIC"
+        assert engine.peak_mfe_r is None
+        assert engine.sl_update_count == 0
+
+    def test_reset_clears_state(self):
+        engine = AdaptiveExitEngine()
+        engine._current_phase = "TRAILING"
+        engine._best_price = 1.5
+        engine.reset()
+        assert engine.phase == "STATIC"
+        assert engine.peak_mfe_r is None
+        assert engine.sl_update_count == 0
+
+    def test_best_price_tracks_peak_long(self):
+        engine = AdaptiveExitEngine()
+        engine.compute(side="long", entry_price=100, current_price=105,
+                       current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
+        assert engine._best_price == 105
+        engine.compute(side="long", entry_price=100, current_price=110,
+                       current_sl=95, vol_at_entry=0.02, bars_since_entry=2)
+        assert engine._best_price == 110
+        engine.compute(side="long", entry_price=100, current_price=102,
+                       current_sl=95, vol_at_entry=0.02, bars_since_entry=3)
+        assert engine._best_price == 110
+
+    def test_best_price_tracks_peak_short(self):
+        engine = AdaptiveExitEngine()
+        engine.compute(side="short", entry_price=100, current_price=95,
+                       current_sl=105, vol_at_entry=0.02, bars_since_entry=1)
+        assert engine._best_price == 95
+        engine.compute(side="short", entry_price=100, current_price=90,
+                       current_sl=105, vol_at_entry=0.02, bars_since_entry=2)
+        assert engine._best_price == 90
+
+    def test_no_action_when_price_at_entry(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=100,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=5)
+        assert result.action == "none"
+        assert result.new_sl is None
+
+    def test_breakeven_lock_activates_at_default_be_r(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=105,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=5)
+        assert result.action == "breakeven"
+        assert result.new_sl is not None
+        assert result.new_sl > 95
+        assert engine.phase == "BREAKEVEN"
+
+    def test_breakeven_locks_at_entry_price(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=105,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=5)
+        assert result.action == "breakeven"
+        assert result.new_sl == 100
+
+    def test_breakeven_not_reached_for_small_move(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=100.5,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=5)
+        assert result.action == "none"
+
+    def test_breakeven_only_fires_once(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=105,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
+        assert result.action == "breakeven"
+        result = engine.compute(side="long", entry_price=100, current_price=110,
+                                current_sl=100, vol_at_entry=0.02, bars_since_entry=2)
+        assert result.action != "breakeven"
+
+    def test_scale_out_fires_at_config_r(self):
+        engine = AdaptiveExitEngine()
+        config = {"scale_out_fraction": 0.5, "scale_out_r": 2.0, "be_lock_r": 99.0}
+        result = engine.compute(side="long", entry_price=100, current_price=104,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=5,
+                                config=config)
+        assert result.action == "scale_out"
+        assert result.scale_out_fraction == 0.5
+        assert result.scale_out_price is not None
+
+    def test_trail_activates_after_breakeven(self):
+        engine = AdaptiveExitEngine()
+        engine.compute(side="long", entry_price=100, current_price=105,
+                       current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
+        result = engine.compute(side="long", entry_price=100, current_price=108,
+                                current_sl=100, vol_at_entry=0.02, bars_since_entry=2)
+        assert result.action == "trail"
+        assert result.new_sl is not None
+
+    def test_trail_retrace_formula_long(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=110,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
+        assert result.action == "breakeven"
+        result = engine.compute(side="long", entry_price=100, current_price=110,
+                                current_sl=100, vol_at_entry=0.02, bars_since_entry=2)
+        assert result.action == "trail"
+        assert result.new_sl == pytest.approx(105.0)
+
+    def test_default_config_is_empty_dict(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="long", entry_price=100, current_price=105,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=5)
+        assert result.action == "breakeven"
+
+    def test_short_side_breakeven(self):
+        engine = AdaptiveExitEngine()
+        result = engine.compute(side="short", entry_price=100, current_price=95,
+                                current_sl=105, vol_at_entry=0.02, bars_since_entry=1)
+        assert result.action == "breakeven"
+        assert result.new_sl == 100
+
+    def test_short_side_trail(self):
+        engine = AdaptiveExitEngine()
+        engine.compute(side="short", entry_price=100, current_price=95,
+                       current_sl=105, vol_at_entry=0.02, bars_since_entry=1)
+        result = engine.compute(side="short", entry_price=100, current_price=93,
+                                current_sl=100, vol_at_entry=0.02, bars_since_entry=2)
+        assert result.action == "trail"
+        assert result.new_sl == pytest.approx(96.5)
+
+    def test_phase_tracks_progression(self):
+        engine = AdaptiveExitEngine()
+        assert engine.phase == "STATIC"
+        engine.compute(side="long", entry_price=100, current_price=105,
+                       current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
+        assert engine.phase == "BREAKEVEN"
+        engine.compute(side="long", entry_price=100, current_price=108,
+                       current_sl=100, vol_at_entry=0.02, bars_since_entry=2)
+        assert engine.phase == "TRAILING"
+
+    def test_scale_out_uses_correct_price_formula(self):
+        engine = AdaptiveExitEngine()
+        config = {"scale_out_fraction": 0.3, "scale_out_r": 1.5, "be_lock_r": 99.0}
+        result = engine.compute(side="long", entry_price=100, current_price=103,
+                                current_sl=95, vol_at_entry=0.02, bars_since_entry=1,
+                                config=config)
+        assert result.action == "scale_out"
+        expected_price = 100 + 1.5 * 0.02 * 100
+        assert result.scale_out_price == pytest.approx(expected_price)
+
+    def test_returns_result_on_every_call(self):
+        engine = AdaptiveExitEngine()
+        for price in [100, 101, 102, 103, 99, 105]:
+            result = engine.compute(side="long", entry_price=100, current_price=price,
+                                    current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
+            assert isinstance(result, AdaptiveExitResult)

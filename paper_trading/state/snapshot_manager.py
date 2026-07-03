@@ -39,6 +39,16 @@ class _SnapshotManager:
         try:
             with open(self._state_path) as f:
                 data = json.load(f)
+
+            # Verify checksum
+            stored_checksum = data.pop("_checksum", None)
+            if stored_checksum is not None:
+                import hashlib
+                computed = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+                if computed != stored_checksum:
+                    logger.error("State checksum mismatch: computed=%s stored=%s — state may be corrupt", computed, stored_checksum)
+                    return None
+
             snapshot = EngineSnapshot.from_dict(data)
             version = getattr(snapshot, "contract_version", 0)
             if version < CONTRACT_VERSION:

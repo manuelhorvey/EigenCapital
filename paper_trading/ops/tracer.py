@@ -2,7 +2,8 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime, timezone
+
+from eigencapital.domain.time import utc_now_iso
 
 TRACE_LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "live", "trace.jsonl"
@@ -45,7 +46,7 @@ def trace_decision(
     _append(
         {
             "event": "decision",
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "timestamp": utc_now_iso(),
             "asset": asset,
             "features_sample": features,
             "feature_hash": feature_hash,
@@ -85,7 +86,7 @@ def trace_exit(
     _append(
         {
             "event": "exit",
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "timestamp": utc_now_iso(),
             "asset": asset,
             "exit_price": exit_price,
             "exit_reason": reason,
@@ -117,7 +118,7 @@ def shadow_compare_signal(
         _append(
             {
                 "event": "shadow_mismatch",
-                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "timestamp": utc_now_iso(),
                 "asset": asset,
                 "proba": proba_produced,
                 "wrapper": {"signal": wrapper_signal, "confidence": wrapper_confidence},
@@ -135,7 +136,7 @@ def shadow_compare_pnl(
         _append(
             {
                 "event": "shadow_pnl_mismatch",
-                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "timestamp": utc_now_iso(),
                 "asset": asset,
                 "wrapper_pnl": wrapper_pnl,
                 "original_pnl": original_pnl,
@@ -152,7 +153,7 @@ def shadow_compare_sizing(
         _append(
             {
                 "event": "shadow_sizing_mismatch",
-                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "timestamp": utc_now_iso(),
                 "asset": asset,
                 "wrapper_size": wrapper_size,
                 "original_size": original_size,
@@ -177,7 +178,7 @@ def shadow_compare_sltp(
         _append(
             {
                 "event": "shadow_sltp_change",
-                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "timestamp": utc_now_iso(),
                 "asset": asset,
                 "entry_price": entry_price,
                 "label_sl": label_sl,

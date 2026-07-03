@@ -10,8 +10,8 @@ from __future__ import annotations
 import logging
 import threading
 from collections import deque
-from datetime import datetime, timezone
 
+from eigencapital.domain.time import utc_now_iso
 from paper_trading.governance.drift import get_shadow_intelligence
 
 logger = logging.getLogger("eigencapital.risk_registry")
@@ -206,7 +206,7 @@ class RiskRegistry:
 
             signal = {
                 "asset": asset,
-                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                "timestamp": utc_now_iso(),
                 "risk_level": risk_level,
                 "risk_score": round(risk_score, 4),
                 "confidence": round(1.0 - risk_score, 4),
@@ -302,7 +302,7 @@ class RiskRegistry:
     def _fallback_signal(asset: str) -> dict:
         return {
             "asset": asset,
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "timestamp": utc_now_iso(),
             "risk_level": "LOW",
             "risk_score": 0.0,
             "confidence": 1.0,

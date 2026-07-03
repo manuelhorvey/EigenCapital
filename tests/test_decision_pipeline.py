@@ -393,8 +393,8 @@ class TestApplySpreadGate:
 class TestApplySessionGate:
     def test_blocks_outside_session_window(self, monkeypatch):
         monkeypatch.setattr(
-            "paper_trading.execution.decision_pipeline.datetime",
-            MagicMock(now=lambda tz: MagicMock(hour=2)),
+            "paper_trading.execution.decision_pipeline.utc_now",
+            MagicMock(return_value=MagicMock(hour=2)),
         )
         engine = _mock_engine()
         engine._spread_tier = "fx_major"
@@ -405,8 +405,8 @@ class TestApplySessionGate:
 
     def test_observe_mode_does_not_block(self, monkeypatch):
         monkeypatch.setattr(
-            "paper_trading.execution.decision_pipeline.datetime",
-            MagicMock(now=lambda tz: MagicMock(hour=2)),
+            "paper_trading.execution.decision_pipeline.utc_now",
+            MagicMock(return_value=MagicMock(hour=2)),
         )
         engine = _mock_engine()
         engine._spread_tier = "fx_major"

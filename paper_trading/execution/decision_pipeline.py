@@ -14,11 +14,11 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
 
+from eigencapital.domain.time import utc_now
 from paper_trading.entry.decision import EntryAction, PositionSide, SignalType, TradeDecision
 from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_only_assets
 from paper_trading.execution.stacking import StackingGate
@@ -610,7 +610,7 @@ def apply_vix_gate(ctx: DecisionContext) -> None:
 
         # Freshness check: skip if last VIX data point is >5 days old
         last_vix_date = vix_series.index[-1]
-        days_ago = (datetime.now(timezone.utc).date() - last_vix_date.date()).days
+        days_ago = (utc_now().date() - last_vix_date.date()).days
         if days_ago > 5:
             logger.debug(
                 "%s: VIX gate — data stale (%d days old), pass-through",
@@ -811,7 +811,7 @@ def apply_session_gate(ctx: DecisionContext) -> None:
         return
 
     engine = ctx.engine
-    current_hour = datetime.now(timezone.utc).hour
+    current_hour = utc_now().hour
     tier = getattr(engine, "_spread_tier", "fx_cross")
     window = SESSION_TIER_WINDOWS.get(tier)
     cycle = getattr(engine, "_cycle_counter", 0)

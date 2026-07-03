@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from datetime import datetime, timezone
 
+from eigencapital.domain.time import utc_now
 from paper_trading.pek.contracts.performance_state import PerformanceState, RegimeVelocity
 from paper_trading.pek.perf.outcome_tracker import OutcomeTracker
 
@@ -273,7 +273,7 @@ class PerformanceStateBuilder:
 
         return PerformanceState(
             version=self._version,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=utc_now(),
             outcome_scalar=outcome_scalar,
             degradation_scalar=degradation_scalar,
             market_scalar=market_scalar,

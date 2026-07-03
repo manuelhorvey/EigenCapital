@@ -3,9 +3,11 @@ import logging
 import os
 import threading
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import numpy as np
+
+from eigencapital.domain.time import utc_now_iso, utc_now_naive
 
 logger = logging.getLogger("eigencapital.shadow.memory")
 
@@ -20,7 +22,7 @@ BASELINE_DIR = os.path.join(MEMORY_DIR, "baseline")
 
 def store_event(asset: str, event: dict) -> None:
     try:
-        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        now_utc = utc_now_naive()
         ts = event.get("timestamp", now_utc.isoformat())
         date_str = ts[:10] if isinstance(ts, str) else now_utc.strftime("%Y-%m-%d")
         path = os.path.join(MEMORY_DIR, asset, f"{date_str}.jsonl")
@@ -35,7 +37,7 @@ def store_event(asset: str, event: dict) -> None:
 
 def read_events(asset: str, days: int = 90) -> list:
     try:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+        cutoff = utc_now_naive() - timedelta(days=days)
         events = []
         asset_dir = os.path.join(MEMORY_DIR, asset)
         if not os.path.isdir(asset_dir):
@@ -81,7 +83,7 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
 
     baseline = {
         "asset": asset,
-        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "timestamp": utc_now_iso(),
         "event_count": len(events),
     }
 

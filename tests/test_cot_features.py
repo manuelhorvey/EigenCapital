@@ -39,6 +39,18 @@ def test_cot_index_between_zero_and_one(cot_series):
     assert (idx_clean <= 1).all()
 
 
+def test_cot_index_reproducible_across_extended_data():
+    series = pd.Series(np.random.default_rng(42).uniform(0, 1, 100))
+    idx_short = cot_index(series.iloc[:30], window=52, min_periods=12)
+    idx_long = cot_index(series.iloc[:60], window=52, min_periods=12)
+    non_nan_short = idx_short.notna()
+    non_nan_long = idx_long.iloc[:30].notna()
+    assert (non_nan_short == non_nan_long).all(), "NaN positions differ"
+    vals_short = idx_short.values[non_nan_short.values]
+    vals_long = idx_long.values[:30][non_nan_long.values]
+    assert abs(vals_short - vals_long).max() < 1e-14, "Non-NaN values differ when series is extended"
+
+
 def test_cot_index_constant_series():
     series = pd.Series(np.ones(100) * 5000)
     idx = cot_index(series, window=52)

@@ -1,9 +1,9 @@
 import pandas as pd
 
 
-def cot_index(net_position: pd.Series, window: int = 52) -> pd.Series:
-    roll_min = net_position.rolling(window).min()
-    roll_max = net_position.rolling(window).max()
+def cot_index(net_position: pd.Series, window: int = 52, min_periods: int = 12) -> pd.Series:
+    roll_min = net_position.rolling(window, min_periods=min_periods).min()
+    roll_max = net_position.rolling(window, min_periods=min_periods).max()
     return (net_position - roll_min) / (roll_max - roll_min + 1e-9)
 
 

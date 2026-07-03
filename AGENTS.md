@@ -1674,7 +1674,7 @@ NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF,
 GBPUSD, EURAUD, ^DJI, BTCUSD, AUDJPY, NZDJPY, GBPJPY, USDJPY
 ```
 
-Added 2026-07-03/04: AUDJPY, NZDJPY, GBPJPY, USDJPY (JPY crosses — walk-forward positive), BTCUSD (crypto — 24/7 trading, no COT features).
+Added 2026-07-03/04: AUDJPY, NZDJPY, GBPJPY, USDJPY (JPY crosses — walk-forward positive), BTCUSD (crypto — 24/7 trading, no COT features), ^DJI (deferred from earlier commit `cfaa07f` which claimed promotion but did not add to config — resolved here).
 
 ### Key Files
 

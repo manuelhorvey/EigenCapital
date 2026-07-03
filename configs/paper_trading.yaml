@@ -21,6 +21,7 @@ modes:
         GOLD: 0.15
         AUD: 0.25
         NZD: 0.25
+        JPY: 0.25
         FX_MAJOR: 0.40
         FX_CROSS: 0.40
         FX_COMMODITY: 0.25
@@ -42,6 +43,7 @@ modes:
         GOLD: 0.10
         AUD: 0.20
         NZD: 0.20
+        JPY: 0.20
         FX_MAJOR: 0.30
         FX_CROSS: 0.30
         FX_COMMODITY: 0.15
@@ -63,6 +65,7 @@ modes:
         GOLD: 0.10
         AUD: 0.20
         NZD: 0.20
+        JPY: 0.20
         FX_MAJOR: 0.30
         FX_CROSS: 0.30
         FX_COMMODITY: 0.15
@@ -897,6 +900,150 @@ assets:
     sl_mult: 0.58
     tp_mult: 1.51
     max_depth: 3
+    spread_tier: fx_major
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.50
+        max_hold_candles: 40
+        time_decay_start: 20
+  AUDJPY:
+    ticker: AUDJPY=X
+    allocation: 0.02
+    sl_mult: 0.52
+    tp_mult: 2.01
+    max_depth: 2
+    spread_tier: fx_cross
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.50
+        max_hold_candles: 40
+        time_decay_start: 20
+  NZDJPY:
+    ticker: NZDJPY=X
+    allocation: 0.02
+    sl_mult: 0.51
+    tp_mult: 2.02
+    max_depth: 2
+    spread_tier: fx_cross
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.50
+        max_hold_candles: 40
+        time_decay_start: 20
+  GBPJPY:
+    ticker: GBPJPY=X
+    allocation: 0.02
+    sl_mult: 0.50
+    tp_mult: 2.22
+    max_depth: 2
+    spread_tier: fx_cross
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.50
+        max_hold_candles: 40
+        time_decay_start: 20
+  USDJPY:
+    ticker: USDJPY=X
+    allocation: 0.02
+    sl_mult: 0.52
+    tp_mult: 1.97
+    max_depth: 2
     spread_tier: fx_major
     regime_geometry:
       GREEN:

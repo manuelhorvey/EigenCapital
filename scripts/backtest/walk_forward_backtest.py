@@ -50,7 +50,10 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 ASSETS = {
     # Research / screening candidates
     "AUDJPY": "AUDJPY=X",
+    "CADJPY": "CADJPY=X",
     "CHFJPY": "CHFJPY=X",
+    "GBPJPY": "GBPJPY=X",
+    "NZDJPY": "NZDJPY=X",
     "USDJPY": "USDJPY=X",
     # Promoted portfolio (16 assets)
     "GC": "GC=F",
@@ -481,6 +484,7 @@ def main():
 
     # Load per-asset pt_sl from production config
     from paper_trading.config_manager import get_config
+    from features.registry import ASSET_LABEL_PARAMS
 
     _cfg = get_config()
     _asset_pt_sl: dict[str, tuple[float, float]] = {}
@@ -488,6 +492,12 @@ def main():
         _tp = float(_acfg.get("tp_mult", 2.0))
         _sl = float(_acfg.get("sl_mult", 2.0))
         _asset_pt_sl[_name] = (_tp, _sl)
+    # Fallback to FEATURE_REGISTRY for non-production assets (e.g. JPYCROSS screening)
+    for _name in ASSETS:
+        if _name not in _asset_pt_sl and _name in ASSET_LABEL_PARAMS:
+            _tp = ASSET_LABEL_PARAMS[_name]["pt"]
+            _sl = ASSET_LABEL_PARAMS[_name]["sl"]
+            _asset_pt_sl[_name] = (_tp, _sl)
 
     # Override all if --pt-sl specified
     _pt_sl_override: tuple[float, float] | None = None

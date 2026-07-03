@@ -6,7 +6,7 @@
 
 # ── Forex ─────────────────────────────────────────────────────────────────────
 # AUDCHF=X: AUDCHF    # REMOVED from trading (directional filter diagnostic — BUY was anti-skill)
-AUDJPY=X: AUDJPY # Research/data collection only — not in trading portfolio
+AUDJPY=X: AUDJPY # PROMOTED 2026-07-03 — WF: +262R, BuyWR=36% SellWR=64% (BE=21%)
 # AUDNZD=X: AUDNZD    # REMOVED from trading (directional filter diagnostic — SELL was anti-skill)
 AUDUSD=X: AUDUSD
 CADCHF=X: CADCHF
@@ -26,17 +26,17 @@ NZDCHF=X: NZDCHF
 NZDUSD=X: NZDUSD
 USDCAD=X: USDCAD
 USDCHF=X: USDCHF
-# USDJPY=X: USDJPY# PROMOTED 2026-06-26 — Group A sweep: total_R=+281.19, sharpe_adj=4.68, SELL WR=63.8%. SELL_ONLY.
+USDJPY=X: USDJPY # PROMOTED 2026-07-03 — WF: +255R, BuyWR=40% SellWR=64% (BE=21%)
 # AUDCAD=X:  AUDCAD     # FAIL — negative expectancy
 # EURCHF=X:  EURCHF     # WEAK — low consistency
 # EURGBP=X:  EURGBP     # FAIL — negative expectancy
 # EURJPY=X:  EURJPY     # WEAK — low sharpe
 # EURNZD=X:  EURNZD     # FAIL — negative expectancy
 # GBPAUD=X:  GBPAUD     # WEAK — low consistency
-# GBPJPY=X: GBPJPY # PROMOTED 2026-06-26 — Group A sweep: total_R=+359.94, sharpe_adj=5.88, SELL WR=66.5%. SELL_ONLY.
+GBPJPY=X: GBPJPY # PROMOTED 2026-07-03 — WF: +443R, BuyWR=39% SellWR=71% (BE=18%)
 GBPUSD=X: GBPUSD
 # NZDCHF=X:  NZDCHF     # WEAK — low consistency
-# NZDJPY=X:  NZDJPY     # WEAK — near-zero trades
+NZDJPY=X:  NZDJPY     # PROMOTED 2026-07-03 — WF: +166R, BuyWR=29% SellWR=74% (BE=20%)
 
 # ── Metals ────────────────────────────────────────────────────────────────────
 GC=F: XAUUSD

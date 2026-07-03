@@ -27,7 +27,7 @@
 
 ## Project Identity
 
-Cross-sectional multi-asset paper trading engine. 16-asset portfolio (FX, commodities) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 15-layer governance, position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).
+Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/commodities/indices + BTCUSD) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 15-layer governance, position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).
 
 **2026-06-20: AUDNZD, EURUSD, AUDCHF removed from trading.** These 3 assets accounted for the model's confirmed directional instability failure mode (confident wrong-direction bets during trends). Removed from paper_trading.yaml assets, mt5_symbol_map, shadow analytics, and risk-off suppression lists. 22-3=19 remaining assets (subsequent additions grew to 21; see timeline below). See the Walk-Forward PnL Backtest section for the full diagnostic chain.
 
@@ -37,7 +37,7 @@ Cross-sectional multi-asset paper trading engine. 16-asset portfolio (FX, commod
 
 **2026-06-23: AUDUSD, EURNZD, NZDUSD removed from SELL_ONLY filter.** Corrected walk-forward methodology shows BUY WR > 50% for all three (AUDUSD 64.5%, EURNZD 57.6%, NZDUSD 57.7%) — BUY is no longer inverted. The original SELL_ONLY diagnosis was based on a broken walk-forward (no purging, EWM labels, validation-split early stopping). The filter no longer trades BUY on the remaining 3 assets (CADCHF, NZDCHF, EURAUD) where BUY WR remains 11-31%. ^DJI, USDCHF, EURCHF removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven. ES, NQ removed from SELL_ONLY 2026-07-01 after portfolio remediation.
 
-**2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.
+**2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.<br>**Updated 2026-07-04:** Portfolio now at 22 assets. SELL_ONLY reduced to 3 permanent assets (CADCHF, NZDCHF, EURAUD). The 8-asset count in the original analysis is historical.
 
 ## Architecture Quick Reference
 
@@ -515,6 +515,8 @@ The filter still helps — reduces max_dd and enables SELL-only signals to domin
 The synthetic validation script (run during 2026-06-20 build) uses `np.random.normal()` to generate test data. A single random draw is unreliable for verifying expected behavior — a comment like `# Sharpe ≈ 0.3` on `np.random.normal(0.0003, 0.015, 252)` is misleading because a single draw can produce Sharpe anywhere in ~[0.0, 0.7]. For permanent regression tests, use either (a) a fixed large number of draws averaged, or (b) distributional assertions (e.g., "Sharpe falls within 95% CI of parametrized distribution"), not point comparisons against one realization.
 
 ## SHAP Audit (2026-06-20)
+
+> **[HISTORICAL — pre-2026-07-01 portfolio]** This analysis was conducted on the pre-remediation 9-asset SELL_ONLY set. Since then, ^DJI, ES, NQ, USDCHF, EURCHF, GBPJPY, USDJPY have been removed from SELL_ONLY or reclassified (see Trend-Exhaustion Features and Portfolio Remediation sections). Only CADCHF, NZDCHF, EURAUD remain as permanent SELL_ONLY. The SHAP findings are preserved here as a record of the original diagnostic chain.
 
 ### Loaded Models
 All 9 flagged asset models loaded successfully from `paper_trading/models/*.json`. Config-loaded `pt_sl=(tp_mult, sl_mult)` and `max_depth` per asset (not hardcoded defaults).
@@ -1564,3 +1566,65 @@ Final route count: 4 (`/`, `/trading`, `/execution`, `/risk`). Each route has a 
 - Metrics prefix: `eigencapital_engine_*`
 - Dashboard package: `eigencapital-dashboard`
 - Container names: `EigenCapital-*`
+
+---
+
+## Weekend Trading & BTCUSD Expansion (2026-07-04)
+
+### What Changed
+
+BTCUSD was promoted to the live portfolio with `weekend_eligible: true`, enabling 24/7 trading alongside the standard 22-asset set (which follows Mon–Fri market hours). A `crypto: [0, 24]` session tier was added to `session_gate` for assets that trade outside traditional market windows.
+
+### Configuration
+
+Per-asset keys in `configs/paper_trading.yaml`:
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `weekend_eligible` | `false` | Run inference and trading for this asset when markets are closed |
+| `weekend_allocation_multiplier` | `0.5` | Scale position size by this factor during weekend cycles |
+
+Session tier added:
+
+```yaml
+session_gate:
+  tiers:
+    crypto: [0, 24]  # 24/7 — no session restriction
+```
+
+### Engine Behavior
+
+When `is_market_closed()` returns true (weekend/holiday), the engine checks for `weekend_eligible` assets:
+
+1. **No eligible assets** → skip cycle entirely (legacy behavior, returns `{}`)
+2. **Eligible assets found** → run a filtered cycle processing only those assets
+
+The filtered cycle:
+- Skips `is_market_closed()` gating for eligible assets
+- Applies `weekend_allocation_multiplier` (default 0.5×) in the sizing chain via `entry_service.py:436`
+- Records `weekend_cycle: true` in `state.json` and on the engine instance (`_cycle_weekend`)
+- Non-eligible assets appear as stale (no refresh) in the dashboard
+
+### Portfolio Expansion
+
+22 assets now in the live portfolio:
+
+```
+GC, USDCHF, USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD,
+NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF,
+GBPUSD, EURAUD, ^DJI, BTCUSD, AUDJPY, NZDJPY, GBPJPY, USDJPY
+```
+
+Added 2026-07-03/04: AUDJPY, NZDJPY, GBPJPY, USDJPY (JPY crosses — walk-forward positive), BTCUSD (crypto — 24/7 trading, no COT features).
+
+### Key Files
+
+| File | Change |
+|------|--------|
+| `configs/paper_trading.yaml` | BTCUSD config block (`weekend_eligible`, `weekend_allocation_multiplier`, `spread_tier: crypto`); `crypto: [0,24]` session tier; 6 new asset blocks |
+| `paper_trading/engine.py` | `_get_weekend_eligible_assets()`, `_cycle_weekend` flag, weekend branch in `run_once()` |
+| `paper_trading/orchestrator/engine.py` | `run_once()` accepts `allowed_assets` set; `_filtered_actors()` |
+| `paper_trading/services/entry_service.py` | Weekend allocation multiplier applied to `size_scalar` when `is_weekend()` and `weekend_eligible` |
+| `paper_trading/services/engine_state_service.py` | `weekend_cycle` exposed in `state.json` |
+| `paper_trading/portfolio_builder.py` | Propogates `weekend_eligible`, `weekend_allocation_multiplier` from spec to config |
+| `tests/test_engine_weekend.py` | 20 tests covering weekend cycle, asset-scoping, allocation multiplier |

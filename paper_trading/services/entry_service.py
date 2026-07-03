@@ -432,7 +432,9 @@ class EntryService:
                 meta_size_multiplier=asset._meta_size_multiplier(),
                 drawdown_taper=dd_taper,
             )
-            # Weekend allocation multiplier for weekend-eligible assets
+            # Weekend allocation multiplier: reduce position size during off-market
+            # hours (weekends, holidays) when liquidity is thinner. Only applies to
+            # assets with weekend_eligible: true (e.g. BTCUSD). Default 0.5×.
             if is_weekend() and asset.config.get("weekend_eligible", False):
                 weekend_mult = asset.config.get("weekend_allocation_multiplier", 0.5)
                 size_scalar *= weekend_mult

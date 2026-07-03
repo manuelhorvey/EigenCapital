@@ -71,6 +71,8 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
                 config["spread_tier"] = spec["spread_tier"]
             if "max_entry_slippage_pct" in spec:
                 config["max_entry_slippage_pct"] = spec["max_entry_slippage_pct"]
+            # Weekend config keys: propagate from config spec to per-asset config
+            # so they are available to entry_service.py for weekend sizing logic.
             if "weekend_eligible" in spec:
                 config["weekend_eligible"] = spec["weekend_eligible"]
             if "weekend_allocation_multiplier" in spec:

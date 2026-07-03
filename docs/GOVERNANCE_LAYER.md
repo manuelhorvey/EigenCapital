@@ -1,6 +1,6 @@
 # EigenCapital — Risk & Governance Layer
 
-14 independent governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ/^DJI no longer in portfolio), plus decision pipeline suppression stages, position sizing guardrails, PEK admission, and HealthMonitor circuit breaker, operating at different frequencies and granularities.
+15 independent governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ/^DJI no longer in portfolio), plus decision pipeline suppression stages, position sizing guardrails, PEK admission, HealthMonitor circuit breaker, and weekend trading governance, operating at different frequencies and granularities.
 
 ## Governance Layers (14 + HealthMonitor + PEK)
 
@@ -22,6 +22,7 @@
 | Portfolio drawdown | Per cycle | Global | Circuit breaker at −15% |
 | Entry price deviation | Per entry | Per asset | Skip entry if price drifted >2% |
 | Profit lock | Per flip | Per asset | Block flip if PnL >15% |
+| Weekend trading governance | Per cycle | Per asset (eligible) | Filtered cycle for `weekend_eligible` assets; 0.5× allocation multiplier; `crypto: [0,24]` session tier |
 
 | RiskEngineV2 (adaptive budget) | Per cycle | Portfolio | Scalar → adaptive risk budget [min, base]; reduces risk as drawdown deepens or performance degrades |
 | PEK admission controller | Per cycle | Portfolio | Collect intents → fast filter (hard gates) → rank (composite score) → allocate budget → close over-budget |
@@ -44,7 +45,7 @@
 | VIX gate | Suppress CL=F when VIX > 30; fail-open if VIX data missing or stale |
 | Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (3 assets) |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles first) |
-| Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) |
+| Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first; crypto = [0,24] — no restriction) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) |
 | Confidence gate | Abort if net confidence below threshold |
 | Signal hysteresis | 2-of-3 agreement required before flip |

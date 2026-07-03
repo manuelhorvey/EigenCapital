@@ -51,6 +51,8 @@ flowchart TD
     P4 --> Start
 ```
 
+**Weekend branch:** When `is_market_closed()` returns true, `engine.py:362–375` checks for `weekend_eligible` assets. If any exist (e.g. BTCUSD with `crypto: [0,24]` session tier), a filtered cycle runs processing only those assets at 0.5× position multiplier. All other assets skip refresh and show stale data. If no eligible assets exist, the cycle returns `{}` (legacy skip behavior).
+
 ---
 
 # System Architecture

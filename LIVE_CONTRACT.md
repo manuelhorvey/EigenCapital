@@ -331,9 +331,9 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 
 > **2026-06-30 update:** 11 assets adjusted to ratio=3.0 via geometric mean constraint.
 > Methodology: `scripts/optimization/portfolio_sltp_optimizer.py`. See AGENTS.md for full chronology.
-> All 16 assets retrained with new labels. Backtest: total_R=288.4, max_dd_R=-0.15.
+> All 22 assets retrained with new labels. Backtest: total_R=288.4, max_dd_R=-0.15.
 
-### Current assets (16 promoted)
+### Current assets (22 promoted)
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|
 | GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
@@ -352,6 +352,12 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 | GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
+| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 3 |
+| BTCUSD | BTC-USD | 2.0% | 0.58 | 1.51 | 3 |
+| AUDJPY | AUDJPY=X | 2.0% | 0.52 | 2.01 | 2 |
+| NZDJPY | NZDJPY=X | 2.0% | 0.51 | 2.02 | 2 |
+| GBPJPY | GBPJPY=X | 2.0% | 0.50 | 2.22 | 2 |
+| USDJPY | USDJPY=X | 2.0% | 0.52 | 1.97 | 2 |
 
 **Total allocation: varies** (factor_constrained_v2 adjusts weights dynamically; remaining capacity held as cash buffer).
 
@@ -368,8 +374,10 @@ AUDCHF, EURUSD, AUDNZD — removed after walk-forward diagnostic confirmed base 
 
 **2026-06-30: 11 assets bumped to ratio=3.0** via geometric mean constraint (USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, AUDUSD, EURCAD, EURNZD, GBPCHF). Full optimizer suite in `scripts/optimization/`. All 16 models retrained with new labels. Dashboard endpoint `/optimization.json` added.
 
+**2026-07-03/04: 6 assets promoted** — AUDJPY, NZDJPY, GBPJPY, USDJPY (JPY crosses — walk-forward positive) and BTCUSD (crypto — 24/7 trading, no COT features). ^DJI re-promoted from SELL_ONLY after trend-exhaustion features.
+
 ### Previously removed (post walk-forward, insufficient edge)
-CHFJPY, CADJPY, CL, BTCUSD, EURGBP, EURJPY, AUDCAD, NZDJPY, ^VIX, IWM
+CHFJPY, CADJPY, CL, EURGBP, EURJPY, AUDCAD, ^VIX, IWM
 
 ---
 
@@ -420,6 +428,8 @@ if total_entered > fair_budget × (1 + tolerance):
 ```
 Correction uses `fair_budget` (unmodified by backstop_multiplier) to prevent
 feedback-loop decay toward zero.
+
+**Weekend allocation multiplier:** When `is_weekend()` returns true and the asset has `weekend_eligible: true`, a `weekend_allocation_multiplier` (default 0.5) is applied to `size_scalar` before the SizingInput is constructed. Config keys: `weekend_eligible` (default false), `weekend_allocation_multiplier` (default 0.5).
 
 ### 10a. MT5 INDEPENDENT SIZING CONTRACT
 
@@ -533,7 +543,7 @@ max_layers: 3
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 | (hardcoded, per-asset pair) |
 | Sell-only filter | Override BUY→FLAT for `get_sell_only_assets()` | (config-driven, paper_trading.yaml defaults.sell_only_assets, 3 assets, reduced from 10 on 2026-07-01) |
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
-| Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) | `session_gate.tiers` (fx_major=[7,17], fx_cross=[7,17], indices=[13,20], metals=[8,18]) |
+| Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) | `session_gate.tiers` (fx_major=[7,17], fx_cross=[7,17], indices=[13,20], metals=[8,18], crypto=[0,24]) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) | `adx_entry_gate` (adx_threshold=18) |
 | Confidence gate | Abort if net confidence below threshold | `min_confidence` (default 55.0) |
 | Signal stability filter | Require >0.65 max(prob_long, prob_short) | `stability_margin` (default 0.15) |

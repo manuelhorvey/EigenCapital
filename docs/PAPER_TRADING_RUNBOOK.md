@@ -23,8 +23,8 @@ Operational procedures for the paper trading system. This document is for the pe
 | Model files | `paper_trading/models/*.json` (base), `models/regime/*.json` (regime) |
 | Logs | stdout (redirect to file as needed) |
 | Refresh interval | 60s (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var) |
-| Weekend behavior | Auto-pauses Fri 17:00 ET — Sun 17:00 ET; no signal computation occurs |
-| Weekend polling | Reduced to every 120s (state) / 5 min (secondary endpoints) |
+| Weekend behavior | BTCUSD runs 24/7 with 0.5× position multiplier; non-eligible assets pause and show stale data |
+| Weekend polling | Normal 60s for eligible assets; reduced to every 120s (state) / 5 min (secondary) for stale assets |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
 | Retrain frequency | Annual (January 1) |
 | Training window | 5-year expanding |
@@ -210,7 +210,7 @@ and appends a CSV row to `data/monitoring/paper_trade_monitor.csv`. Use it for d
 python scripts/ops/monitor_paper_trading.py
 ```
 
-**Weekend / after-hours:** The engine auto-detects market closure (Fri after 17:00 ET, all day Sat/Sun). Refresh cycles are skipped — no yfinance data pulls, no signal generation, no SL/TP checks. The dashboard stays live showing the last pre-close state with a yellow **CLSD** badge. Normal operation resumes at the next scheduled refresh after Sun 17:00 ET.
+**Weekend / after-hours:** The engine auto-detects market closure (Fri after 17:00 ET, all day Sat/Sun). For non-eligible assets, refresh cycles are skipped — no yfinance data pulls, no signal generation, no SL/TP checks. For `weekend_eligible` assets (BTCUSD), filtered cycles continue at 0.5× position multiplier. The dashboard shows a **CLSD** badge for non-eligible assets; BTCUSD continues live data. Normal operation for all assets resumes at the next scheduled refresh after Sun 17:00 ET.
 
 A quick health check via `/ping`:
 ```bash
@@ -232,7 +232,7 @@ curl http://127.0.0.1:5000/ping
 - Sell-only filter: 3 SELL_ONLY assets (CADCHF, NZDCHF, EURAUD) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
 - Equity cluster alarm: removed 2026-07-01 (ES/NQ/^DJI no longer in portfolio — see `paper_trading/orchestrator/health.py:105`). Historical `equity_cluster_all_*` log lines reference retired assets.
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
-- Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) on weekends
+- Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) for non-eligible assets on weekends (BTCUSD continues live)
 - **LAST** timestamp in the header shows when signals were last refreshed
 - **Scale-out tiers** on open positions: check filled vs pending tier blocks in AssetCard
 - **SL/TP gauge bars** in Trade Outcomes: GREEN TP rate (≥25%), GREEN SL rate (≤50%), GREEN flip rate (≤15%)
@@ -265,7 +265,7 @@ Run once more to capture the closing signal:
 # If not, start it: ./monitor_all
 ```
 
-After 17:00 ET on Friday, the engine auto-pauses for the weekend. The dashboard remains accessible, showing the pre-close state with a yellow CLSD badge. No further yfinance data or signal computation occurs until Sunday 17:00 ET.
+After 17:00 ET on Friday, the engine enters weekend mode. For non-eligible assets, refresh pauses until Sunday 17:00 ET. For `weekend_eligible` assets (BTCUSD), the engine continues running filtered cycles at 0.5× position multiplier (configurable via `weekend_allocation_multiplier`). The dashboard shows a CLSD badge for non-eligible assets; BTCUSD continues to display live data.
 
 Log the daily summary to a file:
 ```
@@ -886,11 +886,11 @@ curl -s http://127.0.0.1:5000/trades.json | python3 -c "import sys,json; d=json.
 | Position concentration alert | >75% of open positions on same side | Recommendation only — monitor dashboard `position_concentration` field |
 | JPY cross entering RED state | VIX spike or yield spread inversion | Check VIX level and US-JP 10y spread |
 | GC=F showing flat/neutral bias | Real yields not updating on weekends | Normal — gold macro features are daily |
-| Dashboard shows CLSD / "weekend — no refresh" | Normal — market is closed | Engine resumes automatically Sun 17:00 ET |
-| "Market closed — skipping refresh" in logs | Normal — engine is paused for weekend | No action needed; data is stale but preserved |
+| Dashboard shows CLSD for some assets | Normal — those assets are not `weekend_eligible` | BTCUSD continues to refresh; stale assets resume Sun 17:00 ET |
+| "Market closed — skipping refresh" in logs | Normal — engine is in weekend mode for non-eligible assets | No action needed; BTCUSD continues 24/7 |
 | "entry gate blocking" in logs | Normal — cooldown or same-day stop-out lock active after SL | Indicates `_can_enter()` is working; no action unless persists > 24h |
 | Clustered SL sequence (6+ same side, same day) | Deferred entry bypassing cooldown (pre-fix) | Should no longer occur after `_can_enter()` gate — file issue if seen |
-| State API `market_closed: true` | Engine correctly detected weekend | N/A — server-driven indicator |
+| State API `market_closed: true` | Engine detected market closed; filtered cycle running for eligible assets | N/A — server-driven indicator |
 | Dashboard polling slower than usual | Intended — hooks reduce refetch rate 4-20x when markets closed | Saves bandwidth; restore normal rate on market open |
 
 ### PEK Budget Overrun

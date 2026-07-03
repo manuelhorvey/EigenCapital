@@ -110,4 +110,6 @@ Per-asset `pt_sl` from `configs/paper_trading.yaml`.
 
 ## Architecture Note
 
-All 16 promoted assets use the same 21 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
+All 22 promoted assets use the same 21 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
+
+**BTCUSD note:** BTCUSD uses the standard `build_alpha_features()` pipeline but does not receive COT features (crypto pairs have no CFTC position data; `has_cot`, `cot_z`, `cot_change_4w` are zero-filled). Session features (dow_signal) use UTC timestamps for 24/7 session consistency. All trend-exhaustion features (MACD, stoch, BB, ADX, RSI divergence) apply unchanged.

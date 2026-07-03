@@ -95,6 +95,12 @@ flowchart TD
 | GBPCHF     | GBPCHF=X     | 0.82    | 2.45    | 3.0%       | 2         |
 | GBPUSD     | GBPUSD=X     | 0.52    | 1.97    | 4.0%       | 2         |
 | EURAUD     | EURAUD=X     | 0.54    | 1.77    | 1.0%       | 2         |
+| ^DJI       | ^DJI         | 0.50    | 4.00    | 2.0%       | 3         |
+| BTCUSD     | BTC-USD      | 0.58    | 1.51    | 2.0%       | 3         |
+| AUDJPY     | AUDJPY=X     | 0.52    | 2.01    | 2.0%       | 2         |
+| NZDJPY     | NZDJPY=X     | 0.51    | 2.02    | 2.0%       | 2         |
+| GBPJPY     | GBPJPY=X     | 0.50    | 2.22    | 2.0%       | 2         |
+| USDJPY     | USDJPY=X     | 0.52    | 1.97    | 2.0%       | 2         |
 
 Allocation varies (factor_constrained_v2 adjusts dynamically).
 
@@ -106,7 +112,7 @@ Allocation varies (factor_constrained_v2 adjusts dynamically).
 > walk-forward may be regenerated from `scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v2`.
 
 > **Note:** The original 18-asset baseline was calculated before GBPUSD promotion.
-> The current 16-asset portfolio includes GBPUSD (2026-06-22)
+> The current 22-asset portfolio includes GBPUSD (2026-06-22)
 > with the 2026-06-30 tp/sl ratio=3.0 optimizer pass applied to 11 assets.
 
 | Metric | Value |

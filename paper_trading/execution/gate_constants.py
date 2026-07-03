@@ -16,13 +16,27 @@ def get_sell_only_assets() -> frozenset[str]:
     import time), falls back to the known hardcoded 3-asset set derived from
     the 2026-06-26 walk-forward analysis.  Once config is loaded, the config
     value takes precedence.
+
+    Raises
+    ------
+    Exception
+        Any exception from get_config() OTHER than AttributeError (config not
+        yet loaded) is re-raised — a corrupt or missing config file must never
+        silently disable the SELL_ONLY safety gate.
     """
     try:
         cfg = get_config()
         if cfg.sell_only_assets:
             return cfg.sell_only_assets
-    except Exception:
+    except AttributeError:
         logger.debug("Config not yet available — using hardcoded SELL_ONLY_ASSETS", exc_info=True)
+    except Exception:
+        logger.critical(
+            "SELL_ONLY gate config failure — re-raising. "
+            "Silently falling back would disable the BUY inversion safety filter.",
+            exc_info=True,
+        )
+        raise
     # Hardcoded fallback: 3 assets with confirmed inverted BUY signal
     return frozenset(
         {

@@ -1,8 +1,9 @@
 import threading
-from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
+
+from eigencapital.domain.time import utc_now_iso
 
 _lock = threading.Lock()
 _distribution_history: dict = {}
@@ -47,7 +48,7 @@ def analyze_model_distribution(
     window: int = 100,
 ) -> dict:
     entry = {
-        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "timestamp": utc_now_iso(),
         "proba_short": float(proba[0]),
         "proba_neutral": float(proba[1]),
         "proba_long": float(proba[2]),

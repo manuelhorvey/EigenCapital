@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime, timezone
+
+from eigencapital.domain.time import utc_now_iso
 
 logger = logging.getLogger("eigencapital.shadow.actions")
 
@@ -42,7 +43,7 @@ def compute_shadow_actions(
 
         return {
             "asset": asset,
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "timestamp": utc_now_iso(),
             "action_type": _action_type,
             "exposure_adjustment": round(_exposure_adjustment, 4),
             "confidence": round(1.0 - risk_score, 4),
@@ -94,7 +95,7 @@ def _compute_guardrails(risk_level: str, risk_score: float) -> dict:
 def _fallback(reason: str) -> dict:
     return {
         "asset": "",
-        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "timestamp": utc_now_iso(),
         "action_type": "NONE",
         "exposure_adjustment": 1.0,
         "confidence": 0.0,

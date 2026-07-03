@@ -572,7 +572,7 @@ class AssetEngine:
                 self._last_spread_bps = spread_bps
                 self._last_spread_time = time.time()
         except Exception:
-            logger.debug("%s: refresh_spread failed", self.name, exc_info=True)
+            logger.warning("%s: refresh_spread failed", self.name, exc_info=True)
 
     def train(self, force=False):
         self._training.train(force=force)

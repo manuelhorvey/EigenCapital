@@ -1,5 +1,6 @@
 """State persistence sub-package — focused stores for DB, snapshots, analytics, and cache."""
 
+import hashlib
 import json
 import math
 import os
@@ -71,11 +72,13 @@ def sanitize(obj):
 
 
 def atomic_write_json(path: str, data: dict) -> None:
-    """Atomic JSON write using temp file + os.replace (atomic on POSIX)."""
+    """Atomic JSON write with embedded SHA256 checksum."""
+    checksum = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+    write_data = {**data, "_checksum": checksum}
     tmp_path = path + ".tmp"
     try:
         with open(tmp_path, "w") as f:
-            json.dump(data, f, indent=2, default=str)
+            json.dump(write_data, f, indent=2, default=str)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, path)

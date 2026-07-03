@@ -7,9 +7,9 @@ Replaces the distributed budget_ref + per-cycle leverage budget pattern."""
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
+from eigencapital.domain.time import utc_now
 from paper_trading.pek.contracts.portfolio_state import (
     AssetGateState,
     ClusterInfo,
@@ -47,7 +47,7 @@ class PortfolioStateBuilder:
         peak_value: float,
     ) -> PortfolioStateSnapshot:
         """Build the snapshot. All data gathered, validated, then frozen."""
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         mode_name = self._mode.get("name", "production")
 
         # ── Gather positions from all actors ──
@@ -239,7 +239,7 @@ class PortfolioStateBuilder:
         window = SESSION_TIER_WINDOWS.get(tier)
         if window is not None:
             start, end = window
-            current_hour = datetime.now(timezone.utc).hour
+            current_hour = utc_now().hour
             session_ok = start <= current_hour < end
         else:
             session_ok = True

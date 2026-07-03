@@ -2,7 +2,8 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime, timezone
+
+from eigencapital.domain.time import utc_now_iso, utc_now_naive
 
 logger = logging.getLogger("eigencapital.shadow.feedback")
 
@@ -105,7 +106,7 @@ def _build_event(
     action_data = action or {}
 
     return {
-        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "timestamp": utc_now_iso(),
         "asset": asset,
         "inputs": {
             "signal": {
@@ -134,7 +135,7 @@ def _build_event(
 
 def _store_event(asset: str, event: dict) -> None:
     try:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = utc_now_naive()
         month_key = now.strftime("%Y-%m")
         path = os.path.join(FEEDBACK_DIR, asset, f"{month_key}.jsonl")
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -150,7 +151,7 @@ def read_feedback(asset: str, months: int = 3) -> list:
     try:
         from datetime import timedelta
 
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = utc_now_naive()
         events = []
         for i in range(months):
             dt = now - timedelta(days=30 * i)

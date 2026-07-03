@@ -3,10 +3,10 @@ import logging
 import os
 import threading
 from collections import Counter
-from datetime import datetime, timezone
 
 import numpy as np
 
+from eigencapital.domain.time import utc_now_iso
 from paper_trading.shadow.feedback import read_feedback
 
 logger = logging.getLogger("eigencapital.shadow.learning")
@@ -40,7 +40,7 @@ def compile_shadow_learning(
 
         compiled = {
             "asset": asset,
-            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "timestamp": utc_now_iso(),
             "event_count": n,
             "learning_profile": profile,
             "latent_patterns": latent_patterns,
@@ -306,7 +306,7 @@ def load_compiled(asset: str) -> dict | None:
 def _empty_report(asset: str) -> dict:
     return {
         "asset": asset,
-        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        "timestamp": utc_now_iso(),
         "event_count": 0,
         "learning_profile": {
             "behavioral_stability": 0.0,

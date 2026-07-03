@@ -39,8 +39,9 @@ import os
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
+
+from eigencapital.domain.time import utc_now
 
 logger = logging.getLogger("eigencapital.replay.wal")
 
@@ -176,7 +177,7 @@ class WalWriter:
                 sequence=seq,
                 source=self._source,
                 event_type=event_type,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=utc_now().isoformat(),
                 payload=payload,
             )
             line = json.dumps(event.to_dict(), default=str) + "\n"

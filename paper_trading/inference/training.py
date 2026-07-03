@@ -12,6 +12,7 @@ from labels.meta_labels import MetaLabelModel
 from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
+from shared.volatility import VolatilityPrimitive
 
 logger = logging.getLogger("eigencapital.training_pipeline")
 
@@ -77,8 +78,22 @@ class AssetTrainingPipeline:
         logger.info("%s: training pt_sl=%s (tp_mult=%.2f, sl_mult=%.2f)", asset.name, pt_sl, tp_mult, sl_mult)
         vb = asset.contract.label_params.get("vertical_barrier", 20)
         logger.info("%s: training vertical_barrier=%d (from contract)", asset.name, vb)
+        vol_method = asset.contract.label_params.get("vol_method", "ewm_100")
+        vol_primitive = None
+        if vol_method == "atr":
+            atr_period = asset.contract.label_params.get("atr_period", 14)
+            vol_primitive = VolatilityPrimitive(period=atr_period)
+            logger.info(
+                "%s: using ATR vol (period=%d) for label barrier width",
+                asset.name, atr_period,
+            )
+        else:
+            logger.info(
+                "%s: using EWM vol (span=100) for label barrier width (vol_method=%s)",
+                asset.name, vol_method,
+            )
         if not ohlcv.empty:
-            labeled = apply_triple_barrier(ohlcv, pt_sl=list(pt_sl), vertical_barrier=vb)
+            labeled = apply_triple_barrier(ohlcv, pt_sl=list(pt_sl), vertical_barrier=vb, vol_primitive=vol_primitive)
             labels = labeled["label"].reindex(features.index).fillna(0).astype(int)
         else:
             logger.warning("%s: no OHLCV data for vectorized labels — using legacy fallback", asset.name)

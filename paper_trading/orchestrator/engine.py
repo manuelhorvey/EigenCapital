@@ -24,9 +24,10 @@ import logging
 import math
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
+from eigencapital.domain.time import utc_now, utc_now_iso
 from paper_trading.alerting.manager import global_alert_manager
 from paper_trading.config_manager import get_config
 from paper_trading.governance.drawdown_controls import check_drawdown_circuit_breaker, compute_exposure_multiplier
@@ -330,7 +331,7 @@ class EngineOrchestrator:
 
     def _phase_1_refresh_signal(self, market_data: dict | None, results: dict) -> None:
         """Parallel actor refresh + signal generation (Phase 1)."""
-        results["phasetimestamps"][EnginePhase.REFRESH] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        results["phasetimestamps"][EnginePhase.REFRESH] = utc_now_iso()
         asset_results: dict[str, AssetResult] = {}
 
         def _run_actor(name: str, actor: AssetActor) -> AssetResult:
@@ -475,7 +476,7 @@ class EngineOrchestrator:
                     try:
                         exit_price = getattr(engine, "current_price", None)
                         if exit_price is not None and exit_price > 0:
-                            engine._close_position(exit_price, datetime.now(timezone.utc), "PEK_BUDGET_OVERRUN")
+                            engine._close_position(exit_price, utc_now(), "PEK_BUDGET_OVERRUN")
                             current_notional -= entry_notional
                             closed_names.append(sig.asset)
                             logger.warning(
@@ -514,7 +515,7 @@ class EngineOrchestrator:
 
     def _phase_2_validity(self, results: dict) -> None:
         """Parallel validity updates (Phase 2)."""
-        results["phasetimestamps"][EnginePhase.VALIDITY] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        results["phasetimestamps"][EnginePhase.VALIDITY] = utc_now_iso()
 
         def _run_validity(name: str, actor: AssetActor) -> str | None:
             if actor.health == actor.health.HALTED:
@@ -538,7 +539,7 @@ class EngineOrchestrator:
         Returns True if a circuit breaker halted the engine (results dict
         already populated with the halt reason).
         """
-        results["phasetimestamps"][EnginePhase.PORTFOLIO] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        results["phasetimestamps"][EnginePhase.PORTFOLIO] = utc_now_iso()
         health = compute_health_snapshot(self._actors)
         results["health"] = {
             "green": health.green,
@@ -605,7 +606,7 @@ class EngineOrchestrator:
         if prev_value is None:
             prev_value = total_value
         if total_value < prev_value:
-            today = datetime.now(timezone.utc).date()
+            today = utc_now().date()
             if self._last_pnl_date != today:
                 self._circuit_breaker.record_daily_pnl(total_value - prev_value)
                 self._last_pnl_date = today
@@ -758,7 +759,7 @@ class EngineOrchestrator:
             if pos is not None and pos.has_position():
                 side = pos.position.side if hasattr(pos.position, "side") else None
                 positions[name] = {"side": side.value if hasattr(side, "value") else side}
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today_str = utc_now().strftime("%Y-%m-%d")
         corr_report = self._correlation_monitor.update(prices, positions, today_str)
         if any("cluster" in a for a in corr_report["cluster_alerts"]):
             logger.warning("Correlation cluster alert: %s", corr_report["cluster_alerts"])
@@ -833,7 +834,7 @@ class EngineOrchestrator:
 
     def _phase_4_persist(self, results: dict) -> None:
         """Flush persist queues to buffer, record trade outcomes, commit WAL."""
-        results["phasetimestamps"][EnginePhase.PERSIST] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        results["phasetimestamps"][EnginePhase.PERSIST] = utc_now_iso()
         persist_count = 0
         for name, actor in self._actors.items():
             commands = actor.drain_persist_queue()
@@ -963,10 +964,9 @@ class EngineOrchestrator:
         Called by the drawdown circuit breaker before setting emergency halt.
         Returns a list of asset names whose positions were closed.
         """
-        from datetime import datetime, timezone
 
         flattened: list[str] = []
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = utc_now().isoformat()
         for name, actor in self._actors.items():
             engine = getattr(actor, "_engine", None)
             if engine is None:
@@ -1146,7 +1146,7 @@ class EngineOrchestrator:
                         try:
                             engine._close_position(
                                 exit_price,
-                                datetime.now(timezone.utc),
+                                utc_now(),
                                 "MT5_STALE_TICKET",
                             )
                         except Exception:
@@ -1193,7 +1193,7 @@ class EngineOrchestrator:
                             try:
                                 engine._close_position(
                                     exit_price,
-                                    datetime.now(timezone.utc),
+                                    utc_now(),
                                     "MT5_ORDER_REJECTED",
                                 )
                             except Exception:

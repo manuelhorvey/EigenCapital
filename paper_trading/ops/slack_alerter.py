@@ -15,8 +15,9 @@ import logging
 import os
 import time
 import urllib.request
-from datetime import datetime, timezone
 from pathlib import Path
+
+from eigencapital.domain.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def _build_blocks(header_text: str, emoji: str, fields: list[dict], context: str
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": context or f"EigenCapital · {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                    "text": context or f"EigenCapital · {utc_now().strftime('%Y-%m-%d %H:%M:%S UTC')}",
                 },
             ],
         }

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
+
+from eigencapital.domain.time import utc_now
 
 
 class PositionSide(str, Enum):
@@ -47,4 +49,4 @@ class AdmissionSignal:
 
     # ── Metadata ──
     feature_hash: str = ""
-    generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = field(default_factory=lambda: utc_now())

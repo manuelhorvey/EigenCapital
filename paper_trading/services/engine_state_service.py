@@ -289,8 +289,8 @@ class EngineStateService:
             if rw:
                 return factor_summary(rw)
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
-        except Exception as e:
-            logger.debug("Failed to compute factor exposures: %s", e)
+        except Exception:
+            logger.exception("Failed to compute factor exposures")
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
 
     def save_state(self):
@@ -303,8 +303,8 @@ class EngineStateService:
             tracker = LiveSharpeTracker(base_dir=base)
             sharpe_data = tracker.compute()
             state["portfolio"]["live_sharpe"] = sharpe_data
-        except Exception as exc:
-            logger.debug("Failed to compute live Sharpe: %s", exc)
+        except Exception:
+            logger.exception("Failed to compute live Sharpe")
             state["portfolio"]["live_sharpe"] = {"available": False}
 
         # Edge health from live trade tracker
@@ -313,8 +313,8 @@ class EngineStateService:
 
             monitor = get_monitor()
             state["portfolio"]["edge_health"] = monitor.summary
-        except Exception as exc:
-            logger.debug("Failed to compute edge health: %s", exc)
+        except Exception:
+            logger.exception("Failed to compute edge health")
             state["portfolio"]["edge_health"] = {"available": False}
 
         # PEK state from orchestrator
@@ -327,8 +327,8 @@ class EngineStateService:
                 adm = getattr(orch, "_last_admission", None)
                 if adm is not None:
                     state["portfolio"]["admission"] = adm
-        except Exception as exc:
-            logger.debug("Failed to extract PEK state: %s", exc)
+        except Exception:
+            logger.exception("Failed to extract PEK state")
 
         # Capture MT5 connection status for the API endpoint
         try:
@@ -360,7 +360,7 @@ class EngineStateService:
                             ],
                         }
                 except Exception:
-                    pass
+                    logger.exception("MT5 position fetch failed")
                 set_mt5_status(
                     {
                         "connected": is_connected,
@@ -372,6 +372,7 @@ class EngineStateService:
             else:
                 set_mt5_status({"connected": False, "status": "DISCONNECTED", "last_heartbeat": None, "account": None})
         except Exception:
+            logger.exception("MT5 status set failed")
             set_mt5_status({"connected": False, "status": "ERROR", "last_heartbeat": None, "account": None})
         snapshot = EngineSnapshot(
             schema_version=EngineSnapshot.__dataclass_fields__["schema_version"].default,
@@ -448,7 +449,7 @@ class EngineStateService:
         try:
             update_engine_metrics(engine)
         except Exception:
-            logger.debug("Failed to update Prometheus engine metrics", exc_info=True)
+            logger.warning("Failed to update Prometheus engine metrics", exc_info=True)
 
         return state
 

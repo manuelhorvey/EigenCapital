@@ -19,8 +19,9 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
+
+from eigencapital.domain.time import utc_now
 
 logger = logging.getLogger("eigencapital.experiment_context")
 
@@ -104,7 +105,7 @@ class PipelineFreeze:
         return cls(
             component_hashes=hashes,
             experiment_id=composite,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=utc_now().isoformat(),
             asset_universe=tuple(sorted(asset_universe)),
             execution_config_hash=config_hash,
         )

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from datetime import datetime, timezone
 
+from eigencapital.domain.time import utc_now
 from paper_trading.pek.contracts.performance_state import PerformanceState, RegimeVelocity
 from paper_trading.pek.perf.outcome_tracker import OutcomeTracker
 
@@ -71,6 +71,18 @@ class MarketStateReader:
         return (recent[-1] - recent[0]) / max(len(recent) - 1, 1)
 
     def scalar(self) -> float:
+        """Market scalar — higher = less risk reduction.
+
+        Convention notes (see audit finding #L4):
+        - RANGE returns 1.0 (no reduction) because the model's momentum bias
+          produces fewer confident bets in choppy markets — position-taking
+          is naturally suppressed by other gates (confidence, spread).
+        - TREND returns 0.8 (moderate reduction) as a hedge against the
+          system's known failure mode: confident wrong-direction bets during
+          sustained trends (BUY inversion discovery, 2026-06-20).  The SELL_ONLY
+          gate covers 3 permanently flagged assets; this scalar covers all
+          assets as a second layer of protection.
+        """
         atr = self.atr_ratio()
         if self._current_liquidity_regime == "STRESSED":
             return 0.4
@@ -80,7 +92,7 @@ class MarketStateReader:
             return 0.5
         if self._current_regime == "RANGE":
             return 1.0
-        return 0.8  # TREND or unknown
+        return 0.8  # TREND or unknown — see docstring above
 
 
 class ExecutionQualityTracker:
@@ -90,6 +102,7 @@ class ExecutionQualityTracker:
         self._slippage_history: deque[float] = deque(maxlen=200)
         self._partial_fills: int = 0
         self._total_trades: int = 0
+        self._outcome_tracker = OutcomeTracker(window=20)
 
     def record_trade(
         self,
@@ -225,6 +238,8 @@ class PerformanceStateBuilder:
         self.execution = ExecutionQualityTracker()
         self.velocity = VelocityProcessor()
         self._version = 0
+        self._ece_connected: bool = False
+        self._ece_warned: bool = False
         self._portfolio_value_history: deque[float] = deque(maxlen=20)
 
     def build(self, portfolio_value: float) -> PerformanceState:
@@ -258,7 +273,7 @@ class PerformanceStateBuilder:
 
         return PerformanceState(
             version=self._version,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=utc_now(),
             outcome_scalar=outcome_scalar,
             degradation_scalar=degradation_scalar,
             market_scalar=market_scalar,
@@ -269,11 +284,30 @@ class PerformanceStateBuilder:
             win_rate_20=self.outcome.win_rate,
             consecutive_losses=self.outcome.consecutive_losses,
             r_cumulative_20=self.outcome.r_cumulative,
-            calibration_ece=0.0,  # populated from ECETracker externally
+            calibration_ece=self._ece_value(),
             atr_ratio=self.market.atr_ratio(),
             regime_label=self.market._current_regime,
             slippage_p90=self.execution.slippage_p90(),
         )
+
+    def _ece_value(self) -> float:
+        """Return calibration ECE, logging a warning once if ECETracker was
+        never connected by an external caller.
+
+        The original design intended for ``calibration_ece`` to be populated
+        from an ``ECETracker`` instance (see ``eigencapital.calibration.ECE``).
+        That wiring was never completed.  This method returns 0.0 and warns
+        once per instance lifetime so the gap is visible in logs without
+        crashing or silently producing a misleading value.
+        """
+        if not self._ece_connected and not self._ece_warned:
+            logger.warning(
+                "PerformanceStateBuilder.calibration_ece=0.0 — "
+                "ECETracker was never connected. "
+                "See eigencapital.calibration.ECE for the intended wiring path."
+            )
+            self._ece_warned = True
+        return 0.0
 
     def _compute_pnl_velocity(self) -> float:
         if len(self._portfolio_value_history) < 5:

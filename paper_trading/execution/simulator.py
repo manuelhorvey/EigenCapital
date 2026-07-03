@@ -123,17 +123,27 @@ class ExecutionSimulator:
             gap_fill = True
             fill_price = self.fill.gap_fill_price(market.open_price, requested_price, side)
 
-        # 3. Apply order-type-specific slippage
+        # 3. Apply order-type-specific slippage.
+        # NOTE on sign convention for SL/TP (matches SlippageModel docstring):
+        # - SL buy (closing short): adverse = HIGHER fill = pay more.
+        # - SL sell (closing long): adverse = LOWER fill = get less.
+        # - TP buy (closing short): adverse = HIGHER fill = pay more.
+        # - TP sell (closing long): adverse = LOWER fill = get less.
+        # Earlier versions of this code applied slippage in the same sign
+        # direction for both sides, which produced favorable (better than
+        # trigger) fills for closing orders.  The correct sign is side-aware
+        # as below.  See tests/test_execution_simulator.py for regression
+        # coverage.
         slippage_bps = 0.0
         if order_type == "stop_loss" and not gap_fill:
             price_slip = self.slippage.stop_loss_slippage(fill_price, market.vol_zscore, config, side)
             slippage_bps = (price_slip / fill_price * 10000) if fill_price > 0 else 0.0
-            fill_price = fill_price - price_slip if side == "buy" else fill_price + price_slip
+            fill_price = fill_price + price_slip if side == "buy" else fill_price - price_slip
 
         elif order_type == "take_profit":
             price_slip = self.slippage.take_profit_slippage(fill_price, config)
             slippage_bps = (price_slip / fill_price * 10000) if fill_price > 0 else 0.0
-            fill_price = fill_price - price_slip if side == "buy" else fill_price + price_slip
+            fill_price = fill_price + price_slip if side == "buy" else fill_price - price_slip
 
         elif order_type == "entry":
             price_slip = self.slippage.entry_slippage(fill_price, market.vol_zscore, config)

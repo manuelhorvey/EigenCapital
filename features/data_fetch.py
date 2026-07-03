@@ -19,9 +19,21 @@ _FETCH_WARMUP_BUFFER = 1250
 _MIN_HISTORY_ROWS = 253
 
 _MACRO_TICKERS = [
-    "DX-Y.NYB", "^VIX", "^GSPC", "CL=F",
-    "^TNX", "^FVX", "^TYX", "^IRX",
-    "^DE10Y", "^UK10Y", "^JP10Y", "^CH10Y", "^AU10Y", "^NZ10Y", "^CA10Y",
+    "DX-Y.NYB",
+    "^VIX",
+    "^GSPC",
+    "CL=F",
+    "^TNX",
+    "^FVX",
+    "^TYX",
+    "^IRX",
+    "^DE10Y",
+    "^UK10Y",
+    "^JP10Y",
+    "^CH10Y",
+    "^AU10Y",
+    "^NZ10Y",
+    "^CA10Y",
 ]
 
 # Currency -> benchmark 10-year sovereign yield ticker mapping.
@@ -192,7 +204,19 @@ def _fetch_macro_batch() -> dict[str, pd.Series]:
                 pass
 
     # Normalise all yield tickers from percentage to decimal
-    _yield_tickers = {"^TNX", "^FVX", "^TYX", "^IRX", "^DE10Y", "^UK10Y", "^JP10Y", "^CH10Y", "^AU10Y", "^NZ10Y", "^CA10Y"}
+    _yield_tickers = {
+        "^TNX",
+        "^FVX",
+        "^TYX",
+        "^IRX",
+        "^DE10Y",
+        "^UK10Y",
+        "^JP10Y",
+        "^CH10Y",
+        "^AU10Y",
+        "^NZ10Y",
+        "^CA10Y",
+    }
     for yt in _yield_tickers:
         if yt in result and not result[yt].empty:
             result[yt] = result[yt] / 100.0

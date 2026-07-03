@@ -73,6 +73,7 @@ DEFAULT_FACTOR_LIMITS: dict[str, tuple[float, float]] = {
     "CHF": (-0.2, 0.2),
     "CAD": (-0.2, 0.2),
     "GBP": (-0.15, 0.15),
+    "JPY": (-0.25, 0.25),
     "US_EQUITY": (-0.1, 0.15),
     "COMMODITY": (0.0, 0.05),
 }

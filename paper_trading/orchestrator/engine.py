@@ -180,7 +180,13 @@ class EngineOrchestrator:
         )
         atexit.register(self.shutdown)
 
-    def run_once(self, market_data: dict | None = None) -> dict[str, Any]:
+    def _filtered_actors(self, allowed_assets: set[str] | None = None) -> dict[str, Any]:
+        """Return filtered actor dict if allowed_assets is set, else all actors."""
+        if allowed_assets is None:
+            return self._actors
+        return {n: a for n, a in self._actors.items() if n in allowed_assets}
+
+    def run_once(self, market_data: dict | None = None, allowed_assets: set[str] | None = None) -> dict[str, Any]:
         """Execute one orchestrator cycle.  Returns phased results dict.
 
         Phases:
@@ -191,8 +197,23 @@ class EngineOrchestrator:
             3. PORTFOLIO — aggregate health, circuit breakers, VaR, recovery
             4. PERSIST  — flush all persist queues to WAL
 
+        When ``allowed_assets`` is provided (a set of asset names), only those
+        actors participate in each phase. All other actors are skipped for the
+        cycle. Used for weekend cycles where only weekend-eligible assets run.
+
         Returns a dict with keys for each phase plus aggregated health.
         """
+        # Temporary actor subset for weekend cycles — all phase methods
+        # use self._actors, so we swap it for the cycle duration.
+        _saved_actors = self._actors
+        self._actors = self._filtered_actors(allowed_assets)
+        try:
+            return self._run_phases(market_data)
+        finally:
+            self._actors = _saved_actors
+
+    def _run_phases(self, market_data: dict | None = None) -> dict[str, Any]:
+        """Execute the standard 4-phase cycle on self._actors (which may be filtered)."""
         results: dict[str, Any] = {
             "phasetimestamps": {},
             "assets": {},
@@ -200,8 +221,6 @@ class EngineOrchestrator:
             "health": None,
         }
 
-        # Generate a correlation ID for this cycle — propagates to all
-        # actor threads automatically via contextvars (Python 3.12+).
         set_correlation_id()
 
         if self._emergency_halt:

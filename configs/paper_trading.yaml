@@ -229,6 +229,7 @@ defaults:
       fx_cross: [7, 17]
       indices: [13, 20]
       metals: [8, 18]
+      crypto: [0, 24]
   adx_entry_gate:
     enabled: false
     observe_only: true
@@ -900,7 +901,9 @@ assets:
     sl_mult: 0.58
     tp_mult: 1.51
     max_depth: 3
-    spread_tier: fx_major
+    spread_tier: crypto
+    weekend_eligible: true
+    weekend_allocation_multiplier: 0.5
     regime_geometry:
       GREEN:
         sl_mult: 1.0

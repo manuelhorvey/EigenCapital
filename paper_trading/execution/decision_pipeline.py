@@ -791,6 +791,7 @@ SESSION_TIER_WINDOWS: dict[str, tuple[int, int]] = {
     "fx_cross": (7, 17),  # London+NY overlap 07:00–17:00 UTC
     "indices": (13, 20),  # US cash session 13:30–20:00 UTC
     "metals": (8, 18),  # London fix + NY 08:00–18:00 UTC
+    "crypto": (0, 24),  # 24/7 — BTCUSD, other always-on assets
 }
 
 

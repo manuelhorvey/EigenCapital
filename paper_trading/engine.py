@@ -156,6 +156,7 @@ class PaperTradingEngine:
         self._cycle_times: list[float] = []
         self._cycle_times_maxlen = 1000
         self._cycle_count: int = 0
+        self._cycle_weekend: bool = False
         self._mtm_cache_value: float | None = None
         self._mtm_cache_cycle: int = -1
 
@@ -335,6 +336,21 @@ class PaperTradingEngine:
             except Exception as e:
                 logger.error("%s: training FAILED - %s", name, e)
 
+    def _get_weekend_eligible_assets(self) -> set[str]:
+        """Return set of asset names with weekend_eligible: true in their config."""
+        return {
+            name for name, asset in self.assets.items() if getattr(asset, "config", {}).get("weekend_eligible", False)
+        }
+
+    def _collect_results(self, results: dict, orch_results: dict) -> None:
+        """Propagate orchestrator results into the engine-level results dict."""
+        if orch_results.get("health"):
+            results["orchestrator_health"] = orch_results["health"]
+        asset_results = orch_results.get("assets", {})
+        for name, sig in asset_results.items():
+            if isinstance(sig, dict):
+                results[name] = sig
+
     def run_once(self):
         _t0 = time.perf_counter()
         self._cycle_count += 1
@@ -342,9 +358,42 @@ class PaperTradingEngine:
 
         bump_cycle_id()
 
+        results: dict[str, object] = {}
+
         if is_market_closed():
-            logger.debug("Market closed — core assets skipped")
-            return {}
+            weekend_eligible = self._get_weekend_eligible_assets()
+            if not weekend_eligible:
+                logger.debug("Market closed — core assets skipped")
+                return {}
+            logger.info(
+                "Weekend cycle: processing %d weekend-eligible asset(s): %s",
+                len(weekend_eligible),
+                ", ".join(sorted(weekend_eligible)),
+            )
+            results["weekend_cycle"] = True
+            self._cycle_weekend = True
+            orch_results = self._orchestrator.run_once(allowed_assets=weekend_eligible)
+            self._collect_results(results, orch_results)
+            if orch_results.get("circuit_breaker"):
+                logger.error("Weekend circuit breaker triggered — reason=%s", orch_results["circuit_breaker"])
+                results["orchestrator_circuit_breaker"] = orch_results["circuit_breaker"]
+                self.last_update = datetime.now(tz=ET)
+                return results
+            # Don't skip post-cycle bookkeeping — still persist WAL
+            persist_commands = self._orchestrator.drain_persist_buffer()
+            for cmd in persist_commands:
+                pass
+            self._background_writer.flush()
+            if self._wal is not None:
+                try:
+                    self._wal.flush()
+                except Exception:
+                    logger.exception("WAL flush failed at weekend cycle boundary")
+            self._cycle_weekend = False
+            self.last_update = datetime.now(tz=ET)
+            return results
+
+        self._cycle_weekend = False
 
         # Pipeline integrity check (Phase 7 prelude)
         ctx = ExperimentContext.get()
@@ -356,8 +405,6 @@ class PaperTradingEngine:
                     len(changes),
                     ctx.freeze.experiment_id,
                 )
-
-        results: dict[str, object] = {}
 
         # ── Fault-isolated asset execution via orchestrator ──────────
         # The orchestrator owns Phases 1-4 (refresh, signal, validity,

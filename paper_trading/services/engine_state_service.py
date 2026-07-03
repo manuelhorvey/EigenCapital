@@ -196,6 +196,7 @@ class EngineStateService:
             "open_positions": sum(a.pos_mgr.has_position() for a in engine.assets.values()),
             "closed_trades": sum(len(a.trade_log) for a in engine.assets.values()),
             "execution_state": exec_state.value,
+            "weekend_cycle": bool(getattr(engine, "_cycle_weekend", False)),
             "average_validity_exposure": round(overall_validity / n, 4),
             "portfolio_drawdown": round(portfolio_dd, 6),  # fraction (0-1 range)
             "portfolio_peak_value": round(engine.portfolio_peak_value, 2) if engine.portfolio_peak_value else None,

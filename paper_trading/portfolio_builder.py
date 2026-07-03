@@ -71,6 +71,10 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
                 config["spread_tier"] = spec["spread_tier"]
             if "max_entry_slippage_pct" in spec:
                 config["max_entry_slippage_pct"] = spec["max_entry_slippage_pct"]
+            if "weekend_eligible" in spec:
+                config["weekend_eligible"] = spec["weekend_eligible"]
+            if "weekend_allocation_multiplier" in spec:
+                config["weekend_allocation_multiplier"] = spec["weekend_allocation_multiplier"]
             baseline = cfg.vol_baselines.get(name)
             if baseline is not None:
                 config["vol_baseline"] = baseline

@@ -9,6 +9,7 @@ from eigencapital.domain.entities.position import OrderType, StackLayer
 from paper_trading.entry.decision import EntryAction, PositionIntent, PositionSide
 from paper_trading.entry.deferred_entry import DeferredEntryStatus
 from paper_trading.governance.multipliers import compute_effective_multipliers
+from paper_trading.ops.market_hours import is_weekend
 from shared.sizing_chain import SizingChain, SizingInput, SizingResult
 from shared.volatility import estimate_ewm_vol
 
@@ -431,6 +432,17 @@ class EntryService:
                 meta_size_multiplier=asset._meta_size_multiplier(),
                 drawdown_taper=dd_taper,
             )
+            # Weekend allocation multiplier for weekend-eligible assets
+            if is_weekend() and asset.config.get("weekend_eligible", False):
+                weekend_mult = asset.config.get("weekend_allocation_multiplier", 0.5)
+                size_scalar *= weekend_mult
+                logger.info(
+                    "%s: WEEKEND sizing — applying %.2f× multiplier to size_scalar (%.4f → %.4f)",
+                    asset.name,
+                    weekend_mult,
+                    size_scalar / weekend_mult,
+                    size_scalar,
+                )
 
             sizing_input = SizingInput(
                 equity=effective_cap,

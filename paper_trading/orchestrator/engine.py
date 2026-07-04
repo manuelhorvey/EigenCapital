@@ -168,6 +168,45 @@ class EngineOrchestrator:
         ):
             self._peak_portfolio_value = _init_equity
 
+        # Auto-clear stale emergency halt: if the halt was restored from a prior
+        # session but live equity is within 99% of the persisted peak, the halt
+        # is almost certainly stale (real halt requires dd ≤ -15 %).  Only applies
+        # to DRAWDOWN and CONSECUTIVE_LOSSES reasons — HALT_RATIO and VOL_SPIKE
+        # require manual review (see HALT_REASON_AUTO_UNHALT_ALLOWED).
+        if self._emergency_halt and self._halt_reason in HALT_REASON_AUTO_UNHALT_ALLOWED:
+            _live_vs_peak = _init_equity / max(self._peak_portfolio_value, 1.0) if self._peak_portfolio_value else 1.0
+            if _live_vs_peak >= 0.99:
+                logger.warning(
+                    "Stale emergency halt auto-cleared at startup — "
+                    "live_equity=%.2f peak=%.2f ratio=%.4f reason=%s detail=%s",
+                    _init_equity,
+                    self._peak_portfolio_value,
+                    _live_vs_peak,
+                    self._halt_reason.value if self._halt_reason else "unknown",
+                    self._halt_detail or "(empty)",
+                )
+                with contextlib.suppress(Exception):
+                    _reason_str = self._halt_reason.value if self._halt_reason else "unknown"
+                    global_alert_manager().warning(
+                        "Stale emergency halt auto-cleared on restart",
+                        (
+                            f"live_equity={_init_equity:.2f} peak={self._peak_portfolio_value:.2f} "
+                            f"ratio={_live_vs_peak:.4f} reason={_reason_str}"
+                        ),
+                        details={
+                            "live_equity": round(_init_equity, 2),
+                            "peak": round(self._peak_portfolio_value, 2) if self._peak_portfolio_value else None,
+                            "ratio": round(_live_vs_peak, 4),
+                            "reason": self._halt_reason.value if self._halt_reason else "",
+                            "detail": self._halt_detail,
+                        },
+                    )
+                self._emergency_halt = False
+                self._halt_reason = None
+                self._halt_detail = ""
+                for actor in self._actors.values():
+                    actor.reset()
+
         # Cross-asset correlation monitor
         self._correlation_monitor = CorrelationMonitor()
 

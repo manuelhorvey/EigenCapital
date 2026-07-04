@@ -48,6 +48,12 @@ PORTFOLIO_ASSETS: dict[str, str] = {
     "GBPCHF": "GBPCHF=X",
     "GBPUSD": "GBPUSD=X",
     "EURAUD": "EURAUD=X",
+    "^DJI": "^DJI",
+    "BTCUSD": "BTC-USD",
+    "AUDJPY": "AUDJPY=X",
+    "NZDJPY": "NZDJPY=X",
+    "GBPJPY": "GBPJPY=X",
+    "USDJPY": "USDJPY=X",
 }
 
 TP_SL: dict[str, tuple[float, float]] = {
@@ -65,12 +71,18 @@ TP_SL: dict[str, tuple[float, float]] = {
     "EURCAD": (2.12, 0.71),
     "EURNZD": (3.36, 1.12),
     "GBPCHF": (2.45, 0.82),
-    "GBPUSD": (2.22, 0.50),
-    "EURAUD": (3.28, 1.0),
+    "GBPUSD": (1.97, 0.52),
+    "EURAUD": (1.77, 0.54),
+    "^DJI": (4.0, 0.50),
+    "BTCUSD": (1.51, 0.58),
+    "AUDJPY": (2.01, 0.52),
+    "NZDJPY": (2.02, 0.51),
+    "GBPJPY": (2.22, 0.50),
+    "USDJPY": (1.97, 0.52),
 }
 
 SELL_ONLY: frozenset[str] = frozenset({"CADCHF", "NZDCHF", "EURAUD"})
-WALKDIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / "walkforward"
+WALKDIR = Path(os.path.dirname(os.path.abspath(__file__))).parent / "walkforward"
 
 
 @dataclass

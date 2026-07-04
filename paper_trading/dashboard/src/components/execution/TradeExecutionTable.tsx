@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAttributionTrades } from '../../hooks/useAttributionTrades'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
@@ -8,10 +8,24 @@ import TradeDetailPanel from '../attribution/TradeDetailPanel'
 import Select from '../ui/Select'
 import Badge, { signalToBadge, reasonToBadge } from '../ui/Badge'
 
+function rowKey(t: { trade_id?: string; asset: string; exit_date: string }) {
+  return `${t.trade_id ?? t.asset}_${t.exit_date}`
+}
+
 export default function TradeExecutionTable() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const { data: trades, isPending } = useAttributionTrades(25)
   const [archetypeFilter, setArchetypeFilter] = useState('')
+
+  // Stable handler for table/mobile row clicks — clicking a row toggles
+  // its selection for the TradeDetailPanel. Without useCallback, the JSX
+  // block re-creates new inline closures on every render, which (alone)
+  // is sometimes benign but together with row memoizing lets the audit's
+  // memo-leak chain re-emerge. Memoizing the toggle at this layer keeps
+  // refs stable across re-renders.
+  const toggleRow = useCallback((id: string) => {
+    setSelectedId(prev => (prev === id ? null : id))
+  }, [])
 
   const filtered = archetypeFilter
     ? (trades ?? []).filter(t => t.pred_archetype_at_entry === archetypeFilter)
@@ -26,14 +40,15 @@ export default function TradeExecutionTable() {
   const MobileCards = (
     <div className="sm:hidden space-y-2">
       {filtered.map(t => {
-        const isSelected = selectedId === `${t.trade_id ?? t.asset}_${t.exit_date}`
+        const key = rowKey(t)
+        const isSelected = selectedId === key
         const rColor = t.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'
         const { variant: archVariant } = signalToBadge(t.pred_archetype_at_entry)
         return (
-          <div key={`${t.trade_id ?? t.asset}_${t.exit_date}`}>
+          <div key={key}>
             <button
               type="button"
-              onClick={() => setSelectedId(isSelected ? null : `${t.trade_id ?? t.asset}_${t.exit_date}`)}
+              onClick={() => toggleRow(key)}
               className="w-full text-left rounded-lg border border-default bg-panel/50 px-3 py-2.5 active:scale-[0.99] transition-transform"
             >
               <div className="flex items-center justify-between gap-2 mb-2">
@@ -110,13 +125,14 @@ export default function TradeExecutionTable() {
         </thead>
         <tbody>
           {filtered.map(t => {
-            const selected = selectedId === `${t.trade_id ?? t.asset}_${t.exit_date}`
+            const key = rowKey(t)
+            const selected = selectedId === key
             const { variant: archVariant } = signalToBadge(t.pred_archetype_at_entry)
             return (
               <>
                 <tr
-                  key={`${t.trade_id ?? t.asset}_${t.exit_date}`}
-                  onClick={() => setSelectedId(selected ? null : `${t.trade_id ?? t.asset}_${t.exit_date}`)}
+                  key={key}
+                  onClick={() => toggleRow(key)}
                   className={`border-b border-default/40 table-row-hover cursor-pointer ${selected ? 'bg-panel/40' : ''}`}
                 >
                   <td className="py-2 pr-2 font-medium text-primary font-mono">{t.asset}</td>

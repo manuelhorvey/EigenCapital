@@ -28,20 +28,23 @@ from paper_trading.execution.decision_pipeline import (
 from eigencapital.domain.entities.position import PositionIntent, StackLayer
 
 
-def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True, name="TEST"):
+def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True, name="TEST", side="long"):
     engine = MagicMock()
     engine.name = name
     engine.current_price = current_price
     engine.config = config or {}
     engine.pos_mgr.has_position.return_value = has_position
-    engine.pos_mgr.current_side.return_value = None
+    engine.pos_mgr.current_side.return_value = PositionSide(side) if has_position else None
     engine.pos_mgr.position_pnl.return_value = pnl
     engine.pos_mgr.stack_layer_count.return_value = 0
     engine._close_position = MagicMock(return_value=True)
+    engine._close_all_positions = MagicMock(return_value=True)
     engine._can_enter.return_value = (True, "ok")
-    engine.pos_mgr.position = (
-        PositionIntent(
-            side=PositionSide.LONG,
+    engine.position_count.return_value = 1 if has_position else 0
+    engine.all_position_dicts.return_value = []
+    if has_position:
+        pos_intent = PositionIntent(
+            side=PositionSide(side),
             entry_price=current_price or 100.0,
             entry_date="2026-06-22",
             stop_loss=(current_price or 100.0) * 0.98,
@@ -50,9 +53,19 @@ def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True, n
             layers=[StackLayer(entry_price=current_price or 100.0, size=0.02, timestamp="t0")],
             base_entry_size=0.02,
         )
-        if has_position
-        else None
-    )
+        engine.pos_mgr.position = pos_intent
+        engine.all_position_dicts.return_value = [
+            {
+                "side": side,
+                "entry": current_price or 100.0,
+                "sl": (current_price or 100.0) * 0.98,
+                "tp": (current_price or 100.0) * 1.05,
+                "entry_date": "2026-06-22",
+            }
+        ]
+    else:
+        engine.pos_mgr.position = None
+        engine.pos_mgr.current_side.return_value = None
     engine._cycle_counter = 10
     engine._signal_chain = []
     engine._wal_writer = None
@@ -124,7 +137,7 @@ class TestProfitLockGate:
         ctx.current_side = PositionSide.SHORT
         manage_position(ctx)
         assert ctx.new_side == PositionSide.LONG
-        engine._close_position.assert_called_once()
+        engine._close_all_positions.assert_called_once()
 
     def test_allows_flip_when_no_position_exists(self):
         engine = _mock_engine(has_position=False)
@@ -135,7 +148,7 @@ class TestProfitLockGate:
         engine._close_position.assert_not_called()
 
     def test_noop_when_new_side_matches_current(self):
-        engine = _mock_engine(pnl=20.0)
+        engine = _mock_engine(config={"max_positions_per_asset": 1}, pnl=20.0)
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
         ctx.current_side = PositionSide.LONG
         manage_position(ctx)
@@ -286,7 +299,7 @@ class TestApplySellOnlyFilter:
 
     @patch("paper_trading.execution.decision_pipeline.get_sell_only_assets", return_value=frozenset({"TEST"}))
     def test_allows_sell_on_sell_only_asset(self, mock_soa):
-        engine = _mock_engine(name="TEST")
+        engine = _mock_engine(name="TEST", has_position=False)
         ctx = _ctx(engine=engine, new_side=PositionSide.SHORT)
         apply_sell_only_filter(ctx)
         assert ctx.new_side == PositionSide.SHORT
@@ -305,7 +318,7 @@ class TestApplySellOnlyFilter:
         engine.pos_mgr.current_side.return_value = PositionSide.LONG
         ctx = _ctx(engine=engine, new_side=PositionSide.SHORT)
         apply_sell_only_filter(ctx)
-        engine._close_position.assert_called_once()
+        engine._close_all_positions.assert_called_once()
 
 
 class TestApplyBarJumpSuppression:
@@ -582,35 +595,35 @@ class TestRouteExecutionPolicy:
 
 class TestRunDecisionPipeline:
     def test_returns_buy_when_long(self):
-        engine = _mock_engine()
+        engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
         result = run_decision_pipeline(engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
         assert result == "BUY"
 
     def test_returns_sell_when_short(self):
-        engine = _mock_engine()
+        engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
         result = run_decision_pipeline(engine, _decision("SELL"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
         assert result == "SELL"
 
     def test_returns_none_when_flat(self):
-        engine = _mock_engine()
+        engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
         result = run_decision_pipeline(engine, _decision("HOLD"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
         assert result is None
 
     def test_aborts_on_first_cycle(self):
-        engine = _mock_engine()
+        engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 0
         engine._wal_writer = MagicMock()
         result = run_decision_pipeline(engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
         assert result is None
 
     def test_writes_wal_decision_output(self):
-        engine = _mock_engine()
+        engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
         run_decision_pipeline(engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))

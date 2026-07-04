@@ -323,13 +323,24 @@ def manage_position(ctx: DecisionContext) -> None:
                 gate.execute_stack(ctx)
                 ctx.new_side = None
                 return
-        logger.info(
-            "%s: already in %s position — suppressing re-entry",
-            engine.name,
-            ctx.new_side,
-        )
-        ctx.new_side = None
-        return
+        max_pos = int(engine.config.get("max_positions_per_asset", 1))
+        if engine.position_count() < max_pos:
+            logger.info(
+                "%s: re-entry allowed — %d of %d positions used",
+                engine.name,
+                engine.position_count(),
+                max_pos,
+            )
+        else:
+            logger.info(
+                "%s: already in %s position — max positions reached (%d/%d)",
+                engine.name,
+                ctx.new_side,
+                engine.position_count(),
+                max_pos,
+            )
+            ctx.new_side = None
+            return
 
     # Check entry gate before doing anything.
     # If cool-down or other gate blocks, don't close the existing position
@@ -372,7 +383,7 @@ def manage_position(ctx: DecisionContext) -> None:
                 ctx.new_side,
                 stack_layer_count,
             )
-        ok = engine._close_position(d.close_price, d.timestamp, "FLIP")
+        ok = engine._close_all_positions(d.close_price, d.timestamp, "FLIP")
         if not ok:
             ctx.new_side = None
             return
@@ -682,9 +693,9 @@ def apply_sell_only_filter(ctx: DecisionContext) -> None:
     if engine.pos_mgr.has_position() and engine.pos_mgr.current_side() == PositionSide.LONG:
         close_price = ctx.decision.close_price or engine.current_price
         if close_price is not None and close_price > 0:
-            ok = engine._close_position(close_price, ctx.decision.timestamp, "SELL_ONLY_FLATTEN")
+            ok = engine._close_all_positions(close_price, ctx.decision.timestamp, "SELL_ONLY_FLATTEN")
             if ok:
-                logger.info("%s: sell-only filter — force-closed LONG position", engine.name)
+                logger.info("%s: sell-only filter — force-closed LONG positions", engine.name)
             ctx.new_side = None
             return
 

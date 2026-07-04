@@ -10,7 +10,7 @@ from tools.check_no_bare_asserts import _finds_top_level_assert, _walk_python_fi
 from tools.check_no_plaintext_secrets import _is_allowed_secret_match, _scan_paths
 
 
-TEST_REPO_ROOT = Path(__file__).resolve().parent.parent
+TEST_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class TestAssertsScanner:

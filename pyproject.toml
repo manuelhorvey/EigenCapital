@@ -107,7 +107,7 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
 "labels/meta_labels.py" = ["N803", "N806", "BLE001"]
 # Research scripts use uppercase X for ML feature matrix convention
 "scripts/*.py" = ["N806", "N803"]
-"tests/*.py" = ["N806", "N803"]
+"tests/**/*.py" = ["N806", "N803"]
 "shared/*.py" = ["N806", "N803"]
 # Pre-existing line length issues (grandfathered)
 "paper_trading/decision.py" = ["E501"]

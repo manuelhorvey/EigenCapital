@@ -94,7 +94,7 @@ class TestMT5BridgeConstants:
         import ast
         from pathlib import Path
 
-        path = Path(__file__).resolve().parent.parent / "paper_trading" / "ops" / "mt5_bridge.py"
+        path = Path(__file__).resolve().parent.parent.parent / "paper_trading" / "ops" / "mt5_bridge.py"
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
@@ -118,7 +118,7 @@ class TestMT5BridgeConstants:
         import ast
         from pathlib import Path
 
-        path = Path(__file__).resolve().parent.parent / "paper_trading" / "ops" / "mt5_bridge.py"
+        path = Path(__file__).resolve().parent.parent.parent / "paper_trading" / "ops" / "mt5_bridge.py"
         src = path.read_text()
         # The main() body should reference the env var
         assert "MT5_PASSWORD" in src
@@ -135,7 +135,7 @@ class TestMT5BridgeConstants:
         """No log statement should include the literal password value."""
         from pathlib import Path
 
-        path = Path(__file__).resolve().parent.parent / "paper_trading" / "ops" / "mt5_bridge.py"
+        path = Path(__file__).resolve().parent.parent.parent / "paper_trading" / "ops" / "mt5_bridge.py"
         src = path.read_text()
         # Make sure no log statement sends the password
         for line in src.splitlines():

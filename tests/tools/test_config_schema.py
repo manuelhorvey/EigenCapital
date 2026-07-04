@@ -120,7 +120,7 @@ class TestConfigSchema:
         os.unlink(path)
 
     def test_real_config_passes(self):
-        real_path = Path(__file__).resolve().parent.parent / "configs" / "paper_trading.yaml"
+        real_path = Path(__file__).resolve().parent.parent.parent / "configs" / "paper_trading.yaml"
         assert validate(str(real_path)) == 0
 
     def test_optional_execution_section(self):

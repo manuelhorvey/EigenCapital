@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures"
+FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
 # ── Expected field topology ──────────────────────────────────────────
 # Mirror of paper_trading/dashboard/src/types/bundle.ts

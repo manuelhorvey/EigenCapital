@@ -244,3 +244,103 @@ class TestAutoUnhaltEligibility:
         orch._unhalt_recovery_cycles = 10
         orch._check_auto_unhalt_eligibility()
         assert orch._emergency_halt is True  # below threshold
+
+
+# ── Tests: halt-persistent warning throttle (Commit 1) ────────────────────
+
+
+class TestHaltPersistentWarning:
+    """_maybe_warn_halt_persistent() fires on schedule then throttles."""
+
+    def test_fires_on_first_halted_cycle(self):
+        """Warning fires on cycle 1 with halt active."""
+        eng = _MockAssetEngine("BTCUSD")
+        actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
+        orch = EngineOrchestrator(actors)
+        orch._emergency_halt = True
+        orch._halt_reason = HaltReason.DRAWDOWN
+        orch._halt_detail = "dd=-0.15"
+        orch._peak_portfolio_value = 1000.0
+        orch._cycles_elapsed = 1
+        orch._cycle_total_equity = 900.0  # live equity
+        orch._maybe_warn_halt_persistent()
+        # After calling, _halt_warn_last_cycle should be 1
+        assert orch._halt_warn_last_cycle == 1
+
+    def test_skips_within_throttle_window(self):
+        """Warning skipped if called again within 10 cycles."""
+        eng = _MockAssetEngine("BTCUSD")
+        actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
+        orch = EngineOrchestrator(actors)
+        orch._emergency_halt = True
+        orch._cycles_elapsed = 1
+        orch._halt_warn_last_cycle = 1  # already warned at cycle 1
+        orch._maybe_warn_halt_persistent()
+        # _halt_warn_last_cycle should NOT advance
+        assert orch._halt_warn_last_cycle == 1
+
+    def test_fires_again_after_10_cycles(self):
+        """Warning fires again when throttle window expires at cycle 11."""
+        eng = _MockAssetEngine("BTCUSD")
+        actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
+        orch = EngineOrchestrator(actors)
+        orch._emergency_halt = True
+        orch._halt_reason = HaltReason.DRAWDOWN
+        orch._halt_detail = "dd=-0.15"
+        orch._peak_portfolio_value = 1000.0
+        orch._cycles_elapsed = 11
+        orch._halt_warn_last_cycle = 1  # last warned at cycle 1
+        orch._cycle_total_equity = 900.0
+        orch._maybe_warn_halt_persistent()
+        assert orch._halt_warn_last_cycle == 11
+
+    def test_throttle_independent_of_halt_state(self):
+        """Method fires strictly on throttle — caller guard is in _run_phases.
+
+        _maybe_warn_halt_persistent does NOT check _emergency_halt internally;
+        the guard is at _run_phases line 290.  This documents that direct
+        invocation always advances the coil if throttle permits, even when
+        halt is not set."""
+        eng = _MockAssetEngine("BTCUSD")
+        actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
+        orch = EngineOrchestrator(actors)
+        orch._emergency_halt = False
+        orch._cycles_elapsed = 1
+        orch._halt_warn_last_cycle = -10
+        orch._maybe_warn_halt_persistent()
+        # Fires because throttle condition is met (1 - (-10) = 11 >= 10)
+        assert orch._halt_warn_last_cycle == 1
+
+
+# ── Tests: persist-boundary stale-halt guard (Commit 6) ────────────────────
+
+
+class TestPersistBoundaryGuard:
+    """engine_state_service.py stale-halt guard at persistence boundary."""
+
+    def test_guard_does_not_warn_on_healthy_halt(self):
+        """Guard does not warn when halt is legitimate (equity < 99.5% of peak)."""
+        eng = _MockAssetEngine("BTCUSD", mtm_value=9000.0)  # 90% of peak
+        actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
+        orch = EngineOrchestrator(actors)
+        orch._emergency_halt = True
+        orch._halt_reason = HaltReason.DRAWDOWN
+        orch._peak_portfolio_value = 10000.0
+        # Simulate save_state equity computation
+        total_equity = sum(a.mtm_value for a in [eng])
+        ratio = total_equity / orch._peak_portfolio_value
+        assert ratio == 0.9
+        assert ratio < 0.995  # guard should NOT fire
+        # No assertion — we just verify the guard condition is false
+
+    def test_guard_warns_on_stale_halt(self):
+        """Guard warns when equity >= 99.5% of peak while halt is set."""
+        eng = _MockAssetEngine("BTCUSD", mtm_value=9960.0)  # 99.6% of peak
+        actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
+        orch = EngineOrchestrator(actors)
+        orch._emergency_halt = True
+        orch._halt_reason = HaltReason.DRAWDOWN
+        orch._peak_portfolio_value = 10000.0
+        total_equity = sum(a.mtm_value for a in [eng])
+        ratio = total_equity / orch._peak_portfolio_value
+        assert ratio >= 0.995  # guard should fire

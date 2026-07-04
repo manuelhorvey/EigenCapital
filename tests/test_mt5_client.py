@@ -19,7 +19,6 @@ from paper_trading.ops.mt5_client import (
     reset_circuit_breaker,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
 
@@ -55,6 +54,7 @@ class TestCircuitBreaker:
 
     def test_ensure_connected_returns_false_when_breaker_open(self, client):
         import time
+
         import paper_trading.ops.mt5_client as mc
 
         mc._CIRCUIT_BREAKER_FAILURES = 5
@@ -314,9 +314,18 @@ class TestFrameProtocol:
         assert not proto.connected
 
     def test_send_request_raises_when_disconnected(self):
+        """When the pool is empty, send_request retries via _reconnect()
+        and propagates whatever that raises (since commit ec0632e).  The
+        old contract — fail-fast MT5ConnectionError on empty pool — was
+        replaced by an auto-reconnect attempt."""
         proto = _FrameProtocol("127.0.0.1", 9999)
-        with pytest.raises(MT5ConnectionError, match="No connections in pool"):
+        # Stub _reconnect to raise a deterministic error so we don't attempt
+        # a real network call against a non-listening port.
+        sentinel = OSError("mock connect failure")
+        proto._reconnect = MagicMock(side_effect=sentinel)  # type: ignore[assignment]
+        with pytest.raises(OSError, match="mock connect failure"):
             proto.send_request("test")
+        proto._reconnect.assert_called_once_with()
 
     def test_get_conn_round_robin(self):
         proto = _FrameProtocol("127.0.0.1", 9999)

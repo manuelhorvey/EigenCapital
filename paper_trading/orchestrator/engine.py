@@ -107,6 +107,10 @@ class EngineOrchestrator:
         self._cycles_elapsed: int = 0
         self._wal = wal_writer
         self._last_health: dict | None = None
+        # Throttle counter for the halt-persistent warning log so a stuck
+        # emergency halt doesn't spam engine.log every cycle. Emits on cycles
+        # 1, 11, 21, … while a halt is active.
+        self._halt_warn_last_cycle: int = -10
 
         # PEK state — built in pre-phase, consumed by admission
         self._portfolio_snapshot: PortfolioStateSnapshot | None = None
@@ -151,6 +155,57 @@ class EngineOrchestrator:
                 snapshot.halt_detail,
                 snapshot.peak_portfolio_value or 0.0,
             )
+
+        # Re-anchor peak against live equity: the persisted peak from a prior
+        # session may be stale (e.g. different capital base, intentional capital
+        # reset).  Setting peak < current equity would create a false drawdown
+        # at startup that blocks auto-unhalt.  Ensure peak ≥ current equity.
+        _init_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
+        if (
+            _init_equity is not None
+            and _init_equity > 0
+            and (self._peak_portfolio_value is None or _init_equity > self._peak_portfolio_value)
+        ):
+            self._peak_portfolio_value = _init_equity
+
+        # Auto-clear stale emergency halt: if the halt was restored from a prior
+        # session but live equity is within 99% of the persisted peak, the halt
+        # is almost certainly stale (real halt requires dd ≤ -15 %).  Only applies
+        # to DRAWDOWN and CONSECUTIVE_LOSSES reasons — HALT_RATIO and VOL_SPIKE
+        # require manual review (see HALT_REASON_AUTO_UNHALT_ALLOWED).
+        if self._emergency_halt and self._halt_reason in HALT_REASON_AUTO_UNHALT_ALLOWED:
+            _live_vs_peak = _init_equity / max(self._peak_portfolio_value, 1.0) if self._peak_portfolio_value else 1.0
+            if _live_vs_peak >= 0.99:
+                logger.warning(
+                    "Stale emergency halt auto-cleared at startup — "
+                    "live_equity=%.2f peak=%.2f ratio=%.4f reason=%s detail=%s",
+                    _init_equity,
+                    self._peak_portfolio_value,
+                    _live_vs_peak,
+                    self._halt_reason.value if self._halt_reason else "unknown",
+                    self._halt_detail or "(empty)",
+                )
+                with contextlib.suppress(Exception):
+                    _reason_str = self._halt_reason.value if self._halt_reason else "unknown"
+                    global_alert_manager().warning(
+                        "Stale emergency halt auto-cleared on restart",
+                        (
+                            f"live_equity={_init_equity:.2f} peak={self._peak_portfolio_value:.2f} "
+                            f"ratio={_live_vs_peak:.4f} reason={_reason_str}"
+                        ),
+                        details={
+                            "live_equity": round(_init_equity, 2),
+                            "peak": round(self._peak_portfolio_value, 2) if self._peak_portfolio_value else None,
+                            "ratio": round(_live_vs_peak, 4),
+                            "reason": self._halt_reason.value if self._halt_reason else "",
+                            "detail": self._halt_detail,
+                        },
+                    )
+                self._emergency_halt = False
+                self._halt_reason = None
+                self._halt_detail = ""
+                for actor in self._actors.values():
+                    actor.reset()
 
         # Cross-asset correlation monitor
         self._correlation_monitor = CorrelationMonitor()
@@ -213,12 +268,17 @@ class EngineOrchestrator:
         """
         # Temporary actor subset for weekend cycles — all phase methods
         # use self._actors, so we swap it for the cycle duration.
+        # The portfolio-aggregate metrics that span the full set
+        # (drawdown circuit breaker, peak re-anchor) read _saved_full_actors
+        # so they see real portfolio equity, not the weekend-filtered total.
         _saved_actors = self._actors
         self._actors = self._filtered_actors(allowed_assets)
+        self._saved_full_actors = _saved_actors
         try:
             return self._run_phases(market_data)
         finally:
             self._actors = _saved_actors
+            self._saved_full_actors = None
 
     def _run_phases(self, market_data: dict | None = None) -> dict[str, Any]:
         """Execute the standard 4-phase cycle on self._actors (which may be filtered)."""
@@ -230,8 +290,10 @@ class EngineOrchestrator:
         }
 
         set_correlation_id()
+        self._cycles_elapsed += 1
 
         if self._emergency_halt:
+            self._maybe_warn_halt_persistent()
             self._check_auto_unhalt_eligibility()
             if self._emergency_halt:
                 results["circuit_breaker"] = {"triggered": True, "reason": "emergency_halt_persistent"}
@@ -283,7 +345,6 @@ class EngineOrchestrator:
             if self._peak_portfolio_value is not None and self._peak_portfolio_value > 0
             else 0.0
         )
-        self._cycles_elapsed += 1
 
         # Build portfolio state snapshot from live actors
         daily_pnl = 0.0
@@ -560,8 +621,14 @@ class EngineOrchestrator:
         self._write_health_events(health)
 
         # ── Compute total value (shared by several sub-phases) ───────────
+        # Drawdown is a portfolio-aggregate metric.  When running a filtered
+        # weekend cycle, sum over the FULL actor set, not the filtered subset,
+        # so peak tracking reflects real portfolio equity.
+        _aggregate_actors = getattr(self, "_saved_full_actors", None) or self._actors
         total_value = sum(
-            actor._engine.current_value for actor in self._actors.values() if hasattr(actor._engine, "current_value")
+            actor._engine.current_value
+            for actor in _aggregate_actors.values()
+            if hasattr(actor._engine, "current_value")
         )
 
         # ── 3a: Drawdown circuit breaker ─────────────────────────────────
@@ -919,6 +986,31 @@ class EngineOrchestrator:
     def emergency_halt(self) -> bool:
         return self._emergency_halt
 
+    def _maybe_warn_halt_persistent(self) -> None:
+        """Emit throttled WARNING when the engine is stuck in halt-persistent mode.
+
+        Fires on cycle 1 with a halt active, then every 10 cycles. Captures the
+        full halt context (reason, detail, peak, live equity) so the operator
+        can diagnose staleness from engine.log without grepping state.json.
+
+        No mutation — observability only.
+        """
+        if self._cycles_elapsed - self._halt_warn_last_cycle < 10:
+            return
+        self._halt_warn_last_cycle = self._cycles_elapsed
+        peak = self._peak_portfolio_value
+        live_equity = getattr(self, "_cycle_total_equity", None)
+        if live_equity is None:
+            live_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
+        logger.warning(
+            "emergency_halt_persistent — cycle=%d reason=%s detail=%s peak=%s live_mtm=%s",
+            self._cycles_elapsed,
+            self._halt_reason.value if self._halt_reason else "unknown",
+            self._halt_detail or "(empty)",
+            f"{peak:.2f}" if peak is not None else "None",
+            f"{live_equity:.2f}" if live_equity is not None else "None",
+        )
+
     def _check_auto_unhalt_eligibility(self) -> None:
         """Check if emergency halt can be automatically lifted.
 
@@ -954,6 +1046,26 @@ class EngineOrchestrator:
                     DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100,
                     self._unhalt_recovery_cycles,
                 )
+                with contextlib.suppress(Exception):
+                    global_alert_manager().warning(
+                        "Emergency halt auto-cleared",
+                        (
+                            f"Drawdown recovered from {self._halt_detail} to "
+                            f"{current_dd * 100:.2f}% (threshold "
+                            f"{DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100:.2f}%) after "
+                            f"{self._unhalt_recovery_cycles} cycles. "
+                            "Resuming normal operation."
+                        ),
+                        details={
+                            "event": "auto_unhalt",
+                            "prior_detail": self._halt_detail,
+                            "current_dd_pct": round(current_dd * 100, 2),
+                            "threshold_pct": round(DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100, 2),
+                            "recovery_cycles": self._unhalt_recovery_cycles,
+                            "peak": round(self._peak_portfolio_value, 2) if self._peak_portfolio_value else None,
+                            "live_equity": round(total_equity, 2) if total_equity is not None else None,
+                        },
+                    )
                 self._emergency_halt = False
                 self._halt_reason = None
                 self._halt_detail = ""

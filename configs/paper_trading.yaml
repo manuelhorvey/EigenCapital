@@ -898,6 +898,7 @@ assets:
   BTCUSD:
     ticker: BTC-USD
     allocation: 0.02
+    max_entry_slippage_pct: 5.0
     sl_mult: 0.58
     tp_mult: 1.51
     max_depth: 3

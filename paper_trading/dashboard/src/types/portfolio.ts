@@ -189,6 +189,7 @@ export interface PekPortfolioSnapshot {
   open_position_count: number
   daily_pnl: number
   max_daily_loss: number
+  daily_loss_remaining: number
   drawdown_remaining: number
   leverage_remaining: number
   max_leverage: number
@@ -230,15 +231,27 @@ export interface Portfolio {
   admission?: PortfolioAdmission
   pek?: PekData
   edge_health?: EdgeHealthSummary
+  /** True when this update is from a weekend-only asset cycle (BTCUSD, etc.). */
+  weekend_cycle?: boolean
 }
 
 export interface EdgeHealthSummary {
-  reversal_rate: number | null
-  n_losers: number
+  /** Total trades in the rolling window. */
   n_trades: number
-  mean_mfe_r: number | null
-  median_mfe_r: number | null
+  /** Number of losing trades (realized_r < 0) in the window. */
+  n_losers: number
+  /** Of the losers, the count whose peak MFE reached >= 1.0R. */
+  n_reversal_candidates: number
+  /** Reversal rate = n_reversal_candidates / n_losers, or null when n_losers == 0. */
+  reversal_rate: number | null
+  /** Threshold below which the alert fires (default 0.15). */
+  warning_threshold: number
+  /** True when reversal_rate < warning_threshold. */
   alert: boolean
+  /** Mean peak MFE across all closed trades in window, or null. */
+  mean_mfe_r: number | null
+  /** Median peak MFE across all closed trades in window, or null. */
+  median_mfe_r: number | null
 }
 
 export interface FeatureStability {

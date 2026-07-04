@@ -279,6 +279,19 @@ export const PortfolioAdmissionSchema = z.object({
   ranking_scores: z.record(z.string(), z.number()).optional().default({}),
 })
 
+// ── Edge health (live structural edge tracker) ─────────
+
+export const EdgeHealthSummarySchema = z.object({
+  n_trades: z.number().int().optional().default(0),
+  n_losers: z.number().int().optional().default(0),
+  n_reversal_candidates: z.number().int().optional().default(0),
+  reversal_rate: z.number().nullable().optional(),
+  warning_threshold: z.number().optional().default(0.15),
+  alert: z.boolean().optional().default(false),
+  mean_mfe_r: z.number().nullable().optional(),
+  median_mfe_r: z.number().nullable().optional(),
+})
+
 // ── PEK state (portfolio execution kernel) ─────────────────────────
 
 export const PekVelocitySchema = z.object({
@@ -324,6 +337,7 @@ export const PekPortfolioSnapshotSchema = z.object({
   open_position_count: z.number().int(),
   daily_pnl: z.number(),
   max_daily_loss: z.number(),
+  daily_loss_remaining: z.number().optional(),
   drawdown_remaining: z.number(),
   leverage_remaining: z.number(),
   max_leverage: z.number(),
@@ -363,6 +377,8 @@ export const PortfolioSummarySchema = z.object({
   live_sharpe: LiveSharpeSchema.optional(),
   admission: PortfolioAdmissionSchema.optional(),
   pek: PekDataSchema.optional(),
+  edge_health: EdgeHealthSummarySchema.optional(),
+  weekend_cycle: z.boolean().optional(),
 })
 
 export const EngineStatusSchema = z.object({

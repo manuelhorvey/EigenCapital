@@ -96,7 +96,6 @@ def test_audit_lookahead_runs():
     audit_lookahead(df, contract_name="TEST")
 
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_end_to_end_no_lookahead():
     """Simulate the full compute_macro_derived → build_features path."""
     from features.builder import compute_macro_derived
@@ -135,7 +134,6 @@ def test_end_to_end_no_lookahead():
     assert derived["ca_jp_spread_mom_5"].notna().sum() > 0
 
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_cot_loader_still_handles_lag():
     """COT loader's align_cot_to_daily should still work correctly."""
     from data.loaders.cot_loader import align_cot_to_daily

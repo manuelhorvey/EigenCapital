@@ -21,7 +21,7 @@ def sample_ohlcv():
         "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
         "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
         "volume": np.random.randint(1000, 100000, n).astype(float),
-    }, index=pd.RangeIndex(n))
+    }, index=pd.date_range("2020-01-01", periods=n, freq="D"))
 
 
 # ── compute_hurst ────────────────────────────────────────────────────────────
@@ -76,7 +76,6 @@ def test_compute_kaufman_er_constant():
 
 # ── generate_regime_features ─────────────────────────────────────────────────
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_generate_regime_features_returns_expected_columns(sample_ohlcv):
     result = generate_regime_features(sample_ohlcv)
     expected = ["hurst", "kaufman_er", "adx", "vol_zscore", "compression", "utc_hour", "session_vol_profile"]
@@ -84,13 +83,11 @@ def test_generate_regime_features_returns_expected_columns(sample_ohlcv):
         assert col in result.columns, f"Missing column: {col}"
 
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_generate_regime_features_no_nan_after_dropna(sample_ohlcv):
     result = generate_regime_features(sample_ohlcv)
     assert not result.isna().any().any()
 
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_generate_regime_features_short_data():
     """Sufficient data for ADX but not for all rolling windows."""
     np.random.seed(42)
@@ -105,14 +102,12 @@ def test_generate_regime_features_short_data():
     assert "adx" in result.columns
 
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_generate_regime_features_utc_hour_present(sample_ohlcv):
     result = generate_regime_features(sample_ohlcv)
     assert "utc_hour" in result.columns
     assert result["utc_hour"].iloc[0] in range(24)
 
 
-@pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
 def test_generate_regime_features_vol_zscore(sample_ohlcv):
     result = generate_regime_features(sample_ohlcv)
     assert "vol_zscore" in result.columns

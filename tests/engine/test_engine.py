@@ -42,19 +42,17 @@ class TestHelpers:
         result = flatten(df)
         assert "close" in result.columns
 
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
     def test_norm_index_already_utc(self):
         import pandas as pd
 
-        df = pd.DataFrame({"close": [100]}, index=pd.DatetimeIndex(["2020-01-01"], tz="UTC"))
+        df = pd.DataFrame({"close": [100]}, index=pd.to_datetime(pd.Index(["2020-01-01"]), utc=True))
         result = norm_index(df)
         assert result.index.tz is not None
 
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
     def test_norm_index_naive(self):
         import pandas as pd
 
-        df = pd.DataFrame({"close": [100]}, index=pd.DatetimeIndex(["2020-01-01"]))
+        df = pd.DataFrame({"close": [100]}, index=pd.to_datetime(pd.Index(["2020-01-01"])))
         result = norm_index(df)
         assert result.index.tz is not None
 

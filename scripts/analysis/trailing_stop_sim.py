@@ -81,10 +81,12 @@ def simulate_trailing_running_peak(
     trades: list[dict],
     retrace_pct: float = 0.50,
     require_min_mfe: float = 0.5,
+    running_factor: float = 0.5,
 ) -> tuple[float, float, int]:
-    """
-    Conservative bound: trail from the running (candle-by-candle) peak MFE,
-    not the ultimate peak. This produces a lower/realistic bound.
+    """Conservative bound: trail from the running (candle-by-candle) peak MFE,
+    not the ultimate peak. running_factor is the assumed fraction of ultimate
+    MFE that has been achieved when the trail is set (default 0.5 — midpoint
+    between entry and peak). Produces a lower/realistic bound.
     """
     original_r = sum(t["r_multiple"] for t in trades)
     new_r = 0.0
@@ -95,6 +97,7 @@ def simulate_trailing_running_peak(
         mfe_r = t.get("mfe_r", 0.0)
 
         if orig >= 0:
+            # Winners: leave as-is (running-peak trail might reduce profit)
             new_r += orig
             continue
         if mfe_r < require_min_mfe:
@@ -104,10 +107,8 @@ def simulate_trailing_running_peak(
             new_r += orig
             continue
 
-        # Conservative: trail from running peak — assume trail is set at
-        # half the realized MFE (the midpoint between entry and peak)
-        running_peak_mfe = mfe_r * 0.5
-        captured = running_peak_mfe * (1.0 - retrace_pct)
+        # Conservative: trail set partway into the trade (not at ultimate peak)
+        captured = mfe_r * running_factor * (1.0 - retrace_pct)
         new_r += captured
         if captured > 0:
             n_saved += 1
@@ -170,20 +171,24 @@ def main():
         print(f"{'  (running-peak)':<10} {cons_orig:>+8.1f} {cons_new:>+8.1f} {cons_new - cons_orig:>+8.1f} {cons_saved:>5d}")
         print("  ^ Conservative bound: trail from running peak, not ultimate MFE")
 
-    # Per-asset recommendation table
+    # Per-asset recommendation table — both upper and conservative bound
     print(f"\n{'=' * 70}")
     print("ASSET RECOMMENDATIONS (50% retracement trailing stop)")
+    print("                       Upper-bound = perfect MFE; Conservative = running peak")
     print(f"{'=' * 70}")
-    print(f"{'Asset':<10} {'Orig':>8} {'50%Trail':>9} {'Needs':>10}")
-    print("-" * 40)
+    print(f"{'Asset':<10} {'Orig':>8} {'Trail_UB':>9} {'Trail_RP':>9} {'Status':>10}")
+    print("-" * 55)
     for asset in sorted(all_trades.keys()):
         trades = all_trades[asset]
         if not trades:
             continue
         orig_r = sum(t["r_multiple"] for t in trades)
-        _, new_r, _ = simulate_trailing(trades, retrace_pct=0.50)
-        needs = "remove" if new_r < 0 else "keep"
-        print(f"{asset:<10} {orig_r:>+8.1f} {new_r:>+9.1f} {needs:>10}")
+        _, ub_new, _ = simulate_trailing(trades, retrace_pct=0.50)
+        _, rp_new, _ = simulate_trailing_running_peak(trades, retrace_pct=0.50)
+        status = "keep" if rp_new >= 0 else "remove"
+        print(
+            f"{asset:<10} {orig_r:>+8.1f} {ub_new:>+9.1f} {rp_new:>+9.1f} {status:>10}"
+        )
 
     # Sensitivity analysis for the worst assets
     print(f"\n{'=' * 70}")

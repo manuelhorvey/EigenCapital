@@ -1035,6 +1035,26 @@ class EngineOrchestrator:
                     DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100,
                     self._unhalt_recovery_cycles,
                 )
+                with contextlib.suppress(Exception):
+                    global_alert_manager().warning(
+                        "Emergency halt auto-cleared",
+                        (
+                            f"Drawdown recovered from {self._halt_detail} to "
+                            f"{current_dd * 100:.2f}% (threshold "
+                            f"{DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100:.2f}%) after "
+                            f"{self._unhalt_recovery_cycles} cycles. "
+                            "Resuming normal operation."
+                        ),
+                        details={
+                            "event": "auto_unhalt",
+                            "prior_detail": self._halt_detail,
+                            "current_dd_pct": round(current_dd * 100, 2),
+                            "threshold_pct": round(DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100, 2),
+                            "recovery_cycles": self._unhalt_recovery_cycles,
+                            "peak": round(self._peak_portfolio_value, 2) if self._peak_portfolio_value else None,
+                            "live_equity": round(total_equity, 2) if total_equity is not None else None,
+                        },
+                    )
                 self._emergency_halt = False
                 self._halt_reason = None
                 self._halt_detail = ""

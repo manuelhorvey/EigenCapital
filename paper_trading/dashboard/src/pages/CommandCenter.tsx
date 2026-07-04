@@ -1,9 +1,7 @@
 import { memo } from 'react'
-import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
-import { systemSelectors } from '../selectors/system'
-import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { useTradingState } from '../lib/trading-state/hook'
 import SystemHealthSummary from '../components/SystemHealthSummary'
+import QuickStatsGrid from '../components/QuickStatsGrid'
 import EdgeHealthAlert from '../components/EdgeHealthAlert'
 import LiveSharpeCard from '../components/LiveSharpeCard'
 import OptimizerRecommendations from '../components/OptimizerRecommendations'
@@ -14,94 +12,8 @@ import TradingAssetRow from '../components/TradingAssetRow'
 import Panel from '../components/ui/Panel'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 import EmptyState from '../components/ui/EmptyState'
-import { Skeleton } from '../components/ui/Skeleton'
 import { ArrowUpDown, AlertTriangle } from 'lucide-react'
-import { formatTimeAgo } from '../utils/format'
 import type { SortKey } from '../lib/trading-state/selectors'
-
-// ── Quick Stats Row ──────────────────────────────────────────────────
-//
-// Terminal-precision row: one mono headline per metric, divided by
-// hairline rules on the desktop layout. No card backgrounds, no
-// icons, no shadows. Hairline rules define the cell boundary; values
-// speak directly. The aesthetic risk is reading as a tabular
-// accountancy report — which is the point: this row is a read-the-
-// state channel, not a status card.
-
-const QuickStatsGrid = memo(function QuickStatsGrid() {
-  // Slice selector: returns the `snapshot` sub-object whose reference
-  // changes only when the backend rebuilds it. Structural sharing
-  // (React Query v5 + Zod validation) keeps the reference stable across
-  // polls unless the snapshot content actually changed.
-  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
-  const p = snapshot?.portfolio
-  // MT5 equity: read via the systemSelectors.mt5 slice (live.mt5).
-  const { data: mt5Live } = useSystemSnapshot(systemSelectors.mt5)
-  const mt5Equity = mt5Live?.account?.portfolio_value ?? null
-  const lastUpdate = p?.last_update ?? snapshot?.engine_status?.last_update ?? snapshot?.timestamp
-  const alerts = useMonitorAlerts()
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical').length
-
-  if (!p) {
-    return (
-      <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
-        {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" shimmer />)}
-      </div>
-    )
-  }
-
-  const totalReturn = p.total_return ?? 0
-  const drawdown = p.portfolio_drawdown ?? 0
-  const peakValue = p.portfolio_peak_value
-  const posReturn = totalReturn >= 0
-  const posRealized = (p.realized_return ?? 0) >= 0
-  const drawdownPct = drawdown * 100
-  const drawdownTone = drawdownPct >= 5 ? 'text-gov-red' : drawdownPct >= 1 ? 'text-gov-yellow' : 'text-secondary'
-
-  // Mono row, one tabular cell per metric, divided by hairline rules.
-  // This row is the operator's first read after the rail; it should fit
-  // a 13" laptop without scrolling, give every value at the same
-  // headline size, and recede into mono gray except for values that
-  // are semantically coloured (GREEN / YELLOW / RED).
-  return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 text-2xs text-tertiary font-mono tabular-nums border-b border-default">
-        <span>{lastUpdate ? `Snapshot ${formatTimeAgo(lastUpdate)}` : ''}</span>
-        <span>{p.start_date ? `Since ${p.start_date}` : ''}</span>
-        {criticalAlerts > 0 && (
-          <span className="text-gov-red font-semibold">{criticalAlerts} critical alert{criticalAlerts > 1 ? 's' : ''}</span>
-        )}
-      </div>
-      <dl className="grid grid-cols-2 lg:grid-cols-7 gap-y-3 lg:divide-x lg:divide-default">
-        <Stat label="Portfolio Value" value={`$${(p.mtm_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`} />
-        <Stat label="Total Return" value={`${posReturn ? '+' : ''}${totalReturn.toFixed(2)}%`} tone={posReturn ? 'good' : 'bad'} />
-        <Stat label="Realized P&L" value={`${posRealized ? '+' : ''}${(p.realized_return ?? 0).toFixed(2)}%`} tone={posRealized ? 'good' : 'bad'} />
-        <Stat label="Drawdown" value={`-${drawdownPct.toFixed(2)}%`} tone={drawdownTone === 'text-secondary' ? undefined : drawdownPct >= 5 ? 'bad' : 'warn'} />
-        <Stat label="Open / Closed" value={`${p.open_positions ?? 0} / ${p.closed_trades ?? 0}`} />
-        <Stat label="Peak Value" value={peakValue != null ? `$${peakValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'} />
-        <Stat
-          label={mt5Equity != null ? 'MT5 Equity' : 'Capital'}
-          value={mt5Equity != null
-            ? `$${mt5Equity.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-            : `$${(p.capital ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}`}
-        />
-      </dl>
-    </div>
-  )
-})
-
-function Stat({ label, value, tone }: { label: string; value: string; tone?: 'good' | 'warn' | 'bad' }) {
-  const cls = tone === 'good' ? 'text-gov-green'
-    : tone === 'warn' ? 'text-gov-yellow'
-    : tone === 'bad' ? 'text-gov-red'
-    : 'text-primary'
-  return (
-    <div className="px-3 py-2 min-w-0">
-      <dt className="text-2xs text-secondary font-medium uppercase tracking-wider truncate">{label}</dt>
-      <dd className={`text-base font-bold font-mono tabular-nums ${cls} mt-0.5 truncate`}>{value}</dd>
-    </div>
-  )
-}
 
 // ── Asset List Panel ───────────────────────────────────────────────
 

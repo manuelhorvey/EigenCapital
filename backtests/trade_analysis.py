@@ -7,12 +7,6 @@ import pandas as pd
 # Constants
 # ──────────────────────────────────────────────
 
-SLTP_CFG: dict[str, dict] = {}
-
-DASHBOARD_TICKERS: list[str] = []
-
-MODEL_DEPTH: dict[str, int] = {}
-
 REGIME_GEOM = {
     "low": {"sl": 1.0, "tp": 2.0},
     "mid": {"sl": 1.5, "tp": 2.5},

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Menu } from 'lucide-react'
 import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
@@ -68,7 +68,7 @@ interface TickerRailProps {
   onToggleSidebar?: () => void
 }
 
-export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
+function TickerRailInner({ onToggleSidebar }: TickerRailProps) {
   const { data: snapshot }   = useSystemSnapshot(systemSelectors.snapshot)
   const { data: mt5Live }    = useSystemSnapshot(systemSelectors.mt5)
   const health = useEngineHealth()
@@ -228,3 +228,5 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
     </div>
   )
 }
+
+export default memo(TickerRailInner)

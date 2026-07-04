@@ -1,8 +1,9 @@
+import { memo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { AlertTriangle } from 'lucide-react'
 
-export default function EmergencyHaltBanner() {
+function EmergencyHaltBannerInner() {
   // Slice selector: only the emergency_halt / halt_reason / halt_detail
   // fields trigger a re-render. Any unrelated snapshot change (asset
   // prices, tick metrics) is reference-stable per ARCHITECTURE.md §
@@ -25,3 +26,5 @@ export default function EmergencyHaltBanner() {
     </div>
   )
 }
+
+export default memo(EmergencyHaltBannerInner)

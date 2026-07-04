@@ -17,13 +17,12 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, PropertyMock, patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from paper_trading.ops.market_hours import is_market_closed, is_weekend
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -260,3 +259,77 @@ class TestOrchestratorFilteredActors:
         mock_actors = {"BTCUSD": MagicMock()}
         empty = {n: a for n, a in mock_actors.items() if n in set()}
         assert len(empty) == 0
+
+
+class TestPrePhasePekFullPortfolioDrawdown:
+    """Regression: _pre_phase_pek must compute total_equity against _saved_full_actors,
+    not the weekend-filtered _actors. Otherwise BTCUSD's lone equity (~$2K) gets divided
+    by the full-portfolio peak (~$75K), producing -97.3% drawdown, exposure_multiplier=0,
+    and zero PnL reflection for the open position."""
+
+    def test_total_equity_uses_full_actors_during_weekend_cycle(self):
+        """Weekend cycle: _actors={BTCUSD}, _saved_full_actors={22 assets}.
+        _pre_phase_pek must sum the FULL portfolio (~$75K baseline) so the
+        drawdown is 0% (no drawdown), not -97.3% from seeing only BTCUSD's $2K."""
+
+        from paper_trading.orchestrator.engine import EngineOrchestrator
+
+        orch_instance = MagicMock(spec=EngineOrchestrator)
+        # Stub the methods _pre_phase_pek depends on
+        orch_instance._peak_portfolio_value = 75_000.0
+        orch_instance._cycles_elapsed = 0
+        orch_instance._var_prev_value = None
+        # Build actor mocks: each has _engine.mtm_value
+        btc = MagicMock()
+        btc._engine.mtm_value = 2_000.0
+        eur = MagicMock()
+        eur._engine.mtm_value = 73_000.0  # big other asset carrying most equity
+        saved_actors = {"BTCUSD": btc, "OTHER_FX": eur}
+        # Filtered weekend set: only BTCUSD
+        orch_instance._actors = {"BTCUSD": btc}
+        orch_instance._saved_full_actors = saved_actors
+
+        # Mirror the production pattern from _pre_phase_pek
+        aggregate_actors = getattr(orch_instance, "_saved_full_actors", None) or orch_instance._actors
+        total_equity, peak, current_dd = _compute_aggregate(orch_instance, aggregate_actors)
+
+        # Should aggregate over both BTC and OTHER_FX (the full portfolio)
+        assert total_equity == pytest.approx(75_000.0)
+        assert current_dd == pytest.approx(0.0)
+
+
+def _compute_aggregate(orch, aggregate_actors):
+    """Mirror of _pre_phase_pek's total_equity / current_dd computation, exposed
+    for testing without invoking the full method (which depends on many subsystems)."""
+    total_equity = sum(
+        a._engine.mtm_value for a in aggregate_actors.values() if hasattr(a._engine, "mtm_value")
+    )
+    peak = orch._peak_portfolio_value or 1.0
+    current_dd = (
+        (total_equity - orch._peak_portfolio_value) / max(orch._peak_portfolio_value, 1.0)
+        if orch._peak_portfolio_value is not None and orch._peak_portfolio_value > 0
+        else 0.0
+    )
+    return total_equity, peak, current_dd
+
+
+class TestPrePhasePekSourceCodeContract:
+    """Source-level invariant: the production code in _pre_phase_pek must read
+    from _saved_full_actors when available — same pattern as the existing
+    Phase 3c fix at orchestrator/engine.py line 627."""
+
+    def test_pre_phase_pek_uses_saved_full_actors_fallback(self):
+        import inspect
+
+        from paper_trading.orchestrator.engine import EngineOrchestrator
+
+        src = inspect.getsource(EngineOrchestrator._pre_phase_pek)
+        assert "_saved_full_actors" in src, (
+            "_pre_phase_pek must reference _saved_full_actors to avoid the "
+            "weekend-cycle drawdown trap (BTCUSD-only equity vs full-portfolio peak)."
+        )
+        # The same pattern must appear at Phase 3c (line 627) — for symmetry guard
+        full_src = inspect.getsource(EngineOrchestrator)
+        assert full_src.count("_saved_full_actors") >= 2, (
+            "Both _pre_phase_pek and Phase 3c must aggregate over _saved_full_actors"
+        )

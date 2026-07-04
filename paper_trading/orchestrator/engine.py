@@ -338,7 +338,17 @@ class EngineOrchestrator:
         """
         defaults = get_config().defaults or {}
         max_leverage = defaults.get("portfolio_max_leverage", 2.0)
-        total_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
+        # FIXED 2026-07-04: use the FULL portfolio for portfolio-aggregate
+        # metrics (total_equity, drawdown).  During weekend/filtered cycles
+        # self._actors is swapped to a subset (only weekend_eligible assets),
+        # which makes drawdown read as ~-97% of peak and zero-out
+        # exposure_multiplier across all actors — masking legitimate PnL
+        # for sparse weekend coins (BTCUSD).  Phase 3c (commit 758410e)
+        # already uses this pattern; PRE phase must match.
+        _aggregate_actors = getattr(self, "_saved_full_actors", None) or self._actors
+        total_equity = sum(
+            a._engine.mtm_value for a in _aggregate_actors.values() if hasattr(a._engine, "mtm_value")
+        )
         self._cycle_total_equity = total_equity
         current_dd = (
             (total_equity - self._peak_portfolio_value) / max(self._peak_portfolio_value, 1.0)
@@ -350,7 +360,9 @@ class EngineOrchestrator:
         daily_pnl = 0.0
         if self._var_prev_value is not None:
             current_value = sum(
-                getattr(a._engine, "mtm_value", 0.0) for a in self._actors.values() if hasattr(a._engine, "mtm_value")
+                getattr(a._engine, "mtm_value", 0.0)
+                for a in _aggregate_actors.values()
+                if hasattr(a._engine, "mtm_value")
             )
             daily_pnl = (current_value - self._var_prev_value) if self._var_prev_value > 0 else 0.0
         self._portfolio_snapshot = PortfolioStateBuilder(

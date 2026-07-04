@@ -156,6 +156,18 @@ class EngineOrchestrator:
                 snapshot.peak_portfolio_value or 0.0,
             )
 
+        # Re-anchor peak against live equity: the persisted peak from a prior
+        # session may be stale (e.g. different capital base, intentional capital
+        # reset).  Setting peak < current equity would create a false drawdown
+        # at startup that blocks auto-unhalt.  Ensure peak ≥ current equity.
+        _init_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
+        if (
+            _init_equity is not None
+            and _init_equity > 0
+            and (self._peak_portfolio_value is None or _init_equity > self._peak_portfolio_value)
+        ):
+            self._peak_portfolio_value = _init_equity
+
         # Cross-asset correlation monitor
         self._correlation_monitor = CorrelationMonitor()
 

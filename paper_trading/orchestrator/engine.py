@@ -346,9 +346,7 @@ class EngineOrchestrator:
         # for sparse weekend coins (BTCUSD).  Phase 3c (commit 758410e)
         # already uses this pattern; PRE phase must match.
         _aggregate_actors = getattr(self, "_saved_full_actors", None) or self._actors
-        total_equity = sum(
-            a._engine.mtm_value for a in _aggregate_actors.values() if hasattr(a._engine, "mtm_value")
-        )
+        total_equity = sum(a._engine.mtm_value for a in _aggregate_actors.values() if hasattr(a._engine, "mtm_value"))
         self._cycle_total_equity = total_equity
         current_dd = (
             (total_equity - self._peak_portfolio_value) / max(self._peak_portfolio_value, 1.0)

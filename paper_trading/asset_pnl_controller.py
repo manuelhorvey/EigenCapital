@@ -110,11 +110,7 @@ class AssetPnlController:
 
         max_hold = asset.config.get("max_holding_days")
         has_any_position = asset.pos_mgr.has_position() or len(asset.reentry_positions) > 0
-        if (
-            has_any_position
-            and asset.current_price is not None
-            and self._check_intraday_sltp(asset, max_hold)
-        ):
+        if has_any_position and asset.current_price is not None and self._check_intraday_sltp(asset, max_hold):
             return
 
         self._settle_daily_pnl(asset)

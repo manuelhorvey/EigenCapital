@@ -246,6 +246,7 @@ class EngineOrchestrator:
         }
 
         set_correlation_id()
+        self._cycles_elapsed += 1
 
         if self._emergency_halt:
             self._maybe_warn_halt_persistent()
@@ -300,7 +301,6 @@ class EngineOrchestrator:
             if self._peak_portfolio_value is not None and self._peak_portfolio_value > 0
             else 0.0
         )
-        self._cycles_elapsed += 1
 
         # Build portfolio state snapshot from live actors
         daily_pnl = 0.0

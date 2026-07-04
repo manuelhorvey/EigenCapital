@@ -49,12 +49,13 @@ class _MockAssetEngine:
         self.current_value = mtm_value
         self.mtm_value = mtm_value
         self.pos_mgr = _MockPosMgr(has_position)
+        self.reentry_positions: list[dict] = []
         self.closed_positions: list[dict] = []
         self.last_refresh = None
         self.last_pnl = None
         self.last_signal = None
 
-    def _close_position(self, exit_price: float, exit_date: str, reason: str):
+    def _close_position(self, exit_price: float, exit_date: str, reason: str, trade_id: str | None = None):
         self.closed_positions.append(
             {
                 "exit_price": exit_price,
@@ -63,6 +64,9 @@ class _MockAssetEngine:
             }
         )
         self.pos_mgr = _MockPosMgr(has_pos=False)
+
+    def _close_all_positions(self, exit_price: float, exit_date: str, reason: str):
+        return self._close_position(exit_price, exit_date, reason)
 
     def refresh_price(self):
         self.last_refresh = datetime.now(timezone.utc)

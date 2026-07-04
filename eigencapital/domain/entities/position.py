@@ -62,6 +62,7 @@ class PositionIntent:
     stop_loss: float
     take_profit: float
     vol: float = 0.01
+    trade_id: str = ""
     confidence: float = 0.0
     layers: list[StackLayer] = field(default_factory=list)
     base_entry_size: float = 0.0

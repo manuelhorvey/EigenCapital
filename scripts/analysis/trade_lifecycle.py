@@ -653,10 +653,15 @@ def compute_all_phases(
     }
     for asset, trades in all_trades.items():
         results["_trades"][asset] = [t.__dict__.copy() for t in trades]
+        # Price paths stored as compact lists for later phases that need them
+        # (Phase 8 entry quality depends on full intra-trade price history).
         for t in results["_trades"][asset]:
-            t.pop("prices", None)
-            t.pop("highs", None)
-            t.pop("lows", None)
+            if isinstance(t.get("prices"), (list, np.ndarray)):
+                t["prices"] = [round(float(x), 6) for x in t["prices"]]
+            if isinstance(t.get("highs"), (list, np.ndarray)):
+                t["highs"] = [round(float(x), 6) for x in t["highs"]]
+            if isinstance(t.get("lows"), (list, np.ndarray)):
+                t["lows"] = [round(float(x), 6) for x in t["lows"]]
 
     # Phase 1-2: Lifecycle
     combined_trades = [t for ts in all_trades.values() for t in ts]

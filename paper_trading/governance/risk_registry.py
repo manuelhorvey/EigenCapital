@@ -230,6 +230,16 @@ class RiskRegistry:
             return signal
         except Exception:
             logger.exception("risk_registry.evaluate(%s) failed — returning fallback signal", asset)
+            try:
+                from paper_trading.alerting.manager import global_alert_manager, Severity
+                global_alert_manager().alert(
+                    severity=Severity.CRITICAL,
+                    title=f"Risk governor failed for {asset}",
+                    message="Risk evaluation crashed — returning HIGH risk, PAUSE action",
+                    correlation_id=asset,
+                )
+            except Exception:
+                logger.exception("risk_registry.evaluate(%s) — AlertManager dispatch also failed", asset)
             return self._fallback_signal(asset)
 
     def get_latest(self, asset: str | None = None):
@@ -303,13 +313,13 @@ class RiskRegistry:
         return {
             "asset": asset,
             "timestamp": utc_now_iso(),
-            "risk_level": "LOW",
-            "risk_score": 0.0,
-            "confidence": 1.0,
-            "exposure_multiplier": 1.0,
-            "risk_flags": [],
-            "recommended_action": "NORMAL",
-            "explanations": ["Risk governance unavailable — defaulting to LOW risk"],
+            "risk_level": "HIGH",
+            "risk_score": 1.0,
+            "confidence": 0.0,
+            "exposure_multiplier": 0.0,
+            "risk_flags": ["RISK_GOVERNOR_FAILURE"],
+            "recommended_action": "PAUSE",
+            "explanations": ["Risk governance unavailable — defaulting to HIGH risk, halting asset"],
             "component_scores": {},
             "drift_details": {},
         }

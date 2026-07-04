@@ -120,7 +120,6 @@ def _asset_entry_quality(asset: str, trades: list[dict], ohlcv: pd.DataFrame) ->
         trend_aligned = (side == "BUY" and trend_bullish) or (side == "SELL" and not trend_bullish)
 
         # Immediate adverse excursion (first candle MAE)
-        first_candle_mae = t.get("mae_r", 0) / max(len(trades), 1) * 0  # placeholder
         if hasattr(t.get("prices"), "__len__"):
             prices = t["prices"]
             if len(prices) > 1:

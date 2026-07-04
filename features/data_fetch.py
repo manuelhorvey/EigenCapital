@@ -52,8 +52,9 @@ CURRENCY_YIELD_TICKERS: dict[str, str] = {
     "CAD": "^CA10Y",
 }
 
-# Assets that have no meaningful interest rate differential (crypto, commodities)
-_ZERO_RATE_ASSETS: set[str] = {"BTC", "GC", "CL", "IWM", "VIX"}
+# Assets that have no meaningful interest rate differential (BTCUSD, GC, CL, IWM, VIX).
+# Stored in two formats: ticker-prefix (BTC for BTCUSD) and full ticker for index/macro.
+_ZERO_RATE_ASSETS: set[str] = {"BTC", "BTCUSD", "GC", "CL", "IWM", "VIX"}
 
 # Known major currency codes — built from CURRENCY_YIELD_TICKERS keys
 _KNOWN_CURRENCIES: set[str] = set(CURRENCY_YIELD_TICKERS.keys())

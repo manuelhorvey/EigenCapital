@@ -107,6 +107,10 @@ class EngineOrchestrator:
         self._cycles_elapsed: int = 0
         self._wal = wal_writer
         self._last_health: dict | None = None
+        # Throttle counter for the halt-persistent warning log so a stuck
+        # emergency halt doesn't spam engine.log every cycle. Emits on cycles
+        # 1, 11, 21, … while a halt is active.
+        self._halt_warn_last_cycle: int = -10
 
         # PEK state — built in pre-phase, consumed by admission
         self._portfolio_snapshot: PortfolioStateSnapshot | None = None
@@ -232,6 +236,7 @@ class EngineOrchestrator:
         set_correlation_id()
 
         if self._emergency_halt:
+            self._maybe_warn_halt_persistent()
             self._check_auto_unhalt_eligibility()
             if self._emergency_halt:
                 results["circuit_breaker"] = {"triggered": True, "reason": "emergency_halt_persistent"}
@@ -918,6 +923,31 @@ class EngineOrchestrator:
     @property
     def emergency_halt(self) -> bool:
         return self._emergency_halt
+
+    def _maybe_warn_halt_persistent(self) -> None:
+        """Emit throttled WARNING when the engine is stuck in halt-persistent mode.
+
+        Fires on cycle 1 with a halt active, then every 10 cycles. Captures the
+        full halt context (reason, detail, peak, live equity) so the operator
+        can diagnose staleness from engine.log without grepping state.json.
+
+        No mutation — observability only.
+        """
+        if self._cycles_elapsed - self._halt_warn_last_cycle < 10:
+            return
+        self._halt_warn_last_cycle = self._cycles_elapsed
+        peak = self._peak_portfolio_value
+        live_equity = getattr(self, "_cycle_total_equity", None)
+        if live_equity is None:
+            live_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
+        logger.warning(
+            "emergency_halt_persistent — cycle=%d reason=%s detail=%s peak=%s live_mtm=%s",
+            self._cycles_elapsed,
+            self._halt_reason.value if self._halt_reason else "unknown",
+            self._halt_detail or "(empty)",
+            f"{peak:.2f}" if peak is not None else "None",
+            f"{live_equity:.2f}" if live_equity is not None else "None",
+        )
 
     def _check_auto_unhalt_eligibility(self) -> None:
         """Check if emergency halt can be automatically lifted.

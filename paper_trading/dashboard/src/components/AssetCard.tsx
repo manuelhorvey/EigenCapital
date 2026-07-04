@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
+import { systemSelectors } from '../selectors/system'
 import { confidenceToPercent } from '../utils/format'
 import {
   confToState,
@@ -60,8 +61,13 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): {
 }
 
 const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
-  const { data: bundle } = useSystemSnapshot()
-  const data = bundle?.snapshot
+  // Slice selector: only this asset's slot triggers a re-render. The
+  // `data?.open_positions` and similar lambda accesses still use the
+  // returned snapshot shape so the rest of the component works
+  // unchanged — but the React Query subscription ref won't churn when
+  // other assets' slots update.
+  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
+  const data = snapshot
   const { setSelectedAsset } = useSelectedAsset()
   const asset = data?.assets?.[name]
 

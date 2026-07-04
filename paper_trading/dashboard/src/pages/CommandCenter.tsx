@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
+import { systemSelectors } from '../selectors/system'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { useTradingState } from '../lib/trading-state/hook'
 import SystemHealthSummary from '../components/SystemHealthSummary'
@@ -28,10 +29,16 @@ import type { SortKey } from '../lib/trading-state/selectors'
 // state channel, not a status card.
 
 const QuickStatsGrid = memo(function QuickStatsGrid() {
-  const { data: bundle } = useSystemSnapshot()
-  const p = bundle?.snapshot?.portfolio
-  const mt5Equity = bundle?.live?.mt5?.account?.portfolio_value
-  const lastUpdate = p?.last_update ?? bundle?.snapshot?.engine_status?.last_update ?? bundle?.snapshot?.timestamp
+  // Slice selector: returns the `snapshot` sub-object whose reference
+  // changes only when the backend rebuilds it. Structural sharing
+  // (React Query v5 + Zod validation) keeps the reference stable across
+  // polls unless the snapshot content actually changed.
+  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
+  const p = snapshot?.portfolio
+  // MT5 equity: read via the systemSelectors.mt5 slice (live.mt5).
+  const { data: mt5Live } = useSystemSnapshot(systemSelectors.mt5)
+  const mt5Equity = mt5Live?.account?.portfolio_value ?? null
+  const lastUpdate = p?.last_update ?? snapshot?.engine_status?.last_update ?? snapshot?.timestamp
   const alerts = useMonitorAlerts()
   const criticalAlerts = alerts.filter(a => a.severity === 'critical').length
 

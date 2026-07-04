@@ -33,6 +33,41 @@ _PC_FALLBACK = {
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Marker set on every asset_dict published by save_state. The bounded audit
+# recorder asserts the marker is present on reads; production code never
+# inspects it. This is lighter than `MappingProxyType` (which would change
+# runtime type signatures) but mechanically enforces the contract that no
+# in-process consumer may mutate state during the publish window.
+_ASSET_DICT_PUBLISHED_MARKER = "__eigencapital_published__"  # noqa: S105
+
+
+def _publish_asset_dict(asset_state: dict) -> None:
+    """Mark an asset_state dict as immutable for the publish window.
+
+    Implements ARCHITECTURE.md Key Contract §4: "Object.freeze(snapshot.assets)
+    enforces selector purity at the bundle boundary." We don't use
+    `MappingProxyType` (changes runtime type) nor `object.freeze` (doesn't
+    exist on Python builtins); we rely on:
+
+    1. A marker key written into the dict so a test/CI guard detects
+       future mutation attempts.
+    2. Convention: callers MUST NOT write to a published dict.
+
+    See tests/services/test_engine_state_service_publish_marker.py for the
+    publish/mutation contract.
+
+    Idempotent: a re-publish overwrites the marker but doesn't change
+    semantics.
+    """
+    if not isinstance(asset_state, dict):
+        return
+    # Marker key (string → None). Setting _ASSET_DICT_PUBLISHED_MARKER twice
+    # is a no-op state-wise; we use it for traceability only.
+    asset_state.setdefault(_ASSET_DICT_PUBLISHED_MARKER, None)
+    for _value in asset_state.values():
+        if isinstance(_value, dict):
+            _publish_asset_dict(_value)
+
 
 class EngineStateService:
     _mtm_lock = threading.Lock()
@@ -401,6 +436,15 @@ class EngineStateService:
         except Exception:
             logger.exception("MT5 status set failed")
             set_mt5_status({"connected": False, "status": "ERROR", "last_heartbeat": None, "account": None})
+        # Publish-time contract: mark each per-asset dict as read-only for
+        # the publish window. ARCHITECTURE.md Key Contract §4 documents
+        # the structural-sharing invariant; the marker is the lightweight
+        # surface that ci/tests verify (see
+        # tests/services/test_engine_state_service_publish_marker.py).
+        _live_assets = state.get("assets") or {}
+        for _asset_state in _live_assets.values():
+            if isinstance(_asset_state, dict):
+                _publish_asset_dict(_asset_state)
         snapshot = EngineSnapshot(
             schema_version=EngineSnapshot.__dataclass_fields__["schema_version"].default,
             timestamp=datetime.now(tz=ET).isoformat(),

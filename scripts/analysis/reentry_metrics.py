@@ -290,8 +290,8 @@ def compare_policies(results: dict) -> dict:
     for p_name, p_data in policies.items():
         comparison[p_name] = compute_portfolio_metrics(p_data)
 
-    # Delta: B - A, C - A, C - B
-    for p_pair in [("B", "A"), ("C", "A"), ("C", "B")]:
+    # Delta: B - A, C - A, C - B, D - A, D - B
+    for p_pair in [("B", "A"), ("C", "A"), ("C", "B"), ("D", "A"), ("D", "B")]:
         p1, p2 = p_pair
         if p1 in comparison and p2 in comparison:
             key = f"delta_{p1}_minus_{p2}"
@@ -311,7 +311,7 @@ def compare_policies(results: dict) -> dict:
 
 def print_comparison(comparison: dict) -> None:
     """Print formatted comparison table."""
-    policies = [k for k in comparison.keys() if k in ("A", "B", "C")]
+    policies = [k for k in comparison.keys() if k in ("A", "B", "C", "D")]
 
     print("\n" + "=" * 80)
     print("RE-ENTRY POLICY COMPARISON — Portfolio-Level")
@@ -339,7 +339,7 @@ def print_comparison(comparison: dict) -> None:
         print(f"{name:<20} {vals_str}")
 
     # Delta rows
-    for key in ["delta_B_minus_A", "delta_C_minus_A", "delta_C_minus_B"]:
+    for key in ["delta_B_minus_A", "delta_C_minus_A", "delta_C_minus_B", "delta_D_minus_A", "delta_D_minus_B"]:
         if key in comparison:
             d = comparison[key]
             print(f"\n  {key}: ΔR={d['total_r']:+.1f}, Δtrades={d['n_trades']:+d}, ΔSharpe={d['sharpe']:+.3f}, ΔDD={d['max_dd_r']:+.2f}R")
@@ -364,21 +364,23 @@ def print_comparison(comparison: dict) -> None:
     print("PER-ASSET COMPARISON")
     print("-" * 80)
     assets = sorted(comparison["A"].get("asset_metrics", {}).keys())
-    print(f"{'Asset':<10} {'Trades_A':>8} {'R_A':>8} {'Trades_B':>8} {'R_B':>8} {'ΔR_B-A':>8} {'Trades_C':>8} {'R_C':>8} {'ΔR_C-A':>8}")  # noqa: E501
+    has_d = "D" in comparison
+    header = f"{'Asset':<10} {'Trades_A':>8} {'R_A':>8} {'Trades_B':>8} {'R_B':>8} {'Trades_D':>8} {'R_D':>8} {'ΔR_D-A':>8} {'ΔR_B-D':>8}"
+    print(header)
     print("-" * 80)
     for a in assets:
         m_a = comparison["A"]["asset_metrics"].get(a, {})
         m_b = comparison["B"]["asset_metrics"].get(a, {})
-        m_c = comparison["C"]["asset_metrics"].get(a, {})
+        m_d = comparison["D"]["asset_metrics"].get(a, {}) if has_d else {}
         ta = m_a.get("n_trades", 0)
         ra = m_a.get("total_r", 0)
         tb = m_b.get("n_trades", 0)
         rb = m_b.get("total_r", 0)
-        tc = m_c.get("n_trades", 0)
-        rc = m_c.get("total_r", 0)
-        dr_ba = rb - ra
-        dr_ca = rc - ra
-        print(f"{a:<10} {ta:>8} {ra:>+8.1f} {tb:>8} {rb:>+8.1f} {dr_ba:>+8.1f} {tc:>8} {rc:>+8.1f} {dr_ca:>+8.1f}")
+        td = m_d.get("n_trades", 0)
+        rd = m_d.get("total_r", 0)
+        dr_da = rd - ra
+        dr_bd = rb - rd
+        print(f"{a:<10} {ta:>8} {ra:>+8.1f} {tb:>8} {rb:>+8.1f} {td:>8} {rd:>+8.1f} {dr_da:>+8.1f} {dr_bd:>+8.1f}")
 
 
 def main():

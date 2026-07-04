@@ -6,8 +6,9 @@ Reconstructs trade timelines from walk-forward signal parquets + OHLCV data
 and simulates three position-entry policies:
 
   Policy A (baseline): max 1 position per asset, no same-side re-entry
-  Policy B:            max 2 positions per asset, same-side re-entry allowed
-  Policy C:            max N positions per asset, configurable
+  Policy B:            max 2 positions per asset, same-side re-entry (guarded: min_confidence=0.55, min_reentry_r=0.5)
+  Policy C:            max 3 positions per asset, same-side re-entry (guarded)
+  Policy D:            max 2 positions per asset, same-side re-entry (unguarded — matches live engine)
 
 All policies enforce cross-side flipping (close existing, open opposite).
 No production code is modified — this is a research-only analysis.
@@ -104,6 +105,10 @@ POLICIES: dict[str, ReentryPolicy] = {
     "C": ReentryPolicy(
         name="C", max_positions=3, same_side_allowed=True,
         min_confidence=0.55, min_reentry_r=0.5,
+    ),
+    "D": ReentryPolicy(
+        name="D", max_positions=2, same_side_allowed=True,
+        min_confidence=0.0, min_reentry_r=0.0,
     ),
 }
 
@@ -858,7 +863,9 @@ def print_policy_comparison(results: dict) -> None:
     print("POLICY COMPARISON — Per-Asset Totals")
     print("=" * 70)
 
-    for p_name in ["A", "B", "C"]:
+    for p_name in ["A", "B", "C", "D"]:
+        if p_name not in results["policies"]:
+            continue
         trades_by_asset = results["policies"][p_name]["trades"]
         events_by_asset = results["policies"][p_name]["events"]
         total_trades = sum(len(t) for t in trades_by_asset.values())
@@ -867,19 +874,26 @@ def print_policy_comparison(results: dict) -> None:
         allowed = sum(1 for el in events_by_asset.values() for e in el if e.allowed)
         blocked = n_events - allowed
 
-        print(f"\n  Policy {p_name}: {total_trades} trades, {total_r:+.1f}R total, {n_events} events ({allowed} allowed, {blocked} blocked)")
+        policy = [v for k, v in POLICIES.items() if v.name == p_name][0]
+        desc = ""
+        if p_name == "D":
+            desc = " (no guards — matches live engine)"
+        print(f"\n  Policy {p_name}{desc}: {total_trades} trades, {total_r:+.1f}R total, {n_events} events ({allowed} allowed, {blocked} blocked)")
 
+    policies_in_results = [p for p in ["A", "B", "C", "D"] if p in results["policies"]]
     print()
-    print(f"{'Asset':<10} {'Trades_A':>8} {'R_A':>8} {'Trades_B':>8} {'R_B':>8} {'Trades_C':>8} {'R_C':>8}")
-    print("-" * 70)
+    header = f"{'Asset':<10}"
+    for p in policies_in_results:
+        header += f" {'Trades_'+p:>8} {'R_'+p:>8}"
+    print(header)
+    print("-" * (10 + len(policies_in_results) * 17))
     for asset in sorted(results.get("overlap", {}).keys()):
-        ta = len(results["policies"]["A"]["trades"].get(asset, []))
-        ra = sum(t.r_multiple or 0 for t in results["policies"]["A"]["trades"].get(asset, []))
-        tb = len(results["policies"]["B"]["trades"].get(asset, []))
-        rb = sum(t.r_multiple or 0 for t in results["policies"]["B"]["trades"].get(asset, []))
-        tc = len(results["policies"]["C"]["trades"].get(asset, []))
-        rc = sum(t.r_multiple or 0 for t in results["policies"]["C"]["trades"].get(asset, []))
-        print(f"{asset:<10} {ta:>8} {ra:>+8.1f} {tb:>8} {rb:>+8.1f} {tc:>8} {rc:>+8.1f}")
+        line = f"{asset:<10}"
+        for p in policies_in_results:
+            trades = len(results["policies"][p]["trades"].get(asset, []))
+            r = sum(t.r_multiple or 0 for t in results["policies"][p]["trades"].get(asset, []))
+            line += f" {trades:>8} {r:>+8.1f}"
+        print(line)
 
 
 def main():

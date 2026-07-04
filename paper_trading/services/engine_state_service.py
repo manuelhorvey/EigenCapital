@@ -409,6 +409,21 @@ class EngineStateService:
             breaker = getattr(orch, "_circuit_breaker", None)
             if breaker is not None:
                 _, snapshot.breaker_daily_pnl = breaker.snapshot_state()
+            # Observability guard: warn if persisting a halt while live equity
+            # is within 99.5 % of peak — indicates an edge case the auto-clear
+            # (orchestrator init) missed, or a race in the save-vs-cycle timing.
+            if orch._emergency_halt and orch._peak_portfolio_value is not None and orch._peak_portfolio_value > 0:
+                _save_equity = sum(a.mtm_value for a in engine.assets.values())
+                _save_ratio = _save_equity / orch._peak_portfolio_value
+                if _save_ratio >= 0.995:
+                    logger.warning(
+                        "Persisting emergency_halt=True while live equity=%.2f is at "
+                        "%.2f%% of peak=%.2f (reason=%s) — may be stale",
+                        _save_equity,
+                        _save_ratio * 100,
+                        orch._peak_portfolio_value,
+                        orch._halt_reason.value if orch._halt_reason else "unknown",
+                    )
         for name, asset in engine.assets.items():
             if asset.pos_mgr.has_position():
                 pos = asset.pos_mgr.position

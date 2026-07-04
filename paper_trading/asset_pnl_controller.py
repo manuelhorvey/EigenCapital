@@ -23,47 +23,77 @@ ET = pytz.timezone("US/Eastern")
 _MAX_TRADES = 10_000
 
 
-def _sync_broker_sltp(asset) -> bool:
+def _sync_broker_sltp(asset, trade_id: str | None = None) -> bool:
     """Push current SL/TP to the real broker (MT5) after in-memory adjustment.
 
-    Returns True if sync was successful, False if it failed (logged as ERROR).
+    If trade_id is provided, sync that specific position. Otherwise syncs all positions.
+    Returns True if all syncs succeeded.
     """
-    mt5_ticket = asset.position.get("mt5_ticket") if asset.position else None
-    if mt5_ticket is None:
-        return True
     bridge = getattr(asset, "execution_bridge", None)
     if bridge is None or not getattr(bridge, "_is_real_broker", False):
         return True
-    pos = asset.pos_mgr.position
-    if pos is None:
-        return True
-    if pd.isna(pos.stop_loss) or pd.isna(pos.take_profit):
-        logger.error("%s: cannot sync NaN SL=%.4f or TP=%.4f to broker", asset.name, pos.stop_loss, pos.take_profit)
-        return False
-    try:
-        ok = bridge.broker.modify_position(
-            asset.ticker,
-            str(mt5_ticket),
-            sl=float(pos.stop_loss),
-            tp=float(pos.take_profit),
-        )
-        if not ok:
+
+    positions_to_sync: list[tuple[dict | None, str | None]] = [
+        (asset.position, getattr(asset, "_current_trade_id", None)),
+    ]
+    if trade_id is None:
+        for i, tid in enumerate(asset.reentry_trade_ids):
+            positions_to_sync.append((asset.reentry_positions[i], tid))
+    else:
+        if trade_id in asset.reentry_trade_ids:
+            idx = asset.reentry_trade_ids.index(trade_id)
+            positions_to_sync = [(asset.reentry_positions[idx], trade_id)]
+        elif trade_id == getattr(asset, "_current_trade_id", None):
+            positions_to_sync = [(asset.position, trade_id)]
+        else:
+            positions_to_sync = []
+
+    all_ok = True
+    for pos_dict, _ in positions_to_sync:
+        if pos_dict is None:
+            continue
+        mt5_ticket = pos_dict.get("mt5_ticket")
+        if mt5_ticket is None:
+            continue
+        sl = pos_dict.get("sl")
+        tp = pos_dict.get("tp")
+        if pd.isna(sl) or pd.isna(tp) or sl is None or tp is None:
+            logger.error("%s: cannot sync NaN SL=%.4f or TP=%.4f to broker", asset.name, sl, tp)
+            all_ok = False
+            continue
+        try:
+            ok = bridge.broker.modify_position(
+                asset.ticker,
+                str(mt5_ticket),
+                sl=float(sl),
+                tp=float(tp),
+            )
+            if not ok:
+                logger.error(
+                    "%s: MT5 modify_position returned failure for ticket=%s sl=%.5f tp=%.5f",
+                    asset.name,
+                    mt5_ticket,
+                    sl,
+                    tp,
+                )
+                all_ok = False
+            else:
+                logger.info(
+                    "%s: MT5 SL/TP synced for ticket=%s sl=%.5f tp=%.5f",
+                    asset.name,
+                    mt5_ticket,
+                    sl,
+                    tp,
+                )
+        except Exception as e:
             logger.error(
-                "%s: MT5 modify_position returned failure for ticket=%s sl=%.5f tp=%.5f",
+                "%s: MT5 modify_position raised exception for ticket=%s: %s",
                 asset.name,
                 mt5_ticket,
-                pos.stop_loss,
-                pos.take_profit,
+                e,
             )
-        return ok
-    except Exception as e:
-        logger.error(
-            "%s: MT5 modify_position raised exception for ticket=%s: %s",
-            asset.name,
-            mt5_ticket,
-            e,
-        )
-        return False
+            all_ok = False
+    return all_ok
 
 
 class AssetPnlController:
@@ -79,11 +109,8 @@ class AssetPnlController:
         self._track_running_excursion(asset)
 
         max_hold = asset.config.get("max_holding_days")
-        if (
-            asset.pos_mgr.has_position()
-            and asset.current_price is not None
-            and self._check_intraday_sltp(asset, max_hold)
-        ):
+        has_any_position = asset.pos_mgr.has_position() or len(asset.reentry_positions) > 0
+        if has_any_position and asset.current_price is not None and self._check_intraday_sltp(asset, max_hold):
             return
 
         self._settle_daily_pnl(asset)
@@ -96,16 +123,20 @@ class AssetPnlController:
             return True
 
         # Apply EXACTLY ONE trailing exit system per cycle to prevent SL ping-pong.
-        # When adaptive_exit is enabled, it is the authoritative exit logic.
-        # When disabled, the dynamic_sltp trailing stop runs instead.
-        # Post-entry adjustment (vol spike tightening, TP nudging) runs
-        # independently regardless of which trailing system is active.
+        # Only applies to primary position. Re-entry positions use fixed SL/TP.
         ae_cfg = asset.config.get("adaptive_exit", {})
         if ae_cfg.get("enabled", False):
             self._apply_post_entry_adjust_only(asset)
             self._apply_adaptive_exit(asset)
         else:
             self._apply_trailing_stop(asset)
+
+        # Check re-entry positions for SL/TP hits (fixed barriers only)
+        for i in range(len(asset.reentry_positions) - 1, -1, -1):
+            pos_dict = asset.reentry_positions[i]
+            tid = asset.reentry_trade_ids[i]
+            if self._check_position_sltp_hit(asset, pos_dict, tid):
+                return True
 
         return self._check_time_stop(asset, max_hold)
 
@@ -227,6 +258,54 @@ class AssetPnlController:
                 asset.pos_mgr.activate_breakeven_stop()
             if so.get("reason") == "trailing_activated":
                 logger.info("%s: trailing activated by scale-out tier fill", asset.name)
+
+    def _check_position_sltp_hit(self, asset, pos_dict: dict, trade_id: str) -> bool:
+        """Check SL/TP for a single position dict (primary or re-entry)."""
+        current_price = asset.current_price
+        if current_price is None or pd.isna(current_price) or current_price <= 0:
+            return False
+        side = pos_dict.get("side")
+        sl = pos_dict.get("sl")
+        tp = pos_dict.get("tp")
+        if sl is None or tp is None or pd.isna(sl) or pd.isna(tp):
+            return False
+
+        if side == "long":
+            if current_price <= sl:
+                hit_reason, hit_price = "sl", sl
+            elif current_price >= tp:
+                hit_reason, hit_price = "tp", tp
+            else:
+                return False
+        elif side == "short":
+            if current_price >= sl:
+                hit_reason, hit_price = "sl", sl
+            elif current_price <= tp:
+                hit_reason, hit_price = "tp", tp
+            else:
+                return False
+        else:
+            return False
+
+        last_bar = str(datetime.now(tz=ET).date())
+        entry = pos_dict.get("entry", 0)
+        ret = (hit_price / entry - 1) if side == "long" else (entry / hit_price - 1)
+        logger.info(
+            "%s: SL/TP HIT: %s at %.4f (Current: %.4f, Entry: %.4f, Ret: %.4f%%, Side: %s, Trade: %s)",
+            asset.name,
+            hit_reason.upper(),
+            hit_price,
+            current_price,
+            entry,
+            ret * 100,
+            side,
+            trade_id,
+        )
+        _exit_reason = "TP" if hit_reason == "tp" else "SL"
+        asset._close_position(hit_price, last_bar, _exit_reason, trade_id=trade_id)
+        if asset.current_value > asset.peak_value:
+            asset.peak_value = asset.current_value
+        return True
 
     def _check_sltp_hit(self, asset) -> bool:
         hit = asset.pos_mgr.check_sl_tp(asset.current_price)
@@ -519,11 +598,26 @@ class AssetPnlController:
     def mtm_value(self) -> float:
         asset = self.asset
         cv = asset.current_value if not pd.isna(asset.current_value) else asset.initial_capital
-        if not asset.pos_mgr.has_position() or asset.current_price is None or pd.isna(asset.current_price):
+        cp = asset.current_price
+        if cp is None or pd.isna(cp):
             return cv
 
-        pnl_pct = asset.pos_mgr.position_pnl(asset.current_price) / 100
-        return cv * (1 + pnl_pct * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier)
+        # Sum PnL from primary position
+        total_pnl_pct = 0.0
+        if asset.pos_mgr.has_position():
+            pnl_pct = asset.pos_mgr.position_pnl(cp) / 100
+            total_pnl_pct = pnl_pct * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier
+
+        # Sum PnL from re-entry positions (approximate using fixed size = position_size)
+        for pos_dict in asset.reentry_positions:
+            entry = pos_dict.get("entry", 0)
+            if entry <= 0:
+                continue
+            side = pos_dict.get("side", "long")
+            raw_ret = (cp / entry - 1) if side == "long" else (entry / cp - 1)
+            total_pnl_pct += raw_ret * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier
+
+        return cv * (1 + total_pnl_pct)
 
     def set_capital_base(self, new_base: float) -> None:
         asset = self.asset

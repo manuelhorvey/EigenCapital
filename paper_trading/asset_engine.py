@@ -109,6 +109,10 @@ class AssetEngine:
         self.last_signal_date = None
         self.current_price = None
         self.position = None
+        self.reentry_positions: list[dict] = []
+        self.reentry_trade_ids: list[str] = []
+        self._is_reentry = False
+        self._entry_seq_counter: int = 0
         self.trades = []
         self.trade_log = []
         self.prob_history = []
@@ -381,6 +385,7 @@ class AssetEngine:
         return self._entry.tb_vol(close_series)
 
     def _open_position(self, side, entry_price, entry_date, df=None, tp_geo=None, order_type=None, stack_cmd=None):
+        self._is_reentry = bool(self.pos_mgr.has_position())
         self._entry.open_position(
             side,
             entry_price,
@@ -392,18 +397,27 @@ class AssetEngine:
             stack_cmd=stack_cmd,
         )
 
-    def _close_position(self, exit_price, exit_date, reason) -> bool:
-        # Capture peak MFE before position is cleared by close_position
-        peak_mfe_r = self._capture_peak_mfe_r()
+    def _close_position(self, exit_price, exit_date, reason, trade_id: str | None = None) -> bool:
+        """Close a position by trade_id. If trade_id is None, closes the primary position."""
+        # Capture peak MFE before position is cleared
+        peak_mfe_r = self._capture_peak_mfe_r(trade_id)
+
+        pos_dict = self.position
+        if trade_id and trade_id in self.reentry_trade_ids:
+            idx = self.reentry_trade_ids.index(trade_id)
+            pos_dict = self.reentry_positions[idx]
+        elif trade_id and trade_id != getattr(self, "_current_trade_id", None):
+            logger.warning("%s: trade_id %s not found for close", self.name, trade_id)
+            return False
 
         mutations = self._position.close_position(
             exit_price,
             exit_date,
             reason,
-            position=self.position,
+            position=pos_dict,
             current_value=self.current_value,
             entry_archetype=getattr(self, "_entry_archetype", None),
-            current_trade_id=self._current_trade_id,
+            current_trade_id=trade_id or self._current_trade_id,
             attribution_buffer=self._attribution_buffer,
             cycle_counter=self._cycle_counter,
             last_entry_slippage=getattr(self, "_last_entry_slippage", 0.0),
@@ -420,7 +434,15 @@ class AssetEngine:
         self._total_exits += 1
         if reason == "SL":
             self._sl_exits += 1
-        self.position = mutations.get("position", self.position)
+
+        # Clean up position dict
+        if pos_dict is self.position:
+            self.position = mutations.get("position", self.position)
+        elif trade_id and trade_id in self.reentry_trade_ids:
+            idx = self.reentry_trade_ids.index(trade_id)
+            self.reentry_trade_ids.pop(idx)
+            self.reentry_positions.pop(idx)
+
         self.current_value = mutations.get("current_value", self.current_value)
         self.trade_log = mutations.get("trade_log", self.trade_log)
         if "last_signal_flip_cycle" in mutations:
@@ -443,7 +465,7 @@ class AssetEngine:
         )
         trade = mutations.get("trade", {})
         if trade and "realized_r" in trade:
-            side = self.pos_mgr.current_side()  # still available before reset
+            side = self.pos_mgr.current_side() if pos_dict is self.position else pos_dict.get("side")
             _get_edge_monitor().record_trade(
                 asset=self.name,
                 side=str(side or ""),
@@ -455,13 +477,15 @@ class AssetEngine:
             )
         return True
 
-    def _capture_peak_mfe_r(self) -> float | None:
+    def _capture_peak_mfe_r(self, trade_id: str | None = None) -> float | None:
         """Read peak MFE from adaptive exit engine before position close clears it."""
         ae = getattr(self, "_adaptive_exit_engine", None)
         if ae is None or ae._best_price is None:
             return None
         pos = self.pos_mgr.position
         if pos is None:
+            return None
+        if trade_id is not None and trade_id != getattr(self, "_current_trade_id", None):
             return None
         vol = getattr(self, "_entry_vol", None)
         if vol is None or vol <= 0:
@@ -473,6 +497,28 @@ class AssetEngine:
                 return (pos.entry_price - ae._best_price) / (pos.entry_price * vol)
         except (ZeroDivisionError, TypeError):
             return None
+
+    def position_count(self) -> int:
+        count = 1 if self.position is not None else 0
+        count += len(self.reentry_positions)
+        return count
+
+    def all_position_dicts(self) -> list[dict]:
+        result = []
+        if self.position is not None:
+            result.append(self.position)
+        result.extend(self.reentry_positions)
+        return result
+
+    def _close_all_positions(self, exit_price: float, exit_date: str, reason: str) -> bool:
+        """Close all positions (primary + re-entries). Returns True if any closed."""
+        any_closed = False
+        if self.position is not None:
+            any_closed = self._close_position(exit_price, exit_date, reason) or any_closed
+        for i in range(len(self.reentry_positions) - 1, -1, -1):
+            tid = self.reentry_trade_ids[i]
+            any_closed = self._close_position(exit_price, exit_date, reason, trade_id=tid) or any_closed
+        return any_closed
 
     def _record_stop_out(self, side: str, exit_price: float) -> None:
         mutations = self._position.record_stop_out(

@@ -799,28 +799,47 @@ class EntryService:
             "base_entry_size": vol,
         }
         # Defensive: preserve existing mt5_ticket if broker didn't return one
-        if mt5_ticket is None and asset.position and asset.position.get("mt5_ticket") is not None:
-            new_position["mt5_ticket"] = asset.position["mt5_ticket"]
-        asset.position = new_position
+        if mt5_ticket is None:
+            primary_ticket = asset.position.get("mt5_ticket") if asset.position else None
+            if primary_ticket is not None:
+                new_position["mt5_ticket"] = primary_ticket
+
+        is_reentry = getattr(asset, "_is_reentry", False)
+
+        if is_reentry:
+            asset.reentry_positions.append(new_position)
+            asset.reentry_trade_ids.append(intent.trade_id)
+            logger.info(
+                "%s: RE-ENTRY %s pos #%d entry=%.4f SL=%.4f TP=%.4f",
+                asset.name,
+                intent.side,
+                len(asset.reentry_positions),
+                avg_price,
+                intent.stop_loss,
+                intent.take_profit,
+            )
+        else:
+            asset.position = new_position
+            asset._entry_vol = vol
+            asset._bars_at_entry = 0
+            asset._adaptive_exit_reset = True
+            asset._initial_sl = float(intent.stop_loss)
+            asset._initial_tp = float(intent.take_profit)
+            if asset.config.get("dynamic_sltp", {}).get("enabled", False) and asset._initial_sl is not None:
+                asset._sltp_engine.reset_best_price(fill_price)
+            asset._entry_price = intent.entry_price
+            asset._regime_adjusted_entry = asset.regime_geometry.get(state, {}).get("sl_mult", 1.0) < 1.0
+            asset._scale_out_plan = None
+            if asset._scale_out_engine is not None:
+                asset._scale_out_plan = asset._scale_out_engine.build_plan(
+                    side,
+                    float(intent.entry_price),
+                    float(intent.take_profit),
+                    tier_specs=tp_geo.scale_out_tiers,
+                )
+
         asset.pos_mgr.position.base_entry_size = vol
         asset.pos_mgr.enforce_invariant(asset.name)
-        asset._entry_vol = vol
-        asset._bars_at_entry = 0
-        asset._adaptive_exit_reset = True
-        asset._initial_sl = float(intent.stop_loss)
-        asset._initial_tp = float(intent.take_profit)
-        if asset.config.get("dynamic_sltp", {}).get("enabled", False) and asset._initial_sl is not None:
-            asset._sltp_engine.reset_best_price(fill_price)
-        asset._entry_price = intent.entry_price
-        asset._regime_adjusted_entry = asset.regime_geometry.get(state, {}).get("sl_mult", 1.0) < 1.0
-        asset._scale_out_plan = None
-        if asset._scale_out_engine is not None:
-            asset._scale_out_plan = asset._scale_out_engine.build_plan(
-                side,
-                float(intent.entry_price),
-                float(intent.take_profit),
-                tier_specs=tp_geo.scale_out_tiers,
-            )
 
     def _record_stack_layer(self, asset, layer: StackLayer, mt5_ticket):
         if asset.position is None:
@@ -857,7 +876,11 @@ class EntryService:
         asset.pos_mgr.enforce_invariant(asset.name)
 
     def _record_attribution(self, asset, side, entry_date, entry_price, fill_price, entry_slippage_bps, intent, tp_geo):
-        trade_id = f"{entry_date}_{side}_{asset.name}"
+        asset._entry_seq_counter += 1
+        seq = asset._entry_seq_counter
+        trade_id = f"{entry_date}_{side}_{asset.name}_{seq}"
+        if intent is not None:
+            intent.trade_id = trade_id
         asset._current_trade_id = trade_id
         entry_action_type = "immediate" if asset._pending_entries.get(side) is None else "deferred"
         deferred_bars = 0

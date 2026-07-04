@@ -81,9 +81,12 @@ def _mock_engine(config=None, has_position=True, position=None, current_price=10
     engine._pending_entries = {}
     engine._realized_volatility = 0.15
     engine._close_position = MagicMock(return_value=True)
+    engine._close_all_positions = MagicMock(return_value=True)
     engine._can_enter = MagicMock(return_value=(True, "ok"))
     engine.capital_base = 100.0
     engine._open_position = MagicMock()
+    engine.position_count = MagicMock(return_value=1 if has_position else 0)
+    engine.all_position_dicts = MagicMock(return_value=[])
 
     # pos_mgr mock with linked position
     pos_mgr = MagicMock()
@@ -718,7 +721,7 @@ class TestManagePositionStacking:
         )
         manage_position(ctx)
         assert ctx.new_side == PositionSide.SHORT
-        engine._close_position.assert_called_once()
+        engine._close_all_positions.assert_called_once()
 
     def test_profit_lock_blocks_opposite_flip(self):
         pos = _pos_long(entry=100.0, vol=0.02)

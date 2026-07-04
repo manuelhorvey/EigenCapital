@@ -313,5 +313,13 @@ class PositionManager:
         self._regime = "neutral"
         self._volatility_state = "normal"
 
+    def position_count(self) -> int:
+        return 1 if self.position is not None else 0
+
+    def max_positions_reached(self, max_positions: int) -> bool:
+        if max_positions <= 0:
+            return True
+        return self.position_count() >= max_positions
+
     def get_remaining_fraction(self) -> float:
         return self._remaining_fraction

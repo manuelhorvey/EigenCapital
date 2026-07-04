@@ -122,6 +122,17 @@ class EngineStateService:
                     else None
                 ),
                 "sizing_chain": getattr(asset, "_last_sizing_chain", None),
+                "reentry_positions": [
+                    {
+                        "side": p.get("side"),
+                        "entry": round(p.get("entry", 0), 6),
+                        "sl": round(p.get("sl", 0), 6),
+                        "tp": round(p.get("tp", 0), 6),
+                        "entry_date": p.get("entry_date"),
+                        "mt5_ticket": p.get("mt5_ticket"),
+                    }
+                    for p in getattr(asset, "reentry_positions", [])
+                ],
             }
         total_value = self.compute_mtm_total()
         rp_weights = {}
@@ -193,7 +204,9 @@ class EngineStateService:
             "capital": get_config().capital,
             "allocations": {n: a.allocation for n, a in engine.assets.items()},
             "deployment_cleared": True,
-            "open_positions": sum(a.pos_mgr.has_position() for a in engine.assets.values()),
+            "open_positions": sum(
+                a.pos_mgr.has_position() or len(getattr(a, "reentry_positions", [])) for a in engine.assets.values()
+            ),
             "closed_trades": sum(len(a.trade_log) for a in engine.assets.values()),
             "execution_state": exec_state.value,
             "weekend_cycle": bool(getattr(engine, "_cycle_weekend", False)),

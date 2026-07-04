@@ -346,9 +346,7 @@ class EngineOrchestrator:
         # for sparse weekend coins (BTCUSD).  Phase 3c (commit 758410e)
         # already uses this pattern; PRE phase must match.
         _aggregate_actors = getattr(self, "_saved_full_actors", None) or self._actors
-        total_equity = sum(
-            a._engine.mtm_value for a in _aggregate_actors.values() if hasattr(a._engine, "mtm_value")
-        )
+        total_equity = sum(a._engine.mtm_value for a in _aggregate_actors.values() if hasattr(a._engine, "mtm_value"))
         self._cycle_total_equity = total_equity
         current_dd = (
             (total_equity - self._peak_portfolio_value) / max(self._peak_portfolio_value, 1.0)
@@ -768,23 +766,30 @@ class EngineOrchestrator:
         return False
 
     def _compute_position_concentration(self) -> dict:
-        """Count open positions per side and compute skew ratio."""
+        """Count open positions per side and compute skew ratio.
+
+        Counts both primary positions (pos_mgr) and re-entry positions."""
         long_count = 0
         short_count = 0
         for name, actor in self._actors.items():
             engine = getattr(actor, "_engine", None)
             if engine is None:
                 continue
+            # Primary position
             pos = getattr(engine, "pos_mgr", None)
-            if pos is None or not pos.has_position():
-                continue
-            side = getattr(pos.position, "side", None)
-            if side is None:
-                continue
-            if side == "long":
-                long_count += 1
-            elif side == "short":
-                short_count += 1
+            if pos is not None and pos.has_position():
+                side = getattr(pos.position, "side", None)
+                if side == "long":
+                    long_count += 1
+                elif side == "short":
+                    short_count += 1
+            # Re-entry positions
+            for rp in getattr(engine, "reentry_positions", []):
+                side = rp.get("side")
+                if side == "long":
+                    long_count += 1
+                elif side == "short":
+                    short_count += 1
         total = long_count + short_count
         if total == 0:
             return {
@@ -1103,20 +1108,23 @@ class EngineOrchestrator:
             if engine is None:
                 continue
             pos_mgr = getattr(engine, "pos_mgr", None)
-            if pos_mgr is None or not pos_mgr.has_position():
+            has_any = (pos_mgr is not None and pos_mgr.has_position()) or len(
+                getattr(engine, "reentry_positions", [])
+            ) > 0
+            if not has_any:
                 continue
             exit_price = getattr(engine, "current_price", None)
             if exit_price is None or exit_price <= 0:
                 continue
             try:
-                engine._close_position(exit_price=exit_price, exit_date=now_iso, reason=reason)
+                engine._close_all_positions(exit_price=exit_price, exit_date=now_iso, reason=reason)
                 flattened.append(name)
-                logger.warning("%s: position closed by circuit breaker (%.4f)", name, exit_price)
+                logger.warning("%s: position(s) closed by circuit breaker (%.4f)", name, exit_price)
             except (ValueError, TypeError, AttributeError, RuntimeError) as e:
                 logger.error("%s: circuit breaker flatten failed: %s", name, e)
         if flattened:
             logger.error(
-                "CIRCUIT BREAKER FLATTEN: %d position(s) closed: %s",
+                "CIRCUIT BREAKER FLATTEN: %d asset(s) flattened: %s",
                 len(flattened),
                 ", ".join(flattened),
             )

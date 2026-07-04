@@ -268,12 +268,17 @@ class EngineOrchestrator:
         """
         # Temporary actor subset for weekend cycles — all phase methods
         # use self._actors, so we swap it for the cycle duration.
+        # The portfolio-aggregate metrics that span the full set
+        # (drawdown circuit breaker, peak re-anchor) read _saved_full_actors
+        # so they see real portfolio equity, not the weekend-filtered total.
         _saved_actors = self._actors
         self._actors = self._filtered_actors(allowed_assets)
+        self._saved_full_actors = _saved_actors
         try:
             return self._run_phases(market_data)
         finally:
             self._actors = _saved_actors
+            self._saved_full_actors = None
 
     def _run_phases(self, market_data: dict | None = None) -> dict[str, Any]:
         """Execute the standard 4-phase cycle on self._actors (which may be filtered)."""
@@ -616,8 +621,14 @@ class EngineOrchestrator:
         self._write_health_events(health)
 
         # ── Compute total value (shared by several sub-phases) ───────────
+        # Drawdown is a portfolio-aggregate metric.  When running a filtered
+        # weekend cycle, sum over the FULL actor set, not the filtered subset,
+        # so peak tracking reflects real portfolio equity.
+        _aggregate_actors = getattr(self, "_saved_full_actors", None) or self._actors
         total_value = sum(
-            actor._engine.current_value for actor in self._actors.values() if hasattr(actor._engine, "current_value")
+            actor._engine.current_value
+            for actor in _aggregate_actors.values()
+            if hasattr(actor._engine, "current_value")
         )
 
         # ── 3a: Drawdown circuit breaker ─────────────────────────────────

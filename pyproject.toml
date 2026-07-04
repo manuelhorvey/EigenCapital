@@ -181,4 +181,4 @@ python_files = ["test_*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = ["backtests", "diagnostics", "features", "labels", "models", "paper_trading", "signals"]
+source = ["backtests", "diagnostics", "eigencapital", "features", "labels", "models", "monitoring", "paper_trading", "portfolio", "risk", "shared", "signals"]

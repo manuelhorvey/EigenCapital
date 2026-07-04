@@ -5,19 +5,21 @@ over a rolling window of completed trades. Updated after Phase 4 each cycle."""
 
 from __future__ import annotations
 
+import threading
 from collections import deque
 from typing import Any
 
 
 class OutcomeTracker:
     """Tracks the last N trade outcomes for a single asset (or portfolio-level pool).
-    Window size is configurable (default 20 trades)."""
+    Window size is configurable (default 20 trades). Thread-safe."""
 
     def __init__(self, window: int = 20):
         self._window = window
         self._outcomes: deque[dict[str, Any]] = deque(maxlen=window)
         self._consecutive_losses = 0
         self._r_sum = 0.0
+        self._lock = threading.RLock()
 
     def record_trade(
         self,
@@ -27,60 +29,69 @@ class OutcomeTracker:
         mfe_pct: float,
     ) -> None:
         """Record a completed trade outcome."""
-        is_win = exit_reason == "TP"
-        self._outcomes.append(
-            {
-                "exit_reason": exit_reason,
-                "r_multiple": r_multiple,
-                "mae_pct": mae_pct,
-                "mfe_pct": mfe_pct,
-                "is_win": is_win,
-            }
-        )
-        if is_win:
-            self._consecutive_losses = 0
-        else:
-            self._consecutive_losses += 1
-        self._r_sum = sum(o["r_multiple"] for o in self._outcomes)
+        with self._lock:
+            is_win = exit_reason == "TP"
+            self._outcomes.append(
+                {
+                    "exit_reason": exit_reason,
+                    "r_multiple": r_multiple,
+                    "mae_pct": mae_pct,
+                    "mfe_pct": mfe_pct,
+                    "is_win": is_win,
+                }
+            )
+            if is_win:
+                self._consecutive_losses = 0
+            else:
+                self._consecutive_losses += 1
+            self._r_sum = sum(o["r_multiple"] for o in self._outcomes)
 
     def reset(self) -> None:
-        self._outcomes.clear()
-        self._consecutive_losses = 0
-        self._r_sum = 0.0
+        with self._lock:
+            self._outcomes.clear()
+            self._consecutive_losses = 0
+            self._r_sum = 0.0
 
     @property
     def win_rate(self) -> float:
-        if not self._outcomes:
-            return 0.0
-        return sum(1 for o in self._outcomes if o["is_win"]) / len(self._outcomes)
+        with self._lock:
+            if not self._outcomes:
+                return 0.0
+            return sum(1 for o in self._outcomes if o["is_win"]) / len(self._outcomes)
 
     @property
     def consecutive_losses(self) -> int:
-        return self._consecutive_losses
+        with self._lock:
+            return self._consecutive_losses
 
     @property
     def r_cumulative(self) -> float:
-        return self._r_sum
+        with self._lock:
+            return self._r_sum
 
     @property
     def avg_mae(self) -> float:
-        if not self._outcomes:
-            return 0.0
-        return sum(o["mae_pct"] for o in self._outcomes) / len(self._outcomes)
+        with self._lock:
+            if not self._outcomes:
+                return 0.0
+            return sum(o["mae_pct"] for o in self._outcomes) / len(self._outcomes)
 
     @property
     def avg_mfe(self) -> float:
-        if not self._outcomes:
-            return 0.0
-        return sum(o["mfe_pct"] for o in self._outcomes) / len(self._outcomes)
+        with self._lock:
+            if not self._outcomes:
+                return 0.0
+            return sum(o["mfe_pct"] for o in self._outcomes) / len(self._outcomes)
 
     @property
     def trade_count(self) -> int:
-        return len(self._outcomes)
+        with self._lock:
+            return len(self._outcomes)
 
     def outcome_scalar(self) -> float:
         """Compute outcome scalar in [0.3, 1.2] based on recent performance."""
-        wr = self.win_rate
+        with self._lock:
+            wr = self.win_rate
         consec = self.consecutive_losses
         r_cum = self.r_cumulative
 

@@ -7,15 +7,24 @@ import without referencing each other.
 
 from __future__ import annotations
 
+import logging  # noqa: I001
+import threading
+
 import numpy as np
 import pandas as pd
 
-from shared.factor_model import (
+logger = logging.getLogger("eigencapital.constrained_weights")
+
+from shared.factor_model import (  # noqa: E402
     DEFAULT_FACTOR_LIMITS,
     FACTOR_GROUPS,
     compute_factor_exposures,
     factor_exposure_penalty,
 )
+
+# ── Last-valid-weights cache for optimizer fallback ──
+_last_valid_weights: dict[str, dict[str, float]] = {}
+_WEIGHTS_CACHE_LOCK = threading.Lock()
 
 
 def factor_constrained_weights(
@@ -83,9 +92,18 @@ def factor_constrained_weights(
 
     if result.success:
         final = result.x / result.x.sum()
-        return dict(zip(assets_list, [round(float(w), 6) for w in final]))
+        out = dict(zip(assets_list, [round(float(w), 6) for w in final]))
+        with _WEIGHTS_CACHE_LOCK:
+            _last_valid_weights["v1"] = out
+        return out
     else:
-        return base
+        with _WEIGHTS_CACHE_LOCK:
+            fallback = _last_valid_weights.get("v1", base)
+        logger.critical(
+            "factor_constrained_weights (v1) optimizer FAILED — returning %s weights",
+            "last valid" if fallback is not base else "unconstrained base",
+        )
+        return fallback
 
 
 def factor_constrained_weights_v2(
@@ -171,6 +189,15 @@ def factor_constrained_weights_v2(
 
     if result.success:
         final = result.x / max(result.x.sum(), 1e-12)
-        return dict(zip(assets_list, [round(float(w), 6) for w in final]))
+        out = dict(zip(assets_list, [round(float(w), 6) for w in final]))
+        with _WEIGHTS_CACHE_LOCK:
+            _last_valid_weights["v2"] = out
+        return out
     else:
-        return base
+        with _WEIGHTS_CACHE_LOCK:
+            fallback = _last_valid_weights.get("v2", base)
+        logger.critical(
+            "factor_constrained_weights_v2 optimizer FAILED — returning %s weights",
+            "last valid" if fallback is not base else "unconstrained base",
+        )
+        return fallback

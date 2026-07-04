@@ -1,5 +1,6 @@
 import logging
-from copy import deepcopy
+from copy import deepcopy  # noqa: F401  — kept for backward-compatible downstream callers
+from dataclasses import replace
 from datetime import datetime
 
 import pandas as pd
@@ -169,8 +170,9 @@ class PositionManager:
         if pd.isna(new_sl):
             logger.error("Cannot update stop loss to NaN")
             return False
-        self.position = deepcopy(self.position)
-        self.position.stop_loss = new_sl
+        # dataclasses.replace is faster than deepcopy: copies only the wrapped
+        # fields without recursing into list-of-StackLayer or default factories.
+        self.position = replace(self.position, stop_loss=new_sl)
         return True
 
     def update_take_profit(self, new_tp: float) -> bool:
@@ -180,8 +182,7 @@ class PositionManager:
         if pd.isna(new_tp):
             logger.error("Cannot update take profit to NaN")
             return False
-        self.position = deepcopy(self.position)
-        self.position.take_profit = new_tp
+        self.position = replace(self.position, take_profit=new_tp)
         return True
 
     # ── Scale-out (partial close) ─────────────────────────────────

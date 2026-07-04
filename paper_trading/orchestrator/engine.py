@@ -1190,6 +1190,23 @@ class EngineOrchestrator:
                     name,
                     queue,
                 )
+                # CRITICAL alert after threshold breaches — at this point operator
+                # action is required (manual MT5 cleanup). Threshold keeps low-level
+                # debugging from spamming alerts.
+                abandonment_threshold = 3
+                if self._abandoned_orphans == abandonment_threshold or self._abandoned_orphans % 5 == 0:
+                    try:
+                        from paper_trading.alerting.manager import Severity, global_alert_manager
+
+                        global_alert_manager().alert(
+                            severity=Severity.CRITICAL,
+                            title=f"MT5 orphan abandonments reached {self._abandoned_orphans}",
+                            message=f"Abandoned orphan for {name} after {self.MAX_CLEANUP_RETRIES} retries. "
+                            f"Manual MT5 cleanup required. Queue was: {queue}",
+                            asset=name,
+                        )
+                    except Exception:
+                        logger.exception("Alerter dispatch failed for orphan abandonment")
                 engine._mt5_cleanup_queue = []
                 engine._mt5_cleanup_retries = 0
                 continue

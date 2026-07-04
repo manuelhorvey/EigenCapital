@@ -265,7 +265,20 @@ def load_config(path: str | None = None) -> EngineConfig:
 _GLOBAL_CONFIG: EngineConfig | None = None
 
 
-def get_config(path: str | None = None) -> EngineConfig:
+def get_config(path: str | None = None, override: EngineConfig | None = None) -> EngineConfig:
+    """Load and return the global config.
+
+    Args:
+        path: Optional config file path. Defaults to ``configs/paper_trading.yaml``.
+        override: Optional pre-built config to return. Skips loading entirely.
+            Useful for testing and multi-instance scenarios.
+
+    Returns:
+        The active ``EngineConfig`` instance (either the override,
+        the cached global, or a freshly-loaded one).
+    """
+    if override is not None:
+        return override
     global _GLOBAL_CONFIG
     if _GLOBAL_CONFIG is None:
         _GLOBAL_CONFIG = load_config(path)

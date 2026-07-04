@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import pandas as pd
@@ -61,8 +62,17 @@ class EngineStateService:
         ad = {}
         overall_validity = 0.0
         any_halted = False
+        # Parallelize I/O-bound refresh_price() before serial metric/halt/validity
+        # work. Sequential refresh was the dominant latency for 22 assets.
+        names = list(engine.assets.keys())
+        with ThreadPoolExecutor(max_workers=min(8, len(names))) as pool:
+            future_to_name = {
+                pool.submit(self._safe_refresh, name, asset): name for name, asset in engine.assets.items()
+            }
+            for future in as_completed(future_to_name):
+                # result discarded — side effect is refresh_price
+                future.result()
         for name, asset in engine.assets.items():
-            asset.refresh_price()
             metrics = asset.get_metrics()
             halt = asset.check_halt_conditions(metrics=metrics)
             validity = asset.update_validity(halt=halt)
@@ -156,6 +166,10 @@ class EngineStateService:
     def _compute_portfolio_summary(self, overall_validity: float, any_halted: bool) -> dict:
         engine = self.engine
         n = len(engine.assets) or 1
+        # Lazy import: paper_trading.engine pulls from this module at import
+        # time, so a top-level import of ExecutionState here creates the
+        # classic engine ↔ services circular dependency. Function-local import
+        # breaks the cycle without forcing one-way traffic.
         from paper_trading.engine import ExecutionState
 
         exec_state = (
@@ -510,6 +524,13 @@ class EngineStateService:
             asset_snapshots=asset_snapshots,
         )
 
+    def _safe_refresh(self, name: str, asset) -> None:
+        """refresh_price() wrapper that swallows exceptions per-asset."""
+        try:
+            asset.refresh_price()
+        except Exception:
+            logger.exception("%s: refresh_price failed in state.json build", name)
+
     def _append_equity_history(self, state):
         engine = self.engine
         p = state.get("portfolio", {})
@@ -521,10 +542,18 @@ class EngineStateService:
             for a in state.get("assets", {}).values()
         )
 
-        net_side = sum(
-            (a.get("metrics", {}).get("position") or {}).get("side") == "long" for a in state.get("assets", {}).values()
+        total_long = sum(
+            a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
+            for a in state.get("assets", {}).values()
+            if (a.get("metrics", {}).get("position") or {}).get("side") == "long"
         )
-        net = (net_side / len(state.get("assets", {}))) * 2 - 1 if state.get("assets") else 0
+        total_short = sum(
+            a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
+            for a in state.get("assets", {}).values()
+            if (a.get("metrics", {}).get("position") or {}).get("side") == "short"
+        )
+        gross_notional = total_long + total_short
+        net = (total_long - total_short) / gross_notional if gross_notional > 0 else 0.0
 
         drawdown = p.get("portfolio_drawdown", 0.0)
 

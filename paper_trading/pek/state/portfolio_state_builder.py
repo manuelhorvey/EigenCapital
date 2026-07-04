@@ -127,10 +127,13 @@ class PortfolioStateBuilder:
         max_concurrent = self._mode.get("max_concurrent_positions", 21)
         concurrent_remaining = max(0, max_concurrent - open_count)
 
-        # ── Factor exposures from LIVE positions ──
+        # ── Factor exposures from LIVE positions (signed: short = negative weight) ──
         position_weights: dict[str, float] = {}
         for p in positions:
-            position_weights[p.asset] = p.notional / max(total_equity, 1.0)
+            weight = p.notional / max(total_equity, 1.0)
+            if p.side == "short":
+                weight = -weight
+            position_weights[p.asset] = weight
 
         factor_exposures_list: list[tuple[str, float]] = []
         factor_limits_list: list[tuple[str, float, float]] = []
@@ -232,7 +235,8 @@ class PortfolioStateBuilder:
             threshold = SPREAD_TIER_BPS.get(tier, 20.0)
             spread_ok = spread_bps < threshold
         else:
-            spread_ok = True  # no data — fail-open
+            spread_ok = False  # no data — fail-closed (blocks entry)
+            logger.warning("%s: no spread data available — spread gate blocking entries", name)
 
         # ── session_ok ──
         tier = getattr(engine, "_spread_tier", "fx_cross")
@@ -248,8 +252,13 @@ class PortfolioStateBuilder:
         sell_only_ok = name not in get_sell_only_assets()
 
         # ── confidence_ok ──
+        from paper_trading.config_manager import get_config as get_paper_config
+
+        cfg = get_paper_config()
+        asset_cfg = cfg.assets.get(name, {}) if hasattr(cfg, "assets") else {}
+        min_conf = asset_cfg.get("min_confidence", 55.0)
         last_conf = getattr(engine, "_last_confidence", 100.0)
-        confidence_ok = last_conf >= 55.0 if isinstance(last_conf, (int, float)) else True
+        confidence_ok = last_conf >= min_conf if isinstance(last_conf, (int, float)) else True
 
         # ── risk_off_ok ──
         risk_off_ok = not getattr(engine, "_risk_off", False)

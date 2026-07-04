@@ -34,6 +34,13 @@ def set_mt5_status(status: dict) -> None:
         _mt5_status = status
 
 
+def _reset_mt5_status() -> None:
+    """Reset MT5 status cache. Test-harness use only."""
+    global _mt5_status
+    with _mt5_status_lock:
+        _mt5_status = None
+
+
 def get_mt5_status() -> dict:
     with _mt5_status_lock:
         if _mt5_status is not None:

@@ -101,24 +101,24 @@ class SizingChain:
         if inp.is_mt5:
             effective_cap = inp.equity
             res.effective_cap = effective_cap
-            # MT5: leverage allows notional >> equity. Don't cap by
-            # max_position_pct. The real constraint is risk-per-trade
-            # (applied in step 3) and the min-viable lot bump in
-            # _compute_mt5_qty. Use 100% of equity as starting notional.
-            mt5_floor = max(inp.max_position_pct, 1.0)
+            # MT5: leverage allows notional >> equity. Use max_position_pct as
+            # the leverage scalar (respecting config, not forced to 1.0).
+            # The real constraint is risk-per-trade (step 3) and the min-viable
+            # lot bump in _compute_mt5_qty.
+            mt5_floor = inp.max_position_pct
             notional = effective_cap * mt5_floor * res.drawdown_taper * inp.kelly_multiplier
             res.kelly_applied = inp.kelly_multiplier
             res.size_scalar_applied = mt5_floor * res.drawdown_taper * inp.kelly_multiplier
         else:
             effective_cap = inp.equity
             res.effective_cap = effective_cap
-            notional = effective_cap * inp.size_scalar
-            res.size_scalar_applied = inp.size_scalar
+            notional = effective_cap * inp.size_scalar * res.drawdown_taper
+            res.size_scalar_applied = inp.size_scalar * res.drawdown_taper
 
         # 2 — Per-position equity cap
         if inp.is_mt5:
-            # MT5: use full equity as position cap (leverage covers the rest)
-            mt5_cap = max(inp.max_position_pct, 1.0)
+            # MT5: use max_position_pct as position cap (leverage scalar)
+            mt5_cap = inp.max_position_pct
             max_pos_notional = mt5_cap * inp.equity if inp.equity > 0 else float("inf")
         else:
             max_pos_notional = inp.max_position_pct * inp.equity if inp.equity > 0 else float("inf")
@@ -128,6 +128,18 @@ class SizingChain:
 
         sl_dist = inp.sl_distance
         entry_price = inp.entry_price
+
+        # — SL direction guard: reject if SL distance is non-positive (inverted or unset)
+        if sl_dist <= 0.0:
+            res.skip_reason = "invalid_sl"
+            tag = "MT5" if inp.is_mt5 else ""
+            logger.warning(
+                "%s %s: entry skipped — invalid sl_distance %.4f (must be > 0)",
+                inp.ticker,
+                tag,
+                sl_dist,
+            )
+            return res
 
         # 3 — Risk-per-trade cap
         max_risk_usd = inp.max_risk_pct / 100.0 * inp.equity if inp.equity > 0 else float("inf")

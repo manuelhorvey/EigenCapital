@@ -273,7 +273,18 @@ def _max_drawdown(arr: np.ndarray) -> float:
 # ──────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────
+CAVEAT = (
+    "\n*** CAVEAT: This robustness suite uses realized (post-hoc) MFE to determine\n"
+    "*** trailing stop placement. In live trading, ultimate MFE is unknown when\n"
+    "*** setting the trail. These results are an UPPER BOUND on trailing stop\n"
+    "*** performance. Real results will be lower because the trail level is set\n"
+    "*** from the running peak, not the ultimate peak.\n"
+    "*** See audit finding C8/H9 in AGENTS.md.\n"
+)
+
+
 def main():
+    print(CAVEAT)
     path = Path("data/processed/trade_lifecycle_results.json")
     if not path.exists():
         print(f"File not found: {path}")

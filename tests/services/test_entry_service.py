@@ -552,10 +552,13 @@ class TestComputeMt5Qty:
         mock_asset.execution_bridge = self._make_bridge(broker)
         qty = svc._compute_mt5_qty(mock_asset, 1.3332, 1.3239)
         # Risk cap = 10%, bypass=false.
-        # risk_usd = $0.74 < $10.62 → cap doesn't bind at this equity level.
-        # Sized qty = 79.7 < 1000 but bypass=false → no bump.
-        # Returns the sized qty (≈79.7), NOT bumped to min_viable=1000.
-        assert 79.0 < qty < 80.0  # sized qty, not bumped
+        # Audit 2026-07-02: MT5 sizing now respects max_position_pct (was
+        # previously forced to 100%). Equity-limit sized qty =
+        # (106.24 * 0.15 * 1.0) / 1.3332 ≈ 11.95.
+        # Risk cap of 10% doesn't bind at this equity level.
+        # Sized qty ~11.95 < 1000 but bypass=false → no bump.
+        # Returns the sized qty (≈11.95), NOT bumped to min_viable=1000.
+        assert 11.0 < qty < 12.0
 
 
 class TestPollPendingEntries:

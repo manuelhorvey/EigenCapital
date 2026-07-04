@@ -119,8 +119,11 @@ class TestEvaluate:
             side_effect=ValueError("test error"),
         ):
             result = registry.evaluate("EURUSD")
-        assert result["risk_level"] == "LOW"
-        assert result["risk_score"] == 0.0
+        # Audit remediation 2026-07-02: fail-closed — HIGH risk + PAUSE,
+        # not LOW risk (was a bug where exception silently cleared risk)
+        assert result["risk_level"] == "HIGH"
+        assert result["recommended_action"] == "PAUSE"
+        assert result["exposure_multiplier"] == 0.0
 
     def test_returns_low_with_no_drift(self, registry):
         with patch(

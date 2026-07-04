@@ -62,6 +62,14 @@ def _is_loopback(host: str) -> bool:
     return host.startswith("127.")
 
 
+def _reset_circuit_breaker() -> None:
+    """Reset MT5 circuit breaker counters. Test-harness use only."""
+    global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
+    with _CIRCUIT_BREAKER_LOCK:
+        _CIRCUIT_BREAKER_FAILURES = 0
+        _CIRCUIT_BREAKER_LAST_FAILURE = 0.0
+
+
 class MT5ConnectionError(Exception):
     pass
 

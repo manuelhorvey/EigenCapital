@@ -3,10 +3,7 @@ import pandas as pd
 import pytest
 
 from backtests.trade_analysis import (
-    DASHBOARD_TICKERS,
-    MODEL_DEPTH,
     REGIME_GEOM,
-    SLTP_CFG,
     _signals,
     aggregate,
     flip_quality,
@@ -316,18 +313,6 @@ class TestPaperStats:
 
 
 class TestConstants:
-    def test_sltp_cfg_is_empty(self):
-        """SLTP_CFG cleared in Phase 4 — stale refs to decommissioned assets."""
-        assert SLTP_CFG == {}
-
-    def test_dashboard_tickers_is_empty(self):
-        """DASHBOARD_TICKERS cleared in Phase 4 — stale refs to decommissioned assets."""
-        assert DASHBOARD_TICKERS == []
-
-    def test_model_depth_is_empty(self):
-        """MODEL_DEPTH cleared in Phase 4 — stale refs to decommissioned assets."""
-        assert MODEL_DEPTH == {}
-
     def test_regime_geom_has_expected_keys(self):
         for key in ["low", "mid", "high"]:
             assert key in REGIME_GEOM

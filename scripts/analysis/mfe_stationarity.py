@@ -211,7 +211,17 @@ def regime_transition_test(all_trades: dict) -> dict:
 # ─────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────
+CAVEAT = (
+    "\n*** CAVEAT: MFE stationarity walk-forward uses realized (post-hoc) MFE.\n"
+    "*** Live trading has no access to the ultimate MFE when setting the trail.\n"
+    "*** The retrace stability test still validates the relative ordering across\n"
+    "*** regimes — a stable ordering is necessary (not sufficient) for live edge.\n"
+    "*** See audit finding C8/H9 in AGENTS.md.\n"
+)
+
+
 def main():
+    print(CAVEAT)
     path = Path("data/processed/trade_lifecycle_results.json")
     if not path.exists():
         print(f"File not found: {path}")

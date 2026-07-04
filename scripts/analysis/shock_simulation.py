@@ -522,7 +522,17 @@ def print_summary_table(all_results: list[tuple[str, ShockResult]]):
 # ── Main ────────────────────────────────────────────────────────────────────
 
 
+CAVEAT = (
+    "\n*** CAVEAT: Shock simulation perturbs realized MFE distribution.\n"
+    "*** The original MFE is post-hoc and the trailing stop is set from the\n"
+    "*** ultimate peak. In live trading, trail must be set from running peak.\n"
+    "*** These results are an UPPER BOUND on real-world robustness.\n"
+    "*** See audit finding C8/H9 in AGENTS.md.\n"
+)
+
+
 def main():
+    logger.info(CAVEAT)
     if not DATA_PATH.exists():
         logger.error("Data file not found: %s", DATA_PATH)
         sys.exit(1)

@@ -124,11 +124,10 @@ class TestL3MutationDetection:
 class TestL4MutationDetection:
     """L4 mutations (tz stripping) must be caught by timestamp provenance checks."""
 
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
     def test_tz_stripping_produces_naive_index(self):
         from datetime import datetime, timezone, timedelta
         base = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        tz_aware = pd.Index([base + timedelta(days=i) for i in range(10)])
+        tz_aware = pd.date_range("2020-01-01", periods=10, freq="D", tz="UTC")
         stripped = L4_tz_stripping(tz_aware)
         assert stripped.tz is None, (
             "L4 mutation: timezone was not stripped — .date conversion may have changed"
@@ -138,11 +137,10 @@ class TestL4MutationDetection:
             "Timestamp provenance detection is incomplete."
         )
 
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on DatetimeIndex construction")
     def test_tz_aware_check_rejects_stripped(self):
         from datetime import datetime, timezone, timedelta
         base = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        tz_aware = pd.Index([base + timedelta(days=i) for i in range(10)])
+        tz_aware = pd.date_range("2020-01-01", periods=10, freq="D", tz="UTC")
         stripped = L4_tz_stripping(tz_aware)
         with pytest.raises(AssertionError):
             assert stripped.tz is not None, "I6 violated: index must be tz-aware"

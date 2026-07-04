@@ -15,15 +15,32 @@ ET = pytz.timezone("US/Eastern")
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _STORE: object | None = None
+_STORE_LOCK = threading.Lock()
 
 
-def _get_store():
+def _get_store(override: object | None = None):
+    """Get the global StateStore, optionally overriding for testing/multi-instance.
+
+    Returns ``override`` immediately if provided. Otherwise returns the cached
+    singleton, creating one on first call.
+    """
+    if override is not None:
+        return override
     global _STORE
     if _STORE is None:
-        from paper_trading.state_store import StateStore
+        with _STORE_LOCK:
+            if _STORE is None:
+                from paper_trading.state_store import StateStore
 
-        _STORE = StateStore(BASE)
+                _STORE = StateStore(BASE)
     return _STORE
+
+
+def _reset_store() -> None:
+    """Reset the StateStore cache. Test-harness use only."""
+    global _STORE
+    with _STORE_LOCK:
+        _STORE = None
 
 
 _MIN_REQUEST_INTERVAL = 1.0
@@ -51,6 +68,14 @@ def set_mt5_client(client: object, symbol_map: dict[str, str] | None = None) -> 
         _mt5_client = client
         _mt5_symbol_map = symbol_map or {}
     logger.info("MT5 data provider installed — all data fetches will use MT5 bridge")
+
+
+def clear_mt5_client() -> None:
+    """Tear down the global MT5 client. Test-harness use only."""
+    global _mt5_client, _mt5_symbol_map
+    with _mt5_client_lock:
+        _mt5_client = None
+        _mt5_symbol_map = {}
 
 
 def _rate_limit() -> None:

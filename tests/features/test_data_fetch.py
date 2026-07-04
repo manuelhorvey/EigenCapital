@@ -91,22 +91,19 @@ class TestCycleCache:
 
 
 class TestNormalizeIndex:
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on tz_localize")
     def test_converts_naive_to_utc(self):
-        idx = pd.DatetimeIndex(["2026-01-01", "2026-01-02"])
+        idx = pd.to_datetime(pd.Index(["2026-01-01", "2026-01-02"]))
         result = _normalize_index(idx)
         assert result.tz is not None
         assert str(result.tz) == "UTC"
 
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on tz_localize")
     def test_converts_et_to_utc(self):
-        idx = pd.DatetimeIndex(["2026-01-01"], tz="US/Eastern")
+        idx = pd.to_datetime(pd.Index(["2026-01-01"]), utc=True).tz_convert("US/Eastern")
         result = _normalize_index(idx)
         assert str(result.tz) == "UTC"
 
-    @pytest.mark.skip(reason="CI runner pandas C extensions segfault on tz_localize")
     def test_normalizes_to_midnight(self):
-        idx = pd.DatetimeIndex(["2026-01-01 14:30:00"], tz="UTC")
+        idx = pd.to_datetime(pd.Index(["2026-01-01 14:30:00"]), utc=True)
         result = _normalize_index(idx)
         assert result[0].hour == 0
         assert result[0].minute == 0

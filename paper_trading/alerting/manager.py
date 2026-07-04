@@ -91,7 +91,14 @@ _alert_manager: AlertManager | None = None
 _alert_manager_lock = threading.Lock()
 
 
-def global_alert_manager() -> AlertManager:
+def global_alert_manager(override: AlertManager | None = None) -> AlertManager:
+    """Get the global AlertManager, optionally overriding for testing/multi-instance.
+
+    Returns ``override`` immediately if provided. Otherwise returns the cached
+    singleton, creating one on first call.
+    """
+    if override is not None:
+        return override
     global _alert_manager
     if _alert_manager is None:
         with _alert_manager_lock:

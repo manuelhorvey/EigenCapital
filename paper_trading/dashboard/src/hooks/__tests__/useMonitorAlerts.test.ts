@@ -2,9 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { useMonitorAlerts } from '../useMonitorAlerts'
 
+// Replace the module impl with a stateful stub so per-test scenarios are
+// observable. We import the module namespace to spy on later, since
+// vi.mock hoisted at top of file would replace it globally.
+import * as snapshotModule from '../useSystemSnapshot'
+
+const bundleState: { current: unknown } = { current: { data: undefined } }
+
 // Mock useSystemSnapshot
 vi.mock('../useSystemSnapshot', () => ({
-  useSystemSnapshot: () => ({ data: undefined }),
+  useSystemSnapshot: () => bundleState.current,
 }))
 
 // Use a shared reference so the test can inspect the channel's spies
@@ -108,5 +115,97 @@ describe('useMonitorAlerts', () => {
     expect(secondChannel.close).not.toHaveBeenCalled()
     // The test asserts that a NEW channel instance (not the old one)
     // has addEventListener called — proving re-creation worked
+  })
+})
+
+// ── B2: dismissal state migration bug ──────────────────────────────
+//
+// The dashboard persists dismissed alerts to sessionStorage keyed by
+// the dashboard contract version. The prior implementation deferred the
+// version-key update to a useEffect, so the first render's lookup key
+// was always the unversioned 'ec-dismissed-alerts'. As soon as the bundle
+// arrived, the lookup key rotated to the versioned form — silently
+// invalidating every prior dismissal.
+//
+// These tests pin down the synchronous-key behavior.
+
+function setBundle(version: string, haltedAssets: string[]) {
+  const assets = Object.fromEntries(
+    haltedAssets.map(name => [
+      name,
+      {
+        halt: { halted: true, reasons: ['test reason'] },
+        metrics: {},
+      },
+    ])
+  )
+  bundleState.current = {
+    data: {
+      meta: {
+        version,
+        server_time: '2026-07-04T12:00:00Z',
+        snapshot_time: '2026-07-04T12:00:00Z',
+        snapshot_sequence_id: 1,
+        status: 'ok',
+      },
+      snapshot: {
+        timestamp: '2026-07-04T12:00:00Z',
+        assets,
+        halt_conditions: { drawdown: 0, prob_drift: 0 },
+      },
+      live: { health: null, mt5: null },
+    },
+  }
+}
+
+describe('useMonitorAlerts — dismissal migration (B2)', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    bundleState.current = { data: undefined }
+    broadcastInstances = []
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('uses the versioned key on the FIRST render with non-empty version', async () => {
+    // Pre-seed an alert as "dismissed" under the versioned key (the form
+    // recorded by another tab or a previous session).
+    const persistedKey = 'ec-dismissed-alerts-v1.0.0'
+    sessionStorage.setItem(persistedKey, JSON.stringify(['halt-test-reason']))
+
+    setBundle('v1.0.0', ['EURUSD'])
+
+    const { result, unmount } = renderHook(() => useMonitorAlerts())
+
+    await waitFor(() => {
+      // First render with a halted asset should NOT surface a EURUSD
+      // alert because the prior dismissal at the versioned key applies.
+      expect(result.current.length).toBe(0)
+    })
+    unmount()
+  })
+
+  it('does not expose a window where the unversioned key reads old', async () => {
+    // The pre-bug version would look up unversioned key first (returning
+    // []) and then the versioned key on the second render, exposing
+    // dismissed alerts incorrectly across the migration.
+    const persistedUnversioned = 'ec-dismissed-alerts'
+    sessionStorage.setItem(persistedUnversioned, JSON.stringify(['halt-test-reason']))
+
+    setBundle('v2.0.0', ['EURUSD'])
+
+    const { result, unmount } = renderHook(() => useMonitorAlerts())
+
+    await waitFor(() => {
+      // The EURUSD halted alert appears (correct), because the prior
+      // dismissal was unversioned (legacy) and the new version starts
+      // fresh. The bug B2 fix must NOT mistakenly read the unversioned
+      // key on the versioned render.
+      expect(result.current.some((a: { asset: string }) => a.asset === 'EURUSD')).toBe(true)
+    })
+    unmount()
   })
 })

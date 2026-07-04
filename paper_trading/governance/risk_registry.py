@@ -236,7 +236,7 @@ class RiskRegistry:
                     severity=Severity.CRITICAL,
                     title=f"Risk governor failed for {asset}",
                     message="Risk evaluation crashed — returning HIGH risk, PAUSE action",
-                    correlation_id=asset,
+                    asset=asset,
                 )
             except Exception:
                 logger.exception("risk_registry.evaluate(%s) — AlertManager dispatch also failed", asset)

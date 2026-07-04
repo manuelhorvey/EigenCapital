@@ -166,8 +166,12 @@ class TestEvaluate:
 
         monkeypatch.setattr(risk_registry, "get_shadow_intelligence", failing_get)
         result = risk_module.evaluate("EURUSD")
-        assert result["risk_level"] == "LOW"
-        assert result["risk_score"] == 0.0
+        # Audit remediation 2026-07-02: fail-closed — HIGH risk + PAUSE,
+        # not LOW risk (was a bug where exception silently cleared risk)
+        assert result["risk_level"] == "HIGH"
+        assert result["recommended_action"] == "PAUSE"
+        assert result["exposure_multiplier"] == 0.0
+        assert "RISK_GOVERNOR_FAILURE" in result["risk_flags"]
 
 
 # ── Get latest ──────────────────────────────────────────────────────────

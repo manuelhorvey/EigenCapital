@@ -1202,7 +1202,7 @@ class EngineOrchestrator:
                             title=f"MT5 orphan abandonments reached {self._abandoned_orphans}",
                             message=f"Abandoned orphan for {name} after {self.MAX_CLEANUP_RETRIES} retries. "
                                     f"Manual MT5 cleanup required. Queue was: {queue}",
-                            correlation_id="mt5_orphan_abandonment",
+                            asset=name,
                         )
                     except Exception:
                         logger.exception("Alerter dispatch failed for orphan abandonment")

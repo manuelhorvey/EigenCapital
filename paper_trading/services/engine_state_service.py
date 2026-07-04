@@ -156,6 +156,10 @@ class EngineStateService:
     def _compute_portfolio_summary(self, overall_validity: float, any_halted: bool) -> dict:
         engine = self.engine
         n = len(engine.assets) or 1
+        # Lazy import: paper_trading.engine pulls from this module at import
+        # time, so a top-level import of ExecutionState here creates the
+        # classic engine ↔ services circular dependency. Function-local import
+        # breaks the cycle without forcing one-way traffic.
         from paper_trading.engine import ExecutionState
 
         exec_state = (

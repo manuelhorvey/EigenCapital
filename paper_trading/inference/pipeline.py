@@ -146,11 +146,22 @@ class AssetInferencePipeline:
         else:
             asset._calibration_applied = False
 
-        # Guard: if calibration is enabled but failed, neutralize probabilities
-        # to prevent uncalibrated raw XGBoost probabilities from driving trades.
+        # Guard: if calibration is enabled but failed, handle per-asset:
+        #   - No calibrator trained for this asset → use raw XGBoost probabilities with warning
+        #   - Calibrator exists but inference failed → force neutral with error
         _cal_cfg = get_config().defaults.get("calibration", {})
         if _cal_cfg.get("enabled", False) and not asset._calibration_applied:
-            proba[:, :] = [0.0, 1.0, 0.0]  # force neutral (100% hold, 0% long/short)
+            if cal_registry is None or asset.name not in cal_registry._calibrators:
+                logger.warning(
+                    "%s: calibration enabled but no calibrator found — using raw XGBoost probabilities",
+                    asset.name,
+                )
+            else:
+                logger.error(
+                    "%s: calibration inference failed — forcing neutral",
+                    asset.name,
+                )
+                proba[:, :] = [0.0, 1.0, 0.0]
 
         result, pos_size = self._compute_sizing_and_signal(asset, df, proba, _infer_idx, threshold)
 

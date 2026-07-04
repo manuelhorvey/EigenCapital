@@ -88,10 +88,11 @@ class PortfolioAdmissionController:
         if signal.notional_requested > snapshot.leverage_remaining:
             return FilterResult(False, "leverage_budget_exhausted")
 
-        # 4. Drawdown headroom
+        # 4. Drawdown headroom: check projected loss won't exceed max_drawdown_pct
+        max_dd = abs(self._mode.get("max_drawdown_pct", -0.15))
+        current_dd = abs(snapshot.drawdown_pct)
         projected_dd_pct = signal.risk_usd / max(snapshot.total_equity, 1.0)
-        max_loss_frac = abs(snapshot.max_daily_loss) / max(snapshot.total_equity, 1.0)
-        if abs(snapshot.drawdown_pct) + projected_dd_pct > max_loss_frac:
+        if current_dd + projected_dd_pct > max_dd:
             return FilterResult(False, "drawdown_limit_would_be_exceeded")
 
         # 5. Factor exposure headroom

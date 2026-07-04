@@ -521,10 +521,18 @@ class EngineStateService:
             for a in state.get("assets", {}).values()
         )
 
-        net_side = sum(
-            (a.get("metrics", {}).get("position") or {}).get("side") == "long" for a in state.get("assets", {}).values()
+        total_long = sum(
+            a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
+            for a in state.get("assets", {}).values()
+            if (a.get("metrics", {}).get("position") or {}).get("side") == "long"
         )
-        net = (net_side / len(state.get("assets", {}))) * 2 - 1 if state.get("assets") else 0
+        total_short = sum(
+            a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
+            for a in state.get("assets", {}).values()
+            if (a.get("metrics", {}).get("position") or {}).get("side") == "short"
+        )
+        gross_notional = total_long + total_short
+        net = (total_long - total_short) / gross_notional if gross_notional > 0 else 0.0
 
         drawdown = p.get("portfolio_drawdown", 0.0)
 

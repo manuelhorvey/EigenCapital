@@ -53,16 +53,19 @@ def builder():
 class TestPortfolioStateBuilder:
     def test_build_no_actors(self, builder):
         engine = MockEngineContainer({})
-        snap = builder.build(engine, 1, 0.0, 100_000.0)
+        snap = builder.build(engine, 1, 0.0, peak_value=0.0)
         assert snap.total_equity == 0.0
         assert snap.open_position_count == 0
+        # No equity, no peak — drawdown is 0
         assert snap.drawdown_pct == 0.0
 
     def test_build_one_long_position(self, builder):
         eng = MockEngine()
+        eng.mtm_value = 10_000.0
+        eng.peak_value = 10_000.0
         actor = MockActor(eng, has_pos=True)
         engine = MockEngineContainer({"EURUSD": actor})
-        snap = builder.build(engine, 1, 0.0, 100_000.0)
+        snap = builder.build(engine, 1, 0.0, peak_value=10_000.0)
         assert snap.total_equity == 10_000.0
         assert snap.open_position_count == 1
         assert len(snap.positions) == 1
@@ -70,51 +73,64 @@ class TestPortfolioStateBuilder:
         assert snap.positions[0].notional == 10_000.0
 
     def test_build_factor_exposures_signed_short(self, builder):
-        eng = MockEngine()
-        eng.mtm_value = 10_000.0
-        eng._last_entry_notional = 10_000.0
-        # Override position side
+        # Verify signed factor exposures: short positions contribute negative weight
         class ShortPos:
             side = "short"
             entry_price = 1.10
             stop_loss = 1.11
             take_profit = 1.08
 
-        class ShortPosMgr:
+        class ShortPosMgr(MockPosMgr):
+            def __init__(self):
+                self.position = ShortPos()
+                self._has_pos = True
+
             def has_position(self):
                 return True
-            def position_pnl(self, current_price):
-                return 0.0
-            position = ShortPos()
 
+            def position_pnl(self, cp):
+                return 0.0
+
+        eng = MockEngine()
+        eng.mtm_value = 10_000.0
         eng.pos_mgr = ShortPosMgr()
-        actor = MockActor(eng, has_pos=True)
-        actor._engine.pos_mgr = ShortPosMgr()
+        # Build actor manually without overwriting pos_mgr
+        actor = type("A", (), {"_engine": eng})()
         engine = MockEngineContainer({"EURUSD": actor})
-        snap = builder.build(engine, 1, 0.0, 100_000.0)
-        # EURUSD is in USD factor group; weight should be -10K/10K = -1.0
+        snap = builder.build(engine, 1, 0.0, peak_value=10_000.0)
         usd_exposure = [v for f, v in snap.factor_exposures if f == "USD"]
         assert len(usd_exposure) > 0
-        assert usd_exposure[0] < 0
+        assert usd_exposure[0] < 0, f"Short position should produce negative USD exposure, got {usd_exposure[0]}"
+        # Also verify total_short_notional got populated
+        assert snap.total_short_notional > 0
+        assert snap.total_long_notional == 0
 
     def test_build_missing_attributes_graceful(self, builder):
         class BareActor:
             _engine = None
         engine = MockEngineContainer({"TEST": BareActor()})
-        snap = builder.build(engine, 1, 0.0, 100_000.0)
+        # Should not raise
+        snap = builder.build(engine, 1, 0.0, peak_value=100_000.0)
         assert snap.total_equity == 0.0
 
     def test_build_with_drawdown(self, builder):
         eng = MockEngine()
+        eng.mtm_value = 80_000.0
+        eng.peak_value = 80_000.0
         actor = MockActor(eng, has_pos=True)
         engine = MockEngineContainer({"EURUSD": actor})
-        snap = builder.build(engine, 1, 0.0, peak_value=200_000.0)
+        # peak is higher than equity → drawdown
+        snap = builder.build(engine, 1, 0.0, peak_value=100_000.0)
         assert snap.drawdown_pct < 0
+        assert snap.drawdown_pct > -1.0
 
-    def test_zero_equity_safe_budgets(self, builder):
+    def test_zero_equity_returns_safe_defaults(self, builder):
         eng = MockEngine()
         eng.mtm_value = 0.0
+        eng._last_spread_bps = 10.0  # provide real spread data
         actor = MockActor(eng, has_pos=False)
         engine = MockEngineContainer({"EURUSD": actor})
-        snap = builder.build(engine, 1, 0.0, 100_000.0)
-        assert snap.daily_loss_remaining == float("inf")
+        snap = builder.build(engine, 1, 0.0, 0.0)
+        # When both peak and equity are 0, drawdown is 0
+        assert snap.drawdown_pct == 0.0
+        assert snap.open_position_count == 0

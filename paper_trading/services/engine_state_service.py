@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import pandas as pd
@@ -61,8 +62,15 @@ class EngineStateService:
         ad = {}
         overall_validity = 0.0
         any_halted = False
+        # Parallelize I/O-bound refresh_price() before serial metric/halt/validity
+        # work. Sequential refresh was the dominant latency for 22 assets.
+        names = list(engine.assets.keys())
+        with ThreadPoolExecutor(max_workers=min(8, len(names))) as pool:
+            future_to_name = {pool.submit(self._safe_refresh, name, asset): name for name, asset in engine.assets.items()}
+            for future in as_completed(future_to_name):
+                # result discarded — side effect is refresh_price
+                future.result()
         for name, asset in engine.assets.items():
-            asset.refresh_price()
             metrics = asset.get_metrics()
             halt = asset.check_halt_conditions(metrics=metrics)
             validity = asset.update_validity(halt=halt)
@@ -513,6 +521,13 @@ class EngineStateService:
             cash_buffer=cash_buffer,
             asset_snapshots=asset_snapshots,
         )
+
+    def _safe_refresh(self, name: str, asset) -> None:
+        """refresh_price() wrapper that swallows exceptions per-asset."""
+        try:
+            asset.refresh_price()
+        except Exception:
+            logger.exception("%s: refresh_price failed in state.json build", name)
 
     def _append_equity_history(self, state):
         engine = self.engine

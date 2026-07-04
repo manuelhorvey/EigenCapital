@@ -231,7 +231,8 @@ class RiskRegistry:
         except Exception:
             logger.exception("risk_registry.evaluate(%s) failed — returning fallback signal", asset)
             try:
-                from paper_trading.alerting.manager import global_alert_manager, Severity
+                from paper_trading.alerting.manager import Severity, global_alert_manager
+
                 global_alert_manager().alert(
                     severity=Severity.CRITICAL,
                     title=f"Risk governor failed for {asset}",

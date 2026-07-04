@@ -66,7 +66,9 @@ class EngineStateService:
         # work. Sequential refresh was the dominant latency for 22 assets.
         names = list(engine.assets.keys())
         with ThreadPoolExecutor(max_workers=min(8, len(names))) as pool:
-            future_to_name = {pool.submit(self._safe_refresh, name, asset): name for name, asset in engine.assets.items()}
+            future_to_name = {
+                pool.submit(self._safe_refresh, name, asset): name for name, asset in engine.assets.items()
+            }
             for future in as_completed(future_to_name):
                 # result discarded — side effect is refresh_price
                 future.result()

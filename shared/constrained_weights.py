@@ -7,7 +7,7 @@ import without referencing each other.
 
 from __future__ import annotations
 
-import logging
+import logging  # noqa: I001
 import threading
 
 import numpy as np
@@ -15,13 +15,12 @@ import pandas as pd
 
 logger = logging.getLogger("eigencapital.constrained_weights")
 
-from shared.factor_model import (
+from shared.factor_model import (  # noqa: E402
     DEFAULT_FACTOR_LIMITS,
     FACTOR_GROUPS,
     compute_factor_exposures,
     factor_exposure_penalty,
 )
-
 
 # ── Last-valid-weights cache for optimizer fallback ──
 _last_valid_weights: dict[str, dict[str, float]] = {}

@@ -253,6 +253,7 @@ class PortfolioStateBuilder:
 
         # ── confidence_ok ──
         from paper_trading.config_manager import get_config as get_paper_config
+
         cfg = get_paper_config()
         asset_cfg = cfg.assets.get(name, {}) if hasattr(cfg, "assets") else {}
         min_conf = asset_cfg.get("min_confidence", 55.0)

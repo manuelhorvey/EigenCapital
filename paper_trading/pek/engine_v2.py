@@ -71,10 +71,7 @@ class RiskEngineV2:
         # ── Effective risk ──
         effective = base_risk * dd_scalar * perf_scalar * vol_scalar
         # Allow full halt (effective=0) at drawdown limit; otherwise apply min_risk floor
-        if dd_scalar == 0.0:
-            effective = 0.0
-        else:
-            effective = max(min_risk, min(base_risk, effective))
+        effective = 0.0 if dd_scalar == 0.0 else max(min_risk, min(base_risk, effective))
 
         # ── Portfolio heat ──
         max_heat = self._mode.get("max_leverage", 2.0)

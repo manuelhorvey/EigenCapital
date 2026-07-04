@@ -247,9 +247,24 @@ def run_walk_forward(
         n1 = (y_tr == 1).sum()
         imbalance_ratio = n0 / max(n1, 1)
 
-        # Train on ALL fold training data (matching production expanding-window
-        # approach). No validation split — walk-forward folds are too small for
-        # reliable early stopping, and production trains on all available data.
+        # ── Validation split (matching production early stopping) ──
+        # When the fold has enough data, reserve 20% for validation + gap.
+        # Otherwise fall back to training on all data.
+        n_tr = len(X_tr)
+        n_val = max(int(n_tr * 0.2), 1)
+        val_start = n_tr - n_val - gap
+        use_early_stopping = val_start >= 50
+        if use_early_stopping:
+            X_tr_fit = X_tr.iloc[:val_start]
+            y_tr_fit = y_tr.iloc[:val_start]
+            X_val = X_tr.iloc[val_start + gap:]
+            y_val = y_tr.iloc[val_start + gap:]
+            eval_set = [(X_val[alpha_cols], y_val)]
+        else:
+            X_tr_fit = X_tr
+            y_tr_fit = y_tr
+            eval_set = None
+
         model = xgb.XGBClassifier(
             n_estimators=300,
             max_depth=max_depth,
@@ -260,16 +275,22 @@ def run_walk_forward(
             n_jobs=1,
             tree_method="hist",
             verbosity=0,
+            early_stopping_rounds=50 if eval_set else None,
         )
         # ── Sample weights (direction-weighted training) ──
         # When --weighted is passed, BUY samples (label=1) get 2x weight to
         # penalize BUY misclassifications more heavily in the loss function.
         fit_kwargs = {}
         if sample_weight_flag:
-            y_tr_vals = y_tr.values if hasattr(y_tr, "values") else np.asarray(y_tr)
+            y_tr_vals = y_tr_fit.values if hasattr(y_tr_fit, "values") else np.asarray(y_tr_fit)
             fit_kwargs["sample_weight"] = np.where(y_tr_vals == 1, 2.0, 1.0)
 
-        model.fit(X_tr[alpha_cols], y_tr, **fit_kwargs)
+        if eval_set:
+            model.fit(X_tr_fit[alpha_cols], y_tr_fit, eval_set=eval_set, verbose=False, **fit_kwargs)
+        else:
+            model.fit(X_tr_fit[alpha_cols], y_tr_fit, **fit_kwargs)
+        if use_early_stopping:
+            logger.info("  fold %d: early stopping at %d/%d trees", fold, model.best_iteration + 1, model.n_estimators)
 
         base_p_tr = model.predict_proba(X_tr[alpha_cols])[:, 1]
         base_p_long = model.predict_proba(X_te[alpha_cols])[:, 1]
@@ -315,6 +336,12 @@ def run_walk_forward(
         short_rate = (signals == -1).mean()
         flat_rate = (signals == 0).mean()
 
+        # Spearman rank correlation IC (Information Coefficient)
+        from scipy.stats import spearmanr
+        ic, ic_p = spearmanr(p_long, y_te.fillna(0))
+        ic = ic if not np.isnan(ic) else 0.0
+        ic_p = ic_p if not np.isnan(ic_p) else 1.0
+
         window = {
             "asset": asset_name,
             "fold": fold,
@@ -326,6 +353,8 @@ def run_walk_forward(
             "test_samples": len(X_te),
             "hit_rate": round(float(hit_rate), 4),
             "directional": round(float(directional), 4),
+            "spearman_ic": round(float(ic), 6),
+            "spearman_ic_pvalue": round(float(ic_p), 6),
             "long_rate": round(float(long_rate), 4),
             "short_rate": round(float(short_rate), 4),
             "flat_rate": round(float(flat_rate), 4),

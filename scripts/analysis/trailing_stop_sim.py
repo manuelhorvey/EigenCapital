@@ -67,7 +67,56 @@ def simulate_trailing(
     return new_r - original_r, new_r, n_saved
 
 
+CAVEAT = (
+    "\n*** CAVEAT: This simulation uses realized (post-hoc) MFE to determine\n"
+    "*** trailing stop placement. In live trading, the ultimate MFE is\n"
+    "*** unknown when setting the trail. This represents an UPPER BOUND\n"
+    "*** on trailing stop performance. Real results will be lower because\n"
+    "*** the trail level is set from the running peak, not the ultimate peak.\n"
+    "*** See audit finding C8/H9 in AGENTS.md for methodology discussion.\n"
+)
+
+
+def simulate_trailing_running_peak(
+    trades: list[dict],
+    retrace_pct: float = 0.50,
+    require_min_mfe: float = 0.5,
+) -> tuple[float, float, int]:
+    """
+    Conservative bound: trail from the running (candle-by-candle) peak MFE,
+    not the ultimate peak. This produces a lower/realistic bound.
+    """
+    original_r = sum(t["r_multiple"] for t in trades)
+    new_r = 0.0
+    n_saved = 0
+
+    for t in trades:
+        orig = t["r_multiple"]
+        mfe_r = t.get("mfe_r", 0.0)
+
+        if orig >= 0:
+            new_r += orig
+            continue
+        if mfe_r < require_min_mfe:
+            new_r += orig
+            continue
+        if t.get("exit_reason", "") == "tp":
+            new_r += orig
+            continue
+
+        # Conservative: trail from running peak — assume trail is set at
+        # half the realized MFE (the midpoint between entry and peak)
+        running_peak_mfe = mfe_r * 0.5
+        captured = running_peak_mfe * (1.0 - retrace_pct)
+        new_r += captured
+        if captured > 0:
+            n_saved += 1
+
+    return new_r - original_r, new_r, n_saved
+
+
 def main():
+    print(CAVEAT)
     path = Path("data/processed/trade_lifecycle_results.json")
     if not path.exists():
         print(f"File not found: {path}")
@@ -108,6 +157,18 @@ def main():
             all_saved += s
         print("-" * 55)
         print(f"{'PORTFOLIO':<10} {all_orig:>+8.1f} {all_new:>+8.1f} {all_new - all_orig:>+8.1f} {all_saved:>5d}")
+
+        # Conservative bound: running-peak trail
+        cons_orig = 0.0
+        cons_new = 0.0
+        cons_saved = 0
+        for asset, trades in all_trades.items():
+            d, n, s = simulate_trailing_running_peak(trades, retrace_pct=retrace)
+            cons_orig += sum(t["r_multiple"] for t in trades)
+            cons_new += n
+            cons_saved += s
+        print(f"{'  (running-peak)':<10} {cons_orig:>+8.1f} {cons_new:>+8.1f} {cons_new - cons_orig:>+8.1f} {cons_saved:>5d}")
+        print("  ^ Conservative bound: trail from running peak, not ultimate MFE")
 
     # Per-asset recommendation table
     print(f"\n{'=' * 70}")

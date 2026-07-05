@@ -286,7 +286,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
  1. Fetch 5y OHLCV (MT5 or yfinance)
  2. Normalize timestamps (UTC TZ-naive)
  3. Refresh latest price (MT5 or 5d fallback)
-  4. Build alpha features (17 per-asset + 4 cross-asset = 21 total; includes core momenta, COT, trend-exhaustion, and RSI divergence when OHLCV available)
+  4. Build alpha features (15 per-asset + 4 cross-asset = 19 alpha columns + COT features for covered pairs + 7 regime features; includes core momenta, carry, trend-exhaustion, and RSI divergence when OHLCV available)
  5. Generate regime features from OHLCV (7 cols)
  6. Compute archetype features (ema_spread, adx, rsi, bb_zscore)
  7. PSI drift check (rolling 21d vs baseline, skipped first cycle)
@@ -321,7 +321,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
       t. Route execution policy — direct to PaperBroker or MT5Broker
       u. Poll deferred entries — execute pending deferred orders
       v. Update prob history — record probability history for drift monitoring
-  17. Route through governance (14 layers + PEK admission + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
+   17. Route through governance (16 layers + PEK admission + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
   19. Position sizing chain (drawdown taper → position cap → risk cap → min viable gate)
     → PEK budget enforcement (closes lowest-ranked positions if portfolio notional exceeds max)
@@ -335,7 +335,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
 
 EigenCapital uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, PEK admission controller, and HealthMonitor circuit breaker.
 
-## Governance Layers (14 + HealthMonitor + PEK)
+## Governance Layers (16 core + HealthMonitor + PEK + VaR/CVaR + sizing guardrails)
 
 | Layer                  | Scope      | Effect                    |
 | ---------------------- | ---------- | ------------------------- |

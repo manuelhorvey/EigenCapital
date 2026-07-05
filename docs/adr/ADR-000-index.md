@@ -25,15 +25,15 @@ Architecture Decision Records for the EigenCapital quantitative trading framewor
 | 008 | [Five-Year Training Window Over Three-Year](ADR-008-five-year-window.md) | Accepted | 2024-Q2 |
 | 009 | [Accepted 150-250 Annual Trades for XLF](ADR-009-trade-count-accepted.md) | Accepted | 2024-Q2 |
 | 010 | [Driver Atlas Framework — Asset-Specific Feature Sets](ADR-010-driver-atlas.md) | Accepted | 2024-Q3 |
-| 011 | [EURUSD Blocked Pending COT Data Integration](ADR-011-eurusd-blocked.md) | Accepted | 2024-Q3 |
+| 011 | [EURUSD Blocked Pending COT Data Integration](ADR-011-eurusd-blocked.md) | Superseded | 2024-Q3 |
 | 011a | [EURUSD Unblocked — COT Integration Complete](ADR-011a-eurusd-unblocked.md) | Accepted | 2025-Q1 |
-| 012 | [Three-Asset Portfolio — XLF, BTC, NZDJPY](ADR-012-three-asset-portfolio.md) | Accepted | 2024-Q3 |
+| 012 | [Three-Asset Portfolio — XLF, BTC, NZDJPY](ADR-012-three-asset-portfolio.md) | Superseded | 2024-Q3 |
 | 013 | [Bootstrap Validation as Deployment Gate](ADR-013-bootstrap-validation.md) | Accepted | 2024-Q3 |
 | 014 | [Zero Manual Overrides Policy During Paper Trading](ADR-014-zero-overrides-policy.md) | Accepted | 2024-Q4 |
-| 015 | [Asset-Specific Label Horizons (tb20 vs fwd60)](ADR-015-asset-specific-label-horizons.md) | Accepted | 2025-Q1 |
+| 015 | [Asset-Specific Label Horizons (tb20 vs fwd60)](ADR-015-asset-specific-label-horizons.md) | Superseded | 2025-Q1 |
 | 016 | [GC=F Gold Validation](ADR-016-gold-validation.md) | Accepted | 2025-Q2 |
-| 017 | [Inference Path Lookahead Investigation](ADR-017-inference-lookahead-investigation.md) | Accepted | 2026-05 |
-| 018 | [BTC Satellite Isolation With Regime Gate](ADR-018-btc-satellite.md) | Accepted | 2026-05 |
+| 017 | [Inference Path Lookahead Investigation](ADR-017-inference-lookahead-investigation.md) | Accepted (Investigation) | 2026-05 |
+| 018 | [BTC Satellite Isolation With Regime Gate](ADR-018-btc-satellite.md) | Accepted (Not Implemented) | 2026-05 |
 | 019 | [Feature Importance Stability Tracking as Governance Signal](ADR-019-feature-importance-stability.md) | Accepted | 2026-05 |
 | 020 | [Meta-Labeling Layer as Confidence Filter](ADR-020-meta-labeling.md) | Accepted | 2026-05 |
 | 021 | [Simulation Snapshot System for Deterministic Replay](ADR-021-simulation-snapshot.md) | Accepted | 2026-05 |

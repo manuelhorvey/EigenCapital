@@ -1,8 +1,8 @@
 # EigenCapital — Risk & Governance Layer
 
-16 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, PEK admission, HealthMonitor circuit breaker, and weekend trading governance, operating at different frequencies and granularities.
+16 core governance mechanisms (plus 3 adaptive budget layers: RiskEngineV2, PEK admission controller, PerformanceState velocity), plus decision pipeline suppression stages, position sizing guardrails, HealthMonitor circuit breaker, and weekend trading governance, operating at different frequencies and granularities.
 
-## Governance Layers (14 + HealthMonitor + PEK)
+## Governance Layers (16 core)
 
 | Layer | Frequency | Scope | Effect |
 |---|---|---|---|

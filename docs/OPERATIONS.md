@@ -227,7 +227,7 @@ curl http://127.0.0.1:5000/ping
 **What to verify on the dashboard (use the anchor nav bar to jump between sections):**
 
 - Portfolio total value and daily return are updating (trend arrows on metric cards show direction)
-- All 16 assets show a signal (BUY/SELL/FLAT) with confidence — click column headers in the Signals table to sort by confidence descending
+- All 22 assets show a signal (BUY/SELL/FLAT) with confidence — click column headers in the Signals table to sort by confidence descending
 - Current price is within ~0.5% of market price
 - No asset is in halt (check asset cards for RED status)
 - Per-asset drawdown % is not approaching per-asset limits
@@ -253,7 +253,7 @@ curl http://127.0.0.1:5000/ping
 
 ### Log Check
 
-After startup (Mon–Fri during market hours), verify log output shows signal lines for all 16 assets:
+After startup (Mon–Fri during market hours), verify log output shows signal lines for all 22 assets:
 ```
 GC: BUY conf=XX% @ $XX.XX
 USDCHF: BUY conf=XX% @ $XX.XX
@@ -307,7 +307,7 @@ for name, a in s['assets'].items():
 
 **Expectations:**
 
-All 16 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 3 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
+All 22 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 3 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
 
 ### Narrative Check (Monday Morning)
 

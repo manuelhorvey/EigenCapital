@@ -1,23 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
+import { WalResponseSchema } from '../lib/schemas'
+import type { z } from 'zod'
 
-export interface WalEvent {
-  sequence: number
-  timestamp: string
-  event_type: 'features_snapshot' | 'inference_output' | 'decision_output'
-  payload: Record<string, unknown>
-}
-
-interface WalResponse {
-  events: WalEvent[]
-  total: number
-  asset: string
-}
+export type WalEvent = z.infer<typeof WalResponseSchema>['events'][number]
 
 export function useWalTimeline(assetName: string) {
   return useQuery({
     queryKey: ['walTimeline', assetName],
-    queryFn: () => fetchApi<WalResponse>(`/wal/${assetName}.json`),
+    queryFn: async () => {
+      const json = await fetchApi<unknown>(`/wal/${assetName}.json`)
+      return WalResponseSchema.parse(json)
+    },
     refetchInterval: 30_000,
     staleTime: 10_000,
     enabled: !!assetName,

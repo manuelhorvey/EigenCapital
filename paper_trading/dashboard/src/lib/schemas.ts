@@ -666,3 +666,132 @@ export const EngineSnapshotSchema = z.object({
   peak_portfolio_value: z.number().nullable().optional(),
   breaker_daily_pnl: z.array(z.number()).nullable().optional(),
 })
+
+// ── Bundle metadata (top-level meta in /state-bundle.json) ────────
+
+export const BundleMetaSchema = z.object({
+  version: z.string(),
+  server_time: z.string(),
+  status: z.enum(['ok', 'degraded', 'partial_failure']),
+  snapshot_time: z.string(),
+  snapshot_sequence_id: z.number(),
+  max_live_age_seconds: z.number().nullable(),
+  request_id: z.string(),
+})
+
+// ── Live source metadata (inside bundle.live) ──────────────────────
+
+export const LiveSourceMetaSchema = z.object({
+  fetch_time: z.string(),
+  fetch_age_seconds: z.number(),
+  is_fresh: z.boolean(),
+  error: z.string().optional(),
+})
+
+// ── MT5 status (inside bundle.live.mt5) ──────────────────────────
+
+export const MT5AccountSchema = z.object({
+  portfolio_value: z.number().optional(),
+  positions: z.array(z.unknown()).optional(),
+}).catchall(z.unknown())
+
+export const MT5StatusSchema = z.object({
+  connected: z.boolean(),
+  status: z.enum(['CONNECTED', 'DISCONNECTED', 'ERROR', 'UNKNOWN']),
+  last_heartbeat: z.string().nullable(),
+  account: MT5AccountSchema.nullable(),
+}).catchall(z.unknown())
+
+// ── Full bundle schema (strict mode wrapper for /state-bundle.json) ──
+
+export const SystemBundleSchema = z.object({
+  meta: BundleMetaSchema,
+  snapshot: EngineSnapshotSchema,
+  live: z.object({
+    health: LiveSourceMetaSchema.merge(HealthResponseSchema),
+    mt5: LiveSourceMetaSchema.merge(MT5StatusSchema),
+  }),
+})
+
+// ── Engine health (/health endpoint, not /health.json) ───────────
+
+export const EngineHealthSchema = z.object({
+  status: z.enum(['ok', 'stale', 'no_state']),
+  server_time: z.string(),
+  state_exists: z.boolean(),
+  state_file_age_s: z.number(),
+  state_sequence_id: z.number().nullable(),
+  engine_alive: z.boolean(),
+})
+
+// ── Trade outcomes (/trade-outcomes.json) ─────────────────────────
+
+export const TradeOutcomeByAssetSchema = z.object({
+  asset: z.string(),
+  n_trades: z.number(),
+  tp_rate: z.number(),
+  sl_rate: z.number(),
+  signal_flip_rate: z.number(),
+  avg_r: z.number(),
+  win_rate: z.number(),
+  profit_factor: z.number().nullable(),
+})
+
+export const TradeOutcomesSchema = z.object({
+  overall: z.object({
+    tp_rate: z.number(),
+    sl_rate: z.number(),
+    signal_flip_rate: z.number(),
+    avg_r: z.number(),
+    win_rate: z.number(),
+    profit_factor: z.number().nullable(),
+  }),
+  by_asset: z.array(TradeOutcomeByAssetSchema),
+})
+
+// ── WAL timeline (/wal/{asset}.json) ─────────────────────────────
+
+export const WalEventSchema = z.object({
+  sequence: z.number(),
+  timestamp: z.string(),
+  event_type: z.enum(['features_snapshot', 'inference_output', 'decision_output']),
+  payload: z.record(z.string(), z.unknown()),
+})
+
+export const WalResponseSchema = z.object({
+  events: z.array(WalEventSchema),
+  total: z.number(),
+  asset: z.string(),
+})
+
+// ── Asset deep-dive (/asset/{name}.json) ────────────────────────
+
+export const DeepDiveTradeSchema = z.object({
+  side: z.string(),
+  entry: z.number(),
+  exit: z.number(),
+  return: z.number(),
+  reason: z.string(),
+  entry_date: z.string(),
+  exit_date: z.string(),
+  mae: z.number().nullable(),
+  mfe: z.number().nullable(),
+})
+
+export const DeepDiveFeatureSchema = z.object({
+  feature: z.string().optional(),
+  importance: z.number().optional(),
+  type: z.string().optional(),
+  error: z.string().optional(),
+})
+
+export const DeepDiveDataSchema = z.object({
+  asset: z.string(),
+  feature_importance: z.array(DeepDiveFeatureSchema),
+  trades: z.array(DeepDiveTradeSchema),
+  final_signal: z.string().nullable(),
+  sell_only: z.boolean(),
+  tripwire_active: z.boolean(),
+  last_signal: z.record(z.string(), z.unknown()).nullable(),
+  metrics: z.record(z.string(), z.unknown()).nullable(),
+})

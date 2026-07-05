@@ -1,15 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
+import { EngineHealthSchema } from '../lib/schemas'
+import type { z } from 'zod'
 
-export interface EngineHealth {
-  status: 'ok' | 'stale' | 'no_state'
-  server_time: string
-  state_exists: boolean
-  state_file_age_s: number
-  state_sequence_id: number | null
-  engine_alive: boolean
-}
+export type EngineHealth = z.infer<typeof EngineHealthSchema>
 
 const FALLBACK: EngineHealth = {
   status: 'no_state',
@@ -23,7 +18,10 @@ const FALLBACK: EngineHealth = {
 export function useEngineHealth() {
   return useQuery({
     queryKey: QUERY_KEYS.engine,
-    queryFn: () => fetchApi<EngineHealth>('/health'),
+    queryFn: async () => {
+      const json = await fetchApi<unknown>('/health')
+      return EngineHealthSchema.parse(json)
+    },
     refetchInterval: 5_000,
     staleTime: 0,
     retry: 2,

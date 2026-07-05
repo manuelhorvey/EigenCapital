@@ -9,8 +9,8 @@ feature-build → inference → state-write hot path with synthetic data.
 # Smoke test (1 asset, 1 worker, dummy models)
 python benchmarks/microbenchmark.py --quick
 
-# Full portfolio (15 assets, 8 workers, 10 warm cycles)
-python benchmarks/microbenchmark.py --quick --assets 15 --workers 8 --cycles 10
+# Full portfolio (22 assets, 8 workers, 10 warm cycles)
+python benchmarks/microbenchmark.py --quick --assets 22 --workers 8 --cycles 10
 
 # Sweep the asset × worker grid
 python benchmarks/microbenchmark.py --quick --sweep
@@ -28,7 +28,7 @@ python benchmarks/microbenchmark.py --quick --profile /tmp/cycle.prof
 | 5      | 4       | 0.66         | 132            | 1.03×          |
 | 10     | 1       | 1.55         | 155            | 1.0×           |
 | 10     | 8       | 1.12         | 112            | 1.39×          |
-| 15     | 8       | 1.63         | 109            | —              |
+| 22     | 8       | 1.63         | 109            | —              |
 
 The GIL ceiling is visible at 10+ assets — parallelism tops out at
 ~1.4× regardless of worker count.  **8 workers is optimal** for the
@@ -55,7 +55,7 @@ floor.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--assets` | 15 | Number of assets (subset of config YAML) |
+| `--assets` | 22 | Number of assets (subset of config YAML) |
 | `--workers` | 8 | ThreadPoolExecutor workers |
 | `--cycles` | 5 | Warm cycles after cold run |
 | `--bars` | 500 | Synthetic OHLCV rows per asset |

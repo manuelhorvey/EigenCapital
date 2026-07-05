@@ -528,7 +528,6 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 
 | Module                | Purpose                             |
 | --------------------- | ----------------------------------- |
-| `builder.py`          | Per-asset feature construction      |
 | `registry.py`         | Feature contracts (36 tickers)      |
 | `labels.py`           | Triple-barrier labeling             |
 | `archetypes.py`       | Market structure classification     |
@@ -616,8 +615,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | PnL backtest              | `python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v2` |
 | Train calibration models  | `python scripts/training/train_calibration.py`         |
 | Replay historical weights | `python scripts/replay/replay_rebalance.py --verify` |
-| Score tickers             | `python scripts/research/score_tickers.py`             |
-| Generate promotion report | `python scripts/research/generate_promotion_report.py` |
+| Walk-forward summary      | `python scripts/optimization/per_asset_quality.py`     |
 | Daily monitoring          | `python scripts/ops/monitor_paper_trading.py`     |
 | Run microbenchmark        | `python benchmarks/microbenchmark.py`         |
 | Run tests                 | `pytest tests/ -q --tb=short`                 |

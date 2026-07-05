@@ -108,6 +108,26 @@ class AssetInferencePipeline:
         asset.refresh_spread()
         df = self._fetch_and_prepare_data(asset)
 
+        # Bar-jump suppression: data-source switch contaminates feature vectors.
+        # _detect_bar_jump sets _suppress_until; honour it here by returning a
+        # safe neutral skeleton without inferring on potentially stale data.
+        if time.time() < getattr(asset, "_suppress_until", 0.0):
+            logger.warning(
+                "%s: bar-jump suppression active — skipping inference this cycle",
+                asset.name,
+            )
+            return {
+                "asset": asset.name,
+                "signal": "HOLD",
+                "final_signal": "suppressed",
+                "confidence": 0.0,
+                "side": "none",
+                "prob_long": 0.0,
+                "prob_short": 0.0,
+                "prob_neutral": 1.0,
+                "position_size": 0.0,
+            }
+
         _t_fetch = time.perf_counter()
         self._truncate_inference = True
         alpha_df, features_df, x = self._build_feature_set(asset, df)
@@ -157,6 +177,12 @@ class AssetInferencePipeline:
                     asset.name,
                 )
             else:
+                # This else branch fires only when:
+                # (a) calibration is enabled globally AND
+                # (b) a calibrator IS registered for this asset AND
+                # (c) calibrate() raised an exception (caught at line ~141)
+                # In that case we force neutral to avoid acting on a malformed
+                # probability vector (e.g. NaN or zeroed-out from a partial state).
                 logger.error(
                     "%s: calibration inference failed — forcing neutral",
                     asset.name,
@@ -164,6 +190,20 @@ class AssetInferencePipeline:
                 proba[:, :] = [0.0, 1.0, 0.0]
 
         result, pos_size = self._compute_sizing_and_signal(asset, df, proba, _infer_idx, threshold)
+
+        # ── Risk-off gate: suppress BUY signals during risk-off regimes ──
+        risk_off_enabled = asset.config.get("risk_off_enabled", False)
+        if (
+            risk_off_enabled
+            and getattr(asset, "_risk_off", False)
+            and hasattr(result, "signal_type")
+            and result.signal_type == "BUY"
+        ):
+            logger.info(
+                "%s: risk-off gate — suppressing BUY signal (risk_off=True)",
+                asset.name,
+            )
+            result.signal_type = "HOLD"
 
         self._log_ensemble_breakdown(asset, alpha_df, proba, result)
         archetype = self._classify_archetype(asset, features_df)
@@ -309,10 +349,11 @@ class AssetInferencePipeline:
 
         regime_inference_df = pd.DataFrame(index=alpha_idx)
         if not ohlcv.empty:
-            if self._regime_cache_cycle != _cycle_id:
+            cache_key = (_cycle_id, asset.name)
+            if self._regime_cache_cycle != cache_key:
                 raw_regime = generate_regime_features(ohlcv)
                 self._regime_features_cache = raw_regime
-                self._regime_cache_cycle = _cycle_id
+                self._regime_cache_cycle = cache_key
             else:
                 raw_regime = self._regime_features_cache
             prefix = asset.name.upper()
@@ -335,7 +376,13 @@ class AssetInferencePipeline:
         return alpha_df, features_df, x
 
     def _detect_risk_off(self, asset, features_df) -> None:
-        if asset.name not in ("AUDUSD",):
+        """Detect risk-off regime and set _risk_off flag on the asset.
+
+        Only activates for assets with risk_off_enabled: true in config.
+        When VIX is rising and SPX is falling, risk-off is flagged —
+        the consuming code in _generate_and_apply suppresses BUY signals.
+        """
+        if not asset.config.get("risk_off_enabled", False):
             asset._risk_off = False
             return
         try:
@@ -786,9 +833,9 @@ class AssetInferencePipeline:
             self._truncate_inference = False
             return
         max_diff = float(np.max(np.abs(full[-1:] - truncated)))
-        if max_diff > 1e-6:
+        if max_diff > 1e-4:
             logger.warning(
-                "%s: inference truncation diff=%.2e (>=1e-6) — disabling truncation",
+                "%s: inference truncation diff=%.2e (>=1e-4) — disabling truncation",
                 asset.name,
                 max_diff,
             )

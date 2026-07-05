@@ -46,6 +46,16 @@ class AssetTrainingPipeline:
             asset._trained = True
             asset._enable_adaptive_macro()
             asset._load_meta_label_model()
+            # Re-hash after loading from disk so the engine's per-cycle integrity
+            # check (model-file hash comparison) doesn't detect a false mismatch
+            # on every cycle and trigger an unnecessary reload.
+            try:
+                hash_path = model_path.replace(".json", "_hash.txt")
+                if os.path.exists(hash_path):
+                    with open(hash_path) as _fh:
+                        asset._model_hash = _fh.read().strip()
+            except OSError:
+                pass
             self._train_regime_if_configured()
             return
 
@@ -180,10 +190,23 @@ class AssetTrainingPipeline:
         x_ev = x_binary.iloc[-n_valid:]
         y_ev = y_vals[-n_valid:]
 
-        n0 = (y_tr == 0).sum()
-        n1 = (y_tr == 1).sum()
-        imbalance_ratio = n0 / max(n1, 1)
-        logger.info("%s: binary labels: 0=%d 1=%d imbalance_ratio=%.2f", asset.name, n0, n1, imbalance_ratio)
+        # Compute imbalance from the full binary dataset (pre-split), not just the
+        # training window. In a time-series setting with rolling_window_bars=756,
+        # the training split may not reflect the full-dataset class distribution.
+        n0_full = (y_binary.values == 0).sum()
+        n1_full = (y_binary.values == 1).sum()
+        imbalance_ratio = n0_full / max(n1_full, 1)
+        n0_tr = (y_tr == 0).sum()
+        n1_tr = (y_tr == 1).sum()
+        logger.info(
+            "%s: binary labels: 0=%d 1=%d (train: 0=%d 1=%d) imbalance_ratio=%.2f",
+            asset.name,
+            n0_full,
+            n1_full,
+            n0_tr,
+            n1_tr,
+            imbalance_ratio,
+        )
 
         depth = getattr(asset, "max_depth", 2)
         model = xgb.XGBClassifier(

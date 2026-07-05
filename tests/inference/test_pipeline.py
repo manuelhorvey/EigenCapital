@@ -126,30 +126,34 @@ class TestDetectRiskOff:
     def test_sets_risk_off_when_vix_up_spx_down(self, pipeline):
         asset = pipeline.asset
         asset.name = "AUDUSD"
+        asset.config = {"risk_off_enabled": True}
         df = pd.DataFrame({"vix_mom_5d": [0.5], "spx_mom_5d": [-0.3]})
         pipeline._detect_risk_off(asset, df)
-        assert asset._risk_off == True
+        assert asset._risk_off
 
     def test_clears_risk_off_when_not_both_conditions(self, pipeline):
         asset = pipeline.asset
         asset.name = "AUDUSD"
+        asset.config = {"risk_off_enabled": True}
         df = pd.DataFrame({"vix_mom_5d": [-0.1], "spx_mom_5d": [-0.3]})
         pipeline._detect_risk_off(asset, df)
-        assert asset._risk_off == False
+        assert not asset._risk_off
 
-    def test_non_audusd_always_false(self, pipeline):
+    def test_disabled_by_default_for_all_assets(self, pipeline):
         asset = pipeline.asset
-        asset.name = "EURUSD"
+        asset.name = "AUDUSD"
+        asset.config = {}  # no risk_off_enabled
         df = pd.DataFrame({"vix_mom_5d": [0.5], "spx_mom_5d": [-0.3]})
         pipeline._detect_risk_off(asset, df)
-        assert asset._risk_off == False
+        assert not asset._risk_off
 
     def test_missing_columns_no_error(self, pipeline):
         asset = pipeline.asset
         asset.name = "AUDUSD"
+        asset.config = {"risk_off_enabled": True}
         df = pd.DataFrame({"close": [1.0]})
         pipeline._detect_risk_off(asset, df)
-        assert asset._risk_off == False
+        assert not asset._risk_off
 
 
 class TestCheckArchetypeNans:
@@ -308,7 +312,9 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0
         df = pd.DataFrame({"close": [1.1050]})
-        decision = pipeline._build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123")
+        decision = pipeline._build_decision(
+            asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
+        )
         assert decision.asset == "EURUSD"
         assert decision.signal == "BUY"
         assert decision.confidence == 75.0
@@ -382,42 +388,69 @@ class TestGenerateAndApply:
         asset._model_iface.predict.return_value = np.array([[0.3, 0.7]])
 
         prep_df = _make_price_df(300)
-        with patch.object(pipeline, "_fetch_and_prepare_data", return_value=prep_df):
-            with patch("features.data_fetch.fetch_asset_data") as mock_fad:
-                mock_fad.return_value = (
-                    _make_price_df(300), pd.DataFrame(), pd.DataFrame({"close": [1.0]}),
-                    pd.DataFrame({"close": [1.0]}), pd.DataFrame({"close": [1.0]}), pd.DataFrame({"close": [1.0]}),
-                )
-                with patch("features.data_fetch.fetch_asset_ohlcv") as mock_ohlcv:
-                    ohlcv = _make_price_df(100)
-                    mock_ohlcv.return_value = ohlcv
-                    with patch("features.data_fetch.fetch_cot_features") as mock_cot:
-                        mock_cot.return_value = pd.DataFrame()
-                        with patch("features.alpha_features._compute_shared_features") as mock_sf:
-                            mock_sf.return_value = pd.DataFrame(index=_make_price_df(300).index)
-                            with patch("features.alpha_features.build_alpha_features") as mock_af:
-                                af = pd.DataFrame({
-                                    "CLOSE_mom_21d": [0.01] * 300, "CLOSE_carry_vol_adj": [0.0] * 300,
-                                    "CLOSE_mom_63d": [0.01] * 300, "CLOSE_zscore_20": [0.0] * 300,
-                                    "CLOSE_dow_signal": [0.0] * 300, "CLOSE_vol_ratio": [1.0] * 300,
-                                }, index=_make_price_df(300).index)
-                                mock_af.return_value = af
-                                with patch("features.regime_features.generate_regime_features") as mock_rf:
-                                    mock_rf.return_value = pd.DataFrame({"hurst": [0.5]}, index=ohlcv.index[-1:])
-                                    with patch("paper_trading.inference.pipeline.get_diagnostics_queue") as mock_dq:
-                                        mock_dq.return_value = MagicMock()
-                                        asset._signal_strategy.compute.return_value = MagicMock(
-                                            signal_type="BUY", label=1, confidence_pct=75.0,
-                                            signal_data=pd.DataFrame(
-                                                {"close": [1.0], "prob_long": [0.7], "prob_short": [0.2],
-                                                 "prob_neutral": [0.1]},
-                                                index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=_dt.timezone.utc)]),
-                                            ),
-                                        )
-                                        asset._sizing_strategy.compute.return_value = 0.02
-                                        asset._sizing_config.return_value = {}
-                                        result = pipeline.generate_signal(threshold=0.45)
-                                        assert result is not None
+        _fetch_mock = patch.object(pipeline, "_fetch_and_prepare_data", return_value=prep_df)
+        _fad_mock = patch("features.data_fetch.fetch_asset_data")
+        _ohlcv_mock = patch("features.data_fetch.fetch_asset_ohlcv")
+        _cot_mock = patch("features.data_fetch.fetch_cot_features")
+        _sf_mock = patch("features.alpha_features._compute_shared_features")
+        _af_mock = patch("features.alpha_features.build_alpha_features")
+        _rf_mock = patch("features.regime_features.generate_regime_features")
+        _dq_mock = patch("paper_trading.inference.pipeline.get_diagnostics_queue")
+
+        with (
+            _fetch_mock,
+            _fad_mock as mock_fad,
+            _ohlcv_mock as mock_ohlcv,
+            _cot_mock as mock_cot,
+            _sf_mock as mock_sf,
+            _af_mock as mock_af,
+            _rf_mock as mock_rf,
+            _dq_mock as mock_dq,
+        ):
+            mock_fad.return_value = (
+                _make_price_df(300),
+                pd.DataFrame(),
+                pd.DataFrame({"close": [1.0]}),
+                pd.DataFrame({"close": [1.0]}),
+                pd.DataFrame({"close": [1.0]}),
+                pd.DataFrame({"close": [1.0]}),
+            )
+            ohlcv = _make_price_df(100)
+            mock_ohlcv.return_value = ohlcv
+            mock_cot.return_value = pd.DataFrame()
+            mock_sf.return_value = pd.DataFrame(index=_make_price_df(300).index)
+            af = pd.DataFrame(
+                {
+                    "CLOSE_mom_21d": [0.01] * 300,
+                    "CLOSE_carry_vol_adj": [0.0] * 300,
+                    "CLOSE_mom_63d": [0.01] * 300,
+                    "CLOSE_zscore_20": [0.0] * 300,
+                    "CLOSE_dow_signal": [0.0] * 300,
+                    "CLOSE_vol_ratio": [1.0] * 300,
+                },
+                index=_make_price_df(300).index,
+            )
+            mock_af.return_value = af
+            mock_rf.return_value = pd.DataFrame({"hurst": [0.5]}, index=ohlcv.index[-1:])
+            mock_dq.return_value = MagicMock()
+            asset._signal_strategy.compute.return_value = MagicMock(
+                signal_type="BUY",
+                label=1,
+                confidence_pct=75.0,
+                signal_data=pd.DataFrame(
+                    {
+                        "close": [1.0],
+                        "prob_long": [0.7],
+                        "prob_short": [0.2],
+                        "prob_neutral": [0.1],
+                    },
+                    index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=_dt.timezone.utc)]),
+                ),
+            )
+            asset._sizing_strategy.compute.return_value = 0.02
+            asset._sizing_config.return_value = {}
+            result = pipeline.generate_signal(threshold=0.45)
+            assert result is not None
 
 
 class TestRecordInferenceProxies:

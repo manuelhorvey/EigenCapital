@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import statistics
@@ -412,6 +413,33 @@ class PaperTradingEngine:
                     ctx.freeze.experiment_id,
                 )
 
+        # Per-asset model file integrity: detect file changes mid-run and reload.
+        # This catches e.g. parallel retrain jobs that update the model JSON on disk
+        # while the engine is still using a stale in-memory copy.
+        for _asset_name, asset in list(self.assets.items()):
+            if not hasattr(asset, "_model_hash") or not hasattr(asset, "model_path"):
+                continue
+            model_path = asset.model_path
+            if not os.path.exists(model_path):
+                continue
+            try:
+                with open(model_path, "rb") as _fm:
+                    current_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
+                if current_hash != asset._model_hash and current_hash != "unknown":
+                    logger.info(
+                        "experiment: model hash changed for %s (%s… → %s…) — reloading",
+                        _asset_name,
+                        asset._model_hash[:8],
+                        current_hash[:8],
+                    )
+                    asset.train(force=False)
+            except (OSError, ValueError, TypeError):
+                logger.debug(
+                    "experiment: model integrity check skipped for %s",
+                    _asset_name,
+                    exc_info=True,
+                )
+
         # ── Fault-isolated asset execution via orchestrator ──────────
         # The orchestrator owns Phases 1-4 (refresh, signal, validity,
         # portfolio health, persist).  It is the sole source of truth
@@ -435,11 +463,11 @@ class PaperTradingEngine:
             self.last_update = datetime.now(tz=ET)
             return results
 
-        # Drain all actor persist queues into engine persist buffer
-        persist_commands = self._orchestrator.drain_persist_buffer()
-        for cmd in persist_commands:
-            if cmd["kind"] == "signal":
-                pass  # signals already captured in results
+        # Drain the orchestrator's persist buffer (populated during Phase 4).
+        # All persistence (trades, positions, WAL) is handled inside _phase_4_persist.
+        # This call discards the buffer so it doesn't grow unbounded — commands are
+        # not reprocessed here because doing so would double-write to state.json / WAL.
+        self._orchestrator.drain_persist_buffer()
 
         _t1 = time.perf_counter()
 

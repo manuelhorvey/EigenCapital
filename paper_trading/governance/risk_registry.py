@@ -92,13 +92,29 @@ class RiskRegistry:
     def record_sell_side_outcome(self, asset: str, reason: str, side: str) -> None:
         if side != "short":
             return
-        if reason.upper() not in ("TP", "SL"):
+        # Force-close reasons (PEK budget overrun, circuit breaker, manual)
+        # are treated as SL losses for tripwire tracking — a position closed
+        # by the system's risk controls is a losing exit by definition.
+        loss_reasons = frozenset(
+            {
+                "SL",
+                "PEK_BUDGET_OVERRUN",
+                "CIRCUIT_BREAKER",
+                "DRAWDOWN_CIRCUIT_BREAKER",
+                "MANUAL",
+            }
+        )
+        tp_reasons = frozenset({"TP"})
+        reason_upper = reason.upper()
+        if reason_upper not in tp_reasons and reason_upper not in loss_reasons:
             return
+        # Normalize to TP (win) or SL (loss) for deque and win-rate computation
+        normalized_reason = "TP" if reason_upper in tp_reasons else "SL"
 
         with self._sell_win_rate_lock:
             if asset not in self._sell_win_rates:
                 self._sell_win_rates[asset] = deque(maxlen=SELL_WIN_RATE_WINDOW)
-            self._sell_win_rates[asset].append(1 if reason.upper() == "TP" else 0)
+            self._sell_win_rates[asset].append(1 if normalized_reason == "TP" else 0)
 
             dq = self._sell_win_rates[asset]
             n = len(dq)

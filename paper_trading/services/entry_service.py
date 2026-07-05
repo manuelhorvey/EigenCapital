@@ -410,12 +410,6 @@ class EntryService:
         broker_side = "buy" if side_str == "long" else "sell"
 
         if not is_mt5:
-            dd_taper = self.drawdown_taper(
-                dd_pct,
-                start_dd=cfg.get("size_taper_start_dd", -0.05),
-                end_dd=cfg.get("size_taper_end_dd", -0.15),
-                min_size=cfg.get("size_taper_min", 0.50),
-            )
             effective_cap = self.effective_capital(
                 initial_capital=asset.initial_capital,
                 capital_base=asset.capital_base,
@@ -430,7 +424,7 @@ class EntryService:
                 governance=asset.governance,
                 pos_mgr=asset.pos_mgr,
                 meta_size_multiplier=asset._meta_size_multiplier(),
-                drawdown_taper=dd_taper,
+                drawdown_taper=1.0,  # SizingChain owns the taper computation
             )
             # Weekend allocation multiplier: reduce position size during off-market
             # hours (weekends, holidays) when liquidity is thinner. Only applies to

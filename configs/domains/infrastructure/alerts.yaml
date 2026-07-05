@@ -1,0 +1,11 @@
+alerting:
+  channels:
+    pagerduty:
+      enabled: false
+      routing_key: ''
+      min_interval: 30.0
+    webhook:
+      enabled: false
+      url: ''
+      format: slack
+      min_interval: 10.0

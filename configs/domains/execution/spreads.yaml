@@ -1,0 +1,8 @@
+enabled: true
+staleness_secs: 300
+min_observe_cycles: 720
+tiers:
+  fx_major: 10
+  fx_cross: 20
+  indices: 15
+  metals: 20

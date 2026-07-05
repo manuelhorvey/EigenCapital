@@ -1,0 +1,4 @@
+ensemble:
+  base_weight: 1.0
+  threshold: 0.15
+  regime_feature_window: 63

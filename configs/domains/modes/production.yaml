@@ -1,0 +1,21 @@
+description: "Standard paper trading \u2014 16-asset, 0.95 base size, factor-constrained\
+  \ RP"
+capital: 100000
+defaults:
+  max_risk_per_trade_pct: 2.0
+  min_risk_per_trade_pct: 0.001
+  risk_per_trade_pct: 0.02
+  max_daily_loss_pct: 0.08
+  max_concurrent_positions: 8
+  factor_exposure_limits:
+    CHF: 0.2
+    US_EQUITY: 0.25
+    OIL: 0.15
+    GOLD: 0.15
+    AUD: 0.25
+    NZD: 0.25
+    JPY: 0.25
+    FX_MAJOR: 0.4
+    FX_CROSS: 0.4
+    FX_COMMODITY: 0.25
+portfolio_drawdown_limit: -0.15

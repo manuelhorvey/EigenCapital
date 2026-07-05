@@ -12,6 +12,16 @@ the legacy validator with:
 - Mode consistency: declared modes must be referenced if `mode:` is set
 - Asset count parity (active config vs declared mode)
 
+**Phase 12.2 — Cross-field invariants:**
+
+- ``mt5_max_risk_per_trade_pct <= max_risk_per_trade_pct`` — when enabled, MT5
+  risk cap must not exceed the paper risk cap. When disabled, emits a benign
+  warning if the MT5 cap is higher.
+- ``profit_lock_threshold_pct`` validated in [0, 100] — must be a valid
+  percentage.
+- ``factor_exposure_limits``: each limit validated in [0, 1]; sum > 1.0 emits
+  a warning (factor groups overlap, so summed caps > 1.0 is expected).
+
 Backward-compatible: validated keys overlap with the legacy check.
 The legacy min_lot check is dropped because mt5.min_lot has been removed
 from the YAML.
@@ -237,6 +247,16 @@ def _check_modes(data: dict, errors: list[str], warnings: list[str]) -> None:
         v = body["portfolio_drawdown_limit"]
         if isinstance(v, (int, float)) and not (-1.0 <= v <= 0.0):
             errors.append(f"modes.{mode}.portfolio_drawdown_limit: must be in [-1.0, 0.0], got {v}")
+    # Check factor_exposure_limits in each mode's defaults
+    for mode_name, mode_body in modes.items():
+        if not isinstance(mode_body, dict):
+            continue
+        mode_defaults = mode_body.get("defaults") or {}
+        if not isinstance(mode_defaults, dict):
+            continue
+        fel = mode_defaults.get("factor_exposure_limits")
+        if fel is not None:
+            _check_factor_exposure_limits(f"modes.{mode_name}.defaults", fel, errors, warnings)
 
 
 def _check_spread_session_gates(defaults: dict, errors: list[str]) -> None:
@@ -275,6 +295,73 @@ def _check_mt5(mt5: dict, errors: list[str], warnings: list[str]) -> None:
         errors.append(f"mt5.bridge_port: must be in [1, 65535], got {port}")
     if "min_lot" in mt5:
         warnings.append("mt5.min_lot: deprecated since 2026-06-29 (broker floor only); remove from YAML")
+
+
+def _check_risk_invariants(defaults: dict, errors: list[str], warnings: list[str]) -> None:
+    """Cross-field risk invariant: mt5_max_risk_per_trade_pct <= max_risk_per_trade_pct.
+
+    When mt5_max_risk_per_trade_pct is set higher than max_risk_per_trade_pct,
+    the MT5 risk cap (which applies to a smaller equity base) exceeds the paper
+    risk cap. When mt5_enable_max_risk_per_trade_pct is active, this would allow
+    MT5 to risk a higher % on a smaller base.
+    """
+    max_risk = defaults.get("max_risk_per_trade_pct")
+    mt5_max = defaults.get("mt5_max_risk_per_trade_pct")
+    if max_risk is not None and mt5_max is not None and mt5_max > max_risk:
+        enabled = defaults.get("mt5_enable_max_risk_per_trade_pct", False)
+        msg = (
+            f"defaults.mt5_max_risk_per_trade_pct={mt5_max} exceeds "
+            f"defaults.max_risk_per_trade_pct={max_risk};"
+        )
+        if enabled:
+            errors.append(f"{msg} active MT5 risk cap would override paper cap with higher limit")
+        else:
+            warnings.append(f"{msg} MT5 cap currently disabled (benign, but may cause confusion)")
+
+
+def _check_profit_lock_range(defaults: dict, errors: list[str]) -> None:
+    """Check profit_lock_threshold_pct is a valid percentage in [0, 100]."""
+    v = defaults.get("profit_lock_threshold_pct")
+    if v is None:
+        return
+    if not isinstance(v, (int, float)):
+        errors.append(f"defaults.profit_lock_threshold_pct: expected number, got {v!r}")
+        return
+    if not (0 <= v <= 100):
+        errors.append(f"defaults.profit_lock_threshold_pct: must be in [0, 100], got {v}")
+
+
+def _check_factor_exposure_limits(
+    source_name: str,
+    limits: dict[str, float],
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    """Check factor exposure limits: each in [0, 1]; warn if sum > 1.0.
+
+    Factor groups overlap (an asset can belong to multiple groups), so the
+    sum of per-factor caps naturally exceeds 1.0. The warning flags cases
+    where the total is unreasonably high relative to the individual limits.
+    Each individual limit is validated to be in [0, 1] as a hard error because
+    a single factor can't have more than 100% portfolio exposure.
+    """
+    if not isinstance(limits, dict):
+        errors.append(f"{source_name}.factor_exposure_limits: expected mapping")
+        return
+    total = 0.0
+    for factor, limit in limits.items():
+        if not isinstance(limit, (int, float)):
+            errors.append(f"{source_name}.factor_exposure_limits.{factor}: expected number, got {limit!r}")
+            continue
+        if not (0 <= limit <= 1.0):
+            errors.append(f"{source_name}.factor_exposure_limits.{factor}: must be in [0, 1.0], got {limit}")
+            continue
+        total += float(limit)
+    if total > 1.0 + 1e-6:
+        warnings.append(
+            f"{source_name}.factor_exposure_limits: Σ limits = {total:.4f} exceeds 1.0; "
+            "factor groups overlap, so this is common but may indicate configuration drift"
+        )
 
 
 def _check_halt(data: dict, errors: list[str]) -> None:
@@ -357,6 +444,11 @@ def validate(config_path: str | None = None) -> int:
         _check_optional(defaults, "spread_gate", dict, "defaults", errors)
         _check_optional(defaults, "session_gate", dict, "defaults", errors)
         _check_spread_session_gates(defaults, errors)
+        _check_risk_invariants(defaults, errors, warnings)
+        _check_profit_lock_range(defaults, errors)
+        fel = defaults.get("factor_exposure_limits")
+        if fel is not None:
+            _check_factor_exposure_limits("defaults", fel, errors, warnings)
 
     _check_modes(data, errors, warnings)
 

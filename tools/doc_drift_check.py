@@ -11,15 +11,15 @@ and to be runnable locally:
 Checks performed:
 
 1. **Asset-list consistency** — number of assets in
-   ``configs/paper_trading.yaml`` (``assets:`` mapping) equals the
+   the domain tree (``configs/domains/`` ``assets:`` mapping) equals the
    number of tracked model artifacts (``*_model_hash.txt`` sidecars,
    falling back to ``*_model.json`` files for local runs) outside
    of ``paper_trading/models/orphaned/`` and ``paper_trading/models/research/``.
 
 2. **SELL_ONLY list consistency** — the hardcoded fallback
    ``SELL_ONLY_ASSETS`` in ``paper_trading/execution/gate_constants.py``
-   matches the ``configs/paper_trading.yaml:defaults.sell_only_assets``
-   list AND the YAML version is a subset of the active 16-asset list.
+   matches the domain tree (``configs/domains/risk/sizing.yaml``)
+   ``sell_only_assets`` list AND the YAML version is a subset of the active 16-asset list.
 
 3. **Phase-count consistency** — counts ``_phase_X_*`` methods in
    ``paper_trading/orchestrator/engine.py`` and asserts that the
@@ -33,7 +33,7 @@ Checks performed:
    wherever the orchestrator's WAL replay is mentioned in any of
    ``AGENTS.md``, ``docs/SYSTEM_OVERVIEW.md`` (no ``WALRunner`` stragglers).
 
-6. **Mode selector presence** — ``configs/paper_trading.yaml`` has a
+6. **Mode selector presence** — the domain tree (``configs/domains/``) has a
    top-level ``mode:`` key plus a ``modes:`` block.
 
 7. **Trend-exhaustion feature count** — when the live ``alpha_features.py``
@@ -309,8 +309,67 @@ def _is_excluded(path: Path) -> bool:
     return False
 
 
+def _is_path_like(candidate: str) -> bool:
+    """True if ``candidate`` looks like a real file path, not prose.
+
+    Rejects anything containing spaces, markdown punctuation, math
+    operators, or arrows (the typical signatures of a code-span that
+    captured a prose fragment, formula, or sentence). Requires either
+    a directory separator or a recognized file extension.
+    """
+    # Strip leading ./ for normalization; doesn't affect form detection.
+    s = candidate.lstrip("./")
+    if not s:
+        return False
+    # Reject any non-path punctuation typical of prose code-spans.
+    bad_chars = set(" \t()=<>{}[]*|\\,;:`~'\"?!")
+    if any(c in bad_chars for c in s):
+        return False
+    # Reject unicode arrows / dashes / math symbols seen in prose.
+    for ch in ("→", "←", "−", "—", "/", "≈", "≤", "≥", "×"):
+        if ch in s and "/" not in s.split(ch)[0]:
+            # bare arrow without a path separator: prose
+            pass
+    # Hard reject unicode math/punctuation chars entirely.
+    if any(ch in s for ch in ("→", "←", "−", "×", "·", "—", "≈", "≤", "≥")):
+        return False
+    # Require either a path separator or a recognized file extension.
+    if "/" in s:
+        return True
+    known_ext = (
+        ".py",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".toml",
+        ".md",
+        ".sh",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".css",
+        ".txt",
+        ".csv",
+        ".parquet",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".svg",
+        ".zip",
+        ".html",
+        ".env",
+        ".pyi",
+        ".ini",
+        ".lock",
+        ".db",
+    )
+    return any(s.endswith(ext) for ext in known_ext)
+
+
 def _check_markdown_paths() -> list[str]:
-    """Extract backtick-quoted file-like paths from markdown files and verify they resolve.
+    """Extract backtick-quoted file paths from markdown files and verify they resolve.
 
     Scans for patterns like `path/to/file.py`, `path/to/file.yaml`, `path/to/FILE.md`
     inside backticks and checks if the path exists on disk relative to REPO_ROOT.
@@ -322,6 +381,7 @@ def _check_markdown_paths() -> list[str]:
     - ENV vars, URLs, hyperlinks, git refs, pip packages, etc.
     - Paths with `$` (variable interpolations)
     - Paths appearing after ``# `` (comments, not references)
+    - Non-path code spans (formulas, prose fragments, plain numbers).
     """
     out: list[str] = []
     seen: set[str] = set()
@@ -366,7 +426,9 @@ def _check_markdown_paths() -> list[str]:
             # Skip markdown table cells and single words
             if candidate.startswith("|"):
                 continue
-            if "/" not in candidate and "." not in candidate:
+            # Skip code spans that are clearly NOT file paths:
+            # formulas, prose fragments, plain numbers/metrics, etc.
+            if not _is_path_like(candidate):
                 continue
             # Skip markdown link fragments
             if candidate.startswith("#"):
@@ -376,13 +438,12 @@ def _check_markdown_paths() -> list[str]:
             normalized = candidate.lstrip("./")
             resolved = REPO_ROOT / normalized
 
-            # Check if it looks like a file path (has extension or directory structure)
-            if "/" in normalized or "." in normalized:
-                if normalized in seen:
-                    continue
-                seen.add(normalized)
-                if not resolved.exists():
-                    out.append(f"{rel}: path `{candidate}` does not resolve on disk")
+            # Re-check after normalization: must still look like a path
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            if not resolved.exists():
+                out.append(f"{rel}: path `{candidate}` does not resolve on disk")
 
     return out
 

@@ -12,7 +12,8 @@ Checks performed:
 
 1. **Asset-list consistency** — number of assets in
    ``configs/paper_trading.yaml`` (``assets:`` mapping) equals the
-   number of ``paper_trading/models/{NAME}_model.json`` files outside
+   number of tracked model artifacts (``*_model_hash.txt`` sidecars,
+   falling back to ``*_model.json`` files for local runs) outside
    of ``paper_trading/models/orphaned/`` and ``paper_trading/models/research/``.
 
 2. **SELL_ONLY list consistency** — the hardcoded fallback
@@ -93,12 +94,18 @@ def _yaml_assets() -> list[str]:
 def _model_files() -> list[str]:
     models_dir = REPO_ROOT / "paper_trading" / "models"
     found = []
-    for path in models_dir.glob("*_model.json"):
+    # Model JSON files are gitignored; read from tracked *_hash.txt sidecars
+    # so the check works in CI. Fall back to *_model.json for local runs
+    # if no hash sidecars exist yet.
+    hash_paths = list(models_dir.glob("*_model_hash.txt"))
+    json_paths = list(models_dir.glob("*_model.json"))
+    paths = hash_paths if hash_paths else json_paths
+    for path in paths:
         if "orphaned" in path.parts or "research" in path.parts:
             continue
-        # {NAME}_model.json. Some assets use `DJI` (no caret) on disk
-        # while yaml has `^DJI`. Normalize.
-        name = path.stem.replace("_model", "")
+        # {NAME}_model.json or {NAME}_model_hash.txt. Some assets use
+        # `DJI` (no caret) on disk while yaml has `^DJI`. Normalize.
+        name = path.stem.replace("_model_hash", "").replace("_model", "")
         # Keep both names visible but emit the no-caret version
         found.append(name)
     return found

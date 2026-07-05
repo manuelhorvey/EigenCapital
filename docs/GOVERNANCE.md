@@ -121,7 +121,7 @@ Weekly LLM-driven macro context overlay that adjusts execution parameters based 
 - **Failure mode**: scrape/LLM error → narrative carries forward with `fetch_error` status; dashboard shows yellow **NARR ERR** badge
 - **Integration**: `_narrative_sl_mult` multiplied into SL in `_open_position`; `_narrative_size_scalar` applied in `_sizing_config` and execution bridge notional; `narrative_ok` flag in `check_halt_conditions` with -0.10 validity penalty
 - **State storage**: `data/live/narrative_active.json`, `narrative_pending.json`
-- **Config**: `configs/paper_trading.yaml` → `narrative_config` section
+- **Config**: `configs/domains/governance/narrative.yaml` — loaded by `PaperConfigRegistry` and composed into `execution.governance.*`
 - **Requires**: `OPENCODE_ZEN_API_KEY` env var
 
 ## 5. Liquidity Regime Model (Per-Tick)
@@ -138,7 +138,7 @@ Real-time liquidity proxy computed from daily OHLCV on every signal cycle:
   - `STRESSED` → SL widens by `stressed_sl_widen_pct` (+30%), size reduces by `stressed_size_reduce_pct` (-30%), sets halted flag
 - **Integration**: `_liquidity_sl_mult` multiplied into SL in `_open_position`; `_liquidity_size_scalar` applied in sizing and execution notional; `liquidity_ok` flag in `check_halt_conditions` (STRESSED halts) with -0.10 validity penalty
 - **Dashboard**: LIQ THIN (yellow) / LIQ STRSD (red) badge in header with per-asset hover tooltip
-- **Config**: `configs/paper_trading.yaml` → `liquidity_config` section with threshold and pct params
+- **Config**: `configs/domains/governance/liquidity.yaml` — loaded by `PaperConfigRegistry` and composed into `execution.governance.*` with threshold and pct params
 
 ## 6. PSI Drift Monitoring (Per-Cycle)
 
@@ -171,6 +171,10 @@ final_size_scalar = min(narrative_size_scalar × liquidity_size_scalar, 0.30)
 ```
 
 Validity penalties (feature stability + PSI drift) are additive and feed into the validity state machine, NOT into the SL/size chain:
+
+---
+
+**Last updated:** 2026-07-05
 
 ```
 validity_score = 0.80 − drawdown_penalty − pf_penalty − drought_penalty − drift_penalty − narrative_penalty − liquidity_penalty + stability_penalty + psi_penalty

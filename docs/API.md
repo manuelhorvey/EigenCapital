@@ -102,3 +102,7 @@ Position concentration data is available inside `/state.json` under `portfolio.p
 ## Data Flow
 
 The primary data flow is: `GET /state-bundle.json` → sliced via React Query selectors → memoized components. All other endpoints are secondary and polled at lower frequencies (30-60s). Static SPA files (`/`, `/index.html`, `/assets/*`, `/favicon.ico`) are served by `handler.py` and fall through to `index.html` for client-side routing.
+
+---
+
+**Last updated:** 2026-07-05

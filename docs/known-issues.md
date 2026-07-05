@@ -21,3 +21,7 @@
 - Pipeline indentation nesting bug fixed 2026-06-19 (16 methods were inner functions of _detect_bar_jump)
 - Regime model at inference fixed 2026-06-19 (load guard + missing regime features)
 - Emergency halt loop fixed 2026-07-03 (stale peak, cycle counter, auto-clear)
+
+---
+
+**Last updated:** 2026-07-05

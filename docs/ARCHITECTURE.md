@@ -7,7 +7,7 @@
 
 ## `backtests/` — Model Comparison & Promotion Framework
 
-The `backtests/` package provides model evaluation utilities used by research scripts (`scripts/research/`) for walk-forward model comparison, adversarial stress-testing, and promotion decisions. It is a standalone module with minimal dependencies (numpy, pandas, scikit-learn).
+The `backtests/` package provides model evaluation utilities used by backtesting scripts (`scripts/backtest/`) for walk-forward model comparison, adversarial stress-testing, and promotion decisions. It is a standalone module with minimal dependencies (numpy, pandas, scikit-learn).
 
 ### Module Overview
 
@@ -27,7 +27,7 @@ The `backtests/` package provides model evaluation utilities used by research sc
 ### Data Flow
 
 ```
-Research scripts (scripts/research/)
+Backtest scripts / research notebooks
     │
     ├── compare_models()          → model_result
     ├── compare_signals()         → signal_result
@@ -93,3 +93,7 @@ Model evolution trajectories are stored as JSON arrays in `data/sandbox/evolutio
 ### Test Coverage
 
 The module has 211 unit tests in `tests/backtests/` covering all public functions, perturbation types, edge cases (empty trades, single-row DataFrames, error states), and promotion decision logic.
+
+---
+
+**Last updated:** 2026-07-05

@@ -114,8 +114,8 @@ Install once: `pre-commit install`. Hooks run on every `git commit`.
 CI gate `tools/doc_drift_check.py` (new in 2026-06-30 audit) verifies:
 - All cited module paths in `AGENTS.md` "Key Files" and `SYSTEM_OVERVIEW.md`
   "Component Responsibilities" tables resolve on disk.
-- Asset-count in `configs/paper_trading.yaml` matches the count in
-  `paper_trading.models/` minus `orphaned/`.
+- Asset-count in domain config files (`configs/domains/assets/`) matches the count in
+  `paper_trading/models/` minus `orphaned/`.
 - Phase count derived from `paper_trading/orchestrator/engine.py:_phase_X_*`
   matches Mermaid diagrams in `README.md` / `docs/SYSTEM_OVERVIEW.md` /
   `docs/PRODUCTION_SYSTEM_SPEC_v1.md`.
@@ -139,3 +139,7 @@ A failed check fails the PR.
 
 **Reporting security issues:** Email `security@eigencapital.local` (placeholder
 — replace before going live).
+
+---
+
+**Last updated:** 2026-07-05

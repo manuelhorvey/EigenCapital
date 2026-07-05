@@ -34,7 +34,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 
 | Stage | Module | Purpose |
 |-------|--------|---------|
-| Screening | `scripts/research/trade_analysis.py`, `scripts/backtest/walk_forward_backtest.py` | Multi-ticker walk-forward backtest, promotion scoring |
+| Screening | `scripts/backtest/walk_forward_backtest.py` | Multi-ticker walk-forward backtest |
 | Training | `paper_trading/inference/training.py` | XGBoost training with per-asset features |
 | Inference | `paper_trading/inference/pipeline.py` | Live pipeline: OHLCV → features → XGBoost → decision |
 | Async diagnostics | `paper_trading/inference/async_diagnostics.py` | DiagnosticsSnapshot + daemon consumer thread |
@@ -54,7 +54,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 
 ## Current Portfolio
 
-22 assets across FX, commodities, equity indices, and crypto. See `configs/paper_trading.yaml` for full configuration and allocations.
+22 assets across FX, commodities, equity indices, and crypto. See per-asset YAML files under `configs/domains/assets/` for full configuration and allocations.
 
 **2026-07-04:** BTCUSD (weekend-eligible, 24/7 crypto tier) and 4 JPY crosses (AUDJPY, NZDJPY, GBPJPY, USDJPY) added. Portfolio grows to 22 assets.
 

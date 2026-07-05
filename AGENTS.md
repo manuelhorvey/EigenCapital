@@ -45,7 +45,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
 - **Features**: 15–N alpha per asset (9 core + 6 trend-exhaustion when OHLCV present, plus 4 cross-asset, plus COT z/change for covered pairs) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
-- **Config**: `configs/paper_trading.yaml` — `mode:` selector + `modes:` overrides (production/ftmo/live), global defaults + per-asset (16 assets)
+- **Config**: `configs/paper_config_registry.py` + `configs/domains/` — domain-first config tree promoted in Phase 12; mode overrides, global defaults, per-asset config
 - **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
 - **PEK (Portfolio Execution Kernel)**: `PortfolioStateSnapshot` (built pre-phase) + `RiskEngineV2` (adaptive budget) + `PerformanceState` (velocity + outcome telemetry) + `PortfolioAdmissionController` (two-stage filter → rank → enforce)
 - **Inference**: `paper_trading/inference/pipeline.py` → base model → calibration (P1) → governance → execute (ensemble disabled)
@@ -143,7 +143,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 
 | File | Purpose |
 |------|---------|
-| `configs/paper_trading.yaml` | All config (capital, assets, SL/TP, depth, regime_geometry, sizing guardrail defaults, calibration, kelly, portfolio weight method) |
+| `configs/paper_config_registry.py` + `configs/domains/` | Domain-first config tree (capital, assets, SL/TP, sizing, exits, halt, MT5, governance, ML, alerting, …) |
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies, decorator pattern, pure functions |
 | `shared/calibration/` | P1 calibration layer — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
 | `shared/kelly.py` | P2 fractional Kelly sizing — `compute_kelly_fraction`, `compute_kelly_multiplier` |
@@ -301,7 +301,7 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 
 The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-token authentication.
 
-- **Config**: Set `EIGENCAPITAL_API_TOKEN` env var, or `api_token` in `configs/paper_trading.yaml`. Env var takes precedence.
+- **Config**: Set `EIGENCAPITAL_API_TOKEN` env var, or `api_token` in `configs/domains/infrastructure/config.yaml`. Env var takes precedence.
 - **Behavior**: If a token is configured, all JSON API endpoints and POST endpoints require `Authorization: Bearer <token>`. Static files (HTML/CSS/JS) are accessible without auth.
 - **Default**: No token configured = open access (safe because the server binds to 127.0.0.1 by default).
 - **Bind address**: Override with `EIGENCAPITAL_BIND` env var. Warning is logged if binding to anything other than 127.0.0.1.

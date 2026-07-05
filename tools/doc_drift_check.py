@@ -228,17 +228,15 @@ def _check_feature_count_claims() -> list[str]:
     return out
 
 
-def _read_legacy_text() -> str:
-    """Read the legacy mirror file if it still exists on disk."""
-    p = REPO_ROOT / "configs" / "paper_trading.yaml"
-    if p.exists():
-        return _read(p)
-    return "mode: production\nmodes:\n"  # minimal stub for mode-selector check
-
-
 def _check_mode_selector_present() -> bool:
-    text = _read_legacy_text()
-    return bool(re.search(r"^mode:\s+\w+", text, re.MULTILINE)) and "modes:" in text
+    """Verify mode selector and modes block exist via PaperConfigRegistry."""
+    try:
+        from configs.paper_config_registry import PaperConfigRegistry
+
+        reg = PaperConfigRegistry.load()
+        return "mode" in (reg.legacy_extras or {}) or bool(reg.modes)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _check_arch_orchestrator_paths() -> list[str]:
@@ -292,7 +290,7 @@ def main() -> int:
 
     # 6. mode selector
     if not _check_mode_selector_present():
-        findings.append("`mode:` selector or `modes:` block missing in paper_trading.yaml")
+        findings.append("mode selector or modes block missing from PaperConfigRegistry domain tree")
 
     # 7. README PRE step present (5-phase claim)
     pre_ok, _ = _check_pre_phase_in_readme()

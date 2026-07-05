@@ -133,16 +133,25 @@ def _table_for_dataclass(cls) -> str:
 def _render_type(tp) -> str:
     """Render a type annotation into a compact human-readable name.
 
-    Handles Union (including the Optional form), nested generics, and
-    the typing module's Union sentinel (whose ``__name__`` shadows the
-    type alias).
+    Handles Union (including the Optional form), nested generics, the
+    typing module's Union sentinel, and Python 3.10+ ``X | None``
+    syntax (``types.UnionType``).
     """
-    import typing
+    import types as _types
+    import typing as _typing
 
     origin = getattr(tp, "__origin__", None)
     args = getattr(tp, "__args__", ())
 
-    if origin is typing.Union:
+    # Handle Python 3.10+ X | None / X | Y syntax (types.UnionType)
+    if origin is _types.UnionType:
+        non_none = [a for a in args if a is not type(None)]
+        if len(non_none) == 1:
+            return f"Optional[{_render_type(non_none[0])}]"
+        inner = ", ".join(_render_type(a) for a in args)
+        return f"Union[{inner}]"
+
+    if origin is _typing.Union:
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1:
             return f"Optional[{_render_type(non_none[0])}]"

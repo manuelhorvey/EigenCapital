@@ -1,38 +1,6 @@
-import { useEffect, useState } from 'react'
 import { X, BarChart3, TrendingUp, TrendingDown, Activity } from 'lucide-react'
 import { governanceText } from './ui/governance'
-
-interface FeatureImportance {
-  feature?: string
-  importance?: number
-  type?: string
-  error?: string
-}
-
-interface TradeEntry {
-  side: string
-  entry: number
-  exit: number
-  return: number
-  reason: string
-  entry_date: string
-  exit_date: string
-  mae: number | null
-  mfe: number | null
-}
-
-interface DeepDiveData {
-  asset: string
-  feature_importance: FeatureImportance[]
-  trades: TradeEntry[]
-  final_signal: string | null
-  sell_only: boolean
-  tripwire_active: boolean
-  last_signal: Record<string, unknown> | null
-  metrics: Record<string, unknown> | null
-}
-
-const API_BASE = ''
+import { useAssetDeepDive } from '../hooks/useAssetDeepDive'
 
 function pct(v: number | null | undefined): string {
   if (v == null) return '—'
@@ -40,24 +8,9 @@ function pct(v: number | null | undefined): string {
 }
 
 export default function AssetDeepDive({ name, onClose }: { name: string; onClose: () => void }) {
-  const [data, setData] = useState<DeepDiveData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data, isPending, isError } = useAssetDeepDive(name)
 
-  useEffect(() => {
-    setLoading(true)
-    fetch(`${API_BASE}/asset/${name}.json`)
-      .then(r => r.json())
-      .then((d: DeepDiveData) => {
-        setData(d)
-        setLoading(false)
-      })
-      .catch(() => {
-        setData(null)
-        setLoading(false)
-      })
-  }, [name])
-
-  if (loading) {
+  if (isPending) {
     return (
       <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center">
         <div className="text-sm text-tertiary animate-pulse">Loading {name}…</div>
@@ -65,7 +18,7 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
     )
   }
 
-  if (!data) {
+  if (isError || !data) {
     return (
       <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center">
         <div className="text-sm text-gov-red">Failed to load data for {name}</div>

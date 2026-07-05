@@ -15,7 +15,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import contextlib
 import sys
 from dataclasses import MISSING, fields, is_dataclass
 from pathlib import Path
@@ -108,8 +107,10 @@ def _table_for_dataclass(cls) -> str:
     out = f"## `{name}`\n\n{doc}\n\n**Source domain file:** {source}\n\n"
     out += "| Field | Type | Default |\n|---|---|---|\n"
     hints = {}
-    with contextlib.suppress(Exception):  # noqa: BLE001
+    try:
         hints = get_type_hints(cls)
+    except Exception as e:  # noqa: BLE001
+        print(f"config_docs: warning — get_type_hints failed for {cls.__name__}: {e}", file=sys.stderr)
     for f in fields(cls):
         if f.name.startswith("_"):
             continue

@@ -17,7 +17,6 @@ from dataclasses import fields
 from pathlib import Path
 
 import pytest
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -29,8 +28,9 @@ assets_mod = importlib.import_module("configs.domain_models.assets")
 
 @pytest.fixture(scope="module")
 def legacy_yaml() -> dict:
-    path = REPO_ROOT / "configs" / "paper_trading.yaml"
-    return yaml.safe_load(path.read_text())
+    """Build config dict from PaperConfigRegistry (legacy mirror deleted in Phase 12.7)."""
+    mod = importlib.import_module("configs.paper_config_registry")
+    return mod.PaperConfigRegistry.load().as_legacy_dict()
 
 
 # ── RiskConfig ────────────────────────────────────────────────────────

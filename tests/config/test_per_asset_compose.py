@@ -1,13 +1,12 @@
 """Per-asset composition tests (Phase 7).
 
 Validates that each per-asset YAML file (``configs/domains/assets/<NAME>.yaml``)
-plus the shared ``_defaults.yaml`` reconstructs the legacy block with
-byte-equivalence on every per-asset field.
+plus the shared ``_defaults.yaml`` composes correctly.
+The legacy ``configs/paper_trading.yaml`` was deleted in Phase 12.7.
 """
 
 from __future__ import annotations
 
-import importlib
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -21,11 +20,6 @@ if str(REPO_ROOT) not in sys.path:
 
 ASSETS_DIR = REPO_ROOT / "configs" / "domains" / "assets"
 DEFAULTS_YAML = ASSETS_DIR / "_defaults.yaml"
-
-
-@pytest.fixture(scope="module")
-def legacy_yaml() -> dict:
-    return yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
 
 
 @pytest.fixture(scope="module")
@@ -57,15 +51,11 @@ def _compose(name: str) -> dict:
 # ── Index parity ────────────────────────────────────────────────────
 
 
-def test_index_covers_all_legacy_assets(legacy_yaml):
-    """Each YAML top-level asset has a per-asset file."""
+def test_index_covers_22_assets():
+    """_index.yaml lists all 22 live assets."""
     index = yaml.safe_load((ASSETS_DIR / "_index.yaml").read_text())
-    assert sorted(index["assets"]) == sorted(legacy_yaml["assets"].keys())
-
-
-def test_index_has_22_assets(legacy_yaml):
-    """Phase 7 targets 22 assets (live portfolio size)."""
-    index = yaml.safe_load((ASSETS_DIR / "_index.yaml").read_text())
+    domain_files = sorted(fn.stem for fn in ASSETS_DIR.glob("[!_]*.yaml"))
+    assert sorted(index["assets"]) == domain_files
     assert len(index["assets"]) == 22
 
 
@@ -78,63 +68,62 @@ def test_defaults_block_is_a_first_class_file(defaults_yaml):
         assert key in defaults_yaml, f"_defaults.yaml missing canonical block: {key}"
 
 
-# ── Per-asset equivalence (spot-checked) ───────────────────────────
+# ── Per-asset composition ───────────────────────────────────────────
 
 
-def _compare_simple_fields(name, composed, legacy):
-    for k in ("ticker", "allocation", "sl_mult", "tp_mult"):
-        assert composed.get(k) == legacy.get(k), f"{name}.{k} mismatch"
+@pytest.fixture(scope="module")
+def _all_asset_names() -> list[str]:
+    return sorted(fn.stem for fn in ASSETS_DIR.glob("[!_]*.yaml"))
 
 
 @pytest.mark.parametrize(
-    "name", sorted(yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())["assets"].keys())
+    "name",
+    sorted(fn.stem for fn in Path(__file__).resolve().parent.parent.parent.glob("configs/domains/assets/[!_]*.yaml")),
 )
-def test_composed_block_matches_legacy_simple_fields(name, legacy_yaml):
+def test_composed_block_has_core_fields(name):
+    """Each composed asset has ticker, allocation, sl_mult, tp_mult."""
     composed = _compose(name)
-    legacy = legacy_yaml["assets"][name]
-    _compare_simple_fields(name, composed, legacy)
+    for k in ("ticker", "allocation", "sl_mult", "tp_mult"):
+        assert k in composed, f"{name} composed missing {k}"
+    assert "config" in composed, f"{name} composed missing config block"
 
 
-def test_usdcad_preserved_through_compose(legacy_yaml):
+def test_usdcad_preserved_through_compose():
     composed = _compose("USDCAD")
     assert composed["spread_tier"] == "fx_major"
     assert composed["max_depth"] == 5
-    # tp/sl must come from per-asset
     assert composed["tp_mult"] == 3.9
     assert composed["sl_mult"] == 1.3
 
 
-def test_btcusd_preserves_weekend_flag(legacy_yaml):
+def test_btcusd_preserves_weekend_flag():
     composed = _compose("BTCUSD")
     assert composed["max_entry_slippage_pct"] == 5.0
-    # NOTE: weekend_eligible/weekend_allocation_multiplier are top-level keys
-    # that don't propagate through _compose; the legacy block has them at top
-    # level inside assets.BTCUSD. Verify the per-asset file kept them:
     raw = yaml.safe_load((ASSETS_DIR / "BTCUSD.yaml").read_text())
     assert raw.get("weekend_eligible") is True
     assert raw.get("weekend_allocation_multiplier") == 0.5
 
 
-def test_defaults_yaml_adaptive_exit_matches_legacy_default(legacy_yaml):
+def test_defaults_yaml_adaptive_exit_matches_known_default():
     defaults = yaml.safe_load(DEFAULTS_YAML.read_text())["adaptive_exit"]
-    legacy_ae = legacy_yaml["assets"]["GC"]["config"]["adaptive_exit"]
-    for k, v in defaults.items():
-        assert legacy_ae.get(k) == v, f"defaults.adaptive_exit.{k} mismatch"
+    assert defaults["trail_activation_r"] == 0.8
+    assert defaults["trail_retrace_pct"] == 0.33
+    assert defaults["enabled"] is True
 
 
-def test_per_asset_adaptive_exit_overrides_apply(legacy_yaml):
+def test_per_asset_adaptive_exit_overrides_apply():
     """NZDUSD has trail_activation_r: 0.5 while default is 0.8."""
     raw = yaml.safe_load((ASSETS_DIR / "NZDUSD.yaml").read_text())
     assert raw.get("adaptive_exit", {}).get("trail_activation_r") == 0.5
 
 
-def test_per_asset_adaptive_exit_defaults_match_when_absent(legacy_yaml):
+def test_per_asset_adaptive_exit_defaults_match_when_absent():
     """USDCAD adaptive_exit block absent -> default 0.8 trail_activation."""
     raw = yaml.safe_load((ASSETS_DIR / "USDCAD.yaml").read_text())
     assert "adaptive_exit" not in raw, "USDCAD should inherit adaptive_exit from defaults"
 
 
-def test_no_per_asset_file_adapts_to_defaults(legacy_yaml):
+def test_no_per_asset_file_adapts_to_defaults():
     """Synthesize a domain asset and verify default composition."""
     name = "SYNTH"
     synth = {
@@ -154,7 +143,7 @@ def test_no_per_asset_file_adapts_to_defaults(legacy_yaml):
         target.unlink()
 
 
-def test_assets_per_file_count_matches(legacy_yaml):
+def test_assets_per_file_count_matches():
     """22 files + _defaults.yaml + _index.yaml."""
     files = list(ASSETS_DIR.glob("*.yaml"))
     assert len(files) == 24, f"Expected 24, found {len(files)}"

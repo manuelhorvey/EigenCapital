@@ -51,6 +51,7 @@ def _load_config_data() -> dict:
     reg = PaperConfigRegistry.load()
     return reg.as_legacy_dict()
 
+
 _TICKER_OR_KEY = re.compile(r"^=?[A-Z][A-Z0-9\^=]*$")
 
 
@@ -322,10 +323,7 @@ def _check_risk_invariants(defaults: dict, errors: list[str], warnings: list[str
     mt5_max = defaults.get("mt5_max_risk_per_trade_pct")
     if max_risk is not None and mt5_max is not None and mt5_max > max_risk:
         enabled = defaults.get("mt5_enable_max_risk_per_trade_pct", False)
-        msg = (
-            f"defaults.mt5_max_risk_per_trade_pct={mt5_max} exceeds "
-            f"defaults.max_risk_per_trade_pct={max_risk};"
-        )
+        msg = f"defaults.mt5_max_risk_per_trade_pct={mt5_max} exceeds defaults.max_risk_per_trade_pct={max_risk};"
         if enabled:
             errors.append(f"{msg} active MT5 risk cap would override paper cap with higher limit")
         else:

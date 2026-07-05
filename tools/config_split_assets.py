@@ -112,8 +112,7 @@ def split(legacy_path: Path | None = None, assets_dir: Path = ASSETS_DIR) -> int
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--legacy", type=Path, default=None,
-                        help="Optional legacy YAML path (default: registry)")
+    parser.add_argument("--legacy", type=Path, default=None, help="Optional legacy YAML path (default: registry)")
     parser.add_argument("--output", type=Path, default=ASSETS_DIR)
     args = parser.parse_args()
 

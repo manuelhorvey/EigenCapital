@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,16 +17,19 @@ sys.path.insert(0, str(REPO_DIR))
 validator_mod = importlib.import_module("tools.check_config_schema")
 
 
+def _load_registry_dict() -> dict:
+    """Load config dict from PaperConfigRegistry."""
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    return PaperConfigRegistry.load().as_legacy_dict()
+
+
 @pytest.fixture
 def config_path(tmp_path: Path) -> Path:
-    src = REPO_DIR / "configs" / "paper_trading.yaml"
+    """Generate a synthetic legacy YAML file from PaperConfigRegistry."""
     dst = tmp_path / "paper_trading.yaml"
-    shutil.copy(src, dst)
+    dst.write_text(yaml.safe_dump(_load_registry_dict(), sort_keys=False))
     return dst
-
-
-def _load(path: Path) -> dict:
-    return yaml.safe_load(path.read_text())
 
 
 def _dump(path: Path, data: dict) -> None:
@@ -45,7 +47,7 @@ def test_passes_legacy_yaml(config_path):
 
 
 def test_allocation_overflow_fails(tmp_path):
-    data = _load(REPO_DIR / "configs" / "paper_trading.yaml")
+    data = _load_registry_dict()
     data["assets"]["USDCAD"]["allocation"] = 5.0
     target = tmp_path / "paper_trading.yaml"
     _dump(target, data)
@@ -53,7 +55,7 @@ def test_allocation_overflow_fails(tmp_path):
 
 
 def test_ticker_collision_fails(tmp_path):
-    data = _load(REPO_DIR / "configs" / "paper_trading.yaml")
+    data = _load_registry_dict()
     data["assets"]["NZDUSD"]["ticker"] = "USDCAD=X"
     data["assets"]["USDCAD"]["ticker"] = "USDCAD=X"  # both pointing at same ticker
     target = tmp_path / "paper_trading.yaml"
@@ -62,7 +64,7 @@ def test_ticker_collision_fails(tmp_path):
 
 
 def test_label_drift_surfaces_soft_warning(tmp_path):
-    data = _load(REPO_DIR / "configs" / "paper_trading.yaml")
+    data = _load_registry_dict()
     data["assets"]["USDCAD"]["tp_mult"] = data["assets"]["USDCAD"]["tp_mult"] * 2
     target = tmp_path / "paper_trading.yaml"
     _dump(target, data)
@@ -71,7 +73,7 @@ def test_label_drift_surfaces_soft_warning(tmp_path):
 
 
 def test_required_top_level_keys_present(config_path):
-    data = _load(config_path)
+    data = yaml.safe_load(config_path.read_text())
     for key in ("capital", "position_size", "rebalance", "assets", "defaults"):
         assert key in data, f"missing required key: {key}"
 
@@ -89,7 +91,7 @@ def test_cpu_invocation_succeeds():
 
 
 def test_mode_references_undeclared_fails(tmp_path):
-    data = _load(REPO_DIR / "configs" / "paper_trading.yaml")
+    data = _load_registry_dict()
     data["mode"] = "unknown_mode"
     target = tmp_path / "paper_trading.yaml"
     _dump(target, data)
@@ -97,7 +99,7 @@ def test_mode_references_undeclared_fails(tmp_path):
 
 
 def test_mt5_port_out_of_range_fails(tmp_path):
-    data = _load(REPO_DIR / "configs" / "paper_trading.yaml")
+    data = _load_registry_dict()
     data["mt5"]["bridge_port"] = 70000
     target = tmp_path / "paper_trading.yaml"
     _dump(target, data)
@@ -105,7 +107,7 @@ def test_mt5_port_out_of_range_fails(tmp_path):
 
 
 def test_session_gate_window_must_be_two_element_list(tmp_path):
-    data = _load(REPO_DIR / "configs" / "paper_trading.yaml")
+    data = _load_registry_dict()
     data["defaults"]["session_gate"]["tiers"]["fx_major"] = 9
     target = tmp_path / "paper_trading.yaml"
     _dump(target, data)

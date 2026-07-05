@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -120,8 +121,19 @@ class TestConfigSchema:
         os.unlink(path)
 
     def test_real_config_passes(self):
-        real_path = Path(__file__).resolve().parent.parent.parent / "configs" / "paper_trading.yaml"
-        assert validate(str(real_path)) == 0
+        """Validate against the PaperConfigRegistry output."""
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+        from configs.paper_config_registry import PaperConfigRegistry
+
+        reg = PaperConfigRegistry.load()
+        data = reg.as_legacy_dict()
+        fd, path = tempfile.mkstemp(suffix=".yaml")
+        with os.fdopen(fd, "w") as f:
+            yaml.dump(data, f)
+        try:
+            assert validate(path) == 0
+        finally:
+            os.unlink(path)
 
     def test_optional_execution_section(self):
         cfg = dict(_SAMPLE_VALID_CONFIG)

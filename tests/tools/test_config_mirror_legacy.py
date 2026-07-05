@@ -14,19 +14,30 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGACY_PATH = REPO_ROOT / "configs" / "paper_trading.yaml"
 
 
+def _make_legacy_file(path: Path) -> dict:
+    """Generate a synthetic legacy YAML file from PaperConfigRegistry."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    reg = PaperConfigRegistry.load()
+    data = reg.as_legacy_dict()
+    path.write_text(yaml.safe_dump(data, sort_keys=False))
+    return data
+
+
 @pytest.fixture
-def restored_legacy():
-    """Restore the legacy YAML from a snapshot taken at test start."""
-    snapshot = LEGACY_PATH.read_text()
-    yield
-    LEGACY_PATH.write_text(snapshot)
+def restored_legacy(tmp_path):
+    """Create a synthetic legacy YAML file from the registry."""
+    path = tmp_path / "paper_trading.yaml"
+    _make_legacy_file(path)
+    return path
 
 
 def test_render_legacy_yaml_returns_string(restored_legacy):
     sys.path.insert(0, str(REPO_ROOT))
     from tools.config_mirror_legacy import render_legacy_yaml
 
-    out = render_legacy_yaml(LEGACY_PATH)
+    out = render_legacy_yaml(restored_legacy)
     assert isinstance(out, str)
     parsed = yaml.safe_load(out)
     assert isinstance(parsed, dict)
@@ -39,7 +50,7 @@ def test_render_legacy_yaml_yields_registered_assets(restored_legacy):
     sys.path.insert(0, str(REPO_ROOT))
     from tools.config_mirror_legacy import render_legacy_yaml
 
-    out = render_legacy_yaml(LEGACY_PATH)
+    out = render_legacy_yaml(restored_legacy)
     parsed = yaml.safe_load(out)
     assets = parsed["assets"]
     assert isinstance(assets, dict)
@@ -59,15 +70,15 @@ def test_render_round_trips_through_registry(restored_legacy):
     )
     from tools.config_mirror_legacy import render_legacy_yaml
 
-    reg = PaperConfigRegistry.load(legacy_path=LEGACY_PATH, domains_dir=DOMAINS_DIR)
-    yaml_text = render_legacy_yaml(LEGACY_PATH)
+    reg = PaperConfigRegistry.load(legacy_path=restored_legacy, domains_dir=DOMAINS_DIR)
+    yaml_text = render_legacy_yaml(restored_legacy)
     parsed = yaml.safe_load(yaml_text)
     assert parsed == reg.as_legacy_dict()
 
 
 def test_check_passes_when_registry_matches_disk(restored_legacy, monkeypatch, capsys):
     sys.path.insert(0, str(REPO_ROOT))
-    monkeypatch.setattr("sys.argv", ["config_mirror_legacy.py", "--check", "--path", str(LEGACY_PATH)])
+    monkeypatch.setattr("sys.argv", ["config_mirror_legacy.py", "--check", "--path", str(restored_legacy)])
     from tools import config_mirror_legacy
 
     rc = config_mirror_legacy.main()
@@ -85,25 +96,19 @@ def test_check_fails_on_modified_legacy(restored_legacy, capsys, monkeypatch):
     as_legacy_dict() regenerates from domain, so disk's arbitrary
     capital value will NOT match the renderer's output.
     """
-    backup = LEGACY_PATH.read_text()
-    try:
-        raw = yaml.safe_load(backup)
-        # Mutate `capital` in a way not reflected in the domain layer:
-        # the registry's as_legacy_dict() always emits the domain value,
-        # while the disk holds our override. This must drift.
-        raw["capital"] = 7777
-        LEGACY_PATH.write_text(yaml.safe_dump(raw))
+    raw = yaml.safe_load(restored_legacy.read_text())
+    # Mutate `capital` in a way not reflected in the domain layer:
+    raw["capital"] = 7777
+    restored_legacy.write_text(yaml.safe_dump(raw))
 
-        sys.path.insert(0, str(REPO_ROOT))
-        monkeypatch.setattr("sys.argv", ["config_mirror_legacy.py", "--check", "--path", str(LEGACY_PATH)])
-        from tools import config_mirror_legacy
+    sys.path.insert(0, str(REPO_ROOT))
+    monkeypatch.setattr("sys.argv", ["config_mirror_legacy.py", "--check", "--path", str(restored_legacy)])
+    from tools import config_mirror_legacy
 
-        rc = config_mirror_legacy.main()
-        captured = capsys.readouterr()
-        assert rc == 1
-        assert "drifted" in captured.err.lower()
-    finally:
-        LEGACY_PATH.write_text(backup)
+    rc = config_mirror_legacy.main()
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "drifted" in captured.err.lower()
 
 
 def test_write_replaces_disk_with_registry_output(restored_legacy):
@@ -112,23 +117,23 @@ def test_write_replaces_disk_with_registry_output(restored_legacy):
     from tools import config_mirror_legacy
     from tools.config_mirror_legacy import render_legacy_yaml
 
-    pre = LEGACY_PATH.read_text()
+    pre = restored_legacy.read_text()
 
-    # Snapshot disk → dispose so the post-write content cannot equal pre
+    # Mutate capital so post-write content differs
     drift_yaml = yaml.safe_load(pre)
     drift_yaml["capital"] = 9999
-    LEGACY_PATH.write_text(yaml.safe_dump(drift_yaml))
+    restored_legacy.write_text(yaml.safe_dump(drift_yaml))
 
     # Run --write
     import sys as _sys
 
     _sys.path.insert(0, str(REPO_ROOT))
-    _sys.argv = ["config_mirror_legacy.py", "--write", "--path", str(LEGACY_PATH)]
+    _sys.argv = ["config_mirror_legacy.py", "--write", "--path", str(restored_legacy)]
     rc = config_mirror_legacy.main()
     assert rc == 0
 
-    post = LEGACY_PATH.read_text()
-    expected = render_legacy_yaml(LEGACY_PATH)
+    post = restored_legacy.read_text()
+    expected = render_legacy_yaml(restored_legacy)
     assert post == expected
     parsed_post = yaml.safe_load(post)
     assert parsed_post["capital"] != 9999
@@ -138,7 +143,7 @@ def test_render_preserves_session_gate(restored_legacy):
     """Phase 11.3 fix: session_gate must round-trip from legacy_extras."""
     from tools.config_mirror_legacy import render_legacy_yaml
 
-    out = render_legacy_yaml(LEGACY_PATH)
+    out = render_legacy_yaml(restored_legacy)
     parsed = yaml.safe_load(out)
     assert "session_gate" in parsed["defaults"]
     sg = parsed["defaults"]["session_gate"]
@@ -165,7 +170,7 @@ def _run_ci(path: Path) -> subprocess.CompletedProcess:
 
 def test_ci_no_drift_when_clean(restored_legacy):
     """--ci exits 0 with drift=false when no drift exists."""
-    result = _run_ci(LEGACY_PATH)
+    result = _run_ci(restored_legacy)
     assert result.returncode == 0, f"stdout={result.stdout}, stderr={result.stderr}"
     parsed = json.loads(result.stdout)
     assert parsed["drift"] is False
@@ -174,25 +179,21 @@ def test_ci_no_drift_when_clean(restored_legacy):
 
 def test_ci_detects_promoted_drift(restored_legacy):
     """--ci reports promoted-key drift when the mirror has stale values."""
-    backup = LEGACY_PATH.read_text()
-    try:
-        raw = yaml.safe_load(backup)
-        raw["capital"] = 7777  # promoted key (domain-owned)
-        LEGACY_PATH.write_text(yaml.safe_dump(raw))
+    raw = yaml.safe_load(restored_legacy.read_text())
+    raw["capital"] = 7777  # promoted key (domain-owned)
+    restored_legacy.write_text(yaml.safe_dump(raw))
 
-        result = _run_ci(LEGACY_PATH)
-        assert result.returncode == 1, f"stdout={result.stdout}, stderr={result.stderr}"
-        parsed = json.loads(result.stdout)
-        assert parsed["drift"] is True
-        assert parsed["summary"]["promoted"] >= 1
-        promoted_changes = [c for c in parsed["changes"] if c["category"] == "promoted"]
-        assert len(promoted_changes) >= 1
-        capital_change = next((c for c in promoted_changes if c["path"] == "capital"), None)
-        assert capital_change is not None
-        assert capital_change["disk"] == 7777
-        assert capital_change["registry"] == 100000
-    finally:
-        LEGACY_PATH.write_text(backup)
+    result = _run_ci(restored_legacy)
+    assert result.returncode == 1, f"stdout={result.stdout}, stderr={result.stderr}"
+    parsed = json.loads(result.stdout)
+    assert parsed["drift"] is True
+    assert parsed["summary"]["promoted"] >= 1
+    promoted_changes = [c for c in parsed["changes"] if c["category"] == "promoted"]
+    assert len(promoted_changes) >= 1
+    capital_change = next((c for c in promoted_changes if c["path"] == "capital"), None)
+    assert capital_change is not None
+    assert capital_change["disk"] == 7777
+    assert capital_change["registry"] == 100000
 
 
 def test_categorize_path_logic():

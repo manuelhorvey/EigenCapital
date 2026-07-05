@@ -1,7 +1,7 @@
 """Equivalence tests for the Phase 4 ConfigRegistry.
 
-Verifies that the new typed loader re-produces the legacy
-``paper_trading.yaml`` shape byte-for-byte for the keys it owns.
+Uses a synthetic legacy dict built from PaperConfigRegistry
+since the actual legacy ``paper_trading.yaml`` was deleted in Phase 12.7.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -20,14 +19,27 @@ if str(REPO_ROOT) not in sys.path:
 
 
 @pytest.fixture(scope="module")
-def legacy_yaml() -> dict:
-    return yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
+def registry_legacy() -> dict:
+    """Build a synthetic legacy dict from PaperConfigRegistry."""
+    mod = importlib.import_module("configs.paper_config_registry")
+    return mod.PaperConfigRegistry.load().as_legacy_dict()
 
 
 @pytest.fixture(scope="module")
-def registry():
+def registry(tmp_path_factory, registry_legacy):
+    """Build a ConfigRegistry from a synthetic legacy file."""
+    tmp_dir = tmp_path_factory.mktemp("legacy")
+    leg_path = _make_legacy_file(registry_legacy, tmp_dir)
     loader = importlib.import_module("configs.domain_loader")
-    return loader.ConfigRegistry.load()
+    return loader.ConfigRegistry.load(legacy_path=leg_path)
+
+
+def _make_legacy_file(registry_legacy: dict, tmp_path: Path) -> Path:
+    """Write a temporary legacy file from the synthetic dict."""
+    import yaml as _yaml
+    target = tmp_path / "paper_trading.yaml"
+    target.write_text(_yaml.safe_dump(registry_legacy, sort_keys=False))
+    return target
 
 
 def test_registry_loads_without_error(registry):
@@ -38,23 +50,21 @@ def test_registry_summary_shape(registry):
     summary = registry.summary()
     assert summary["assets"] == 22
     assert summary["sell_only"] == ["CADCHF", "EURAUD", "NZDCHF"]
-    # SizingConfig has 27 typed fields per configs/domain_models/risk.py
     assert summary["sizing_fields"] == 27
 
 
-def test_as_legacy_dict_round_trips_capital(registry, legacy_yaml):
+def test_as_legacy_dict_round_trips_capital(registry, registry_legacy):
     out = registry.as_legacy_dict()
-    assert out["capital"] == legacy_yaml["capital"]
-    assert out["position_size"] == legacy_yaml["position_size"]
-    assert out["portfolio_drawdown_limit"] == legacy_yaml["portfolio_drawdown_limit"]
+    assert out["capital"] == registry_legacy["capital"]
+    assert out["position_size"] == registry_legacy["position_size"]
+    assert out["portfolio_drawdown_limit"] == registry_legacy["portfolio_drawdown_limit"]
 
 
-def test_as_legacy_dict_round_trips_sizing(registry, legacy_yaml):
+def test_as_legacy_dict_round_trips_sizing(registry, registry_legacy):
     out = registry.as_legacy_dict()
-    legacy_defaults = legacy_yaml["defaults"]
+    legacy_defaults = registry_legacy["defaults"]
     typed_defaults = out["defaults"]
 
-    # spot check several keys
     for k in (
         "rolling_window_bars",
         "max_risk_per_trade_pct",
@@ -66,16 +76,16 @@ def test_as_legacy_dict_round_trips_sizing(registry, legacy_yaml):
         assert typed_defaults[k] == legacy_defaults[k], f"{k} mismatch"
 
 
-def test_as_legacy_dict_round_trips_sell_only(registry, legacy_yaml):
+def test_as_legacy_dict_round_trips_sell_only(registry, registry_legacy):
     out = registry.as_legacy_dict()
     assert out["defaults"]["sell_only_assets"] == sorted(
-        legacy_yaml["defaults"]["sell_only_assets"]
+        registry_legacy["defaults"]["sell_only_assets"]
     )
 
 
-def test_as_legacy_dict_round_trips_adaptive_exit(registry, legacy_yaml):
+def test_as_legacy_dict_round_trips_adaptive_exit(registry, registry_legacy):
     out = registry.as_legacy_dict()
-    legacy_ae = legacy_yaml["defaults"]["adaptive_exit"]
+    legacy_ae = registry_legacy["defaults"]["adaptive_exit"]
     typed_ae = out["defaults"]["adaptive_exit"]
     for k in (
         "enabled",
@@ -90,10 +100,10 @@ def test_as_legacy_dict_round_trips_adaptive_exit(registry, legacy_yaml):
         assert typed_ae[k] == legacy_ae[k], f"adaptive_exit.{k} mismatch"
 
 
-def test_as_legacy_dict_round_trips_assets(registry, legacy_yaml):
+def test_as_legacy_dict_round_trips_assets(registry, registry_legacy):
     out = registry.as_legacy_dict()
     typed_assets = out["assets"]
-    legacy_assets = legacy_yaml["assets"]
+    legacy_assets = registry_legacy["assets"]
     assert set(typed_assets) == set(legacy_assets)
     for name, raw in legacy_assets.items():
         rebuilt = typed_assets[name]
@@ -103,70 +113,55 @@ def test_as_legacy_dict_round_trips_assets(registry, legacy_yaml):
         assert rebuilt["tp_mult"] == raw["tp_mult"]
 
 
-def test_registry_extras_carry_legacy_only_keys(registry, legacy_yaml):
+def test_registry_extras_carry_legacy_only_keys(registry, registry_legacy):
     """Extras bag carries keys that have not been promoted."""
-    assert "rebalance" in registry.legacy_extras
-    assert "data_source" in registry.legacy_extras
-    # Phase 12.3: ensemble, alerting, calibration, kelly, meta_labeling
-    # are pruned from PaperConfigRegistry (never consumed through EngineConfig).
-    # ConfigRegistry (domain_loader) still carries them via legacy_extras
-    # since it does not have the pruned_top filter.
-    # assert "ensemble" in registry.legacy_extras  -- removed
+    from configs.paper_config_registry import PaperConfigRegistry
+    paper_reg = PaperConfigRegistry.load()
+    extras = set(paper_reg.legacy_extras.keys())
+    for k in extras:
+        assert k in registry.legacy_extras
 
 
-def test_registry_uses_domain_overrides_when_present(tmp_path: Path, legacy_yaml):
+def test_registry_uses_domain_overrides_when_present(tmp_path: Path, registry_legacy):
     """When a sizing domain file has an override, it wins."""
     loader = importlib.import_module("configs.domain_loader")
-    # Build a fake domain tree from the materialized one, but override
-    # one sizing key.
+    leg_path = _make_legacy_file(registry_legacy, tmp_path)
+
     src_sizing = REPO_ROOT / "configs" / "domains" / "risk" / "sizing.yaml"
     dst_sizing = tmp_path / "risk" / "sizing.yaml"
     dst_sizing.parent.mkdir(parents=True)
     text = src_sizing.read_text()
-    # Inject an override: max_risk_per_trade_pct: 0.5 (lower than 2.0)
     text = text.replace("max_risk_per_trade_pct: 2.0", "max_risk_per_trade_pct: 0.5")
     dst_sizing.write_text(text)
-    # Copy remaining structure to mirror live positions only loosely.
-    # The capital.yaml & exits.yaml files already exist upstream — we
-    # reuse them.
+
     for src, dst in (
-        (
-            REPO_ROOT / "configs" / "domains" / "risk" / "capital.yaml",
-            tmp_path / "risk" / "capital.yaml",
-        ),
-        (
-            REPO_ROOT / "configs" / "domains" / "risk" / "exits.yaml",
-            tmp_path / "risk" / "exits.yaml",
-        ),
+        (REPO_ROOT / "configs" / "domains" / "risk" / "capital.yaml", tmp_path / "risk" / "capital.yaml"),
+        (REPO_ROOT / "configs" / "domains" / "risk" / "exits.yaml", tmp_path / "risk" / "exits.yaml"),
     ):
         if src.exists():
             (tmp_path / "risk").mkdir(parents=True, exist_ok=True)
             dst.write_text(src.read_text())
 
     reg = loader.ConfigRegistry.load(
-        legacy_path=REPO_ROOT / "configs" / "paper_trading.yaml",
+        legacy_path=leg_path,
         domains_dir=tmp_path,
     )
     assert reg.risk.sizing.max_risk_per_trade_pct == 0.5
-    # Untouched sizing keys remain at legacy value
     assert reg.risk.sizing.min_confidence == 55.0
 
 
-def test_registry_falls_back_to_legacy_when_domain_file_missing(tmp_path: Path):
+def test_registry_falls_back_to_legacy_when_domain_file_missing(tmp_path: Path, registry_legacy):
     """When domain files are absent, legacy YAML is the sole source."""
     loader = importlib.import_module("configs.domain_loader")
-    # Empty domains dir
+    leg_path = _make_legacy_file(registry_legacy, tmp_path)
     reg = loader.ConfigRegistry.load(
-        legacy_path=REPO_ROOT / "configs" / "paper_trading.yaml",
+        legacy_path=leg_path,
         domains_dir=tmp_path,
     )
-    assert reg.risk.sizing.max_risk_per_trade_pct == 2.0  # legacy value
+    assert reg.risk.sizing.max_risk_per_trade_pct == 2.0
 
 
-def test_registry_audit_message_is_informative(capsys):
-    loader = importlib.import_module("configs.domain_loader")
-    reg = loader.ConfigRegistry.load()
-    summary = reg.summary()
-    # Should be JSON-serializable
+def test_registry_audit_message_is_informative(capsys, registry):
+    summary = registry.summary()
     json.dumps(summary)
     assert summary["assets"] == 22

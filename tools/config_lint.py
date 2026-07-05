@@ -30,6 +30,7 @@ def _load_registry_dict() -> dict:
     reg = PaperConfigRegistry.load()
     return reg.as_legacy_dict()
 
+
 # Patterns that signal reader misconfiguration
 DEPRECATED_KEYS = (
     # min_lot: legacy-MT5 hard-floor removed 2026-06-29; surfaced via YAML comment

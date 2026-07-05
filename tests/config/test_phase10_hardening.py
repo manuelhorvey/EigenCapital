@@ -188,19 +188,22 @@ def test_settings_directory_size_under_budget():
     """Refactor target was reducing the legacy YAML maintenance surface.
 
     Per-asset files sum to ~16-19 lines per asset (~380 lines total)
-    plus _defaults.yaml at 18 lines. Legacy YAML dropped from
-    ~1000-line asset section to ~13 lines describing the appendix.
+    plus _defaults.yaml at 18 lines. The legacy YAML was deleted in
+    Phase 12.7; verify per-asset files are reasonably small.
     """
-    legacy_yaml = (REPO_ROOT / "configs" / "paper_trading.yaml").read_text()
     assets_dir = REPO_ROOT / "configs" / "domains" / "assets"
+    asset_files = sorted(assets_dir.glob("[!_]*.yaml"))
     per_asset_total = 0
-    for fn in assets_dir.glob("[!_]*.yaml"):
+    for fn in asset_files:
         per_asset_total += sum(1 for _ in fn.read_text().splitlines())
-    # Per-asset files plus defaults file should be < the asset section of legacy
-    legacy_asset_section = sum(1 for line in legacy_yaml.splitlines() if line.startswith("  ") and ":" in line)
-    # Per-asset total should be substantially smaller (no boilerplate)
-    assert per_asset_total < legacy_asset_section * 1.5, (
-        f"per-asset total {per_asset_total} not < 1.5x legacy asset bullet count {legacy_asset_section}"
+    # 22 per-asset files should average < 30 lines each
+    avg_lines = per_asset_total / max(len(asset_files), 1)
+    assert avg_lines < 30, (
+        f"per-asset average {avg_lines:.1f} lines exceeds 30-line budget"
+    )
+    # Total per-asset files should be well under 1000 lines
+    assert per_asset_total < 800, (
+        f"per-asset total {per_asset_total} lines exceeds 800-line budget"
     )
 
 

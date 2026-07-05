@@ -42,6 +42,7 @@ def _promoted_status_table() -> str:
     """Render the promoted-domain status summary."""
     try:
         from configs.paper_config_registry import PaperConfigRegistry
+
         reg = PaperConfigRegistry.load()
     except Exception:  # noqa: BLE001
         reg = None

@@ -32,16 +32,9 @@ Domains sourced from `configs/domains/` and wired through `PaperConfigRegistry`.
 | Liquidity | `governance/liquidity.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
 | Narrative | `governance/narrative.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
 | Environment overlays | `environments/*.yaml` | 📁 file exists (unwired) |
-| `adx_entry_gate` (legacy only) | `—` | ⏳ legacy_extras |
-| `entry_optimization` (legacy only) | `—` | ⏳ legacy_extras |
-| `mode` (legacy only) | `—` | ⏳ legacy_extras |
-| `stacking` (legacy only) | `—` | ⏳ legacy_extras |
 
 **Pruned keys** (never consumed through EngineConfig):
 `kelly`
-
-**Remaining legacy_extras** (4 keys):
-`adx_entry_gate`, `entry_optimization`, `mode`, `stacking`
 
 
 ## `CapitalConfig`

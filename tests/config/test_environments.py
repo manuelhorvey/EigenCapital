@@ -11,7 +11,6 @@ as overlays to be merged on top of the resolved mode. These tests verify:
 
 from __future__ import annotations
 
-import importlib
 import sys
 from pathlib import Path
 
@@ -116,9 +115,10 @@ def test_engine_config_resolution_still_active():
     """The EngineConfig.from_dict mode-resolution path must still apply
     the per-mode overlay (regression guard for Phase 8)."""
     sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
     from paper_trading.config_manager import EngineConfig
 
-    data = yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
+    data = PaperConfigRegistry.load().as_legacy_dict()
     cfg = EngineConfig.from_dict(data)
     assert cfg.mode == "production"
     # Top-level portfolio_drawdown_limit wins; not the mode override
@@ -128,9 +128,10 @@ def test_engine_config_resolution_still_active():
 def test_mode_switch_resolves_correct_capital():
     """Switching mode to challenge_ftmo_10k applies the per-mode capital."""
     sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
     from paper_trading.config_manager import EngineConfig
 
-    data = yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
+    data = PaperConfigRegistry.load().as_legacy_dict()
     data["mode"] = "challenge_ftmo_10k"
     cfg = EngineConfig.from_dict(data)
     assert cfg.capital == 10000
@@ -138,9 +139,10 @@ def test_mode_switch_resolves_correct_capital():
 
 def test_mode_switch_resolves_correct_dd_limit():
     sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
     from paper_trading.config_manager import EngineConfig
 
-    data = yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
+    data = PaperConfigRegistry.load().as_legacy_dict()
     data["mode"] = "live"
     cfg = EngineConfig.from_dict(data)
     # live mode override applies via _merge_mode_overrides:
@@ -150,9 +152,10 @@ def test_mode_switch_resolves_correct_dd_limit():
 
 def test_unknown_mode_falls_back():
     sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
     from paper_trading.config_manager import EngineConfig
 
-    data = yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
+    data = PaperConfigRegistry.load().as_legacy_dict()
     data["mode"] = "non_existent_mode"
     cfg = EngineConfig.from_dict(data)
     # Falls back to root values; mode name preserved

@@ -46,6 +46,7 @@ def _load_registry(legacy_path: Path = LEGACY_PATH) -> object:
         DOMAINS_DIR,
         PaperConfigRegistry,
     )
+
     return PaperConfigRegistry.load(legacy_path=legacy_path, domains_dir=DOMAINS_DIR)
 
 
@@ -199,10 +200,20 @@ def main() -> int:
         # Promoted top-level keys: domain-owned (capital, halt, defaults, assets, ...)
         # plus all sizing field names (promoted to sizing.yaml).
         sizing_fields = frozenset(reg.risk.sizing.__dataclass_fields__.keys())
-        promoted_top = frozenset({
-            "capital", "position_size", "portfolio_drawdown_limit",
-            "halt", "defaults", "assets",
-        }) | sizing_fields | frozenset({"adaptive_exit", "sell_only_assets"})
+        promoted_top = (
+            frozenset(
+                {
+                    "capital",
+                    "position_size",
+                    "portfolio_drawdown_limit",
+                    "halt",
+                    "defaults",
+                    "assets",
+                }
+            )
+            | sizing_fields
+            | frozenset({"adaptive_exit", "sell_only_assets"})
+        )
 
         legacy_extras_keys = frozenset(reg.legacy_extras.keys())
 

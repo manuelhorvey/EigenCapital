@@ -8,7 +8,7 @@
 
 **1. ✅ Walk-forward 86% leakage — FIXED.** `PurgedWalkForwardFolds` now has cross-fold purging. All research re-run on valid folds. Corrected portfolio metrics: total_R=107.82 (not 291), sharpe_adj=9.66 (not 29.0). Old numbers are superseded.
 
-**2. ✅ BUY inversion — CLOSED with permanent treatment.** 11 assets identified as having inverted BUY signals. 3 (AUDUSD, EURNZD, NZDUSD) restored to two-way trading after corrected walk-forward showed BUY WR >50%. Remaining 8 (CADCHF, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF) are permanently on SELL_ONLY — BUY WR 11-31%, root cause identified as calibration/prior shift (model p_long tracks ~84% training base rate vs 9-27% test rate). All candidate mechanistic explanations were tested and falsified via SHAP + counterfactual ablation. No structural fix exists.
+**2. ✅ BUY inversion — CLOSED with permanent treatment.** 11 assets identified as having inverted BUY signals. 3 (AUDUSD, EURNZD, NZDUSD) restored to two-way trading after corrected walk-forward showed BUY WR >50%. 5 removed from SELL_ONLY after trend-exhaustion features (2026-06-26) and portfolio remediation (2026-07-01). Remaining 3 (CADCHF, NZDCHF, EURAUD) are permanently on SELL_ONLY — BUY WR 11-31%, root cause identified as calibration/prior shift (model p_long tracks ~84% training base rate vs 9-27% test rate). All candidate mechanistic explanations were tested and falsified via SHAP + counterfactual ablation. No structural fix exists.
 
 **3. ✅ Circuit breaker — FIXED.** Now tracks calendar-day PnL, not intra-cycle. Single source for peak portfolio value. 33 regression tests covering cascade, concentration, and single-asset scenarios.
 
@@ -24,7 +24,7 @@ The decision pipeline architecture (22-stage composable design), the 14-layer ri
 
 All items from the severity register are resolved. The system now runs with:
 - Valid walk-forward results (171 OOS days, corrected methodology)
-- SELL_ONLY filter permanently applied to 8 assets with confirmed inverted BUY
+- SELL_ONLY filter permanently applied to 3 assets with confirmed inverted BUY (CADCHF, NZDCHF, EURAUD)
 - Circuit breaker correctly gated on daily PnL
 - All security gaps closed (credentials, pickle, auth)
 - CI-gated regression tests (1610+ tests passing)

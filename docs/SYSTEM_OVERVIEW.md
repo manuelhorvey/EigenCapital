@@ -286,7 +286,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
  1. Fetch 5y OHLCV (MT5 or yfinance)
  2. Normalize timestamps (UTC TZ-naive)
  3. Refresh latest price (MT5 or 5d fallback)
-  4. Build alpha features (9 core + 6 trend-exhaustion + COT features + 4 cross-asset = 19-35 total)
+  4. Build alpha features (17 per-asset + 4 cross-asset = 21 total; includes core momenta, COT, trend-exhaustion, and RSI divergence when OHLCV available)
  5. Generate regime features from OHLCV (7 cols)
  6. Compute archetype features (ema_spread, adx, rsi, bb_zscore)
  7. PSI drift check (rolling 21d vs baseline, skipped first cycle)
@@ -528,7 +528,6 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 
 | Module                | Purpose                             |
 | --------------------- | ----------------------------------- |
-| `builder.py`          | Per-asset feature construction      |
 | `registry.py`         | Feature contracts (36 tickers)      |
 | `labels.py`           | Triple-barrier labeling             |
 | `archetypes.py`       | Market structure classification     |
@@ -616,8 +615,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | PnL backtest              | `python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v2` |
 | Train calibration models  | `python scripts/training/train_calibration.py`         |
 | Replay historical weights | `python scripts/replay/replay_rebalance.py --verify` |
-| Score tickers             | `python scripts/research/score_tickers.py`             |
-| Generate promotion report | `python scripts/research/generate_promotion_report.py` |
+| Walk-forward summary      | `python scripts/optimization/per_asset_quality.py`     |
 | Daily monitoring          | `python scripts/ops/monitor_paper_trading.py`     |
 | Run microbenchmark        | `python benchmarks/microbenchmark.py`         |
 | Run tests                 | `pytest tests/ -q --tb=short`                 |

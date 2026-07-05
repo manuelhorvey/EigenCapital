@@ -1,3 +1,17 @@
+"""Market structure detection — informational geometry of recent price action.
+
+The MarketStructureDetector computes a structural snapshot from recent OHLCV
+data: support/resistance levels, volatility regime, trend strength, and market
+microstructure state. Strictly informational — no entry/exit decisions or
+asset-specific thresholds.
+
+Key outputs:
+    - Support/resistance levels from local extrema
+    - Volatility regime (expanding/contracting)
+    - Trend strength classification
+    - Structure state object (MarketStructureState)
+"""
+
 import logging
 
 import numpy as np

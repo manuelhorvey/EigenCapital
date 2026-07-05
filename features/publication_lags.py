@@ -1,3 +1,15 @@
+"""Publication lag handling — FRED data publication delays.
+
+FRED series (Treasury yields, breakevens, fed funds, CPI, NFP) are published
+with known delays after the observation period. This module maintains
+PUBLICATION_LAGS_RAW (in calendar days) and provides shift-and-resample logic
+to align each series to its earliest usable timestamp.
+
+Dependencies:
+    - FRED API for raw series (via pandas-datareader or fredapi)
+    - PUBLICATION_LAGS_RAW dict maps series_name → calendar days delay
+"""
+
 from __future__ import annotations
 
 import logging

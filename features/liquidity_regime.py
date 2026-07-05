@@ -1,3 +1,13 @@
+"""Liquidity regime classification — per-tick market depth estimation.
+
+Classifies each asset's liquidity regime (NORMAL / THIN / STRESSED) using
+volume z-score and Amihud's illiquidity ratio from daily OHLCV. THIN regimes
+trigger SL +15% and size -15%. STRESSED regimes halt trading for that asset.
+
+Governance integration:
+    final_sl = base_sl × regime_geom × narrative_sl × liquidity_sl
+"""
+
 import json
 import logging
 from dataclasses import asdict, dataclass

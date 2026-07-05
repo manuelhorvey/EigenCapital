@@ -21,6 +21,8 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Check config schema
         run: python tools/check_config_schema.py
+      - name: Check documentation drift
+        run: PYTHONPATH=$PYTHONPATH:. python tools/doc_drift_check.py
       - name: Check live dependency boundaries
         run: bash scripts/diagnostics/check_live_deps.sh
       - name: Lint with ruff

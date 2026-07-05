@@ -7,11 +7,11 @@
 
 ## Status Update (Same-Day Close)
 
-All 13 Track A items were completed in <8h of engineering work. Track B BUY inversion root cause investigation closed after calibration/prior shift analysis confirmed the SELL_ONLY filter is the permanent answer for 5 assets (reduced from 8 on 2026-06-26 after trend-exhaustion features). Full remediation summary:
+All 13 Track A items were completed in <8h of engineering work. Track B BUY inversion root cause investigation closed after calibration/prior shift analysis confirmed the SELL_ONLY filter is the permanent answer for 3 assets (CADCHF, NZDCHF, EURAUD) — reduced from an original 11 identified. Full remediation summary:
 
 - 12/13 Track A items **fixed and committed** (rank 9 — expanding window — investigated, found unactionable at current data depth).
 - Track B walk-forward re-run, data-source mismatch check, and realistic Sharpe estimate **all completed**.
-- BUY inversion **closed**: root cause identified as calibration/prior shift (model's p_long tracks ~84% training UP rate vs 9-27% test UP rate). No structural fix exists — the model genuinely cannot predict BUY on these 8 assets. SELL_ONLY filter is the permanent answer. Applied: 11 original → 8 remaining (AUDUSD, EURNZD, NZDUSD removed after corrected walk-forward showed BUY WR >50%).
+- BUY inversion **closed**: root cause identified as calibration/prior shift (model's p_long tracks ~84% training UP rate vs 9-27% test UP rate). No structural fix exists — the model genuinely cannot predict BUY on these 3 assets (CADCHF, NZDCHF, EURAUD). SELL_ONLY filter is the permanent answer.
 - Remaining work: none from this register. See `AGENTS.md` for current forward-looking tasks.
 
 ## Why This Re-Ranking Differs From the Original Audit
@@ -57,7 +57,7 @@ These do not belong in a sprint estimate. Each needs its own investigation with 
 
 | Issue | Final Status | Resolution |
 |---|---|---|
-| **BUY inversion, 11/19 assets** | ✅ **Closed** — SELL_ONLY filter is the permanent answer | Root cause identified as calibration/prior shift: model's p_long tracks ~84% training UP rate vs 9-27% test UP rate. No structural fix exists — the model genuinely cannot predict BUY on 8 assets (CADCHF, ES, NQ, NZDCHF, EURAUD, ^DJI, USDCHF, EURCHF) where BUY WR remains 11-31%. 3 of 11 original assets (AUDUSD, EURNZD, NZDUSD) were restored to two-way trading after corrected walk-forward showed BUY WR >50%. All candidate mechanistic explanations (label construction, carry feature, DXY correlation, regime-conditional factors, SHAP-identified features via counterfactual ablation) were tested and falsified. |
+| **BUY inversion, 11/19 assets** | ✅ **Closed** — SELL_ONLY filter is the permanent answer | Root cause identified as calibration/prior shift. No structural fix exists — the model genuinely cannot predict BUY on 3 permanent assets (CADCHF, NZDCHF, EURAUD). 8 were removed from SELL_ONLY: 3 (AUDUSD, EURNZD, NZDUSD) after corrected walk-forward showed BUY WR >50%, 5 (^DJI, ES, NQ, USDCHF, EURCHF, GBPJPY, USDJPY) after trend-exhaustion features and portfolio remediation. All candidate mechanistic explanations tested and falsified. |
 | **Full walk-forward re-run post-purging-fix** | ✅ **Complete** | 21 assets, 3 folds, corrected methodology (ATR labels, scale_pos_weight, purging, full-training-data). Base total_R=107.82, sharpe_adj=9.66, max_dd_R=-1.44. Ensemble delta -3.19R, p=0.1685 — ensemble stays disabled per ADR-026. `scripts/backtest/backtest_pnl.py` generates valid per-asset and portfolio metrics. |
 | **Training/execution data-source mismatch** | ✅ **Complete** | Verified immaterial — `scripts/diagnostics/check_data_source_mismatch.py`: max MAD=0.0106, min correlation r=0.9953 between yfinance adjusted close and MT5 bid/ask. No fix needed. |
 | **Realistic Sharpe estimate** | ✅ **Complete** | sharpe_adj=9.66 on valid folds (not 29.0). R-multiple based, not currency-based. Note: this is an R-multiple Sharpe (cross-asset diversification inflates the denominator). Monthly-block Sharpe=5.61, realistic cross-asset correlation-adjusted ~8.05. |

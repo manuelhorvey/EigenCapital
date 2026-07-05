@@ -1,3 +1,16 @@
+"""Macro narrative features — weekly LLM-driven macro context overlay.
+
+Fetches FXStreet "Week ahead" articles, sends to Claude API for structured
+JSON extraction, and produces narrative overlays (geopolitical risk, central
+bank bias, risk-on/off regime). Applied weekly (Monday before noon ET) with
+human confirm step.
+
+Governance effects:
+    geopol_risk_score > 0.7   → SL widened by 10%
+    overall_regime == risk_off → position size reduced by 20%
+    confidence < 0.6          → no governance applied
+"""
+
 import json
 import logging
 from dataclasses import asdict, dataclass

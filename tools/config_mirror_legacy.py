@@ -1,29 +1,23 @@
 """
-config_mirror_legacy.py — regenerate configs/paper_trading.yaml to match
+config_mirror_legacy.py — regenerate configs/paper_trading.yaml from
 PaperConfigRegistry.
 
 Phase 11.3 of the configuration architecture refactor. The legacy
-paper_trading.yaml is no longer the operator-write surface; it becomes
-a derived shadow maintained by this tool. Three modes:
+paper_trading.yaml was the operator-write surface; in Phase 12.7 it
+was deleted from the repo. This tool can still regenerate it as a
+derived shadow for debugging or migration purposes.
 
+Modes:
 - Default: emit the regenerated file to stdout (drift-check dry run).
-- --write: replace configs/paper_trading.yaml in place.
+- --write: create/replace configs/paper_trading.yaml from registry.
 - --check: exit 1 if the on-disk file diverges from the regenerated
   content (used by CI).
 - --ci: like --check but emits structured JSON to stdout with
-  categorised changes (promoted vs legacy_extras) for CI consumption.
-
-Phase 12.1 strict write-mode:
-  When the env var ``ENABLE_LEGACY_EDITS`` is NOT set (default), the
-  ``--check`` mode exits 1 with an informative message directing the
-  operator to edit domain files instead of the legacy mirror.  Set
-  ``ENABLE_LEGACY_EDITS=1`` to temporarily bypass (emergency use only).
+  categorised changes for CI consumption.
 
 The regeneration composes:
 1. PaperConfigRegistry.as_legacy_dict() (typed result of the domain tree)
-2. existing configs/domains/assets/_defaults.yaml overlay plus per-asset
-   files (preserves the typed composition path).
-3. existing legacy_extras carrier (unpromoted keys pass through).
+2. existing legacy_extras carrier (promoted keys pass through).
 """
 
 from __future__ import annotations

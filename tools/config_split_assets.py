@@ -1,16 +1,12 @@
 """
-config_split_assets.py — one-time per-asset YAML splitter.
+config_split_assets.py — per-asset YAML splitter.
 
-Reads configs/paper_trading.yaml, extracts the ``assets:`` block, and
+Reads the assets block from PaperConfigRegistry (domain-first) and
 writes one YAML file per asset to configs/domains/assets/<NAME>.yaml.
-Also writes configs/domains/assets/_defaults.yaml with the values that
-are shared across all 22 active assets (shadow_sltp, dynamic_sltp,
-adaptive_exit common values) so Phase 7 can demonstrate default +
-override composition without altering live behavior.
+Also writes configs/domains/assets/_defaults.yaml with shared values.
 
-This is an idempotent regeneration utility — it re-reads
-paper_trading.yaml each time it runs and produces the same output
-for the same input.
+The legacy ``configs/paper_trading.yaml`` was deleted in Phase 12.7;
+this tool reads from the registry instead.
 """
 
 from __future__ import annotations
@@ -22,13 +18,24 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LEGACY = REPO_ROOT / "configs" / "paper_trading.yaml"
 ASSETS_DIR = REPO_ROOT / "configs" / "domains" / "assets"
 
 
-def split(legacy_path: Path, assets_dir: Path) -> int:
-    data = yaml.safe_load(legacy_path.read_text()) or {}
-    assets = data.get("assets") or {}
+def _load_assets_from_registry() -> dict:
+    """Load the assets block from PaperConfigRegistry.as_legacy_dict()."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    reg = PaperConfigRegistry.load()
+    return reg.as_legacy_dict().get("assets") or {}
+
+
+def split(legacy_path: Path | None = None, assets_dir: Path = ASSETS_DIR) -> int:
+    if legacy_path and legacy_path.exists():
+        data = yaml.safe_load(legacy_path.read_text()) or {}
+        assets = data.get("assets") or {}
+    else:
+        assets = _load_assets_from_registry()
     if not assets:
         print(f"splitsplit: no assets block in {legacy_path}")
         return 1
@@ -105,7 +112,8 @@ def split(legacy_path: Path, assets_dir: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--legacy", type=Path, default=LEGACY)
+    parser.add_argument("--legacy", type=Path, default=None,
+                        help="Optional legacy YAML path (default: registry)")
     parser.add_argument("--output", type=Path, default=ASSETS_DIR)
     args = parser.parse_args()
 

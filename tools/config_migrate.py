@@ -1,12 +1,14 @@
 """
-config_migrate.py — derive the new domain tree from legacy paper_trading.yaml.
+config_migrate.py — derive the new domain tree from a legacy config file.
 
-Phase 0 scaffolding. Pure read of the legacy file; no destructive output.
-In Phase 4 this will graduate from preview-only to committed output.
+Phase 0 scaffolding. The legacy ``configs/paper_trading.yaml`` was
+ deleted in Phase 12.7 (all keys promoted to domain files). This tool
+ remains useful for migrating ad-hoc legacy YAML files (e.g. from
+ forks, backups, or older branches).
 
 Usage:
-    python tools/config_migrate.py --dry-run           # show plan, no write
-    python tools/config_migrate.py --output configs/domains/   # write chosen tree
+    python tools/config_migrate.py --config <path> --dry-run    # show plan, no write
+    python tools/config_migrate.py --config <path> --output ... # write chosen tree
 """
 
 from __future__ import annotations

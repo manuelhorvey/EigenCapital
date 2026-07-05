@@ -313,60 +313,56 @@ def _warn_on_legacy_drift(requested_path: Path, registry_dict: dict) -> None:
 def load_config(path: str | None = None) -> EngineConfig:
     """Load and return EngineConfig via the typed paper registry.
 
-    Phase 11.2 routes through ``configs.paper_config_registry.PaperConfigRegistry``
-    which reads domain YAMLs first and falls back to the legacy file.
+    ``configs.paper_trading.yaml`` was the legacy single-file config;
+    it was deleted in Phase 12.7 (all keys promoted to domain files).
+    The registry (``PaperConfigRegistry``) now reads exclusively from
+    ``configs/domains/`` — the legacy path is retained only as a
+    fallback argument for explicit test fixtures.
 
     Call-site contract:
-      - Default path (configs/paper_trading.yaml): PaperConfigRegistry's
-        domain-first precedence applies. Domain tree wins; legacy is
-        fallback for unpromoted keys.
-      - Explicit path (test fixtures, mode overlays, CI): the supplied
+      - Default path (configs/paper_trading.yaml, which no longer
+        exists): PaperConfigRegistry's domain-first precedence applies.
+        Domain tree is the sole source of truth; no legacy fallback.
+      - Explicit path (test fixtures, ad-hoc overlays): the supplied
         YAML is treated as authoritative for any key it carries. Domain
-        files fill in the rest. This preserves the pre-Phase 11 contract
-        where custom legacy YAMLs could override.
+        files fill in the rest.
     """
+    from configs.paper_config_registry import DOMAINS_DIR, PaperConfigRegistry
+
     if path is None:
         path = DEFAULT_CONFIG_PATH
-    if os.path.exists(path):
-        try:
-            from configs.paper_config_registry import DOMAINS_DIR, PaperConfigRegistry
 
-            requested_path = Path(path).resolve()
-            default_path = Path(DEFAULT_CONFIG_PATH).resolve()
+    requested_path = Path(path).resolve()
+    default_path = Path(DEFAULT_CONFIG_PATH).resolve()
 
-            reg = PaperConfigRegistry.load(legacy_path=requested_path, domains_dir=DOMAINS_DIR)
-            typed = reg.as_legacy_dict()
+    try:
+        reg = PaperConfigRegistry.load(legacy_path=requested_path, domains_dir=DOMAINS_DIR)
+        typed = reg.as_legacy_dict()
 
-            # Phase 12.1 strict write-mode: warn when the default legacy
-            # file has drifted from the domain tree (someone edited the
-            # mirror instead of the domain file).
-            if requested_path == default_path:
-                _warn_on_legacy_drift(requested_path, typed)
-            else:
-                # Explicit-path overrides take precedence over the domain tree
-                # only when the caller passed something other than the default
-                # paper_trading.yaml (test fixtures, ad-hoc overlays).
-                raw = yaml.safe_load(requested_path.read_text()) or {}
-                _deep_overlay(typed, raw)
+        if requested_path.exists() and requested_path != default_path:
+            # Explicit-path overrides take precedence over the domain tree
+            # only when the caller passed something other than the default
+            # path (test fixtures, ad-hoc overlays).
+            raw = yaml.safe_load(requested_path.read_text()) or {}
+            _deep_overlay(typed, raw)
 
-            logger.info(
-                "Loaded config from %s (registry: %d assets, %d legacy extras)",
-                path,
-                len(reg.assets),
-                len(reg.legacy_extras),
-            )
-            return EngineConfig.from_dict(typed)
-        except Exception as e:  # noqa: BLE001 - fall back to legacy path
-            logger.warning(
-                "PaperConfigRegistry failed (%s); falling back to legacy YAML parser",
-                e,
-            )
-    else:
-        logger.warning("Config file %s not found; using defaults", path)
-    if os.path.exists(path):
-        with open(path) as f:
+        logger.info(
+            "Loaded config from registry (%d assets, %d legacy extras)",
+            len(reg.assets),
+            len(reg.legacy_extras),
+        )
+        return EngineConfig.from_dict(typed)
+    except Exception as e:  # noqa: BLE001 - fall back to direct YAML
+        logger.warning(
+            "PaperConfigRegistry failed (%s); falling back to legacy YAML parser",
+            e,
+        )
+
+    if requested_path.exists():
+        with open(str(requested_path)) as f:
             data = yaml.safe_load(f) or {}
         return EngineConfig.from_dict(data)
+    logger.warning("Config file %s not found; using defaults", path)
     return EngineConfig()
 
 

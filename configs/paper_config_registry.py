@@ -3,23 +3,25 @@
 Phase 11.1 of the configuration architecture refactor. Acts as the
 backbone for the write-mode split. Reads the new domain tree primarily
 (configs/domains/**/*.yaml + configs/environments/*.yaml + configs/modes/*.yaml +
-per-asset files), and treats configs/paper_trading.yaml as the legacy
-fallback that wins only for keys not yet promoted to a domain file.
+per-asset files). The legacy ``configs/paper_trading.yaml`` was deleted
+in Phase 12.7 — all keys are now promoted to domain files.
+
+The ``legacy_path`` parameter is retained for explicit test fixtures
+and does not need to point to an existing file.
 
 Differences from ConfigRegistry (Phase 4):
 - Phase 4 used the legacy YAML as the bootstrap and domain files as
   template overrides. Phase 11 inverts the relationship: domain files
-  are the bootstrap, legacy YAML is the override for unpromoted keys.
+  are the bootstrap; legacy YAML is a deprecated argument that may not
+  exist on disk.
 - Adds per-asset file primary loading (Phase 7 introduced the files
   but did not wire production reads).
 - Adds environment + mode resolution order (production → live →
   backtest, etc.).
 
-The legacy YAML exposes the same flat dict shape that EngineConfig
-typology expects: capital, position_size, defaults.<...>, assets.<...>,
-mt5, alerting, ensemble, calibration, kelly, portfolio, optimizations,
-execution.governance, modes. Phase 11 keeps the legacy YAML surface
-intact so EngineConfig.from_dict() and ~80 call sites stay valid.
+The ``as_legacy_dict()`` method still emits the legacy YAML surface
+shape (capital, position_size, defaults, assets, mt5, alerting, ...)
+so EngineConfig.from_dict() and ~80 call sites stay valid.
 """
 
 from __future__ import annotations
@@ -47,8 +49,10 @@ MODES_DIR = DOMAINS_DIR / "modes"
 class PaperConfigRegistry:
     """Production-facing typed configuration registry.
 
-    Reads domain files first; falls back to legacy paper_trading.yaml for
-    keys not yet promoted (e.g. ``research_mode``, ``rebalance``).
+    Reads domain files first. The legacy ``paper_trading.yaml`` was
+    deleted in Phase 12.7 — all keys are now promoted to domain files.
+    The ``legacy_path`` argument is retained for explicit test fixtures
+    and does not need to point to an existing file.
     """
 
     risk: RiskConfig

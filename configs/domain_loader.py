@@ -1,15 +1,11 @@
 """ConfigRegistry — typed configuration loader and composition surface.
 
 Phase 4 of the configuration architecture refactor. Reads the new
-domain tree under ``configs/domains/<area>/*.yaml``; writes are
-re-emitted to the legacy ``configs/paper_trading.yaml`` via the
-``as_legacy_dict()`` helper (used by ``tools/config_migrate.py``).
+domain tree under ``configs/domains/<area>/*.yaml``. The legacy
+``configs/paper_trading.yaml`` was deleted in Phase 12.7.
 
-Composition order: new domain files take precedence over the legacy
-``paper_trading.yaml`` for keys that exist in the new tree. Keys not
-yet promoted to a domain file (e.g. ``rebalance``, ``data_source``)
-continue to be sourced from the legacy file. The legacy file remains
-the authoritative source for the ``assets:`` block until Phase 7.
+The ``legacy_path`` parameter is retained for explicit test fixtures
+and does not need to point to an existing file.
 
 Behavior is preserved from operator-visible perspective:
 ``get_config()`` (paper_trading.config_manager) returns an

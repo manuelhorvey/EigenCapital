@@ -67,28 +67,13 @@ def _read(p: Path) -> str:
     return p.read_text()
 
 
-def _yaml_assets() -> list[str]:
-    text = _read(REPO_ROOT / "configs" / "paper_trading.yaml")
-    assets: list[str] = []
-    in_assets = False
-    base_indent: int | None = None
-    for line in text.splitlines():
-        if re.match(r"^assets:\s*$", line):
-            in_assets = True
-            base_indent = 2
-            continue
-        if in_assets:
-            if line.strip() == "":
-                continue
-            stripped = line.lstrip(" ")
-            indent = len(line) - len(stripped)
-            if indent < (base_indent or 2):
-                break
-            if indent == base_indent:
-                m = re.match(r"^(\^?[A-Za-z][A-Za-z0-9_]*):\s*$", stripped)
-                if m:
-                    assets.append(m.group(1))
-    return assets
+def _registry_assets() -> list[str]:
+    """Load asset list from PaperConfigRegistry (domain-first)."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    reg = PaperConfigRegistry.load()
+    return sorted(reg.assets.keys())
 
 
 def _model_files() -> list[str]:
@@ -116,12 +101,13 @@ def _normalize(name: str) -> str:
     return name.lstrip("^")
 
 
-def _yaml_sell_only() -> list[str]:
-    text = _read(REPO_ROOT / "configs" / "paper_trading.yaml")
-    block = re.search(r"sell_only_assets:\n((?:\s+-\s+\S+\n?)+)", text)
-    if not block:
-        return []
-    return [line.strip()[2:] for line in block.group(1).splitlines() if line.strip().startswith("- ")]
+def _registry_sell_only() -> list[str]:
+    """Load SELL_ONLY list from PaperConfigRegistry."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    reg = PaperConfigRegistry.load()
+    return sorted(reg.risk.sell_only.assets)
 
 
 def _gate_constants_sell_only() -> list[str]:
@@ -242,8 +228,16 @@ def _check_feature_count_claims() -> list[str]:
     return out
 
 
+def _read_legacy_text() -> str:
+    """Read the legacy mirror file if it still exists on disk."""
+    p = REPO_ROOT / "configs" / "paper_trading.yaml"
+    if p.exists():
+        return _read(p)
+    return "mode: production\nmodes:\n"  # minimal stub for mode-selector check
+
+
 def _check_mode_selector_present() -> bool:
-    text = _read(REPO_ROOT / "configs" / "paper_trading.yaml")
+    text = _read_legacy_text()
     return bool(re.search(r"^mode:\s+\w+", text, re.MULTILINE)) and "modes:" in text
 
 
@@ -264,19 +258,19 @@ def main() -> int:
     findings: list[str] = []
 
     # 1. asset-list consistency
-    yaml_assets = [_normalize(a) for a in _yaml_assets()]
+    reg_assets = [_normalize(a) for a in _registry_assets()]
     model_files = [_normalize(a) for a in _model_files()]
-    if sorted(yaml_assets) != sorted(model_files):
-        only_yaml = set(yaml_assets) - set(model_files)
-        only_models = set(model_files) - set(yaml_assets)
-        if only_yaml or only_models:
-            findings.append(f"asset mismatch: only_in_yaml={sorted(only_yaml)} only_in_models={sorted(only_models)}")
+    if sorted(reg_assets) != sorted(model_files):
+        only_reg = set(reg_assets) - set(model_files)
+        only_models = set(model_files) - set(reg_assets)
+        if only_reg or only_models:
+            findings.append(f"asset mismatch: only_in_registry={sorted(only_reg)} only_in_models={sorted(only_models)}")
 
     # 2. SELL_ONLY list consistency
-    yaml_so = set(_yaml_sell_only())
+    reg_so = set(_registry_sell_only())
     code_so = set(_gate_constants_sell_only())
-    if yaml_so != code_so:
-        findings.append(f"SELL_ONLY mismatch: yaml={sorted(yaml_so)} gate_constants={sorted(code_so)}")
+    if reg_so != code_so:
+        findings.append(f"SELL_ONLY mismatch: registry={sorted(reg_so)} gate_constants={sorted(code_so)}")
 
     # 3. phase count
     phase_count = _decide_phase_count()

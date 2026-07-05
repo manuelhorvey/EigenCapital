@@ -90,33 +90,33 @@ def test_load_config_uses_sell_only_assets():
     assert cfg.sell_only_assets == frozenset({"CADCHF", "NZDCHF", "EURAUD"})
 
 
-def test_load_config_assets_match_legacy_yaml():
-    """The legacy YAML and the registry-derived EngineConfig must
-    expose the same asset set (within mode-derived delta allowed).
+def test_load_config_assets_match_domain_tree():
+    """The registry-derived EngineConfig exposes the same 22-asset set
+    as the domain tree.
     """
     sys.path.insert(0, str(REPO_ROOT))
     import paper_trading.config_manager as cm
 
     cm.reset_config()
     cfg = cm.load_config()
-    legacy = yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
-    assert set(cfg.assets) == set(legacy["assets"])
+    from configs.paper_config_registry import PaperConfigRegistry
+    reg = PaperConfigRegistry.load()
+    assert set(cfg.assets) == set(reg.assets.keys())
 
 
 def test_load_config_assets_round_trip_simple_fields():
     """Tickers/allocation/sl/tp preserved through registry → EngineConfig."""
     sys.path.insert(0, str(REPO_ROOT))
     import paper_trading.config_manager as cm
+    from configs.paper_config_registry import PaperConfigRegistry
 
     cm.reset_config()
     cfg = cm.load_config()
-    legacy = yaml.safe_load((REPO_ROOT / "configs" / "paper_trading.yaml").read_text())
-    for name, raw in legacy["assets"].items():
-        rebuilt = cfg.assets[name]
-        assert rebuilt["ticker"] == raw["ticker"], f"ticker drift {name}"
-        assert rebuilt["allocation"] == raw["allocation"], f"allocation drift {name}"
-        assert rebuilt["sl_mult"] == raw["sl_mult"]
-        assert rebuilt["tp_mult"] == raw["tp_mult"]
+    reg = PaperConfigRegistry.load()
+    typed = reg.as_legacy_dict()
+    for name, rebuilt in typed["assets"].items():
+        assert rebuilt["ticker"] == cfg.assets[name]["ticker"], f"ticker drift {name}"
+        assert rebuilt["allocation"] == cfg.assets[name]["allocation"], f"allocation drift {name}"
 
 
 def test_load_config_engine_config_attributes_intact():

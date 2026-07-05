@@ -36,7 +36,20 @@ from typing import Any
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = REPO_ROOT / "configs" / "paper_trading.yaml"
+
+
+def _load_config_data() -> dict:
+    """Load config from PaperConfigRegistry (domain-first).
+
+    The legacy ``configs/paper_trading.yaml`` was deleted in Phase 12.7
+    (all keys promoted to domain files). The registry emits the same
+    surface shape from ``as_legacy_dict()``.
+    """
+    sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    reg = PaperConfigRegistry.load()
+    return reg.as_legacy_dict()
 
 _TICKER_OR_KEY = re.compile(r"^=?[A-Z][A-Z0-9\^=]*$")
 
@@ -376,16 +389,24 @@ def _check_halt(data: dict, errors: list[str]) -> None:
 
 
 def validate(config_path: str | None = None) -> int:
-    path = Path(config_path or CONFIG_PATH)
-    if not path.exists():
-        print(f"FAILED: Config file not found: {path}")
-        return 1
-
-    try:
-        data = yaml.safe_load(path.read_text())
-    except yaml.YAMLError as e:
-        print(f"FAILED: YAML parse error: {e}")
-        return 1
+    if config_path:
+        # Explicit config path: read directly (test fixtures)
+        path = Path(config_path)
+        if not path.exists():
+            print(f"FAILED: Config file not found: {path}")
+            return 1
+        try:
+            data = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as e:
+            print(f"FAILED: YAML parse error: {e}")
+            return 1
+    else:
+        # Default: load from registry (domain tree)
+        try:
+            data = _load_config_data()
+        except Exception as e:  # noqa: BLE001
+            print(f"FAILED: Could not load registry: {e}")
+            return 1
 
     if not isinstance(data, dict):
         print("FAILED: Config root must be a mapping")

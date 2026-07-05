@@ -20,7 +20,15 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = REPO_ROOT / "configs" / "paper_trading.yaml"
+
+
+def _load_registry_dict() -> dict:
+    """Load config dict from PaperConfigRegistry."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from configs.paper_config_registry import PaperConfigRegistry
+
+    reg = PaperConfigRegistry.load()
+    return reg.as_legacy_dict()
 
 # Patterns that signal reader misconfiguration
 DEPRECATED_KEYS = (
@@ -98,15 +106,21 @@ def lint(config_path: Path | None = None) -> int:
     """
     parser = argparse.ArgumentParser(description="Configuration lint")
     parser.add_argument("--strict", action="store_true", help="Exit non-zero when findings exist")
-    parser.add_argument("--config", type=Path, default=CONFIG_PATH)
+    parser.add_argument("--config", type=Path, default=None)
     args, _unknown = parser.parse_known_args()
 
-    path = args.config
-    if not path.exists():
-        print(f"config_lint: file not found: {path}")
-        return 0
-
-    data = yaml.safe_load(path.read_text()) or {}
+    if args.config:
+        if not args.config.exists():
+            print(f"config_lint: file not found: {args.config}")
+            return 0
+        data = yaml.safe_load(args.config.read_text()) or {}
+    else:
+        # Load from registry (domain-first)
+        try:
+            data = _load_registry_dict()
+        except Exception as e:  # noqa: BLE001
+            print(f"config_lint: could not load registry: {e}")
+            return 1
     findings: list[str] = []
     _check_deprecated_keys(data, findings)
 

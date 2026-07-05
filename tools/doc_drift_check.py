@@ -294,18 +294,31 @@ def _collect_markdown_files() -> list[Path]:
 
 
 def _is_excluded(path: Path) -> bool:
-    """Check if a path matches any exclusion pattern.
+    """Check if a path matches any exclusion pattern."""
+    try:
+        rel = path.relative_to(REPO_ROOT)
+    except ValueError:
+        return False
 
-    Handles globstar (``**``) patterns manually since fnmatch does not
-    support ``**``. Each exclusion pattern is checked as a substring
-    match of the relative path.
-    """
-    rel = str(path.relative_to(REPO_ROOT))
-    for pat in PATH_EXCLUDE_PATTERNS:
-        # Convert globstar pattern to substring match
-        parts = pat.split("**/")
-        if all(p.lstrip("/") in rel for p in parts if p):
+    parts = rel.parts
+    # Direct check for our known excluded directories
+    for d in ("archive", "adr", "audit", "planning", "node_modules", ".venv"):
+        if d in parts:
             return True
+
+    # Also check if it's DOCUMENTATION_IMPROVEMENT_PLAN.md
+    if rel.name == "DOCUMENTATION_IMPROVEMENT_PLAN.md" or "DOCUMENTATION_IMPROVEMENT_PLAN.md" in parts:
+        return True
+
+    # Standard fnmatch check for other patterns
+    import fnmatch
+    rel_str = rel.as_posix()
+    for pat in PATH_EXCLUDE_PATTERNS:
+        # Clean up double asterisks for standard wildcard matching
+        cleaned = pat.replace("**/", "*").replace("/**", "/*")
+        if fnmatch.fnmatch(rel_str, cleaned) or fnmatch.fnmatch(f"/{rel_str}", cleaned):
+            return True
+
     return False
 
 

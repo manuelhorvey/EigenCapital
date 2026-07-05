@@ -208,7 +208,8 @@ def _render_type(tp) -> str:
     args = getattr(tp, "__args__", ())
 
     # Handle Python 3.10+ X | None / X | Y syntax (types.UnionType)
-    if origin is _types.UnionType:
+    UnionType = getattr(_types, "UnionType", None)
+    if UnionType is not None and isinstance(tp, UnionType):
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1:
             return f"Optional[{_render_type(non_none[0])}]"
@@ -260,6 +261,10 @@ def render_markdown() -> str:
             blocks.append(_table_for_dataclass(cls))
         except Exception as e:  # noqa: BLE001
             blocks.append(f"\n*Skipped `{cls_name}` due to render error: {e}*\n")
+
+    from datetime import datetime, timezone
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    blocks.append(f"**Last updated:** {current_date}")
 
     return "\n".join(blocks)
 

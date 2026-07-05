@@ -48,17 +48,26 @@ _warn_on_insecure_dotenv()
 DEFAULT_MT5_BRIDGE_PORT = 9879
 
 # Strict write-mode guard for Phase 12.1
-# When unset/empty, the domain tree is the authoritative source and
-# hand-edits to the legacy mirror (configs/paper_trading.yaml) trigger
-# a warning. Set to "1" to restore legacy-override semantics for
-# emergency use.
+# When the legacy mirror exists on disk, the domain tree is still the
+# authoritative source and drift on promoted keys triggers a warning.
+# Set to "1" to silence the warning (legacy mirror remains derived-only;
+# it cannot promote keys it does not own).
 ENABLE_LEGACY_EDITS = "ENABLE_LEGACY_EDITS"
 
-DEFAULT_CONFIG_PATH = os.path.join(
+# Sentinel meaning "no explicit path was supplied".
+# In Phase 12.7 the legacy configs/paper_trading.yaml file was deleted
+# and PaperConfigRegistry reads exclusively from configs/domains/.
+# Callers that pass an explicit path still get the legacy-mirror overlay
+# (test fixtures, ad-hoc YAML overlays).
+_LEGACY_FALLBACK_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "configs",
     "paper_trading.yaml",
 )
+# Default behaviour when no path is supplied: skip the legacy mirror
+# entirely and load from PaperConfigRegistry only. Tests that need the
+# legacy mirror pass an explicit ``path`` argument.
+DEFAULT_CONFIG_PATH: str | None = None
 
 
 def _default_halt() -> dict:
@@ -286,7 +295,7 @@ def _warn_on_legacy_drift(requested_path: Path, registry_dict: dict) -> None:
     """Warn if the default legacy file has drifted from the domain tree.
 
     Phase 12.1 strict write-mode: the domain tree is the authoritative
-    source. Hand-edits to paper_trading.yaml should instead be made to
+    source. The legacy file is a derived mirror — operator edits should go to
     the corresponding file under configs/domains/. Set the env var
     ``ENABLE_LEGACY_EDITS`` to silence this warning.
     """
@@ -301,7 +310,7 @@ def _warn_on_legacy_drift(requested_path: Path, registry_dict: dict) -> None:
     # Only warn when the diff touches keys the domain tree owns
     # (not legacy_extras that are expected to differ)
     logger.warning(
-        "STRICT-WRITE: configs/paper_trading.yaml differs from domain tree on "
+        "STRICT-WRITE: the legacy mirror differs from the domain tree on "
         "%d key(s): %s.  Operator edits should go to configs/domains/ — "
         "the legacy file is a derived mirror.  Set %s=1 to silence.",
         len(diff_paths),
@@ -313,56 +322,67 @@ def _warn_on_legacy_drift(requested_path: Path, registry_dict: dict) -> None:
 def load_config(path: str | None = None) -> EngineConfig:
     """Load and return EngineConfig via the typed paper registry.
 
-    ``configs.paper_trading.yaml`` was the legacy single-file config;
-    it was deleted in Phase 12.7 (all keys promoted to domain files).
-    The registry (``PaperConfigRegistry``) now reads exclusively from
-    ``configs/domains/`` — the legacy path is retained only as a
-    fallback argument for explicit test fixtures.
+    The legacy ``configs/paper_trading.yaml`` was deleted in Phase 12.7
+    (all keys promoted to domain files). ``PaperConfigRegistry`` now reads
+    exclusively from ``configs/domains/`` — the legacy path is no longer
+    auto-loaded; it is still accepted as an explicit overlay for test
+    fixtures and ad-hoc YAMLs.
 
     Call-site contract:
-      - Default path (configs/paper_trading.yaml, which no longer
-        exists): PaperConfigRegistry's domain-first precedence applies.
-        Domain tree is the sole source of truth; no legacy fallback.
-      - Explicit path (test fixtures, ad-hoc overlays): the supplied
-        YAML is treated as authoritative for any key it carries. Domain
-        files fill in the rest.
+      - ``path=None`` (default): PaperConfigRegistry reads only the
+        domain tree. The deleted legacy file is not consulted.
+      - ``path=<yaml>`` (explicit, must exist): the file is loaded
+        as an overlay on top of the registry output (test fixtures,
+        ad-hoc overrides).
     """
     from configs.paper_config_registry import DOMAINS_DIR, PaperConfigRegistry
 
     if path is None:
-        path = DEFAULT_CONFIG_PATH
+        # Production default path: domain tree only. No implicit lookup
+        # of the deleted legacy mirror file.
+        try:
+            reg = PaperConfigRegistry.load(domains_dir=DOMAINS_DIR)
+            typed = reg.as_legacy_dict()
+            logger.info(
+                "Loaded config from registry (%d assets, %d legacy extras)",
+                len(reg.assets),
+                len(reg.legacy_extras),
+            )
+            return EngineConfig.from_dict(typed)
+        except Exception as e:  # noqa: BLE001 — fall back below
+            logger.warning("PaperConfigRegistry failed (%s); using defaults", e)
+            return EngineConfig()
 
+    # Explicit path: use the file if it exists; overlay its keys onto
+    # the registry output. If the path does not exist, treat as defaults.
     requested_path = Path(path).resolve()
-    default_path = Path(DEFAULT_CONFIG_PATH).resolve()
-
     try:
         reg = PaperConfigRegistry.load(legacy_path=requested_path, domains_dir=DOMAINS_DIR)
         typed = reg.as_legacy_dict()
 
-        if requested_path.exists() and requested_path != default_path:
-            # Explicit-path overrides take precedence over the domain tree
-            # only when the caller passed something other than the default
-            # path (test fixtures, ad-hoc overlays).
+        if requested_path.exists():
             raw = yaml.safe_load(requested_path.read_text()) or {}
             _deep_overlay(typed, raw)
 
         logger.info(
-            "Loaded config from registry (%d assets, %d legacy extras)",
+            "Loaded config from registry + explicit overlay at %s (%d assets, %d legacy extras)",
+            requested_path,
             len(reg.assets),
             len(reg.legacy_extras),
         )
         return EngineConfig.from_dict(typed)
-    except Exception as e:  # noqa: BLE001 - fall back to direct YAML
+    except Exception as e:  # noqa: BLE001 — fall back to direct YAML
         logger.warning(
-            "PaperConfigRegistry failed (%s); falling back to legacy YAML parser",
+            "PaperConfigRegistry failed (%s); falling back to direct YAML loader for %s",
             e,
+            requested_path,
         )
 
     if requested_path.exists():
         with open(str(requested_path)) as f:
             data = yaml.safe_load(f) or {}
         return EngineConfig.from_dict(data)
-    logger.warning("Config file %s not found; using defaults", path)
+    logger.warning("Config file %s not found; using defaults", str(requested_path))
     return EngineConfig()
 
 
@@ -382,7 +402,11 @@ def get_config(path: str | None = None, override: EngineConfig | None = None) ->
     """Load and return the global config.
 
     Args:
-        path: Optional config file path. Defaults to ``configs/paper_trading.yaml``.
+        path: Optional config file path. ``None`` (default) loads from
+            the domain tree only — the legacy mirror file was deleted
+            in Phase 12.7 and is no longer auto-loaded. Pass an explicit
+            path to overlay a YAML on top of the registry output (test
+            fixtures, ad-hoc overrides).
         override: Optional pre-built config to return. Skips loading entirely.
             Useful for testing and multi-instance scenarios.
 

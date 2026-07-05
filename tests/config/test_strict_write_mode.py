@@ -132,7 +132,7 @@ def test_warn_on_legacy_drift_warns_when_different(tmp_path: Path, caplog: pytes
 
     _warn_on_legacy_drift(fake_legacy, registry_dict)
     assert "STRICT-WRITE" in caplog.text
-    assert "differs from domain tree" in caplog.text
+    assert "differs from the domain tree" in caplog.text
 
 
 def test_warn_on_legacy_drift_silent_when_env_set(

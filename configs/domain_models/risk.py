@@ -162,12 +162,12 @@ class RiskConfig:
 
     @classmethod
     def from_legacy(cls, data: dict, halt_override: dict | None = None) -> RiskConfig:
-        """Build :class:`RiskConfig` from the legacy paper_trading.yaml dict.
+        """Build :class:`RiskConfig` from the legacy monolithic config dict.
 
         Parameters
         ----------
         data
-            Raw parsed YAML dict.
+            Raw parsed YAML dict (legacy format).
         halt_override
             Optional fully-resolved halt dict (defaults merged) sourced
             from ``EngineConfig.halt``. When provided, skips the legacy

@@ -1,6 +1,6 @@
 # Infrastructure / operational config — simple scalars consumed by EngineConfig
 #
-# These keys were previously carried as legacy_extras from paper_trading.yaml.
+# These keys were previously carried as legacy_extras from the legacy monolithic config.
 # Phase 12.3 promotes them to the domain tree so they have an explicit home.
 #
 # Conventions:

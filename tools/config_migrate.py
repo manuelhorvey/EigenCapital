@@ -22,7 +22,10 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LEGACY_CONFIG = REPO_ROOT / "configs" / "paper_trading.yaml"
+# The original configs/paper_trading.yaml was deleted in Phase 12.7.
+# This one-shot migration tool is retained for forks/backups that
+# still have legacy YAMLs; the operator must pass --config explicitly.
+LEGACY_CONFIG: Path | None = None
 
 
 @dataclass
@@ -176,7 +179,12 @@ def plan_from_legacy(data: dict) -> MigrationPlan:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Migrate legacy config to domain tree")
     parser.add_argument("--dry-run", action="store_true", help="Plan only - no writes")
-    parser.add_argument("--config", type=Path, default=LEGACY_CONFIG, help="Legacy config path")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=LEGACY_CONFIG,
+        help="Legacy config path (required; original configs/paper_trading.yaml was deleted in Phase 12.7)",
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -185,6 +193,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.config is None:
+        print(
+            "config_migrate: --config is required (the original configs/paper_trading.yaml was deleted in Phase 12.7)",
+            file=sys.stderr,
+        )
+        return 2
     if not args.config.exists():
         print(f"config_migrate: legacy file not found: {args.config}", file=sys.stderr)
         return 1

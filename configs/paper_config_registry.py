@@ -40,7 +40,10 @@ logger = logging.getLogger("eigencapital.config_registry")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOMAINS_DIR = REPO_ROOT / "configs" / "domains"
-LEGACY_CONFIG = REPO_ROOT / "configs" / "paper_trading.yaml"
+# The Phase 12.7 deletion of paper_trading.yaml means there is no default
+# legacy mirror on disk. ``load()`` treats a sentinel of ``None`` as
+# "no legacy overlay" — the domain tree is read directly.
+LEGACY_CONFIG: Path | None = None
 ENVIRONMENTS_DIR = REPO_ROOT / "configs" / "environments"
 MODES_DIR = DOMAINS_DIR / "modes"
 
@@ -136,7 +139,7 @@ class PaperConfigRegistry:
         modes_dir = modes_dir or MODES_DIR
 
         legacy_raw: dict[str, Any] = {}
-        if legacy_path.exists():
+        if legacy_path is not None and legacy_path.exists():
             legacy_raw = yaml.safe_load(legacy_path.read_text()) or {}
 
         # Step 1: build a normalized base config dict from the domain

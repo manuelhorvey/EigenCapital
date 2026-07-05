@@ -12,9 +12,13 @@ from paper_trading.execution.gate_constants import (
     get_sell_only_assets,
 )
 
-_KNOWN_SELL_ONLY: Final[frozenset[str]] = frozenset({
-    "CADCHF", "NZDCHF", "EURAUD",
-})
+_KNOWN_SELL_ONLY: Final[frozenset[str]] = frozenset(
+    {
+        "CADCHF",
+        "NZDCHF",
+        "EURAUD",
+    }
+)
 
 
 def test_get_sell_only_assets_returns_default_set() -> None:
@@ -22,7 +26,7 @@ def test_get_sell_only_assets_returns_default_set() -> None:
     import paper_trading.config_manager as cm
 
     cm.reset_config()
-    # Config auto-loads from paper_trading.yaml
+    # Config auto-loads from PaperConfigRegistry (domain tree)
     assets = get_sell_only_assets()
     assert isinstance(assets, frozenset)
     assert assets == _KNOWN_SELL_ONLY

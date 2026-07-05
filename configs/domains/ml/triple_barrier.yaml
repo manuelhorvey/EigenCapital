@@ -5,7 +5,7 @@
 # optional vol_method / atr_period used by the triple-barrier labeling
 # pipeline. YAML format chosen so changes audit cleanly in source control
 # and so the cross-file validator (tools/check_config_schema.py) can
-# detect drift against configs/paper_trading.yaml:assets.<NAME>.{tp_mult,sl_mult}.
+# detect drift against per-asset blocks under configs/domains/assets/.
 #
 # Conventions:
 #   pt, sl              — multipliers on the volatility basis (ATR or EWM)
@@ -19,7 +19,7 @@ legacy:
   default_atr_period: 14
 
 assets:
-  # ── Active portfolio (matches configs/paper_trading.yaml assets block) ──
+  # ── Active portfolio (matches configs/domains/assets/ block) ──
 
   GC:
     pt: 4.0

@@ -11,10 +11,10 @@ logger = logging.getLogger("eigencapital.gate_constants")
 def get_sell_only_assets() -> frozenset[str]:
     """Return SELL_ONLY_ASSETS from config.
 
-    The config source of truth lives in paper_trading.yaml under
-    ``defaults.sell_only_assets``. Config must be loaded before this
-    function is called; if it is not, an error is raised because silently
-    falling back would disable the BUY inversion safety filter.
+    The config source of truth lives in the domain tree (``configs/domains/``)
+    under ``risk/sizing.yaml`` (``sell_only_assets`` key). Config must be loaded
+    before this function is called; if it is not, an error is raised because
+    silently falling back would disable the BUY inversion safety filter.
 
     Raises
     ------
@@ -23,9 +23,7 @@ def get_sell_only_assets() -> frozenset[str]:
     """
     cfg = get_config()
     if not cfg.sell_only_assets:
-        raise RuntimeError(
-            "SELL_ONLY_ASSETS not configured. Ensure paper_trading.yaml has defaults.sell_only_assets defined."
-        )
+        raise RuntimeError("SELL_ONLY_ASSETS not configured. Ensure the domain tree has sell_only_assets defined.")
     return cfg.sell_only_assets
 
 

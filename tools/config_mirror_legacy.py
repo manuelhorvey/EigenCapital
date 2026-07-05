@@ -31,7 +31,14 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LEGACY_PATH = REPO_ROOT / "configs" / "paper_trading.yaml"
+# The legacy configs/paper_trading.yaml file was deleted in Phase 12.7.
+# This module is retained for two purposes:
+#   1. Render the legacy-shaped YAML from the domain tree (read-only).
+#   2. Regenerate a legacy mirror at an expicit path for tests or for
+#      operators who want to inspect the legacy shape side-by-side.
+# ``--write`` requires an explicit --path; we never recreate the deleted
+# default at the original location.
+LEGACY_PATH: Path | None = None
 ENABLE_LEGACY_EDITS = "ENABLE_LEGACY_EDITS"
 
 
@@ -39,7 +46,7 @@ def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text()) or {}
 
 
-def _load_registry(legacy_path: Path = LEGACY_PATH) -> object:
+def _load_registry(legacy_path: Path | None = LEGACY_PATH) -> object:
     """Load PaperConfigRegistry once, shared by render and CI helpers."""
     sys.path.insert(0, str(REPO_ROOT))
     from configs.paper_config_registry import (
@@ -50,11 +57,12 @@ def _load_registry(legacy_path: Path = LEGACY_PATH) -> object:
     return PaperConfigRegistry.load(legacy_path=legacy_path, domains_dir=DOMAINS_DIR)
 
 
-def render_legacy_yaml(legacy_path: Path = LEGACY_PATH) -> str:
+def render_legacy_yaml(legacy_path: Path | None = LEGACY_PATH) -> str:
     """Render the legacy YAML content as a string from PaperConfigRegistry.
 
     Uses a YAML serializer that preserves order and reads the original
-    legacy file's structure when domains don't override it.
+    legacy file's structure when domains don't override it. ``legacy_path``
+    is optional — when ``None``, the render is a domain-only dump.
     """
     reg = _load_registry(legacy_path)
     return yaml.safe_dump(
@@ -173,21 +181,55 @@ def _json_safe(value: object) -> object:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--write", action="store_true", help="Replace on-disk legacy file")
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Replace the on-disk legacy file at --path (requires --path)",
+    )
     parser.add_argument("--check", action="store_true", help="Exit 1 if drift detected")
-    parser.add_argument("--ci", action="store_true", help="Structured JSON diff for CI (implies --check)")
-    parser.add_argument("--path", type=Path, default=LEGACY_PATH)
+    parser.add_argument(
+        "--ci",
+        action="store_true",
+        help="Structured JSON diff for CI (implies --check)",
+    )
+    parser.add_argument(
+        "--path",
+        type=Path,
+        default=LEGACY_PATH,
+        help=(
+            "Legacy mirror path. Required for --write; the original "
+            "configs/paper_trading.yaml was deleted in Phase 12.7."
+        ),
+    )
     args = parser.parse_args()
 
     rendered = render_legacy_yaml(args.path)
 
     if args.write:
+        if args.path is None:
+            print(
+                "config_mirror: --write requires an explicit --path (the original "
+                "configs/paper_trading.yaml was deleted in Phase 12.7)",
+                file=sys.stderr,
+            )
+            return 2
+        args.path.parent.mkdir(parents=True, exist_ok=True)
         args.path.write_text(rendered)
         print(f"config_mirror: wrote {args.path} ({rendered.count(chr(10))} lines)")
         return 0
 
-    if not args.path.exists():
-        print(json.dumps({"generated": rendered, "drift": False}))
+    if args.path is None or not args.path.exists():
+        # No legacy file present — there is no drift by construction.
+        # Emit the regen output so callers can still get the would-be contents.
+        if args.ci:
+            out = {
+                "drift": False,
+                "summary": {"total": 0, "promoted": 0, "legacy_extras": 0, "other": 0},
+                "changes": [],
+            }
+            print(json.dumps(out))
+        else:
+            print(f"config_mirror: no legacy file at {args.path} — domain tree is the only source of truth")
         return 0
 
     on_disk_raw = yaml.safe_load(args.path.read_text()) or {}

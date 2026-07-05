@@ -72,7 +72,7 @@ def load_triple_barrier_params(path: Path | None = None) -> dict[str, dict]:
     set so downstream :class:`~features.contract.FeatureContract`
     construction still succeeds. The :mod:`tools.check_config_schema`
     validator surfaces drift between this loader and the live
-    configs/paper_trading.yaml asset block.
+    configs/domains/ml/triple_barrier.yaml asset block.
     """
     path = path or DEFAULT_PATH
     if not path.exists():

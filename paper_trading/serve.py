@@ -52,7 +52,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
     if bind != "127.0.0.1":
         logger.warning(
             "⚠  Dashboard binding to %s (not localhost). "
-            "Ensure API auth token is configured via EIGENCAPITAL_API_TOKEN or paper_trading.yaml.",
+            "Ensure API auth token is configured via the EIGENCAPITAL_API_TOKEN env var or the dashboard auth config.",
             bind,
         )
         from paper_trading.api.common import _load_auth_token

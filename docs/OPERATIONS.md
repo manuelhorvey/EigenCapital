@@ -10,11 +10,11 @@ Operational procedures for the paper trading system. This document is for the pe
 |------|-------|
 | Start command | `./monitor_all` |
 | Dashboard URL | `http://127.0.0.1:5000` |
-| Config file | `configs/paper_trading.yaml` |
+| Config files | `configs/domains/` directory tree |
 | `calibration.enabled` | `true` — BinnedCalibrator applied per inference, reduces ECE 0.36→0.02 |
 | `portfolio.weight_method` | `factor_constrained_v2` — active weight strategy (P0, hard linear constraints) |
 | `kelly.enabled` | `false` — P2 Kelly sizing disabled pending live data |
-| Active mode | `production` (config: `mode:` in `configs/paper_trading.yaml`) |
+| Active mode | `production` (config: `mode:` in `configs/domains/modes/production.yaml`) |
 | Switch mode | Edit `mode:` key in config and restart engine |
 | PEK admission event | Logged as `PEK_BUDGET_OVERRUN` + `PEK_BUDGET_CLOSE` — check engine logs |
 | PEK dashboard state | `state.json → portfolio → admission` (n_intents, n_admitted, n_rejected, admitted[], rejected[]) |
@@ -75,7 +75,7 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 > Note: These are the screening baseline. Current walk-forward diagnostics after look-ahead fixes
 > show lower, honest metrics. Live performance will differ.
 
-**SL/TP Architecture:** Barriers are computed by `DynamicSLTPEngine` using `shared/volatility.py:VolatilityPrimitive` with `method="atr"`. At entry, initial barriers are set. On each refresh within the first `post_adjust_interval_bars` (default 3), `post_entry_adjust()` recomputes barriers based on current ATR — vol spikes (>1.3×) tighten SL; vol collapses (<0.7×) no action. Model-validity adjustments via per-asset `regime_geometry` in `configs/paper_trading.yaml` — each asset defines its own GREEN/YELLOW/RED multipliers for sl_mult and tp_mult.
+**SL/TP Architecture:** Barriers are computed by `DynamicSLTPEngine` using `shared/volatility.py:VolatilityPrimitive` with `method="atr"`. At entry, initial barriers are set. On each refresh within the first `post_adjust_interval_bars` (default 3), `post_entry_adjust()` recomputes barriers based on current ATR — vol spikes (>1.3×) tighten SL; vol collapses (<0.7×) no action. Model-validity adjustments via per-asset `regime_geometry` in `configs/domains/governance/regime_geometry.yaml` — each asset defines its own GREEN/YELLOW/RED multipliers for sl_mult and tp_mult.
 
 **Meta-Confidence as Size Scalar:** The XGBoost-based `MetaLabelModel` produces a continuous probability. Below `threshold` (0.55 for most assets), trade notional is 0. Above threshold, `_meta_size_multiplier()` maps [threshold, 1.0] → [min_size, 1.0] linearly. Meta-confidence never modifies TP geometry, trailing, or scale-out schedules.
 
@@ -177,7 +177,7 @@ config:
 
 ## Mode Configuration
 
-The engine supports three operational modes via the `mode:` key in `configs/paper_trading.yaml`:
+The engine supports three operational modes via the `mode:` key:
 
 | Mode | Capital | Max Risk/Trade | Max Concurrent | DD Limit | Use Case |
 |------|---------|---------------|----------------|----------|----------|
@@ -185,7 +185,7 @@ The engine supports three operational modes via the `mode:` key in `configs/pape
 | `challenge_ftmo_10k` | $10K | 3.0% | 5 | -8% | FTMO 10K challenge |
 | `live` | $100K | 3.0% | 6 | -10% | Live funded account |
 
-Mode overrides are merged at config load time. See `configs/paper_trading.yaml` → `modes:` for full definitions.
+Mode overrides are merged at config load time. See mode files in `configs/domains/modes/` for full definitions. Each mode is a separate YAML file (e.g., `configs/domains/modes/production.yaml`). The active mode is set at engine startup.
 
 ---
 
@@ -428,7 +428,7 @@ for name, a in s['assets'].items():
 
 ### 3.2 Per-Asset Halt Conditions (Hard Limits)
 
-Defined in `configs/paper_trading.yaml` per asset. The `check_halt_conditions()` method checks:
+Defined in `configs/domains/risk/halt.yaml` (global defaults) and in per-asset YAML files under `configs/domains/assets/`. The `check_halt_conditions()` method checks:
 
 | Condition | Trigger | Response |
 |-----------|---------|----------|
@@ -472,7 +472,7 @@ if portfolio_dd ≤ portfolio_drawdown_limit:
 **Parameters:**
 | Setting | Default | Location |
 |---------|---------|----------|
-| `portfolio_drawdown_limit` | -0.15 (-15%) | `configs/paper_trading.yaml` top-level |
+| `portfolio_drawdown_limit` | -0.15 (-15%) | `configs/domains/risk/capital.yaml` |
 
 **When triggered:**
 1. All open positions are immediately closed at current price
@@ -650,3 +650,7 @@ When `PEK_BUDGET_OVERRUN` appears in logs:
 2. Lowest-ranked positions were automatically closed — check `PEK_BUDGET_CLOSE` log lines for which assets
 3. Verify in dashboard: `state.json → portfolio → admission` shows `n_admitted` vs `n_rejected`
 4. No manual action required — the system self-corrects
+
+---
+
+**Last updated:** 2026-07-05

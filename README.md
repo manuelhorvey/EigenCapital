@@ -6,7 +6,7 @@
 [![codecov](https://codecov.io/gh/manuelhorvey/EigenCapital/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/EigenCapital)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Cross-sectional multi-asset paper trading engine with per-asset XGBoost models, 15+ governance layers, adaptive exit trailing, MetaTrader 5 bridge execution (Exness demo), and a React SPA dashboard. Every asset must survive expanding-window walk-forward validation before entering the live portfolio.
+Cross-sectional multi-asset paper trading engine with per-asset XGBoost models, 16-layer governance framework, adaptive exit trailing, MetaTrader 5 bridge execution (Exness demo), and a React SPA dashboard. Every asset must survive expanding-window walk-forward validation before entering the live portfolio.
 
 ---
 
@@ -44,7 +44,7 @@ PRE: state snapshot → REFRESH: parallel inference → ADMIT: PEK gate →
 VALIDITY: state updates → PORTFOLIO HEALTH: circuit breaker, VaR, orphan recon → PERSIST: WAL
 ```
 
-Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.36→0.02), a 22-stage decision pipeline, 15 governance layers, and a multiplicative sizing chain before reaching the broker.
+Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.36→0.02), a 22-stage decision pipeline, 16 governance layers, and a multiplicative sizing chain before reaching the broker.
 
 [Full architecture →](docs/SYSTEM_OVERVIEW.md) · [Governance detail →](docs/GOVERNANCE.md) · [Feature reference →](docs/FEATURES.md)
 
@@ -64,9 +64,9 @@ Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilitie
 | 2026-06-22 | GBPUSD promoted (walk-forward IC 0.186); ES/NQ/^DJI removed for portfolio remediation |
 | 2026-06-20 | AUDNZD, EURUSD, AUDCHF, GBPNZD removed for directional instability |
 
-Per-asset config (SL/TP, allocation, max_depth) in [`configs/paper_trading.yaml`](configs/paper_trading.yaml).
+Per-asset config (SL/TP, allocation, max_depth) in per-asset YAML files under [`configs/domains/assets/`](configs/domains/assets/).
 
-[Full portfolio detail →](configs/paper_trading.yaml) · [Mode reference →](docs/MODES.md)
+[Full portfolio detail →](configs/domains/assets/) · [Mode reference →](docs/MODES.md)
 
 ---
 
@@ -82,7 +82,7 @@ Per-asset config (SL/TP, allocation, max_depth) in [`configs/paper_trading.yaml`
 | Robustness gatekeeper | 5/5 PASS |
 | Shock simulation | 21/21 scenarios PASS (0 catastrophic) |
 
-[Backtest scripts →](docs/development.md#backtesting) · [Robustness validation →](scripts/analysis/robustness_gatekeeper.py)
+[Backtest scripts →](scripts/backtest/) · [Robustness validation →](scripts/analysis/robustness_gatekeeper.py)
 
 ---
 
@@ -130,7 +130,7 @@ React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000. 4 routes with si
 | [Security](docs/SECURITY.md) | Auth model, bridge security, secret management |
 | [Testing](docs/TESTING.md) | Test suite structure and commands |
 | [Monitoring](docs/MONITORING.md) | Prometheus metrics reference |
-| [Development](docs/development.md) | Key scripts, benchmarks, contributing |
+| [Development](docs/DEVELOPMENT.md) | Key scripts, benchmarks, contributing |
 | [Modes](docs/MODES.md) | Operating mode presets (production/FTMO/live) |
 | [Architecture Decisions](docs/adr/ADR-000-index.md) | ADR index (23 records) |
 | [Changelog](CHANGELOG.md) | Release history |

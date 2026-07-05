@@ -2,6 +2,8 @@
 
 Architecture, component responsibilities, execution lifecycle, and persistence model for the EigenCapital cross-sectional research and paper trading platform.
 
+> **See also:** [`docs/PRODUCTION_SYSTEM_SPEC_v1.md`](PRODUCTION_SYSTEM_SPEC_v1.md) for the production system specification — scope, constraints, P0–P4 framework, and the complete system contract. SYSTEM_OVERVIEW.md covers day-to-day architecture; PRODUCTION_SYSTEM_SPEC.md defines what the system IS.
+
 ---
 
 # System Philosophy
@@ -272,7 +274,7 @@ persist model + PSI baseline
 | Learning Rate | 0.02              |
 | Scale Pos Weight | Imbalance ratio (n_neg/n_pos) |
 
-Per-asset max_depth from `configs/paper_trading.yaml`. Regime model: 200 trees, LR=0.03, depth=2 (not loaded in production — ensemble disabled). No shared multi-asset model exists.
+Per-asset max_depth from per-asset YAML files in `configs/domains/assets/`. Regime model: 200 trees, LR=0.03, depth=2 (not loaded in production — ensemble disabled). No shared multi-asset model exists.
 
 ---
 
@@ -286,7 +288,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
  1. Fetch 5y OHLCV (MT5 or yfinance)
  2. Normalize timestamps (UTC TZ-naive)
  3. Refresh latest price (MT5 or 5d fallback)
-  4. Build alpha features (15 per-asset + 4 cross-asset = 19 alpha columns + COT features for covered pairs + 7 regime features; includes core momenta, carry, trend-exhaustion, and RSI divergence when OHLCV available)
+  4. Build alpha features (21 per-asset + cross-asset feature columns: 9 core per-asset + 6 trend-exhaustion + 2 COT + 4 cross-asset; includes core momenta, carry, trend-exhaustion, and RSI divergence when OHLCV available)
  5. Generate regime features from OHLCV (7 cols)
  6. Compute archetype features (ema_spread, adx, rsi, bb_zscore)
  7. PSI drift check (rolling 21d vs baseline, skipped first cycle)
@@ -335,7 +337,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
 
 EigenCapital uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, PEK admission controller, and HealthMonitor circuit breaker.
 
-## Governance Layers (16 core + HealthMonitor + PEK + VaR/CVaR + sizing guardrails)
+## Governance Layers (16 core + 3 adaptive budget layers + HealthMonitor + PEK + VaR/CVaR + sizing guardrails)
 
 | Layer                  | Scope      | Effect                    |
 | ---------------------- | ---------- | ------------------------- |
@@ -582,14 +584,16 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 
 # Configuration
 
-`configs/paper_trading.yaml` controls:
-* capital allocation,
+The domain configuration tree in `configs/domains/` controls all system parameters:
+* capital allocation (`configs/domains/risk/capital.yaml`),
 * rebalance frequency,
-* per-asset SL/TP/depth,
-* governance layers,
+* per-asset SL/TP/depth (`configs/domains/assets/<TICKER>.yaml`),
+* governance layers (`configs/domains/governance/`),
 * orchestrator settings,
-* narrative overlays,
-* and liquidity controls.
+* narrative overlays (`configs/domains/governance/narrative.yaml`),
+* and liquidity controls (`configs/domains/governance/liquidity.yaml`).
+
+All domain files are loaded by `PaperConfigRegistry` in `configs/paper_config_registry.py`.
 
 ---
 
@@ -634,6 +638,12 @@ Dashboard URL: http://127.0.0.1:5000
 * Macro data sourced from Yahoo Finance (DXY, VIX, SPX, WTI, TNX)
 * THIN liquidity regime is soft warning (SL/size adjust, no halt); only STRESSED halts
 * Confidence drift halt requires 10+ signals for stable mean estimate
+
+---
+
+# Document Metadata
+
+**Last updated:** 2026-07-05
 
 ---
 

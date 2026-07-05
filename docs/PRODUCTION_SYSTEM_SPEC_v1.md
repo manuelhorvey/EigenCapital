@@ -4,6 +4,8 @@
 
 *Final clean architecture document. Defines what the system IS, not what it evolved from.*
 
+> **See also:** [`docs/SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) for the day-to-day operational system overview — engine lifecycle, governance execution, and position sizing. PRODUCTION_SYSTEM_SPEC.md defines scope and constraints; SYSTEM_OVERVIEW.md covers runtime behavior.
+
 ---
 
 ## 1. System Identity
@@ -162,7 +164,7 @@ yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_ba
 | Folds | 5 (expanding) |
 | Label | triple barrier with per-asset pt_sl |
 | Feature window | 10 years from yfinance |
-| Per-asset pt_sl | From `configs/paper_trading.yaml` and `features/registry.py` (all 16 assets synced) |
+| Per-asset pt_sl | From `configs/domains/assets/` files and `features/registry.py` (all 22 assets synced) |
 
 **Output** (per ticker in `walkforward/`):
 - Fold IC JSON (`{ticker}_fold_ic.json`)
@@ -171,7 +173,7 @@ yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_ba
 
 ### 3.2 Scoring & Promotion
 
-**Entry point**: `python scripts/research/score_tickers.py`
+Scoring is handled by the walk-forward backtest pipeline and the production audit framework.
 
 **Composite score formula**:
 - IC normalized (weight: 30%)
@@ -236,7 +238,7 @@ Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`
 2. Triple-barrier touch → {-1 (SELL), 0 (HOLD), 1 (BUY)}
 3. Binary reduction: drop HOLD (0), map {-1, 1} → {0, 1}
 
-**Default pt_sl**: per-asset from `configs/paper_trading.yaml`.
+**Default pt_sl**: per-asset from per-asset YAML files in `configs/domains/assets/`.
 
 ### 4.4 Model Training
 
@@ -247,7 +249,7 @@ Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`
 | Parameter | Value |
 |---|---|
 | n_estimators | 300 |
-| max_depth | per-asset (2–5, from `configs/paper_trading.yaml`) |
+| max_depth | per-asset (2–5, from per-asset YAML files in `configs/domains/assets/`) |
 | learning_rate | 0.02 |
 | objective | `binary:logistic` |
 | random_state | 42 |
@@ -414,7 +416,7 @@ Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** —
 **Adaptive Exit Engine**: Retracement-based trailing exits (3-stage: breakeven lock → retracement trail → time decay). Enabled globally. See `paper_trading/position/adaptive_exit.py`.
 **Stacking/pyramiding**: Disabled by default (`enabled: false, dry_run: true`) — walk-forward analysis showed no Sharpe benefit.
 
-### 6.3 Governance Layers (14 + HealthMonitor + PEK)
+### 6.3 Governance Layers (16 — 14 core layers + HealthMonitor + PEK)
 
 | Layer | Frequency | Effect |
 |---|---|---|
@@ -502,7 +504,7 @@ In-memory TTL cache per download type:
 
 | Path | Role |
 |---|---|
-| `configs/paper_trading.yaml` | Production config (22 assets, params) |
+| `configs/domains/` | Domain configuration tree — assets, risk, modes, governance, ML, broker, execution |
 | `features/alpha_features.py` | Alpha feature factory |
 | `features/data_fetch.py` | YFinance data ingestion |
 | `features/labels.py` | Triple-barrier labeling |
@@ -544,8 +546,8 @@ In-memory TTL cache per download type:
 | `scripts/analysis/mfe_stationarity.py` | MFE stationarity + walk-forward retrace stability |
 | `scripts/analysis/shock_simulation.py` | Structural fragility simulation (7 shock classes) |
 | `scripts/backtest/walk_forward_backtest.py` | Multi-ticker screening |
-| `scripts/research/score_tickers.py` | Promotion scoring |
-| `scripts/research/generate_promotion_report.py` | Report + YAML generation |
+| `scripts/backtest/walk_forward_backtest.py` | Multi-ticker walk-forward validation |
+| `scripts/analysis/production_audit.py` | 18-phase production audit |
 | `scripts/backtest/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe) |
 | `scripts/backtest/crisis_replay.py` | Crisis replay against 4 historical windows |
 | `scripts/backtest/monte_carlo_drawdown.py` | Block-bootstrap drawdown simulation |
@@ -576,5 +578,7 @@ In-memory TTL cache per download type:
 
 ---
 
-*Spec version 1.1 — June 2026*
+*Spec version 1.2 — July 2026*
+
+**Last updated:** 2026-07-05
 *Supersedes all prior documentation. Production code is truth.*

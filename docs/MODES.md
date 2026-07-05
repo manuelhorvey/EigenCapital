@@ -1,16 +1,16 @@
 # Operating Modes
 
-EigenCapital ships three operating mode presets selected by `mode:` at the
-top of `configs/paper_trading.yaml`. Top-level keys (capital, drawdown
-limit, `defaults.*`) serve as the base config; mode-specific overrides
-merge on top.
+EigenCapital ships three operating mode presets selected by `mode:` in the
+configuration system. Mode definitions live in per-file YAML files under
+`configs/domains/modes/`. Top-level defaults serve as the base config;
+mode-specific overrides merge on top.
 
 ```yaml
+# configs/domains/modes/production.yaml
 mode: production     # active mode
-modes:
-  production:        # paper-trading default
-  challenge_ftmo_10k:# FTMO-style funded-account challenge
-  live:              # live funded account (most conservative)
+description: "Standard paper trading"
+capital: 100000
+# ...
 ```
 
 The active mode is the only source of truth at runtime; the inactive
@@ -68,32 +68,31 @@ Live funded account configuration:
 ## Selecting a Mode
 
 ```bash
-# Edit config
-sed -i 's/^mode: production/mode: challenge_ftmo_10k/' configs/paper_trading.yaml
-
-# Reload the engine
+# Create a new mode YAML
+cp configs/domains/modes/production.yaml configs/domains/modes/my_new_mode.yaml
+# Edit the file and change values, then:
 ./monitor_all
 ```
 
-The mode is read once at engine startup (`get_config()` in
-`paper_trading/config_manager.py`). Hot-swapping is not supported.
+The mode is read at engine startup. Hot-swapping is not supported.
 
 ## Adding a New Mode
 
-Add a new key under `modes:` with the same keys as the example:
+Create a new YAML file in `configs/domains/modes/` with the same structure
+as the existing modes:
 ```yaml
-modes:
-  my_new_mode:
-    description: "..."
-    capital: 50000
-    defaults:
-      max_concurrent_positions: 4
-      risk_per_trade_pct: 0.01
-      # ... all overrides
-    portfolio_drawdown_limit: -0.10
+description: "My custom mode"
+capital: 50000
+defaults:
+  max_concurrent_positions: 4
+  risk_per_trade_pct: 0.01
+  max_daily_loss_pct: 0.05
+  # ... all overrides
+portfolio_drawdown_limit: -0.10
 ```
 
-Then change `mode:` at the top of the file.
+Then configure which mode is active via the environment overlay mechanism
+or by editing the mode selector in the configuration.
 
 The schema validator (`tools/check_config_schema.py`) enforces presence
 of the required keys.
@@ -108,7 +107,9 @@ The following live at the top level (apply to all modes):
 - `research_mode: false`
 - `data_source: mt5`
 - `portfolio.weight_method: factor_constrained_v2`
-- `portfolio_drawdown_limit: -0.15`
-- Most `defaults.*` keys (churn ratio, cooldown half-life, profit-lock
-  threshold, gate enablement, stacking block, leverage budget, spread
-  tier map, session-hours tier map, etc.)
+- `portfolio_drawdown_limit: -0.15`- Most `defaults.*` keys (churn ratio, cooldown half-life, profit-lock threshold, gate enablement, stacking block, leverage budget, spread tier map, session-hours tier map, etc.)
+
+---
+
+**Last updated:** 2026-07-05
+

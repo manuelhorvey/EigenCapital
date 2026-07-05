@@ -3,6 +3,8 @@
 > **Archived 2026-07-05.** Superseded by `AGENTS.md` and
 > `docs/PRODUCTION_SYSTEM_SPEC_v1.md`. Risks are tracked via ongoing
 > production monitoring. Content preserved below for historical reference.
+>
+> **Last updated:** 2026-07-05
 
 ---
 
@@ -63,7 +65,7 @@ The fix requires modifying one function in the walk-forward pipeline: instead of
 Files affected:
 - **`paper_trading/inference/training.py`**: `PurgedWalkForwardFolds` or the fold-construction call site needs a `window=mode` parameter (`"expanding"` | `"rolling"`). When `window="rolling"`, compute `train_start` as `max(0, fold_end - gap - train_window_bars)` instead of `0`.
 - **`scripts/backtest/walk_forward_backtest.py`**: Propagate the `--window` and `--train-window-bars` flags through to the training config.
-- **`configs/paper_trading.yaml`**: Add optional `walkforward_window` and `walkforward_train_bars` keys.
+- **Config files** (e.g., `configs/domains/modes/production.yaml`): Add optional `walkforward_window` and `walkforward_train_bars` keys.
 
 Comparable scope to `scripts/diagnostics/check_chf_correlation.py` (~120 lines, 1 data source) or `scripts/training/retrain_counterfactual.py` (~180 lines, ablation logic + 5-fold WF).
 

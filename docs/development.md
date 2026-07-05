@@ -1,5 +1,7 @@
 # EigenCapital — Development Guide
 
+**Last updated:** 2026-07-05 (legacy — see docs/DEVELOPMENT.md for current version)
+
 ## Key Scripts
 
 ### Training

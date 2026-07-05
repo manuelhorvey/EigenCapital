@@ -15,10 +15,42 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
+import types as _types
 from dataclasses import MISSING, fields, is_dataclass
 from pathlib import Path
 from typing import get_type_hints
+
+
+def _resolve_hints(cls) -> dict[str, type]:
+    """Resolve type hints for a dataclass, with fallback for stringified annotations.
+
+    ``get_type_hints()`` can fail when the class uses ``from __future__ import annotations``
+    combined with PEP 604 union syntax (``int | None``) in some Python environments.
+    This function falls back to manual ``eval()`` resolution in the module's namespace.
+    """
+    hints = {}
+    try:
+        hints = get_type_hints(cls)
+        if hints:
+            return hints
+    except Exception as e:  # noqa: BLE001
+        print(f"config_docs: warning — get_type_hints failed for {cls.__name__}: {e}", file=sys.stderr)
+
+    # Fallback: manually resolve string annotations
+    module = sys.modules.get(cls.__module__)
+    ns = dict(vars(module)) if module else {}
+    ns.setdefault("__builtins__", __builtins__)
+
+    for name, ann in cls.__annotations__.items():
+        if not isinstance(ann, str):
+            hints[name] = ann
+        elif name not in hints:
+            with contextlib.suppress(Exception):
+                hints[name] = eval(ann, ns)
+    return hints
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_PATH = REPO_ROOT / "docs" / "CONFIGURATION.md"
@@ -106,11 +138,7 @@ def _table_for_dataclass(cls) -> str:
     source = _DOMAIN_FILE_MAP.get(name, "(legacy fallback)")
     out = f"## `{name}`\n\n{doc}\n\n**Source domain file:** {source}\n\n"
     out += "| Field | Type | Default |\n|---|---|---|\n"
-    hints = {}
-    try:
-        hints = get_type_hints(cls)
-    except Exception as e:  # noqa: BLE001
-        print(f"config_docs: warning — get_type_hints failed for {cls.__name__}: {e}", file=sys.stderr)
+    hints = _resolve_hints(cls)
     for f in fields(cls):
         if f.name.startswith("_"):
             continue
@@ -138,7 +166,6 @@ def _render_type(tp) -> str:
     typing module's Union sentinel, and Python 3.10+ ``X | None``
     syntax (``types.UnionType``).
     """
-    import types as _types
     import typing as _typing
 
     origin = getattr(tp, "__origin__", None)

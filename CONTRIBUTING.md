@@ -87,7 +87,7 @@ Key documents:
 | `LIVE_CONTRACT.md` | Immutable system invariants |
 | `docs/ARCHITECTURE.md` | Backtesting framework architecture |
 | `docs/PRODUCTION_SYSTEM_SPEC_v1.md` | Scope, not-scope, P0-P4 framework |
-| `docs/PAPER_TRADING_RUNBOOK.md` | Operational procedures |
+| `docs/OPERATIONS.md` | Operational procedures |
 | `docs/FEATURES.md` | Feature engineering details |
 | `docs/GOVERNANCE.md` | Governance layer reference |
 | `docs/SECURITY.md` | Security model |

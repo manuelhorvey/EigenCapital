@@ -6,9 +6,9 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 
 | Guide | Description |
 |-------|-------------|
-| [`PAPER_TRADING_RUNBOOK.md`](PAPER_TRADING_RUNBOOK.md) | Daily/weekly ops, halt responses, troubleshooting |
+| [`OPERATIONS.md`](OPERATIONS.md) | Daily/weekly ops, halt responses, troubleshooting |
 | [`SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) | Architecture, components, data flow, governance |
-| [`GOVERNANCE_LAYER.md`](GOVERNANCE_LAYER.md) | 15-layer governance + decision pipeline stages + position sizing guardrails |
+| [`GOVERNANCE.md`](GOVERNANCE.md) | 16-layer governance + decision pipeline stages + position sizing guardrails |
 | [`FEATURES.md`](FEATURES.md) | Alpha features (9 base + 6 trend-exhaustion per-asset, 4 cross-asset, 7 regime, archetype, labeling) |
 | [`LIVE_CONTRACT.md`](../LIVE_CONTRACT.md) | Immutable production system contract |
 | [`MODES.md`](MODES.md) | Per-mode override matrix (production / challenge_ftmo_10k / live) |

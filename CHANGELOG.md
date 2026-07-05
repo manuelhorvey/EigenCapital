@@ -1,169 +1,162 @@
 # Changelog
 
-All notable changes to EigenCapital are documented in this file. Releases are
-pinned via git tags; this changelog is regenerable from git history.
+## v4.1.0 (2026-07-05)
 
-The format is broadly [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)-inspired
-but adapted to a research + paper-trading release cadence (irregular, dated by
-session, not weekly). Updates follow the date-header convention used in
-`AGENTS.md`.
+### Documentation overhaul (Phases A+B)
+- Wire `doc_drift_check.py` into CI pipeline
+- Fix SELL_ONLY count references across 3 docs (8→3)
+- Remove dead-code and non-existent script references from SYSTEM_OVERVIEW
+- Create `CONTRIBUTING.md` with code standards and PR workflow
+- Create `MONITORING.md` documenting all 11 Prometheus engine metrics
+- Document shadow analytics engine (`paper_trading/shadow/README.md`)
+- Document chaos testing framework (`tests/chaos/README.md`)
+- Add module-level docstrings to 5 feature modules
+- Update feature count in SYSTEM_OVERVIEW (19-35→21)
+- Add `__init__.py` to `paper_trading/shadow/`
 
----
+### Frontend audit remediation
+- SystemBundleSchema + Zod validation for all 4 query hooks
+- Slice selector migration for EmergencyHaltBanner, AssetCard, TickerRail
+- Memoization improvements (arrow callbacks, selector narrowing)
+- Modal component extraction (SystemHealthModal, WeeklyReview, TradeInspector)
+- EquityHistoryChart deduplication
+- Dead component cleanup (5 files removed)
+- 23 frontend-audit commits merged
 
-## Unreleased
+## v4.0.0 (2026-07-04)
 
-### Documentation
-- **Audit & synchronize** (2026-06-30): Comprehensive review of all 64
-  documentation files vs. implementation. Resolved 27 mismatches:
-  - README.md: phase count 4 → 5 (PRE + 1a/1b/2/3/4); portfolio badge 19 → 21;
-    pre-leak-fix baseline block marked superseded.
-  - AGENTS.md Key Files table: 6 `risk/*` paths moved to `paper_trading/pek/*`.
-  - AGENTS.md feature count taxonomy: "11 core" / "13 base" → "9 base"
-    (canonical 9 + 6 trend-exhaustion + 4 cross-asset + COT).
-  - De-duplicated "Small MT5 equity ($107 demo)" Known Issues bullet.
-  - SYSTEM_OVERVIEW.md: `WALRunner` → `ReplayRunner` (2 places); added
-    `strategy_metadata` to persistent tables list; de-duplicated `StateStore`.
-  - LIVE_CONTRACT.md §6: feature-builder description normalised to canonical
-    taxonomy (15 per-asset with OHLCV, 9 without; cross-asset + COT).
-  - PRODUCTION_SYSTEM_SPEC_v1.md: phase count 3 → 5; model count 19 → 21.
-  - ADR-027 source-code path references updated to `paper_trading/pek/`.
-- Added this `CHANGELOG.md`.
-- Added `docs/SECURITY.md` (auth, MT5 loopback, .env permission check).
-- Added `docs/MODES.md` (per-mode override matrix derived from
-  `configs/paper_trading.yaml`).
-- Added `tools/doc_drift_check.py` (asset-count + key-file + phase-counter
-  linters for CI enforcement).
+### Portfolio expansion
+- BTCUSD promoted with `weekend_eligible: true`, crypto [0,24] session tier
+- 4 JPY crosses added (AUDJPY, NZDJPY, GBPJPY, USDJPY)
+- 22 assets in production portfolio
 
----
+### Codebase remediation (12 phases)
+- Security: replace asserts with proper error handling, .env permission check
+- YAML schema validator (`tools/check_config_schema.py`)
+- Property-based sizing chain tests (Hypothesis framework)
+- WAL concurrency stress tests (200-event multi-threaded)
+- MT5 bridge security (loopback enforcement)
+- MT5 bridge supervision (BridgeSupervisor + systemd unit)
+- Structured JSON logging
+- Prometheus metrics (zero-dep exposition)
+- Pre-commit hooks (ruff, schema, firewall, assert guard, secret scanner)
+- Chaos engineering framework
+- ATLAS covariate shift detector (CUSUM + Page-Hinkley + KS)
+- 1912 tests passing
 
-## v2.0.0 — 2026-06-30 (Codebase Remediation Roll-up)
+## v3.0.0 (2026-07-02)
 
-14 months of hardening rolled up (from `refactor/codebase-remediation` branch):
-- **MT5 bridge**: loopback enforcement + supervisor with `/health` endpoint +
-  systemd unit + 34 contract tests.
-- **Observability**: JSON logging, Prometheus metrics registry, ATLAS layered
-  change-point detector (CUSUM + Page-Hinkley + KS).
-- **Security**: replace bare asserts, `.env` world-readable permission check,
-  secrets scanner, import firewall, pre-commit hooks.
-- **Testing**: property-based sizing invariants, WAL concurrency stress
-  (200 events, 8 threads), circuit-breaker regression suite (33 tests).
-- **Schema migration**: SQLite bumped to `DB_SCHEMA_VERSION = "2.0.0"`.
+### Project rename: Quorrin → EigenCapital
+- Python package git mv (179 files)
+- Prometheus metric namespace `quorrin_*` → `eigencapital_*`
+- Env vars `QUORRIN_*` → `EIGENCAPITAL_*`
+- Dashboard branding, infra, remote updated
+- AGENTS.md and README.md updated
 
-See `AGENTS.md` "Codebase Remediation (2026-06-30+)" for full list.
+### Production audit (15 phases)
+- Trade lifecycle analysis (4679 reconstructed trades)
+- Adaptive exit engine with retracement trailing
+- Robustness gatekeeper (5-test suite)
+- Shock simulation (7 classes, 21 scenarios, 0 catastrophic)
+- MFE stationarity validation
 
----
+## v2.0.0 (2026-06-30)
 
-## v1.5.0 — 2026-06-29 (rename release)
+### TP/SL optimizer
+- Grid search ratio space [0.5, 20.0] for all 21 assets
+- Ratio=3.0 conservative cap (SL ≥0.71%)
+- 11 assets bumped to ratio=3.0
+- 8 optimizer tools built
+- SL fragility test: 20/21 OK, 1 FRAGILE at 0.22%
 
-- Project renamed `QuantForge` → `EigenCapital`.
-- Author handle rotated `MktOwl` → `Eleven Forge`.
-- `CLOSE_*` feature naming artifact resolved — features now use real asset
-  ticker prefixes (no more `prices.to_frame("close")` collision).
-- Charts, badges, README manifs updated.
+### P3 factor model + P4 HRP
+- Ledoit-Wolf shrinkage covariance estimator
+- EWMA covariance (RiskMetrics decay)
+- HRP fix (NaN handling, condensed distance)
+- Factor constraints V2 (hard linear inequalities)
+- `factor_constrained_v2` deployed as active weight strategy
 
----
+## v1.5.0 (2026-06-26)
 
-## v1.4.0 — 2026-06-28 (TP/SL Optimizer Ratio=3.0 pass)
+### Trend-exhaustion features (Tier 1+2)
+- 6 new features: MACD hist, Stoch K/D, BB %B, ADX slope, RSI divergence
+- SELL_ONLY reduced from 10→3 assets
+- Walk-forward: total_R +33.2%, sharpe +12.8%, max_dd -55.4%
+- 7 assets removed from SELL_ONLY
+- 4 orphaned models moved to `models/orphaned/`
 
-- 11 assets bumped to ratio=3.0 via `scripts/optimization/portfolio_sltp_optimizer.py`.
-  See `AGENTS.md` "TP/SL Optimizer — Ratio=3.0 Bump (2026-06-30)" for
-  per-asset table.
-- All 16 models retrained with new labels.
-- Dashboard `/optimization.json` endpoint added.
-- SL fragility test (`scripts/optimization/sl_fragility_test.py`) confirmed
-  20/21 OK, 0 CRITICAL, 1 FRAGILE (NZDCAD).
+## v1.4.0 (2026-06-25)
 
----
+### Live Sharpe tracker
+- Cycle-level Sharpe with Lo autocorrelation adjustment
+- Rolling daily Sharpe (7d, 30d, all-time)
+- Slippage estimate from trace.jsonl
 
-## v1.3.0 — 2026-06-26 (Trend-Exhaustion Features + SELL_ONLY Reduction)
+### USDCAD tp/sl swap
+- tp_mult 2.03→2.5, sl_mult 2.5→2.03
+- Ratio 0.81→1.23, estimated ΔR +139.1
 
-- 6 new trend-exhaustion alpha features: MACD histogram, Stochastic %K/%D,
-  Bollinger %B, ADX slope, RSI divergence. Computed when OHLCV is provided.
-- Walk-forward total R +33.2%, sharpe_adj +12.8%, max_dd_R −55.4%.
-- SELL_ONLY_ASSETS reduced from 10 → 5 (removed GBPJPY, USDCHF, EURCHF,
-  USDJPY, ^DJI).
-- 4 models moved to `paper_trading/models/orphaned/`: EURUSD, AUDNZD, AUDCHF,
-  GBPNZD.
+### Monte Carlo drawdown V2
+- R-multiple→% portfolio return conversion
+- 10k sims: VaR(95) DD ≈ -2.3% at 1y
+- 6 tp/sl optimizations applied
 
----
+## v1.3.0 (2026-06-22)
 
-## v1.2.0 — 2026-06-25 (Factor Constraints + Covariance Estimators)
+### Portfolio remediation
+- Signal encoding fix (SELL=0→1)
+- MT5 realized_pnl fix
+- Prometheus gate-blocked counter fix
+- GBPUSD added to ASSETS dict
+- 5 worst assets removed (DJI, ES, NQ, GBPJPY, USDJPY)
+- 16-asset portfolio: total_R +175.79, Sharpe 13.70
+- Adaptive Exit Engine (breakeven lock + retracement trail + time decay)
+- MFE stationarity confirmed (KS p=0.186)
 
-- `factor_constrained_v2` adopted as `weight_method` (best risk-return tradeoff).
-- Ledoit-Wolf shrinkage (`risk_parity_v2`) and EWMA span-60 (`risk_parity_v3`)
-  covariance estimators added.
-- HRP `scipy.cluster.hierarchy` issues fixed: zero-variance drop + condensed
-  distance matrix via `scipy.spatial.distance.squareform`.
-- USDCAD tp/sl swapped (2.03/2.5 → 2.5/2.03) for ratio 1.23.
+## v1.2.0 (2026-06-20)
 
----
+### Walk-forward methodology correction
+- CRIT-1 purging added (86% leakage fixed)
+- Corrected metrics: total_R=107.82, sharpe_adj=9.66
+- Ensemble disabled (ADR-026, p=0.1685)
+- 19 assets, 171 OOS days
 
-## v1.1.0 — 2026-06-25 (Live Sharpe Tracker + Monte Carlo V2)
+### BUY inversion discovery (Phase 2)
+- 11 assets identified with inverted BUY signals
+- SHAP audit: two mechanisms (dxy_mom_21d, carry_vol_adj)
+- Counterfactual ablation: both falsified as causal
+- SELL_ONLY filter deployed (9 assets initially)
+- Directional asymmetry confirmed structural
 
-- `paper_trading/performance/live_sharpe.py` — `LiveSharpeTracker` records
-  portfolio sharpe in `state.json:portfolio.live_sharpe`.
-- `scripts/backtest/monte_carlo_drawdown.py` V2 — converts R-multiples to
-  % portfolio return via per-asset ATR_pct.
+### Causal replay chain
+- WAL events: features_snapshot, inference_output, decision_output
+- feature_hash + model_hash threading
+- 21 replay-determinism tests
 
----
+## v1.1.0 (2026-06-19)
 
-## v1.0.0 — 2026-06-23 (Production-Stable Release)
+### Carry fix + regime model fix
+- Carry feature always zero bug fixed (rate_diff column name)
+- Regime model at inference: load guard + missing features both fixed
+- Hurst constant bug fixed (raw=True)
+- 22/22 assets show varying regime probabilities
 
-- BUY Inversion Discovery closed; SELL_ONLY filter frozen at 8 assets after
-  Counterfactual Ablation.
-- Replay-First Architecture: `features_snapshot`, `inference_output`,
-  `decision_output` WAL events.
-- MT5 Orphan detection/adoption (Phase A–D).
-- Position concentration WAL alert.
-- Maestro 33 circuit-breaker regression tests across 4 test files.
+### Pipeline fixes
+- Indentation nesting fix (_detect_bar_jump at module level)
+- Spread gate (per-asset-class threshold, 720-cycle observe mode)
+- Bar-jump suppression (60min on data-source switch)
+- Risk-off suppression (AUDUSD flat when VIX>0 & SPX<0)
 
----
+## v1.0.0 (2026-06-17)
 
-## v0.5.0 — 2026-06-20 (Walk-Forward PnL Backtest)
-
-- Ensemble disabled portfolio-wide (ADR-026, base_weight=1.0).
-- AUDNZD, EURUSD, AUDCHF, GBPNZD removed from trading.
-- USDCAD/NZDUSD allocations halved (5% → 2.5%).
-- Walk-Forward PnL backtest (`scripts/backtest/backtest_pnl.py`) with
-  autocorrelation-adjusted Sharpe.
-
----
-
-## Pre-stable iteration history (selected snapshots)
-
-- **2026-06-22**: GBPUSD promoted to portfolio (walk-forward IC 0.186).
-- **2026-06-19**: BUY inversion evidence chain closed; risk-off suppression
-  added for AUDUSD; bar-jump suppression added.
-- **2026-06-19**: Regime model load-guard + missing-features bugs fixed
-  (commits `f15af30`, `b980f69`).
-- **2026-06-19**: Hurst constant zero-bug fixed via `raw=True` flag.
-- **2026-06-17**: Position sizing guardrails added (drawdown taper, equity
-  cap, risk cap, leverage budget, backstop).
-- **2026-06-17**: Signal chatter + MT5 orphaned position fixes (5-fix chain).
-- **2026-06-17**: THIN liquidity regime routed to soft warnings only.
-- **2026-06-17**: Spreading gate, entry price deviation, profit lock gate
-  each added as suppression stages.
-- **2026-06-16**: SL/TP triple bug fixed
-  (`_atr_barriers()` uses `atr_mult_tp`; `tp_compiler.py` caps R:R at 5.0).
-
----
-
-## Documentation-affected-version table
-
-| Doc | Authoritative source path | Last validated |
-|---|---|---|
-| `README.md` | n/a (top-level) | 2026-06-30 (audit) |
-| `AGENTS.md` | n/a (operating guide) | 2026-06-30 (audit) |
-| `LIVE_CONTRACT.md` | `paper_trading/config_manager.py` + `paper_trading/inference/models` | 2026-06-25 |
-| `docs/SYSTEM_OVERVIEW.md` | `paper_trading/orchestrator/engine.py` | 2026-06-30 (audit) |
-| `docs/PRODUCTION_SYSTEM_SPEC_v1.md` | n/a (production spec) | 2026-06-30 (supersedes v0) |
-| `docs/FEATURES.md` | `features/alpha_features.py`, `features/regime_features.py` | 2026-06-26 |
-| `docs/MODES.md` | `configs/paper_trading.yaml:modes` | 2026-06-30 (new) |
-| `docs/SECURITY.md` | `paper_trading/serve.py`, `paper_trading/ops/mt5_client.py`, `paper_trading/config_manager.py` | 2026-06-30 (new) |
-| `docs/STATE_INTERFACE.md` | `paper_trading/services/engine_state_service.py` | — (planned) |
-| `docs/PEK_BUDGET.md` | `paper_trading/pek/*` | — (planned) |
-| `docs/REPLAY.md` | `paper_trading/replay/{runner,wal}.py` | — (planned) |
-| `docs/DASHBOARD_API.md` | `paper_trading/api/routes.py` | — (planned) |
-| `docs/CHAOS_AND_FAULTS.md` | `tests/chaos/chaos_tools.py` | — (planned) |
-| `docs/MT5_BRIDGE.md` | `paper_trading/ops/mt5_client.py`, `scripts/ops/mt5_bridge_supervisor.py` | — (planned) |
-| `docs/METRICS_AND_ALERTING.md` | `eigencapital/observability/metrics.py`, `paper_trading/alerting/` | — (planned) |
+### First stable release
+- 22-asset portfolio paper trading live
+- Per-asset XGBoost base models
+- 15-layer governance framework
+- PEK (Portfolio Execution Kernel) admission control
+- EngineOrchestrator with 5-phase cycle
+- MT5 bridge execution (Exness demo)
+- Dashboard React SPA
+- SQLite WAL persistence with replay
+- Walk-forward validation pipeline
+- Triple-barrier labeling

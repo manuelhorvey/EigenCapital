@@ -1,6 +1,10 @@
-# Risk Items
+# Risk Items — ARCHIVED
 
-Known open risks in the EigenCapital system, ordered by severity.
+> **Archived 2026-07-05.** Superseded by `AGENTS.md` and
+> `docs/PRODUCTION_SYSTEM_SPEC_v1.md`. Risks are tracked via ongoing
+> production monitoring. Content preserved below for historical reference.
+
+---
 
 ## 1. Circuit Breaker Calibration (Group 1)
 
@@ -45,7 +49,7 @@ Two independent confounds make retraining decay unmeasurable in the current pipe
    - Genuine decay (the model forgot its old patterns)
    - A harder test window (the later test period was intrinsically harder to predict)
    - Or a model-quality improvement masked by an even harder test window
-   
+
    These are inseparable. A rolling-window design (fixed train size, sliding forward) would cleanly separate model age from data volume.
 
 2. **Lookahead contamination**: The live model cannot be tested against earlier historical windows because it was trained on data those windows hadn't observed at the time. Testing against them would be lookahead-contaminated.

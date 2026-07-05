@@ -500,7 +500,7 @@ max_layers: 3
 
 ## 12. GOVERNANCE CONTRACT
 
-15 layered governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ removed; ^DJI retained as sole US_EQUITY asset) plus position sizing guardrails, decision pipeline suppression stages, circuit breaker, and HealthMonitor, each independently configurable:
+16 layered governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ removed; ^DJI retained as sole US_EQUITY asset) plus RiskEngineV2, PEK admission, and PerformanceState velocity, each independently configurable. See `docs/GOVERNANCE.md` for the canonical taxonomy.
 
 | Layer | Frequency | Effect | Config key |
 |---|---|---|---|---|---|
@@ -520,6 +520,7 @@ max_layers: 3
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% | `portfolio_drawdown_limit` |
 | Entry price deviation | Per entry | Skips entry if price moved > `max_entry_slippage_pct` (def 2%) | `max_entry_slippage_pct` |
 | Profit lock | Per flip (embedded in manage_position) | Blocks flip if unrealized PnL > `profit_lock_threshold_pct` (def 15%) | `profit_lock_threshold_pct` |
+| Weekend trading governance | Per cycle (weekend/holiday) | Filtered cycle for `weekend_eligible` assets; 0.5× allocation multiplier; `crypto: [0,24]` session tier | `weekend_eligible`, `weekend_allocation_multiplier` |
 
 **Position sizing guardrails (multiply into final notional):**
 
@@ -559,7 +560,7 @@ max_layers: 3
 | Poll deferred entries | Execute pending deferred orders | — |
 | Update prob history | Record probability history for drift monitoring | — |
 
-See `docs/GOVERNANCE_LAYER.md` for full detail.
+See `docs/GOVERNANCE.md` for full detail.
 
 ---
 

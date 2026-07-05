@@ -1,6 +1,6 @@
 # EigenCapital — Risk & Governance Layer
 
-15 independent governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ/^DJI no longer in portfolio), plus decision pipeline suppression stages, position sizing guardrails, PEK admission, HealthMonitor circuit breaker, and weekend trading governance, operating at different frequencies and granularities.
+16 independent governance mechanisms, plus decision pipeline suppression stages, position sizing guardrails, PEK admission, HealthMonitor circuit breaker, and weekend trading governance, operating at different frequencies and granularities.
 
 ## Governance Layers (14 + HealthMonitor + PEK)
 

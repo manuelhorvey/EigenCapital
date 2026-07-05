@@ -2,6 +2,7 @@ import { useTradeOutcomes } from '../hooks/useTradeOutcomes'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import StatCard from './ui/StatCard'
+import Button from './ui/Button'
 import { Skeleton } from './ui/Skeleton'
 import SltpGauge from './ui/SltpGauge'
 
@@ -14,7 +15,7 @@ function r2(v: number): string {
 }
 
 export default function TradeOutcomes() {
-  const { outcomes, isPending, isError } = useTradeOutcomes()
+  const { outcomes, isPending, isError, refetch } = useTradeOutcomes()
 
   if (isPending) {
     return (
@@ -37,7 +38,10 @@ export default function TradeOutcomes() {
     return (
       <Panel>
         <SectionHeader title="Trade Outcomes" accent="emerald" />
-        <div className="text-xs text-tertiary text-center py-8">Failed to load outcome data</div>
+        <div className="flex flex-col items-center py-8 gap-3">
+          <div className="text-xs text-tertiary">Failed to load outcome data</div>
+          <Button variant="secondary" size="sm" onClick={() => refetch()}>Retry</Button>
+        </div>
       </Panel>
     )
   }
@@ -102,6 +106,34 @@ export default function TradeOutcomes() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card list fallback */}
+          <div className="sm:hidden space-y-2 mt-3">
+            {byAsset.map((a) => (
+              <div key={a.asset} className="bg-panel/60 border border-default rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-semibold text-primary">{a.asset}</span>
+                  <span className="text-2xs text-tertiary">{a.n_trades} trades</span>
+                </div>
+                <div className="flex items-center gap-2 text-2xs">
+                  <span className={a.tp_rate >= 0.2 ? 'text-gov-green' : 'text-gov-yellow'}>
+                    TP {pct(a.tp_rate)}
+                  </span>
+                  <span className={a.sl_rate <= 0.6 ? 'text-tertiary' : 'text-gov-red'}>
+                    SL {pct(a.sl_rate)}
+                  </span>
+                  <span className="text-tertiary">Flip {pct(a.signal_flip_rate)}</span>
+                </div>
+                <div className="flex items-center gap-3 text-2xs">
+                  <span className={a.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'}>
+                    Avg R {r2(a.avg_r)}
+                  </span>
+                  <span className="text-secondary">Win {pct(a.win_rate)}</span>
+                  <span className="text-secondary">PF {a.profit_factor !== null ? r2(a.profit_factor) : '—'}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}

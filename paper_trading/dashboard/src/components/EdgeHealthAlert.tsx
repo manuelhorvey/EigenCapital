@@ -4,9 +4,9 @@ import Badge from './ui/Badge'
 import StatCard from './ui/StatCard'
 
 const trendConfig = {
-  EXPANDING: { variant: 'success' as const, label: 'Expanding', color: '#22c55e' },
-  STABLE: { variant: 'default' as const, label: 'Stable', color: '#22c55e' },
-  DECAYING: { variant: 'warning' as const, label: 'Decaying', color: '#eab308' },
+  EXPANDING: { variant: 'success' as const, label: 'Expanding', color: 'var(--color-gov-green)' },
+  STABLE: { variant: 'default' as const, label: 'Stable', color: 'var(--color-gov-green)' },
+  DECAYING: { variant: 'warning' as const, label: 'Decaying', color: 'var(--color-gov-yellow)' },
 } as const
 
 export default function EdgeHealthAlert() {

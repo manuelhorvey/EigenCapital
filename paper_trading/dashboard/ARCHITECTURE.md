@@ -140,16 +140,36 @@ ErrorBoundary
 
 | Component | memo? | Key props | Re-render triggers |
 |-----------|-------|-----------|-------------------|
-| `TickerRail` | Yes | `onToggleSidebar` (stable) | every bundle poll |
+| `TickerRail` | Yes (post-Commit-2.2) | `onToggleSidebar` (stable) | slice change on `systemSelectors.snapshot`/`mt5` or engine-health tick |
 | `Sidebar` | Yes | `open`, `onClose` (stable) | sidebar toggle, route change |
-| `CommandCenter` | Yes | none | snapshot slice change |
+| `CommandCenter` | Yes | none | slice change via `useTradingState()` |
 | `SignalsTable` | Yes | none | snapshot slice change + search input |
 | `TradeFeed` | Yes | none | trades + engine status slice change |
+| `EmergencyHaltBanner` | Yes (post-Commit-2.2) | none | `systemSelectors.snapshot` slice change (only when `emergency_halt` flips) |
+| `AssetCard` | Yes | name | `systemSelectors.snapshot` slice slot for this asset |
 
-> **Note:** `QuickStatsGrid` and `RiskSignalPanel` are defined inline in `CommandCenter.tsx`,
-> not separate files. `EngineBadge`, `NavItem`, `QuickStatsBar`, and `PortfolioSnapshotPanel`
-> are documented in prior architecture but no longer exist as standalone components —
-> their functionality has been absorbed into inline definitions or removed.
+> **Note:** The quick-stats row on CommandCenter was replaced by a
+> hairline-rule mono dl/div row during the operator-console redesign
+> (Phase 8.3). `EngineBadge`, `NavItem`, `QuickStatsBar`, and
+> `PortfolioSnapshotPanel` are documented in prior architecture but
+> no longer exist as standalone components — their functionality has
+> been absorbed into inline definitions or removed.
+
+### Slice selector discipline (Key Contract #1)
+
+| Caller | Selector | Note |
+|--------|----------|------|
+| `AppShell` (integrity root) | none (full bundle) | Documented exception: integrity layer holds the bundle reference for the reconciler + integrity hook |
+| `TickerRail` | `systemSelectors.snapshot`, `systemSelectors.mt5` | Commits 2.1+2.2 |
+| `EmergencyHaltBanner` | `systemSelectors.snapshot` | Commit 2.1+2.2 |
+| `AssetCard` | `systemSelectors.snapshot` | Commit 2.1 |
+| `CommandCenter` (page) | composed via `useTradingState()` | Indirect; trading-state hook is internal-derived |
+| `TickerRail` mtm | `systemSelectors.mt5` | 2 selectors — see multiple-hook note below |
+| `TradingWorkspace` (page) | none | only reads `isPending`/`isError` for status chrome (Commit 2.1 carve-out) |
+
+**Internal derivation hooks (allowed no-selector):** `useSnapshotReconciler`, `useSystemIntegrity`, `useMonitorAlerts`, `useGovernanceRadar`, `useTradingState` (lib/trading-state/hook.ts:50).
+
+Violations prior to Commits 2.1+2.2: `EmergencyHaltBanner`, `AssetCard`, `RebalancingDashboard` (deleted in 3.3), inline `QuickStatsGrid` in `CommandCenter.tsx`. Now compliant.
 
 ---
 

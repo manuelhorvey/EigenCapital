@@ -1,22 +1,11 @@
 import { X } from 'lucide-react'
 import type { TradeAttributionRecord } from '../../types/attribution'
 import { computeDomainScores } from './domainScores'
+import ScoreBar from '../ui/ScoreBar'
 
 interface TradeDetailPanelProps {
   trade: TradeAttributionRecord
   onClose: () => void
-}
-
-function ScoreBar({ label, score, color }: { label: string; score: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-2xs text-tertiary w-20 shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-default rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${score * 100}%`, backgroundColor: color }} />
-      </div>
-      <span className="text-2xs font-mono text-secondary w-8 text-right">{(score * 100).toFixed(0)}%</span>
-    </div>
-  )
 }
 
 export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelProps) {
@@ -46,7 +35,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Archetype: <span className="text-secondary">{trade.pred_archetype_at_entry}</span></p>
             <p>Regime: <span className="text-secondary">{trade.pred_regime_at_entry}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.prediction_score} color="#3b82f6" />
+          <ScoreBar label="Score" score={scores.prediction_score} color="var(--color-accent-blue)" />
         </div>
 
         {/* Execution */}
@@ -65,7 +54,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             {trade.friction_gap_fill && <p className="text-gov-red">⚠ Gap fill</p>}
             {trade.friction_partial_fill && <p className="text-gov-yellow">⚠ Partial fill</p>}
           </div>
-          <ScoreBar label="Score" score={scores.execution_score} color="#a855f7" />
+          <ScoreBar label="Score" score={scores.execution_score} color="var(--color-accent-purple)" />
         </div>
 
         {/* Exit */}
@@ -79,7 +68,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Bars held: <span className="text-secondary">{trade.exit_bars_held}</span></p>
             <p>Exit archetype: <span className="text-secondary">{trade.exit_archetype}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.exit_score} color="#22c55e" />
+          <ScoreBar label="Score" score={scores.exit_score} color="var(--color-gov-green)" />
         </div>
 
         {/* Friction */}
@@ -93,7 +82,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Gap fill: <span className={trade.friction_gap_fill ? 'text-gov-red' : 'text-gov-green'}>{trade.friction_gap_fill ? 'Yes' : 'No'}</span></p>
             <p>Partial: <span className={trade.friction_partial_fill ? 'text-gov-yellow' : 'text-gov-green'}>{trade.friction_partial_fill ? 'Yes' : 'No'}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.friction_score} color="#f97316" />
+          <ScoreBar label="Score" score={scores.friction_score} color="var(--color-accent-amber)" />
         </div>
       </div>
 

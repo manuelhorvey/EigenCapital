@@ -19,7 +19,7 @@ export default function LiveSharpeCard() {
         label: 'Cycle Sharpe (adj)',
         value: ls.cycle_level.sharpe_adj.toFixed(2),
         sub: `ρ=${ls.cycle_level.autocorrelation.toFixed(2)} · ${ls.cycle_level.n_cycles} cycles`,
-        accent: ls.cycle_level.sharpe_adj >= 1 ? '#22c55e' : ls.cycle_level.sharpe_adj >= 0 ? '#eab308' : '#ef4444',
+        accent: ls.cycle_level.sharpe_adj >= 1 ? 'var(--color-gov-green)' : ls.cycle_level.sharpe_adj >= 0 ? 'var(--color-gov-yellow)' : 'var(--color-gov-red)',
       })
     }
 
@@ -30,7 +30,7 @@ export default function LiveSharpeCard() {
           label: `${window} Sharpe`,
           value: d.sharpe_adj.toFixed(2),
           sub: `PSR ${(d.psr_gt_0 * 100).toFixed(0)}% · ${d.n_days}d`,
-          accent: d.sharpe_adj >= 1 ? '#22c55e' : d.sharpe_adj >= 0 ? '#eab308' : '#ef4444',
+          accent: d.sharpe_adj >= 1 ? 'var(--color-gov-green)' : d.sharpe_adj >= 0 ? 'var(--color-gov-yellow)' : 'var(--color-gov-red)',
         })
       }
     }
@@ -40,7 +40,7 @@ export default function LiveSharpeCard() {
         label: 'Total Return',
         value: `${(ls.portfolio.total_return_pct >= 0 ? '+' : '')}${ls.portfolio.total_return_pct.toFixed(2)}%`,
         sub: `DD ${(ls.portfolio.max_drawdown_pct ?? 0).toFixed(2)}%`,
-        accent: ls.portfolio.total_return_pct >= 0 ? '#22c55e' : '#ef4444',
+        accent: ls.portfolio.total_return_pct >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)',
       })
     }
 
@@ -49,7 +49,7 @@ export default function LiveSharpeCard() {
         label: 'Slippage RMS',
         value: `${ls.slippage.slippage_rms_pct?.toFixed(2)}%`,
         sub: `p90 ${ls.slippage.p90_gap_pct?.toFixed(2)}% · ${ls.slippage.n_samples} samples`,
-        accent: (ls.slippage.slippage_rms_pct ?? 0) < 0.5 ? '#22c55e' : '#eab308',
+        accent: (ls.slippage.slippage_rms_pct ?? 0) < 0.5 ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)',
       })
     }
 

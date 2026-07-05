@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceDot } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
@@ -83,14 +83,14 @@ export default function EquityChart() {
     return result
   }, [chartData, assetNames])
 
-  const toggle = (name: string) => {
+  const toggle = useCallback((name: string) => {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
       else next.add(name)
       return next
     })
-  }
+  }, [])
 
   const legend = (
     <div className="flex flex-wrap gap-1.5 mb-3 -mt-1">

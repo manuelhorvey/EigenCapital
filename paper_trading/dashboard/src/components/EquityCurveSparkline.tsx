@@ -1,17 +1,8 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { fetchApi } from '../lib/api'
 import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
-
-interface EquityRecord {
-  id: number
-  timestamp: string
-  portfolio_value: number
-  portfolio_return?: number
-  drawdown?: number
-}
+import { useEquityHistory, type EquityHistoryPoint } from '../hooks/useEquityHistory'
 
 interface EquityCurveSparklineProps {
   /** Height in pixels. Default 72. */
@@ -64,18 +55,17 @@ function formatAxisLabel(value: number): string {
 export default function EquityCurveSparkline({
   height = 72,
   width,
-  positiveColor = '#22c55e',
-  negativeColor = '#ef4444',
+  positiveColor = 'var(--color-gov-green)',
+  negativeColor = 'var(--color-gov-red)',
   strokeWidth = 2,
   showLabels = false,
 }: EquityCurveSparklineProps) {
-  const { data: history, isLoading } = useQuery<EquityRecord[]>({
-    queryKey: ['equity_history'],
-    queryFn: () => fetchApi<EquityRecord[]>('/equity_history.json'),
-    refetchInterval: 60_000,
-    staleTime: 60_000,
-    retry: 1,
-  })
+  // Collapsed onto the canonical useEquityHistory hook (clé
+  // 'equityHistory' / QUERY_KEYS.equityHistory). Was previously its
+  // own raw useQuery with literal key 'equity_history', causing the
+  // dashboard to maintain two independent React Query caches for the
+  // same endpoint. See audit bug 5.2.
+  const { data: history, isPending } = useEquityHistory()
 
   const { path, fillPath, isUp } = useMemo(() => {
     if (!history || history.length < 2) return { path: '', fillPath: '', isUp: true }
@@ -83,7 +73,7 @@ export default function EquityCurveSparkline({
     return buildPath(values, typeof width === 'number' ? width : 300, height)
   }, [history, width, height])
 
-  if (isLoading) {
+  if (isPending) {
     return <div style={{ height }}><Skeleton className="w-full h-full rounded" shimmer /></div>
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Menu } from 'lucide-react'
 import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
@@ -68,8 +68,11 @@ interface TickerRailProps {
   onToggleSidebar?: () => void
 }
 
-export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
-  const { data: snapshot }   = useSystemSnapshot(systemSelectors.snapshot)
+function TickerRailInner({ onToggleSidebar }: TickerRailProps) {
+  const { data: engStatus } = useSystemSnapshot(systemSelectors.engineStatus)
+  const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
+  const { data: assets }    = useSystemSnapshot(systemSelectors.assets)
+  const { data: snapshot }  = useSystemSnapshot(systemSelectors.snapshot)
   const { data: mt5Live }    = useSystemSnapshot(systemSelectors.mt5)
   const health = useEngineHealth()
   const queryClient = useQueryClient()
@@ -90,8 +93,8 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
 
   const parts = useMemo(() => {
     const now = Date.now()
-    const lastUpdateMs = snapshot?.engine_status?.last_update
-      ? Date.parse(snapshot.engine_status.last_update)
+    const lastUpdateMs = engStatus?.last_update
+      ? Date.parse(engStatus.last_update)
       : null
     const tickAgoSec = lastUpdateMs != null
       ? Math.max(0, Math.round((now - lastUpdateMs) / 1000))
@@ -106,10 +109,10 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
           : 'stale'
 
     const seqId      = snapshot?.sequence_id
-    const admission  = snapshot?.portfolio?.admission
+    const admission  = portfolio?.admission
     const halted     = Boolean(snapshot?.emergency_halt)
     const haltReason = snapshot?.halt_reason ?? snapshot?.halt_detail
-    const assetCount = snapshot?.assets ? Object.keys(snapshot.assets).length : null
+    const assetCount = assets ? Object.keys(assets).length : null
 
     const mt5State = mt5Live?.status ?? 'UNKNOWN'
     const mt5Equity = mt5Live?.account?.portfolio_value != null
@@ -154,7 +157,7 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
     if (assetCount != null && assetCount > 0) tokens.push({ label: 'assets', value: String(assetCount) })
 
     return { tokens, haltReason, halted }
-  }, [snapshot, health.isError, health.isLoading, health.data, mt5Live])
+  }, [snapshot, engStatus, portfolio, assets, health.isError, health.isLoading, health.data, mt5Live])
 
   if (parts.halted && parts.haltReason) {
     return (
@@ -228,3 +231,5 @@ export default function TickerRail({ onToggleSidebar }: TickerRailProps) {
     </div>
   )
 }
+
+export default memo(TickerRailInner)

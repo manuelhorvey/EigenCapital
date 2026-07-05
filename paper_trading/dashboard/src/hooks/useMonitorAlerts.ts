@@ -70,9 +70,17 @@ export function useMonitorAlerts(): Alert[] {
   const seqId = bundle?.meta?.snapshot_sequence_id
   const [broadcastTick, setBroadcastTick] = useState(0)
 
-  useEffect(() => {
-    if (bundle?.meta?.version) setDismissedVersion(bundle.meta.version)
-  }, [bundle?.meta?.version])
+  // Compute the dismissal key in the same render cycle as the memo: the
+  // audit (Bug B2) flagged the prior useEffect-based setDismissedVersion
+  // as a state-migration bug because the FIRST render's key was always
+  // 'ec-dismissed-alerts' (unversioned), then a useEffect cycle flipped
+  // it to the versioned key — making any previously-dismissed alerts
+  // silently reappear as soon as `meta.version` came in. Synchronous
+  // update avoids the off-by-one cycle.
+  const version = bundle?.meta?.version ?? ''
+  if (version && _dismissedVersion !== version) {
+    _dismissedVersion = version
+  }
 
   useEffect(() => {
     const ch = getChannel()

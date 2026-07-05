@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { X, Clock, BarChart3, GitCompare, Shield } from 'lucide-react'
 import { useTradeInspector } from '../../hooks/useTradeInspector'
-import useFocusTrap from '../../hooks/useFocusTrap'
 import TradeTimeline from './TradeTimeline'
 import TradeGovernanceAudit from './TradeGovernanceAudit'
 import TradeCounterfactual from './TradeCounterfactual'
 import { computeDomainScores } from '../attribution/domainScores'
 import { Skeleton } from '../ui/Skeleton'
+import ScoreBar from '../ui/ScoreBar'
+import Modal from '../ui/Modal'
 
 interface TradeInspectorModalProps {
   asset: string
@@ -24,43 +25,15 @@ const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
   { id: 'governance', label: 'Governance', icon: Shield },
 ]
 
-function ScoreBar({ label, score, color }: { label: string; score: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-2xs text-tertiary w-20 shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-default rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${score * 100}%`, backgroundColor: color }} />
-      </div>
-      <span className="text-2xs font-mono text-secondary w-8 text-right">{(score * 100).toFixed(0)}%</span>
-    </div>
-  )
-}
-
 export default function TradeInspectorModal({ asset, entryDate, exitDate, onClose }: TradeInspectorModalProps) {
   const [tab, setTab] = useState<TabId>('timeline')
   const tradeData = useTradeInspector(asset, entryDate, exitDate)
-  const modalRef = useFocusTrap()
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
-  // Lock body scroll
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [])
 
   const attribution = tradeData?.attribution
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-4">
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div ref={modalRef} className="relative w-full max-w-2xl bg-surface border border-default rounded shadow-modal animate-fade-in max-h-[80vh] flex flex-col" role="dialog" aria-modal="true" aria-label={`Trade inspector: ${asset}`}>
+    <Modal open onClose={onClose} size="lg" noContentWrap>
+      <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
           <div>
@@ -119,10 +92,10 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
                   <>
                     <div className="space-y-2">
                       <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
-                      <ScoreBar label="Prediction" score={scores.prediction_score} color="#3b82f6" />
-                      <ScoreBar label="Execution" score={scores.execution_score} color="#a855f7" />
-                      <ScoreBar label="Exit" score={scores.exit_score} color="#22c55e" />
-                      <ScoreBar label="Friction" score={scores.friction_score} color="#f97316" />
+                      <ScoreBar label="Prediction" score={scores.prediction_score} color="var(--color-accent-blue)" />
+                      <ScoreBar label="Execution" score={scores.execution_score} color="var(--color-accent-purple)" />
+                      <ScoreBar label="Exit" score={scores.exit_score} color="var(--color-gov-green)" />
+                      <ScoreBar label="Friction" score={scores.friction_score} color="var(--color-accent-amber)" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-default">
@@ -166,6 +139,6 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   )
 }

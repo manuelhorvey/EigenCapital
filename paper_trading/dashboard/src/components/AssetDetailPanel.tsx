@@ -29,8 +29,9 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
   return (
     <>
       {/* Overlay backdrop for mobile full-screen panel */}
-      <div className="fixed inset-0 z-30 bg-black/40 sm:hidden" onClick={onClose} aria-hidden="true" />
-      <div className="fixed inset-0 sm:inset-y-0 sm:right-0 z-40 w-full sm:w-[420px] bg-app sm:border-l border-default shadow-2xl flex flex-col">
+      <div className="fixed inset-0 z-50 bg-black/40 sm:bg-black/40 sm:hidden"
+           onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 sm:inset-y-0 sm:right-0 z-50 w-full sm:w-[420px] bg-app sm:border-l border-default shadow-2xl flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bold text-sm text-primary truncate">{name}</span>

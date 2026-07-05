@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useCallback } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import AppShell from './components/layout/AppShell'
@@ -26,11 +26,28 @@ function AppContent() {
 
   const detailAsset = selectedAsset && state?.assets?.[selectedAsset]
 
+  // Stable callback identities (`useCallback`) preserve `React.memo` on
+  // memo-wrapped children (CommandCenter page, AssetDetailPanel,
+  // AssetDeepDive). Without this, every AppContent render cascades a
+  // new function ref to all memo'd children, defeating their cache.
+  const handleSelectAsset = useCallback(
+    (name: string) => setSelectedAsset(name),
+    [setSelectedAsset]
+  )
+  const handleCloseDetail = useCallback(
+    () => setSelectedAsset(null),
+    [setSelectedAsset]
+  )
+  const handleCloseDeepDive = useCallback(
+    () => setDeepDiveAsset(null),
+    [setDeepDiveAsset]
+  )
+
   return (
     <>
       <Suspense fallback={<div className="p-8"><Skeleton className="h-64 rounded-lg" shimmer /></div>}>
         <Routes>
-          <Route path="/" element={<CommandCenter onSelectAsset={(name) => setSelectedAsset(name)} />} />
+          <Route path="/" element={<CommandCenter onSelectAsset={handleSelectAsset} />} />
           <Route path="/trading" element={<TradingWorkspace />} />
           <Route path="/execution" element={<ExecutionWorkspace />} />
           <Route path="/risk" element={<RiskWorkspace />} />
@@ -41,13 +58,13 @@ function AppContent() {
         <AssetDetailPanel
           asset={detailAsset}
           name={selectedAsset!}
-          onClose={() => setSelectedAsset(null)}
+          onClose={handleCloseDetail}
         />
       )}
       {deepDiveAsset && (
         <AssetDeepDive
           name={deepDiveAsset}
-          onClose={() => setDeepDiveAsset(null)}
+          onClose={handleCloseDeepDive}
         />
       )}
       <WeeklyReviewModal />

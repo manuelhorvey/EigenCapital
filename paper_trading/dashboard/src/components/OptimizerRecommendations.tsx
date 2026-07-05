@@ -43,7 +43,7 @@ export default function OptimizerRecommendations() {
       label: 'Assets Checked',
       value: (report.n_assets ?? (flags.length + (healthy ?? []).length)).toString(),
       sub: `${flags.length} flagged, ${(healthy ?? []).length} healthy`,
-      accent: '#3b82f6',
+      accent: 'var(--color-accent-blue)',
     })
 
     for (const flagged of flags.slice(0, 5)) {
@@ -51,7 +51,7 @@ export default function OptimizerRecommendations() {
         label: flagged.asset,
         value: `${(flagged.wr_margin >= 0 ? '+' : '')}${(flagged.wr_margin * 100).toFixed(1)}%`,
         sub: `${flagged.trend} · ${flagged.n_trades} trades · ${flagged.flag_reason}`,
-        accent: '#ef4444',
+        accent: 'var(--color-gov-red)',
       })
     }
 

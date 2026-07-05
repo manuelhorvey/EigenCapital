@@ -3,7 +3,6 @@ export { default as Button } from './Button'
 export { default as ChartContainer } from './ChartContainer'
 export { default as Divider } from './Divider'
 export { default as EntranceAnimator } from './EntranceAnimator'
-export { default as StateIndicatorDot } from './StateIndicatorDot'
 export { default as ProgressBar } from './ProgressBar'
 export {
   CHART_PALETTE,

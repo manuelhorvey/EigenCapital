@@ -62,7 +62,7 @@ export default function SystemHealthSummary() {
           label="Drawdown"
           value={`${(portfolio.risk.drawdown * 100).toFixed(1)}%`}
           sub={`Conc: ${portfolio.risk.concentration_risk.toLowerCase()}`}
-          accent={(portfolio.risk.drawdown ?? 0) > 0.05 ? '#eab308' : '#22c55e'}
+          accent={(portfolio.risk.drawdown ?? 0) > 0.05 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'}
           variant="compact"
         />
         <StatCard

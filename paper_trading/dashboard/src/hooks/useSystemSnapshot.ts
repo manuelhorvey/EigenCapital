@@ -13,13 +13,17 @@ export function useSystemSnapshot<T = SystemBundle>(
     queryKey: QUERY_KEYS.system,
     queryFn: async () => {
       const json = await fetchApi<unknown>('/state-bundle.json')
-      const bundle = SystemBundleSchema.parse(json)
-      const cv = bundle.snapshot.contract_version
-      if (_lastContractVersion !== null && _lastContractVersion !== cv) {
-        console.warn(`[SNAPSHOT] Contract version mismatch: was ${_lastContractVersion}, now ${cv}. Dashboard may be incompatible with engine.`)
+      const parsed = SystemBundleSchema.safeParse(json)
+      if (parsed.success) {
+        const cv = parsed.data.snapshot.contract_version
+        if (_lastContractVersion !== null && _lastContractVersion !== cv) {
+          console.warn(`[SNAPSHOT] Contract version mismatch: was ${_lastContractVersion}, now ${cv}. Dashboard may be incompatible with engine.`)
+        }
+        _lastContractVersion = cv
+        return parsed.data as unknown as SystemBundle
       }
-      _lastContractVersion = cv
-      return bundle as unknown as SystemBundle
+      console.error('[SNAPSHOT] Bundle validation failed — schema drift detected:', parsed.error.issues)
+      return json as unknown as SystemBundle
     },
     refetchInterval: (q) => {
       const closed = q.state.data?.snapshot?.engine_status?.market_closed

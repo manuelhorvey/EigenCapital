@@ -148,11 +148,12 @@ ErrorBoundary
 | `EmergencyHaltBanner` | Yes (post-Commit-2.2) | none | `systemSelectors.snapshot` slice change (only when `emergency_halt` flips) |
 | `AssetCard` | Yes | name | `systemSelectors.snapshot` slice slot for this asset |
 
-> **Note:** `QuickStatsGrid` is defined inline in `CommandCenter.tsx`,
-> not a standalone file yet (Commit 3.1 will extract it). `EngineBadge`,
-> `NavItem`, `QuickStatsBar`, and `PortfolioSnapshotPanel` are documented
-> in prior architecture but no longer exist as standalone components —
-> their functionality has been absorbed into inline definitions or removed.
+> **Note:** The quick-stats row on CommandCenter was replaced by a
+> hairline-rule mono dl/div row during the operator-console redesign
+> (Phase 8.3). `EngineBadge`, `NavItem`, `QuickStatsBar`, and
+> `PortfolioSnapshotPanel` are documented in prior architecture but
+> no longer exist as standalone components — their functionality has
+> been absorbed into inline definitions or removed.
 
 ### Slice selector discipline (Key Contract #1)
 

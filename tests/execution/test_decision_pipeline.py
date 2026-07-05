@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 
 from paper_trading.entry.decision import PositionSide, TradeDecision
@@ -435,16 +436,47 @@ class TestApplySessionGate:
 
 
 class TestApplyAdxEntryGate:
+    @staticmethod
+    def _choppy_ohlcv(n: int = 100) -> pd.DataFrame:
+        """Generate a choppy (low ADX < 18) OHLCV series.
+
+        Uses a sine wave around 100 with small random noise. ADX stays
+        below 18 across the entire series with this pattern.
+        """
+        rng = np.random.default_rng(1)
+        close = 100 + np.sin(np.arange(n) * 0.5) * 2 + rng.normal(0, 0.1, n)
+        return pd.DataFrame({
+            "close": close,
+            "high": close * 1.003,
+            "low": close * 0.997,
+        })
+
+    @staticmethod
+    def _trending_ohlcv(n: int = 100) -> pd.DataFrame:
+        """Generate a trending (high ADX > 25) OHLCV series.
+
+        Uses strong positive drift with moderate noise. ADX climbs well
+        above the 20 threshold by the end of the window.
+        """
+        rng = np.random.default_rng(42)
+        trend = np.cumsum(rng.normal(0.5, 0.3, n))
+        close = 100 + trend
+        return pd.DataFrame({
+            "close": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+        })
+
     def test_blocks_when_adx_below_threshold(self):
         engine = _mock_engine(config={"adx_entry_gate": {"enabled": True, "adx_threshold": 20, "observe_only": False}})
-        df = pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [15.0]})
+        df = self._choppy_ohlcv()
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG, df=df)
         apply_adx_entry_gate(ctx)
         assert ctx.new_side is None
 
     def test_allows_when_adx_above_threshold(self):
         engine = _mock_engine(config={"adx_entry_gate": {"enabled": True, "adx_threshold": 20, "observe_only": False}})
-        df = pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]})
+        df = self._trending_ohlcv()
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG, df=df)
         apply_adx_entry_gate(ctx)
         assert ctx.new_side == PositionSide.LONG
@@ -457,7 +489,7 @@ class TestApplyAdxEntryGate:
 
     def test_observe_does_not_block(self):
         engine = _mock_engine(config={"adx_entry_gate": {"enabled": True, "observe_only": True}})
-        df = pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [15.0]})
+        df = self._choppy_ohlcv()
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG, df=df)
         apply_adx_entry_gate(ctx)
         assert ctx.new_side == PositionSide.LONG

@@ -868,6 +868,27 @@ def apply_session_gate(ctx: DecisionContext) -> None:
 ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18
 
 
+def _compute_adx_from_ohlcv(df: pd.DataFrame) -> float | None:
+    """Compute ADX from OHLCV columns in a DataFrame.
+
+    Falls back gracefully if required columns are missing or the
+    computation fails (e.g., insufficient data).
+    """
+    import ta
+
+    try:
+        high = df["high"].values
+        low = df["low"].values
+        close = df["close"].values
+        series = ta.trend.adx(pd.Series(high), pd.Series(low), pd.Series(close), window=14)
+        val = float(series.iloc[-1])
+        if not pd.isna(val):
+            return val
+    except (KeyError, IndexError, TypeError, ValueError, ImportError):
+        pass
+    return None
+
+
 def apply_adx_entry_gate(ctx: DecisionContext) -> None:
     """Block new entries when ADX is below threshold (choppy market).
 
@@ -878,6 +899,10 @@ def apply_adx_entry_gate(ctx: DecisionContext) -> None:
     Disabled by default (``enabled: false``). When enabled and
     ``observe_only: true`` the gate logs but does not block, to validate
     thresholds before enforcement.
+
+    ADX is computed from the raw OHLCV DataFrame (``ctx.df``) rather than
+    from ``_get_adx`` which depends on a pre-computed column that is not
+    present in the OHLCV-only DataFrame passed to the decision pipeline.
     """
     # Only applies to new entries
     if ctx.new_side is None:
@@ -893,8 +918,8 @@ def apply_adx_entry_gate(ctx: DecisionContext) -> None:
     threshold = adx_cfg.get("adx_threshold", ADX_ENTRY_GATE_DEFAULT_THRESHOLD)
     observe_only = adx_cfg.get("observe_only", True)
 
-    # Extract ADX from the features DataFrame
-    adx_val = _get_adx(ctx)
+    # Compute ADX from raw OHLCV data (ctx.df has high/low/close columns)
+    adx_val = _compute_adx_from_ohlcv(ctx.df)
     if adx_val is None:
         return
 

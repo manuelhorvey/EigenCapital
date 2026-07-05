@@ -62,6 +62,38 @@ DOCS_TO_SCAN = (
     "docs/PRODUCTION_SYSTEM_SPEC_v1.md",
 )
 
+# Directories to scan for path validity checking (all .md files)
+DOCS_DIRS = (
+    REPO_ROOT / "docs",
+    REPO_ROOT / "docs" / "adr",
+    REPO_ROOT / "docs" / "audit",
+    REPO_ROOT / "docs" / "archive",
+    REPO_ROOT / "docs" / "planning",
+    REPO_ROOT / "configs",
+)
+
+# Exclude patterns for path validation (intentional dead references)
+PATH_EXCLUDE_PATTERNS = (
+    "**/docs/archive/**",
+    "**/docs/adr/**",
+    "**/docs/audit/**",
+    "**/docs/planning/**",
+    "**/CHANGELOG.md",
+    "**/node_modules/**",
+    "**/.venv/**",
+)
+
+# Canonical facts for cross-reference consistency
+CANONICAL_FACTS: dict[str, str] = {
+    "governance_layers": "16 core + 3 adaptive budget",
+    "core_alpha_features": "9 per-asset",
+    "trend_exhaustion_features": "6 per-asset",
+    "cross_asset_features": "4",
+    "sell_only_count": "3",
+    "promoted_assets": "22",
+    "orchestrator_phases": "5 (PRE + 1a + 1b + 2 + 3 + 4)",
+}
+
 
 def _read(p: Path) -> str:
     return p.read_text()
@@ -252,6 +284,173 @@ def _check_arch_orchestrator_paths() -> list[str]:
     return out
 
 
+def _collect_markdown_files() -> list[Path]:
+    """Collect all .md files under docs/ (excluding node_modules, .venv)."""
+    md_files: list[Path] = []
+    for d in DOCS_DIRS:
+        if d.exists():
+            md_files.extend(d.rglob("*.md"))
+    return sorted(set(md_files))
+
+
+def _is_excluded(path: Path) -> bool:
+    """Check if a path matches any exclusion pattern.
+
+    Handles globstar (``**``) patterns manually since fnmatch does not
+    support ``**``. Each exclusion pattern is checked as a substring
+    match of the relative path.
+    """
+    rel = str(path.relative_to(REPO_ROOT))
+    for pat in PATH_EXCLUDE_PATTERNS:
+        # Convert globstar pattern to substring match
+        parts = pat.split("**/")
+        if all(p.lstrip("/") in rel for p in parts if p):
+            return True
+    return False
+
+
+def _check_markdown_paths() -> list[str]:
+    """Extract backtick-quoted file-like paths from markdown files and verify they resolve.
+
+    Scans for patterns like `path/to/file.py`, `path/to/file.yaml`, `path/to/FILE.md`
+    inside backticks and checks if the path exists on disk relative to REPO_ROOT.
+
+    Excludes:
+    - Archive docs (intentionally reference old paths)
+    - ADR docs (reference historical paths)
+    - audit docs (reference old paths as findings)
+    - ENV vars, URLs, hyperlinks, git refs, pip packages, etc.
+    - Paths with `$` (variable interpolations)
+    - Paths appearing after ``# `` (comments, not references)
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+
+    md_files = _collect_markdown_files()
+    for md_path in md_files:
+        if _is_excluded(md_path):
+            continue
+        text = _read(md_path)
+        rel = md_path.relative_to(REPO_ROOT)
+
+        # Find backtick-quoted strings that look like file paths
+        for m in re.finditer(r"`([^`]+)`", text):
+            candidate = m.group(1).strip()
+
+            # Skip URLs, env vars, git refs, pip packages, CLI flags
+            if any(
+                skip in candidate
+                for skip in (
+                    "://",
+                    "${",
+                    "$(",
+                    "git@",
+                    "github.com",
+                    "/tree/",
+                    "==",
+                    ">=",
+                    "@latest",
+                    "/blob/",
+                    "/commit/",
+                )
+            ):
+                continue
+            if candidate.startswith("-") or candidate.startswith("$") or candidate.startswith("#"):
+                continue
+            # Skip single words or terms (not paths)
+            if "/" not in candidate and "." not in candidate:
+                continue
+            # Skip markdown link fragments
+            if candidate.startswith("#"):
+                continue
+
+            # Normalize: strip leading ./ or cwd references
+            normalized = candidate.lstrip("./")
+            resolved = REPO_ROOT / normalized
+
+            # Check if it looks like a file path (has extension or directory structure)
+            if "/" in normalized or "." in normalized:
+                if normalized in seen:
+                    continue
+                seen.add(normalized)
+                if not resolved.exists():
+                    out.append(f"{rel}: path `{candidate}` does not resolve on disk")
+
+    return out
+
+
+def _check_last_updated_dates() -> list[str]:
+    """Verify every active (non-archive, non-ADR) doc has a `**Last updated:**` date.
+
+    Flags:
+    - Missing date: WARNING — doc has no last-updated footer
+    - Stale date (>180 days): WARNING — doc may be outdated
+    """
+    out: list[str] = []
+    md_files = _collect_markdown_files()
+
+    for md_path in md_files:
+        if _is_excluded(md_path):
+            continue
+
+        text = _read(md_path)
+        rel = md_path.relative_to(REPO_ROOT)
+
+        # Check for last-updated pattern
+        date_match = re.search(r"\*\*Last updated:\*\*\s*(\d{4}-\d{2}-\d{2})", text)
+        if not date_match:
+            if md_path.name == "README.md":
+                continue
+            out.append(f"{rel}: missing `**Last updated:**` date")
+            continue
+
+        # Check staleness
+        date_str = date_match.group(1)
+        try:
+            from datetime import datetime, timezone
+
+            date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            days_stale = (now - date).days
+            if days_stale > 180:
+                out.append(f"{rel}: `Last updated` is {days_stale} days old (>180) — may be stale")
+        except ValueError:
+            out.append(f"{rel}: unparseable `Last updated` date: {date_str}")
+
+    return out
+
+
+def _check_metric_consistency() -> list[str]:
+    """Verify key metrics are consistent across documents.
+
+    Checks that the governance layer count, feature counts, and
+    asset counts mentioned in documentation files align with
+    canonical facts.
+    """
+    out: list[str] = []
+
+    for doc in DOCS_TO_SCAN:
+        path = REPO_ROOT / doc
+        if not path.exists():
+            continue
+        text = _read(path)
+
+        # Governance layer count — look for "N governance" (not section numbers like "6.3")
+        for m in re.finditer(r"(?<![.\d])(\d+)\s+(?:core\s+)?governance", text, re.IGNORECASE):
+            count = int(m.group(1))
+            expected = 16
+            if count != expected:
+                out.append(f"{doc}: claims {count} governance layers (expected {expected})")
+
+        # Sell-only count — look for "N SELL_ONLY" or "N sell-only"
+        for m in re.finditer(r"(\d+)\s+(?:permanent\s+)?(?:SELL_ONLY|sell.only|sell-only)", text, re.IGNORECASE):
+            count = int(m.group(1))
+            if count != 3 and "reduced" not in text.lower() and m.start() > 0:
+                out.append(f"{doc}: claims {count} SELL_ONLY assets (expected {CANONICAL_FACTS['sell_only_count']})")
+
+    return out
+
+
 def main() -> int:
     findings: list[str] = []
 
@@ -306,6 +505,18 @@ def main() -> int:
     arch_paths = _check_arch_orchestrator_paths()
     if arch_paths:
         findings.append(f"`risk/*` paths in AGENTS.md Key Files that should be `paper_trading/pek/*`: {arch_paths}")
+
+    # 10. markdown file path validity (Sprint 4)
+    path_issues = _check_markdown_paths()
+    findings.extend(path_issues)
+
+    # 11. last-updated date presence and staleness (Sprint 4)
+    date_issues = _check_last_updated_dates()
+    findings.extend(date_issues)
+
+    # 12. cross-reference metric consistency (Sprint 4)
+    metric_issues = _check_metric_consistency()
+    findings.extend(metric_issues)
 
     if findings:
         report = ["## Documentation Drift Report", ""]

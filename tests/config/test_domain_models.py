@@ -62,7 +62,7 @@ def test_risk_config_exhausts_legacy_defaults_keys(legacy_yaml):
     or be in a known-exclusion list. Prevents drift where a new key
     is added to YAML without propagating to the typed model.
     """
-    rc = risk_mod.RiskConfig.from_legacy(legacy_yaml)
+    risk_mod.RiskConfig.from_legacy(legacy_yaml)
     sizing_field_names = {f.name for f in fields(risk_mod.SizingConfig)}
 
     legacy_keys = set((legacy_yaml.get("defaults") or {}).keys())
@@ -82,6 +82,10 @@ def test_risk_config_exhausts_legacy_defaults_keys(legacy_yaml):
         "research_mode",
         "retrain_freq",
         "retrain_window",
+        # Phase 12 ML: promoted to domain files, not SizingConfig fields
+        "calibration",
+        "ensemble",
+        "meta_labeling",
     }
     legacy_keys.difference_update(known_excluded)
     missing = legacy_keys - sizing_field_names

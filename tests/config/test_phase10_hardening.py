@@ -205,17 +205,20 @@ def test_settings_directory_size_under_budget():
 
 
 def test_documented_subtraction():
-    """Confirm phase plan README references 11 phases (0-10) and is current."""
+    """Confirm phase plan README references phases 0-12 and is current."""
     readme = (REPO_ROOT / "configs" / "README.md").read_text()
     # Each row in the migration tracking table begins with the phase number
     # (e.g., "| 0 |" or "| Phase 0 |"); verify a row exists.
-    for phase in range(11):
-        candidates = (f"| {phase} ", f"| Phase {phase} ")
+    for phase in range(13):
+        # Phase 11+ uses dotted notation (11.0, 12.5), so check without trailing space
+        candidates = (f"| {phase} ", f"| Phase {phase} ", f"| {phase}.")
         assert any(c in readme for c in candidates), f"missing 'Phase {phase}' row in configs/README.md"
-    # Confirm completion status
-    assert "✅ completed" in readme
+    # Confirm completion marker — README uses "✅" (not "✅ completed")
+    assert "✅" in readme
     # Schema version 2.0.0 reference
     assert "2.0.0" in readme
+    # Phase 12 entries exist (dotted notation)
+    assert "12.0" in readme or "12.1" in readme
 
 
 # ── Phase 10 acceptance: validator still passes the full strategy ──

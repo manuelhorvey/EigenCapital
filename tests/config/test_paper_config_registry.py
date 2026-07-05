@@ -129,27 +129,69 @@ def test_regime_geometry_round_trip(registry):
 
 
 def test_legacy_extras_carries_unpromoted_keys(registry):
-    """These live in the legacy YAML but have no domain file yet."""
+    """These live in the legacy YAML but have no domain file yet.
+
+    Phase 12.2c: ``halt`` promoted to configs/domains/risk/halt.yaml.
+    Phase 12.3: ``data_source``, ``rebalance``, ``research_mode``,
+    ``retrain_freq``, ``retrain_window``, ``api_token`` promoted to
+    configs/domains/infrastructure/config.yaml. Phase 12.6:
+    ``mt5`` → broker/mt5.yaml, ``execution`` → governance/*.yaml,
+    ``optimizations`` → infrastructure/optimizations.yaml. ``alerting``,
+    ``ensemble``, ``calibration``, ``kelly``, ``meta_labeling`` pruned
+    — they were NEVER consumed through ``EngineConfig`` (no matching
+    fields) and are excluded from the carrier.
+    """
     expected = {
-        "alerting",
-        "calibration",
-        "data_source",
-        "ensemble",
-        "execution",
-        "kelly",
-        "meta_labeling",
         "mode",
-        "modes",
-        "mt5",
-        "optimizations",
-        "portfolio",
-        "rebalance",
-        "research_mode",
-        "retrain_freq",
-        "retrain_window",
     }
+    pruned = {"kelly"}
+    promoted_infra = {"data_source", "rebalance", "research_mode", "retrain_freq", "retrain_window", "api_token"}
+    promoted_phase6 = {"mt5", "execution", "optimizations"}
+    promoted_ml = {"calibration", "ensemble", "meta_labeling"}
+    promoted_gates = {"spread_gate", "session_gate"}
+    promoted_governance = {"liquidity_config", "narrative_config"}
+    promoted_all = (
+        promoted_infra | promoted_phase6 | promoted_ml | promoted_gates | promoted_governance
+        | {"portfolio", "halt", "regime_geometry", "alerting", "modes"}
+    )
     found = set(registry.legacy_extras.keys())
     assert expected.issubset(found), f"missing legacy_extras: {expected - found}"
+    for k in pruned:
+        assert k not in found, f"pruned key {k!r} still in legacy_extras"
+    for k in promoted_all:
+        assert k not in found, f"promoted key {k!r} still in legacy_extras"
+    out = registry.as_legacy_dict()
+    assert "halt" in out
+    assert out["halt"]["drawdown"] == -0.08
+    assert out.get("data_source") == "mt5"
+    assert out.get("rebalance") == "daily"
+    assert out.get("research_mode") is False
+    assert out.get("retrain_freq") == "annual"
+    assert out.get("retrain_window") == 5
+    assert out.get("mt5", {}).get("enabled") is True
+    assert out.get("execution", {}).get("governance", {}).get("regime_geometry") is not None
+    assert out.get("optimizations", {}).get("batch_http") is True
+    # portfolio promoted — must be present in legacy dict output
+    assert out.get("portfolio", {}).get("weight_method") == "factor_constrained_v2"
+    # regime_geometry promoted — composed into execution.governance (not standalone)
+    assert out.get("execution", {}).get("governance", {}).get("regime_geometry", {}).get("GREEN") is not None
+    # ML domain files promoted — emitted in defaults block
+    assert out.get("defaults", {}).get("calibration", {}).get("method") == "binned"
+    assert out.get("defaults", {}).get("calibration", {}).get("enabled") is True
+    assert out.get("defaults", {}).get("ensemble", {}).get("base_weight") == 1.0
+    assert out.get("defaults", {}).get("ensemble", {}).get("regime_feature_window") == 63
+    assert out.get("defaults", {}).get("meta_labeling", {}).get("confidence_threshold") == 0.4
+    assert out.get("defaults", {}).get("meta_labeling", {}).get("threshold_reduced") == 0.4
+    # label_params stored on registry but NOT emitted in defaults
+    assert hasattr(registry, "label_params")
+    # alerting promoted — emitted as top-level key
+    assert out.get("alerting", {}).get("channels", {}).get("pagerduty", {}).get("enabled") is False
+    # governance domain files promoted — composed into execution.governance
+    assert out.get("execution", {}).get("governance", {}).get("liquidity_config", {}).get("enabled") is True
+    assert out.get("execution", {}).get("governance", {}).get("narrative_config", {}).get("enabled") is True
+    # standalone fields on registry
+    assert registry.liquidity_config.get("enabled") is True
+    assert registry.narrative_config.get("enabled") is True
 
 
 def test_legacy_extras_round_trip_via_as_legacy_dict(registry, legacy_yaml):
@@ -175,7 +217,7 @@ def test_load_without_legacy_does_not_explode(registry):
     """Phase 11.2 will route this through EngineConfig; assert the new
     registry does not bury mode/modes/etc. keys entirely."""
     out = registry.as_legacy_dict()
-    # mode + modes were legacy_extras
-    assert "modes" in registry.legacy_extras
-    # but as_legacy_dict re-emits them
+    # mode still in legacy_extras; modes is now promoted
+    assert "mode" in registry.legacy_extras
+    # as_legacy_dict re-emits them
     assert "modes" in out

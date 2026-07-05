@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import shutil
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -144,3 +145,78 @@ def test_render_preserves_session_gate(restored_legacy):
     assert sg["enabled"] is True
     assert "tiers" in sg
     assert "fx_major" in sg["tiers"]
+
+
+# ── Phase 12.4 — CI mode ────────────────────────────────────────────────
+
+
+def _run_ci(path: Path) -> subprocess.CompletedProcess:
+    """Run config_mirror_legacy.py --ci and return the CompletedProcess."""
+    import sys as _sys
+
+    return subprocess.run(
+        [_sys.executable, "tools/config_mirror_legacy.py", "--ci", "--path", str(path)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env={"PYTHONPATH": str(REPO_ROOT)},
+    )
+
+
+def test_ci_no_drift_when_clean(restored_legacy):
+    """--ci exits 0 with drift=false when no drift exists."""
+    result = _run_ci(LEGACY_PATH)
+    assert result.returncode == 0, f"stdout={result.stdout}, stderr={result.stderr}"
+    parsed = json.loads(result.stdout)
+    assert parsed["drift"] is False
+    assert parsed["summary"]["total"] == 0
+
+
+def test_ci_detects_promoted_drift(restored_legacy):
+    """--ci reports promoted-key drift when the mirror has stale values."""
+    backup = LEGACY_PATH.read_text()
+    try:
+        raw = yaml.safe_load(backup)
+        raw["capital"] = 7777  # promoted key (domain-owned)
+        LEGACY_PATH.write_text(yaml.safe_dump(raw))
+
+        result = _run_ci(LEGACY_PATH)
+        assert result.returncode == 1, f"stdout={result.stdout}, stderr={result.stderr}"
+        parsed = json.loads(result.stdout)
+        assert parsed["drift"] is True
+        assert parsed["summary"]["promoted"] >= 1
+        promoted_changes = [c for c in parsed["changes"] if c["category"] == "promoted"]
+        assert len(promoted_changes) >= 1
+        capital_change = next((c for c in promoted_changes if c["path"] == "capital"), None)
+        assert capital_change is not None
+        assert capital_change["disk"] == 7777
+        assert capital_change["registry"] == 100000
+    finally:
+        LEGACY_PATH.write_text(backup)
+
+
+def test_categorize_path_logic():
+    """Unit test for _categorize_path classification logic.
+
+    Verifies that promoted keys, legacy_extras keys, and unknown keys
+    are correctly classified without needing mounted disk fixtures.
+    """
+    sys.path.insert(0, str(REPO_ROOT))
+    from tools.config_mirror_legacy import _categorize_path
+
+    promoted = frozenset({"capital", "halt", "defaults", "assets"})
+    legacy = frozenset({"mode", "modes", "mt5", "data_source"})
+
+    # Promoted keys
+    assert _categorize_path("capital", promoted, legacy) == "promoted"
+    assert _categorize_path("halt.drawdown", promoted, legacy) == "promoted"
+    assert _categorize_path("defaults.min_confidence", promoted, legacy) == "promoted"
+
+    # Legacy extras keys
+    assert _categorize_path("mode", promoted, legacy) == "legacy_extras"
+    assert _categorize_path("mt5.bridge_port", promoted, legacy) == "legacy_extras"
+    assert _categorize_path("data_source", promoted, legacy) == "legacy_extras"
+
+    # Unknown keys
+    assert _categorize_path("unknown_key", promoted, legacy) == "other"
+    assert _categorize_path("random.nested.value", promoted, legacy) == "other"

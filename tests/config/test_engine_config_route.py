@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -54,8 +52,10 @@ def test_load_config_explicit_path_overrides_domain():
     sys.path.insert(0, str(REPO_ROOT))
     import paper_trading.config_manager as cm
 
+    # Set mode to a non-existent mode name so no mode override
+    # overrides capital back (modes/production.yaml has capital: 100000).
     test_yaml = REPO_ROOT / "_explicit_domain_test.yaml"
-    test_yaml.write_text(yaml.safe_dump({"capital": 12345}))
+    test_yaml.write_text(yaml.safe_dump({"capital": 12345, "mode": "test_no_override"}))
     try:
         cm.reset_config()
         cfg = cm.load_config(str(test_yaml))

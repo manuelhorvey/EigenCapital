@@ -107,7 +107,11 @@ def test_registry_extras_carry_legacy_only_keys(registry, legacy_yaml):
     """Extras bag carries keys that have not been promoted."""
     assert "rebalance" in registry.legacy_extras
     assert "data_source" in registry.legacy_extras
-    assert "ensemble" in registry.legacy_extras
+    # Phase 12.3: ensemble, alerting, calibration, kelly, meta_labeling
+    # are pruned from PaperConfigRegistry (never consumed through EngineConfig).
+    # ConfigRegistry (domain_loader) still carries them via legacy_extras
+    # since it does not have the pruned_top filter.
+    # assert "ensemble" in registry.legacy_extras  -- removed
 
 
 def test_registry_uses_domain_overrides_when_present(tmp_path: Path, legacy_yaml):

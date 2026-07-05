@@ -252,14 +252,67 @@ class EngineConfig:
 
 
 def load_config(path: str | None = None) -> EngineConfig:
-    path = path or DEFAULT_CONFIG_PATH
+    """Load and return EngineConfig via the typed paper registry.
+
+    Phase 11.2 routes through ``configs.paper_config_registry.PaperConfigRegistry``
+    which reads domain YAMLs first and falls back to the legacy file.
+
+    Call-site contract:
+      - Default path (configs/paper_trading.yaml): PaperConfigRegistry's
+        domain-first precedence applies. Domain tree wins; legacy is
+        fallback for unpromoted keys.
+      - Explicit path (test fixtures, mode overlays, CI): the supplied
+        YAML is treated as authoritative for any key it carries. Domain
+        files fill in the rest. This preserves the pre-Phase 11 contract
+        where custom legacy YAMLs could override.
+    """
+    if path is None:
+        path = DEFAULT_CONFIG_PATH
+    if os.path.exists(path):
+        try:
+            from configs.paper_config_registry import DOMAINS_DIR, PaperConfigRegistry
+
+            requested_path = Path(path).resolve()
+            default_path = Path(DEFAULT_CONFIG_PATH).resolve()
+
+            reg = PaperConfigRegistry.load(legacy_path=requested_path, domains_dir=DOMAINS_DIR)
+            typed = reg.as_legacy_dict()
+
+            # Explicit-path overrides take precedence over the domain tree
+            # only when the caller passed something other than the default
+            # paper_trading.yaml (test fixtures, ad-hoc overlays).
+            if requested_path != default_path:
+                raw = yaml.safe_load(requested_path.read_text()) or {}
+                _deep_overlay(typed, raw)
+
+            logger.info(
+                "Loaded config from %s (registry: %d assets, %d legacy extras)",
+                path,
+                len(reg.assets),
+                len(reg.legacy_extras),
+            )
+            return EngineConfig.from_dict(typed)
+        except Exception as e:  # noqa: BLE001 - fall back to legacy path
+            logger.warning(
+                "PaperConfigRegistry failed (%s); falling back to legacy YAML parser",
+                e,
+            )
+    else:
+        logger.warning("Config file %s not found; using defaults", path)
     if os.path.exists(path):
         with open(path) as f:
             data = yaml.safe_load(f) or {}
-        logger.info("Loaded config from %s", path)
         return EngineConfig.from_dict(data)
-    logger.warning("Config file %s not found; using defaults", path)
     return EngineConfig()
+
+
+def _deep_overlay(target: dict, source: dict) -> None:
+    """In-place merge: ``source`` overrides ``target`` at every level."""
+    for k, v in source.items():
+        if isinstance(v, dict) and isinstance(target.get(k), dict):
+            _deep_overlay(target[k], v)
+        else:
+            target[k] = v
 
 
 _GLOBAL_CONFIG: EngineConfig | None = None

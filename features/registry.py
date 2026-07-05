@@ -1,46 +1,14 @@
+from configs.domain_models.triple_barrier import load_triple_barrier_params
 from features.contract import FeatureContract
 
 FEATURE_CONTRACT_VALIDATION = True
 
-ASSET_LABEL_PARAMS: dict[str, dict] = {
-    "BTC": {"pt": 1.51, "sl": 0.58, "vol_method": "atr", "atr_period": 7},
-    "ES": {"pt": 5.74, "sl": 1.91},
-    "NQ": {"pt": 6.12, "sl": 2.04},
-    "IWM": {"pt": 2.0, "sl": 2.0},
-    "VIX": {"pt": 1.5, "sl": 1.5},
-    "EURAUD": {"pt": 1.77, "sl": 0.54, "vol_method": "atr", "atr_period": 14},
-    "GC": {"pt": 4.0, "sl": 1.0, "vol_method": "atr", "atr_period": 14},
-    "AUDJPY": {"pt": 2.01, "sl": 0.52, "vol_method": "atr", "atr_period": 14},
-    "USDCAD": {"pt": 3.90, "sl": 1.30, "vol_method": "atr", "atr_period": 14},
-    "CHFJPY": {"pt": 2.0, "sl": 2.0, "vol_method": "atr", "atr_period": 14},
-    "EURCAD": {"pt": 2.12, "sl": 0.71, "vol_method": "atr", "atr_period": 14},
-    "USDJPY": {"pt": 1.97, "sl": 0.52, "vol_method": "atr", "atr_period": 14},
-    "GBPCAD": {"pt": 4.34, "sl": 1.45, "vol_method": "atr", "atr_period": 14},
-    # Research assets (default EWM vol for backward compatibility)
-    "NZDJPY": {"pt": 2.02, "sl": 0.51},
-    "CADJPY": {"pt": 1.65, "sl": 0.52},
-    "GBPJPY": {"pt": 2.22, "sl": 0.50},
-    "USDCHF": {"pt": 3.0, "sl": 0.85},
-    "GBPUSD": {"pt": 1.97, "sl": 0.52},
-    "EURUSD": {"pt": 1.5, "sl": 3.0},  # REMOVED from trading 2026-06-20
-    "AUDUSD": {"pt": 4.24, "sl": 1.41},
-    "NZDUSD": {"pt": 3.87, "sl": 1.29},
-    "EURGBP": {"pt": 2.0, "sl": 2.0},
-    "EURJPY": {"pt": 2.0, "sl": 2.0},
-    "EURCHF": {"pt": 3.0, "sl": 1.0},
-    "GBPAUD": {"pt": 3.0, "sl": 1.0},
-    "AUDCAD": {"pt": 2.0, "sl": 2.0},
-    "AUDNZD": {"pt": 1.0, "sl": 2.0},  # REMOVED from trading 2026-06-20
-    "EURNZD": {"pt": 3.36, "sl": 1.12},
-    "GBPNZD": {"pt": 1.0, "sl": 3.0},  # REMOVED from trading 2026-06-20
-    "GBPCHF": {"pt": 2.45, "sl": 0.82},
-    "CADCHF": {"pt": 4.0, "sl": 1.0},
-    "NZDCAD": {"pt": 5.48, "sl": 1.83},
-    "NZDCHF": {"pt": 4.0, "sl": 1.0},
-    "AUDCHF": {"pt": 3.5, "sl": 2.75},  # REMOVED from trading 2026-06-20
-    "DJI": {"pt": 4.0, "sl": 0.5},
-    "CL": {"pt": 2.0, "sl": 2.0},
-}
+# Phase 6: ASSET_LABEL_PARAMS now sourced from
+# configs/domains/ml/triple_barrier.yaml via the loader. The hardcoded
+# literal was moved to configs.domain_models.triple_barrier as a
+# YAML fallback for stale checkouts. The engine.py runtime drift
+# detector continues to compare sl/tp_mult against this dict.
+ASSET_LABEL_PARAMS: dict[str, dict] = load_triple_barrier_params()
 
 FEATURE_REGISTRY: dict[str, FeatureContract] = {
     "BTC-USD": FeatureContract(

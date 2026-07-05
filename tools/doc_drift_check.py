@@ -357,6 +357,12 @@ def _check_markdown_paths() -> list[str]:
                 continue
             if candidate.startswith("-") or candidate.startswith("$") or candidate.startswith("#"):
                 continue
+            # Skip multi-line content (caused by double-backtick regex artifacts)
+            if "\n" in candidate:
+                continue
+            # Skip unreasonably long paths (>256 chars — no real file path is this long)
+            if len(candidate) > 256:
+                continue
             # Skip markdown table cells and single words
             if candidate.startswith("|"):
                 continue

@@ -100,7 +100,8 @@ All keys are now **promoted** — no legacy_extras remain. All editing goes thro
 | Task | Command |
 |------|---------|
 | **Validate the config** (schema + cross-fields) | `python tools/check_config_schema.py` |
-| **Regenerate legacy mirror (debugging)** | `PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --write` |
+| **Render legacy mirror to stdout** (debugging) | `PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py` |
+| **Emit legacy YAML at an explicit path** (test fixture) | `PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --write --path /tmp/legacy.yaml` |
 | **Compare two configs** | `python tools/config_diff.py --from old.yaml --to new.yaml` |
 | **Regenerate CONFIGURATION.md** (from domain models) | `python tools/config_docs.py` |
 | **Schema-version bump** | Edit `configs/schema_version.json` (see [Schema versioning](#schema-versioning)) |

@@ -9,6 +9,7 @@
         Sharpe 0.06→0.50, total_R=+3587.1, max_dd=-23.5R (6.9× baseline)
 [INFO ] (score=0.510) Filters saved 66.4R (net beneficial)
 [ALPHA] (score=0.440) Optimal holding period: 200 candles (Sharpe 0.09 vs 0.06)
+        **REJECTED 2026-07-05** — simple sweep (not WF), Sharpe +0.02, max_dd 10× worse (-1,762R). Not safe to deploy.
 [ALPHA] (score=0.412) Deploy per-asset exit strategies (15 assets)
 [SIGMA] (score=0.403) Reduce max concurrent positions (16)
 [SIGMA] (score=0.393) High risk of ruin (p95 DD=39.1%)

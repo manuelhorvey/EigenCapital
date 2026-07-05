@@ -28,27 +28,63 @@ def _resolve_hints(cls) -> dict[str, type]:
 
     ``get_type_hints()`` can fail when the class uses ``from __future__ import annotations``
     combined with PEP 604 union syntax (``int | None``) in some Python environments.
-    This function falls back to manual ``eval()`` resolution in the module's namespace.
+    We pass the module namespace explicitly so forward refs and PEP 604 unions
+    evaluate against the dataclass module's globals. As a final safety net the
+    ``|`` operator on string annotations (e.g. ``"int | None"``) is rewritten to
+    ``Union[int, None]`` form so ``eval()`` succeeds even on Python 3.9 where
+    the PEP 604 operator on types is not implemented.
     """
-    hints = {}
-    try:
-        hints = get_type_hints(cls)
-        if hints:
-            return hints
-    except Exception as e:  # noqa: BLE001
-        print(f"config_docs: warning — get_type_hints failed for {cls.__name__}: {e}", file=sys.stderr)
-
-    # Fallback: manually resolve string annotations
     module = sys.modules.get(cls.__module__)
     ns = dict(vars(module)) if module else {}
     ns.setdefault("__builtins__", __builtins__)
+    import typing as _typing
+
+    ns.setdefault("typing", _typing)
+    ns.setdefault("Optional", _typing.Optional)
+    ns.setdefault("Union", _typing.Union)
+
+    hints: dict[str, type] = {}
+    try:
+        hints = get_type_hints(cls, globalns=ns, localns=ns)
+        if hints:
+            return hints
+    except Exception as e:  # noqa: BLE001
+        print(
+            f"config_docs: warning — get_type_hints failed for {cls.__name__}: {e}",
+            file=sys.stderr,
+        )
+
+    # Fallback: manually resolve string annotations.
+    # PEP 604 (``X | Y``) does not parse via eval() in older Pythons, so
+    # rewrite ``T | None`` -> ``Optional[T]`` and generic ``T1 | T2 | ...``
+    # -> ``Union[T1, T2, ...]`` before evaluating.
+    def _rewrite_pep604(ann: str) -> str:
+        if "|" not in ann:
+            return ann
+        # Bare string split on top-level '|' only (no nested generics in
+        # our domain configs render this branch, but keep it simple).
+        parts = [p.strip() for p in ann.split("|")]
+        non_none = [p for p in parts if p != "None"]
+        has_none = "None" in parts
+        if not non_none:
+            return ann
+        if has_none and len(non_none) == 1:
+            return f"Optional[{non_none[0]}]"
+        joined = ", ".join(non_none)
+        if has_none:
+            joined += ", None"
+        return f"Union[{joined}]"
 
     for name, ann in cls.__annotations__.items():
-        if not isinstance(ann, str):
-            hints[name] = ann
-        elif name not in hints:
+        if name in hints:
+            continue
+        if isinstance(ann, str):
+            rewritten = _rewrite_pep604(ann)
             with contextlib.suppress(Exception):
-                hints[name] = eval(ann, ns)
+                hints[name] = eval(rewritten, ns)
+            continue
+        with contextlib.suppress(Exception):
+            hints[name] = ann
     return hints
 
 

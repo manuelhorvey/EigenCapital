@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { X, TrendingUp, TrendingDown, Activity, BarChart3, Shield, AlertTriangle, Check } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { BarChart3, TrendingUp, TrendingDown, Activity, Shield, AlertTriangle, Check } from 'lucide-react'
 import { useWeeklyReview } from '../hooks/useWeeklyReview'
 import type { WeeklyReview } from '../types/portfolio'
 import Button from './ui/Button'
 import StatCard from './ui/StatCard'
+import Modal from './ui/Modal'
 
 function formatPnl(v: number): string {
   const prefix = v >= 0 ? '+' : ''
@@ -191,81 +192,28 @@ function EmptyState() {
 
 export default function WeeklyReviewModal() {
   const { data, show, isPending, isError, acknowledge } = useWeeklyReview()
-  const modalRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (show && data) setOpen(true)
   }, [show, data])
 
-  useEffect(() => {
-    if (!open) return
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [open])
+  const handleClose = () => setOpen(false)
 
   if (!open || !data) return null
 
   const hasTrades = data.summary.n_trades > 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16 px-4">
-      <div className="fixed inset-0 bg-black/60" onClick={() => setOpen(false)} aria-hidden="true" />
-      <div ref={modalRef} className="relative w-full max-w-2xl bg-surface border border-default rounded shadow-modal animate-fade-in max-h-[85vh] flex flex-col" role="dialog" aria-modal="true" aria-label="Weekly Review">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
-          <div>
-            <h2 className="text-sm font-semibold text-primary flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-accent-emerald" strokeWidth={1.5} />
-              Weekly Review
-            </h2>
-            <p className="text-2xs text-tertiary font-mono mt-0.5">{data.week_label}</p>
-          </div>
-          <button
-            onClick={() => setOpen(false)}
-            className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
-          >
-            <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {!hasTrades ? (
-            <EmptyState />
-          ) : (
-            <>
-              <SummaryGrid summary={data.summary} vsPrior={data.vs_prior_week} />
-              <AssetBreakdown byAsset={data.by_asset} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <ExitBreakdown breakdown={data.exit_reason_breakdown} />
-                  <TopTrades trades={data.top_winners} label="Top Winners" up />
-                  <TopTrades trades={data.top_losers} label="Top Losers" up={false} />
-                </div>
-                <div className="space-y-3">
-                  <RegimeCorrelation regimes={data.regime_correlation} />
-                  <GovernanceSummary gov={data.governance_summary} />
-                </div>
-              </div>
-            </>
-          )}
-
-          <p className="text-[10px] text-tertiary/60 text-right">Generated {data.generated_at}</p>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-default bg-surface/50 shrink-0 rounded-b-xl">
-          <Button variant="secondary" onClick={() => setOpen(false)}>
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title="Weekly Review"
+      description={data.week_label}
+      size="lg"
+      footer={
+        <div className="flex items-center justify-end gap-2 w-full">
+          <Button variant="secondary" onClick={handleClose}>
             Close
           </Button>
           <Button
@@ -273,13 +221,35 @@ export default function WeeklyReviewModal() {
             icon={<Check className="w-3.5 h-3.5" strokeWidth={2} />}
             onClick={() => {
               acknowledge()
-              setOpen(false)
+              handleClose()
             }}
           >
             Acknowledge
           </Button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {!hasTrades ? (
+        <EmptyState />
+      ) : (
+        <>
+          <SummaryGrid summary={data.summary} vsPrior={data.vs_prior_week} />
+          <AssetBreakdown byAsset={data.by_asset} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <ExitBreakdown breakdown={data.exit_reason_breakdown} />
+              <TopTrades trades={data.top_winners} label="Top Winners" up />
+              <TopTrades trades={data.top_losers} label="Top Losers" up={false} />
+            </div>
+            <div className="space-y-3">
+              <RegimeCorrelation regimes={data.regime_correlation} />
+              <GovernanceSummary gov={data.governance_summary} />
+            </div>
+          </div>
+        </>
+      )}
+
+      <p className="text-[10px] text-tertiary/60 text-right">Generated {data.generated_at}</p>
+    </Modal>
   )
 }

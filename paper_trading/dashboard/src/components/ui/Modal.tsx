@@ -48,6 +48,8 @@ export interface ModalProps {
   description?: string
   /** Body is mounted inside the scrollable dialog region. */
   children: ReactNode
+  /** Optional footer rendered below the scrollable body. */
+  footer?: ReactNode
   /** Size tier; defaults to lg. */
   size?: ModalSize
   /** Close when clicking outside the dialog. Default true. */
@@ -58,6 +60,12 @@ export interface ModalProps {
   showHeader?: boolean
   /** Optional className for the inner dialog container. */
   className?: string
+  /**
+   * When true, children render directly as the dialog's flex content
+   * (no scroll wrapper). Use when the consumer provides its own
+   * header / tabs / scroll / footer layout. Default false.
+   */
+  noContentWrap?: boolean
 }
 
 export default function Modal({
@@ -66,11 +74,13 @@ export default function Modal({
   title,
   description,
   children,
+  footer,
   size = 'lg',
   closeOnOverlay = true,
   bodyScrollLock = true,
   showHeader = true,
   className,
+  noContentWrap = false,
 }: ModalProps) {
   // focus trap owns its ref internally and tracks DOM lifecycle.
   const modalRef = useFocusTrap()
@@ -125,33 +135,45 @@ export default function Modal({
         aria-labelledby={ariaLabelledby}
         aria-describedby={ariaDescribedby}
       >
-        {showHeader && title && (
-          <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
-            <div>
-              <h2 id={titleId} className="text-sm font-semibold text-primary">
-                {title}
-              </h2>
-              {description && (
-                <p
-                  id={descriptionId}
-                  className="text-2xs text-tertiary font-mono mt-0.5"
+        {noContentWrap ? (
+          children
+        ) : (
+          <>
+            {showHeader && title && (
+              <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
+                <div>
+                  <h2 id={titleId} className="text-sm font-semibold text-primary">
+                    {title}
+                  </h2>
+                  {description && (
+                    <p
+                      id={descriptionId}
+                      className="text-2xs text-tertiary font-mono mt-0.5"
+                    >
+                      {description}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={onClose}
+                  aria-label="Close modal"
+                  className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
                 >
-                  {description}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              aria-label="Close modal"
-              className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
-            >
-              <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
-            </button>
-          </div>
-        )}
+                  <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
+                </button>
+              </div>
+            )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">{children}</div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">{children}</div>
+
+            {footer && (
+              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-default bg-surface/50 shrink-0 rounded-b-xl">
+                {footer}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

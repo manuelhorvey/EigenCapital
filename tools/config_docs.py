@@ -73,8 +73,8 @@ def _promoted_status_table() -> str:
         # Governance domain files — standalone fields + composed into execution.governance
         ("Liquidity", "governance/liquidity.yaml", "✅ promoted (standalone + composed into `execution.governance`)"),
         ("Narrative", "governance/narrative.yaml", "✅ promoted (standalone + composed into `execution.governance`)"),
-        # Domain files exist on disk but not yet wired through the registry
-        ("Environment overlays", "environments/*.yaml", "📁 file exists (unwired)"),
+        # Environment overlays — wired through PaperConfigRegistry.load() Step 1r
+        ("Environment overlays", "environments/*.yaml", "✅ promoted (final overlay layer)"),
     ]
 
     # Legacy_extras keys from the live registry

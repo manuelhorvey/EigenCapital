@@ -31,7 +31,7 @@ Domains sourced from `configs/domains/` and wired through `PaperConfigRegistry`.
 | Mode definitions | `modes/*.yaml` | ✅ promoted |
 | Liquidity | `governance/liquidity.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
 | Narrative | `governance/narrative.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
-| Environment overlays | `environments/*.yaml` | 📁 file exists (unwired) |
+| Environment overlays | `environments/*.yaml` | ✅ promoted (final overlay layer) |
 
 **Pruned keys** (never consumed through EngineConfig):
 `kelly`

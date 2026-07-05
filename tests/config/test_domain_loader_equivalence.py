@@ -21,7 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configs.paper_config_registry import PaperConfigRegistry
+
+from configs.paper_config_registry import PaperConfigRegistry  # noqa: E402
 
 
 def _load_reg() -> PaperConfigRegistry:
@@ -224,3 +225,73 @@ def test_registry_session_gate_promoted() -> None:
     reg = _load_reg()
     assert reg.session_gate.get("enabled") is True
     assert "crypto" in reg.session_gate.get("tiers", {})
+
+
+# ── Environment overlays ──────────────────────────────────────────────
+
+
+def test_registry_environments_loaded() -> None:
+    """All 5 environment files should be loaded by Step 1r."""
+    reg = _load_reg()
+    expected = {"backtest", "live", "paper", "research", "test"}
+    assert set(reg.environments.keys()) == expected
+
+
+def test_registry_environment_name_default() -> None:
+    """Default environment name is 'paper'."""
+    reg = _load_reg()
+    assert reg.environment_name == "paper"
+
+
+def test_environment_overlay_applied_in_as_legacy_dict() -> None:
+    """The 'paper' environment overlays data_source, rebalance, research_mode.
+    These match the domain defaults, so the overlay is a no-op for paper."""
+    out = _legacy_dict()
+    assert out.get("data_source") == "mt5"
+    assert out.get("rebalance") == "daily"
+    assert out.get("research_mode") is False
+
+
+def test_environment_test_overrides_mt5_and_alerting() -> None:
+    """The 'test' environment disables MT5 and alerting."""
+    reg = _load_reg()
+    reg.environment_name = "test"
+    out = reg.as_legacy_dict()
+    assert out.get("data_source") == "yfinance"
+    assert out.get("research_mode") is True
+    assert out.get("rebalance") == "none"
+    mt5 = out.get("mt5", {})
+    assert mt5.get("enabled") is False
+    alerting = out.get("alerting", {})
+    channels = alerting.get("channels", {})
+    assert channels.get("pagerduty", {}).get("enabled") is False
+    assert channels.get("webhook", {}).get("enabled") is False
+
+
+def test_environment_live_overrides_mt5() -> None:
+    """The 'live' environment enables MT5 with specific bridge settings."""
+    reg = _load_reg()
+    reg.environment_name = "live"
+    out = reg.as_legacy_dict()
+    mt5 = out.get("mt5", {})
+    assert mt5.get("enabled") is True
+    assert mt5.get("bridge_port") == 9879
+    assert mt5.get("bridge_host") == "127.0.0.1"
+
+
+def test_environment_backtest_overrides() -> None:
+    """The 'backtest' environment uses yfinance and disables rebalance."""
+    reg = _load_reg()
+    reg.environment_name = "backtest"
+    out = reg.as_legacy_dict()
+    assert out.get("data_source") == "yfinance"
+    assert out.get("research_mode") is True
+    assert out.get("rebalance") == "none"
+
+
+def test_summary_includes_environments() -> None:
+    """summary() should report environment info."""
+    summary = _load_reg().summary()
+    assert "environments" in summary
+    assert len(summary["environments"]) == 5
+    assert summary["environment_name"] == "paper"

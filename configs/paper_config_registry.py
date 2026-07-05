@@ -108,6 +108,12 @@ class PaperConfigRegistry:
     # Mode overrides — read from configs/domains/modes/*.yaml.
     # Each file becomes a mode entry keyed by its stem. Top-level key.
     modes: dict[str, Any] = field(default_factory=dict)
+    # Environment overlays — read from configs/environments/*.yaml.
+    # Each file becomes an environment entry keyed by its stem.
+    environments: dict[str, Any] = field(default_factory=dict)
+    # Active environment name. Used by as_legacy_dict() to apply the
+    # final overlay layer. Default is "paper".
+    environment_name: str = "paper"
     # Carrier bag for keys still exclusive to the legacy YAML. Used by
     # as_legacy_dict() so operator-edits to the legacy file keep round-
     # tripping until they land in a domain file.
@@ -122,6 +128,7 @@ class PaperConfigRegistry:
         domains_dir: Path | None = None,
         environments_dir: Path | None = None,
         modes_dir: Path | None = None,
+        environment: str = "paper",
     ) -> PaperConfigRegistry:
         legacy_path = legacy_path or LEGACY_CONFIG
         domains_dir = domains_dir or DOMAINS_DIR
@@ -345,6 +352,15 @@ class PaperConfigRegistry:
         for k, v in legacy_modes.items():
             modes.setdefault(k, v)
 
+        # Step 1r: environment overlays — configs/environments/*.yaml
+        # Each file becomes an environment entry keyed by its stem (e.g. paper.yaml → environments["paper"]).
+        # The active environment is applied as the final overlay in as_legacy_dict().
+        environments: dict[str, Any] = {}
+        if environments_dir.exists():
+            for env_file in sorted(environments_dir.glob("[!_]*.yaml")):
+                env_name = env_file.stem
+                environments[env_name] = yaml.safe_load(env_file.read_text()) or {}
+
         # Step 2: asset loading — per-asset files take precedence.
         # Pass regime_geometry_defaults so per-asset composition can use
         # the governance default when a per-asset file lacks regime_geometry.
@@ -424,6 +440,8 @@ class PaperConfigRegistry:
             liquidity_config=liquidity_config,
             narrative_config=narrative_config,
             modes=modes,
+            environments=environments,
+            environment_name=environment,
             legacy_extras=legacy_extras,
             asset_sources=asset_sources,
         )
@@ -517,6 +535,11 @@ class PaperConfigRegistry:
         # execution.governance.regime_geometry above. No standalone
         # emission needed — it was never a top-level legacy key.
 
+        # Environment overlay (final layer, highest priority)
+        env = self.environments.get(self.environment_name)
+        if env:
+            _deep_overlay(body, env)
+
         return body
 
     def summary(self) -> dict[str, Any]:
@@ -529,7 +552,21 @@ class PaperConfigRegistry:
             "sell_only": sorted(self.risk.sell_only.assets),
             "sizing_fields": len(self.risk.sizing.__dataclass_fields__),
             "legacy_extras": sorted(self.legacy_extras.keys()),
+            "environments": sorted(self.environments.keys()),
+            "environment_name": self.environment_name,
         }
+
+
+# ── Helpers ──────────────────────────────────────────────────────────
+
+
+def _deep_overlay(target: dict, source: dict) -> None:
+    """In-place merge: ``source`` overrides ``target`` at every level."""
+    for k, v in source.items():
+        if isinstance(v, dict) and isinstance(target.get(k), dict):
+            _deep_overlay(target[k], v)
+        else:
+            target[k] = v
 
 
 # ── Asset merging ────────────────────────────────────────────────────

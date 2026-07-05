@@ -1,0 +1,19 @@
+# Environment: ftmo-challenge (live test under FTMO challenge rules).
+#
+# Builds on top of any mode. Activates the challenge_ftmo_10k mode
+# automatically (caller sets `mode:` to challenge_ftmo_10k or the
+# configurator does it via cross-file selection).
+#
+# Phase 8 keeps this overlay distinct from modes/challenge_ftmo_10k.yaml:
+# the mode declares the asset/risk sizing, this file declares
+# environment-level data ops + broker spec.
+#
+data_source: mt5
+research_mode: false
+rebalance: daily
+
+mt5:
+  enabled: true
+  bridge_host: 127.0.0.1
+  bridge_port: 9879
+  symbol_map_path: configs/mt5_symbol_map.yaml

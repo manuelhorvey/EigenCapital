@@ -1,0 +1,6 @@
+# Environment: research
+# Use for offline parameter sweeps, optimizer runs, and ablation studies
+# that should not affect live or paper state.
+data_source: yfinance
+research_mode: true
+rebalance: none

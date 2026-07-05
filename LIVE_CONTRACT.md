@@ -124,7 +124,7 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 
 Applied at decision pipeline stage `g`. Overrides BUY signals to FLAT for assets where the model's BUY calibration is inverted (p_long > 0.5 → ~17% win rate). SELL signals pass through unchanged. See `2026-06-20 diagnostic chain` for full evidence.
 
-**SELL_ONLY_ASSETS** (config-driven via `configs/paper_trading.yaml:defaults.sell_only_assets`, resolved by `paper_trading/execution/gate_constants.py:get_sell_only_assets()`):
+**SELL_ONLY_ASSETS** (config-driven, resolved by `paper_trading/execution/gate_constants.py:get_sell_only_assets()`, sourced from per-asset YAML files in `configs/domains/assets/`):
 
 ```
 CADCHF, NZDCHF, EURAUD
@@ -192,7 +192,7 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 ## 5. LABEL CONTRACT
 
 **Label function:** `features/labels.py:triple_barrier_labels()`
-**Input parameters** (per-asset, from `configs/paper_trading.yaml`):
+**Input parameters** (per-asset, from per-asset YAML files in `configs/domains/assets/`):
 - `pt_sl`: `(tp_mult, sl_mult)` — barrier multiples of ATR
 - `vertical_barrier`: configurable per-asset (default config)
 
@@ -201,9 +201,9 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 2. Binary reduction: drop HOLD (0), map {-1, 1} → {0, 1}
 3. Binary XGBoost trains on {0, 1} labels only
 
-**Per-asset pt_sl** from `configs/paper_trading.yaml`.
+**Per-asset pt_sl** from per-asset YAML files in `configs/domains/assets/`.
 
-**Halt parameters** (from `configs/paper_trading.yaml`, global defaults overridable per asset):
+**Halt parameters** (from `configs/domains/risk/halt.yaml`, global defaults overridable per asset):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -305,7 +305,7 @@ See Section 3 for the canonical taxonomy.
 **Bridge server:** `paper_trading/ops/mt5_bridge.py` — runs under Wine Python
 **Client:** `paper_trading/ops/mt5_client.py` — host-side TCP client
 **Broker:** `paper_trading/execution/mt5_broker.py` — implements `BrokerInterface`
-**Port:** `9879` (configurable via `MT5_BRIDGE_PORT` env var, default in `configs/paper_trading.yaml`)
+**Port:** `9879` (configurable via `MT5_BRIDGE_PORT` env var, default in `configs/domains/broker/mt5.yaml`)
 **Symbol map:** `configs/mt5_symbol_map.yaml` — maps EigenCapital tickers to MT5 symbols
 
 ### Operations actively routed to MT5
@@ -327,7 +327,7 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 ## 9. PORTFOLIO CONTRACT
 
 **Builder:** `paper_trading/portfolio_builder.py:build_paper_portfolio()`
-**Source:** `configs/paper_trading.yaml`
+**Source:** `configs/domains/` directory tree — loaded by `PaperConfigRegistry` from per-asset YAML files (`configs/domains/assets/<TICKER>.yaml`) and domain files
 
 > **2026-06-30 update:** 11 assets adjusted to ratio=3.0 via geometric mean constraint.
 > Methodology: `scripts/optimization/portfolio_sltp_optimizer.py`. See AGENTS.md for full chronology.
@@ -478,16 +478,16 @@ max_layers: 3
 
 **Layer protection:** Each layer gets a tightened SL (`stack_sl_tighten: 0.5`). Breakeven SL activates after `breakeven_threshold_r: 0.4`. Trailing stop activates after `trail_activate_r: 0.8`.
 
-**Config keys:** `paper_trading.yaml` → `defaults.stacking.*` (20+ parameters controlling layer geometry, cooldown, micro-threshold).
+**Config keys:** See `configs/domains/risk/sizing.yaml` for stacking-related parameters (e.g., `defaults.stacking.*`).
 
 ---
 
 ## 11. ASSET SCREENING & PROMOTION CONTRACT
 
 **Screening pipeline:**
-1. `scripts/research/trade_analysis.py` — walk-forward style backtest with per-asset SL/TP/depth
-2. `scripts/backtest/walk_forward_backtest.py` — multi-ticker validation
-3. `scripts/research/score_tickers.py` — composite score (IC + hit rate + consistency + bidirectionality)
+1. `scripts/backtest/walk_forward_backtest.py` — multi-ticker walk-forward validation
+2. `scripts/analysis/production_audit.py` — 18-phase production audit
+3. `scripts/optimization/per_asset_quality.py` — asset quality classification (EV/breakeven/MFE/MAE)
 
 **Promotion criteria:**
 | Condition | Threshold |
@@ -511,7 +511,7 @@ max_layers: 3
 | Liquidity regime | Per signal | THIN: SL +15%, size −15% (soft) | `liquidity_config` |
 | | | STRESSED: SL +30%, size −30%, hard halt | |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE | — |
-| Sell-only filter | Per decision | Override BUY→FLAT for 3 inverted-BUY assets | `get_sell_only_assets()` (config-driven, paper_trading.yaml defaults.sell_only_assets) |
+| Sell-only filter | Per decision | Override BUY→FLAT for 3 inverted-BUY assets | `get_sell_only_assets()` (config-driven from per-asset files in `configs/domains/assets/`) |
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
 | Factor model (P3) | Per cycle | Factor exposures via 10 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
@@ -542,7 +542,7 @@ max_layers: 3
 | Update MAE/MFE | Update max adverse/favorable excursion | — |
 | Resolve signal | Map proba to BUY/SELL/FLAT via `FixedThresholdStrategy(0.45)` | `threshold` (default 0.45) |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 | (hardcoded, per-asset pair) |
-| Sell-only filter | Override BUY→FLAT for `get_sell_only_assets()` | (config-driven, paper_trading.yaml defaults.sell_only_assets, 3 assets, reduced from 10 on 2026-07-01) |
+| Sell-only filter | Override BUY→FLAT for `get_sell_only_assets()` | (config-driven from per-asset files in `configs/domains/assets/`, 3 assets, reduced from 10 on 2026-07-01) |
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
 | Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) | `session_gate.tiers` (fx_major=[7,17], fx_cross=[7,17], indices=[13,20], metals=[8,18], crypto=[0,24]) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) | `adx_entry_gate` (adx_threshold=18) |
@@ -625,7 +625,7 @@ Where:
 
 ### Post-entry adjustments
 - Trailing stop: `_trailing_initial_barriers()` delegates to `_atr_barriers()` for SL, then adjusts
-- `trailing_activation_mult` and `trailing_distance_mult` are per-asset from `configs/paper_trading.yaml` (ranges: activation 0.3–1.0, distance 0.5–1.5)
+- `trailing_activation_mult` and `trailing_distance_mult` are per-asset from YAML files in `configs/domains/assets/` (ranges: activation 0.3–1.0, distance 0.5–1.5)
 
 ---
 

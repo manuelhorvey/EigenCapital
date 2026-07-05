@@ -713,7 +713,7 @@ New handlers in `replay/runner.py`:
 | `paper_trading/dashboard/src/components/WalTimeline.tsx` | **NEW** — per-asset WAL causal-boundary event timeline |
 | `paper_trading/orchestrator/engine.py` | Phase 3e — position concentration check |
 | `paper_trading/services/engine_state_service.py` | `position_concentration` exposed in portfolio summary |
-| `configs/paper_trading.yaml` | `net_short_concentration_threshold` default |
+| `configs/domains/risk/sizing.yaml` | `net_short_concentration_threshold` default |
 
 ## Barrier Symmetry Audit (2026-06-20)
 
@@ -864,7 +864,7 @@ BUY earns +95.5R.
 - Same signals at 59.8% WR would produce +200.9R (3.2x improvement)
 - SELL side flips from -33.7R to +24.6R at unchanged WR
 
-**Files**: `configs/paper_trading.yaml` (live execution), `features/registry.py` (label
+**Files**: `configs/domains/assets/<TICKER>.yaml` (live execution per-asset), `features/registry.py` (label
 generation for next retrain). Retrain required for full effect; config change applies
 immediately to live SL/TP placement.
 
@@ -932,7 +932,7 @@ return_pct = R × ATR_pct  (per asset),  portfolio_return = mean(return_pct) acr
 
 **Caveats**: Walk-forward data uses current labels (retrained with old pt/sl). Changing tp/sl changes labels on the next retrain, which changes the model. The ΔR figures are upper-bound estimates for the immediate SL/TP placement change; the label change may shift the optimum. Re-analyze after next retrain.
 
-**Files**: `configs/paper_trading.yaml`, `features/registry.py`
+**Files**: `configs/domains/assets/` per-asset YAML files, `features/registry.py`
 
 ## Covariance Estimation & HRP Fix (2026-06-25)
 
@@ -992,7 +992,7 @@ The `hrp_v1` method was broken due to two issues:
 
 **Config**: Updated to `weight_method: factor_constrained_v2`. The old `factor_constraints.enabled: false` and `risk_parity_weight`/`penalty_scale` parameters are no longer needed — v2 doesn't use them.
 
-**Files**: `shared/factor_model.py`, `shared/portfolio_weights.py`, `configs/paper_trading.yaml`, `scripts/backtest/backtest_pnl.py`
+**Files**: `shared/factor_model.py`, `shared/portfolio_weights.py`, `configs/domains/` tree, `scripts/backtest/backtest_pnl.py`
 
 ## Trend-Exhaustion Features — Tier 1+2 (2026-06-26)
 
@@ -1152,7 +1152,7 @@ A series of incremental hardening commits applied to `refactor/codebase-remediat
    - `shared/sizing_chain.py` — fixed one line-too-long in log format string.
 
 2. **`feat(config)` — YAML schema validator**
-   - `tools/check_config_schema.py` — validates `configs/paper_trading.yaml` top-level fields, types, value ranges, asset ticker presence, and section structure. Wires into CI as a separate step.
+   - `tools/check_config_schema.py` — validates domain configuration files from `configs/domains/` top-level fields, types, value ranges, asset ticker presence, and section structure. Wires into CI as a separate step.
    - `tests/test_config_schema.py` — 12 tests covering valid config, invalid rebalance/data_source/capital, missing ticker, bad MT5 port, missing file.
    - `.github/workflows/ci.yml` — adds `python tools/check_config_schema.py` step, uncomments the `scripts/check_live_deps.sh` step, expands ruff scope from `paper_trading/` to whole repo.
 

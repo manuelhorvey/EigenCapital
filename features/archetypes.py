@@ -1,3 +1,20 @@
+"""Archetype classification — market structure regime per asset.
+
+Classifies each asset into one of 6 setup archetypes based on technical
+indicators (EMA spread, ADX, RSI, Bollinger Bands). These archetypes are
+inference-only (never passed to XGBoost) and used by the entry optimizer
+and governance layers to contextualize signals.
+
+Archetypes:
+    MOMENTUM_IGNITION — trend just starting (tight EMA, rising ADX)
+    MEAN_REVERSION    — price stretched from mean (wide BB, extreme RSI)
+    BREAKOUT_TEST     — price at range boundary (BB squeeze, low vol)
+    TREND_PULLBACK    — counter-trend move within established trend
+    VOL_EXPANSION     — volatility regime shift (rising ATR, ADX)
+    LIQUIDITY_SWEEP   — stop-hunt pattern (wicks beyond structure)
+    UNKNOWN           — no clear archetype detected
+"""
+
 import logging
 from enum import Enum
 

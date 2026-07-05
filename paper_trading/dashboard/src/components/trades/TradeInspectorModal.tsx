@@ -103,10 +103,10 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
                   <>
                     <div className="space-y-2">
                       <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
-                      <ScoreBar label="Prediction" score={scores.prediction_score} color="#3b82f6" />
-                      <ScoreBar label="Execution" score={scores.execution_score} color="#a855f7" />
-                      <ScoreBar label="Exit" score={scores.exit_score} color="#22c55e" />
-                      <ScoreBar label="Friction" score={scores.friction_score} color="#f97316" />
+                      <ScoreBar label="Prediction" score={scores.prediction_score} color="var(--color-accent-blue)" />
+                      <ScoreBar label="Execution" score={scores.execution_score} color="var(--color-accent-purple)" />
+                      <ScoreBar label="Exit" score={scores.exit_score} color="var(--color-gov-green)" />
+                      <ScoreBar label="Friction" score={scores.friction_score} color="var(--color-accent-amber)" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-default">

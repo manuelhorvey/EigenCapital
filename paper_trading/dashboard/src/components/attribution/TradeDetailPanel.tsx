@@ -46,7 +46,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Archetype: <span className="text-secondary">{trade.pred_archetype_at_entry}</span></p>
             <p>Regime: <span className="text-secondary">{trade.pred_regime_at_entry}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.prediction_score} color="#3b82f6" />
+          <ScoreBar label="Score" score={scores.prediction_score} color="var(--color-accent-blue)" />
         </div>
 
         {/* Execution */}
@@ -65,7 +65,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             {trade.friction_gap_fill && <p className="text-gov-red">⚠ Gap fill</p>}
             {trade.friction_partial_fill && <p className="text-gov-yellow">⚠ Partial fill</p>}
           </div>
-          <ScoreBar label="Score" score={scores.execution_score} color="#a855f7" />
+          <ScoreBar label="Score" score={scores.execution_score} color="var(--color-accent-purple)" />
         </div>
 
         {/* Exit */}
@@ -79,7 +79,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Bars held: <span className="text-secondary">{trade.exit_bars_held}</span></p>
             <p>Exit archetype: <span className="text-secondary">{trade.exit_archetype}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.exit_score} color="#22c55e" />
+          <ScoreBar label="Score" score={scores.exit_score} color="var(--color-gov-green)" />
         </div>
 
         {/* Friction */}
@@ -93,7 +93,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Gap fill: <span className={trade.friction_gap_fill ? 'text-gov-red' : 'text-gov-green'}>{trade.friction_gap_fill ? 'Yes' : 'No'}</span></p>
             <p>Partial: <span className={trade.friction_partial_fill ? 'text-gov-yellow' : 'text-gov-green'}>{trade.friction_partial_fill ? 'Yes' : 'No'}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.friction_score} color="#f97316" />
+          <ScoreBar label="Score" score={scores.friction_score} color="var(--color-accent-amber)" />
         </div>
       </div>
 

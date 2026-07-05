@@ -99,9 +99,10 @@ def build_execution_configs(
         cfg = execution_config_from_dict(merged)
         configs[ticker] = cfg
         configs[name] = cfg
-    if "BTC" not in configs and "BTC-USD" not in configs:
+    if "BTC" not in configs and "BTC-USD" not in configs and "BTCUSD" not in configs:
         configs["BTC"] = btc_execution_config()
         configs["BTC-USD"] = configs["BTC"]
+        configs["BTCUSD"] = configs["BTC"]
     return configs
 
 

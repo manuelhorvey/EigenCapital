@@ -45,7 +45,7 @@ ASSET_LABEL_PARAMS: dict[str, dict] = {
 FEATURE_REGISTRY: dict[str, FeatureContract] = {
     "BTC-USD": FeatureContract(
         ticker="BTC-USD",
-        name="BTC",
+        name="BTCUSD",
         contract_prefix="btc-usd",
         label_type="tb20",
         label_params={

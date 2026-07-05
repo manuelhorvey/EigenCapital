@@ -125,8 +125,22 @@ def _yaml_sell_only() -> list[str]:
 
 
 def _gate_constants_sell_only() -> list[str]:
-    text = _read(REPO_ROOT / "paper_trading" / "execution" / "gate_constants.py")
-    block = re.search(r"return frozenset\(\s*\{\s*((?:\"[A-Z]+\",?\s*)+)\}\s*\)", text)
+    """Read SELL_ONLY assets from the hardcoded EngineConfig default.
+
+    gate_constants.py now reads from config dynamically (get_sell_only_assets()).
+    The Python-level fallback default lives in config_manager.py:
+
+        sell_only_assets: frozenset = field(
+            default_factory=lambda: frozenset({"CADCHF", "NZDCHF", "EURAUD"})
+        )
+    """
+    text = _read(REPO_ROOT / "paper_trading" / "config_manager.py")
+    # Find the frozenset({...}) pattern that follows sell_only_assets
+    block = re.search(
+        r"sell_only_assets.*?frozenset\(\s*\{\s*((?:\"[A-Z]+\",?\s*)+)\}\s*\)",
+        text,
+        re.DOTALL,
+    )
     if not block:
         return []
     return [m.group(1) for m in re.finditer(r"\"([A-Z]+)\"", block.group(1))]

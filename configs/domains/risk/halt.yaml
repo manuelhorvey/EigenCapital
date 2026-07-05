@@ -1,0 +1,14 @@
+# Halt configuration — circuit-breaker thresholds for emergency halt.
+#
+# Each value overrides the typed HaltConfig default in
+# configs/domain_models/risk.py:HaltConfig.  To restore a default,
+# remove the line; the typed default is the source of truth.
+#
+# Reference: paper_trading/config_manager.py:_default_halt()
+
+drawdown: -0.08          # Max portfolio drawdown before halt (negative fraction)
+monthly_pf: 0.70         # Min monthly profit factor before halt
+signal_drought: 30       # Max consecutive cycles without a signal before halt
+prob_drift: 0.25         # Max allowed probability drift before halt
+expected_prob_conf: 0.65 # Expected confidence level (mismatch threshold)
+prob_drift_min_samples: 10  # Min samples before drift check activates

@@ -34,9 +34,9 @@ class CapitalConfig:
 class HaltConfig:
     """Circuit-breaker thresholds for emergency halt.
 
-    Currently lives only in ``paper_trading/config_manager._default_halt``;
-    this typed model is the future source of truth (Phase 4 write-mode
-    split).
+    Sourced from ``configs/domains/risk/halt.yaml`` via
+    ``PaperConfigRegistry``. Falls back to typed defaults when
+    the domain file is absent.
     """
 
     drawdown: float = -0.08

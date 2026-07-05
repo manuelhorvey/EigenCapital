@@ -47,6 +47,13 @@ _warn_on_insecure_dotenv()
 # Shared MT5 bridge port — single source of truth
 DEFAULT_MT5_BRIDGE_PORT = 9879
 
+# Strict write-mode guard for Phase 12.1
+# When unset/empty, the domain tree is the authoritative source and
+# hand-edits to the legacy mirror (configs/paper_trading.yaml) trigger
+# a warning. Set to "1" to restore legacy-override semantics for
+# emergency use.
+ENABLE_LEGACY_EDITS = "ENABLE_LEGACY_EDITS"
+
 DEFAULT_CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "configs",
@@ -141,6 +148,7 @@ class EngineConfig:
     )
     mt5: MT5Config = field(default_factory=MT5Config)
     data_source: str = "yfinance"  # "yfinance" or "mt5"
+    alerting: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         errors: list[str] = []
@@ -225,6 +233,7 @@ class EngineConfig:
             optimizations=data.get("optimizations", {}),
             mt5=MT5Config.from_dict(data.get("mt5", {})),
             data_source=data.get("data_source", "yfinance"),
+            alerting=data.get("alerting", {}),
         )
 
     def to_dict(self) -> dict:
@@ -251,15 +260,123 @@ class EngineConfig:
         }
 
 
+_MISSING = object()
+
+
+def _diff_keys(left: dict, right: dict, prefix: str = "") -> list[str]:
+    """Return flat key paths where two dicts differ.
+
+    Recursive; only reports leaf-level mismatches. Keys present in one
+    but not the other are listed under their path.
+    """
+    diffs: list[str] = []
+    all_keys = set(left) | set(right)
+    for k in sorted(all_keys):
+        path = f"{prefix}.{k}" if prefix else str(k)
+        lv = left.get(k, _MISSING)
+        rv = right.get(k, _MISSING)
+        if isinstance(lv, dict) and isinstance(rv, dict):
+            diffs.extend(_diff_keys(lv, rv, path))
+        elif lv is not rv and lv != rv:
+            diffs.append(path)
+    return diffs
+
+
+def _warn_on_legacy_drift(requested_path: Path, registry_dict: dict) -> None:
+    """Warn if the default legacy file has drifted from the domain tree.
+
+    Phase 12.1 strict write-mode: the domain tree is the authoritative
+    source. Hand-edits to paper_trading.yaml should instead be made to
+    the corresponding file under configs/domains/. Set the env var
+    ``ENABLE_LEGACY_EDITS`` to silence this warning.
+    """
+    if os.environ.get(ENABLE_LEGACY_EDITS):
+        return
+    if not requested_path.exists():
+        return
+    on_disk = yaml.safe_load(requested_path.read_text()) or {}
+    if on_disk == registry_dict:
+        return
+    diff_paths = _diff_keys(on_disk, registry_dict)
+    # Only warn when the diff touches keys the domain tree owns
+    # (not legacy_extras that are expected to differ)
+    logger.warning(
+        "STRICT-WRITE: configs/paper_trading.yaml differs from domain tree on "
+        "%d key(s): %s.  Operator edits should go to configs/domains/ — "
+        "the legacy file is a derived mirror.  Set %s=1 to silence.",
+        len(diff_paths),
+        ", ".join(diff_paths[:20]) + ("..." if len(diff_paths) > 20 else ""),
+        ENABLE_LEGACY_EDITS,
+    )
+
+
 def load_config(path: str | None = None) -> EngineConfig:
-    path = path or DEFAULT_CONFIG_PATH
+    """Load and return EngineConfig via the typed paper registry.
+
+    Phase 11.2 routes through ``configs.paper_config_registry.PaperConfigRegistry``
+    which reads domain YAMLs first and falls back to the legacy file.
+
+    Call-site contract:
+      - Default path (configs/paper_trading.yaml): PaperConfigRegistry's
+        domain-first precedence applies. Domain tree wins; legacy is
+        fallback for unpromoted keys.
+      - Explicit path (test fixtures, mode overlays, CI): the supplied
+        YAML is treated as authoritative for any key it carries. Domain
+        files fill in the rest. This preserves the pre-Phase 11 contract
+        where custom legacy YAMLs could override.
+    """
+    if path is None:
+        path = DEFAULT_CONFIG_PATH
+    if os.path.exists(path):
+        try:
+            from configs.paper_config_registry import DOMAINS_DIR, PaperConfigRegistry
+
+            requested_path = Path(path).resolve()
+            default_path = Path(DEFAULT_CONFIG_PATH).resolve()
+
+            reg = PaperConfigRegistry.load(legacy_path=requested_path, domains_dir=DOMAINS_DIR)
+            typed = reg.as_legacy_dict()
+
+            # Phase 12.1 strict write-mode: warn when the default legacy
+            # file has drifted from the domain tree (someone edited the
+            # mirror instead of the domain file).
+            if requested_path == default_path:
+                _warn_on_legacy_drift(requested_path, typed)
+            else:
+                # Explicit-path overrides take precedence over the domain tree
+                # only when the caller passed something other than the default
+                # paper_trading.yaml (test fixtures, ad-hoc overlays).
+                raw = yaml.safe_load(requested_path.read_text()) or {}
+                _deep_overlay(typed, raw)
+
+            logger.info(
+                "Loaded config from %s (registry: %d assets, %d legacy extras)",
+                path,
+                len(reg.assets),
+                len(reg.legacy_extras),
+            )
+            return EngineConfig.from_dict(typed)
+        except Exception as e:  # noqa: BLE001 - fall back to legacy path
+            logger.warning(
+                "PaperConfigRegistry failed (%s); falling back to legacy YAML parser",
+                e,
+            )
+    else:
+        logger.warning("Config file %s not found; using defaults", path)
     if os.path.exists(path):
         with open(path) as f:
             data = yaml.safe_load(f) or {}
-        logger.info("Loaded config from %s", path)
         return EngineConfig.from_dict(data)
-    logger.warning("Config file %s not found; using defaults", path)
     return EngineConfig()
+
+
+def _deep_overlay(target: dict, source: dict) -> None:
+    """In-place merge: ``source`` overrides ``target`` at every level."""
+    for k, v in source.items():
+        if isinstance(v, dict) and isinstance(target.get(k), dict):
+            _deep_overlay(target[k], v)
+        else:
+            target[k] = v
 
 
 _GLOBAL_CONFIG: EngineConfig | None = None

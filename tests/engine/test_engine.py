@@ -122,8 +122,10 @@ class TestConfigManager:
         assert cfg.assets["FOO"]["ticker"] == "FOO"
 
     def test_load_config_from_file(self):
+        # Set mode to a non-existent mode name so no mode override
+        # overrides capital back (modes/production.yaml has capital: 100000).
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            yaml.dump({"capital": 50000, "halt": {"drawdown": -0.12}}, f)
+            yaml.dump({"capital": 50000, "halt": {"drawdown": -0.12}, "mode": "test_no_override"}, f)
             tmppath = f.name
         try:
             cfg = load_config(tmppath)
@@ -410,8 +412,9 @@ class TestPaperTradingEngine:
         eng._rebalance_dow = 0
         eng._last_prune_date = None
         eng.last_update = None
-        import pytz
         from datetime import datetime
+
+        import pytz
         eng.start_date = datetime.now(tz=pytz.timezone("US/Eastern"))
         eng._wal = None
         eng._background_writer = SimpleNamespace(flush=lambda: None, shutdown=lambda: None)
@@ -435,7 +438,10 @@ class TestPaperTradingEngine:
 
     def test_shutdown_calls_orchestrator_and_background_writer(self, engine):
         engine._orchestrator = SimpleNamespace(shutdown=lambda: setattr(engine, "_orch_shutdown", True))
-        engine._background_writer = SimpleNamespace(shutdown=lambda: setattr(engine, "_bw_shutdown", True), flush=lambda: None)
+        engine._background_writer = SimpleNamespace(
+            shutdown=lambda: setattr(engine, "_bw_shutdown", True),
+            flush=lambda: None,
+        )
         engine._state = SimpleNamespace(save_state=lambda: setattr(engine, "_state_saved", True))
         engine.shutdown()
         assert engine._orch_shutdown
@@ -460,10 +466,13 @@ class TestPaperTradingEngine:
         assert len(trained) == 1
 
     def test_initialize_logs_warning_on_config_registry_mismatch(self, engine):
-        from paper_trading.config_manager import reset_config, load_config
+        from paper_trading.config_manager import load_config, reset_config
 
         reset_config()
-        import tempfile, os, yaml
+        import os
+        import tempfile
+
+        import yaml
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump({"capital": 100000}, f)
             tmppath = f.name
@@ -479,7 +488,6 @@ class TestPaperTradingEngine:
         os.unlink(tmppath)
 
     def test_initialize_handles_train_exception(self, engine):
-        errors = []
         asset = SimpleNamespace(
             ticker="EURUSD", name="A",
             train=lambda force=None: (_ for _ in ()).throw(Exception("train failed")),
@@ -630,6 +638,7 @@ class TestPaperTradingEngine:
 
     def test_prune_old_data_skips_on_same_day(self, engine):
         from datetime import datetime
+
         import pytz
         engine._last_prune_date = datetime.now(tz=pytz.timezone("US/Eastern")).strftime("%Y-%m-%d")
         with patch("scripts.ops.prune_data.prune_all") as mock_prune:
@@ -647,8 +656,9 @@ class TestPaperTradingEngine:
         assert engine.get_state() == {"key": "val"}
 
     def test_create_mt5_broker_uses_config(self):
-        from paper_trading.engine import PaperTradingEngine
         from types import SimpleNamespace
+
+        from paper_trading.engine import PaperTradingEngine
 
         eng = PaperTradingEngine.__new__(PaperTradingEngine)
         cfg = SimpleNamespace(
@@ -660,7 +670,7 @@ class TestPaperTradingEngine:
             ),
         )
         with patch("paper_trading.engine.MT5Broker") as MockMT5B:
-            broker = eng._create_mt5_broker(cfg)
+            eng._create_mt5_broker(cfg)
             MockMT5B.assert_called_once()
             args, kwargs = MockMT5B.call_args
             assert kwargs.get("account") == 12345
@@ -674,12 +684,14 @@ class TestPaperTradingEngine:
             symbol_map_path=None,
             bridge_host="127.0.0.1", bridge_port=9879,
         ))
-        with patch("paper_trading.engine.MT5Client") as MockClient:
+        with (
+            patch("paper_trading.engine.MT5Client") as MockClient,
+            patch("paper_trading.ops.data_fetcher.set_mt5_client") as mock_set,
+        ):
             MockClient.return_value.connect.return_value = True
-            with patch("paper_trading.ops.data_fetcher.set_mt5_client") as mock_set:
-                eng._install_mt5_data_provider(eng._engine_cfg)
-                MockClient.assert_called_once()
-                mock_set.assert_called_once()
+            eng._install_mt5_data_provider(eng._engine_cfg)
+            MockClient.assert_called_once()
+            mock_set.assert_called_once()
 
     def test_run_once_updates_last_update(self, engine):
         with patch("paper_trading.engine.is_market_closed", return_value=False):
@@ -692,9 +704,11 @@ class TestPaperTradingEngine:
         assert engine._cycle_count == 1
 
     def test_run_once_benchmark_logging(self, engine):
-        with patch("paper_trading.engine.is_market_closed", return_value=False):
-            with patch.object(engine, "_cycle_times", [0.1] * 100):
-                engine.run_once()
+        with (
+            patch("paper_trading.engine.is_market_closed", return_value=False),
+            patch.object(engine, "_cycle_times", [0.1] * 100),
+        ):
+            engine.run_once()
 
 
 class TestStopOutCooldown:

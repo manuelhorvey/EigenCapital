@@ -21,6 +21,8 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Check config schema
         run: python tools/check_config_schema.py
+      - name: Check config mirror drift (Phase 11.3)
+        run: PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --check
       - name: Check documentation drift
         run: PYTHONPATH=$PYTHONPATH:. python tools/doc_drift_check.py
       - name: Check live dependency boundaries

@@ -129,3 +129,117 @@ class TestConfigSchema:
         path = _write_config(cfg)
         assert validate(path) == 0
         os.unlink(path)
+
+    # ── Phase 12.2 cross-field invariant tests ─────────────────────────
+
+    def _build(self, **overrides) -> dict:
+        base = dict(_SAMPLE_VALID_CONFIG)
+        base["defaults"] = dict(base.get("defaults", {}))
+        for k, v in overrides.items():
+            if k == "defaults":
+                base["defaults"].update(v)
+            else:
+                base[k] = v
+        return base
+
+    def test_mt5_max_risk_eq_max_risk_passes(self):
+        cfg = self._build(defaults={"max_risk_per_trade_pct": 2.0, "mt5_max_risk_per_trade_pct": 2.0})
+        path = _write_config(cfg)
+        assert validate(path) == 0
+        os.unlink(path)
+
+    def test_mt5_max_risk_below_max_risk_passes(self):
+        cfg = self._build(defaults={"max_risk_per_trade_pct": 2.0, "mt5_max_risk_per_trade_pct": 1.5})
+        path = _write_config(cfg)
+        assert validate(path) == 0
+        os.unlink(path)
+
+    def test_mt5_max_risk_above_enabled_fails(self):
+        cfg = self._build(
+            defaults={
+                "max_risk_per_trade_pct": 2.0,
+                "mt5_max_risk_per_trade_pct": 10.0,
+                "mt5_enable_max_risk_per_trade_pct": True,
+            }
+        )
+        path = _write_config(cfg)
+        assert validate(path) == 1
+        os.unlink(path)
+
+    def test_mt5_max_risk_above_disabled_warns(self):
+        cfg = self._build(
+            defaults={
+                "max_risk_per_trade_pct": 2.0,
+                "mt5_max_risk_per_trade_pct": 10.0,
+                "mt5_enable_max_risk_per_trade_pct": False,
+            }
+        )
+        path = _write_config(cfg)
+        assert validate(path) == 0  # warning only, still passes
+        os.unlink(path)
+
+    def test_profit_lock_threshold_zero_passes(self):
+        cfg = self._build(defaults={"profit_lock_threshold_pct": 0})
+        path = _write_config(cfg)
+        assert validate(path) == 0
+        os.unlink(path)
+
+    def test_profit_lock_threshold_100_passes(self):
+        cfg = self._build(defaults={"profit_lock_threshold_pct": 100})
+        path = _write_config(cfg)
+        assert validate(path) == 0
+        os.unlink(path)
+
+    def test_profit_lock_threshold_negative_fails(self):
+        cfg = self._build(defaults={"profit_lock_threshold_pct": -5})
+        path = _write_config(cfg)
+        assert validate(path) == 1
+        os.unlink(path)
+
+    def test_profit_lock_threshold_over_100_fails(self):
+        cfg = self._build(defaults={"profit_lock_threshold_pct": 150})
+        path = _write_config(cfg)
+        assert validate(path) == 1
+        os.unlink(path)
+
+    def test_factor_exposure_limit_too_high_fails(self):
+        cfg = self._build(
+            defaults={
+                "factor_exposure_limits": {
+                    "CHF": 0.2,
+                    "AUD": 1.5,  # > 1.0
+                }
+            }
+        )
+        path = _write_config(cfg)
+        assert validate(path) == 1
+        os.unlink(path)
+
+    def test_factor_exposure_limit_negative_fails(self):
+        cfg = self._build(
+            defaults={
+                "factor_exposure_limits": {
+                    "CHF": -0.1,  # < 0
+                }
+            }
+        )
+        path = _write_config(cfg)
+        assert validate(path) == 1
+        os.unlink(path)
+
+    def test_factor_exposure_limit_sum_over_1_warns_only(self):
+        cfg = self._build(
+            defaults={
+                "factor_exposure_limits": {
+                    "CHF": 0.2,
+                    "AUD": 0.25,
+                    "NZD": 0.25,
+                    "JPY": 0.25,
+                    "USD": 0.4,
+                }
+            }
+        )
+        path = _write_config(cfg)
+        # sum = 1.35 > 1.0, but this is a warning — still passes
+        assert validate(path) == 0
+        os.unlink(path)

@@ -12,8 +12,6 @@ interface StatCardProps {
   loading?: boolean
   size?: 'sm' | 'md'
   className?: string
-  /** Show subtle entrance animation */
-  animate?: boolean
 }
 
 function LoadingSkeleton({ variant }: { variant: StatCardVariant }) {
@@ -42,13 +40,12 @@ export default function StatCard({
   accent,
   loading = false,
   className = '',
-  animate = false,
 }: StatCardProps) {
   if (loading) return <LoadingSkeleton variant={variant} />
 
   if (variant === 'kpi') {
     return (
-      <div className={`bg-panel/60 border border-default rounded-lg p-2.5 relative overflow-hidden group ${animate ? 'animate-fade-in' : ''} ${className}`}>
+      <div className={`bg-panel/60 border border-default rounded-lg p-2.5 relative overflow-hidden group animate-fade-in ${className}`}>
         {accent && (
           <span
             className="absolute top-0 left-0 right-0 h-0.5 rounded-t-lg pointer-events-none transition-all duration-300 group-hover:h-1"
@@ -69,7 +66,7 @@ export default function StatCard({
 
   if (variant === 'compact') {
     return (
-      <div className={`bg-panel/60 border border-default rounded-lg p-3 transition-all duration-200 hover:border-strong group ${animate ? 'animate-fade-in' : ''} ${className}`}>
+      <div className={`bg-panel/60 border border-default rounded-lg p-3 transition-all duration-200 hover:border-strong group animate-fade-in ${className}`}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider">{label}</span>
           <div className={`text-sm font-semibold tracking-tight font-mono tabular-nums transition-colors ${accent ? '' : 'text-primary'}`}
@@ -90,8 +87,7 @@ export default function StatCard({
       'bg-panel border border-default rounded-lg p-3 sm:p-3.5',
       'transition-all duration-200 ease-out',
       'hover:border-strong hover:-translate-y-0.5 hover:shadow-card',
-      'group relative overflow-hidden',
-      animate ? 'animate-slide-up' : '',
+      'group relative overflow-hidden animate-slide-up',
       className,
     ].join(' ')}>
       {/* Subtle top gradient line */}

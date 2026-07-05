@@ -43,7 +43,9 @@ export function useWeeklyReview() {
     isError: query.isError,
     acknowledge: () => acknowledge.mutate(),
     dismiss: () => {
-      /* no-op: only Acknowledge stores the week_label */
+      if (query.data) {
+        localStorage.setItem(STORAGE_KEY, query.data.week_label)
+      }
     },
   }
 }

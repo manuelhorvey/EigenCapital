@@ -37,11 +37,11 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 
 ## System Overview
 
-The engine runs a continuous orchestrator cycle (every 60s) across 22 assets:
+The engine runs a continuous 5-phase orchestrator cycle (every 60s) across 22 assets:
 
 ```text
-PRE (state snapshot) → REFRESH (parallel inference) → ADMIT (PEK gate) →
-VALIDITY → PORTFOLIO HEALTH (circuit breaker, VaR, orphan recon) → PERSIST (WAL)
+PRE: state snapshot → REFRESH: parallel inference → ADMIT: PEK gate →
+VALIDITY: state updates → PORTFOLIO HEALTH: circuit breaker, VaR, orphan recon → PERSIST: WAL
 ```
 
 Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.36→0.02), a 22-stage decision pipeline, 15 governance layers, and a multiplicative sizing chain before reaching the broker.

@@ -61,8 +61,78 @@ Precedence: lower steps are first; later steps override earlier steps.
 | 7 | ✅ completed | per-asset file split | `57386de` |
 | 8 | ✅ completed | mode + environment overlays | `b34d19e` |
 | 9 | ✅ completed | generated CONFIGURATION.md | `aafd25f` |
-| 10 | ✅ completed | config_diff + schema_version bump | (this branch HEAD) |
+| 10 | ✅ completed | config_diff + schema_version bump | `3b10926` |
+| 11.0 | ✅ completed | Baseline v2 captured | `972e45d` |
+| 11.1 | ✅ completed | PaperConfigRegistry (domain-first) | `047c8ab` |
+| 11.2 | ✅ completed | EngineConfig.load() routes through registry | `bf69c3f` |
+| 11.3 | ✅ completed | LegacyMirror (`config_mirror_legacy.py`) | `3ec03dc` |
+| 11.4 | ✅ completed | per-asset files take precedence (verified in 11.1) | — |
+| 11.5 | ✅ completed | CI drift gate | `85c755e` |
+| 11.6 | ✅ completed | operator workflow docs (this file) | — |
+| 11.7 | pending    | Phase 12 plan + handoff | — |
+
+## Operator workflow (Phase 11.6)
+
+The `domains/` tree is the **operator-write surface**. The legacy
+`paper_trading.yaml` is now derived from that tree via the
+`config_mirror_legacy.py` tool.
+
+### Common tasks
+
+| Task | Command |
+|------|---------|
+| Validate the YAML tree (schema + cross-fields) | `python tools/check_config_schema.py` |
+| Confirm mirror matches the on-disk legacy | `PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --check` |
+| Regenerate the legacy after a domain edit | `PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --write` |
+| Inspect the structural diff | `PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --check` (drift shown in stderr) |
+| View generated operator documentation | `docs/CONFIGURATION.md` (auto-generated; see `tools/config_docs.py`) |
+| Compare two configs (env → env) | `python tools/config_diff.py --from old.yaml --to new.yaml` |
+
+### Edit flow
+
+1. Identify the file you want to change under `configs/domains/`.
+2. Make the edit. Run `python tools/check_config_schema.py` to catch
+   structural problems early.
+3. Regenerate the legacy mirror:
+   ```
+   PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --write
+   ```
+4. Commit **both** the domain file change and the regenerated
+   `configs/paper_trading.yaml`. CI fails if these diverge.
+
+### Resolve drift in CI
+
+If the CI gate `Check config mirror drift (Phase 11.3)` fails:
+
+```
+# Inspect the structural diff (in stderr)
+PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --check
+
+# Pick one:
+#   A. The on-disk legacy should regenerate from the typed tree:
+PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --write
+git add configs/paper_trading.yaml
+#   B. The legacy contains an intentional override (test fixture,
+#      ad-hoc mode); that change should live in a domain file
+#      instead. Add the dominant key there, then re-run the write.
+```
+
+### Composition order (paper-trading path)
+
+The runtime loader resolves `load_config()` via PaperConfigRegistry:
+
+1. Domain promoted keys (`risk/capital.yaml`, `risk/sizing.yaml`,
+   `risk/exits.yaml`, `portfolio/weights.yaml`)
+2. Per-asset files (`domains/assets/<NAME>.yaml`, fall back to
+   `domains/assets/_defaults.yaml`)
+3. Mode overlay (`configs/domains/modes/<mode>.yaml`, derived from
+   the active `mode:` selector)
+4. Environment overlay (`configs/environments/<env>.yaml`)
+5. Legacy `paper_trading.yaml` for **unpromoted extras only**
+   (alerting, calibration, mt5, ensemble, kelly, meta_labeling,
+   portfolio, optimizations, execution)
+6. Mode selector (`mode:`) applied last with mode's own defaults
 
 Schema version is `2.0.0` (`configs/schema_version.json`); legacy
-`paper_trading.yaml` remains as a co-authoritative mirror for the
-migration window.
+`paper_trading.yaml` remains as a derived mirror of the typed domain
+tree.

@@ -49,16 +49,20 @@ Precedence: lower steps are first; later steps override earlier steps.
 
 ## Migration tracking
 
-| Phase | Status | Branch pair |
-|-------|--------|-------------|
-| 0 — preparation | active | `feature/config-architecture-refactor` |
-| 1 — validation hardening | pending | - |
-| 2 — dead-config removal | pending | - |
-| 3 — domain split (read mirror) | pending | - |
-| 4 — write-mode split | pending | - |
-| 5 — SELL_ONLY truth flip | pending | - |
-| 6 — triple-barrier unification | pending | - |
-| 7 — per-asset file split | pending | - |
-| 8 — mode + environment overlay | pending | - |
-| 9 — generated docs | pending | - |
-| 10 — final hardening | pending | - |
+| Phase | Status | Description | Commit |
+|-------|--------|-------------|--------|
+| 0 | ✅ completed | preparation + tooling scaffolding | `305cbf8` |
+| 1 | ✅ completed | check_config_schema.py hardening | `bb1dbbf` |
+| 2 | ✅ completed | flagged-dead block annotation | `016bd28` |
+| 3 | ✅ completed | typed domain models | `2a5e831` |
+| 4 | ✅ completed | domain tree + ConfigRegistry | `8517143` |
+| 5 | ✅ completed | SELL_ONLY truth flip | `ae0b8e2` |
+| 6 | ✅ completed | triple-barrier YAML unification | `409e1bc` |
+| 7 | ✅ completed | per-asset file split | `57386de` |
+| 8 | ✅ completed | mode + environment overlays | `b34d19e` |
+| 9 | ✅ completed | generated CONFIGURATION.md | `aafd25f` |
+| 10 | ✅ completed | config_diff + schema_version bump | (this branch HEAD) |
+
+Schema version is `2.0.0` (`configs/schema_version.json`); legacy
+`paper_trading.yaml` remains as a co-authoritative mirror for the
+migration window.

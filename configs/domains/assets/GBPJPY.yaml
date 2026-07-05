@@ -1,0 +1,16 @@
+ticker: GBPJPY=X
+allocation: 0.02
+sl_mult: 0.5
+tp_mult: 2.22
+spread_tier: fx_cross
+max_depth: 2
+regime_geometry:
+  GREEN:
+    sl_mult: 1.0
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 0.9
+    tp_mult: 0.9
+  RED:
+    sl_mult: 0.8
+    tp_mult: 0.8

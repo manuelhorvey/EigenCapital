@@ -1,0 +1,15 @@
+ticker: CADCHF=X
+allocation: 0.05
+sl_mult: 1.0
+tp_mult: 4.0
+max_depth: 2
+regime_geometry:
+  GREEN:
+    sl_mult: 1.5
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 1.35
+    tp_mult: 0.9
+  RED:
+    sl_mult: 1.2
+    tp_mult: 0.8

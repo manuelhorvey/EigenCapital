@@ -1,0 +1,22 @@
+ticker: EURNZD=X
+allocation: 0.03
+sl_mult: 1.12
+tp_mult: 3.36
+max_depth: 3
+regime_geometry:
+  GREEN:
+    sl_mult: 1.33
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 1.2
+    tp_mult: 0.9
+  RED:
+    sl_mult: 1.07
+    tp_mult: 0.8
+adaptive_exit:
+  enabled: true
+  be_lock_r: 0.5
+  trail_activation_r: 0.5
+  trail_retrace_pct: 0.33
+  max_hold_candles: 40
+  time_decay_start: 20

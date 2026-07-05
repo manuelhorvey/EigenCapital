@@ -1,0 +1,16 @@
+ticker: USDCAD=X
+allocation: 0.025
+sl_mult: 1.3
+tp_mult: 3.9
+spread_tier: fx_major
+max_depth: 5
+regime_geometry:
+  GREEN:
+    sl_mult: 0.9
+    tp_mult: 0.9
+  YELLOW:
+    sl_mult: 0.9
+    tp_mult: 0.9
+  RED:
+    sl_mult: 0.8
+    tp_mult: 0.8

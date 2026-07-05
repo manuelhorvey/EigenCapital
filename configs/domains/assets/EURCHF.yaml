@@ -1,0 +1,16 @@
+ticker: EURCHF=X
+allocation: 0.05
+sl_mult: 1.0
+tp_mult: 3.0
+max_depth: 4
+min_confidence: 40.0
+regime_geometry:
+  GREEN:
+    sl_mult: 1.5
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 1.35
+    tp_mult: 0.9
+  RED:
+    sl_mult: 1.2
+    tp_mult: 0.8

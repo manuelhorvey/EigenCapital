@@ -18,10 +18,11 @@ _KNOWN_SELL_ONLY: Final[frozenset[str]] = frozenset({
 
 
 def test_get_sell_only_assets_returns_default_set() -> None:
-    """Should return the known 5-asset set by default."""
+    """Should return the known 3-asset set from config."""
     import paper_trading.config_manager as cm
 
     cm.reset_config()
+    # Config auto-loads from paper_trading.yaml
     assets = get_sell_only_assets()
     assert isinstance(assets, frozenset)
     assert assets == _KNOWN_SELL_ONLY
@@ -72,8 +73,8 @@ def test_get_sell_only_assets_respects_config_override() -> None:
         cm.reset_config()
 
 
-def test_get_sell_only_assets_empty_config_falls_back() -> None:
-    """Should fall back to hardcoded set when config has empty list."""
+def test_get_sell_only_assets_empty_config_raises() -> None:
+    """Should raise RuntimeError when config has empty sell_only_assets."""
     import paper_trading.config_manager as cm
 
     cm.reset_config()
@@ -81,8 +82,8 @@ def test_get_sell_only_assets_empty_config_falls_back() -> None:
     cfg.sell_only_assets = frozenset()
     cm._GLOBAL_CONFIG = cfg
     try:
-        assets = get_sell_only_assets()
-        assert assets == _KNOWN_SELL_ONLY
+        with pytest.raises(RuntimeError, match="SELL_ONLY_ASSETS not configured"):
+            get_sell_only_assets()
     finally:
         cm.reset_config()
 

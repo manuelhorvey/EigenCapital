@@ -1,0 +1,8 @@
+# Environment: backtest
+# Apply on top of any mode for historical replay / walk-forward / PnL backtests.
+# - data_source: yfinance (free historical, avoids MT5 demo throttling)
+# - research_mode: true (disables MT5 broker calls)
+# - rebalance: none (P&L backtests evaluate without rebalancing)
+data_source: yfinance
+research_mode: true
+rebalance: none

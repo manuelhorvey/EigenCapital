@@ -1,0 +1,19 @@
+ticker: BTC-USD
+allocation: 0.02
+sl_mult: 0.58
+tp_mult: 1.51
+spread_tier: crypto
+max_depth: 3
+max_entry_slippage_pct: 5.0
+weekend_eligible: true
+weekend_allocation_multiplier: 0.5
+regime_geometry:
+  GREEN:
+    sl_mult: 1.0
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 0.9
+    tp_mult: 0.9
+  RED:
+    sl_mult: 0.8
+    tp_mult: 0.8

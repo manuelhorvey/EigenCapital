@@ -1,0 +1,15 @@
+ticker: EURCAD=X
+allocation: 0.02
+sl_mult: 0.71
+tp_mult: 2.12
+max_depth: 3
+regime_geometry:
+  GREEN:
+    sl_mult: 1.5
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 1.35
+    tp_mult: 0.9
+  RED:
+    sl_mult: 1.2
+    tp_mult: 0.8

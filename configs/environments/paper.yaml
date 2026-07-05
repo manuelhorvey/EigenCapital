@@ -1,0 +1,7 @@
+# Environment: paper
+# Live paper-trading default. Same as production mode but with explicit
+# isolation from any live-broker environment variables (.env overrides
+# still apply but the paper-only default prevents accidental live exec).
+data_source: mt5
+research_mode: false
+rebalance: daily

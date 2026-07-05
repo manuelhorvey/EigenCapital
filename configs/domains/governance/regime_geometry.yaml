@@ -1,0 +1,9 @@
+GREEN:
+  sl_mult: 1.0
+  tp_mult: 1.0
+YELLOW:
+  sl_mult: 1.0
+  tp_mult: 1.0
+RED:
+  sl_mult: 1.0
+  tp_mult: 1.0

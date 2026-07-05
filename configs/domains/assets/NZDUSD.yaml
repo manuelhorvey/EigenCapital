@@ -1,0 +1,24 @@
+ticker: NZDUSD=X
+allocation: 0.025
+sl_mult: 1.29
+tp_mult: 3.87
+spread_tier: fx_major
+max_depth: 5
+min_confidence: 40.0
+regime_geometry:
+  GREEN:
+    sl_mult: 1.0
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 0.9
+    tp_mult: 0.9
+  RED:
+    sl_mult: 0.8
+    tp_mult: 0.8
+adaptive_exit:
+  enabled: true
+  be_lock_r: 0.5
+  trail_activation_r: 0.5
+  trail_retrace_pct: 0.33
+  max_hold_candles: 40
+  time_decay_start: 20

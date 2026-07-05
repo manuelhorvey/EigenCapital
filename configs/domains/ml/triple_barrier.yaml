@@ -1,0 +1,156 @@
+# Triple-barrier label parameters — deterministic, no labeling this file.
+#
+# Migrated from features/registry.ASSET_LABEL_PARAMS (Phase 6). Each entry
+# defines the pt (take-profit multiplier), sl (stop-loss multiplier), and
+# optional vol_method / atr_period used by the triple-barrier labeling
+# pipeline. YAML format chosen so changes audit cleanly in source control
+# and so the cross-file validator (tools/check_config_schema.py) can
+# detect drift against configs/paper_trading.yaml:assets.<NAME>.{tp_mult,sl_mult}.
+#
+# Conventions:
+#   pt, sl              — multipliers on the volatility basis (ATR or EWM)
+#   vol_method          — "atr" (ATR-based barriers) or "ewm_100" (default)
+#   atr_period          — ATR lookback; only meaningful when vol_method="atr"
+#   active              — false marks REMOVED assets kept here for archival
+#                         backtest reproducibility (see notes in each entry)
+
+legacy:
+  default_vol_method: ewm_100
+  default_atr_period: 14
+
+assets:
+  # ── Active portfolio (matches configs/paper_trading.yaml assets block) ──
+
+  GC:
+    pt: 4.0
+    sl: 1.0
+    vol_method: atr
+    atr_period: 14
+  USDCAD:
+    pt: 3.90
+    sl: 1.30
+    vol_method: atr
+    atr_period: 14
+  GBPCAD:
+    pt: 4.34
+    sl: 1.45
+    vol_method: atr
+    atr_period: 14
+  NZDCAD:
+    pt: 5.48
+    sl: 1.83
+  NZDUSD:
+    pt: 3.87
+    sl: 1.29
+  GBPAUD:
+    pt: 3.0
+    sl: 1.0
+  NZDCHF:
+    pt: 4.0
+    sl: 1.0
+  CADCHF:
+    pt: 4.0
+    sl: 1.0
+  AUDUSD:
+    pt: 4.24
+    sl: 1.41
+  EURCHF:
+    pt: 3.0
+    sl: 1.0
+  EURCAD:
+    pt: 2.12
+    sl: 0.71
+    vol_method: atr
+    atr_period: 14
+  EURNZD:
+    pt: 3.36
+    sl: 1.12
+  GBPCHF:
+    pt: 2.45
+    sl: 0.82
+  GBPUSD:
+    pt: 1.97
+    sl: 0.52
+  EURAUD:
+    pt: 1.77
+    sl: 0.54
+    vol_method: atr
+    atr_period: 14
+  DJI:
+    pt: 4.0
+    sl: 0.5
+  BTC:
+    pt: 1.51
+    sl: 0.58
+    vol_method: atr
+    atr_period: 7
+  AUDJPY:
+    pt: 2.01
+    sl: 0.52
+    vol_method: atr
+    atr_period: 14
+  NZDJPY:
+    pt: 2.02
+    sl: 0.51
+  GBPJPY:
+    pt: 2.22
+    sl: 0.50
+  USDJPY:
+    pt: 1.97
+    sl: 0.52
+    vol_method: atr
+    atr_period: 14
+  USDCHF:
+    pt: 3.0
+    sl: 0.85
+
+  # ── Indexed assets (kept for backtesting researcher calls) ────────────
+
+  ES:
+    pt: 5.74
+    sl: 1.91
+  NQ:
+    pt: 6.12
+    sl: 2.04
+  IWM:
+    pt: 2.0
+    sl: 2.0
+  VIX:
+    pt: 1.5
+    sl: 1.5
+  CADJPY:
+    pt: 1.65
+    sl: 0.52
+  CHFJPY:
+    pt: 2.0
+    sl: 2.0
+    vol_method: atr
+    atr_period: 14
+  EURUSD:
+    pt: 1.5
+    sl: 3.0
+    note: REMOVED from trading 2026-06-20 — directional instability
+  EURGBP:
+    pt: 2.0
+    sl: 2.0
+  EURJPY:
+    pt: 2.0
+    sl: 2.0
+  AUDCAD:
+    pt: 2.0
+    sl: 2.0
+  AUDNZD:
+    pt: 1.0
+    sl: 2.0
+    note: REMOVED from trading 2026-06-20 — directional instability
+  GBPNZD:
+    pt: 1.0
+    sl: 3.0
+    note: REMOVED from trading 2026-06-20 — tp/sl 0.33 ratio
+  AUDCHF:
+    pt: 3.5
+    sl: 2.75
+    note: REMOVED from trading 2026-06-20 — directional instability
+  CL:
+    pt: 2.0
+    sl: 2.0

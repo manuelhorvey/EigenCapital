@@ -145,6 +145,10 @@ defaults:
   size_taper_end_dd: -0.15
   size_taper_min: 0.50
   max_positions_per_asset: 2
+# Live in stacking.py / entry_service.py. dry_run reflects that paper positions
+# are not scaled-up per layer; the read path is kept intact for research callers.
+# REMOVED IF enabled flips to true AND a subsequent retract-or-reactivate pass
+# lands (Phase 10 of the configuration refactor).
   stacking:
     enabled: false
     dry_run: true
@@ -231,10 +235,18 @@ defaults:
       indices: [13, 20]
       metals: [8, 18]
       crypto: [0, 24]
+# ── Feature flags (governed under feature_flags.yaml in Phase 10) ────────────
+# Each subsystem carries `enabled: false, observe_only: true`. The corresponding
+# code path in paper_trading/execution/decision_pipeline.py and
+# paper_trading/services/entry_service.py reads them but skips enforcement.
+# Deletion requires removing the matching Python gating, which is deferred
+# until a successor feature promotes the gate to active governance.
   adx_entry_gate:
     enabled: false
     observe_only: true
     adx_threshold: 18
+# Read by apply_entry_optimization / entry_service. Allowed values are
+# zero-clamped by apply_bar_jump_suppression. Safe to leave in place.
   entry_optimization:
     mom_max_pressure: 0.9
     mom_min_pressure: 0.1

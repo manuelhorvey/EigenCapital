@@ -1,0 +1,18 @@
+enabled: true
+min_observe_cycles: 720
+tiers:
+  fx_major:
+  - 7
+  - 17
+  fx_cross:
+  - 7
+  - 17
+  indices:
+  - 13
+  - 20
+  metals:
+  - 8
+  - 18
+  crypto:
+  - 0
+  - 24

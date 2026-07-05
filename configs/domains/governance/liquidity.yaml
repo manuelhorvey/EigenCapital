@@ -1,0 +1,12 @@
+enabled: true
+regime_window: 21
+refresh_on_open: true
+volume_z_thin_threshold: -1.5
+volume_z_stressed_threshold: -3.0
+amihud_high_threshold: 1.5
+amihud_stressed_threshold: 4.0
+thin_sl_widen_pct: 15
+thin_size_reduce_pct: 15
+stressed_sl_widen_pct: 30
+stressed_size_reduce_pct: 30
+stressed_halt: true

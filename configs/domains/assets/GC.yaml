@@ -1,0 +1,17 @@
+ticker: GC=F
+allocation: 0.07
+sl_mult: 1.0
+tp_mult: 4.0
+spread_tier: metals
+max_entry_slippage_pct: 5.0
+max_positions_per_asset: 1
+regime_geometry:
+  GREEN:
+    sl_mult: 1.0
+    tp_mult: 1.0
+  YELLOW:
+    sl_mult: 0.9
+    tp_mult: 0.9
+  RED:
+    sl_mult: 0.8
+    tp_mult: 0.8

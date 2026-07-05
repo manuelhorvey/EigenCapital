@@ -1,0 +1,20 @@
+description: "FTMO 10K challenge \u2014 tighter risk, 5% DD max, 5 concurrent"
+capital: 10000
+defaults:
+  max_risk_per_trade_pct: 0.03
+  min_risk_per_trade_pct: 0.001
+  risk_per_trade_pct: 0.01
+  max_daily_loss_pct: 0.04
+  max_concurrent_positions: 5
+  factor_exposure_limits:
+    CHF: 0.15
+    US_EQUITY: 0.15
+    OIL: 0.1
+    GOLD: 0.1
+    AUD: 0.2
+    NZD: 0.2
+    JPY: 0.2
+    FX_MAJOR: 0.3
+    FX_CROSS: 0.3
+    FX_COMMODITY: 0.15
+portfolio_drawdown_limit: -0.08

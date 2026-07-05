@@ -1,0 +1,16 @@
+# Environment: test
+# Used by pytest invocations of paper_trading live code paths.
+# Short-circuit broker / MT5 / alerting so tests don't pollute live state.
+data_source: yfinance
+research_mode: true
+rebalance: none
+
+alerting:
+  channels:
+    pagerduty:
+      enabled: false
+    webhook:
+      enabled: false
+
+mt5:
+  enabled: false

@@ -1,0 +1,6 @@
+{
+  "version": "2.0.0",
+  "compat_max": "<3",
+  "previous_version": "1.0.0",
+  "note": "Configuration architecture refactor complete. Legacy paper_trading.yaml remains operator-mirrorable; domain tree at configs/domains/ is the new write surface. AGENTS.md config audit phases 0-10 closed."
+}

@@ -1,0 +1,6 @@
+enabled: true
+fxstreet_url: https://www.fxstreet.com/analysis
+geopol_sl_widen_pct: 10
+risk_off_size_reduce_pct: 20
+min_confidence: 0.6
+auto_confirm_deadline_hour: 12

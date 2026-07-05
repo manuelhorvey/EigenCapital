@@ -9,42 +9,24 @@ logger = logging.getLogger("eigencapital.gate_constants")
 
 
 def get_sell_only_assets() -> frozenset[str]:
-    """Return SELL_ONLY_ASSETS from config, falling back to hardcoded set.
+    """Return SELL_ONLY_ASSETS from config.
 
     The config source of truth lives in paper_trading.yaml under
-    ``defaults.sell_only_assets``.  If config is not yet loaded (e.g. during
-    import time), falls back to the known hardcoded 3-asset set derived from
-    the 2026-06-26 walk-forward analysis.  Once config is loaded, the config
-    value takes precedence.
+    ``defaults.sell_only_assets``. Config must be loaded before this
+    function is called; if it is not, an error is raised because silently
+    falling back would disable the BUY inversion safety filter.
 
     Raises
     ------
-    Exception
-        Any exception from get_config() OTHER than AttributeError (config not
-        yet loaded) is re-raised — a corrupt or missing config file must never
-        silently disable the SELL_ONLY safety gate.
+    RuntimeError
+        If config is not yet loaded or is missing the sell_only_assets field.
     """
-    try:
-        cfg = get_config()
-        if cfg.sell_only_assets:
-            return cfg.sell_only_assets
-    except AttributeError:
-        logger.debug("Config not yet available — using hardcoded SELL_ONLY_ASSETS", exc_info=True)
-    except Exception:
-        logger.critical(
-            "SELL_ONLY gate config failure — re-raising. "
-            "Silently falling back would disable the BUY inversion safety filter.",
-            exc_info=True,
+    cfg = get_config()
+    if not cfg.sell_only_assets:
+        raise RuntimeError(
+            "SELL_ONLY_ASSETS not configured. Ensure paper_trading.yaml has defaults.sell_only_assets defined."
         )
-        raise
-    # Hardcoded fallback: 3 assets with confirmed inverted BUY signal
-    return frozenset(
-        {
-            "CADCHF",
-            "NZDCHF",
-            "EURAUD",
-        }
-    )
+    return cfg.sell_only_assets
 
 
 # Legacy compatibility alias — prefer get_sell_only_assets() in new code.

@@ -21,18 +21,22 @@ EXEMPT_DIRS = frozenset({"__tests__"})
 
 # Hooks and internal modules that consume the full bundle to feed
 # slice selectors to components — these are exempt from the discipline.
-EXEMPT_FILES = frozenset({
-    "useGovernanceRadar.ts",
-    "useMonitorAlerts.ts",
-    "useSystemSnapshot.ts",
-    "hook.ts",           # trading-state/hook.ts
-})
+EXEMPT_FILES = frozenset(
+    {
+        "useGovernanceRadar.ts",
+        "useMonitorAlerts.ts",
+        "useSystemSnapshot.ts",
+        "hook.ts",  # trading-state/hook.ts
+    }
+)
 
 # Component files that are documented as exceptions.
-EXEMPT_COMPONENTS = frozenset({
-    "AppShell.tsx",
-    "TradingWorkspace.tsx",
-})
+EXEMPT_COMPONENTS = frozenset(
+    {
+        "AppShell.tsx",
+        "TradingWorkspace.tsx",
+    }
+)
 
 CALL_PATTERN = re.compile(r"useSystemSnapshot\s*\(")
 
@@ -42,9 +46,7 @@ def is_exempt(path: Path) -> bool:
         return True
     if path.name in EXEMPT_FILES:
         return True
-    if path.name in EXEMPT_COMPONENTS:
-        return True
-    return False
+    return path.name in EXEMPT_COMPONENTS
 
 
 def main() -> int:
@@ -70,13 +72,16 @@ def main() -> int:
             total_calls += 1
             if "useSystemSnapshot(" in stripped:
                 idx = stripped.index("useSystemSnapshot(")
-                rest = stripped[idx + len("useSystemSnapshot("):]
+                rest = stripped[idx + len("useSystemSnapshot(") :]
                 if rest.startswith(")"):
                     violations.append((path, i, stripped[:80]))
 
     total = total_calls + exempt_calls
     if not violations:
-        print(f"PASSED: scanned {len(ts_files)} files, {total} useSystemSnapshot calls ({exempt_calls} exempt, {total_calls} with select).")
+        print(
+            f"PASSED: scanned {len(ts_files)} files, {total} useSystemSnapshot calls"
+            f" ({exempt_calls} exempt, {total_calls} with select)."
+        )
         return 0
 
     print(f"FAILED: {len(violations)} useSystemSnapshot call(s) without select parameter:")

@@ -1,6 +1,13 @@
 capital: 100000.0
 position_size: 0.95
 portfolio_drawdown_limit: -0.15
+halt:
+  drawdown: -0.08
+  monthly_pf: 0.7
+  signal_drought: 30
+  prob_drift: 0.25
+  expected_prob_conf: 0.65
+  prob_drift_min_samples: 10
 defaults:
   rolling_window_bars: 756
   churn_ratio_threshold: 0.35
@@ -42,11 +49,6 @@ defaults:
   - CADCHF
   - EURAUD
   - NZDCHF
-  rebalance: daily
-  retrain_freq: annual
-  retrain_window: 5
-  research_mode: false
-  data_source: mt5
   stacking:
     enabled: false
     dry_run: true
@@ -73,6 +75,29 @@ defaults:
     adx_threshold: 25
     size_cap: 1.0
     stack_max_risk_growth: 1.0
+  adx_entry_gate:
+    enabled: false
+    observe_only: true
+    adx_threshold: 18
+  entry_optimization:
+    mom_max_pressure: 0.9
+    mom_min_pressure: 0.1
+    mr_extreme_high: 0.85
+    mr_extreme_low: 0.15
+    breakout_max_compression: 0.05
+  calibration:
+    enabled: true
+    method: binned
+    n_bins: 10
+    min_samples_per_bin: 5
+    model_dir: paper_trading/models/calibration
+  ensemble:
+    base_weight: 1.0
+    threshold: 0.15
+    regime_feature_window: 63
+  meta_labeling:
+    confidence_threshold: 0.4
+    threshold_reduced: 0.4
   spread_gate:
     enabled: true
     staleness_secs: 300
@@ -101,16 +126,6 @@ defaults:
       crypto:
       - 0
       - 24
-  adx_entry_gate:
-    enabled: false
-    observe_only: true
-    adx_threshold: 18
-  entry_optimization:
-    mom_max_pressure: 0.9
-    mom_min_pressure: 0.1
-    mr_extreme_high: 0.85
-    mr_extreme_low: 0.15
-    breakout_max_compression: 0.05
 assets:
   AUDJPY:
     ticker: AUDJPY=X
@@ -900,29 +915,74 @@ assets:
         max_hold_candles: 40
         time_decay_start: 20
 mode: production
+data_source: mt5
+rebalance: daily
+research_mode: false
+retrain_freq: annual
+retrain_window: 5
+api_token: ''
+mt5:
+  enabled: true
+  bridge_host: 127.0.0.1
+  bridge_port: 9879
+  symbol_map_path: configs/mt5_symbol_map.yaml
+execution:
+  governance:
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      RED:
+        sl_mult: 1.0
+        tp_mult: 1.0
+    liquidity_config:
+      enabled: true
+      regime_window: 21
+      refresh_on_open: true
+      volume_z_thin_threshold: -1.5
+      volume_z_stressed_threshold: -3.0
+      amihud_high_threshold: 1.5
+      amihud_stressed_threshold: 4.0
+      thin_sl_widen_pct: 15
+      thin_size_reduce_pct: 15
+      stressed_sl_widen_pct: 30
+      stressed_size_reduce_pct: 30
+      stressed_halt: true
+    narrative_config:
+      enabled: true
+      fxstreet_url: https://www.fxstreet.com/analysis
+      geopol_sl_widen_pct: 10
+      risk_off_size_reduce_pct: 20
+      min_confidence: 0.6
+      auto_confirm_deadline_hour: 12
+optimizations:
+  truncate_inference: auto
+  batch_http: true
+  sqlite_state: true
+  vectorized_labels: true
+  async_diagnostics: true
+  regime_conviction_flip_gate:
+    enabled: false
+    regime_margin_threshold: 0.35
+    confidence_threshold: 0.5
+    min_bars_in_regime: 3
+portfolio:
+  weight_method: factor_constrained_v2
+alerting:
+  channels:
+    pagerduty:
+      enabled: false
+      routing_key: ''
+      min_interval: 30.0
+    webhook:
+      enabled: false
+      url: ''
+      format: slack
+      min_interval: 10.0
 modes:
-  production:
-    description: Standard paper trading — 16-asset, 0.95 base size, factor-constrained
-      RP
-    capital: 100000
-    defaults:
-      max_risk_per_trade_pct: 2.0
-      min_risk_per_trade_pct: 0.001
-      risk_per_trade_pct: 0.02
-      max_daily_loss_pct: 0.08
-      max_concurrent_positions: 8
-      factor_exposure_limits:
-        CHF: 0.2
-        US_EQUITY: 0.25
-        OIL: 0.15
-        GOLD: 0.15
-        AUD: 0.25
-        NZD: 0.25
-        JPY: 0.25
-        FX_MAJOR: 0.4
-        FX_CROSS: 0.4
-        FX_COMMODITY: 0.25
-    portfolio_drawdown_limit: -0.15
   challenge_ftmo_10k:
     description: FTMO 10K challenge — tighter risk, 5% DD max, 5 concurrent
     capital: 10000
@@ -965,87 +1025,25 @@ modes:
         FX_CROSS: 0.3
         FX_COMMODITY: 0.15
     portfolio_drawdown_limit: -0.1
-rebalance: daily
-retrain_freq: annual
-retrain_window: 5
-research_mode: false
-data_source: mt5
-mt5:
-  enabled: true
-  bridge_host: 127.0.0.1
-  bridge_port: 9879
-  symbol_map_path: configs/mt5_symbol_map.yaml
-alerting:
-  channels:
-    pagerduty:
-      enabled: false
-      routing_key: ''
-      min_interval: 30.0
-    webhook:
-      enabled: false
-      url: ''
-      format: slack
-      min_interval: 10.0
-ensemble:
-  base_weight: 1.0
-  threshold: 0.15
-  regime_feature_window: 63
-meta_labeling:
-  confidence_threshold: 0.4
-  threshold_reduced: 0.4
-calibration:
-  enabled: true
-  method: binned
-  n_bins: 10
-  min_samples_per_bin: 5
-  model_dir: paper_trading/models/calibration
-kelly:
-  enabled: false
-  fraction: 0.25
-  max_cap: 1.0
-  min_edge: 0.0
-portfolio:
-  weight_method: factor_constrained_v2
-optimizations:
-  truncate_inference: auto
-  batch_http: true
-  sqlite_state: true
-  vectorized_labels: true
-  async_diagnostics: true
-  regime_conviction_flip_gate:
-    enabled: true
-    regime_margin_threshold: 0.35
-    confidence_threshold: 0.5
-    min_bars_in_regime: 3
-execution:
-  governance:
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      RED:
-        sl_mult: 1.0
-        tp_mult: 1.0
-    liquidity_config:
-      enabled: true
-      regime_window: 21
-      refresh_on_open: true
-      volume_z_thin_threshold: -1.5
-      volume_z_stressed_threshold: -3.0
-      amihud_high_threshold: 1.5
-      amihud_stressed_threshold: 4.0
-      thin_sl_widen_pct: 15
-      thin_size_reduce_pct: 15
-      stressed_sl_widen_pct: 30
-      stressed_size_reduce_pct: 30
-      stressed_halt: true
-    narrative_config:
-      enabled: true
-      fxstreet_url: https://www.fxstreet.com/analysis
-      geopol_sl_widen_pct: 10
-      risk_off_size_reduce_pct: 20
-      min_confidence: 0.6
-      auto_confirm_deadline_hour: 12
+  production:
+    description: Standard paper trading — 16-asset, 0.95 base size, factor-constrained
+      RP
+    capital: 100000
+    defaults:
+      max_risk_per_trade_pct: 2.0
+      min_risk_per_trade_pct: 0.001
+      risk_per_trade_pct: 0.02
+      max_daily_loss_pct: 0.08
+      max_concurrent_positions: 8
+      factor_exposure_limits:
+        CHF: 0.2
+        US_EQUITY: 0.25
+        OIL: 0.15
+        GOLD: 0.15
+        AUD: 0.25
+        NZD: 0.25
+        JPY: 0.25
+        FX_MAJOR: 0.4
+        FX_CROSS: 0.4
+        FX_COMMODITY: 0.25
+    portfolio_drawdown_limit: -0.15

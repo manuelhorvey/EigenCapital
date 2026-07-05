@@ -1,0 +1,15 @@
+# Engine optimizations — tuning params consumed by EngineConfig
+#
+# Phase 12.6: promoted from legacy_extras to domain file.
+# These are flat tuning flags consumed by the engine at startup.
+
+truncate_inference: auto
+batch_http: true
+sqlite_state: true
+vectorized_labels: true
+async_diagnostics: true
+regime_conviction_flip_gate:
+  enabled: false
+  regime_margin_threshold: 0.35
+  confidence_threshold: 0.5
+  min_bars_in_regime: 3

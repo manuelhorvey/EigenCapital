@@ -3,7 +3,7 @@
 ## Quick Start
 
 ```bash
-git clone <repo>
+git clone git@github.com:manuelhorvey/EigenCapital.git
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"

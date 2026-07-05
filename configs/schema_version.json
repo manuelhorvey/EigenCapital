@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "compat_max": "<2",
+  "previous_version": null,
+  "note": "Initial schema marker, captured at the start of the configuration architecture refactor."
+}

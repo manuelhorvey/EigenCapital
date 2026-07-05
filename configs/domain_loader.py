@@ -105,6 +105,7 @@ class ConfigRegistry:
                 "capital",
                 "position_size",
                 "portfolio_drawdown_limit",
+                "halt",
                 "defaults",
                 "assets",
             )

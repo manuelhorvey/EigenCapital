@@ -26,7 +26,6 @@ logger = logging.getLogger("replay_rebalance")
 
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 DATADIR = Path(__file__).resolve().parent.parent / "data"
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "paper_trading.yaml"
 
 
 def load_price_data(
@@ -64,14 +63,16 @@ def load_price_data(
 
 def _asset_ticker(asset: str) -> str:
     """Map asset name to yfinance ticker."""
-    import yaml
+    from configs.paper_config_registry import PaperConfigRegistry
 
-    if not CONFIG_PATH.exists():
-        return asset
-    with open(CONFIG_PATH) as f:
-        cfg = yaml.safe_load(f)
-    acfg = (cfg.get("assets") or {}).get(asset, {})
-    return acfg.get("ticker", asset)
+    try:
+        reg = PaperConfigRegistry.load()
+        acfg = reg.assets.get(asset)
+        if acfg and acfg.ticker:
+            return acfg.ticker
+    except Exception:  # noqa: BLE001
+        pass
+    return asset
 
 
 def load_signal_parquets(walk_dir: str | Path = WALKDIR, tag: str = "base") -> dict[str, pd.DataFrame]:
@@ -180,19 +181,19 @@ def compute_asset_daily_r_from_parquet(
 
 
 def load_pt_sl_from_config() -> dict[str, tuple[float, float]]:
-    """Load per-asset pt_sl from the production config."""
-    import yaml
+    """Load per-asset pt_sl from PaperConfigRegistry."""
+    from configs.paper_config_registry import PaperConfigRegistry
 
-    if not CONFIG_PATH.exists():
+    try:
+        reg = PaperConfigRegistry.load()
+        result: dict[str, tuple[float, float]] = {}
+        for name, acfg in reg.assets.items():
+            tp = float(acfg.tp_mult or 2.0)
+            sl = float(acfg.sl_mult or 2.0)
+            result[name] = (tp, sl)
+        return result
+    except Exception:  # noqa: BLE001
         return {}
-    with open(CONFIG_PATH) as f:
-        cfg = yaml.safe_load(f)
-    result: dict[str, tuple[float, float]] = {}
-    for name, acfg in (cfg.get("assets") or {}).items():
-        tp = float(acfg.get("tp_mult", 2.0))
-        sl = float(acfg.get("sl_mult", 2.0))
-        result[name] = (tp, sl)
-    return result
 
 
 def print_comparison(

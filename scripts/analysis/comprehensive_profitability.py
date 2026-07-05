@@ -863,7 +863,7 @@ def main():
             "n_sell_only": n_sell_only,
             "n_aggressive_trail": n_aggressive,
             "analysis_date": "2026-07-02",
-            "config_ref": "paper_trading.yaml (mode: production)",
+            "config_ref": "PaperConfigRegistry (mode: production)",
         },
         "phases": phases,
     }

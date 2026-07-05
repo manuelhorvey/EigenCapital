@@ -18,13 +18,8 @@ DEFAULT_DB_PATH = os.path.join(LIVE_DIR, "state.db")
 class TradeOutcomeRepository:
     """Reads trades + attribution from SQLite, enriches with config tp/sl, returns flat DataFrames."""
 
-    def __init__(self, db_path: str | None = None, config_path: str | None = None):
+    def __init__(self, db_path: str | None = None):
         self._db_path = db_path or DEFAULT_DB_PATH
-        self._config_path = config_path or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "configs",
-            "paper_trading.yaml",
-        )
         self._asset_config: dict[str, dict[str, float]] = {}
         self._load_config()
 

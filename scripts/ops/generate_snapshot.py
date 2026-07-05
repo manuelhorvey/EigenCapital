@@ -5,7 +5,7 @@ import os
 import subprocess
 from datetime import datetime
 
-import yaml
+from configs.paper_config_registry import PaperConfigRegistry
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -31,11 +31,9 @@ def _fmt_asset_table(assets: dict) -> str:
 
 
 def main():
-    config_path = os.path.join(BASE, "configs", "paper_trading.yaml")
+    reg = PaperConfigRegistry.load()
+    cfg = reg.as_legacy_dict()
     models_dir = os.path.join(BASE, "paper_trading", "models")
-
-    with open(config_path) as f:
-        cfg = yaml.safe_load(f)
 
     commit_hash = _git(["rev-parse", "--short", "HEAD"])
     commit_date = _git(["log", "-1", "--format=%cd", "--date=short"])
@@ -47,7 +45,7 @@ def main():
         "",
         f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"Commit: {commit_hash} ({commit_date})",
-        "Source: `configs/paper_trading.yaml`, `LIVE_CONTRACT.md`",
+        "Source: `PaperConfigRegistry`, `LIVE_CONTRACT.md`",
         "",
         "---",
         "",

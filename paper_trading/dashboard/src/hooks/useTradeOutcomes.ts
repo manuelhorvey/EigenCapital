@@ -26,9 +26,9 @@ export interface TradeOutcomesData {
 const useTradeOutcomesQuery = createApiQuery<TradeOutcomesData>('/trade-outcomes.json')
 
 export function useTradeOutcomes() {
-  const { data, isPending, isError } = useTradeOutcomesQuery({
+  const { data, isPending, isError, refetch } = useTradeOutcomesQuery({
     refetchInterval: 30_000,
     staleTime: 25_000,
   })
-  return { outcomes: data ?? null, isPending, isError }
+  return { outcomes: data ?? null, isPending, isError, refetch }
 }

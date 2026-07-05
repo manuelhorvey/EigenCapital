@@ -2,6 +2,7 @@ import { useTradeOutcomes } from '../hooks/useTradeOutcomes'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import StatCard from './ui/StatCard'
+import Button from './ui/Button'
 import { Skeleton } from './ui/Skeleton'
 import SltpGauge from './ui/SltpGauge'
 
@@ -14,7 +15,7 @@ function r2(v: number): string {
 }
 
 export default function TradeOutcomes() {
-  const { outcomes, isPending, isError } = useTradeOutcomes()
+  const { outcomes, isPending, isError, refetch } = useTradeOutcomes()
 
   if (isPending) {
     return (
@@ -37,7 +38,10 @@ export default function TradeOutcomes() {
     return (
       <Panel>
         <SectionHeader title="Trade Outcomes" accent="emerald" />
-        <div className="text-xs text-tertiary text-center py-8">Failed to load outcome data</div>
+        <div className="flex flex-col items-center py-8 gap-3">
+          <div className="text-xs text-tertiary">Failed to load outcome data</div>
+          <Button variant="secondary" size="sm" onClick={() => refetch()}>Retry</Button>
+        </div>
       </Panel>
     )
   }

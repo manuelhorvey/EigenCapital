@@ -198,6 +198,8 @@ export default function WeeklyReviewModal() {
     if (show && data) setOpen(true)
   }, [show, data])
 
+  if (isError) return null
+
   const handleClose = () => setOpen(false)
 
   if (!open || !data) return null

@@ -159,8 +159,8 @@ def test_all_phase0_through_phase9_artifacts_present():
         # Phase 3
         "configs/domain_models/risk.py",
         "configs/domain_models/assets.py",
-        # Phase 4
-        "configs/domain_loader.py",
+        # Phase 4 (superseded — domain_loader.py deleted Phase 12.7,
+        # PaperConfigRegistry is the sole config loader)
         # Phase 6
         "configs/domain_models/triple_barrier.py",
         "configs/domains/ml/triple_barrier.yaml",

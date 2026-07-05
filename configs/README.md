@@ -190,7 +190,7 @@ removing a promoted key). Bump the minor version for additive changes.
 | 1 | ✅ | check_config_schema.py hardening | `bb1dbbf` |
 | 2 | ✅ | flagged-dead block annotation | `016bd28` |
 | 3 | ✅ | typed domain models | `2a5e831` |
-| 4 | ✅ | domain tree + ConfigRegistry | `8517143` |
+| 4 | ✅ (superseded) | domain tree + ConfigRegistry (`domain_loader.py` deleted Phase 12.7) | `8517143` |
 | 5 | ✅ | SELL_ONLY truth flip | `ae0b8e2` |
 | 6 | ✅ | triple-barrier YAML unification | `409e1bc` |
 | 7 | ✅ | per-asset file split | `57386de` |

@@ -1,14 +1,13 @@
 """
-config_diff.py — compare two configuration snapshots.
+config_diff.py — compare two configuration YAML files.
 
 Phase 10 helper for safe review of configuration changes. Given two
-configuration sources (legacy YAMLs or ConfigRegistry snapshots), this
-tool emits a side-by-side diff showing every key where the values
-diverge.
+YAML files, this tool emits a side-by-side diff showing every key
+where the values diverge.
 
 Usage:
-    # Compare live vs production-mode legacy YAML
-    python tools/config_diff.py configs/paper_trading.yaml configs/domains/modes/live.yaml
+    # Compare two domain files
+    python tools/config_diff.py configs/environments/paper.yaml configs/environments/research.yaml
 
     # Compare two environment overlay files
     python tools/config_diff.py configs/environments/paper.yaml configs/environments/research.yaml

@@ -1,8 +1,8 @@
 """Per-asset typed configuration model.
 
 Phase 3: reads from configs/domains/assets/<NAME>.yaml + shared bundle.
-The provider lives in :mod:`configs.domain_loader` (Phase 4); here we
-only declare the typed contract.
+The loading provider lives in :mod:`configs.paper_config_registry`
+(Phase 11); here we only declare the typed contract.
 
 The model intentionally defines **only** the per-asset unique surface
 plus composed sub-structures (``regime_geometry`` / ``adaptive_exit`` /

@@ -1,12 +1,909 @@
-# ── Mode selector ───────────────────────────────────────────────────────────
-# Active mode name; resolves overrides from the `modes:` section below.
-# Values set at the top level (capital, portfolio_drawdown_limit, defaults.*)
-# serve as the base config, then mode-specific overrides are merged on top.
+capital: 100000.0
+position_size: 0.95
+portfolio_drawdown_limit: -0.15
+defaults:
+  rolling_window_bars: 756
+  churn_ratio_threshold: 0.35
+  cooldown_half_life_hours: 4.0
+  cooldown_max_penalty_pct: 20.0
+  entry_defer_max_bars: 5
+  min_flip_interval_bars: 3
+  min_confidence: 55.0
+  max_entry_slippage_pct: 2.0
+  profit_lock_threshold_pct: 15.0
+  max_position_pct_of_equity: 0.15
+  max_risk_per_trade_pct: 2.0
+  min_risk_per_trade_pct: 0.001
+  min_viable_position_pct: 0.01
+  size_taper_start_dd: -0.05
+  size_taper_end_dd: -0.15
+  size_taper_min: 0.5
+  max_positions_per_asset: 2
+  max_concurrent_positions: 8
+  max_daily_loss_pct: 0.08
+  portfolio_max_leverage: 2.0
+  portfolio_leverage_tolerance: 0.001
+  mt5_leverage_budget_enabled: false
+  mt5_leverage_budget_soft: true
+  net_short_concentration_threshold: 0.75
+  mt5_enable_max_risk_per_trade_pct: false
+  mt5_max_risk_per_trade_pct: 10.0
+  mt5_bypass_risk_cap_at_min_lot: true
+  adaptive_exit:
+    enabled: true
+    be_lock_r: 0.5
+    trail_activation_r: 0.5
+    trail_retrace_pct: 0.33
+    max_hold_candles: 40
+    time_decay_start: 20
+    scale_out_fraction: 0.7
+    scale_out_r: 2.5
+  sell_only_assets:
+  - CADCHF
+  - EURAUD
+  - NZDCHF
+  rebalance: daily
+  retrain_freq: annual
+  retrain_window: 5
+  research_mode: false
+  data_source: mt5
+  stacking:
+    enabled: false
+    dry_run: true
+    max_layers: 3
+    layer_multipliers:
+    - 0.8
+    - 0.5
+    - 0.3
+    min_confidence: 60.0
+    stack_target_vol: 0.15
+    stack_vol_clamp:
+    - 0.3
+    - 1.2
+    min_stack_size_factor: 0.5
+    stack_micro_threshold: 0.0
+    cooldown_minutes: 0
+    min_stack_r: 0.5
+    stack_spacing_r: 0.5
+    stack_sl_tighten: 0.5
+    breakeven_threshold_r: 0.4
+    trail_activate_r: 0.8
+    trail_distance_r: 0.7
+    trail_step_r: 0.25
+    adx_threshold: 25
+    size_cap: 1.0
+    stack_max_risk_growth: 1.0
+  spread_gate:
+    enabled: true
+    staleness_secs: 300
+    min_observe_cycles: 720
+    tiers:
+      fx_major: 10
+      fx_cross: 20
+      indices: 15
+      metals: 20
+  session_gate:
+    enabled: true
+    min_observe_cycles: 720
+    tiers:
+      fx_major:
+      - 7
+      - 17
+      fx_cross:
+      - 7
+      - 17
+      indices:
+      - 13
+      - 20
+      metals:
+      - 8
+      - 18
+      crypto:
+      - 0
+      - 24
+  adx_entry_gate:
+    enabled: false
+    observe_only: true
+    adx_threshold: 18
+  entry_optimization:
+    mom_max_pressure: 0.9
+    mom_min_pressure: 0.1
+    mr_extreme_high: 0.85
+    mr_extreme_low: 0.15
+    breakout_max_compression: 0.05
+assets:
+  AUDJPY:
+    ticker: AUDJPY=X
+    allocation: 0.02
+    sl_mult: 0.52
+    tp_mult: 2.01
+    spread_tier: fx_cross
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  AUDUSD:
+    ticker: AUDUSD=X
+    allocation: 0.04
+    sl_mult: 1.41
+    tp_mult: 4.24
+    spread_tier: fx_major
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.33
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.2
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.07
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.5
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  BTCUSD:
+    ticker: BTC-USD
+    allocation: 0.02
+    sl_mult: 0.58
+    tp_mult: 1.51
+    spread_tier: crypto
+    max_depth: 3
+    max_entry_slippage_pct: 5.0
+    weekend_eligible: true
+    weekend_allocation_multiplier: 0.5
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  CADCHF:
+    ticker: CADCHF=X
+    allocation: 0.05
+    sl_mult: 1.0
+    tp_mult: 4.0
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  EURAUD:
+    ticker: EURAUD=X
+    allocation: 0.01
+    sl_mult: 0.54
+    tp_mult: 1.77
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.5
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  EURCAD:
+    ticker: EURCAD=X
+    allocation: 0.02
+    sl_mult: 0.71
+    tp_mult: 2.12
+    max_depth: 3
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  EURCHF:
+    ticker: EURCHF=X
+    allocation: 0.05
+    sl_mult: 1.0
+    tp_mult: 3.0
+    max_depth: 4
+    min_confidence: 40.0
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  EURNZD:
+    ticker: EURNZD=X
+    allocation: 0.03
+    sl_mult: 1.12
+    tp_mult: 3.36
+    max_depth: 3
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.33
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.2
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.07
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.5
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  GBPAUD:
+    ticker: GBPAUD=X
+    allocation: 0.05
+    sl_mult: 1.0
+    tp_mult: 3.0
+    max_depth: 3
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.5
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  GBPCAD:
+    ticker: GBPCAD=X
+    allocation: 0.05
+    sl_mult: 1.45
+    tp_mult: 4.34
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  GBPCHF:
+    ticker: GBPCHF=X
+    allocation: 0.03
+    sl_mult: 0.82
+    tp_mult: 2.45
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.5
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  GBPJPY:
+    ticker: GBPJPY=X
+    allocation: 0.02
+    sl_mult: 0.5
+    tp_mult: 2.22
+    spread_tier: fx_cross
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  GBPUSD:
+    ticker: GBPUSD=X
+    allocation: 0.04
+    sl_mult: 0.52
+    tp_mult: 1.97
+    spread_tier: fx_major
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  GC:
+    ticker: GC=F
+    allocation: 0.07
+    sl_mult: 1.0
+    tp_mult: 4.0
+    spread_tier: metals
+    max_entry_slippage_pct: 5.0
+    max_positions_per_asset: 1
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  NZDCAD:
+    ticker: NZDCAD=X
+    allocation: 0.05
+    sl_mult: 1.83
+    tp_mult: 5.48
+    min_confidence: 40.0
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  NZDCHF:
+    ticker: NZDCHF=X
+    allocation: 0.07
+    sl_mult: 1.0
+    tp_mult: 4.0
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.5
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 1.35
+        tp_mult: 0.9
+      RED:
+        sl_mult: 1.2
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  NZDJPY:
+    ticker: NZDJPY=X
+    allocation: 0.02
+    sl_mult: 0.51
+    tp_mult: 2.02
+    spread_tier: fx_cross
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  NZDUSD:
+    ticker: NZDUSD=X
+    allocation: 0.025
+    sl_mult: 1.29
+    tp_mult: 3.87
+    spread_tier: fx_major
+    max_depth: 5
+    min_confidence: 40.0
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.5
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  USDCAD:
+    ticker: USDCAD=X
+    allocation: 0.025
+    sl_mult: 1.3
+    tp_mult: 3.9
+    spread_tier: fx_major
+    max_depth: 5
+    regime_geometry:
+      GREEN:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  USDCHF:
+    ticker: USDCHF=X
+    allocation: 0.02
+    sl_mult: 0.85
+    tp_mult: 3.0
+    spread_tier: fx_major
+    max_depth: 4
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  USDJPY:
+    ticker: USDJPY=X
+    allocation: 0.02
+    sl_mult: 0.52
+    tp_mult: 1.97
+    spread_tier: fx_major
+    max_depth: 2
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
+  ^DJI:
+    ticker: ^DJI
+    allocation: 0.02
+    sl_mult: 0.5
+    tp_mult: 4.0
+    spread_tier: indices
+    max_depth: 3
+    regime_geometry:
+      GREEN:
+        sl_mult: 1.0
+        tp_mult: 1.0
+      YELLOW:
+        sl_mult: 0.9
+        tp_mult: 0.9
+      RED:
+        sl_mult: 0.8
+        tp_mult: 0.8
+    config:
+      shadow_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+      dynamic_sltp:
+        enabled: true
+        method: trailing
+        trailing_activation_mult: 1.0
+        trailing_distance_mult: 1.0
+        min_rr_ratio: 1.5
+      adaptive_exit:
+        enabled: true
+        be_lock_r: 0.5
+        trail_activation_r: 0.8
+        trail_retrace_pct: 0.33
+        max_hold_candles: 40
+        time_decay_start: 20
 mode: production
-
 modes:
   production:
-    description: "Standard paper trading — 16-asset, 0.95 base size, factor-constrained RP"
+    description: Standard paper trading — 16-asset, 0.95 base size, factor-constrained
+      RP
     capital: 100000
     defaults:
       max_risk_per_trade_pct: 2.0
@@ -15,20 +912,19 @@ modes:
       max_daily_loss_pct: 0.08
       max_concurrent_positions: 8
       factor_exposure_limits:
-        CHF: 0.20
+        CHF: 0.2
         US_EQUITY: 0.25
         OIL: 0.15
         GOLD: 0.15
         AUD: 0.25
         NZD: 0.25
         JPY: 0.25
-        FX_MAJOR: 0.40
-        FX_CROSS: 0.40
+        FX_MAJOR: 0.4
+        FX_CROSS: 0.4
         FX_COMMODITY: 0.25
     portfolio_drawdown_limit: -0.15
-
   challenge_ftmo_10k:
-    description: "FTMO 10K challenge — tighter risk, 5% DD max, 5 concurrent"
+    description: FTMO 10K challenge — tighter risk, 5% DD max, 5 concurrent
     capital: 10000
     defaults:
       max_risk_per_trade_pct: 0.03
@@ -39,18 +935,17 @@ modes:
       factor_exposure_limits:
         CHF: 0.15
         US_EQUITY: 0.15
-        OIL: 0.10
-        GOLD: 0.10
-        AUD: 0.20
-        NZD: 0.20
-        JPY: 0.20
-        FX_MAJOR: 0.30
-        FX_CROSS: 0.30
+        OIL: 0.1
+        GOLD: 0.1
+        AUD: 0.2
+        NZD: 0.2
+        JPY: 0.2
+        FX_MAJOR: 0.3
+        FX_CROSS: 0.3
         FX_COMMODITY: 0.15
     portfolio_drawdown_limit: -0.08
-
   live:
-    description: "Live funded account — full conservatism, 10% DD max, 6 concurrent"
+    description: Live funded account — full conservatism, 10% DD max, 6 concurrent
     capital: 100000
     defaults:
       max_risk_per_trade_pct: 0.03
@@ -60,19 +955,16 @@ modes:
       max_concurrent_positions: 6
       factor_exposure_limits:
         CHF: 0.15
-        US_EQUITY: 0.20
-        OIL: 0.10
-        GOLD: 0.10
-        AUD: 0.20
-        NZD: 0.20
-        JPY: 0.20
-        FX_MAJOR: 0.30
-        FX_CROSS: 0.30
+        US_EQUITY: 0.2
+        OIL: 0.1
+        GOLD: 0.1
+        AUD: 0.2
+        NZD: 0.2
+        JPY: 0.2
+        FX_MAJOR: 0.3
+        FX_CROSS: 0.3
         FX_COMMODITY: 0.15
-    portfolio_drawdown_limit: -0.10
-
-capital: 100000
-position_size: 0.95
+    portfolio_drawdown_limit: -0.1
 rebalance: daily
 retrain_freq: annual
 retrain_window: 5
@@ -82,27 +974,18 @@ mt5:
   enabled: true
   bridge_host: 127.0.0.1
   bridge_port: 9879
-  # min_lot: REMOVED 2026-06-29 — _quantity_to_lots no longer applies a
-  # configured floor; uses the broker's actual min_volume from symbol_info.
-  # If the computed lot value is below the broker's min_volume, the position
-  # is skipped (qty=0 → "below_min_volume") instead of being upsized.
   symbol_map_path: configs/mt5_symbol_map.yaml
-# Alerting framework — multi-channel dispatch for engine events.
-# Each channel supports its own config keys; unconfigured channels are skipped.
-# Environment variable values take precedence over YAML.
 alerting:
   channels:
     pagerduty:
       enabled: false
-      routing_key: ""
+      routing_key: ''
       min_interval: 30.0
     webhook:
       enabled: false
-      url: ""
+      url: ''
       format: slack
       min_interval: 10.0
-# Ensemble is configured programmatically per-asset after regime model training.
-# Config values here serve as global defaults for all assets.
 ensemble:
   base_weight: 1.0
   threshold: 0.15
@@ -121,138 +1004,8 @@ kelly:
   fraction: 0.25
   max_cap: 1.0
   min_edge: 0.0
-portfolio_drawdown_limit: -0.15
 portfolio:
-  # factor_constrained_v2: risk parity with hard linear inequality factor constraints.
-  # total_R = 124.45, sharpe_adj = 15.40, max_dd_R = -0.62.
-  # Readopted 2026-06-25: best risk-return tradeoff across all methods; factor
-  # constraints (CHF ≤ 0.20) bind via SLSQP direct linear constraints.
   weight_method: factor_constrained_v2
-defaults:
-  rolling_window_bars: 756 # 3 years of daily bars for rolling training window; null/omitted = expanding window
-  churn_ratio_threshold: 0.35
-  cooldown_half_life_hours: 4.0
-  cooldown_max_penalty_pct: 20.0
-  entry_defer_max_bars: 5
-  min_flip_interval_bars: 3
-  min_confidence: 55.0
-  max_entry_slippage_pct: 2.0
-  profit_lock_threshold_pct: 15.0
-  max_position_pct_of_equity: 0.15
-  max_risk_per_trade_pct: 2.0
-  min_viable_position_pct: 0.01
-  size_taper_start_dd: -0.05
-  size_taper_end_dd: -0.15
-  size_taper_min: 0.50
-  max_positions_per_asset: 2
-# Live in stacking.py / entry_service.py. dry_run reflects that paper positions
-# are not scaled-up per layer; the read path is kept intact for research callers.
-# REMOVED IF enabled flips to true AND a subsequent retract-or-reactivate pass
-# lands (Phase 10 of the configuration refactor).
-  stacking:
-    enabled: false
-    dry_run: true
-    max_layers: 3
-    layer_multipliers: [0.8, 0.5, 0.3]
-    min_confidence: 60.0
-    stack_target_vol: 0.15
-    stack_vol_clamp: [0.3, 1.2]
-    min_stack_size_factor: 0.5
-    stack_micro_threshold: 0.0
-    cooldown_minutes: 0
-    min_stack_r: 0.5
-    stack_spacing_r: 0.5
-    stack_sl_tighten: 0.5
-    breakeven_threshold_r: 0.4
-    trail_activate_r: 0.8
-    trail_distance_r: 0.7
-    trail_step_r: 0.25
-    adx_threshold: 25
-    size_cap: 1.0
-    stack_max_risk_growth: 1.0
-  adaptive_exit:
-    enabled: true
-    be_lock_r: 0.5
-    trail_activation_r: 0.5
-    trail_retrace_pct: 0.33
-    max_hold_candles: 40
-    time_decay_start: 20
-    scale_out_fraction: 0.7
-    scale_out_r: 2.5
-  portfolio_max_leverage: 2.0
-  portfolio_leverage_tolerance: 0.001
-  mt5_leverage_budget_enabled: false
-  mt5_leverage_budget_soft: true
-  net_short_concentration_threshold: 0.75
-  # ── MT5 Risk Control Flags ──────────────────────────────────────────
-  # Three flags with a clean separation of concerns:
-  #
-  #   mt5_enable_max_risk_per_trade_pct  master switch for the MT5 risk cap
-  #   mt5_max_risk_per_trade_pct         the percentage value (ignored when above is false)
-  #   mt5_bypass_risk_cap_at_min_lot     when risk cap IS enabled, allows min lot bump
-  #
-  # Truth table:
-  #   enable=false, bypass=X -> risk cap disabled entirely, bump handles min lots
-  #   enable=true,  bypass=true -> risk cap enforced, min lots bumped anyway
-  #   enable=true,  bypass=false -> risk cap fully enforced, no bump
-  #
-  # ── Master switch for MT5 risk-per-trade cap ───────────────────────
-  # When false (default), no percentage-based risk limit is applied to MT5
-  # positions. The broker's margin controls are the real gate — if buying
-  # power is exceeded, MT5 rejects the order. The min-viable lot bump in
-  # _compute_mt5_qty handles sub-minimum positions regardless.
-  mt5_enable_max_risk_per_trade_pct: false
-  # MT5-specific percentage (% of equity). Only inspected when the master
-  # switch above is true. Paper uses its own max_risk_per_trade_pct (2.0).
-  mt5_max_risk_per_trade_pct: 10.0
-  # When true AND mt5_enable_max_risk_per_trade_pct is true, MT5 positions
-  # below the broker's minimum lot get bumped up to the minimum viable
-  # volume even if the bump would exceed the configured risk percentage.
-  mt5_bypass_risk_cap_at_min_lot: true
-  # SELL_ONLY_ASSETS: assets where BUY signal is inverted (p_long > 0.5 → ~17% WR).
-  # These assets trade SELL only; BUY signals are overridden to FLAT.
-  # Derived from walk-forward BUY inversion discovery (2026-06-20).
-  # Removed from SELL_ONLY 2026-06-26: GBPJPY, USDCHF, EURCHF, USDJPY, ^DJI
-  sell_only_assets:
-    - CADCHF
-    - NZDCHF
-    - EURAUD
-  spread_gate:
-    enabled: true
-    staleness_secs: 300
-    min_observe_cycles: 720
-    tiers:
-      fx_major: 10
-      fx_cross: 20
-      indices: 15
-      metals: 20
-  session_gate:
-    enabled: true
-    min_observe_cycles: 720
-    tiers:
-      fx_major: [7, 17]
-      fx_cross: [7, 17]
-      indices: [13, 20]
-      metals: [8, 18]
-      crypto: [0, 24]
-# ── Feature flags (governed under feature_flags.yaml in Phase 10) ────────────
-# Each subsystem carries `enabled: false, observe_only: true`. The corresponding
-# code path in paper_trading/execution/decision_pipeline.py and
-# paper_trading/services/entry_service.py reads them but skips enforcement.
-# Deletion requires removing the matching Python gating, which is deferred
-# until a successor feature promotes the gate to active governance.
-  adx_entry_gate:
-    enabled: false
-    observe_only: true
-    adx_threshold: 18
-# Read by apply_entry_optimization / entry_service. Allowed values are
-# zero-clamped by apply_bar_jump_suppression. Safe to leave in place.
-  entry_optimization:
-    mom_max_pressure: 0.9
-    mom_min_pressure: 0.1
-    mr_extreme_high: 0.85
-    mr_extreme_low: 0.15
-    breakout_max_compression: 0.05
 optimizations:
   truncate_inference: auto
   batch_http: true
@@ -296,799 +1049,3 @@ execution:
       risk_off_size_reduce_pct: 20
       min_confidence: 0.6
       auto_confirm_deadline_hour: 12
-assets:
-  GC:
-    ticker: GC=F
-    allocation: 0.07
-    max_entry_slippage_pct: 5.0
-    max_positions_per_asset: 1
-    sl_mult: 1.0
-    tp_mult: 4.0
-    spread_tier: metals
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 2.0
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  USDCHF:
-    ticker: USDCHF=X
-    allocation: 0.02
-    sl_mult: 0.85
-    tp_mult: 3.0
-    spread_tier: fx_major
-    max_depth: 4
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  USDCAD:
-    ticker: USDCAD=X
-    allocation: 0.025
-    sl_mult: 1.30
-    tp_mult: 3.90 # ratio 2.01→3.0 2026-06-30: BUY WR=67.4%, SELL WR=49.2%. Conservative cap at 3.0. GM=2.25 preserved.
-    spread_tier: fx_major
-    max_depth: 5
-    regime_geometry:
-      GREEN:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  GBPCAD:
-    ticker: GBPCAD=X
-    allocation: 0.05
-    sl_mult: 1.45
-    tp_mult: 4.34 # ratio 2.0→3.0 2026-06-30: BUY WR=60.1%, SELL WR=80.4%. Conservative cap at 3.0. GM=2.5 preserved.
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.5
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.5
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  # GBPNZD removed 2026-06-20 — tp/sl ratio 0.33 required 75% breakeven WR,
-  # model achieved 72.3% — lost -37R total with -71R max drawdown
-  NZDCAD:
-    ticker: NZDCAD=X
-    allocation: 0.05
-    min_confidence: 40.0
-    sl_mult: 1.83
-    tp_mult: 5.48 # ratio 2.0→3.0 2026-06-30: BUY WR=48.1%, SELL WR=77.1%. Conservative cap at 3.0. GM=3.16 preserved.
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 0.8
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 0.8
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  NZDUSD:
-    ticker: NZDUSD=X
-    allocation: 0.025
-    min_confidence: 40.0
-    sl_mult: 1.29
-    tp_mult: 3.87 # ratio 1.25→3.0 2026-06-30: BUY WR=58.3%, SELL WR=54.8%. Conservative cap at 3.0. GM=2.24 preserved.
-    spread_tier: fx_major
-    max_depth: 5
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 0.8
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 0.8
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.5
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  GBPAUD:
-    ticker: GBPAUD=X
-    allocation: 0.05
-    sl_mult: 1.0
-    tp_mult: 3.0 # ratio 1.33→3.0 2026-06-30: BUY WR=53.6%, SELL WR=53.6%. Conservative cap at 3.0. GM=1.73 preserved.
-    max_depth: 3
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.5
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.5
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  NZDCHF:
-    ticker: NZDCHF=X
-    allocation: 0.07
-    sl_mult: 1.0
-    tp_mult: 4.0
-    max_depth: 2
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 0.8
-        trailing_distance_mult: 0.8
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 0.8
-        trailing_distance_mult: 0.8
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  CADCHF:
-    ticker: CADCHF=X
-    allocation: 0.05
-    sl_mult: 1.0
-    tp_mult: 4.0
-    max_depth: 2
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 0.8
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 0.8
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  AUDUSD:
-    ticker: AUDUSD=X
-    allocation: 0.04
-    sl_mult: 1.41
-    tp_mult: 4.24 # ratio 2.67→3.0 2026-06-30: BUY WR=65.1%, SELL WR=65.1%. Walk-forward opt ratio=20.0. Conservative cap at 3.0.
-    max_depth: 2
-    spread_tier: fx_major
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.33
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.2
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.07
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 0.8
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 0.8
-        min_rr_ratio: 1.5
-
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.5
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  EURCHF:
-    ticker: EURCHF=X
-    allocation: 0.05
-    min_confidence: 40.0
-    sl_mult: 1.0
-    tp_mult: 3.0
-    max_depth: 4
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 0.8
-        trailing_distance_mult: 0.8
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 0.8
-        trailing_distance_mult: 0.8
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  EURCAD:
-    ticker: EURCAD=X
-    allocation: 0.02
-    sl_mult: 0.71
-    tp_mult: 2.12 # ratio 1.99→3.0 2026-06-30: BUY WR=61.7%, SELL WR=52.5%. Conservative cap at 3.0. GM=1.23 preserved.
-    max_depth: 3
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  EURNZD:
-    ticker: EURNZD=X
-    allocation: 0.03
-    sl_mult: 1.12
-    tp_mult: 3.36 # ratio 2.0→3.0 2026-06-30: BUY WR=55.1%, SELL WR=63.1%. Conservative cap at 3.0. GM=1.94 preserved.
-    max_depth: 3
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.33
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.2
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.07
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.5
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.5
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.5
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  GBPCHF:
-    ticker: GBPCHF=X
-    allocation: 0.03
-    sl_mult: 0.82
-    tp_mult: 2.45 # ratio 2.0→3.0 2026-06-30: BUY WR=49.2%, SELL WR=49.2%. Conservative cap at 3.0. GM=1.41 preserved.
-    max_depth: 2
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 0.8
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 0.8
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.5
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  GBPUSD:
-    ticker: GBPUSD=X
-    allocation: 0.04
-    sl_mult: 0.52
-    tp_mult: 1.97
-    max_depth: 2
-    spread_tier: fx_major
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  EURAUD:
-    ticker: EURAUD=X
-    allocation: 0.01
-    sl_mult: 0.54
-    tp_mult: 1.77
-    max_depth: 2
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.5
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 1.35
-        tp_mult: 0.9
-      RED:
-        sl_mult: 1.2
-        tp_mult: 0.8
-    config:
-      ensemble:
-        base_weight: 1.0 # ensemble disabled portfolio-wide as of 2026-06-20; threshold no-op
-        threshold: 0.25
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.5
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  ^DJI:
-    ticker: ^DJI
-    allocation: 0.02
-    sl_mult: 0.5
-    tp_mult: 4.0
-    max_depth: 3
-    spread_tier: indices
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  BTCUSD:
-    ticker: BTC-USD
-    allocation: 0.02
-    max_entry_slippage_pct: 5.0
-    sl_mult: 0.58
-    tp_mult: 1.51
-    max_depth: 3
-    spread_tier: crypto
-    weekend_eligible: true
-    weekend_allocation_multiplier: 0.5
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  AUDJPY:
-    ticker: AUDJPY=X
-    allocation: 0.02
-    sl_mult: 0.52
-    tp_mult: 2.01
-    max_depth: 2
-    spread_tier: fx_cross
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  NZDJPY:
-    ticker: NZDJPY=X
-    allocation: 0.02
-    sl_mult: 0.51
-    tp_mult: 2.02
-    max_depth: 2
-    spread_tier: fx_cross
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  GBPJPY:
-    ticker: GBPJPY=X
-    allocation: 0.02
-    sl_mult: 0.50
-    tp_mult: 2.22
-    max_depth: 2
-    spread_tier: fx_cross
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20
-  USDJPY:
-    ticker: USDJPY=X
-    allocation: 0.02
-    sl_mult: 0.52
-    tp_mult: 1.97
-    max_depth: 2
-    spread_tier: fx_major
-    regime_geometry:
-      GREEN:
-        sl_mult: 1.0
-        tp_mult: 1.0
-      YELLOW:
-        sl_mult: 0.9
-        tp_mult: 0.9
-      RED:
-        sl_mult: 0.8
-        tp_mult: 0.8
-    config:
-      shadow_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-      dynamic_sltp:
-        enabled: true
-        method: trailing
-        trailing_activation_mult: 1.0
-        trailing_distance_mult: 1.0
-        min_rr_ratio: 1.5
-      adaptive_exit:
-        enabled: true
-        be_lock_r: 0.5
-        trail_activation_r: 0.8
-        trail_retrace_pct: 0.33
-        max_hold_candles: 40
-        time_decay_start: 20

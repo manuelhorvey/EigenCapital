@@ -94,12 +94,18 @@ class PaperConfigRegistry:
 
         # Step 1b: defaults via SizingConfig + adaptive_exit overlay
         defaults_blk: dict[str, Any] = {}
+        sizing_keys: set[str] = set()
         if (domains_dir / "risk" / "sizing.yaml").exists():
             sz = yaml.safe_load((domains_dir / "risk" / "sizing.yaml").read_text()) or {}
             defaults_blk.update(sz)
+            sizing_keys.update(sz.keys())
         legacy_defaults = legacy_raw.get("defaults") or {}
+        # Only fill sizing-shaped keys from legacy; non-sizing extras
+        # (session_gate, spread_gate, stacking, adx_entry_gate,
+        # entry_optimization) are captured in legacy_extras.
         for k, v in legacy_defaults.items():
-            defaults_blk.setdefault(k, v)
+            if k in sizing_keys:
+                defaults_blk.setdefault(k, v)
         if (domains_dir / "risk" / "exits.yaml").exists():
             ae = yaml.safe_load((domains_dir / "risk" / "exits.yaml").read_text()) or {}
             defaults_blk["adaptive_exit"] = {**legacy_defaults.get("adaptive_exit", {}), **(ae.get("default") or {})}
@@ -126,7 +132,7 @@ class PaperConfigRegistry:
             "defaults",
             "assets",
         }
-        promoted_defaults = set(defaults_blk.keys())
+        promoted_defaults = set(defaults_blk.keys()) | {"adaptive_exit", "sell_only_assets"}
         legacy_extras: dict[str, Any] = {}
         for k, v in legacy_raw.items():
             if k not in promoted_top:
@@ -150,8 +156,9 @@ class PaperConfigRegistry:
             "portfolio_drawdown_limit": self.risk.capital.portfolio_drawdown_limit,
         }
 
-        defaults: dict[str, Any] = dict(self.risk.exits_default.__dict__)
-        # Walk sizing dataclass
+        defaults: dict[str, Any] = {}
+        # Walk sizing dataclass — flat defaults keys only
+        sizing_field_names = set(self.risk.sizing.__dataclass_fields__)
         for f in self.risk.sizing.__dataclass_fields__:
             defaults[f] = getattr(self.risk.sizing, f)
 
@@ -167,12 +174,54 @@ class PaperConfigRegistry:
             "scale_out_r": ae.scale_out_r,
         }
         defaults["sell_only_assets"] = sorted(self.risk.sell_only.assets)
+
+        # Unpromoted defaults-shaped legacy extras (session_gate,
+        # spread_gate, stacking, adx_entry_gate, entry_optimization)
+        # flow back into the defaults block at the same position the
+        # original file kept them.
+        for k, v in self.legacy_extras.items():
+            if (
+                k == "mode"
+                or k == "modes"
+                or k == "mt5"
+                or k == "alerting"
+                or k == "ensemble"
+                or k == "meta_labeling"
+                or k == "calibration"
+                or k == "kelly"
+                or k == "portfolio"
+                or k == "optimizations"
+                or k == "execution"
+            ):
+                # Top-level legacy extras handled below
+                continue
+            if k not in sizing_field_names and k != "adaptive_exit" and k != "sell_only_assets":
+                defaults[k] = v
         body["defaults"] = defaults
 
         body["assets"] = {name: a.to_legacy_dict() for name, a in self.assets.items()}
 
+        # Top-level legacy extras (mode, modes, mt5, etc.)
         for k, v in self.legacy_extras.items():
-            body[k] = v
+            if k in (
+                "mode",
+                "modes",
+                "mt5",
+                "alerting",
+                "ensemble",
+                "meta_labeling",
+                "calibration",
+                "kelly",
+                "portfolio",
+                "optimizations",
+                "execution",
+                "rebalance",
+                "retrain_freq",
+                "retrain_window",
+                "research_mode",
+                "data_source",
+            ):
+                body[k] = v
         return body
 
     def summary(self) -> dict[str, Any]:

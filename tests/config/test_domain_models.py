@@ -75,6 +75,13 @@ def test_risk_config_exhausts_legacy_defaults_keys(legacy_yaml):
         "session_gate",
         "adx_entry_gate",
         "entry_optimization",
+        # Phase 11.3: these flatten up to top-level in the legacy mirror
+        # (they were misplaced nested under defaults in pre-Phase-11 YAML)
+        "data_source",
+        "rebalance",
+        "research_mode",
+        "retrain_freq",
+        "retrain_window",
     }
     legacy_keys.difference_update(known_excluded)
     missing = legacy_keys - sizing_field_names

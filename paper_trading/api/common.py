@@ -87,29 +87,29 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-class _LazyStore:
-    """Thread-safe lazy singleton for StateStore access.
+# Module-level StateStore instance (initialized explicitly at server startup,
+# or patched in tests).  No longer a lazy singleton -- serve.py calls
+# init_store() to set this before the first request.
+_STORE = None  # noqa: N816 -- set by init_store() or patched in tests
 
-    The ``__getattr__`` trap lets callers access StateStore methods directly
-    on the module-level ``_STORE`` instance without manual init.  The double-
-    checked locking pattern prevents race conditions under ``ThreadingMixIn``
-    where concurrent requests could init two separate ``StateStore`` instances.
+
+def init_store(store=None, base_dir: str | None = None) -> None:
+    """Initialize the module-level StateStore.
+
+    Called once at server startup by ``serve.py``.  Replaces the old
+    ``_LazyStore`` singleton pattern (H-06 Phase 2).
+
+    Accepts an optional pre-existing ``store`` instance to avoid creating
+    two StateStore objects pointing at the same data directory.
     """
+    global _STORE
+    if store is not None:
+        _STORE = store
+        return
+    from paper_trading.state_store import StateStore
 
-    _instance = None
-    _lock = threading.Lock()
+    _STORE = StateStore(base_dir or _PROJECT_ROOT)
 
-    def __getattr__(self, name):
-        if self._instance is None:
-            with self._lock:
-                if self._instance is None:
-                    from paper_trading.state_store import StateStore
-
-                    self._instance = StateStore(_PROJECT_ROOT)
-        return getattr(self._instance, name)
-
-
-_STORE = _LazyStore()
 
 DASHBOARD_DIST = os.path.join(BASE, "dashboard", "dist")
 FRONTEND_DIR = os.path.join(BASE, "frontend")

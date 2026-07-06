@@ -65,10 +65,12 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
     # Create a single StateStore instance and inject it into the server
     # so route handlers receive it via self.server._state_store instead of
     # relying on the _STORE global singleton (H-06 Phase 2).
+    from paper_trading.api.common import init_store as _init_api_store
     from paper_trading.state_store import StateStore
 
     _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     _state_store = StateStore(_base_dir)
+    _init_api_store(store=_state_store)  # module-level backstop uses same instance
 
     httpd = ReuseServer((bind, port), ServingHandler)
     httpd._state_store = _state_store

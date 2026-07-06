@@ -9,9 +9,10 @@ from paper_trading.api.common import (
 )
 
 
-def handle_asset_detail(path: str, query: dict) -> tuple[str, int]:
+def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, int]:
+    store = state_store or _STORE
     asset_name = path[len("/asset/") : -len(".json")]
-    snapshot = _STORE.load_snapshot()
+    snapshot = store.load_snapshot()
     if not snapshot or not snapshot.assets or asset_name not in snapshot.assets:
         return json_dumps({"error": "Not found", "code": 404}), 404
 
@@ -96,7 +97,7 @@ def handle_asset_detail(path: str, query: dict) -> tuple[str, int]:
     return data, 200
 
 
-def handle_wal_asset(path: str, query: dict) -> tuple[str, int]:
+def handle_wal_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
     asset_name = path[len("/wal/") : -len(".json")]
     wal_path = os.path.join("data", "live", "wal", "engine.jsonl")
     if not os.path.exists(wal_path):
@@ -134,7 +135,7 @@ def handle_wal_asset(path: str, query: dict) -> tuple[str, int]:
     return json_dumps({"events": events, "total": len(events), "asset": asset_name}), 200
 
 
-def handle_mt5_status(path: str, query: dict) -> str:
-    data = json_dumps(get_mt5_status(), indent=2)
+def handle_mt5_status(path: str, query: dict, state_store=None) -> str:
+    data = json_dumps(get_mt5_status(state_store=state_store), indent=2)
     cache_set("/mt5/status.json", data)
     return data

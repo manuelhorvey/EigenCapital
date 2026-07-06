@@ -176,12 +176,13 @@ def _live_get(name: str, fetch_fn: Callable[[], Any]) -> dict:
 # ── Bundle handler ─────────────────────────────────────────────────────────
 
 
-def handle_state_bundle(path: str, query: dict) -> str:
+def handle_state_bundle(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     cached = cache_get("/state-bundle.json")
     if cached is not None:
         return cached
 
-    snapshot_obj = _STORE.load_snapshot()
+    snapshot_obj = store.load_snapshot()
     now = datetime.now(UTC)
     server_time_iso = now.isoformat().replace("+00:00", "Z")
     engine_seq = snapshot_obj.sequence_id if snapshot_obj else 0

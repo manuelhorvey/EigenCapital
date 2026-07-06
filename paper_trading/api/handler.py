@@ -139,6 +139,10 @@ class Handler:
             self.send_header(k, v)
         self.end_headers()
 
+    def _get_state_store(self):
+        """Return injected StateStore from server, or None."""
+        return getattr(self.server, "_state_store", None)
+
     def do_GET(self):  # noqa: N802
         if not self._check_rate_limit():
             return
@@ -148,6 +152,7 @@ class Handler:
         qs = self.path.split("?", 1)
         path = qs[0]
         query = self._parse_query(qs[1] if len(qs) > 1 else "")
+        state_store = self._get_state_store()
 
         if path in ("/", "/index.html"):
             idx_path = get_index_html()
@@ -183,7 +188,7 @@ class Handler:
             if cached is not None:
                 self._send_json(cached)
                 return
-            result = fn(path, query)
+            result = fn(path, query, state_store=state_store)
             if is_text:
                 self._send_text(result)
             else:
@@ -192,7 +197,7 @@ class Handler:
 
         for prefix, fn, is_text in GET_ROUTES_PREFIX:
             if path.startswith(prefix) and path.endswith(".json"):
-                result = fn(path, query)
+                result = fn(path, query, state_store=state_store)
                 if isinstance(result, tuple):
                     data, status = result
                     self._send_json(data, status)

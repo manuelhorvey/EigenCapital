@@ -11,19 +11,21 @@ from paper_trading.api.common import (
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_shadow_trades_route(path: str, query: dict) -> str:
+def handle_shadow_trades_route(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 50)), 500))
     offset = max(0, int(query.get("offset", 0)))
     alt_label = query.get("alt_label") or None
-    records = _STORE.read_shadow_trades(limit=limit, offset=offset, alt_label=alt_label)
+    records = store.read_shadow_trades(limit=limit, offset=offset, alt_label=alt_label)
     data = json_dumps(records, indent=2)
     cache_set("/shadow/trades.json", data)
     return data
 
 
-def handle_shadow_summary(path: str, query: dict) -> str:
+def handle_shadow_summary(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 500)), 2000))
-    records = _STORE.read_shadow_trades(limit=limit)
+    records = store.read_shadow_trades(limit=limit)
     if not records:
         return json_dumps({"overall": {"n": 0}}, indent=2)
 
@@ -36,17 +38,19 @@ def handle_shadow_summary(path: str, query: dict) -> str:
     return data
 
 
-def handle_shadow_actions(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_shadow_actions(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     actions = getattr(snapshot, "shadow_actions", None) if snapshot else None
     data = json_dumps(actions or {}, indent=2)
     cache_set("/shadow-actions", data)
     return data
 
 
-def handle_shadow_actions_asset(path: str, query: dict) -> tuple[str, int]:
+def handle_shadow_actions_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
+    store = state_store or _STORE
     asset = path[len("/shadow-actions/") : -len(".json")]
-    snapshot = _STORE.load_snapshot()
+    snapshot = store.load_snapshot()
     actions = getattr(snapshot, "shadow_actions", None) if snapshot else None
     action = (actions or {}).get(asset)
     if action is not None:

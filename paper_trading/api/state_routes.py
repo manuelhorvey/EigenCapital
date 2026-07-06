@@ -26,11 +26,12 @@ from paper_trading.state_store import CONTRACT_VERSION
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_state(path: str, query: dict) -> str:
+def handle_state(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     cached = cache_get(path)
     if cached is not None:
         return cached
-    snapshot = _STORE.load_snapshot()
+    snapshot = store.load_snapshot()
     if snapshot is not None:
         state = asdict(snapshot)
         status = state.setdefault("engine_status", {})
@@ -87,10 +88,11 @@ def handle_state(path: str, query: dict) -> str:
     return data
 
 
-def handle_trades(path: str, query: dict) -> str:
+def handle_trades(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 10)), 200))
     offset = max(0, int(query.get("offset", 0)))
-    trades = _STORE.read_trades(limit + offset)
+    trades = store.read_trades(limit + offset)
 
     seen: set[tuple] = set()
     deduped: list[dict] = []
@@ -134,18 +136,20 @@ def handle_trades(path: str, query: dict) -> str:
     return data
 
 
-def handle_equity_history(path: str, query: dict) -> str:
-    history = _STORE.read_equity_history()
+def handle_equity_history(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    history = store.read_equity_history()
     data = json_dumps(history)
     cache_set("/equity_history.json", data)
     return data
 
 
-def handle_confidence(path: str, query: dict) -> str:
+def handle_confidence(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     cached = cache_get(path)
     if cached is not None:
         return cached
-    snapshot = _STORE.load_snapshot()
+    snapshot = store.load_snapshot()
     if snapshot and snapshot.assets:
         live = {}
         for name, asset in snapshot.assets.items():
@@ -173,8 +177,9 @@ def handle_confidence(path: str, query: dict) -> str:
     return data
 
 
-def handle_volatility(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_volatility(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     regimes = []
     vol_baselines = get_vol_baselines()
     if snapshot and snapshot.assets:
@@ -205,7 +210,7 @@ def handle_volatility(path: str, query: dict) -> str:
     return data
 
 
-def handle_logs(path: str, query: dict) -> str:
+def handle_logs(path: str, query: dict, state_store=None) -> str:
     try:
         with open(LOG_PATH) as f:
             lines = f.readlines()
@@ -220,15 +225,16 @@ def handle_logs(path: str, query: dict) -> str:
         return "[no log file yet]"
 
 
-def handle_ping(path: str, query: dict) -> str:
+def handle_ping(path: str, query: dict, state_store=None) -> str:
     return json_dumps({"status": "ok"}, indent=2)
 
 
-def handle_engine_health(path: str, query: dict) -> str:
+def handle_engine_health(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     import time
     from pathlib import Path
 
-    state_path = Path(_STORE.state_path) if hasattr(_STORE, "state_path") else None
+    state_path = Path(store.state_path) if hasattr(store, "state_path") else None
     state_file_age = -1
     state_exists = False
     status = "ok"
@@ -241,7 +247,7 @@ def handle_engine_health(path: str, query: dict) -> str:
     else:
         status = "no_state"
 
-    snapshot = _STORE.load_snapshot()
+    snapshot = store.load_snapshot()
     seq = snapshot.sequence_id if snapshot else None
 
     return json_dumps(
@@ -257,7 +263,7 @@ def handle_engine_health(path: str, query: dict) -> str:
     )
 
 
-def handle_optimization(path: str, query: dict) -> str:
+def handle_optimization(path: str, query: dict, state_store=None) -> str:
     """Serve drift detector optimization output from data/live/optimization.json."""
     try:
         with open(OPTIMIZATION_PATH) as f:
@@ -270,7 +276,7 @@ def handle_optimization(path: str, query: dict) -> str:
         return json_dumps({"error": "invalid_json", "message": "optimization.json is corrupt"}, indent=2)
 
 
-def handle_healthcheck(path: str, query: dict) -> str:
+def handle_healthcheck(path: str, query: dict, state_store=None) -> str:
     """Serve model health monitor report from data/logs/healthcheck/latest.json."""
     try:
         with open(HEALTHCHECK_PATH) as f:
@@ -283,11 +289,11 @@ def handle_healthcheck(path: str, query: dict) -> str:
         return json_dumps({"error": "invalid_json", "message": "healthcheck/latest.json is corrupt"}, indent=2)
 
 
-def handle_metrics(path: str, query: dict) -> str:
+def handle_metrics(path: str, query: dict, state_store=None) -> str:
     return global_registry().render()
 
 
-def handle_log_error(body: bytes) -> tuple[str, int]:
+def handle_log_error(body: bytes, state_store=None) -> tuple[str, int]:
     """POST handler — logs client-side errors sent from the dashboard."""
     try:
         import json as _json
@@ -304,7 +310,7 @@ def handle_log_error(body: bytes) -> tuple[str, int]:
         return json_dumps({"status": "error"}), 500
 
 
-def handle_clear_cache(path: str, query: dict) -> str:
+def handle_clear_cache(path: str, query: dict, state_store=None) -> str:
     """Clear all in-memory caches after a reset.
 
     POST handler: clears the API response cache (common.clear_cache)

@@ -206,13 +206,17 @@ class TestPaperTradingEngineState:
             check_halt_conditions=lambda *a, **kw: {"halted": False},
             update_validity=lambda *a, **kw: {"state": "GREEN", "exposure": 1.0},
         )
+        from types import SimpleNamespace as _SN
+
         engine = PaperTradingEngine.__new__(PaperTradingEngine)
         engine.assets = {"TEST": asset}
         engine.start_date = __import__("datetime").datetime.now(tz=ET)
         engine.last_update = None
         engine.portfolio_peak_value = None
         engine._rebalance_weights = {}
+        engine._engine_cfg = _SN(capital=100_000, halt={}, defaults={}, mt5=_SN(enabled=False))
         from paper_trading.services.engine_state_service import EngineStateService
+
         engine._state = EngineStateService(engine)
 
         state = engine.get_state()
@@ -400,10 +404,15 @@ class TestPaperTradingEngine:
     @pytest.fixture
     def engine(self):
         eng = PaperTradingEngine.__new__(PaperTradingEngine)
-        eng.assets = {"A": SimpleNamespace(
-            ticker="EURUSD", name="A", train=lambda force=None: None,
-            sl_mult=1.0, tp_mult=2.0,
-        )}
+        eng.assets = {
+            "A": SimpleNamespace(
+                ticker="EURUSD",
+                name="A",
+                train=lambda force=None: None,
+                sl_mult=1.0,
+                tp_mult=2.0,
+            )
+        }
         eng._rebalance_weights = {}
         eng._cycle_count = 0
         eng._cycle_times = []
@@ -415,6 +424,7 @@ class TestPaperTradingEngine:
         from datetime import datetime
 
         import pytz
+
         eng.start_date = datetime.now(tz=pytz.timezone("US/Eastern"))
         eng._wal = None
         eng._background_writer = SimpleNamespace(flush=lambda: None, shutdown=lambda: None)
@@ -457,9 +467,11 @@ class TestPaperTradingEngine:
     def test_initialize_calls_train_on_all_assets(self, engine):
         trained = []
         asset = SimpleNamespace(
-            ticker="EURUSD", name="A",
+            ticker="EURUSD",
+            name="A",
             train=lambda force=None: trained.append(1),
-            sl_mult=1.0, tp_mult=2.0,
+            sl_mult=1.0,
+            tp_mult=2.0,
         )
         engine.assets = {"A": asset}
         engine.initialize()
@@ -473,14 +485,17 @@ class TestPaperTradingEngine:
         import tempfile
 
         import yaml
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump({"capital": 100000}, f)
             tmppath = f.name
         cfg = load_config(tmppath)
         asset = SimpleNamespace(
-            ticker="EURUSD", name="TEST",
+            ticker="EURUSD",
+            name="TEST",
             train=lambda force=None: None,
-            sl_mult=1.0, tp_mult=2.0,
+            sl_mult=1.0,
+            tp_mult=2.0,
         )
         engine._engine_cfg = cfg
         engine.assets = {"TEST": asset}
@@ -489,9 +504,11 @@ class TestPaperTradingEngine:
 
     def test_initialize_handles_train_exception(self, engine):
         asset = SimpleNamespace(
-            ticker="EURUSD", name="A",
+            ticker="EURUSD",
+            name="A",
             train=lambda force=None: (_ for _ in ()).throw(Exception("train failed")),
-            sl_mult=1.0, tp_mult=2.0,
+            sl_mult=1.0,
+            tp_mult=2.0,
         )
         engine.assets = {"A": asset}
         engine.initialize()
@@ -505,8 +522,11 @@ class TestPaperTradingEngine:
         """Weekend cycle with eligible assets passes allowed_assets to orchestrator."""
         engine.assets = {
             "BTCUSD": SimpleNamespace(
-                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
-                sl_mult=1.0, tp_mult=2.0,
+                ticker="BTC-USD",
+                name="BTCUSD",
+                train=lambda force=None: None,
+                sl_mult=1.0,
+                tp_mult=2.0,
                 config={"weekend_eligible": True},
             ),
         }
@@ -524,8 +544,11 @@ class TestPaperTradingEngine:
     def test_run_once_weekend_eligible_sets_and_resets_flag(self, engine):
         engine.assets = {
             "BTCUSD": SimpleNamespace(
-                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
-                sl_mult=1.0, tp_mult=2.0,
+                ticker="BTC-USD",
+                name="BTCUSD",
+                train=lambda force=None: None,
+                sl_mult=1.0,
+                tp_mult=2.0,
                 config={"weekend_eligible": True},
             ),
         }
@@ -541,8 +564,11 @@ class TestPaperTradingEngine:
     def test_run_once_weekend_flushes_wal_and_background_writer(self, engine):
         engine.assets = {
             "BTCUSD": SimpleNamespace(
-                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
-                sl_mult=1.0, tp_mult=2.0,
+                ticker="BTC-USD",
+                name="BTCUSD",
+                train=lambda force=None: None,
+                sl_mult=1.0,
+                tp_mult=2.0,
                 config={"weekend_eligible": True},
             ),
         }
@@ -563,13 +589,19 @@ class TestPaperTradingEngine:
         """Non-eligible assets should not appear in orchestrator results."""
         engine.assets = {
             "BTCUSD": SimpleNamespace(
-                ticker="BTC-USD", name="BTCUSD", train=lambda force=None: None,
-                sl_mult=1.0, tp_mult=2.0,
+                ticker="BTC-USD",
+                name="BTCUSD",
+                train=lambda force=None: None,
+                sl_mult=1.0,
+                tp_mult=2.0,
                 config={"weekend_eligible": True},
             ),
             "EURUSD": SimpleNamespace(
-                ticker="EURUSD=X", name="EURUSD", train=lambda force=None: None,
-                sl_mult=1.0, tp_mult=2.0,
+                ticker="EURUSD=X",
+                name="EURUSD",
+                train=lambda force=None: None,
+                sl_mult=1.0,
+                tp_mult=2.0,
                 config={},
             ),
         }
@@ -640,6 +672,7 @@ class TestPaperTradingEngine:
         from datetime import datetime
 
         import pytz
+
         engine._last_prune_date = datetime.now(tz=pytz.timezone("US/Eastern")).strftime("%Y-%m-%d")
         with patch("scripts.ops.prune_data.prune_all") as mock_prune:
             engine._prune_old_data()
@@ -663,9 +696,12 @@ class TestPaperTradingEngine:
         eng = PaperTradingEngine.__new__(PaperTradingEngine)
         cfg = SimpleNamespace(
             mt5=SimpleNamespace(
-                account=12345, password="pwd", server="srv",
+                account=12345,
+                password="pwd",
+                server="srv",
                 symbol_map_path=None,
-                bridge_host="127.0.0.1", bridge_port=9879,
+                bridge_host="127.0.0.1",
+                bridge_port=9879,
                 enabled=False,
             ),
         )
@@ -679,11 +715,16 @@ class TestPaperTradingEngine:
 
     def test_install_mt5_data_provider(self):
         eng = PaperTradingEngine.__new__(PaperTradingEngine)
-        eng._engine_cfg = SimpleNamespace(mt5=SimpleNamespace(
-            account=12345, password="pwd", server="srv",
-            symbol_map_path=None,
-            bridge_host="127.0.0.1", bridge_port=9879,
-        ))
+        eng._engine_cfg = SimpleNamespace(
+            mt5=SimpleNamespace(
+                account=12345,
+                password="pwd",
+                server="srv",
+                symbol_map_path=None,
+                bridge_host="127.0.0.1",
+                bridge_port=9879,
+            )
+        )
         with (
             patch("paper_trading.engine.MT5Client") as MockClient,
             patch("paper_trading.ops.data_fetcher.set_mt5_client") as mock_set,

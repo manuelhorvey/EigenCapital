@@ -331,16 +331,30 @@ class TestTradeOutcomes:
         assert data["overall"] == {}
 
     def test_with_outcomes(self, tmp_store):
-        tmp_store.append_trade({
-            "asset": "EURUSD", "entry": 1.05, "exit": 1.06,
-            "entry_date": "2026-06-01", "exit_date": "2026-06-10",
-            "reason": "tp", "return": 100.0, "realized_r": 2.0,
-        })
-        tmp_store.append_trade({
-            "asset": "EURUSD", "entry": 1.06, "exit": 1.05,
-            "entry_date": "2026-06-02", "exit_date": "2026-06-11",
-            "reason": "sl", "return": -50.0, "realized_r": -1.0,
-        })
+        tmp_store.append_trade(
+            {
+                "asset": "EURUSD",
+                "entry": 1.05,
+                "exit": 1.06,
+                "entry_date": "2026-06-01",
+                "exit_date": "2026-06-10",
+                "reason": "tp",
+                "return": 100.0,
+                "realized_r": 2.0,
+            }
+        )
+        tmp_store.append_trade(
+            {
+                "asset": "EURUSD",
+                "entry": 1.06,
+                "exit": 1.05,
+                "entry_date": "2026-06-02",
+                "exit_date": "2026-06-11",
+                "reason": "sl",
+                "return": -50.0,
+                "realized_r": -1.0,
+            }
+        )
         result = handle_trade_outcomes("/trade-outcomes.json", {})
         data = json.loads(result)
         assert data["overall"]["win_rate"] == 0.5

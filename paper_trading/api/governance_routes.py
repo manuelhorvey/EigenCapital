@@ -19,13 +19,13 @@ from paper_trading.ops.weekly_review import compute_weekly_review
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_risk(path: str, query: dict) -> str:
+def handle_risk(path: str, query: dict, state_store=None) -> str:
     data = json_dumps(_get_risk_latest(), indent=2)
     cache_set("/risk.json", data)
     return data
 
 
-def handle_risk_asset(path: str, query: dict) -> tuple[str, int]:
+def handle_risk_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
     asset = path[len("/risk/") : -len(".json")]
     signal = _get_risk_latest(asset)
     if signal is not None:
@@ -33,13 +33,13 @@ def handle_risk_asset(path: str, query: dict) -> tuple[str, int]:
     return json_dumps({"error": "Not found", "code": 404}), 404
 
 
-def handle_health(path: str, query: dict) -> str:
+def handle_health(path: str, query: dict, state_store=None) -> str:
     data = json_dumps(_compute_health_all(), indent=2)
     cache_set("/health.json", data)
     return data
 
 
-def handle_health_asset(path: str, query: dict) -> tuple[str, int]:
+def handle_health_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
     asset = path[len("/health/") : -len(".json")]
     signal = _get_health_latest(asset)
     if signal is not None:
@@ -47,8 +47,9 @@ def handle_health_asset(path: str, query: dict) -> tuple[str, int]:
     return json_dumps({"error": f"No health score for {asset}", "asset": asset}), 404
 
 
-def handle_governance(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_governance(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     governance = {}
     if snapshot and snapshot.assets:
         for name, asset in sorted(snapshot.assets.items()):
@@ -85,8 +86,9 @@ def handle_governance(path: str, query: dict) -> str:
     return data
 
 
-def handle_statistical_metrics(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_statistical_metrics(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     result: dict[str, dict] = {}
     if snapshot and snapshot.assets:
         for name, asset in sorted(snapshot.assets.items()):
@@ -104,16 +106,18 @@ def handle_statistical_metrics(path: str, query: dict) -> str:
     return data
 
 
-def handle_risk_parity(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_risk_parity(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     rp = getattr(snapshot, "risk_parity", None) if snapshot else None
     data = json_dumps(rp or {}, indent=2)
     cache_set("/risk-parity.json", data)
     return data
 
 
-def handle_psi(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_psi(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     psi_data = {}
     if snapshot and snapshot.assets:
         for name, asset in sorted(snapshot.assets.items()):
@@ -133,8 +137,9 @@ def handle_psi(path: str, query: dict) -> str:
     return data
 
 
-def handle_trade_outcomes(path: str, query: dict) -> str:
-    outcomes = _STORE.read_trade_outcomes()
+def handle_trade_outcomes(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    outcomes = store.read_trade_outcomes()
     if outcomes is None:
         outcomes = {"overall": {}, "by_asset": [], "updated_at": ""}
     data = json_dumps(outcomes, indent=2)
@@ -142,15 +147,16 @@ def handle_trade_outcomes(path: str, query: dict) -> str:
     return data
 
 
-def handle_narrative(path: str, query: dict) -> str:
+def handle_narrative(path: str, query: dict, state_store=None) -> str:
     status = get_narrative_status()
     data = json_dumps(status, indent=2)
     cache_set("/narrative.json", data)
     return data
 
 
-def handle_liquidity(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_liquidity(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     regimes = {}
     if snapshot and snapshot.assets:
         for name, asset in sorted(snapshot.assets.items()):
@@ -174,16 +180,18 @@ def handle_narrative_confirm(body: bytes) -> tuple[str, int]:
     )
 
 
-def handle_weekly_review(path: str, query: dict) -> str:
-    data = json_dumps(compute_weekly_review(_STORE), indent=2)
+def handle_weekly_review(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    data = json_dumps(compute_weekly_review(store), indent=2)
     cache_set("/weekly-review.json", data)
     return data
 
 
-def handle_weekly_review_acknowledge(body: bytes) -> tuple[str, int]:
+def handle_weekly_review_acknowledge(body: bytes, state_store=None) -> tuple[str, int]:
+    store = state_store or _STORE
     now = datetime.now(tz=ET).isoformat()
     entry = {"acknowledged_at": now}
-    rlp = _STORE.review_log_path
+    rlp = store.review_log_path
     existing = []
     if os.path.exists(rlp):
         try:

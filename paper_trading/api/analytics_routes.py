@@ -11,13 +11,14 @@ from paper_trading.api.common import (
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_attribution_trades(path: str, query: dict) -> str:
+def handle_attribution_trades(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 50)), 500))
     offset = max(0, int(query.get("offset", 0)))
     archetype = query.get("archetype") or None
     regime = query.get("regime") or None
     asset = query.get("asset") or None
-    records = _STORE.read_attribution(
+    records = store.read_attribution(
         limit=limit,
         offset=offset,
         archetype=archetype,
@@ -29,9 +30,10 @@ def handle_attribution_trades(path: str, query: dict) -> str:
     return data
 
 
-def handle_attribution_summary(path: str, query: dict) -> str:
+def handle_attribution_summary(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 500)), 2000))
-    all_records = _STORE.read_attribution(limit=limit)
+    all_records = store.read_attribution(limit=limit)
     if not all_records:
         return json_dumps({"by_archetype": {}, "by_regime": {}, "overall": {}}, indent=2)
 
@@ -62,9 +64,10 @@ def handle_attribution_summary(path: str, query: dict) -> str:
     return data
 
 
-def handle_attribution_waterfall(path: str, query: dict) -> str:
+def handle_attribution_waterfall(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 500)), 2000))
-    records = _STORE.read_attribution(limit=limit)
+    records = store.read_attribution(limit=limit)
     if not records:
         return json_dumps(
             {
@@ -87,15 +90,17 @@ def handle_attribution_waterfall(path: str, query: dict) -> str:
     return data
 
 
-def handle_analytics_snapshot(path: str, query: dict) -> str:
-    snapshot = _STORE.read_analytics_snapshot()
+def handle_analytics_snapshot(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.read_analytics_snapshot()
     if snapshot is not None:
         return json_dumps(snapshot, indent=2)
     return json_dumps({"overall": {}, "by_archetype": {}, "by_regime": {}, "shadow": {}}, indent=2)
 
 
-def handle_live_attribution(path: str, query: dict) -> str:
-    snapshot = _STORE.load_snapshot()
+def handle_live_attribution(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
+    snapshot = store.load_snapshot()
     open_positions = snapshot.open_positions if snapshot else {}
     live = []
     for name, data in open_positions.items():
@@ -115,9 +120,10 @@ def handle_live_attribution(path: str, query: dict) -> str:
     return result
 
 
-def handle_archetype_stats(path: str, query: dict) -> str:
+def handle_archetype_stats(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 500)), 2000))
-    records = _STORE.read_attribution(limit=limit)
+    records = store.read_attribution(limit=limit)
     if not records:
         return json_dumps({"by_archetype": {}}, indent=2)
 
@@ -146,9 +152,10 @@ def handle_archetype_stats(path: str, query: dict) -> str:
     return data
 
 
-def handle_execution_quality(path: str, query: dict) -> str:
+def handle_execution_quality(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 500)), 2000))
-    records = _STORE.read_attribution(limit=limit)
+    records = store.read_attribution(limit=limit)
     if not records:
         return json_dumps({"by_asset": {}}, indent=2)
 
@@ -194,9 +201,10 @@ def handle_execution_quality(path: str, query: dict) -> str:
     return data
 
 
-def handle_execution_slippage(path: str, query: dict) -> str:
+def handle_execution_slippage(path: str, query: dict, state_store=None) -> str:
+    store = state_store or _STORE
     limit = max(1, min(int(query.get("limit", 500)), 2000))
-    records = _STORE.read_attribution(limit=limit)
+    records = store.read_attribution(limit=limit)
     if not records:
         return json_dumps({"entry_slippage": [], "exit_slippage": []}, indent=2)
 

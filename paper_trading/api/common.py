@@ -27,16 +27,20 @@ def json_dumps(obj, **kwargs):
 _MT5_STATUS_DEFAULT = {"connected": False, "status": "UNKNOWN", "last_heartbeat": None, "account": None}
 
 
-def get_mt5_status() -> dict:
+def get_mt5_status(state_store=None) -> dict:
     """Return MT5 connection status from the latest engine snapshot.
 
     Replaces the old ``_mt5_status`` global variable.  The engine now
     embeds MT5 status in each ``state.json`` snapshot under the ``mt5``
     key, so this reads it from there.  If no snapshot is available,
     returns a disconnected default.
+
+    When ``state_store`` is provided (e.g., from the injected server
+    state store), it is used instead of the ``_STORE`` global singleton.
     """
+    store = state_store or _STORE
     try:
-        snapshot = _STORE.load_snapshot()
+        snapshot = store.load_snapshot()
         if snapshot is not None and hasattr(snapshot, "mt5"):
             mt5 = snapshot.mt5
             if isinstance(mt5, dict):

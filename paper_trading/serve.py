@@ -62,7 +62,16 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
 
         _load_auth_token()
 
+    # Create a single StateStore instance and inject it into the server
+    # so route handlers receive it via self.server._state_store instead of
+    # relying on the _STORE global singleton (H-06 Phase 2).
+    from paper_trading.state_store import StateStore
+
+    _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _state_store = StateStore(_base_dir)
+
     httpd = ReuseServer((bind, port), ServingHandler)
+    httpd._state_store = _state_store
     httpd.timeout = 0.5
 
     url = f"http://{'127.0.0.1' if bind == '0.0.0.0' else bind}:{port}"

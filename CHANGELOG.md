@@ -1,6 +1,95 @@
 # Changelog
 
+## v4.2.1 (2026-07-06)
+
+### Bug fixes — live trading session
+- Fix `set_capital_base` to adjust `initial_capital`, `peak_value`, and `current_value`
+  on both asset and `pos_mgr` by the rebalance delta
+- Fix `engine_rebalance_service`: switch from `fetch_history(ticker, years=N)` to
+  `fetch_live(ticker, min_days=N)` for proper daily OHLCV data
+- Add regression tests for `set_capital_base` (upward, downward, zero delta)
+- Audit confirms all 26 `initial_capital`/`peak_value` reads across production codebase
+  are now correctly rebalance-aware — no additional fixes needed
+
+## v4.2.0 (2026-07-05)
+
+### Configuration infrastructure (Phase 12)
+- PaperConfigRegistry with domain-first precedence (Phase 11.1)
+- EngineConfig.load() routes through PaperConfigRegistry (Phase 11.2)
+- LegacyMirror regenerates paper_trading.yaml from registry (Phase 11.3)
+- Environment overlay wiring (Phase 8)
+- Per-asset file split with default+override composition (Phase 7)
+- Typed domain models with read-side mirror (Phase 3–4)
+- Cross-field validator and config_diff tool (Phase 1+10)
+- Wire alerting, ML, gate, and governance into EngineConfig
+- Deleted legacy `configs/paper_trading.yaml` and `configs/domain_loader.py`
+
+### Frontend audit remediation
+- SystemBundleSchema + Zod validation for all 4 query hooks
+- Slice selector migration for EmergencyHaltBanner, AssetCard, TickerRail
+- Memoization improvements (arrow callbacks, selector narrowing)
+- Modal component extraction (SystemHealthModal, WeeklyReview, TradeInspector)
+- EquityHistoryChart deduplication
+- Dead component cleanup (5 files removed)
+- 23 frontend-audit commits
+
+### Documentation overhaul
+- New docs: FAQ, DASHBOARD, MAINTAINERS, DEVELOPMENT, doc improvement plan
+- Doc-drift check wired into CI with path/date/metric consistency validation
+- CONFIGURATION.md auto-generated from typed domain models
+- ADR statuses, feature counts, governance layer counts corrected
+- Removed stale `paper_trading.yaml` references from docs and scripts
+
+### Re-entry feature
+- Multi-position same-side re-entry (Policy B: +44% R improvement)
+- Re-entry config: `max_positions_per_asset`, orchestration flatten
+- Trade lifecycle re-entry analysis scripts
+
+### Emergency halt hygiene
+- Auto-clear stale emergency halt at engine startup
+- Slack alert on per-cycle auto-unhalt
+- Regression tests for weekend cycle + emergency halt
+- Re-anchor `_peak_portfolio_value` at init
+
+### Audit remediation (6 phases)
+- Phase 1: 7 critical safety fixes
+- Phase 2: 5 high-impact ML/stats fixes
+- Phase 3: ML/Stats hardening
+- Phase 4: PEK + engine test coverage, 14 CI-skipped tests unskipped
+- Phase 5: DI support for top-level singletons
+- Phase 6: `deepcopy` → `dataclasses.replace`, dead code cleanup
+
+### Other
+- ADX entry gate disabled (fix data-flow bug)
+- BTCUSD entry slippage tolerance bumped to 5%
+- Live Sharpe tracker: open trace file in binary mode fix
+- CI: split lint/test jobs, Python 3.13, pip caching
+- SL/TP slippage sign correction
+- 14 silent exception blocks upgraded to logged errors
+- SAST/DAST in CI, hardened Docker
+
 ## v4.1.0 (2026-07-05)
+
+### Documentation overhaul (Phases A+B)
+- Wire `doc_drift_check.py` into CI pipeline
+- Fix SELL_ONLY count references across 3 docs (8→3)
+- Remove dead-code and non-existent script references from SYSTEM_OVERVIEW
+- Create `CONTRIBUTING.md` with code standards and PR workflow
+- Create `MONITORING.md` documenting all 11 Prometheus engine metrics
+- Document shadow analytics engine (`paper_trading/shadow/README.md`)
+- Document chaos testing framework (`tests/chaos/README.md`)
+- Add module-level docstrings to 5 feature modules
+- Update feature count in SYSTEM_OVERVIEW (19-35→21)
+- Add `__init__.py` to `paper_trading/shadow/`
+
+### Frontend audit remediation
+- SystemBundleSchema + Zod validation for all 4 query hooks
+- Slice selector migration for EmergencyHaltBanner, AssetCard, TickerRail
+- Memoization improvements (arrow callbacks, selector narrowing)
+- Modal component extraction (SystemHealthModal, WeeklyReview, TradeInspector)
+- EquityHistoryChart deduplication
+- Dead component cleanup (5 files removed)
+- 23 frontend-audit commits merged
 
 ### Documentation overhaul (Phases A+B)
 - Wire `doc_drift_check.py` into CI pipeline

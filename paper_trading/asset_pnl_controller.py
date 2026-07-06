@@ -350,7 +350,7 @@ class AssetPnlController:
     def _load_sltp_data(asset):
         """Load price data for SL/TP operations.
 
-        Shared helper used by _apply_trailing_stop and _apply_post_entry_adjust_only
+        Shared helper used by _apply_trailing_stop and _apply_post_entry_adjust
         to avoid duplicating the guard checks and data-fetching logic.
         Returns (df, False) on failure, (df, True) on success.
         """
@@ -396,16 +396,6 @@ class AssetPnlController:
                 reason="trailing",
             )
 
-        self._apply_post_entry_adjust(asset, data)
-
-    def _apply_post_entry_adjust_only(self, asset) -> None:
-        """Run post-entry adjustment (vol spike tightening, TP nudging) without trailing stop.
-
-        Called when adaptive_exit is the active trailing system. This runs
-        independently of the trailing stop logic to avoid SL ping-pong."""
-        data, ok = self._load_sltp_data(asset)
-        if not ok:
-            return
         self._apply_post_entry_adjust(asset, data)
 
     def _apply_adaptive_exit(self, asset) -> None:

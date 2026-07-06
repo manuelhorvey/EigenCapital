@@ -90,10 +90,10 @@ def atomic_write_json(path: str, data: dict) -> None:
         raise
 
 
-from paper_trading.state.database_store import _DatabaseStore  # noqa: E402
-from paper_trading.state.snapshot_manager import _SnapshotManager  # noqa: E402
 from paper_trading.state.analytics_store import _AnalyticsStore  # noqa: E402
 from paper_trading.state.data_cache import _DataCache  # noqa: E402
+from paper_trading.state.database_store import _DatabaseStore  # noqa: E402
+from paper_trading.state.snapshot_manager import _SnapshotManager  # noqa: E402
 
 __all__ = [
     "SCHEMA_VERSION",

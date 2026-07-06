@@ -483,9 +483,7 @@ class PaperTradingEngine:
         # ── WAL: persist current portfolio weights ────────────────────
         if self._rebalance_weights and self._wal is not None:
             try:
-                _weight_method = getattr(
-                    get_config().defaults, "weight_method", "risk_parity_v1"
-                ) or "risk_parity_v1"
+                _weight_method = get_config().defaults.get("weight_method", "risk_parity_v1") or "risk_parity_v1"
                 self._wal.write(
                     "portfolio_weights",
                     {

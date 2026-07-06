@@ -513,6 +513,8 @@ class EntryService:
             logger.warning("%s: MT5 equity is %.2f, skipping MT5 sizing", asset.name, mt5_equity)
             return 0.0
 
+        cfg = asset.config
+
         # MT5 quantization risk warning: small demo accounts (< $1,000 equity)
         # will always quantize to 0.01 lots (or the min_volume for the symbol),
         # making risk-per-trade controls ineffective.  At $107 equity with 15%
@@ -520,7 +522,6 @@ class EntryService:
         # forex minimum (~$1,150 for EURUSD).  All MT5 orders will round to 0.01
         # lots regardless of computed size.  Fund the demo to >$10K to fix.
         if mt5_equity < 1000:
-            _mt5_ticker = asset.ticker
             _min_lot_notional = 0.01 * 100000  # ~$1,150 for EURUSD, varies by pair
             _sized_notional = mt5_equity * cfg.get("max_position_pct_of_equity", 0.15)
             logger.warning(
@@ -532,8 +533,6 @@ class EntryService:
                 _sized_notional,
                 _min_lot_notional,
             )
-
-        cfg = asset.config
         mt5_dd = getattr(broker, "current_mt5_drawdown_pct", lambda: 0.0)()
         sl_dist = abs(intent_sl - entry_price)
 

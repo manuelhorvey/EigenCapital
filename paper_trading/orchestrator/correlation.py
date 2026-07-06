@@ -6,13 +6,93 @@ concentrated cluster risk (correlated positions on the same side).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections import defaultdict
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("eigencapital.orchestrator.correlation")
+
+
+_DEFAULT_POSITION_CONCENTRATION: dict = {
+    "long": 0,
+    "short": 0,
+    "total": 0,
+    "skew": 0.0,
+    "dominant_side": "none",
+    "threshold": 0.75,
+    "alert": False,
+}
+
+
+def compute_position_concentration(actors: dict[str, Any]) -> dict:
+    """Count open positions per side and compute skew ratio.
+
+    Counts both primary positions (pos_mgr) and re-entry positions.
+    Returns a dict with long/short counts, skew, and alert status.
+    """
+    long_count = 0
+    short_count = 0
+    for name, actor in actors.items():
+        engine = getattr(actor, "_engine", None)
+        if engine is None:
+            continue
+        pos = getattr(engine, "pos_mgr", None)
+        if pos is not None and pos.has_position():
+            side = getattr(pos.position, "side", None)
+            if side == "long":
+                long_count += 1
+            elif side == "short":
+                short_count += 1
+        for rp in getattr(engine, "reentry_positions", []):
+            side = rp.get("side")
+            if side == "long":
+                long_count += 1
+            elif side == "short":
+                short_count += 1
+    total = long_count + short_count
+    if total == 0:
+        return dict(_DEFAULT_POSITION_CONCENTRATION)
+    long_ratio = long_count / total
+    skew = max(long_ratio, 1.0 - long_ratio)
+    from paper_trading.config_manager import get_config
+
+    threshold = (get_config().defaults or {}).get("net_short_concentration_threshold", 0.75)
+    side_label = "LONG" if long_ratio > 0.5 else "SHORT"
+    if skew > threshold:
+        logger.warning(
+            "POSITION_CONCENTRATION: %d/%d positions on %s side (skew=%.1f%% threshold=%.0f%%)",
+            max(long_count, short_count),
+            total,
+            side_label,
+            skew * 100,
+            threshold * 100,
+        )
+        from paper_trading.alerting.manager import global_alert_manager
+
+        with contextlib.suppress(Exception):
+            global_alert_manager().warning(
+                "Position concentration alert",
+                f"{max(long_count, short_count)}/{total} on {side_label} side",
+                details={
+                    "long": long_count,
+                    "short": short_count,
+                    "skew": round(skew, 4),
+                    "threshold": threshold,
+                },
+            )
+    return {
+        "long": long_count,
+        "short": short_count,
+        "total": total,
+        "skew": round(skew, 4),
+        "dominant_side": side_label if skew > threshold else "balanced",
+        "threshold": threshold,
+        "alert": skew > threshold,
+    }
 
 
 class CorrelationMonitor:
@@ -100,6 +180,34 @@ class CorrelationMonitor:
         report["cluster_alerts"] = cluster_alerts
 
         return report
+
+    def compute_portfolio_correlation(self, actors: dict[str, Any]) -> dict:
+        """Build price/position snapshots from actors and compute correlation.
+
+        One-shot convenience wrapper around update() that extracts prices
+        and positions from the actor dict. Returns the correlation report
+        dict with keys: n_high_pairs, cluster_alerts.
+        """
+        prices: dict[str, float] = {}
+        positions: dict[str, dict] = {}
+        from eigencapital.domain.time import utc_now
+
+        for name, actor in actors.items():
+            engine = getattr(actor, "_engine", None)
+            if engine is None:
+                continue
+            px = getattr(engine, "current_price", None)
+            if px is not None and px > 0:
+                prices[name] = px
+            pos = getattr(engine, "pos_mgr", None)
+            if pos is not None and pos.has_position():
+                side = pos.position.side if hasattr(pos.position, "side") else None
+                positions[name] = {"side": side.value if hasattr(side, "value") else side}
+        today_str = utc_now().strftime("%Y-%m-%d")
+        corr_report = self.update(prices, positions, today_str)
+        if any("cluster" in a for a in corr_report["cluster_alerts"]):
+            logger.warning("Correlation cluster alert: %s", corr_report["cluster_alerts"])
+        return {"n_high_pairs": len(corr_report["high_pairs"]), "cluster_alerts": corr_report["cluster_alerts"]}
 
     def _check_clusters(self, corr: pd.DataFrame, positions: dict[str, dict]) -> list[str]:
         """Detect clusters of highly-correlated assets on the same side."""

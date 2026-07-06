@@ -39,7 +39,7 @@ from paper_trading.orchestrator.actor import (
 )
 from paper_trading.orchestrator.admission import AdmissionSignal, PortfolioAdmissionController
 from paper_trading.orchestrator.admission.signal import PositionSide
-from paper_trading.orchestrator.correlation import CorrelationMonitor
+from paper_trading.orchestrator.correlation import CorrelationMonitor, compute_position_concentration
 from paper_trading.orchestrator.health import (
     CircuitBreaker,
     HaltReason,
@@ -774,7 +774,7 @@ class EngineOrchestrator:
         }
 
         # ── 3e: Position concentration check ─────────────────────────────
-        conc = self._compute_position_concentration()
+        conc = compute_position_concentration(self._actors)
         results["position_concentration"] = conc
         self._position_concentration = conc
         if self._wal is not None:
@@ -784,7 +784,7 @@ class EngineOrchestrator:
                 logger.exception("WAL write failed for position_concentration")
 
         # ── 3f: Cross-asset correlation ───────────────────────────────────
-        corr = self._compute_cross_asset_correlation()
+        corr = self._correlation_monitor.compute_portfolio_correlation(self._actors)
         results["correlation"] = corr
 
         # ── 3g: MT5 orphan reconciliation ────────────────────────────────
@@ -794,97 +794,6 @@ class EngineOrchestrator:
         self._phase_3h_health_var_recovery(results)
 
         return False
-
-    def _compute_position_concentration(self) -> dict:
-        """Count open positions per side and compute skew ratio.
-
-        Counts both primary positions (pos_mgr) and re-entry positions."""
-        long_count = 0
-        short_count = 0
-        for name, actor in self._actors.items():
-            engine = getattr(actor, "_engine", None)
-            if engine is None:
-                continue
-            # Primary position
-            pos = getattr(engine, "pos_mgr", None)
-            if pos is not None and pos.has_position():
-                side = getattr(pos.position, "side", None)
-                if side == "long":
-                    long_count += 1
-                elif side == "short":
-                    short_count += 1
-            # Re-entry positions
-            for rp in getattr(engine, "reentry_positions", []):
-                side = rp.get("side")
-                if side == "long":
-                    long_count += 1
-                elif side == "short":
-                    short_count += 1
-        total = long_count + short_count
-        if total == 0:
-            return {
-                "long": 0,
-                "short": 0,
-                "total": 0,
-                "skew": 0.0,
-                "dominant_side": "none",
-                "threshold": 0.75,
-                "alert": False,
-            }
-        long_ratio = long_count / total
-        skew = max(long_ratio, 1.0 - long_ratio)
-        threshold = (get_config().defaults or {}).get("net_short_concentration_threshold", 0.75)
-        side_label = "LONG" if long_ratio > 0.5 else "SHORT"
-        if skew > threshold:
-            logger.warning(
-                "POSITION_CONCENTRATION: %d/%d positions on %s side (skew=%.1f%% threshold=%.0f%%)",
-                max(long_count, short_count),
-                total,
-                side_label,
-                skew * 100,
-                threshold * 100,
-            )
-            with contextlib.suppress(Exception):
-                global_alert_manager().warning(
-                    "Position concentration alert",
-                    f"{max(long_count, short_count)}/{total} on {side_label} side",
-                    details={
-                        "long": long_count,
-                        "short": short_count,
-                        "skew": round(skew, 4),
-                        "threshold": threshold,
-                    },
-                )
-        return {
-            "long": long_count,
-            "short": short_count,
-            "total": total,
-            "skew": round(skew, 4),
-            "dominant_side": side_label if skew > threshold else "balanced",
-            "threshold": threshold,
-            "alert": skew > threshold,
-        }
-
-    def _compute_cross_asset_correlation(self) -> dict:
-        """Build price/position snapshot and update correlation monitor."""
-        prices: dict[str, float] = {}
-        positions: dict[str, dict] = {}
-        for name, actor in self._actors.items():
-            engine = getattr(actor, "_engine", None)
-            if engine is None:
-                continue
-            px = getattr(engine, "current_price", None)
-            if px is not None and px > 0:
-                prices[name] = px
-            pos = getattr(engine, "pos_mgr", None)
-            if pos is not None and pos.has_position():
-                side = pos.position.side if hasattr(pos.position, "side") else None
-                positions[name] = {"side": side.value if hasattr(side, "value") else side}
-        today_str = utc_now().strftime("%Y-%m-%d")
-        corr_report = self._correlation_monitor.update(prices, positions, today_str)
-        if any("cluster" in a for a in corr_report["cluster_alerts"]):
-            logger.warning("Correlation cluster alert: %s", corr_report["cluster_alerts"])
-        return {"n_high_pairs": len(corr_report["high_pairs"]), "cluster_alerts": corr_report["cluster_alerts"]}
 
     def _phase_3h_health_var_recovery(self, results: dict) -> None:
         """HealthMonitor observation, VaR/CVaR computation, and RecoveryScheduler."""

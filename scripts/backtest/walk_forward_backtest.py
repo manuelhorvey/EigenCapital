@@ -72,6 +72,9 @@ ASSETS = {
     "GBPCHF": "GBPCHF=X",
     "GBPUSD": "GBPUSD=X",
     "EURAUD": "EURAUD=X",
+    # Recent additions
+    "BTCUSD": "BTC-USD",
+    "^DJI": "^DJI",
 }
 
 

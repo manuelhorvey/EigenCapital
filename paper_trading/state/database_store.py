@@ -518,6 +518,7 @@ class _DatabaseStore:
                     json.dumps(record.get("assets", {})),
                 ),
             )
+        self.checkpoint_wal()
 
     def read_equity_history(self) -> list:
         try:

@@ -1,6 +1,19 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
+from shared.registry import StrategyRegistry
+
+
+@pytest.fixture(autouse=True)
+def _reset_global_singletons():
+    """Reset global singletons before each test to prevent test pollution.
+
+    Singletons tracked:
+        - StrategyRegistry: registered assets persist across tests
+        - CalibrationRegistry: handled by get_or_load key isolation
+        - ExperimentContext: handled by test isolation
+    """
+    StrategyRegistry.reset_instance()
 
 
 @pytest.fixture

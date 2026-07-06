@@ -48,6 +48,7 @@ export default defineConfig({
       '/risk-parity.json': 'http://localhost:5000',
       '/weekly-review.json': 'http://localhost:5000',
       '/weekly-review/acknowledge': 'http://localhost:5000',
+      '/healthcheck.json': 'http://localhost:5000',
     },
   },
 })

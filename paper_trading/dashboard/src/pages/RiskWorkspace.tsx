@@ -6,6 +6,7 @@ import PekScalarPanel from '../components/PekScalarPanel'
 import PerformanceStateVelocityChart from '../components/PerformanceStateVelocityChart'
 import RiskBudgetChart from '../components/RiskBudgetChart'
 import GateAggregationPanel from '../components/GateAggregationPanel'
+import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 
@@ -32,6 +33,11 @@ export default function RiskWorkspace() {
         </EntranceAnimator>
         <EntranceAnimator variant="fade-up" delay={90}>
           <GateAggregationPanel />
+        </EntranceAnimator>
+      </Section>
+      <Section id="model-health" errorTitle="Model Health">
+        <EntranceAnimator variant="fade-up" delay={105}>
+          <HealthMonitorPanel />
         </EntranceAnimator>
       </Section>
       <Section id="governance" errorTitle="Governance Constraints">

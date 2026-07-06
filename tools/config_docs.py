@@ -208,8 +208,8 @@ def _render_type(tp) -> str:
     args = getattr(tp, "__args__", ())
 
     # Handle Python 3.10+ X | None / X | Y syntax (types.UnionType)
-    UnionType = getattr(_types, "UnionType", None)
-    if UnionType is not None and isinstance(tp, UnionType):
+    union_type = getattr(_types, "UnionType", None)
+    if union_type is not None and isinstance(tp, union_type):
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1:
             return f"Optional[{_render_type(non_none[0])}]"

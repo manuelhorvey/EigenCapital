@@ -21,7 +21,6 @@ from __future__ import annotations
 import atexit
 import contextlib
 import logging
-import math
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -41,7 +40,14 @@ from paper_trading.orchestrator.actor import (
 from paper_trading.orchestrator.admission import AdmissionSignal, PortfolioAdmissionController
 from paper_trading.orchestrator.admission.signal import PositionSide
 from paper_trading.orchestrator.correlation import CorrelationMonitor
-from paper_trading.orchestrator.health import CircuitBreaker, HaltReason, HealthMonitor, RecoveryScheduler
+from paper_trading.orchestrator.health import (
+    CircuitBreaker,
+    HaltReason,
+    HealthMonitor,
+    RecoveryScheduler,
+    compute_var_cvar,
+    portfolio_vol_estimate,
+)
 from paper_trading.orchestrator.orphan_reconciliation import (
     MAX_CLEANUP_RETRIES,
     MAX_STALE_TICKET_CYCLES,
@@ -911,13 +917,8 @@ class EngineOrchestrator:
                 self._portfolio_returns.append(r)
                 if len(self._portfolio_returns) > 252:
                     self._portfolio_returns = self._portfolio_returns[-252:]
-                if len(self._portfolio_returns) >= 60:
-                    rets = sorted(self._portfolio_returns[-60:])
-                    n = len(rets)
-                    idx = max(0, min(n - 1, int(0.05 * n)))
-                    var_95 = rets[idx]
-                    loss_idx = rets[: idx + 1]
-                    cvar_95 = sum(loss_idx) / max(len(loss_idx), 1)
+                var_95, cvar_95 = compute_var_cvar(self._portfolio_returns, window=60, percentile=0.05)
+                if var_95 is not None and cvar_95 is not None:
                     results["var_95"] = round(var_95, 6)
                     results["cvar_95"] = round(cvar_95, 6)
             self._var_prev_value = pv
@@ -1213,12 +1214,7 @@ class EngineOrchestrator:
 
     def _portfolio_vol_estimate(self) -> float | None:
         """Estimate daily portfolio return vol from rolling returns (60-day)."""
-        if len(self._portfolio_returns) < 30:
-            return None
-        arr = self._portfolio_returns[-60:]
-        mean = sum(arr) / len(arr)
-        var = sum((x - mean) ** 2 for x in arr) / len(arr)
-        return math.sqrt(var)
+        return portfolio_vol_estimate(self._portfolio_returns)
 
     def shutdown(self) -> None:
         """Shut down the persistent thread pool (called on exit via atexit).

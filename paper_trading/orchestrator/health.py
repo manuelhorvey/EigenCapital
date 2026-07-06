@@ -9,6 +9,7 @@ Provides:
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -19,6 +20,46 @@ from paper_trading.orchestrator.actor import (
 )
 
 logger = logging.getLogger("eigencapital.orchestrator.health")
+
+
+def portfolio_vol_estimate(portfolio_returns: list[float]) -> float | None:
+    """Estimate daily portfolio return vol from rolling returns (60-day).
+
+    Returns None if fewer than 30 observations are available.
+    """
+    if len(portfolio_returns) < 30:
+        return None
+    arr = portfolio_returns[-60:]
+    mean = sum(arr) / len(arr)
+    var = sum((x - mean) ** 2 for x in arr) / len(arr)
+    return math.sqrt(var)
+
+
+def compute_var_cvar(
+    portfolio_returns: list[float],
+    window: int = 60,
+    percentile: float = 0.05,
+) -> tuple[float | None, float | None]:
+    """Compute VaR and CVaR at the given percentile from rolling returns.
+
+    Args:
+        portfolio_returns: list of daily portfolio returns (fraction).
+        window: number of most recent returns to use.
+        percentile: tail percentile (0.05 = 95% VaR).
+
+    Returns:
+        (var, cvar) tuple, each as fraction. Returns (None, None) if
+        fewer than ``window`` observations are available.
+    """
+    if len(portfolio_returns) < window:
+        return None, None
+    rets = sorted(portfolio_returns[-window:])
+    n = len(rets)
+    idx = max(0, min(n - 1, int(percentile * n)))
+    var = rets[idx]
+    loss_idx = rets[: idx + 1]
+    cvar = sum(loss_idx) / max(len(loss_idx), 1)
+    return var, cvar
 
 
 # ── HealthMonitor ─────────────────────────────────────────────────────────────

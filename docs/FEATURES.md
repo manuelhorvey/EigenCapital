@@ -93,7 +93,7 @@ These are inference-only — used by `ArchetypeClassifier` but never passed to X
 2. Apply triple-barrier touch: first touch of TP (+1), SL (-1), or vertical barrier → {-1, 0, 1}
 3. Training pipeline drops HOLD (0) labels and maps {-1, 1} → {0, 1} for binary XGBoost
 
-Per-asset `pt_sl` from per-asset YAML files in `configs/domains/assets/` (e.g., `configs/domains/assets/EURUSD.yaml`).
+Per-asset `pt_sl` from per-asset YAML files in `configs/domains/assets/` (e.g., `configs/domains/assets/GBPUSD.yaml`).
 
 ## Feature Contract Validation
 

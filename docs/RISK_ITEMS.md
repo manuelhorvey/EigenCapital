@@ -15,7 +15,7 @@
 **Risk**: The breaker has never fired empirically (max 4 consecutive portfolio losses observed; threshold=7). The Monte Carlo calibration uses a 14-month bull-market sample (Oct 2024–May 2026) that contains no true crisis. A threshold that appears well-calibrated against bootstrap-from-bull-market data may fire too early, too late, or at the wrong severity during a genuine regime break.
 
 **Mitigation**:
-- `circuit_breaker_sim.py` produces a threshold sensitivity table and a dual-conditional recommendation ("assuming next 12 months resemble last 14" + explicit caveat)
+- `scripts/simulations/circuit_breaker_sim.py` produces a threshold sensitivity table and a dual-conditional recommendation ("assuming next 12 months resemble last 14" + explicit caveat)
 - Re-run after 6 months of live data, or immediately after a -10R drawdown live, whichever comes first
 - The breaker's consecutive-loss condition (currently threshold=7) is the only well-calibrated check — drawdown-pct and vol-spike thresholds remain manually set defaults
 

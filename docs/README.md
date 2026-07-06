@@ -6,13 +6,13 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 
 | Guide | Description |
 |-------|-------------|
-| [`OPERATIONS.md`](OPERATIONS.md) | Daily/weekly ops, halt responses, troubleshooting |
-| [`SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) | Architecture, components, data flow, governance |
-| [`GOVERNANCE.md`](GOVERNANCE.md) | 16-layer governance + decision pipeline stages + position sizing guardrails |
-| [`FEATURES.md`](FEATURES.md) | Alpha features (9 base + 6 trend-exhaustion per-asset, 4 cross-asset, 7 regime, archetype, labeling) |
+| [`docs/OPERATIONS.md`](OPERATIONS.md) | Daily/weekly ops, halt responses, troubleshooting |
+| [`docs/SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) | Architecture, components, data flow, governance |
+| [`docs/GOVERNANCE.md`](GOVERNANCE.md) | 16-layer governance + decision pipeline stages + position sizing guardrails |
+| [`docs/FEATURES.md`](FEATURES.md) | Alpha features (9 base + 6 trend-exhaustion per-asset, 4 cross-asset, 7 regime, archetype, labeling) |
 | [`LIVE_CONTRACT.md`](../LIVE_CONTRACT.md) | Immutable production system contract |
-| [`MODES.md`](MODES.md) | Per-mode override matrix (production / challenge_ftmo_10k / live) |
-| [`SECURITY.md`](SECURITY.md) | Bearer token auth, MT5 loopback enforcement, .env permission check, secrets scanner |
+| [`docs/MODES.md`](MODES.md) | Per-mode override matrix (production / challenge_ftmo_10k / live) |
+| [`docs/SECURITY.md`](SECURITY.md) | Bearer token auth, MT5 loopback enforcement, .env permission check, secrets scanner |
 
 ## Quick Reference
 
@@ -82,7 +82,7 @@ AUDCHF, AUDNZD, EURUSD, GBPNZD
 
 ## ADRs
 
-Architecture Decision Records in [`adr/`](adr/) — see [`adr/ADR-000-index.md`](adr/ADR-000-index.md) for the full list.
+Architecture Decision Records in [`docs/adr/`](adr/) — see [`docs/adr/ADR-000-index.md`](adr/ADR-000-index.md) for the full list.
 
 ## Conventions
 

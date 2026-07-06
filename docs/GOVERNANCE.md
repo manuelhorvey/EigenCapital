@@ -116,11 +116,11 @@ Weekly LLM-driven macro context overlay that adjusts execution parameters based 
   - `geopol_risk_score > 0.7` → SL widens by `geopol_sl_widen_pct` (default +10%)
   - `overall_regime == "risk_off"` → position size reduces by `risk_off_size_reduce_pct` (default -20%)
   - `confidence < min_confidence` (default 0.6) or stale narrative → no governance applied
-- **Human review step**: Narrative lands as `narrative_pending.json`; must be confirmed via dashboard **NARR PENDING** button or auto-confirms at Monday noon (`auto_confirm_deadline_hour: 12`)
+- **Human review step**: Narrative lands as `data/live/narrative_pending.json`; must be confirmed via dashboard **NARR PENDING** button or auto-confirms at Monday noon (`auto_confirm_deadline_hour: 12`)
 - **Staleness**: ≥7 days since week_start → stale flag suppresses governance, shown as `(STALE)` on dashboard
 - **Failure mode**: scrape/LLM error → narrative carries forward with `fetch_error` status; dashboard shows yellow **NARR ERR** badge
 - **Integration**: `_narrative_sl_mult` multiplied into SL in `_open_position`; `_narrative_size_scalar` applied in `_sizing_config` and execution bridge notional; `narrative_ok` flag in `check_halt_conditions` with -0.10 validity penalty
-- **State storage**: `data/live/narrative_active.json`, `narrative_pending.json`
+- **State storage**: `data/live/narrative_active.json`, `data/live/narrative_pending.json`
 - **Config**: `configs/domains/governance/narrative.yaml` — loaded by `PaperConfigRegistry` and composed into `execution.governance.*`
 - **Requires**: `OPENCODE_ZEN_API_KEY` env var
 
@@ -158,7 +158,7 @@ Automated distribution shift detection per feature per asset:
   - 3+ SEVERE features → `psi_ok = False`, hard halt on asset
   - Trend arrow (↑↓→) on dashboard distinguishes data glitch (single SEVERE, STABLE trend) from genuine drift (SEVERE + INCREASING)
 - **Penalty accumulation**: PSI penalty is additive with feature stability penalty (both are separate terms in `update_validity()`) — worst-wins at each penalty type, summed across types
-- **Dashboard**: `PSIDriftCard.tsx` — per-asset table with color-coded feature rows, trend arrows, classification badges, worst-classification summary, collapsible halted section
+- **Dashboard**: `GET /psi.json` — per-asset table with color-coded feature rows, trend arrows, classification badges, worst-classification summary, collapsible halted section
 - **Endpoint**: `GET /psi.json` (30s cache)
 
 ## Multiplicative Governance Chain

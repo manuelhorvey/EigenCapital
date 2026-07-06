@@ -9,28 +9,28 @@ Domains sourced from `configs/domains/` and wired through `PaperConfigRegistry`.
 
 | Domain | Source File | Status |
 |---|---|---|
-| Capital | `risk/capital.yaml` | ✅ promoted |
-| Halt | `risk/halt.yaml` | ✅ promoted (Phase 12.2c) |
-| Sizing | `risk/sizing.yaml` | ✅ promoted |
-| Exits | `risk/exits.yaml` | ✅ promoted |
-| Sell-only | `_defaults.yaml + per-asset` | ✅ promoted (Phase 5) |
-| Assets (per-asset) | `assets/<TICKER>.yaml` | ✅ promoted (Phase 7) |
-| Infrastructure scalars | `infrastructure/config.yaml` | ✅ promoted (Phase 12.3) |
-| MT5 broker | `broker/mt5.yaml` | ✅ promoted (Phase 12.6) |
-| Execution/governance | `governance/*.yaml` | ✅ promoted (Phase 12.6) |
-| Optimizations | `infrastructure/optimizations.yaml` | ✅ promoted (Phase 12.6) |
-| Portfolio weights | `portfolio/weights.yaml` | ✅ promoted |
-| Regime geometry | `governance/regime_geometry.yaml` | ✅ promoted |
-| Calibration | `ml/calibration.yaml` | ✅ promoted |
-| Ensemble | `ml/ensemble.yaml` | ✅ promoted |
-| Meta-labeling | `ml/meta_labeling.yaml` | ✅ promoted |
-| Triple-barrier (label params) | `ml/triple_barrier.yaml` | ✅ promoted (stored as label_params) |
-| Alerts | `infrastructure/alerts.yaml` | ✅ promoted |
-| Spread gate | `execution/spreads.yaml` | ✅ promoted |
-| Session gate | `execution/sessions.yaml` | ✅ promoted |
-| Mode definitions | `modes/*.yaml` | ✅ promoted |
-| Liquidity | `governance/liquidity.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
-| Narrative | `governance/narrative.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
+| Capital | `configs/domains/risk/capital.yaml` | ✅ promoted |
+| Halt | `configs/domains/risk/halt.yaml` | ✅ promoted (Phase 12.2c) |
+| Sizing | `configs/domains/risk/sizing.yaml` | ✅ promoted |
+| Exits | `configs/domains/risk/exits.yaml` | ✅ promoted |
+| Sell-only | `configs/domains/assets/_defaults.yaml + per-asset` | ✅ promoted (Phase 5) |
+| Assets (per-asset) | `configs/domains/assets/<TICKER>.yaml` | ✅ promoted (Phase 7) |
+| Infrastructure scalars | `configs/domains/infrastructure/config.yaml` | ✅ promoted (Phase 12.3) |
+| MT5 broker | `configs/domains/broker/mt5.yaml` | ✅ promoted (Phase 12.6) |
+| Execution/governance | `configs/domains/governance/*.yaml` | ✅ promoted (Phase 12.6) |
+| Optimizations | `configs/domains/infrastructure/optimizations.yaml` | ✅ promoted (Phase 12.6) |
+| Portfolio weights | `configs/domains/portfolio/weights.yaml` | ✅ promoted |
+| Regime geometry | `configs/domains/governance/regime_geometry.yaml` | ✅ promoted |
+| Calibration | `configs/domains/ml/calibration.yaml` | ✅ promoted |
+| Ensemble | `configs/domains/ml/ensemble.yaml` | ✅ promoted |
+| Meta-labeling | `configs/domains/ml/meta_labeling.yaml` | ✅ promoted |
+| Triple-barrier (label params) | `configs/domains/ml/triple_barrier.yaml` | ✅ promoted (stored as label_params) |
+| Alerts | `configs/domains/infrastructure/alerts.yaml` | ✅ promoted |
+| Spread gate | `configs/domains/execution/spreads.yaml` | ✅ promoted |
+| Session gate | `configs/domains/execution/sessions.yaml` | ✅ promoted |
+| Mode definitions | `configs/domains/modes/*.yaml` | ✅ promoted |
+| Liquidity | `configs/domains/governance/liquidity.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
+| Narrative | `configs/domains/governance/narrative.yaml` | ✅ promoted (standalone + composed into `execution.governance`) |
 | Environment overlays | `environments/*.yaml` | ✅ promoted (final overlay layer) |
 
 **Pruned keys** (never consumed through EngineConfig):

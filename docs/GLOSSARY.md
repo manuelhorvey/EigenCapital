@@ -300,7 +300,7 @@ deterministic reconstruction of any past cycle.
 
 ### EngineSnapshot
 A frozen representation of engine state at a point in time, serialized
-to `state.json` for the dashboard. Contains portfolio summary, per-asset
+to `data/live/state.json` for the dashboard. Contains portfolio summary, per-asset
 metrics, governance state, and admission status.
 
 ### Emergency Halt
@@ -317,7 +317,7 @@ Multi-condition portfolio protection system:
 - **Consecutive losses**: triggers at 7 consecutive portfolio losses
 
 ### Schema Migration (Database)
-SQLite state store (`state.db`) uses `DB_SCHEMA_VERSION = "2.0.0"`.
+SQLite state store (`data/live/state.db`) uses `DB_SCHEMA_VERSION = "2.0.0"`.
 Migrations run at connect time via `_run_migrations()`. Current migration
 (v1→v2.0.0) adds `cycle_id` to trades, `vol_spike`/`var_95` to equity_history.
 
@@ -472,7 +472,7 @@ data validation.
 ### Factor Groups
 10 factor exposure groups covering all 22 assets: USD, EUR, AUD, NZD,
 CHF, CAD, GBP, JPY, US_EQUITY (^DJI), COMMODITY (GC). Factor exposures
-computed per-cycle and exposed in `state.json` for monitoring.
+computed per-cycle and exposed in `data/live/state.json` for monitoring.
 
 ### Factor Exposures
 Per-group portfolio weight sums computed each cycle. Used by the

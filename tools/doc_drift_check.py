@@ -81,6 +81,7 @@ PATH_EXCLUDE_PATTERNS = (
     "**/CHANGELOG.md",
     "**/node_modules/**",
     "**/.venv/**",
+    "**/configs/paper_trading.yaml",  # intentionally deleted in Phase 12.7
 )
 
 # Canonical facts for cross-reference consistency
@@ -445,6 +446,18 @@ def _check_markdown_paths() -> list[str]:
                 continue
             # Skip markdown link fragments
             if candidate.startswith("#"):
+                continue
+            # Skip absolute paths starting with / (API routes, not file paths)
+            if candidate.startswith("/"):
+                continue
+            # Skip paths under data/live/ (runtime-generated files not present in CI)
+            if "data/live/" in candidate or candidate.startswith("data/live"):
+                continue
+            # Skip paths that are intentionally documented as deleted or planned
+            if candidate in (
+                "configs/paper_trading.yaml",       # intentionally deleted in Phase 12.7
+                "configs/environment_resolver.py",  # planned, Phase 13 — not yet implemented
+            ):
                 continue
 
             # Normalize: strip leading ./ or cwd references

@@ -14,15 +14,15 @@ The `backtests/` package provides model evaluation utilities used by backtesting
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
 | `__init__` | Package entry point | `compute_per_fold_labels` (placeholder) |
-| `trade_analysis.py` | Trade aggregation & statistics | `aggregate`, `flip_quality`, `paper_stats` |
-| `forward_test.py` | Walk-forward metrics | `_forward_metrics`, `_regime_metrics`, `_classify_vol_regime` |
-| `mas.py` | Model Assessment Scoring | `compute_mas`, `score_model`, `score_signal`, `score_portfolio`, `score_shadow`, `score_forward`, `score_stress`, `hard_gates` |
-| `model_comparator.py` | Model comparison | `compare_models`, `compare_signals`, `compare_portfolio`, `compare_shadow_intel`, `build_summary` |
-| `model_evolution.py` | Trajectory management | `compute_mas_velocity`, `compute_mas_acceleration`, `compute_subaxis_drift`, `compute_convergence`, `estimate_equilibrium_band` |
-| `model_promotion_engine.py` | Promotion decisions | `evaluate_promotion`, `_check_performance`, `_check_stability`, `_check_consistency`, `_check_safety` |
-| `adversarial_manifold.py` | Adversarial stability testing | `evaluate_adversarial_manifold`, `PERTURBATIONS` (12 perturbation configs) |
-| `performance_metrics.py` | Regime-stratified metrics | `calculate_regime_performance` |
-| `expectancy_audit.py` | Trade expectancy analysis | `calculate_expectancy`, `run_expectancy_audit` |
+| `backtests/trade_analysis.py` | Trade aggregation & statistics | `aggregate`, `flip_quality`, `paper_stats` |
+| `backtests/forward_test.py` | Walk-forward metrics | `_forward_metrics`, `_regime_metrics`, `_classify_vol_regime` |
+| `backtests/mas.py` | Model Assessment Scoring | `compute_mas`, `score_model`, `score_signal`, `score_portfolio`, `score_shadow`, `score_forward`, `score_stress`, `hard_gates` |
+| `backtests/model_comparator.py` | Model comparison | `compare_models`, `compare_signals`, `compare_portfolio`, `compare_shadow_intel`, `build_summary` |
+| `backtests/model_evolution.py` | Trajectory management | `compute_mas_velocity`, `compute_mas_acceleration`, `compute_subaxis_drift`, `compute_convergence`, `estimate_equilibrium_band` |
+| `backtests/model_promotion_engine.py` | Promotion decisions | `evaluate_promotion`, `_check_performance`, `_check_stability`, `_check_consistency`, `_check_safety` |
+| `backtests/adversarial_manifold.py` | Adversarial stability testing | `evaluate_adversarial_manifold`, `PERTURBATIONS` (12 perturbation configs) |
+| `backtests/performance_metrics.py` | Regime-stratified metrics | `calculate_regime_performance` |
+| `backtests/expectancy_audit.py` | Trade expectancy analysis | `calculate_expectancy`, `run_expectancy_audit` |
 
 ### Data Flow
 

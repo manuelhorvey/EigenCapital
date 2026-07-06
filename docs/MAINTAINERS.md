@@ -65,7 +65,7 @@ A PR must satisfy all of the following before merging to `main`:
 1. Verify the PR description explains **what** and **why** (not just code diff)
 2. Check that tests cover the change (not just existing tests pass)
 3. Verify any uncovered invariants are documented in `LIVE_CONTRACT.md`
-4. Check for stale documentation references (the `doc_drift_check.py` CI gate
+4. Check for stale documentation references (the `tools/doc_drift_check.py` CI gate
    catches path-level staleness; check for semantic drift manually)
 5. Ensure no `TODO`/`FIXME` markers are introduced without a linked issue
 6. For ML changes: verify walk-forward methodology is not broken by the change

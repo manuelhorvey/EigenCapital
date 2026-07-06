@@ -156,11 +156,30 @@ class EngineOrchestrator:
                 snapshot.peak_portfolio_value or 0.0,
             )
 
-        # Re-anchor peak against live equity: the persisted peak from a prior
-        # session may be stale (e.g. different capital base, intentional capital
-        # reset).  Setting peak < current equity would create a false drawdown
-        # at startup that blocks auto-unhalt.  Ensure peak ≥ current equity.
+        # Re-anchor peak against live equity and capital base.
+        # The persisted peak from a prior session may be stale:
+        #   - Different capital base (rebalancing changed capital_base)
+        #   - Intentional capital reset
+        #   - Prior session had different asset set
+        #
+        # If the snapshot has peak_capital_base, adjust the peak proportionally
+        # to the current capital.  This prevents false drawdown when capital
+        # was reduced but the peak remains at the old, higher capital level.
         _init_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
+        _peak_capital_base = getattr(snapshot, "peak_capital_base", None) if snapshot else None
+        if _peak_capital_base is not None and self._peak_portfolio_value is not None and _peak_capital_base > 0:
+            _current_capital = get_config().capital
+            _capital_ratio = _current_capital / _peak_capital_base
+            self._peak_portfolio_value *= _capital_ratio
+            logger.info(
+                "Re-anchored peak from %.2f (at capital_base=%.2f) to %.2f (at capital_base=%.2f, ratio=%.4f)",
+                snapshot.peak_portfolio_value if snapshot else 0.0,
+                _peak_capital_base,
+                self._peak_portfolio_value,
+                _current_capital,
+                _capital_ratio,
+            )
+        # Ensure peak >= current equity (safety net — should always hold after capital adjustment)
         if (
             _init_equity is not None
             and _init_equity > 0

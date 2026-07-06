@@ -477,6 +477,9 @@ class EngineStateService:
             snapshot.halt_reason = orch._halt_reason.value if orch._halt_reason is not None else ""
             snapshot.halt_detail = orch._halt_detail
             snapshot.peak_portfolio_value = orch._peak_portfolio_value
+            # Store the capital base that this peak was relative to, so at restore
+            # time we can detect stale peaks caused by capital rebalancing.
+            snapshot.peak_capital_base = get_config().capital
             breaker = getattr(orch, "_circuit_breaker", None)
             if breaker is not None:
                 _, snapshot.breaker_daily_pnl = breaker.snapshot_state()

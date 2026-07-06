@@ -31,6 +31,7 @@ class EngineSnapshot:
     halt_reason: str = ""
     halt_detail: str = ""
     peak_portfolio_value: float | None = None
+    peak_capital_base: float | None = None
     breaker_daily_pnl: list[float] | None = None
 
     @classmethod
@@ -52,6 +53,7 @@ class EngineSnapshot:
             halt_reason=d.get("halt_reason", ""),
             halt_detail=d.get("halt_detail", ""),
             peak_portfolio_value=d.get("peak_portfolio_value"),
+            peak_capital_base=d.get("peak_capital_base"),
             breaker_daily_pnl=d.get("breaker_daily_pnl"),
         )
 

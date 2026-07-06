@@ -124,9 +124,16 @@ class AssetPnlController:
 
         # Apply EXACTLY ONE trailing exit system per cycle to prevent SL ping-pong.
         # Only applies to primary position. Re-entry positions use fixed SL/TP.
+        #
+        # When adaptive_exit is enabled, it handles the full lifecycle:
+        #   breakeven lock (0.5R) → scale-out → retracement trail → time decay.
+        # The old dynamic_sltp trailing (vol-spike tightening) is skipped to avoid
+        # conflicting SL updates that ping-pong between two independent systems.
+        #
+        # When adaptive_exit is disabled, the legacy dynamic_sltp trailing + post-entry
+        # adjustment runs (vol spike tightening, TP nudging).
         ae_cfg = asset.config.get("adaptive_exit", {})
         if ae_cfg.get("enabled", False):
-            self._apply_post_entry_adjust_only(asset)
             self._apply_adaptive_exit(asset)
         else:
             self._apply_trailing_stop(asset)

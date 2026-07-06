@@ -624,8 +624,12 @@ class AssetPnlController:
         old_base = asset.capital_base
         asset.capital_base = new_base
         delta = new_base - old_base
+        asset.initial_capital = asset.initial_capital + delta
         asset.current_value = asset.current_value + delta
+        asset.peak_value = asset.peak_value + delta
+        asset.pos_mgr.initial_capital = asset.pos_mgr.initial_capital + delta
         asset.pos_mgr.current_value = asset.pos_mgr.current_value + delta
+        asset.pos_mgr.peak_value = asset.pos_mgr.peak_value + delta
 
 
 def _compute_r(asset, exit_price: float) -> float:

@@ -193,3 +193,72 @@ class TestPosMgrStubContract:
         # The line that failed in the original bug: mtm > peak_value
         result = mtm > fake_asset_no_pos.peak_value
         assert isinstance(result, bool)
+
+
+class TestSetCapitalBase:
+    """Regression: set_capital_base must shift initial_capital, current_value,
+    and peak_value on both the asset and pos_mgr by the rebalance delta.
+
+    Before the fix, only current_value was adjusted — initial_capital and
+    peak_value stayed at their old values, causing false drawdown spikes
+    and inflated return metrics after rebalancing.
+    """
+
+    @staticmethod
+    def _init_state(asset, value: float = 10_000.0):
+        """Set the 7 fields that set_capital_base adjusts to one value."""
+        asset.capital_base = value
+        asset.initial_capital = value
+        asset.current_value = value
+        asset.peak_value = value
+        asset.pos_mgr.initial_capital = value
+        asset.pos_mgr.current_value = value
+        asset.pos_mgr.peak_value = value
+
+    def test_adjusts_all_fields_by_delta_downward(self):
+        """Capital reduction: delta = -$2,000, all fields shift by same amount."""
+        asset = FakeAsset(peak=10_000.0)
+        ctrl = AssetPnlController(asset)
+        self._init_state(asset, 10_000.0)
+
+        ctrl.set_capital_base(8_000.0)  # delta = -2,000
+
+        assert asset.capital_base == 8_000.0
+        assert asset.initial_capital == 8_000.0
+        assert asset.current_value == 8_000.0
+        assert asset.peak_value == 8_000.0
+        assert asset.pos_mgr.initial_capital == 8_000.0
+        assert asset.pos_mgr.current_value == 8_000.0
+        assert asset.pos_mgr.peak_value == 8_000.0
+
+    def test_adjusts_all_fields_by_delta_upward(self):
+        """Capital increase: delta = +$3,000, all fields shift by same amount."""
+        asset = FakeAsset(peak=10_000.0)
+        ctrl = AssetPnlController(asset)
+        self._init_state(asset, 10_000.0)
+
+        ctrl.set_capital_base(13_000.0)  # delta = +3,000
+
+        assert asset.capital_base == 13_000.0
+        assert asset.initial_capital == 13_000.0
+        assert asset.current_value == 13_000.0
+        assert asset.peak_value == 13_000.0
+        assert asset.pos_mgr.initial_capital == 13_000.0
+        assert asset.pos_mgr.current_value == 13_000.0
+        assert asset.pos_mgr.peak_value == 13_000.0
+
+    def test_zero_delta_no_change(self):
+        """Calling set_capital_base with the same value is a no-op."""
+        asset = FakeAsset(peak=10_000.0)
+        ctrl = AssetPnlController(asset)
+        self._init_state(asset, 10_000.0)
+
+        ctrl.set_capital_base(10_000.0)  # delta = 0
+
+        assert asset.capital_base == 10_000.0
+        assert asset.initial_capital == 10_000.0
+        assert asset.current_value == 10_000.0
+        assert asset.peak_value == 10_000.0
+        assert asset.pos_mgr.initial_capital == 10_000.0
+        assert asset.pos_mgr.current_value == 10_000.0
+        assert asset.pos_mgr.peak_value == 10_000.0

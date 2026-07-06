@@ -5,7 +5,7 @@ import pandas as pd
 import pytz
 
 from paper_trading.config_manager import get_config
-from paper_trading.ops.data_fetcher import fetch_history
+from paper_trading.ops.data_fetcher import fetch_live
 from shared.portfolio_weights import WeightMethod, compute_weights
 
 logger = logging.getLogger("eigencapital.engine_rebalance_service")
@@ -36,7 +36,7 @@ class EngineRebalanceService:
             if px is None or px <= 0:
                 continue
             try:
-                hist = fetch_history(asset.ticker, period=f"{window + 60}d", interval="1d")
+                hist = fetch_live(asset.ticker, min_days=window + 60)
                 if hist is not None and "close" in hist.columns and len(hist) >= window:
                     price_data[name] = hist["close"]
             except Exception:

@@ -75,6 +75,10 @@ class DecisionContext:
 
     Stages read from and write to this object. The pipeline
     aborts early if ``abort`` is set by any stage.
+
+    ``config`` carries the engine configuration (``EngineConfig`` instance)
+    so pipeline stages can read sizing/behaviour parameters without
+    reaching for the ``get_config()`` global singleton.
     """
 
     engine: Any  # AssetEngine (avoid circular import)
@@ -92,6 +96,9 @@ class DecisionContext:
 
     # Causal replay identifiers (set before pipeline runs)
     feature_hash: str = ""
+
+    # Injected config (avoids global get_config() call in pipeline stages)
+    config: Any = None  # EngineConfig instance
 
 
 # ── Stage type ──────────────────────────────────────────────────────────
@@ -142,10 +149,8 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
     if ctx.new_side is None:
         return
     engine = ctx.engine
-    from paper_trading.config_manager import get_config
-
-    global_cfg = get_config()
-    min_conf = engine.config.get("min_confidence", getattr(global_cfg.defaults, "min_confidence", 0.0))
+    cfg = ctx.config or engine._engine_cfg
+    min_conf = engine.config.get("min_confidence", getattr(cfg.defaults, "min_confidence", 0.0))
     if ctx.decision.confidence < min_conf:
         logger.debug(
             "%s: skipping trade, confidence %.1f%% < min %.1f%%",
@@ -728,10 +733,8 @@ def apply_spread_gate(ctx: DecisionContext) -> None:
     at 30s cadence) the gate logs what it *would* do but does not block, to
     validate thresholds against real market conditions before going live.
     """
-    from paper_trading.config_manager import get_config
-
-    _cfg = get_config()
-    spread_gate_cfg = (_cfg.defaults or {}).get("spread_gate", {})
+    cfg = ctx.config or getattr(ctx.engine, "_engine_cfg", None)
+    spread_gate_cfg = (cfg.defaults or {}).get("spread_gate", {}) if cfg else {}
     if not spread_gate_cfg.get("enabled", True):
         return
 
@@ -1004,12 +1007,15 @@ def run_decision_pipeline(
         stages = DEFAULT_STAGES
 
     feature_hash = getattr(decision, "feature_hash", "")
+    from paper_trading.config_manager import get_config as _fallback_get_config
+
     ctx = DecisionContext(
         engine=engine,
         decision=decision,
         df=df,
         current_side=engine.pos_mgr.current_side(),
         feature_hash=feature_hash,
+        config=getattr(engine, "_engine_cfg", None) or _fallback_get_config(),
     )
 
     ctx.gates_trace = {}

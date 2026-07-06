@@ -89,7 +89,7 @@ def build_asset_engine(
         position_size if position_size is not None else engine_cfg.position_size,
     )
     engine.validity_sm = _ValidityStateMachine()
-    reg = StrategyRegistry.get_instance()
+    reg = getattr(engine, "_reg", None) or StrategyRegistry.get_instance()
     engine._reg = reg
     engine._model_iface = reg.get_model(engine.name)
     engine._signal_strategy = reg.get_signal(engine.name)

@@ -29,7 +29,7 @@ from typing import Any
 
 from eigencapital.domain.time import utc_now, utc_now_iso
 from paper_trading.alerting.manager import global_alert_manager
-from paper_trading.config_manager import get_config
+from paper_trading.config_manager import EngineConfig, get_config
 from paper_trading.governance.drawdown_controls import check_drawdown_circuit_breaker, compute_exposure_multiplier
 from paper_trading.logging.correlation import set_correlation_id
 from paper_trading.orchestrator.actor import (
@@ -105,8 +105,10 @@ class EngineOrchestrator:
         wal_writer: WalWriter | None = None,
         max_workers: int = 8,
         snapshot: EngineSnapshot | None = None,
+        config: EngineConfig | None = None,
     ):
         self._actors = actors
+        self._config = config
         self._max_halt_ratio = max_halt_ratio
         self._max_workers = max_workers or len(actors) * 2
         self._persist_buffer: list[dict] = []
@@ -180,7 +182,7 @@ class EngineOrchestrator:
         _init_equity = sum(a._engine.mtm_value for a in self._actors.values() if hasattr(a._engine, "mtm_value"))
         _peak_capital_base = getattr(snapshot, "peak_capital_base", None) if snapshot else None
         if _peak_capital_base is not None and self._peak_portfolio_value is not None and _peak_capital_base > 0:
-            _current_capital = get_config().capital
+            _current_capital = (self._config or get_config()).capital
             _capital_ratio = _current_capital / _peak_capital_base
             self._peak_portfolio_value *= _capital_ratio
             logger.info(
@@ -366,7 +368,7 @@ class EngineOrchestrator:
         same return signature as the old _pre_phase_equity_snapshot for
         backward compat with Phase 3 helpers.
         """
-        defaults = get_config().defaults or {}
+        defaults = (self._config or get_config()).defaults or {}
         max_leverage = defaults.get("portfolio_max_leverage", 2.0)
         # FIXED 2026-07-04: use the FULL portfolio for portfolio-aggregate
         # metrics (total_equity, drawdown).  During weekend/filtered cycles

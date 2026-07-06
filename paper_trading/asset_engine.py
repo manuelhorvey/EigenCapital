@@ -74,6 +74,7 @@ class AssetEngine:
         retrain_window=None,
         context=None,
         wal_writer=None,
+        registry=None,
     ):
         ctx = context or ExecutionContext()
         engine_cfg = ctx.get_engine_config()
@@ -164,6 +165,8 @@ class AssetEngine:
         if journal_path is _SKIP_JOURNAL:
             self.state_store = None
         self._market_data = ctx.get_market_data_service()
+        # Injected registry (or fall back to global singleton)
+        self._reg = registry or StrategyRegistry.get_instance()
         self._setup_registry_strategies()
 
         # ── Monitoring & governance ──────────────────────────────────
@@ -199,7 +202,6 @@ class AssetEngine:
     # ── Internal setup helpers ──────────────────────────────────────
 
     def _setup_registry_strategies(self) -> None:
-        self._reg = StrategyRegistry.get_instance()
         self._model_iface = self._reg.get_model(self.name)
         self._signal_strategy = self._reg.get_signal(self.name)
         self._sizing_strategy = self._reg.get_sizing(self.name)

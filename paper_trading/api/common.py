@@ -24,28 +24,26 @@ def json_dumps(obj, **kwargs):
     return json.dumps(obj, cls=_StrictJSONEncoder, **kwargs)
 
 
-_mt5_status: dict | None = None
-_mt5_status_lock = threading.Lock()
-
-
-def set_mt5_status(status: dict) -> None:
-    global _mt5_status
-    with _mt5_status_lock:
-        _mt5_status = status
-
-
-def _reset_mt5_status() -> None:
-    """Reset MT5 status cache. Test-harness use only."""
-    global _mt5_status
-    with _mt5_status_lock:
-        _mt5_status = None
+_MT5_STATUS_DEFAULT = {"connected": False, "status": "UNKNOWN", "last_heartbeat": None, "account": None}
 
 
 def get_mt5_status() -> dict:
-    with _mt5_status_lock:
-        if _mt5_status is not None:
-            return dict(_mt5_status)
-    return {"connected": False, "status": "UNKNOWN", "last_heartbeat": None, "account": None}
+    """Return MT5 connection status from the latest engine snapshot.
+
+    Replaces the old ``_mt5_status`` global variable.  The engine now
+    embeds MT5 status in each ``state.json`` snapshot under the ``mt5``
+    key, so this reads it from there.  If no snapshot is available,
+    returns a disconnected default.
+    """
+    try:
+        snapshot = _STORE.load_snapshot()
+        if snapshot is not None and hasattr(snapshot, "mt5"):
+            mt5 = snapshot.mt5
+            if isinstance(mt5, dict):
+                return mt5
+    except Exception:
+        pass
+    return dict(_MT5_STATUS_DEFAULT)
 
 
 def _get_state_meta() -> tuple[str, int]:

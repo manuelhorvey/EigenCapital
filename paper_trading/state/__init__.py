@@ -35,6 +35,7 @@ class EngineSnapshot:
     peak_portfolio_value: float | None = None
     peak_capital_base: float | None = None
     breaker_daily_pnl: list[float] | None = None
+    mt5: dict | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> "EngineSnapshot":
@@ -57,6 +58,7 @@ class EngineSnapshot:
             peak_portfolio_value=d.get("peak_portfolio_value"),
             peak_capital_base=d.get("peak_capital_base"),
             breaker_daily_pnl=d.get("breaker_daily_pnl"),
+            mt5=d.get("mt5"),
         )
 
 

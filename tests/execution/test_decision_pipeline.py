@@ -3,10 +3,11 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.entities.position import PositionIntent, StackLayer
 from paper_trading.entry.decision import PositionSide, TradeDecision
 from paper_trading.execution.decision_pipeline import (
-    DecisionContext,
     DEFAULT_STAGES,
+    DecisionContext,
     apply_adx_entry_gate,
     apply_bar_jump_suppression,
     apply_confidence_gate,
@@ -26,11 +27,21 @@ from paper_trading.execution.decision_pipeline import (
     update_prob_history,
     update_regime_bar_counter,
 )
-from eigencapital.domain.entities.position import PositionIntent, StackLayer
+
+
+def _make_mock_config():
+    """Return a mock config with minimal attributes for pipeline stage tests."""
+    cfg = MagicMock()
+    cfg.capital = 100_000
+    cfg.defaults = {}
+    cfg.halt = {}
+    cfg.mt5 = MagicMock(enabled=False)
+    return cfg
 
 
 def _mock_engine(current_price=100.0, config=None, pnl=5.0, has_position=True, name="TEST", side="long"):
     engine = MagicMock()
+    engine._engine_cfg = _make_mock_config()
     engine.name = name
     engine.current_price = current_price
     engine.config = config or {}
@@ -364,10 +375,8 @@ class TestApplyRiskOffSuppression:
 
 
 class TestApplySpreadGate:
-    @patch("paper_trading.config_manager.get_config")
     @patch("paper_trading.execution.decision_pipeline.time.time", return_value=2000.0)
-    def test_blocks_when_spread_exceeds_threshold(self, mock_time, mock_get_config):
-        mock_get_config.return_value = MagicMock(defaults={"spread_gate": {"enabled": True}})
+    def test_blocks_when_spread_exceeds_threshold(self, mock_time):
         engine = _mock_engine()
         engine._last_spread_bps = 25.0
         engine._last_spread_time = 1990.0
@@ -377,10 +386,8 @@ class TestApplySpreadGate:
         apply_spread_gate(ctx)
         assert ctx.new_side is None
 
-    @patch("paper_trading.config_manager.get_config")
     @patch("paper_trading.execution.decision_pipeline.time.time", return_value=2000.0)
-    def test_allows_when_spread_within_threshold(self, mock_time, mock_get_config):
-        mock_get_config.return_value = MagicMock(defaults={"spread_gate": {"enabled": True}})
+    def test_allows_when_spread_within_threshold(self, mock_time):
         engine = _mock_engine()
         engine._last_spread_bps = 5.0
         engine._last_spread_time = 1990.0
@@ -390,10 +397,8 @@ class TestApplySpreadGate:
         apply_spread_gate(ctx)
         assert ctx.new_side == PositionSide.LONG
 
-    @patch("paper_trading.config_manager.get_config")
     @patch("paper_trading.execution.decision_pipeline.time.time", return_value=2000.0)
-    def test_observe_mode_does_not_block(self, mock_time, mock_get_config):
-        mock_get_config.return_value = MagicMock(defaults={"spread_gate": {"enabled": True}})
+    def test_observe_mode_does_not_block(self, mock_time):
         engine = _mock_engine()
         engine._last_spread_bps = 100.0
         engine._last_spread_time = 1990.0
@@ -445,11 +450,13 @@ class TestApplyAdxEntryGate:
         """
         rng = np.random.default_rng(1)
         close = 100 + np.sin(np.arange(n) * 0.5) * 2 + rng.normal(0, 0.1, n)
-        return pd.DataFrame({
-            "close": close,
-            "high": close * 1.003,
-            "low": close * 0.997,
-        })
+        return pd.DataFrame(
+            {
+                "close": close,
+                "high": close * 1.003,
+                "low": close * 0.997,
+            }
+        )
 
     @staticmethod
     def _trending_ohlcv(n: int = 100) -> pd.DataFrame:
@@ -461,11 +468,13 @@ class TestApplyAdxEntryGate:
         rng = np.random.default_rng(42)
         trend = np.cumsum(rng.normal(0.5, 0.3, n))
         close = 100 + trend
-        return pd.DataFrame({
-            "close": close,
-            "high": close * 1.01,
-            "low": close * 0.99,
-        })
+        return pd.DataFrame(
+            {
+                "close": close,
+                "high": close * 1.01,
+                "low": close * 0.99,
+            }
+        )
 
     def test_blocks_when_adx_below_threshold(self):
         engine = _mock_engine(config={"adx_entry_gate": {"enabled": True, "adx_threshold": 20, "observe_only": False}})
@@ -617,7 +626,9 @@ class TestRouteExecutionPolicy:
         engine._tp_geo = MagicMock()
         engine._deferred_entry = None
         engine._execution_policy = MagicMock()
-        engine._execution_policy.handle.return_value = MagicMock(action="ENTER", reason="ok", entry_plan=None, exit_plan=None)
+        engine._execution_policy.handle.return_value = MagicMock(
+            action="ENTER", reason="ok", entry_plan=None, exit_plan=None
+        )
         engine._open_position = MagicMock()
         engine.position = None
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
@@ -630,35 +641,45 @@ class TestRunDecisionPipeline:
         engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
-        result = run_decision_pipeline(engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
+        result = run_decision_pipeline(
+            engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]})
+        )
         assert result == "BUY"
 
     def test_returns_sell_when_short(self):
         engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
-        result = run_decision_pipeline(engine, _decision("SELL"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
+        result = run_decision_pipeline(
+            engine, _decision("SELL"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]})
+        )
         assert result == "SELL"
 
     def test_returns_none_when_flat(self):
         engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
-        result = run_decision_pipeline(engine, _decision("HOLD"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
+        result = run_decision_pipeline(
+            engine, _decision("HOLD"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]})
+        )
         assert result is None
 
     def test_aborts_on_first_cycle(self):
         engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 0
         engine._wal_writer = MagicMock()
-        result = run_decision_pipeline(engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
+        result = run_decision_pipeline(
+            engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]})
+        )
         assert result is None
 
     def test_writes_wal_decision_output(self):
         engine = _mock_engine(has_position=False, config={"max_positions_per_asset": 2})
         engine._cycle_counter = 10
         engine._wal_writer = MagicMock()
-        run_decision_pipeline(engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]}))
+        run_decision_pipeline(
+            engine, _decision("BUY"), pd.DataFrame({"close": [100.0], "high": [101.0], "low": [99.0], "adx": [25.0]})
+        )
         assert engine._wal_writer.write.called
         call_args = engine._wal_writer.write.call_args[0]
         assert call_args[0] == "decision_output"

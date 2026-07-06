@@ -9,7 +9,7 @@
 # EigenCapital weekly model retrain (Sundays 03:00 UTC)
 # Logs to data/logs/retrain/retrain_cron_YYYYMMDD.log
 CRON_TZ=UTC
-0 3 * * 0 cd /home/manuelhorveydaniel/Projects/Quorrin && ./scripts/ops/retrain_scheduler.sh >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
+0 3 * * 0 cd /home/manuelhorveydaniel/Projects/EigenCapital && ./scripts/ops/retrain_scheduler.sh >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
 ```
 
 ## Daily health check + auto-trigger (04:00 UTC)
@@ -18,20 +18,20 @@ CRON_TZ=UTC
 # EigenCapital daily model health check (04:00 UTC)
 # Auto-triggers retrain if any asset exceeds urgency threshold
 CRON_TZ=UTC
-0 4 * * * cd /home/manuelhorveydaniel/Projects/Quorrin && PYTHONPATH=. python scripts/ops/model_health_monitor.py --trigger --output data/logs/healthcheck/latest.json >> data/logs/healthcheck/healthcheck_cron_$(date +\%Y\%m\%d).log 2>&1
+0 4 * * * cd /home/manuelhorveydaniel/Projects/EigenCapital && PYTHONPATH=. python scripts/ops/model_health_monitor.py --trigger --output data/logs/healthcheck/latest.json >> data/logs/healthcheck/healthcheck_cron_$(date +\%Y\%m\%d).log 2>&1
 ```
 
 ## Monthly retrain (1st of month 03:00 UTC)
 
 ```cron
 CRON_TZ=UTC
-0 3 1 * * cd /home/manuelhorveydaniel/Projects/Quorrin && ./scripts/ops/retrain_scheduler.sh >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
+0 3 1 * * cd /home/manuelhorveydaniel/Projects/EigenCapital && ./scripts/ops/retrain_scheduler.sh >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
 ```
 
 ## Quick manual run
 
 ```bash
-cd /home/manuelhorveydaniel/Projects/Quorrin
+cd /home/manuelhorveydaniel/Projects/EigenCapital
 ./scripts/ops/retrain_scheduler.sh              # full pipeline
 ./scripts/ops/retrain_scheduler.sh --dry-run     # dry run
 make retrain                                     # full pipeline

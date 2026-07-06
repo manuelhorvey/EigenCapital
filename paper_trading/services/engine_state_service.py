@@ -7,13 +7,12 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
-from paper_trading.api.common import set_mt5_status
-from paper_trading.config_manager import get_config
 from paper_trading.execution.gate_constants import get_sell_only_assets
 from paper_trading.governance.risk import get_sell_tripwire_state
 from paper_trading.metrics.engine_metrics import update_engine_metrics
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.simulation_snapshot import build_asset_snapshot
+from paper_trading.performance.edge_health import EdgeHealthMonitor
 from paper_trading.performance.live_sharpe import LiveSharpeTracker
 from paper_trading.state_store import EngineSnapshot
 
@@ -72,8 +71,9 @@ def _publish_asset_dict(asset_state: dict) -> None:
 class EngineStateService:
     _mtm_lock = threading.Lock()
 
-    def __init__(self, engine):
+    def __init__(self, engine, edge_monitor: EdgeHealthMonitor | None = None):
         self.engine = engine
+        self._edge_monitor = edge_monitor
 
     def compute_mtm_total(self) -> float:
         engine = self.engine
@@ -190,7 +190,7 @@ class EngineStateService:
         return {
             "portfolio": self._compute_portfolio_summary(overall_validity, any_halted),
             "assets": ad,
-            "halt_conditions": get_config().halt,
+            "halt_conditions": self.engine._engine_cfg.halt,
             "risk_parity": {
                 "weights": rp_weights,
                 "capital_allocations": rp_allocations,
@@ -217,7 +217,7 @@ class EngineStateService:
         # Now uses sum(a.initial_capital) — set once at init, never overwritten.
         # Use get_config().capital only if no assets have initial_capital yet.
         deployed = sum(a.initial_capital for a in engine.assets.values())
-        tc = deployed if deployed > 0 else (get_config().capital or 1.0)
+        tc = deployed if deployed > 0 else (self.engine._engine_cfg.capital or 1.0)
 
         mtm_total = self.compute_mtm_total()
 
@@ -250,7 +250,7 @@ class EngineStateService:
             "start_date": engine.start_date.strftime("%Y-%m-%d"),
             "start_datetime": engine.start_date.isoformat(),
             "last_update": engine.last_update.isoformat() if engine.last_update else None,
-            "capital": get_config().capital,
+            "capital": self.engine._engine_cfg.capital,
             "allocations": {n: a.allocation for n, a in engine.assets.items()},
             "deployment_cleared": True,
             "open_positions": sum(
@@ -371,10 +371,13 @@ class EngineStateService:
 
         # Edge health from live trade tracker
         try:
-            from paper_trading.performance.edge_health import get_monitor
+            if self._edge_monitor is not None:
+                state["portfolio"]["edge_health"] = self._edge_monitor.summary
+            else:
+                from paper_trading.performance.edge_health import get_monitor
 
-            monitor = get_monitor()
-            state["portfolio"]["edge_health"] = monitor.summary
+                monitor = get_monitor()
+                state["portfolio"]["edge_health"] = monitor.summary
         except Exception:
             logger.exception("Failed to compute edge health")
             state["portfolio"]["edge_health"] = {"available": False}
@@ -392,7 +395,8 @@ class EngineStateService:
         except Exception:
             logger.exception("Failed to extract PEK state")
 
-        # Capture MT5 connection status for the API endpoint
+        # Capture MT5 connection status (embedded in state snapshot — replaces global set_mt5_status)
+        mt5_status = {"connected": False, "status": "DISCONNECTED", "last_heartbeat": None, "account": None}
         try:
             broker = getattr(engine, "broker", None)
             if broker is not None and hasattr(broker, "_client"):
@@ -423,19 +427,15 @@ class EngineStateService:
                         }
                 except Exception:
                     logger.exception("MT5 position fetch failed")
-                set_mt5_status(
-                    {
-                        "connected": is_connected,
-                        "status": "CONNECTED" if is_connected else "DISCONNECTED",
-                        "last_heartbeat": last_hb_iso,
-                        "account": account,
-                    }
-                )
-            else:
-                set_mt5_status({"connected": False, "status": "DISCONNECTED", "last_heartbeat": None, "account": None})
+                mt5_status = {
+                    "connected": is_connected,
+                    "status": "CONNECTED" if is_connected else "DISCONNECTED",
+                    "last_heartbeat": last_hb_iso,
+                    "account": account,
+                }
         except Exception:
-            logger.exception("MT5 status set failed")
-            set_mt5_status({"connected": False, "status": "ERROR", "last_heartbeat": None, "account": None})
+            logger.exception("MT5 status capture failed")
+        state["mt5"] = mt5_status
         # Publish-time contract: mark each per-asset dict as read-only for
         # the publish window. ARCHITECTURE.md Key Contract §4 documents
         # the structural-sharing invariant; the marker is the lightweight
@@ -465,6 +465,7 @@ class EngineStateService:
                 name: asset._shadow_action for name, asset in engine.assets.items() if asset._shadow_action is not None
             }
             or None,
+            mt5=state.get("mt5"),
         )
 
         # Capture orchestrator emergency halt state for restart recovery.
@@ -479,7 +480,7 @@ class EngineStateService:
             snapshot.peak_portfolio_value = orch._peak_portfolio_value
             # Store the capital base that this peak was relative to, so at restore
             # time we can detect stale peaks caused by capital rebalancing.
-            snapshot.peak_capital_base = get_config().capital
+            snapshot.peak_capital_base = self.engine._engine_cfg.capital
             breaker = getattr(orch, "_circuit_breaker", None)
             if breaker is not None:
                 _, snapshot.breaker_daily_pnl = breaker.snapshot_state()
@@ -562,7 +563,7 @@ class EngineStateService:
             )
             asset_snapshots.append(snap)
 
-        cash_buffer = max(0, get_config().capital - portfolio.get("realized_value", 0))
+        cash_buffer = max(0, self.engine._engine_cfg.capital - portfolio.get("realized_value", 0))
 
         engine._sim_store.capture(
             portfolio_value=portfolio.get("total_value", 0),

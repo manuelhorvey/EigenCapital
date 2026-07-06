@@ -15,6 +15,14 @@ MagicMock  # noqa: B018
 ET = pytz.timezone("US/Eastern")
 
 
+_MOCK_ENGINE_CFG = SimpleNamespace(
+    capital=200_000,
+    halt={},
+    defaults={},
+    mt5=SimpleNamespace(enabled=False),
+)
+
+
 def _make_mock_asset(**overrides):
     """Build a mock AssetEngine-like object with minimal attrs."""
     asset = SimpleNamespace(
@@ -70,6 +78,7 @@ def _make_mock_engine(**overrides):
     """Build a mock engine with mock assets."""
     assets = overrides.get("assets", {"EURUSD": _make_mock_asset(), "GBPUSD": _make_mock_asset()})
     engine = SimpleNamespace(
+        _engine_cfg=_MOCK_ENGINE_CFG,
         assets=assets,
         _cycle_count=overrides.get("_cycle_count", 0),
         _mtm_cache_value=None,
@@ -128,28 +137,19 @@ class TestComputeMtmTotal:
 
 class TestGetState:
     def test_returns_portfolio_and_assets(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 100_000
-            mock_cfg.return_value.halt = {}
-            state = service.get_state()
+        state = service.get_state()
         assert "portfolio" in state
         assert "assets" in state
         assert "EURUSD" in state["assets"]
 
     def test_each_asset_has_required_keys(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 100_000
-            mock_cfg.return_value.halt = {}
-            state = service.get_state()
+        state = service.get_state()
         asset = state["assets"]["EURUSD"]
         for key in ("metrics", "halt", "validity_state", "last_signal", "sl_mult", "tp_mult", "sell_only"):
             assert key in asset
 
     def test_portfolio_has_summary(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 100_000
-            mock_cfg.return_value.halt = {}
-            state = service.get_state()
+        state = service.get_state()
         p = state["portfolio"]
         assert "total_value" in p
         assert "capital" in p
@@ -163,29 +163,21 @@ class TestGetState:
 
 class TestComputePortfolioSummary:
     def test_returns_valid_summary(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 200_000
-            # Need overall_validity >= n to pass (0.5 * n) threshold — 2 assets so >= 1.0
-            summary = service._compute_portfolio_summary(overall_validity=1.2, any_halted=False)
+        # Need overall_validity >= n to pass (0.5 * n) threshold — 2 assets so >= 1.0
+        summary = service._compute_portfolio_summary(overall_validity=1.2, any_halted=False)
         assert summary["total_value"] > 0
         assert summary["execution_state"] == "ACTIVE"
 
     def test_halted_when_any_asset_halted(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 200_000
-            summary = service._compute_portfolio_summary(overall_validity=1.2, any_halted=True)
+        summary = service._compute_portfolio_summary(overall_validity=1.2, any_halted=True)
         assert summary["execution_state"] == "HALTED"
 
     def test_paused_when_validity_low(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 200_000
-            summary = service._compute_portfolio_summary(overall_validity=0.3, any_halted=False)
+        summary = service._compute_portfolio_summary(overall_validity=0.3, any_halted=False)
         assert summary["execution_state"] == "PAUSED"
 
     def test_uses_initial_capital_as_denominator(self, service):
-        with patch("paper_trading.services.engine_state_service.get_config") as mock_cfg:
-            mock_cfg.return_value.capital = 200_000
-            summary = service._compute_portfolio_summary(overall_validity=1.0, any_halted=False)
+        summary = service._compute_portfolio_summary(overall_validity=1.0, any_halted=False)
         assert abs(summary["capital"] - 200_000) < 1
         assert "total_value" in summary
 
@@ -290,14 +282,10 @@ class TestSaveState:
 
         with (
             patch("paper_trading.services.engine_state_service.LiveSharpeTracker") as mock_sharpe,
-            patch("paper_trading.services.engine_state_service.get_config") as mock_cfg,
             patch("paper_trading.performance.edge_health.get_monitor") as mock_monitor,
-            patch("paper_trading.services.engine_state_service.set_mt5_status"),
             patch("paper_trading.services.engine_state_service.update_engine_metrics"),
         ):
             mock_sharpe.return_value.compute.return_value = {"available": True, "n_cycles": 100}
-            mock_cfg.return_value.capital = 200_000
-            mock_cfg.return_value.halt = {}
             mock_monitor.return_value.summary = {"available": True}
 
             service.save_state()

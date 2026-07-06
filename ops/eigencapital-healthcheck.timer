@@ -1,0 +1,16 @@
+[Unit]
+Description=EigenCapital Daily Model Health Check
+Documentation=https://github.com/manuelhorvey/EigenCapital
+
+[Timer]
+# Run every day at 04:00 (UTC) — one hour after retrain timer on Sundays
+OnCalendar=*-*-* 04:00:00
+# Random delay to spread load
+RandomizedDelaySec=300
+# Persist missed runs when system was powered off
+Persistent=true
+# Run 30min after boot if timer was missed
+OnBootSec=30m
+
+[Install]
+WantedBy=timers.target

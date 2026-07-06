@@ -110,6 +110,9 @@ CONFIDENCE_PATH = os.path.join(
 OPTIMIZATION_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "optimization.json"
 )
+HEALTHCHECK_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "logs", "healthcheck", "latest.json"
+)
 
 MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -139,6 +142,7 @@ _CACHE_TTL: dict[str, float] = {
     "/psi.json": 30.0,
     "/weekly-review.json": 30.0,
     "/trade-outcomes.json": 5.0,
+    "/healthcheck.json": 30.0,
 }
 
 

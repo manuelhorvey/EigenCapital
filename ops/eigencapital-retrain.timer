@@ -1,0 +1,17 @@
+[Unit]
+Description=EigenCapital Weekly Model Retrain
+Documentation=https://github.com/manuelhorvey/EigenCapital
+# User-level service — no %i needed
+
+[Timer]
+# Run every Sunday at 03:00 (UTC)
+OnCalendar=Sun 03:00:00
+# Random delay to avoid thundering herd on shared infrastructure
+RandomizedDelaySec=1800
+# Persist missed runs when system was powered off
+Persistent=true
+# Run one hour after boot if the weekly timer was missed
+OnBootSec=1h
+
+[Install]
+WantedBy=timers.target

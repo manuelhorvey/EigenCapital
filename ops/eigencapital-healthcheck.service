@@ -1,0 +1,23 @@
+[Unit]
+Description=EigenCapital Daily Model Health Check & Retrain Trigger
+Documentation=https://github.com/manuelhorvey/EigenCapital
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Projects/Quorrin
+Environment=PYTHONPATH=%h/Projects/Quorrin
+ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/Quorrin/data/logs/healthcheck'
+ExecStart=/usr/bin/env python3 %h/Projects/Quorrin/scripts/ops/model_health_monitor.py --trigger --output %h/Projects/Quorrin/data/logs/healthcheck/latest.json
+StandardOutput=append:%h/Projects/Quorrin/data/logs/healthcheck/healthcheck-service.log
+StandardError=inherit
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+# Give the health check up to 10 minutes (script is fast, but trigger has 6h subprocess timeout)
+TimeoutStopSec=21600
+
+[Install]
+WantedBy=default.target

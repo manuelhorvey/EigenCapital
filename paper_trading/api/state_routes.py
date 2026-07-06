@@ -9,6 +9,7 @@ import pytz
 from paper_trading.api.common import (
     _STORE,
     CONFIDENCE_PATH,
+    HEALTHCHECK_PATH,
     LOG_PATH,
     OPTIMIZATION_PATH,
     cache_get,
@@ -267,6 +268,19 @@ def handle_optimization(path: str, query: dict) -> str:
         return json_dumps({"error": "not_found", "message": "No optimization data available yet"}, indent=2)
     except json.JSONDecodeError:
         return json_dumps({"error": "invalid_json", "message": "optimization.json is corrupt"}, indent=2)
+
+
+def handle_healthcheck(path: str, query: dict) -> str:
+    """Serve model health monitor report from data/logs/healthcheck/latest.json."""
+    try:
+        with open(HEALTHCHECK_PATH) as f:
+            data = f.read()
+        cache_set("/healthcheck.json", data)
+        return data
+    except FileNotFoundError:
+        return json_dumps({"error": "not_found", "message": "No health check data available yet"}, indent=2)
+    except json.JSONDecodeError:
+        return json_dumps({"error": "invalid_json", "message": "healthcheck/latest.json is corrupt"}, indent=2)
 
 
 def handle_metrics(path: str, query: dict) -> str:

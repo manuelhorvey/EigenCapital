@@ -111,7 +111,7 @@ def handle_trades(path: str, query: dict, state_store=None) -> str:
             deduped.append(t)
 
     if len(deduped) < limit + offset:
-        snapshot = _STORE.load_snapshot()
+        snapshot = store.load_snapshot()
         if snapshot and snapshot.assets:
             for aname, adata in snapshot.assets.items():
                 for t in (adata.get("metrics") or {}).get("trade_log") or []:

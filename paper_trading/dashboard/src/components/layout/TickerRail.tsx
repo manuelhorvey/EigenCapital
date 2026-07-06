@@ -54,7 +54,13 @@ function toneClass(tone?: TokenTone): string {
 function classifyMt5(state: string, equity: number | null): { value: string; tone: TokenTone } {
   if (state === 'ERROR') return { value: 'ERROR', tone: 'bad' }
   if (state === 'CONNECTED') {
-    return { value: equity != null ? `live $${equity.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'live', tone: 'good' }
+    const isBelowFloor = equity != null && equity < 1_000
+    const suffix = isBelowFloor ? ' (≤1K)' : ''
+    const tone: TokenTone = isBelowFloor ? 'warn' : 'good'
+    return {
+      value: equity != null ? `live $${equity.toLocaleString(undefined, { maximumFractionDigits: 0 })}${suffix}` : 'live',
+      tone,
+    }
   }
   if (state === 'DISCONNECTED') return { value: 'disc', tone: 'warn' }
   return { value: 'unknown', tone: 'muted' }

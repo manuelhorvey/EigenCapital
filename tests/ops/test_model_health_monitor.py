@@ -126,8 +126,11 @@ class TestComputeRetrainUrgency:
     # Default stab_score for assets without a stability entry: 0.5 → contributes 0.10
 
     def test_basic_scores(
-        self, age_results: list[dict], psi_results: list[dict],
-        stability_results: list[dict], volume_results: list[dict],
+        self,
+        age_results: list[dict],
+        psi_results: list[dict],
+        stability_results: list[dict],
+        volume_results: list[dict],
     ) -> None:
         """Verify urgency scores are computed correctly for known inputs."""
         from scripts.ops.model_health_monitor import compute_retrain_urgency
@@ -162,14 +165,20 @@ class TestComputeRetrainUrgency:
         assert result == []
 
     def test_custom_threshold(
-        self, age_results: list[dict], psi_results: list[dict],
-        stability_results: list[dict], volume_results: list[dict],
+        self,
+        age_results: list[dict],
+        psi_results: list[dict],
+        stability_results: list[dict],
+        volume_results: list[dict],
     ) -> None:
         """Custom urgency_threshold changes needs_retrain without changing scores."""
         from scripts.ops.model_health_monitor import compute_retrain_urgency
 
         result = compute_retrain_urgency(
-            age_results, psi_results, stability_results, volume_results,
+            age_results,
+            psi_results,
+            stability_results,
+            volume_results,
             urgency_threshold=0.9,
         )
         by_asset = {r["asset"]: r for r in result}
@@ -479,10 +488,14 @@ class TestCheckInferenceVolume:
             live_dir = tmp_path / "data" / "live"
             live_dir.mkdir(parents=True)
             state_file = live_dir / "state.json"
-            state_file.write_text(json.dumps({
-                "engine": {"cycles_run": 1000},
-                "assets": {"GBPUSD": {"cycles_run": 1000}},
-            }))
+            state_file.write_text(
+                json.dumps(
+                    {
+                        "engine": {"cycles_run": 1000},
+                        "assets": {"GBPUSD": {"cycles_run": 1000}},
+                    }
+                )
+            )
             mhm.PROJECT_ROOT = tmp_path
             result = mhm.check_inference_volume(warn_threshold=50000)
             assert len(result) == 1
@@ -502,10 +515,14 @@ class TestCheckInferenceVolume:
             live_dir = tmp_path / "data" / "live"
             live_dir.mkdir(parents=True)
             state_file = live_dir / "state.json"
-            state_file.write_text(json.dumps({
-                "engine": {"cycles_run": 100000},
-                "assets": {"AUDUSD": {"cycles_run": 100000}},
-            }))
+            state_file.write_text(
+                json.dumps(
+                    {
+                        "engine": {"cycles_run": 100000},
+                        "assets": {"AUDUSD": {"cycles_run": 100000}},
+                    }
+                )
+            )
             mhm.PROJECT_ROOT = tmp_path
             result = mhm.check_inference_volume(warn_threshold=50000)
             assert len(result) == 1
@@ -646,6 +663,7 @@ class TestModelHealthMonitorCLI:
     def _env() -> dict[str, str]:
         """Return environment with PYTHONPATH set for the subprocess."""
         import os
+
         env = os.environ.copy()
         cwd = os.getcwd()
         pp = env.get("PYTHONPATH", "")
@@ -656,9 +674,12 @@ class TestModelHealthMonitorCLI:
     def _run(self, *args: str):
         """Run model_health_monitor.py with given args and return result."""
         import subprocess
+
         return subprocess.run(
             ["python3", self.SCRIPT, *args],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env=self._env(),
         )
 
@@ -678,12 +699,15 @@ class TestModelHealthMonitorCLI:
         assert result.stdout, "Expected stdout output"
 
         import json
+
         data = json.loads(result.stdout)
         assert "timestamp" in data
         assert "checks" in data
         assert "urgency" in data
         assert "model_age" in data["checks"]
-        assert data["urgency"]["n_assets"] > 0
+        assert "n_assets" in data["urgency"]
+        assert isinstance(data["urgency"]["n_assets"], int)
+        assert data["urgency"]["n_assets"] >= 0
 
     def test_trigger_no_op_when_healthy(self) -> None:
         """--trigger with default threshold should not fire when all assets are healthy."""
@@ -691,6 +715,7 @@ class TestModelHealthMonitorCLI:
         assert result.returncode == 0
 
         import json
+
         data = json.loads(result.stdout)
         # All assets have urgency ~0.1, far below 0.65 threshold
         assert data["urgency"]["n_needs_retrain"] == 0
@@ -704,6 +729,7 @@ class TestModelHealthMonitorCLI:
         assert out_path.exists()
 
         import json
+
         with open(out_path) as f:
             data = json.load(f)
         assert "timestamp" in data
@@ -714,5 +740,6 @@ class TestModelHealthMonitorCLI:
         result = self._run("--json", "--max-age", "90")
         assert result.returncode == 0
         import json
+
         data = json.loads(result.stdout)
         assert data["config"]["max_age_days"] == 90

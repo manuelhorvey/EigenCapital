@@ -185,11 +185,11 @@ class OrphanReconciler:
                                 utc_now(),
                                 "MT5_STALE_TICKET",
                             )
-                    except Exception:  # noqa: BLE001
-                        logger.exception(
-                            "MT5_STALE_TICKET: %s failed to close paper position — position may be a ghost",
-                            name,
-                        )
+                        except Exception:  # noqa: BLE001
+                            logger.exception(
+                                "MT5_STALE_TICKET: %s failed to close paper position — position may be a ghost",
+                                name,
+                            )
                 elif missing_for >= STALE_TICKET_DEAL_CHECK_CYCLES:
                     try:
                         deal = broker.get_deal_by_ticket(int(mt5_ticket))
@@ -227,11 +227,11 @@ class OrphanReconciler:
                                     utc_now(),
                                     "MT5_ORDER_REJECTED",
                                 )
-                    except Exception:  # noqa: BLE001
-                        logger.exception(
-                            "MT5_ORDER_REJECTED: %s failed to close paper position — position may be a ghost",
-                            name,
-                        )
+                            except Exception:  # noqa: BLE001
+                                logger.exception(
+                                    "MT5_ORDER_REJECTED: %s failed to close paper position — position may be a ghost",
+                                    name,
+                                )
                 else:
                     logger.info(
                         "MT5_STALE_TICKET_GRACE: %s ticket=%s missing for %d/%d cycles "

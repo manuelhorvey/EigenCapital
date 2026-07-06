@@ -38,3 +38,4 @@ crisis_reports/
 mc_results.json
 scripts/data/
 scripts/paper_trading/
+.vscode/

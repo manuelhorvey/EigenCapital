@@ -1,0 +1,29 @@
+{
+  "8": {
+    "total_R": 215.05,
+    "sharpe": 32.6033,
+    "sharpe_adj": 17.0388,
+    "cagr_pct": 5.3794,
+    "max_dd_pct": -0.0253,
+    "mean_active": 7,
+    "pct_exceeded": 0.0
+  },
+  "13": {
+    "total_R": 290.17,
+    "sharpe": 33.0785,
+    "sharpe_adj": 16.5524,
+    "cagr_pct": 7.1489,
+    "max_dd_pct": -0.0266,
+    "mean_active": 10,
+    "pct_exceeded": 0.0
+  },
+  "21": {
+    "total_R": 347.21,
+    "sharpe": 30.861,
+    "sharpe_adj": 15.6552,
+    "cagr_pct": 8.214,
+    "max_dd_pct": -0.0266,
+    "mean_active": 13,
+    "pct_exceeded": 0.0
+  }
+}

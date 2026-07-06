@@ -1,0 +1,188 @@
+========================================================================
+CAPITAL UTILIZATION & POSITION SIZING AUDIT
+Date: 2026-07-06
+Source: phase2_scaling.json, phase3_constraints.json, sizing.yaml,
+        production.yaml, walk-forward daily R-series (449 days, 22 assets)
+========================================================================
+
+1. CAPITAL UTILIZATION RATE
+------------------------------------------------------------------------
+Production config:
+  max_position_pct_of_equity = 15%
+  max_concurrent_positions   = 8
+  portfolio_max_leverage     = 2.0x
+
+At every capital level ($100K to $1M+):
+  Per-position max    = capital × 15%
+  Max deployed        = 8 × per-position = 120% of capital
+  Leverage capacity   = 200% of capital
+  Utilization rate    = 120% / 200% = 60.0%
+  Idle capacity       = 80% of capital (40% of leverage)
+
+Capital    PerPos     Deployed     LeverageCap    Util      Idle
+------    -------    ---------    ------------    ----    --------
+$100K     $15,000    $120,000      $200,000       60%     $80,000
+$200K     $30,000    $240,000      $400,000       60%     $160,000
+$500K     $75,000    $600,000      $1,000,000     60%     $400,000
+$1M       $150,000   $1,200,000    $2,000,000     60%     $800,000
+
+The 60% utilization is invariant to capital scale because both
+max_deployed and leverage_capacity scale linearly with capital.
+
+
+2. BINDING CONSTRAINT ANALYSIS
+------------------------------------------------------------------------
+Constraint hierarchy (which constraint binds first):
+
+  1st: MAX_CONCURRENT (8 positions × 15% = 120% of capital)
+       This is the PRIMARY binding constraint at ALL capital levels.
+       Caps total deployed notional at 120% of capital.
+
+  2nd: MAX_LEVERAGE (2.0x = 200% of capital)
+       NEVER binds under current config because max_concurrent
+       prevents reaching 200% leverage.
+
+  3rd: FACTOR LIMITS
+       CHF (20%):         $20,000 for 5 assets → $4,000/asset
+       AUD (25%):         $25,000 for 4 assets → $6,250/asset
+       NZD (25%):         $25,000 for 4 assets → $6,250/asset
+       JPY (25%):         $25,000 for 4 assets → $6,250/asset
+       GOLD (15%):        $15,000 for 1 asset → $15,000/asset
+       FX_MAJOR (40%):    $40,000 for 7 assets → $5,714/asset
+       FX_CROSS (40%):    $40,000 for 18 assets → $2,222/asset
+       US_EQUITY (25%):   $25,000 for 1 asset → $25,000/asset
+
+  4th: DRAWDOWN TAPER
+       Linear reduction from 100% → 50% as drawdown goes from -5% → -15%.
+       Only activates during drawdown > 5%.
+
+  5th: RISK PER TRADE (2% max risk per trade)
+       Caps loss at 2% of capital per trade per day.
+
+Result: 40% of leverage capacity is structurally inaccessible due to
+the max_concurrent=8 cap. To achieve full 2.0x leverage, either:
+  (a) Increase max_concurrent to 14 (14 × 15% = 210%, capped at 200%)
+  (b) Increase max_position_pct to 25% at current 8 concurrent
+  (c) Increase max_leverage to 2.5x to match current 8 × 15% = 120%
+  (d) Some combination
+
+
+3. FACTOR CONSTRAINT BINDING (WALK-FORWARD DATA)
+------------------------------------------------------------------------
+Factor binding occurs when the group's concurrent active positions
+exceed what the factor limit can accommodate at 15% per position.
+
+CHF (20% limit = $20,000 at $100K):
+  5 assets (USDCHF, NZDCHF, CADCHF, EURCHF, GBPCHF)
+  Mean concurrent active in walk-forward: 4.4
+  Max concurrent active: 5
+  At $15K/position × 5 positions = $75,000 → limited to $20,000 by factor
+  AUD (25% limit = $25,000):
+  4 assets, mean concurrent: 3.3
+  At $15K/position × 4 positions = $60,000 → limited to $25,000
+  NZD (25% limit = $25,000):
+  4 assets, mean concurrent: 3.2
+  At $15K/position × 4 positions = $60,000 → limited to $25,000
+  JPY (25% limit = $25,000):
+  4 assets, mean concurrent: 3.8
+  At $15K/position × 4 positions = $60,000 → limited to $25,000
+
+  Factor constraints are the SECOND binding layer after max_concurrent.
+  CHF is the tightest (only $4,000 per CHF asset at $100K).
+
+
+4. WALK-FORWARD VS LIVE CONCURRENT POSITIONS — CRITICAL DISCREPANCY
+------------------------------------------------------------------------
+Walk-forward data (449 trading days, 22 assets):
+
+  Mean concurrent:     18.3
+  Median:              19
+  Min:                  1
+  Max:                 22
+  P95:                 22
+  P99:                 22
+  Std:                  3.3
+
+  Days with >8 concurrent positions: 435/449 = 96.9%
+  Days with >14 concurrent positions: 422/449 = 94.0%
+
+  Live cap:              8 (max_concurrent_positions)
+  Gap from mean:      10.3 positions below walk-forward average
+  Gap from median:    11 positions below walk-forward median
+  Days unconstrained:  14/449 = 3.1%
+
+  The backtest (walk-forward) assumes 18.3 concurrent positions on average.
+  The live system caps at 8. This means:
+  - The backtest's performance reflects ~18 concurrent positions
+  - Live deployment gets at most 8 (44% of backtest's average)
+  - 96.9% of trading days would hit the concurrent cap and be forced
+    to reject signal entries that the backtest assumed would execute
+
+  Implications for scaling linearity (R² = 1.0 in Phase 2):
+  The Phase 2 scaling analysis assumes returns scale linearly with capital.
+  This is ONLY valid if the number of concurrent positions scales with
+  capital. With max_concurrent=8, it does NOT — total notional is capped
+  at 120% regardless of capital. The analysis is misleading.
+
+
+5. ZERO-TRADE ASSET ANALYSIS
+------------------------------------------------------------------------
+Every one of the 22 portfolio assets has trades in the walk-forward
+period. No asset is zero-trade.
+
+Trade frequency (mean across assets): ~364/449 days (81%)
+Minimum: NZDCAD (212 days, 47%)
+Maximum: GBPUSD (435 days, 97%)
+
+The prior concern about "22.7% allocation to 5 assets with zero trades"
+is FALSIFIED by current walk-forward data. All 22 assets trade regularly.
+
+
+6. LIVE STATE SNAPSHOT (2026-07-05)
+------------------------------------------------------------------------
+Current live state from state.json:
+  Capital (paper):        $100,000
+  Total value (MT5):      $75,019
+  MT5 open positions:     18 (7 long, 11 short, skew 61.1%)
+  Closed trades:          0 (new deployment)
+  Portfolio drawdown:     -0.005% (essentially flat)
+  Live Sharpe:            available but insufficient data (28 cycles, 1 day)
+
+  Note: The 18 MT5 positions suggest the broker-side runs at higher
+  concurrency than the paper engine's max_concurrent=8 limit. This
+  deserves investigation — either MT5 bypasses the concurrency cap
+  or the paper engine is not yet deployed (deployment_cleared=True
+  but closed_trades=0 suggests this is a fresh start).
+
+
+7. RECOMMENDATIONS
+------------------------------------------------------------------------
+7.1 IMMEDIATE — Fix max_concurrent discrepancy
+     The walk-forward data supports 14-18 concurrent positions.
+     Raising max_concurrent from 8 to 14 would:
+     - Increase utilization from 60% to 100% (full 2x leverage)
+     - Match walk-forward assumptions (6% of days still constrained vs 97%)
+     - Unlock ~$80K additional deployed capital at $100K
+
+     Risk: 14 × 15% = 210% > 200% leverage cap → leverage becomes
+     the binding constraint at 14 positions. Maximum useful concurrent
+     positions = floor(2.0 / 0.15) = 13. Raise to 13-14.
+
+7.2 MEDIUM — Adjust factor limits to match portfolio composition
+     CHF limit (20%) is binding at $4,000/asset with 5 CHF-exposed assets.
+     Consider raising to 25-30% given CHF assets are structurally important
+     (mean concurrent CHF = 4.4, approaching all 5 simultaneously often).
+     GOLD (15%) is underutilized (mean concurrent = 0.9 for 1 asset).
+     No change needed for GOLD.
+
+7.3 MEDIUM — Align backtest concurrency with live constraints
+     The walk-forward backtest assumes unlimited concurrent positions.
+     It should be re-run with max_concurrent=13 constraint to produce
+     realistic live projections. The Phase 2 scaling analysis shows
+     R²=1.0 linearity but this is misleading — it assumes all signals
+     execute regardless of concurrency, which is not true in production.
+
+7.4 LOW — Diversify across more factor groups
+     Factor groups that are underutilized (US_EQUITY: 1 asset at 25%
+     limit) could accommodate additional uncorrelated assets. The
+     constraint is asset availability, not capital.

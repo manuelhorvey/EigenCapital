@@ -1,0 +1,225 @@
+================================================================================
+CAGR RECONCILIATION INVESTIGATION
+Date: 2026-07-06
+Files: scripts/capital_study/phase1_baseline.py, phase2_scaling.py, phase6_validation.py
+       scripts/backtest/backtest_pnl.py
+       data/processed/phase1_baseline.json, phase2_scaling.json, phase6_validation.json
+================================================================================
+
+1. THE TRANSFORMATION CHAIN (total_R=331.12 → CAGR=6.28%)
+================================================================================
+
+Step 1: Raw trades → Daily R-series (per-asset)
+  - 22 assets with signal parquets in scripts/walkforward/*_wf_signals.parquet
+  - SELL_ONLY filter applied to CADCHF, NZDCHF, EURAUD (BUY signals → FLAT)
+  - Per-asset tp/sl from production config
+  - compute_trade_pnl(): each non-flat signal → R-multiple based on label × tp/sl
+  - Result: per-asset daily R Series (indexed by datetime)
+
+Step 2: Per-asset daily R → Equal-weighted portfolio daily R
+  - Combined into DataFrame (434 days × 22 assets)
+  - Mean across assets for each day (equal weight)
+  - Filter: require ≥12 assets active per day
+  - Result: portfolio_r Series, 434 days
+  - mean_daily_R = 0.762940, std_daily_R = 0.363870
+  - total_R = 331.12 (= 434 × 0.762940)
+  - win_day_rate = 97.7%
+
+Step 3: Portfolio daily R → Portfolio daily % return
+  - Per-asset conversion: daily_return_pct = daily_R × ATR_pct × allocation_pct
+  - ATR_pct: from data/live/cache/*.parquet (14-period ATR / close price)
+  - allocation_pct = min(MAX_POSITION_PCT, 1/n_assets) = min(0.15, 1/22) = 0.045455
+  - Max daily loss cap: clip(lower=-MAX_RISK_PER_TRADE_PCT) = -2% (never triggered)
+  - Mean conversion factor across assets: 0.000319
+  - Result: per-asset daily % series, then equal-weighted portfolio mean
+  - mean_daily_pct = 0.024161%
+  - std_daily_pct = 0.013266%
+  - Range: [-0.0182%, +0.0589%]
+
+Step 4: Portfolio daily % → Compounding → Total return
+  - cum_growth = cumprod(1 + daily_pct_series)
+  - total_return_pct = cum_growth[-1] - 1 = 11.0534%
+
+Step 5: Total return → CAGR
+  - n_years = 434 / 252 = 1.7222
+  - CAGR = (1 + total_return)^(1/n_years) - 1
+  - CAGR = (1.110534)^(1/1.7222) - 1
+  - CAGR = 6.2766%
+
+Step 6: Dollar return
+  - Starting capital: $100,000
+  - Final capital: $111,053.35
+  - Net profit: $11,053.35
+
+All intermediate values:
+
+  VARIABLE                          VALUE
+  ─────────────────────────────────────────────
+  total_R (R-space)                331.12
+  n_days                           434
+  n_years                          1.72
+  mean_daily_R                     0.762940
+  std_daily_R                      0.363870
+  n_assets                         22
+  allocation_pct                   0.045455 (4.5455%)
+  mean_ATR_pct                     0.007017 (0.7017%)
+  mean_conversion_factor           0.000319
+  mean_daily_pct                   0.024161%
+  std_daily_pct                    0.013266%
+  total_return_pct                 11.0534%
+  CAGR                             6.2766%
+  net_profit                       $11,053.35
+  win_day_rate                     96.8%
+  no months with negative return   0/22 months
+
+This transformation is mathematically consistent. CAGR = 6.28% follows
+correctly from the inputs given the conversion methodology.
+
+================================================================================
+2. BUGS FOUND
+================================================================================
+
+BUG 1 (CRITICAL): Phase 1 compounds R-units as if they were returns
+────────────────────────────────────────────────────────────────────────────
+
+  File: scripts/capital_study/phase1_baseline.py, lines 173-175
+
+  Code:
+      cum_growth = 1.0 + pf_r.values
+      equity = np.cumprod(cum_growth)
+      cagr = float(equity[-1] ** (1.0 / n_years) - 1.0)
+
+  Problem: pf_r is the portfolio daily R-series (mean = 0.76). The code
+           treats R=0.76 as a 76% daily return and compounds it. This is
+           mathematically invalid — R-multiples are dimensionless risk units,
+           not percentage returns.
+
+  Result: CAGR = 2.697 × 10^59 (i.e., 2.7 × 10^61%), which is meaningless.
+          Also infects:
+          - monthly_return_mean = 53,825,373.25%
+          - monthly_return_std = 151,943,268.60%
+          - bootstrap CAGR CIs: 10^58 to 10^63 range
+          - P(CAGR > 8%) = 100% (of course, with 10^59% CAGR)
+          - max_dd_pct = -65.65% (this is max_dd_R × 100, also invalid)
+
+  Note: phase2_scaling.py does NOT have this bug — it correctly converts
+  R → % via ATR_pct × allocation_pct before compounding.
+
+BUG 2 (MEDIUM): ATR cache reading fails for 3 assets
+────────────────────────────────────────────────────────────────────────────
+
+  File: scripts/capital_study/phase2_scaling.py, compute_atr_pct_from_cache()
+
+  Three assets silently return the default fallback of 0.005 (0.5%) instead
+  of their actual ATR values:
+
+  a) BTCUSD: cache file is "BTC_USD.parquet" (underscore), but the function
+     looks for "BTCUSD.parquet", "BTCUSD_X.parquet", "BTCUSD_F.parquet".
+     None found → returns 0.005.
+     Actual ATR_pct = 0.036623 (7.3× higher).
+
+  b) ^DJI: cache file "data/live/cache/^DJI.parquet" has MultiIndex columns:
+     df.columns = [('Close', '^DJI'), ('High', '^DJI'), ...]
+     Function does df['high'] → KeyError → caught → returns 0.005.
+     Actual ATR_pct = 0.011078 (2.2× higher).
+
+  c) GBPJPY: same MultiIndex issue with "GBPJPY_X.parquet".
+     Actual ATR_pct = 0.009265 (1.9× higher).
+
+  Impact on CAGR:
+    With buggy ATR values: CAGR = 6.2766%
+    With corrected ATR values: CAGR = 7.2703%
+    CAGR understated by: 0.99 percentage points (≈16% relative error)
+
+    This is because ^DJI alone contributes 1,008 R (30% of total portfolio R)
+    but its conversion factor was understated by 2.2× (0.000227 vs 0.000504).
+
+BUG 3 (MINOR): phase1_baseline.json max_dd_pct is wrong
+────────────────────────────────────────────────────────────────────────────
+
+  File: data/processed/phase1_baseline.json
+
+  "max_dd_R": -0.66,
+  "max_dd_pct": -65.6536,   ← BUG: this is max_dd_R × 100, not a real % DD
+
+  The code does: max_dd_pct = round(max_dd_r * 100, 4)
+  But max_dd_r is in R-units, not in %. A drawdown of -0.66R is not
+  comparable to a percentage drawdown. The phase2_scaling.json correctly
+  computes max_dd_pct = -0.0229% from the actual %-space equity curve.
+
+BUG 4 (MINOR): Zero-trade assets dilute allocation
+────────────────────────────────────────────────────────────────────────────
+
+  5 of 22 assets have 0 trades (all signals = 0):
+    AUDJPY, AUDUSD, GBPJPY, NZDCAD, NZDJPY
+
+  These assets consume allocation_pct = 1/22 = 4.545% each but contribute
+  exactly 0% return. This means 22.7% of the allocation is wasted.
+  If only the 17 active assets were used, allocation per asset would be
+  1/17 = 5.88% instead of 4.545%, increasing CAGR to approximately:
+    6.28% × (22/17) = 8.12%
+
+  However, this is arguably the correct behavior — the equal-weight
+  methodology allocates to all portfolio assets, and some may have no
+  trade on a given day. But it does understate the risk-adjusted return
+  compared to a strategy that excludes zero-trade assets.
+
+BUG 5 (INFO): CHFJPY has signal parquet but is not in config
+────────────────────────────────────────────────────────────────────────────
+
+  scripts/walkforward/CHFJPY_wf_signals.parquet exists but is not in the
+  production config (cfg.assets). It's silently skipped. This doesn't
+  affect the computation but indicates either an orphaned file or an
+  asset that was dropped from the portfolio without cleaning up.
+
+================================================================================
+3. VERIFICATION: Is 331R → 6.28% CAGR Correct?
+================================================================================
+
+YES, the conversion is mathematically correct given the methodology.
+
+  Total R:       331.12
+  Mean daily R:  0.76294
+  Conversion:    mean_daily_pct = 0.76294 × mean(ATR_pct × allocation_pct)
+                                  = 0.76294 × 0.000319
+                                  = 0.000243 = 0.0243%
+  Simple ann:    0.0243% × 252 = 6.12%
+  Compounded:    (1 + 0.000243)^252 - 1 = 6.31%  (close to 6.28%)
+
+  Walk-forward:  6.2766% CAGR (verified by recomputation)
+  Bootstrap:     6.278% mean CAGR (phase6, 10K iterations)
+  Block MC 1y:   6.27% mean CAGR (5K simulations)
+
+All three independent computations agree within ±0.01%.
+
+KEY INSIGHT: The 6.28% CAGR is what the walk-forward data says for a
+naive equal-weight portfolio with fixed-barrier exits. The recent
+adaptive exit engine improvements (Phase 0 of the portfolio remediation)
+suggest the actual system CAGR may be higher due to better exit mechanics,
+but this is not reflected in the current signal parquets.
+
+================================================================================
+4. RECOMMENDATIONS
+================================================================================
+
+1. FIX BUG 1: https://github.com/anomalyco/EigenCapital/issues/????
+   - In phase1_baseline.py, replace lines 173-175 with the %-space
+     compounding from phase2_scaling.py.
+   - The phase1 baseline should report R-space metrics (total_R, avg_R,
+     sharpe_R) and %-space metrics (CAGR, DD%, etc.) separately.
+
+2. FIX BUG 2: https://github.com/anomalyco/EigenCapital/issues/????
+   - In compute_atr_pct_from_cache(), add support for:
+     a) MultiIndex columns (tuple keys like ('Close', '^DJI'))
+     b) BTC_USD.parquet naming variant
+   - Or use a more robust ATR source that doesn't depend on cache files
+
+3. FIX BUG 3: In phase1_baseline.py, remove the invalid max_dd_pct
+   conversion (line 231). Max DD in %-space should come from %-space
+   equity curve, not from R-space.
+
+4. CONSIDER: The 5 zero-trade assets should either be investigated
+   (why are they in the portfolio with no signals?) or excluded from
+   allocation calculations with 0-trade contributions counted as 0%.
+
+================================================================================

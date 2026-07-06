@@ -1,0 +1,209 @@
+{
+  "r_space": {
+    "equal_v1": {
+      "total_r": 491.8104869095903,
+      "avg_r": 1.1464113913976464,
+      "std_r": 0.4725499912622705,
+      "max_dd_r": -0.03,
+      "calmar": 14051.73,
+      "n_days": 429,
+      "pm": {
+        "n_days": 429,
+        "total_R": 491.81,
+        "avg_R": 1.1464,
+        "sharpe": 38.5117,
+        "sharpe_adj": 17.4842,
+        "max_dd_R": -0.03,
+        "calmar": 14051.73,
+        "n_loss_cluster_days": 281,
+        "n_weekly_clusters": 75,
+        "median_n_assets": 19,
+        "skew": -0.0253,
+        "ex_kurt": -0.2559,
+        "psr_gt_0": 1.0,
+        "dsr": 1.0
+      }
+    },
+    "risk_parity_v1": {
+      "total_r": 344.2125734560525,
+      "avg_r": 0.8023603110863694,
+      "std_r": 0.3418107002519335,
+      "max_dd_r": -0.06,
+      "calmar": 5617.13,
+      "n_days": 429,
+      "pm": {
+        "n_days": 429,
+        "total_R": 344.21,
+        "avg_R": 0.8024,
+        "sharpe": 37.2635,
+        "sharpe_adj": 19.4333,
+        "max_dd_R": -0.06,
+        "calmar": 5617.13,
+        "n_loss_cluster_days": 281,
+        "n_weekly_clusters": 75,
+        "median_n_assets": 19,
+        "skew": 0.2119,
+        "ex_kurt": -0.3718,
+        "psr_gt_0": 1.0,
+        "dsr": 1.0
+      }
+    },
+    "risk_parity_v2": {
+      "total_r": 398.6428016274454,
+      "avg_r": 0.9292372998308751,
+      "std_r": 0.39476182103526786,
+      "max_dd_r": -0.08,
+      "calmar": 4890.2,
+      "n_days": 429,
+      "pm": {
+        "n_days": 429,
+        "total_R": 398.64,
+        "avg_R": 0.9292,
+        "sharpe": 37.3673,
+        "sharpe_adj": 17.4984,
+        "max_dd_R": -0.08,
+        "calmar": 4890.2,
+        "n_loss_cluster_days": 281,
+        "n_weekly_clusters": 75,
+        "median_n_assets": 19,
+        "skew": 0.0482,
+        "ex_kurt": -0.3788,
+        "psr_gt_0": 1.0,
+        "dsr": 1.0
+      }
+    },
+    "hrp_v1": {
+      "total_r": 343.3532983683152,
+      "avg_r": 0.8003573388538816,
+      "std_r": 0.35458815718246567,
+      "max_dd_r": -0.17,
+      "calmar": 2011.32,
+      "n_days": 429,
+      "pm": {
+        "n_days": 429,
+        "total_R": 343.35,
+        "avg_R": 0.8004,
+        "sharpe": 35.8311,
+        "sharpe_adj": 19.1472,
+        "max_dd_R": -0.17,
+        "calmar": 2011.32,
+        "n_loss_cluster_days": 281,
+        "n_weekly_clusters": 75,
+        "median_n_assets": 19,
+        "skew": 0.0984,
+        "ex_kurt": -0.0147,
+        "psr_gt_0": 1.0,
+        "dsr": 1.0
+      }
+    },
+    "factor_constrained_v1": {
+      "total_r": 344.2147270723149,
+      "avg_r": 0.8023653311708971,
+      "std_r": 0.3418079107369208,
+      "max_dd_r": -0.06,
+      "calmar": 5616.95,
+      "n_days": 429,
+      "pm": {
+        "n_days": 429,
+        "total_R": 344.21,
+        "avg_R": 0.8024,
+        "sharpe": 37.2641,
+        "sharpe_adj": 19.4326,
+        "max_dd_R": -0.06,
+        "calmar": 5616.95,
+        "n_loss_cluster_days": 281,
+        "n_weekly_clusters": 75,
+        "median_n_assets": 19,
+        "skew": 0.2119,
+        "ex_kurt": -0.3717,
+        "psr_gt_0": 1.0,
+        "dsr": 1.0
+      }
+    },
+    "factor_constrained_v2": {
+      "total_r": 343.7667591979054,
+      "avg_r": 0.8013211170114345,
+      "std_r": 0.3216252487904175,
+      "max_dd_r": -0.08,
+      "calmar": 4561.93,
+      "n_days": 429,
+      "pm": {
+        "n_days": 429,
+        "total_R": 343.77,
+        "avg_R": 0.8013,
+        "sharpe": 39.5509,
+        "sharpe_adj": 21.372,
+        "max_dd_R": -0.08,
+        "calmar": 4561.93,
+        "n_loss_cluster_days": 281,
+        "n_weekly_clusters": 75,
+        "median_n_assets": 19,
+        "skew": 0.0583,
+        "ex_kurt": -0.138,
+        "psr_gt_0": 1.0,
+        "dsr": 1.0
+      }
+    }
+  },
+  "pct_space": {
+    "equal_v1": {
+      "cagr_pct": 9.723405985823131,
+      "total_ret_pct": 17.1128978199649,
+      "max_dd_pct": -0.007890910561276823,
+      "calmar": 1232.228639561439,
+      "n_days": 429
+    },
+    "risk_parity_v1": {
+      "cagr_pct": 8.179894323483827,
+      "total_ret_pct": 14.322165204681792,
+      "max_dd_pct": -0.007890910561306723,
+      "calmar": 1036.6223593502812,
+      "n_days": 429
+    },
+    "risk_parity_v2": {
+      "cagr_pct": 8.179894323483827,
+      "total_ret_pct": 14.322165204681792,
+      "max_dd_pct": -0.007890910561306723,
+      "calmar": 1036.6223593502812,
+      "n_days": 429
+    },
+    "hrp_v1": {
+      "cagr_pct": 4.0442148099747,
+      "total_ret_pct": 6.982191017782657,
+      "max_dd_pct": -0.011101360594735779,
+      "calmar": 364.2990222200737,
+      "n_days": 429
+    },
+    "factor_constrained_v1": {
+      "cagr_pct": 8.179894323483827,
+      "total_ret_pct": 14.322165204681792,
+      "max_dd_pct": -0.007890910561306723,
+      "calmar": 1036.6223593502812,
+      "n_days": 429
+    },
+    "factor_constrained_v2": {
+      "cagr_pct": 7.491085739441639,
+      "total_ret_pct": 13.085744260215225,
+      "max_dd_pct": -0.0101432984007758,
+      "calmar": 738.5256199175498,
+      "n_days": 429
+    }
+  },
+  "best_r": "equal_v1",
+  "best_pct": "equal_v1",
+  "zero_trade": [],
+  "worst_3": [
+    "BTCUSD",
+    "GBPCHF",
+    "EURAUD"
+  ],
+  "avg_conv": 0.0002913377148322084,
+  "n_assets": 22,
+  "methodology": "R-space: daily portfolio R = mean/weighted of per-asset R-multiples. %-space: R * atr_pct * sl_mult * alloc, geometrically compounded. All methods use 252d rolling window for covariance.",
+  "caveats": [
+    "R-space Sharpe is inflated by cross-asset diversification (not comparable to traditional finance).",
+    "% conversion assumes steady-state allocation (no dynamic sizing or MT5 quantization).",
+    "Walk-forward data may overstate live performance (slippage, spread, fills not modeled).",
+    "Equal weight is optimal when all assets have positive expected return \u2014 this holds here."
+  ]
+}

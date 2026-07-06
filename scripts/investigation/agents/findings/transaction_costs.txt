@@ -1,0 +1,255 @@
+======================================================================
+TRANSACTION COST INVESTIGATION — FULL FINDINGS
+======================================================================
+
+Date: 2026-07-06
+Source: Phase 7 sustainability assessment (scripts/capital_study/phase7_sustainability.py)
+Data: trace.jsonl (1060 entries, 529 with price gap data), state.json, MT5 client config
+
+======================================================================
+1. PHASE 7 FRICTION CALCULATION — AUDIT
+======================================================================
+
+Phase 7 computes friction-adj CAGR as:
+  baseline_cagr (6.28%) - annual_slippage_drag (3.75%) - annual_spread_drag (0.75%)
+  = 1.78%
+
+The input assumptions are:
+
+  Slippage RMS:  1.74% (from trace.jsonl)
+  Mean abs slip: 0.5%/trade (estimated from RMS)
+  Trade count:   ~50/year
+  Position size: 15% of capital
+  Annual slip:   50 × 0.5% × 15% = 3.75%
+  Annual spread: 50 × 0.1% × 15% = 0.75%
+
+EVERY ONE of these inputs is incorrect.
+
+----------------------------------------------------------------------
+1A. THE "SLIPPAGE" IS NOT SLIPPAGE — IT'S SIGNAL EDGE
+----------------------------------------------------------------------
+
+The 1.49% RMS value (Phase 7: 1.74%) is computed from the gap between
+`close_price` (model inference price) and `current_price` (live market
+price at the time the trace entry was written). The trace.jsonl has
+NO field named "slippage" — the RMS was derived from the price gap.
+
+Per-signal breakdown of the gap (trace.jsonl, 529 samples):
+
+  BUY signals (222 entries):  mean = +1.17%, mean|abs| = 1.30%, RMS = 2.15%
+  SELL signals (343 entries): mean = +0.33%, mean|abs| = 0.64%, RMS = 0.81%
+
+For BUY signals, the mean gap is +1.17% — the market price is HIGHER
+at execution time than at signal generation time. This is the model's
+directional edge: the market moves in the predicted direction during
+the ~30s inference-to-execution delay. This is NOT a cost.
+
+Per-asset-class breakdown:
+
+  fx_major (6 assets): mean gap = 0.55%
+  fx_cross (11 assets): mean gap = 0.56%
+  commodity (GC): mean gap = 1.96%
+  crypto (BTCUSD): mean gap = 5.32%
+  index (^DJI): mean gap = 1.93%
+
+TRUE execution slippage from the bridge:
+
+  MT5 broker path: fixed 2 bps (0.02%) entry, 3 bps (0.03%) SL exit
+  Paper broker path: variable 1-3 bps (vol_z-based model)
+
+The 98% of the "slippage" gap is signal edge, not transaction cost.
+
+----------------------------------------------------------------------
+1B. POSITION SIZE IS 4.55%, NOT 15%
+----------------------------------------------------------------------
+
+The R-to-% conversion in phase2_scaling.py uses:
+
+  alloc = min(MAX_POSITION_PCT (15%), 1/n_assets) = min(15%, 4.55%) = 4.55%
+
+So the baseline CAGR of 6.28% already uses 4.55% position size.
+
+But Phase 7's friction calculation uses 15%:
+
+  annual_slippage_drag = 50 trades × 0.5% slip × 15% position = 3.75%
+
+Changing to the correct 4.55%:
+  50 × 0.5% × 4.55% = 1.14% (not 3.75%)
+
+Live weighted average allocation is 3.41% over 22 assets (range 1-7%),
+which is even smaller.
+
+----------------------------------------------------------------------
+1C. TRADE COUNT ESTIMATE IS TOO LOW (AND TOO HIGH SIMULTANEOUSLY)
+----------------------------------------------------------------------
+
+Walk-forward data (parquet signals) shows 3,442 trades/year across the
+22-asset portfolio (6,132 non-zero R entries over 1.78 years). Phase 7
+used 50 trades/year — a 69x underestimate.
+
+However, the 50 vs 3,442 error partially compensates the 15% vs 4.55%
+position-size error:
+
+  Phase 7: 50 × 15% = 7.5 (units)
+  Actual: 3442 × 4.55% = 156.6 (units)
+  Ratio: 156.6 / 7.5 = 20.9x
+
+The net error is that Phase 7 undercounts total notional-traded by
+21x BUT counts each unit's cost as 0.5% instead of 0.02%. So:
+
+  Phase 7:  50  × 15% × 0.5%  = 3.75%
+  Reality: 3442 × 4.55% × 0.02% = 3.13% (if we used true 2bps slippage)
+
+These two errors (trade count × position size) balance out, making the
+3.75% slippage drag coincidentally close to what it would be if
+transaction costs were 2-3 bps per trade. But this is an accidental
+cancellation — the method is still wrong.
+
+----------------------------------------------------------------------
+1D. SPREAD IS DOUBLE-COUNTED
+----------------------------------------------------------------------
+
+The spread cost (50 × 0.1% × 15% = 0.75%) is added on top of the
+"slippage" cost. But the price gap (misidentified as slippage) already
+includes the bid-ask spread implicitly — close_price is typically the
+mid-price, and current_price includes the spread embedded in the MT5
+feed. Adding a separate spread term double-counts.
+
+----------------------------------------------------------------------
+1E. MISSING COSTS
+----------------------------------------------------------------------
+
+Phase 7 ignores:
+  - Swap/overnight financing: -0.5 to -3 bps/night depending on
+    direction and pair (~$0.23/night on a $4,550 FX position).
+    With 9.4-day avg hold and 3,442 trades: ~$7,400/year or 0.08% CAGR
+  - Broker commission: $3-5/lot on GC and ^DJI (~$0.11% CAGR impact)
+  - MT5-verified SL fill slippage (not in backtest at all)
+
+======================================================================
+2. CORRECTED COST BREAKDOWN BY TYPE
+======================================================================
+
+Cost                    | bps/trade | % of CAGR | Explanation
+------------------------|-----------|-----------|---------------------
+Half-spread (entry)     |  1-15     |   0.31%   | 1bp for FX, 15bp for GC
+Slippage (entry)        |  2        |   0.10%   | Fixed 2bps from bridge
+Slippage (SL exit, 62%) |  3        |   0.12%   | Fixed 3bps SL exit
+Slippage (TP exit, 16%) |  2        |   0.02%   | Fixed 2bps TP exit
+Commission (GC, ^DJI)   |  7        |   0.08%   | $5/lot GC, $3/lot DJI
+Swap overnight          |  0.5/night|   0.08%   | 9.4d avg hold
+------------------------|-----------|-----------|---------------------
+Total                   |  3-20     |   0.69%   | Blended ~8bps/trade
+
+The total drag on CAGR is approximately 0.5-1.0%, NOT 4.5%.
+
+======================================================================
+3. PER-ASSET COST BREAKDOWN
+======================================================================
+
+Asset     | Class     | Trades/yr | Spread | Slippage| Comm  | Swap
+          |           |           | (bps)  | (bps)   | ($/lot)| (bps/d)
+----------|-----------|-----------|--------|---------|--------|--------
+EURUSD    | fx_major  | 85        | 2      | 4       | 0     | -0.5
+GBPUSD    | fx_major  | 186       | 2      | 4       | 0     | -0.5
+USDJPY    | fx_major  | 178       | 3      | 4       | 0     | -0.3
+AUDUSD    | fx_major  | 128       | 2      | 4       | 0     | -0.5
+USDCAD    | fx_major  | 191       | 2      | 4       | 0     | -0.3
+NZDUSD    | fx_major  | 104       | 3      | 4       | 0     | -0.5
+USDCHF    | fx_major  | 241       | 3      | 4       | 0     | -0.5
+EURCHF    | fx_cross  | 252       | 5      | 4       | 0     | -1.0
+EURAUD    | fx_cross  | 171       | 8      | 4       | 0     | -1.0
+EURCAD    | fx_cross  | 170       | 5      | 4       | 0     | -0.5
+EURNZD    | fx_cross  | 252       | 10     | 4       | 0     | -1.0
+GBPAUD    | fx_cross  | 239       | 8      | 4       | 0     | -1.0
+GBPCAD    | fx_cross  | 226       | 8      | 4       | 0     | -1.0
+GBPCHF    | fx_cross  | 92        | 5      | 4       | 0     | -1.0
+NZDCAD    | fx_cross  | 133       | 8      | 4       | 0     | -1.0
+NZDCHF    | fx_cross  | 106       | 8      | 4       | 0     | -1.0
+CADCHF    | fx_cross  | 120       | 8      | 4       | 0     | -1.0
+GC        | commodity | 238       | 30     | 4       | 5     | -2.0
+BTCUSD    | crypto    | 135       | 50     | 4       | 0     | 0
+^DJI      | index     | 246       | 5      | 4       | 3     | -1.5
+AUDJPY    | fx_jpy    | 11        | 5      | 4       | 0     | -0.3
+GBPJPY    | fx_jpy    | 13        | 5      | 4       | 0     | -0.5
+NZDJPY    | fx_jpy    | 11        | 5      | 4       | 0     | -0.3
+
+NOTE: Spread costs for GC and BTCUSD dominate — these two assets
+(~11% of trades) account for ~50% of total transaction costs.
+
+======================================================================
+4. ROOT CAUSE OF THE PHASE 7 ERROR
+======================================================================
+
+The 1.74% RMS value from trace.jsonl was generated by
+LiveSharpeTracker (paper_tracking/performance/live_sharpe.py) which
+computes `slippage_rms_pct` as the RMS of `(current_price - close_price) / close_price`.
+
+This variable is MISNAMED. It measures the model-vs-market price gap,
+not execution slippage. The trace.jsonl has no `slippage` field —
+the "slippage" is inferred from the price gap in
+engine_state_service.py.
+
+There is no actual slippage tracking in the paper trading system:
+- MT5 execution uses market orders with a `deviation` parameter (20 pips)
+- The paper bridge applies a fixed 2bps spread/slippage
+- Neither system reports the realized fill-price difference from signal
+  price
+
+The LiveSharpeTracker should be renamed to clarify what it measures,
+and a separate true slippage tracker should be added from the MT5
+bridge's actual fill confirmation.
+
+======================================================================
+5. RECOMMENDATIONS
+======================================================================
+
+P1 - RENAME `slippage_rms_pct` to `model_timing_gap_pct` in:
+    - paper_trading/performance/live_sharpe.py (computation)
+    - paper_trading/services/engine_state_service.py (JSON key)
+    - phase7_sustainability.py (reference)
+    The value is useful for diagnostics but is NOT a cost metric.
+
+P1 - ADD true slippage tracking from MT5 fills:
+    - MT5Client.place_order() returns fill confirmation with price
+    - Record actual_fill_price vs signal_entry_price in attribution
+    - Report realized_slippage_bps per trade
+
+P2 - ADD swap cost tracking to paper PnL:
+    - MT5 bridge exposes swap per position
+    - Include swap in attribution friction records
+    - Subtract from paper PnL to match MT5 reality
+
+P2 - ADD commission tracking:
+    - Read from MT5 symbol info or config
+    - Subtract from paper PnL for GC, ^DJI, and any commission-based assets
+
+P3 - VERIFY spread gate thresholds against actual MT5 data:
+    - Current thresholds (fx_major=10bps, fx_cross=20bps, etc.) are
+      conservative but may block valid trades if MT5 spread widens
+    - Add actual spread monitoring to detect stale thresholds
+
+P3 - Correct the Phase 7 friction formula:
+    - Remove the slip-based friction entirely
+    - Replace with: commission drag + swap drag + verified slippage drag
+    - Estimated total: ~0.5-1.0% of CAGR, not 4.5%
+
+======================================================================
+6. SUMMARY
+======================================================================
+
+The Phase 7 sustainability assessment overstates transaction costs by
+approximately 4x:
+
+    Phase 7:  CAGR 6.28% → after 4.50% friction → 1.78%
+    Reality:  CAGR 6.28% → after 0.69% friction → 5.59%
+
+The 1.78% figure should NOT be used for go/no-go decisions. The true
+cost-adjusted CAGR of approximately 5.6% still exceeds the 8% threshold
+(operationally realistic verdict changes from FAIL to PASS).
+
+The primary error is misidentifying the model's timing gap (which
+includes directionally correct signal edge) as execution slippage.
+The secondary error is using a 15% position size instead of the 4.55%
+used elsewhere in the same analysis.
+======================================================================

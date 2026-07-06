@@ -41,6 +41,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now
 
 logger = logging.getLogger("eigencapital.replay.wal")
@@ -180,7 +181,7 @@ class WalWriter:
                 timestamp=utc_now().isoformat(),
                 payload=payload,
             )
-            line = json.dumps(event.to_dict(), default=str) + "\n"
+            line = json.dumps(event.to_dict(), cls=EigenCapitalJSONEncoder) + "\n"
             self._buffer.append(line)
             buf_size = len(self._buffer)
 

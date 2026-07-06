@@ -15,6 +15,8 @@ from dataclasses import asdict, dataclass, field
 
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 logger = logging.getLogger("eigencapital.simulation_snapshot")
 
 SNAPSHOT_DIR = "data/live/snapshots"
@@ -180,7 +182,7 @@ class SimulationStore:
         # — pyarrow's strict object inference mis-classifies them as bytes at
         # round-trip time. JSON strings are the safest representation.
         for col in ("trade_log", "prob_history"):
-            df[col] = df[col].apply(lambda v: json.dumps(v, default=str) if not isinstance(v, str) else v)
+            df[col] = df[col].apply(lambda v: json.dumps(v, cls=EigenCapitalJSONEncoder) if not isinstance(v, str) else v)
         if os.path.exists(self.snapshot_path) and os.path.getsize(self.snapshot_path) > 0:
             try:
                 existing = pd.read_parquet(self.snapshot_path)
@@ -200,7 +202,7 @@ class SimulationStore:
         if cold_state is not None:
             try:
                 with open(self.cold_state_path, "w") as f:
-                    json.dump(cold_state, f)
+                    json.dump(cold_state, f, cls=EigenCapitalJSONEncoder)
                 _write_checksum(self.cold_state_path)
             except (OSError, TypeError, json.JSONDecodeError) as e:
                 logger.warning("failed to persist cold state: %s", e)

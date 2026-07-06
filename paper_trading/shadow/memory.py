@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now_iso, utc_now_naive
 
 logger = logging.getLogger("eigencapital.shadow.memory")
@@ -28,7 +29,7 @@ def store_event(asset: str, event: dict) -> None:
         path = os.path.join(MEMORY_DIR, asset, f"{date_str}.jsonl")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with _lock, open(path, "a") as f:
-            f.write(json.dumps(event, default=str) + "\n")
+            f.write(json.dumps(event, cls=EigenCapitalJSONEncoder) + "\n")
     except OSError as e:
         logger.error("Failed to store shadow memory event for %s: %s", asset, e)
     except TypeError as e:
@@ -166,7 +167,7 @@ def save_baseline(asset: str, baseline: dict) -> None:
         path = os.path.join(BASELINE_DIR, f"{asset}.json")
         tmp = path + ".tmp"
         with open(tmp, "w") as f:
-            json.dump(baseline, f, indent=2, default=str)
+            json.dump(baseline, f, indent=2, cls=EigenCapitalJSONEncoder)
         os.replace(tmp, path)
     except OSError as e:
         logger.error("Failed to save shadow baseline for %s: %s", asset, e)

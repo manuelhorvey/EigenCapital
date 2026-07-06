@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now_iso
 
 TRACE_LOG_PATH = os.path.join(
@@ -17,7 +18,7 @@ def _append(line: dict) -> None:
     try:
         os.makedirs(os.path.dirname(TRACE_LOG_PATH), exist_ok=True)
         with _lock, open(TRACE_LOG_PATH, "a") as f:
-            f.write(json.dumps(line, default=str) + "\n")
+            f.write(json.dumps(line, cls=EigenCapitalJSONEncoder) + "\n")
     except OSError as e:
         _logger.error("Trace append failed: %s", e)
     except TypeError as e:

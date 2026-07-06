@@ -22,6 +22,8 @@ _http_request_duration_seconds = _metrics.histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
 )
 _http_errors_total = _metrics.counter("http_errors_total", "Total HTTP error responses by status code")
+_uptime_gauge = _metrics.gauge("uptime_seconds", "Seconds since the HTTP server started")
+_server_start = time.monotonic()
 
 
 class ReuseServer(ThreadingMixIn, socketserver.TCPServer):
@@ -44,6 +46,7 @@ class ServingHandler(Handler, http.server.SimpleHTTPRequestHandler):
         status_code = int(code) if code is not None else 200
         if status_code >= 400:
             _http_errors_total.inc(status_code=str(status_code), path=path)
+        _uptime_gauge.set(time.monotonic() - _server_start)
         super().log_request(code, size)
 
 

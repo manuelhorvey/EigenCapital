@@ -50,23 +50,31 @@ def get_mt5_status(state_store=None) -> dict:
     return dict(_MT5_STATUS_DEFAULT)
 
 
-def _get_state_meta() -> tuple[str, int]:
-    """Return (state_timestamp, sequence_id) from latest snapshot."""
+def _get_state_meta(state_store=None) -> tuple[str, int]:
+    """Return (state_timestamp, sequence_id) from latest snapshot.
+
+    When ``state_store`` is provided (e.g., from the injected server
+    state store), it is used instead of the ``_STORE`` global singleton.
+    """
     from paper_trading.state_store import EngineSnapshot
 
-    snapshot: EngineSnapshot | None = _STORE.load_snapshot()
+    store = state_store or _STORE
+    snapshot: EngineSnapshot | None = store.load_snapshot()
     if snapshot is not None:
         return snapshot.timestamp, snapshot.sequence_id
     return "", 0
 
 
-def _with_state_meta(data) -> dict:
+def _with_state_meta(data, state_store=None) -> dict:
     """Wrap response data in a standard envelope with state metadata.
 
     Returns {"data": <original>, "state_timestamp": "...", "sequence_id": N}.
     Keeps backward compat: fetchApi auto-unwraps on the frontend.
+
+    When ``state_store`` is provided, it is used instead of the
+    ``_STORE`` global singleton.
     """
-    ts, seq = _get_state_meta()
+    ts, seq = _get_state_meta(state_store=state_store)
     return {
         "data": data,
         "state_timestamp": ts,

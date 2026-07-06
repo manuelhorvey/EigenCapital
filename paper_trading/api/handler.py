@@ -34,6 +34,7 @@ class Handler:
 
     def _send_json(self, data: str, status: int = 200) -> None:
         payload = json.loads(data)
+        state_store = self._get_state_store()
         if isinstance(payload, dict):
             seq = payload.get("sequence_id")
             ts = payload.get("timestamp", "")
@@ -41,9 +42,9 @@ class Handler:
                 wrapped = {"data": payload, "state_timestamp": ts, "sequence_id": seq}
                 body = json_dumps(wrapped).encode("utf-8")
             else:
-                body = json_dumps(_with_state_meta(payload)).encode("utf-8")
+                body = json_dumps(_with_state_meta(payload, state_store=state_store)).encode("utf-8")
         else:
-            body = json_dumps(_with_state_meta(payload)).encode("utf-8")
+            body = json_dumps(_with_state_meta(payload, state_store=state_store)).encode("utf-8")
         accept_gzip = self.headers.get("Accept-Encoding", "")
         if "gzip" in accept_gzip and len(body) > 512:
             body = gzip.compress(body)
@@ -237,9 +238,10 @@ class Handler:
             return
         body = self.rfile.read(length) if length > 0 else b""
         path = self.path.split("?")[0]
+        state_store = self._get_state_store()
         fn = POST_ROUTES.get(path)
         if fn is not None:
-            data, status = fn(body)
+            data, status = fn(body, state_store=state_store)
             self._send_json(data, status)
         else:
             self.send_response(404)

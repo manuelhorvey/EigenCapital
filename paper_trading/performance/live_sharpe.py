@@ -248,7 +248,7 @@ class LiveSharpeTracker:
             "n_samples": len(self._slippage_gaps),
             "mean_gap_pct": round(float(np.mean(gaps_arr)), 4),
             "median_gap_pct": round(float(np.median(gaps_arr)), 4),
-            "slippage_rms_pct": round(float(np.sqrt(np.mean(gaps_arr**2))), 4),
+            "model_timing_gap_pct": round(float(np.sqrt(np.mean(gaps_arr**2))), 4),
             "p90_gap_pct": round(float(np.percentile(gaps_arr, 90)), 4),
             "max_gap_pct": round(float(np.max(gaps_arr)), 4),
         }

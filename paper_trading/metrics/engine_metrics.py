@@ -73,6 +73,6 @@ def update_engine_metrics(engine):
         tracker = LiveSharpeTracker(base_dir=base)
         data = tracker.compute()
         if data.get("available"):
-            _slippage_gauge.set(data.get("slippage_rms_pct", 0.0))
+            _slippage_gauge.set(data.get("model_timing_gap_pct", 0.0))
     except Exception:
         pass

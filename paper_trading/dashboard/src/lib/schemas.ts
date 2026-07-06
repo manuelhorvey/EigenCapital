@@ -260,7 +260,7 @@ export const LiveSharpeSchema = z.object({
     n_samples: z.number().optional(),
     mean_gap_pct: z.number().optional(),
     median_gap_pct: z.number().optional(),
-    slippage_rms_pct: z.number().optional(),
+    model_timing_gap_pct: z.number().optional(),
     p90_gap_pct: z.number().optional(),
     max_gap_pct: z.number().optional(),
   }).optional(),

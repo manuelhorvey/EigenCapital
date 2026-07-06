@@ -129,7 +129,7 @@ export interface LiveSharpeData {
     n_samples?: number
     mean_gap_pct?: number
     median_gap_pct?: number
-    slippage_rms_pct?: number
+    model_timing_gap_pct?: number
     p90_gap_pct?: number
     max_gap_pct?: number
   }

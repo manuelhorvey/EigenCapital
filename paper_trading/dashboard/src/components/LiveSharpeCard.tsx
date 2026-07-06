@@ -47,9 +47,9 @@ export default function LiveSharpeCard() {
     if (ls.slippage?.available) {
       items.push({
         label: 'Slippage RMS',
-        value: `${ls.slippage.slippage_rms_pct?.toFixed(2)}%`,
+        value: `${ls.slippage.model_timing_gap_pct?.toFixed(2)}%`,
         sub: `p90 ${ls.slippage.p90_gap_pct?.toFixed(2)}% · ${ls.slippage.n_samples} samples`,
-        accent: (ls.slippage.slippage_rms_pct ?? 0) < 0.5 ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)',
+        accent: (ls.slippage.model_timing_gap_pct ?? 0) < 0.5 ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)',
       })
     }
 

@@ -263,6 +263,7 @@ def render_markdown() -> str:
             blocks.append(f"\n*Skipped `{cls_name}` due to render error: {e}*\n")
 
     from datetime import datetime, timezone
+
     current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     blocks.append(f"**Last updated:** {current_date}")
 

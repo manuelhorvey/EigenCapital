@@ -313,6 +313,7 @@ def _is_excluded(path: Path) -> bool:
 
     # Standard fnmatch check for other patterns
     import fnmatch
+
     rel_str = rel.as_posix()
     for pat in PATH_EXCLUDE_PATTERNS:
         # Clean up double asterisks for standard wildcard matching
@@ -455,14 +456,15 @@ def _check_markdown_paths() -> list[str]:
                 continue
             # Skip paths that are intentionally documented as deleted or planned
             if candidate in (
-                "configs/paper_trading.yaml",       # intentionally deleted in Phase 12.7
+                "configs/paper_trading.yaml",  # intentionally deleted in Phase 12.7
                 "configs/environment_resolver.py",  # planned, Phase 13 — not yet implemented
             ):
                 continue
             # Skip paths under gitignored build artifacts (paper_trading/dashboard/dist/)
             # and optional directories (paper_trading/models/orphaned/)
-            if candidate.startswith("paper_trading/dashboard/dist/") or \
-               candidate.startswith("paper_trading/models/orphaned/"):
+            if candidate.startswith("paper_trading/dashboard/dist/") or candidate.startswith(
+                "paper_trading/models/orphaned/"
+            ):
                 continue
 
             # Normalize: strip leading ./ or cwd references

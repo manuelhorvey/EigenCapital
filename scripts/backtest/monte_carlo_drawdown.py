@@ -54,7 +54,7 @@ from shared.volatility import compute_atr_pct
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger("monte_carlo")
 
-WALKDIR = Path(__file__).resolve().parent.parent.parent / "walkforward"
+WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"  # scripts/walkforward/ (matches subprocess outputs)
 RAWDIR = Path(__file__).resolve().parent.parent.parent / "data" / "raw"
 
 SELL_ONLY_ASSETS: frozenset[str] = frozenset(
@@ -89,6 +89,24 @@ def _resolve_ohlcv_path(asset_name: str) -> str | None:
     return None
 
 
+def _fetch_ohlcv(ticker: str, asset_name: str) -> pd.DataFrame:
+    """Fetch OHLCV data — try local parquet first, fall back to yfinance."""
+    local_path = _resolve_ohlcv_path(asset_name)
+    if local_path is not None:
+        logger.debug("  %s: loading OHLCV from %s", asset_name, local_path)
+        return pd.read_parquet(local_path)
+    logger.debug("  %s: no local OHLCV — fetching from yfinance (%s)", asset_name, ticker)
+    try:
+        from features.data_fetch import fetch_asset_ohlcv
+        df = fetch_asset_ohlcv(ticker)
+        if df.empty:
+            logger.warning("  %s: yfinance OHLCV returned empty", asset_name)
+        return df
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("  %s: yfinance OHLCV failed: %s", asset_name, exc)
+        return pd.DataFrame()
+
+
 def load_pt_sl() -> dict[str, tuple[float, float]]:
     from paper_trading.config_manager import get_config
 
@@ -101,20 +119,38 @@ def load_pt_sl() -> dict[str, tuple[float, float]]:
     return result
 
 
+def load_asset_tickers() -> dict[str, str]:
+    """Load per-asset yfinance tickers from the production config."""
+    from paper_trading.config_manager import get_config
+
+    cfg = get_config()
+    result: dict[str, str] = {}
+    for name, acfg in cfg.assets.items():
+        result[name] = str(acfg.get("ticker", name))
+    return result
+
+
 def load_daily_portfolio_returns(
     sell_only: bool = True,
+    tag: str = "",
 ) -> tuple[pd.Series, pd.Series]:
-    pattern = os.path.join(WALKDIR, "*_wf_signals.parquet")
+    if tag:
+        pattern = os.path.join(WALKDIR, f"*_wf_signals_{tag}.parquet")
+    else:
+        pattern = os.path.join(WALKDIR, "*_wf_signals.parquet")
     files = sorted(glob.glob(pattern))
     if not files:
         raise FileNotFoundError(f"No signal parquets found in {WALKDIR}")
 
     pt_sl = load_pt_sl()
+    tickers = load_asset_tickers()
 
     asset_signals: dict[str, pd.DataFrame] = {}
     asset_atr: dict[str, pd.Series] = {}
     for fpath in files:
-        name = os.path.basename(fpath).replace("_wf_signals.parquet", "")
+        stem = os.path.basename(fpath)
+        suffix = f"_wf_signals_{tag}.parquet" if tag else "_wf_signals.parquet"
+        name = stem.replace(suffix, "")
         if name not in pt_sl:
             logger.warning("No pt_sl config for %s — skipping", name)
             continue
@@ -125,12 +161,12 @@ def load_daily_portfolio_returns(
             df.index = df.index.tz_convert("UTC").tz_localize(None)
         asset_signals[name] = df
 
-        ohlcv_path = _resolve_ohlcv_path(name)
-        if ohlcv_path is None:
-            logger.warning("No OHLCV data for %s — ATR_pct set to 0", name)
+        ticker = tickers.get(name, name)
+        ohlcv = _fetch_ohlcv(ticker, name)
+        if ohlcv.empty:
+            logger.warning("  %s: no OHLCV data — ATR_pct set to 0", name)
             asset_atr[name] = pd.Series(0.0, index=df.index)
         else:
-            ohlcv = pd.read_parquet(ohlcv_path)
             atr_pct = compute_atr_pct(ohlcv, period=14)
             if atr_pct.index.tz is not None:
                 atr_pct.index = atr_pct.index.tz_convert("UTC").tz_localize(None)
@@ -335,6 +371,7 @@ def main():
     parser.add_argument("--n-sim", type=int, default=10_000, help="Number of simulations (default: 10,000)")
     parser.add_argument("--output", default=None, help="Path to save JSON results (optional)")
     parser.add_argument("--no-sell-only", action="store_true", help="Disable SELL_ONLY filter")
+    parser.add_argument("--tag", default="", help="Signal parquet tag suffix (retrained, baseline, etc.)")
     parser.add_argument("--r-space", action="store_true", help="Also run legacy R-space version")
 
     args = parser.parse_args()
@@ -342,8 +379,8 @@ def main():
     global SELL_ONLY_ACTIVE
     SELL_ONLY_ACTIVE = not args.no_sell_only
 
-    logger.info("Loading daily portfolio returns with ATR_pct conversion...")
-    r_series, pct_series = load_daily_portfolio_returns(sell_only=SELL_ONLY_ACTIVE)
+    logger.info("Loading daily portfolio returns with ATR_pct conversion (tag=%s)...", args.tag or "(none)")
+    r_series, pct_series = load_daily_portfolio_returns(sell_only=SELL_ONLY_ACTIVE, tag=args.tag)
 
     logger.info("Loaded %d daily returns", len(r_series))
     logger.info("  R-space:   mean=%.6f  std=%.6f  total=%.2f", r_series.mean(), r_series.std(), r_series.sum())

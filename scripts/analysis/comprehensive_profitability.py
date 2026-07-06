@@ -24,6 +24,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -1138,7 +1140,7 @@ def main():
         "phases": phases,
     }
     with open(OUTPUT_PATH, "w") as f:
-        json.dump(output, f, indent=2, default=str)
+        json.dump(output, f, indent=2, cls=EigenCapitalJSONEncoder)
     logger.info("Results saved to %s", OUTPUT_PATH)
 
     elapsed = time.time() - t0

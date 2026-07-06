@@ -23,11 +23,13 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 from eigencapital.domain.value_objects.statistical_metrics import (
-    probabilistic_sharpe_ratio,
     deflated_sharpe_ratio,
+    probabilistic_sharpe_ratio,
 )
 
 logger = logging.getLogger("reentry_metrics")
@@ -83,7 +85,7 @@ def _ulcer_index(equity: np.ndarray) -> float:
         return 0.0
     peak = np.maximum.accumulate(equity)
     dd_pct = (peak - equity) / peak
-    return float(np.sqrt(np.mean(dd_pct ** 2)))
+    return float(np.sqrt(np.mean(dd_pct**2)))
 
 
 # ── Core metrics ──────────────────────────────────────────────────────────
@@ -114,8 +116,12 @@ def compute_asset_metrics(trades_list: list[dict]) -> dict:
     run_starts = np.where(runs == 1)[0]
     run_ends = np.where(runs == -1)[0]
     run_lengths = run_ends - run_starts
-    max_consec_win = int(run_lengths[signs[run_starts] == 1].max()) if len(run_lengths) > 0 and (signs[run_starts] == 1).any() else 0
-    max_consec_loss = int(run_lengths[signs[run_starts] == 0].max()) if len(run_lengths) > 0 and (signs[run_starts] == 0).any() else 0
+    max_consec_win = (
+        int(run_lengths[signs[run_starts] == 1].max()) if len(run_lengths) > 0 and (signs[run_starts] == 1).any() else 0
+    )
+    max_consec_loss = (
+        int(run_lengths[signs[run_starts] == 0].max()) if len(run_lengths) > 0 and (signs[run_starts] == 0).any() else 0
+    )
 
     # Duration
     durations = []
@@ -248,8 +254,12 @@ def compute_portfolio_metrics(policy_data: dict) -> dict:
         reentry_metrics["reentry_total_r"] = round(sum(reentry_allowed), 2)
     else:
         reentry_metrics = {
-            "n_reentries": 0, "profitable_reentries": 0, "losing_reentries": 0,
-            "reentry_win_rate": 0.0, "avg_reentry_r": 0.0, "reentry_total_r": 0.0,
+            "n_reentries": 0,
+            "profitable_reentries": 0,
+            "losing_reentries": 0,
+            "reentry_win_rate": 0.0,
+            "avg_reentry_r": 0.0,
+            "reentry_total_r": 0.0,
         }
 
     blocked_r = reentry_blocked
@@ -342,7 +352,9 @@ def print_comparison(comparison: dict) -> None:
     for key in ["delta_B_minus_A", "delta_C_minus_A", "delta_C_minus_B", "delta_D_minus_A", "delta_D_minus_B"]:
         if key in comparison:
             d = comparison[key]
-            print(f"\n  {key}: ΔR={d['total_r']:+.1f}, Δtrades={d['n_trades']:+d}, ΔSharpe={d['sharpe']:+.3f}, ΔDD={d['max_dd_r']:+.2f}R")
+            print(
+                f"\n  {key}: ΔR={d['total_r']:+.1f}, Δtrades={d['n_trades']:+d}, ΔSharpe={d['sharpe']:+.3f}, ΔDD={d['max_dd_r']:+.2f}R"
+            )
 
     # Re-entry stats
     print("\n" + "-" * 80)
@@ -397,7 +409,7 @@ def main():
 
     if args.output:
         with open(args.output, "w") as f:
-            json.dump(comparison, f, indent=2, default=str)
+            json.dump(comparison, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Metrics saved to %s", args.output)
 
     return comparison

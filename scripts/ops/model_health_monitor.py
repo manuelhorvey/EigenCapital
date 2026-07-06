@@ -35,6 +35,7 @@ from pathlib import Path
 
 import numpy as np
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from monitoring.importance_tracker import ImportanceStore
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -76,14 +77,16 @@ def check_model_ages(max_age_days: int = DEFAULT_MAX_AGE_DAYS) -> list[dict]:
         age_days = (now - mtime) / 86400.0
         age_ratio = min(age_days / max_age_days, 1.0)
 
-        results.append({
-            "asset": name,
-            "model_path": str(model_path),
-            "age_days": round(age_days, 1),
-            "is_stale": age_days > max_age_days,
-            "stale_ratio": round(age_ratio, 3),
-            "last_modified": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
-        })
+        results.append(
+            {
+                "asset": name,
+                "model_path": str(model_path),
+                "age_days": round(age_days, 1),
+                "is_stale": age_days > max_age_days,
+                "stale_ratio": round(age_ratio, 3),
+                "last_modified": datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+            }
+        )
 
     return results
 
@@ -125,14 +128,16 @@ def check_psi_baseline_staleness(psi_threshold: float = DEFAULT_PSI_THRESHOLD) -
         baseline_stale = age_days > model_age_days + 1
         psi_vs_model_age = round(model_age_days - age_days, 1)
 
-        results.append({
-            "asset": name,
-            "baseline_age_days": round(age_days, 1),
-            "baseline_exists": True,
-            "model_newer_than_baseline": model_age_days < age_days,
-            "baseline_vs_model_age_gap_days": psi_vs_model_age,
-            "status": "baseline_stale" if baseline_stale else "ok",
-        })
+        results.append(
+            {
+                "asset": name,
+                "baseline_age_days": round(age_days, 1),
+                "baseline_exists": True,
+                "model_newer_than_baseline": model_age_days < age_days,
+                "baseline_vs_model_age_gap_days": psi_vs_model_age,
+                "status": "baseline_stale" if baseline_stale else "ok",
+            }
+        )
 
     return results
 
@@ -152,12 +157,14 @@ def check_feature_stability() -> list[dict]:
     for asset, group in by_asset:
         window_ids = group["window_id"].dropna().unique()
         if len(window_ids) < 2:
-            results.append({
-                "asset": asset,
-                "n_windows": len(window_ids),
-                "stability_score": 0.5,
-                "status": "insufficient_data",
-            })
+            results.append(
+                {
+                    "asset": asset,
+                    "n_windows": len(window_ids),
+                    "stability_score": 0.5,
+                    "status": "insufficient_data",
+                }
+            )
             continue
 
         # Check if ImportanceStore can compute stability
@@ -165,22 +172,26 @@ def check_feature_stability() -> list[dict]:
         if stability is not None:
             # 0.0 = unstable, 1.0 = stable, normalize for urgency
             stability_norm = (stability.jaccard_top_10 + stability.spearman_rank_corr) / 2.0
-            results.append({
-                "asset": asset,
-                "n_windows": len(window_ids),
-                "jaccard_top_10": stability.jaccard_top_10,
-                "spearman_rank_corr": stability.spearman_rank_corr,
-                "stability_score": round(stability_norm, 3),
-                "penalty": stability.penalty,
-                "status": "ok",
-            })
+            results.append(
+                {
+                    "asset": asset,
+                    "n_windows": len(window_ids),
+                    "jaccard_top_10": stability.jaccard_top_10,
+                    "spearman_rank_corr": stability.spearman_rank_corr,
+                    "stability_score": round(stability_norm, 3),
+                    "penalty": stability.penalty,
+                    "status": "ok",
+                }
+            )
         else:
-            results.append({
-                "asset": asset,
-                "n_windows": len(window_ids),
-                "stability_score": 0.5,
-                "status": "insufficient_data",
-            })
+            results.append(
+                {
+                    "asset": asset,
+                    "n_windows": len(window_ids),
+                    "stability_score": 0.5,
+                    "status": "insufficient_data",
+                }
+            )
 
     return results
 
@@ -217,13 +228,15 @@ def check_inference_volume(warn_threshold: int = DEFAULT_INFERENCE_VOLUME_WARN) 
         by_cycle = asset_cycles
         volume_ratio = min(by_cycle / warn_threshold, 1.0) if warn_threshold > 0 else 0.0
 
-        results.append({
-            "asset": name,
-            "estimated_inferences": by_cycle,
-            "volume_ratio": round(volume_ratio, 3),
-            "is_high_volume": by_cycle > warn_threshold,
-            "status": "ok",
-        })
+        results.append(
+            {
+                "asset": name,
+                "estimated_inferences": by_cycle,
+                "volume_ratio": round(volume_ratio, 3),
+                "is_high_volume": by_cycle > warn_threshold,
+                "status": "ok",
+            }
+        )
 
     return results
 
@@ -360,8 +373,7 @@ def trigger_retrain(urgency_results: list[dict]) -> bool:
 
     assets_str = ", ".join(r["asset"] for r in needs_retrain[:5])
     logger.warning(
-        "Retrain urgency threshold exceeded — triggering pipeline. "
-        "Assets: %s (urgency: %.3f)",
+        "Retrain urgency threshold exceeded — triggering pipeline. Assets: %s (urgency: %.3f)",
         assets_str,
         max(r["urgency_score"] for r in needs_retrain),
     )
@@ -422,7 +434,10 @@ def main():
 
     # Compute composite urgency
     urgency = compute_retrain_urgency(
-        age_results, psi_results, stability_results, volume_results,
+        age_results,
+        psi_results,
+        stability_results,
+        volume_results,
         urgency_threshold=args.urgency_threshold,
     )
 
@@ -454,7 +469,7 @@ def main():
     }
 
     if args.json:
-        print(json.dumps(report, indent=2, default=str))
+        print(json.dumps(report, indent=2, cls=EigenCapitalJSONEncoder))
     else:
         print_report(urgency)
 
@@ -462,7 +477,7 @@ def main():
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w") as f:
-            json.dump(report, f, indent=2, default=str)
+            json.dump(report, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Report saved to %s", out_path)
 
     # Trigger retrain if requested

@@ -6,6 +6,7 @@ from collections import Counter
 
 import numpy as np
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now_iso
 from paper_trading.shadow.feedback import read_feedback
 
@@ -283,7 +284,7 @@ def _save_compiled(asset: str, report: dict) -> None:
             existing["asset"] = asset
             tmp = path + ".tmp"
             with open(tmp, "w") as f:
-                json.dump(existing, f, indent=2, default=str)
+                json.dump(existing, f, indent=2, cls=EigenCapitalJSONEncoder)
             os.replace(tmp, path)
     except OSError as e:
         logger.error("Failed to save compiled learning for %s: %s", asset, e)

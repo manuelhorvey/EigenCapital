@@ -631,8 +631,10 @@ class EngineStateService:
             if not os.path.exists(metadata_path):
                 import json
 
+                from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
                 with open(metadata_path, "w") as f:
-                    json.dump(ctx.freeze.to_dict(), f, indent=2, default=str)
+                    json.dump(ctx.freeze.to_dict(), f, indent=2, cls=EigenCapitalJSONEncoder)
                 logger.info(
                     "experiment: exported freeze metadata to %s (experiment_id=%s)",
                     metadata_path,

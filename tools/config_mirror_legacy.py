@@ -30,6 +30,8 @@ from pathlib import Path
 
 import yaml
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 # The legacy configs/paper_trading.yaml file was deleted in Phase 12.7.
 # This module is retained for two purposes:
@@ -268,7 +270,7 @@ def main() -> int:
 
         n_promoted = result["summary"]["promoted"]
 
-        print(json.dumps(result, indent=2, default=str))
+        print(json.dumps(result, indent=2, cls=EigenCapitalJSONEncoder))
 
         # Promoted-key drift is a hard error; legacy_extras drift is soft
         if n_promoted > 0:

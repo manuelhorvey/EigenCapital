@@ -41,6 +41,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 # ── Module-level constants ───────────────────────────────────────────────────
 
 # Subprocess scripts (retrain_all_fixed.py, walk_forward_backtest.py, backtest_pnl.py)
@@ -81,11 +83,16 @@ def run_walk_forward(tag: str) -> bool:
     cmd = [
         sys.executable,
         str(wf_script),
-        "--tag", tag,
-        "--years", "3",
-        "--step", "1",
-        "--ensemble-weight", "1.0",
-        "--n-folds", "3",
+        "--tag",
+        tag,
+        "--years",
+        "3",
+        "--step",
+        "1",
+        "--ensemble-weight",
+        "1.0",
+        "--n-folds",
+        "3",
     ]
     logger.info("Running walk-forward backtest (tag=%s)...", tag)
     t0 = time.perf_counter()
@@ -124,8 +131,10 @@ def run_pnl_backtest(tag: str) -> pd.DataFrame | None:
     cmd = [
         sys.executable,
         str(pnl_script),
-        "--tag", tag,
-        "--weight-method", "equal_v1",
+        "--tag",
+        tag,
+        "--weight-method",
+        "equal_v1",
         "--sell-only",
     ]
     logger.info("Running PnL backtest (tag=%s)...", tag)
@@ -242,31 +251,33 @@ def compare_metrics(
         else:
             verdict = "PASS"
 
-        comparisons.append({
-            "asset": asset,
-            "verdict": verdict,
-            "issues": issues,
-            "baseline": {
-                "total_R": base.get("total_R", 0),
-                "sharpe_adj": base.get("sharpe_adj", 0),
-                "max_dd_R": base.get("max_dd_R", 0),
-                "win_rate": base.get("win_rate", 0),
-                "n_trades": int(base.get("n_trades", 0)),
-            },
-            "retrained": {
-                "total_R": new.get("total_R", 0),
-                "sharpe_adj": new.get("sharpe_adj", 0),
-                "max_dd_R": new.get("max_dd_R", 0),
-                "win_rate": new.get("win_rate", 0),
-                "n_trades": int(new.get("n_trades", 0)),
-            },
-            "delta": {
-                "total_R": round(total_r_delta, 2),
-                "total_R_pct": round(total_r_pct, 1),
-                "sharpe_adj": round(sharpe_delta, 4),
-                "max_dd_new_vs_base": round(max_dd_worsen, 2),
-            },
-        })
+        comparisons.append(
+            {
+                "asset": asset,
+                "verdict": verdict,
+                "issues": issues,
+                "baseline": {
+                    "total_R": base.get("total_R", 0),
+                    "sharpe_adj": base.get("sharpe_adj", 0),
+                    "max_dd_R": base.get("max_dd_R", 0),
+                    "win_rate": base.get("win_rate", 0),
+                    "n_trades": int(base.get("n_trades", 0)),
+                },
+                "retrained": {
+                    "total_R": new.get("total_R", 0),
+                    "sharpe_adj": new.get("sharpe_adj", 0),
+                    "max_dd_R": new.get("max_dd_R", 0),
+                    "win_rate": new.get("win_rate", 0),
+                    "n_trades": int(new.get("n_trades", 0)),
+                },
+                "delta": {
+                    "total_R": round(total_r_delta, 2),
+                    "total_R_pct": round(total_r_pct, 1),
+                    "sharpe_adj": round(sharpe_delta, 4),
+                    "max_dd_new_vs_base": round(max_dd_worsen, 2),
+                },
+            }
+        )
 
     return comparisons
 
@@ -345,16 +356,10 @@ def generate_report(
             "total_R_improved": total_r_improved,
             "total_R_degraded": total_r_degraded,
             "total_R_unchanged": total_r_unchanged,
-            "total_R_sum_baseline": round(
-                sum(c["baseline"]["total_R"] for c in comparisons), 2
-            ),
-            "total_R_sum_retrained": round(
-                sum(c["retrained"]["total_R"] for c in comparisons), 2
-            ),
+            "total_R_sum_baseline": round(sum(c["baseline"]["total_R"] for c in comparisons), 2),
+            "total_R_sum_retrained": round(sum(c["retrained"]["total_R"] for c in comparisons), 2),
         },
-        "gates": {
-            name: value for name, value in GATES.items()
-        },
+        "gates": {name: value for name, value in GATES.items()},
         "assets": comparisons,
     }
 
@@ -363,7 +368,7 @@ def generate_report(
     report_path = DATA_DIR / f"pipeline_report_{ts}.json"
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with open(report_path, "w") as f:
-        json.dump(report, f, indent=2, default=str)
+        json.dump(report, f, indent=2, cls=EigenCapitalJSONEncoder)
     logger.info("Pipeline report saved to %s", report_path)
     return report
 
@@ -620,7 +625,8 @@ Examples:
         help=f"Tag for retrained walk-forward parquets (default: {TAG_RETRAINED})",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable DEBUG-level logging",
     )

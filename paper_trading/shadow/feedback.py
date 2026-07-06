@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now_iso, utc_now_naive
 
 logger = logging.getLogger("eigencapital.shadow.feedback")
@@ -140,7 +141,7 @@ def _store_event(asset: str, event: dict) -> None:
         path = os.path.join(FEEDBACK_DIR, asset, f"{month_key}.jsonl")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with _lock, open(path, "a") as f:
-            f.write(json.dumps(event, default=str) + "\n")
+            f.write(json.dumps(event, cls=EigenCapitalJSONEncoder) + "\n")
     except OSError as e:
         logger.error("Failed to store shadow feedback for %s: %s", asset, e)
     except TypeError as e:

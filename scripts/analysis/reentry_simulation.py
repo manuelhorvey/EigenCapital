@@ -26,15 +26,16 @@ import logging
 import os
 import sys
 from copy import deepcopy
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from paper_trading.position.adaptive_exit import AdaptiveExitEngine, AdaptiveExitResult
-
 import numpy as np
 import pandas as pd
+
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+from paper_trading.position.adaptive_exit import AdaptiveExitEngine, AdaptiveExitResult
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
@@ -44,15 +45,14 @@ logger = logging.getLogger("reentry_simulation")
 # ── Reuse infrastructure from trade_lifecycle ─────────────────────────────
 from scripts.analysis.trade_lifecycle import (
     PORTFOLIO_ASSETS,
-    TP_SL,
     SELL_ONLY,
+    TP_SL,
     WALKDIR,
     TradeRecord,
-    fetch_ohlcv,
     compute_atr_pct,
+    fetch_ohlcv,
     load_signal_data,
 )
-
 
 # ── Re-entry event record ─────────────────────────────────────────────────
 
@@ -95,20 +95,32 @@ class ReentryPolicy:
 
 POLICIES: dict[str, ReentryPolicy] = {
     "A": ReentryPolicy(
-        name="A", max_positions=1, same_side_allowed=False,
-        min_confidence=0.0, min_reentry_r=0.0,
+        name="A",
+        max_positions=1,
+        same_side_allowed=False,
+        min_confidence=0.0,
+        min_reentry_r=0.0,
     ),
     "B": ReentryPolicy(
-        name="B", max_positions=2, same_side_allowed=True,
-        min_confidence=0.55, min_reentry_r=0.5,
+        name="B",
+        max_positions=2,
+        same_side_allowed=True,
+        min_confidence=0.55,
+        min_reentry_r=0.5,
     ),
     "C": ReentryPolicy(
-        name="C", max_positions=3, same_side_allowed=True,
-        min_confidence=0.55, min_reentry_r=0.5,
+        name="C",
+        max_positions=3,
+        same_side_allowed=True,
+        min_confidence=0.55,
+        min_reentry_r=0.5,
     ),
     "D": ReentryPolicy(
-        name="D", max_positions=2, same_side_allowed=True,
-        min_confidence=0.0, min_reentry_r=0.0,
+        name="D",
+        max_positions=2,
+        same_side_allowed=True,
+        min_confidence=0.0,
+        min_reentry_r=0.0,
     ),
 }
 
@@ -242,7 +254,7 @@ def simulate_one_asset(
 
         barrier_candles = 20
         end_loc = min(entry_loc + barrier_candles + 1, len(ohlcv))
-        path_df = ohlcv.iloc[entry_loc + 1: end_loc]
+        path_df = ohlcv.iloc[entry_loc + 1 : end_loc]
 
         closed = check_exits_fn(active, ohlcv, ohlcv_index, sig_date)
 
@@ -251,8 +263,15 @@ def simulate_one_asset(
         p_long = float(row.get("p_long", 0.5))
 
         candidate_r, candidate_reason, candidate_mfe = _simulate_candidate_trade(
-            sig, entry_price, sl_price, tp_price, entry_loc, end_loc,
-            ohlcv, barrier_candles, atr_pct_entry,
+            sig,
+            entry_price,
+            sl_price,
+            tp_price,
+            entry_loc,
+            end_loc,
+            ohlcv,
+            barrier_candles,
+            atr_pct_entry,
         )
 
         existing_mfe_now = 0.0
@@ -288,24 +307,37 @@ def simulate_one_asset(
                 can_enter = False
                 blocked_reason = f"existing_mfe_{existing_mfe_now:.2f}_below_{policy.min_reentry_r}"
 
-        reentry_events.append(ReentryEvent(
-            asset=asset, signal_date=str(sig_date),
-            signal_side=side, p_long=float(p_long),
-            allowed=can_enter, blocked_reason=blocked_reason,
-            candidate_r=candidate_r, candidate_exit_reason=candidate_reason,
-            candidate_mfe_r=candidate_mfe,
-            existing_positions=existing_count, existing_side=existing_side,
-            existing_r_since_entry=existing_mfe_now, policy=policy.name,
-        ))
+        reentry_events.append(
+            ReentryEvent(
+                asset=asset,
+                signal_date=str(sig_date),
+                signal_side=side,
+                p_long=float(p_long),
+                allowed=can_enter,
+                blocked_reason=blocked_reason,
+                candidate_r=candidate_r,
+                candidate_exit_reason=candidate_reason,
+                candidate_mfe_r=candidate_mfe,
+                existing_positions=existing_count,
+                existing_side=existing_side,
+                existing_r_since_entry=existing_mfe_now,
+                policy=policy.name,
+            )
+        )
 
         if not can_enter:
             continue
 
         trade_counter += 1
         pos = ActivePosition(
-            trade_idx=trade_counter, side=side, entry_date=sig_date,
-            entry_price=entry_price, sl_price=sl_price, tp_price=tp_price,
-            barrier_candles=barrier_candles, p_long=p_long,
+            trade_idx=trade_counter,
+            side=side,
+            entry_date=sig_date,
+            entry_price=entry_price,
+            sl_price=sl_price,
+            tp_price=tp_price,
+            barrier_candles=barrier_candles,
+            p_long=p_long,
             atr_pct_entry=atr_pct_entry,
         )
         active.append(pos)
@@ -339,7 +371,7 @@ def _check_exits(
         entry_loc = ohlcv_index.get_indexer([entry_ts], method="nearest")[0]
         current_loc = ohlcv_index.get_indexer([current_ts], method="nearest")[0]
         if entry_loc >= 0 and current_loc > entry_loc:
-            path_df = ohlcv.iloc[entry_loc + 1: current_loc + 1]
+            path_df = ohlcv.iloc[entry_loc + 1 : current_loc + 1]
             if not path_df.empty:
                 for j in range(len(path_df)):
                     ch = float(path_df.iloc[j]["high"])
@@ -434,7 +466,7 @@ def _check_exits_trailing(
         use_sl = pos.effective_sl if pos.effective_sl is not None else pos.sl_price
 
         if entry_loc >= 0 and current_loc > entry_loc:
-            path_df = ohlcv.iloc[entry_loc + 1: current_loc + 1]
+            path_df = ohlcv.iloc[entry_loc + 1 : current_loc + 1]
             if not path_df.empty:
                 for j in range(len(path_df)):
                     ch = float(path_df.iloc[j]["high"])
@@ -504,14 +536,19 @@ def _check_exits_trailing(
                     trail_sl = engine._best_price
                     if trail_sl is not None:
                         new_eff_sl = (
-                            pos.entry_price * (1 + 0.5 * vol) if pos.side == "BUY"
+                            pos.entry_price * (1 + 0.5 * vol)
+                            if pos.side == "BUY"
                             else pos.entry_price * (1 - 0.5 * vol)
                         )
                         if pos.side == "BUY" and engine._trail_activated and trail_sl > pos.entry_price:
-                            retrace = trail_sl - adaptive_config.get("trail_retrace_pct", 0.50) * (trail_sl - pos.entry_price)
+                            retrace = trail_sl - adaptive_config.get("trail_retrace_pct", 0.50) * (
+                                trail_sl - pos.entry_price
+                            )
                             new_eff_sl = max(new_eff_sl, retrace)
                         elif pos.side == "SELL" and engine._trail_activated and trail_sl < pos.entry_price:
-                            retrace = trail_sl + adaptive_config.get("trail_retrace_pct", 0.50) * (pos.entry_price - trail_sl)
+                            retrace = trail_sl + adaptive_config.get("trail_retrace_pct", 0.50) * (
+                                pos.entry_price - trail_sl
+                            )
                             new_eff_sl = min(new_eff_sl, retrace)
                         if engine._breakeven_activated:
                             be_sl = pos.entry_price
@@ -542,12 +579,18 @@ def _candles_between(start: datetime | pd.Timestamp, end: pd.Timestamp | datetim
 
 
 def _simulate_candidate_trade(
-    sig: int, entry_price: float, sl_price: float, tp_price: float,
-    entry_loc: int, end_loc: int, ohlcv: pd.DataFrame,
-    barrier_candles: int, atr_pct_entry: float,
+    sig: int,
+    entry_price: float,
+    sl_price: float,
+    tp_price: float,
+    entry_loc: int,
+    end_loc: int,
+    ohlcv: pd.DataFrame,
+    barrier_candles: int,
+    atr_pct_entry: float,
 ) -> tuple[float, str, float]:
     """Simulate a trade to determine its R-multiple outcome and MFE."""
-    path_df = ohlcv.iloc[entry_loc + 1: end_loc]
+    path_df = ohlcv.iloc[entry_loc + 1 : end_loc]
     if path_df.empty:
         return 0.0, "barrier", 0.0
 
@@ -569,13 +612,21 @@ def _simulate_candidate_trade(
         else:
             mfe = (entry_price - candle_low) / (entry_price * atr_pct_entry)
             if candle_low <= tp_price:
-                return (entry_price - tp_price) / (entry_price * atr_pct_entry), "tp", max(mfe, (entry_price - tp_price) / (entry_price * atr_pct_entry))
+                return (
+                    (entry_price - tp_price) / (entry_price * atr_pct_entry),
+                    "tp",
+                    max(mfe, (entry_price - tp_price) / (entry_price * atr_pct_entry)),
+                )
             if candle_high >= sl_price:
                 return (entry_price - sl_price) / (entry_price * atr_pct_entry), "sl", max(mfe, 0.0)
         max_mfe = max(max_mfe, mfe)
 
     exit_price = float(ohlcv.iloc[min(end_loc - 1, len(ohlcv) - 1)]["close"])
-    r = (exit_price - entry_price) / (entry_price * atr_pct_entry) if sig == 1 else (entry_price - exit_price) / (entry_price * atr_pct_entry)
+    r = (
+        (exit_price - entry_price) / (entry_price * atr_pct_entry)
+        if sig == 1
+        else (entry_price - exit_price) / (entry_price * atr_pct_entry)
+    )
     return r, "barrier", max_mfe
 
 
@@ -593,7 +644,7 @@ def _compute_mfe_at_date(
     if entry_loc < 0 or date_loc <= entry_loc:
         return 0.0
 
-    path_df = ohlcv.iloc[entry_loc + 1: date_loc + 1]
+    path_df = ohlcv.iloc[entry_loc + 1 : date_loc + 1]
     if path_df.empty:
         return 0.0
 
@@ -613,7 +664,7 @@ def _update_position_metrics(
     end_loc: int,
 ) -> None:
     """Pre-compute full-path metrics for a position (via integers, no timestamp issues)."""
-    path_df = ohlcv.iloc[entry_loc + 1: min(end_loc, len(ohlcv))]
+    path_df = ohlcv.iloc[entry_loc + 1 : min(end_loc, len(ohlcv))]
     if path_df.empty:
         return
 
@@ -718,10 +769,20 @@ def analyze_overlap_opportunities(
                 entry_price = float(ohlcv.iloc[entry_loc]["close"])
                 atr_pct_entry = float(atr_pct.iloc[entry_loc]) if entry_loc < len(atr_pct) else 0.01
                 atr_pct_entry = max(atr_pct_entry, 0.0005)
-                sl_p = entry_price * (1 - sl_mult * atr_pct_entry) if sig == 1 else entry_price * (1 + sl_mult * atr_pct_entry)
-                tp_p = entry_price * (1 + tp_mult * atr_pct_entry) if sig == 1 else entry_price * (1 - tp_mult * atr_pct_entry)
+                sl_p = (
+                    entry_price * (1 - sl_mult * atr_pct_entry)
+                    if sig == 1
+                    else entry_price * (1 + sl_mult * atr_pct_entry)
+                )
+                tp_p = (
+                    entry_price * (1 + tp_mult * atr_pct_entry)
+                    if sig == 1
+                    else entry_price * (1 - tp_mult * atr_pct_entry)
+                )
                 end_loc = min(entry_loc + 21, len(ohlcv))
-                r, reason, mfe = _simulate_candidate_trade(sig, entry_price, sl_p, tp_p, entry_loc, end_loc, ohlcv, 20, atr_pct_entry)
+                r, reason, mfe = _simulate_candidate_trade(
+                    sig, entry_price, sl_p, tp_p, entry_loc, end_loc, ohlcv, 20, atr_pct_entry
+                )
                 reentry_candidate_r.append(r)
                 reentry_candidate_p_long.append(float(row.get("p_long", 0.5)))
                 if r > 0:
@@ -737,12 +798,23 @@ def analyze_overlap_opportunities(
             entry_price = float(ohlcv.iloc[entry_loc]["close"])
             atr_pct_entry = float(atr_pct.iloc[entry_loc]) if entry_loc < len(atr_pct) else 0.01
             atr_pct_entry = max(atr_pct_entry, 0.0005)
-            sl_p = entry_price * (1 - sl_mult * atr_pct_entry) if sig == 1 else entry_price * (1 + sl_mult * atr_pct_entry)
-            tp_p = entry_price * (1 + tp_mult * atr_pct_entry) if sig == 1 else entry_price * (1 - tp_mult * atr_pct_entry)
-            pos = ActivePosition(trade_idx=len(active), side=side, entry_date=sig_date,
-                                 entry_price=entry_price, sl_price=sl_p, tp_price=tp_p,
-                                 barrier_candles=20, p_long=float(row.get("p_long", 0.5)),
-                                 atr_pct_entry=atr_pct_entry)
+            sl_p = (
+                entry_price * (1 - sl_mult * atr_pct_entry) if sig == 1 else entry_price * (1 + sl_mult * atr_pct_entry)
+            )
+            tp_p = (
+                entry_price * (1 + tp_mult * atr_pct_entry) if sig == 1 else entry_price * (1 - tp_mult * atr_pct_entry)
+            )
+            pos = ActivePosition(
+                trade_idx=len(active),
+                side=side,
+                entry_date=sig_date,
+                entry_price=entry_price,
+                sl_price=sl_p,
+                tp_price=tp_p,
+                barrier_candles=20,
+                p_long=float(row.get("p_long", 0.5)),
+                atr_pct_entry=atr_pct_entry,
+            )
 
             # Check for cross-side flip
             if existing_side is not None and side != existing_side:
@@ -760,7 +832,8 @@ def analyze_overlap_opportunities(
         "reentry_fraction": signals_while_active / max(total_signals, 1),
         "profitable_reentry_candidates": profitable_reentry_candidates,
         "losing_reentry_candidates": losing_reentry_candidates,
-        "reentry_candidate_win_rate": profitable_reentry_candidates / max(profitable_reentry_candidates + losing_reentry_candidates, 1),
+        "reentry_candidate_win_rate": profitable_reentry_candidates
+        / max(profitable_reentry_candidates + losing_reentry_candidates, 1),
         "avg_reentry_candidate_r": np.mean(reentry_candidate_r) if reentry_candidate_r else 0.0,
         "avg_reentry_candidate_p_long": np.mean(reentry_candidate_p_long) if reentry_candidate_p_long else 0.0,
     }
@@ -837,7 +910,9 @@ def print_overlap_summary(results: dict) -> None:
     print("\n" + "=" * 70)
     print("RE-ENTRY OPPORTUNITY ANALYSIS (Question 1)")
     print("=" * 70)
-    print(f"{'Asset':<10} {'Total Sig':>9} {'While Active':>12} {'SameSide':>9} {'CrossSide':>10} {'Reentry%':>9} {'CandidateWR':>12} {'Avg CandR':>10}")
+    print(
+        f"{'Asset':<10} {'Total Sig':>9} {'While Active':>12} {'SameSide':>9} {'CrossSide':>10} {'Reentry%':>9} {'CandidateWR':>12} {'Avg CandR':>10}"
+    )
     print("-" * 70)
     total_sig = 0
     total_active = 0
@@ -853,7 +928,7 @@ def print_overlap_summary(results: dict) -> None:
         )
     print("-" * 70)
     print(f"{'TOTAL':<10} {total_sig:>9} {total_active:>12}")
-    print(f"  Overall reentry fraction: {total_active/max(total_sig,1):.1%}")
+    print(f"  Overall reentry fraction: {total_active / max(total_sig, 1):.1%}")
     print()
 
 
@@ -869,7 +944,10 @@ def print_policy_comparison(results: dict) -> None:
         trades_by_asset = results["policies"][p_name]["trades"]
         events_by_asset = results["policies"][p_name]["events"]
         total_trades = sum(len(t) for t in trades_by_asset.values())
-        total_r = sum(sum(ti.get("r_multiple", 0) if isinstance(ti, dict) else getattr(ti, "r_multiple", 0) for ti in t) for t in trades_by_asset.values())
+        total_r = sum(
+            sum(ti.get("r_multiple", 0) if isinstance(ti, dict) else getattr(ti, "r_multiple", 0) for ti in t)
+            for t in trades_by_asset.values()
+        )
         n_events = sum(len(e) for e in events_by_asset.values())
         allowed = sum(1 for el in events_by_asset.values() for e in el if e.allowed)
         blocked = n_events - allowed
@@ -878,13 +956,15 @@ def print_policy_comparison(results: dict) -> None:
         desc = ""
         if p_name == "D":
             desc = " (no guards — matches live engine)"
-        print(f"\n  Policy {p_name}{desc}: {total_trades} trades, {total_r:+.1f}R total, {n_events} events ({allowed} allowed, {blocked} blocked)")
+        print(
+            f"\n  Policy {p_name}{desc}: {total_trades} trades, {total_r:+.1f}R total, {n_events} events ({allowed} allowed, {blocked} blocked)"
+        )
 
     policies_in_results = [p for p in ["A", "B", "C", "D"] if p in results["policies"]]
     print()
     header = f"{'Asset':<10}"
     for p in policies_in_results:
-        header += f" {'Trades_'+p:>8} {'R_'+p:>8}"
+        header += f" {'Trades_' + p:>8} {'R_' + p:>8}"
     print(header)
     print("-" * (10 + len(policies_in_results) * 17))
     for asset in sorted(results.get("overlap", {}).keys()):
@@ -903,7 +983,9 @@ def main():
     parser.add_argument("--tag", default="remediation", help="Signal parquet tag")
     parser.add_argument("--policies", default="A,B,C", help="Policies to simulate")
     parser.add_argument("--output", default=None, help="JSON output path")
-    parser.add_argument("--trailing", action="store_true", help="Use production adaptive trailing exits instead of fixed TP/SL")
+    parser.add_argument(
+        "--trailing", action="store_true", help="Use production adaptive trailing exits instead of fixed TP/SL"
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -924,7 +1006,7 @@ def main():
         # Convert dataclasses to dicts for JSON serialization
         serializable = _make_serializable(results)
         with open(args.output, "w") as f:
-            json.dump(serializable, f, indent=2, default=str)
+            json.dump(serializable, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Results saved to %s", args.output)
 
     return results

@@ -1,9 +1,11 @@
 """Tests for state persistence integrity (checksums, atomic writes)."""
+
 import hashlib
 import json
 import os
 import tempfile
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from paper_trading.state import atomic_write_json
 
 
@@ -36,7 +38,7 @@ def test_checksum_verifies_on_read():
             saved = json.load(f)
 
         stored_cs = saved.pop("_checksum")
-        computed = hashlib.sha256(json.dumps(saved, sort_keys=True, default=str).encode()).hexdigest()
+        computed = hashlib.sha256(json.dumps(saved, sort_keys=True, cls=EigenCapitalJSONEncoder).encode()).hexdigest()
         assert computed == stored_cs
 
 
@@ -55,5 +57,5 @@ def test_checksum_detects_tamper():
         with open(path) as f:
             loaded = json.load(f)
         stored_cs = loaded.pop("_checksum", None)
-        computed = hashlib.sha256(json.dumps(loaded, sort_keys=True, default=str).encode()).hexdigest()
+        computed = hashlib.sha256(json.dumps(loaded, sort_keys=True, cls=EigenCapitalJSONEncoder).encode()).hexdigest()
         assert computed != stored_cs

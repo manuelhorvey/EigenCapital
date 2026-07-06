@@ -28,6 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "."))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -42,9 +44,10 @@ PSI_MODERATE = 0.25
 
 # ── Synthetic baseline ──────────────────────────────────────────────────────
 
+
 def generate_synthetic_series(n: int = 848, phi: float = 0.95, seed: int = 42) -> pd.Series:
     """Stationary AR(1) process with Gaussian noise.
-    
+
     phi=0.95 gives realistic FX autocorrelation (~0.95 daily).
     Returns a series with same length as typical walk-forward data.
     """
@@ -52,25 +55,25 @@ def generate_synthetic_series(n: int = 848, phi: float = 0.95, seed: int = 42) -
     innovations = rng.normal(0, 0.005, n)
     x = np.zeros(n)
     for t in range(1, n):
-        x[t] = phi * x[t-1] + innovations[t]
+        x[t] = phi * x[t - 1] + innovations[t]
     return pd.Series(x, index=pd.bdate_range("2023-01-01", periods=n))
 
 
 def run_synthetic_walk_forward(series: pd.Series, n_folds: int = 3, gap: int = 20) -> pd.Series:
     """Minimal walk-forward on a synthetic series to generate p_long-like output.
-    
+
     Uses expanding windows like the real walk-forward. Returns a Series of
     "p_long" values (here simulated as the z-score of recent return).
     """
     from features.alpha_features import momentum_features, zscore_reversion
-    
+
     # Create a price-like DataFrame from the synthetic series
     prices = pd.DataFrame({"close": np.exp(series.cumsum())})
-    
+
     # Generate features similar to the real pipeline
     mom = momentum_features(prices["close"], horizons=[21, 63])
     zscore = zscore_reversion(prices["close"], window=20)
-    
+
     features = pd.DataFrame(index=prices.index)
     features["mom_21d"] = mom["mom_21d"]
     features["mom_63d"] = mom["mom_63d"]
@@ -78,36 +81,36 @@ def run_synthetic_walk_forward(series: pd.Series, n_folds: int = 3, gap: int = 2
     features["vol_ratio"] = features["mom_21d"].rolling(63).std() / max(
         features["mom_21d"].rolling(5).std().iloc[-1], 1e-9
     )
-    
+
     features = features.dropna()
     if len(features) < 200:
         return pd.Series(dtype=float)
-    
+
     n = len(features)
     fold_size = n // n_folds
     all_p_long = []
-    
+
     for fold in range(n_folds):
         train_end = n - (n_folds - fold) * fold_size - gap
         test_start = train_end + gap
         test_end = min(test_start + fold_size, n)
-        
+
         if train_end < 100 or test_start >= test_end:
             continue
-        
+
         X_tr = features.iloc[:train_end]
         X_te = features.iloc[test_start:test_end]
-        
+
         # Simple directional model: linear combination of features + noise
         # This gives us a "model" that evolves with more data (expanding window)
         weights = X_tr.mean() / X_tr.std().replace(0, np.nan)
         weights = weights.fillna(0)
-        
+
         p_long_te = (X_te * weights).sum(axis=1)
         p_long_te = 1 / (1 + np.exp(-p_long_te.clip(-5, 5)))  # sigmoid
-        
+
         all_p_long.append(p_long_te)
-    
+
     if all_p_long:
         return pd.concat(all_p_long).sort_index()
     return pd.Series(dtype=float)
@@ -182,17 +185,21 @@ def generate_features(asset: str, ticker: str) -> pd.DataFrame | None:
 
         ohlcv = fetch_asset_ohlcv(ticker)
         alpha_df = build_alpha_features(
-            prices, rate_diffs, dxy=dxy, vix=vix, spx=spx,
-            commodities=commodities, cot_data=None,
+            prices,
+            rate_diffs,
+            dxy=dxy,
+            vix=vix,
+            spx=spx,
+            commodities=commodities,
+            cot_data=None,
         )
 
         if not ohlcv.empty:
             from features.regime_features import generate_regime_features
+
             regime_df = generate_regime_features(ohlcv)
             prefix = asset.upper()
-            regime_renamed = regime_df.rename(
-                columns={c: f"{prefix}_{c}" for c in regime_df.columns}
-            )
+            regime_renamed = regime_df.rename(columns={c: f"{prefix}_{c}" for c in regime_df.columns})
             full_df = alpha_df.join(regime_renamed, how="left").dropna()
         else:
             full_df = alpha_df.copy()
@@ -204,17 +211,32 @@ def generate_features(asset: str, ticker: str) -> pd.DataFrame | None:
 
 
 TICKER_MAP = {
-    "GC": "GC=F", "USDCHF": "USDCHF=X", "USDCAD": "USDCAD=X",
-    "ES": "ES=F", "NQ": "NQ=F", "GBPCAD": "GBPCAD=X",
-    "NZDCAD": "NZDCAD=X", "^DJI": "^DJI", "NZDUSD": "NZDUSD=X",
-    "GBPAUD": "GBPAUD=X", "NZDCHF": "NZDCHF=X", "CADCHF": "CADCHF=X",
-    "AUDUSD": "AUDUSD=X", "EURCHF": "EURCHF=X", "EURCAD": "EURCAD=X",
-    "EURNZD": "EURNZD=X", "GBPCHF": "GBPCHF=X", "GBPUSD": "GBPUSD=X",
-    "EURAUD": "EURAUD=X", "USDJPY": "USDJPY=X", "GBPJPY": "GBPJPY=X",
+    "GC": "GC=F",
+    "USDCHF": "USDCHF=X",
+    "USDCAD": "USDCAD=X",
+    "ES": "ES=F",
+    "NQ": "NQ=F",
+    "GBPCAD": "GBPCAD=X",
+    "NZDCAD": "NZDCAD=X",
+    "^DJI": "^DJI",
+    "NZDUSD": "NZDUSD=X",
+    "GBPAUD": "GBPAUD=X",
+    "NZDCHF": "NZDCHF=X",
+    "CADCHF": "CADCHF=X",
+    "AUDUSD": "AUDUSD=X",
+    "EURCHF": "EURCHF=X",
+    "EURCAD": "EURCAD=X",
+    "EURNZD": "EURNZD=X",
+    "GBPCHF": "GBPCHF=X",
+    "GBPUSD": "GBPUSD=X",
+    "EURAUD": "EURAUD=X",
+    "USDJPY": "USDJPY=X",
+    "GBPJPY": "GBPJPY=X",
 }
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
+
 
 def main():
     results = {}
@@ -259,7 +281,7 @@ def main():
     hist = np.histogram(baseline_psis, bins=10)
     for i in range(len(hist[1]) - 1):
         bar = "#" * int(hist[0][i] / max(hist[0]) * 30)
-        print(f"  {hist[1][i]:.4f} - {hist[1][i+1]:.4f}: {bar} ({int(hist[0][i])})")
+        print(f"  {hist[1][i]:.4f} - {hist[1][i + 1]:.4f}: {bar} ({int(hist[0][i])})")
     print()
 
     # Recommended threshold based on synthetic baseline
@@ -273,16 +295,33 @@ def main():
     # Apply calibrated threshold to the 21 assets
     print("Assets exceeding calibrated threshold (>{:.4f}):".format(threshold_calibrated))
     from psi_sweep import compute_psi as psi_fn
-    
+
     # Recompute with synthetic baseline comparison
     assets_psi = {}
     all_asset_list = [
-        "GC", "USDCHF", "USDCAD", "ES", "NQ", "GBPCAD",
-        "NZDCAD", "^DJI", "NZDUSD", "GBPAUD", "NZDCHF", "CADCHF",
-        "AUDUSD", "EURCHF", "EURCAD", "EURNZD", "GBPCHF", "GBPUSD", "EURAUD",
-        "USDJPY", "GBPJPY",
+        "GC",
+        "USDCHF",
+        "USDCAD",
+        "ES",
+        "NQ",
+        "GBPCAD",
+        "NZDCAD",
+        "^DJI",
+        "NZDUSD",
+        "GBPAUD",
+        "NZDCHF",
+        "CADCHF",
+        "AUDUSD",
+        "EURCHF",
+        "EURCAD",
+        "EURNZD",
+        "GBPCHF",
+        "GBPUSD",
+        "EURAUD",
+        "USDJPY",
+        "GBPJPY",
     ]
-    
+
     for asset in all_asset_list:
         df = load_walkforward(asset)
         if df is None or len(df) < 40:
@@ -291,7 +330,7 @@ def main():
         mid = len(p_long) // 2
         psi = compute_psi(p_long[:mid], p_long[mid:])
         assets_psi[asset] = psi
-    
+
     n_exceed = sum(1 for v in assets_psi.values() if v > threshold_calibrated)
     for asset, psi in sorted(assets_psi.items(), key=lambda x: -x[1]):
         flag = " ***" if psi > threshold_calibrated else ""
@@ -339,7 +378,7 @@ def main():
 
             # Print top-15 features by PSI
             print(f"  {'Feature':45s} {'PSI':10s} {'Severity':12s}")
-            print(f"  {'-'*67}")
+            print(f"  {'-' * 67}")
             for feat, psi in sorted(feature_psi.items(), key=lambda x: -x[1])[:15]:
                 if psi > PSI_MODERATE:
                     sev = "SIGNIFICANT"
@@ -356,12 +395,13 @@ def main():
             n_stable = sum(1 for v in feature_psi.values() if v <= PSI_STABLE)
             max_psi_val = max(feature_psi.values())
             max_feat = max(feature_psi, key=feature_psi.get)
-            
+
             print()
-            print(f"  Summary: {n_total} features, {n_significant} significant, "
-                  f"{n_moderate} moderate, {n_stable} stable")
+            print(
+                f"  Summary: {n_total} features, {n_significant} significant, {n_moderate} moderate, {n_stable} stable"
+            )
             print(f"  Max feature PSI: {max_feat} ({max_psi_val:.4f})")
-            
+
             # Check for common high-PSI features across top-3
             if i == 0:
                 common_features = set(feature_psi.keys())
@@ -370,9 +410,9 @@ def main():
                 common_features &= set(feature_psi.keys())
                 # Track which features are >0.25 in ALL top-3
                 common_high_psi = {
-                    f for f in common_features 
-                    if feature_psi.get(f, 0) > PSI_MODERATE 
-                    and common_psi.get(f, 0) > PSI_MODERATE
+                    f
+                    for f in common_features
+                    if feature_psi.get(f, 0) > PSI_MODERATE and common_psi.get(f, 0) > PSI_MODERATE
                 }
 
             # Save
@@ -412,22 +452,24 @@ def main():
         all_features = set()
         for fp in feature_psis.values():
             all_features.update(fp.keys())
-        
+
         # Count how many assets each feature is significant in
         feature_asset_count = {}
         for feat in all_features:
             count = sum(1 for fp in feature_psis.values() if fp.get(feat, 0) > PSI_MODERATE)
             if count >= 2:
                 feature_asset_count[feat] = count
-        
+
         if feature_asset_count:
             print("Features with PSI > 0.25 in 2+ of 4 assets (EURAUD, GBPAUD, NZDCHF, ES):")
             print()
             print(f"  {'Feature':45s} {'Assets':6s} {'EURAUD':8s} {'GBPAUD':8s} {'NZDCHF':8s} {'ES':8s}")
-            print(f"  {'-'*75}")
+            print(f"  {'-' * 75}")
             for feat in sorted(feature_asset_count, key=lambda f: -feature_asset_count[f]):
                 vals = [feature_psis.get(a, {}).get(feat, 0) for a in ["EURAUD", "GBPAUD", "NZDCHF", "ES"]]
-                print(f"  {feat:45s} {feature_asset_count[feat]:>6d} {vals[0]:>8.4f} {vals[1]:>8.4f} {vals[2]:>8.4f} {vals[3]:>8.4f}")
+                print(
+                    f"  {feat:45s} {feature_asset_count[feat]:>6d} {vals[0]:>8.4f} {vals[1]:>8.4f} {vals[2]:>8.4f} {vals[3]:>8.4f}"
+                )
         else:
             print("No features with PSI > 0.25 in 2+ assets.")
     else:
@@ -436,9 +478,17 @@ def main():
     # Save all results
     out_path = OUTPUT_DIR / "psi_deepdive_results.json"
     with open(out_path, "w") as f:
-        json.dump(results | {"feature_psis": {a: dict(sorted(fp.items(), key=lambda x: -x[1])[:20]) 
-                                                for a, fp in feature_psis.items()}}, 
-                  f, indent=2, default=str)
+        json.dump(
+            results
+            | {
+                "feature_psis": {
+                    a: dict(sorted(fp.items(), key=lambda x: -x[1])[:20]) for a, fp in feature_psis.items()
+                }
+            },
+            f,
+            indent=2,
+            cls=EigenCapitalJSONEncoder,
+        )
     logger.info("Results saved to %s", out_path)
 
 

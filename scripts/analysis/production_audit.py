@@ -22,6 +22,8 @@ import sys
 import time
 from pathlib import Path
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eigencapital.audit")
 
@@ -30,7 +32,6 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
 from scripts.analysis.audit_phases import (
-    phase_data,
     phase1_lifecycle,
     phase2_path_dependency,
     phase4_time_profitability,
@@ -46,18 +47,19 @@ from scripts.analysis.audit_phases import (
     phase16_clustering,
     phase17_portfolio_timing,
     phase18_recommendations,
+    phase_data,
 )
 
 TRADE_DATA_PATH = ROOT / "data" / "processed" / "trade_lifecycle_results.json"
 
 PHASE_REGISTRY = {
-    "1":  ("Phase 1 — Enhanced Lifecycle", phase1_lifecycle.run),
-    "2":  ("Phase 2 — Path Dependency", phase2_path_dependency.run),
-    "4":  ("Phase 4–5 — Time + Concentration", phase4_time_profitability.run),
-    "6":  ("Phase 6 — Holding Period", phase6_holding_period.run),
-    "7":  ("Phase 7 — Exit Strategies", phase7_exit_strategies.run),
-    "8":  ("Phase 8 — Entry Quality", phase8_entry_quality.run),
-    "9":  ("Phase 9 — Opportunity Cost", phase9_opportunity_cost.run),
+    "1": ("Phase 1 — Enhanced Lifecycle", phase1_lifecycle.run),
+    "2": ("Phase 2 — Path Dependency", phase2_path_dependency.run),
+    "4": ("Phase 4–5 — Time + Concentration", phase4_time_profitability.run),
+    "6": ("Phase 6 — Holding Period", phase6_holding_period.run),
+    "7": ("Phase 7 — Exit Strategies", phase7_exit_strategies.run),
+    "8": ("Phase 8 — Entry Quality", phase8_entry_quality.run),
+    "9": ("Phase 9 — Opportunity Cost", phase9_opportunity_cost.run),
     "11": ("Phase 11 — Overlap & Correlation", phase11_overlap.run),
     "12": ("Phase 12 — Risk of Ruin", phase12_risk_of_ruin.run),
     "13": ("Phase 13 — Sensitivity", phase13_sensitivity.run),
@@ -101,10 +103,12 @@ def print_verdict(recs_result: dict):
         print(f"  [{rtype:5s}] (score={pct:.3f}) {title}")
         print(f"         {r.get('description', '')[:100]}")
     print("\n" + "=" * 72)
-    print(f"  Total: {recs_result.get('n_recommendations', 0)} | "
-          f"{recs_result.get('n_alpha', 0)} Alpha | "
-          f"{recs_result.get('n_sigma', 0)} Sigma | "
-          f"{recs_result.get('n_info', 0)} Info")
+    print(
+        f"  Total: {recs_result.get('n_recommendations', 0)} | "
+        f"{recs_result.get('n_alpha', 0)} Alpha | "
+        f"{recs_result.get('n_sigma', 0)} Sigma | "
+        f"{recs_result.get('n_info', 0)} Info"
+    )
     print("=" * 72)
 
 
@@ -136,8 +140,7 @@ def main():
     if not args.skip_data_load:
         logger.info("Loading trade data from %s", TRADE_DATA_PATH)
         trades_map, phases = phase_data.load_and_augment(str(TRADE_DATA_PATH))
-        logger.info("Loaded %d assets, %d trades", len(trades_map),
-                     sum(len(ts) for ts in trades_map.values()))
+        logger.info("Loaded %d assets, %d trades", len(trades_map), sum(len(ts) for ts in trades_map.values()))
     else:
         trades_map, phases = {}, {}
         logger.warning("Data load skipped — trades_map will be empty")
@@ -207,12 +210,10 @@ def main():
     if args.output:
         output_path = args.output if os.path.isabs(args.output) else str(ROOT / args.output)
         with open(output_path, "w") as f:
-            json.dump(all_results, f, indent=2, default=str)
+            json.dump(all_results, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Results saved to %s", output_path)
 
-    logger.info("Audit complete — %d phases, %d recommendations",
-                len(phase_ids),
-                verdict.get("n_recommendations", 0))
+    logger.info("Audit complete — %d phases, %d recommendations", len(phase_ids), verdict.get("n_recommendations", 0))
 
 
 if __name__ == "__main__":

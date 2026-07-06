@@ -16,6 +16,8 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 logger = logging.getLogger("eigencapital.macro_narrative")
 
 
@@ -112,4 +114,4 @@ def load_narrative_json(path: str) -> MacroNarrativeFeatures:
 
 def save_narrative_json(path: str, features: MacroNarrativeFeatures) -> None:
     with open(path, "w") as f:
-        json.dump(features.to_dict(), f, indent=2, default=str)
+        json.dump(features.to_dict(), f, indent=2, cls=EigenCapitalJSONEncoder)

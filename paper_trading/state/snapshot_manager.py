@@ -4,6 +4,7 @@ import os
 import time
 from dataclasses import asdict
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from paper_trading.state import CONTRACT_VERSION, EngineSnapshot, atomic_write_json, sanitize
 
 logger = logging.getLogger("eigencapital.state_store")
@@ -45,7 +46,9 @@ class _SnapshotManager:
             if stored_checksum is not None:
                 import hashlib
 
-                computed = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+                computed = hashlib.sha256(
+                    json.dumps(data, sort_keys=True, cls=EigenCapitalJSONEncoder).encode()
+                ).hexdigest()
                 if computed != stored_checksum:
                     logger.error(
                         "State checksum mismatch: computed=%s stored=%s — state may be corrupt",

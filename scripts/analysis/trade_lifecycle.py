@@ -25,6 +25,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -839,7 +841,7 @@ def main():
 
     if args.output:
         with open(args.output, "w") as f:
-            json.dump(results, f, indent=2, default=str)
+            json.dump(results, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Results saved to %s", args.output)
 
     # Print sample trades for first few assets

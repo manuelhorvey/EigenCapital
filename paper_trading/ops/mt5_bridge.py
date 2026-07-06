@@ -46,6 +46,8 @@ from typing import Any
 
 import MetaTrader5 as mt5  # noqa: N813
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [MT5-BRIDGE] %(levelname)s %(message)s",
@@ -69,7 +71,7 @@ _placed_orders: dict[str, int] = {}
 
 
 def _send_frame(conn: socket.socket, data: dict) -> None:
-    payload = json.dumps(data, default=str).encode("utf-8")
+    payload = json.dumps(data, cls=EigenCapitalJSONEncoder).encode("utf-8")
     conn.sendall(struct.pack(_HEADER_FMT, len(payload)) + payload)
 
 

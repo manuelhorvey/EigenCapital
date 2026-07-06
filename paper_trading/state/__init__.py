@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 SCHEMA_VERSION = "1.0.0"
 DB_SCHEMA_VERSION = "2.0.0"
 CONTRACT_VERSION = 2
@@ -75,12 +77,12 @@ def sanitize(obj):
 
 def atomic_write_json(path: str, data: dict) -> None:
     """Atomic JSON write with embedded SHA256 checksum."""
-    checksum = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+    checksum = hashlib.sha256(json.dumps(data, sort_keys=True, cls=EigenCapitalJSONEncoder).encode()).hexdigest()
     write_data = {**data, "_checksum": checksum}
     tmp_path = path + ".tmp"
     try:
         with open(tmp_path, "w") as f:
-            json.dump(write_data, f, indent=2, default=str)
+            json.dump(write_data, f, indent=2, cls=EigenCapitalJSONEncoder)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, path)

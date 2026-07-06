@@ -16,6 +16,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 logger = logging.getLogger("eigencapital.liquidity_regime")
 
 
@@ -126,7 +128,7 @@ def load_liquidity_json(path: str) -> LiquidityRegimeSnapshot | None:
 
 def save_liquidity_json(path: str, snapshot: LiquidityRegimeSnapshot) -> None:
     with open(path, "w") as f:
-        json.dump(asdict(snapshot), f, indent=2, default=str)
+        json.dump(asdict(snapshot), f, indent=2, cls=EigenCapitalJSONEncoder)
 
 
 def neutral_liquidity() -> LiquidityRegimeSnapshot:

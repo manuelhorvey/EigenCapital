@@ -19,6 +19,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -28,17 +30,20 @@ R_FREE = 0.0
 
 
 def _deflated_sharpe_ratio(
-    sharpe: float, n: int, num_trials: int = 1,
-    skew: float = 0.0, kurt: float = 3.0,
+    sharpe: float,
+    n: int,
+    num_trials: int = 1,
+    skew: float = 0.0,
+    kurt: float = 3.0,
 ) -> float:
     """Compute Deflated Sharpe Ratio (DSR) for a given Sharpe."""
     from scipy.stats import norm
+
     if n < 2:
         return 0.0
     var_sharpe = (1 + 0.5 * kurt * sharpe**2 - skew * sharpe) / (n - 1)
     e_max_sigma = np.sqrt(var_sharpe) * (
-        (1 - np.euler_gamma) * norm.ppf(1 - 1.0 / num_trials)
-        + np.euler_gamma * norm.ppf(1 - 1.0 / (num_trials * np.e))
+        (1 - np.euler_gamma) * norm.ppf(1 - 1.0 / num_trials) + np.euler_gamma * norm.ppf(1 - 1.0 / (num_trials * np.e))
     )
     dsr_num = sharpe - e_max_sigma
     dsr_den = np.sqrt(1 + var_sharpe)
@@ -55,6 +60,7 @@ def _deflated_sharpe_ratio(
 def _probabilistic_sharpe_ratio(sharpe: float, n: int) -> float:
     """Compute Probabilistic Sharpe Ratio (PSR)."""
     from scipy.stats import norm
+
     if n < 2:
         return 0.0
     sr_sharpe = (1 + 0.5 * sharpe**2) / (n - 1)
@@ -86,7 +92,8 @@ def _daily_r_series(policy_trades: dict[str, list[dict]]) -> np.ndarray:
 
 
 def bootstrap_delta(
-    r_a: np.ndarray, r_b: np.ndarray,
+    r_a: np.ndarray,
+    r_b: np.ndarray,
     n_resamples: int = 10_000,
     seed: int = 42,
 ) -> dict[str, Any]:
@@ -171,12 +178,12 @@ def regime_analysis(
     low_vol_mask = vol <= median_vol
     high_vol_mask = vol > median_vol
 
-    n_low = min(len(daily_a[-len(vol):][low_vol_mask]), len(daily_b[-len(vol):][low_vol_mask]))
-    n_high = min(len(daily_a[-len(vol):][high_vol_mask]), len(daily_b[-len(vol):][high_vol_mask]))
+    n_low = min(len(daily_a[-len(vol) :][low_vol_mask]), len(daily_b[-len(vol) :][low_vol_mask]))
+    n_high = min(len(daily_a[-len(vol) :][high_vol_mask]), len(daily_b[-len(vol) :][high_vol_mask]))
 
     for regime_name, mask in [("low_vol", low_vol_mask), ("high_vol", high_vol_mask)]:
-        a_vals = daily_a[-len(mask):][mask]
-        b_vals = daily_b[-len(mask):][mask]
+        a_vals = daily_a[-len(mask) :][mask]
+        b_vals = daily_b[-len(mask) :][mask]
         if len(a_vals) < 5:
             regimes[regime_name] = {"n_periods": 0, "error": "too few periods"}
             continue
@@ -279,6 +286,7 @@ def _compute_max_dd(daily_r: np.ndarray) -> float:
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Re-entry statistical validation")
     parser.add_argument("--input", default="/tmp/reentry_full_results.json")
     parser.add_argument("--output", default="/tmp/reentry_statistics.json")
@@ -331,7 +339,7 @@ def main():
     # Write output
     if args.output:
         with open(args.output, "w") as f:
-            json.dump(metrics, f, indent=2, default=str)
+            json.dump(metrics, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Results saved to %s", args.output)
 
     # Print summary
@@ -356,9 +364,11 @@ def main():
     print("\n--- Monte Carlo: 1-Year Equity Projection ---")
     for p_name in ["Policy_A", "Policy_B", "Policy_C"]:
         mc = metrics["monte_carlo"][p_name]
-        print(f"  {p_name}: P(positive)={mc['p_positive']:.1f}%, mean_final={mc['mean_final_r']:+.1f}R, "
-              f"95% CI=[{mc['final_r_ci_95'][0]:+.1f}, {mc['final_r_ci_95'][1]:+.1f}], "
-              f"mean_max_dd={mc['mean_max_dd']:.1f}R")
+        print(
+            f"  {p_name}: P(positive)={mc['p_positive']:.1f}%, mean_final={mc['mean_final_r']:+.1f}R, "
+            f"95% CI=[{mc['final_r_ci_95'][0]:+.1f}, {mc['final_r_ci_95'][1]:+.1f}], "
+            f"mean_max_dd={mc['mean_max_dd']:.1f}R"
+        )
 
     print("\n--- Regime Analysis ---")
     for regime_name, reg in metrics.get("regime", {}).items():
@@ -369,13 +379,17 @@ def main():
     sens = metrics["sensitivity"]
     for entry in sens.get("degrade_assets", []):
         print(f"  {entry['asset']}: ΔR={entry['delta_r']:+.1f} ({entry['total_r_a']:+.1f}→{entry['total_r_b']:+.1f})")
-    print(f"  Total degrading: {sens['n_degrade_assets']} / {sens['n_degrade_assets'] + sens['n_improve_assets']} assets")
+    print(
+        f"  Total degrading: {sens['n_degrade_assets']} / {sens['n_degrade_assets'] + sens['n_improve_assets']} assets"
+    )
 
     print("\n--- Max Positions Sweep ---")
     for p_name in ["A", "B", "C"]:
         s = metrics["max_positions_sweep"][p_name]
-        print(f"  {p_name} (max={s['max_positions']}): total_R={s['total_r']:+.1f}, "
-              f"trades={s['n_trades']}, Sharpe={s['sharpe']:.4f}, max_dd={s['max_dd_r']:.1f}R")
+        print(
+            f"  {p_name} (max={s['max_positions']}): total_R={s['total_r']:+.1f}, "
+            f"trades={s['n_trades']}, Sharpe={s['sharpe']:.4f}, max_dd={s['max_dd_r']:.1f}R"
+        )
 
     return metrics
 

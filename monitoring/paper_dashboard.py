@@ -5,6 +5,8 @@ from datetime import datetime
 
 import pandas as pd
 
+from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -164,7 +166,7 @@ def run():
         "rolling_pf": compute_rolling_pf(state),
     }
     with open(REPORT_PATH, "w") as f:
-        json.dump(report, f, indent=2, default=str)
+        json.dump(report, f, indent=2, cls=EigenCapitalJSONEncoder)
     print(f"\nReport saved to {REPORT_PATH}")
 
 

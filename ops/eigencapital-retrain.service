@@ -1,8 +1,6 @@
 [Unit]
 Description=EigenCapital Model Retrain Pipeline
 Documentation=https://github.com/manuelhorvey/EigenCapital
-Requires=network-online.target
-After=network-online.target
 
 [Service]
 Type=oneshot
@@ -12,10 +10,8 @@ ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/Quorrin/data/logs/retrain'
 ExecStart=/bin/bash %h/Projects/Quorrin/scripts/ops/retrain_scheduler.sh
 StandardOutput=append:%h/Projects/Quorrin/data/logs/retrain/retrain-service.log
 StandardError=inherit
-# Hardening
-NoNewPrivileges=true
+# Hardening (user-level compatible)
 PrivateTmp=true
-ProtectSystem=full
 # Give the pipeline up to 6 hours to complete
 TimeoutStopSec=21600
 

@@ -459,6 +459,10 @@ def _check_markdown_paths() -> list[str]:
                 "configs/environment_resolver.py",  # planned, Phase 13 — not yet implemented
             ):
                 continue
+            # Skip paths under gitignored build artifacts (paper_trading/dashboard/dist/)
+            # and optional directories (paper_trading/models/orphaned/)
+            if candidate.startswith("paper_trading/dashboard/dist/") or candidate.startswith("paper_trading/models/orphaned/"):
+                continue
 
             # Normalize: strip leading ./ or cwd references
             normalized = candidate.lstrip("./")

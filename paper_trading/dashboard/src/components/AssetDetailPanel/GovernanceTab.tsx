@@ -41,15 +41,15 @@ export default function GovernanceTab({ asset }: Props) {
       </Section>
 
       <Section title="Halt Checks">
-        <MetricRow label="Halted" value={h.halted ? 'Yes' : 'No'} valueClass={h.halted ? governanceText.RED : governanceText.GREEN} />
-        <MetricRow label="Drawdown OK" value={h.drawdown_ok ? 'Yes' : 'No'} />
-        <MetricRow label="Monthly PF OK" value={h.monthly_pf_ok ? 'Yes' : 'No'} />
-        <MetricRow label="Drought OK" value={h.drought_ok ? 'Yes' : 'No'} />
-        <MetricRow label="Drift OK" value={h.drift_ok ? 'Yes' : 'No'} />
-        <MetricRow label="Narrative OK" value={h.narrative_ok ? 'Yes' : 'No'} />
-        <MetricRow label="Liquidity OK" value={h.liquidity_ok ? 'Yes' : 'No'} />
-        <MetricRow label="PSI OK" value={h.psi_ok ? 'Yes' : 'No'} />
-        {h.halted && (
+        <MetricRow label="Halted" value={h?.halted ? 'Yes' : 'No'} valueClass={h?.halted ? governanceText.RED : governanceText.GREEN} />
+        <MetricRow label="Drawdown OK" value={h?.drawdown_ok ? 'Yes' : 'No'} />
+        <MetricRow label="Monthly PF OK" value={h?.monthly_pf_ok ? 'Yes' : 'No'} />
+        <MetricRow label="Drought OK" value={h?.drought_ok ? 'Yes' : 'No'} />
+        <MetricRow label="Drift OK" value={h?.drift_ok ? 'Yes' : 'No'} />
+        <MetricRow label="Narrative OK" value={h?.narrative_ok ? 'Yes' : 'No'} />
+        <MetricRow label="Liquidity OK" value={h?.liquidity_ok ? 'Yes' : 'No'} />
+        <MetricRow label="PSI OK" value={h?.psi_ok ? 'Yes' : 'No'} />
+        {h?.halted && (
           <div className="text-xs text-gov-red font-medium mt-1">⛔ {h.reasons.join('; ')}</div>
         )}
       </Section>

@@ -24,7 +24,7 @@ export default function SizingTab({ asset }: Props) {
       <Section title="Regime Geometry">
         {asset.regime_geometry && Object.entries(asset.regime_geometry).length > 0 ? (
           Object.entries(asset.regime_geometry).map(([k, v]) => (
-            <MetricRow key={k} label={k} value={`SL=${v.sl_mult?.toFixed(2)}x TP=${v.tp_mult?.toFixed(2)}x`} />
+            <MetricRow key={k} label={k} value={`SL=${v?.sl_mult?.toFixed(2) ?? '—'}x TP=${v?.tp_mult?.toFixed(2) ?? '—'}x`} />
           ))
         ) : (
           <MetricRow label="Active Geometry" value="None" />

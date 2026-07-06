@@ -8,7 +8,7 @@ defaults:
   max_daily_loss_pct: 0.08
   max_concurrent_positions: 13
   factor_exposure_limits:
-    CHF: 0.25
+    CHF: 0.20
     US_EQUITY: 0.25
     OIL: 0.15
     GOLD: 0.15

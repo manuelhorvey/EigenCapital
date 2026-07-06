@@ -180,7 +180,7 @@ class SimulationStore:
         # — pyarrow's strict object inference mis-classifies them as bytes at
         # round-trip time. JSON strings are the safest representation.
         for col in ("trade_log", "prob_history"):
-            df[col] = df[col].apply(lambda v: json.dumps(v) if not isinstance(v, str) else v)
+            df[col] = df[col].apply(lambda v: json.dumps(v, default=str) if not isinstance(v, str) else v)
         if os.path.exists(self.snapshot_path) and os.path.getsize(self.snapshot_path) > 0:
             try:
                 existing = pd.read_parquet(self.snapshot_path)

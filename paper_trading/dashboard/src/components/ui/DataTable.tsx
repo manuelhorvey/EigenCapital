@@ -212,8 +212,6 @@ export default function DataTable<T>({
                   i % 2 === 1 ? 'bg-panel/30' : '',
                   rowClassName?.(row) ?? '',
                 ].filter(Boolean).join(' ')}
-                // contentVisibility removed: provides minimal benefit for <50 row datasets
-                // and can cause layout instability in scrollable containers.
               >
                 {columns.map(col => (
                   <td

@@ -1,27 +1,19 @@
 # EigenCapital — Known Issues & Constraints
 
-## Active
+> Resolved issues are tracked in [`CHANGELOG.md`](../CHANGELOG.md). This file
+> documents only currently-open constraints.
 
-- **Paper trading only** — MT5 Exness demo, no live capital deployed
-- **3 permanent SELL_ONLY assets** — CADCHF, NZDCHF, EURAUD have confirmed permanent BUY signal inversion. Feature space encodes SELL alpha but not BUY alpha. See AGENTS.md for full diagnostic chain.
-- **MT5 bridge requires Wine** on Linux; single-threaded (RLock-serialized concurrent requests)
-- **Small MT5 demo ($107)** — positions quantize to 0.01 lot minimum (~$1,150 notional on EURUSD). Desired vs actual notional drifts upward. Leverage budget deferred until equity > $10K.
-- **Circuit breaker** — -15% DD or 7 consecutive portfolio losses triggers emergency halt. Auto-clears when equity ≥ 99% of peak and reason is DRAWDOWN/CONSECUTIVE_LOSSES.
-- **Spread gate** — observe-only for first 720 cycles (~6h), then enforcement. Blocks entry when spread exceeds per-class threshold.
-- **Some JPY crosses produce incomplete first-cycle bars** — cold-start transient suppressed by first-cycle suppression stage.
-- **Paper/MT5 sizing divergence** is expected — paper simulates $100K equity, MT5 executes on $107. Two completely independent sizing chains.
-
-## Resolved (historical)
-
-- GBPNZD removed 2026-06-20 (tp/sl ratio 0.33 required 75% breakeven WR, achieved 72.3%)
-- Ensemble disabled 2026-06-20 (walk-forward p=0.83; ADR-026)
-- SL/TP triple bug fixed 2026-06-16 (deactivated atr_mult_tp, uncalibrated atr_mult_sl, TP compiler convexity)
-- THIN liquidity regime routing fixed 2026-06-17 (was halting all assets; now soft warning)
-- Carry feature always-zero bug fixed 2026-06-19 (rate_diff column name mismatch)
-- Pipeline indentation nesting bug fixed 2026-06-19 (16 methods were inner functions of _detect_bar_jump)
-- Regime model at inference fixed 2026-06-19 (load guard + missing regime features)
-- Emergency halt loop fixed 2026-07-03 (stale peak, cycle counter, auto-clear)
+| # | Issue | Impact | Mitigation |
+|---|-------|--------|------------|
+| 1 | **Paper trading only** — MT5 Exness demo (~$107), no live capital deployed | No real PnL; MT5 orders quantize to 0.01 lots | Defer live deployment until equity > $10K |
+| 2 | **3 permanent SELL_ONLY assets** — CADCHF, NZDCHF, EURAUD have confirmed permanent BUY signal inversion | BUY signals are overridden to FLAT for these assets | See AGENTS.md for full diagnostic chain |
+| 3 | **MT5 bridge requires Wine** on Linux; single-threaded (RLock) | Concurrent requests serialized; 5s socket timeout on price fetch | Acceptable for paper trading |
+| 4 | **Spread gate observe mode** — first 720 cycles (~6h) log-only | No entry blocking during warmup window | Enforcement activates automatically after observation window |
+| 5 | **First-cycle cold-start transient** — cycle 1 uses 200 data rows (truncation validation hasn't run) | Regime output differs from cycles 2+ | Suppressed by `apply_first_cycle_suppression` stage |
+| 6 | **Paper/MT5 sizing divergence** — paper simulates $100K equity, MT5 executes on ~$107 | Two completely independent sizing chains produce different position sizes | Expected behavior |
+| 7 | **BUY inversion root cause unknown** — SELL_ONLY filter is empirically correct but the underlying cause of inverted BUY calibration is unidentified | No path to two-way trading for 3 permanent assets | Two leading hypotheses (carry, DXY) falsified by walk-forward ablation |
+| 8 | **JPY/CHF cross TZ issue** — incomplete daily bar on first cycle | Resolves after next cycle with full bar | UTC normalization + index deduplication applied |
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-07

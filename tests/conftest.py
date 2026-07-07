@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,6 +17,26 @@ def _reset_global_singletons():
         - ExperimentContext: handled by test isolation
     """
     StrategyRegistry.reset_instance()
+
+    # Reset logging state — some imported modules (e.g. benchmarks/microbenchmark)
+    # call logging.basicConfig() and setLevel(logging.ERROR) on the eigencapital
+    # logger at import time.  This suppresses all WARNING messages from child
+    # loggers like eigencapital.config_manager, breaking caplog-based tests.
+    # Clean up so every test starts with a clean logging hierarchy.
+    _reset_logging()
+
+
+def _reset_logging() -> None:
+    """Reset the eigencapital logger tree to defaults.
+
+    Restores the logger to NOTSET level, clears any handlers added by
+    module-level logging.basicConfig() calls, and ensures propagation
+    to the root logger is enabled so that caplog can capture messages.
+    """
+    logger = logging.getLogger("eigencapital")
+    logger.setLevel(logging.NOTSET)
+    logger.handlers.clear()
+    logger.propagate = True
 
 
 @pytest.fixture

@@ -32,11 +32,6 @@ import numpy as np
 # Ensure project root is importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-logging.basicConfig(level=logging.WARNING, format="%(levelname)s:%(name)s:%(message)s")
-# Suppress noisy loggers during benchmark
-for name in ["eigencapital", "yfinance", "matplotlib", "urllib3"]:
-    logging.getLogger(name).setLevel(logging.ERROR)
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(HERE)
 DEFAULT_TICKERS = [
@@ -290,6 +285,11 @@ def run_profiled(args) -> None:
 
 
 def main():
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s:%(name)s:%(message)s")
+    # Suppress noisy loggers during benchmark
+    for name in ["eigencapital", "yfinance", "matplotlib", "urllib3"]:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
     parser = argparse.ArgumentParser(description="EigenCapital hot-path microbenchmark")
     parser.add_argument("--assets", type=int, default=15, help="number of assets (default: 15)")
     parser.add_argument("--workers", type=int, default=8, help="ThreadPoolExecutor workers (default: 8)")

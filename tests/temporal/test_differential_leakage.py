@@ -374,16 +374,36 @@ class TestTimestampProvenance:
     """Every dataframe must carry tz-aware timestamps; zone truncation is forbidden."""
 
     def test_fetch_yf_series_preserves_timezone(self):
-        """yfinance data should keep tz-aware index after loading."""
+        """yfinance data should keep tz-aware index after loading.
+
+        The yfinance public ticker endpoint is permitted to fail under
+        network/rate-limit conditions.  We test the invariant via a
+        deterministic mock so the network isn't a flake source.
+        """
+        from unittest.mock import patch
+
+        import pandas as pd
+
         from features.data_fetch import fetch_yf_series
 
-        try:
-            series = fetch_yf_series("DX-Y.NYB", "dxy", period="5d")
-        except Exception:
-            pytest.skip("yfinance API unavailable")
+        idx = pd.DatetimeIndex(
+            [
+                pd.Timestamp("2024-01-02 16:00", tz="America/New_York"),
+                pd.Timestamp("2024-01-03 16:00", tz="America/New_York"),
+                pd.Timestamp("2024-01-04 16:00", tz="America/New_York"),
+            ]
+        )
+        fake_df = pd.DataFrame({"Close": [100.0, 101.5, 102.3]}, index=idx)
 
-        if series.index.tz is None:
-            pytest.fail("fetch_yf_series strips timezone — tz-naive index detected")
+        with patch("yfinance.download", return_value=fake_df):
+            series = fetch_yf_series("DX-Y.NYB", "dxy", period="5d")
+
+        # Series must come back populated (empty would mean a code bug)
+        assert len(series) == 3, f"expected 3 rows, got {len(series)}"
+        # Timezone must be preserved (this is the invariant under test)
+        assert series.index.tz is not None, (
+            "fetch_yf_series stripped timezone — tz-naive index detected"
+        )
 
     def test_no_tz_truncation_in_inference_pipeline(self):
         """The tz_convert('UTC').date pattern destroys temporal precision."""

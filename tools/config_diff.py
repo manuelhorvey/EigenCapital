@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger("eigencapital.tools.config_diff")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -74,6 +77,7 @@ def format_json(diffs: dict[str, tuple[Any, Any]]) -> str:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("left", type=Path, help="Left configuration YAML")
     parser.add_argument("right", type=Path, help="Right configuration YAML")
@@ -81,10 +85,10 @@ def main() -> int:
     args = parser.parse_args()
 
     if not args.left.exists():
-        print(f"config_diff: file not found: {args.left}", file=sys.stderr)
+        logger.error("config_diff: file not found: %s", args.left)
         return 1
     if not args.right.exists():
-        print(f"config_diff: file not found: {args.right}", file=sys.stderr)
+        logger.error("config_diff: file not found: %s", args.right)
         return 1
 
     left = _load_yaml(args.left)

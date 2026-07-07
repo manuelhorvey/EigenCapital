@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -104,22 +106,23 @@ def _ewm_vol(close: pd.Series, span: int = 100) -> pd.Series:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     # Test with dummy data or load the downloaded EURUSD data
     try:
         data = pd.read_parquet("data/raw/EURUSD_1d.parquet")
-        print(f"Loaded {len(data)} rows for labeling.")
+        logger.info("Loaded %d rows for labeling.", len(data))
 
         # Apply labels
         labeled_data = apply_triple_barrier(data, pt_sl=[2, 2], vertical_barrier=10)
 
-        print("\nLabel Distribution:")
-        print(labeled_data["label"].value_counts(normalize=True))
+        logger.info("\nLabel Distribution:")
+        logger.info("\n%s", labeled_data["label"].value_counts(normalize=True))
 
         # Save labeled data
         labeled_data.to_parquet("data/processed/EURUSD_labeled.parquet")
-        print("\nSaved labeled data to data/processed/EURUSD_labeled.parquet")
+        logger.info("\nSaved labeled data to data/processed/EURUSD_labeled.parquet")
     except Exception as e:
         import traceback
 
         traceback.print_exc()
-        print(f"Test failed: {e}")
+        logger.error("Test failed: %s", e)

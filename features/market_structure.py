@@ -108,5 +108,6 @@ if __name__ == "__main__":
     )
     detector = MarketStructureDetector(window=50)
     state = detector.detect(data)
-    print("Market Structure State:")
-    print(state)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger.info("Market Structure State:")
+    logger.info("%s", state)

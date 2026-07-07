@@ -1,8 +1,11 @@
+import logging
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger("eigencapital.validity_state_machine")
 
 
 class ValidityState(Enum):
@@ -330,6 +333,7 @@ def compute_allocation_statistics(state_df: pd.DataFrame) -> dict:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     # Test with synthetic validity data
     np.random.seed(42)
 
@@ -372,35 +376,36 @@ if __name__ == "__main__":
 
     results = sm.process_timeline(df)
 
-    print("\n" + "=" * 50)
-    print("VALIDITY STATE MACHINE OUTPUT")
-    print("=" * 50)
-    print(
+    logger.info("\n%s", "=" * 50)
+    logger.info("VALIDITY STATE MACHINE OUTPUT")
+    logger.info("%s", "=" * 50)
+    logger.info(
+        "\n%s",
         results[["timestamp", "raw_validity", "smoothed_validity", "state", "exposure", "lock_active"]]
         .round(4)
-        .to_string(index=False)
+        .to_string(index=False),
     )
 
-    print("\n" + "=" * 50)
-    print("ALLOCATION STATISTICS")
-    print("=" * 50)
+    logger.info("\n%s", "=" * 50)
+    logger.info("ALLOCATION STATISTICS")
+    logger.info("%s", "=" * 50)
     stats = compute_allocation_statistics(results)
     for key, value in stats.items():
         if isinstance(value, dict):
-            print(f"\n{key}:")
+            logger.info("\n%s:", key)
             for k, v in value.items():
-                print(f"  {k}: {v:.4f}")
+                logger.info("  %s: %.4f", k, v)
         else:
-            print(f"{key}: {value}")
+            logger.info("%s: %s", key, value)
 
-    print("\n" + "=" * 50)
-    print("STATE SUMMARY")
-    print("=" * 50)
+    logger.info("\n%s", "=" * 50)
+    logger.info("STATE SUMMARY")
+    logger.info("%s", "=" * 50)
     summary = sm.get_state_summary()
     for key, value in summary.items():
         if key == "transition_history":
-            print(f"\n{key}:")
+            logger.info("\n%s:", key)
             for t in value:
-                print(f"  {t['from']} -> {t['to']} at {t['timestamp']}: {t['reason']}")
+                logger.info("  %s -> %s at %s: %s", t['from'], t['to'], t['timestamp'], t['reason'])
         else:
-            print(f"{key}: {value}")
+            logger.info("%s: %s", key, value)

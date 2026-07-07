@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 from datetime import datetime
@@ -8,6 +9,8 @@ import pandas as pd
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+
+logger = logging.getLogger("eigencapital.paper_dashboard")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE_PATH = os.path.join(BASE, "data", "live", "state.json")
@@ -80,20 +83,21 @@ def check_halts(state, hist):
 
 
 def print_daily(state, hist):
-    print("\n" + "=" * 65)
-    print(f"PAPER PORTFOLIO DASHBOARD — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print("=" * 65)
+    logger.info("\n%s", "=" * 65)
+    logger.info("PAPER PORTFOLIO DASHBOARD — %s", datetime.now().strftime('%Y-%m-%d %H:%M'))
+    logger.info("%s", "=" * 65)
 
     portfolio = state.get("portfolio", {})
     tv = portfolio.get("total_value", 0)
     tr = portfolio.get("total_return", 0)
     days = portfolio.get("days_running", 0)
-    print(f"\nPortfolio: ${tv:,.2f}  Return: {tr:+.2f}%  Days: {days}")
-    print(
-        f"{'Asset':>8s}  {'Signal':>7s}  {'Conf':>5s}  {'Value':>10s}  {'Ret':>7s}  "
-        f"{'DD':>6s}  {'PF':>5s}  {'WinR':>5s}  {'Trades':>6s}"
+    logger.info("\nPortfolio: $%.2f  Return: %+.2f%%  Days: %d", tv, tr, days)
+    logger.info(
+        "%s  %s  %s  %s  %s  %s  %s  %s  %s",
+        f"{'Asset':>8s}", f"{'Signal':>7s}", f"{'Conf':>5s}", f"{'Value':>10s}", f"{'Ret':>7s}",
+        f"{'DD':>6s}", f"{'PF':>5s}", f"{'WinR':>5s}", f"{'Trades':>6s}",
     )
-    print("-" * 75)
+    logger.info("%s", "-" * 75)
 
     for name in ["XLF", "BTC", "NZDJPY"]:
         asset = state.get("assets", {}).get(name, {})
@@ -112,17 +116,17 @@ def print_daily(state, hist):
         sig_display = f"{sig:>4s}" if sig != "-" else " FLAT"
         pf_str = f"{pf:.2f}" if pf is not None else " N/A"
         wr_str = f"{wr:.1f}%" if wr is not None else " N/A"
-        print(
-            f"{name:>8s}  {sig_display:>7s}  {conf:>4.0f}%  ${val:>8,.2f}  "
-            f"{ret:>+6.2f}%  {dd:>5.1f}%  {pf_str:>5s}  {wr_str:>5s}  {nt:>6d}"
+        logger.info(
+            "%s  %s  %.0f%%  $%.2f  %+.2f%%  %.1f%%  %5s  %5s  %d",
+            name.rjust(8), sig_display.rjust(7), conf, val, ret, dd, pf_str, wr_str, nt,
         )
 
     # Halt check
     flags = check_halts(state, hist)
     if not flags:
-        print("\n  ✅ All halt conditions clear")
+        logger.info("\n  ✅ All halt conditions clear")
     else:
-        print(f"\n  ⚠ {len(flags)} halt condition(s) active")
+        logger.info("\n  ⚠ %d halt condition(s) active", len(flags))
 
 
 def update_history(state):
@@ -153,7 +157,7 @@ def update_history(state):
 def run():
     state = load_state()
     if state is None:
-        print("No state found. Run paper trading engine first.")
+        logger.warning("No state found. Run paper trading engine first.")
         return
     hist = update_history(state)
     print_daily(state, hist)
@@ -167,7 +171,7 @@ def run():
     }
     with open(REPORT_PATH, "w") as f:
         json.dump(report, f, indent=2, cls=EigenCapitalJSONEncoder)
-    print(f"\nReport saved to {REPORT_PATH}")
+    logger.info("\nReport saved to %s", REPORT_PATH)
 
 
 def compute_rolling_pf(state):
@@ -188,4 +192,5 @@ def compute_rolling_pf(state):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     run()

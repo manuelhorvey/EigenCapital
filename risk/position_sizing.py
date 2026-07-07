@@ -1,4 +1,8 @@
+import logging
+
 import pandas as pd
+
+logger = logging.getLogger("eigencapital.position_sizing")
 
 
 def calculate_position_size(
@@ -22,10 +26,11 @@ def calculate_position_size(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     try:
         signals = pd.read_parquet("data/processed/EURUSD_signals.parquet")
         sizes = calculate_position_size(signals)
-        print("\nPosition Sizes (Sample):")
-        print(sizes.tail())
+        logger.info("\nPosition Sizes (Sample):")
+        logger.info("\n%s", sizes.tail())
     except (FileNotFoundError, pd.errors.EmptyDataError, ValueError) as e:
-        print(f"Position sizing test failed: {e}")
+        logger.error("Position sizing test failed: %s", e)

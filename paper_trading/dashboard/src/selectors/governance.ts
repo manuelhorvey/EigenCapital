@@ -1,5 +1,25 @@
 import type { AssetState, EngineSnapshot } from '../types/portfolio'
 
+/**
+ * GovernanceState — mirror of the backend's governance computation.
+ *
+ * Historical context: this selector previously independently re-derived
+ * combined_sl_mult and combined_size_scalar by multiplying regime ×
+ * narrative × liquidity multipliers, applying its own floor/cap rules
+ * (clamp at 0.30 floor, 10.0 ceiling) that did not match the backend.
+ *
+ * This was FAILURE MODE F6 — "selectors must be backend-mirrored, not
+ * independently designed" (see FAILURE_MODES.md).
+ *
+ * Fix: read `combined_sl_mult`, `combined_size_scalar` and `floor_active`
+ * from the AssetState, which the backend already computes in its own
+ * governance pipeline. The selector is now a pure projection: it maps
+ * backend fields to the GovernanceState shape without re-deriving.
+ *
+ * The backend fields `combined_sl_mult`, `combined_size_scalar`, and
+ * `floor_active` are optional with defaults (1.0, 1.0, false) for
+ * backward compatibility during deployment rollout.
+ */
 export interface GovernanceState {
   name: string
   validityState: string
@@ -14,17 +34,7 @@ export interface GovernanceState {
   floorActive: boolean
 }
 
-const MIN_SIZE_FLOOR = 0.30
-
 function extractAssetGovernance(name: string, asset: AssetState): GovernanceState {
-  const geom = asset.regime_geometry?.[asset.validity_state] ?? { sl_mult: 1.0, tp_mult: 1.0 }
-  const regimeSl = geom.sl_mult
-  const regimeSize = geom.tp_mult
-
-  const combinedSl = regimeSl * (asset.narrative_sl_mult ?? 1.0) * (asset.liquidity_sl_mult ?? 1.0)
-  const rawSize = regimeSize * (asset.narrative_size_scalar ?? 1.0) * (asset.liquidity_size_scalar ?? 1.0)
-  const combinedSize = Math.max(rawSize, MIN_SIZE_FLOOR)
-
   return {
     name,
     validityState: asset.validity_state,
@@ -34,9 +44,13 @@ function extractAssetGovernance(name: string, asset: AssetState): GovernanceStat
     narrativeRegime: asset.narrative_regime,
     narrativeStale: asset.narrative_stale ?? false,
     liquidityRegime: asset.liquidity_regime,
-    slMult: Math.min(combinedSl, 10.0),
-    sizeScalar: combinedSize,
-    floorActive: combinedSize === MIN_SIZE_FLOOR,
+    // Read the backend-computed combined values directly.
+    // The backend already applies governance rules (regime × narrative × liquidity)
+    // in its own pipeline. These fields are in the AssetState schema as optional
+    // with defaults for rollout safety.
+    slMult: asset.combined_sl_mult ?? 1.0,
+    sizeScalar: asset.combined_size_scalar ?? 1.0,
+    floorActive: asset.floor_active ?? false,
   }
 }
 

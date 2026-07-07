@@ -326,6 +326,12 @@ export interface AssetState {
   total_exits: number
   sl_exits: number
   sl_hit_rate: number | null
+  /** Backend-computed combined SL multiplier (regime × narrative × liquidity). Optional for rollout safety. */
+  combined_sl_mult?: number
+  /** Backend-computed combined size scalar (regime × narrative × liquidity). Optional for rollout safety. */
+  combined_size_scalar?: number
+  /** Backend-computed floor-active flag. Optional for rollout safety. */
+  floor_active?: boolean
 }
 
 export interface ExitReasons {

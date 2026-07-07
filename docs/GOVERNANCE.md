@@ -34,30 +34,34 @@
 
 ## Decision Pipeline Stages (`DEFAULT_STAGES` order)
 
-| Stage | Effect |
-|-------|--------|
-| First-cycle suppression | Suppress trading on cold-start cycle 1 |
-| Bar-jump suppression | Suppress 60min if bar count changed >100 (data-source switch) |
-| Store prediction metadata | Record pre-decision signal state |
-| Update MAE/MFE | Update max adverse/favorable excursion |
-| Resolve signal | Map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45) |
-| Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
-| VIX gate | Suppress CL=F when VIX > 30; fail-open if VIX data missing or stale |
-| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (3 assets) |
-| Spread gate | Block entry if spread > per-class threshold (observe 720 cycles first) |
-| Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first; crypto = [0,24] — no restriction) |
-| ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) |
-| Confidence gate | Abort if net confidence below threshold |
-| Signal hysteresis | 2-of-3 agreement required before flip |
-| Meta-label advisory | Record meta-label recommendation (no enforcement) |
-| Update regime bar counter | Track bars since last regime shift |
-| Conviction gate | Flip gate based on regime conviction |
-| Kelly sizing (P2) | Apply fractional Kelly multiplier from calibrated probability and tp/sl |
-| Manage position | Close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > threshold) |
-| Build entry artifacts | Construct TradeDecision for execution |
-| Route execution policy | Direct to PaperBroker or MT5Broker |
-| Poll deferred entries | Execute pending deferred orders |
-| Update prob history | Record probability history for drift monitoring |
+Each stage is a standalone function operating on `DecisionContext`. Stages are chained by `run_decision_pipeline()` in `paper_trading/execution/decision_pipeline.py`. A stage blocks entry by setting `ctx.new_side = None`; an abort (`ctx.abort = True`) halts all remaining stages and returns `None`. Block counts per stage are tracked via `_gate_blocked_counts` and exposed as Prometheus `eigencapital_engine_gate_blocked_total`.
+
+| Stage | Effect | Thresholds / Config | Fail Mode |
+|-------|--------|-------------------|-----------|
+| First-cycle suppression | Suppress all trading on cold-start cycle 1 | Triggers when `_cycle_counter <= 1` | Abort (halt pipeline) |
+| Bar-jump suppression | Suppress acting on signals for 60 min after bar count changes >100 (e.g., yfinance→MT5 source switch) | `BAR_JUMP_SUPPRESS_MINUTES = 60` | Suppresses signal |
+| Store prediction metadata | Record `_last_label`, `_last_confidence`, `_last_prob_long/short/neutral`, `_entry_archetype` on engine | No config | Non-blocking |
+| Update MAE/MFE | Update max adverse/favorable excursion for open positions using `high`/`low` from OHLCV DataFrame | Reads `ctx.df["high"]`, `ctx.df["low"]` | Non-blocking (logs warning on failure) |
+| Resolve signal | Convert `SignalType` to `PositionSide`: BUY→LONG, SELL→SHORT, else FLAT | `SignalType` enum (see `entry/decision.py`) | Sets `new_side = None` |
+| Risk-off suppression | Flat AUDUSD when risk-off detected (VIX rising + SPX falling) | `RISK_OFF_ASSETS = {"AUDUSD"}`; reads `engine._risk_off` flag | Suppresses signal |
+| VIX gate | Suppress CL=F when VIX > 30. Fail-open if VIX data missing or >5 days stale. | `VIX_GATE_THRESHOLD = 30.0`; `VIX_GATE_ASSETS = {"CL"}`; stale check: 5d | Fail-open (allow entry when data unavailable) |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (CADCHF, NZDCHF, EURAUD). Force-closes any stale LONG positions from pre-filter era. | Assets resolved via `get_sell_only_assets()` from `execution/gate_constants.py` | Suppresses BUY signal; force-closes LONG |
+| Spread gate | Block new entry if live spread (bps) exceeds per-asset-class threshold. Observe-only for first 720 cycles (~6h). Fail-closed post-observe — missing/stale spread data blocks entry. | `SPREAD_TIER_BPS`: fx_major=10, fx_cross=20, indices=15, metals=20; staleness=300s | Fail-closed post-observe |
+| Session gate | Block new entry outside session windows per asset-class tier. Observe-only for first 720 cycles. | Tiers: fx_major (7-17 UTC), fx_cross (7-17), indices (13-20), metals (8-18), crypto (0-24) | Blocks outside window post-observe |
+| ADX entry gate | Block new entry when ADX < threshold (choppy market). Disabled by default; observe-only by default when enabled. | `ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18`; config key: `adx_entry_gate` with `enabled`, `adx_threshold`, `observe_only` | Observe-only by default |
+| Confidence gate | Skip trade if signal confidence below per-asset `min_confidence` threshold | Config key: `min_confidence` (per-asset override, global default 55.0) | Sets `new_side = None` |
+| Signal hysteresis | Require 2-of-3 latest signals to agree before allowing position flip | `HYSTERESIS_WINDOW = 3`, `HYSTERESIS_MIN_AGREE = 2` | Blocks flip |
+| Meta-label advisory | Record meta-label recommendation (no enforcement). Logs when `prob < threshold`. | Config key: `meta_labeling.enabled`; threshold from `meta_label_model.threshold` | Advisory only (no gate) |
+| Update regime bar counter | Increment `_regime_bar_counter` each cycle in same regime; reset to 1 on regime change | Reads `engine._current_regime` vs `_last_regime_label` | Non-blocking |
+| Conviction gate | Evaluate flip gate via `_evaluate_flip_gate()` based on regime conviction | See `engine._evaluate_flip_gate()` | Blocks flip |
+| Kelly sizing (P2) | Apply fractional Kelly multiplier from calibrated probability and tp/sl. Skips if calibration not applied upstream (raw XGBoost softmax is unreliable). | Config key: `kelly.enabled` (default false); `fraction=0.25`, `max_cap=1.0`, `min_edge=0.0` | Sets `new_side = None` if multiplier <= 0 |
+| Manage position | Position protection (breakeven lock at 0.5R, trailing), entry gate check, profit lock (blocks flip if unrealized PnL > 15%), stacking gate, max positions per asset | Config keys: `stacking.enabled`, `max_positions_per_asset`, `profit_lock_threshold_pct=15.0` | Blocks entry or flip |
+| Build entry artifacts | Run structure detection + entry optimizer; compute SL/TP via `compute_effective_multipliers` + `compute_take_profit`; optionally create `DeferredEntry` | Config key: `dynamic_sltp.enabled`, `entry_defer_max_bars=5` | Sets `new_side = None` on import failure |
+| Route execution policy | Handle ENTER/DEFER/SKIP action via `ExecutionPolicy`. ENTER → `_open_position()`; DEFER → `_pending_entries[]` | Reads `engine._execution_policy` | Logs action reason |
+| Poll deferred entries | Execute pending deferred orders from previous cycles | Calls `engine._poll_pending_entries(ctx.df)` on each cycle | Non-blocking |
+| Update prob history | Append signal + confidence to `prob_history` (max 1000 entries); update confidence buckets | `MAX_PROB_HISTORY = 1000` | Non-blocking |
+
+Stage source: `DEFAULT_STAGES` list in `paper_trading/execution/decision_pipeline.py:967-990`.
 
 ## Position Sizing Guardrails
 

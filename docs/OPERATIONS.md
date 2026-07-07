@@ -653,4 +653,50 @@ When `PEK_BUDGET_OVERRUN` appears in logs:
 
 ---
 
-**Last updated:** 2026-07-05
+## Write-Ahead Log (WAL) Event Reference
+
+The WAL (`data/live/wal/engine.jsonl`) captures every step in the trading decision chain as an ordered JSONL event stream. Each line is a `WalEvent` with fields: `sequence`, `source`, `event_type`, `timestamp`, `payload`.
+
+### Causal Boundary Events (P0 — Required for Deterministic Replay)
+
+| Event Type | Payload Fields | Emitted By |
+|------------|----------------|------------|
+| `features_snapshot` | `asset`, `features` (dict), `feature_hash`, `feature_schema`, `model_hash` | `inference/pipeline.py:_trace_and_diagnostics()` |
+| `inference_output` | `asset`, `prob_long`, `prob_short`, `prob_neutral`, `model_hash`, `feature_hash` | `inference/pipeline.py:_run_inference()` |
+| `decision_output` | `asset`, `final_signal`, `gates_aborted`, `gates_trace`, `feature_hash`, `model_hash` | `execution/decision_pipeline.py:run_decision_pipeline()` |
+
+### Observability Events (Supporting — Not Required for Replay)
+
+| Event Type | Payload Fields | Emitted By |
+|------------|----------------|------------|
+| `price_update` | `asset`, `open`, `high`, `low`, `close`, `volume`, `timestamp` | Data refresh cycle |
+| `signal_generated` | `asset`, `signal`, `confidence`, `prob_long`, `prob_short` | Inference pipeline |
+| `entry_executed` | `asset`, `side`, `price`, `qty`, `sl`, `tp`, `trade_id` | Entry service |
+| `sl_executed` | `asset`, `price`, `trade_id`, `pnl_r` | Position manager |
+| `tp_executed` | `asset`, `price`, `trade_id`, `pnl_r` | Position manager |
+| `position_closed` | `asset`, `reason`, `pnl_r`, `trade_id` | Position close |
+| `state_committed` | Full state snapshot checkpoint | Orchestrator Phase 4 |
+| `actor_health` | `asset`, `state`, `reason` | Health monitor |
+| `stack_added` | `asset`, `layer`, `price`, `trade_id` | Stacking gate |
+| `mt5_order_placed` | `asset`, `order_type`, `volume`, `price`, `symbol` | MT5 broker (pre-fill) |
+| `mt5_order_filled` | `asset`, `order_type`, `volume`, `filled_price`, `ticket` | MT5 broker (retcode 10009) |
+| `mt5_order_rejected` | `asset`, `reason`, `retcode`, `order_type` | MT5 broker (retcode != 10009) |
+| `mt5_order_modified` | `asset`, `ticket`, `sl`, `tp` | MT5 broker (SL/TP modification) |
+| `mt5_position_closed` | `asset`, `ticket`, `reason`, `pnl` | MT5 broker |
+
+### Invariants
+
+1. **I1** — Events from a single source are strictly ordered by sequence number.
+2. **I2** — All events are deterministic — same inputs produce identical payloads.
+3. **I3** — WAL is append-only; past events are never mutated.
+
+### Source Code
+
+- Writer: `paper_trading/replay/wal.py:WalWriter` (thread-safe, batch-flush with fsync)
+- Reader: `paper_trading/replay/wal.py:WalReader` (supports sequence-offset replay)
+- Dashboard: `GET /wal/<asset>.json?max=N` — per-asset WAL timeline
+- Slack alerter: `paper_trading/ops/slack_alerter.py` — WAL-tailing alert daemon
+
+---
+
+**Last updated:** 2026-07-07

@@ -174,7 +174,7 @@ class EngineOrchestrator:
         # The persisted peak from a prior session may be stale:
         #   - Different capital base (rebalancing changed capital_base)
         #   - Intentional capital reset
-        #   - Prior session had different asset set
+        #   - Prior session had different asset set (assets removed)
         #
         # If the snapshot has peak_capital_base, adjust the peak proportionally
         # to the current capital.  This prevents false drawdown when capital
@@ -193,7 +193,24 @@ class EngineOrchestrator:
                 _current_capital,
                 _capital_ratio,
             )
-        # Ensure peak >= current equity (safety net — should always hold after capital adjustment)
+        # Safety clamp: if the re-anchored peak implies >15% drawdown on startup,
+        # it likely means portfolio composition changed between sessions (assets
+        # added/removed) without a corresponding capital change.  Clamp to init_equity
+        # to prevent a phantom drawdown from degrading exposure multipliers or
+        # triggering the circuit breaker on the first cycle.
+        if self._peak_portfolio_value is not None and _init_equity is not None and _init_equity > 0:
+            _dd_from_peak = (_init_equity - self._peak_portfolio_value) / self._peak_portfolio_value
+            if _dd_from_peak < -0.15:
+                logger.warning(
+                    "Peak re-anchoring produced drawdown=%.2f%% on startup "
+                    "(peak=%.2f, equity=%.2f) — likely due to portfolio composition "
+                    "change. Re-anchoring peak to current equity.",
+                    _dd_from_peak * 100,
+                    self._peak_portfolio_value,
+                    _init_equity,
+                )
+                self._peak_portfolio_value = _init_equity
+        # Ensure peak >= current equity (safety net — should always hold after adjustments)
         if (
             _init_equity is not None
             and _init_equity > 0

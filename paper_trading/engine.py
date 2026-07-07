@@ -87,11 +87,25 @@ class PaperTradingEngine:
         self.portfolio_peak_value: float | None = None
         self._wal = wal_writer or WalWriter(BASE, source="engine")
 
-        # Reset global risk governance state to prevent stale data from
-        # a previous session leaking into the new run.
-        _reset_risk_governance()
-
         snapshot = self.state_store.load_snapshot()
+
+        # Reset global risk governance state, then restore persisted state
+        # (sell tripwire deques) from snapshot so the 20-trade rolling window
+        # survives restarts.
+        from paper_trading.governance.risk import set_risk_state
+
+        _reset_risk_governance()
+        if snapshot is not None and snapshot.risk_state:
+            try:
+                set_risk_state(snapshot.risk_state)
+                n_assets = len(snapshot.risk_state.get("sell_win_rates", {}))
+                if n_assets:
+                    logger.info(
+                        "Restored risk governance state for %d asset(s) from snapshot",
+                        n_assets,
+                    )
+            except Exception:
+                logger.exception("Failed to restore risk state from snapshot")
         if snapshot is not None and snapshot.engine_status:
             self.start_date = datetime.fromisoformat(
                 snapshot.engine_status.get("start_time", self.start_date.isoformat())
@@ -152,7 +166,28 @@ class PaperTradingEngine:
             _mt5_symbol_map.update(self.broker._symbol_map)
         self._init_experiment_context()
         self._narrative.init_narrative()
+
+        # Restore current_value for ALL assets from the snapshot so the equity curve
+        # starts at the correct baseline.  Previously, only assets with open positions
+        # had their current_value restored — flat assets reset to initial_capital,
+        # causing the "equity reset to baseline" symptom on restart.
+        if snapshot is not None and snapshot.asset_values:
+            for name, cv in snapshot.asset_values.items():
+                if name in self.assets:
+                    asset = self.assets[name]
+                    asset.current_value = cv
+                    asset.pos_mgr.current_value = cv
+                    if cv > asset.peak_value:
+                        asset.peak_value = cv
+                        asset.pos_mgr.peak_value = cv
+            logger.info(
+                "Restored current_value for %d assets from snapshot",
+                len(snapshot.asset_values),
+            )
+
+        # Restore open positions (may overwrite current_value for assets with positions)
         self._recovery.restore_positions(saved_positions)
+
         self._sim_store = SimulationStore(BASE)
         self._rebalance_last_day: datetime | None = None
         self._rebalance_weights: dict[str, float] = {}

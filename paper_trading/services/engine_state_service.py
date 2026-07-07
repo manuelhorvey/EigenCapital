@@ -531,6 +531,23 @@ class EngineStateService:
                     "peak_mfe_r": getattr(getattr(asset, "_adaptive_exit_engine", None), "peak_mfe_r", None),
                     "sl_update_count": getattr(getattr(asset, "_adaptive_exit_engine", None), "sl_update_count", 0),
                 }
+        # Persist current_value for ALL assets, not just those with open positions.
+        # This ensures flat assets retain their accumulated equity across restarts
+        # and the equity curve starts at the correct baseline.
+        snapshot.asset_values = {
+            name: asset.pos_mgr.current_value
+            for name, asset in engine.assets.items()
+        }
+        # Persist risk governance state (sell tripwire deques) so they survive
+        # restarts and don't lose the 20-trade rolling window on every restart.
+        try:
+            from paper_trading.governance.risk import get_risk_state
+
+            risk_state = get_risk_state()
+            if risk_state.get("sell_win_rates") or risk_state.get("tripwire_last_state"):
+                snapshot.risk_state = risk_state
+        except Exception:
+            logger.exception("Failed to capture risk state")
         self._append_equity_history(state)
         engine.state_store.save_snapshot(snapshot)
         self._capture_simulation_snapshot(state)

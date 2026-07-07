@@ -154,6 +154,37 @@ class RiskRegistry:
         tripped = sell_only and win_rate is not None and win_rate < TRIPWIRE_THRESHOLD
         return {"win_rate": win_rate, "tripped": tripped}
 
+    # ── State persistence (survive restarts) ──────────────────────────
+
+    def snapshot_state(self) -> dict:
+        """Serialize sell tripwire state for persistence in state.json.
+
+        Returns a JSON-serializable dict with:
+            - sell_win_rates: {asset: [0/1 outcomes]}
+            - tripwire_last_state: {asset: bool}
+        """
+        with self._sell_win_rate_lock:
+            win_rates = {
+                asset: list(dq)
+                for asset, dq in self._sell_win_rates.items()
+            }
+            last_states = dict(self._tripwire_last_state)
+        return {
+            "sell_win_rates": win_rates,
+            "tripwire_last_state": last_states,
+        }
+
+    def restore_state(self, state: dict) -> None:
+        """Restore sell tripwire state from a previously persisted snapshot."""
+        win_rates = state.get("sell_win_rates", {})
+        with self._sell_win_rate_lock:
+            self._sell_win_rates.clear()
+            for asset, outcomes in win_rates.items():
+                if isinstance(outcomes, list):
+                    self._sell_win_rates[asset] = deque(outcomes, maxlen=SELL_WIN_RATE_WINDOW)
+            self._tripwire_last_state.clear()
+            self._tripwire_last_state.update(state.get("tripwire_last_state", {}))
+
     # ── Risk evaluation ──────────────────────────────────────────────────
 
     def evaluate(self, asset: str) -> dict:

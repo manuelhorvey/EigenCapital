@@ -37,6 +37,8 @@ get_sl_hit_rate_all = _default_registry.get_sl_hit_rate_all
 record_sell_side_outcome = _default_registry.record_sell_side_outcome
 get_sell_win_rate = _default_registry.get_sell_win_rate
 get_sell_tripwire_state = _default_registry.get_sell_tripwire_state
+get_risk_state = _default_registry.snapshot_state
+set_risk_state = _default_registry.restore_state
 evaluate = _default_registry.evaluate
 get_latest = _default_registry.get_latest
 

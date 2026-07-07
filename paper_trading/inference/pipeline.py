@@ -630,9 +630,7 @@ class AssetInferencePipeline:
         # metric drives their view. The canonical ``confidence`` field is
         # unchanged so existing gate logic is unaffected.
         meta_proba = getattr(asset, "_last_meta_proba", None)
-        meta_label_confidence = (
-            round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
-        )
+        meta_label_confidence = round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
 
         decision = TradeDecision(
             asset=asset.name,

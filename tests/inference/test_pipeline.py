@@ -296,6 +296,82 @@ class TestRunInferenceEnsemble:
         assert asset._last_regime_long_prob is None
 
 
+class TestCalibrationApply:
+    """C-03: regression coverage for the calibration simplex-preserving fix.
+
+    These tests pin down ``AssetInferencePipeline._apply_calibration``,
+    which previously overwrote ``proba[:, 0]`` with ``1 - cal_p_long``
+    and broke the 3-class softmax simplex.
+    """
+
+    def _cal_registry_mock(self, calibrated_value: float):
+        reg = MagicMock()
+        reg.calibrate.return_value = np.array([calibrated_value])
+        reg._calibrators = {asset_label(): MagicMock()}
+        return reg
+
+    def test_no_registry_returns_false(self, pipeline):
+        asset = pipeline.asset
+        asset._calibration_registry = None
+        proba = np.array([[0.2, 0.3, 0.5]])
+        applied = pipeline._apply_calibration(asset, proba)
+        assert applied is False
+        # proba unchanged
+        np.testing.assert_array_equal(proba, [[0.2, 0.3, 0.5]])
+
+    def test_calibration_disabled_returns_false(self, pipeline):
+        asset = pipeline.asset
+        asset._calibration_registry = self._cal_registry_mock(0.9)
+        with patch("paper_trading.inference.pipeline.get_config") as cfg:
+            cfg.return_value.defaults.get.return_value = {"enabled": False}
+            proba = np.array([[0.1, 0.2, 0.7]])
+            applied = pipeline._apply_calibration(asset, proba)
+        assert applied is False
+        np.testing.assert_array_equal(proba, [[0.1, 0.2, 0.7]])
+
+    def test_calibration_preserves_simplex(self, pipeline):
+        """Calibrated p_long replaces only col-2; the simplex stays normalized.
+
+        Regression for C-03: previously ``proba[:, 0]`` was overwritten with
+        ``1 - cal_p_long``, doubling BUY and SELL confidence simultaneously.
+        """
+        asset = pipeline.asset
+        asset._calibration_registry = self._cal_registry_mock(0.85)
+        with patch("paper_trading.inference.pipeline.get_config") as cfg:
+            cfg.return_value.defaults.get.return_value = {"enabled": True}
+            proba = np.array([[0.1, 0.2, 0.7]])
+            proba.setflags(write=True)
+            applied = pipeline._apply_calibration(asset, proba)
+        assert applied is True
+        # Renormalized: each column divided by 1.15 (the new row sum)
+        assert proba[0, 0] == pytest.approx(0.1 / 1.15)
+        assert proba[0, 1] == pytest.approx(0.2 / 1.15)
+        assert proba[0, 2] == pytest.approx(0.85 / 1.15)
+        # Rows sum to 1.0
+        assert proba.sum(axis=1)[0] == pytest.approx(1.0)
+        # Crucially: SELL column was NOT forced to (1 - cal_p_long)
+        assert proba[0, 0] != pytest.approx(1.0 - 0.85)
+        # Raw SELL info (0.1) was preserved proportionally — it's now 0.087
+        # not 0.15 (which is what 1 - 0.85 would give)
+
+    def test_calibration_failure_returns_false(self, pipeline):
+        asset = pipeline.asset
+        reg = MagicMock()
+        reg.calibrate.side_effect = ValueError("bad input")
+        reg._calibrators = {asset_label(): MagicMock()}
+        asset._calibration_registry = reg
+        with patch("paper_trading.inference.pipeline.get_config") as cfg:
+            cfg.return_value.defaults.get.return_value = {"enabled": True}
+            proba = np.array([[0.1, 0.2, 0.7]])
+            applied = pipeline._apply_calibration(asset, proba)
+        assert applied is False
+        np.testing.assert_array_equal(proba, [[0.1, 0.2, 0.7]])
+
+
+def asset_label() -> str:
+    return "EURUSD"
+
+
 class TestBuildDecision:
     def test_creates_trade_decision(self, pipeline):
         asset = pipeline.asset

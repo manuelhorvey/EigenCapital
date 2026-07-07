@@ -148,29 +148,14 @@ class AssetInferencePipeline:
         proba, _infer_idx = self._run_inference(asset, x, features_df, feature_hash)
 
         # ── Calibrate probabilities ──────────────────────────────────
-        cal_registry: CalibrationRegistry | None = getattr(asset, "_calibration_registry", None)
-        if cal_registry is not None:
-            _cal_cfg = get_config().defaults.get("calibration", {})
-            if _cal_cfg.get("enabled", False):
-                try:
-                    raw_p_long = proba[:, 2].copy()
-                    cal_p_long = cal_registry.calibrate(asset.name, raw_p_long)
-                    proba[:, 2] = cal_p_long
-                    proba[:, 0] = 1.0 - cal_p_long
-                    asset._calibration_applied = True
-                except (ValueError, TypeError, IndexError) as e:
-                    logger.error("%s: calibration inference failed: %s", asset.name, e)
-                    asset._calibration_applied = False
-            else:
-                asset._calibration_applied = False
-        else:
-            asset._calibration_applied = False
+        asset._calibration_applied = self._apply_calibration(asset, proba)
 
         # Guard: if calibration is enabled but failed, handle per-asset:
         #   - No calibrator trained for this asset → use raw XGBoost probabilities with warning
         #   - Calibrator exists but inference failed → force neutral with error
         _cal_cfg = get_config().defaults.get("calibration", {})
         if _cal_cfg.get("enabled", False) and not asset._calibration_applied:
+            cal_registry = getattr(asset, "_calibration_registry", None)
             if cal_registry is None or asset.name not in cal_registry._calibrators:
                 logger.warning(
                     "%s: calibration enabled but no calibrator found — using raw XGBoost probabilities",
@@ -180,7 +165,7 @@ class AssetInferencePipeline:
                 # This else branch fires only when:
                 # (a) calibration is enabled globally AND
                 # (b) a calibrator IS registered for this asset AND
-                # (c) calibrate() raised an exception (caught at line ~141)
+                # (c) calibrate() raised an exception (caught in _apply_calibration)
                 # In that case we force neutral to avoid acting on a malformed
                 # probability vector (e.g. NaN or zeroed-out from a partial state).
                 logger.error(
@@ -511,6 +496,39 @@ class AssetInferencePipeline:
                 logger.warning("WAL write failed for inference_output on %s", asset.name, exc_info=True)
 
         return proba, _infer_idx
+
+    def _apply_calibration(self, asset, proba: np.ndarray) -> bool:
+        """Apply the registry calibrator to ``proba[:, 2]``.
+
+        C-03 fix (2026-07-06): the prior implementation overwrote
+        ``proba[:, 0]`` with ``1 - cal_p_long`` unconditionally, which
+        killed the model's softmax SELL probability on a 3-class XGBoost
+        output and caused ``confidence = max(prob_long, prob_short)`` to
+        saturate near 1.0 regardless of direction. The corrected path
+        replaces only ``proba[:, 2]`` with the calibrated BUY probability
+        and re-normalizes so the simplex is preserved.
+
+        Returns ``"applied"``, ``"no_calibrator"``, ``"disabled"``, or
+        ``"failed"`` so the caller can record the appropriate state on
+        ``asset._calibration_applied`` and emit any diagnostic logging.
+        """
+        cal_registry: CalibrationRegistry | None = getattr(asset, "_calibration_registry", None)
+        if cal_registry is None:
+            return False
+        _cal_cfg = get_config().defaults.get("calibration", {})
+        if not _cal_cfg.get("enabled", False):
+            return False
+        try:
+            raw_p_long = proba[:, 2].copy()
+            cal_p_long = cal_registry.calibrate(asset.name, raw_p_long)
+            proba[:, 2] = cal_p_long
+            _row_sum = proba.sum(axis=1, keepdims=True)
+            np.divide(proba, _row_sum, out=proba, where=_row_sum > 0)
+            return True
+        except (ValueError, TypeError, IndexError) as e:
+            logger.error("%s: calibration inference failed: %s", asset.name, e)
+            self._calibration_failure = e
+            return False
 
     def _compute_sizing_and_signal(self, asset, df, proba, infer_idx, threshold):
         sizing_cfg = asset._sizing_config(df["close"])

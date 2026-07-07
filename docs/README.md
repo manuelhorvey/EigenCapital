@@ -80,6 +80,12 @@ AUDCHF, AUDNZD, EURUSD, GBPNZD
 | MT5 bridge | 9879 | Wine-hosted TCP bridge to MetaTrader 5 terminal |
 | MT5 terminal | — | MetaTrader 5 under Wine + xvfb-run |
 
+### Data Schema
+
+| Document | Contents |
+|----------|----------|
+| `docs/STATE_SCHEMA.md` | `state.json` field reference — all top-level fields, portfolio, per-asset, open positions, MT5 account |
+
 ## ADRs
 
 Architecture Decision Records in [`docs/adr/`](adr/) — see [`docs/adr/ADR-000-index.md`](adr/ADR-000-index.md) for the full list.

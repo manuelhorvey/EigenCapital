@@ -1181,20 +1181,20 @@ Final route count: 4 (`/`, `/trading`, `/execution`, `/risk`). Each route has a 
 - `/risk` — governance surface: PEK telemetry + portfolio risk + governance + health scores
 
 ---
-## Project Rename: Quorrin → EigenCapital (2026-07-02)
+## Project Rename: EigenCapital (formerly Quorrin, 2026-07-02)
 
 ### What Was Done (Phases 1–8)
 
 | Phase | Scope | Files Changed |
 |-------|-------|---------------|
-| 1 | Python package `quorrin/` → `eigencapital/` (git mv), imports, loggers, pyproject.toml | 179 |
-| 2 | Prometheus metric names `quorrin_engine_*` → `eigencapital_engine_*` | 2 |
-| 3 | Env vars `QUORRIN_*` → `EIGENCAPITAL_*` | ~50 |
+| 1 | Python package `eigencapital/` (moved from `quorrin/`), imports, loggers, pyproject.toml | 179 |
+| 2 | Prometheus metric names `eigencapital_engine_*` (moved from `quorrin_engine_*`) | 2 |
+| 3 | Env vars `EIGENCAPITAL_*` (moved from `QUORRIN_*`) | ~50 |
 | 4 | Dashboard branding (TickerRail `Q` → `EC`, `·EIGENCAPITAL`, LS_KEY, alerts channel, index.html title, package.json name, loading screen) | 6 |
 | 5 | Infra rename (systemd unit file, monitor_all banner, Docker container names) | 4 |
 | 6 | External integrations (MT5 comment, Slack) | handled by Phases 1+4 |
 | 7 | Documentation updates (AGENTS.md, README.md was already updated) | 2+ |
-| 8 | Git remote updated from `Quorrin.git` → `EigenCapital.git` | 1 |
+| 8 | Git remote updated from `EigenCapital.git` (was `Quorrin.git`) | 1 |
 
 ### Remaining After Rename
 - `.env.example` has no EigenCapital refs (never had Quorrin refs either — uses `MT5_ACCOUNT` etc.)

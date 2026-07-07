@@ -4,11 +4,11 @@ Documentation=https://github.com/manuelhorvey/EigenCapital
 
 [Service]
 Type=oneshot
-WorkingDirectory=%h/Projects/Quorrin
-Environment=PYTHONPATH=%h/Projects/Quorrin
-ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/Quorrin/data/logs/healthcheck'
-ExecStart=/usr/bin/env python3 %h/Projects/Quorrin/scripts/ops/model_health_monitor.py --trigger --output %h/Projects/Quorrin/data/logs/healthcheck/latest.json
-StandardOutput=append:%h/Projects/Quorrin/data/logs/healthcheck/healthcheck-service.log
+WorkingDirectory=%h/Projects/EigenCapital
+Environment=PYTHONPATH=%h/Projects/EigenCapital
+ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/EigenCapital/data/logs/healthcheck'
+ExecStart=/usr/bin/env python3 %h/Projects/EigenCapital/scripts/ops/model_health_monitor.py --trigger --output %h/Projects/EigenCapital/data/logs/healthcheck/latest.json
+StandardOutput=append:%h/Projects/EigenCapital/data/logs/healthcheck/healthcheck-service.log
 StandardError=inherit
 # Hardening (user-level compatible)
 PrivateTmp=true

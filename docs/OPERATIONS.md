@@ -383,7 +383,7 @@ Check the model file modification dates are within the expected retrain window.
 
 If retrain failed:
 ```bash
-cd /home/manuelhorveydaniel/Projects/Quorrin
+cd /home/manuelhorveydaniel/Projects/EigenCapital
 source .venv/bin/activate
 python -c "
 from paper_trading.engine import PaperTradingEngine

@@ -4,11 +4,11 @@ Documentation=https://github.com/manuelhorvey/EigenCapital
 
 [Service]
 Type=oneshot
-WorkingDirectory=%h/Projects/Quorrin
-Environment=PYTHONPATH=%h/Projects/Quorrin
-ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/Quorrin/data/logs/retrain'
-ExecStart=/bin/bash %h/Projects/Quorrin/scripts/ops/retrain_scheduler.sh
-StandardOutput=append:%h/Projects/Quorrin/data/logs/retrain/retrain-service.log
+WorkingDirectory=%h/Projects/EigenCapital
+Environment=PYTHONPATH=%h/Projects/EigenCapital
+ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/EigenCapital/data/logs/retrain'
+ExecStart=/bin/bash %h/Projects/EigenCapital/scripts/ops/retrain_scheduler.sh
+StandardOutput=append:%h/Projects/EigenCapital/data/logs/retrain/retrain-service.log
 StandardError=inherit
 # Hardening (user-level compatible)
 PrivateTmp=true

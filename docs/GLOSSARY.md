@@ -163,7 +163,7 @@ to prevent unrealistically large TP distances.
 ## System Architecture
 
 ### EigenCapital
-The project name (formerly Quorrin, renamed 2026-07-02). Cross-sectional
+The project name (renamed from Quorrin to EigenCapital on 2026-07-02). Cross-sectional
 multi-asset research and paper trading platform with per-asset XGBoost
 models, 15-layer governance, adaptive exits, and MT5 bridge execution.
 

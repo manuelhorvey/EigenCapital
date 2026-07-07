@@ -135,9 +135,9 @@
 
 ## v3.0.0 (2026-07-02)
 
-### Project rename: Quorrin → EigenCapital
+### Project rename: EigenCapital (formerly Quorrin)
 - Python package git mv (179 files)
-- Prometheus metric namespace `quorrin_*` → `eigencapital_*`
+- Prometheus metric namespace `eigencapital_*` (formerly `quorrin_*`)
 - Env vars `QUORRIN_*` → `EIGENCAPITAL_*`
 - Dashboard branding, infra, remote updated
 - AGENTS.md and README.md updated

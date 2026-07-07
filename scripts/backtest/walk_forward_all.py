@@ -1,3 +1,15 @@
+"""Walk-forward backtest for all registered assets.
+
+Runs expanding-window walk-forward for every asset in FEATURE_REGISTRY,
+generating OOS signal parquets under ``data/walkforward/{asset}/``.
+Each fold uses CRIT-1 purging, ATR-based triple-barrier labels, and
+per-asset pt_sl config from the feature registry.
+
+Usage::
+
+    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/walk_forward_all.py
+"""
+
 import logging
 import os
 import sys

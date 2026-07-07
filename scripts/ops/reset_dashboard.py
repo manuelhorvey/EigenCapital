@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Reset dashboard state: flush caches, clear trace/WAL/state files.
+
+Sends a POST to the engine's cache-clear endpoint on ports 5000 and 5001,
+then removes runtime state files (trace.jsonl, WAL segments, state.json,
+narrative files, and dashboard static responses). Useful for forcing a
+clean state without restarting the engine.
+
+Usage::
+
+    PYTHONPATH=$PYTHONPATH:. python scripts/ops/reset_dashboard.py
+"""
+
 import os
 import shutil
 import sys

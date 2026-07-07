@@ -82,7 +82,11 @@ def check_vol_regime():
 
         logger.info(
             "  %8s: train_vol=%.4f  live_vol=%.4f  ratio=%.2f  → %s%s",
-            name, train_vol, live_vol, ratio, status,
+            name,
+            train_vol,
+            live_vol,
+            ratio,
+            status,
             " ⚠" if status != "healthy" else "",
         )
     return all_healthy
@@ -146,7 +150,7 @@ def run():
     hist = load_history()
 
     logger.info("\n%s", "=" * 70)
-    logger.info("WEEKLY PORTFOLIO REPORT — %s", datetime.now().strftime('%Y-%m-%d'))
+    logger.info("WEEKLY PORTFOLIO REPORT — %s", datetime.now().strftime("%Y-%m-%d"))
     logger.info("%s", "=" * 70)
 
     portfolio = state.get("portfolio", {})
@@ -177,9 +181,14 @@ def run():
 
         logger.info(
             "  %8s: Live B/S %.0f/%.0f vs BT %d/%d → %s (buy_d=%.0fpp sell_d=%.0fpp)",
-            name, buy_pct, sell_pct, b_buy, b_sell,
+            name,
+            buy_pct,
+            sell_pct,
+            b_buy,
+            b_sell,
             "STABLE" if stable else "DRIFT",
-            buy_drift, sell_drift,
+            buy_drift,
+            sell_drift,
         )
 
     # Confidence drift check
@@ -192,7 +201,9 @@ def run():
         drift = abs(mean_conf - baseline_conf)
         logger.info(
             "  %8s: Live conf=%.2f vs BT=%.2f → %s (d=%.3f)",
-            name, mean_conf, baseline_conf,
+            name,
+            mean_conf,
+            baseline_conf,
             "STABLE" if drift < 0.15 else "DRIFT",
             drift,
         )

@@ -406,6 +406,6 @@ if __name__ == "__main__":
         if key == "transition_history":
             logger.info("\n%s:", key)
             for t in value:
-                logger.info("  %s -> %s at %s: %s", t['from'], t['to'], t['timestamp'], t['reason'])
+                logger.info("  %s -> %s at %s: %s", t["from"], t["to"], t["timestamp"], t["reason"])
         else:
             logger.info("%s: %s", key, value)

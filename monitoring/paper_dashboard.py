@@ -84,7 +84,7 @@ def check_halts(state, hist):
 
 def print_daily(state, hist):
     logger.info("\n%s", "=" * 65)
-    logger.info("PAPER PORTFOLIO DASHBOARD — %s", datetime.now().strftime('%Y-%m-%d %H:%M'))
+    logger.info("PAPER PORTFOLIO DASHBOARD — %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
     logger.info("%s", "=" * 65)
 
     portfolio = state.get("portfolio", {})
@@ -94,8 +94,15 @@ def print_daily(state, hist):
     logger.info("\nPortfolio: $%.2f  Return: %+.2f%%  Days: %d", tv, tr, days)
     logger.info(
         "%s  %s  %s  %s  %s  %s  %s  %s  %s",
-        f"{'Asset':>8s}", f"{'Signal':>7s}", f"{'Conf':>5s}", f"{'Value':>10s}", f"{'Ret':>7s}",
-        f"{'DD':>6s}", f"{'PF':>5s}", f"{'WinR':>5s}", f"{'Trades':>6s}",
+        f"{'Asset':>8s}",
+        f"{'Signal':>7s}",
+        f"{'Conf':>5s}",
+        f"{'Value':>10s}",
+        f"{'Ret':>7s}",
+        f"{'DD':>6s}",
+        f"{'PF':>5s}",
+        f"{'WinR':>5s}",
+        f"{'Trades':>6s}",
     )
     logger.info("%s", "-" * 75)
 
@@ -118,7 +125,15 @@ def print_daily(state, hist):
         wr_str = f"{wr:.1f}%" if wr is not None else " N/A"
         logger.info(
             "%s  %s  %.0f%%  $%.2f  %+.2f%%  %.1f%%  %5s  %5s  %d",
-            name.rjust(8), sig_display.rjust(7), conf, val, ret, dd, pf_str, wr_str, nt,
+            name.rjust(8),
+            sig_display.rjust(7),
+            conf,
+            val,
+            ret,
+            dd,
+            pf_str,
+            wr_str,
+            nt,
         )
 
     # Halt check

@@ -107,6 +107,7 @@ def _ewm_vol(close: pd.Series, span: int = 100) -> pd.Series:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger(__name__)
     # Test with dummy data or load the downloaded EURUSD data
     try:
         data = pd.read_parquet("data/raw/EURUSD_1d.parquet")

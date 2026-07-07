@@ -28,6 +28,7 @@ _COT_PAIR_FACTOR_GROUPS: dict[str, frozenset[str]] = {
     "MXNUSD": frozenset({"USD"}),
 }
 
+
 # Derive asset-to-factor-group mapping from shared/factor_model.py FACTOR_GROUPS.
 # Invert the FACTOR_GROUPS dict (factor -> set of assets) to get asset -> set of factors.
 # This avoids maintaining a parallel mapping that would drift from the canonical one.

@@ -33,9 +33,11 @@ function TradingWorkspaceSkeleton() {
 }
 
 export default function TradingWorkspace() {
-  const { isPending, isError, error } = useSystemSnapshot()
+  const { data, isPending, isError, error } = useSystemSnapshot()
 
-  if (isError) {
+  // Only show error screen on INITIAL load failure, not when stale data
+  // is available from a previous successful fetch (keepPreviousData).
+  if (isError && !data) {
     return (
       <Panel padding="md">
         <div className="flex items-center gap-3 text-gov-red">
@@ -48,7 +50,9 @@ export default function TradingWorkspace() {
     )
   }
 
-  if (isPending) {
+  // Skeleton on initial load only. With keepPreviousData, isPending is
+  // false during background refetches because data is never undefined.
+  if (isPending && !data) {
     return <TradingWorkspaceSkeleton />
   }
 

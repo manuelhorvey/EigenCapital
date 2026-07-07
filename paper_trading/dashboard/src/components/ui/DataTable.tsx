@@ -212,7 +212,6 @@ export default function DataTable<T>({
                   i % 2 === 1 ? 'bg-panel/30' : '',
                   rowClassName?.(row) ?? '',
                 ].filter(Boolean).join(' ')}
-                style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 32px' }}
               >
                 {columns.map(col => (
                   <td

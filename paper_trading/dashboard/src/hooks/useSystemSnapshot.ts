@@ -14,7 +14,7 @@ export function useSystemSnapshot<T = SystemBundle>(
     queryKey: QUERY_KEYS.system,
     queryFn: async () => {
       const json = await fetchApi<unknown>('/state-bundle.json')
-      const parsed = SystemBundleSchema.safeParse(json)
+      const parsed = SystemBundleSchema.passthrough().safeParse(json)
       if (parsed.success) {
         const cv = parsed.data.snapshot.contract_version
         if (_lastContractVersion !== null && _lastContractVersion !== cv) {

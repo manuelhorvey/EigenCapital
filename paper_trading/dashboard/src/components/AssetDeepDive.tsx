@@ -38,6 +38,12 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
   const fi = data.feature_importance ?? []
   const trades = data.trades ?? []
   const m = data.metrics ?? {}
+  // Pre-compute global scale for MAE/MFE scatter so JSX doesn't need declarations.
+  const maeValues = trades.map(t => Math.abs(t.mae ?? 0))
+  const mfeValues = trades.map(t => Math.abs(t.mfe ?? 0))
+  const scatterGlobalMax = trades.length > 0
+    ? Math.max(1, ...maeValues, ...mfeValues)
+    : 1
 
   return (
     <div className="fixed inset-0 z-50 bg-app/95 flex flex-col">
@@ -132,19 +138,18 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
                     <line x1="50" y1="50" x2="50" y2="350" stroke="var(--color-border)" strokeWidth="1" />
                     {/* Diagonal perfect-trade line */}
                     <line x1="50" y1="350" x2="350" y2="50" stroke="var(--color-gov-green)" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.3" />
-                    {/* Points */}
+                    {/* Points — scaled to global max so no point is clipped */}
                     {trades.map((t, i) => {
                       const mae = Math.abs(t.mae ?? 0)
                       const mfe = Math.abs(t.mfe ?? 0)
-                      const maxVal = Math.max(mae, mfe, 1)
-                      const x = 50 + ((mae / maxVal) * 280)
-                      const y = 350 - ((mfe / maxVal) * 280)
+                      const x = 50 + ((mae / scatterGlobalMax) * 280)
+                      const y = 350 - ((mfe / scatterGlobalMax) * 280)
                       const isWin = (t.return ?? 0) > 0
                       return (
                         <g key={i}>
                           <circle
-                            cx={Math.min(x, 345)}
-                            cy={Math.max(y, 55)}
+                            cx={x}
+                            cy={y}
                             r="5"
                             fill={isWin ? 'var(--color-gov-green)' : 'var(--color-gov-red)'}
                             opacity="0.7"

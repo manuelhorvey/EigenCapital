@@ -568,6 +568,9 @@ export const AssetStateSchema = z.object({
   total_exits: z.number().optional().default(0),
   sl_exits: z.number().optional().default(0),
   sl_hit_rate: z.number().nullable().optional().default(null),
+  combined_sl_mult: z.number().optional(),
+  combined_size_scalar: z.number().optional(),
+  floor_active: z.boolean().optional(),
 })
 
 // ── Open position (per-asset with metadata) ───────────────────────

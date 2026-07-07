@@ -5,6 +5,7 @@ import type { WeeklyReview } from '../types/portfolio'
 
 const STORAGE_KEY = 'weekly_review_acknowledged'
 
+/** Fetches the weekly review and provides acknowledge/dismiss controls with localStorage persistence. @returns {{ data: WeeklyReview | null, show: boolean, isPending: boolean, isError: boolean, acknowledge: () => void, dismiss: () => void }} - Review data and interaction helpers */
 export function useWeeklyReview() {
   const queryClient = useQueryClient()
 

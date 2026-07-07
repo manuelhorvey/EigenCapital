@@ -38,6 +38,7 @@ function returnColor(v: number): string {
   return 'text-tertiary'
 }
 
+/** Compact mini card for grid view — signal, confidence, price, return, drawdown, and SL/TP. @param {{ name: string, info: AssetCardInfo, recentlyClosed?: boolean, onSelect: () => void }} props */
 const AssetCardCompact: React.FC<Props> = ({ name, info, recentlyClosed, onSelect }) => (
   <button
     type="button"

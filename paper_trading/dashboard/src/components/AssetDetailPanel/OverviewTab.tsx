@@ -6,6 +6,7 @@ interface Props {
   asset: AssetState
 }
 
+/** Overview metrics tab — final signal, confidence, price, performance, and current position. @param {{ asset: AssetState }} props */
 export default function OverviewTab({ asset }: Props) {
   const m = asset.metrics
   const sd = m.signal_distribution

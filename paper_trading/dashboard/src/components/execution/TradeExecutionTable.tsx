@@ -12,6 +12,7 @@ function rowKey(t: { trade_id?: string; asset: string; exit_date: string }) {
   return `${t.trade_id ?? t.asset}_${t.exit_date}`
 }
 
+/** Table listing recent closed trades with execution detail, archetype filter, and expandable rows for per-trade attribution. */
 export default function TradeExecutionTable() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const { data: trades, isPending } = useAttributionTrades(25)

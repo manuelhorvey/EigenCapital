@@ -9,6 +9,7 @@ const trendConfig = {
   DECAYING: { variant: 'warning' as const, label: 'Decaying', color: 'var(--color-gov-yellow)' },
 } as const
 
+/** Edge health panel showing trend direction (expanding/stable/decaying) and reversal rate. */
 export default function EdgeHealthAlert() {
   const { portfolio, isLoading } = useTradingState()
 

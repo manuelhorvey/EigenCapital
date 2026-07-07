@@ -60,6 +60,11 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): {
   return { tpDistPct, slDistPct, rr }
 }
 
+/**
+ * Per-asset card showing signal, confidence, price, metrics, and open position.
+ * Supports comfortable (full detail) and compact (mini grid) densities.
+ * @param {{ name: string, density?: 'comfortable' | 'compact' }} props
+ */
 const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
   // Slice selector: only this asset's slot triggers a re-render. The
   // `data?.open_positions` and similar lambda accesses still use the

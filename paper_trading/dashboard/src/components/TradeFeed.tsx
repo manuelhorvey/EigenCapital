@@ -23,6 +23,7 @@ function reasonLabel(reason?: string): string {
   return reason ?? '—'
 }
 
+/** Paginated recent trades table with sortable columns and trade inspector. */
 function TradeFeed() {
   const [page, setPage] = useState(0)
   const [selectedTrade, setSelectedTrade] = useState<TradeEntry | null>(null)

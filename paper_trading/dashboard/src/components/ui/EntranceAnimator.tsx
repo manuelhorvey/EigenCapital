@@ -72,6 +72,7 @@ const variantVisible: Record<AnimationVariant, string> = {
   'slide-left': 'opacity-100 translate-x-0',
 }
 
+/** Scroll-triggered entrance animation wrapper. Animates children when they intersect the viewport; respects prefers-reduced-motion. */
 export default function EntranceAnimator({
   children,
   variant = 'fade-up',

@@ -19,6 +19,7 @@ const useLiveAttributionQuery = createApiQuery<z.infer<typeof LiveAttributionSch
   LiveAttributionSchema,
 )
 
+/** Fetches live attribution records for open positions. @returns {object} - React Query result with LiveAttributionRecord array */
 export function useLiveAttribution() {
   return useLiveAttributionQuery({ refetchInterval: 60_000, staleTime: 50_000 })
 }

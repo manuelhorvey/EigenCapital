@@ -33,6 +33,7 @@ function BadgeIcon({ icon }: { icon: NonNullable<BadgeProps['icon']> }) {
   return <>{icon}</>
 }
 
+/** Colored badge/tag for displaying signal status, direction, or governance state. @param variant - color scheme; @param size - sm or md; @param dot - small dot indicator; @param glow - outer glow effect; @param icon - direction arrow ('long'/'short'/'flat') or custom node. */
 export default function Badge({
   variant = 'default',
   size = 'sm',

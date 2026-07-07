@@ -19,6 +19,7 @@ function bucketize(values: number[], bins = 10): { range: string; count: number;
   }))
 }
 
+/** Bar chart displaying the distribution of entry and exit slippage in basis points across closed trades. */
 export default function SlippageHistogram() {
   const { data: bundle, isPending } = useAttributionBundle()
   const data = bundle?.executionSlippage

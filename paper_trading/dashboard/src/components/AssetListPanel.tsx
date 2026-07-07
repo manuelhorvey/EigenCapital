@@ -1,15 +1,6 @@
-/**
- * AssetListPanel — CommandCenter's sortable asset roster.
- *
- * Extracted from src/pages/CommandCenter.tsx (Commit 3.2). The page
- * re-renders on every poll (via useTradingState); the panel itself is
- * memoized so its sort state stays local until the user interacts
- * with the sort buttons or row click.
- *
- * Mobile (sm:hidden): card-list rendering for narrow viewports.
- * Desktop (hidden sm:block): dense row-per-asset rendering using
- * TradingAssetRow.
- */
+/** Sortable asset roster with mobile card list and desktop TradingAssetRow rendering.
+ * @param {object} props
+ * @param {(name: string) => void} [props.onSelectAsset] - Asset selection callback */
 import { memo } from 'react'
 import { ArrowUpDown } from 'lucide-react'
 import { useTradingState } from '../lib/trading-state/hook'

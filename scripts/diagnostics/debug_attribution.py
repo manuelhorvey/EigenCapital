@@ -1,3 +1,15 @@
+"""Debug tool for reading and inspecting attribution data from SQLite.
+
+Reads the last N attribution records from the live state database,
+computes aggregate domain scores (prediction/execution/exit/friction),
+and prints MAE/MFE statistics. Useful for verifying attribution data
+integrity after engine cycles.
+
+Usage::
+
+    PYTHONPATH=$PYTHONPATH:. python scripts/diagnostics/debug_attribution.py
+"""
+
 import os
 import json
 from paper_trading.state_store import StateStore

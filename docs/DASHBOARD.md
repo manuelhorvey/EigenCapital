@@ -63,10 +63,14 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 |-----------|----------|---------|
 | `TickerRail` | `layout/TickerRail.tsx` | Persistent status bar: sequence ID, engine state (alive/stale/dead), tick interval, PEK intents/admitted, halt status, asset count |
 | `Sidebar` | `layout/Sidebar.tsx` | Navigation rail with route links and engine status chip |
+| `TabBar` | `layout/TabBar.tsx` | Responsive bottom tab navigation (mobile viewports) |
 | `HealthBadge` | `HealthBadge.tsx` | Header engine health indicator (icon-only click target) |
 | `EmergencyHaltBanner` | `EmergencyHaltBanner.tsx` | Red banner shown during emergency halt states |
 | `ConnectionStatus` | `ConnectionStatus.tsx` | Multi-endpoint liveness monitor (Live/Degraded/Offline) |
 | `AlertFeed` | `monitor/AlertFeed.tsx` | Real-time governance event capture tray |
+| `SystemDegradedBanner` | `ui/SystemDegradedBanner.tsx` | Yellow banner when engine is in degraded state |
+| `ErrorScreen` | `ui/ErrorScreen.tsx` | Full-screen error display with retry |
+| `LoadingScreen` | `ui/LoadingScreen.tsx` | Full-screen loading state on initial load |
 
 ### CommandCenter Components
 
@@ -76,7 +80,15 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 | `StatCard` | `ui/StatCard.tsx` | KPI/metric display card (merged from old KpiCard + MetricCard) |
 | `AssetCard` | `AssetCard.tsx` | Per-asset summary card with layers badge, sell-only badge, adaptive exit state |
 | `AssetMiniGrid` | `AssetMiniGrid.tsx` | Compact grid of AssetCards for open positions |
+| `AssetListPanel` | `AssetListPanel.tsx` | Sortable full-width asset table with search |
+| `TradingAssetRow` | `TradingAssetRow.tsx` | Dense per-asset sortable table row |
+| `QuickStatsGrid` | `QuickStatsGrid.tsx` | Hairline-rule quick-stats dl/div row (terminal-precision) |
 | `SectionHeader` | `ui/SectionHeader.tsx` | Section title with static 1px accent dot |
+| `LiveSharpeCard` | `LiveSharpeCard.tsx` | Live Sharpe ratio display |
+| `OptimizerRecommendations` | `OptimizerRecommendations.tsx` | TP/SL drift detector recommendations |
+| `WalTimeline` | `WalTimeline.tsx` | WAL causal-boundary event timeline per asset |
+| `HaltConditions` | `HaltConditions.tsx` | Halt condition status summary |
+| `AssetDeepDive` | `AssetDeepDive.tsx` | Per-asset deep dive panel |
 
 ### TradingWorkspace Components
 
@@ -84,8 +96,10 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 |-----------|----------|---------|
 | `SignalsTable` | `SignalsTable.tsx` | Live signal queue with confidence, direction, asset |
 | `AdmissionPanel` | `AdmissionPanel.tsx` | PEK admission: intents, admitted, rejected counts |
+| `RejectedSignalExplorer` | `RejectedSignalExplorer.tsx` | Browse rejected signals with rejection reason |
 | `TradeOutcomes` | `TradeOutcomes.tsx` | TP/SL/win rate aggregates |
-| `TradingAssetRow` | `TradingAssetRow.tsx` | Dense per-asset sortable table row |
+| `TradeFeed` | `TradeFeed.tsx` | Real-time trade event feed |
+| `ExecutionFeed` | `ExecutionFeed.tsx` | Execution decision stream |
 
 ### ExecutionWorkspace Components
 
@@ -94,23 +108,84 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 | `EquityChart` | `EquityChart.tsx` | Full Recharts area chart with drawdown and per-asset overlays |
 | `ExecutionQualityStrip` | `execution/ExecutionQualityStrip.tsx` | EIS and FQI KPI row |
 | `AttributionBreakdownCard` | `attribution/AttributionBreakdownCard.tsx` | Domain scores grid + PnL waterfall |
+| `PnLWaterfall` | `attribution/PnLWaterfall.tsx` | PnL waterfall decomposition bar chart |
 | `MaeMfeScatter` | `attribution/MaeMfeScatter.tsx` | MAE/MFE scatter plot colored by archetype |
+| `TradeDetailPanel` | `attribution/TradeDetailPanel.tsx` | Per-trade domain score drill-down with progress bars |
 | `FillQualityGauge` | `execution/FillQualityGauge.tsx` | SVG arc gauge for composite FQI |
 | `SlippageHistogram` | `execution/SlippageHistogram.tsx` | Entry/exit slippage distribution |
 | `TradeExecutionTable` | `execution/TradeExecutionTable.tsx` | Full attribution field table |
+| `SystemHealthSummary` | `SystemHealthSummary.tsx` | Engine health summary with status badges |
+| `TradeTimeline` | `trades/TradeTimeline.tsx` | Trade event timeline visualization |
+| `TradeCounterfactual` | `trades/TradeCounterfactual.tsx` | Counterfactual trade comparison |
+| `TradeGovernanceAudit` | `trades/TradeGovernanceAudit.tsx` | Governance audit per trade |
 
 ### RiskWorkspace Components
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `GovernanceRadar` | `GovernanceRadar.tsx` | Per-asset governance summary with halt state |
+| `GovernanceRadar` | `governance/GovernanceRadar.tsx` | Per-asset governance summary with halt state |
 | `GovernanceStateCards` | `GovernanceStateCards.tsx` | Per-asset halted status, validity state, tooltips |
+| `GateAggregationPanel` | `GateAggregationPanel.tsx` | Decision pipeline gate pass/fail per asset |
 | `RiskParityPanel` | `RiskParityPanel.tsx` | Bar chart of target allocations colored by governance state |
 | `PSIDriftCard` | `PSIDriftCard.tsx` | Per-asset PSI drift table with feature rows |
+| `PekScalarPanel` | `PekScalarPanel.tsx` | PEK scalar values (risk budget, velocity) |
+| `PerformanceStateVelocityChart` | `PerformanceStateVelocityChart.tsx` | Performance velocity over time |
+| `RiskBudgetChart` | `RiskBudgetChart.tsx` | Risk budget allocation chart |
 | `PositionConcentrationPanel` | `PositionConcentrationPanel.tsx` | Net-short skew visualization |
 | `FactorExposureBreakdown` | `FactorExposureBreakdown.tsx` | 10 factor group exposure bars |
+| `EdgeHealthAlert` | `EdgeHealthAlert.tsx` | Edge health degradation alert banner |
 | `CalibrationCurve` | `CalibrationCurve.tsx` | Calibration reliability diagram |
 | `HealthScores` | `HealthScores.tsx` | Statistical metrics: PSR, DSR, MinTRL |
+| `HealthMonitorPanel` | `monitor/HealthMonitorPanel.tsx` | Health monitoring summary panel |
+| `HealthSnapshotCard` | `monitor/HealthSnapshotCard.tsx` | Per-asset health snapshot card |
+| `GovernanceStatusGrid` | `monitor/GovernanceStatusGrid.tsx` | Governance state grid overview |
+| `PerformancePanel` | `monitor/PerformancePanel.tsx` | Performance metrics aggregation |
+
+### Shared UI Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `Panel` | `ui/Panel.tsx` | Panel container (default / elevated variants) |
+| `Section` | `ui/Section.tsx` | Section wrapper with optional header |
+| `SectionHeader` | `ui/SectionHeader.tsx` | Section title with static 1px accent dot |
+| `StatCard` | `ui/StatCard.tsx` | KPI/metric display card |
+| `Badge` | `ui/Badge.tsx` | Status badge (GREEN/YELLOW/RED) |
+| `Button` | `ui/Button.tsx` | Styled action button |
+| `Select` | `ui/Select.tsx` | Dropdown select |
+| `Divider` | `ui/Divider.tsx` | Hairline rule divider |
+| `Tooltip` | `ui/Tooltip.tsx` | Hover tooltip |
+| `EmptyState` | `ui/EmptyState.tsx` | Empty section placeholder (contextual icon: SearchSlash vs Inbox) |
+| `Modal` | `ui/Modal.tsx` | Modal dialog shell (4px corner, shadow-modal) |
+| `Skeleton` | `ui/Skeleton.tsx` | Loading skeleton (table / metric card variants) |
+| `DataTable` | `ui/DataTable.tsx` | Sortable data table with sticky header |
+| `TablePagination` | `ui/TablePagination.tsx` | Table pagination controls |
+| `ProgressBar` | `ui/ProgressBar.tsx` | Horizontal progress bar with BarRow extraction |
+| `ScoreBar` | `ui/ScoreBar.tsx` | Score display bar |
+| `SltpGauge` | `ui/SltpGauge.tsx` | SL/TP hit rate gauge (3 stacked BarRows) |
+| `Gauge` | `ui/Gauge.tsx` | SVG arc gauge |
+| `ChartContainer` | `ui/ChartContainer.tsx` | Chart wrapper with responsive sizing |
+| `EntranceAnimator` | `ui/EntranceAnimator.tsx` | Entrance animation wrapper for sections |
+| `PanelFallback` | `ui/PanelFallback.tsx` | Panel-level error fallback (Zod validation errors) |
+| `ErrorBoundary` | `ErrorBoundary.tsx` | Component-level error boundary |
+| `EmptyState` | `ui/EmptyState.tsx` | Empty state with contextual icon |
+
+### Modals
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `TradeInspectorModal` | `trades/TradeInspectorModal.tsx` | Full trade inspection with domains, timeline, counterfactual |
+| `SystemHealthModal` | `SystemHealthModal.tsx` | Engine health detail modal |
+| `WeeklyReviewModal` | `WeeklyReviewModal.tsx` | Weekly performance review modal |
+| `AssetDetailPanel` | `AssetDetailPanel.tsx` | Multi-tab asset detail (Overview/Governance/Sizing/Diagnostics) |
+
+### AssetCard Subcomponents
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `AssetCardCompact` | `asset-card/AssetCardCompact.tsx` | Compact variant for dense grids |
+| `AssetCardHeader` | `asset-card/AssetCardHeader.tsx` | Asset header row (name, signal, price) |
+| `AssetCardMetrics` | `asset-card/AssetCardMetrics.tsx` | Metric row (return, drawdown, confidence) |
+| `AssetCardPosition` | `asset-card/AssetCardPosition.tsx` | Position details (entry, SL, TP, PnL) |
 
 ## State Management
 

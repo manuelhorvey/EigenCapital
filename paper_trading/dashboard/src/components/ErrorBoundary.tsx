@@ -12,6 +12,10 @@ interface State {
   error: Error | null
 }
 
+/** React error boundary with optional fallback UI and server-side error logging.
+ * @param {ReactNode} props.children - Child components to wrap
+ * @param {ReactNode|Function} [props.fallback] - Custom fallback UI or error-to-node function
+ * @param {string} [props.title] - Section title for default fallback */
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props)

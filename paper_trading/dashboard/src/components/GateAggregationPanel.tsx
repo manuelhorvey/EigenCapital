@@ -4,6 +4,7 @@ import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 
+/** Aggregated gate-blocking breakdown showing which gates blocked how many assets this cycle. */
 export default function GateAggregationPanel() {
   const { data: assets } = useSystemSnapshot(systemSelectors.assets)
 

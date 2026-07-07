@@ -8,6 +8,7 @@ interface ErrorScreenProps {
   onRetry?: () => void
 }
 
+/** Full-screen error state with title, message, and retry button. Falls back to engine-not-reachable defaults. */
 export default function ErrorScreen({
   title = 'Engine Not Reachable',
   message = 'Make sure the paper trading engine is running on port 5000',

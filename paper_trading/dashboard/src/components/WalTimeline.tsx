@@ -112,6 +112,9 @@ function WalCard({ group }: { group: ReturnType<typeof groupWalEvents>[number] }
   )
 }
 
+/** Write-Ahead Log timeline for a single asset, showing inference and decision events grouped by cycle.
+ * @param {object} props
+ * @param {string} props.assetName - Asset symbol to load WAL events for */
 export default function WalTimeline({ assetName }: Props) {
   const { data, isLoading, isError } = useWalTimeline(assetName)
 

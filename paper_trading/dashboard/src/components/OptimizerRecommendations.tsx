@@ -23,6 +23,7 @@ interface DriftAsset {
   flag_reason: string
 }
 
+/** Win-rate drift optimizer panel showing flagged and healthy assets with margin details. */
 export default function OptimizerRecommendations() {
   const { data: report, isLoading } = useQuery<DriftReport>({
     queryKey: ['optimization'],

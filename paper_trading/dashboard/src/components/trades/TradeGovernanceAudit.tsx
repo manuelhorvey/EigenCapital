@@ -83,6 +83,8 @@ function impactColor(impact: number): string {
   return 'text-gov-red'
 }
 
+/** Audit log of governance layer checks for a single trade, showing pass/warn/fail per layer with quantified impact.
+ * @param {TradeAttributionRecord} data - Full attribution record for the trade */
 export default function TradeGovernanceAudit({ data }: TradeGovernanceAuditProps) {
   const audit = computeAudit(data)
 

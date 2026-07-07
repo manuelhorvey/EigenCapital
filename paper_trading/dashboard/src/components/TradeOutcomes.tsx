@@ -14,6 +14,7 @@ function r2(v: number): string {
   return v.toFixed(2)
 }
 
+/** Aggregated trade outcome metrics with per-asset breakdown (TP/SL/flip rates, avg R, win rate, PF). */
 export default function TradeOutcomes() {
   const { outcomes, isPending, isError, refetch } = useTradeOutcomes()
 

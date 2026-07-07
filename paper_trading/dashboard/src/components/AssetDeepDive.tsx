@@ -7,6 +7,14 @@ function pct(v: number | null | undefined): string {
   return `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}%`
 }
 
+/**
+ * Full-screen deep dive panel for a single asset. Shows feature importance, key metrics, MAE/MFE scatter, and trade history.
+ * @param {{ name: string, onClose: () => void }} props
+ */
+/** Full-screen deep dive for a single asset: feature importance, metrics, MAE/MFE scatter, trade history.
+ * @param {object} props
+ * @param {string} props.name - Asset symbol
+ * @param {() => void} props.onClose - Close handler */
 export default function AssetDeepDive({ name, onClose }: { name: string; onClose: () => void }) {
   const { data, isPending, isError } = useAssetDeepDive(name)
 

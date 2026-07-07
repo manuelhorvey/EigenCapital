@@ -5,6 +5,7 @@ import Badge from './ui/Badge'
 import StatCard from './ui/StatCard'
 import { Skeleton } from './ui/Skeleton'
 
+/** Top-level system status badge with PnL, drawdown, MT5 sync, edge health, and top risks. */
 export default function SystemHealthSummary() {
   const { portfolio, isLoading } = useTradingState()
 

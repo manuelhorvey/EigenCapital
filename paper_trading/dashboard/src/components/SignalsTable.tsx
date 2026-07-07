@@ -79,6 +79,7 @@ function Bar({ pct, color }: { pct: number; color: string }) {
   )
 }
 
+/** Per-asset signal dashboard with search, sortable columns, and deep-dive navigation. */
 function SignalsTable() {
   const [search, setSearch] = useState('')
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)

@@ -190,6 +190,7 @@ function EmptyState() {
   )
 }
 
+/** Weekly performance review modal with summary grid, per-asset breakdown, exit reasons, and regime correlation. */
 export default function WeeklyReviewModal() {
   const { data, show, isPending, isError, acknowledge } = useWeeklyReview()
   const [open, setOpen] = useState(false)

@@ -2,7 +2,12 @@
 
 Key scripts, commands, benchmarks, and contributing information for the EigenCapital paper trading platform.
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-07
+
+> **Scripts quick reference:** See [`docs/development.md`](development.md) for a
+> compact categorized script table (training, backtesting, analysis, optimization,
+> operations, diagnostics). This file covers project structure, benchmarks,
+> testing, and validation tooling.
 
 ---
 

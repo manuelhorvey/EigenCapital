@@ -3,6 +3,7 @@ interface DividerProps {
   orientation?: 'horizontal' | 'vertical'
 }
 
+/** Horizontal or vertical visual divider with role="separator". */
 export default function Divider({ className = '', orientation = 'horizontal' }: DividerProps) {
   if (orientation === 'vertical') {
     return (

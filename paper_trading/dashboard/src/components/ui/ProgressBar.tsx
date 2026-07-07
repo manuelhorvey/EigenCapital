@@ -12,6 +12,7 @@ interface BarRowProps {
   className?: string
 }
 
+/** Single labeled progress row showing label → filled track → percentage. @param color - Tailwind bg class for the fill (e.g. 'bg-gov-green'). */
 export function BarRow({ label, value, color, height = 'h-2', className = '' }: BarRowProps) {
   const pct = Math.min(Math.max(value, 0), 1)
   const widthPct = pct * 100
@@ -49,6 +50,7 @@ function resolveColor(v: number, max: number): string {
   return 'bg-gov-red'
 }
 
+/** Standalone progress bar with optional label and auto color (green/yellow/red by threshold). */
 export default function ProgressBar({
   value,
   max = 100,

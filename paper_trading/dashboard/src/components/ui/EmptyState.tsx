@@ -7,6 +7,7 @@ interface EmptyStateProps {
   filtered?: boolean
 }
 
+/** Empty-state placeholder shown when a list or section has no data. @param filtered - when true, shows a "no results" icon instead of the generic inbox icon. */
 export default function EmptyState({ message, hint, compact, filtered }: EmptyStateProps) {
   const Icon = filtered ? SearchSlash : Inbox
   return (

@@ -78,10 +78,14 @@ PATH_EXCLUDE_PATTERNS = (
     "**/docs/adr/**",
     "**/docs/audit/**",
     "**/docs/planning/**",
+    "**/DOCUMENTATION_AUDIT_FULL.md",  # audit report uses relative paths
+    "**/DOCUMENTATION_AUDIT_SUMMARY.md",  # audit summary uses relative paths
     "**/CHANGELOG.md",
     "**/node_modules/**",
     "**/.venv/**",
     "**/configs/paper_trading.yaml",  # intentionally deleted in Phase 12.7
+    "**/data/live/*.json",  # runtime-generated state files not present in CI
+    "**/data/live/**",  # any runtime-generated files
 )
 
 # Canonical facts for cross-reference consistency
@@ -458,6 +462,7 @@ def _check_markdown_paths() -> list[str]:
             if candidate in (
                 "configs/paper_trading.yaml",  # intentionally deleted in Phase 12.7
                 "configs/environment_resolver.py",  # planned, Phase 13 — not yet implemented
+                "state.json",  # runtime-generated file concept, not a source path
             ):
                 continue
             # Skip paths under gitignored build artifacts (paper_trading/dashboard/dist/)

@@ -9,6 +9,7 @@ function pctColor(ratio: number): string {
   return 'var(--color-gov-green)'
 }
 
+/** PEK admission summary showing intents, admitted, rejected, and budget notional. */
 export default function AdmissionPanel() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const adm = portfolio?.admission

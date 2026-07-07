@@ -13,6 +13,8 @@ interface TradeTimelineProps {
   data: TradeAttributionRecord
 }
 
+/** Vertical timeline visualizing signal generation, governance check, entry, and exit events for a trade.
+ * @param {TradeAttributionRecord} data - Attribution record containing trade events */
 export default function TradeTimeline({ data }: TradeTimelineProps) {
   const events: TimelineEvent[] = [
     {

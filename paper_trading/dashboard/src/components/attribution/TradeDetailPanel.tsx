@@ -8,6 +8,9 @@ interface TradeDetailPanelProps {
   onClose: () => void
 }
 
+/** Expandable detail panel showing prediction, execution, exit, friction scores and counterfactual data for a single trade.
+ * @param {TradeAttributionRecord} trade - Attribution record for the trade
+ * @param {() => void} onClose - Callback to close the panel */
 export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelProps) {
   const scores = computeDomainScores(trade)
 

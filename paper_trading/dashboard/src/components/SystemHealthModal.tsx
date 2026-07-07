@@ -15,6 +15,7 @@ function avgHealth(health: { assets: Record<string, { health_score: number }> } 
   return scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null
 }
 
+/** Full-system health modal with snapshot cards, alert feed, governance grid, and performance panel. */
 export default function SystemHealthModal() {
   const { isOpen, close } = useSystemHealthModal()
   const { data: state } = useSystemSnapshot(systemSelectors.snapshot)

@@ -4,6 +4,7 @@ import Panel from './ui/Panel'
 import Gauge from './ui/Gauge'
 import { Skeleton } from './ui/Skeleton'
 
+/** Position concentration gauge showing long/short skew and alert status. */
 export default function PositionConcentrationPanel() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const pc = portfolio?.position_concentration

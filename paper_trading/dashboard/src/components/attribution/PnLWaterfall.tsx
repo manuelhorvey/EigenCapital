@@ -10,6 +10,7 @@ const COLORS = {
   friction_cost: 'var(--color-accent-purple)',
 }
 
+/** Waterfall bar chart decomposing net PnL into prediction, execution cost, exit cost, and friction cost contributions. */
 export default function PnLWaterfall() {
   const { data: bundle, isPending } = useAttributionBundle()
   const data = bundle?.attributionWaterfall

@@ -1,6 +1,10 @@
-# EigenCapital — Development Guide
+# EigenCapital — Development Scripts Reference
 
-**Last updated:** 2026-07-05 (legacy — see docs/DEVELOPMENT.md for current version)
+> **This is a supplementary reference.** For the canonical development guide
+> (project structure, benchmarks, testing, linting, validation commands), see
+> [`docs/DEVELOPMENT.md`](DEVELOPMENT.md).
+
+**Last updated:** 2026-07-07
 
 ## Key Scripts
 

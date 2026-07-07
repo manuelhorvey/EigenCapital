@@ -27,6 +27,11 @@ interface AssetMiniGridProps {
   openOnly?: boolean
 }
 
+/**
+ * Grid of compact asset cards sorted by signal (BUY, FLAT, SELL).
+ * Can filter to show only assets with open positions.
+ * @param {{ openOnly?: boolean }} props
+ */
 export default function AssetMiniGrid({ openOnly }: AssetMiniGridProps) {
   const { data: assets, isPending } = useSystemSnapshot(systemSelectors.assets)
 

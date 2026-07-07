@@ -6,6 +6,7 @@ interface Props {
   onDismiss?: () => void
 }
 
+/** Top-of-page banner alerting when system integrity is degraded or broken. Returns null when healthy. */
 export function SystemDegradedBanner({ integrity, onDismiss }: Props) {
   if (integrity.isHealthy) return null
 

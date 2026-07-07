@@ -12,6 +12,7 @@ function scalarColor(v: number, threshold = 0.7): string {
   return 'var(--color-gov-red)'
 }
 
+/** PEK performance state, velocity sub-metrics, risk budget, and portfolio snapshot cards. */
 export default function PekScalarPanel() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const pek = portfolio?.pek

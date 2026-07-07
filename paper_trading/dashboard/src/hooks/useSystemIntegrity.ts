@@ -28,6 +28,7 @@ const INITIAL: SystemIntegrity = {
   staleSources: [],
 } as const
 
+/** Derives system integrity status (healthy/degraded/broken) from the snapshot bundle. @returns {SystemIntegrity} - Integrity assessment with label and stale sources */
 export function useSystemIntegrity(bundle: SystemBundle | undefined): SystemIntegrity {
   return useMemo(() => {
     if (!bundle?.meta) return INITIAL

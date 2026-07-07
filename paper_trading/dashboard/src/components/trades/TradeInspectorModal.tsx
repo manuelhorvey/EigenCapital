@@ -25,6 +25,11 @@ const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
   { id: 'governance', label: 'Governance', icon: Shield },
 ]
 
+/** Full-screen modal for inspecting a single trade across timeline, attribution, counterfactual, and governance tabs.
+ * @param {string} asset - Asset symbol
+ * @param {string} entryDate - Trade entry date string
+ * @param {string} [exitDate] - Trade exit date string
+ * @param {() => void} onClose - Callback to close the modal */
 export default function TradeInspectorModal({ asset, entryDate, exitDate, onClose }: TradeInspectorModalProps) {
   const [tab, setTab] = useState<TabId>('timeline')
   const tradeData = useTradeInspector(asset, entryDate, exitDate)

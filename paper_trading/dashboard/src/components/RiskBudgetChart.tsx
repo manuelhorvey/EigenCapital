@@ -10,6 +10,7 @@ function budgetBar(current: number, max: number, label: string): { pct: number; 
   return { pct, color }
 }
 
+/** Risk budget snapshot bars showing leverage remaining, concurrent remaining, and daily loss headroom. */
 export default function RiskBudgetChart() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const ps = portfolio?.pek?.portfolio_snapshot

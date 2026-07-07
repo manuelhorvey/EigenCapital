@@ -4,6 +4,7 @@ import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 
+/** Per-asset rejected signal list with rejection reasons from PEK admission. */
 export default function RejectedSignalExplorer() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const adm = portfolio?.admission

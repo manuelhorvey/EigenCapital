@@ -15,6 +15,7 @@ export interface BottleneckEntry {
   assets: string[]
 }
 
+/** Derives governance radar axes and bottleneck rankings from the system snapshot. @returns {{ axes: RadarAxis[], bottlenecks: BottleneckEntry[], avgValidityImpact: number }} - Radar chart data and bottleneck analysis */
 export function useGovernanceRadar(): {
   axes: RadarAxis[]
   bottlenecks: BottleneckEntry[]

@@ -1,3 +1,15 @@
+"""One-time migration script: attribution/trade journal parquets → SQLite.
+
+Reads ``attribution.parquet``, ``trade_journal.parquet``, and
+``equity_history.json`` from ``data/live/`` and writes them into the
+SQLite state database (``state.db``). Designed for the Phase 11
+persistence migration; safe to re-run (upserts by primary key).
+
+Usage::
+
+    PYTHONPATH=$PYTHONPATH:. python scripts/replay/migrate_to_sqlite.py
+"""
+
 import json
 import os
 import sqlite3

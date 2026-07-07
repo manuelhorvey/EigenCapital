@@ -238,4 +238,9 @@ function Sidebar({ open, onClose }: SidebarProps) {
   )
 }
 
+/**
+ * Navigation sidebar with grouped nav items, engine heartbeat dot, and badge counts.
+ * Renders as an off-canvas overlay on mobile and a persistent sidebar on desktop.
+ * @param {{ open: boolean, onClose: () => void }} props
+ */
 export default memo(Sidebar)

@@ -14,6 +14,7 @@ interface AppShellProps {
   children: ReactNode
 }
 
+/** Root layout wrapping all pages. Renders ticker rail, sidebar, tab bar, and content. @param {{ children: ReactNode }} props */
 export default function AppShell({ children }: AppShellProps) {
   const { data: bundle } = useSystemSnapshot()
   useSnapshotReconciler(bundle)

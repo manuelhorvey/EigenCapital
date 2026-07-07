@@ -6,6 +6,7 @@ interface Props {
   asset: AssetState
 }
 
+/** Governance metrics tab — validity, regime, halt checks, PSI drift, and meta-labeling. @param {{ asset: AssetState }} props */
 export default function GovernanceTab({ asset }: Props) {
   const m = asset.metrics
   const h = asset.halt

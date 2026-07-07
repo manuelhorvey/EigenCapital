@@ -63,6 +63,7 @@ function shortenMessage(msg: string): string {
   return msg.replace(/sl=\d+\.\d+x size=\d+\.\d+x/g, '').replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim()
 }
 
+/** Derives active alerts from the system snapshot — halted assets, health critical/degraded, and governance threshold breaches. @returns {Alert[]} - Array of alert objects sorted by severity */
 export function useMonitorAlerts(): Alert[] {
   const { data: bundle } = useSystemSnapshot()
   const state = bundle?.snapshot

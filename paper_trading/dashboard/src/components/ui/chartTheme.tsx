@@ -51,6 +51,7 @@ export const chartCursor = {
 
 const defsId = 'chartGradient'
 
+/** Recharts `<defs>` gradient block for area chart fills. Inline in SVG, use with getGradientFill(). */
 export function ChartGradientDefs({ id = defsId }: { id?: string }) {
   return (
     <defs>

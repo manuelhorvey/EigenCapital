@@ -24,6 +24,7 @@ const arrowStyles: Record<TooltipSide, string> = {
   right: 'right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-default',
 }
 
+/** Hover tooltip with delay, configurable side (top/bottom/left/right), and arrow indicator. */
 export default function Tooltip({ content, side = 'top', delay = 300, children, className = '' }: TooltipProps) {
   const [visible, setVisible] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout>>()

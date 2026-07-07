@@ -16,6 +16,7 @@ async function fetchAttributionTrades(
   return fetchApi<TradeAttributionRecord[]>(`/attribution/trades.json?${qs}`)
 }
 
+/** Fetches paginated attribution trades with optional archetype/regime/asset filters. @returns {object} - React Query result with TradeAttributionRecord array */
 export function useAttributionTrades(
   limit = 50,
   offset = 0,

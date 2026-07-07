@@ -9,6 +9,7 @@ interface TablePaginationProps {
   className?: string
 }
 
+/** Bottom-of-table pagination with prev/next buttons and page counter. @param page - zero-indexed page number; @param hasMore - whether a next page exists. */
 export default function TablePagination({
   page, hasMore, totalItems, onPrev, onNext, className = '',
 }: TablePaginationProps) {

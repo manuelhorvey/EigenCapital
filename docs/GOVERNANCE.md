@@ -40,12 +40,12 @@ Each stage is a standalone function operating on `DecisionContext`. Stages are c
 |-------|--------|-------------------|-----------|
 | First-cycle suppression | Suppress all trading on cold-start cycle 1 | Triggers when `_cycle_counter <= 1` | Abort (halt pipeline) |
 | Bar-jump suppression | Suppress acting on signals for 60 min after bar count changes >100 (e.g., yfinance→MT5 source switch) | `BAR_JUMP_SUPPRESS_MINUTES = 60` | Suppresses signal |
-| Store prediction metadata | Record `_last_label`, `_last_confidence`, `_last_prob_long/short/neutral`, `_entry_archetype` on engine | No config | Non-blocking |
+| Store prediction metadata | Record `_last_label`, `_last_confidence`, `_last_prob_long`/`_last_prob_short`/`_last_prob_neutral`, `_entry_archetype` on engine | No config | Non-blocking |
 | Update MAE/MFE | Update max adverse/favorable excursion for open positions using `high`/`low` from OHLCV DataFrame | Reads `ctx.df["high"]`, `ctx.df["low"]` | Non-blocking (logs warning on failure) |
-| Resolve signal | Convert `SignalType` to `PositionSide`: BUY→LONG, SELL→SHORT, else FLAT | `SignalType` enum (see `entry/decision.py`) | Sets `new_side = None` |
+| Resolve signal | Convert `SignalType` to `PositionSide`: BUY→LONG, SELL→SHORT, else FLAT | `SignalType` enum (see `paper_trading/entry/decision.py`) | Sets `new_side = None` |
 | Risk-off suppression | Flat AUDUSD when risk-off detected (VIX rising + SPX falling) | `RISK_OFF_ASSETS = {"AUDUSD"}`; reads `engine._risk_off` flag | Suppresses signal |
 | VIX gate | Suppress CL=F when VIX > 30. Fail-open if VIX data missing or >5 days stale. | `VIX_GATE_THRESHOLD = 30.0`; `VIX_GATE_ASSETS = {"CL"}`; stale check: 5d | Fail-open (allow entry when data unavailable) |
-| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (CADCHF, NZDCHF, EURAUD). Force-closes any stale LONG positions from pre-filter era. | Assets resolved via `get_sell_only_assets()` from `execution/gate_constants.py` | Suppresses BUY signal; force-closes LONG |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (CADCHF, NZDCHF, EURAUD). Force-closes any stale LONG positions from pre-filter era. | Assets resolved via `get_sell_only_assets()` from `paper_trading/execution/gate_constants.py` | Suppresses BUY signal; force-closes LONG |
 | Spread gate | Block new entry if live spread (bps) exceeds per-asset-class threshold. Observe-only for first 720 cycles (~6h). Fail-closed post-observe — missing/stale spread data blocks entry. | `SPREAD_TIER_BPS`: fx_major=10, fx_cross=20, indices=15, metals=20; staleness=300s | Fail-closed post-observe |
 | Session gate | Block new entry outside session windows per asset-class tier. Observe-only for first 720 cycles. | Tiers: fx_major (7-17 UTC), fx_cross (7-17), indices (13-20), metals (8-18), crypto (0-24) | Blocks outside window post-observe |
 | ADX entry gate | Block new entry when ADX < threshold (choppy market). Disabled by default; observe-only by default when enabled. | `ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18`; config key: `adx_entry_gate` with `enabled`, `adx_threshold`, `observe_only` | Observe-only by default |

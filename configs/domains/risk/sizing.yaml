@@ -25,3 +25,27 @@ mt5_enable_max_risk_per_trade_pct: false
 mt5_max_risk_per_trade_pct: 10.0
 mt5_bypass_risk_cap_at_min_lot: true
 min_confidence: 55.0
+
+# Stacking — same-side position addition (pyramiding)
+# Enabled: allows up to max_positions_per_asset positions simultaneously
+# See StackingGate for full gate documentation (IV-1 through IV-8)
+stacking:
+  enabled: true
+  dry_run: false
+  max_layers: 2
+  min_confidence: 0.60
+  min_stack_r: 0.5
+  stack_spacing_r: 0.5
+  adx_threshold: 25
+  stack_sl_tighten: 0.5
+  size_cap: 1.0
+  layer_multipliers: [0.8, 0.5]
+  stack_target_vol: 0.15
+  stack_vol_clamp: [0.3, 1.2]
+  min_viable_position_pct: 0.01
+  min_stack_size_factor: 0.5
+  stack_micro_threshold: 0.0
+  # Position protection thresholds (used by PositionProtection)
+  breakeven_threshold_r: 0.5
+  trail_activate_r: 1.0
+  trail_distance_r: 0.5

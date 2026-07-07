@@ -328,7 +328,7 @@ def manage_position(ctx: DecisionContext) -> None:
                 gate.execute_stack(ctx)
                 ctx.new_side = None
                 return
-        max_pos = int(engine.config.get("max_positions_per_asset", 1))
+        max_pos = int(engine.config.get("max_positions_per_asset", 2))
         if engine.position_count() < max_pos:
             logger.info(
                 "%s: re-entry allowed — %d of %d positions used",

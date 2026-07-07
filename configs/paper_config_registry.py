@@ -96,6 +96,9 @@ class PaperConfigRegistry:
     # Unwrapped from the "alerting:" wrapper key. Emitted as top-level key for
     # consumption by the alerting manager.
     alerting: dict[str, Any] = field(default_factory=dict)
+    # Stacking config — read from configs/domains/risk/sizing.yaml (stacking: key).
+    # Defaults-shaped key. Emitted in the defaults block.
+    stacking: dict[str, Any] = field(default_factory=dict)
     # Spread gate config — read from configs/domains/execution/spreads.yaml.
     # Defaults-shaped key. Emitted in the defaults block.
     spread_gate: dict[str, Any] = field(default_factory=dict)
@@ -328,6 +331,9 @@ class PaperConfigRegistry:
             if k in legacy_alerting and k not in alerting:
                 alerting[k] = legacy_alerting[k]
 
+        # Step 1n(bis): stacking — read from sizing.yaml defaults_blk
+        stacking: dict[str, Any] = defaults_blk.get("stacking", {})
+
         # Step 1o: spread_gate — configs/domains/execution/spreads.yaml
         # No wrapper key — stored as-is. Emitted in defaults block.
         spread_gate: dict[str, Any] = {}
@@ -413,7 +419,7 @@ class PaperConfigRegistry:
         # top-level promoted_top, since they live inside ``defaults``
         # in the legacy YAML (never were top-level keys).
         ml_keys: set[str] = {"calibration", "ensemble", "meta_labeling"}
-        exec_gate_keys: set[str] = {"spread_gate", "session_gate"}
+        exec_gate_keys: set[str] = {"spread_gate", "session_gate", "stacking"}
         promoted_defaults: set[str] = set(defaults_blk.keys()) | {"adaptive_exit", "sell_only_assets"}
         promoted_defaults |= set(infra_keys) | ml_keys | exec_gate_keys
         legacy_extras: dict[str, Any] = {}
@@ -438,6 +444,7 @@ class PaperConfigRegistry:
             meta_labeling=meta_labeling,
             label_params=label_params,
             alerting=alerting,
+            stacking=stacking,
             spread_gate=spread_gate,
             session_gate=session_gate,
             liquidity_config=liquidity_config,
@@ -496,6 +503,10 @@ class PaperConfigRegistry:
             defaults["ensemble"] = self.ensemble
         if self.meta_labeling:
             defaults["meta_labeling"] = self.meta_labeling
+
+        # Stacking config — emitted in the defaults block
+        if self.stacking:
+            defaults["stacking"] = self.stacking
 
         # Execution gate configs — emitted in the defaults block
         if self.spread_gate:

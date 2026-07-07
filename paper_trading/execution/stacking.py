@@ -140,7 +140,15 @@ class StackingGate:
             return StackDecision(False, f"stack_size={stack_size:.4f} > base={base_size:.4f}")
 
         # IV-3: Projected risk <= current risk
-        current_risk = _position_risk_at_sl(pos, current_price)
+        # Use the original stop_loss (not effective_sl) for current risk so that
+        # PositionProtection tightening (which runs before this check in
+        # manage_position) doesn't artificially reduce current_risk and
+        # prevent valid stacks. The stack layer gets its own tighter SL via
+        # _projected_risk_for_stack.
+        if pos.is_long:
+            current_risk = pos.total_size * max(current_price - pos.stop_loss, 0)
+        else:
+            current_risk = pos.total_size * max(pos.stop_loss - current_price, 0)
         projected_risk = self._projected_risk_for_stack(ctx, stack_size)
         if projected_risk > current_risk:
             self._log_rejection(ctx, "RISK_INVARIANT", projected_risk, current_risk)

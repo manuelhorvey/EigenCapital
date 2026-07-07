@@ -80,6 +80,12 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
             baseline = cfg.vol_baselines.get(name)
             if baseline is not None:
                 config["vol_baseline"] = baseline
+            # max_positions_per_asset: per-asset override wins, then spec-level,
+            # then global defaults, then SizingConfig default (2).
+            if "max_positions_per_asset" not in config:
+                config["max_positions_per_asset"] = int(
+                    spec.get("max_positions_per_asset") or defaults.get("max_positions_per_asset", 2)
+                )
             if "stacking" not in config:
                 config["stacking"] = dict(defaults.get("stacking", {}))
             sl_mult = spec.get("sl_mult", 1.0)

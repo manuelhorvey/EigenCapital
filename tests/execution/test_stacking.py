@@ -637,6 +637,7 @@ class TestManagePositionStacking:
     def test_same_side_stacking_enabled_and_approved(self):
         pos = _pos_long(entry=100.0, vol=0.02, size=1.0)
         config = {
+            "max_positions_per_asset": 1,
             "stacking": {
                 "enabled": True,
                 "dry_run": True,
@@ -678,7 +679,8 @@ class TestManagePositionStacking:
                 "enabled": True,
                 "max_layers": 3,
                 "min_stack_r": 0.5,
-            }
+            },
+            "max_positions_per_asset": 1,
         }
         engine = _mock_engine(position=pos, config=config, current_price=100.3)  # only 0.15R
         engine.pos_mgr.stack_layer_count.return_value = 0
@@ -695,7 +697,7 @@ class TestManagePositionStacking:
 
     def test_same_side_suppress_when_disabled(self):
         pos = _pos_long(entry=100.0, vol=0.02)
-        config = {"stacking": {"enabled": False}}
+        config = {"stacking": {"enabled": False}, "max_positions_per_asset": 1}
         engine = _mock_engine(position=pos, config=config, current_price=105.0)
         ctx = _ctx(
             engine,

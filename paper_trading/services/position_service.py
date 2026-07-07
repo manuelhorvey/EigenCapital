@@ -192,6 +192,13 @@ class PositionService:
                 trade["partial_fill"] = friction.partial_fill
                 trade["latency_bars"] = friction.latency_bars
                 trade["pred_confidence"] = record.prediction.confidence
+                # C-03 follow-up (2026-07-06): also persist meta_label_confidence
+                # (P(TP>SL)) alongside the direction-conditional confidence so
+                # downstream diagnostics can compare the two metrics. Production
+                # currently has no enabled meta-label models per asset, so
+                # meta_proba is most often None — that's the desired state.
+                if hasattr(record.prediction, "meta_proba"):
+                    trade["pred_meta_proba"] = record.prediction.meta_proba
                 trade["pred_archetype"] = record.prediction.archetype_at_entry
                 trade["pred_regime"] = record.prediction.regime_at_entry
             trade["attribution_trade_id"] = trade_id

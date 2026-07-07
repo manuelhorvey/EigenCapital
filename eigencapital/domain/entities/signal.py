@@ -68,6 +68,26 @@ class TradeDecision:
     position_size: float
     archetype: str = "UNKNOWN"
     feature_hash: str = ""
+    meta_label_confidence: float | None = None
+    """P(TP>SL) from the meta-labeling model, when available.
+
+    Populated by the inference pipeline whenever
+    ``asset._last_meta_proba`` is set. ``None`` means no meta model is
+    enabled or the cycle produced no inference.  Distinct from
+    ``confidence`` because the two track different signals:
+
+    * ``confidence`` = direction-conditional probability that the
+      chosen direction is the model's best call. Driven by the calibrated
+      3-class softmax (post C-03 fix).
+    * ``meta_label_confidence`` = probability that the chosen trade
+      exits at TP rather than SL, conditioned on the model's own
+      primary call. Trained on observed R-multiples by construction.
+
+    When meta-labeling is enabled per-asset
+    (``config.ml.meta_labeling.enabled: true``), ``meta_label_confidence``
+    becomes the canonical confidence filter in downstream dashboards
+    and bucket diagnostics rather than ``confidence``.
+    """
 
     @property
     def direction(self) -> int:
@@ -95,4 +115,5 @@ class TradeDecision:
             "position_size": self.position_size,
             "archetype": self.archetype,
             "feature_hash": self.feature_hash,
+            "meta_label_confidence": self.meta_label_confidence,
         }

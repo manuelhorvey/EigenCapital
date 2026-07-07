@@ -622,6 +622,18 @@ class AssetInferencePipeline:
         if pd.isna(close_price) and asset.current_price is not None:
             close_price = float(asset.current_price)
 
+        # ── C-03 follow-up: surface meta-label P(TP>SL) alongside confidence ──
+        # When meta-labeling is enabled per-asset, _last_meta_proba is a
+        # more reliable P(win|trade) than the calibrated direction-conditional
+        # confidence derived from the 3-class softmax. We expose it as a
+        # separate field so dashboards and diagnostics can choose which
+        # metric drives their view. The canonical ``confidence`` field is
+        # unchanged so existing gate logic is unaffected.
+        meta_proba = getattr(asset, "_last_meta_proba", None)
+        meta_label_confidence = (
+            round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
+        )
+
         decision = TradeDecision(
             asset=asset.name,
             signal=SignalType(result.signal_type),
@@ -635,6 +647,7 @@ class AssetInferencePipeline:
             position_size=float(pos_size),
             archetype=archetype,
             feature_hash=feature_hash,
+            meta_label_confidence=meta_label_confidence,
         )
         logger.debug(
             "%s ENTRY: signal=%s close_price=%.4f current_price=%s confidence=%.1f pos_size=%.4f",

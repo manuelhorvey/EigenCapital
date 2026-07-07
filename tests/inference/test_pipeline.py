@@ -382,6 +382,7 @@ class TestBuildDecision:
             index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=tz_utc)]),
         )
         asset.last_signal_date = None
+        asset._last_meta_proba = None
         result = MagicMock()
         result.signal_data = asset.signal_data
         result.signal_type = "BUY"
@@ -396,6 +397,33 @@ class TestBuildDecision:
         assert decision.confidence == 75.0
         assert decision.feature_hash == "abc123"
         assert decision.position_size == 0.02
+        assert decision.meta_label_confidence is None
+
+    def test_meta_label_confidence_populated(self, pipeline):
+        """When ``_last_meta_proba`` is set, the decision carries it as a
+        percentage in [0, 100] alongside the direction-conditional confidence.
+        """
+        asset = pipeline.asset
+        asset._record_inference_proxies = MagicMock()
+        tz_utc = _dt.timezone.utc
+        asset.signal_data = pd.DataFrame(
+            {"close": [1.1050], "prob_long": [0.7], "prob_short": [0.2], "prob_neutral": [0.1]},
+            index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=tz_utc)]),
+        )
+        asset.last_signal_date = None
+        asset._last_meta_proba = 0.68321
+        result = MagicMock()
+        result.signal_data = asset.signal_data
+        result.signal_type = "BUY"
+        result.label = 1
+        result.confidence_pct = 75.0
+        df = pd.DataFrame({"close": [1.1050]})
+        decision = pipeline._build_decision(
+            asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
+        )
+        assert decision.meta_label_confidence == pytest.approx(68.32, abs=0.01)
+        # The legacy ``confidence`` field is unchanged
+        assert decision.confidence == 75.0
 
 
 class TestValidateInferenceTruncation:

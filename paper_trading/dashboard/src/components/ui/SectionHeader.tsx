@@ -26,6 +26,7 @@ const titleSize = {
   md: 'text-sm',
 }
 
+/** Section heading with accent dot, optional subtitle, and meta slot for actions/buttons. */
 export default function SectionHeader({
   title,
   subtitle,

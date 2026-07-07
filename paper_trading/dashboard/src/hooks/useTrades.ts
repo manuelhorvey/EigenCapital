@@ -18,6 +18,7 @@ async function fetchTrades(limit: number, offset: number): Promise<TradeEntry[]>
   return parsed.data
 }
 
+/** Fetches paginated trade entries. @returns {object} - React Query result with TradeEntry array */
 export function useTrades(limit = 10, offset = 0) {
   return useQuery({
     queryKey: ['trades', limit, offset],

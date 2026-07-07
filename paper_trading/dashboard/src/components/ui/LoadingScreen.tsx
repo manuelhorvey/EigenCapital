@@ -5,6 +5,7 @@ interface LoadingScreenProps {
   subtitle?: string
 }
 
+/** Full-screen loading state with animated pulse indicators and optional title/subtitle. */
 export default function LoadingScreen({
   title = 'Connecting to EigenCapital Engine',
   subtitle = 'Waiting for paper trading data…',

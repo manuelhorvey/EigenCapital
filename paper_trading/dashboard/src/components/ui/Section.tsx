@@ -9,6 +9,7 @@ interface SectionProps {
   errorTitle?: string
 }
 
+/** Scroll-anchor section wrapper with built-in ErrorBoundary. @param id - anchor ID for nav links; @param errorTitle - fallback title shown if the section errors. */
 export default function Section({
   id, title, children, className = '', errorTitle,
 }: SectionProps) {

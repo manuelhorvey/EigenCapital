@@ -6,10 +6,12 @@ interface SkeletonProps {
   shimmer?: boolean
 }
 
+/** Skeleton placeholder for loading content. @param shimmer - enables sliding gradient animation instead of default pulse. */
 export function Skeleton({ className = '', shimmer = false }: SkeletonProps) {
   return <div className={`${shimmer ? 'skeleton-shimmer' : 'skeleton'} ${className}`} aria-hidden />
 }
 
+/** Row of metric card skeletons for dashboard stat loading. @param count - number of skeleton cards to render (default 4). */
 export function MetricCardSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -24,6 +26,7 @@ export function MetricCardSkeleton({ count = 4 }: { count?: number }) {
   )
 }
 
+/** Table-shaped skeleton with header and row placeholders. @param rows - number of row skeletons to render (default 5). */
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <Panel className="p-4">

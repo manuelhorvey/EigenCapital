@@ -5,6 +5,7 @@ import Panel from './ui/Panel'
 import StatCard from './ui/StatCard'
 import EmptyState from './ui/EmptyState'
 
+/** Live Sharpe ratio cards with cycle-level, daily-window, and slippage metrics. */
 export default function LiveSharpeCard() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const ls = portfolio?.live_sharpe

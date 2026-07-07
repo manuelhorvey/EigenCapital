@@ -15,6 +15,7 @@ const FALLBACK: EngineHealth = {
   engine_alive: false,
 }
 
+/** Polls the engine health endpoint every 5s. @returns {object} - React Query result with EngineHealth data */
 export function useEngineHealth() {
   return useQuery({
     queryKey: QUERY_KEYS.engine,

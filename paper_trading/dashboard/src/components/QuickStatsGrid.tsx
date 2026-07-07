@@ -1,15 +1,4 @@
-/**
- * QuickStatsGrid — terminal-precision mono row of headline metrics.
- *
- * Extracted from src/pages/CommandCenter.tsx (Commit 3.1). Lives as its
- * own file so the page becomes pure composition and the test surface
- * is uniform.
- *
- * Slice selector: returns the `snapshot` sub-object whose reference
- * changes only when the backend rebuilds it. Structural sharing
- * (React Query v5 + Zod validation) keeps the reference stable across
- * polls unless the snapshot content actually changed.
- */
+/** Headline metric row: portfolio value, return, drawdown, open/closed positions, peak, capital/MT5 equity. */
 import { memo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'

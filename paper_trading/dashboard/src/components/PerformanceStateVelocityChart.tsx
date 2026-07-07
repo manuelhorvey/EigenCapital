@@ -18,6 +18,7 @@ function degradationColor(v: number): string {
   return 'var(--color-gov-red)'
 }
 
+/** Performance state velocity metrics: PnL velocity/acceleration, vol, degradation, and execution. */
 export default function PerformanceStateVelocityChart() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const v = portfolio?.pek?.performance_state?.velocity

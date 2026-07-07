@@ -17,6 +17,10 @@ interface Props {
   badge: BadgeDisplay | null
 }
 
+/**
+ * Header row of an asset card. Renders name, status badge, current price, signal label, and confidence.
+ * @param {{ name: string, info: AssetCardInfo, cardState: GovernanceState, confidenceState: GovernanceState, badge: BadgeDisplay | null }} props
+ */
 const AssetCardHeader: React.FC<Props> = ({ name, info, cardState, confidenceState, badge }) => {
 
   const signalTextClass =

@@ -3,6 +3,7 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { AlertTriangle } from 'lucide-react'
 
+/** Animated emergency halt banner displaying halt reason and detail when active. */
 function EmergencyHaltBannerInner() {
   // Slice selector: only the emergency_halt / halt_reason / halt_detail
   // fields trigger a re-render. Any unrelated snapshot change (asset

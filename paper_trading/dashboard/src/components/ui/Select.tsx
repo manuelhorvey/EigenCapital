@@ -19,6 +19,7 @@ const sizeStyles = {
   md: 'text-xs py-1.5 pl-2.5 pr-7',
 }
 
+/** Styled dropdown select with chevron icon and size variants. */
 export default function Select({
   options,
   value,

@@ -12,6 +12,7 @@ const ARCHETYPE_COLORS: Record<string, string> = {
   UNKNOWN: 'var(--color-text-muted)',
 }
 
+/** Scatter plot of maximum adverse excursion (MAE) vs maximum favorable excursion (MFE) per trade, colored by archetype with live positions overlaid. */
 export default function MaeMfeScatter() {
   const { data, isPending } = useAttributionTrades(200)
   const { data: liveData } = useLiveAttribution()

@@ -6,7 +6,10 @@ interface TradingAssetRowProps {
   onSelect?: (name: string) => void
 }
 
-/** Compact terminal-precision row: mono data, no badges, governance tones. */
+/** Compact terminal-precision asset row with direction, PnL, exit phase, risk, and flags.
+ * @param {object} props
+ * @param {AssetTradingState} props.asset - Current asset trading state
+ * @param {(name: string) => void} [props.onSelect] - Selection callback */
 const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: TradingAssetRowProps) {
   const dir = asset.direction
   const dirCls = dir === 'LONG' ? 'text-gov-green' : dir === 'SHORT' ? 'text-gov-red' : 'text-tertiary'

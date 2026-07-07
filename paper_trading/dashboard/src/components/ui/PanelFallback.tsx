@@ -6,6 +6,7 @@ interface PanelFallbackProps {
   error?: Error
 }
 
+/** Error fallback card shown when a panel's content fails to render. Displays error message and reload button. */
 export default function PanelFallback({ title, error }: PanelFallbackProps) {
   return (
     <div className="panel rounded-lg p-4">

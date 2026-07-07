@@ -23,6 +23,10 @@ const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: 'wal', label: 'WAL', icon: List },
 ]
 
+/**
+ * Slide-over detail panel for a single asset. Contains tabs for Overview, Governance, Sizing, Diagnostics, and WAL timeline.
+ * @param {{ asset: AssetState, name: string, onClose: () => void }} props
+ */
 export default function AssetDetailPanel({ asset, name, onClose }: Props) {
   const [tab, setTab] = useState<TabId>('overview')
 

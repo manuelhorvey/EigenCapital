@@ -52,6 +52,13 @@ function formatAxisLabel(value: number): string {
   return `$${value.toFixed(0)}`
 }
 
+/** Compact SVG sparkline showing equity curve trajectory with return label. @param {object} props
+ * @param {number} [props.height=72] - Height in pixels
+ * @param {number|string} [props.width] - Width in pixels (default 100%)
+ * @param {string} [props.positiveColor] - Color for positive curve
+ * @param {string} [props.negativeColor] - Color for negative curve
+ * @param {number} [props.strokeWidth=2] - Stroke width
+ * @param {boolean} [props.showLabels=false] - Show mini axis labels */
 export default function EquityCurveSparkline({
   height = 72,
   width,

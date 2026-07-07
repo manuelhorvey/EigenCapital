@@ -14,6 +14,7 @@ function valueColor(pct: number): string {
   return 'var(--color-gov-red)'
 }
 
+/** Circular SVG gauge with animated arc, auto-colored by value threshold (green/yellow/red). */
 export default function Gauge({
   label,
   value,

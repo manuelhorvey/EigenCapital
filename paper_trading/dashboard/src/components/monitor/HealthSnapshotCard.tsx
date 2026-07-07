@@ -36,6 +36,13 @@ function statusBgMuted(status: HealthSnapshotCardProps['status']): string {
   }
 }
 
+/** Compact card displaying a single health snapshot metric with status indicator, optional trend arrow, and change text.
+ * @param {string} title - Metric label
+ * @param {string} [value] - Metric value
+ * @param {'healthy'|'degraded'|'critical'|'pending'} [status] - Health status tier
+ * @param {'up'|'down'|'stable'} [trend] - Direction of change
+ * @param {string} [change] - Formatted change text
+ * @param {React.ReactNode} [icon] - Optional icon element */
 export default function HealthSnapshotCard({
   title, value, status, trend, change, icon,
 }: HealthSnapshotCardProps) {

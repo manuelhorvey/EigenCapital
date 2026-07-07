@@ -11,6 +11,7 @@ function exposureColor(exposure: number, violation: string | null): string {
   return 'var(--color-gov-green)'
 }
 
+/** Factor exposure bars with centered-zero visualization and violation highlights. */
 export default function FactorExposureBreakdown() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const fe = portfolio?.factor_exposures

@@ -6,6 +6,7 @@ interface SltpGaugeProps {
   flipRate: number
 }
 
+/** Compact TP / SL / Flip rate gauge using BarRow segments, each auto-colored by threshold. */
 export default function SltpGauge({ tpRate, slRate, flipRate }: SltpGaugeProps) {
   // TP high is good; SL high and FLIP high are bad — each metric routes
   // through its own threshold bands and gets a coloured bar.

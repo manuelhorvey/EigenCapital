@@ -27,6 +27,7 @@ function Stat({
   )
 }
 
+/** Summary strip showing aggregate execution quality metrics — average EIS, FQI, worst slippage, and fill rate across assets. */
 export default function ExecutionQualityStrip() {
   const { data: bundle, isPending } = useAttributionBundle()
   const data = bundle?.executionQuality

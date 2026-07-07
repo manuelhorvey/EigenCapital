@@ -12,6 +12,8 @@ interface ComparisonRow {
   positive?: boolean
 }
 
+/** Table comparing actual trade outcomes against counterfactual scenarios (ideal timing, ideal fill, real fill).
+ * @param {TradeAttributionRecord} data - Attribution record with counterfactual fields */
 export default function TradeCounterfactual({ data }: TradeCounterfactualProps) {
   const comparisons: ComparisonRow[] = [
     {

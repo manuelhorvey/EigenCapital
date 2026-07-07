@@ -12,6 +12,7 @@ import SectionHeader from '../ui/SectionHeader'
 import { Skeleton } from '../ui/Skeleton'
 import Badge from '../ui/Badge'
 
+/** Radar chart visualizing governance constraint scores across axes, with ranked bottleneck list and average validity impact. */
 export default function GovernanceRadar() {
   const { axes, bottlenecks, avgValidityImpact } = useGovernanceRadar()
 

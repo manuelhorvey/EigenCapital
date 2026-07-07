@@ -6,6 +6,7 @@ import type { SystemBundle } from '../types/bundle'
 
 let _lastContractVersion: number | null = null
 
+/** Fetches the full system bundle snapshot with optional data selector. @returns {object} - React Query result containing the SystemBundle or selected subset */
 export function useSystemSnapshot<T = SystemBundle>(
   select?: (data: SystemBundle) => T
 ) {

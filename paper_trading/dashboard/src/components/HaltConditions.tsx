@@ -5,6 +5,7 @@ import { systemSelectors } from '../selectors/system'
 import { MetricCardSkeleton } from './ui/Skeleton'
 import { governanceDot, governanceText } from './ui/governance'
 
+/** Halt condition monitors: max drawdown, monthly PF, signal drought, and probability drift. */
 export default function HaltConditions() {
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)
 

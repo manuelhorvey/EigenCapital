@@ -5,6 +5,7 @@ interface Props {
   asset: AssetState
 }
 
+/** Diagnostics tab — feature stability, regime model output, archetype stats, and statistical metrics. @param {{ asset: AssetState }} props */
 export default function DiagnosticsTab({ asset }: Props) {
   const m = asset.metrics
   const fs = m.feature_stability

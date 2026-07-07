@@ -25,6 +25,8 @@ const typeIcon = {
   performance: Activity,
 }
 
+/** Live feed of active system alerts grouped by severity, with dismiss capability and show-more pagination.
+ * @param {Alert[]} alerts - Array of alert objects to display */
 export default function AlertFeed({ alerts }: AlertFeedProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [showAll, setShowAll] = useState(false)

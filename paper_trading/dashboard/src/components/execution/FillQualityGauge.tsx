@@ -5,6 +5,7 @@ import { Skeleton } from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import Gauge from '../ui/Gauge'
 
+/** Gauge visualization of per-asset fill quality metrics (FQI, fill ratio) from execution data. */
 export default function FillQualityGauge() {
   const { data: bundle, isPending } = useAttributionBundle()
   const data = bundle?.executionQuality

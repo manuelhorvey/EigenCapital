@@ -18,6 +18,7 @@ interface ChartContainerProps {
   chartLabel?: string
 }
 
+/** Panel wrapper for charts with title, toolbar, skeleton loading, and empty state. */
 export default function ChartContainer({
   title,
   accent = 'emerald',

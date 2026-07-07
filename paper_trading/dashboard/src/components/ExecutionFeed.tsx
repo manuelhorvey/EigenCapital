@@ -21,6 +21,7 @@ interface CycleEvent {
   abortedGate: string | null
 }
 
+/** Last-cycle execution feed showing per-asset signal, confidence, gate result, and size. */
 export default function ExecutionFeed() {
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)
   const { setSelectedAsset } = useSelectedAsset()

@@ -43,6 +43,7 @@ function saveSort(key: string, col: string, dir: SortDir) {
   try { sessionStorage.setItem(`ec_sort_${key}`, JSON.stringify({ col, dir })) } catch {}
 }
 
+/** Sortable, responsive data table with column definitions, mobile card fallback, and sticky header. Generic over row type T. */
 export default function DataTable<T>({
   columns, data, keyExtractor, sortable = false,
   defaultSortKey, defaultSortDir = 'desc',

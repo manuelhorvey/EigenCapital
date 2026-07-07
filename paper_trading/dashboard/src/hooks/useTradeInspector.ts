@@ -16,6 +16,7 @@ export interface TradeInspectorData {
   attribution: TradeAttributionRecord | null
 }
 
+/** Finds a matching attribution trade by asset and optional dates, returning combined basic + attribution data. @returns {TradeInspectorData | null} - Matched trade data or null */
 export function useTradeInspector(
   asset?: string,
   entryDate?: string,

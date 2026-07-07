@@ -5,6 +5,7 @@ interface Props {
   asset: AssetState
 }
 
+/** Sizing configuration tab — SL/TP multipliers, regime geometry, sizing chain break-down, and scale-out tiers. @param {{ asset: AssetState }} props */
 export default function SizingTab({ asset }: Props) {
   const m = asset.metrics
   const narrativeScalar = asset.narrative_size_scalar ?? 1

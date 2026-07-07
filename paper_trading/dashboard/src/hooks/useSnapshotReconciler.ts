@@ -13,6 +13,7 @@ import type { SystemBundle } from '../types/bundle'
  *  - Cross-cycle state bleed (old snapshot showing on new engine)
  *  - Schema-incompatible snapshots after engine version change
  */
+/** Detects engine restarts (sequence_id drops) and contract_version changes, invalidating cache to prevent stale cross-cycle state bleed. */
 export function useSnapshotReconciler(bundle: SystemBundle | undefined) {
   const queryClient = useQueryClient()
   const lastSeqId = useRef<number | null>(null)

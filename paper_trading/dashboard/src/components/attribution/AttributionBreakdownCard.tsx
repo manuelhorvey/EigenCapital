@@ -4,6 +4,7 @@ import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { Skeleton } from '../ui/Skeleton'
 
+/** KPI cards showing aggregate domain scores (prediction, execution, exit, friction) with optional per-archetype breakdown. */
 export default function AttributionBreakdownCard() {
   const { data: bundle, isPending } = useAttributionBundle()
   const data = bundle?.attributionSummary

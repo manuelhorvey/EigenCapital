@@ -16,6 +16,7 @@ const TABS: TabItem[] = [
   { to: '/risk', label: 'Risk', icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'risk' },
 ]
 
+/** Top tab navigation bar with Dashboard, Trading, Execution, and Risk tabs. */
 export default function TabBar() {
   const badges = useSidebarBadges()
 

@@ -28,6 +28,7 @@ function healthLabel(score: number): string {
   return 'Critical'
 }
 
+/** Per-asset health score grid with color-coded bars and healthy/degraded/critical labels. */
 export default function HealthScores() {
   const { data, isPending } = useSystemSnapshot(systemSelectors.health)
 

@@ -12,6 +12,8 @@ interface GovernanceStatusGridProps {
   layers: LayerStatus[]
 }
 
+/** Grid displaying the status of each governance layer with color-coded badges and detail text.
+ * @param {LayerStatus[]} layers - Array of governance layer status objects */
 export default function GovernanceStatusGrid({ layers }: GovernanceStatusGridProps) {
   if (layers.length === 0) {
     return (

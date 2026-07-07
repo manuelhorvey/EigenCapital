@@ -7,6 +7,7 @@ interface MetricRowProps {
   valueClass?: string
 }
 
+/** Label-value row used across detail panel tabs — label on the left, value on the right with optional colour class. @param {{ label: string, value: string, valueClass?: string }} props */
 export function MetricRow({ label, value, valueClass }: MetricRowProps) {
   return (
     <div className="flex items-center justify-between py-1.5">
@@ -16,6 +17,7 @@ export function MetricRow({ label, value, valueClass }: MetricRowProps) {
   )
 }
 
+/** Section wrapper with title header, borders, and content area. @param {{ title: string, children: ReactNode }} props */
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="border-t border-default pt-3 mt-3 first:border-t-0 first:pt-0 first:mt-0">
@@ -25,6 +27,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
   )
 }
 
+/** Section that can be toggled open/closed by the user. @param {{ title: string, defaultOpen?: boolean, children: ReactNode }} props */
 export function CollapsibleSection({ title, defaultOpen, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false)
   return (

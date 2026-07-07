@@ -25,6 +25,7 @@ function formatValue(v: number): string {
 
 const capitalSelector = (b: SystemBundle) => b.snapshot.portfolio.capital
 
+/** Interactive equity curve chart with per-asset toggle, max-DD annotation, and baseline reference. */
 export default function EquityChart() {
   const { data, isPending } = useEquityHistory()
   const { data: capital } = useSystemSnapshot(capitalSelector)

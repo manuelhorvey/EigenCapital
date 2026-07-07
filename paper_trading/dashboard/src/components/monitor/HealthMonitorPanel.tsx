@@ -70,6 +70,7 @@ function urgencyLabel(score: number): string {
 
 // ── Component ───────────────────────────────────────────────────────────
 
+/** Panel showing per-asset model health urgency scores, retrain recommendations, and contributor breakdowns from health check reports. */
 export default function HealthMonitorPanel() {
   const { data: report, isLoading } = useQuery<HealthCheckReport | { error: string }>({
     queryKey: ['healthcheck'],

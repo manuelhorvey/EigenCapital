@@ -11,6 +11,7 @@ export interface AttributionBundleData {
   attributionWaterfall: AttributionWaterfall | null
 }
 
+/** Fetches execution quality, slippage, and attribution summary/waterfall data in parallel. @returns {object} - React Query result with AttributionBundleData */
 export function useAttributionBundle() {
   return useQuery({
     queryKey: QUERY_KEYS.attribution,

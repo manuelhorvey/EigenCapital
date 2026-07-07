@@ -32,6 +32,7 @@ function LoadingSkeleton({ variant }: { variant: StatCardVariant }) {
   )
 }
 
+/** Metric card with label, value, optional sub-line, and accent color. Supports default, compact, and kpi variants. */
 export default function StatCard({
   label,
   value,

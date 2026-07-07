@@ -238,4 +238,9 @@ function TickerRailInner({ onToggleSidebar }: TickerRailProps) {
   )
 }
 
+/**
+ * Operator-console breadcrumb rail pinned above page content.
+ * Displays engine state, tick staleness, PEK admission, MT5 status, halt state, and asset count.
+ * @param {{ onToggleSidebar?: () => void }} props
+ */
 export default memo(TickerRailInner)

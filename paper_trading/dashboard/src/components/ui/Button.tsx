@@ -31,6 +31,7 @@ const sizeStyles: Record<ButtonSize, string> = {
   lg: 'text-sm px-4 py-2 gap-2',
 }
 
+/** Styled action button with variant, size, loading spinner, and optional icon slot. */
 export default function Button({
   variant = 'primary',
   size = 'md',

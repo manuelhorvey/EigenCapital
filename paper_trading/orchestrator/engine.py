@@ -471,7 +471,7 @@ class EngineOrchestrator:
             name = futures[future]
             try:
                 asset_results[name] = future.result()
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError, KeyError) as e:
                 logger.critical("%s actor threw uncaught exception: %s", name, e)
                 asset_results[name] = AssetResult.failed(name, f"uncaught: {e}")
 
@@ -612,11 +612,11 @@ class EngineOrchestrator:
                                 sig.peking_score or 0.0,
                                 entry_notional,
                             )
-                    except (ValueError, TypeError, RuntimeError) as exc:
+                    except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
                         logger.error("PEK_BUDGET_CLOSE failed for %s: %s", sig.asset, exc)
 
                 if closed_names:
-                    with contextlib.suppress(Exception):
+                    with contextlib.suppress((OSError, RuntimeError, KeyError)):
                         global_alert_manager().warning(
                             "PEK budget overrun — positions closed",
                             f"Closed {len(closed_names)} lowest-ranked positions: {closed_names}",
@@ -650,7 +650,7 @@ class EngineOrchestrator:
             try:
                 actor._engine.update_validity()
                 return None
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError, AttributeError) as e:
                 return f"{name}: {e}"
 
         validity_futures = {self._pool.submit(_run_validity, n, a): n for n, a in self._actors.items()}
@@ -721,7 +721,7 @@ class EngineOrchestrator:
             self._emergency_halt = True
             self._halt_reason = HaltReason.HALT_RATIO
             self._halt_detail = f"halt_ratio={health.halt_ratio:.4f}"
-            with contextlib.suppress(Exception):
+            with contextlib.suppress((OSError, RuntimeError, KeyError)):
                 global_alert_manager().critical(
                     "Portfolio halted — halt ratio exceeded",
                     f"halt_ratio={health.halt_ratio:.4f}/{self._max_halt_ratio:.4f}",
@@ -761,7 +761,7 @@ class EngineOrchestrator:
                 "VOLATILITY CIRCUIT BREAKER TRIGGERED: %s \u2014 flattening and halting",
                 breaker_result.reason,
             )
-            with contextlib.suppress(Exception):
+            with contextlib.suppress((OSError, RuntimeError, KeyError)):
                 global_alert_manager().critical(
                     f"Portfolio halted — {breaker_result.reason}",
                     "Volatility circuit breaker triggered — flattening all positions",
@@ -799,7 +799,7 @@ class EngineOrchestrator:
         if self._wal is not None:
             try:
                 self._wal.write("position_concentration", conc)
-            except Exception:
+            except (RuntimeError, OSError, KeyError):
                 logger.exception("WAL write failed for position_concentration")
 
         # ── 3f: Cross-asset correlation ───────────────────────────────────
@@ -923,7 +923,7 @@ class EngineOrchestrator:
             try:
                 self._wal.write("actor_health", current)
                 self._last_health = current
-            except Exception:
+            except (RuntimeError, OSError, KeyError):
                 logger.exception("WAL write failed for actor_health")
 
     def _write_state_committed(self) -> None:
@@ -943,7 +943,7 @@ class EngineOrchestrator:
         snapshot["abandoned_orphans"] = self._orphan_reconciler.abandoned_orphans
         try:
             self._wal.write("state_committed", snapshot)
-        except Exception:
+        except (RuntimeError, OSError, KeyError):
             logger.exception("WAL write failed for state_committed")
 
     def drain_persist_buffer(self) -> list[dict]:
@@ -1016,7 +1016,7 @@ class EngineOrchestrator:
                     DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100,
                     self._unhalt_recovery_cycles,
                 )
-                with contextlib.suppress(Exception):
+                with contextlib.suppress((OSError, RuntimeError, KeyError)):
                     global_alert_manager().warning(
                         "Emergency halt auto-cleared",
                         (

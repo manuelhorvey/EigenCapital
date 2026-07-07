@@ -63,7 +63,7 @@ class PositionManager:
 
         try:
             bars = max(0, (pd.Timestamp(exit_date) - pd.Timestamp(self.position.entry_date)).days)
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             bars = 1
 
         risk_pct = (
@@ -242,7 +242,7 @@ class PositionManager:
         last = self.position.layers[-1]
         try:
             return datetime.fromisoformat(last.timestamp)
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             return None
 
     def max_layers_reached(self, max_layers: int) -> bool:

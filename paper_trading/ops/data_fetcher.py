@@ -118,7 +118,7 @@ def _mt5_ensure_connected() -> bool:
         return False
     try:
         return client.ensure_connected()
-    except Exception:
+    except (OSError, AttributeError, TypeError):
         return False
 
 
@@ -131,7 +131,7 @@ def _mt5_fetch_ohlcv(ticker: str, years: int = 2) -> pd.DataFrame:
         return pd.DataFrame()
     try:
         return client.fetch_ohlcv(ticker, years=years)
-    except Exception as e:
+    except (OSError, AttributeError, TypeError, ValueError) as e:
         logger.warning("MT5 fetch_ohlcv failed for %s: %s", ticker, e)
         return pd.DataFrame()
 
@@ -145,7 +145,7 @@ def _mt5_realtime_price(ticker: str) -> float | None:
         return None
     try:
         return client.realtime_mid_price(ticker)
-    except Exception as e:
+    except (OSError, AttributeError, TypeError, ValueError) as e:
         logger.warning("MT5 realtime_price failed for %s: %s", ticker, e)
         return None
 
@@ -172,7 +172,7 @@ def _check_data_quality(df: pd.DataFrame, ticker: str, source: str = "") -> None
             max_consec_nan = nan_streak.max() if not nan_streak.empty else 0
             if max_consec_nan >= 3:
                 logger.warning("%s: %d consecutive NaN closes detected", label, max_consec_nan)
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError) as e:
         logger.warning("%s: data quality check failed: %s", ticker, e)
 
 
@@ -246,7 +246,7 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
                 _check_data_quality(df, ticker, source="live")
                 return df
             logger.warning("%s empty response attempt %d/3", ticker, attempt)
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError) as e:
             logger.warning("%s download error attempt %d/3: %s", ticker, attempt, e)
         if attempt < len(delays):
             time.sleep(delay)
@@ -280,7 +280,7 @@ def fetch_realtime_price(ticker: str) -> float | None:
         if lp is not None and not pd.isna(lp) and lp > 0:
             _cache_set(cache_key, float(lp), "realtime")
             return float(lp)
-    except Exception:
+    except (OSError, ValueError, TypeError, KeyError):
         pass
 
     try:
@@ -291,7 +291,7 @@ def fetch_realtime_price(ticker: str) -> float | None:
             price = float(df["close"].ffill().iloc[-1])
             _cache_set(cache_key, price, "realtime")
             return price
-    except Exception:
+    except (OSError, ValueError, TypeError, KeyError):
         pass
     return None
 
@@ -328,5 +328,5 @@ def fetch_history(ticker: str, years: int = 10) -> pd.DataFrame:
 def fetch_ref(ticker: str) -> pd.DataFrame | None:
     try:
         return fetch_history(ticker, years=10)
-    except Exception:
+    except (OSError, ValueError, TypeError, KeyError):
         return None

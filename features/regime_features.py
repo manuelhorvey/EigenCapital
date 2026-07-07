@@ -1,6 +1,10 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import ta
+
+logger = logging.getLogger("eigencapital.regime_features")
 
 
 def compute_hurst(series: pd.Series, window: int = 63) -> pd.Series:
@@ -97,16 +101,17 @@ def generate_regime_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     # Test on EURUSD data if available
     try:
         data = pd.read_parquet("data/raw/EURUSD_1d.parquet")
-        print(f"Generating regime features for {len(data)} rows...")
+        logger.info("Generating regime features for %d rows...", len(data))
         regime_df = generate_regime_features(data)
-        print("\nRegime Features Sample:")
-        print(regime_df.tail())
+        logger.info("\nRegime Features Sample:")
+        logger.info("\n%s", regime_df.tail())
 
         # Save to data/processed
         regime_df.to_parquet("data/processed/EURUSD_regime_features.parquet")
-        print("\nSaved regime features to data/processed/EURUSD_regime_features.parquet")
+        logger.info("\nSaved regime features to data/processed/EURUSD_regime_features.parquet")
     except (ValueError, TypeError, KeyError, OSError) as e:
-        print(f"Feature generation failed: {e}")
+        logger.error("Feature generation failed: %s", e)

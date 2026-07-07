@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
+from collections.abc import Iterator
 from typing import Any
 
 from paper_trading.alerting.channel import Alert, Channel, Severity
@@ -89,6 +91,26 @@ def _severity_ge(a: Severity, b: Severity) -> bool:
 # Global singleton
 _alert_manager: AlertManager | None = None
 _alert_manager_lock = threading.Lock()
+
+
+@contextlib.contextmanager
+def alert_context(manager: AlertManager) -> Iterator[None]:
+    """Temporarily replace the global alert manager for testing.
+
+    Usage::
+
+        with alert_context(test_manager):
+            mgr = global_alert_manager()
+            # mgr is test_manager
+        # Outside the block, the original manager is restored
+    """
+    global _alert_manager
+    previous = _alert_manager
+    _alert_manager = manager
+    try:
+        yield
+    finally:
+        _alert_manager = previous
 
 
 def global_alert_manager(override: AlertManager | None = None) -> AlertManager:

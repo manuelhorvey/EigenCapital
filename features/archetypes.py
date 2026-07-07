@@ -101,5 +101,6 @@ if __name__ == "__main__":
 
     classifier = ArchetypeClassifier()
     tagged = classifier.tag_dataframe(data)
-    print("Archetype Classification Test:")
-    print(tagged[["adx", "rsi", "bb_zscore", "archetype_name"]])
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger.info("Archetype Classification Test:")
+    logger.info("\n%s", tagged[["adx", "rsi", "bb_zscore", "archetype_name"]])

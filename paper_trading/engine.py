@@ -80,7 +80,7 @@ class PaperTradingEngine:
                 ", ".join(report["forbidden_modules_loaded"]),
             )
 
-        self.state_store = state_store or _STORE
+        self.state_store = state_store or StateStore(BASE)
         self.assets = {}
         self.start_date = datetime.now(tz=ET)
         self.last_update = None
@@ -104,7 +104,7 @@ class PaperTradingEngine:
                         "Restored risk governance state for %d asset(s) from snapshot",
                         n_assets,
                     )
-            except Exception:
+            except (OSError, ValueError, TypeError, KeyError):
                 logger.exception("Failed to restore risk state from snapshot")
         if snapshot is not None and snapshot.engine_status:
             self.start_date = datetime.fromisoformat(
@@ -119,7 +119,7 @@ class PaperTradingEngine:
         # Initialize alerting channels from config
         try:
             setup_alerting_from_config(cfg)
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError, ImportError):
             logger.debug("Alerting setup skipped (no config section or invalid)", exc_info=True)
 
         if cfg.mt5.enabled:
@@ -351,7 +351,7 @@ class PaperTradingEngine:
                 logger.info("Pruned %d items across %d data types", total, len(stats))
             else:
                 logger.debug("No data needed pruning today")
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError) as e:
             logger.warning("Auto-prune failed: %s", e)
 
     def initialize(self):
@@ -375,7 +375,7 @@ class PaperTradingEngine:
             try:
                 asset.train(force=True)
                 logger.info("%s: training done", name)
-            except Exception as e:
+            except (OSError, ValueError, TypeError, RuntimeError, ImportError, Exception) as e:
                 logger.error("%s: training FAILED - %s", name, e)
 
     def _get_weekend_eligible_assets(self) -> set[str]:
@@ -429,7 +429,7 @@ class PaperTradingEngine:
             if self._wal is not None:
                 try:
                     self._wal.flush()
-                except Exception:
+                except (OSError, RuntimeError, AttributeError):
                     logger.exception("WAL flush failed at weekend cycle boundary")
             self._cycle_weekend = False
             self.last_update = datetime.now(tz=ET)
@@ -468,7 +468,7 @@ class PaperTradingEngine:
                         current_hash[:8],
                     )
                     asset.train(force=False)
-            except (OSError, ValueError, TypeError):
+            except (OSError, ValueError, TypeError, AttributeError):
                 logger.debug(
                     "experiment: model integrity check skipped for %s",
                     _asset_name,
@@ -529,7 +529,7 @@ class PaperTradingEngine:
                         "n_assets": len(self._rebalance_weights),
                     },
                 )
-            except Exception:
+            except (OSError, RuntimeError, KeyError):
                 logger.exception("WAL write failed for portfolio_weights")
 
         _t3 = time.perf_counter()
@@ -544,7 +544,7 @@ class PaperTradingEngine:
         if self._wal is not None:
             try:
                 self._wal.flush()
-            except Exception:
+            except (OSError, RuntimeError, AttributeError):
                 logger.exception("WAL flush failed at cycle boundary")
 
         # ── Cycle benchmark ───────────────────────────────────────────

@@ -16,8 +16,11 @@ Usage:
 from __future__ import annotations
 
 import ast
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger("eigencapital.tools.check_import_firewall")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -103,6 +106,7 @@ def _check_file(filepath: Path) -> list[tuple[int, str, str]]:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True)
     total_violations = 0
     files_scanned = 0
 
@@ -118,14 +122,14 @@ def main() -> int:
             if violations:
                 rel = pyfile.relative_to(REPO_ROOT)
                 for lineno, imp, mod in violations:
-                    print(f"{rel}:{lineno}: FORBIDDEN {mod} — {imp}")
+                    logger.warning("%s:%d: FORBIDDEN %s — %s", rel, lineno, mod, imp)
                 total_violations += len(violations)
 
-    print(f"\nScanned {files_scanned} files across {len(SCAN_DIRECTORIES)} directories.")
+    logger.info("\nScanned %d files across %d directories.", files_scanned, len(SCAN_DIRECTORIES))
     if total_violations:
-        print(f"FAILED: {total_violations} forbidden import(s) found.")
+        logger.error("FAILED: %d forbidden import(s) found.", total_violations)
         return 1
-    print("PASSED: No forbidden imports detected.")
+    logger.info("PASSED: No forbidden imports detected.")
     return 0
 
 

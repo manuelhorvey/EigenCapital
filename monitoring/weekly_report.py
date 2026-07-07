@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 from datetime import datetime
@@ -8,6 +9,8 @@ import pandas as pd
 import yfinance as yf
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+logger = logging.getLogger("eigencapital.weekly_report")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE_PATH = os.path.join(BASE, "data", "live", "state.json")
@@ -56,13 +59,13 @@ def compute_live_ewm_vol(ticker, span=100):
 
 
 def check_vol_regime():
-    print("\n--- Vol Regime Check ---")
+    logger.info("\n--- Vol Regime Check ---")
     all_healthy = True
     for name, ticker in TICKERS.items():
         train_vol = TRAIN_VOLS.get(name)
         live_vol = compute_live_ewm_vol(ticker)
         if live_vol is None or train_vol is None:
-            print(f"  {name:8s}: unable to compute vol")
+            logger.info("  %8s: unable to compute vol", name)
             continue
         ratio = live_vol / train_vol
 
@@ -77,10 +80,10 @@ def check_vol_regime():
         else:
             status = "healthy"
 
-        print(
-            f"  {name:8s}: train_vol={train_vol:.4f}  live_vol={live_vol:.4f}  "
-            f"ratio={ratio:.2f}  → {status}"
-            f"{' ⚠' if status != 'healthy' else ''}"
+        logger.info(
+            "  %8s: train_vol=%.4f  live_vol=%.4f  ratio=%.2f  → %s%s",
+            name, train_vol, live_vol, ratio, status,
+            " ⚠" if status != "healthy" else "",
         )
     return all_healthy
 
@@ -132,28 +135,28 @@ def log_vol_baseline():
         os.makedirs(os.path.dirname(TRADE_LOG_PATH), exist_ok=True)
         with open(TRADE_LOG_PATH, "w") as f:
             f.write(md)
-    print(f"\nVol baseline logged to {TRADE_LOG_PATH}")
+    logger.info("\nVol baseline logged to %s", TRADE_LOG_PATH)
 
 
 def run():
     state = load_state()
     if state is None:
-        print("No state found.")
+        logger.warning("No state found.")
         return
     hist = load_history()
 
-    print("\n" + "=" * 70)
-    print(f"WEEKLY PORTFOLIO REPORT — {datetime.now().strftime('%Y-%m-%d')}")
-    print("=" * 70)
+    logger.info("\n%s", "=" * 70)
+    logger.info("WEEKLY PORTFOLIO REPORT — %s", datetime.now().strftime('%Y-%m-%d'))
+    logger.info("%s", "=" * 70)
 
     portfolio = state.get("portfolio", {})
     tv = portfolio.get("total_value", 0)
     tr = portfolio.get("total_return", 0)
     days = portfolio.get("days_running", 0)
-    print(f"\nPortfolio: ${tv:,.2f}  Return: {tr:+.2f}%  Days: {days}")
+    logger.info("\nPortfolio: $%.2f  Return: %+.2f%%  Days: %d", tv, tr, days)
 
     # Signal distribution check
-    print("\n--- Signal Distribution Check ---")
+    logger.info("\n--- Signal Distribution Check ---")
     for name in ["XLF", "BTC", "NZDJPY"]:
         asset = state.get("assets", {}).get(name, {})
         metrics = asset.get("metrics", {})
@@ -172,27 +175,30 @@ def run():
         sell_drift = abs(sell_pct - b_sell)
         stable = buy_drift < 15 and sell_drift < 15
 
-        print(
-            f"  {name:8s}: Live B/S {buy_pct:.0f}/{sell_pct:.0f} vs BT {b_buy}/{b_sell} "
-            f"→ {'STABLE' if stable else 'DRIFT'} "
-            f"(buy_d={buy_drift:.0f}pp sell_d={sell_drift:.0f}pp)"
+        logger.info(
+            "  %8s: Live B/S %.0f/%.0f vs BT %d/%d → %s (buy_d=%.0fpp sell_d=%.0fpp)",
+            name, buy_pct, sell_pct, b_buy, b_sell,
+            "STABLE" if stable else "DRIFT",
+            buy_drift, sell_drift,
         )
 
     # Confidence drift check
-    print("\n--- Confidence Trend Check ---")
+    logger.info("\n--- Confidence Trend Check ---")
     for name in ["XLF", "BTC", "NZDJPY"]:
         asset = state.get("assets", {}).get(name, {})
         metrics = asset.get("metrics", {})
         mean_conf = metrics.get("mean_confidence", 0) / 100
         baseline_conf = BACKTEST_BASELINES.get(name, {}).get("mean_conf", 0.55)
         drift = abs(mean_conf - baseline_conf)
-        print(
-            f"  {name:8s}: Live conf={mean_conf:.2f} vs BT={baseline_conf:.2f} "
-            f"→ {'STABLE' if drift < 0.15 else 'DRIFT'} (d={drift:.3f})"
+        logger.info(
+            "  %8s: Live conf=%.2f vs BT=%.2f → %s (d=%.3f)",
+            name, mean_conf, baseline_conf,
+            "STABLE" if drift < 0.15 else "DRIFT",
+            drift,
         )
 
     # Drawdown warning
-    print("\n--- Drawdown Status ---")
+    logger.info("\n--- Drawdown Status ---")
     for name in ["XLF", "BTC", "NZDJPY"]:
         asset = state.get("assets", {}).get(name, {})
         metrics = asset.get("metrics", {})
@@ -200,7 +206,7 @@ def run():
         limits = {"XLF": -0.08, "BTC": -0.15, "NZDJPY": -0.06}
         limit = limits.get(name, -0.10)
         pct_to_halt = (dd - limit) / abs(limit) * 100 if limit < 0 else 0
-        print(f"  {name:8s}: DD={dd:.2%} limit={limit:.0%} → {pct_to_halt:.0f}% of halt distance")
+        logger.info("  %8s: DD=%.2f%% limit=%.0f%% → %.0f%% of halt distance", name, dd * 100, limit * 100, pct_to_halt)
 
     # Vol regime check
     check_vol_regime()
@@ -208,14 +214,14 @@ def run():
 
     # Weekly PnL
     if len(hist) > 5:
-        print("\n--- Weekly PnL ---")
+        logger.info("\n--- Weekly PnL ---")
         recent = hist.tail(7)
         for _, r in recent.iterrows():
             date = r.get("date", "")
             pnl_pct = 0
             for name in ["XLF", "BTC", "NZDJPY"]:
                 pnl_pct += r.get(f"{name}_return", 0) / 3
-            print(f"  {date}: avg return {pnl_pct:+.2f}%")
+            logger.info("  %s: avg return %+.2f%%", date, pnl_pct)
 
     # Log to CSV
     log_entry = {
@@ -241,7 +247,7 @@ def run():
         existing = pd.read_csv(LOG_PATH)
         log_df = pd.concat([existing, log_df], ignore_index=True)
     log_df.to_csv(LOG_PATH, index=False)
-    print(f"\nWeekly log saved to {LOG_PATH}")
+    logger.info("\nWeekly log saved to %s", LOG_PATH)
 
 
 def load_state():
@@ -258,4 +264,5 @@ def load_history():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     run()

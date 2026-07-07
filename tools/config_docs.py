@@ -16,11 +16,14 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import logging
 import sys
 import types as _types
 from dataclasses import MISSING, fields, is_dataclass
 from pathlib import Path
 from typing import get_type_hints
+
+logger = logging.getLogger("eigencapital.tools.config_docs")
 
 
 def _resolve_hints(cls) -> dict[str, type]:
@@ -271,6 +274,7 @@ def render_markdown() -> str:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("--stdout", action="store_true", help="Print to stdout instead of file")
     args = parser.parse_args()
@@ -282,7 +286,7 @@ def main() -> int:
 
     DOCS_PATH.parent.mkdir(parents=True, exist_ok=True)
     DOCS_PATH.write_text(markdown)
-    print(f"config_docs: wrote {DOCS_PATH} ({len(markdown.splitlines())} lines)")
+    logger.info("config_docs: wrote %s (%d lines)", DOCS_PATH, len(markdown.splitlines()))
     return 0
 
 

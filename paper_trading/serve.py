@@ -77,7 +77,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
     httpd.timeout = 0.5
 
     url = f"http://{'127.0.0.1' if bind == '0.0.0.0' else bind}:{port}"
-    print(f"Dashboard: {url}")
+    logger.info("Dashboard: %s", url)
     try:
         while not (shutdown_event and shutdown_event.is_set()):
             httpd.handle_request()

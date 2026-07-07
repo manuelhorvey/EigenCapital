@@ -28,12 +28,15 @@ from the YAML.
 """
 
 import importlib
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger("eigencapital.tools.check_config_schema")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -129,10 +132,10 @@ def _load_registry_label_params() -> dict:
     try:
         module = importlib.import_module("features.registry")
     except (ImportError, ModuleNotFoundError) as e:
-        print(f"validator: warning - feature registry unavailable: {e}")
+        logger.warning("validator: warning - feature registry unavailable: %s", e)
         return {"labels": {}, "short_to_ticker": {}, "ticker_to_short": {}}
     except Exception as e:  # noqa: BLE001 - import path errors vary
-        print(f"validator: warning - feature registry import failed: {e}")
+        logger.warning("validator: warning - feature registry import failed: %s", e)
         return {"labels": {}, "short_to_ticker": {}, "ticker_to_short": {}}
 
     labels: dict[str, dict] = getattr(module, "ASSET_LABEL_PARAMS", {}) or {}
@@ -387,6 +390,7 @@ def _check_halt(data: dict, errors: list[str]) -> None:
 
 
 def validate(config_path: str | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True)
     if config_path:
         # Explicit config path: read directly (test fixtures)
         path = Path(config_path)
@@ -503,22 +507,22 @@ def validate(config_path: str | None = None) -> int:
         errors.append("alerting: expected mapping")
 
     if errors:
-        print(f"FAILED: {len(errors)} config schema violation(s):")
+        logger.error("FAILED: %d config schema violation(s):", len(errors))
         for e in errors:
-            print(f"  - {e}")
+            logger.error("  - %s", e)
         if warnings:
-            print(f"  ({len(warnings)} warning(s)):")
+            logger.warning("  (%d warning(s)):", len(warnings))
             for w in warnings:
-                print(f"  - {w}")
+                logger.warning("  - %s", w)
         return 1
 
     asset_count = len(assets or {})
     sell_only = (defaults.get("sell_only_assets") if isinstance(defaults, dict) else None) or []
-    print(f"PASSED: config schema valid ({asset_count} assets, {len(sell_only)} sell-only assets).")
+    logger.info("PASSED: config schema valid (%d assets, %d sell-only assets).", asset_count, len(sell_only))
     if warnings:
-        print(f"({len(warnings)} soft warning(s)):")
+        logger.warning("(%d soft warning(s)):", len(warnings))
         for w in warnings:
-            print(f"  - {w}")
+            logger.warning("  - %s", w)
     return 0
 
 

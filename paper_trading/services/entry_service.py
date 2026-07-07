@@ -505,7 +505,7 @@ class EntryService:
         try:
             summary = broker.get_account_summary()
             mt5_equity = summary.portfolio_value
-        except Exception:
+        except (OSError, TypeError, ValueError, AttributeError):
             logger.error("%s: failed to fetch MT5 equity for independent sizing", asset.name)
             return 0.0
 
@@ -583,7 +583,7 @@ class EntryService:
                 try:
                     cross_rate = broker.get_current_price(base_usd)
                     base_to_acc = cross_rate if cross_rate and cross_rate > 0 else entry_price
-                except Exception:
+                except (OSError, TypeError, ValueError, AttributeError):
                     base_to_acc = entry_price
             else:
                 # Quote is USD (EURUSD, GBPUSD, etc.) — entry_price is correct
@@ -602,7 +602,7 @@ class EntryService:
         if hasattr(broker, "min_viable_qty"):
             try:
                 min_viable = broker.min_viable_qty(asset.ticker)
-            except Exception:
+            except (OSError, TypeError, ValueError, AttributeError):
                 min_viable = 0.0
         else:
             min_viable = 0.0

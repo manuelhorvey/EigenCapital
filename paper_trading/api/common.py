@@ -111,6 +111,16 @@ def init_store(store=None, base_dir: str | None = None) -> None:
     _STORE = StateStore(base_dir or _PROJECT_ROOT)
 
 
+def reset_store() -> None:
+    """Reset the module-level StateStore. Test-harness use only.
+
+    Call between test cases to clear the cached singleton so the next
+    ``init_store()`` call creates a fresh instance.
+    """
+    global _STORE
+    _STORE = None
+
+
 DASHBOARD_DIST = os.path.join(BASE, "dashboard", "dist")
 FRONTEND_DIR = os.path.join(BASE, "frontend")
 LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "engine.log")

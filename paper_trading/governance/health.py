@@ -61,14 +61,14 @@ def _load_state_assets() -> dict:
             assets = state.get("assets", {})
             if assets:
                 return assets
-        except Exception:
+        except (AttributeError, TypeError, ValueError, KeyError):
             logger.warning("Failed to load engine state from live engine", exc_info=True)
     # Fallback: state store snapshot
     try:
         snapshot = _get_state_store().load_snapshot()
         if snapshot is not None and snapshot.assets:
             return snapshot.assets
-    except Exception:
+    except (AttributeError, OSError, TypeError, ValueError):
         logger.warning("Failed to load snapshot from state store", exc_info=True)
     return {}
 
@@ -80,7 +80,7 @@ def _load_cmss(asset: str) -> float | None:
             with open(path) as f:
                 data = json.load(f)
             return data.get("cmss")
-    except Exception:
+    except (OSError, ValueError, KeyError, TypeError):
         logger.warning("Failed to load CMSS for %s", asset, exc_info=True)
     return None
 
@@ -182,7 +182,7 @@ def compute(asset: str, assets: dict | None = None) -> dict:
             _cache[asset] = result
 
         return result
-    except Exception:
+    except (KeyError, ValueError, TypeError, AttributeError, OSError):
         logger.exception("Health computation failed for %s", asset)
         return _fallback(asset)
 
@@ -204,7 +204,7 @@ def compute_all() -> dict:
             name = future_map[future]
             try:
                 results[name] = future.result()
-            except Exception:
+            except (KeyError, ValueError, TypeError, AttributeError):
                 logger.exception("Health computation thread failed for %s", name)
                 results[name] = _fallback(name)
 

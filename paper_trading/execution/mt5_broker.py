@@ -82,7 +82,7 @@ class MT5Broker(BrokerInterface):
         if self._wal_writer is not None:
             try:
                 self._wal_writer.write(event_type, payload)
-            except Exception as e:
+            except (OSError, RuntimeError, KeyError) as e:
                 logger.debug("WAL write failed for %s: %s", event_type, e)
 
     # ── Connection lifecycle ────────────────────────────────────────────
@@ -147,7 +147,7 @@ class MT5Broker(BrokerInterface):
         try:
             summary = self.get_account_summary()
             current = summary.portfolio_value
-        except Exception:
+        except (OSError, TypeError, ValueError, AttributeError):
             return 0.0
         if current <= 0 or self._peak_equity <= 0:
             return 0.0
@@ -215,7 +215,7 @@ class MT5Broker(BrokerInterface):
                 comment="EigenCapital",
                 idempotency_key=id_key,
             )
-        except Exception as e:
+        except (OSError, TypeError, ValueError, AttributeError, KeyError) as e:
             logger.error("Order placement failed for %s: %s", order.asset, e)
             self._wal_event(
                 "mt5_order_rejected",
@@ -352,7 +352,7 @@ class MT5Broker(BrokerInterface):
             with self._cache_lock:
                 self._position_cache = positions
                 self._position_cache_time = time.monotonic()
-        except Exception as e:
+        except (OSError, TypeError, ValueError, KeyError) as e:
             logger.error("SLTP_VERIFY: failed to fetch positions for ticket=%s asset=%s: %s", ticket, asset, e)
             return False
         for p in positions:
@@ -447,7 +447,7 @@ class MT5Broker(BrokerInterface):
         self.ensure_connected()
         try:
             return self._client.get_deal_by_ticket(ticket)
-        except Exception as e:
+        except (OSError, TypeError, ValueError, KeyError) as e:
             logger.error("get_deal_by_ticket failed for ticket=%s: %s", ticket, e)
             return None
 
@@ -472,7 +472,7 @@ class MT5Broker(BrokerInterface):
 
         try:
             raw = self._client.get_positions()
-        except Exception as e:
+        except (OSError, TypeError, ValueError, KeyError) as e:
             logger.error("Failed to fetch positions: %s", e)
             with self._cache_lock:
                 return list(self._position_cache) if self._position_cache else []

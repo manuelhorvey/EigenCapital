@@ -351,7 +351,7 @@ class EngineStateService:
             if rw:
                 return factor_summary(rw)
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
-        except Exception:
+        except (KeyError, ValueError, TypeError, AttributeError, ImportError):
             logger.exception("Failed to compute factor exposures")
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
 
@@ -365,7 +365,7 @@ class EngineStateService:
             tracker = LiveSharpeTracker(base_dir=base)
             sharpe_data = tracker.compute()
             state["portfolio"]["live_sharpe"] = sharpe_data
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError, ImportError):
             logger.exception("Failed to compute live Sharpe")
             state["portfolio"]["live_sharpe"] = {"available": False}
 
@@ -378,7 +378,7 @@ class EngineStateService:
 
                 monitor = get_monitor()
                 state["portfolio"]["edge_health"] = monitor.summary
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
             logger.exception("Failed to compute edge health")
             state["portfolio"]["edge_health"] = {"available": False}
 
@@ -392,7 +392,7 @@ class EngineStateService:
                 adm = getattr(orch, "_last_admission", None)
                 if adm is not None:
                     state["portfolio"]["admission"] = adm
-        except Exception:
+        except (KeyError, ValueError, TypeError, AttributeError):
             logger.exception("Failed to extract PEK state")
 
         # Capture MT5 connection status (embedded in state snapshot — replaces global set_mt5_status)
@@ -425,7 +425,7 @@ class EngineStateService:
                                 for p in raw.positions
                             ],
                         }
-                except Exception:
+                except (OSError, TypeError, ValueError, KeyError):
                     logger.exception("MT5 position fetch failed")
                 mt5_status = {
                     "connected": is_connected,
@@ -433,7 +433,7 @@ class EngineStateService:
                     "last_heartbeat": last_hb_iso,
                     "account": account,
                 }
-        except Exception:
+        except (OSError, TypeError, ValueError, AttributeError):
             logger.exception("MT5 status capture failed")
         state["mt5"] = mt5_status
         # Publish-time contract: mark each per-asset dict as read-only for
@@ -543,7 +543,7 @@ class EngineStateService:
             risk_state = get_risk_state()
             if risk_state.get("sell_win_rates") or risk_state.get("tripwire_last_state"):
                 snapshot.risk_state = risk_state
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError):
             logger.exception("Failed to capture risk state")
         self._append_equity_history(state)
         engine.state_store.save_snapshot(snapshot)
@@ -552,7 +552,7 @@ class EngineStateService:
 
         try:
             update_engine_metrics(engine)
-        except Exception:
+        except (OSError, ValueError, TypeError, AttributeError):
             logger.warning("Failed to update Prometheus engine metrics", exc_info=True)
 
         return state
@@ -590,7 +590,7 @@ class EngineStateService:
         """refresh_price() wrapper that swallows exceptions per-asset."""
         try:
             asset.refresh_price()
-        except Exception:
+        except (OSError, TypeError, ValueError):
             logger.exception("%s: refresh_price failed in state.json build", name)
 
     def _append_equity_history(self, state):

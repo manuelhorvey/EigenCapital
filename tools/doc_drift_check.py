@@ -475,8 +475,18 @@ def _check_markdown_paths() -> list[str]:
             if normalized in seen:
                 continue
             seen.add(normalized)
-            if not resolved.exists():
-                out.append(f"{rel}: path `{candidate}` does not resolve on disk")
+            if resolved.exists():
+                continue
+
+            # Fallback: config domain paths are often written as shorthand
+            # (e.g. `risk/capital.yaml` instead of
+            # `configs/domains/risk/capital.yaml`) in doc tables.
+            if resolved.suffix in {".yaml", ".yml", ".json", ".toml"}:
+                domain_resolved = REPO_ROOT / "configs" / "domains" / normalized
+                if domain_resolved.exists():
+                    continue
+
+            out.append(f"{rel}: path `{candidate}` does not resolve on disk")
 
     return out
 

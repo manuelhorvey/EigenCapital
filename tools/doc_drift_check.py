@@ -455,8 +455,8 @@ def _check_markdown_paths() -> list[str]:
             # Skip absolute paths starting with / (API routes, not file paths)
             if candidate.startswith("/"):
                 continue
-            # Skip paths under data/live/ (runtime-generated files not present in CI)
-            if "data/live/" in candidate or candidate.startswith("data/live"):
+            # Skip paths under data/ (entire directory is gitignored — runtime-generated)
+            if candidate.startswith("data/"):
                 continue
             # Skip paths that are intentionally documented as deleted or planned
             if candidate in (

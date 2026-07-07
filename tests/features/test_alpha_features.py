@@ -370,11 +370,15 @@ def test_build_alpha_features_missing_rate_diff_defaults_to_zero(
 def test_build_alpha_features_with_cot_data(
     sample_prices, sample_rate_diffs, sample_macro,
 ):
-    """COT columns appear when cot_data is provided."""
+    """COT columns from relevant factor groups appear when cot_data is provided."""
     idx = sample_prices.index
+    # Use COT pairs whose factor groups overlap with the portfolio (AUDJPY ↔ AUD/JPY, EURCAD ↔ EUR/CAD).
+    # EURUSD overlaps with EUR, AUDUSD overlaps with AUD.
     cot_data = pd.DataFrame({
-        "AUDJPY_cot_z": np.random.default_rng(42).normal(0, 1, len(idx)),
-        "AUDJPY_cot_change_4w": np.random.default_rng(43).normal(0, 0.5, len(idx)),
+        "EURUSD_cot_z": np.random.default_rng(42).normal(0, 1, len(idx)),
+        "EURUSD_cot_change_4w": np.random.default_rng(43).normal(0, 0.5, len(idx)),
+        "AUDUSD_cot_z": np.random.default_rng(44).normal(0, 1, len(idx)),
+        "AUDUSD_cot_change_4w": np.random.default_rng(45).normal(0, 0.5, len(idx)),
     }, index=idx)
     result = build_alpha_features(
         sample_prices, sample_rate_diffs,
@@ -382,8 +386,10 @@ def test_build_alpha_features_with_cot_data(
         spx=sample_macro["spx"], commodities=sample_macro["comms"],
         cot_data=cot_data,
     )
-    assert "AUDJPY_cot_z" in result.columns
-    assert "AUDJPY_cot_change_4w" in result.columns
+    assert "EURUSD_cot_z" in result.columns
+    assert "EURUSD_cot_change_4w" in result.columns
+    assert "AUDUSD_cot_z" in result.columns
+    assert "AUDUSD_cot_change_4w" in result.columns
 
 
 def test_build_alpha_features_cot_initialized_zero_when_missing(
@@ -410,7 +416,7 @@ def test_build_alpha_features_cot_three_day_lag(
     """COT features are shifted by 3 days (publication lag)."""
     idx = sample_prices.index
     values = np.random.default_rng(42).normal(0, 1, len(idx))
-    cot_data = pd.DataFrame({"AUDJPY_cot_z": values}, index=idx)
+    cot_data = pd.DataFrame({"EURUSD_cot_z": values}, index=idx)
     result = build_alpha_features(
         sample_prices, sample_rate_diffs,
         dxy=sample_macro["dxy"], vix=sample_macro["vix"],
@@ -420,7 +426,7 @@ def test_build_alpha_features_cot_three_day_lag(
     # The lag means the first 3 rows of cot_z should be NaN (filled by ffill)
     # and the last 3 rows of cot_data should be absent from the result
     # Just check the column exists and has correct values
-    assert "AUDJPY_cot_z" in result.columns
+    assert "EURUSD_cot_z" in result.columns
 
 
 # ── cot_net_positioning ─────────────────────────────────────────────────────

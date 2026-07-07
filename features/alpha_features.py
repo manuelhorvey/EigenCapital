@@ -13,6 +13,39 @@ logger = logging.getLogger("eigencapital.alpha_features")
 # Asset name -> available in COT data lookup
 _COT_COVERED_NAMES: set[str] = set(k.upper() for k in FX_COT_CONTRACTS)
 
+# Factor groups covered by each COT pair.
+# Only assets whose factor group overlaps with a COT pair's groups
+# should receive that pair's COT features.
+# Derived from factor groups in shared/factor_model.py FACTOR_GROUPS.
+_COT_PAIR_FACTOR_GROUPS: dict[str, frozenset[str]] = {
+    "EURUSD": frozenset({"EUR", "USD"}),
+    "GBPUSD": frozenset({"GBP", "USD"}),
+    "USDJPY": frozenset({"USD", "JPY"}),
+    "AUDUSD": frozenset({"AUD", "USD"}),
+    "USDCAD": frozenset({"USD", "CAD"}),
+    "USDCHF": frozenset({"USD", "CHF"}),
+    "NZDUSD": frozenset({"NZD", "USD"}),
+    "MXNUSD": frozenset({"USD"}),
+}
+
+# Derive asset-to-factor-group mapping from shared/factor_model.py FACTOR_GROUPS.
+# Invert the FACTOR_GROUPS dict (factor -> set of assets) to get asset -> set of factors.
+# This avoids maintaining a parallel mapping that would drift from the canonical one.
+def _build_asset_factor_groups() -> dict[str, frozenset[str]]:
+    try:
+        from shared.factor_model import FACTOR_GROUPS
+
+        result: dict[str, set[str]] = {}
+        for factor, assets in FACTOR_GROUPS.items():
+            for asset in assets:
+                result.setdefault(asset, set()).add(factor)
+        return {k: frozenset(v) for k, v in result.items()}
+    except (ImportError, AttributeError, TypeError):
+        return {}
+
+
+_ASSET_FACTOR_GROUPS: dict[str, frozenset[str]] = _build_asset_factor_groups()
+
 
 def vol_adjusted_carry(price: pd.Series, rate_diff: pd.Series, vol_window: int = 21) -> pd.Series:
     """
@@ -281,13 +314,10 @@ def _compute_shared_features(
             if index is not None:
                 v = v.reindex(index)
             features[f"{comm.upper()}_mom_21d"] = v
-    if cot_data is not None:
-        for pair in cot_data.columns:
-            if index is not None or pair in (cot_data.columns if cot_data is not None else []):
-                v = cot_data[pair]
-                if index is not None:
-                    v = v.reindex(index)
-                features[f"{pair}_cot_z"] = v
+    # COT features are NOT added to shared_features — they flow directly through
+    # build_alpha_features()'s cot_data parameter where factor-group relevance
+    # filtering is applied.  This prevents the shared_features shortcut from
+    # bypassing the per-asset filter (see build_alpha_features cot_data loop).
     return features
 
 
@@ -389,20 +419,34 @@ def build_alpha_features(
             for comm in commodities.columns:
                 features[f"{comm.upper()}_mom_21d"] = commodity_momentum(commodities[comm]).reindex(features.index)
 
-    # Initialize all possible COT features for covered assets to 0.0 first
-    # to ensure all expected features are present even if COT data is missing or partial.
+    # Initialize per-asset COT features for directly covered assets.
     for asset_upper in (c.upper() for c in prices.columns):
         if asset_upper in _COT_COVERED_NAMES:
             features[f"{asset_upper}_cot_z"] = 0.0
             features[f"{asset_upper}_cot_change_4w"] = 0.0
 
-    # Overwrite/add cross-asset COT features from cot_data if available.
+    # Add COT features filtered by factor group relevance.
     # COT is published Friday 3:30pm ET for Tuesday snapshot — 3-day publication lag.
     cot_lag_days = 3
     if cot_data is not None and not cot_data.empty:
+        # Determine which COT pairs are relevant to the current portfolio.
+        # Only include COT pairs whose factor groups overlap with at least
+        # one asset in the portfolio.
+        portfolio_factor_groups: set[str] = set()
+        for asset_upper in (c.upper() for c in prices.columns):
+            portfolio_factor_groups.update(_ASSET_FACTOR_GROUPS.get(asset_upper, set()))
+
+        relevant_cot_pairs: set[str] = set()
+        for pair_raw, pair_groups in _COT_PAIR_FACTOR_GROUPS.items():
+            if pair_groups & portfolio_factor_groups:
+                relevant_cot_pairs.add(pair_raw)
+
         for col in cot_data.columns:
-            cot_lagged = cot_data[col].shift(cot_lag_days)
-            features[col] = cot_lagged.reindex(features.index, method="ffill")
+            # Parse the pair symbol from the column name (e.g., "EURUSD_cot_z" -> "EURUSD")
+            pair_sym = col.replace("_cot_z", "").replace("_cot_change_4w", "")
+            if pair_sym in relevant_cot_pairs:
+                cot_lagged = cot_data[col].shift(cot_lag_days)
+                features[col] = cot_lagged.reindex(features.index, method="ffill")
 
     # Final forward-fill and dropna to handle indicator warmup.
     # We also fill any remaining NaNs in cross-asset/COT features with 0.0

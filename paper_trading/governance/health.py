@@ -46,6 +46,17 @@ def register_engine(engine: object) -> None:
     _ENGINE = engine
 
 
+def register_state_store(store: StateStore | None) -> None:
+    """Register a StateStore instance for use when the live engine is not available.
+
+    Allows tests and dashboard code to inject a specific store instead of
+    ``_get_state_store()`` creating its own independent singleton.
+    Pass ``None`` to reset to default behavior (lazy create on first use).
+    """
+    global _STATE_STORE
+    _STATE_STORE = store
+
+
 def _get_state_store() -> StateStore:
     global _STATE_STORE
     if _STATE_STORE is None:

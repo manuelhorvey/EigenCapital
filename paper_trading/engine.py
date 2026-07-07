@@ -80,7 +80,7 @@ class PaperTradingEngine:
                 ", ".join(report["forbidden_modules_loaded"]),
             )
 
-        self.state_store = state_store or _STORE
+        self.state_store = state_store or StateStore(BASE)
         self.assets = {}
         self.start_date = datetime.now(tz=ET)
         self.last_update = None

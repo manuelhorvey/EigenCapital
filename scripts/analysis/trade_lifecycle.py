@@ -153,10 +153,20 @@ def load_signal_data(asset: str, tag: str = "remediation") -> pd.DataFrame | Non
 
 
 def fetch_ohlcv(ticker: str) -> pd.DataFrame:
-    """Fetch OHLCV data from yfinance or local cache."""
-    from features.data_fetch import fetch_asset_ohlcv
+    """Fetch OHLCV data from yfinance directly (bypass MT5 for dev env)."""
+    import yfinance as yf
 
-    return fetch_asset_ohlcv(ticker)
+    df = yf.download(ticker, period="2y", auto_adjust=True, progress=False)
+    if df is None or df.empty:
+        return pd.DataFrame()
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0] for c in df.columns]
+    df = df.rename(
+        columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}
+    )
+    if hasattr(df.index, "tz") and df.index.tz is not None:
+        df.index = df.index.tz_localize(None)
+    return df
 
 
 def compute_atr_pct(ohlcv: pd.DataFrame, period: int = 14) -> pd.Series:

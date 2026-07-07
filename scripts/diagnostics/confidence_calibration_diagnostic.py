@@ -344,7 +344,103 @@ def main(tag: str):
         sub = sell_sorted.head(int(n_sell * c))
         print(f"  {c:<8.0%} {len(sub):<6} {sub['broken_conf'].mean():<10.3f} {sub['label'].mean():<10.3f}")
 
+    # ── Step A11: POST-FIX direction-conditional confidence (live path) ──
+    # After the calibration fix, proba[:, 2] = cal_p_long and proba[:, 0]
+    # is preserved from the 3-class softmax. The live confidence rule
+    # ``max(prob_long, prob_short)`` therefore picks the chosen-direction
+    # probability, which is the *direction-conditional* P(win|signal).
+    # Bucketing the trades by this metric should resolve the C-03 inversion.
+    print("\n=== A11: POST-FIX direction-conditional confidence (live path) ===")
+    directional["live_conf"] = np.where(
+        directional["signal"] == 1,
+        directional["p_long"],
+        1.0 - directional["p_long"],
+    )
+    a11 = bucket_table(directional, "live_conf", "label", n_buckets=10)
+    print("  all directional trades (per direction, column per chosen-side prob):")
+    print(a11.to_string())
+
+    print("\n=== A12: POST-FIX Top-X% filter (live_conf, BUY only) ===")
+    buy_live = directional[directional["signal"] == 1].sort_values("live_conf", ascending=False).reset_index(drop=True)
+    n_buy = len(buy_live)
+    print(f"  {'top%':<8} {'n':<6} {'avg_conf':<10} {'win_rate':<10}")
+    for c in [0.10, 0.25, 0.50, 0.75, 1.00]:
+        sub = buy_live.head(int(n_buy * c))
+        print(f"  {c:<8.0%} {len(sub):<6} {sub['live_conf'].mean():<10.3f} {sub['label'].mean():<10.3f}")
+    if n_buy >= 20:
+        from scipy.stats import mannwhitneyu
+
+        u, p = mannwhitneyu(buy_live.head(int(n_buy * 0.10))["label"].values, buy_live.tail(int(n_buy * 0.10))["label"].values, alternative="greater")
+        print(f"  Mann-Whitney top 10% vs bottom 10% (alternative=greater): U={u}, p={p:.3g}")
+
+    print("\n=== A13: POST-FIX Top-X% filter (live_conf, SELL only) ===")
+    sell_live = directional[directional["signal"] == -1].sort_values("live_conf", ascending=False).reset_index(drop=True)
+    n_sell = len(sell_live)
+    print(f"  {'top%':<8} {'n':<6} {'avg_conf':<10} {'win_rate':<10}")
+    for c in [0.10, 0.25, 0.50, 0.75, 1.00]:
+        sub = sell_live.head(int(n_sell * c))
+        print(f"  {c:<8.0%} {len(sub):<6} {sub['live_conf'].mean():<10.3f} {sub['label'].mean():<10.3f}")
+
+    print("\n=== A14: POST-FIX per-asset Spearman (live_conf vs WR) ===")
+    asset_perf_live = (
+        directional.groupby("asset_name")
+        .agg(
+            n=("label", "size"),
+            wr=("label", "mean"),
+            avg_live=("live_conf", "mean"),
+        )
+        .reset_index()
+    )
+    rl, pl = spearman_corr(asset_perf_live, "avg_live")
+    print(f"  r={rl:.3f}, p={pl:.3f} (post-fix live_conf)")
+    print(asset_perf_live.sort_values("avg_live", ascending=False).head(10).to_string(index=False))
+
+    # ── A15: Proof-of-concept — does a richer meta-labeling model discriminate OOS? ──
+    # Train a quick meta classifier on (p_long, p_short) → label for BUY trades only.
+    # This is just to gauge whether Option C work would be fruitful if we have
+    # the right feature set; the live meta-label was not trained with these.
+    print("\n=== A15: Quick meta-labeling PoC (BUY only, simple features) ===")
+    print("    NOTE: This is a proof-of-concept only. The production meta-label")
+    print("    would need additional features (vol_regime, spread_bps, etc.) that")
+    print("    are not currently captured in feature vectors.")
+    try:
+        from sklearn.metrics import brier_score_loss, roc_auc_score
+
+        buy_meta = directional[directional["signal"] == 1].copy()
+        n_meta = len(buy_meta)
+        if n_meta < 50:
+            print("    Insufficient BUY trades for meta-labeling PoC.")
+        else:
+            X = buy_meta[["p_long"]].values
+            y = buy_meta["label"].astype(int).values
+            n_val = max(int(n_meta * 0.2), 25)
+            X_tr, X_va = X[:-n_val], X[-n_val:]
+            y_tr, y_va = y[:-n_val], y[-n_val:]
+            from xgboost import XGBClassifier
+            model_m = XGBClassifier(n_estimators=60, max_depth=2, learning_rate=0.05, random_state=42, verbosity=0)
+            model_m.fit(X_tr, y_tr, eval_set=[(X_va, y_va)], verbose=False)
+            p_tr = model_m.predict_proba(X_tr)[:, 1]
+            p_va = model_m.predict_proba(X_va)[:, 1]
+            auc_tr = roc_auc_score(y_tr, p_tr)
+            auc_va = roc_auc_score(y_va, p_va)
+            brier_tr = brier_score_loss(y_tr, p_tr)
+            brier_va = brier_score_loss(y_va, p_va)
+            print(f"    Total BUY trades: {n_meta}, training: {len(X_tr)}, OOS: {len(X_va)}")
+            print(f"    AUC   train={auc_tr:.3f}  OOS={auc_va:.3f}")
+            print(f"    Brier train={brier_tr:.3f}  OOS={brier_va:.3f}")
+            print(f"    OOS WR={y_va.mean():.3f}; base-rate Brier={y_va.mean()*(1-y_va.mean()):.3f}")
+            print()
+            # Bucket OOS predictions
+            df_va = pd.DataFrame({"meta": p_va, "y": y_va})
+            df_va["bucket"] = pd.qcut(df_va["meta"], q=10, duplicates="drop", labels=False)
+            gb = df_va.groupby("bucket").agg(n=("y","size"), wr=("y","mean"), avg_meta=("meta","mean"))
+            print(f"    Out-of-sample discretization:")
+            print(gb.to_string())
+    except Exception as exc:
+        print(f"    Skipped due to: {exc}")
+
     # ── Save JSON for archival ──
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = {
         "tag": tag,
         "n_dir_trades": int(len(directional)),
@@ -352,9 +448,11 @@ def main(tag: str):
         "broken_buckets": a1.reset_index().to_dict(orient="records"),
         "pa_cal_buckets": a2.reset_index().to_dict(orient="records"),
         "global_cal_buckets": a2b.reset_index().to_dict(orient="records"),
+        "post_fix_live_buckets": a11.reset_index().to_dict(orient="records"),
         "asset_perf_broken_spearman": {"r": float(rb), "p": float(pb)},
         "asset_perf_pa_cal_spearman": {"r": float(rc), "p": float(pc)},
         "asset_perf_global_cal_spearman": {"r": float(rg), "p": float(pg)},
+        "asset_perf_live_spearman": {"r": float(rl), "p": float(pl)},
     }
     out_path = OUT_DIR / f"c03_confidence_diagnostic_{tag}.json"
     with open(out_path, "w") as f:

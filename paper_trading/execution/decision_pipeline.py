@@ -328,24 +328,23 @@ def manage_position(ctx: DecisionContext) -> None:
                 gate.execute_stack(ctx)
                 ctx.new_side = None
                 return
-        max_pos = int(engine.config.get("max_positions_per_asset", 2))
-        if engine.position_count() < max_pos:
             logger.info(
-                "%s: re-entry allowed — %d of %d positions used",
+                "%s: stacking rejected — holding current %s position (%s)",
                 engine.name,
-                engine.position_count(),
-                max_pos,
+                ctx.current_side,
+                decision.reason,
             )
         else:
             logger.info(
-                "%s: already in %s position — max positions reached (%d/%d)",
+                "%s: stacking disabled — holding current %s position",
                 engine.name,
-                ctx.new_side,
-                engine.position_count(),
-                max_pos,
+                ctx.current_side,
             )
-            ctx.new_side = None
-            return
+        # Stacking disabled or gate rejected: hold the current position.
+        # Never fall through to close-reopen — that would destroy trailing
+        # SL protection and generate false "FLIP" exit records.
+        ctx.new_side = None
+        return
 
     # Check entry gate before doing anything.
     # If cool-down or other gate blocks, don't close the existing position

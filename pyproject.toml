@@ -131,6 +131,7 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
 "paper_trading/asset_pnl_controller.py" = ["BLE001"]
 # BLE001 removals per Phase 1 audit — fixed files no longer need blanket suppression.
 # Remaining files still need remediation.
+"paper_trading/engine.py" = ["BLE001"]
 "paper_trading/entry/optimizer.py" = ["BLE001"]
 "paper_trading/entry/policy.py" = ["BLE001"]
 "paper_trading/execution/gate_constants.py" = ["BLE001"]

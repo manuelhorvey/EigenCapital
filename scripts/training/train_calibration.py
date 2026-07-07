@@ -24,7 +24,7 @@ from shared.calibration.calibrator import compute_ece
 
 logger = logging.getLogger("train_calibration")
 
-MODEL_DIR = Path(__file__).resolve().parent.parent / "paper_trading" / "models"
+MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "paper_trading" / "models"
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 CALIBRATION_DIR = MODEL_DIR / "calibration"
 

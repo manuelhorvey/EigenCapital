@@ -228,12 +228,19 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
             return df
         logger.warning("MT5 fetch returned empty for %s — falling back to yfinance", ticker)
 
-    delays = [5, 15, 45]
+    delays = [2, 3, 5]
     for attempt, delay in enumerate(delays, 1):
         try:
             _rate_limit()
-            df = yf.download(ticker, **kwargs)
+            df = yf.download(ticker, auto_adjust=False, **kwargs)
+            if df is None:
+                logger.warning("%s yfinance returned None attempt %d/3", ticker, attempt)
+                if attempt < len(delays):
+                    time.sleep(delay)
+                continue
             if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = [c[0] for c in df.columns]
                 _cache_set(cache_key, df, "download")
                 _get_store().save_cache(ticker, df)
                 _check_data_quality(df, ticker, source="live")
@@ -295,7 +302,6 @@ def fetch_live(ticker: str, min_days: int = 500) -> pd.DataFrame:
     df = safe_download(
         ticker,
         start=start,
-        auto_adjust=True,
         progress=False,
     )
     if df.empty:
@@ -310,7 +316,6 @@ def fetch_history(ticker: str, years: int = 10) -> pd.DataFrame:
     df = safe_download(
         ticker,
         start=start,
-        auto_adjust=True,
         progress=False,
     )
     if df.empty:

@@ -530,7 +530,9 @@ def fetch_asset_ohlcv(
     period = period or _FETCH_PERIOD
     import yfinance as yf
 
-    df = yf.download(ticker, period=period, auto_adjust=True, progress=False)
+    df = yf.download(ticker, period=period, auto_adjust=False, progress=False)
+    if df is None:
+        return pd.DataFrame()
     if df.empty:
         return pd.DataFrame()
     if isinstance(df.columns, pd.MultiIndex):

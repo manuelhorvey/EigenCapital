@@ -1,5 +1,83 @@
 # Changelog
 
+## v4.3.0 (2026-07-08)
+
+### Features
+- **Model retraining pipeline**: automated training, validation, and performance comparison pipeline for model retraining
+- **Model health monitor**: health monitor, retrain scheduler, and systemd timers for scheduled model validation
+- **HealthMonitorPanel**: new dashboard component on the /risk page showing model health status
+- **Live validation suite**: Prometheus uptime gauge and live validation checks
+- **EigenCapitalJSONEncoder**: cross-cutting serialization encoder replacing ad-hoc `default=str` patterns
+- **Meta-label confidence**: surface meta-label confidence in TradeDecision for richer signal telemetry
+- **Direction-conditional analysis**: post-fix direction-conditional diagnostics + lifecycle OHLCV fix
+
+### Architecture & Refactoring (H-06 singleton elimination)
+- Eliminate global `_STORE`/`_LazyStore` singletons from state layer
+- Inject `StateStore` through all API route modules (POST dispatch, response metadata)
+- Eliminate global singletons for config, registry, and MT5 status in governance layer
+- Migrate all remaining `json.dumps`/`json.dump` `default=str` calls to `EigenCapitalJSONEncoder`
+- Extract MT5 orphan reconciliation into `orphan_reconciliation.py`
+- Extract VaR/CVaR computation into `health.py`
+- Extract position concentration and correlation monitoring into `correlation.py`
+
+### Engine & Fixes
+- **State persistence**: persist and restore equity curve + risk state across engine restarts
+- **Exit system fixes**: resolve dual trailing exit conflict; remove dead `_apply_post_entry_adjust_only`
+- **WAL checkpoint**: add WAL checkpoint after equity history writes
+- **yfinance v1.2.0**: fix `auto_adjust` collision + retry delays for reliable data fetching
+- **Calibration**: preserve 3-class simplex integrity; add C-03 confidence diagnostic
+- **Orphan reconciliation**: fix indentation of `except` blocks
+- **CHF limit**: revert CHF limit from 0.25→0.20 in production config
+- **Backtest**: add `--tag` flag and yfinance OHLCV fallback to Monte Carlo
+- **Serialization**: handle datetime in simulation snapshot trade_log
+- **Systemd**: remove system-level dependencies from user-level service unit files
+
+### Frontend audit remediation (merged)
+- F6: governance selector now mirrors backend instead of re-deriving `combined_sl_mult`/`size_scalar`
+- B6/F10: show skeleton only on initial load, not background refetch
+- F9: modal stacking fix for overlay z-index
+- F2: schema drift alignment with backend
+- AssetDeepDive: move `scatterGlobalMax` outside JSX to fix TS1382 parse error
+- Dashboard: fix null-reference crash on asset card → sizing view
+- Proxy cleanup, SVG clipping fix, tone comparison, `contentVisibility` removal
+- `useMonitorAlerts` ref pattern alignment
+- Utility tests and selector tests added
+
+### Testing (+500 new tests)
+- **shared/**: execution_config (16), meta_labeling (20), metrics_snapshot (10), constrained_weights (6)
+- **shared/metrics/**: fqi (12), eis (8), attribution (8), mae_mfe (6), shadow (5)
+- **paper_trading/**: writer (11), portfolio_builder (8)
+- **alerting/**: manager (15)
+- **entry/**: deferred_entry (10), optimizer (11), policy (11), tp_compiler (10)
+- **attribution/**: collector (16)
+- **features/**, **labels/**, **signals/**, **portfolio/**: 126 tests
+- **risk/**, **monitoring/**, **tools/**, **benchmarks/**: 167 tests
+- **ops/**: 32 unit + CLI smoke tests for `model_health_monitor.py`
+- **Frontend**: unit tests for useTrades, useWeeklyReview, useAssetDeepDive, useEquityHistory
+- **Frontend**: unit tests for format utilities and trading-state selectors
+- **Temporal**: mock-based tz provenance tests
+
+### Documentation (16 audit recommendations)
+- Complete all 16 audit remediation items
+- ANALYSIS.md, AGENTS.md split; JSDoc sweep across dashboard components
+- Module-level docstrings added to 4 scripts
+- WAL event type reference + decision pipeline stage enrichment
+- Create state.json schema reference document
+- Dashboard component inventory added
+- Cross-reference duplicate DEVELOPMENT docs
+- Resolve shorthand config paths via `configs/domains/` fallback
+- Simplify config file paths in CONFIGURATION.md
+- AGENTS.md updated with new extracted orchestrator modules
+- Doc-drift: generalize `data/` exclusion; silence false positives from audit report paths
+
+### Chore
+- Replace stale Quorrin project paths with EigenCapital (service units, docs)
+- Model hash sidecars updated after retrain pipeline
+- Ruff format fixes (risk_registry.py, engine_state_service.py)
+- E501 line-too-long fixes + full ruff format pass
+- Conftest import order fix; logging guard in conftest
+- Logging moved out of module-level in benchmarks/microbenchmark.py
+
 ## v4.2.1 (2026-07-06)
 
 ### Bug fixes — live trading session

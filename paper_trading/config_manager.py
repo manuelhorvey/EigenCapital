@@ -1,6 +1,8 @@
+import contextlib
 import logging
 import os
 import stat
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -420,6 +422,29 @@ def get_config(path: str | None = None, override: EngineConfig | None = None) ->
     if _GLOBAL_CONFIG is None:
         _GLOBAL_CONFIG = load_config(path)
     return _GLOBAL_CONFIG
+
+
+@contextlib.contextmanager
+def config_context(config: EngineConfig) -> Iterator[None]:
+    """Temporarily override the global config.
+
+    Usage in tests::
+
+        with config_context(my_config):
+            cfg = get_config()
+            # cfg is my_config
+        # Outside the block, get_config() returns the previous value
+
+    Nesting is supported — the outer value is restored when the inner
+    context exits.
+    """
+    global _GLOBAL_CONFIG
+    previous = _GLOBAL_CONFIG
+    _GLOBAL_CONFIG = config
+    try:
+        yield
+    finally:
+        _GLOBAL_CONFIG = previous
 
 
 def reset_config() -> None:

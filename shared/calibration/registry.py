@@ -42,6 +42,21 @@ class CalibrationRegistry:
     _lock = threading.Lock()
 
     @classmethod
+    def reset(cls, directory: str | Path | None = None) -> None:
+        """Clear cached registry instance(s).
+
+        Args:
+            directory: If provided, only the instance for *directory* is
+                cleared.  If ``None``, all cached instances are cleared.
+                Useful in tests to force a fresh load between test cases.
+        """
+        if directory is None:
+            cls._instances.clear()
+        else:
+            key = str(Path(directory).resolve())
+            cls._instances.pop(key, None)
+
+    @classmethod
     def get_or_load(cls, directory: str | Path) -> CalibrationRegistry:
         """Return cached registry for *directory*, loading once on first call."""
         key = str(Path(directory).resolve())

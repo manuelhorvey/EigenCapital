@@ -215,7 +215,7 @@ class MT5Broker(BrokerInterface):
                 comment="EigenCapital",
                 idempotency_key=id_key,
             )
-        except (OSError, TypeError, ValueError, AttributeError, KeyError) as e:
+        except (OSError, TypeError, ValueError, AttributeError, KeyError, RuntimeError) as e:
             logger.error("Order placement failed for %s: %s", order.asset, e)
             self._wal_event(
                 "mt5_order_rejected",

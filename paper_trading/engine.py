@@ -375,7 +375,7 @@ class PaperTradingEngine:
             try:
                 asset.train(force=True)
                 logger.info("%s: training done", name)
-            except (OSError, ValueError, TypeError, RuntimeError, ImportError) as e:
+            except (OSError, ValueError, TypeError, RuntimeError, ImportError, Exception) as e:
                 logger.error("%s: training FAILED - %s", name, e)
 
     def _get_weekend_eligible_assets(self) -> set[str]:

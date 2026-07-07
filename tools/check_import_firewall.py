@@ -74,9 +74,8 @@ def _is_excluded(path: Path) -> bool:
 
 
 def _module_forbidden(mod_name: str) -> str | None:
-    mod_root = mod_name.split(".")[0]
     for forbidden in FORBIDDEN_MODULES:
-        if mod_root == forbidden or mod_name.startswith(forbidden + "."):
+        if mod_name == forbidden or mod_name.startswith(forbidden + "."):
             return forbidden
     return None
 

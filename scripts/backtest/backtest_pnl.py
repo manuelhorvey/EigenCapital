@@ -25,6 +25,7 @@ or transaction costs.  Not currency PnL.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -99,6 +100,26 @@ def _asset_pt_sl_from_config() -> dict[str, tuple[float, float]]:
     return result
 
 
+def _asset_min_confidence_from_config() -> dict[str, float]:
+    """Return per-asset min_confidence as absolute p_long values (0-1 scale).
+
+    Live ``decision.confidence`` is on a 0-100 percent scale (``paper_trading/ops/wrappers.py:38``):
+    ``confidence_pct = round(confidence * 100, 2)``.  Config ``min_confidence``
+    values are expressed in that same percent scale (40.0, 55.0).  We divide
+    by 100 so callers can compare directly against ``p_long`` from the
+    walk-forward parquets, which are on the 0-1 scale.
+    """
+    from paper_trading.config_manager import get_config
+
+    cfg = get_config()
+    default_mc = float(cfg.defaults.get("min_confidence", 55.0))
+    out: dict[str, float] = {}
+    for name, acfg in cfg.assets.items():
+        mc = acfg.get("min_confidence")
+        out[name] = (float(mc) / 100.0) if mc is not None else (default_mc / 100.0)
+    return out
+
+
 def compute_asset_daily_r(
     df: pd.DataFrame,
     tp: float,
@@ -125,6 +146,40 @@ def compute_asset_daily_r(
     return pd.Series(r, index=df.index, name="daily_r")
 
 
+def rederive_signals_from_p_long(df: pd.DataFrame, threshold_abs: float | None) -> pd.DataFrame:
+    """Override ``df['signal']`` from ``p_long`` at the given absolute threshold.
+
+    Mirrors live engine semantics (``paper_trading/ops/wrappers.py:37``):
+      side = BUY if p_long > 0.5 else SELL
+      trade fires iff max(p_long, 1-p_long) >= threshold_abs
+
+    For threshold_abs > 0.5:
+      BUY  if p_long >= threshold_abs
+      SELL if p_long <= 1 - threshold_abs
+    For threshold_abs <= 0.5:
+      BUY  if p_long > 0.5
+      SELL if p_long < 0.5
+    For threshold_abs is None: returns df unchanged.
+
+    ``threshold_abs`` is on the 0-1 scale (e.g. 0.575 reproduces the
+    walk-forward default; 0.55 / 0.40 reproduce production
+    ``min_confidence`` after the percent → fraction conversion).
+    """
+    if threshold_abs is None or "p_long" not in df.columns:
+        return df
+    p_long = df["p_long"].astype(float).values
+    sig = np.zeros(len(p_long), dtype=int)
+    if threshold_abs > 0.5:
+        sig[p_long >= threshold_abs] = 1
+        sig[p_long <= 1.0 - threshold_abs] = -1
+    else:
+        sig[p_long > 0.5] = 1
+        sig[p_long < 0.5] = -1
+    df = df.copy()
+    df["signal"] = sig
+    return df
+
+
 def asset_metrics(daily_r: pd.Series) -> dict:
     """Compute summary metrics from a daily R series.
 
@@ -135,7 +190,7 @@ def asset_metrics(daily_r: pd.Series) -> dict:
     """
     n_trades = int((daily_r != 0).sum())
     if n_trades == 0:
-        return {
+        empty: dict[str, float | int] = {
             k: 0.0
             for k in (
                 "n_trades",
@@ -147,8 +202,15 @@ def asset_metrics(daily_r: pd.Series) -> dict:
                 "sharpe_adj",
                 "max_dd_R",
                 "calmar",
+                "skew",
+                "ex_kurt",
+                "hhi",
             )
         }
+        empty["psr_gt_0"] = float("nan")
+        empty["psr_gt_1"] = float("nan")
+        empty["min_trl"] = float("nan")
+        return empty
 
     wins = daily_r[daily_r > 0]
     losses = daily_r[daily_r < 0]
@@ -392,6 +454,41 @@ def main():
         default=True,
         help="Apply SELL-only filter for the 5 remaining SELL_ONLY assets (default: True)",
     )
+    parser.add_argument(
+        "--min-confidence",
+        type=float,
+        default=None,
+        help=(
+            "Override min_confidence for ALL assets. Value is in percent scale "
+            "(0-100), e.g. 55.0 reproduces the production default. "
+            "Walks-forward parquets bake a 0.575 absolute threshold which "
+            "silently under-counts assets that production would actually "
+            "trade.  Pass an explicit value to align the backtest with the "
+            "live engine."
+        ),
+    )
+    parser.add_argument(
+        "--min-confidence-map",
+        type=str,
+        default=None,
+        help=(
+            "Path to a JSON file mapping asset → min_confidence value "
+            "(percent scale, 0-100) for per-asset overrides.  Use "
+            "--use-prod-thresholds to auto-load the production config's "
+            "defaults without writing a JSON."
+        ),
+    )
+    parser.add_argument(
+        "--use-prod-thresholds",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Re-derive each asset's signals from ``p_long`` using its "
+            "production ``min_confidence`` (after percent → fraction "
+            "conversion) instead of the WF parquet's baked-in 0.575. "
+            "Recommended for backtests that should mirror live paper flow."
+        ),
+    )
     args = parser.parse_args()
     tag = args.tag
 
@@ -408,6 +505,40 @@ def main():
     print("  Does not reflect live position sizing, correlation-adjusted portfolio risk,")
     print("  or transaction costs.  Not currency PnL.")
     print()
+
+    # Resolve the per-asset threshold map (None = use parquet's baked-in signal).
+    threshold_map: dict[str, float | None] | None = None
+    if args.use_prod_thresholds:
+        mc = _asset_min_confidence_from_config()
+        threshold_map = {name: mc.get(name) for name in mc}
+        n_overrides = sum(1 for v in threshold_map.values() if v is not None)
+        logger.info(
+            "Using production min_confidence from config: %d assets loaded (percent → fraction conversion applied)",
+            n_overrides,
+        )
+    if args.min_confidence_map:
+        with open(args.min_confidence_map) as f:
+            mc_overrides = json.load(f)
+        if threshold_map is None:
+            threshold_map = {}
+        for asset, v in mc_overrides.items():
+            threshold_map[asset] = float(v) / 100.0 if v is not None else None
+        logger.info(
+            "Applied per-asset overrides from %s for %d assets",
+            args.min_confidence_map,
+            len(mc_overrides),
+        )
+    if args.min_confidence is not None:
+        if threshold_map is None:
+            threshold_map = {}
+        # Apply to every asset in the pt_sl_map.
+        pt_sl_preview = _asset_pt_sl_from_config()
+        for name in pt_sl_preview:
+            threshold_map[name] = args.min_confidence / 100.0
+        logger.info(
+            "Global --min-confidence override %.2f%% applied to all assets",
+            args.min_confidence,
+        )
 
     # Load per-asset pt_sl
     pt_sl_map = _asset_pt_sl_from_config()
@@ -445,6 +576,25 @@ def main():
         if df.empty:
             logger.warning("%s: empty signal parquet — skipping", asset)
             continue
+
+        # Re-derive signals from p_long when an override threshold is
+        # supplied.  The parquet's ``signal`` column was written at the
+        # walk-forward pipeline's default (0.575 absolute) which can be
+        # tighter than the production min_confidence for some assets.
+        # Without this override the parquet silently under-counts the
+        # trade flow that paper trading would actually generate.
+        if threshold_map is not None and asset in threshold_map:
+            thr_abs = threshold_map[asset]
+            if thr_abs is not None and "p_long" in df.columns:
+                df = rederive_signals_from_p_long(df, thr_abs)
+                logger.info(
+                    "%s: re-derived signals at threshold %.3f (p_long) — %d BUY / %d SELL / %d FLAT",
+                    asset,
+                    thr_abs,
+                    int((df["signal"] == 1).sum()),
+                    int((df["signal"] == -1).sum()),
+                    int((df["signal"] == 0).sum()),
+                )
 
         # SELL-only filter for assets with inverted BUY calibration
         if args.sell_only:

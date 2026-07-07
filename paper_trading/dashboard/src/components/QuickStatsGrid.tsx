@@ -57,9 +57,6 @@ function QuickStatsGridInner() {
   const posReturn = totalReturn >= 0
   const posRealized = (p.realized_return ?? 0) >= 0
   const drawdownPct = drawdown * 100
-  const drawdownTone =
-    drawdownPct >= 5 ? 'text-gov-red' : drawdownPct >= 1 ? 'text-gov-yellow' : 'text-secondary'
-
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 text-2xs text-tertiary font-mono tabular-nums border-b border-default">
@@ -89,13 +86,7 @@ function QuickStatsGridInner() {
         <Stat
           label="Drawdown"
           value={`-${drawdownPct.toFixed(2)}%`}
-          tone={
-            drawdownTone === 'text-secondary'
-              ? undefined
-              : drawdownPct >= 5
-              ? 'bad'
-              : 'warn'
-          }
+          tone={drawdownPct >= 5 ? 'bad' : drawdownPct >= 1 ? 'warn' : undefined}
         />
         <Stat
           label="Open / Closed"

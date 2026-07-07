@@ -54,7 +54,11 @@ function AppContent() {
         </Routes>
       </Suspense>
 
-      {detailAsset && (
+      {/* Modal stacking fix (F9): When the deep dive is open, the detail
+          panel closes — they are managed as a stack, not two independent
+          overlays. The deep dive replaces the detail panel, preventing
+          z-index conflicts and escape-key desync. */}
+      {!deepDiveAsset && detailAsset && (
         <AssetDetailPanel
           asset={detailAsset}
           name={selectedAsset!}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSystemSnapshot } from './useSystemSnapshot'
 
 const ALERTS_CHANNEL = 'eigencapital-alerts'
@@ -71,15 +71,15 @@ export function useMonitorAlerts(): Alert[] {
   const seqId = bundle?.meta?.snapshot_sequence_id
   const [broadcastTick, setBroadcastTick] = useState(0)
 
-  // Compute the dismissal key in the same render cycle as the memo: the
-  // audit (Bug B2) flagged the prior useEffect-based setDismissedVersion
-  // as a state-migration bug because the FIRST render's key was always
-  // 'ec-dismissed-alerts' (unversioned), then a useEffect cycle flipped
-  // it to the versioned key — making any previously-dismissed alerts
-  // silently reappear as soon as `meta.version` came in. Synchronous
-  // update avoids the off-by-one cycle.
+  // Track the bundle version in a ref so dismissedKey() uses the
+  // versioned key without a one-cycle delay (which would cause previously
+  // dismissed alerts to reappear for one render). The ref is updated
+  // synchronously in render, which is safe because refs are mutable
+  // containers that don't participate in React's rendering guarantees.
+  const versionRef = useRef('')
   const version = bundle?.meta?.version ?? ''
-  if (version && _dismissedVersion !== version) {
+  if (version && versionRef.current !== version) {
+    versionRef.current = version
     _dismissedVersion = version
   }
 

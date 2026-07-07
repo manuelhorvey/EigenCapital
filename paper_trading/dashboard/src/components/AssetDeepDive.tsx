@@ -133,18 +133,21 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
                     {/* Diagonal perfect-trade line */}
                     <line x1="50" y1="350" x2="350" y2="50" stroke="var(--color-gov-green)" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.3" />
                     {/* Points */}
+                    const maxMae = Math.max(1, ...trades.map(t => Math.abs(t.mae ?? 0)))
+                    const maxMfe = Math.max(1, ...trades.map(t => Math.abs(t.mfe ?? 0)))
+                    // Scale the chart to the global max so no point is clipped.
+                    const globalMax = Math.max(maxMae, maxMfe, 1)
                     {trades.map((t, i) => {
                       const mae = Math.abs(t.mae ?? 0)
                       const mfe = Math.abs(t.mfe ?? 0)
-                      const maxVal = Math.max(mae, mfe, 1)
-                      const x = 50 + ((mae / maxVal) * 280)
-                      const y = 350 - ((mfe / maxVal) * 280)
+                      const x = 50 + ((mae / globalMax) * 280)
+                      const y = 350 - ((mfe / globalMax) * 280)
                       const isWin = (t.return ?? 0) > 0
                       return (
                         <g key={i}>
                           <circle
-                            cx={Math.min(x, 345)}
-                            cy={Math.max(y, 55)}
+                            cx={x}
+                            cy={y}
                             r="5"
                             fill={isWin ? 'var(--color-gov-green)' : 'var(--color-gov-red)'}
                             opacity="0.7"

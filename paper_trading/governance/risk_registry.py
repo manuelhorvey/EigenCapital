@@ -164,10 +164,7 @@ class RiskRegistry:
             - tripwire_last_state: {asset: bool}
         """
         with self._sell_win_rate_lock:
-            win_rates = {
-                asset: list(dq)
-                for asset, dq in self._sell_win_rates.items()
-            }
+            win_rates = {asset: list(dq) for asset, dq in self._sell_win_rates.items()}
             last_states = dict(self._tripwire_last_state)
         return {
             "sell_win_rates": win_rates,

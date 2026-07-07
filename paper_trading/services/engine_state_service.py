@@ -534,10 +534,7 @@ class EngineStateService:
         # Persist current_value for ALL assets, not just those with open positions.
         # This ensures flat assets retain their accumulated equity across restarts
         # and the equity curve starts at the correct baseline.
-        snapshot.asset_values = {
-            name: asset.pos_mgr.current_value
-            for name, asset in engine.assets.items()
-        }
+        snapshot.asset_values = {name: asset.pos_mgr.current_value for name, asset in engine.assets.items()}
         # Persist risk governance state (sell tripwire deques) so they survive
         # restarts and don't lose the 20-trade rolling window on every restart.
         try:

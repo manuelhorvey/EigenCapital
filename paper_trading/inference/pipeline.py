@@ -10,6 +10,7 @@ import pandas as pd
 import pytz
 import ta
 
+from eigencapital.domain.time import utc_now
 from features.regime_features import generate_regime_features
 from paper_trading.config_manager import get_config
 from paper_trading.entry.decision import SignalType, TradeDecision
@@ -253,7 +254,18 @@ class AssetInferencePipeline:
             df.index = df.index.tz_localize("UTC").normalize()
         asset.refresh_price()
         if asset.current_price is not None:
-            df.loc[df.index[-1], "close"] = asset.current_price
+            last_refresh = getattr(asset, "_last_price_refresh", None)
+            if last_refresh is not None:
+                staleness = (utc_now() - last_refresh).total_seconds()
+                if staleness < 300:
+                    df.loc[df.index[-1], "close"] = asset.current_price
+                else:
+                    logger.debug(
+                        "Stale price for %s (%.0fs old) — skipping live override",
+                        asset.name, staleness,
+                    )
+            else:
+                df.loc[df.index[-1], "close"] = asset.current_price
         asset.price_data = df
         asset._refresh_liquidity(df)
         df["close"] = df["close"].ffill()

@@ -84,7 +84,9 @@ def momentum_features(price: pd.Series, horizons: list = None) -> pd.DataFrame:
         horizons = [21, 63, 126, 252]
     mom = pd.DataFrame(index=price.index)
     for h in horizons:
-        ret = np.log(price / price.shift(h + 1))
+        # h-day momentum: return from t-h to t (corrected from t-(h+1)
+        # which expanded the horizon by 1 bar — affects all assets)
+        ret = np.log(price / price.shift(h))
         mom[f"mom_{h}d"] = ret.clip(-0.20, 0.20)
     return mom
 

@@ -136,5 +136,5 @@ export function useGovernanceRadar(): {
       : 0
 
     return { axes, bottlenecks, avgValidityImpact: avgPenalty }
-  }, [seqId, health])
+  }, [seqId, state, health])
 }

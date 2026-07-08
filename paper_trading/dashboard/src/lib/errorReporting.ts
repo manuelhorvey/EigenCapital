@@ -4,10 +4,7 @@ const SENTRY_DSN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_
 
 /** Initialise Sentry error reporting. Safe to call even without a DSN — it's a no-op. */
 export function initErrorReporting() {
-  if (!SENTRY_DSN) {
-    if (typeof console !== 'undefined') console.warn('[Sentry] No DSN configured — errors will not be reported')
-    return
-  }
+  if (!SENTRY_DSN) return
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: import.meta.env.MODE || 'development',

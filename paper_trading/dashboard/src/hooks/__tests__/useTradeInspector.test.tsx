@@ -11,8 +11,34 @@ vi.mock('../../lib/api', () => ({
 }))
 
 function makeTrades() {
+  const base = {
+    realized_return: 0,
+    pred_signal: 'BUY',
+    pred_confidence: 0.7,
+    pred_forecast_direction_correct: true,
+    pred_regime_at_entry: 'TRENDING',
+    exec_entry_type: 'MARKET',
+    exec_entry_slippage_bps: 0.5,
+    exec_deferred_bars: 0,
+    exec_entry_timing_efficiency: null,
+    exec_counterfactual_entry_timing_r: null,
+    exit_theoretical_r: 3.0,
+    exit_mae_per_bar: 0.1,
+    exit_mfe_per_bar: 0.9,
+    exit_bars_held: 48,
+    exit_archetype: 'TREND',
+    friction_gap_fill: false,
+    friction_partial_fill: false,
+    friction_counterfactual_ideal_fill_r: null,
+    friction_counterfactual_real_fill_r: null,
+    dq_entry_pressure_pct: null,
+    dq_spread_rank: null,
+    dq_volatility_rank: null,
+    dq_liquidity_rank: null,
+  }
   return [
     {
+      ...base,
       trade_id: 't1',
       asset: 'EURUSD',
       side: 'buy',
@@ -32,6 +58,7 @@ function makeTrades() {
       exit_exit_reason: 'TP',
     },
     {
+      ...base,
       trade_id: 't2',
       asset: 'GBPUSD',
       side: 'sell',

@@ -16,19 +16,34 @@ export function useAttributionBundle() {
   return useQuery({
     queryKey: QUERY_KEYS.attribution,
     queryFn: async (): Promise<AttributionBundleData> => {
-      const [quality, slippage, summary, waterfall] = await Promise.allSettled([
-        fetchApi<ExecutionQualityResponse>('/execution/quality.json').catch(() => null),
-        fetchApi<SlippageDistribution>('/execution/slippage.json').catch(() => null),
-        fetchApi<AttributionSummary>('/attribution/summary.json').catch(() => null),
-        fetchApi<AttributionWaterfall>('/attribution/waterfall.json').catch(() => null),
+      // fetch one endpoint with individual retry; reject only if ALL 4 fail
+      // so React Query's outer retry is triggered only for total failures.
+      async function fetchWithRetry<T>(url: string, retries = 2): Promise<T | null> {
+        for (let i = 0; i <= retries; i++) {
+          try {
+            return await fetchApi<T>(url)
+          } catch (err) {
+            if (i < retries) continue
+            console.warn(`[AttributionBundle] ${url} failed after ${retries + 1} attempts`)
+            return null
+          }
+        }
+        return null
+      }
+
+      const [quality, slippage, summary, waterfall] = await Promise.all([
+        fetchWithRetry<ExecutionQualityResponse>('/execution/quality.json'),
+        fetchWithRetry<SlippageDistribution>('/execution/slippage.json'),
+        fetchWithRetry<AttributionSummary>('/attribution/summary.json'),
+        fetchWithRetry<AttributionWaterfall>('/attribution/waterfall.json'),
       ])
 
-      return {
-        executionQuality: quality.status === 'fulfilled' ? quality.value : null,
-        executionSlippage: slippage.status === 'fulfilled' ? slippage.value : null,
-        attributionSummary: summary.status === 'fulfilled' ? summary.value : null,
-        attributionWaterfall: waterfall.status === 'fulfilled' ? waterfall.value : null,
+      // If all 4 failed, throw so React Query's retry/gate logic can handle it
+      if (quality === null && slippage === null && summary === null && waterfall === null) {
+        throw new Error('All attribution endpoints failed')
       }
+
+      return { executionQuality: quality, executionSlippage: slippage, attributionSummary: summary, attributionWaterfall: waterfall }
     },
     refetchInterval: 60_000,
     staleTime: 50_000,

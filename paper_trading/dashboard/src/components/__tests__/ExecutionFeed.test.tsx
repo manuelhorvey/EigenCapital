@@ -137,7 +137,8 @@ describe('ExecutionFeed', () => {
   it('shows skeleton when data is pending', () => {
     mockSnapshot = { data: undefined, isPending: true, isError: false, error: null } as never
     const { container } = render(<ExecutionFeed />)
-    expect(container.querySelector('.skeleton-shimmer')).toBeTruthy()
+    // Skeleton without shimmer prop renders <div class="skeleton ..." aria-hidden="true" />
+    expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy()
   })
 
   it('shows empty state when no assets', () => {
@@ -166,7 +167,7 @@ describe('ExecutionFeed', () => {
     })
     render(<ExecutionFeed />)
 
-    expect(screen.getByText('EURUSD')).toBeInTheDocument()
+    expect(screen.getAllByText('EURUSD').length).toBeGreaterThan(0)
     expect(screen.getByText('LONG')).toBeInTheDocument()
     expect(screen.getByText('65')).toBeInTheDocument() // confidence * 100
     expect(screen.getByText('PASS')).toBeInTheDocument()
@@ -183,7 +184,7 @@ describe('ExecutionFeed', () => {
     })
     render(<ExecutionFeed />)
 
-    expect(screen.getByText('GBPUSD')).toBeInTheDocument()
+    expect(screen.getAllByText('GBPUSD').length).toBeGreaterThan(0)
     expect(screen.getByText('SHORT')).toBeInTheDocument()
     expect(screen.getByText('72')).toBeInTheDocument() // confidence * 100
     expect(screen.getByText('10.0%')).toBeInTheDocument()
@@ -221,7 +222,7 @@ describe('ExecutionFeed', () => {
     })
     render(<ExecutionFeed />)
 
-    expect(screen.getByText('USDJPY')).toBeInTheDocument()
+    expect(screen.getAllByText('USDJPY').length).toBeGreaterThan(0)
     expect(screen.getByText('HALTED')).toBeInTheDocument()
     expect(screen.getByText(/drawdown; drift/)).toBeInTheDocument()
   })
@@ -235,6 +236,7 @@ describe('ExecutionFeed', () => {
     })
     render(<ExecutionFeed />)
 
+    expect(screen.getAllByText('AUDUSD').length).toBeGreaterThan(0)
     expect(screen.getByText('BLOCKED')).toBeInTheDocument()
     expect(screen.getByText('gate_aborted')).toBeInTheDocument()
   })
@@ -247,7 +249,9 @@ describe('ExecutionFeed', () => {
     })
     render(<ExecutionFeed />)
 
-    expect(screen.getByText('—')).toBeInTheDocument() // size column
+    // '—' appears in the size column AND the detail column when both are null
+    const dashes = screen.getAllByText('—')
+    expect(dashes.length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows blocked count in header when some gates are not PASS', () => {

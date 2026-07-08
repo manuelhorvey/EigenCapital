@@ -1,20 +1,10 @@
-import { X, BarChart3, TrendingUp, TrendingDown, Activity } from 'lucide-react'
+import { X, TrendingDown } from 'lucide-react'
 import { governanceText } from './ui/governance'
 import { useAssetDeepDive } from '../hooks/useAssetDeepDive'
+import FeatureImportanceChart from './asset-deep-dive/FeatureImportanceChart'
+import MetricsSummary from './asset-deep-dive/MetricsSummary'
+import MaeMfeScatter from './asset-deep-dive/MaeMfeScatter'
 
-function pct(v: number | null | undefined): string {
-  if (v == null) return '—'
-  return `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}%`
-}
-
-/**
- * Full-screen deep dive panel for a single asset. Shows feature importance, key metrics, MAE/MFE scatter, and trade history.
- * @param {{ name: string, onClose: () => void }} props
- */
-/** Full-screen deep dive for a single asset: feature importance, metrics, MAE/MFE scatter, trade history.
- * @param {object} props
- * @param {string} props.name - Asset symbol
- * @param {() => void} props.onClose - Close handler */
 export default function AssetDeepDive({ name, onClose }: { name: string; onClose: () => void }) {
   const { data, isPending, isError } = useAssetDeepDive(name)
 
@@ -35,15 +25,7 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
     )
   }
 
-  const fi = data.feature_importance ?? []
   const trades = data.trades ?? []
-  const m = data.metrics ?? {}
-  // Pre-compute global scale for MAE/MFE scatter so JSX doesn't need declarations.
-  const maeValues = trades.map(t => Math.abs(t.mae ?? 0))
-  const mfeValues = trades.map(t => Math.abs(t.mfe ?? 0))
-  const scatterGlobalMax = trades.length > 0
-    ? Math.max(1, ...maeValues, ...mfeValues)
-    : 1
 
   return (
     <div className="fixed inset-0 z-50 bg-app/95 flex flex-col">
@@ -72,109 +54,12 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
 
       <div className="flex-1 overflow-y-auto p-5">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <FeatureImportanceChart features={data.feature_importance ?? []} />
+          <MetricsSummary metrics={data.metrics ?? {}} />
 
-          {/* ── Feature Importance ──────────────────────────────── */}
-          <div className="bg-panel rounded-lg border border-default p-4">
-            <h3 className="text-xs font-semibold text-secondary mb-3 flex items-center gap-1.5">
-              <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} />
-              Feature Importance
-            </h3>
-            {fi.length === 0 || fi[0]?.error != null ? (
-              <div className="text-xs text-tertiary">No feature importance available</div>
-            ) : (
-              <div className="space-y-1">
-                {fi.slice(0, 15).map((f, fiIdx) => {
-                  const imp = f.importance ?? 0
-                  return (
-                    <div key={f.feature ?? fiIdx} className="flex items-center gap-2">
-                      <span className="text-xs text-tertiary w-2/3 truncate font-mono" title={f.feature}>{f.feature ?? '—'}</span>
-                      <div className="flex-1 h-2 bg-surface rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-accent-emerald"
-                          style={{ width: `${(imp * 100).toFixed(1)}%` }}
-                        />
-                      </div>
-                      <span className="text-2xs text-tertiary font-mono w-10 text-right">
-                        {(imp * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          <MaeMfeScatter trades={trades} />
 
-          {/* ── Metrics Summary ─────────────────────────────────── */}
-          <div className="bg-panel rounded-lg border border-default p-4">
-            <h3 className="text-xs font-semibold text-secondary mb-3 flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5" strokeWidth={1.5} />
-              Key Metrics
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <MetricBox label="Total Return" value={m.total_return != null ? `${(m.total_return as number) >= 0 ? '+' : ''}${(m.total_return as number).toFixed(1)}%` : '—'} color={(m.total_return as number) >= 0 ? 'text-gov-green' : 'text-gov-red'} />
-              <MetricBox label="Drawdown" value={m.drawdown != null ? `${(m.drawdown as number).toFixed(1)}%` : '—'} color={(m.drawdown as number) < -5 ? 'text-gov-red' : ''} />
-              <MetricBox label="Win Rate" value={pct(m.win_rate as number | null)} />
-              <MetricBox label="Profit Factor" value={m.profit_factor != null ? (m.profit_factor as number).toFixed(2) : '—'} />
-              <MetricBox label="Sharpe" value={m.sharpe_ratio != null ? (m.sharpe_ratio as number).toFixed(2) : '—'} />
-              <MetricBox label="Trades" value={String(m.n_trades ?? 0)} />
-              <MetricBox label="Avg Confidence" value={m.mean_confidence != null ? `${(m.mean_confidence as number).toFixed(1)}%` : '—'} />
-            </div>
-          </div>
-
-          {/* ── MAE/MFE Scatter ─────────────────────────────────── */}
-          <div className="bg-panel rounded-lg border border-default p-4 xl:col-span-2">
-            <h3 className="text-xs font-semibold text-secondary mb-3 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5" strokeWidth={1.5} />
-              MAE / MFE Scatter
-            </h3>
-            {trades.length === 0 ? (
-              <div className="text-xs text-tertiary text-center py-8">No trades yet</div>
-            ) : (
-              <>
-                <div className="relative h-64 w-full">
-                  <svg viewBox="0 0 400 400" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
-                    {/* Axes */}
-                    <line x1="50" y1="350" x2="350" y2="350" stroke="var(--color-border)" strokeWidth="1" />
-                    <line x1="50" y1="50" x2="50" y2="350" stroke="var(--color-border)" strokeWidth="1" />
-                    {/* Diagonal perfect-trade line */}
-                    <line x1="50" y1="350" x2="350" y2="50" stroke="var(--color-gov-green)" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.3" />
-                    {/* Points — scaled to global max so no point is clipped */}
-                    {trades.map((t, i) => {
-                      const mae = Math.abs(t.mae ?? 0)
-                      const mfe = Math.abs(t.mfe ?? 0)
-                      const x = 50 + ((mae / scatterGlobalMax) * 280)
-                      const y = 350 - ((mfe / scatterGlobalMax) * 280)
-                      const isWin = (t.return ?? 0) > 0
-                      return (
-                        <g key={i}>
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="5"
-                            fill={isWin ? 'var(--color-gov-green)' : 'var(--color-gov-red)'}
-                            opacity="0.7"
-                          >
-                            <title>{`${t.side} ${t.entry_date}: MAE=${mae.toFixed(1)}% MFE=${mfe.toFixed(1)}% R=${t.return?.toFixed(2) ?? '?'}`}</title>
-                          </circle>
-                        </g>
-                      )
-                    })}
-                    {/* Axis labels */}
-                    <text x="200" y="380" textAnchor="middle" fill="var(--color-text-tertiary)" fontSize="10" fontFamily="var(--font-mono)">MAE (adverse excursion %)</text>
-                    <text x="20" y="200" textAnchor="middle" fill="var(--color-text-tertiary)" fontSize="10" fontFamily="var(--font-mono)" transform="rotate(-90, 20, 200)">MFE (favorable excursion %)</text>
-                  </svg>
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-2xs text-tertiary">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-green inline-block" /> Win</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-red inline-block" /> Loss</span>
-                  <span className="text-muted">|</span>
-                  <span>{trades.length} trades</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* ── Trade History ───────────────────────────────────── */}
+          {/* Trade History */}
           <div className="bg-panel rounded-lg border border-default p-4 xl:col-span-2">
             <h3 className="text-xs font-semibold text-secondary mb-3 flex items-center gap-1.5">
               <TrendingDown className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -223,15 +108,6 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function MetricBox({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="bg-surface rounded-lg px-3 py-2">
-      <div className="text-2xs text-tertiary mb-0.5">{label}</div>
-      <div className={`text-sm font-semibold font-mono tabular-nums ${color ?? 'text-primary'}`}>{value}</div>
     </div>
   )
 }

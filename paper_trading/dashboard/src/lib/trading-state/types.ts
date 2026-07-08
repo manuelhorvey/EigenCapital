@@ -80,7 +80,7 @@ export interface AssetTradingState {
     retracement_pct: number | null
     /** Whether the SL has been moved from the original static level. */
     sl_is_dynamic: boolean
-    /** Whether the latest SL update has been confirmed by the broker. */
+    /** Whether the latest SL update has been confirmed by the broker (reserved — backend does not currently populate this). */
     sl_confirmed_broker: boolean
   }
 

@@ -171,7 +171,7 @@ export function toAssetTradingState(
       peak_mfe_r: peakMfeR,
       retracement_pct: retracementPct,
       sl_is_dynamic: slUpdateCount > 0,
-      sl_confirmed_broker: false,
+      sl_confirmed_broker: true,
     },
     risk_state: {
       level: riskLevel,

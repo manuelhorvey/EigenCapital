@@ -21,6 +21,9 @@ function TradingWorkspaceSkeleton() {
         <div className="mt-4">
           <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
+        <div className="mt-4">
+          <Skeleton className="h-28 rounded-lg" shimmer />
+        </div>
       </Section>
       <Section id="trades" errorTitle="Trades">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -49,7 +49,7 @@ const AssetCardMetrics = React.memo(({ info }: Props) => {
       )}
     </>
   )
-}
+})
 
 AssetCardMetrics.displayName = 'AssetCardMetrics'
 

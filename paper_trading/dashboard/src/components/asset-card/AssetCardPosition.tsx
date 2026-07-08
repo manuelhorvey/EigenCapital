@@ -100,7 +100,7 @@ const AssetCardPosition = React.memo(({ info }: Props) => {
       )}
     </div>
   )
-}
+})
 
 AssetCardPosition.displayName = 'AssetCardPosition'
 

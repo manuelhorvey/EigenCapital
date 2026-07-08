@@ -56,7 +56,7 @@ const AssetCardHeader = React.memo(({ name, info, cardState: _cardState, confide
       </span>
     </div>
   )
-}
+})
 
 AssetCardHeader.displayName = 'AssetCardHeader'
 

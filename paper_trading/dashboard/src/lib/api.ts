@@ -66,13 +66,13 @@ export function createApiMutation<TResponse, TVariables = void>(
         return res.json() as Promise<TResponse>
       },
       ...mutationOptions,
-      onSuccess: (data, variables, context) => {
+      onSuccess: (data, variables, _onMutateResult, _context) => {
         if (invalidateKeys) {
           for (const key of invalidateKeys) {
             queryClient.invalidateQueries({ queryKey: key })
           }
         }
-        mutationOptions?.onSuccess?.(data, variables, context)
+        mutationOptions?.onSuccess?.(data, variables, _onMutateResult, _context)
       },
     })
   }

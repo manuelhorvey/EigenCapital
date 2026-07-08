@@ -69,7 +69,9 @@ else
     fi
 fi
 
-# ── Dashboard build ─────────────────────────────────────────
+# ── Dashboard build (install deps first, then build) ─────────
+echo "  Installing dashboard dependencies..."
+(cd paper_trading/dashboard && yarn install --frozen-lockfile 2>/dev/null || yarn install) || echo "  yarn install skipped (will use existing node_modules)"
 echo "  Building dashboard..."
 (cd paper_trading/dashboard && yarn build) || echo "  Dashboard build skipped (error above)"
 

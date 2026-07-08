@@ -10,6 +10,7 @@ from paper_trading.execution.decision_pipeline import (
 )
 from paper_trading.execution.stacking import (
     _compute_stack_size,
+    _contract_size_from_ticker,
     _get_adx,
     _is_trending,
     _last_stack_entry_price,
@@ -305,6 +306,32 @@ class TestProjectedRiskForStack:
         assert _projected_risk_for_stack(ctx, stack_size=0.5) == 0.0
 
 
+# ── _contract_size_from_ticker ─────────────────────────────────────────────
+
+
+class TestContractSizeFromTicker:
+    def test_fx_pair(self):
+        assert _contract_size_from_ticker("AUDUSD=X") == 100_000
+        assert _contract_size_from_ticker("EURJPY=X") == 100_000
+
+    def test_gold_futures(self):
+        assert _contract_size_from_ticker("GC=F") == 100.0
+
+    def test_index_futures_nq_es(self):
+        assert _contract_size_from_ticker("NQ=F") == 20.0
+        assert _contract_size_from_ticker("ES=F") == 50.0
+
+    def test_dow_index(self):
+        assert _contract_size_from_ticker("^DJI") == 1.0
+
+    def test_crypto(self):
+        assert _contract_size_from_ticker("BTC-USD") == 1.0
+
+    def test_fallback(self):
+        assert _contract_size_from_ticker("SOMETHING_ELSE") == 1.0
+        assert _contract_size_from_ticker("") == 1.0
+
+
 # ── _compute_stack_size ────────────────────────────────────────────────────
 
 
@@ -375,6 +402,77 @@ class TestComputeStackSize:
         size = _compute_stack_size(ctx=_ctx(engine))
         # base_entry_size=1.0, mult=0.8, vol_adj=1.0 → 0.8, cap=0.3*1.0=0.3
         assert size == 0.3
+
+    def test_min_stack_factor_zero_disables_floor(self):
+        """Regression 2026-07-08: when min_stack_size_factor=0 the obsolete
+        USD-notional floor is bypassed entirely.  Producers used min_stack_factor=0.5
+        with min_viable_position_pct × capital_base (USD) being compared to
+        base_entry_size (lots/units) — a 3500x mismatch in production.
+        """
+        layers = [StackLayer(entry_price=101.0, size=0.008, timestamp="t1")]
+        pos = _pos_long(entry=100.0, vol=0.02, size=0.01, layers=layers)
+        engine = _mock_engine(position=pos)
+        engine.config = {
+            "stacking": {
+                "layer_multipliers": [0.8, 0.5, 0.3],
+                "stack_target_vol": 0.15,
+                "stack_vol_clamp": [0.3, 1.2],
+                "size_cap": 1.0,
+                "min_viable_position_pct": 0.01,
+                "min_stack_size_factor": 0.0,
+                "stack_micro_threshold": 0.0,
+            }
+        }
+        engine.capital_base = 7000.0
+        engine.pos_mgr.stack_layer_count.return_value = 0
+        engine._realized_volatility = 0.15
+        engine.ticker = "AUDUSD=X"
+        size = _compute_stack_size(ctx=_ctx(engine))
+        assert size == pytest.approx(0.008, rel=1e-3)
+
+    def test_production_default_factor_matches_base(self):
+        """With min_stack_size_factor=0.5 and proper unit conversion (notional
+        → lots via _contract_size_from_ticker), the floor must NOT inflate
+        stack_size above base_entry_size for any asset class.
+        Uses realistic prices per asset so the lot conversion is valid.
+        """
+        test_cases = [
+            # (asset_name, base_entry_size, ticker, entry_price, capital_base)
+            ("AUDUSD", 0.01, "AUDUSD=X", 0.70, 7000.0),
+            ("GC",     0.0162, "GC=F",     4144.0, 490.0),   # 7% of 7000
+            ("BTCUSD", 0.02,   "BTC-USD",  63146.0, 700.0),  # 10% of 7000
+            ("^DJI",   0.01,   "^DJI",     53261.0, 700.0),  # 10% of 7000
+            ("EURJPY", 0.01,   "EURJPY=X", 162.0, 7000.0),
+        ]
+        for asset_name, base_entry_size, ticker, entry_price, cap_base in test_cases:
+            layers = [StackLayer(entry_price=entry_price, size=base_entry_size, timestamp="t1")]
+            pos = _pos_long(entry=entry_price, vol=0.02, size=base_entry_size, layers=layers)
+            engine = _mock_engine(position=pos, current_price=entry_price)
+            engine.config = {
+                "stacking": {
+                    "layer_multipliers": [0.8, 0.5, 0.3],
+                    "stack_target_vol": 0.15,
+                    "stack_vol_clamp": [0.3, 1.2],
+                    "size_cap": 1.0,
+                    "min_viable_position_pct": 0.01,
+                    "min_stack_size_factor": 0.5,
+                    "stack_micro_threshold": 0.0,
+                }
+            }
+            engine.capital_base = cap_base
+            engine.pos_mgr.stack_layer_count.return_value = 0
+            engine._realized_volatility = 0.15
+            engine.ticker = ticker
+            size = _compute_stack_size(ctx=_ctx(engine))
+            expected = base_entry_size * 0.8
+            assert size == pytest.approx(expected, rel=0.2), (
+                f"{asset_name} ({ticker}): stack_size={size} "
+                f"!= base*0.8={expected} — floor incorrectly dominating"
+            )
+            assert size <= base_entry_size * 1.0, (
+                f"{asset_name} ({ticker}): stack_size {size} "
+                f"exceeds base_entry_size {base_entry_size}"
+            )
 
 
 # ── _should_stack — 8-gate approval ─────────────────────────────────────────

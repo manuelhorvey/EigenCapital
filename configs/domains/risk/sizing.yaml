@@ -43,6 +43,11 @@ stacking:
   stack_target_vol: 0.15
   stack_vol_clamp: [0.3, 1.2]
   min_viable_position_pct: 0.01
+  # Stack minimum-size floor: at least `min_stack_size_factor × min_lots`
+  # where `min_lots = min_viable_position_pct × capital_base / (price × lot_multiplier)`.
+  # Uses proper unit conversion (notional → lots via _contract_size_from_ticker)
+  # so that USD notional is correctly scaled to base_entry_size units.
+  # Set to 0.0 to disable the floor.
   min_stack_size_factor: 0.5
   stack_micro_threshold: 0.0
   # Position protection thresholds (used by PositionProtection)

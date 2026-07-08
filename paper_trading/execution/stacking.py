@@ -69,6 +69,35 @@ def _position_unrealized_r(ctx, current_price: float) -> float:
         return (entry - current_price) / (entry * vol_est)
 
 
+def _contract_size_from_ticker(ticker: str) -> float:
+    """Derive the contract size (base units per lot) from a ticker string.
+
+    Used to convert USD notional → lots/contracts so that the stacking
+    size floor is in the same unit as base_entry_size.  Matches broker
+    conventions in mt5_broker.py.
+
+    Ticker patterns:
+      - ``xxx=X`` (forex):            100,000  (standard lot)
+      - ``GC=F``  (gold futures):     100      (troy oz per contract)
+      - ``NQ=F``  (Nasdaq futures):   20       ($20 × index)
+      - ``ES=F``  (S&P 500 futures):  50       ($50 × index)
+      - ``^DJI``  (Dow Jones index):   1       (no multiplier)
+      - ``BTC-USD`` (crypto):          1       (1 unit = 1 BTC)
+      - anything else:                 1
+    """
+    if ticker == "BTC-USD":
+        return 1.0
+    if ticker.startswith("^"):
+        return 1.0
+    if ticker.endswith("=F"):
+        name: str = ticker.split("=")[0]
+        futures_sizes = {"GC": 100.0, "NQ": 20.0, "ES": 50.0, "CL": 1000.0, "YM": 5.0}
+        return futures_sizes.get(name, 1.0)
+    if "=X" in ticker:
+        return 100_000.0
+    return 1.0
+
+
 # ── StackingGate ───────────────────────────────────────────────────────
 
 
@@ -276,9 +305,30 @@ class StackingGate:
         size_cap = cfg.get("size_cap", 1.0)
         base = min(base, base_entry_size * size_cap)
 
-        min_entry = cfg.get("min_viable_position_pct", 0.01) * engine.capital_base
+        # IV-min-stack floor: enforce a minimum stack size in the SAME UNITS as
+        # base_entry_size (lots/contracts).  The prior implementation multiplied
+        # USD notional (`min_viable_position_pct × capital_base`) directly against
+        # lot-scale `base`, producing a 3500× mismatch in production.
+        #
+        # Correct conversion:   min_notional_USD / (price × contract_size) → lots
+        # where contract_size is 100,000 for FX, 100 for GC=F, 1 for indices, etc.
+        # See _contract_size_from_ticker().
         min_stack_factor = cfg.get("min_stack_size_factor", 0.5)
-        min_stack = max(min_stack_factor * min_entry, cfg.get("stack_micro_threshold", 0.0))
+        if min_stack_factor > 0:
+            price = getattr(engine, "current_price", None)
+            ticker = getattr(engine, "ticker", "")
+            if price and price > 0:
+                min_notional = cfg.get("min_viable_position_pct", 0.01) * engine.capital_base
+                contract_mult = cfg.get("lot_multiplier", 0.0)
+                if contract_mult <= 0:
+                    contract_mult = _contract_size_from_ticker(ticker)
+                min_lots = min_notional / (price * contract_mult) if (price * contract_mult) > 0 else 0.0
+                min_stack = max(min_stack_factor * min_lots,
+                                cfg.get("stack_micro_threshold", 0.0))
+            else:
+                min_stack = 0.0
+        else:
+            min_stack = 0.0
         return max(base, min_stack)
 
 

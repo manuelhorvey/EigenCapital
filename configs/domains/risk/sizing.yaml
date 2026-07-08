@@ -32,7 +32,7 @@ min_confidence: 55.0
 stacking:
   enabled: true
   dry_run: false
-  max_layers: 1
+  max_layers: 2
   min_confidence: 0.60
   min_stack_r: 0.5
   stack_spacing_r: 0.5

@@ -64,6 +64,7 @@ class PositionIntent:
     vol: float = 0.01
     trade_id: str = ""
     confidence: float = 0.0
+    entry_notional: float = 0.0
     layers: list[StackLayer] = field(default_factory=list)
     base_entry_size: float = 0.0
     # Risk envelope fields

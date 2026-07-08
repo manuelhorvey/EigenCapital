@@ -35,6 +35,8 @@ class PositionManager:
         self._scale_out_breakeven: float | None = None
         self._remaining_fraction: float = 1.0
         self._partial_closes: list[dict] = []
+        # Actual notional deployed at entry (from sizing chain).
+        self._entry_notional: float = 0.0
 
     # ── Position lifecycle ────────────────────────────────────────
 
@@ -42,6 +44,7 @@ class PositionManager:
         self.position = intent
         if intent.base_entry_size <= 0:
             intent.base_entry_size = self.position_size
+        self._entry_notional = intent.entry_notional if intent.entry_notional > 0 else self.current_value * self.position_size
         self._scale_out_active = False
         self._scale_out_breakeven = None
         self._remaining_fraction = 1.0
@@ -59,7 +62,7 @@ class PositionManager:
 
         fraction = self._remaining_fraction
         ret = (exit_price / entry - 1) if side == "long" else (entry / exit_price - 1)
-        pnl = self.current_value * ret * self.position_size * self.exposure_multiplier * fraction
+        pnl = self._entry_notional * ret * fraction
 
         try:
             bars = max(0, (pd.Timestamp(exit_date) - pd.Timestamp(self.position.entry_date)).days)
@@ -73,7 +76,7 @@ class PositionManager:
 
         logger.debug(
             "%s CLOSE: side=%s entry=%.4f exit=%.4f ret=%.4f%% pnl=%.2f reason=%s "
-            "current_value_before=%.2f pos_size=%.4f exposure=%.4f",
+            "current_value_before=%.2f entry_notional=%.2f exposure=%.4f",
             getattr(self.position, "_asset_name", "?"),
             side,
             entry,
@@ -82,7 +85,7 @@ class PositionManager:
             pnl,
             reason,
             self.current_value,
-            self.position_size,
+            self._entry_notional,
             self.exposure_multiplier,
         )
 
@@ -198,7 +201,7 @@ class PositionManager:
         side = self.position.side
         entry = self.position.entry_price
         ret = (fill_price / entry - 1) if side == "long" else (entry / fill_price - 1)
-        pnl = self.current_value * ret * self.position_size * self.exposure_multiplier * fraction
+        pnl = self._entry_notional * ret * fraction
 
         pc = {
             "fraction": fraction,
@@ -307,6 +310,7 @@ class PositionManager:
         self.peak_value = capital
         self.position = None
         self.trade_log = []
+        self._entry_notional = 0.0
         self._scale_out_active = False
         self._scale_out_breakeven = None
         self._remaining_fraction = 1.0

@@ -238,6 +238,7 @@ class EntryService:
             return
         asset._last_entry_slippage = entry_slippage_bps
 
+        notional = getattr(asset, "_last_entry_notional", 0.0) or 0.0
         intent = PositionIntent(
             side=side,
             entry_price=fill_price,
@@ -245,6 +246,7 @@ class EntryService:
             stop_loss=float(intent_sl),
             take_profit=float(final_tp),
             vol=vol,
+            entry_notional=notional,
         )
         self._record_position_state(
             asset, side, intent, sl_mult, tp_mult, tp_geo, vol, fill_price, state, mt5_ticket, data

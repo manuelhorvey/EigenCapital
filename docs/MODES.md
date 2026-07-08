@@ -22,22 +22,24 @@ modes are ignored.
 |---|---|---|---|
 | `capital` | 100,000 | 10,000 | 100,000 |
 | `portfolio_drawdown_limit` | −0.15 | −0.08 | −0.10 |
-| `max_concurrent_positions` | 8 | 5 | 6 |
+| `max_concurrent_positions` | 13 | 5 | 6 |
 | `risk_per_trade_pct` | 0.02 | 0.01 | 0.01 |
 | `max_risk_per_trade_pct` | 2.0 | 0.03 (≙ 3%) | 0.03 (≙ 3%) |
 | `min_risk_per_trade_pct` | 0.001 | 0.001 | 0.002 |
 | `max_daily_loss_pct` | 0.08 | 0.04 | 0.05 |
-| **Factor exposure limits** | | | |
+| **Factor exposure limits (upper bound)** | | | |
+| &nbsp;&nbsp;`USD` | 0.60 | 0.60 | 0.60 |
+| &nbsp;&nbsp;`EUR` | 0.30 | 0.30 | 0.30 |
+| &nbsp;&nbsp;`AUD` | 0.20 | 0.20 | 0.20 |
+| &nbsp;&nbsp;`NZD` | 0.20 | 0.20 | 0.20 |
 | &nbsp;&nbsp;`CHF` | 0.20 | 0.15 | 0.15 |
-| &nbsp;&nbsp;`US_EQUITY` | 0.25 | 0.15 | 0.20 |
-| &nbsp;&nbsp;`OIL` | 0.15 | 0.10 | 0.10 |
-| &nbsp;&nbsp;`GOLD` | 0.15 | 0.10 | 0.10 |
-| &nbsp;&nbsp;`AUD` | 0.25 | 0.20 | 0.20 |
-| &nbsp;&nbsp;`NZD` | 0.25 | 0.20 | 0.20 |
+| &nbsp;&nbsp;`CAD` | 0.20 | 0.20 | 0.20 |
+| &nbsp;&nbsp;`GBP` | 0.15 | 0.15 | 0.15 |
 | &nbsp;&nbsp;`JPY` | 0.25 | 0.20 | 0.20 |
-| &nbsp;&nbsp;`FX_MAJOR` | 0.40 | 0.30 | 0.30 |
-| &nbsp;&nbsp;`FX_CROSS` | 0.40 | 0.30 | 0.30 |
-| &nbsp;&nbsp;`FX_COMMODITY` | 0.25 | 0.15 | 0.15 |
+| &nbsp;&nbsp;`US_EQUITY` | 0.15 | 0.15 | 0.15 |
+| &nbsp;&nbsp;`COMMODITY` | 0.05 | 0.05 | 0.05 |
+
+> **Note:** These limits correspond to the factor group upper-bounds from `shared/factor_model.py:DEFAULT_FACTOR_LIMITS`. All groups also have symmetrical lower bounds (e.g. USD: -0.40, CHF: -0.20). Only the upper bounds are shown here for readability. The full (min, max) pairs are enforced by `factor_constrained_v2` during portfolio optimization.
 
 ## Per-Mode Description
 
@@ -111,5 +113,5 @@ The following live at the top level (apply to all modes):
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-08
 

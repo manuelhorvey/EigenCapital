@@ -39,17 +39,21 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit --desc on 2>&1 | head -50 || echo "pip-audit found issues (non-blocking)"
-      # Dashboard lint check — TypeScript
+      # Dashboard lint check — TypeScript (uses yarn for reproducible installs)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: paper_trading/dashboard/package.json
+          cache: yarn
+          cache-dependency-path: paper_trading/dashboard/yarn.lock
+      - name: Install dashboard deps
+        run: |
+          cd paper_trading/dashboard
+          yarn install --frozen-lockfile
       - name: Check dashboard types
         run: |
           cd paper_trading/dashboard
-          npm ci && npx tsc -b --noEmit
+          yarn tsc -b --noEmit
 
   test:
     runs-on: ubuntu-latest
@@ -72,16 +76,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: paper_trading/dashboard/package.json
+          cache: yarn
+          cache-dependency-path: paper_trading/dashboard/yarn.lock
       - name: Build dashboard
         run: |
           cd paper_trading/dashboard
-          npm ci && npm run build
+          yarn install --frozen-lockfile
+          yarn build
       - name: Run dashboard unit tests (vitest)
         run: |
           cd paper_trading/dashboard
-          npx vitest run --reporter verbose
+          yarn vitest run --reporter verbose
       - name: Run Python tests
         run: |
           PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ -v --tb=short -x

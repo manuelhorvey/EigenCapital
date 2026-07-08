@@ -2,8 +2,6 @@ interface GaugeProps {
   label: string
   value: number
   size?: number
-  min?: number
-  max?: number
   color?: string
   className?: string
 }

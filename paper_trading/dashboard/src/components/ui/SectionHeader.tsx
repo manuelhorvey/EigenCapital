@@ -8,7 +8,6 @@ interface SectionHeaderProps {
   meta?: ReactNode
   className?: string
   border?: boolean
-  size?: 'sm' | 'md'
 }
 
 const accentDot: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
@@ -21,11 +20,6 @@ const accentDot: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
   neutral: 'bg-gov-init/60',
 }
 
-const titleSize = {
-  sm: 'text-sm',
-  md: 'text-sm',
-}
-
 /** Section heading with accent dot, optional subtitle, and meta slot for actions/buttons. */
 export default function SectionHeader({
   title,
@@ -34,7 +28,6 @@ export default function SectionHeader({
   meta,
   className = '',
   border = false,
-  size = 'md',
 }: SectionHeaderProps) {
   return (
     <div
@@ -47,7 +40,7 @@ export default function SectionHeader({
       <div className="flex items-center gap-2.5 min-w-0">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${accentDot[accent]}`} />
         <div className="min-w-0">
-          <h2 className={[titleSize[size], 'font-semibold tracking-tight text-primary truncate'].join(' ')}>{title}</h2>
+          <h2 className="text-sm font-semibold tracking-tight text-primary truncate">{title}</h2>
           {subtitle && <p className="text-[10px] text-tertiary font-mono truncate mt-0.5 tracking-wide">{subtitle}</p>}
         </div>
       </div>

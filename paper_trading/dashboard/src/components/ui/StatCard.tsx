@@ -10,7 +10,6 @@ interface StatCardProps {
   variant?: StatCardVariant
   accent?: string
   loading?: boolean
-  size?: 'sm' | 'md'
   className?: string
 }
 

@@ -574,9 +574,16 @@ class EngineOrchestrator:
         # lowest-ranked admitted positions until within budget.
         if self._risk_budget is not None and budget_ref:
             max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
-            current_notional = sum(
-                getattr(actor._engine, "_last_entry_notional", 0.0) for actor in self._actors.values()
-            )
+            def _entry_notionals(actor) -> float:
+                pos_mgr = getattr(actor._engine, "pos_mgr", None)
+                if pos_mgr is None:
+                    return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
+                entry_notional = getattr(pos_mgr, "_entry_notional", None)
+                if isinstance(entry_notional, (int, float)) and entry_notional > 0:
+                    return float(entry_notional)
+                return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
+
+            current_notional = sum(_entry_notionals(actor) for actor in self._actors.values())
             if current_notional > max_notional:
                 logger.warning(
                     "PEK_BUDGET_OVERRUN: notional=%.2f max=%.2f over=%.2f%% — reviewing %d admitted",
@@ -599,7 +606,12 @@ class EngineOrchestrator:
                     pos_mgr = getattr(engine, "pos_mgr", None)
                     if pos_mgr is None or not pos_mgr.has_position():
                         continue
-                    entry_notional = getattr(engine, "_last_entry_notional", 0.0)
+                    entry_notional_raw = getattr(pos_mgr, "_entry_notional", None)
+                    entry_notional = (
+                        float(entry_notional_raw)
+                        if isinstance(entry_notional_raw, (int, float)) and entry_notional_raw > 0
+                        else getattr(engine, "_last_entry_notional", 0.0) or 0.0
+                    )
                     try:
                         exit_price = getattr(engine, "current_price", None)
                         if exit_price is not None and exit_price > 0:

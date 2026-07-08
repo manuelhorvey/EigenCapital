@@ -34,6 +34,9 @@ export function useWeeklyReview() {
       }
       queryClient.invalidateQueries({ queryKey: ['weeklyReview'] })
     },
+    onError: (err) => {
+      addErrorBreadcrumb('WeeklyReview', `Acknowledge POST failed: ${err}`)
+    },
   })
 
   const lastAcknowledged = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
@@ -44,6 +47,7 @@ export function useWeeklyReview() {
     show,
     isPending: query.isPending,
     isError: query.isError,
+    error: query.error,
     acknowledge: () => acknowledge.mutate(),
     dismiss: () => {
       if (query.data) {

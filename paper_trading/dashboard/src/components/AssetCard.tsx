@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
-import { systemSelectors } from '../selectors/system'
+import { selectAsset, selectOpenPosition, selectRiskSignal, selectShadowAction } from '../selectors/system'
 import { confidenceToPercent } from '../utils/format'
 import {
   confToState,
@@ -66,15 +66,15 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): {
  * @param {{ name: string, density?: 'comfortable' | 'compact' }} props
  */
 const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
-  // Slice selector: only this asset's slot triggers a re-render. The
-  // `data?.open_positions` and similar lambda accesses still use the
-  // returned snapshot shape so the rest of the component works
-  // unchanged — but the React Query subscription ref won't churn when
-  // other assets' slots update.
-  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
-  const data = snapshot
+  // Each selector subscribes only to its slice of the bundle. React Query's
+  // structural sharing keeps references stable until that specific slice
+  // changes — so AssetCard only re-renders when its own asset's data updates,
+  // not when any other asset in the portfolio changes.
+  const { data: asset } = useSystemSnapshot(selectAsset(name))
+  const { data: openPosition } = useSystemSnapshot(selectOpenPosition(name))
+  const { data: riskSignal } = useSystemSnapshot(selectRiskSignal(name))
+  const { data: shadowAction } = useSystemSnapshot(selectShadowAction(name))
   const { setSelectedAsset } = useSelectedAsset()
-  const asset = data?.assets?.[name]
 
   const prevEntryRef = useRef<number | null>(null)
   const prevPositionEntryRef = useRef<number | null>(null)
@@ -87,7 +87,6 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
     const m = asset.metrics
     const sig = asset.last_signal
     const pos = m.position as PositionLeg | undefined
-    const openPosition = data?.open_positions?.[name]
     const signalHistory = openPosition?.prob_history ?? []
     const isNew =
       signalHistory.length >= 2 &&
@@ -120,10 +119,10 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
       scaleOutTiers: (m.scale_out_tiers ?? null) as ScaleOutTier[] | null,
       remainingFraction: m.remaining_fraction ?? 1,
       isNew,
-      riskSignal: (data?.risk_signals?.[name] ?? null) as { risk_level: string; risk_score: number } | null,
-      shadowAction: (data?.shadow_actions?.[name] ?? null) as { action_type: string } | null,
+      riskSignal: (riskSignal ?? null) as { risk_level: string; risk_score: number } | null,
+      shadowAction: (shadowAction ?? null) as { action_type: string } | null,
     }
-  }, [asset, data, name])
+  }, [asset, name, openPosition, riskSignal, shadowAction])
 
   // Flag a position close for 60s — fires when position transitions from non-null to null.
   useEffect(() => {

@@ -11,7 +11,12 @@ export function useWalTimeline(assetName: string) {
     queryKey: ['walTimeline', assetName],
     queryFn: async () => {
       const json = await fetchApi<unknown>(`/wal/${assetName}.json`)
-      return WalResponseSchema.parse(json)
+      const parsed = WalResponseSchema.safeParse(json)
+      if (!parsed.success) {
+        console.error('[WAL] validation failed:', parsed.error.issues)
+        return { events: [], total: 0, asset: assetName }
+      }
+      return parsed.data
     },
     refetchInterval: 30_000,
     staleTime: 10_000,

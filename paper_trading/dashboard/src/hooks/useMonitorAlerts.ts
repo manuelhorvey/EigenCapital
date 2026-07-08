@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSystemSnapshot } from './useSystemSnapshot'
+import { systemSelectors, selectMeta } from '../selectors/system'
 
 const ALERTS_CHANNEL = 'eigencapital-alerts'
 
@@ -65,10 +66,11 @@ function shortenMessage(msg: string): string {
 
 /** Derives active alerts from the system snapshot — halted assets, health critical/degraded, and governance threshold breaches. @returns {Alert[]} - Array of alert objects sorted by severity */
 export function useMonitorAlerts(): Alert[] {
-  const { data: bundle } = useSystemSnapshot()
-  const state = bundle?.snapshot
-  const health = bundle?.live?.health
-  const seqId = bundle?.meta?.snapshot_sequence_id
+  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
+  const { data: health } = useSystemSnapshot(systemSelectors.health)
+  const { data: meta } = useSystemSnapshot(selectMeta)
+  const state = snapshot
+  const seqId = snapshot?.sequence_id
   const [broadcastTick, setBroadcastTick] = useState(0)
 
   // Track the bundle version in a ref so dismissedKey() uses the
@@ -77,7 +79,7 @@ export function useMonitorAlerts(): Alert[] {
   // synchronously in render, which is safe because refs are mutable
   // containers that don't participate in React's rendering guarantees.
   const versionRef = useRef('')
-  const version = bundle?.meta?.version ?? ''
+  const version = meta?.version ?? ''
   if (version && versionRef.current !== version) {
     versionRef.current = version
     _dismissedVersion = version

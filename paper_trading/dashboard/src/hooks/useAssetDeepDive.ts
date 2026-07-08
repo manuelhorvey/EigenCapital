@@ -13,7 +13,12 @@ export function useAssetDeepDive(name: string) {
     queryKey: ['assetDeepDive', name],
     queryFn: async () => {
       const json = await fetchApi<unknown>(`/asset/${name}.json`)
-      return DeepDiveDataSchema.parse(json)
+      const parsed = DeepDiveDataSchema.safeParse(json)
+      if (!parsed.success) {
+        console.error('[DeepDive] validation failed:', parsed.error.issues)
+        throw new Error(`Invalid deep dive data for ${name}`)
+      }
+      return parsed.data
     },
     enabled: !!name,
     staleTime: 60_000,

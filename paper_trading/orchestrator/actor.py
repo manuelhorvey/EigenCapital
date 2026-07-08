@@ -167,11 +167,21 @@ class AssetActor:
         return commands
 
     def reset(self) -> None:
-        """Reset actor to GREEN health."""
+        """Reset actor to GREEN health and clear halted flags."""
         self.health = ActorHealth.GREEN
         self.metrics = ActorMetrics()
         self._fault_reason = ""
         self._persist_queue.clear()
+        eng = getattr(self, "_engine", None)
+        if eng is not None:
+            try:
+                pos_mgr = getattr(eng, "pos_mgr", None)
+                if pos_mgr is not None:
+                    pos_mgr.halted = False
+                if hasattr(eng, "_halted"):
+                    eng._halted = False
+            except (AttributeError, TypeError):
+                pass
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

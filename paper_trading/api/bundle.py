@@ -173,6 +173,23 @@ def _live_get(name: str, fetch_fn: Callable[[], Any]) -> dict:
     }
 
 
+def _strip_publish_markers(obj: Any) -> None:
+    """Recursively remove ``__eigencapital_published__`` keys from *obj*.
+
+    The marker is a Python-side immutability guard (see
+    ``engine_state_service._publish_asset_dict``) that should never reach the
+    frontend.  This function strips it from all nested dicts to prevent
+    ``z.record`` schema validation failures on the dashboard.
+    """
+    if isinstance(obj, dict):
+        obj.pop("__eigencapital_published__", None)
+        for v in obj.values():
+            _strip_publish_markers(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            _strip_publish_markers(v)
+
+
 # ── Bundle handler ─────────────────────────────────────────────────────────
 
 
@@ -189,6 +206,13 @@ def handle_state_bundle(path: str, query: dict, state_store=None) -> str:
 
     if snapshot_obj is not None:
         snapshot = asdict(snapshot_obj)
+        # Strip __eigencapital_published__ markers from the snapshot before
+        # serving.  The marker is a Python-side immutability guard set by
+        # _publish_asset_dict() at write time, but it leaks into Zod-validated
+        # nested dicts that use z.record (regime_geometry, etc.) where every
+        # value must match a typed schema — null values from the marker cause
+        # "invalid_type: expected object, received null" on the frontend.
+        _strip_publish_markers(snapshot)
     else:
         snapshot = {
             "contract_version": 0,

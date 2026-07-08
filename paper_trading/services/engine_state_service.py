@@ -57,15 +57,18 @@ def _publish_asset_dict(asset_state: dict) -> None:
 
     Idempotent: a re-publish overwrites the marker but doesn't change
     semantics.
+
+    NOTE: Only the top-level asset dict is marked.  Nested dicts are NOT
+    recursed into because some of them (e.g. ``regime_geometry``,
+    ``batches``, ``sizing_chain``) are ``z.record``-type schemas that
+    validate all values — injecting a marker key breaks frontend Zod
+    validation (``invalid_type: expected object, received null``).
     """
     if not isinstance(asset_state, dict):
         return
     # Marker key (string → None). Setting _ASSET_DICT_PUBLISHED_MARKER twice
     # is a no-op state-wise; we use it for traceability only.
     asset_state.setdefault(_ASSET_DICT_PUBLISHED_MARKER, None)
-    for _value in asset_state.values():
-        if isinstance(_value, dict):
-            _publish_asset_dict(_value)
 
 
 class EngineStateService:

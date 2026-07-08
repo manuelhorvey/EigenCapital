@@ -141,7 +141,18 @@ def handle_trade_outcomes(path: str, query: dict, state_store=None) -> str:
     store = state_store or _STORE
     outcomes = store.read_trade_outcomes()
     if outcomes is None:
-        outcomes = {"overall": {}, "by_asset": [], "updated_at": ""}
+        outcomes = {
+            "overall": {
+                "tp_rate": 0.0,
+                "sl_rate": 0.0,
+                "signal_flip_rate": 0.0,
+                "avg_r": 0.0,
+                "win_rate": 0.0,
+                "profit_factor": None,
+            },
+            "by_asset": [],
+            "updated_at": "",
+        }
     data = json_dumps(outcomes, indent=2)
     cache_set("/trade-outcomes.json", data)
     return data

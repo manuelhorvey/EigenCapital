@@ -34,11 +34,13 @@ class TestPublishMarker:
         assert _ASSET_DICT_PUBLISHED_MARKER in d
         assert d[_ASSET_DICT_PUBLISHED_MARKER] is None
 
-    def test_marker_recurses_into_nested_dicts(self):
+    def test_marker_does_not_recurse_into_nested_dicts(self):
+        """Nested dicts are intentionally NOT marked to avoid breaking
+        z.record schemas on the frontend (e.g. regime_geometry, batches)."""
         d = _fixture_dict()
         _publish_asset_dict(d)
-        assert _ASSET_DICT_PUBLISHED_MARKER in d["metrics"]
-        assert _ASSET_DICT_PUBLISHED_MARKER in d["feature_stability"]
+        assert _ASSET_DICT_PUBLISHED_MARKER not in d["metrics"]
+        assert _ASSET_DICT_PUBLISHED_MARKER not in d["feature_stability"]
 
     def test_lists_are_not_recursed(self):
         d = _fixture_dict()

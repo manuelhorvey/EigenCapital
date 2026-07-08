@@ -328,7 +328,8 @@ class TestTradeOutcomes:
     def test_no_outcomes(self, tmp_store):
         result = handle_trade_outcomes("/trade-outcomes.json", {})
         data = json.loads(result)
-        assert data["overall"] == {}
+        assert data["overall"]["tp_rate"] == 0.0
+        assert data["overall"]["profit_factor"] is None
 
     def test_with_outcomes(self, tmp_store):
         tmp_store.append_trade(

@@ -34,9 +34,9 @@ function RiskWorkspaceSkeleton() {
         </div>
       </Section>
       <Section id="model-health" errorTitle="Model Health">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Skeleton className="h-36 rounded-lg" shimmer />
-          <Skeleton className="h-36 rounded-lg" shimmer />
+        <Skeleton className="h-48 rounded-lg" shimmer />
+        <div className="mt-4">
+          <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
       </Section>
     </div>
@@ -91,13 +91,16 @@ export default function RiskWorkspace() {
         </EntranceAnimator>
       </Section>
 
-      {/* Bottom: model health scores — combined into a single side-by-side section. */}
-      <Section id="model-health" errorTitle="Model Health">
+      {/* Bottom: model health — stacked vertically so each component gets
+          full width. HealthScores card grid (xl:grid-cols-6) and
+          HealthMonitorPanel table both need horizontal space to render
+          asset names and columns without truncation. */}
+      <Section id="model-health" errorTitle="Model Health" className="space-y-5 sm:space-y-6">
         <EntranceAnimator variant="fade-up" delay={105}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <HealthMonitorPanel />
-            <HealthScores />
-          </div>
+          <HealthMonitorPanel />
+        </EntranceAnimator>
+        <EntranceAnimator variant="fade-up" delay={135}>
+          <HealthScores />
         </EntranceAnimator>
       </Section>
     </div>

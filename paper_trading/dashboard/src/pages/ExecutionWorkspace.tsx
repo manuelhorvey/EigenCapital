@@ -1,3 +1,4 @@
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import ExecutionQualityStrip from '../components/execution/ExecutionQualityStrip'
 import SlippageHistogram from '../components/execution/SlippageHistogram'
 import FillQualityGauge from '../components/execution/FillQualityGauge'
@@ -8,8 +9,72 @@ import MaeMfeScatter from '../components/attribution/MaeMfeScatter'
 import ExecutionFeed from '../components/ExecutionFeed'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
+import Panel from '../components/ui/Panel'
+import { Skeleton } from '../components/ui/Skeleton'
+
+function ExecutionWorkspaceSkeleton() {
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      <Section id="execution-quality" errorTitle="Execution Quality">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+          <div className="lg:col-span-3">
+            <Skeleton className="h-40 rounded-lg" shimmer />
+          </div>
+          <div className="lg:col-span-5">
+            <Skeleton className="h-40 rounded-lg" shimmer />
+          </div>
+          <div className="lg:col-span-4">
+            <Skeleton className="h-40 rounded-lg" shimmer />
+          </div>
+        </div>
+      </Section>
+      <Section id="recent-execution" errorTitle="Cycle Gates & Trades">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+          <div className="lg:col-span-5">
+            <Skeleton className="h-48 rounded-lg" shimmer />
+          </div>
+          <div className="lg:col-span-7">
+            <Skeleton className="h-48 rounded-lg" shimmer />
+          </div>
+        </div>
+        <div className="mt-4">
+          <Skeleton className="h-64 rounded-lg" shimmer />
+        </div>
+      </Section>
+      <Section id="trade-attribution" errorTitle="Trade Attribution">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+          <div className="lg:col-span-7">
+            <Skeleton className="h-48 rounded-lg" shimmer />
+          </div>
+          <div className="lg:col-span-5">
+            <Skeleton className="h-48 rounded-lg" shimmer />
+          </div>
+        </div>
+      </Section>
+    </div>
+  )
+}
 
 export default function ExecutionWorkspace() {
+  const { data, isPending, isError, error } = useSystemSnapshot()
+
+  if (isError && !data) {
+    return (
+      <Panel padding="md">
+        <div className="flex items-center gap-3 text-gov-red">
+          <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
+          <span className="text-xs text-tertiary">
+            {error instanceof Error ? error.message : 'Failed to load engine data'}
+          </span>
+        </div>
+      </Panel>
+    )
+  }
+
+  if (isPending && !data) {
+    return <ExecutionWorkspaceSkeleton />
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Top row: execution quality at a glance — summary KPIs flanked

@@ -16,39 +16,27 @@ function ExecutionWorkspaceSkeleton() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <Section id="execution-quality" errorTitle="Execution Quality">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-          <div className="lg:col-span-3">
-            <Skeleton className="h-40 rounded-lg" shimmer />
-          </div>
-          <div className="lg:col-span-5">
-            <Skeleton className="h-40 rounded-lg" shimmer />
-          </div>
-          <div className="lg:col-span-4">
-            <Skeleton className="h-40 rounded-lg" shimmer />
+        <Skeleton className="h-36 rounded-lg" shimmer />
+        <div className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+            <Skeleton className="h-48 rounded-lg" shimmer />
+            <Skeleton className="h-48 rounded-lg" shimmer />
           </div>
         </div>
       </Section>
-      <Section id="recent-execution" errorTitle="Cycle Gates & Trades">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-          <div className="lg:col-span-5">
-            <Skeleton className="h-48 rounded-lg" shimmer />
-          </div>
-          <div className="lg:col-span-7">
-            <Skeleton className="h-48 rounded-lg" shimmer />
-          </div>
+      <Section id="execution-feed" errorTitle="Execution Feed">
+        <Skeleton className="h-64 rounded-lg" shimmer />
+      </Section>
+      <Section id="trade-attribution" errorTitle="Trade Attribution">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          <Skeleton className="h-48 rounded-lg" shimmer />
+          <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
         <div className="mt-4">
           <Skeleton className="h-64 rounded-lg" shimmer />
         </div>
-      </Section>
-      <Section id="trade-attribution" errorTitle="Trade Attribution">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-          <div className="lg:col-span-7">
-            <Skeleton className="h-48 rounded-lg" shimmer />
-          </div>
-          <div className="lg:col-span-5">
-            <Skeleton className="h-48 rounded-lg" shimmer />
-          </div>
+        <div className="mt-4">
+          <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
       </Section>
     </div>
@@ -77,53 +65,46 @@ export default function ExecutionWorkspace() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Top row: execution quality at a glance — summary KPIs flanked
-          by the slippage histogram and fill quality gauge. All three read
-          as a single block at different granularities. */}
+      {/* Section 1 — Execution Quality
+          Top: KPI summary strip (full width).
+          Bottom: fill quality gauges + slippage distribution side by side.
+          All three read from the same attribution bundle. */}
       <Section id="execution-quality" errorTitle="Execution Quality" className="space-y-5 sm:space-y-6">
         <EntranceAnimator variant="fade-up">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-            <div className="lg:col-span-3 min-w-0">
-              <FillQualityGauge />
-            </div>
-            <div className="lg:col-span-5 min-w-0">
-              <ExecutionQualityStrip />
-            </div>
-            <div className="lg:col-span-4 min-w-0">
-              <SlippageHistogram />
-            </div>
+          <ExecutionQualityStrip />
+        </EntranceAnimator>
+        <EntranceAnimator variant="fade-up" delay={45}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+            <FillQualityGauge />
+            <SlippageHistogram />
           </div>
         </EntranceAnimator>
       </Section>
 
-      {/* Middle: this cycle's gate decisions + recent trade performance. */}
-      <Section id="recent-execution" errorTitle="Cycle Gates & Trades" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-            <div className="lg:col-span-5 min-w-0">
-              <ExecutionFeed />
-            </div>
-            <div className="lg:col-span-7 min-w-0">
-              <PnLWaterfall />
-            </div>
+      {/* Section 2 — Execution Feed
+          Full-width per-asset gate table. Needs the horizontal space for
+          its 18+ asset rows and min-width columns. */}
+      <Section id="execution-feed" errorTitle="Execution Feed">
+        <EntranceAnimator variant="fade-up" delay={75}>
+          <ExecutionFeed />
+        </EntranceAnimator>
+      </Section>
+
+      {/* Section 3 — Trade Attribution
+          All trade-level analysis grouped together: PnL decomposition +
+          domain scores, detail table, and MAE/MFE scatter. */}
+      <Section id="trade-attribution" errorTitle="Trade Attribution" className="space-y-5 sm:space-y-6">
+        <EntranceAnimator variant="fade-up" delay={105}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+            <PnLWaterfall />
+            <AttributionBreakdownCard />
           </div>
         </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={60}>
+        <EntranceAnimator variant="fade-up" delay={135}>
           <TradeExecutionTable />
         </EntranceAnimator>
-      </Section>
-
-      {/* Bottom: deep trade attribution — MAE/MFE scatter + domain scores. */}
-      <Section id="trade-attribution" errorTitle="Trade Attribution" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-            <div className="lg:col-span-7 min-w-0">
-              <MaeMfeScatter />
-            </div>
-            <div className="lg:col-span-5 min-w-0">
-              <AttributionBreakdownCard />
-            </div>
-          </div>
+        <EntranceAnimator variant="fade-up" delay={165}>
+          <MaeMfeScatter />
         </EntranceAnimator>
       </Section>
     </div>

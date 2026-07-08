@@ -6,55 +6,55 @@
 
 # ── Forex ─────────────────────────────────────────────────────────────────────
 # AUDCHF=X: AUDCHF    # REMOVED from trading (directional filter diagnostic — BUY was anti-skill)
-AUDJPY=X: AUDJPYm # PROMOTED 2026-07-03 — WF: +262R, BuyWR=36% SellWR=64% (BE=21%)
+AUDJPY=X: AUDJPY # PROMOTED 2026-07-03 — WF: +262R, BuyWR=36% SellWR=64% (BE=21%)
 # AUDNZD=X: AUDNZD    # REMOVED from trading (directional filter diagnostic — SELL was anti-skill)
-AUDUSD=X: AUDUSDm
-CADCHF=X: CADCHFm
+AUDUSD=X: AUDUSD
+CADCHF=X: CADCHF
 # CADJPY=X: CADJPY      # REMOVED from dashboard (PF < 1.0)
 # CHFJPY=X: CHFJPY      # REMOVED from dashboard (zero edge)
-EURAUD=X: EURAUDm
-EURCAD=X: EURCADm
-EURCHF=X: EURCHFm
-EURNZD=X: EURNZDm
+EURAUD=X: EURAUD
+EURCAD=X: EURCAD
+EURCHF=X: EURCHF
+EURNZD=X: EURNZD
 # EURUSD=X: EURUSD    # REMOVED from trading 2026-06-20 (directional instability)
-GBPAUD=X: GBPAUDm
-GBPCAD=X: GBPCADm
-GBPCHF=X: GBPCHFm
+GBPAUD=X: GBPAUD
+GBPCAD=X: GBPCAD
+GBPCHF=X: GBPCHF
 # GBPNZD=X: GBPNZD   # REMOVED from trading (tp/sl ratio 0.33, breakeven WR 75% vs actual 72%)
-NZDCAD=X: NZDCADm
-NZDCHF=X: NZDCHFm
-NZDUSD=X: NZDUSDm
-USDCAD=X: USDCADm
-USDCHF=X: USDCHFm
-USDJPY=X: USDJPYm # PROMOTED 2026-07-03 — WF: +255R, BuyWR=40% SellWR=64% (BE=21%)
+NZDCAD=X: NZDCAD
+NZDCHF=X: NZDCHF
+NZDUSD=X: NZDUSD
+USDCAD=X: USDCAD
+USDCHF=X: USDCHF
+USDJPY=X: USDJPY # PROMOTED 2026-07-03 — WF: +255R, BuyWR=40% SellWR=64% (BE=21%)
 # AUDCAD=X:  AUDCAD     # FAIL — negative expectancy
 # EURCHF=X:  EURCHF     # WEAK — low consistency
 # EURGBP=X:  EURGBP     # FAIL — negative expectancy
 # EURJPY=X:  EURJPY     # WEAK — low sharpe
 # EURNZD=X:  EURNZD     # FAIL — negative expectancy
 # GBPAUD=X:  GBPAUD     # WEAK — low consistency
-GBPJPY=X: GBPJPYm # PROMOTED 2026-07-03 — WF: +443R, BuyWR=39% SellWR=71% (BE=18%)
-GBPUSD=X: GBPUSDm
+GBPJPY=X: GBPJPY # PROMOTED 2026-07-03 — WF: +443R, BuyWR=39% SellWR=71% (BE=18%)
+GBPUSD=X: GBPUSD
 # NZDCHF=X:  NZDCHF     # WEAK — low consistency
-NZDJPY=X: NZDJPYm # PROMOTED 2026-07-03 — WF: +166R, BuyWR=29% SellWR=74% (BE=20%)
+NZDJPY=X: NZDJPY # PROMOTED 2026-07-03 — WF: +166R, BuyWR=29% SellWR=74% (BE=20%)
 
 # ── Metals ────────────────────────────────────────────────────────────────────
-GC=F: XAUUSDm
+GC=F: XAUUSD
 # SI=F: XAGUSD
 
 # ── Indices ───────────────────────────────────────────────────────────────────
 # Exact Exness names may vary; adjust as needed.
 # Common variants: US500, SP500m, US500Cash, SPX, ES
-ES=F: US500m
-NQ=F: USTECm
-YM=F: US30m # Same symbol as ^DJI (Dow futures); only ^DJI is in portfolio
-^DJI: US30m
+ES=F: US500
+NQ=F: USTEC
+YM=F: US30 # Same symbol as ^DJI (Dow futures); only ^DJI is in portfolio
+^DJI: US30
 
 # ── Energy ────────────────────────────────────────────────────────────────────
-# CL=F: USOILm # Kept for WTI cross-asset feature (WTI_mom_21d); not traded directly
+# CL=F: USOIL # Kept for WTI cross-asset feature (WTI_mom_21d); not traded directly
 # NG=F:      NATGAS
 
 # ── Crypto ────────────────────────────────────────────────────────────────────
-BTC-USD: BTCUSDm # PROMOTED 2026-07-03 — walk-forward: +181R, BuyWR=38% SellWR=59% (BE=28%)
+BTC-USD: BTCUSD # PROMOTED 2026-07-03 — walk-forward: +181R, BuyWR=38% SellWR=59% (BE=28%)
 # ETH-USD:   ETHUSD
 

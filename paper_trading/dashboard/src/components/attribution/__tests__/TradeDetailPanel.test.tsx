@@ -133,7 +133,7 @@ describe('TradeDetailPanel', () => {
     expect(screen.getByText('Friction')).toBeInTheDocument()
   })
 
-  it('renders ScoreBar components for each section', () => {
+  it('renders BarRow components for each section', () => {
     render(<TradeDetailPanel trade={MOCK_TRADE} onClose={() => {}} />)
     const scoreLabels = screen.getAllByText('Score')
     expect(scoreLabels.length).toBe(4)

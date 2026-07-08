@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import type { TradeAttributionRecord } from '../../types/attribution'
 import { computeDomainScores } from './domainScores'
-import ScoreBar from '../ui/ScoreBar'
+import { BarRow } from '../ui/ProgressBar'
 
 interface TradeDetailPanelProps {
   trade: TradeAttributionRecord
@@ -38,7 +38,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Archetype: <span className="text-secondary">{trade.pred_archetype_at_entry}</span></p>
             <p>Regime: <span className="text-secondary">{trade.pred_regime_at_entry}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.prediction_score} color="var(--color-accent-blue)" />
+          <BarRow label="Score" value={scores.prediction_score} color="var(--color-accent-blue)" cssColor />
         </div>
 
         {/* Execution */}
@@ -57,7 +57,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             {trade.friction_gap_fill && <p className="text-gov-red">⚠ Gap fill</p>}
             {trade.friction_partial_fill && <p className="text-gov-yellow">⚠ Partial fill</p>}
           </div>
-          <ScoreBar label="Score" score={scores.execution_score} color="var(--color-accent-purple)" />
+          <BarRow label="Score" value={scores.execution_score} color="var(--color-accent-purple)" cssColor />
         </div>
 
         {/* Exit */}
@@ -71,7 +71,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Bars held: <span className="text-secondary">{trade.exit_bars_held}</span></p>
             <p>Exit archetype: <span className="text-secondary">{trade.exit_archetype}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.exit_score} color="var(--color-gov-green)" />
+          <BarRow label="Score" value={scores.exit_score} color="var(--color-gov-green)" cssColor />
         </div>
 
         {/* Friction */}
@@ -85,7 +85,7 @@ export default function TradeDetailPanel({ trade, onClose }: TradeDetailPanelPro
             <p>Gap fill: <span className={trade.friction_gap_fill ? 'text-gov-red' : 'text-gov-green'}>{trade.friction_gap_fill ? 'Yes' : 'No'}</span></p>
             <p>Partial: <span className={trade.friction_partial_fill ? 'text-gov-yellow' : 'text-gov-green'}>{trade.friction_partial_fill ? 'Yes' : 'No'}</span></p>
           </div>
-          <ScoreBar label="Score" score={scores.friction_score} color="var(--color-accent-amber)" />
+          <BarRow label="Score" value={scores.friction_score} color="var(--color-accent-amber)" cssColor />
         </div>
       </div>
 

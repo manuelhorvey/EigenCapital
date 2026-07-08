@@ -5,15 +5,18 @@ interface BarRowProps {
   label: ReactNode
   /** 0..1, displayed as 0..100% on the right cap */
   value: number
-  /** Tailwind bg-* class controlling filled segment colour ('bg-gov-green' etc.) */
+  /** Tailwind bg-* class or CSS color value controlling filled segment colour.
+   *  Accepts Tailwind classes like 'bg-gov-green' or CSS values like 'var(--color-accent-blue)'. */
   color: string
+  /** When true, 'color' is treated as a CSS value (via style.backgroundColor) rather than a Tailwind class. */
+  cssColor?: boolean
   /** Override the default 8px track height */
   height?: string
   className?: string
 }
 
-/** Single labeled progress row showing label → filled track → percentage. @param color - Tailwind bg class for the fill (e.g. 'bg-gov-green'). */
-export function BarRow({ label, value, color, height = 'h-2', className = '' }: BarRowProps) {
+/** Single labeled progress row showing label → filled track → percentage. @param color - Tailwind bg class or CSS color value for the fill. */
+export function BarRow({ label, value, color, cssColor = false, height = 'h-2', className = '' }: BarRowProps) {
   const pct = Math.min(Math.max(value, 0), 1)
   const widthPct = pct * 100
   const showPct = Math.round(widthPct)
@@ -23,8 +26,8 @@ export function BarRow({ label, value, color, height = 'h-2', className = '' }: 
       <span className="w-4 text-[10px] text-tertiary text-right shrink-0">{label}</span>
       <div className={`flex-1 ${height} bg-panel rounded-full overflow-hidden`}>
         <div
-          className={`h-full rounded-full transition-all duration-500 ${color}`}
-          style={{ width: `${widthPct}%` }}
+          className={`h-full rounded-full transition-all duration-500 ${cssColor ? '' : color}`}
+          style={{ width: `${widthPct}%`, ...(cssColor ? { backgroundColor: color } : {}) }}
         />
       </div>
       <span className="w-[38px] text-[10px] font-mono text-right tabular-nums shrink-0">{showPct}%</span>

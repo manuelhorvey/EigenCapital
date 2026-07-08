@@ -6,7 +6,7 @@ import TradeGovernanceAudit from './TradeGovernanceAudit'
 import TradeCounterfactual from './TradeCounterfactual'
 import { computeDomainScores } from '../attribution/domainScores'
 import { Skeleton } from '../ui/Skeleton'
-import ScoreBar from '../ui/ScoreBar'
+import { BarRow } from '../ui/ProgressBar'
 import Modal from '../ui/Modal'
 
 interface TradeInspectorModalProps {
@@ -97,10 +97,10 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
                   <>
                     <div className="space-y-2">
                       <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
-                      <ScoreBar label="Prediction" score={scores.prediction_score} color="var(--color-accent-blue)" />
-                      <ScoreBar label="Execution" score={scores.execution_score} color="var(--color-accent-purple)" />
-                      <ScoreBar label="Exit" score={scores.exit_score} color="var(--color-gov-green)" />
-                      <ScoreBar label="Friction" score={scores.friction_score} color="var(--color-accent-amber)" />
+                      <BarRow label="Prediction" value={scores.prediction_score} color="var(--color-accent-blue)" cssColor />
+                      <BarRow label="Execution" value={scores.execution_score} color="var(--color-accent-purple)" cssColor />
+                      <BarRow label="Exit" value={scores.exit_score} color="var(--color-gov-green)" cssColor />
+                      <BarRow label="Friction" value={scores.friction_score} color="var(--color-accent-amber)" cssColor />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-default">

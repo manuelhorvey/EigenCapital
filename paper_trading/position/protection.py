@@ -32,7 +32,15 @@ class PositionProtection:
             if position.is_long:
                 position.risk_floor = max(position.risk_floor, position.avg_price)
             else:
-                position.risk_floor = min(position.risk_floor, position.avg_price)
+                # Shorts: lower risk_floor = tighter stop.
+                # risk_floor starts at 0 (unset sentinel). min(0, avg) always
+                # returns 0, which effective_sl ignores (position.py:85 guard).
+                # Handle the sentinel explicitly to match entry_service.py
+                # stacking pattern (lines 889-890).
+                if position.risk_floor == 0:
+                    position.risk_floor = position.avg_price
+                else:
+                    position.risk_floor = min(position.risk_floor, position.avg_price)
             position.breakeven_set = True
             action = ProtectionAction(action="breakeven", new_sl=position.risk_floor)
 

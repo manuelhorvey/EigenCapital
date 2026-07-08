@@ -115,6 +115,7 @@ class MetaModel:
         self.scaler: StandardScaler | None = None
         self._trained = False
         self._n_trades = 0
+        self._val_accuracy: float | None = None
         self.feature_names = FEATURE_NAMES
 
     @property
@@ -139,27 +140,86 @@ class MetaModel:
             self._trained = False
             return
 
-        X = features[FEATURE_NAMES].values.copy()
-        y = labels.values
+        # Time-based validation split (chronological order preserved)
+        n = len(features)
+        n_val = max(int(n * 0.2), 1)
+        split_idx = n - n_val
+        needs_val = n_val >= 5 and split_idx >= MIN_TRADES_FOR_TRAINING
 
-        self.scaler = StandardScaler()
-        X_scaled = self.scaler.fit_transform(X)
+        if needs_val:
+            X_tr = features[FEATURE_NAMES].iloc[:split_idx].values.copy()
+            X_va = features[FEATURE_NAMES].iloc[-n_val:].values.copy()
+            y_tr = labels.iloc[:split_idx].values
+            y_va = labels.iloc[-n_val:].values
 
-        self.model = LogisticRegression(
-            class_weight="balanced",
-            C=1.0,
-            solver="lbfgs",
-            max_iter=1000,
-            random_state=42,
-        )
-        self.model.fit(X_scaled, y)
+            # Guard against single-class training split (can happen with
+            # imbalanced labels and small datasets)
+            n_tr_classes = len(set(y_tr))
+            if n_tr_classes < 2:
+                needs_val = False
+            else:
+                self.scaler = StandardScaler()
+                X_scaled_tr = self.scaler.fit_transform(X_tr)
+
+                self.model = LogisticRegression(
+                    class_weight="balanced",
+                    C=1.0,
+                    solver="lbfgs",
+                    max_iter=1000,
+                    random_state=42,
+                )
+                self.model.fit(X_scaled_tr, y_tr)
+
+                X_scaled_va = self.scaler.transform(X_va)
+                val_acc = self.model.score(X_scaled_va, y_va)
+                self._val_accuracy = val_acc
+
+                # Retrain on full data for production use
+                X_full = features[FEATURE_NAMES].values.copy()
+                y_full = labels.values
+                scaler_full = StandardScaler()
+                X_scaled_full = scaler_full.fit_transform(X_full)
+                final_model = LogisticRegression(
+                    class_weight="balanced",
+                    C=1.0,
+                    solver="lbfgs",
+                    max_iter=1000,
+                    random_state=42,
+                )
+                final_model.fit(X_scaled_full, y_full)
+                self.scaler = scaler_full
+                self.model = final_model
+
+                logger.info(
+                    "meta-model: trained on %d (val=%d), val_acc=%.3f, %d features",
+                    split_idx,
+                    n_val,
+                    val_acc,
+                    X_tr.shape[1],
+                )
+        else:
+            # Not enough data for a meaningful split — train on everything
+            X = features[FEATURE_NAMES].values.copy()
+            y = labels.values
+            self.scaler = StandardScaler()
+            X_scaled = self.scaler.fit_transform(X)
+            self.model = LogisticRegression(
+                class_weight="balanced",
+                C=1.0,
+                solver="lbfgs",
+                max_iter=1000,
+                random_state=42,
+            )
+            self.model.fit(X_scaled, y)
+            self._val_accuracy = None
+            logger.info(
+                "meta-model trained on %d trades (no validation split — dataset too small), %d features",
+                len(features),
+                X.shape[1],
+            )
+
         self._trained = True
         self._n_trades = len(features)
-        logger.info(
-            "meta-model trained on %d trades, %d features",
-            len(features),
-            X.shape[1],
-        )
 
     def predict(self, features: dict) -> MetaInferenceResult:
         if not self._trained or self.model is None or self.scaler is None:

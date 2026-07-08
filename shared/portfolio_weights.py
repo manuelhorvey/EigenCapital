@@ -11,8 +11,13 @@ CONTRACT:
       NOT the portfolio weight matrix.
 
 Versioning:
-    WeightMethod strings are versioned (e.g. "risk_parity_v1").
-    When the optimizer changes, register a new version.
+    - WeightMethod strings are versioned (e.g. "risk_parity_v1").
+    - When the optimizer changes, register a new version.
+"""
+
+import logging
+
+logger = logging.getLogger(__name__)
     Old versions remain callable for reproducible backtests.
 """
 
@@ -86,6 +91,7 @@ class WeightVector:
         if total <= 0:
             return
         if abs(total - 1.0) > 1e-6:
+            logger.warning("Weight vector sums to %.4f — auto-normalizing for %s", total, self.date)
             normalized = {k: v / total for k, v in self.weights.items()}
             object.__setattr__(self, "weights", normalized)
 
@@ -233,7 +239,11 @@ def _risk_parity_weights(returns: pd.DataFrame) -> dict[str, float]:
         method="SLSQP",
     )
 
-    w = result.x / max(result.x.sum(), 1e-12)
+    if not result.success:
+        logger.warning("Risk parity SLSQP did not converge: %s — falling back to equal weights", result.message)
+        w = np.ones(n) / n
+    else:
+        w = result.x / max(result.x.sum(), 1e-12)
     return dict(zip(assets, w))
 
 

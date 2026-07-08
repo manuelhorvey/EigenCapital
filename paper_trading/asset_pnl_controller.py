@@ -55,8 +55,13 @@ def _sync_broker_sltp(asset, trade_id: str | None = None) -> bool:
         mt5_ticket = pos_dict.get("mt5_ticket")
         if mt5_ticket is None:
             continue
-        sl = pos_dict.get("sl")
-        tp = pos_dict.get("tp")
+        # Prefer pos_mgr.position values — trailing/adjust updates go there, not into the dict
+        if pos_dict is asset.position and asset.pos_mgr.has_position():
+            sl = asset.pos_mgr.position.stop_loss
+            tp = asset.pos_mgr.position.take_profit
+        else:
+            sl = pos_dict.get("sl")
+            tp = pos_dict.get("tp")
         if pd.isna(sl) or pd.isna(tp) or sl is None or tp is None:
             logger.error("%s: cannot sync NaN SL=%.4f or TP=%.4f to broker", asset.name, sl, tp)
             all_ok = False

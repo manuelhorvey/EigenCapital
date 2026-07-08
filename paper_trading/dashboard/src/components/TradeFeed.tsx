@@ -1,4 +1,5 @@
-import { memo, useState, useMemo, useCallback } from 'react'
+import { memo, useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTrades } from '../hooks/useTrades'
 import { formatAssetPrice, formatHeldDuration, safeToFixed } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
@@ -31,6 +32,23 @@ function TradeFeed() {
   const offset = page * PAGE_SIZE
   const { data: trades, isPending } = useTrades(PAGE_SIZE + 1, offset)
   const { data: engineStatus } = useSystemSnapshot(systemSelectors.engineStatus)
+  const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
+  const queryClient = useQueryClient()
+
+  // Fast-path: when closed_trades count increases, immediately invalidate
+  // the trades query instead of waiting for the 60s polling interval.
+  // (Audit finding F12: trade feed latency)
+  const prevClosedTradesRef = useRef(portfolio?.closed_trades ?? 0)
+  useEffect(() => {
+    const current = portfolio?.closed_trades ?? 0
+    if (current > prevClosedTradesRef.current) {
+      prevClosedTradesRef.current = current
+      queryClient.invalidateQueries({ queryKey: ['trades'] })
+    } else if (current < prevClosedTradesRef.current) {
+      // Engine restarted — reset tracker
+      prevClosedTradesRef.current = current
+    }
+  }, [portfolio?.closed_trades, queryClient])
   const rows = useMemo(() => (trades ?? []).slice(0, PAGE_SIZE), [trades])
   const hasMore = (trades?.length ?? 0) > PAGE_SIZE
 

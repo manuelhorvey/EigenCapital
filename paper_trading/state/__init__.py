@@ -38,6 +38,7 @@ class EngineSnapshot:
     mt5: dict | None = None
     asset_values: dict[str, float] | None = None
     risk_state: dict | None = None
+    performance_state: dict | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> "EngineSnapshot":

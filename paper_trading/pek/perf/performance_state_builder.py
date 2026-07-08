@@ -270,6 +270,46 @@ class PerformanceStateBuilder:
         self._ece_warned: bool = False
         self._portfolio_value_history: deque[float] = deque(maxlen=20)
 
+    def record_trade(
+        self,
+        asset: str,
+        exit_reason: str,
+        r_multiple: float,
+        mae_pct: float,
+        mfe_pct: float,
+    ) -> None:
+        """Record a completed trade outcome. Delegates to OutcomeTracker."""
+        self.outcome.record_trade(
+            exit_reason=exit_reason,
+            r_multiple=r_multiple,
+            mae_pct=mae_pct,
+            mfe_pct=mfe_pct,
+        )
+
+    def save_state(self) -> dict:
+        """Serialize builder state for persistence across restarts."""
+        return {
+            "outcomes": list(self.outcome._outcomes),
+            "consecutive_losses": self.outcome._consecutive_losses,
+            "r_sum": self.outcome._r_sum,
+            "portfolio_value_history": list(self._portfolio_value_history),
+        }
+
+    def load_state(self, state: dict) -> None:
+        """Restore builder state from a previously saved dict."""
+        if not state:
+            return
+        outcomes = state.get("outcomes", [])
+        self.outcome._outcomes.clear()
+        for o in outcomes:
+            self.outcome._outcomes.append(o)
+        self.outcome._consecutive_losses = state.get("consecutive_losses", 0)
+        self.outcome._r_sum = state.get("r_sum", 0.0)
+        pv_history = state.get("portfolio_value_history", [])
+        self._portfolio_value_history.clear()
+        for v in pv_history:
+            self._portfolio_value_history.append(v)
+
     def set_calibration_registry(self, registry) -> None:
         """Wire a ``CalibrationRegistry`` so ``calibration_ece`` reports the
         mean per-asset intrinsic calibration error of the fitted calibrators.

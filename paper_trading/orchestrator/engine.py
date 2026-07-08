@@ -144,6 +144,10 @@ class EngineOrchestrator:
         # idempotent — every AssetEngine already populates this same singleton.
         _cal_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "calibration")
         self._perf_builder.set_calibration_registry(CalibrationRegistry.get_or_load(_cal_dir))
+        # Restore trade outcomes from snapshot so win rate, consecutive losses,
+        # and R-cumulative survive restarts.
+        if snapshot is not None and snapshot.performance_state:
+            self._perf_builder.load_state(snapshot.performance_state)
 
         # Portfolio circuit breaker (vol spike + consecutive loss)
         self._circuit_breaker = CircuitBreaker()

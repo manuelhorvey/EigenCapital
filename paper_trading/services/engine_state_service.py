@@ -545,6 +545,16 @@ class EngineStateService:
                 snapshot.risk_state = risk_state
         except (OSError, ValueError, TypeError, KeyError):
             logger.exception("Failed to capture risk state")
+
+        # Persist PerformanceStateBuilder state so outcome tracking survives
+        # restarts (win rate, consecutive losses, R-cumulative).
+        try:
+            if orch is not None and hasattr(orch, "_perf_builder"):
+                perf_state = orch._perf_builder.save_state()
+                if perf_state.get("outcomes"):
+                    snapshot.performance_state = perf_state
+        except (OSError, ValueError, TypeError, KeyError):
+            logger.exception("Failed to capture performance state")
         self._append_equity_history(state)
         engine.state_store.save_snapshot(snapshot)
         self._capture_simulation_snapshot(state)

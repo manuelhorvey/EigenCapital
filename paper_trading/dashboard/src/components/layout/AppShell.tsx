@@ -55,7 +55,7 @@ export default function AppShell({ children }: AppShellProps) {
           >
             Skip to main content
           </a>
-          <main id={mainId} className="flex-1 min-w-0 px-4 sm:px-7 py-5 sm:py-7 animate-fade-in">
+          <main id={mainId} className="flex-1 min-w-0 px-4 sm:px-7 py-5 sm:py-7 animate-fade-in" role="main" aria-label="Dashboard content">
             {children}
           </main>
         </div>

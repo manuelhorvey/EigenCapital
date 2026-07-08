@@ -9,7 +9,11 @@ interface SectionProps {
   errorTitle?: string
 }
 
-/** Scroll-anchor section wrapper with built-in ErrorBoundary. @param id - anchor ID for nav links; @param errorTitle - fallback title shown if the section errors. */
+/**
+ * Scroll-anchor section wrapper with built-in ErrorBoundary, role="region", and aria-label.
+ * Serves as an ARIA landmark for screen reader navigation (WCAG 2.4.1, 4.1.2).
+ * @param id - anchor ID for nav links; @param errorTitle - fallback title shown if the section errors.
+ */
 export default function Section({
   id, title, children, className = '', errorTitle,
 }: SectionProps) {
@@ -17,6 +21,8 @@ export default function Section({
     <ErrorBoundary title={errorTitle ?? title ?? id}>
       <section
         id={id}
+        role="region"
+        aria-label={title ?? id}
         className={`anchor-nav space-y-6 sm:space-y-8${className ? ` ${className}` : ''}`}
       >
         {children}

@@ -77,7 +77,7 @@ const NavItem = memo(function NavItem({ item, badge, engine, onClose, onKeyDown 
       id={`nav-${item.id}`}
       to={item.to}
       end
-      role="treeitem"
+      role="listitem"
       onClick={onClose}
       onKeyDown={e => onKeyDown(e, item.id)}
       className={({ isActive }) =>
@@ -190,14 +190,14 @@ function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Navigation shell — engine heartbeat now inline on Dashboard nav item. */}
+        {/* Navigation shell — flat nav with roving tabindex (ArrowUp/Down, Home/End, Escape). */}
         <nav
-          role="tree"
+          role="list"
           aria-label="Dashboard sections"
           className="flex-1 overflow-y-auto py-3 px-2 space-y-1 scrollbar-thin"
         >
           {NAV_GROUPS.map((group, gi) => (
-            <div key={group.title} role="treegroup" aria-label={group.title}>
+            <div key={group.title} aria-label={group.title}>
               <p className="flex items-center gap-1.5 text-[10px] font-semibold text-tertiary uppercase tracking-wider px-2 py-1.5">
                 <group.icon className="w-3 h-3 opacity-50" strokeWidth={1.5} />
                 {group.title}

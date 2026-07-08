@@ -1,3 +1,4 @@
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import HealthScores from '../components/HealthScores'
 import GovernanceRadar from '../components/governance/GovernanceRadar'
 import PositionConcentrationPanel from '../components/PositionConcentrationPanel'
@@ -8,8 +9,60 @@ import RiskBudgetChart from '../components/RiskBudgetChart'
 import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
+import Panel from '../components/ui/Panel'
+import { Skeleton } from '../components/ui/Skeleton'
+
+function RiskWorkspaceSkeleton() {
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      <Section id="governance-overview" errorTitle="Governance Overview">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-40 rounded-lg" shimmer />
+          <Skeleton className="h-40 rounded-lg" shimmer />
+        </div>
+      </Section>
+      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-48 rounded-lg" shimmer />
+          <Skeleton className="h-48 rounded-lg" shimmer />
+        </div>
+        <div className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Skeleton className="h-40 rounded-lg" shimmer />
+            <Skeleton className="h-40 rounded-lg" shimmer />
+          </div>
+        </div>
+      </Section>
+      <Section id="model-health" errorTitle="Model Health">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-36 rounded-lg" shimmer />
+          <Skeleton className="h-36 rounded-lg" shimmer />
+        </div>
+      </Section>
+    </div>
+  )
+}
 
 export default function RiskWorkspace() {
+  const { data, isPending, isError, error } = useSystemSnapshot()
+
+  if (isError && !data) {
+    return (
+      <Panel padding="md">
+        <div className="flex items-center gap-3 text-gov-red">
+          <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
+          <span className="text-xs text-tertiary">
+            {error instanceof Error ? error.message : 'Failed to load engine data'}
+          </span>
+        </div>
+      </Panel>
+    )
+  }
+
+  if (isPending && !data) {
+    return <RiskWorkspaceSkeleton />
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}

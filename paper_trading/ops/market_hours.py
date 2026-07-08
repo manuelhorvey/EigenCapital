@@ -10,8 +10,17 @@ import pytz
 ET = pytz.timezone("US/Eastern")
 
 
-def is_market_closed() -> bool:
-    """Return True if no major market is open (weekend / forex closed window)."""
+_CRYPTO_ASSETS: frozenset[str] = frozenset({"BTCUSD", "ETHUSD"})
+
+
+def is_market_closed(asset: str | None = None) -> bool:
+    """Return True if the given asset's market is closed.
+
+    Crypto assets (BTCUSD, ETHUSD) trade 24/7 and are never closed.
+    All other assets respect the forex weekend close window.
+    """
+    if asset and asset.upper() in _CRYPTO_ASSETS:
+        return False
     now = datetime.now(tz=ET)
     return _is_closed_time(now)
 
@@ -22,8 +31,7 @@ def is_weekend() -> bool:
     Distinct from is_market_closed() because weekend-eligible assets
     (e.g. BTCUSD) should still be tradeable during this window.
     """
-    now = datetime.now(tz=ET)
-    return _is_closed_time(now)
+    return is_market_closed(asset=None)
 
 
 def _is_closed_time(dt: datetime) -> bool:

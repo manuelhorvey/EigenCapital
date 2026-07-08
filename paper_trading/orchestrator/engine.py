@@ -1057,9 +1057,10 @@ class EngineOrchestrator:
                 self._halt_detail = ""
                 self._unhalt_recovery_cycles = 0
                 for actor in self._actors.values():
-                    actor.reset()
-                    if hasattr(actor._engine, "pos_mgr"):
-                        actor._engine.pos_mgr.exposure_multiplier = 1.0
+                    try:
+                        actor.reset()
+                    except Exception:
+                        logger.exception("Auto-unhalt: actor %s reset failed", actor.name)
         else:
             self._unhalt_recovery_cycles = 0
 

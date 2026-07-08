@@ -537,6 +537,10 @@ class MT5Client:
         deviation: int = 20,
         idempotency_key: str | None = None,
     ) -> dict:
+        if volume <= 0:
+            raise ValueError(f"Invalid volume: {volume}")
+        if side not in ("buy", "sell"):
+            raise ValueError(f"Invalid side: {side}")
         symbol = self._map_symbol(ticker)
         params = {
             "symbol": symbol,

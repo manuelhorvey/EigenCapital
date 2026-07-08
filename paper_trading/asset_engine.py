@@ -5,6 +5,8 @@ import time
 from dataclasses import fields as dataclass_fields
 from datetime import datetime
 
+from eigencapital.domain.time import utc_now
+
 import pandas as pd
 import pytz
 
@@ -589,6 +591,7 @@ class AssetEngine:
         lp = self._market_data.get_realtime_price(self.ticker)
         if lp is not None:
             self.current_price = lp
+            self._last_price_refresh = utc_now()
             return
 
         # 2. Fallback to 5d download

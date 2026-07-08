@@ -345,8 +345,12 @@ def run_walk_forward(
         signals[p_long > hi_thresh] = 1
         signals[p_long < lo_thresh] = -1
 
-        hit_rate = (signals == y_te.values).mean()
-        directional = (signals * (y_te.values * 2 - 1)).sum() / max((signals != 0).sum(), 1)
+        # direction-aware accuracy: maps labels {0,1} to {-1,1} so SELL
+        # predictions are correctly counted — old (signals == y_te)
+        # never matched SELL (-1) against the SHORT label (0)
+        label_dir = y_te.values * 2 - 1
+        directional = (signals * label_dir).sum() / max((signals != 0).sum(), 1)
+        hit_rate = directional
         long_rate = (signals == 1).mean()
         short_rate = (signals == -1).mean()
         flat_rate = (signals == 0).mean()

@@ -67,7 +67,8 @@ _MAX_PAYLOAD = 4 * 1024 * 1024  # 4 MiB max request/response body
 
 _config: dict[str, Any] = {}
 _running = threading.Event()
-_placed_orders: dict[str, int] = {}
+_placed_orders: dict[str, tuple[int, float]] = {}  # dedup_key -> (order_id, timestamp)
+_PLACED_ORDERS_TTL = 86400.0  # 1 day TTL for dedup cache entries
 
 
 def _send_frame(conn: socket.socket, data: dict) -> None:
@@ -215,9 +216,14 @@ def _handle_place_order(params: dict) -> dict:
     id_key = params.get("idempotency_key")
     if id_key:
         dedup_key = f"{symbol}_{side}_{id_key}"
-        if dedup_key in _placed_orders:
-            logger.info("Dedup: order %s already placed (ticket=%s)", dedup_key, _placed_orders[dedup_key])
-            return {"result": {"retcode": 10009, "ticket": _placed_orders[dedup_key], "dedup": True}}
+        entry = _placed_orders.get(dedup_key)
+        if entry is not None:
+            ticket, ts = entry
+            if time.monotonic() - ts < _PLACED_ORDERS_TTL:
+                logger.info("Dedup: order %s already placed (ticket=%s)", dedup_key, ticket)
+                return {"result": {"retcode": 10009, "ticket": ticket, "dedup": True}}
+            # expired — remove and allow re-placement
+            del _placed_orders[dedup_key]
     volume = params["volume"]
     sl = params.get("sl", 0.0)
     tp = params.get("tp", 0.0)
@@ -256,6 +262,9 @@ def _handle_place_order(params: dict) -> dict:
     result = mt5.order_send(request)
     if result is None:
         return {"error": f"order_send failed: {mt5.last_error()}"}
+
+    if id_key:
+        _placed_orders[dedup_key] = (result.order, time.monotonic())
 
     return {
         "result": {

@@ -5,8 +5,15 @@ import { addErrorBreadcrumb } from '../lib/errorReporting'
 import type { TradeAttributionRecord } from '../types/attribution'
 
 // ── Zod schema for attribution trades ────────────────────────────────────
-// Mirrors the TradeAttributionRecord interface to catch backend schema drift
-// before malformed data reaches UI components (audit finding: missing validation).
+// Mirrors the SQLite attribution table columns. Fields not in the DB
+// (friction sub-domains, decision quality, etc.) get catch-all defaults
+// so no malformed data reaches UI components.
+
+function coerceBool(v: unknown): boolean | null {
+  if (v === true || v === 1) return true
+  if (v === false || v === 0) return false
+  return null
+}
 
 const TradeAttributionRecordSchema = z.object({
   trade_id: z.string(),
@@ -20,36 +27,41 @@ const TradeAttributionRecordSchema = z.object({
   realized_pnl: z.number(),
   pred_signal: z.string(),
   pred_confidence: z.number(),
-  pred_forecast_direction_correct: z.boolean().nullable(),
+  pred_forecast_direction_correct: z.union([z.boolean(), z.null()]).catch(null),
   pred_archetype_at_entry: z.string(),
   pred_regime_at_entry: z.string(),
   exec_entry_type: z.string(),
   exec_entry_slippage_bps: z.number(),
   exec_deferred_bars: z.number(),
-  exec_entry_timing_efficiency: z.number().nullable(),
-  exec_counterfactual_entry_timing_r: z.number().nullable(),
-  exit_exit_reason: z.string(),
-  exit_realized_r: z.number(),
-  exit_theoretical_r: z.number(),
-  exit_mae: z.number(),
-  exit_mfe: z.number(),
-  exit_mae_per_bar: z.number(),
-  exit_mfe_per_bar: z.number(),
-  exit_bars_held: z.number(),
-  exit_archetype: z.string(),
-  friction_entry_slippage_bps: z.number(),
-  friction_exit_slippage_bps: z.number(),
-  friction_gap_fill: z.boolean(),
-  friction_partial_fill: z.boolean(),
-  friction_fill_qty_ratio: z.number(),
-  friction_latency_bars: z.number(),
-  friction_counterfactual_ideal_fill_r: z.number().nullable(),
-  friction_counterfactual_real_fill_r: z.number().nullable(),
-  dq_entry_pressure_pct: z.number().nullable(),
-  dq_spread_rank: z.number().nullable(),
-  dq_volatility_rank: z.number().nullable(),
-  dq_liquidity_rank: z.number().nullable(),
-})
+  exec_entry_timing_efficiency: z.union([z.number(), z.null()]).catch(null),
+  exec_counterfactual_entry_timing_r: z.union([z.number(), z.null()]).catch(null),
+  exit_exit_reason: z.union([z.string(), z.null()]).catch(""),
+  exit_realized_r: z.number().catch(0),
+  exit_theoretical_r: z.union([z.number(), z.null()]).catch(null),
+  exit_mae: z.number().catch(0),
+  exit_mfe: z.number().catch(0),
+  exit_mae_per_bar: z.number().catch(0),
+  exit_mfe_per_bar: z.number().catch(0),
+  exit_bars_held: z.number().catch(0),
+  exit_archetype: z.union([z.string(), z.null()]).catch(""),
+  friction_entry_slippage_bps: z.number().catch(0),
+  friction_exit_slippage_bps: z.number().catch(0),
+  friction_gap_fill: z.union([z.boolean(), z.null()]).catch(null),
+  friction_partial_fill: z.union([z.boolean(), z.null()]).catch(null),
+  friction_fill_qty_ratio: z.number().catch(1),
+  friction_latency_bars: z.number().catch(0),
+  friction_counterfactual_ideal_fill_r: z.union([z.number(), z.null()]).catch(null),
+  friction_counterfactual_real_fill_r: z.union([z.number(), z.null()]).catch(null),
+  dq_entry_pressure_pct: z.union([z.number(), z.null()]).catch(null),
+  dq_spread_rank: z.union([z.number(), z.null()]).catch(null),
+  dq_volatility_rank: z.union([z.number(), z.null()]).catch(null),
+  dq_liquidity_rank: z.union([z.number(), z.null()]).catch(null),
+}).transform((row) => ({
+  ...row,
+  pred_forecast_direction_correct: coerceBool(row.pred_forecast_direction_correct),
+  friction_gap_fill: coerceBool(row.friction_gap_fill),
+  friction_partial_fill: coerceBool(row.friction_partial_fill),
+}))
 
 async function fetchAttributionTrades(
   limit: number,

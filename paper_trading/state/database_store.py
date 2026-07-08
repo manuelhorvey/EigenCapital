@@ -353,14 +353,14 @@ class _DatabaseStore:
                     record_dict.get("side"),
                     record_dict.get("entry_price"),
                     record_dict.get("exit_price"),
-                    record_dict.get("exit_reason"),
-                    record_dict.get("realized_r"),
+                    record_dict.get("exit_exit_reason"),
+                    record_dict.get("exit_realized_r"),
                     record_dict.get("realized_return"),
                     record_dict.get("realized_pnl"),
-                    record_dict.get("theoretical_r"),
+                    record_dict.get("exit_theoretical_r"),
                     record_dict.get("policy_hash"),
                     record_dict.get("archetype_version"),
-                    record_dict.get("exit_archetype"),
+                    record_dict.get("exit_exit_archetype"),
                     record_dict.get("pred_signal"),
                     record_dict.get("pred_label"),
                     record_dict.get("pred_confidence"),
@@ -419,6 +419,10 @@ class _DatabaseStore:
                 for rec in records:
                     if "entry_price" not in rec or rec["entry_price"] is None:
                         rec["entry_price"] = rec.get("exec_entry_price")
+                    rec["exit_exit_reason"] = rec.get("exit_reason")
+                    rec["exit_theoretical_r"] = rec.get("theoretical_r")
+                    if rec.get("exit_archetype") is None and rec.get("exit_exit_archetype") is not None:
+                        rec["exit_archetype"] = rec["exit_exit_archetype"]
                 return records
         except Exception as e:
             logger.warning("Failed to read attribution: %s", e)

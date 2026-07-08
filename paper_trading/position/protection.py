@@ -49,13 +49,15 @@ class PositionProtection:
             peak_to_current_r = distance_from_peak / max(position.avg_price * vol_est, 1e-9)
 
             if peak_to_current_r <= 0:
+                # Trail distance in price units = trail_distance_r * avg_price * vol_entry
+                trail_price = trail_distance * position.avg_price * vol_est
                 if position.is_long:
-                    new_floor = current_price * (1 - trail_distance * vol_est)
+                    new_floor = current_price - trail_price
                     if new_floor > position.risk_floor:
                         position.risk_floor = new_floor
                         action = ProtectionAction(action="trail", new_sl=new_floor)
                 else:
-                    new_floor = current_price * (1 + trail_distance * vol_est)
+                    new_floor = current_price + trail_price
                     if position.risk_floor == 0 or new_floor < position.risk_floor:
                         position.risk_floor = new_floor
                         action = ProtectionAction(action="trail", new_sl=new_floor)

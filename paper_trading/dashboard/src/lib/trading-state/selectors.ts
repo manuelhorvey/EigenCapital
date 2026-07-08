@@ -243,8 +243,8 @@ export function toPortfolioTradingState(
 
   let edgeTrend: EdgeTrend = "STABLE"
   if (reversalRate !== null) {
-    if (reversalRate > 0.35) edgeTrend = "EXPANDING"
-    else if (reversalRate > 0.15) edgeTrend = "STABLE"
+    if (reversalRate < 0.15) edgeTrend = "EXPANDING"
+    else if (reversalRate < 0.35) edgeTrend = "STABLE"
     else edgeTrend = "DECAYING"
   }
 

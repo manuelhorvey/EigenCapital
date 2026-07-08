@@ -9,13 +9,13 @@ defaults:
   max_concurrent_positions: 13
   factor_exposure_limits:
     CHF: 0.20
-    US_EQUITY: 0.25
-    OIL: 0.15
-    GOLD: 0.15
+    US_EQUITY: 0.15
     AUD: 0.25
     NZD: 0.25
     JPY: 0.25
-    FX_MAJOR: 0.4
-    FX_CROSS: 0.4
-    FX_COMMODITY: 0.25
+    USD: 0.60
+    EUR: 0.30
+    CAD: 0.20
+    GBP: 0.15
+    COMMODITY: 0.05
 portfolio_drawdown_limit: -0.15

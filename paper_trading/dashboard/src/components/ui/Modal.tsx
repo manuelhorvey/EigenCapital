@@ -24,6 +24,7 @@
  */
 import {
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react'
 import { X } from 'lucide-react'
@@ -37,6 +38,44 @@ const SIZE_TO_MAX: Record<ModalSize, string> = {
   md: 'max-w-xl',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
+}
+
+// ── Modal stack tracking ─────────────────────────────────────────
+// Each open modal increments a global counter so stacked modals get
+// increasing z-index values instead of all fighting at z-50.
+// (Audit finding F9: modal stacking)
+
+let _stackDepth = 0
+
+export function useRegisterModal(open: boolean): number {
+  const depthRef = useRef(0)
+
+  useEffect(() => {
+    if (!open) {
+      if (depthRef.current > 0) {
+        _stackDepth = Math.max(0, _stackDepth - 1)
+        depthRef.current = 0
+      }
+      return
+    }
+
+    // Register: increment stack depth. The z-index is captured once
+    // on mount and remains stable for the modal's lifetime — modals
+    // opened later get higher z-index values automatically.
+    _stackDepth += 1
+    depthRef.current = _stackDepth
+
+    return () => {
+      if (depthRef.current > 0) {
+        _stackDepth = Math.max(0, _stackDepth - 1)
+        depthRef.current = 0
+      }
+    }
+  }, [open])
+
+  // z-index formula: base 50 + stack_depth ensures each modal sits
+  // above the previous one.
+  return 50 + depthRef.current
 }
 
 export interface ModalProps {
@@ -105,6 +144,9 @@ export default function Modal({
     }
   }, [open, bodyScrollLock])
 
+  // Modal stack: each open modal gets an increasing z-index (F9 fix)
+  const zIndex = useRegisterModal(open)
+
   if (!open) return null
 
   const titleId = title ? 'modal-title' : undefined
@@ -115,7 +157,7 @@ export default function Modal({
   const handleOverlayClick = closeOnOverlay ? onClose : undefined
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16 px-4">
+    <div className="fixed inset-0 flex items-start justify-center pt-8 sm:pt-16 px-4" style={{ zIndex }}>
       <div
         className="fixed inset-0 bg-black/60"
         onClick={handleOverlayClick}

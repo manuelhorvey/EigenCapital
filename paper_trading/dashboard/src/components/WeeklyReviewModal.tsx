@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BarChart3, TrendingUp, TrendingDown, Activity, Shield, AlertTriangle, Check } from 'lucide-react'
+import { TrendingUp, TrendingDown, Activity, Shield, AlertTriangle, Check } from 'lucide-react'
 import { useWeeklyReview } from '../hooks/useWeeklyReview'
 import type { WeeklyReview } from '../types/portfolio'
 import Button from './ui/Button'
@@ -121,7 +121,6 @@ function TopTrades({ trades, label, up }: { trades: Record<string, unknown>[]; l
       <div className="space-y-1">
         {trades.map((t, i) => {
           const asset = String(t.asset ?? '')
-          const entry = Number(t.entry ?? 0)
           const reason = String(t.reason ?? '')
           const ret = Number(t.return ?? 0)
           return (
@@ -192,7 +191,7 @@ function EmptyState() {
 
 /** Weekly performance review modal with summary grid, per-asset breakdown, exit reasons, and regime correlation. */
 export default function WeeklyReviewModal() {
-  const { data, show, isPending, isError, acknowledge } = useWeeklyReview()
+  const { data, show, isError, acknowledge } = useWeeklyReview()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {

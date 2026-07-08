@@ -72,14 +72,14 @@ describe('AssetCardMetrics', () => {
 
   it('does not render multiplier row when slMult/tpMult are null', () => {
     const nullMultipliers = { ...baseInfo, slMult: null, tpMult: null }
-    const { container } = render(<AssetCardMetrics info={nullMultipliers} />)
+    const view = render(<AssetCardMetrics info={nullMultipliers} />)
     // Should not contain "SL" label or multiplier values
-    expect(container.textContent).not.toMatch(/SL|TP/)
+    expect(view.container.textContent).not.toMatch(/SL|TP/)
   })
 
   it('handles empty signal distribution', () => {
     const empty = { ...baseInfo, signalDistribution: undefined, slMult: null, tpMult: null }
-    const { container } = render(<AssetCardMetrics info={empty} />)
+    render(<AssetCardMetrics info={empty} />)
     expect(screen.getByText('+3.50%')).toBeInTheDocument()
   })
 })

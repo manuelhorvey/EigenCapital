@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
-import { systemSelectors } from '../selectors/system'
+import { selectAssetCardBundle } from '../selectors/system'
 import { confidenceToPercent } from '../utils/format'
 import {
   confToState,
@@ -66,15 +66,14 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): {
  * @param {{ name: string, density?: 'comfortable' | 'compact' }} props
  */
 const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
-  // Slice selector: only this asset's slot triggers a re-render. The
-  // `data?.open_positions` and similar lambda accesses still use the
-  // returned snapshot shape so the rest of the component works
-  // unchanged — but the React Query subscription ref won't churn when
-  // other assets' slots update.
-  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
-  const data = snapshot
+  // Consolidated selector returns all AssetCard data in one pass, preventing
+  // 4 separate re-renders per poll cycle (audit finding: selector consolidation).
+  const { data: bundle } = useSystemSnapshot(selectAssetCardBundle(name))
+  const asset = bundle?.asset ?? null
+  const openPosition = bundle?.openPosition ?? null
+  const riskSignal = bundle?.riskSignal ?? null
+  const shadowAction = bundle?.shadowAction ?? null
   const { setSelectedAsset } = useSelectedAsset()
-  const asset = data?.assets?.[name]
 
   const prevEntryRef = useRef<number | null>(null)
   const prevPositionEntryRef = useRef<number | null>(null)
@@ -87,7 +86,6 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
     const m = asset.metrics
     const sig = asset.last_signal
     const pos = m.position as PositionLeg | undefined
-    const openPosition = data?.open_positions?.[name]
     const signalHistory = openPosition?.prob_history ?? []
     const isNew =
       signalHistory.length >= 2 &&
@@ -120,10 +118,10 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
       scaleOutTiers: (m.scale_out_tiers ?? null) as ScaleOutTier[] | null,
       remainingFraction: m.remaining_fraction ?? 1,
       isNew,
-      riskSignal: (data?.risk_signals?.[name] ?? null) as { risk_level: string; risk_score: number } | null,
-      shadowAction: (data?.shadow_actions?.[name] ?? null) as { action_type: string } | null,
+      riskSignal: (riskSignal ?? null) as { risk_level: string; risk_score: number } | null,
+      shadowAction: (shadowAction ?? null) as { action_type: string } | null,
     }
-  }, [asset, data, name])
+  }, [asset, name, openPosition, riskSignal, shadowAction])
 
   // Flag a position close for 60s — fires when position transitions from non-null to null.
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
-import { useEquityHistory, type EquityHistoryPoint } from '../hooks/useEquityHistory'
+import { useEquityHistory } from '../hooks/useEquityHistory'
 
 interface EquityCurveSparklineProps {
   /** Height in pixels. Default 72. */

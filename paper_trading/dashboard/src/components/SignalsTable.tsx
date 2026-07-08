@@ -1,9 +1,9 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo, useState, useRef, useCallback } from 'react'
 import { Search, TrendingUp, TrendingDown, Minus, Activity } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import { systemSelectors } from '../selectors/system'
-import { confidenceToPercent, formatAssetPrice } from '../utils/format'
+import { confidenceToPercent } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
@@ -61,16 +61,16 @@ const stateLabelClass: Record<ReturnType<typeof rowState>, string> = {
 }
 
 function DirectionGlyph({ signal }: { signal: string }) {
-  if (signal === 'BUY') return <TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} />
-  if (signal === 'SELL') return <TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} />
-  return <Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
+  if (signal === 'BUY') return <TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} aria-label="Buy signal" />
+  if (signal === 'SELL') return <TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} aria-label="Sell signal" />
+  return <Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} aria-label="Flat signal" />
 }
 
 // Single horizontal bar, used for confidence and exit mix alike so the table
 // has one visual language for "a quantity out of 100" instead of three.
-function Bar({ pct, color }: { pct: number; color: string }) {
+function Bar({ pct, color, label }: { pct: number; color: string; label?: string }) {
   return (
-    <div className="w-12 h-1 bg-surface rounded-full overflow-hidden">
+    <div className="w-12 h-1 bg-surface rounded-full overflow-hidden" role={label ? 'img' : undefined} aria-label={label}>
       <div
         className="h-full rounded-full transition-all duration-300"
         style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, backgroundColor: color }}
@@ -82,6 +82,16 @@ function Bar({ pct, color }: { pct: number; color: string }) {
 /** Per-asset signal dashboard with search, sortable columns, and deep-dive navigation. */
 function SignalsTable() {
   const [search, setSearch] = useState('')
+  const [inputValue, setInputValue] = useState('')
+  // Debounce the search to defer filtering while typing (F2).
+  // Uses dual state: inputValue updates immediately for responsive typing,
+  // while search (used for filtering) updates after 150ms of inactivity.
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(e.target.value), 150)
+  }, [])
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)
   const { setSelectedAsset, setDeepDiveAsset } = useSelectedAsset()
 
@@ -155,6 +165,7 @@ function SignalsTable() {
           <DirectionGlyph signal={r.signal} />
           <Bar
             pct={r.confidence}
+            label={`Confidence ${r.confidence.toFixed(0)}% for ${r.signal}`}
             color={
               r.confidence >= 60
                 ? 'var(--color-gov-green)'
@@ -237,7 +248,7 @@ function SignalsTable() {
         const tpShare = total > 0 ? (r.exitTpRate / total) * 100 : 50
         return (
           <div className="flex justify-end">
-            <div className="w-12 h-1.5 rounded-full overflow-hidden flex bg-surface">
+            <div className="w-12 h-1.5 rounded-full overflow-hidden flex bg-surface" role="img" aria-label={`Exit mix: ${tpShare.toFixed(0)}% TP, ${(100 - tpShare).toFixed(0)}% SL`}>
               <div className="h-full bg-gov-green" style={{ width: `${tpShare}%` }} />
               <div className="h-full bg-gov-red" style={{ width: `${100 - tpShare}%` }} />
             </div>
@@ -310,8 +321,8 @@ function SignalsTable() {
               <input
                 type="text"
                 placeholder="Filter…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                value={inputValue}
+                onChange={handleSearchChange}
                 className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(61,217,174,0.2)]"
               />
             </div>

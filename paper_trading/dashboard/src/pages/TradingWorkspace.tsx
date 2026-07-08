@@ -2,9 +2,9 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import SignalsTable from '../components/SignalsTable'
 import TradeOutcomes from '../components/TradeOutcomes'
 import TradeFeed from '../components/TradeFeed'
-import ExecutionFeed from '../components/ExecutionFeed'
 import AdmissionPanel from '../components/AdmissionPanel'
 import RejectedSignalExplorer from '../components/RejectedSignalExplorer'
+import GateAggregationPanel from '../components/GateAggregationPanel'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
 import Panel from '../components/ui/Panel'
@@ -21,12 +21,15 @@ function TradingWorkspaceSkeleton() {
         <div className="mt-4">
           <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
+        <div className="mt-4">
+          <Skeleton className="h-28 rounded-lg" shimmer />
+        </div>
       </Section>
       <Section id="trades" errorTitle="Trades">
-        <Skeleton className="h-40 rounded-lg" shimmer />
-      </Section>
-      <Section id="execution-feed" errorTitle="Execution Feed">
-        <Skeleton className="h-24 rounded-lg" shimmer />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-40 rounded-lg" shimmer />
+          <Skeleton className="h-40 rounded-lg" shimmer />
+        </div>
       </Section>
     </div>
   )
@@ -68,18 +71,16 @@ export default function TradingWorkspace() {
         <EntranceAnimator variant="fade-up">
           <SignalsTable />
         </EntranceAnimator>
+        <EntranceAnimator variant="fade-up" delay={100}>
+          <GateAggregationPanel />
+        </EntranceAnimator>
       </Section>
       <Section id="trades" errorTitle="Trades">
         <EntranceAnimator variant="fade-up" delay={60}>
-          <TradeOutcomes />
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={100}>
-          <TradeFeed />
-        </EntranceAnimator>
-      </Section>
-      <Section id="execution-feed" errorTitle="Execution Feed">
-        <EntranceAnimator variant="fade-up" delay={80}>
-          <ExecutionFeed />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <TradeOutcomes />
+            <TradeFeed />
+          </div>
         </EntranceAnimator>
       </Section>
     </div>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { WalResponseSchema } from '../lib/schemas'
 import type { z } from 'zod'
 
@@ -11,7 +12,13 @@ export function useWalTimeline(assetName: string) {
     queryKey: ['walTimeline', assetName],
     queryFn: async () => {
       const json = await fetchApi<unknown>(`/wal/${assetName}.json`)
-      return WalResponseSchema.parse(json)
+      const parsed = WalResponseSchema.safeParse(json)
+      if (!parsed.success) {
+        console.error('[WAL] validation failed:', parsed.error.issues)
+        addErrorBreadcrumb('WAL', `Validation failed for ${assetName}`)
+        return { events: [], total: 0, asset: assetName }
+      }
+      return parsed.data
     },
     refetchInterval: 30_000,
     staleTime: 10_000,

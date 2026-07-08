@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Ban, CheckCircle, XCircle } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
@@ -22,7 +22,7 @@ interface CycleEvent {
 }
 
 /** Last-cycle execution feed showing per-asset signal, confidence, gate result, and size. */
-export default function ExecutionFeed() {
+const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)
   const { setSelectedAsset } = useSelectedAsset()
   const [showAll, setShowAll] = useState(false)
@@ -159,4 +159,6 @@ export default function ExecutionFeed() {
       )}
     </Panel>
   )
-}
+})
+
+export default ExecutionFeed

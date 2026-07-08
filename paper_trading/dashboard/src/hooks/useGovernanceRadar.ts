@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useSystemSnapshot } from './useSystemSnapshot'
+import { systemSelectors } from '../selectors/system'
 
 export interface RadarAxis {
   label: string
@@ -21,10 +22,10 @@ export function useGovernanceRadar(): {
   bottlenecks: BottleneckEntry[]
   avgValidityImpact: number
 } {
-  const { data: bundle } = useSystemSnapshot()
-  const state = bundle?.snapshot
-  const health = bundle?.live?.health
-  const seqId = bundle?.meta?.snapshot_sequence_id
+  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
+  const { data: health } = useSystemSnapshot(systemSelectors.health)
+  const state = snapshot
+  const seqId = snapshot?.sequence_id
 
   return useMemo(() => {
     // Compute exposure score (0-1, higher means governance allows more deployable exposure)

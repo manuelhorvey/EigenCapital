@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
 import type { z } from 'zod'
 import { authHeaders } from './auth'
+import { addErrorBreadcrumb } from './errorReporting'
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers = { ...authHeaders(), ...options?.headers } as Record<string, string>
@@ -30,6 +31,7 @@ export function createApiQuery<T>(
       const parsed = schema.safeParse(json)
       if (!parsed.success) {
         console.error(`[${tag}] validation failed:`, parsed.error.issues)
+        addErrorBreadcrumb('API', `Validation failed for ${tag}`)
         throw new Error(`Invalid ${tag} data from server`)
       }
       return parsed.data
@@ -49,8 +51,9 @@ export function createApiMutation<TResponse, TVariables = void>(
   method: 'POST' | 'PUT' | 'DELETE' = 'POST',
   invalidateKeys?: string[][],
 ) {
-  return (mutationOptions?: Partial<UseMutationOptions<TResponse, Error, TVariables>>) =>
-    useMutation<TResponse, Error, TVariables>({
+  return (mutationOptions?: Partial<UseMutationOptions<TResponse, Error, TVariables>>) => {
+    const queryClient = useQueryClient()
+    return useMutation<TResponse, Error, TVariables>({
       mutationFn: async (variables) => {
         const headers: Record<string, string> = { ...authHeaders() }
         if (variables !== undefined) headers['Content-Type'] = 'application/json'
@@ -63,7 +66,16 @@ export function createApiMutation<TResponse, TVariables = void>(
         return res.json() as Promise<TResponse>
       },
       ...mutationOptions,
+      onSuccess: (data, variables, context) => {
+        if (invalidateKeys) {
+          for (const key of invalidateKeys) {
+            queryClient.invalidateQueries({ queryKey: key })
+          }
+        }
+        mutationOptions?.onSuccess?.(data, variables, context)
+      },
     })
+  }
 }
 
 export async function postApi(endpoint: string): Promise<void> {

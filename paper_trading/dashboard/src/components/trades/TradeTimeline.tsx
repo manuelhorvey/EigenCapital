@@ -69,7 +69,7 @@ export default function TradeTimeline({ data }: TradeTimelineProps) {
       {/* Vertical line */}
       <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
 
-      {events.map((event, i) => (
+      {events.map((event) => (
         <div key={event.type} className="relative pb-4 last:pb-0">
           {/* Dot */}
           <div className={`absolute -left-[19px] top-0.5 w-[15px] h-[15px] rounded-full bg-app border-2 border-default flex items-center justify-center ${event.color}`}>

@@ -31,7 +31,7 @@ export default function EquityChart() {
   const { data: capital } = useSystemSnapshot(capitalSelector)
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
 
-  const MAX_POINTS = 200
+  const MAX_POINTS = 2000
 
   const chartData = useMemo(
     () =>

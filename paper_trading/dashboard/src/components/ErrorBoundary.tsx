@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react'
 import PanelFallback from './ui/PanelFallback'
+import { captureError, sanitise } from '../lib/errorReporting'
 
 interface Props {
   children: ReactNode
@@ -12,7 +13,7 @@ interface State {
   error: Error | null
 }
 
-/** React error boundary with optional fallback UI and server-side error logging.
+/** React error boundary with optional fallback UI and Sentry error reporting.
  * @param {ReactNode} props.children - Child components to wrap
  * @param {ReactNode|Function} [props.fallback] - Custom fallback UI or error-to-node function
  * @param {string} [props.title] - Section title for default fallback */
@@ -27,14 +28,10 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info.componentStack)
-    // Report to backend
-    try {
-      const body = JSON.stringify({ error: error.message, stack: info.componentStack, name: error.name })
-      fetch('/api/log-error', { method: 'POST', body, headers: { 'Content-Type': 'application/json' } }).catch(() => {})
-    } catch {
-      // swallow
-    }
+    // Report sanitised error to Sentry (or console.error if Sentry not configured).
+    // Sanitisation (JWT tokens, API keys, file paths) is handled inside captureError
+    // and also applied to the component stack before passing as context.
+    captureError(error, { componentStack: sanitise(info.componentStack ?? '') })
   }
 
   render() {

@@ -2,6 +2,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
 import { SystemBundleSchema } from '../lib/schemas'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import type { SystemBundle } from '../types/bundle'
 
 let _lastContractVersion: number | null = null
@@ -13,18 +14,25 @@ export function useSystemSnapshot<T = SystemBundle>(
   return useQuery({
     queryKey: QUERY_KEYS.system,
     queryFn: async () => {
-      const json = await fetchApi<unknown>('/state-bundle.json')
-      const parsed = SystemBundleSchema.passthrough().safeParse(json)
-      if (parsed.success) {
-        const cv = parsed.data.snapshot.contract_version
-        if (_lastContractVersion !== null && _lastContractVersion !== cv) {
-          console.warn(`[SNAPSHOT] Contract version mismatch: was ${_lastContractVersion}, now ${cv}. Dashboard may be incompatible with engine.`)
+      try {
+        const json = await fetchApi<unknown>('/state-bundle.json')
+        const parsed = SystemBundleSchema.passthrough().safeParse(json)
+        if (parsed.success) {
+          const cv = parsed.data.snapshot.contract_version
+          if (_lastContractVersion !== null && _lastContractVersion !== cv) {
+            console.warn(`[SNAPSHOT] Contract version mismatch: was ${_lastContractVersion}, now ${cv}. Dashboard may be incompatible with engine.`)
+          }
+          _lastContractVersion = cv
+          return parsed.data as unknown as SystemBundle
         }
-        _lastContractVersion = cv
-        return parsed.data as unknown as SystemBundle
+        console.error('[SNAPSHOT] Bundle validation failed — schema drift detected:', parsed.error.issues)
+        addErrorBreadcrumb('SNAPSHOT', 'Bundle validation failed — schema drift detected')
+        return json as unknown as SystemBundle
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'unknown error'
+        addErrorBreadcrumb('SNAPSHOT', `Fetch failed: ${msg}`)
+        throw err
       }
-      console.error('[SNAPSHOT] Bundle validation failed — schema drift detected:', parsed.error.issues)
-      return json as unknown as SystemBundle
     },
     refetchInterval: (q) => {
       const closed = q.state.data?.snapshot?.engine_status?.market_closed

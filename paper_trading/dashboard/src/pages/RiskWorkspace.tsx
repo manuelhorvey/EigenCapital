@@ -1,3 +1,4 @@
+import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import HealthScores from '../components/HealthScores'
 import GovernanceRadar from '../components/governance/GovernanceRadar'
 import PositionConcentrationPanel from '../components/PositionConcentrationPanel'
@@ -5,48 +6,100 @@ import FactorExposureBreakdown from '../components/FactorExposureBreakdown'
 import PekScalarPanel from '../components/PekScalarPanel'
 import PerformanceStateVelocityChart from '../components/PerformanceStateVelocityChart'
 import RiskBudgetChart from '../components/RiskBudgetChart'
-import GateAggregationPanel from '../components/GateAggregationPanel'
 import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
+import Panel from '../components/ui/Panel'
+import { Skeleton } from '../components/ui/Skeleton'
 
-export default function RiskWorkspace() {
+function RiskWorkspaceSkeleton() {
   return (
     <div className="space-y-6 sm:space-y-8">
-      <Section id="pek" errorTitle="PEK State">
+      <Section id="governance-overview" errorTitle="Governance Overview">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-40 rounded-lg" shimmer />
+          <Skeleton className="h-40 rounded-lg" shimmer />
+        </div>
+      </Section>
+      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-48 rounded-lg" shimmer />
+          <Skeleton className="h-48 rounded-lg" shimmer />
+        </div>
+        <div className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Skeleton className="h-40 rounded-lg" shimmer />
+            <Skeleton className="h-40 rounded-lg" shimmer />
+          </div>
+        </div>
+      </Section>
+      <Section id="model-health" errorTitle="Model Health">
+        <Skeleton className="h-48 rounded-lg" shimmer />
+        <div className="mt-4">
+          <Skeleton className="h-48 rounded-lg" shimmer />
+        </div>
+      </Section>
+    </div>
+  )
+}
+
+export default function RiskWorkspace() {
+  const { data, isPending, isError, error } = useSystemSnapshot()
+
+  if (isError && !data) {
+    return (
+      <Panel padding="md">
+        <div className="flex items-center gap-3 text-gov-red">
+          <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
+          <span className="text-xs text-tertiary">
+            {error instanceof Error ? error.message : 'Failed to load engine data'}
+          </span>
+        </div>
+      </Panel>
+    )
+  }
+
+  if (isPending && !data) {
+    return <RiskWorkspaceSkeleton />
+  }
+
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}
+      <Section id="governance-overview" errorTitle="Governance Overview">
         <EntranceAnimator variant="fade-up">
-          <PekScalarPanel />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PekScalarPanel />
+            <GovernanceRadar />
+          </div>
         </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={30}>
+      </Section>
+
+      {/* Middle: portfolio risk constraints + PEK performance. */}
+      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
+        <EntranceAnimator variant="fade-up" delay={45}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PositionConcentrationPanel />
+            <FactorExposureBreakdown />
+          </div>
+        </EntranceAnimator>
+        <EntranceAnimator variant="fade-up" delay={75}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <PerformanceStateVelocityChart />
             <RiskBudgetChart />
           </div>
         </EntranceAnimator>
       </Section>
-      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
-        <EntranceAnimator variant="fade-up" delay={60}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PositionConcentrationPanel />
-            <FactorExposureBreakdown />
-          </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={90}>
-          <GateAggregationPanel />
-        </EntranceAnimator>
-      </Section>
-      <Section id="model-health" errorTitle="Model Health">
+
+      {/* Bottom: model health — stacked vertically so each component gets
+          full width. HealthScores card grid (xl:grid-cols-6) and
+          HealthMonitorPanel table both need horizontal space to render
+          asset names and columns without truncation. */}
+      <Section id="model-health" errorTitle="Model Health" className="space-y-5 sm:space-y-6">
         <EntranceAnimator variant="fade-up" delay={105}>
           <HealthMonitorPanel />
         </EntranceAnimator>
-      </Section>
-      <Section id="governance" errorTitle="Governance Constraints">
-        <EntranceAnimator variant="fade-up" delay={120}>
-          <GovernanceRadar />
-        </EntranceAnimator>
-      </Section>
-      <Section id="health-scores" errorTitle="Health Scores">
-        <EntranceAnimator variant="fade-up" delay={150}>
+        <EntranceAnimator variant="fade-up" delay={135}>
           <HealthScores />
         </EntranceAnimator>
       </Section>

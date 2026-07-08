@@ -9,7 +9,7 @@ single source of truth for all open positions on an asset.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger("eigencapital.position_batch")
@@ -65,7 +65,7 @@ class PositionBatch:
     stop_loss: float
     take_profit: float
     position_dict: dict
-    sltp_engine: Any = None       # DynamicSLTPEngine — avoid circular import at class level
+    sltp_engine: Any = None  # DynamicSLTPEngine — avoid circular import at class level
     adaptive_exit_engine: Any = None  # AdaptiveExitEngine
     bars_since_entry: int = 0
 

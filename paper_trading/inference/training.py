@@ -191,7 +191,11 @@ class AssetTrainingPipeline:
             logger.info(
                 "%s: insufficient data for embargo gap (n=%d vb=%d gap=%d) — "
                 "training on all %d samples without validation",
-                asset.name, n, vb, train_gap, n,
+                asset.name,
+                n,
+                vb,
+                train_gap,
+                n,
             )
             x_tr = x_binary
             y_tr = y_vals

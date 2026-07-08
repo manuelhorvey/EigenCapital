@@ -45,9 +45,7 @@ class PositionManager:
         if intent.base_entry_size <= 0:
             intent.base_entry_size = self.position_size
         self._entry_notional = (
-            intent.entry_notional
-            if intent.entry_notional > 0
-            else self.current_value * self.position_size
+            intent.entry_notional if intent.entry_notional > 0 else self.current_value * self.position_size
         )
         self._scale_out_active = False
         self._scale_out_breakeven = None

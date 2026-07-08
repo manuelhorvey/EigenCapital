@@ -87,9 +87,9 @@ class RegimeConditionalModel:
 
         if has_val:
             x_fit = x.iloc[:train_end]
-            x_val = x.iloc[min(train_end + self.embargo, n):]
+            x_val = x.iloc[min(train_end + self.embargo, n) :]
             y_fit = y_int.iloc[:train_end]
-            y_val = y_int.iloc[min(train_end + self.embargo, n):]
+            y_val = y_int.iloc[min(train_end + self.embargo, n) :]
 
             n0 = (y_fit == 0).sum()
             n1 = (y_fit == 1).sum()
@@ -108,15 +108,15 @@ class RegimeConditionalModel:
                 verbosity=0,
             )
             self._model.fit(
-                x_fit[self._feature_names], y_fit,
+                x_fit[self._feature_names],
+                y_fit,
                 eval_set=[(x_val[self._feature_names], y_val)],
                 verbose=False,
             )
             self._best_iteration = self._model.best_iteration + 1 if hasattr(self._model, "best_iteration") else None
             self._val_score = float(self._model.score(x_val[self._feature_names], y_val))
             logger.info(
-                "regime model %s: %d fit / %d val samples, "
-                "spw=%.2f, best_iter=%s, val_score=%.4f",
+                "regime model %s: %d fit / %d val samples, spw=%.2f, best_iter=%s, val_score=%.4f",
                 asset_name,
                 len(x_fit),
                 len(x_val),

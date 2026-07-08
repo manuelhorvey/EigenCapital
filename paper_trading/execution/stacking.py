@@ -323,8 +323,7 @@ class StackingGate:
                 if contract_mult <= 0:
                     contract_mult = _contract_size_from_ticker(ticker)
                 min_lots = min_notional / (price * contract_mult) if (price * contract_mult) > 0 else 0.0
-                min_stack = max(min_stack_factor * min_lots,
-                                cfg.get("stack_micro_threshold", 0.0))
+                min_stack = max(min_stack_factor * min_lots, cfg.get("stack_micro_threshold", 0.0))
             else:
                 min_stack = 0.0
         else:

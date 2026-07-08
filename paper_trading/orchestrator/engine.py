@@ -578,6 +578,7 @@ class EngineOrchestrator:
         # lowest-ranked admitted positions until within budget.
         if self._risk_budget is not None and budget_ref:
             max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
+
             def _entry_notionals(actor) -> float:
                 pos_mgr = getattr(actor._engine, "pos_mgr", None)
                 if pos_mgr is None:
@@ -1076,9 +1077,7 @@ class EngineOrchestrator:
             if engine is None:
                 continue
             pos_mgr = getattr(engine, "pos_mgr", None)
-            has_any = (pos_mgr is not None and pos_mgr.has_position()) or bool(
-                getattr(engine, "batches", None)
-            )
+            has_any = (pos_mgr is not None and pos_mgr.has_position()) or bool(getattr(engine, "batches", None))
             if not has_any:
                 continue
             exit_price = getattr(engine, "current_price", None)

@@ -12,7 +12,6 @@ from paper_trading.ops.tracer import (
     shadow_compare_sltp,
     trace_diagnostic_report,
 )
-from paper_trading.position.adaptive_exit import AdaptiveExitEngine
 from paper_trading.shadow.memory import store_event as _shadow_store
 
 logger = logging.getLogger("eigencapital.pnl_controller")

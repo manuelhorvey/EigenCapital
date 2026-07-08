@@ -412,7 +412,13 @@ class AssetEngine:
             pos_dict = anchor.position_dict if anchor else self.position
         else:
             batch = self.batches.get(trade_id)
-            pos_dict = batch.position_dict if batch else (self.position if trade_id == getattr(self, "_current_trade_id", None) else None)
+            pos_dict = (
+                batch.position_dict
+                if batch
+                else self.position
+                if trade_id == getattr(self, "_current_trade_id", None)
+                else None
+            )
         if pos_dict is None:
             logger.warning("%s: trade_id %s not found for close", self.name, trade_id)
             return False

@@ -738,11 +738,10 @@ class EngineOrchestrator:
         prev_value = getattr(self, "_prev_portfolio_value", None)
         if prev_value is None:
             prev_value = total_value
-        if total_value < prev_value:
-            today = utc_now().date()
-            if self._last_pnl_date != today:
-                self._circuit_breaker.record_daily_pnl(total_value - prev_value)
-                self._last_pnl_date = today
+        today = utc_now().date()
+        if self._last_pnl_date != today:
+            self._circuit_breaker.record_daily_pnl(total_value - prev_value)
+            self._last_pnl_date = today
         self._prev_portfolio_value = total_value
 
         breaker_result = self._circuit_breaker.check(portfolio_value=total_value, actors=self._actors)
@@ -840,7 +839,7 @@ class EngineOrchestrator:
             "recommendations": health_summary.recommendations,
         }
         if pv is not None and pv > 0:
-            if self._var_prev_value is not None and self._var_prev_value > 0 and pv != self._var_prev_value:
+            if self._var_prev_value is not None and self._var_prev_value > 0:
                 r = (pv - self._var_prev_value) / self._var_prev_value
                 self._portfolio_returns.append(r)
                 if len(self._portfolio_returns) > 252:

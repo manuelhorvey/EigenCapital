@@ -31,7 +31,8 @@ def portfolio_vol_estimate(portfolio_returns: list[float]) -> float | None:
         return None
     arr = portfolio_returns[-60:]
     mean = sum(arr) / len(arr)
-    var = sum((x - mean) ** 2 for x in arr) / len(arr)
+    ddof = 1 if len(arr) > 1 else 0
+    var = sum((x - mean) ** 2 for x in arr) / (len(arr) - ddof)
     return math.sqrt(var)
 
 

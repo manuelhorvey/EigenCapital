@@ -134,10 +134,11 @@ A scalar (default 0.5) applied to position sizes for weekend-eligible
 assets. Reduces exposure during lower-liquidity weekend conditions.
 
 ### Adaptive Exit Engine
-A three-stage exit management system:
+A four-stage exit management system:
 1. **Breakeven lock** (at `be_lock_r` MFE, default 0.5R): move SL to entry
-2. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): set SL at `peak - retrace_pct × (peak - entry)`
-3. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance
+2. **R-based scale-out** (at `scale_out_r` MFE, default 2.5R): close a fraction (`scale_out_fraction`, default 0.7) at target R
+3. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): trail remainder at `trail_retrace_pct` (default 0.33) from peak
+4. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approaches
 Validated to improve portfolio total_R from +519.5R to +3,209R (6.2×)
 in walk-forward simulation.
 
@@ -326,10 +327,10 @@ Migrations run at connect time via `_run_migrations()`. Current migration
 ## Governance & Risk
 
 ### Governance Layers
-16 core governance mechanisms operating at different frequencies and
+17 core governance mechanisms operating at different frequencies and
 granularities, plus 3 adaptive budget layers (RiskEngineV2, PEK admission,
 PerformanceState velocity), plus HealthMonitor circuit breaker, position
-sizing guardrails, and weekend trading governance.
+sizing guardrails, weekend trading governance, and 22-stage decision pipeline.
 
 ### Validity State Machine
 Per-asset state machine (`monitoring/validity_state_machine.py`) with
@@ -724,6 +725,13 @@ Sharpe > 0; DSR adjusts for multiple testing (number of assets/trials).
 Both saturate at 1.0 for Sharpe > 0.3 (n≈250) due to float64 limits.
 Useful only for Sharpe in [0.0, 0.8] range.
 
+> **Float64 saturation caveat:** `scipy.stats.norm.cdf(z)` saturates at 1.0
+> for z > ~8.2 and at 0.0 for z < ~-8.2. With n ≈ 300 observations, PSR(>0)
+> hits 1.0 for ANY Sharpe > ~0.3 — it cannot discriminate between "strongly
+> significant" and "overwhelmingly significant." PSR(>1) has a wider
+> discriminative range up to Sharpe ~1.5. See `docs/RESEARCH_HISTORY.md`
+> for the full analysis.
+
 ### MinTRL (Minimum Track Record Length)
 The minimum number of observations needed to be 95% confident that the
 observed Sharpe ratio is positive. Floors at 2 for extreme Sharpe values.
@@ -864,9 +872,7 @@ Configuration layer defined in `configs/domains/modes/<name>.yaml`.
 Merges on top of the base domain config to provide mode-specific
 capital, sizing, drawdown, and factor exposure parameters.
 
-### Legacy Mirror
-`tools/config_mirror_legacy.py` — tool that regenerates the legacy
-`paper_tracking.yaml` from the registry for debugging/comparison.
+### Legacy Mirror`tools/config_mirror_legacy.py` — tool that regenerates the legacy `paper_trading.yaml` from the registry for debugging/comparison.
 Supports `--write`, `--check`, and `--ci` modes.
 
 ### Config Diff

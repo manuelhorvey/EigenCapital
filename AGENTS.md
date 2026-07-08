@@ -28,13 +28,13 @@
 
 ## Project Identity
 
-Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/commodities/indices + BTCUSD) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 15-layer governance, position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).
+Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/commodities/indices + BTCUSD) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 17-layer governance (core) + 3 adaptive budget layers + decision pipeline + position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).
 
-**2026-06-20: AUDNZD, EURUSD, AUDCHF removed from trading.** These 3 assets accounted for the model's confirmed directional instability failure mode (confident wrong-direction bets during trends). Removed from paper_trading.yaml assets, mt5_symbol_map, shadow analytics, and risk-off suppression lists. 22-3=19 remaining assets (subsequent additions grew to 21; see timeline below). See the Walk-Forward PnL Backtest section for the full diagnostic chain.
+**2026-06-20: AUDNZD, EURUSD, AUDCHF removed from trading.** These 3 assets accounted for the model's confirmed directional instability failure mode (confident wrong-direction bets during trends). Removed from the domain config (`configs/domains/assets/`), mt5_symbol_map, shadow analytics, and risk-off suppression lists. 22-3=19 remaining assets (subsequent additions grew to 21; see timeline below). See the Walk-Forward PnL Backtest section for the full diagnostic chain.
 
 **2026-06-20 (late): GBPNZD removed from trading; USDCAD/NZDUSD allocation halved.** GBPNZD had tp/sl=1.0/3.0 (ratio 0.33), requiring 75% breakeven WR. Model achieved 72.3% — close but net-negative (-37R, -71R max_dd). USDCAD and NZDUSD reduced from 5% to 2.5% allocation to limit their drawdown impact while keeping diversification. 19-1=18 remaining assets.
 
-**2026-06-22: GBPUSD promoted to portfolio.** Walk-forward shows IC 0.186 (4/4 folds positive), HR 0.371. Feature registry pt_sl=(1.97, 0.52) gives favorable R:R=3.79. Added to paper_trading.yaml and mt5_symbol_map. 18+1=19 assets.
+**2026-06-22: GBPUSD promoted to portfolio.** Walk-forward shows IC 0.186 (4/4 folds positive), HR 0.371. Feature registry pt_sl=(1.97, 0.52) gives favorable R:R=3.79. Added to `configs/domains/assets/` and `configs/mt5_symbol_map.yaml`. 18+1=19 assets.
 
 **2026-06-23: AUDUSD, EURNZD, NZDUSD removed from SELL_ONLY filter.** Corrected walk-forward methodology shows BUY WR > 50% for all three (AUDUSD 64.5%, EURNZD 57.6%, NZDUSD 57.7%) — BUY is no longer inverted. The original SELL_ONLY diagnosis was based on a broken walk-forward (no purging, EWM labels, validation-split early stopping). The filter no longer trades BUY on the remaining 3 assets (CADCHF, NZDCHF, EURAUD) where BUY WR remains 11-31%. ^DJI, USDCHF, EURCHF removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven. ES, NQ removed from SELL_ONLY 2026-07-01 after portfolio remediation.
 
@@ -43,7 +43,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 ## Architecture Quick Reference
 
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
-- **Features**: 15–N alpha per asset (9 core + 6 trend-exhaustion when OHLCV present, plus 4 cross-asset, plus COT z/change for covered pairs) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
+- **Features**: 21 alpha columns per asset (9 core + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset; plus up to 16 additional COT pair columns from all covered CFTC pairs) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
 - **Config**: `configs/paper_config_registry.py` + `configs/domains/` — domain-first config tree promoted in Phase 12; mode overrides, global defaults, per-asset config
 - **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
@@ -99,7 +99,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
            └────────────┘      │
                                ▼
                  ┌───────────────────────────────┐
-                 │ Factor Exposures (9 groups)   │
+                 │ Factor Exposures (10 groups)  │
                  └─────────────┬─────────────────┘
                                │
                  ┌─────────────▼─────────────────┐
@@ -135,7 +135,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
                  └───────────────────────────────┘
 ```
 
-- **Governance**: 15-layer governance + HealthMonitor + VaR/CVaR + RiskEngineV2 + PEK admission + PerformanceState velocity + RecoveryScheduler
+- **Governance**: 17 core layers + 3 adaptive budget layers (RiskEngineV2, PEK admission, PerformanceState velocity) + HealthMonitor + VaR/CVaR + RecoveryScheduler + 22-stage decision pipeline + position sizing guardrails
 - **MT5 Bridge**: `paper_trading/ops/mt5_client.py` — TCP frame protocol to Wine-hosted MT5 (port 9879)
 - **Dashboard**: React SPA on port 5000, state via `state.json`
 
@@ -155,7 +155,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 | `paper_trading/pek/engine_v2.py` | `RiskEngineV2` — adaptive budget from snapshot + performance state |
 | `paper_trading/orchestrator/admission/controller.py` | `PortfolioAdmissionController` — PEK two-stage admission (filter → rank) |
 | `paper_trading/orchestrator/admission/signal.py` | `AdmissionSignal` — immutable signal admission contract |
-| `shared/factor_model.py` | P3 factor model — 9 factor groups, factor-constrained weight optimization |
+| `shared/factor_model.py` | P3 factor model — 10 factor groups, factor-constrained weight optimization |
 | `portfolio/hrp_allocator.py` | P4 HRP fix — `_get_quasi_diag` with `optimal_leaf_ordering` |
 | `paper_trading/engine.py` | `PaperTradingEngine` — main loop, capital sync, parallel orchestrator |
 | `paper_trading/asset_engine.py` | `AssetEngine` — per-asset lifecycle, train(), generate_signal(), `_kelly_multiplier`, `_calibration_registry` |
@@ -190,11 +190,12 @@ Paper positions are sized through multiplicative guardrails:
 
 ```
 effective_cap = capital_base × min(mtm / initial_capital, 3.0)
-size_scalar = base × exposure × governance × meta × drawdown_taper
+size_scalar = base × exposure × governance × meta
 notional = effective_cap × size_scalar
+→ drawdown taper (linear 1.0→min between start_dd/end_dd)
 → cap by max_position_pct_of_equity
 → cap by risk_per_trade_pct (skip if below min_viable_position_pct)
-→ atomic decrement from shared leverage_budget (lock-protected)
+→ PEK budget enforcement (Phase 1b — closes lowest-ranked if portfolio notional exceeds max_leverage × equity × tolerance)
 ```
 
 **Kelly multiplier (P2, disabled by default):**
@@ -207,7 +208,7 @@ Kelly flows through the sizing chain as an extra scalar before position caps.
 **PEK budget enforcement (Phase 1b):**
 If total portfolio notional exceeds `max_leverage × equity × tolerance`, the lowest-ranked
 admitted positions are closed by `_phase_1b_admission_review()`. This replaces the old
-per-cycle shared leverage budget and backstop multiplier pattern.
+per-cycle atomic leverage budget decrement and backstop multiplier pattern.
 
 MT5 positions are sized independently:
 
@@ -350,9 +351,9 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 - **Bar-jump suppression (ADDED 2026-06-19)**: `decision_pipeline.py:apply_bar_jump_suppression` — suppresses all trading for 60 minutes when bar count changes >100 (indicating data-source switch). Stage 0 in DEFAULT_STAGES. Detection in `pipeline.py:_detect_bar_jump()`.
 - **Risk-off suppression for AUDUSD (ADDED 2026-06-19)**: `decision_pipeline.py:apply_risk_off_suppression` — holds flat for AUDUSD when VIX is rising (>0) and SPX is falling (<0). AUDCHF was originally included but removed from trading 2026-06-20. Detection in `pipeline.py:_detect_risk_off()` via `features_df["vix_mom_5d"]` and `features_df["spx_mom_5d"]`. Stage after `resolve_signal` in DEFAULT_STAGES.
 - **Return computation denominator using rebalanced capital_base (FIXED 2026-06-22)**: `engine_state_service.py:_compute_portfolio_summary` used `sum(a.capital_base)` as the return baseline, but `capital_base` is overwritten by rebalancing to equal `total_value * weight`, making `(mtm_total - tc) / tc ≈ 0%` regardless of actual PnL. A `-16.97%` loss was reported as `+0.04%`. Fix: replaced `sum(a.capital_base)` with `get_config().capital` — the immutable config baseline. Also fixes `realized_return` which used the same `tc`. Also corrected the misleading comment that claimed this was intentional.
-- **NQ price deviation gate blocking all entries (FIXED 2026-06-22)**: All 258 "entry skipped" events on NQ were caused by the 2% default `max_entry_slippage_pct` being too tight for volatile Nasdaq-100 futures. Deferred entries saw >2% price moves between signal generation and execution. Fix: added per-asset `max_entry_slippage_pct: 5.0` to NQ config in `paper_trading.yaml`. The code at `entry_service.py:201` already supports per-asset override with global fallback — no logic change needed.
+- **NQ price deviation gate blocking all entries (FIXED 2026-06-22)**: All 258 "entry skipped" events on NQ were caused by the 2% default `max_entry_slippage_pct` being too tight for volatile Nasdaq-100 futures. Deferred entries saw >2% price moves between signal generation and execution. Fix: added per-asset `max_entry_slippage_pct: 5.0` to NQ config in `configs/domains/assets/NQ.yaml`. The code at `entry_service.py:201` already supports per-asset override with global fallback — no logic change needed.
 - **MT5 orphan dry-run Phase C (ADDED 2026-06-22)**: `orchestrator/orphan_reconciliation.py:OrphanReconciler._phase_c_orphan_report()` (extracted from `engine.py` 2026-07-06) — log-only orphan reporter. Logs every MT5 position with no matching paper-side ticket. Deduped by ticket, tracks first_seen cycle, flags removed-asset orphans with `engine_actor=None`. No state mutation. Run for at least one full cycle to produce a clean list before designing adoption/close/manual logic.
-- **Position concentration check (ADDED 2026-06-22)**: `orchestrator/correlation.py:compute_position_concentration()` (extracted from `engine.py` 2026-07-06) — counts open long/short positions each cycle, logs WARNING when skew exceeds `net_short_concentration_threshold` (default 75%). Exposed in `state.json` portfolio as `position_concentration` dict. Config key: `defaults.net_short_concentration_threshold` in `paper_trading.yaml`.
+- **Position concentration check (ADDED 2026-06-22)**: `orchestrator/correlation.py:compute_position_concentration()` (extracted from `engine.py` 2026-07-06) — counts open long/short positions each cycle, logs WARNING when skew exceeds `net_short_concentration_threshold` (default 75%). Exposed in `state.json` portfolio as `position_concentration` dict. Config key: `defaults.net_short_concentration_threshold` in `configs/domains/risk/sizing.yaml`.
 - **Risk-off consequence validated (2026-06-19)**: Checked 63 trading days (3 months) — risk-off (VIX>0 & SPX<0) occurred on 12 days vs the 1 live episode. AUDUSD always-long accuracy: 8.3% on risk-off days vs 54.9% on normal days. Mean-reversion (oversold→BUY) accuracy: 14.3% (1/7) on risk-off+oversold vs 100% on normal+oversold (2/2). Consequence generalizes — the suppression rule is not tuned to one episode.
   **Note on methodology:** This finding is *not* based on counting intraday prediction cycles. It was validated using daily-resolution historical price action (63 daily bars × independent forward returns), so it is exempt from the per-cycle-counting artifact that debunked the three-mechanism taxonomy below. The two conclusions came from different evidentiary standards.
 - **Prediction taxonomy (CORRECTED 2026-06-19)**: Earlier taxonomy claimed three distinct failure mechanisms across five assets. That taxonomy was based on *per-cycle* accuracy (each ~30s engine cycle counted as an independent prediction), which amplified a 1-2 day directional miss into "hundreds of wrong predictions." A daily-bar XGBoost model updates once per day; ~500 intraday cycles all reproduce the same daily signal. The live window was **3 calendar days (Jun 17-19)**. Honest per-day accuracy:
@@ -420,7 +421,7 @@ Key conclusions that remain relevant to current operations:
 
 - **Ensemble disabled** — base_weight=1.0 portfolio-wide (see ADR-026). Regime features still computed at inference for trace logging.
 - **SELL_ONLY** — 3 permanent assets (CADCHF, NZDCHF, EURAUD). See config-driven `get_sell_only_assets()` in `paper_trading/execution/gate_constants.py`.
-- **Adaptive exit engine** — 3-stage retracement trailing (breakeven lock → trail → time decay). Config per asset.
+- **Adaptive exit engine** — 4-stage retracement trailing (breakeven lock → R-based scale-out → retracement trail → time decay). Config per asset.
 - **Factor constraints** — `factor_constrained_v2` with hard linear inequality constraints, pinning CHF at 20%.
 - **Drift detector** — live win-rate drift against breakeven WR; dashboard at `/optimization.json`.
 - **Doc-drift CI check** — `tools/doc_drift_check.py` runs 12 cross-reference checks in CI.

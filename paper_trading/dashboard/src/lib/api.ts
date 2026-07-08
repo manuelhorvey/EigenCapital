@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
 import type { z } from 'zod'
 import { authHeaders } from './auth'
@@ -47,10 +47,11 @@ export function createApiQuery<T>(
 export function createApiMutation<TResponse, TVariables = void>(
   endpoint: string,
   method: 'POST' | 'PUT' | 'DELETE' = 'POST',
-  _invalidateKeys?: string[][],
+  invalidateKeys?: string[][],
 ) {
-  return (mutationOptions?: Partial<UseMutationOptions<TResponse, Error, TVariables>>) =>
-    useMutation<TResponse, Error, TVariables>({
+  return (mutationOptions?: Partial<UseMutationOptions<TResponse, Error, TVariables>>) => {
+    const queryClient = useQueryClient()
+    return useMutation<TResponse, Error, TVariables>({
       mutationFn: async (variables) => {
         const headers: Record<string, string> = { ...authHeaders() }
         if (variables !== undefined) headers['Content-Type'] = 'application/json'
@@ -63,7 +64,16 @@ export function createApiMutation<TResponse, TVariables = void>(
         return res.json() as Promise<TResponse>
       },
       ...mutationOptions,
+      onSuccess: (data, variables, context) => {
+        if (invalidateKeys) {
+          for (const key of invalidateKeys) {
+            queryClient.invalidateQueries({ queryKey: key })
+          }
+        }
+        mutationOptions?.onSuccess?.(data, variables, context)
+      },
     })
+  }
 }
 
 export async function postApi(endpoint: string): Promise<void> {

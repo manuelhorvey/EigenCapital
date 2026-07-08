@@ -1,17 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { useMonitorAlerts } from '../useMonitorAlerts'
-
-// Replace the module impl with a stateful stub so per-test scenarios are
-// observable. We import the module namespace to spy on later, since
-// vi.mock hoisted at top of file would replace it globally.
-import * as _snapshotModule from '../useSystemSnapshot'
+import { useMonitorAlerts, setDismissedVersion } from '../useMonitorAlerts'
 
 const bundleState: { current: unknown } = { current: { data: undefined } }
 
-// Mock useSystemSnapshot
+// Mock useSystemSnapshot to apply selectors (like the real one does via React Query's select)
 vi.mock('../useSystemSnapshot', () => ({
-  useSystemSnapshot: () => bundleState.current,
+  useSystemSnapshot: (select?: (data: unknown) => unknown) => {
+    const current = bundleState.current as { data: unknown } | undefined
+    if (!current || current.data === undefined) {
+      return { data: undefined, isPending: true, isLoading: true }
+    }
+    return {
+      data: select ? select(current.data) : current.data,
+      isPending: false,
+      isLoading: false,
+    }
+  },
 }))
 
 // Use a shared reference so the test can inspect the channel's spies
@@ -56,6 +61,9 @@ describe('useMonitorAlerts', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    // Reset dismissed version between tests so the previous test's
+    // synchronous version-ref update doesn't leak into the next test.
+    setDismissedVersion('')
   })
 
   it('returns empty array when bundle is undefined', () => {
@@ -164,6 +172,7 @@ describe('useMonitorAlerts — dismissal migration (B2)', () => {
     bundleState.current = { data: undefined }
     broadcastInstances = []
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel)
+    setDismissedVersion('')
   })
 
   afterEach(() => {

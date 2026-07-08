@@ -1,4 +1,5 @@
 import errno
+import gzip
 import hmac
 import json
 import logging
@@ -365,7 +366,13 @@ def try_serve_file(path, resp):
                     data = f.read()
                 resp.send_response(200)
                 resp.send_header("Content-Type", ct)
-                resp.send_header("Cache-Control", "no-cache")
+                if "/assets/" in path:
+                    resp.send_header("Cache-Control", "public, max-age=31536000, immutable")
+                else:
+                    resp.send_header("Cache-Control", "no-cache")
+                if len(data) > 512 and "gzip" in resp.headers.get("Accept-Encoding", ""):
+                    data = gzip.compress(data)
+                    resp.send_header("Content-Encoding", "gzip")
                 resp.end_headers()
                 try:
                     resp.wfile.write(data)

@@ -278,3 +278,31 @@ class TestPerformanceStateBuilder:
         builder = PerformanceStateBuilder()
         state = builder.build(100_000)
         assert state.slippage_p90 == 0.0
+
+    def test_save_load_roundtrip(self):
+        builder = PerformanceStateBuilder()
+        builder.record_trade("EURUSD", "TP", 2.0, 0.1, 0.5)
+        builder.record_trade("GBPUSD", "SL", -1.0, 0.3, 0.2)
+        saved = builder.save_state()
+        assert "outcomes" in saved
+        assert len(saved["outcomes"]) == 2
+        assert saved["outcomes"][0]["exit_reason"] == "TP"
+        assert saved["consecutive_losses"] == 1
+
+        builder2 = PerformanceStateBuilder()
+        builder2.load_state(saved)
+        restored = builder2.save_state()
+        assert restored["outcomes"] == saved["outcomes"]
+        assert restored["consecutive_losses"] == saved["consecutive_losses"]
+        assert restored["r_sum"] == saved["r_sum"]
+        assert restored["portfolio_value_history"] == saved["portfolio_value_history"]
+
+    def test_load_state_with_none_does_not_raise(self):
+        builder = PerformanceStateBuilder()
+        builder.load_state(None)
+        assert builder.save_state()["outcomes"] == []
+
+    def test_load_state_with_empty_dict_does_not_raise(self):
+        builder = PerformanceStateBuilder()
+        builder.load_state({})
+        assert builder.save_state()["outcomes"] == []

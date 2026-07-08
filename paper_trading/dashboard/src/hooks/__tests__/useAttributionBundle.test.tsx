@@ -13,19 +13,27 @@ vi.mock('../../lib/api', () => ({
 function makeQuality() {
   return {
     by_asset: {
-      EURUSD: { eis: 0.82, fqi: 0.91, avg_entry_slippage_bps: 0.5, avg_exit_slippage_bps: 0.3, avg_fill_ratio: 0.98 },
-      GBPUSD: { eis: 0.75, fqi: 0.85, avg_entry_slippage_bps: 1.2, avg_exit_slippage_bps: 0.8, avg_fill_ratio: 0.95 },
+      EURUSD: { eis: 0.82, fqi: 0.91, avg_entry_slippage_bps: 0.5, avg_exit_slippage_bps: 0.3, avg_latency_bars: 0, gap_rate: 0, partial_fill_rate: 0, avg_fill_ratio: 0.98, n: 5 },
+      GBPUSD: { eis: 0.75, fqi: 0.85, avg_entry_slippage_bps: 1.2, avg_exit_slippage_bps: 0.8, avg_latency_bars: 1, gap_rate: 0.05, partial_fill_rate: 0.02, avg_fill_ratio: 0.95, n: 3 },
     },
   }
 }
 
 function makeSlippage() {
-  return { n: 10, entry_slippage: [0.5, 1.2, 0.3, 2.1, 0.8], exit_slippage: [0.3, 0.8, 0.1, 1.5, 0.6] }
+  return { n: 10, entry_slippage: [0.5, 1.2, 0.3, 2.1, 0.8], exit_slippage: [0.3, 0.8, 0.1, 1.5, 0.6], gap_count: 0, partial_fill_count: 1 }
 }
 
 function makeSummary() {
   return {
-    overall: { n_trades: 10, domain_scores: { prediction_score: 0.65, execution_score: 0.72, exit_score: 0.80, friction_score: 0.90 } },
+    overall: {
+      n_trades: 10,
+      avg_r: 0.5,
+      avg_mae_pct: 0.3,
+      avg_mfe_pct: 1.2,
+      domain_scores: { prediction_score: 0.65, execution_score: 0.72, exit_score: 0.80, friction_score: 0.90 },
+    },
+    by_archetype: {},
+    by_regime: {},
     domain_scores: {},
   }
 }

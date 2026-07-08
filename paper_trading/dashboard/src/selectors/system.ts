@@ -35,5 +35,19 @@ export function selectShadowAction(assetName: string) {
   return (b: SystemBundle) => b.snapshot.shadow_actions?.[assetName] ?? null
 }
 
+/**
+ * Consolidated selector returning all AssetCard data in one pass.
+ * Prevents 4 separate re-renders (asset, openPosition, riskSignal, shadowAction)
+ * that occurred with individual selectors (audit finding).
+ */
+export function selectAssetCardBundle(assetName: string) {
+  return (b: SystemBundle) => ({
+    asset: b.snapshot.assets?.[assetName] ?? null,
+    openPosition: b.snapshot.open_positions?.[assetName] ?? null,
+    riskSignal: b.snapshot.risk_signals?.[assetName] ?? null,
+    shadowAction: b.snapshot.shadow_actions?.[assetName] ?? null,
+  })
+}
+
 /** Selector for the bundle meta (version, sequence_id, etc.). */
 export const selectMeta = (b: SystemBundle) => b.meta

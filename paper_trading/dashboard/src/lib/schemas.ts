@@ -767,6 +767,83 @@ export const WalResponseSchema = z.object({
   asset: z.string(),
 })
 
+// ── Execution quality (/execution/quality.json) ────────────
+
+export const AssetExecutionQualitySchema = z.object({
+  n: z.number(),
+  eis: z.number().nullable(),
+  fqi: z.number().nullable(),
+  avg_entry_slippage_bps: z.number(),
+  avg_exit_slippage_bps: z.number(),
+  avg_latency_bars: z.number(),
+  gap_rate: z.number(),
+  partial_fill_rate: z.number(),
+  avg_fill_ratio: z.number(),
+})
+
+export const ExecutionQualityResponseSchema = z.object({
+  by_asset: z.record(z.string(), AssetExecutionQualitySchema),
+})
+
+// ── Slippage distribution (/execution/slippage.json) ─────────
+
+export const SlippageDistributionSchema = z.object({
+  entry_slippage: z.array(z.number()),
+  exit_slippage: z.array(z.number()),
+  gap_count: z.number(),
+  partial_fill_count: z.number(),
+  n: z.number(),
+})
+
+// ── Attribution summary (/attribution/summary.json) ──────────
+
+export const DomainScoresSchema = z.object({
+  prediction_score: z.number(),
+  execution_score: z.number(),
+  exit_score: z.number(),
+  friction_score: z.number(),
+})
+
+export const ArchetypeStatsSchema = z.object({
+  n: z.number(),
+  avg_mae_pct: z.number(),
+  avg_mfe_pct: z.number(),
+  avg_mfe_mae_ratio: z.number(),
+})
+
+export const RegimeAttributionStatsSchema = z.object({
+  n: z.number(),
+  avg_mae_pct: z.number(),
+  avg_mfe_pct: z.number(),
+  avg_mfe_mae_ratio: z.number(),
+})
+
+export const AttributionSummaryOverallSchema = z.object({
+  n_trades: z.number(),
+  avg_r: z.number(),
+  avg_mae_pct: z.number(),
+  avg_mfe_pct: z.number(),
+  domain_scores: DomainScoresSchema,
+})
+
+export const AttributionSummaryResponseSchema = z.object({
+  overall: AttributionSummaryOverallSchema,
+  by_archetype: z.record(z.string(), ArchetypeStatsSchema),
+  by_regime: z.record(z.string(), RegimeAttributionStatsSchema),
+  domain_scores: z.record(z.string(), DomainScoresSchema),
+})
+
+// ── Attribution waterfall (/attribution/waterfall.json) ──────
+
+export const AttributionWaterfallResponseSchema = z.object({
+  prediction_pnl: z.number(),
+  execution_cost: z.number(),
+  exit_cost: z.number(),
+  friction_cost: z.number(),
+  net_pnl: z.number(),
+  n: z.number(),
+})
+
 // ── Asset deep-dive (/asset/{name}.json) ────────────────────────
 
 export const DeepDiveTradeSchema = z.object({

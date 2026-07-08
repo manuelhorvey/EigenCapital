@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
-import { selectAsset, selectOpenPosition, selectRiskSignal, selectShadowAction } from '../selectors/system'
+import { selectAssetCardBundle } from '../selectors/system'
 import { confidenceToPercent } from '../utils/format'
 import {
   confToState,
@@ -66,14 +66,13 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): {
  * @param {{ name: string, density?: 'comfortable' | 'compact' }} props
  */
 const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
-  // Each selector subscribes only to its slice of the bundle. React Query's
-  // structural sharing keeps references stable until that specific slice
-  // changes — so AssetCard only re-renders when its own asset's data updates,
-  // not when any other asset in the portfolio changes.
-  const { data: asset } = useSystemSnapshot(selectAsset(name))
-  const { data: openPosition } = useSystemSnapshot(selectOpenPosition(name))
-  const { data: riskSignal } = useSystemSnapshot(selectRiskSignal(name))
-  const { data: shadowAction } = useSystemSnapshot(selectShadowAction(name))
+  // Consolidated selector returns all AssetCard data in one pass, preventing
+  // 4 separate re-renders per poll cycle (audit finding: selector consolidation).
+  const { data: bundle } = useSystemSnapshot(selectAssetCardBundle(name))
+  const asset = bundle?.asset ?? null
+  const openPosition = bundle?.openPosition ?? null
+  const riskSignal = bundle?.riskSignal ?? null
+  const shadowAction = bundle?.shadowAction ?? null
   const { setSelectedAsset } = useSelectedAsset()
 
   const prevEntryRef = useRef<number | null>(null)

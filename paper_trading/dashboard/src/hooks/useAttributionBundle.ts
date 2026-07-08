@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
+import { z } from 'zod'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
+import {
+  ExecutionQualityResponseSchema,
+  SlippageDistributionSchema,
+  AttributionSummaryResponseSchema,
+  AttributionWaterfallResponseSchema,
+} from '../lib/schemas'
 import type { ExecutionQualityResponse, SlippageDistribution } from '../types/execution'
 import type { AttributionSummary, AttributionWaterfall } from '../types/attribution'
 
@@ -11,21 +18,30 @@ export interface AttributionBundleData {
   attributionWaterfall: AttributionWaterfall | null
 }
 
-/** Fetches execution quality, slippage, and attribution summary/waterfall data in parallel. @returns {object} - React Query result with AttributionBundleData */
+async function fetchWithSchema<T>(url: string, schema: z.ZodType<T>): Promise<T | null> {
+  try {
+    const json = await fetchApi<unknown>(url)
+    const parsed = schema.safeParse(json)
+    if (!parsed.success) {
+      console.error(`[${url}] validation failed:`, parsed.error.issues)
+      return null
+    }
+    return parsed.data
+  } catch {
+    return null
+  }
+}
+
+/** Fetches execution quality, slippage, and attribution summary/waterfall data in parallel with Zod validation. @returns {object} - React Query result with AttributionBundleData */
 export function useAttributionBundle() {
   return useQuery({
     queryKey: QUERY_KEYS.attribution,
     queryFn: async (): Promise<AttributionBundleData> => {
-      // Fetch all endpoints concurrently. If an endpoint fails, return null.
-      // If ALL 4 fail, throw so React Query's retry logic handles the total failure.
-      const fetchOrNull = <T>(url: string) =>
-        fetchApi<T>(url).catch(() => null as T | null)
-
       const [quality, slippage, summary, waterfall] = await Promise.all([
-        fetchOrNull<ExecutionQualityResponse>('/execution/quality.json'),
-        fetchOrNull<SlippageDistribution>('/execution/slippage.json'),
-        fetchOrNull<AttributionSummary>('/attribution/summary.json'),
-        fetchOrNull<AttributionWaterfall>('/attribution/waterfall.json'),
+        fetchWithSchema('/execution/quality.json', ExecutionQualityResponseSchema),
+        fetchWithSchema('/execution/slippage.json', SlippageDistributionSchema),
+        fetchWithSchema('/attribution/summary.json', AttributionSummaryResponseSchema),
+        fetchWithSchema('/attribution/waterfall.json', AttributionWaterfallResponseSchema),
       ])
 
       // If all 4 endpoints failed, throw so React Query's outer retry kicks in

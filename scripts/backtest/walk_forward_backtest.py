@@ -311,22 +311,34 @@ def run_walk_forward(
             p_long = blended.ravel()
 
         # ── Calibration (direction-conditional, Step 2) ────────────────
-        # When --calibrate is set, fit a DirectionalCalibrator on the fold's
-        # training predictions and apply it to OOS probabilities.
+        # When --calibrate is set, fit a DirectionalCalibrator on
+        # OUT-OF-SAMPLE predictions (the validation fold held out during
+        # model training), then apply it to the test fold's probabilities.
+        # This avoids fitting the calibrator on in-sample predictions
+        # which are systematically overconfident.
         if calibrate_flag:
             from shared.calibration import DirectionalCalibrator
 
-            cal = DirectionalCalibrator(n_bins=10)
-            # For the TRAINING fold, compute the model's in-sample predictions
-            # and fit the calibrator on (p_long, actual_label) pairs.
-            cal.fit(base_p_tr, y_tr.values)
-            p_long = cal.calibrate(p_long)
-            logger.info(
-                "  fold %d: calibration applied (buy_fitted=%s sell_fitted=%s)",
-                fold,
-                cal._buy_fitted,
-                cal._sell_fitted,
-            )
+            if use_early_stopping and len(X_val) >= 10:
+                # Fit calibrator on OOS validation predictions
+                cal_p = model.predict_proba(X_val[alpha_cols])[:, 1]
+                cal = DirectionalCalibrator(n_bins=10)
+                cal.fit(cal_p, y_val.values)
+                p_long = cal.calibrate(p_long)
+                logger.info(
+                    "  fold %d: calibration on %d OOS val samples (buy=%s sell=%s)",
+                    fold,
+                    len(cal_p),
+                    cal._buy_fitted,
+                    cal._sell_fitted,
+                )
+            else:
+                # Fallback: too small for a validation holdout.
+                logger.warning(
+                    "  fold %d: skipping calibration — need >=10 val samples (got %d)",
+                    fold,
+                    len(X_val) if use_early_stopping else 0,
+                )
 
         # Signal from binary P(LONG)
         signals = np.zeros(len(p_long), dtype=int)

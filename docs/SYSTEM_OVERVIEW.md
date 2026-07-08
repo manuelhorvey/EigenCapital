@@ -337,7 +337,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
 
 EigenCapital uses independently configurable governance layers with worst-wins aggregation, plus decision pipeline suppression stages, position sizing guardrails, PEK admission controller, and HealthMonitor circuit breaker.
 
-## Governance Layers (16 core + 3 adaptive budget layers + HealthMonitor + PEK + VaR/CVaR + sizing guardrails)
+## Governance Layers (17 core + 3 adaptive budget + HealthMonitor + PEK + decision pipeline + sizing guardrails)
 
 | Layer                  | Scope      | Effect                    |
 | ---------------------- | ---------- | ------------------------- |
@@ -353,9 +353,11 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Factor model (P3)      | Portfolio  | Factor exposure monitoring via 10 groups (monitoring only) |
 | Circuit breaker        | Portfolio  | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown     | Global     | Circuit breaker at −15%   |
-| Position concentration | Portfolio  | Flags >75% net-short skew (recommendation) |
 | Entry price deviation  | Per entry  | Skip if price drifted >2% |
 | Profit lock            | Per flip   | Block flip if PnL >15%    |
+| Sell tripwire          | Per exit   | 20-trade window, 65% WARNING threshold |
+| Position concentration | Portfolio  | Flags >75% net-short skew (recommendation) |
+| Weekend trading governance | Per cycle | Filtered cycle for eligible assets; 0.5× allocation multiplier |
 
 **Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95) = 5th percentile, CVaR = mean of tail. Computed in Phase 3h.
 

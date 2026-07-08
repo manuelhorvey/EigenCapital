@@ -228,7 +228,7 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 
 **Trend-exhaustion features** (added 2026-06-26): `macd_hist`, `stoch_k`, `stoch_d`, `bb_pct_b`, `adx_slope`, `rsi_divergence`. All computed via the `ta` library from OHLCV.
 
-Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`) defined in `features/registry.py`. Lead-lag features (`features/lead_lag_features.py`) are NOT in production — `features/builder.py` is not imported by any code in the `paper_trading/` package and is dead code in the live pipeline.
+Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`) defined in `features/registry.py`. Lead-lag features (`features/lead_lag_features.py`) are NOT in production — `features/builder.py` is not imported by any code in the `paper_trading/` package and is unused in the live pipeline.
 
 ### 4.3 Labeling
 
@@ -413,10 +413,10 @@ Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** —
 
 **Kelly multiplier (P2, disabled by default)**: `compute_kelly_multiplier(calibrated_prob, tp_mult, sl_mult)`.
 **Drawdown taper**: Linear between start_dd/end_dd.
-**Adaptive Exit Engine**: Retracement-based trailing exits (3-stage: breakeven lock → retracement trail → time decay). Enabled globally. See `paper_trading/position/adaptive_exit.py`.
+**Adaptive Exit Engine**: 4-stage retracement-based trailing exits (breakeven lock → R-based scale-out → retracement trail → time decay). Enabled globally. See `paper_trading/position/adaptive_exit.py`.
 **Stacking/pyramiding**: Disabled by default (`enabled: false, dry_run: true`) — walk-forward analysis showed no Sharpe benefit.
 
-### 6.3 Governance Layers (16 — 14 core layers + HealthMonitor + PEK)
+### 6.3 Governance Layers (17 core + 3 adaptive budget + HealthMonitor + decision pipeline + sizing guardrails)
 
 | Layer | Frequency | Effect |
 |---|---|---|
@@ -429,12 +429,14 @@ Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** —
 | Sell-only filter | Per decision | Override BUY→FLAT for 3 inverted-BUY assets |
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator; config-gated, enabled |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion; config-gated, disabled |
-| Factor model (P3) | Per cycle | Factor exposure monitoring in state.json; 9 groups |
+| Factor model (P3) | Per cycle | Factor exposure monitoring in state.json; 10 groups |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Circuit breaker at −15% |
 | Entry price deviation gate | Per entry | Skip if price drifted >2% |
 | Sell tripwire | Per exit | SELL-only 20-trade window, 65% WARNING threshold |
 | Profit lock gate | Per flip (embedded in manage_position) | Block flip if PnL >15% |
+| Position concentration | Per cycle | Flags >75% net-short skew |
+| Weekend trading governance | Per cycle | Filtered cycle; 0.5× allocation multiplier |
 
 **HealthMonitor** runs in Phase 3h: portfolio vol, VaR(95), CVaR, halt ratio, circuit breaker checks.
 **RecoveryScheduler** probes halted actors with exponential backoff in Phase 3h.
@@ -527,7 +529,7 @@ In-memory TTL cache per download type:
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies |
 | `shared/calibration/` | P1 calibration — BinnedCalibrator, CalibrationRegistry, ECETracker |
 | `shared/kelly.py` | P2 fractional Kelly sizing |
-| `shared/factor_model.py` | P3 factor model — 9 groups, constrained optimization |
+| `shared/factor_model.py` | P3 factor model — 10 groups, constrained optimization |
 | `portfolio/hrp_allocator.py` | P4 HRP fix — optimal_leaf_ordering |
 | `scripts/training/train_calibration.py` | Train calibrators from walk-forward parquets |
 | `scripts/replay/replay_rebalance.py` | Reconstruct historical portfolio weights |

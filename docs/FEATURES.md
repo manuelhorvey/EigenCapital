@@ -2,7 +2,7 @@
 
 ## Alpha Features
 
-The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses 21 alpha features (17 per-asset + 4 cross-asset) with per-asset prefix, including COT sentiment features and trend-exhaustion indicators. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
+The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses 21 alpha feature columns (9 core per-asset + 6 trend-exhaustion + 2 COT features + 4 cross-asset) with per-asset prefix, including COT sentiment features and trend-exhaustion indicators. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
 
 ### Input Data
 
@@ -18,8 +18,10 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 
 ### Feature Categories
 
-#### Per-Asset Core Features (11 cols via `build_alpha_features()`)
+#### Per-Asset Core Features (9 cols via `build_alpha_features()`)
 
+| Feature | Description |
+|---|---|
 | Feature | Description |
 |---|---|
 | `{ASSET}_carry_vol_adj` | Volatility-adjusted carry |
@@ -31,6 +33,11 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 | `{ASSET}_vol_ratio` | Short/long-term vol ratio |
 | `{ASSET}_dow_signal` | Day-of-week encoding |
 | `{ASSET}_has_cot` | COT data availability flag (zero-filled for pairs not in CFTC data) |
+
+#### Per-Asset COT Features (2 cols, added per covered pair)
+
+| Feature | Description |
+|---|---|
 | `{ASSET}_cot_z` | COT speculative positioning z-score |
 | `{ASSET}_cot_change_4w` | 4-week change in COT net positioning |
 

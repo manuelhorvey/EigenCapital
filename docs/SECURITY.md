@@ -119,8 +119,12 @@ CI gate `tools/doc_drift_check.py` (new in 2026-06-30 audit) verifies:
 - Phase count derived from `paper_trading/orchestrator/engine.py:_phase_X_*`
   matches Mermaid diagrams in `README.md` / `docs/SYSTEM_OVERVIEW.md` /
   `docs/PRODUCTION_SYSTEM_SPEC_v1.md`.
+- SELL_ONLY sets match across code, docs, and config.
 
 A failed check fails the PR.
+
+**Grafana dashboards** live in `ops/grafana/` - pre-built dashboard definitions for
+engine metrics. The Prometheus scrape config is at `ops/prometheus.yml`.
 
 ## 7. Observability hardening
 

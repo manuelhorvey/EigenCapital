@@ -19,7 +19,7 @@ Available modes: `production` ($100K, 8 concurrent, -15% DD), `challenge_ftmo_10
 
 ### Where is the configuration file?
 
-Configuration is stored in the domain tree under `configs/domains/` — organized by concern (risk, portfolio, ML, broker, execution, governance, assets, modes). There is no single monolithic config file. The legacy `configs/paper_tracking.yaml` was deleted in Phase 12.7.
+Configuration is stored in the domain tree under `configs/domains/` — organized by concern (risk, portfolio, ML, broker, execution, governance, assets, modes). There is no single monolithic config file. The legacy `configs/paper_trading.yaml` was deleted in Phase 12.7.
 
 ### How do I add a new asset to the portfolio?
 

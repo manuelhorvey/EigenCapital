@@ -1,8 +1,8 @@
 # EigenCapital — Risk & Governance Layer
 
-16 core governance mechanisms (plus 3 adaptive budget layers: RiskEngineV2, PEK admission controller, PerformanceState velocity), plus decision pipeline suppression stages, position sizing guardrails, HealthMonitor circuit breaker, and weekend trading governance, operating at different frequencies and granularities.
+The system implements **17 core governance layers** operating at different frequencies and granularities, plus **3 adaptive budget layers** (RiskEngineV2, PEK admission controller, PerformanceState velocity), **HealthMonitor** circuit breaker, **22-stage decision pipeline**, and **position sizing guardrails**.
 
-## Governance Layers (16 core)
+## Governance Layers (17 core)
 
 | Layer | Frequency | Scope | Effect |
 |---|---|---|---|
@@ -16,12 +16,13 @@
 | Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 3 inverted-BUY assets (CADCHF, NZDCHF, EURAUD) |
 | Calibration (P1) | Per inference | Per asset | Remap raw p_long via BinnedCalibrator, ECE 0.36→0.02 |
 | Kelly sizing (P2) | Per decision | Per asset | Scale position by Kelly criterion (config-gated, disabled) |
-| Factor model (P3) | Per cycle | Portfolio | Factor exposures via 9 groups in state.json (monitoring only) |
+| Factor model (P3) | Per cycle | Portfolio | Factor exposures via 10 groups in state.json (monitoring only) |
 | Position concentration | Per cycle | Portfolio | Flags >75% net-short skew (recommendation) |
 | Circuit breaker | Per cycle | Portfolio | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
 | Portfolio drawdown | Per cycle | Global | Circuit breaker at −15% |
 | Entry price deviation | Per entry | Per asset | Skip entry if price drifted >2% |
 | Profit lock | Per flip | Per asset | Block flip if PnL >15% |
+| Sell tripwire | Per exit | Per asset | 20-trade sliding window, 65% SELL win-rate WARNING threshold |
 | Weekend trading governance | Per cycle | Per asset (eligible) | Filtered cycle for `weekend_eligible` assets; 0.5× allocation multiplier; `crypto: [0,24]` session tier |
 
 | RiskEngineV2 (adaptive budget) | Per cycle | Portfolio | Scalar → adaptive risk budget [min, base]; reduces risk as drawdown deepens or performance degrades |

@@ -190,19 +190,15 @@ class AssetTrainingPipeline:
         x_ev = x_binary.iloc[-n_valid:]
         y_ev = y_vals[-n_valid:]
 
-        # Compute imbalance from the full binary dataset (pre-split), not just the
-        # training window. In a time-series setting with rolling_window_bars=756,
-        # the training split may not reflect the full-dataset class distribution.
-        n0_full = (y_binary.values == 0).sum()
-        n1_full = (y_binary.values == 1).sum()
-        imbalance_ratio = n0_full / max(n1_full, 1)
+        # Compute imbalance from the training split only. Using the full
+        # dataset (including validation labels) would leak future information
+        # into the training hyperparameter scale_pos_weight.
         n0_tr = (y_tr == 0).sum()
         n1_tr = (y_tr == 1).sum()
+        imbalance_ratio = n0_tr / max(n1_tr, 1)
         logger.info(
-            "%s: binary labels: 0=%d 1=%d (train: 0=%d 1=%d) imbalance_ratio=%.2f",
+            "%s: binary labels (train only): 0=%d 1=%d imbalance_ratio=%.2f",
             asset.name,
-            n0_full,
-            n1_full,
             n0_tr,
             n1_tr,
             imbalance_ratio,

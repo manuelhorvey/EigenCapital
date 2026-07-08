@@ -342,7 +342,7 @@ class PaperTradingEngine:
         self._last_prune_date = today
 
         try:
-            from scripts.ops.prune_data import prune_all
+            from paper_trading.ops.prune_data import prune_all
 
             logger.info("Pruning data older than retention limits...")
             stats = prune_all(apply=True)

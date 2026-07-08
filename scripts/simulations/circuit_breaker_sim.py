@@ -516,7 +516,7 @@ def format_report(
     lines.append("=" * 72)
     lines.append("CIRCUIT BREAKER MONTE CARLO CALIBRATION")
     lines.append("=" * 72)
-    lines.append("SELL_ONLY filter active: True (11 of 18 assets)")
+    lines.append("SELL_ONLY filter active: True (3 of 22 assets)")
     lines.append(f"Empirical window: {n_empirical_days} trading days (Oct 2024 - May 2026)")
     lines.append("Block bootstrap: 10-day blocks, 10,000 simulations")
     lines.append("")

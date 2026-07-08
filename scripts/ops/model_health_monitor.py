@@ -409,7 +409,7 @@ def trigger_retrain(urgency_results: list[dict]) -> bool:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 
-def main():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Model health monitor and retrain trigger")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     parser.add_argument("--trigger", action="store_true", help="Trigger retrain pipeline if urgency exceeds threshold")
@@ -422,27 +422,26 @@ def main():
         help="Urgency trigger threshold (default: %(default)s)",
     )
     parser.add_argument("--output", default=None, help="Path to save JSON results")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--loop",
+        type=int,
+        default=0,
+        help="Run in a loop every N seconds (0 = run once and exit)",
+    )
+    return parser.parse_args(argv)
 
+
+def run_checks(args):
     t0 = time.perf_counter()
-
-    # Run checks
     age_results = check_model_ages(max_age_days=args.max_age)
     psi_results = check_psi_baseline_staleness(psi_threshold=args.psi_threshold)
     stability_results = check_feature_stability()
     volume_results = check_inference_volume()
-
-    # Compute composite urgency
     urgency = compute_retrain_urgency(
-        age_results,
-        psi_results,
-        stability_results,
-        volume_results,
+        age_results, psi_results, stability_results, volume_results,
         urgency_threshold=args.urgency_threshold,
     )
-
     elapsed = time.perf_counter() - t0
-
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "elapsed_s": round(elapsed, 2),
@@ -467,19 +466,16 @@ def main():
             "assets": urgency,
         },
     }
-
     if args.json:
         print(json.dumps(report, indent=2, cls=EigenCapitalJSONEncoder))
     else:
         print_report(urgency)
-
     if args.output:
         out_path = Path(args.output)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w") as f:
             json.dump(report, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Report saved to %s", out_path)
-
     # Trigger retrain if requested
     triggered = False
     if args.trigger:
@@ -497,7 +493,20 @@ def main():
             worst["asset"],
             worst["urgency_score"],
         )
+    return report, urgency
 
+
+def main():
+    args = parse_args()
+    run_checks(args)
+    if args.loop > 0:
+        logger.info("Health monitor loop started (interval=%ds)", args.loop)
+        try:
+            while True:
+                time.sleep(args.loop)
+                run_checks(args)
+        except KeyboardInterrupt:
+            logger.info("Health monitor loop stopped")
     sys.exit(0)
 
 

@@ -83,6 +83,7 @@ cleanup() {
     [ -n "$LAUNCHED_BRIDGE" ]       && { kill "$LAUNCHED_BRIDGE" 2>/dev/null;       wait "$LAUNCHED_BRIDGE" 2>/dev/null;       }
     [ -n "$LAUNCHED_TERM" ]         && { kill "$LAUNCHED_TERM" 2>/dev/null;         wait "$LAUNCHED_TERM" 2>/dev/null;         }
     [ -n "${SLACK_ALERTER_PID:-}" ] && { kill "$SLACK_ALERTER_PID" 2>/dev/null;     wait "$SLACK_ALERTER_PID" 2>/dev/null;     }
+    [ -n "${HEALTH_MONITOR_PID:-}" ] && { kill "$HEALTH_MONITOR_PID" 2>/dev/null;    wait "$HEALTH_MONITOR_PID" 2>/dev/null;    }
     echo "  Done."
 }
 trap cleanup EXIT INT TERM
@@ -97,4 +98,10 @@ fi
 # ── Engine + Dashboard ──────────────────────────────────────
 python -m paper_trading.ops.monitor &
 MONITOR_PID=$!
+
+# ── Model health monitor (periodic, every 6h) ──────────────
+PYTHONPATH=$PYTHONPATH:. python scripts/ops/model_health_monitor.py --loop 21600 &
+HEALTH_MONITOR_PID=$!
+echo "  Health monitor started (PID $HEALTH_MONITOR_PID, interval=6h)"
+
 wait "$MONITOR_PID"

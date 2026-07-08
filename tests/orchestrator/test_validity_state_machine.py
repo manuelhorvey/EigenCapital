@@ -279,6 +279,17 @@ class TestCircuitBreaker:
         result = cb.check(portfolio_value=90.0)  # dd=18.2% < 20%
         assert not result.trip
 
+    def test_record_daily_pnl_records_all_values(self):
+        from paper_trading.orchestrator.health import CircuitBreaker
+
+        cb = CircuitBreaker()
+        # record_daily_pnl must store every value, not filtered by sign
+        cb.record_daily_pnl(5.0)
+        cb.record_daily_pnl(-3.0)
+        cb.record_daily_pnl(2.0)
+        cb.record_daily_pnl(-1.0)
+        assert cb._daily_pnl_history == [5.0, -3.0, 2.0, -1.0]
+
 
 class TestCorrelationMonitor:
     def test_empty_report_with_single_asset(self):

@@ -32,7 +32,15 @@ class PositionProtection:
             if position.is_long:
                 position.risk_floor = max(position.risk_floor, position.avg_price)
             else:
-                position.risk_floor = min(position.risk_floor, position.avg_price)
+                # Shorts: lower risk_floor = tighter stop.
+                # risk_floor starts at 0 (unset sentinel). min(0, avg) always
+                # returns 0, which effective_sl ignores (position.py:85 guard).
+                # Handle the sentinel explicitly to match entry_service.py
+                # stacking pattern (lines 889-890).
+                if position.risk_floor == 0:
+                    position.risk_floor = position.avg_price
+                else:
+                    position.risk_floor = min(position.risk_floor, position.avg_price)
             position.breakeven_set = True
             action = ProtectionAction(action="breakeven", new_sl=position.risk_floor)
 
@@ -49,13 +57,15 @@ class PositionProtection:
             peak_to_current_r = distance_from_peak / max(position.avg_price * vol_est, 1e-9)
 
             if peak_to_current_r <= 0:
+                # Trail distance in price units = trail_distance_r * avg_price * vol_entry
+                trail_price = trail_distance * position.avg_price * vol_est
                 if position.is_long:
-                    new_floor = current_price * (1 - trail_distance * vol_est)
+                    new_floor = current_price - trail_price
                     if new_floor > position.risk_floor:
                         position.risk_floor = new_floor
                         action = ProtectionAction(action="trail", new_sl=new_floor)
                 else:
-                    new_floor = current_price * (1 + trail_distance * vol_est)
+                    new_floor = current_price + trail_price
                     if position.risk_floor == 0 or new_floor < position.risk_floor:
                         position.risk_floor = new_floor
                         action = ProtectionAction(action="trail", new_sl=new_floor)

@@ -382,8 +382,8 @@ def portfolio_metrics(
     # Statistical moments (portfolio level)
     skew, ex_kurt = _moments(r_arr)
     psr_gt_0 = probabilistic_sharpe_ratio(sharpe, n_days, skew, ex_kurt, 0.0)
-    # Portfolio DSR: 18 assets tested simultaneously
-    dsr = deflated_sharpe_ratio(sharpe, n_days, skew, ex_kurt, num_trials=18)
+    # Portfolio DSR: 22 assets tested simultaneously (see assets/_index.yaml)
+    dsr = deflated_sharpe_ratio(sharpe, n_days, skew, ex_kurt, num_trials=22)
 
     # Loss cluster days: >threshold fraction of active assets red
     cluster_days = (pf_df["frac_red"] > loss_cluster_threshold).sum()
@@ -658,7 +658,7 @@ def main():
         loss_cluster_threshold=args.cluster_threshold,
     )
 
-    print(f"Portfolio ({args.weight_method}, ≥{args.min_assets} assets, DSR num_trials=18)")
+    print(f"Portfolio ({args.weight_method}, ≥{args.min_assets} assets, DSR num_trials=22)")
     print("-" * 72)
     for k, v in pf_metrics.items():
         print(f"  {k:25s} = {v}")

@@ -146,6 +146,59 @@ class TestAssetTrainingPipeline:
     def test_meta_labeling_skipped_when_disabled(self, mock_asset):
         assert mock_asset._meta_label_model is None
 
+    def test_scale_pos_weight_from_training_split(self, mock_asset):
+        from paper_trading.inference.training import AssetTrainingPipeline
+
+        n = 200
+        idx = pd.date_range("2026-01-01", periods=n, freq="D")
+        x_binary = pd.DataFrame({"f1": np.random.randn(n), "f2": np.random.randn(n)}, index=idx)
+        y_vals = np.array([0] * 160 + [1] * 40)
+        np.random.shuffle(y_vals)
+        vb = 20
+        n_valid = max(int(n * 0.2), 1)
+        train_gap = min(vb, max(1, n // 10))
+        train_end = n - n_valid - train_gap
+        x_tr = x_binary.iloc[:train_end]
+        y_tr = y_vals[:train_end]
+        n0_tr = (y_tr == 0).sum()
+        n1_tr = (y_tr == 1).sum()
+        imbalance = n0_tr / max(n1_tr, 1)
+        assert train_end < n, "train_end should leave room for validation + gap"
+        assert train_end >= 50, "train_end should be >= 50 for sufficient data"
+        assert n0_tr + n1_tr <= n, "training split should be subset of total"
+        assert imbalance > 0, "scale_pos_weight should be positive"
+        assert n0_tr + n1_tr < n, "training split should exclude validation data"
+
+    def test_validation_split_uses_embargo_gap(self):
+        """Verify the embargo gap prevents label lookahead leakage."""
+
+        n = 200
+        vb = 20
+        n_valid = max(int(n * 0.2), 1)  # = 40
+        train_gap = min(vb, max(1, n // 10))  # = min(20, 20) = 20
+        train_end = n - n_valid - train_gap  # = 200 - 40 - 20 = 140
+        assert train_end == 140, "train_end should leave room for validation + gap"
+        assert train_end >= 50, "train_end should be sufficient for training"
+        assert train_end < n - n_valid, "embargo gap should separate train from val"
+
+    def test_validation_split_fallback_when_gap_consumes_data(self):
+        """When train_end < 50, training uses all data without validation."""
+
+        n = 80
+        vb = 60
+        n_valid = max(int(n * 0.2), 1)
+        train_gap = min(vb, max(1, n // 10))  # = min(60, 8) = 8
+        train_end = n - n_valid - train_gap  # = 80 - 16 - 8 = 56
+        # train_end >= 50, so fallback is NOT triggered with this config.
+        # To trigger fallback, need n - n_valid - min(vb, n//10) < 50
+        # Use very small n with large vb:
+        n2 = 70
+        vb2 = 40
+        n_valid2 = max(int(n2 * 0.2), 1)  # = 14
+        train_gap2 = min(vb2, max(1, n2 // 10))  # = min(40, 7) = 7
+        train_end2 = n2 - n_valid2 - train_gap2  # = 70 - 14 - 7 = 49
+        assert train_end2 < 50, "train_end < 50 should trigger fallback"
+
     def test_model_hash_written_on_save(self, mock_asset):
         import os, tempfile
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:

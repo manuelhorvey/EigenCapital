@@ -84,12 +84,18 @@ def generate_regime_features(df: pd.DataFrame) -> pd.DataFrame:
     df["compression"] = (atr_5 / atr_20).fillna(1.0)
 
     # --- Temporal / Session Features ---
+    # NOTE: This is a 1D daily-bar system. _normalize_index() in data_fetch.py
+    # normalizes all timestamps to UTC midnight, making df.index.hour always 0.
+    # utc_hour is a constant zero and provides no signal during training (the
+    # model learns to ignore it). It is preserved for backward-compatible
+    # feature count; models can be retrained to drop it.
     df["utc_hour"] = df.index.hour
 
-    # Session Volatility Profile
+    # Session Volatility Profile — daily resolution groups by day_of_week
+    # instead of hour to capture weekday vol patterns
     df["hourly_vol"] = returns.rolling(window=24).std()
     df["session_vol_profile"] = (
-        df.groupby(df.index.hour)["hourly_vol"]
+        df.groupby(df.index.dayofweek)["hourly_vol"]
         .transform(lambda x: x / x.rolling(window=20, min_periods=5).mean())
         .fillna(1.0)
     )

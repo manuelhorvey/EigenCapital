@@ -684,8 +684,9 @@ class TestUpdatePositionProtection:
         pos.peak_price = 108.0  # HWM
         ctx = self._make_ctx(pos, current_price=108.0)  # at peak, 4.0R >= trail_activate=1.0
         _update_position_protection(ctx)
-        # At peak: new_floor = 108 * (1 - 0.5 * 0.02) = 108 * 0.99 = 106.92
-        expected_floor = 108.0 * (1 - 0.5 * 0.02)
+        # Trail distance = trail_distance_r * avg_price * vol = 0.5 * 100 * 0.02 = 1.0
+        # new_floor = current_price - trail_distance = 108.0 - 1.0 = 107.0
+        expected_floor = 108.0 - 0.5 * 100.0 * 0.02
         assert pos.risk_floor == pytest.approx(expected_floor, rel=1e-4)
 
     def test_trailing_stop_on_short(self):
@@ -693,8 +694,9 @@ class TestUpdatePositionProtection:
         pos.peak_price = 95.0  # LWM for short
         ctx = self._make_ctx(pos, current_price=95.0)
         _update_position_protection(ctx)
-        # At LWM: new_floor = 95 * (1 + 0.5 * 0.02) = 95 * 1.01 = 95.95
-        expected_floor = 95.0 * (1 + 0.5 * 0.02)
+        # Trail distance = trail_distance_r * avg_price * vol = 0.5 * 100 * 0.02 = 1.0
+        # new_floor = current_price + trail_distance = 95.0 + 1.0 = 96.0
+        expected_floor = 95.0 + 0.5 * 100.0 * 0.02
         assert pos.risk_floor == pytest.approx(expected_floor, rel=1e-4)
 
     def test_trailing_does_not_tighten_below_activation(self):

@@ -31,11 +31,12 @@ def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, 
             feat_types = learner.get("feature_types", [])
             importance: dict[str, float] = {}
             for tree in learner.get("gradient_booster", {}).get("model", {}).get("trees", []):
-                splits = tree.get("split_conditions", [])
+                loss_changes = tree.get("loss_changes", [])
                 for si, node in enumerate(tree.get("split_indices", [])):
                     if node < len(features_info):
                         fname = features_info[node]
-                        importance[fname] = importance.get(fname, 0.0) + abs(splits[si] if si < len(splits) else 0.0)
+                        gain = loss_changes[si] if si < len(loss_changes) else 0.0
+                        importance[fname] = importance.get(fname, 0.0) + max(gain, 0.0)
             total = sum(importance.values()) or 1.0
             feature_importance = [
                 {

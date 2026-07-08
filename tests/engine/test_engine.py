@@ -662,7 +662,7 @@ class TestPaperTradingEngine:
 
     def test_prune_old_data_once_per_day(self, engine):
         engine._last_prune_date = None
-        with patch("scripts.ops.prune_data.prune_all", return_value={"a": {"pruned": 5}}):
+        with patch("paper_trading.ops.prune_data.prune_all", return_value={"a": {"pruned": 5}}):
             engine._prune_old_data()
             assert engine._last_prune_date is not None
             engine._prune_old_data()  # same day, should not fire again
@@ -674,7 +674,7 @@ class TestPaperTradingEngine:
         import pytz
 
         engine._last_prune_date = datetime.now(tz=pytz.timezone("US/Eastern")).strftime("%Y-%m-%d")
-        with patch("scripts.ops.prune_data.prune_all") as mock_prune:
+        with patch("paper_trading.ops.prune_data.prune_all") as mock_prune:
             engine._prune_old_data()
             mock_prune.assert_not_called()
 

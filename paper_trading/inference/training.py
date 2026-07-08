@@ -181,14 +181,29 @@ class AssetTrainingPipeline:
         # insufficient data for the embargo.
         n = len(x_binary)
         n_valid = max(int(n * 0.2), 1)
-        train_end = n - n_valid - vb
+        # Reserve a gap = min(vb, 10% of data) to prevent label lookahead
+        # from the last training row leaking into the validation period.
+        # If train_end is still < 50, training is too small for a useful
+        # validation split — fall back to training on all data without it.
+        train_gap = min(vb, max(1, n // 10))
+        train_end = n - n_valid - train_gap
         if train_end < 50:
-            train_end = n - n_valid
-
-        x_tr = x_binary.iloc[:train_end]
-        y_tr = y_vals[:train_end]
-        x_ev = x_binary.iloc[-n_valid:]
-        y_ev = y_vals[-n_valid:]
+            logger.info(
+                "%s: insufficient data for embargo gap (n=%d vb=%d gap=%d) — "
+                "training on all %d samples without validation",
+                asset.name, n, vb, train_gap, n,
+            )
+            x_tr = x_binary
+            y_tr = y_vals
+            x_ev = x_binary.iloc[-n_valid:]
+            y_ev = y_vals[-n_valid:]
+            use_validation = False
+        else:
+            x_tr = x_binary.iloc[:train_end]
+            y_tr = y_vals[:train_end]
+            x_ev = x_binary.iloc[-n_valid:]
+            y_ev = y_vals[-n_valid:]
+            use_validation = True
 
         # Compute imbalance from the training split only. Using the full
         # dataset (including validation labels) would leak future information
@@ -215,9 +230,10 @@ class AssetTrainingPipeline:
             n_jobs=1,
             tree_method="hist",
             verbosity=0,
-            early_stopping_rounds=50,
+            early_stopping_rounds=50 if use_validation else None,
         )
-        model.fit(x_tr, y_tr, eval_set=[(x_ev, y_ev)], verbose=False)
+        eval_kwargs = {"eval_set": [(x_ev, y_ev)]} if use_validation else {}
+        model.fit(x_tr, y_tr, verbose=False, **eval_kwargs)
 
         asset.model = model
         asset._trained = True

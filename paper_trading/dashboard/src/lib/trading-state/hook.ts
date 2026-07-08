@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react"
 import { useSystemSnapshot } from "../../hooks/useSystemSnapshot"
 import { toAssetTradingState, toPortfolioTradingState, type SortKey } from "./selectors"
-import type { SystemBundle } from "../../types/bundle"
 import type { AssetTradingState, PortfolioTradingState } from "./types"
 
 export interface TradingStateResult {

@@ -25,7 +25,6 @@ interface PanelProps {
   className?: string
   padding?: 'md' | 'lg' | 'none'
   variant?: PanelVariant
-  hoverable?: boolean
   onClick?: () => void
 }
 
@@ -45,13 +44,8 @@ export default function Panel({
   className = '',
   padding = 'md',
   variant = 'default',
-  hoverable = false,
   onClick,
 }: PanelProps) {
-  const hoverStyles = hoverable
-    ? 'cursor-pointer hover:border-strong hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 ease-out'
-    : ''
-
   return (
     <div
       onClick={onClick}
@@ -59,7 +53,6 @@ export default function Panel({
         'rounded-lg relative',
         variantStyles[variant],
         paddingMap[padding],
-        hoverStyles,
         className,
       ]
         .filter(Boolean)

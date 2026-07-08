@@ -44,7 +44,7 @@ function makeBundle(seqId: number, contractVersion: number | null = 2): SystemBu
   } as unknown as SystemBundle
 }
 
-function withQueryClient(bundle: SystemBundle | undefined) {
+function withQueryClient(_bundle: SystemBundle | undefined) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })

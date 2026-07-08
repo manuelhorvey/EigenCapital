@@ -5,7 +5,7 @@ import { useMonitorAlerts } from '../useMonitorAlerts'
 // Replace the module impl with a stateful stub so per-test scenarios are
 // observable. We import the module namespace to spy on later, since
 // vi.mock hoisted at top of file would replace it globally.
-import * as snapshotModule from '../useSystemSnapshot'
+import * as _snapshotModule from '../useSystemSnapshot'
 
 const bundleState: { current: unknown } = { current: { data: undefined } }
 

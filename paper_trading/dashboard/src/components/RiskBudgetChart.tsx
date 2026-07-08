@@ -4,7 +4,7 @@ import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 
-function budgetBar(current: number, max: number, label: string): { pct: number; color: string } {
+function budgetBar(current: number, max: number, _label: string): { pct: number; color: string } {
   const pct = max > 0 ? (current / max) * 100 : 0
   const color = pct > 80 ? 'var(--color-gov-red)' : pct > 50 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'
   return { pct, color }

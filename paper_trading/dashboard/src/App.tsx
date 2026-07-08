@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback } from 'react'
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import AppShell from './components/layout/AppShell'
 import ErrorBoundary from './components/ErrorBoundary'

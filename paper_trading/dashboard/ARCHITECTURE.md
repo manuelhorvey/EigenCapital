@@ -237,7 +237,7 @@ Each of the 4 query keys is independent. Bundle updates never invalidate trade/e
 | `selectors/portfolio.ts` | Portfolio summary selector (legacy) |
 | `selectors/governance.ts` | Governance state selectors |
 | `selectors/health.ts` | Health score selectors |
-| `selectors/metrics.ts` | Statistical metrics selectors |
+| ~~`selectors/metrics.ts`~~ | *(removed — no longer exists; metrics accessed via `systemSelectors.snapshot`)* |
 | `lib/queryKeys.ts` | QUERY_KEYS contract (4 keys: systemSnapshot, attributionBundle, equityHistory, engineHealth) |
 | `types/bundle.ts` | SystemBundle type definition |
 | `utils/motion.ts` | Motion tokens + className presets |

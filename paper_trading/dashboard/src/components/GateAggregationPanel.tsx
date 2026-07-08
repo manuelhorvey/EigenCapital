@@ -14,7 +14,7 @@ export default function GateAggregationPanel() {
     const counts: Record<string, number> = {}
     let totalAssets = 0
 
-    for (const [name, state] of Object.entries(assets)) {
+    for (const [, state] of Object.entries(assets)) {
       totalAssets++
 
       // A blocked asset has final_signal == null and execution_state != 'open'

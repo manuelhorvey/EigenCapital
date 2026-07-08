@@ -3,7 +3,6 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import StatCard from './ui/StatCard'
-import { Skeleton } from './ui/Skeleton'
 import EmptyState from './ui/EmptyState'
 
 function scalarColor(v: number, threshold = 0.7): string {

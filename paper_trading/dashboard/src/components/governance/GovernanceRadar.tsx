@@ -9,7 +9,6 @@ import {
 import { useGovernanceRadar } from '../../hooks/useGovernanceRadar'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
-import { Skeleton } from '../ui/Skeleton'
 import Badge from '../ui/Badge'
 
 /** Radar chart visualizing governance constraint scores across axes, with ranked bottleneck list and average validity impact. */

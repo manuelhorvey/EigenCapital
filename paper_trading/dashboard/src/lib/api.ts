@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
 import type { z } from 'zod'
 import { authHeaders } from './auth'
@@ -47,7 +47,7 @@ export function createApiQuery<T>(
 export function createApiMutation<TResponse, TVariables = void>(
   endpoint: string,
   method: 'POST' | 'PUT' | 'DELETE' = 'POST',
-  invalidateKeys?: string[][],
+  _invalidateKeys?: string[][],
 ) {
   return (mutationOptions?: Partial<UseMutationOptions<TResponse, Error, TVariables>>) =>
     useMutation<TResponse, Error, TVariables>({

@@ -30,6 +30,8 @@ async function fetchWithSchema<T>(url: string, schema: z.ZodType<T>): Promise<T 
     }
     return parsed.data
   } catch {
+    console.error(`[${url}] fetch failed — network error`)
+    addErrorBreadcrumb('AttributionBundle', `Fetch failed: ${url}`)
     return null
   }
 }

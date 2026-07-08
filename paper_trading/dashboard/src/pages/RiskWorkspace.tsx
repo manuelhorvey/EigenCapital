@@ -5,7 +5,6 @@ import FactorExposureBreakdown from '../components/FactorExposureBreakdown'
 import PekScalarPanel from '../components/PekScalarPanel'
 import PerformanceStateVelocityChart from '../components/PerformanceStateVelocityChart'
 import RiskBudgetChart from '../components/RiskBudgetChart'
-import GateAggregationPanel from '../components/GateAggregationPanel'
 import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
@@ -13,41 +12,39 @@ import EntranceAnimator from '../components/ui/EntranceAnimator'
 export default function RiskWorkspace() {
   return (
     <div className="space-y-6 sm:space-y-8">
-      <Section id="pek" errorTitle="PEK State">
+      {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}
+      <Section id="governance-overview" errorTitle="Governance Overview">
         <EntranceAnimator variant="fade-up">
-          <PekScalarPanel />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PekScalarPanel />
+            <GovernanceRadar />
+          </div>
         </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={30}>
+      </Section>
+
+      {/* Middle: portfolio risk constraints + PEK performance. */}
+      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
+        <EntranceAnimator variant="fade-up" delay={45}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PositionConcentrationPanel />
+            <FactorExposureBreakdown />
+          </div>
+        </EntranceAnimator>
+        <EntranceAnimator variant="fade-up" delay={75}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <PerformanceStateVelocityChart />
             <RiskBudgetChart />
           </div>
         </EntranceAnimator>
       </Section>
-      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
-        <EntranceAnimator variant="fade-up" delay={60}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PositionConcentrationPanel />
-            <FactorExposureBreakdown />
-          </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={90}>
-          <GateAggregationPanel />
-        </EntranceAnimator>
-      </Section>
+
+      {/* Bottom: model health scores — combined into a single side-by-side section. */}
       <Section id="model-health" errorTitle="Model Health">
         <EntranceAnimator variant="fade-up" delay={105}>
-          <HealthMonitorPanel />
-        </EntranceAnimator>
-      </Section>
-      <Section id="governance" errorTitle="Governance Constraints">
-        <EntranceAnimator variant="fade-up" delay={120}>
-          <GovernanceRadar />
-        </EntranceAnimator>
-      </Section>
-      <Section id="health-scores" errorTitle="Health Scores">
-        <EntranceAnimator variant="fade-up" delay={150}>
-          <HealthScores />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <HealthMonitorPanel />
+            <HealthScores />
+          </div>
         </EntranceAnimator>
       </Section>
     </div>

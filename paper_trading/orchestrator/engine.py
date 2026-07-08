@@ -1076,9 +1076,9 @@ class EngineOrchestrator:
             if engine is None:
                 continue
             pos_mgr = getattr(engine, "pos_mgr", None)
-            has_any = (pos_mgr is not None and pos_mgr.has_position()) or len(
-                getattr(engine, "reentry_positions", [])
-            ) > 0
+            has_any = (pos_mgr is not None and pos_mgr.has_position()) or bool(
+                getattr(engine, "batches", None)
+            )
             if not has_any:
                 continue
             exit_price = getattr(engine, "current_price", None)

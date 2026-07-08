@@ -44,7 +44,7 @@ function ExecutionWorkspaceSkeleton() {
 }
 
 export default function ExecutionWorkspace() {
-  const { data, isPending, isError, error } = useSystemSnapshot()
+  const { data, isPending, isError, error } = useSystemSnapshot((b) => b)
 
   if (isError && !data) {
     return (

@@ -7,6 +7,9 @@ import pytz
 
 from eigencapital.domain.entities.position import OrderType, StackLayer
 from paper_trading.entry.decision import EntryAction, PositionIntent, PositionSide
+from paper_trading.position.adaptive_exit import AdaptiveExitEngine
+from paper_trading.position.batch import PositionBatch
+from paper_trading.position.dynamic_sltp import DynamicSLTPEngine
 from paper_trading.entry.deferred_entry import DeferredEntryStatus
 from paper_trading.governance.multipliers import compute_effective_multipliers
 from paper_trading.ops.market_hours import is_weekend
@@ -820,21 +823,20 @@ class EntryService:
                 new_position["mt5_ticket"] = primary_ticket
 
         is_reentry = getattr(asset, "_is_reentry", False)
+        trade_id = intent.trade_id
 
         if is_reentry:
-            asset.reentry_positions.append(new_position)
-            asset.reentry_trade_ids.append(intent.trade_id)
             logger.info(
-                "%s: RE-ENTRY %s pos #%d entry=%.4f SL=%.4f TP=%.4f",
+                "%s: RE-ENTRY %s entry=%.4f SL=%.4f TP=%.4f trade=%s",
                 asset.name,
                 intent.side,
-                len(asset.reentry_positions),
                 avg_price,
                 intent.stop_loss,
                 intent.take_profit,
+                trade_id,
             )
         else:
-            asset.position = new_position
+            asset._anchor_trade_id = trade_id
             asset._entry_vol = vol
             asset._bars_at_entry = 0
             asset._adaptive_exit_reset = True
@@ -853,14 +855,65 @@ class EntryService:
                     tier_specs=tp_geo.scale_out_tiers,
                 )
 
+        # ── PositionBatch — per-entry tracking ──────────────────────
+        role = "runner" if is_reentry else "anchor"
+        sltp_cfg = asset.config.get("dynamic_sltp", {})
+        trailing_cfg = asset.config.get("trailing", {}).get(role, {})
+        if is_reentry:
+            runner_engine = DynamicSLTPEngine(
+                method=sltp_cfg.get("method", "atr"),
+                atr_period=sltp_cfg.get("atr_period", 14),
+                atr_mult_sl=sltp_cfg.get("atr_mult_sl", 2.0),
+                atr_mult_tp=sltp_cfg.get("atr_mult_tp", 3.0),
+                min_rr_ratio=sltp_cfg.get("min_rr_ratio", 1.5),
+                trailing_activation_mult=trailing_cfg.get("activation_mult", 1.5),
+                trailing_distance_mult=trailing_cfg.get("atr_mult", 0.75),
+                post_adjust_interval_bars=sltp_cfg.get("post_adjust_interval_bars", 3),
+                max_sl_widen_pct=sltp_cfg.get("max_sl_widen_pct", 0.0),
+                max_sl_tighten_pct=sltp_cfg.get("max_sl_tighten_pct", 0.20),
+                use_gap_protection=sltp_cfg.get("use_gap_protection", True),
+                calibration_scale=sltp_cfg.get("calibration_scale", 1.0),
+                confidence_sl_adjust=sltp_cfg.get("confidence_sl_adjust", 0.0),
+            )
+            batch_engine = runner_engine
+        else:
+            batch_engine = asset._sltp_engine
+
+        ae_cfg = asset.config.get("adaptive_exit", {})
+        if is_reentry and ae_cfg.get("enabled", False):
+            exit_engine = AdaptiveExitEngine()
+        else:
+            exit_engine = getattr(asset, "_adaptive_exit_engine", None)
+
+        batch = PositionBatch(
+            trade_id=trade_id,
+            role=role,
+            is_anchor=not is_reentry,
+            side=intent.side,
+            entry_price=avg_price,
+            entry_date=intent.entry_date,
+            vol=vol,
+            initial_sl=float(intent.stop_loss),
+            initial_tp=float(intent.take_profit),
+            stop_loss=float(intent.stop_loss),
+            take_profit=float(intent.take_profit),
+            position_dict=new_position,
+            sltp_engine=batch_engine,
+            adaptive_exit_engine=exit_engine,
+        )
+        asset.batches[trade_id] = batch
+
         asset.pos_mgr.position.base_entry_size = vol
         asset.pos_mgr.enforce_invariant(asset.name)
 
     def _record_stack_layer(self, asset, layer: StackLayer, mt5_ticket):
-        if asset.position is None:
-            logger.error("%s: cannot stack — no existing position", asset.name)
+        # Use the anchor batch's position dict for stack layer tracking
+        anchor = asset.batches.get(asset._anchor_trade_id) if asset._anchor_trade_id else None
+        if anchor is None:
+            logger.error("%s: cannot stack — no anchor batch", asset.name)
             return
-        layers = asset.position.setdefault("layers", [])
+        pos_dict = anchor.position_dict
+        layers = pos_dict.setdefault("layers", [])
         layer_dict = {
             "entry_price": layer.entry_price,
             "size": layer.size,
@@ -873,21 +926,21 @@ class EntryService:
         layers.append(layer_dict)
         total_sz = sum(_l["size"] for _l in layers)
         avg = sum(_l["entry_price"] * _l["size"] for _l in layers) / max(total_sz, 1e-9)
-        asset.position["avg_price"] = avg
-        asset.position["total_size"] = total_sz
-        asset.position["entry"] = avg
-        asset.position["vol"] = total_sz
+        pos_dict["avg_price"] = avg
+        pos_dict["total_size"] = total_sz
+        pos_dict["entry"] = avg
+        pos_dict["vol"] = total_sz
         if mt5_ticket is not None:
-            asset.position["mt5_ticket"] = mt5_ticket
+            pos_dict["mt5_ticket"] = mt5_ticket
         # Update risk floor: the tightest SL across all layers
         if layer.stop_loss > 0:
-            pos_side = asset.position.get("side", "long")
+            pos_side = pos_dict.get("side", "long")
             if pos_side == "long":
-                asset.position["risk_floor"] = max(asset.position.get("risk_floor", 0), layer.stop_loss)
+                pos_dict["risk_floor"] = max(pos_dict.get("risk_floor", 0), layer.stop_loss)
             else:
-                floor = asset.position.get("risk_floor", 0)
-                asset.position["risk_floor"] = min(floor, layer.stop_loss) if floor > 0 else layer.stop_loss
-        asset.pos_mgr.position.base_entry_size = asset.position.get("base_entry_size", total_sz)
+                floor = pos_dict.get("risk_floor", 0)
+                pos_dict["risk_floor"] = min(floor, layer.stop_loss) if floor > 0 else layer.stop_loss
+        asset.pos_mgr.position.base_entry_size = pos_dict.get("base_entry_size", total_sz)
         asset.pos_mgr.position.layers.append(layer)
         asset.pos_mgr.enforce_invariant(asset.name)
 

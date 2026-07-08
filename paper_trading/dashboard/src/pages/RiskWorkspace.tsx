@@ -44,7 +44,7 @@ function RiskWorkspaceSkeleton() {
 }
 
 export default function RiskWorkspace() {
-  const { data, isPending, isError, error } = useSystemSnapshot()
+  const { data, isPending, isError, error } = useSystemSnapshot((b) => b)
 
   if (isError && !data) {
     return (

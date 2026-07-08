@@ -26,44 +26,32 @@ _MAX_TRADES = 10_000
 def _sync_broker_sltp(asset, trade_id: str | None = None) -> bool:
     """Push current SL/TP to the real broker (MT5) after in-memory adjustment.
 
-    If trade_id is provided, sync that specific position. Otherwise syncs all positions.
+    If trade_id is provided, sync that specific batch. Otherwise syncs all batches.
     Returns True if all syncs succeeded.
     """
     bridge = getattr(asset, "execution_bridge", None)
     if bridge is None or not getattr(bridge, "_is_real_broker", False):
         return True
 
-    positions_to_sync: list[tuple[dict | None, str | None]] = [
-        (asset.position, getattr(asset, "_current_trade_id", None)),
-    ]
+    batches_to_sync: list[tuple[dict, str]] = []
     if trade_id is None:
-        for i, tid in enumerate(asset.reentry_trade_ids):
-            positions_to_sync.append((asset.reentry_positions[i], tid))
+        for batch in asset.batches.values():
+            batches_to_sync.append((batch.position_dict, batch.trade_id))
     else:
-        if trade_id in asset.reentry_trade_ids:
-            idx = asset.reentry_trade_ids.index(trade_id)
-            positions_to_sync = [(asset.reentry_positions[idx], trade_id)]
-        elif trade_id == getattr(asset, "_current_trade_id", None):
-            positions_to_sync = [(asset.position, trade_id)]
-        else:
-            positions_to_sync = []
+        batch = asset.batches.get(trade_id)
+        if batch:
+            batches_to_sync = [(batch.position_dict, trade_id)]
 
     all_ok = True
-    for pos_dict, _ in positions_to_sync:
+    for pos_dict, _ in batches_to_sync:
         if pos_dict is None:
             continue
         mt5_ticket = pos_dict.get("mt5_ticket")
         if mt5_ticket is None:
             continue
-        # All stacked positions (primary + reentries) share the trailed SL/TP
-        if asset.pos_mgr.has_position():
-            sl = asset.pos_mgr.position.stop_loss
-            tp = asset.pos_mgr.position.take_profit
-            pos_dict["sl"] = sl   # keep dict in sync for dashboard consistency
-            pos_dict["tp"] = tp
-        else:
-            sl = pos_dict.get("sl")
-            tp = pos_dict.get("tp")
+        # Each batch keeps its own SL/TP in sync via PositionBatch.update_stop_loss
+        sl = pos_dict.get("sl")
+        tp = pos_dict.get("tp")
         if pd.isna(sl) or pd.isna(tp) or sl is None or tp is None:
             logger.error("%s: cannot sync NaN SL=%.4f or TP=%.4f to broker", asset.name, sl, tp)
             all_ok = False
@@ -116,7 +104,7 @@ class AssetPnlController:
         self._track_running_excursion(asset)
 
         max_hold = asset.config.get("max_holding_days")
-        has_any_position = asset.pos_mgr.has_position() or len(asset.reentry_positions) > 0
+        has_any_position = bool(asset.batches) or asset.pos_mgr.has_position()
         if has_any_position and asset.current_price is not None and self._check_intraday_sltp(asset, max_hold):
             return
 
@@ -129,27 +117,19 @@ class AssetPnlController:
         if self._check_sltp_hit(asset):
             return True
 
-        # Apply EXACTLY ONE trailing exit system per cycle to prevent SL ping-pong.
-        # Only applies to primary position. Re-entry positions use fixed SL/TP.
-        #
-        # When adaptive_exit is enabled, it handles the full lifecycle:
-        #   breakeven lock (0.5R) → scale-out → retracement trail → time decay.
-        # The old dynamic_sltp trailing (vol-spike tightening) is skipped to avoid
-        # conflicting SL updates that ping-pong between two independent systems.
-        #
-        # When adaptive_exit is disabled, the legacy dynamic_sltp trailing + post-entry
-        # adjustment runs (vol spike tightening, TP nudging).
+        # Per-batch trailing: each batch (anchor + runners) is trailed
+        # independently with its own sltp_engine and role-specific multipliers.
+        # When adaptive_exit is enabled, only the anchor batch uses it;
+        # runners use the legacy dynamic_sltp trailing.
         ae_cfg = asset.config.get("adaptive_exit", {})
         if ae_cfg.get("enabled", False):
             self._apply_adaptive_exit(asset)
         else:
             self._apply_trailing_stop(asset)
 
-        # Check re-entry positions for SL/TP hits (fixed barriers only)
-        for i in range(len(asset.reentry_positions) - 1, -1, -1):
-            pos_dict = asset.reentry_positions[i]
-            tid = asset.reentry_trade_ids[i]
-            if self._check_position_sltp_hit(asset, pos_dict, tid):
+        # Check all batches for SL/TP hits (each batch uses its own trailed level)
+        for batch in list(asset.batches.values()):
+            if self._check_position_sltp_hit(asset, batch.position_dict, batch.trade_id):
                 return True
 
         return self._check_time_stop(asset, max_hold)
@@ -366,7 +346,7 @@ class AssetPnlController:
         data = getattr(asset, "price_data", None)
         if data is None:
             data = getattr(asset, "_price_df", None)
-        if data is None or asset.pos_mgr.position is None:
+        if data is None or (not asset.batches and not asset.pos_mgr.has_position()):
             return None, False
         return data, True
 
@@ -375,87 +355,78 @@ class AssetPnlController:
         if not ok:
             return
 
-        trailing = asset._sltp_engine.compute_trailing_stop(
-            side=asset.pos_mgr.position.side,
-            entry_price=asset.pos_mgr.position.entry_price,
-            current_price=asset.current_price,
-            initial_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
-            current_sl=asset.pos_mgr.position.stop_loss,
-            take_profit=asset.pos_mgr.position.take_profit,
-            df=data,
-        )
-        if trailing.trailing_sl is not None and not pd.isna(trailing.trailing_sl):
-            asset.pos_mgr.update_stop_loss(float(trailing.trailing_sl))
-            _sync_broker_sltp(asset)
-            logger.info(
-                "%s: trailing stop activated to %.4f (locked profit=%.2f%%)",
-                asset.name,
-                trailing.trailing_sl,
-                (trailing.locked_profit or 0) * 100,
+        for batch in list(asset.batches.values()):
+            engine = batch.sltp_engine
+            if engine is None:
+                continue
+            overrides = asset.config.get("trailing", {}).get(batch.role, {})
+            engine.trailing_activation_mult = overrides.get("activation_mult", engine.trailing_activation_mult)
+            engine.trailing_distance_mult = overrides.get("atr_mult", engine.trailing_distance_mult)
+
+            trailing = engine.compute_trailing_stop(
+                side=batch.side,
+                entry_price=batch.entry_price,
+                current_price=asset.current_price,
+                initial_sl=batch.initial_sl,
+                current_sl=batch.stop_loss,
+                take_profit=batch.take_profit,
+                df=data,
             )
-            shadow_compare_sltp(
-                asset.name,
-                label_sl=asset._initial_sl or asset.pos_mgr.position.stop_loss,
-                label_tp=asset.pos_mgr.position.take_profit,
-                runtime_sl=trailing.trailing_sl,
-                runtime_tp=asset.pos_mgr.position.take_profit,
-                entry_price=asset.pos_mgr.position.entry_price,
-                reason="trailing",
-            )
+            if trailing.trailing_sl is not None and not pd.isna(trailing.trailing_sl):
+                batch.update_stop_loss(float(trailing.trailing_sl))
+                _sync_broker_sltp(asset, trade_id=batch.trade_id)
+                logger.info(
+                    "%s: [%s] trailing stop activated to %.4f (locked profit=%.2f%%)",
+                    asset.name,
+                    batch.role,
+                    trailing.trailing_sl,
+                    (trailing.locked_profit or 0) * 100,
+                )
 
         self._apply_post_entry_adjust(asset, data)
 
     def _apply_adaptive_exit(self, asset) -> None:
-        cfg = asset.config.get("adaptive_exit", {})
-        if not cfg.get("enabled", False):
+        base_cfg = asset.config.get("adaptive_exit", {})
+        if not base_cfg.get("enabled", False):
             return
-        if asset._entry_vol is None or not asset.pos_mgr.has_position():
+        if not asset.batches:
             return
 
-        if not hasattr(asset, "_adaptive_exit_engine"):
-            asset._adaptive_exit_engine = AdaptiveExitEngine()
-        ae = asset._adaptive_exit_engine
+        for batch in list(asset.batches.values()):
+            ae = batch.adaptive_exit_engine
+            if ae is None:
+                continue
+            if getattr(asset, "_adaptive_exit_reset", True) and batch.is_anchor:
+                ae.reset()
+            elif batch.is_anchor:
+                pass
+            # Runners always reset on creation, no stale state
 
-        if getattr(asset, "_adaptive_exit_reset", True):
-            ae.reset()
-            asset._adaptive_exit_reset = False
+            runner_cfg = base_cfg.get("runner", {})
+            cfg = {**base_cfg, **runner_cfg} if not batch.is_anchor else base_cfg
 
-        result = ae.compute(
-            side=asset.pos_mgr.position.side.value,
-            entry_price=asset.pos_mgr.position.entry_price,
-            current_price=asset.current_price,
-            current_sl=asset.pos_mgr.position.stop_loss,
-            vol_at_entry=asset._entry_vol,
-            bars_since_entry=getattr(asset, "_bars_at_entry", 0),
-            config=cfg,
-        )
-
-        # Scale-out: close a fraction of the position at target R-multiple
-        if result.scale_out_fraction is not None and result.scale_out_price is not None:
-            last_bar = str(datetime.now(tz=ET).date())
-            asset.pos_mgr.partial_close(
-                result.scale_out_fraction,
-                result.scale_out_price,
-                last_bar,
-                f"r_scale_out_{cfg.get('scale_out_r', '?')}R",
-            )
-            logger.info(
-                "%s: adaptive exit scale-out — closed %.0f%% at %.4f (%.1fR)",
-                asset.name,
-                result.scale_out_fraction * 100,
-                result.scale_out_price,
-                cfg.get("scale_out_r", 0),
+            result = ae.compute(
+                side=batch.side,
+                entry_price=batch.entry_price,
+                current_price=asset.current_price,
+                current_sl=batch.stop_loss,
+                vol_at_entry=batch.vol,
+                bars_since_entry=batch.bars_since_entry,
+                config=cfg,
             )
 
-        if result.new_sl is not None and not pd.isna(result.new_sl):
-            asset.pos_mgr.update_stop_loss(float(result.new_sl))
-            _sync_broker_sltp(asset)
-            logger.info(
-                "%s: adaptive exit %s — SL moved to %.4f",
-                asset.name,
-                result.action,
-                result.new_sl,
-            )
+            if result.new_sl is not None and not pd.isna(result.new_sl):
+                batch.update_stop_loss(float(result.new_sl))
+                _sync_broker_sltp(asset, trade_id=batch.trade_id)
+                logger.info(
+                    "%s: [%s] adaptive exit %s — SL moved to %.4f",
+                    asset.name,
+                    batch.role,
+                    result.action,
+                    result.new_sl,
+                )
+
+        asset._adaptive_exit_reset = False
 
     def _apply_post_entry_adjust(self, asset, data) -> None:
         asset._bars_at_entry += 1
@@ -606,20 +577,19 @@ class AssetPnlController:
         if cp is None or pd.isna(cp):
             return cv
 
-        # Sum PnL from primary position
+        # Sum PnL from all batches (anchor + runners)
+        # Fall back to legacy pos_mgr.position_pnl when no batches exist.
         total_pnl_pct = 0.0
-        if asset.pos_mgr.has_position():
+        if getattr(asset, "batches", None):
+            for batch in asset.batches.values():
+                entry = batch.entry_price
+                if entry <= 0:
+                    continue
+                raw_ret = (cp / entry - 1) if batch.is_long else (entry / cp - 1)
+                total_pnl_pct += raw_ret * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier
+        elif asset.pos_mgr.has_position():
             pnl_pct = asset.pos_mgr.position_pnl(cp) / 100
             total_pnl_pct = pnl_pct * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier
-
-        # Sum PnL from re-entry positions (approximate using fixed size = position_size)
-        for pos_dict in asset.reentry_positions:
-            entry = pos_dict.get("entry", 0)
-            if entry <= 0:
-                continue
-            side = pos_dict.get("side", "long")
-            raw_ret = (cp / entry - 1) if side == "long" else (entry / cp - 1)
-            total_pnl_pct += raw_ret * asset.pos_mgr.position_size * asset.pos_mgr.exposure_multiplier
 
         return cv * (1 + total_pnl_pct)
 

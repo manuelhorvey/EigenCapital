@@ -47,8 +47,8 @@ def compute_position_concentration(actors: dict[str, Any]) -> dict:
                 long_count += 1
             elif side == "short":
                 short_count += 1
-        for rp in getattr(engine, "reentry_positions", []):
-            side = rp.get("side")
+        for batch in getattr(engine, "batches", {}).values():
+            side = batch.side
             if side == "long":
                 long_count += 1
             elif side == "short":

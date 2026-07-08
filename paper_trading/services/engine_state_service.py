@@ -167,17 +167,21 @@ class EngineStateService:
                     else None
                 ),
                 "sizing_chain": getattr(asset, "_last_sizing_chain", None),
-                "reentry_positions": [
-                    {
-                        "side": p.get("side"),
-                        "entry": round(p.get("entry", 0), 6),
-                        "sl": round(p.get("sl", 0), 6),
-                        "tp": round(p.get("tp", 0), 6),
-                        "entry_date": p.get("entry_date"),
-                        "mt5_ticket": p.get("mt5_ticket"),
+                "batches": {
+                    tid: {
+                        "trade_id": b.trade_id,
+                        "role": b.role,
+                        "side": b.side,
+                        "entry": round(b.entry_price, 6),
+                        "sl": round(b.stop_loss, 6),
+                        "tp": round(b.take_profit, 6),
+                        "entry_date": b.entry_date,
+                        "vol": b.vol,
+                        "initial_sl": round(b.initial_sl, 6),
+                        "initial_tp": round(b.initial_tp, 6),
                     }
-                    for p in getattr(asset, "reentry_positions", [])
-                ],
+                    for tid, b in getattr(asset, "batches", {}).items()
+                },
             }
         total_value = self.compute_mtm_total()
         rp_weights = {}

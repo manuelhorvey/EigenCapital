@@ -90,6 +90,7 @@ class FakeAsset:
         }
         self.reentry_positions: list = []
         self.reentry_trade_ids: list = []
+        self.batches: dict = {}
         self._shadow_sltp = None
         self._tp_reconciled = False
         self._initial_sl = None

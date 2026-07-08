@@ -31,6 +31,7 @@ from paper_trading.inference.training import AssetTrainingPipeline
 from paper_trading.ops.data_fetcher import flatten
 from paper_trading.ops.tracer import trace_exit
 from paper_trading.performance.edge_health import get_monitor as _get_edge_monitor
+from paper_trading.position.batch import PositionBatch
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
 from paper_trading.position.scale_out import build_scale_out_from_config
@@ -112,6 +113,8 @@ class AssetEngine:
         self.position = None
         self.reentry_positions: list[dict] = []
         self.reentry_trade_ids: list[str] = []
+        self.batches: dict[str, PositionBatch] = {}
+        self._anchor_trade_id: str | None = None
         self._is_reentry = False
         self._entry_seq_counter: int = 0
         self.trades = []
@@ -400,15 +403,17 @@ class AssetEngine:
         )
 
     def _close_position(self, exit_price, exit_date, reason, trade_id: str | None = None) -> bool:
-        """Close a position by trade_id. If trade_id is None, closes the primary position."""
+        """Close a position by trade_id. Looks up the position dict from batches."""
         # Capture peak MFE before position is cleared
         peak_mfe_r = self._capture_peak_mfe_r(trade_id)
 
-        pos_dict = self.position
-        if trade_id and trade_id in self.reentry_trade_ids:
-            idx = self.reentry_trade_ids.index(trade_id)
-            pos_dict = self.reentry_positions[idx]
-        elif trade_id and trade_id != getattr(self, "_current_trade_id", None):
+        if trade_id is None:
+            anchor = self.batches.get(self._anchor_trade_id) if self._anchor_trade_id else None
+            pos_dict = anchor.position_dict if anchor else self.position
+        else:
+            batch = self.batches.get(trade_id)
+            pos_dict = batch.position_dict if batch else (self.position if trade_id == getattr(self, "_current_trade_id", None) else None)
+        if pos_dict is None:
             logger.warning("%s: trade_id %s not found for close", self.name, trade_id)
             return False
 
@@ -437,13 +442,11 @@ class AssetEngine:
         if reason == "SL":
             self._sl_exits += 1
 
-        # Clean up position dict
-        if pos_dict is self.position:
-            self.position = mutations.get("position", self.position)
-        elif trade_id and trade_id in self.reentry_trade_ids:
-            idx = self.reentry_trade_ids.index(trade_id)
-            self.reentry_trade_ids.pop(idx)
-            self.reentry_positions.pop(idx)
+        # Clean up batch tracking
+        self.batches.pop(trade_id, None) if trade_id else self.batches.pop(self._current_trade_id, None)
+        # Backward compat: clear the legacy position dict if it was set directly
+        if self.position is not None and not self.batches:
+            self.position = None
 
         self.current_value = mutations.get("current_value", self.current_value)
         self.trade_log = mutations.get("trade_log", self.trade_log)
@@ -501,25 +504,16 @@ class AssetEngine:
             return None
 
     def position_count(self) -> int:
-        count = 1 if self.position is not None else 0
-        count += len(self.reentry_positions)
-        return count
+        return len(self.batches)
 
     def all_position_dicts(self) -> list[dict]:
-        result = []
-        if self.position is not None:
-            result.append(self.position)
-        result.extend(self.reentry_positions)
-        return result
+        return [b.position_dict for b in self.batches.values()]
 
     def _close_all_positions(self, exit_price: float, exit_date: str, reason: str) -> bool:
-        """Close all positions (primary + re-entries). Returns True if any closed."""
+        """Close all position batches. Returns True if any closed."""
         any_closed = False
-        if self.position is not None:
-            any_closed = self._close_position(exit_price, exit_date, reason) or any_closed
-        for i in range(len(self.reentry_positions) - 1, -1, -1):
-            tid = self.reentry_trade_ids[i]
-            any_closed = self._close_position(exit_price, exit_date, reason, trade_id=tid) or any_closed
+        for batch in list(self.batches.values()):
+            any_closed = self._close_position(exit_price, exit_date, reason, trade_id=batch.trade_id) or any_closed
         return any_closed
 
     def _record_stop_out(self, side: str, exit_price: float) -> None:

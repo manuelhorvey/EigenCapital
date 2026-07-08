@@ -16,3 +16,10 @@ adaptive_exit:
   trail_retrace_pct: 0.33
   max_hold_candles: 40
   time_decay_start: 20
+trailing:
+  anchor:
+    atr_mult: 1.5
+    activation_mult: 1.0
+  runner:
+    atr_mult: 0.75
+    activation_mult: 1.5

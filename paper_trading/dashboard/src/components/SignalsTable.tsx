@@ -61,16 +61,16 @@ const stateLabelClass: Record<ReturnType<typeof rowState>, string> = {
 }
 
 function DirectionGlyph({ signal }: { signal: string }) {
-  if (signal === 'BUY') return <TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} />
-  if (signal === 'SELL') return <TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} />
-  return <Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
+  if (signal === 'BUY') return <TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} aria-label="Buy signal" />
+  if (signal === 'SELL') return <TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} aria-label="Sell signal" />
+  return <Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} aria-label="Flat signal" />
 }
 
 // Single horizontal bar, used for confidence and exit mix alike so the table
 // has one visual language for "a quantity out of 100" instead of three.
-function Bar({ pct, color }: { pct: number; color: string }) {
+function Bar({ pct, color, label }: { pct: number; color: string; label?: string }) {
   return (
-    <div className="w-12 h-1 bg-surface rounded-full overflow-hidden">
+    <div className="w-12 h-1 bg-surface rounded-full overflow-hidden" role={label ? 'img' : undefined} aria-label={label}>
       <div
         className="h-full rounded-full transition-all duration-300"
         style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, backgroundColor: color }}
@@ -155,6 +155,7 @@ function SignalsTable() {
           <DirectionGlyph signal={r.signal} />
           <Bar
             pct={r.confidence}
+            label={`Confidence ${r.confidence.toFixed(0)}% for ${r.signal}`}
             color={
               r.confidence >= 60
                 ? 'var(--color-gov-green)'
@@ -237,7 +238,7 @@ function SignalsTable() {
         const tpShare = total > 0 ? (r.exitTpRate / total) * 100 : 50
         return (
           <div className="flex justify-end">
-            <div className="w-12 h-1.5 rounded-full overflow-hidden flex bg-surface">
+            <div className="w-12 h-1.5 rounded-full overflow-hidden flex bg-surface" role="img" aria-label={`Exit mix: ${tpShare.toFixed(0)}% TP, ${(100 - tpShare).toFixed(0)}% SL`}>
               <div className="h-full bg-gov-green" style={{ width: `${tpShare}%` }} />
               <div className="h-full bg-gov-red" style={{ width: `${100 - tpShare}%` }} />
             </div>

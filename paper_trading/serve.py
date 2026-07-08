@@ -36,6 +36,19 @@ class ServingHandler(Handler, http.server.SimpleHTTPRequestHandler):
         self._req_start = time.monotonic()
         super().__init__(*args, **kwargs)
 
+    def end_headers(self) -> None:
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self' http://127.0.0.1:5000; "
+            "frame-ancestors 'none'",
+        )
+        super().end_headers()
+
     def log_request(self, code: int | str = ..., size: int | str = ...) -> None:
         """Override log_request to record Prometheus metrics."""
         path = self.path.split("?", 1)[0]

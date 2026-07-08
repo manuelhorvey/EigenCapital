@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSystemSnapshot } from './useSystemSnapshot'
 import { systemSelectors, selectMeta } from '../selectors/system'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 
 const ALERTS_CHANNEL = 'eigencapital-alerts'
 
@@ -45,6 +46,8 @@ function loadDismissed(): Set<string> {
     const raw = sessionStorage.getItem(dismissedKey())
     return new Set(raw ? JSON.parse(raw) : [])
   } catch {
+    console.error('[Alerts] failed to load dismissed set from sessionStorage')
+    addErrorBreadcrumb('Alerts', 'Failed to load dismissed set from sessionStorage')
     return new Set()
   }
 }
@@ -57,7 +60,10 @@ export function dismissAlert(id: string) {
     sessionStorage.setItem(key, JSON.stringify([...dismissed]))
     const ch = getChannel()
     if (ch) ch.postMessage({ type: 'dismiss', id })
-  } catch {}
+  } catch {
+    console.error('[Alerts] failed to persist dismissed alert to sessionStorage or broadcast dismiss')
+    addErrorBreadcrumb('Alerts', 'Failed to persist dismissed alert')
+  }
 }
 
 function shortenMessage(msg: string): string {
@@ -94,7 +100,10 @@ export function useMonitorAlerts(): Alert[] {
         dismissed.add(e.data.id)
         try {
           sessionStorage.setItem(dismissedKey(), JSON.stringify([...dismissed]))
-        } catch {}
+        } catch {
+          console.error('[Alerts] BroadcastChannel handler failed to persist dismissed set')
+          addErrorBreadcrumb('Alerts', 'Broadcast handler failed to persist dismissed set')
+        }
         setBroadcastTick(t => t + 1)
       }
     }

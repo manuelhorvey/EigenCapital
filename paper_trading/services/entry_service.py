@@ -886,6 +886,7 @@ class EntryService:
                 floor = asset.position.get("risk_floor", 0)
                 asset.position["risk_floor"] = min(floor, layer.stop_loss) if floor > 0 else layer.stop_loss
         asset.pos_mgr.position.base_entry_size = asset.position.get("base_entry_size", total_sz)
+        asset.pos_mgr.position.layers.append(layer)
         asset.pos_mgr.enforce_invariant(asset.name)
 
     def _record_attribution(self, asset, side, entry_date, entry_price, fill_price, entry_slippage_bps, intent, tp_geo):

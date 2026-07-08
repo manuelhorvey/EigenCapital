@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 import { fetchApi } from '../lib/api'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import type { TradeAttributionRecord } from '../types/attribution'
 
 // ── Zod schema for attribution trades ────────────────────────────────────
@@ -65,6 +66,7 @@ async function fetchAttributionTrades(
   const parsed = z.array(TradeAttributionRecordSchema).safeParse(json)
   if (!parsed.success) {
     console.error('[AttributionTrades] validation failed:', parsed.error.issues)
+    addErrorBreadcrumb('AttributionTrades', 'Validation failed')
     throw new Error('Invalid attribution trade data from server')
   }
   return parsed.data as TradeAttributionRecord[]

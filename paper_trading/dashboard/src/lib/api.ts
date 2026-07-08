@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
 import type { z } from 'zod'
 import { authHeaders } from './auth'
+import { addErrorBreadcrumb } from './errorReporting'
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const headers = { ...authHeaders(), ...options?.headers } as Record<string, string>
@@ -30,6 +31,7 @@ export function createApiQuery<T>(
       const parsed = schema.safeParse(json)
       if (!parsed.success) {
         console.error(`[${tag}] validation failed:`, parsed.error.issues)
+        addErrorBreadcrumb('API', `Validation failed for ${tag}`)
         throw new Error(`Invalid ${tag} data from server`)
       }
       return parsed.data

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { WeeklyReviewSchema } from '../lib/schemas'
 import type { WeeklyReview } from '../types/portfolio'
 
@@ -16,6 +17,7 @@ export function useWeeklyReview() {
       const parsed = WeeklyReviewSchema.safeParse(json)
       if (!parsed.success) {
         console.error('[WeeklyReview] validation failed:', parsed.error.issues)
+        addErrorBreadcrumb('WeeklyReview', 'Validation failed')
         throw new Error('Invalid weekly review data')
       }
       return parsed.data as WeeklyReview

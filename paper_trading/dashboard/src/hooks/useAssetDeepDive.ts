@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { DeepDiveDataSchema } from '../lib/schemas'
 import type { z } from 'zod'
 
@@ -16,6 +17,7 @@ export function useAssetDeepDive(name: string) {
       const parsed = DeepDiveDataSchema.safeParse(json)
       if (!parsed.success) {
         console.error('[DeepDive] validation failed:', parsed.error.issues)
+        addErrorBreadcrumb('DeepDive', `Validation failed for ${name}`)
         throw new Error(`Invalid deep dive data for ${name}`)
       }
       return parsed.data

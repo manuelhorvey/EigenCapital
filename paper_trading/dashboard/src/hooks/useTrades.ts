@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 import { fetchApi } from '../lib/api'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { TradeEntrySchema } from '../lib/schemas'
 
 export type TradeEntry = z.infer<typeof TradeEntrySchema>
@@ -13,6 +14,7 @@ async function fetchTrades(limit: number, offset: number): Promise<TradeEntry[]>
   const parsed = z.array(TradeEntrySchema).safeParse(json)
   if (!parsed.success) {
     console.error('[Trades] validation failed:', parsed.error.issues)
+    addErrorBreadcrumb('Trades', 'Validation failed')
     throw new Error('Invalid trades data from server')
   }
   return parsed.data

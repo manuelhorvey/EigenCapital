@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { EngineHealthSchema } from '../lib/schemas'
 import type { z } from 'zod'
 
@@ -24,6 +25,7 @@ export function useEngineHealth() {
       const parsed = EngineHealthSchema.safeParse(json)
       if (!parsed.success) {
         console.error('[EngineHealth] validation failed:', parsed.error.issues)
+        addErrorBreadcrumb('EngineHealth', 'Validation failed')
         return FALLBACK
       }
       return parsed.data

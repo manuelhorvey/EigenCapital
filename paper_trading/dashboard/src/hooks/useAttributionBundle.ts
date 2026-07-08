@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import {
   ExecutionQualityResponseSchema,
   SlippageDistributionSchema,
@@ -24,6 +25,7 @@ async function fetchWithSchema<T>(url: string, schema: z.ZodType<T>): Promise<T 
     const parsed = schema.safeParse(json)
     if (!parsed.success) {
       console.error(`[${url}] validation failed:`, parsed.error.issues)
+      addErrorBreadcrumb('AttributionBundle', `Validation failed for ${url}`)
       return null
     }
     return parsed.data

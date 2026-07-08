@@ -2,6 +2,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
 import { SystemBundleSchema } from '../lib/schemas'
+import { addErrorBreadcrumb } from '../lib/errorReporting'
 import type { SystemBundle } from '../types/bundle'
 
 let _lastContractVersion: number | null = null
@@ -24,6 +25,7 @@ export function useSystemSnapshot<T = SystemBundle>(
         return parsed.data as unknown as SystemBundle
       }
       console.error('[SNAPSHOT] Bundle validation failed — schema drift detected:', parsed.error.issues)
+      addErrorBreadcrumb('SNAPSHOT', 'Bundle validation failed — schema drift detected')
       return json as unknown as SystemBundle
     },
     refetchInterval: (q) => {

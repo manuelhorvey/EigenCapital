@@ -4,7 +4,7 @@ import SectionHeader from './ui/SectionHeader'
 import StatCard from './ui/StatCard'
 import Button from './ui/Button'
 import { Skeleton } from './ui/Skeleton'
-import SltpGauge from './ui/SltpGauge'
+import SltpGauge from './trades/SltpGauge'
 
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`

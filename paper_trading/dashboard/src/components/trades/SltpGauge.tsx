@@ -1,4 +1,4 @@
-import { BarRow } from './ProgressBar'
+import { BarRow } from '../ui/ProgressBar'
 
 interface SltpGaugeProps {
   tpRate: number

@@ -61,7 +61,7 @@ const CommandCenter = memo(function CommandCenter({ onSelectAsset }: CommandCent
               <span className="text-xs font-medium text-tertiary uppercase tracking-wider">Equity Curve</span>
             </div>
             <div className="w-full">
-              <EquityCurveSparkline height={80} />
+              <EquityCurveSparkline height={200} />
             </div>
           </Panel>
         </div>

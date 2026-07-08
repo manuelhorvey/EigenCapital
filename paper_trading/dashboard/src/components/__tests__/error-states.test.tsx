@@ -112,6 +112,154 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Caught: Function fallback')).toBeInTheDocument()
     consoleSpy.mockRestore()
   })
+
+  // ── Phase F: sanitization tests ───────────────────────────────
+
+  it('sanitizes JWT tokens from error messages before logging', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response()))
+
+    const Throws = () => {
+      throw new Error('Auth failed: token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.kWpPkV0bq0.expired')
+    }
+
+    render(
+      <ErrorBoundary title="Auth">
+        <Throws />
+      </ErrorBoundary>,
+    )
+
+    // Verify console received sanitised message
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', expect.stringContaining('[JWT]'))
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', expect.not.stringContaining('eyJhbGciOiJIUzI1NiJ9'))
+
+    // Verify fetch payload is also sanitised
+    expect(fetchSpy).toHaveBeenCalledWith('/api/log-error', expect.objectContaining({
+      body: expect.stringContaining('[JWT]'),
+    }))
+    expect(fetchSpy).toHaveBeenCalledWith('/api/log-error', expect.objectContaining({
+      body: expect.not.stringContaining('eyJhbGciOiJIUzI1NiJ9'),
+    }))
+
+    consoleSpy.mockRestore()
+    fetchSpy.mockRestore()
+  })
+
+  it('sanitizes API keys and secrets from error messages', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response()))
+
+    const Throws = () => {
+      throw new Error('API call failed: api_key=sk_live_abc123_def456')
+    }
+
+    render(
+      <ErrorBoundary>
+        <Throws />
+      </ErrorBoundary>,
+    )
+
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', expect.stringContaining('[REDACTED]'))
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', expect.not.stringContaining('sk_live_abc123_def456'))
+
+    consoleSpy.mockRestore()
+    fetchSpy.mockRestore()
+  })
+
+  it('sanitizes file paths from error messages', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response()))
+
+    const Throws = () => {
+      throw new Error('File not found: /home/user/project/config/credentials.json')
+    }
+
+    render(
+      <ErrorBoundary>
+        <Throws />
+      </ErrorBoundary>,
+    )
+
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', expect.stringContaining('[PATH]'))
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', expect.not.stringContaining('/home/user/project'))
+
+    consoleSpy.mockRestore()
+    fetchSpy.mockRestore()
+  })
+
+  it('does NOT modify normal error messages without sensitive data', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response()))
+
+    const Throws = () => {
+      throw new Error('Cannot read properties of undefined (reading "map")')
+    }
+
+    render(
+      <ErrorBoundary>
+        <Throws />
+      </ErrorBoundary>,
+    )
+
+    expect(consoleSpy).toHaveBeenCalledWith('[ErrorBoundary]', 'Error', 'Cannot read properties of undefined (reading "map")')
+
+    consoleSpy.mockRestore()
+    fetchSpy.mockRestore()
+  })
+
+  it('sends sanitised payload to /api/log-error on catch', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response()))
+
+    const Throws = () => {
+      throw new Error('Something went wrong')
+    }
+
+    render(
+      <ErrorBoundary>
+        <Throws />
+      </ErrorBoundary>,
+    )
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/log-error', expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: expect.stringContaining('Something went wrong'),
+    }))
+
+    // Verify body parses to correct shape
+    const callArgs = fetchSpy.mock.calls[0][1] as RequestInit
+    const parsed = JSON.parse(callArgs.body as string)
+    expect(parsed).toMatchObject({
+      error: 'Something went wrong',
+      name: 'Error',
+    })
+    expect(typeof parsed.stack).toBe('string')
+
+    consoleSpy.mockRestore()
+    fetchSpy.mockRestore()
+  })
+
+  it('POST to /api/log-error does not reject on network failure', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.reject(new Error('Network failure')))
+
+    const Throws = () => {
+      throw new Error('Network error')
+    }
+
+    // Should not throw — the catch clause swallows fetch errors
+    expect(() =>
+      render(
+        <ErrorBoundary>
+          <Throws />
+        </ErrorBoundary>,
+      ),
+    ).not.toThrow()
+
+    consoleSpy.mockRestore()
+    fetchSpy.mockRestore()
+  })
 })
 
 // ── ErrorScreen tests ─────────────────────────────────────────────

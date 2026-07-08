@@ -18,8 +18,6 @@ Versioning:
 import logging
 
 logger = logging.getLogger(__name__)
-    Old versions remain callable for reproducible backtests.
-"""
 
 from __future__ import annotations
 

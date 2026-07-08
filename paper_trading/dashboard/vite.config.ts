@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test-setup.ts',
+    exclude: ['e2e/**', 'node_modules/**'],
   },
   build: {
     outDir: 'dist',
@@ -19,7 +20,6 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined
           if (id.includes('/react/') || id.includes('/react-dom/')) return 'react'
           if (id.includes('@tanstack/react-query')) return 'query'
-          if (id.includes('/d3-')) return 'd3'
           if (id.includes('/recharts/')) return 'recharts'
           if (id.includes('/lucide-react/')) return 'icons'
           if (id.includes('/zod/')) return 'validation'

@@ -16,34 +16,29 @@ export function useAttributionBundle() {
   return useQuery({
     queryKey: QUERY_KEYS.attribution,
     queryFn: async (): Promise<AttributionBundleData> => {
-      // fetch one endpoint with individual retry; reject only if ALL 4 fail
-      // so React Query's outer retry is triggered only for total failures.
-      async function fetchWithRetry<T>(url: string, retries = 2): Promise<T | null> {
-        for (let i = 0; i <= retries; i++) {
-          try {
-            return await fetchApi<T>(url)
-          } catch (err) {
-            if (i < retries) continue
-            console.warn(`[AttributionBundle] ${url} failed after ${retries + 1} attempts`)
-            return null
-          }
-        }
-        return null
-      }
+      // Fetch all endpoints concurrently. If an endpoint fails, return null.
+      // If ALL 4 fail, throw so React Query's retry logic handles the total failure.
+      const fetchOrNull = <T>(url: string) =>
+        fetchApi<T>(url).catch(() => null as T | null)
 
       const [quality, slippage, summary, waterfall] = await Promise.all([
-        fetchWithRetry<ExecutionQualityResponse>('/execution/quality.json'),
-        fetchWithRetry<SlippageDistribution>('/execution/slippage.json'),
-        fetchWithRetry<AttributionSummary>('/attribution/summary.json'),
-        fetchWithRetry<AttributionWaterfall>('/attribution/waterfall.json'),
+        fetchOrNull<ExecutionQualityResponse>('/execution/quality.json'),
+        fetchOrNull<SlippageDistribution>('/execution/slippage.json'),
+        fetchOrNull<AttributionSummary>('/attribution/summary.json'),
+        fetchOrNull<AttributionWaterfall>('/attribution/waterfall.json'),
       ])
 
-      // If all 4 failed, throw so React Query's retry/gate logic can handle it
+      // If all 4 endpoints failed, throw so React Query's outer retry kicks in
       if (quality === null && slippage === null && summary === null && waterfall === null) {
         throw new Error('All attribution endpoints failed')
       }
 
-      return { executionQuality: quality, executionSlippage: slippage, attributionSummary: summary, attributionWaterfall: waterfall }
+      return {
+        executionQuality: quality,
+        executionSlippage: slippage,
+        attributionSummary: summary,
+        attributionWaterfall: waterfall,
+      }
     },
     refetchInterval: 60_000,
     staleTime: 50_000,

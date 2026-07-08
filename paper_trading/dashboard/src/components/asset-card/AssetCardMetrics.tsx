@@ -11,7 +11,7 @@ interface Props {
 }
 
 /** Performance metrics row for an asset card — return, drawdown, confidence, SL/TP multipliers, and signal mix. @param {{ info: AssetCardInfo }} props */
-const AssetCardMetrics: React.FC<Props> = ({ info }) => {
+const AssetCardMetrics = React.memo(({ info }: Props) => {
   const returnState: GovernanceState = info.totalReturn >= 0 ? 'GREEN' : 'RED'
   const drawdownState: GovernanceState = ddToState(info.drawdown)
 

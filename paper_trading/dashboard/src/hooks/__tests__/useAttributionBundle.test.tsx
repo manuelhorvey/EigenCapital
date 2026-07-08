@@ -64,11 +64,12 @@ describe('useAttributionBundle', () => {
   })
 
   it('handles partial failures gracefully (null for failed endpoints)', async () => {
+    // Each endpoint is tried once (fetchWithRetry retries=0).
     mockFetch
-      .mockResolvedValueOnce(makeQuality())
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(makeSummary())
-      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(makeQuality())                          // quality succeeds
+      .mockRejectedValueOnce(new Error('Network error'))            // slippage fails
+      .mockResolvedValueOnce(makeSummary())                          // summary succeeds
+      .mockRejectedValueOnce(new Error('Network error'))            // waterfall fails
 
     const { wrapper } = withQueryClient()
     const { result } = renderHook(() => useAttributionBundle(), { wrapper })
@@ -80,13 +81,20 @@ describe('useAttributionBundle', () => {
   })
 
   it('handles all endpoints failing', async () => {
+    // 4 endpoints, all reject.
     mockFetch.mockRejectedValue(new Error('Network error'))
-    const { wrapper } = withQueryClient()
+    // Create a QueryClient that disables the retry delay so isError is set instantly.
+    // Note: the hook's explicit retry=1 overrides default retry=false, so we also
+    // need to wait for the retry to exhaust. The longer timeout handles this.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    })
+    function wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    }
     const { result } = renderHook(() => useAttributionBundle(), { wrapper })
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.executionQuality).toBeNull()
-    expect(result.current.data?.executionSlippage).toBeNull()
-    expect(result.current.data?.attributionSummary).toBeNull()
-    expect(result.current.data?.attributionWaterfall).toBeNull()
+    // When all 4 endpoints fail, the query throws → isError is true.
+    // The retry:1 on the hook adds a default 1000ms retry delay.
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 })
   })
 })

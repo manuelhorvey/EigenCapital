@@ -18,7 +18,7 @@ import { AlertTriangle } from 'lucide-react'
 
 const LiveSharpePanel = memo(function LiveSharpePanel() {
   return (
-    <EntranceAnimator variant="fade-up" delay={120}>
+    <EntranceAnimator variant="fade-up" delay={210}>
       <div className="space-y-2">
         <span className="text-xs text-tertiary font-medium uppercase tracking-wider">Live Sharpe</span>
         <LiveSharpeCard />

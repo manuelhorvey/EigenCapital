@@ -12,7 +12,7 @@ interface Props {
 }
 
 /** Open position details for an asset card — side, entry, unrealized PnL, SL/TP distances, R:R ratio, and scale-out tiers. @param {{ info: AssetCardInfo }} props */
-const AssetCardPosition: React.FC<Props> = ({ info }) => {
+const AssetCardPosition = React.memo(({ info }: Props) => {
   const { position, risk } = info
 
   if (!position) return null

@@ -1,3 +1,4 @@
+import React from 'react'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 
@@ -23,7 +24,7 @@ function statusColor(status: Metric['status']): string {
 
 /** Panel displaying system performance metrics as a grid of stat cards with color-coded statuses.
  * @param {Metric[]} metrics - Array of metric objects with label, value, optional target and status */
-export default function PerformancePanel({ metrics }: PerformancePanelProps) {
+const PerformancePanel = /*#__PURE__*/ React.memo<PerformancePanelProps>(function PerformancePanel({ metrics }) {
   if (metrics.length === 0) return null
 
   return (
@@ -44,4 +45,6 @@ export default function PerformancePanel({ metrics }: PerformancePanelProps) {
       </div>
     </Panel>
   )
-}
+})
+
+export default PerformancePanel

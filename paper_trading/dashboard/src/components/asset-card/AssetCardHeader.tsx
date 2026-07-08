@@ -21,7 +21,7 @@ interface Props {
  * Header row of an asset card. Renders name, status badge, current price, signal label, and confidence.
  * @param {{ name: string, info: AssetCardInfo, cardState: GovernanceState, confidenceState: GovernanceState, badge: BadgeDisplay | null }} props
  */
-const AssetCardHeader: React.FC<Props> = ({ name, info, cardState: _cardState, confidenceState, badge }) => {
+const AssetCardHeader = React.memo(({ name, info, cardState: _cardState, confidenceState, badge }: Props) => {
 
   const signalTextClass =
     info.signal === 'BUY' ? governanceText.GREEN

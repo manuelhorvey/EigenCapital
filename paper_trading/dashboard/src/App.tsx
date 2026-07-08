@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback } from 'react'
+import { Suspense, lazy, useCallback, useEffect } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import AppShell from './components/layout/AppShell'
@@ -9,6 +9,26 @@ const CommandCenter = lazy(() => import('./pages/CommandCenter'))
 const TradingWorkspace = lazy(() => import('./pages/TradingWorkspace'))
 const ExecutionWorkspace = lazy(() => import('./pages/ExecutionWorkspace'))
 const RiskWorkspace = lazy(() => import('./pages/RiskWorkspace'))
+
+// Preload all page bundles when the browser is idle — ensures instant
+// navigation when the operator switches tabs without adding to the
+// initial page load. Uses requestIdleCallback with a setTimeout fallback.
+function preloadOnIdle(importFn: () => Promise<unknown>) {
+  const fn = () => { importFn().catch(() => {}) }
+  if ('requestIdleCallback' in window) {
+    (window as Window & typeof globalThis).requestIdleCallback(fn, { timeout: 2000 })
+  } else {
+    setTimeout(fn, 1000)
+  }
+}
+
+function useRoutePreloader() {
+  useEffect(() => {
+    preloadOnIdle(() => import('./pages/TradingWorkspace'))
+    preloadOnIdle(() => import('./pages/ExecutionWorkspace'))
+    preloadOnIdle(() => import('./pages/RiskWorkspace'))
+  }, [])
+}
 
 import AssetDetailPanel from './components/AssetDetailPanel'
 import AssetDeepDive from './components/AssetDeepDive'
@@ -21,6 +41,7 @@ import { systemSelectors } from './selectors/system'
 import { useSelectedAsset } from './hooks/useSelectedAsset'
 
 function AppContent() {
+  useRoutePreloader()
   const { data: state } = useSystemSnapshot(systemSelectors.snapshot)
   const { selectedAsset, deepDiveAsset, setSelectedAsset, setDeepDiveAsset } = useSelectedAsset()
 

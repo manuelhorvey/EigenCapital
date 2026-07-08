@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo, useState, useRef, useCallback } from 'react'
 import { Search, TrendingUp, TrendingDown, Minus, Activity } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
@@ -82,6 +82,16 @@ function Bar({ pct, color, label }: { pct: number; color: string; label?: string
 /** Per-asset signal dashboard with search, sortable columns, and deep-dive navigation. */
 function SignalsTable() {
   const [search, setSearch] = useState('')
+  const [inputValue, setInputValue] = useState('')
+  // Debounce the search to defer filtering while typing (F2).
+  // Uses dual state: inputValue updates immediately for responsive typing,
+  // while search (used for filtering) updates after 150ms of inactivity.
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(e.target.value), 150)
+  }, [])
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)
   const { setSelectedAsset, setDeepDiveAsset } = useSelectedAsset()
 
@@ -311,8 +321,8 @@ function SignalsTable() {
               <input
                 type="text"
                 placeholder="Filter…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                value={inputValue}
+                onChange={handleSearchChange}
                 className="input-terminal w-24 sm:w-32 pl-7 focus:border-strong focus:shadow-[0_0_0_1px_rgba(61,217,174,0.2)]"
               />
             </div>

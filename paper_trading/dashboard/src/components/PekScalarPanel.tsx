@@ -5,10 +5,30 @@ import Panel from './ui/Panel'
 import StatCard from './ui/StatCard'
 import EmptyState from './ui/EmptyState'
 
+interface CardDef {
+  label: string
+  value: string
+  sub?: string
+  accent: string
+}
+
 function scalarColor(v: number, threshold = 0.7): string {
   if (v >= threshold) return 'var(--color-gov-green)'
   if (v >= threshold * 0.6) return 'var(--color-gov-yellow)'
   return 'var(--color-gov-red)'
+}
+
+function CardSection({ title, cards, grid, variant = 'kpi' }: { title: string; cards: CardDef[]; grid: string; variant?: 'kpi' | 'compact' }) {
+  return (
+    <Panel padding="md">
+      <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block mb-2">{title}</span>
+      <div className={grid}>
+        {cards.map(c => (
+          <StatCard key={c.label} label={c.label} value={c.value} sub={c.sub} variant={variant} accent={c.accent} />
+        ))}
+      </div>
+    </Panel>
+  )
 }
 
 /** PEK performance state, velocity sub-metrics, risk budget, and portfolio snapshot cards. */
@@ -16,7 +36,7 @@ export default function PekScalarPanel() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const pek = portfolio?.pek
 
-  const perfCards = useMemo(() => {
+  const perfCards = useMemo<CardDef[] | null>(() => {
     const ps = pek?.performance_state
     if (!ps) return null
     return [
@@ -29,7 +49,7 @@ export default function PekScalarPanel() {
     ]
   }, [pek])
 
-  const velocityCards = useMemo(() => {
+  const velocityCards = useMemo<CardDef[] | null>(() => {
     const v = pek?.performance_state?.velocity
     if (!v || typeof v.pnl_velocity !== 'number') return null
     return [
@@ -41,7 +61,7 @@ export default function PekScalarPanel() {
     ]
   }, [pek])
 
-  const budgetCards = useMemo(() => {
+  const budgetCards = useMemo<CardDef[] | null>(() => {
     const rb = pek?.risk_budget
     if (!rb) return null
     return [
@@ -54,7 +74,7 @@ export default function PekScalarPanel() {
     ]
   }, [pek])
 
-  const snapCards = useMemo(() => {
+  const snapCards = useMemo<CardDef[] | null>(() => {
     const ps = pek?.portfolio_snapshot
     if (!ps) return null
     return [
@@ -71,49 +91,10 @@ export default function PekScalarPanel() {
 
   return (
     <div className="space-y-4">
-      {perfCards && (
-        <Panel padding="md">
-          <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block mb-2">Performance State</span>
-          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
-            {perfCards.map(c => (
-              <StatCard key={c.label} label={c.label} value={c.value} variant="kpi" accent={c.accent} />
-            ))}
-          </div>
-        </Panel>
-      )}
-
-      {velocityCards && (
-        <Panel padding="md">
-          <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block mb-2">Velocity Sub-Metrics</span>
-          <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
-            {velocityCards.map(c => (
-              <StatCard key={c.label} label={c.label} value={c.value} variant="kpi" accent={c.accent} />
-            ))}
-          </div>
-        </Panel>
-      )}
-
-      {budgetCards && (
-        <Panel padding="md">
-          <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block mb-2">Risk Budget</span>
-          <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
-            {budgetCards.map(c => (
-              <StatCard key={c.label} label={c.label} value={c.value} variant="kpi" accent={c.accent} />
-            ))}
-          </div>
-        </Panel>
-      )}
-
-      {snapCards && (
-        <Panel padding="md">
-          <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block mb-2">Portfolio Snapshot</span>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-            {snapCards.map(c => (
-              <StatCard key={c.label} label={c.label} value={c.value} sub={c.sub} variant="compact" accent={c.accent} />
-            ))}
-          </div>
-        </Panel>
-      )}
+      {perfCards && <CardSection title="Performance State" cards={perfCards} grid="grid grid-cols-3 lg:grid-cols-6 gap-2" />}
+      {velocityCards && <CardSection title="Velocity Sub-Metrics" cards={velocityCards} grid="grid grid-cols-3 lg:grid-cols-5 gap-2" />}
+      {budgetCards && <CardSection title="Risk Budget" cards={budgetCards} grid="grid grid-cols-3 lg:grid-cols-6 gap-2" />}
+      {snapCards && <CardSection title="Portfolio Snapshot" cards={snapCards} grid="grid grid-cols-2 lg:grid-cols-4 gap-2" variant="compact" />}
     </div>
   )
 }

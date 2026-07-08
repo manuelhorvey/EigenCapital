@@ -5,18 +5,9 @@ import { addErrorBreadcrumb } from '../lib/errorReporting'
 
 const ALERTS_CHANNEL = 'eigencapital-alerts'
 
-let _channel: BroadcastChannel | null = null
-function getChannel(): BroadcastChannel {
-  if (typeof BroadcastChannel === 'undefined') return null as never
-  if (!_channel) _channel = new BroadcastChannel(ALERTS_CHANNEL)
-  return _channel
-}
-
-function destroyChannel(): void {
-  if (_channel) {
-    _channel.close()
-    _channel = null
-  }
+function makeChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null
+  return new BroadcastChannel(ALERTS_CHANNEL)
 }
 
 export interface Alert {
@@ -31,19 +22,13 @@ export interface Alert {
   timestamp: string
 }
 
-let _dismissedVersion = ''
-
-export function setDismissedVersion(version: string) {
-  _dismissedVersion = version
+function dismissedKey(version: string): string {
+  return version ? `ec-dismissed-alerts-${version}` : 'ec-dismissed-alerts'
 }
 
-function dismissedKey(): string {
-  return _dismissedVersion ? `ec-dismissed-alerts-${_dismissedVersion}` : 'ec-dismissed-alerts'
-}
-
-function loadDismissed(): Set<string> {
+function loadDismissed(version: string): Set<string> {
   try {
-    const raw = sessionStorage.getItem(dismissedKey())
+    const raw = sessionStorage.getItem(dismissedKey(version))
     return new Set(raw ? JSON.parse(raw) : [])
   } catch {
     console.error('[Alerts] failed to load dismissed set from sessionStorage')
@@ -52,17 +37,24 @@ function loadDismissed(): Set<string> {
   }
 }
 
-export function dismissAlert(id: string) {
-  const key = dismissedKey()
-  const dismissed = loadDismissed()
+function persistDismissed(id: string, version: string) {
+  const key = dismissedKey(version)
+  const dismissed = loadDismissed(version)
   dismissed.add(id)
   try {
     sessionStorage.setItem(key, JSON.stringify([...dismissed]))
-    const ch = getChannel()
-    if (ch) ch.postMessage({ type: 'dismiss', id })
   } catch {
-    console.error('[Alerts] failed to persist dismissed alert to sessionStorage or broadcast dismiss')
+    console.error('[Alerts] failed to persist dismissed alert to sessionStorage')
     addErrorBreadcrumb('Alerts', 'Failed to persist dismissed alert')
+  }
+}
+
+export function dismissAlert(id: string) {
+  persistDismissed(id, '')
+  const ch = makeChannel()
+  if (ch) {
+    ch.postMessage({ type: 'dismiss', id })
+    ch.close()
   }
 }
 
@@ -79,44 +71,32 @@ export function useMonitorAlerts(): Alert[] {
   const seqId = snapshot?.sequence_id
   const [broadcastTick, setBroadcastTick] = useState(0)
 
-  // Track the bundle version in a ref so dismissedKey() uses the
-  // versioned key without a one-cycle delay (which would cause previously
-  // dismissed alerts to reappear for one render). The ref is updated
-  // synchronously in render, which is safe because refs are mutable
-  // containers that don't participate in React's rendering guarantees.
   const versionRef = useRef('')
   const version = meta?.version ?? ''
   if (version && versionRef.current !== version) {
     versionRef.current = version
-    _dismissedVersion = version
   }
 
   useEffect(() => {
-    const ch = getChannel()
+    const ch = makeChannel()
     if (!ch) return
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'dismiss' && e.data?.id) {
-        const dismissed = loadDismissed()
-        dismissed.add(e.data.id)
-        try {
-          sessionStorage.setItem(dismissedKey(), JSON.stringify([...dismissed]))
-        } catch {
-          console.error('[Alerts] BroadcastChannel handler failed to persist dismissed set')
-          addErrorBreadcrumb('Alerts', 'Broadcast handler failed to persist dismissed set')
-        }
+        persistDismissed(e.data.id, versionRef.current)
         setBroadcastTick(t => t + 1)
       }
     }
     ch.addEventListener('message', handler)
     return () => {
       ch.removeEventListener('message', handler)
-      destroyChannel()
+      ch.close()
     }
   }, [])
 
   return useMemo(() => {
+    const v = versionRef.current
     const alerts: Alert[] = []
-    const dismissed = loadDismissed()
+    const dismissed = loadDismissed(v)
     const now = state?.timestamp ?? new Date().toISOString()
 
     // Group halted assets by reason

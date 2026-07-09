@@ -120,6 +120,13 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
       isNew,
       riskSignal: (riskSignal ?? null) as { risk_level: string; risk_score: number } | null,
       shadowAction: (shadowAction ?? null) as { action_type: string } | null,
+      priceHistory: pos
+        ? signalHistory.map(p => p.close_price)
+        : null,
+      positionEntry: pos?.entry ?? null,
+      positionTp: pos?.tp ?? null,
+      positionSl: pos?.sl ?? null,
+      positionSide: pos?.side ?? null,
     }
   }, [asset, name, openPosition, riskSignal, shadowAction])
 

@@ -6,6 +6,7 @@ import {
   rrToState,
 } from '../ui/governance'
 import type { AssetCardInfo } from './types'
+import PositionSparkline from './PositionSparkline'
 
 interface Props {
   info: AssetCardInfo
@@ -17,8 +18,14 @@ const AssetCardPosition = React.memo(({ info }: Props) => {
 
   if (!position) return null
 
+  const canShowSparkline =
+    info.priceHistory != null &&
+    info.priceHistory.length >= 4 &&
+    info.positionEntry != null &&
+    info.positionSide != null
+
   return (
-    <div className="pt-2 border-t border-default/30">
+    <div className="pt-2 border-t border-default/30 space-y-1.5">
       <div className="flex items-center justify-between text-xs text-tertiary">
         <span className="flex items-center gap-1.5">
           <span
@@ -46,7 +53,7 @@ const AssetCardPosition = React.memo(({ info }: Props) => {
       </div>
 
       {risk && (
-        <div className="flex items-center gap-x-3 text-xs mt-1">
+        <div className="flex items-center gap-x-3 text-xs">
           {position.tp != null && position.tp !== 0 && (
             <span className="flex items-center gap-1 text-tertiary">
               <span className={`w-1.5 h-1.5 rounded-full ${governanceDot.GREEN}`} />
@@ -69,8 +76,19 @@ const AssetCardPosition = React.memo(({ info }: Props) => {
         </div>
       )}
 
+      {canShowSparkline && info.positionSide && info.positionEntry != null && (
+        <PositionSparkline
+          prices={info.priceHistory!}
+          entry={info.positionEntry}
+          tp={info.positionTp}
+          sl={info.positionSl}
+          side={info.positionSide}
+          height={32}
+        />
+      )}
+
       {info.scaleOutActive && info.scaleOutTiers && info.scaleOutTiers.length > 0 && (
-        <div className="mt-2 space-y-1">
+        <div className="space-y-1">
           <div className="text-[10px] text-tertiary font-medium uppercase tracking-wider flex items-center gap-1">
             Scale-out tiers
             <span className="text-muted font-mono normal-case tracking-normal">

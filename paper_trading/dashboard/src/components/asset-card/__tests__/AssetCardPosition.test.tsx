@@ -25,6 +25,11 @@ const baseInfo: AssetCardInfo = {
   isNew: false,
   riskSignal: null,
   shadowAction: null,
+  priceHistory: null,
+  positionEntry: null,
+  positionTp: null,
+  positionSl: null,
+  positionSide: null,
 }
 
 describe('AssetCardPosition', () => {
@@ -162,5 +167,70 @@ describe('AssetCardPosition', () => {
     }
     render(<AssetCardPosition info={info} />)
     expect(screen.getByText(/×2/)).toBeInTheDocument()
+  })
+
+  it('renders price sparkline when priceHistory has 4+ samples', () => {
+    const prices = [1.0995, 1.1000, 1.1010, 1.1025, 1.1040, 1.1055]
+    const info: AssetCardInfo = {
+      ...baseInfo,
+      position: { entry: 1.1000, side: 'long', sl: 1.0950, tp: 1.1100, unrealized_pnl: 5.5 },
+      risk: { tpDistPct: 0.91, slDistPct: -0.45, rr: 2.0 },
+      priceHistory: prices,
+      positionEntry: 1.1000,
+      positionTp: 1.1100,
+      positionSl: 1.0950,
+      positionSide: 'long',
+    }
+    const { container } = render(<AssetCardPosition info={info} />)
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(container.querySelector('path')).not.toBeNull()
+  })
+
+  it('omits sparkline when fewer than 4 samples (too noisy to be useful)', () => {
+    const info: AssetCardInfo = {
+      ...baseInfo,
+      position: { entry: 1.1000, side: 'long', sl: 1.0950, tp: 1.1100 },
+      risk: { tpDistPct: 0.91, slDistPct: -0.45, rr: 2.0 },
+      priceHistory: [1.1000, 1.1005, 1.1010],
+      positionEntry: 1.1000,
+      positionTp: 1.1100,
+      positionSl: 1.0950,
+      positionSide: 'long',
+    }
+    const { container } = render(<AssetCardPosition info={info} />)
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('omits sparkline when no priceHistory provided', () => {
+    const info: AssetCardInfo = {
+      ...baseInfo,
+      position: { entry: 1.1000, side: 'long', sl: 1.0950, tp: 1.1100 },
+      risk: { tpDistPct: 0.91, slDistPct: -0.45, rr: 2.0 },
+      priceHistory: null,
+      positionEntry: 1.1000,
+      positionTp: 1.1100,
+      positionSl: 1.0950,
+      positionSide: 'long',
+    }
+    const { container } = render(<AssetCardPosition info={info} />)
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('renders short sparkline without crashing on flat prices', () => {
+    const info: AssetCardInfo = {
+      ...baseInfo,
+      position: { entry: 1.1000, side: 'short', sl: 1.1050, tp: 1.0900 },
+      risk: { tpDistPct: -0.91, slDistPct: 0.45, rr: 2.0 },
+      priceHistory: [1.1000, 1.1000, 1.1000, 1.1000, 1.1000],
+      positionEntry: 1.1000,
+      positionTp: 1.0900,
+      positionSl: 1.1050,
+      positionSide: 'short',
+    }
+    const { container } = render(<AssetCardPosition info={info} />)
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(container.querySelector('path')).not.toBeNull()
   })
 })

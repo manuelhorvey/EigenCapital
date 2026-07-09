@@ -55,4 +55,14 @@ export interface AssetCardInfo {
   isNew: boolean
   riskSignal: { risk_level: string; risk_score: number } | null
   shadowAction: { action_type: string } | null
+  /** Recent close prices since position opened, used to draw the position sparkline. */
+  priceHistory: number[] | null
+  /** Entry price of the open position (denormalized for sparkline anchor). */
+  positionEntry: number | null
+  /** Current TP of the open position, if any. */
+  positionTp: number | null
+  /** Current SL of the open position, if any. */
+  positionSl: number | null
+  /** Side of the open position, exposed for sparkline direction. */
+  positionSide: 'long' | 'short' | null
 }

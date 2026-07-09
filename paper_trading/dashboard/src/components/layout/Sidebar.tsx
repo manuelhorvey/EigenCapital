@@ -72,7 +72,7 @@ const NavItem = memo(function NavItem({ item, badge, engine, onClose, onKeyDown 
           <div className="flex items-center justify-center min-w-[28px]">
             <item.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
           </div>
-          <div className="flex flex-col min-w-0 flex-1 opacity-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-100">
+          <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="truncate">{item.label}</span>
               {dot && (
@@ -151,10 +151,9 @@ function Sidebar({ open, onClose }: SidebarProps) {
           shadow-[inset_-1px_0_0_rgba(255,255,255,0.02)]
           transform transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
           lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 lg:sticky lg:top-[44px]
-          lg:h-[calc(100vh-44px)] lg:overflow-y-auto lg:group
+          lg:h-[calc(100vh-44px)] lg:overflow-y-auto
           flex flex-col
           w-[220px]
-          lg:w-[44px] lg:hover:w-[220px] lg:hover:shadow-card
           ${open ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
@@ -177,14 +176,14 @@ function Sidebar({ open, onClose }: SidebarProps) {
           className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-thin"
         >
           {/* Engine status badge — compact header; collapsed = dot only, expanded = text */}
-          <div className="flex items-center justify-center lg:justify-center lg:group-hover:justify-start gap-1.5 px-2 py-2 mb-1 border-b border-default/40" aria-label={`Engine status: ${badges.engine ?? 'unknown'}`}>
+          <div className="flex items-center justify-start gap-1.5 px-2 py-2 mb-1 border-b border-default/40" aria-label={`Engine status: ${badges.engine ?? 'unknown'}`}>
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                 engineDotClass(badges.engine) ?? 'bg-gov-init/50'
               }`}
               aria-hidden
             />
-            <span className="text-2xs font-mono font-semibold text-tertiary uppercase tracking-wider lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200 delay-100">
+            <span className="text-2xs font-mono font-semibold text-tertiary uppercase tracking-wider">
               {badges.engine ?? 'loading…'}
             </span>
           </div>

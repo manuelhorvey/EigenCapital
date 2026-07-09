@@ -38,4 +38,6 @@ crisis_reports/
 mc_results.json
 scripts/data/
 scripts/paper_trading/
+.agents/
+skills-lock.json
 .vscode/

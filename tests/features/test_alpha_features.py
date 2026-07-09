@@ -113,8 +113,8 @@ def test_momentum_expected_columns(price_series):
 
 def test_momentum_first_rows_nan(price_series):
     result = momentum_features(price_series)
-    assert result["mom_252d"].isna().iloc[:253].all()
-    assert result["mom_252d"].notna().iloc[253:].any()
+    assert result["mom_252d"].isna().iloc[:252].all()
+    assert result["mom_252d"].notna().iloc[252:].any()
 
 
 def test_momentum_produces_non_nan_values(price_series):

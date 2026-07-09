@@ -102,5 +102,5 @@ class EnsembleSignal:
         three_col[long_mask, 2] = p[long_mask]
         three_col[short_mask, 0] = 1.0 - p[short_mask]
         three_col[short_mask, 2] = p[short_mask]
-        three_col[neutral_mask, 1] = 0.5
+        three_col[neutral_mask, 1] = 1.0
         return three_col, signals

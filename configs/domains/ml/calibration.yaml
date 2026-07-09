@@ -1,6 +1,4 @@
 calibration:
   enabled: true
-  method: binned
-  n_bins: 10
-  min_samples_per_bin: 5
+  method: platt
   model_dir: paper_trading/models/calibration

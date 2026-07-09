@@ -7,7 +7,12 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors, selectAsset, selectOpenPosition, selectMeta } from '../selectors/system'
 import AssetCard from '../components/AssetCard'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
-import type { OpenPositionState, RiskSignal, ShadowAction } from '../types/portfolio'
+import type { z } from 'zod'
+import { OpenPositionStateSchema, RiskSignalSchema, ShadowActionSchema } from '../lib/schemas'
+
+type OpenPositionState = z.infer<typeof OpenPositionStateSchema>
+type RiskSignal = z.infer<typeof RiskSignalSchema>
+type ShadowAction = z.infer<typeof ShadowActionSchema>
 
 // ── Mock fetchApi ─────────────────────────────────────────────────
 

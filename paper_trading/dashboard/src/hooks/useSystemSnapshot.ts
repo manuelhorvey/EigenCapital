@@ -3,7 +3,8 @@ import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
 import { SystemBundleSchema } from '../lib/schemas'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
-import type { SystemBundle } from '../types/bundle'
+import type { z } from 'zod'
+type SystemBundle = z.infer<typeof SystemBundleSchema>
 
 let _lastContractVersion: number | null = null
 

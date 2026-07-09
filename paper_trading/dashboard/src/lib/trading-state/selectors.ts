@@ -1,4 +1,9 @@
-import type { AssetState, Portfolio, EdgeHealthSummary } from "../../types/portfolio"
+import type { z } from 'zod'
+import { AssetStateSchema, PortfolioSummarySchema, EdgeHealthSummarySchema } from "../../lib/schemas"
+
+type AssetState = z.infer<typeof AssetStateSchema>
+type Portfolio = z.infer<typeof PortfolioSummarySchema>
+type EdgeHealthSummary = z.infer<typeof EdgeHealthSummarySchema>
 import type {
   AssetTradingState,
   PortfolioTradingState,

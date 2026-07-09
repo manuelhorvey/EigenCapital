@@ -11,7 +11,10 @@ import OverviewTab from '../AssetDetailPanel/OverviewTab'
 import GovernanceTab from '../AssetDetailPanel/GovernanceTab'
 import DiagnosticsTab from '../AssetDetailPanel/DiagnosticsTab'
 import SizingTab from '../AssetDetailPanel/SizingTab'
-import type { AssetState } from '../../types/portfolio'
+import type { z } from 'zod'
+import { AssetStateSchema } from '../../lib/schemas'
+
+type AssetState = z.infer<typeof AssetStateSchema>
 
 // ── Mocks ─────────────────────────────────────────────────────────
 

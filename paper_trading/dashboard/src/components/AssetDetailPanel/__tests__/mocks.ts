@@ -1,4 +1,7 @@
-import type { AssetState } from '../../../types/portfolio'
+import type { z } from 'zod'
+import { AssetStateSchema } from '../../../lib/schemas'
+
+type AssetState = z.infer<typeof AssetStateSchema>
 
 /**
  * Build a minimal AssetState with overrides for tab component tests.

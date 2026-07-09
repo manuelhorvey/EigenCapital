@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { WeeklyReviewSchema } from '../lib/schemas'
-import type { WeeklyReview } from '../types/portfolio'
+import type { z } from 'zod'
+type WeeklyReview = z.infer<typeof WeeklyReviewSchema>
 
 const STORAGE_KEY = 'weekly_review_acknowledged'
 

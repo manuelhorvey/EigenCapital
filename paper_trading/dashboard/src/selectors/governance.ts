@@ -1,4 +1,8 @@
-import type { AssetState, EngineSnapshot } from '../types/portfolio'
+import type { z } from 'zod'
+import { AssetStateSchema, EngineSnapshotSchema } from '../lib/schemas'
+
+type AssetState = z.infer<typeof AssetStateSchema>
+type EngineSnapshot = z.infer<typeof EngineSnapshotSchema>
 
 /**
  * GovernanceState — mirror of the backend's governance computation.

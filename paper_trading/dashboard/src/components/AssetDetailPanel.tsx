@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { X, Shield, Sliders, Activity, BarChart3, List } from 'lucide-react'
-import type { AssetState } from '../types/portfolio'
+import type { z } from 'zod'
+import { AssetStateSchema } from '../lib/schemas'
+
+type AssetState = z.infer<typeof AssetStateSchema>
 import WalTimeline from './WalTimeline'
 import OverviewTab from './AssetDetailPanel/OverviewTab'
 import GovernanceTab from './AssetDetailPanel/GovernanceTab'

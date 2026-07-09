@@ -5,7 +5,10 @@ import AssetCard from './AssetCard'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
-import type { AssetState } from '../types/portfolio'
+import type { z } from 'zod'
+import { AssetStateSchema } from '../lib/schemas'
+
+type AssetState = z.infer<typeof AssetStateSchema>
 
 function signalRank(signal: string): number {
   switch (signal) {

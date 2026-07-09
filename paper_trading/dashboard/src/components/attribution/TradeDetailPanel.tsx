@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import type { TradeAttributionRecord } from '../../types/attribution'
+import type { TradeAttributionRecord } from '../../hooks/useAttributionTrades'
 import { computeDomainScores } from './domainScores'
 import { BarRow } from '../ui/ProgressBar'
 

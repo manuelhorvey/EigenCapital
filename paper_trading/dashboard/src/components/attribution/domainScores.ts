@@ -1,4 +1,8 @@
-import type { TradeAttributionRecord, DomainScores } from '../../types/attribution'
+import type { z } from 'zod'
+import { DomainScoresSchema } from '../../lib/schemas'
+import type { TradeAttributionRecord } from '../../hooks/useAttributionTrades'
+
+type DomainScores = z.infer<typeof DomainScoresSchema>
 
 export function computeDomainScores(trade: TradeAttributionRecord): DomainScores {
   const { pred_confidence, pred_forecast_direction_correct, exec_entry_slippage_bps, exec_entry_timing_efficiency, exit_realized_r, exit_theoretical_r, friction_entry_slippage_bps, friction_exit_slippage_bps, friction_gap_fill, friction_partial_fill, friction_fill_qty_ratio, friction_latency_bars } = trade

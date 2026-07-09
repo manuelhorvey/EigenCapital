@@ -1,5 +1,5 @@
 import { Zap, ShieldCheck, TrendingUp, Flag } from 'lucide-react'
-import type { TradeAttributionRecord } from '../../types/attribution'
+import type { TradeAttributionRecord } from '../../hooks/useAttributionTrades'
 
 interface TimelineEvent {
   icon: typeof Zap
@@ -56,7 +56,7 @@ export default function TradeTimeline({ data }: TradeTimelineProps) {
       type: 'EXIT',
       color: 'text-gov-yellow',
       lines: [
-        { label: 'Reason', value: data.exit_exit_reason },
+        { label: 'Reason', value: data.exit_exit_reason ?? '' },
         { label: 'Realized R', value: data.exit_realized_r.toFixed(2), color: data.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red' },
         { label: 'MAE / MFE', value: `${data.exit_mae.toFixed(1)} / ${data.exit_mfe.toFixed(1)}` },
         { label: 'Bars Held', value: String(data.exit_bars_held) },

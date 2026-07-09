@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { TrendingUp, TrendingDown, Activity, Shield, AlertTriangle, Check } from 'lucide-react'
 import { useWeeklyReview } from '../hooks/useWeeklyReview'
-import type { WeeklyReview } from '../types/portfolio'
+import type { z } from 'zod'
+import { WeeklyReviewSchema } from '../lib/schemas'
+
+type WeeklyReview = z.infer<typeof WeeklyReviewSchema>
 import Button from './ui/Button'
 import StatCard from './ui/StatCard'
 import Modal from './ui/Modal'

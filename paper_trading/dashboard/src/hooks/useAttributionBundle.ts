@@ -9,8 +9,11 @@ import {
   AttributionSummaryResponseSchema,
   AttributionWaterfallResponseSchema,
 } from '../lib/schemas'
-import type { ExecutionQualityResponse, SlippageDistribution } from '../types/execution'
-import type { AttributionSummary, AttributionWaterfall } from '../types/attribution'
+
+type AttributionSummary = z.infer<typeof AttributionSummaryResponseSchema>
+type AttributionWaterfall = z.infer<typeof AttributionWaterfallResponseSchema>
+type ExecutionQualityResponse = z.infer<typeof ExecutionQualityResponseSchema>
+type SlippageDistribution = z.infer<typeof SlippageDistributionSchema>
 
 export interface AttributionBundleData {
   executionQuality: ExecutionQualityResponse | null

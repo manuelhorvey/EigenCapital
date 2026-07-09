@@ -814,6 +814,62 @@ export const SlippageDistributionSchema = z.object({
   n: z.number(),
 })
 
+// ── Attribution trades (/attribution/trades.json) ──────────────
+
+function coerceBool(v: unknown): boolean | null {
+  if (v === true || v === 1) return true
+  if (v === false || v === 0) return false
+  return null
+}
+
+export const TradeAttributionRecordSchema = z.object({
+  trade_id: z.string(),
+  asset: z.string(),
+  entry_date: z.string(),
+  exit_date: z.string(),
+  side: z.string(),
+  entry_price: z.number(),
+  exit_price: z.number(),
+  realized_return: z.number(),
+  realized_pnl: z.number(),
+  pred_signal: z.string(),
+  pred_confidence: z.number(),
+  pred_forecast_direction_correct: z.union([z.boolean(), z.null()]).catch(null),
+  pred_archetype_at_entry: z.string(),
+  pred_regime_at_entry: z.string(),
+  exec_entry_type: z.string(),
+  exec_entry_slippage_bps: z.number(),
+  exec_deferred_bars: z.number(),
+  exec_entry_timing_efficiency: z.union([z.number(), z.null()]).catch(null),
+  exec_counterfactual_entry_timing_r: z.union([z.number(), z.null()]).catch(null),
+  exit_exit_reason: z.union([z.string(), z.null()]).catch(""),
+  exit_realized_r: z.number().catch(0),
+  exit_theoretical_r: z.union([z.number(), z.null()]).catch(null),
+  exit_mae: z.number().catch(0),
+  exit_mfe: z.number().catch(0),
+  exit_mae_per_bar: z.number().catch(0),
+  exit_mfe_per_bar: z.number().catch(0),
+  exit_bars_held: z.number().catch(0),
+  exit_archetype: z.union([z.string(), z.null()]).catch(""),
+  friction_entry_slippage_bps: z.number().catch(0),
+  friction_exit_slippage_bps: z.number().catch(0),
+  friction_gap_fill: z.union([z.boolean(), z.null()]).catch(null),
+  friction_partial_fill: z.union([z.boolean(), z.null()]).catch(null),
+  friction_fill_qty_ratio: z.number().catch(1),
+  friction_latency_bars: z.number().catch(0),
+  friction_counterfactual_ideal_fill_r: z.union([z.number(), z.null()]).catch(null),
+  friction_counterfactual_real_fill_r: z.union([z.number(), z.null()]).catch(null),
+  dq_entry_pressure_pct: z.union([z.number(), z.null()]).catch(null),
+  dq_spread_rank: z.union([z.number(), z.null()]).catch(null),
+  dq_volatility_rank: z.union([z.number(), z.null()]).catch(null),
+  dq_liquidity_rank: z.union([z.number(), z.null()]).catch(null),
+}).transform((row) => ({
+  ...row,
+  pred_forecast_direction_correct: coerceBool(row.pred_forecast_direction_correct),
+  friction_gap_fill: coerceBool(row.friction_gap_fill),
+  friction_partial_fill: coerceBool(row.friction_partial_fill),
+}))
+
 // ── Attribution summary (/attribution/summary.json) ──────────
 
 export const DomainScoresSchema = z.object({

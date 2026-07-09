@@ -450,21 +450,21 @@ describe('toPortfolioTradingState', () => {
     const portfolio = makeDefaultPortfolio()
     portfolio.edge_health = {
       n_trades: 20, n_losers: 5, n_reversal_candidates: 2,
-      reversal_rate: 0.4, warning_threshold: 0.15, alert: false,
+      reversal_rate: 0.1, warning_threshold: 0.15, alert: false,
       mean_mfe_r: null, median_mfe_r: null,
     }
     const result = toPortfolioTradingState(portfolio, {})
-    // reversal_rate > 0.35 → EXPANDING
+    // reversal_rate < 0.15 → EXPANDING
     expect(result.alpha.edge_trend).toBe('EXPANDING')
 
     portfolio.edge_health.reversal_rate = 0.25
     const result2 = toPortfolioTradingState(portfolio, {})
-    // reversal_rate > 0.15 → STABLE
+    // reversal_rate between 0.15 and 0.35 → STABLE
     expect(result2.alpha.edge_trend).toBe('STABLE')
 
-    portfolio.edge_health.reversal_rate = 0.1
+    portfolio.edge_health.reversal_rate = 0.4
     const result3 = toPortfolioTradingState(portfolio, {})
-    // reversal_rate < 0.15 → DECAYING
+    // reversal_rate > 0.35 → DECAYING
     expect(result3.alpha.edge_trend).toBe('DECAYING')
   })
 

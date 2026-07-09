@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
-import type { SystemBundle } from '../types/bundle'
+import type { z } from 'zod'
+import { SystemBundleSchema } from '../lib/schemas'
+type SystemBundle = z.infer<typeof SystemBundleSchema>
 
 export interface SystemIntegrity {
   /** Bundle fetched and status is 'ok' */

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import TradeDetailPanel from '../TradeDetailPanel'
-import type { TradeAttributionRecord } from '../../../types/attribution'
+import type { TradeAttributionRecord } from '../../../hooks/useAttributionTrades'
 
 const MOCK_TRADE: TradeAttributionRecord = {
   trade_id: 't1',

@@ -1,4 +1,7 @@
-import type { SystemBundle } from '../types/bundle'
+import type { z } from 'zod'
+import { SystemBundleSchema } from '../lib/schemas'
+
+type SystemBundle = z.infer<typeof SystemBundleSchema>
 
 export interface SystemHealthSummary {
   assets: Record<string, { health_score: number; components: Record<string, number> }>

@@ -2,7 +2,10 @@ import { useCallback, useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceDot } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
-import type { SystemBundle } from '../types/bundle'
+import type { z } from 'zod'
+import { SystemBundleSchema } from '../lib/schemas'
+
+type SystemBundle = z.infer<typeof SystemBundleSchema>
 import ChartContainer from './ui/ChartContainer'
 import {
   CHART_PALETTE,

@@ -1,4 +1,4 @@
-import type { TradeAttributionRecord } from '../../types/attribution'
+import type { TradeAttributionRecord } from '../../hooks/useAttributionTrades'
 
 interface TradeCounterfactualProps {
   data: TradeAttributionRecord

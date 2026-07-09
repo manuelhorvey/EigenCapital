@@ -1,6 +1,6 @@
 import Badge from '../ui/Badge'
 import { toBadgeConfig } from '../../lib/ui/governance-status'
-import type { TradeAttributionRecord } from '../../types/attribution'
+import type { TradeAttributionRecord } from '../../hooks/useAttributionTrades'
 
 interface TradeGovernanceAuditProps {
   data: TradeAttributionRecord

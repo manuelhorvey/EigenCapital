@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '../lib/queryKeys'
-import type { SystemBundle } from '../types/bundle'
+import type { z } from 'zod'
+import { SystemBundleSchema } from '../lib/schemas'
+type SystemBundle = z.infer<typeof SystemBundleSchema>
 
 /**
  * Detects engine restarts (sequence_id drops) and contract_version changes,

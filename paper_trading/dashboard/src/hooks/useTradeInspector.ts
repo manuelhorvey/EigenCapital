@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useAttributionTrades } from './useAttributionTrades'
-import type { TradeAttributionRecord } from '../types/attribution'
+import type { TradeAttributionRecord } from './useAttributionTrades'
 
 export interface TradeInspectorData {
   basic: {

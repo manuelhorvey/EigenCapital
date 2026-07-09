@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { DeepDiveDataSchema } from '../lib/schemas'
@@ -24,5 +24,6 @@ export function useAssetDeepDive(name: string) {
     },
     enabled: !!name,
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 }

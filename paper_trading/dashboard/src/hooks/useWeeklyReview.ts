@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, keepPreviousData, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { WeeklyReviewSchema } from '../lib/schemas'
@@ -25,6 +25,7 @@ export function useWeeklyReview() {
     },
     staleTime: 30_000,
     refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
   })
 
   const acknowledge = useMutation({

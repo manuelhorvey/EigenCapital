@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
 import { WalResponseSchema } from '../lib/schemas'
@@ -21,6 +21,7 @@ export function useWalTimeline(assetName: string) {
       return parsed.data
     },
     refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
     staleTime: 10_000,
     enabled: !!assetName,
   })

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import { fetchApi } from '../lib/api'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
@@ -26,6 +26,7 @@ export function useTrades(limit = 10, offset = 0) {
     queryKey: ['trades', limit, offset],
     queryFn: () => fetchTrades(limit, offset),
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
     staleTime: 50_000,
   })
 }

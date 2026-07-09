@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import { fetchApi } from '../lib/api'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
@@ -37,6 +37,7 @@ export function useAttributionTrades(
     queryKey: ['attributionTrades', limit, offset, filters],
     queryFn: () => fetchAttributionTrades(limit, offset, filters),
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
     staleTime: 50_000,
   })
 }

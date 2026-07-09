@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
@@ -64,6 +64,7 @@ export function useAttributionBundle() {
       }
     },
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
     staleTime: 50_000,
     retry: 1,
   })

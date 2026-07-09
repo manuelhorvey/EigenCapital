@@ -163,7 +163,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
 
   if (!info) {
     return (
-      <div className="bg-panel border border-default rounded-lg px-4 py-3 shadow-panel">
+      <div className="bg-panel border border-default rounded-lg px-5 py-4 shadow-panel">
         <div className="text-sm text-secondary font-medium">{name}</div>
         <div className="text-xs text-tertiary mt-1">No data</div>
       </div>
@@ -197,7 +197,7 @@ const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }
           setSelectedAsset(name)
         }
       }}
-      className={`relative bg-panel border border-default rounded-lg px-4 py-3 overflow-hidden shadow-panel transition-colors duration-150 hover:border-strong hover:shadow-card cursor-pointer border-l-2 active:scale-[0.98] sm:active:scale-100 ${governanceBorder[cardState]} ${governanceBgMuted[cardState]}`}
+      className={`relative bg-panel border border-default rounded-lg px-5 py-4 overflow-hidden shadow-panel transition-colors duration-150 hover:border-strong hover:shadow-card cursor-pointer border-l-2 active:scale-[0.98] sm:active:scale-100 ${governanceBorder[cardState]} ${governanceBgMuted[cardState]}`}
     >
       <AssetCardHeader
         name={name}

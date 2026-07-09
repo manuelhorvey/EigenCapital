@@ -43,7 +43,7 @@ const AssetCardCompact: React.FC<Props> = ({ name, info, recentlyClosed, onSelec
   <button
     type="button"
     onClick={onSelect}
-    className={`w-full text-left p-3 rounded-lg border ${recentlyClosed ? 'border-gov-gray/25 bg-surface/50' : 'border-default bg-surface'}
+    className={`w-full text-left p-4 rounded-lg border ${recentlyClosed ? 'border-gov-gray/25 bg-surface/50' : 'border-default bg-surface'}
       hover:border-strong hover:bg-panel transition-all duration-200
       border-l-4 ${recentlyClosed ? 'border-l-gov-gray/40' : borderColor(info.signal)}
       focus-ring active:scale-[0.98] ${recentlyClosed ? 'opacity-60' : ''}`}

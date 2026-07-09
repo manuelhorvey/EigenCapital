@@ -1,0 +1,20 @@
+# Shadow Model Configuration — side-effect-free candidate comparison
+#
+# Shadow models run alongside the production model on every inference
+# cycle. Their predictions are recorded to `data/live/shadow/{id}/` for
+# offline comparison — they never affect trading decisions.
+#
+# Each entry:
+#   id          — unique identifier used as the storage subdirectory key
+#   status      — "shadow" (logged only) or "canary" (also surfaced in dashboard)
+#   model_path  — path to the serialised model, relative to project root.
+#                 Use ``{asset}`` as a placeholder for the asset name to
+#                 reference per-asset model files (e.g. AUDUSD, GBPUSD).
+#
+# To activate a shadow model, add an entry below and restart the engine.
+# Results accumulate in parquet files keyed by asset + date.
+
+shadow_models:
+  - id: "canary_v1"
+    status: "canary"
+    model_path: "paper_trading/models/canary/{asset}.json"

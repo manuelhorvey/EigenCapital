@@ -87,7 +87,7 @@ except ImportError as _exc:
     logger.warning("shadow.memory import unavailable — %s", _exc)
 
 # ── Shadow comparison infrastructure (model runner + storage) ────────────
-_ShadowRegistryT = dict[str, ShadowModelRunner]
+_ShadowRegistryT = dict[tuple[str, str], ShadowModelRunner]  # (shadow_id, asset_name) -> runner
 _SHADOW_REGISTRY: _ShadowRegistryT = {}
 _SHADOW_STORAGE: ShadowStorage | None = None
 _SHADOW_CONFIGS: dict[str, dict] = {}
@@ -95,14 +95,15 @@ _SHADOW_CONFIGS: dict[str, dict] = {}
 
 def _load_shadow_configs() -> dict[str, dict]:
     """Load shadow model specs from configs/domains/shadow_models.yaml."""
-    from paper_trading.config_manager import ConfigManager
+    import yaml
 
-    config_path = os.path.join(BASE, "configs", "domains", "shadow_models.yaml")
+    config_path = os.path.join(BASE, "configs", "domains", "ml", "shadow_models.yaml")
     if not os.path.exists(config_path):
         return {}
     try:
-        mgr = ConfigManager(config_path)
-        models = mgr.get("shadow_models", [])
+        with open(config_path) as f:
+            data = yaml.safe_load(f) or {}
+        models = data.get("shadow_models", [])
         return {m["id"]: m for m in models if m.get("status") in ("shadow", "canary")}
     except (OSError, ValueError, TypeError) as exc:
         logger.warning("Failed to load shadow configs: %s", exc)
@@ -117,14 +118,23 @@ def _get_shadow_storage() -> ShadowStorage:
     return _SHADOW_STORAGE
 
 
-def _get_shadow_runner(shadow_id: str, config: dict) -> ShadowModelRunner:
-    if shadow_id not in _SHADOW_REGISTRY:
-        model_path = os.path.join(BASE, config.get("model_path", ""))
-        _SHADOW_REGISTRY[shadow_id] = ShadowModelRunner(
+def _get_shadow_runner(shadow_id: str, config: dict, asset_name: str) -> ShadowModelRunner:
+    """Get or create a ShadowModelRunner for the given shadow_id and asset.
+
+    Supports ``{asset}`` placeholder in ``model_path`` (e.g.
+    ``models/canary/{asset}.json``) so a single shadow config can
+    reference per-asset model files.
+    """
+    key = (shadow_id, asset_name)
+    if key not in _SHADOW_REGISTRY:
+        raw_path = config.get("model_path", "")
+        resolved = raw_path.replace("{asset}", asset_name)
+        model_path = os.path.join(BASE, resolved)
+        _SHADOW_REGISTRY[key] = ShadowModelRunner(
             shadow_id=shadow_id,
             model_path=model_path,
         )
-    return _SHADOW_REGISTRY[shadow_id]
+    return _SHADOW_REGISTRY[key]
 
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -805,7 +815,7 @@ class AssetInferencePipeline:
             if _SHADOW_CONFIGS and feature_vector is not None:
                 _storage = _get_shadow_storage()
                 for _sid, _scfg in list(_SHADOW_CONFIGS.items()):
-                    _runner = _get_shadow_runner(_sid, _scfg)
+                    _runner = _get_shadow_runner(_sid, _scfg, asset_name=asset.name)
                     _shadow_res = _runner.run(feature_vector, feature_hash=feature_hash)
                     if _shadow_res is not None:
                         _storage.record(

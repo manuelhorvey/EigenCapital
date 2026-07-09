@@ -351,13 +351,51 @@ class EngineStateService:
         return pek
 
     def _compute_factor_exposures(self) -> dict:
-        from shared.factor_model import summary as factor_summary
+        from shared.factor_model import (
+            FACTOR_GROUPS,
+            DEFAULT_FACTOR_LIMITS,
+            compute_factor_exposures,
+            exposure_violations,
+            summary as factor_summary,
+        )
 
         try:
             rw = getattr(self.engine, "_rebalance_weights", None)
             if rw:
                 return factor_summary(rw)
-            return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
+
+            engine = self.engine
+            if not engine or not hasattr(engine, "assets"):
+                return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
+
+            total_equity = sum(a.mtm_value for a in engine.assets.values() if hasattr(a, "mtm_value"))
+            if total_equity <= 0:
+                return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
+
+            position_weights: dict[str, float] = {}
+            for name, asset in engine.assets.items():
+                pm = asset.pos_mgr
+                if pm.has_position() and pm.position:
+                    pos = pm.position
+                    weight = pos.entry_notional / total_equity
+                    if pos.side == "short":
+                        weight = -weight
+                    position_weights[name] = round(weight, 6)
+
+            if not position_weights:
+                return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
+
+            exposures = compute_factor_exposures(position_weights, FACTOR_GROUPS)
+            violations = exposure_violations(exposures, DEFAULT_FACTOR_LIMITS)
+            n_violations = sum(1 for v in violations.values() if v["violation"] is not None)
+            within_limits = n_violations == 0
+
+            return {
+                "exposures": exposures,
+                "violations": violations,
+                "n_violations": n_violations,
+                "within_limits": within_limits,
+            }
         except (KeyError, ValueError, TypeError, AttributeError, ImportError):
             logger.exception("Failed to compute factor exposures")
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}

@@ -102,11 +102,11 @@ export const PAGE_PADDING = 'px-4 sm:px-7 py-5 sm:py-7'
 /** Section spacing between major page blocks. */
 export const SECTION_SPACING = 'space-y-7 sm:space-y-10'
 
-/** Card grid gap — tighter on mobile, comfortable on tablet+. */
-export const GRID_GAP = 'gap-4 sm:gap-5'
+/** Card grid gap — gives every side-by-side panel visible breathing room. */
+export const GRID_GAP = 'gap-5 sm:gap-6 lg:gap-7'
 
-/** Wide card gap (for larger panels). */
-export const GRID_GAP_WIDE = 'gap-5 sm:gap-6 lg:gap-7'
+/** Wide card gap (alias of GRID_GAP — kept for semantic clarity at call sites). */
+export const GRID_GAP_WIDE = GRID_GAP
 
 /**
  * Converts gap role number to Tailwind `gap-{n}` string.

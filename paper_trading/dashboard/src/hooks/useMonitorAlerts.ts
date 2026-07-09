@@ -5,6 +5,12 @@ import { addErrorBreadcrumb } from '../lib/errorReporting'
 
 const ALERTS_CHANNEL = 'eigencapital-alerts'
 
+let _dismissedVersionOverride: string | undefined
+
+export function setDismissedVersion(v: string | undefined) {
+  _dismissedVersionOverride = v
+}
+
 function makeChannel(): BroadcastChannel | null {
   if (typeof BroadcastChannel === 'undefined') return null
   return new BroadcastChannel(ALERTS_CHANNEL)
@@ -22,8 +28,13 @@ export interface Alert {
   timestamp: string
 }
 
+function _useVersion(version: string): string {
+  return _dismissedVersionOverride !== undefined ? _dismissedVersionOverride : version
+}
+
 function dismissedKey(version: string): string {
-  return version ? `ec-dismissed-alerts-${version}` : 'ec-dismissed-alerts'
+  const v = _useVersion(version)
+  return v ? `ec-dismissed-alerts-${v}` : 'ec-dismissed-alerts'
 }
 
 function loadDismissed(version: string): Set<string> {

@@ -63,7 +63,7 @@ describe('useMonitorAlerts', () => {
     vi.unstubAllGlobals()
     // Reset dismissed version between tests so the previous test's
     // synchronous version-ref update doesn't leak into the next test.
-    setDismissedVersion('')
+    setDismissedVersion(undefined)
   })
 
   it('returns empty array when bundle is undefined', () => {
@@ -172,7 +172,7 @@ describe('useMonitorAlerts — dismissal migration (B2)', () => {
     bundleState.current = { data: undefined }
     broadcastInstances = []
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel)
-    setDismissedVersion('')
+    setDismissedVersion(undefined)
   })
 
   afterEach(() => {

@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import hashlib
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 import xgboost as xgb
 
@@ -251,9 +254,7 @@ class AssetTrainingPipeline:
                 model_bytes = _fm.read()
             model_hash = hashlib.sha256(model_bytes).hexdigest()[:16]
             train_date = asset._current_window_train_end or end_date.strftime("%Y-%m-%d")
-            feature_hash = hashlib.sha256(
-                "|".join(sorted(asset._alpha_feature_cols or [])).encode()
-            ).hexdigest()[:16]
+            feature_hash = hashlib.sha256("|".join(sorted(asset._alpha_feature_cols or [])).encode()).hexdigest()[:16]
             version_id = registry_save_model(
                 asset=asset.name,
                 model_bytes=model_bytes,
@@ -275,6 +276,7 @@ class AssetTrainingPipeline:
                         _gate_incumbent = None
                         try:
                             from shared.model_registry import get_current_version as _get_cur
+
                             _gate_incumbent = _get_cur(asset.name)
                         except Exception:
                             pass

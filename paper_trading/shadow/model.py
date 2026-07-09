@@ -12,13 +12,10 @@ Usage:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import xgboost as xgb
@@ -88,7 +85,7 @@ class ShadowModelRunner:
             with open(self.model_path, "rb") as f:
                 self._model_hash = hashlib.sha256(f.read()).hexdigest()[:16]
             return True
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error("Failed to load shadow model %s: %s", self.shadow_id, e)
             return False
 
@@ -109,15 +106,14 @@ class ShadowModelRunner:
                 )
             return None
 
-        if self._model is None:
-            if not self._load():
-                return None
+        if self._model is None and not self._load():
+            return None
 
         t0 = time.perf_counter()
         try:
             feature_array = np.array([list(feature_vector.values())]).astype(np.float32)
             proba = self._model.predict_proba(feature_array)[0]
-        except Exception as exc:
+        except (ValueError, RuntimeError) as exc:
             logger.warning("Shadow model %s inference failed: %s", self.shadow_id, exc)
             return None
 

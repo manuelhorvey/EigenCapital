@@ -12,17 +12,13 @@ File layout:
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-import sqlite3
 import threading
 import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("eigencapital.shadow_storage")
@@ -63,21 +59,23 @@ class ShadowStorage:
     ) -> None:
         """Record a single shadow comparison cycle."""
         with self._lock:
-            self._buffer[shadow_id][asset].append({
-                "timestamp": time.time(),
-                "feature_hash": feature_hash,
-                "model_hash": model_hash,
-                "prod_signal": prod_signal,
-                "prod_confidence": prod_confidence,
-                "prod_p_long": prod_p_long,
-                "shadow_signal": shadow_signal,
-                "shadow_confidence": shadow_confidence,
-                "shadow_p_long": shadow_p_long,
-                "inference_time_ms": inference_time_ms,
-                "signal_agreement": prod_signal == shadow_signal,
-                "confidence_delta": round(abs(prod_confidence - shadow_confidence), 6),
-                "p_long_delta": round(abs(prod_p_long - shadow_p_long), 6),
-            })
+            self._buffer[shadow_id][asset].append(
+                {
+                    "timestamp": time.time(),
+                    "feature_hash": feature_hash,
+                    "model_hash": model_hash,
+                    "prod_signal": prod_signal,
+                    "prod_confidence": prod_confidence,
+                    "prod_p_long": prod_p_long,
+                    "shadow_signal": shadow_signal,
+                    "shadow_confidence": shadow_confidence,
+                    "shadow_p_long": shadow_p_long,
+                    "inference_time_ms": inference_time_ms,
+                    "signal_agreement": prod_signal == shadow_signal,
+                    "confidence_delta": round(abs(prod_confidence - shadow_confidence), 6),
+                    "p_long_delta": round(abs(prod_p_long - shadow_p_long), 6),
+                }
+            )
             self._cycle_count[shadow_id] += 1
 
     def flush(self, shadow_id: str | None = None) -> int:
@@ -90,10 +88,7 @@ class ShadowStorage:
             Number of records flushed.
         """
         with self._lock:
-            if shadow_id is not None:
-                shadow_ids = [shadow_id]
-            else:
-                shadow_ids = list(self._buffer.keys())
+            shadow_ids = [shadow_id] if shadow_id is not None else list(self._buffer.keys())
 
             total = 0
             for sid in shadow_ids:
@@ -145,7 +140,7 @@ class ShadowStorage:
         for pq in sorted(shadow_dir.glob("*.parquet")):
             try:
                 all_records.append(pd.read_parquet(pq))
-            except Exception:
+            except (OSError, ValueError):
                 continue
 
         if not all_records:

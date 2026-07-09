@@ -25,8 +25,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import numpy as np
+from scipy.special import expit
 from sklearn.linear_model import LogisticRegression
-from scipy.special import expit, logit
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -482,8 +482,7 @@ class DirectionalCalibrator(CalibrationMethod):
                 "b": getattr(self.buy_calibrator, "b", None),
                 "bin_centers": (
                     self.buy_calibrator.bin_centers.tolist()
-                    if hasattr(self.buy_calibrator, "bin_centers")
-                    and self.buy_calibrator.bin_centers is not None
+                    if hasattr(self.buy_calibrator, "bin_centers") and self.buy_calibrator.bin_centers is not None
                     else None
                 ),
                 "bin_empirical_probs": (
@@ -502,8 +501,7 @@ class DirectionalCalibrator(CalibrationMethod):
                 "b": getattr(self.sell_calibrator, "b", None),
                 "bin_centers": (
                     self.sell_calibrator.bin_centers.tolist()
-                    if hasattr(self.sell_calibrator, "bin_centers")
-                    and self.sell_calibrator.bin_centers is not None
+                    if hasattr(self.sell_calibrator, "bin_centers") and self.sell_calibrator.bin_centers is not None
                     else None
                 ),
                 "bin_empirical_probs": (
@@ -549,6 +547,7 @@ class DirectionalCalibrator(CalibrationMethod):
                 cal.buy_calibrator.fitted = cal._buy_fitted
                 if cal._buy_fitted:
                     from sklearn.linear_model import LogisticRegression
+
                     cal.buy_calibrator._model = LogisticRegression(C=1e6, solver="lbfgs", random_state=42)
                     cal.buy_calibrator._model.coef_ = np.array([[cal.buy_calibrator.a]])
                     cal.buy_calibrator._model.intercept_ = np.array([cal.buy_calibrator.b])
@@ -570,6 +569,7 @@ class DirectionalCalibrator(CalibrationMethod):
                 cal.sell_calibrator.fitted = cal._sell_fitted
                 if cal._sell_fitted:
                     from sklearn.linear_model import LogisticRegression
+
                     cal.sell_calibrator._model = LogisticRegression(C=1e6, solver="lbfgs", random_state=42)
                     cal.sell_calibrator._model.coef_ = np.array([[cal.sell_calibrator.a]])
                     cal.sell_calibrator._model.intercept_ = np.array([cal.sell_calibrator.b])

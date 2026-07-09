@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -26,6 +28,8 @@ from paper_trading.ops.tracer import (
     shadow_compare_sizing,
     trace_decision,
 )
+from paper_trading.shadow.model import ShadowModelRunner
+from paper_trading.shadow.storage import ShadowStorage
 from shared.calibration.registry import CalibrationRegistry
 
 logger = logging.getLogger("eigencapital.inference_pipeline")
@@ -83,8 +87,9 @@ except ImportError as _exc:
     logger.warning("shadow.memory import unavailable — %s", _exc)
 
 # ── Shadow comparison infrastructure (model runner + storage) ────────────
-_SHADOW_REGISTRY: dict[str, "ShadowModelRunner"] = {}
-_SHADOW_STORAGE: "ShadowStorage | None" = None
+_ShadowRegistryT = dict[str, ShadowModelRunner]
+_SHADOW_REGISTRY: _ShadowRegistryT = {}
+_SHADOW_STORAGE: ShadowStorage | None = None
 _SHADOW_CONFIGS: dict[str, dict] = {}
 
 
@@ -99,31 +104,28 @@ def _load_shadow_configs() -> dict[str, dict]:
         mgr = ConfigManager(config_path)
         models = mgr.get("shadow_models", [])
         return {m["id"]: m for m in models if m.get("status") in ("shadow", "canary")}
-    except Exception as exc:
+    except (OSError, ValueError, TypeError) as exc:
         logger.warning("Failed to load shadow configs: %s", exc)
         return {}
 
 
-def _get_shadow_storage() -> Any:
+def _get_shadow_storage() -> ShadowStorage:
     global _SHADOW_STORAGE
     if _SHADOW_STORAGE is None:
-        from paper_trading.shadow.storage import ShadowStorage
-
         base = os.path.join(BASE, "data", "live", "shadow")
         _SHADOW_STORAGE = ShadowStorage(base_dir=base)
     return _SHADOW_STORAGE
 
 
-def _get_shadow_runner(shadow_id: str, config: dict) -> "ShadowModelRunner":
+def _get_shadow_runner(shadow_id: str, config: dict) -> ShadowModelRunner:
     if shadow_id not in _SHADOW_REGISTRY:
-        from paper_trading.shadow.model import ShadowModelRunner
-
         model_path = os.path.join(BASE, config.get("model_path", ""))
         _SHADOW_REGISTRY[shadow_id] = ShadowModelRunner(
             shadow_id=shadow_id,
             model_path=model_path,
         )
     return _SHADOW_REGISTRY[shadow_id]
+
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ET = pytz.timezone("US/Eastern")
@@ -821,7 +823,7 @@ class AssetInferencePipeline:
                         )
                         if _storage.should_flush(_sid):
                             _storage.flush(_sid)
-        except Exception as _shadow_err:
+        except (RuntimeError, ValueError, OSError) as _shadow_err:
             logger.debug("%s: shadow model inference skipped: %s", asset.name, _shadow_err)
 
         _cfg = get_config()

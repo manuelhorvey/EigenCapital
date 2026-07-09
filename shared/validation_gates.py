@@ -57,6 +57,7 @@ def _paired_t_test(
     t_stat = mean_diff / (std_diff / np.sqrt(n))
     # One-sided p-value
     from scipy.stats import t as t_dist
+
     p_value = 1.0 - t_dist.cdf(t_stat, df=n - 1)
     return float(t_stat), float(p_value)
 
@@ -80,8 +81,7 @@ def gate_sharpe_improvement(
         metric_value=round(delta, 4),
         threshold=-max_degradation,
         message=(
-            f"Sharpe {incumbent_sharpe:.3f} → {candidate_sharpe:.3f} "
-            f"(Δ={delta:+.3f}, threshold={-max_degradation:.1f})"
+            f"Sharpe {incumbent_sharpe:.3f} → {candidate_sharpe:.3f} (Δ={delta:+.3f}, threshold={-max_degradation:.1f})"
         ),
         details={"incumbent": incumbent_sharpe, "candidate": candidate_sharpe, "delta": delta},
     )
@@ -112,10 +112,7 @@ def gate_ece_not_worse(
         metric_name="ece_delta",
         metric_value=round(delta, 4),
         threshold=max_degradation,
-        message=(
-            f"ECE {incumbent_ece:.4f} → {candidate_ece:.4f} "
-            f"(Δ={delta:+.4f}, threshold={max_degradation:.2f})"
-        ),
+        message=(f"ECE {incumbent_ece:.4f} → {candidate_ece:.4f} (Δ={delta:+.4f}, threshold={max_degradation:.2f})"),
         details={"incumbent": incumbent_ece, "candidate": candidate_ece, "delta": delta},
     )
 
@@ -167,7 +164,7 @@ def gate_statistical_significance(
             name="statistical_significance",
             passed=True,
             message=f"Insufficient observations ({len(incumbent_returns)}, {len(candidate_returns)}) — "
-                    f"gate deferred (need >= 10)",
+            f"gate deferred (need >= 10)",
         )
     t_stat, p_value = _paired_t_test(incumbent_returns, candidate_returns)
     passed = p_value < p_threshold
@@ -237,39 +234,51 @@ def run_validation_gates(
     results: list[GateResult] = []
 
     # Sharpe improvement gate
-    results.append(gate_sharpe_improvement(
-        incumbent_sharpe=float(incumbent.get("oos_sharpe", -999)) if incumbent else -999,
-        candidate_sharpe=float(candidate.get("oos_sharpe", -999)) if candidate else -999,
-    ))
+    results.append(
+        gate_sharpe_improvement(
+            incumbent_sharpe=float(incumbent.get("oos_sharpe", -999)) if incumbent else -999,
+            candidate_sharpe=float(candidate.get("oos_sharpe", -999)) if candidate else -999,
+        )
+    )
 
     # ECE gate
-    results.append(gate_ece_not_worse(
-        incumbent_ece=incumbent.get("ece") if incumbent else None,
-        candidate_ece=candidate.get("ece") if candidate else None,
-    ))
+    results.append(
+        gate_ece_not_worse(
+            incumbent_ece=incumbent.get("ece") if incumbent else None,
+            candidate_ece=candidate.get("ece") if candidate else None,
+        )
+    )
 
     # IC gate
-    results.append(gate_ic_positive(
-        candidate_ic=candidate.get("oos_ic") if candidate else None,
-    ))
+    results.append(
+        gate_ic_positive(
+            candidate_ic=candidate.get("oos_ic") if candidate else None,
+        )
+    )
 
     # Statistical significance gate
-    results.append(gate_statistical_significance(
-        incumbent_returns=incumbent_returns,
-        candidate_returns=candidate_returns,
-    ))
+    results.append(
+        gate_statistical_significance(
+            incumbent_returns=incumbent_returns,
+            candidate_returns=candidate_returns,
+        )
+    )
 
     # Drawdown gate
-    results.append(gate_drawdown_not_worse(
-        incumbent_max_dd=incumbent.get("oos_max_dd") if incumbent else None,
-        candidate_max_dd=candidate.get("oos_max_dd") if candidate else None,
-    ))
+    results.append(
+        gate_drawdown_not_worse(
+            incumbent_max_dd=incumbent.get("oos_max_dd") if incumbent else None,
+            candidate_max_dd=candidate.get("oos_max_dd") if candidate else None,
+        )
+    )
 
     n_passed = sum(1 for r in results if r.passed)
     n_total = len(results)
     logger.info(
         "%s: validation gates %d/%d passed",
-        asset, n_passed, n_total,
+        asset,
+        n_passed,
+        n_total,
     )
     for r in results:
         status = "PASS" if r.passed else "FAIL"

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -126,7 +125,9 @@ def save_model(
 
     logger.info(
         "%s: saved model version %s (%d features)",
-        asset, version_id, n_features,
+        asset,
+        version_id,
+        n_features,
     )
     return version_id
 
@@ -160,7 +161,9 @@ def deploy_version(asset: str, version_id: str) -> bool:
 
     logger.info(
         "%s: deployed version %s → %s",
-        asset, version_id, link_path.name,
+        asset,
+        version_id,
+        link_path.name,
     )
     return True
 
@@ -280,7 +283,10 @@ def deploy_version_gated(
     else:
         logger.warning(
             "%s: validation gates blocked deployment of version %s (%d/%d passed)",
-            asset, version_id, sum(1 for r in results if r.passed), len(results),
+            asset,
+            version_id,
+            sum(1 for r in results if r.passed),
+            len(results),
         )
         for r in results:
             if not r.passed:

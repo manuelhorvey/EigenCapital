@@ -984,7 +984,9 @@ def apply_weekend_gate(ctx: DecisionContext) -> None:
 
     logger.info(
         "%s: WEEKEND GATE — blocking %s entry on %s (weekend Sharpe=0.08)",
-        asset_name, ctx.new_side, now.strftime("%a %Y-%m-%d %H:%M UTC"),
+        asset_name,
+        ctx.new_side,
+        now.strftime("%a %Y-%m-%d %H:%M UTC"),
     )
     ctx.new_side = None
     ctx.reason = "weekend_gate"

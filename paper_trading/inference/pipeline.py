@@ -140,7 +140,7 @@ class AssetInferencePipeline:
 
         # ── Feature snapshot (causal boundary P0.1) ─────────────────────
         feature_vector = {k: float(v) for k, v in x.iloc[-1].items()}
-        feature_hash = hashlib.md5((asset.name + json.dumps(feature_vector, sort_keys=True)).encode()).hexdigest()[:12]
+        feature_hash = hashlib.md5((asset.name + json.dumps(feature_vector, sort_keys=True)).encode()).hexdigest()[:12]  # nosec
         asset._last_feature_vector = feature_vector
         asset._last_feature_hash = feature_hash
         asset._last_feature_schema = sorted(feature_vector.keys())

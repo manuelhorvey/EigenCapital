@@ -69,4 +69,4 @@ class SlippageModel:
         return float(target_price * slip_decimal)
 
     def seed_hash(self) -> str:
-        return hashlib.md5(str(self._seed).encode()).hexdigest()[:12]
+        return hashlib.md5(str(self._seed).encode()).hexdigest()[:12]  # nosec

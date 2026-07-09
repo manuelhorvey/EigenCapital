@@ -220,4 +220,4 @@ class ExecutionSimulator:
 
     def seed_hash(self) -> str:
         raw = f"{self.slippage.seed_hash()}:{self.fill.seed_hash()}:{self.latency.seed_hash()}"
-        return hashlib.md5(raw.encode()).hexdigest()[:12]
+        return hashlib.md5(raw.encode()).hexdigest()[:12]  # nosec

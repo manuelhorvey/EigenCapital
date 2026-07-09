@@ -92,5 +92,5 @@ class FillModel:
         return float(requested_qty * fill_prob)
 
     def seed_hash(self) -> str:
-        h = hashlib.md5(str(self._rng.getstate()).encode())
+        h = hashlib.md5(str(self._rng.getstate()).encode())  # nosec
         return h.hexdigest()[:12]

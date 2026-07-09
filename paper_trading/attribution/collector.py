@@ -588,4 +588,4 @@ class AttributionCollector:
 
 def hash_policy_state(policy_hash: str = "", archetype_version: str = "") -> str:
     raw = f"{policy_hash}:{archetype_version}"
-    return hashlib.md5(raw.encode()).hexdigest()[:12]
+    return hashlib.md5(raw.encode()).hexdigest()[:12]  # nosec

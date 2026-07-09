@@ -38,7 +38,7 @@ class DeferredEntry:
         """
         # ID is hashed from asset, signal, timestamp to prevent duplicates
         id_str = f"{decision.asset}_{decision.signal}_{decision.timestamp}"
-        entry_id = hashlib.md5(id_str.encode()).hexdigest()[:12]
+        entry_id = hashlib.md5(id_str.encode()).hexdigest()[:12]  # nosec
 
         return cls(decision=decision, entry_id=entry_id, max_bars=max_bars)
 

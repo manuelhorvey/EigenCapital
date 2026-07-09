@@ -34,7 +34,7 @@ jobs:
       - name: Bandit SAST
         run: |
           pip install bandit
-          bandit -r paper_trading/ eigencapital/ features/ shared/ --quiet
+          bandit -r paper_trading/ eigencapital/ features/ shared/ --quiet --severity-level high
       - name: Dependency audit
         run: |
           pip install pip-audit

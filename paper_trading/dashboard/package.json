@@ -38,6 +38,7 @@
     "autoprefixer": "^10.4.17",
     "jsdom": "^29.1.1",
     "postcss": "^8.4.35",
+    "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.22.4",
     "typescript": "^5.3.3",

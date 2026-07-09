@@ -100,13 +100,13 @@ export const PAGE_CONTAINER = 'w-full max-w-[1440px] 2xl:max-w-[1920px] mx-auto'
 export const PAGE_PADDING = 'px-4 sm:px-7 py-5 sm:py-7'
 
 /** Section spacing between major page blocks. */
-export const SECTION_SPACING = 'space-y-6 sm:space-y-8'
+export const SECTION_SPACING = 'space-y-7 sm:space-y-10'
 
-/** Card grid gap — standard 4 (16px) on all screens, tightens on mobile. */
-export const GRID_GAP = 'gap-3 sm:gap-4'
+/** Card grid gap — tighter on mobile, comfortable on tablet+. */
+export const GRID_GAP = 'gap-4 sm:gap-5'
 
 /** Wide card gap (for larger panels). */
-export const GRID_GAP_WIDE = 'gap-4 sm:gap-5 lg:gap-6'
+export const GRID_GAP_WIDE = 'gap-5 sm:gap-6 lg:gap-7'
 
 /**
  * Converts gap role number to Tailwind `gap-{n}` string.

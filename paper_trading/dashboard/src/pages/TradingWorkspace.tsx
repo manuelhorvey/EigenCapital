@@ -12,13 +12,13 @@ import { SECTION_SPACING, GRID_GAP, gridSplit2 } from '../design/grid'
 
 function TradingWorkspaceSkeleton() {
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-7 sm:space-y-10">
       <Section id="signals" errorTitle="Signals">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
           <Skeleton className="h-32 rounded-lg" shimmer />
           <Skeleton className="h-32 rounded-lg" shimmer />
         </div>
-        <div className="mt-4">
+        <div className="mt-5">
           <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
         <div className="mt-4">
@@ -26,7 +26,7 @@ function TradingWorkspaceSkeleton() {
         </div>
       </Section>
       <Section id="trades" errorTitle="Trades">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
           <Skeleton className="h-40 rounded-lg" shimmer />
           <Skeleton className="h-40 rounded-lg" shimmer />
         </div>

@@ -14,11 +14,11 @@ import { SECTION_SPACING, GRID_GAP_WIDE, gridSplit2 } from '../design/grid'
 
 function ExecutionWorkspaceSkeleton() {
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-7 sm:space-y-10">
       <Section id="execution-quality" errorTitle="Execution Quality">
         <Skeleton className="h-36 rounded-lg" shimmer />
-        <div className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+        <div className="mt-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-7">
             <Skeleton className="h-48 rounded-lg" shimmer />
             <Skeleton className="h-48 rounded-lg" shimmer />
           </div>
@@ -28,14 +28,14 @@ function ExecutionWorkspaceSkeleton() {
         <Skeleton className="h-64 rounded-lg" shimmer />
       </Section>
       <Section id="trade-attribution" errorTitle="Trade Attribution">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-7">
           <Skeleton className="h-48 rounded-lg" shimmer />
           <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
-        <div className="mt-4">
+        <div className="mt-5">
           <Skeleton className="h-64 rounded-lg" shimmer />
         </div>
-        <div className="mt-4">
+        <div className="mt-5">
           <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
       </Section>

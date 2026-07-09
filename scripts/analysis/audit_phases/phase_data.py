@@ -6,33 +6,58 @@ All subsequent phases import from here rather than re-deriving.
 
 from __future__ import annotations
 
-# Portfolio config (shared across phases)
+# Portfolio config — sourced from /home/manuelhorveydaniel/Projects/EigenCapital/configs/domains/assets/*.yaml.
+# All 22 dashboard-aligned assets (renamed from legacy 16-asset set 2026-07-09 after
+# portfolio remediation removed ES, NQ and added BTCUSD, ^DJI, and JPY crosses).
 PORTFOLIO_ASSETS: dict[str, str] = {
-    "GC": "GC=F",
-    "USDCHF": "USDCHF=X",
-    "USDCAD": "USDCAD=X",
-    "GBPCAD": "GBPCAD=X",
-    "NZDCAD": "NZDCAD=X",
-    "NZDUSD": "NZDUSD=X",
-    "GBPAUD": "GBPAUD=X",
-    "NZDCHF": "NZDCHF=X",
-    "CADCHF": "CADCHF=X",
+    "AUDJPY": "AUDJPY=X",
     "AUDUSD": "AUDUSD=X",
-    "EURCHF": "EURCHF=X",
-    "EURCAD": "EURCAD=X",
-    "EURNZD": "EURNZD=X",
-    "GBPCHF": "GBPCHF=X",
-    "GBPUSD": "GBPUSD=X",
+    "BTCUSD": "BTC-USD",
+    "CADCHF": "CADCHF=X",
+    "^DJI": "^DJI",
     "EURAUD": "EURAUD=X",
+    "EURCAD": "EURCAD=X",
+    "EURCHF": "EURCHF=X",
+    "EURNZD": "EURNZD=X",
+    "GBPAUD": "GBPAUD=X",
+    "GBPCAD": "GBPCAD=X",
+    "GBPCHF": "GBPCHF=X",
+    "GBPJPY": "GBPJPY=X",
+    "GBPUSD": "GBPUSD=X",
+    "GC": "GC=F",
+    "NZDCAD": "NZDCAD=X",
+    "NZDCHF": "NZDCHF=X",
+    "NZDJPY": "NZDJPY=X",
+    "NZDUSD": "NZDUSD=X",
+    "USDCAD": "USDCAD=X",
+    "USDCHF": "USDCHF=X",
+    "USDJPY": "USDJPY=X",
 }
 
+# TP/SL ratios from configs/domains/assets/*.yaml (tp_mult, sl_mult).
 TP_SL: dict[str, tuple[float, float]] = {
-    "GC": (4.0, 1.0), "USDCHF": (3.0, 0.85), "USDCAD": (3.9, 1.30),
-    "GBPCAD": (4.34, 1.45), "NZDCAD": (5.48, 1.83), "NZDUSD": (3.87, 1.29),
-    "GBPAUD": (3.0, 1.0), "NZDCHF": (4.0, 1.0), "CADCHF": (4.0, 1.0),
-    "AUDUSD": (4.24, 1.41), "EURCHF": (3.0, 1.0), "EURCAD": (2.12, 0.71),
-    "EURNZD": (3.36, 1.12), "GBPCHF": (2.45, 0.82), "GBPUSD": (2.22, 0.50),
-    "EURAUD": (3.28, 1.0),
+    "AUDJPY": (2.01, 0.52),
+    "AUDUSD": (4.24, 1.41),
+    "BTCUSD": (1.51, 0.58),
+    "CADCHF": (4.0, 1.0),
+    "^DJI": (4.0, 0.50),
+    "EURAUD": (1.77, 0.54),
+    "EURCAD": (2.12, 0.71),
+    "EURCHF": (3.0, 1.0),
+    "EURNZD": (3.36, 1.12),
+    "GBPAUD": (3.0, 1.0),
+    "GBPCAD": (4.34, 1.45),
+    "GBPCHF": (2.45, 0.82),
+    "GBPJPY": (2.22, 0.50),
+    "GBPUSD": (1.97, 0.52),
+    "GC": (4.0, 1.0),
+    "NZDCAD": (5.48, 1.83),
+    "NZDCHF": (4.0, 1.0),
+    "NZDJPY": (2.02, 0.51),
+    "NZDUSD": (3.87, 1.29),
+    "USDCAD": (3.9, 1.30),
+    "USDCHF": (3.0, 0.85),
+    "USDJPY": (1.97, 0.52),
 }
 
 SELL_ONLY_ASSETS: frozenset[str] = frozenset({"CADCHF", "NZDCHF", "EURAUD"})

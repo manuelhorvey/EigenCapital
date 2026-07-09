@@ -65,6 +65,7 @@ def main():
     parser.add_argument("--tag", default="base", help="Signal parquet tag (default base)")
     parser.add_argument("--n-bins", type=int, default=10, help="Number of bins for BinnedCalibrator")
     parser.add_argument("--min-samples", type=int, default=5, help="Min samples per bin")
+    parser.add_argument("--walkforward", action="store_true", help="Fit on walk-forward train folds, evaluate on held-out fold for honest OOS ECE")
     parser.add_argument("--dry-run", action="store_true", help="Print ECE comparison without saving")
     args = parser.parse_args()
 
@@ -103,8 +104,33 @@ def main():
         else:
             cal = BinnedCalibrator(n_bins=args.n_bins, min_samples_per_bin=args.min_samples)
 
-        cal.fit(p_long, labels)
-        ece_info = compute_pre_post_ece(df, cal)
+        if args.walkforward and "fold" in df.columns:
+            # Honest OOS fit: for each fold, train on other folds, evaluate on held-out fold
+            folds = sorted(df["fold"].unique())
+            oos_ece_values = []
+            for held_fold in folds:
+                train_mask = df["fold"] != held_fold
+                test_mask = df["fold"] == held_fold
+                if train_mask.sum() < 50 or test_mask.sum() < 10:
+                    continue
+                fold_cal = BinnedCalibrator(n_bins=args.n_bins, min_samples_per_bin=args.min_samples)
+                fold_cal.fit(p_long[train_mask], labels[train_mask])
+                fold_ece = compute_ece(
+                    fold_cal.calibrate(p_long[test_mask]),
+                    labels[test_mask],
+                    n_bins=10,
+                )
+                oos_ece_values.append(fold_ece)
+            # Refit on all data for the final calibrator
+            cal.fit(p_long, labels)
+            mean_oos_ece = float(np.mean(oos_ece_values)) if oos_ece_values else None
+            ece_info = compute_pre_post_ece(df, cal)
+            if mean_oos_ece is not None:
+                ece_info["oos_ece"] = round(mean_oos_ece, 4)
+                ece_info["oos_overtfit"] = round(mean_oos_ece - ece_info["ece_after"], 4)
+        else:
+            cal.fit(p_long, labels)
+            ece_info = compute_pre_post_ece(df, cal)
 
         metadata = {
             "method": args.method,
@@ -117,14 +143,10 @@ def main():
         registry.register(asset, cal, metadata)
         results.append((asset, ece_info))
 
-        logger.info(
-            "%s: ECE %.4f \u2192 %.4f (%+.1f%%)  [n=%d]",
-            asset,
-            ece_info["ece_before"],
-            ece_info["ece_after"],
-            ece_info["improvement_pct"],
-            len(df),
-        )
+        log_msg = f"{asset}: ECE {ece_info['ece_before']:.4f} → {ece_info['ece_after']:.4f} ({ece_info['improvement_pct']:+.1f}%)  [n={len(df)}]"
+        if "oos_ece" in ece_info:
+            log_msg += f", OOS ECE={ece_info['oos_ece']:.4f}, overfit={ece_info['oos_overfit']:+.4f}"
+        logger.info(log_msg)
 
     # Summary
     print(f"\n{'=' * 72}")

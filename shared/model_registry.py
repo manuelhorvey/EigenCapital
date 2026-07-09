@@ -5,13 +5,12 @@ Each asset's model is stored as:
     models/{asset}/
         {hash}_{train_date}_{feature_hash}.json   # versioned model file
         manifest.json                              # version manifest
-    models/{asset}_model.json                      # current-production symlink
+    models/{asset}_model.json                      # current-production pointer
 
 The manifest tracks: version id, training date, feature set hash, OOS metrics,
 calibration ECE, deployment status, and rollback availability.
 
-This replaces the old pattern of overwriting ``models/{asset}_model.json``
-in place with no version history.
+``deploy_version_gated()`` runs validation gates before promoting.
 """
 
 from __future__ import annotations
@@ -20,10 +19,12 @@ import json
 import logging
 import os
 import shutil
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 logger = logging.getLogger("eigencapital.model_registry")
 
@@ -230,3 +231,60 @@ def get_version(asset: str, version_id: str) -> dict[str, Any] | None:
         if v.get("version_id") == version_id:
             return v
     return None
+
+
+def deploy_version_gated(
+    asset: str,
+    version_id: str,
+    incumbent_returns: np.ndarray | None = None,
+    candidate_returns: np.ndarray | None = None,
+    force: bool = False,
+) -> tuple[bool, list[dict[str, Any]]]:
+    """Deploy a version only if validation gates pass.
+
+    Args:
+        asset: Asset name.
+        version_id: Version to deploy.
+        incumbent_returns: Per-trade R-multiples for current production model.
+        candidate_returns: Per-trade R-multiples for candidate model.
+        force: Skip gates and deploy directly.
+
+    Returns:
+        (deployed, gate_results) where each gate result is a dict.
+    """
+    from shared.validation_gates import run_validation_gates
+
+    if force:
+        ok = deploy_version(asset, version_id)
+        return ok, [{"name": "force_override", "passed": True}]
+
+    incumbent = get_current_version(asset)
+    candidate = get_version(asset, version_id)
+
+    if incumbent is None:
+        logger.info("%s: no incumbent to compare against — deploying directly", asset)
+        ok = deploy_version(asset, version_id)
+        return ok, [{"name": "no_incumbent", "passed": True}]
+
+    results = run_validation_gates(
+        asset=asset,
+        incumbent=incumbent,
+        candidate=candidate,
+        incumbent_returns=incumbent_returns,
+        candidate_returns=candidate_returns,
+    )
+
+    all_passed = all(r.passed for r in results)
+    if all_passed:
+        ok = deploy_version(asset, version_id)
+    else:
+        logger.warning(
+            "%s: validation gates blocked deployment of version %s (%d/%d passed)",
+            asset, version_id, sum(1 for r in results if r.passed), len(results),
+        )
+        for r in results:
+            if not r.passed:
+                logger.warning("  FAIL [%s]: %s", r.name, r.message)
+        ok = False
+
+    return ok, [vars(r) for r in results]

@@ -262,7 +262,8 @@ class AssetInferencePipeline:
                 else:
                     logger.debug(
                         "Stale price for %s (%.0fs old) — skipping live override",
-                        asset.name, staleness,
+                        asset.name,
+                        staleness,
                     )
             else:
                 df.loc[df.index[-1], "close"] = asset.current_price

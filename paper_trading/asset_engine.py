@@ -5,12 +5,11 @@ import time
 from dataclasses import fields as dataclass_fields
 from datetime import datetime
 
-from eigencapital.domain.time import utc_now
-
 import pandas as pd
 import pytz
 
 from eigencapital.domain.entities.position import OrderType
+from eigencapital.domain.time import utc_now
 from features.archetypes import ArchetypeClassifier
 from features.market_structure import MarketStructureDetector
 from monitoring.importance_tracker import ImportanceStore

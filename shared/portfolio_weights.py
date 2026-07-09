@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Literal
+
+import numpy as np
+import pandas as pd
+from scipy.optimize import minimize
+
+logger = logging.getLogger(__name__)
+
 """Canonical portfolio weight computation — SINGLE source of truth.
 
 Every weight computation in the system (backtest, live rebalance,
@@ -16,19 +28,6 @@ Versioning:
     - WeightMethod strings are versioned (e.g. "risk_parity_v1").
     - When the optimizer changes, register a new version.
 """
-
-import logging
-
-logger = logging.getLogger(__name__)
-
-from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Literal
-
-import numpy as np
-import pandas as pd
-from scipy.optimize import minimize
 
 WeightMethod = Literal[
     "equal_v1",

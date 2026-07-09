@@ -123,7 +123,7 @@ export default function HaltConditions() {
         })}
       </div>
       {haltedAny && (
-        <div className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-gov-red-muted border border-gov-red/20 text-[11px] text-gov-red">
+        <div aria-live="polite" className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-gov-red-muted border border-gov-red/20 text-[11px] text-gov-red">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
           <span className="font-medium">
             {haltedCount} asset{haltedCount > 1 ? 's' : ''} halted

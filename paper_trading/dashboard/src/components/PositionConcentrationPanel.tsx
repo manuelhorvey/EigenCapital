@@ -32,7 +32,7 @@ export default function PositionConcentrationPanel() {
             <span>T {pc.total}</span>
           </div>
           {isAlert && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gov-red bg-gov-red/10 px-2 py-0.5 rounded-full">
+            <span aria-live="polite" className="inline-flex items-center gap-1 text-[10px] font-bold text-gov-red bg-gov-red/10 px-2 py-0.5 rounded-full">
               Skew exceeds {((pc.threshold ?? 0.75) * 100).toFixed(0)}% threshold
             </span>
           )}

@@ -63,7 +63,7 @@ function QuickStatsGridInner() {
         <span>{lastUpdate ? `Snapshot ${formatTimeAgo(lastUpdate)}` : ''}</span>
         <span>{p.start_date ? `Since ${p.start_date}` : ''}</span>
         {criticalAlerts > 0 && (
-          <span className="text-gov-red font-semibold">
+          <span role="status" className="text-gov-red font-semibold">
             {criticalAlerts} critical alert{criticalAlerts > 1 ? 's' : ''}
           </span>
         )}

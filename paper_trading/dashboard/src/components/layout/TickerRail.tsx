@@ -167,7 +167,7 @@ function TickerRailInner({ onToggleSidebar }: TickerRailProps) {
 
   if (parts.halted && parts.haltReason) {
     return (
-      <div className="relative min-h-8 w-full px-2 sm:px-4 flex flex-wrap items-center gap-3 text-xs font-mono tabular-nums border-b border-default bg-gov-red/15 text-gov-red">
+      <div aria-live="polite" className="relative min-h-8 w-full px-2 sm:px-4 flex flex-wrap items-center gap-3 text-xs font-mono tabular-nums border-b border-default bg-gov-red/15 text-gov-red">
         <span className="font-bold">HALT</span>
         <span className="truncate">— {parts.haltReason}</span>
         <span className="ml-auto opacity-70">engine halted · all positions frozen</span>
@@ -200,7 +200,7 @@ function TickerRailInner({ onToggleSidebar }: TickerRailProps) {
   }
 
   return (
-    <div className="relative min-h-8 w-full px-2 sm:px-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary pr-10 sm:pr-2">
+    <div aria-live="polite" className="relative min-h-8 w-full px-2 sm:px-4 py-1 flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-1 text-xs font-mono tabular-nums border-b border-default bg-app/80 text-tertiary pr-10 sm:pr-2">
       {parts.tokens.map((t, i) => (
         <span key={`${t.label}-${i}`} className="inline-flex items-center gap-1 sm:gap-1.5">
           <span className="uppercase tracking-wider text-muted/70">{t.label}</span>

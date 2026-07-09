@@ -5,9 +5,9 @@ import TradeFeed from '../components/TradeFeed'
 import AdmissionPanel from '../components/AdmissionPanel'
 import RejectedSignalExplorer from '../components/RejectedSignalExplorer'
 import GateAggregationPanel from '../components/GateAggregationPanel'
+import PageShell from '../components/ui/PageShell'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
-import Panel from '../components/ui/Panel'
 import { Skeleton } from '../components/ui/Skeleton'
 
 function TradingWorkspaceSkeleton() {
@@ -38,29 +38,9 @@ function TradingWorkspaceSkeleton() {
 export default function TradingWorkspace() {
   const { data, isPending, isError, error } = useSystemSnapshot()
 
-  // Only show error screen on INITIAL load failure, not when stale data
-  // is available from a previous successful fetch (keepPreviousData).
-  if (isError && !data) {
-    return (
-      <Panel padding="md">
-        <div className="flex items-center gap-3 text-gov-red">
-          <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
-          <span className="text-xs text-tertiary">
-            {error instanceof Error ? error.message : 'Failed to load engine data'}
-          </span>
-        </div>
-      </Panel>
-    )
-  }
-
-  // Skeleton on initial load only. With keepPreviousData, isPending is
-  // false during background refetches because data is never undefined.
-  if (isPending && !data) {
-    return <TradingWorkspaceSkeleton />
-  }
-
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<TradingWorkspaceSkeleton />}>
+      <div className="space-y-6 sm:space-y-8">
       <Section id="signals" errorTitle="Signals">
         <EntranceAnimator variant="fade-up" delay={30}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -84,5 +64,6 @@ export default function TradingWorkspace() {
         </EntranceAnimator>
       </Section>
     </div>
+    </PageShell>
   )
 }

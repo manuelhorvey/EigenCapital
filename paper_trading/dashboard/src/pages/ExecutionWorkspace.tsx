@@ -7,9 +7,9 @@ import AttributionBreakdownCard from '../components/attribution/AttributionBreak
 import PnLWaterfall from '../components/attribution/PnLWaterfall'
 import MaeMfeScatter from '../components/attribution/MaeMfeScatter'
 import ExecutionFeed from '../components/ExecutionFeed'
+import PageShell from '../components/ui/PageShell'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
-import Panel from '../components/ui/Panel'
 import { Skeleton } from '../components/ui/Skeleton'
 
 function ExecutionWorkspaceSkeleton() {
@@ -46,25 +46,9 @@ function ExecutionWorkspaceSkeleton() {
 export default function ExecutionWorkspace() {
   const { data, isPending, isError, error } = useSystemSnapshot((b) => b)
 
-  if (isError && !data) {
-    return (
-      <Panel padding="md">
-        <div className="flex items-center gap-3 text-gov-red">
-          <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
-          <span className="text-xs text-tertiary">
-            {error instanceof Error ? error.message : 'Failed to load engine data'}
-          </span>
-        </div>
-      </Panel>
-    )
-  }
-
-  if (isPending && !data) {
-    return <ExecutionWorkspaceSkeleton />
-  }
-
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<ExecutionWorkspaceSkeleton />}>
+      <div className="space-y-6 sm:space-y-8">
       {/* Section 1 — Execution Quality
           Top: KPI summary strip (full width).
           Bottom: fill quality gauges + slippage distribution side by side.
@@ -108,5 +92,6 @@ export default function ExecutionWorkspace() {
         </EntranceAnimator>
       </Section>
     </div>
+    </PageShell>
   )
 }

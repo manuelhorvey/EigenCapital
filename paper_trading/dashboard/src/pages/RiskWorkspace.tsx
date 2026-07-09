@@ -7,9 +7,9 @@ import PekScalarPanel from '../components/PekScalarPanel'
 import PerformanceStateVelocityChart from '../components/PerformanceStateVelocityChart'
 import RiskBudgetChart from '../components/RiskBudgetChart'
 import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
+import PageShell from '../components/ui/PageShell'
 import Section from '../components/ui/Section'
 import EntranceAnimator from '../components/ui/EntranceAnimator'
-import Panel from '../components/ui/Panel'
 import { Skeleton } from '../components/ui/Skeleton'
 
 function RiskWorkspaceSkeleton() {
@@ -46,24 +46,8 @@ function RiskWorkspaceSkeleton() {
 export default function RiskWorkspace() {
   const { data, isPending, isError, error } = useSystemSnapshot((b) => b)
 
-  if (isError && !data) {
-    return (
-      <Panel padding="md">
-        <div className="flex items-center gap-3 text-gov-red">
-          <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
-          <span className="text-xs text-tertiary">
-            {error instanceof Error ? error.message : 'Failed to load engine data'}
-          </span>
-        </div>
-      </Panel>
-    )
-  }
-
-  if (isPending && !data) {
-    return <RiskWorkspaceSkeleton />
-  }
-
   return (
+    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<RiskWorkspaceSkeleton />}>
     <div className="space-y-6 sm:space-y-8">
       {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}
       <Section id="governance-overview" errorTitle="Governance Overview">
@@ -104,5 +88,6 @@ export default function RiskWorkspace() {
         </EntranceAnimator>
       </Section>
     </div>
+    </PageShell>
   )
 }

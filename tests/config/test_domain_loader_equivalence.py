@@ -207,7 +207,7 @@ def test_registry_alerting_promoted() -> None:
 def test_registry_calibration_promoted() -> None:
     reg = _load_reg()
     assert reg.calibration.get("enabled") is True
-    assert reg.calibration.get("method") == "platt"
+    assert reg.calibration.get("method") == "binned"
 
 
 def test_registry_ensemble_promoted() -> None:

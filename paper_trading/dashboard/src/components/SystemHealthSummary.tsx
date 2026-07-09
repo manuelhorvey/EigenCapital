@@ -4,6 +4,7 @@ import Panel from './ui/Panel'
 import Badge from './ui/Badge'
 import StatCard from './ui/StatCard'
 import { Skeleton } from './ui/Skeleton'
+import { gridMetric4, GRID_GAP } from '../design/grid'
 
 /** Top-level system status badge with PnL, drawdown, MT5 sync, edge health, and top risks. */
 export default function SystemHealthSummary() {
@@ -16,7 +17,7 @@ export default function SystemHealthSummary() {
           <Skeleton className="h-6 w-20 rounded" shimmer />
           <Skeleton className="h-4 w-32 rounded" shimmer />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-3">
+        <div className={`${gridMetric4()} ${GRID_GAP} mt-3`}>
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded" shimmer />
           ))}
@@ -51,7 +52,7 @@ export default function SystemHealthSummary() {
       </div>
 
       {/* Key metrics row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className={`${gridMetric4()} ${GRID_GAP}`}>
         <StatCard
           label="PnL"
           value={`${portfolio.pnl.total >= 0 ? '+' : ''}${portfolio.pnl.total.toFixed(2)}%`}

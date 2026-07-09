@@ -9,8 +9,8 @@ import MaeMfeScatter from '../components/attribution/MaeMfeScatter'
 import ExecutionFeed from '../components/ExecutionFeed'
 import PageShell from '../components/ui/PageShell'
 import Section from '../components/ui/Section'
-import EntranceAnimator from '../components/ui/EntranceAnimator'
-import { Skeleton } from '../components/ui/Skeleton'
+import { EntranceAnimator, Stagger, Skeleton } from '../components/ui'
+import { SECTION_SPACING, GRID_GAP_WIDE, gridSplit2 } from '../design/grid'
 
 function ExecutionWorkspaceSkeleton() {
   return (
@@ -48,49 +48,51 @@ export default function ExecutionWorkspace() {
 
   return (
     <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<ExecutionWorkspaceSkeleton />}>
-      <div className="space-y-6 sm:space-y-8">
-      {/* Section 1 — Execution Quality
-          Top: KPI summary strip (full width).
-          Bottom: fill quality gauges + slippage distribution side by side.
-          All three read from the same attribution bundle. */}
-      <Section id="execution-quality" errorTitle="Execution Quality" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up">
-          <ExecutionQualityStrip />
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={45}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FillQualityGauge />
-            <SlippageHistogram />
-          </div>
-        </EntranceAnimator>
-      </Section>
+      <div className={SECTION_SPACING}>
+      <Stagger staggerMs={30}>
+        {/* Section 1 — Execution Quality
+            Top: KPI summary strip (full width).
+            Bottom: fill quality gauges + slippage distribution side by side.
+            All three read from the same attribution bundle. */}
+        <Section id="execution-quality" errorTitle="Execution Quality" className="space-y-5 sm:space-y-6">
+          <EntranceAnimator variant="fade-up">
+            <ExecutionQualityStrip />
+          </EntranceAnimator>
+          <EntranceAnimator variant="fade-up">
+            <div className={`${gridSplit2(true)} ${GRID_GAP_WIDE}`}>
+              <FillQualityGauge />
+              <SlippageHistogram />
+            </div>
+          </EntranceAnimator>
+        </Section>
 
-      {/* Section 2 — Execution Feed
-          Full-width per-asset gate table. Needs the horizontal space for
-          its 18+ asset rows and min-width columns. */}
-      <Section id="execution-feed" errorTitle="Execution Feed">
-        <EntranceAnimator variant="fade-up" delay={75}>
-          <ExecutionFeed />
-        </EntranceAnimator>
-      </Section>
+        {/* Section 2 — Execution Feed
+            Full-width per-asset gate table. Needs the horizontal space for
+            its 18+ asset rows and min-width columns. */}
+        <Section id="execution-feed" errorTitle="Execution Feed">
+          <EntranceAnimator variant="fade-up">
+            <ExecutionFeed />
+          </EntranceAnimator>
+        </Section>
 
-      {/* Section 3 — Trade Attribution
-          All trade-level analysis grouped together: PnL decomposition +
-          domain scores, detail table, and MAE/MFE scatter. */}
-      <Section id="trade-attribution" errorTitle="Trade Attribution" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up" delay={105}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <PnLWaterfall />
-            <AttributionBreakdownCard />
-          </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={135}>
-          <TradeExecutionTable />
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={165}>
-          <MaeMfeScatter />
-        </EntranceAnimator>
-      </Section>
+        {/* Section 3 — Trade Attribution
+            All trade-level analysis grouped together: PnL decomposition +
+            domain scores, detail table, and MAE/MFE scatter. */}
+        <Section id="trade-attribution" errorTitle="Trade Attribution" className="space-y-5 sm:space-y-6">
+          <EntranceAnimator variant="fade-up">
+            <div className={`${gridSplit2(true)} ${GRID_GAP_WIDE}`}>
+              <PnLWaterfall />
+              <AttributionBreakdownCard />
+            </div>
+          </EntranceAnimator>
+          <EntranceAnimator variant="fade-up">
+            <TradeExecutionTable />
+          </EntranceAnimator>
+          <EntranceAnimator variant="fade-up">
+            <MaeMfeScatter />
+          </EntranceAnimator>
+        </Section>
+      </Stagger>
     </div>
     </PageShell>
   )

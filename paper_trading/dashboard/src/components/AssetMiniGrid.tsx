@@ -5,6 +5,7 @@ import AssetCard from './AssetCard'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
+import { gridCards, GRID_GAP } from '../design/grid'
 import type { z } from 'zod'
 import { AssetStateSchema } from '../lib/schemas'
 
@@ -57,7 +58,7 @@ export default function AssetMiniGrid({ openOnly }: AssetMiniGridProps) {
 
   if (isPending) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+      <div className={`${gridCards()} ${GRID_GAP}`}>
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-16 rounded-lg" shimmer />
         ))}
@@ -77,7 +78,7 @@ export default function AssetMiniGrid({ openOnly }: AssetMiniGridProps) {
   return (
     <div>
       <SectionHeader title={title} accent="neutral" />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+      <div className={`${gridCards()} ${GRID_GAP} mt-2`}>
         {sorted.map(name => (
           <AssetCard key={name} name={name} density="compact" />
         ))}

@@ -1,13 +1,13 @@
 import { AlertTriangle, Activity } from 'lucide-react'
 import type { SystemIntegrity } from '../../hooks/useSystemIntegrity'
 
-interface Props {
+interface SystemDegradedBannerProps {
   integrity: SystemIntegrity
   onDismiss?: () => void
 }
 
 /** Top-of-page banner alerting when system integrity is degraded or broken. Returns null when healthy. */
-export function SystemDegradedBanner({ integrity, onDismiss }: Props) {
+export function SystemDegradedBanner({ integrity, onDismiss }: SystemDegradedBannerProps) {
   if (integrity.isHealthy) return null
 
   return (

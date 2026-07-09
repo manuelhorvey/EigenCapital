@@ -3,6 +3,7 @@ import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { Skeleton } from './ui/Skeleton'
+import { gridMetric6, GRID_GAP } from '../design/grid'
 
 function healthColor(score: number): string {
   if (score >= 0.8) return 'bg-gov-green'
@@ -36,7 +37,7 @@ export default function HealthScores() {
     return (
       <Panel padding="md">
         <SectionHeader title="System Health" accent="emerald" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+        <div className={`${gridMetric6()} ${GRID_GAP}`}>
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-lg" />
           ))}
@@ -62,7 +63,7 @@ export default function HealthScores() {
         }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+      <div className={`${gridMetric6()} ${GRID_GAP}`}>
         {names.map(name => {
           const h = data.assets[name]
           const pct = (h.health_score * 100).toFixed(0)

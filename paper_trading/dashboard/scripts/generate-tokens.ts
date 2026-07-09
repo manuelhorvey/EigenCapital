@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { rawTokens, tailwindOnly } from '../src/design/color-system.js'
+import { rawTokens, rawTokensLight, tailwindOnly } from '../src/design/color-system.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(__dirname, '../generated')
@@ -24,10 +24,17 @@ const FONT_SIZES = ['hero', 'display', '2xs', 'xs', 'sm', 'base', 'lg', 'xl', '2
 
 const camelToKebab = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 
-// ── Step 1: Generate tokens.css ────────────────────────
+// ── Step 1: Generate tokens.css (dark default + light overrides) ──
 
 let css = ':root {\n'
 for (const [key, value] of Object.entries(rawTokens)) {
+  css += `  --${key}: ${value};\n`
+}
+css += '}\n\n'
+
+// Light mode overrides — only the tokens that differ in light mode
+css += '.light {\n'
+for (const [key, value] of Object.entries(rawTokensLight)) {
   css += `  --${key}: ${value};\n`
 }
 css += '}\n\n'

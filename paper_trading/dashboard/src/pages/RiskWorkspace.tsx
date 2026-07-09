@@ -9,25 +9,25 @@ import RiskBudgetChart from '../components/RiskBudgetChart'
 import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
 import PageShell from '../components/ui/PageShell'
 import Section from '../components/ui/Section'
-import EntranceAnimator from '../components/ui/EntranceAnimator'
-import { Skeleton } from '../components/ui/Skeleton'
+import { EntranceAnimator, Stagger, Skeleton } from '../components/ui'
+import { SECTION_SPACING, GRID_GAP, gridSplit2 } from '../design/grid'
 
 function RiskWorkspaceSkeleton() {
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className={SECTION_SPACING}>
       <Section id="governance-overview" errorTitle="Governance Overview">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 lg:grid-cols-2 ${GRID_GAP}`}>
           <Skeleton className="h-40 rounded-lg" shimmer />
           <Skeleton className="h-40 rounded-lg" shimmer />
         </div>
       </Section>
       <Section id="portfolio-risk" errorTitle="Portfolio Risk">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 lg:grid-cols-2 ${GRID_GAP}`}>
           <Skeleton className="h-48 rounded-lg" shimmer />
           <Skeleton className="h-48 rounded-lg" shimmer />
         </div>
         <div className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 lg:grid-cols-2 ${GRID_GAP}`}>
             <Skeleton className="h-40 rounded-lg" shimmer />
             <Skeleton className="h-40 rounded-lg" shimmer />
           </div>
@@ -48,45 +48,47 @@ export default function RiskWorkspace() {
 
   return (
     <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<RiskWorkspaceSkeleton />}>
-    <div className="space-y-6 sm:space-y-8">
-      {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}
-      <Section id="governance-overview" errorTitle="Governance Overview">
-        <EntranceAnimator variant="fade-up">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PekScalarPanel />
-            <GovernanceRadar />
-          </div>
-        </EntranceAnimator>
-      </Section>
+    <div className={SECTION_SPACING}>
+      <Stagger staggerMs={30}>
+        {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}
+        <Section id="governance-overview" errorTitle="Governance Overview">
+          <EntranceAnimator variant="fade-up">
+            <div className={`${gridSplit2(true)} ${GRID_GAP}`}>
+              <PekScalarPanel />
+              <GovernanceRadar />
+            </div>
+          </EntranceAnimator>
+        </Section>
 
-      {/* Middle: portfolio risk constraints + PEK performance. */}
-      <Section id="portfolio-risk" errorTitle="Portfolio Risk">
-        <EntranceAnimator variant="fade-up" delay={45}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PositionConcentrationPanel />
-            <FactorExposureBreakdown />
-          </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={75}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <PerformanceStateVelocityChart />
-            <RiskBudgetChart />
-          </div>
-        </EntranceAnimator>
-      </Section>
+        {/* Middle: portfolio risk constraints + PEK performance. */}
+        <Section id="portfolio-risk" errorTitle="Portfolio Risk">
+          <EntranceAnimator variant="fade-up">
+            <div className={`${gridSplit2(true)} ${GRID_GAP}`}>
+              <PositionConcentrationPanel />
+              <FactorExposureBreakdown />
+            </div>
+          </EntranceAnimator>
+          <EntranceAnimator variant="fade-up">
+            <div className={`${gridSplit2(true)} ${GRID_GAP}`}>
+              <PerformanceStateVelocityChart />
+              <RiskBudgetChart />
+            </div>
+          </EntranceAnimator>
+        </Section>
 
-      {/* Bottom: model health — stacked vertically so each component gets
-          full width. HealthScores card grid (xl:grid-cols-6) and
-          HealthMonitorPanel table both need horizontal space to render
-          asset names and columns without truncation. */}
-      <Section id="model-health" errorTitle="Model Health" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up" delay={105}>
-          <HealthMonitorPanel />
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={135}>
-          <HealthScores />
-        </EntranceAnimator>
-      </Section>
+        {/* Bottom: model health — stacked vertically so each component gets
+            full width. HealthScores card grid (xl:grid-cols-6) and
+            HealthMonitorPanel table both need horizontal space to render
+            asset names and columns without truncation. */}
+        <Section id="model-health" errorTitle="Model Health">
+          <EntranceAnimator variant="fade-up">
+            <HealthMonitorPanel />
+          </EntranceAnimator>
+          <EntranceAnimator variant="fade-up">
+            <HealthScores />
+          </EntranceAnimator>
+        </Section>
+      </Stagger>
     </div>
     </PageShell>
   )

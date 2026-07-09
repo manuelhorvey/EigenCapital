@@ -33,7 +33,7 @@ export default function Select({
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className={`appearance-none w-full bg-surface border border-default rounded text-primary font-medium transition-colors duration-150 hover:border-strong focus:outline-none focus:border-strong focus:shadow-[0_0_0_1px_rgba(45,211,191,0.2)] ${sizeStyles[size]}`}
+        className={`appearance-none w-full bg-surface border border-default rounded text-primary font-medium transition-colors duration-150 hover:border-strong focus:outline-none focus:border-strong focus:shadow-[0_0_0_1px_rgba(45,211,191,0.2)] focus-ring ${sizeStyles[size]}`}
       >
         <option value="">{placeholder}</option>
         {options.map(opt => (

@@ -17,7 +17,7 @@ export default function PageShell({ isPending, isError, error, hasData, skeleton
   if (isError && !hasData) {
     return (
       <Panel padding="md">
-        <div className="flex items-center gap-3 text-gov-red">
+        <div className="flex items-center gap-3 text-gov-red" role="alert">
           <span className="text-xs font-semibold uppercase tracking-wider">Engine unavailable</span>
           <span className="text-xs text-tertiary">
             {error instanceof Error ? error.message : 'Failed to load engine data'}
@@ -28,7 +28,7 @@ export default function PageShell({ isPending, isError, error, hasData, skeleton
   }
 
   if (isPending && !hasData) {
-    return <>{skeleton}</>
+    return <div aria-busy="true">{skeleton}</div>
   }
 
   return <>{children}</>

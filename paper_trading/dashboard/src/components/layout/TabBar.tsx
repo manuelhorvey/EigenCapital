@@ -16,12 +16,17 @@ const TABS: TabItem[] = [
   { to: '/risk', label: 'Risk', icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'risk' },
 ]
 
-/** Top tab navigation bar with Dashboard, Trading, Execution, and Risk tabs. */
+/** Tab navigation bar — shown on mobile (< lg) below the TopBar.
+ *  On desktop (lg+) the TopBar includes nav tabs and the collapsible
+ *  sidebar provides navigation context, so this is hidden. */
 export default function TabBar() {
   const badges = useSidebarBadges()
 
   return (
-    <nav className="flex items-center gap-1 px-2 sm:px-4 overflow-x-auto scrollbar-none" aria-label="Main tabs">
+    <nav
+      className="lg:hidden flex items-center gap-0.5 px-2 overflow-x-auto scrollbar-none border-b border-default shrink-0"
+      aria-label="Main tabs"
+    >
       {TABS.map((tab) => {
         const badge = tab.badgeKey ? badges[tab.badgeKey] : undefined
         return (
@@ -31,15 +36,15 @@ export default function TabBar() {
             end
             aria-label={tab.label}
             className={({ isActive }) =>
-              `flex items-center gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 text-2xs sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
+              `flex items-center gap-1 px-2 py-2 text-xs font-medium rounded-md transition-colors shrink-0 ${
                 isActive
                   ? 'bg-accent-emerald/8 text-accent-emerald border border-accent-emerald/20'
                   : 'text-tertiary hover:text-secondary hover:bg-panel/60 border border-transparent'
-              } active:scale-95 sm:active:scale-100`
+              } active:scale-95`
             }
           >
             {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="ml-0.5">{tab.label}</span>
             {badge != null && badge > 0 && (
               <span className="inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold leading-none bg-gov-red-muted text-gov-red border border-gov-red/25">
                 {badge}

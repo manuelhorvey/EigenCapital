@@ -5,6 +5,7 @@ import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { systemSelectors } from '../selectors/system'
 import { Skeleton } from './ui/Skeleton'
 import { formatTimeAgo } from '../utils/format'
+import { gridMetric7, GRID_GAP } from '../design/grid'
 
 function Stat({
   label,
@@ -43,7 +44,7 @@ function QuickStatsGridInner() {
 
   if (!p) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
+      <div className={`${gridMetric7()} ${GRID_GAP}`}>
         {Array.from({ length: 7 }).map((_, i) => (
           <Skeleton key={i} className="h-20 rounded-lg" shimmer />
         ))}
@@ -68,7 +69,7 @@ function QuickStatsGridInner() {
           </span>
         )}
       </div>
-      <dl className="grid grid-cols-2 lg:grid-cols-7 gap-y-3 lg:divide-x lg:divide-default">
+      <dl className={`${gridMetric7()} gap-y-3 lg:divide-x lg:divide-default`}>
         <Stat
           label="Portfolio Value"
           value={`$${(p.mtm_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}

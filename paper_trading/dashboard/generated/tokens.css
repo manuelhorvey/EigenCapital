@@ -161,6 +161,43 @@
   --animation-fade-in: fade-in 0.4s ease-out;
 }
 
+.light {
+  --color-app: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-card: #ffffff;
+  --color-panel: #eff1f5;
+  --color-panel-hover: #e5e7ed;
+  --color-ink: #f7f8fa;
+  --color-rule: #e2e8f0;
+  --color-accent-glow: rgba(20, 184, 166, 0.15);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-glass: rgba(255, 255, 255, 0.92);
+  --color-focus-ring: rgba(20, 184, 166, 0.5);
+  --color-interactive-hover: rgba(0, 0, 0, 0.04);
+  --color-interactive-active: rgba(0, 0, 0, 0.08);
+  --color-interactive-selected: rgba(20, 184, 166, 0.1);
+  --color-gov-green-muted: rgba(37, 208, 101, 0.15);
+  --color-gov-green-muted2: rgba(37, 208, 101, 0.08);
+  --color-gov-yellow-muted: rgba(234, 179, 8, 0.15);
+  --color-gov-yellow-muted2: rgba(234, 179, 8, 0.08);
+  --color-gov-red-muted: rgba(240, 68, 68, 0.15);
+  --color-gov-red-muted2: rgba(240, 68, 68, 0.08);
+  --color-gov-init-muted: rgba(100, 116, 139, 0.15);
+  --color-gov-init-muted2: rgba(100, 116, 139, 0.08);
+  --color-gov-gray-muted: rgba(107, 114, 128, 0.15);
+  --color-gov-gray-muted2: rgba(107, 114, 128, 0.08);
+  --shadow-panel: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-card: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-modal: 0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.12);
+  --shadow-tooltip: 0 4px 16px rgba(0,0,0,0.1);
+  --shadow-inner-subtle: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+
 @keyframes pulse-subtle {
   0%, 100% {
     opacity: 0.5;

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Skeleton } from './Skeleton'
+import useAnimatedValue from '../../hooks/useAnimatedValue'
 
 type StatCardVariant = 'default' | 'compact' | 'kpi'
 
@@ -11,6 +12,11 @@ interface StatCardProps {
   accent?: string
   loading?: boolean
   className?: string
+  /** When provided, overrides `value` with an auto-animated, formatted number.
+   *  Ignored when `loading` is true or `value` is also explicitly set. */
+  animatedValue?: number
+  /** Decimal places for the animated value. Default 0. */
+  decimals?: number
 }
 
 function LoadingSkeleton({ variant }: { variant: StatCardVariant }) {
@@ -40,7 +46,19 @@ export default function StatCard({
   accent,
   loading = false,
   className = '',
+  animatedValue,
+  decimals = 0,
 }: StatCardProps) {
+  const { value: animatedDisplay } = useAnimatedValue(
+    animatedValue ?? 0,
+    { decimals },
+  )
+
+  // Resolve display value: animatedValue overrides when provided and no explicit value
+  const displayValue = (animatedValue !== undefined && value === undefined)
+    ? animatedDisplay
+    : value
+
   if (loading) return <LoadingSkeleton variant={variant} />
 
   if (variant === 'kpi') {
@@ -58,7 +76,7 @@ export default function StatCard({
         <div className={`text-sm font-bold tabular-nums tracking-tight transition-colors duration-200 ${accent ? '' : 'text-secondary'}`}
           style={accent ? { color: accent } : undefined}
         >
-          {value}
+          {displayValue}
         </div>
       </div>
     )
@@ -72,7 +90,7 @@ export default function StatCard({
           <div className={`text-sm font-semibold tracking-tight font-mono tabular-nums transition-colors ${accent ? '' : 'text-primary'}`}
             style={accent ? { color: accent } : undefined}
           >
-            {value}
+            {displayValue}
           </div>
         </div>
         {sub != null && (
@@ -120,7 +138,7 @@ export default function StatCard({
       ].join(' ')}
         style={accent ? { color: accent } : undefined}
       >
-        {value}
+        {displayValue}
       </div>
       {sub != null && (
         <p className="text-[11px] text-tertiary font-mono tabular-nums mt-1 opacity-80 group-hover:opacity-100 transition-opacity duration-200">{sub}</p>

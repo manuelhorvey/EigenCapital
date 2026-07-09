@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EigenCapital — Paper Trading Dashboard</title>
     <meta name="description" content="Real-time quantitative trading dashboard" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#07080b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('ec_theme');
+          if (t === 'light' || (t !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches)) {
+            document.documentElement.classList.add('light');
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body class="bg-app text-primary font-sans antialiased">
     <div id="root"></div>

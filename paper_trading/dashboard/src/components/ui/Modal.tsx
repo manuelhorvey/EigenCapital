@@ -118,7 +118,7 @@ export default function Modal({
   closeOnOverlay = true,
   bodyScrollLock = true,
   showHeader = true,
-  className,
+  className = '',
   noContentWrap = false,
 }: ModalProps) {
   // focus trap owns its ref internally and tracks DOM lifecycle.
@@ -169,7 +169,7 @@ export default function Modal({
           'relative w-full ' +
           SIZE_TO_MAX[size] +
           ' bg-surface border border-default rounded shadow-modal animate-fade-in max-h-[85vh] flex flex-col ' +
-          (className ?? '')
+          className
         }
         role="dialog"
         aria-modal="true"

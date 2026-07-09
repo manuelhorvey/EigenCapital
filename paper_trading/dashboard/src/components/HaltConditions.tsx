@@ -4,6 +4,7 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { MetricCardSkeleton } from './ui/Skeleton'
 import { governanceDot, governanceText } from './ui/governance'
+import { gridMetric4, GRID_GAP } from '../design/grid'
 
 /** Halt condition monitors: max drawdown, monthly PF, signal drought, and probability drift. */
 export default function HaltConditions() {
@@ -87,7 +88,7 @@ export default function HaltConditions() {
 
   return (
     <div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={`${gridMetric4()} ${GRID_GAP}`}>
         {cards.map(c => {
           const state = c.pass ? 'GREEN' : 'RED'
           return (

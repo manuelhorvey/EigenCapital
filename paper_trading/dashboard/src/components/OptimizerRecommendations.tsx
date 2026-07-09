@@ -4,6 +4,7 @@ import { fetchApi } from '../lib/api'
 import Panel from './ui/Panel'
 import StatCard from './ui/StatCard'
 import EmptyState from './ui/EmptyState'
+import { gridMetric4, GRID_GAP } from '../design/grid'
 
 interface DriftReport {
   generated_at: string
@@ -76,7 +77,7 @@ export default function OptimizerRecommendations() {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+    <div className={`${gridMetric4()} ${GRID_GAP}`}>
       {cards?.map(c => (
         <StatCard key={c.label} label={c.label} value={c.value} sub={c.sub} accent={c.accent} />
       ))}

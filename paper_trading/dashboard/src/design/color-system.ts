@@ -1,10 +1,15 @@
 // ── Design Tokens — EigenCapital Operator Console ─────────────────────────
 //
 // This file is the single source of truth for the dashboard's design
-// tokens. rawTokens keys are CSS custom-property names minus the `--`
-// prefix; the generate-tokens script reads this map to produce:
+// tokens. It defines both dark (default) and light mode values.
 //
+// Architecture:
+//   rawTokens        → dark-mode values (current default, written to :root)
+//   rawTokensLight   → light-mode overrides (written to .light { ... })
+//
+// The generate-tokens.ts script reads both to produce:
 //   generated/tokens.css          →  :root { --color-app: ... }
+//                                   .light { --color-app: ... }
 //   generated/tailwind.partial.js →  { theme: { extend: { colors: ... } }
 //
 // ── Naming policy ────────────────────────────────────────────────────
@@ -264,6 +269,68 @@ export const rawTokens = {
   'animation-scale-in': 'scale-in 0.2s ease-out',
   'animation-slide-up': 'slide-up 0.35s ease-out',
   'animation-fade-in': 'fade-in 0.4s ease-out',
+} as const
+
+// ── Light Mode Overrides ──────────────────────────────────────────
+// Only the tokens that differ in light mode are listed here.
+// Brand scales (teal, indigo, neutral), governance colors, chart
+// palette, accent colors, typography, spacing, border-radius, and
+// animation tokens stay the same in both modes.
+//
+// The generate-tokens.ts script outputs these as a `.light { ... }`
+// override block. To enable light mode, add class="light" to <html>.
+export const rawTokensLight: Partial<Record<keyof typeof rawTokens, string>> = {
+  // ── Application surfaces ──────────────────────────
+  'color-app': '#f7f8fa',
+  'color-surface': '#ffffff',
+  'color-card': '#ffffff',
+  'color-panel': '#eff1f5',
+  'color-panel-hover': '#e5e7ed',
+
+  // ── Role-named tokens ─────────────────────────────
+  'color-ink': '#f7f8fa',                      // same as color-app
+  'color-rule': '#e2e8f0',                      // lighter border
+  'color-accent-glow': 'rgba(20, 184, 166, 0.15)',
+
+  // ── Text hierarchy ────────────────────────────────
+  'color-text-primary': '#0f172a',
+  'color-text-secondary': '#475569',
+  'color-text-tertiary': '#64748b',
+  'color-text-muted': '#94a3b8',
+
+  // ── Borders ───────────────────────────────────────
+  'color-border': '#e2e8f0',
+  'color-border-strong': '#cbd5e1',
+
+  // ── Glass ─────────────────────────────────────────
+  'color-glass': 'rgba(255, 255, 255, 0.92)',
+
+  // ── Focus ring (slightly darker for light bg) ─────
+  'color-focus-ring': 'rgba(20, 184, 166, 0.5)',
+
+  // ── Interactive states ────────────────────────────
+  'color-interactive-hover': 'rgba(0, 0, 0, 0.04)',
+  'color-interactive-active': 'rgba(0, 0, 0, 0.08)',
+  'color-interactive-selected': 'rgba(20, 184, 166, 0.1)',
+
+  // ── Governance muted backgrounds (higher opacity for light bg) ─
+  'color-gov-green-muted': 'rgba(37, 208, 101, 0.15)',
+  'color-gov-green-muted2': 'rgba(37, 208, 101, 0.08)',
+  'color-gov-yellow-muted': 'rgba(234, 179, 8, 0.15)',
+  'color-gov-yellow-muted2': 'rgba(234, 179, 8, 0.08)',
+  'color-gov-red-muted': 'rgba(240, 68, 68, 0.15)',
+  'color-gov-red-muted2': 'rgba(240, 68, 68, 0.08)',
+  'color-gov-init-muted': 'rgba(100, 116, 139, 0.15)',
+  'color-gov-init-muted2': 'rgba(100, 116, 139, 0.08)',
+  'color-gov-gray-muted': 'rgba(107, 114, 128, 0.15)',
+  'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.08)',
+
+  // ── Shadows (lighter for light mode) ──────────────
+  'shadow-panel': '0 1px 3px rgba(0,0,0,0.05)',
+  'shadow-card': '0 4px 12px rgba(0,0,0,0.08)',
+  'shadow-modal': '0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.12)',
+  'shadow-tooltip': '0 4px 16px rgba(0,0,0,0.1)',
+  'shadow-inner-subtle': 'inset 0 1px 3px rgba(0,0,0,0.08)',
 } as const
 
 // ── Tailwind-only values (not expressible as single CSS vars) ──

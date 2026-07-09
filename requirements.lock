@@ -25,3 +25,4 @@ threadpoolctl==3.6.0
 tzdata==2026.2
 xgboost==3.2.0
 yfinance==1.2.0
+ruff==0.15.13

@@ -12,6 +12,7 @@ from labels.meta_labels import MetaLabelModel
 from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
+from shared.model_registry import save_model as registry_save_model
 from shared.volatility import VolatilityPrimitive
 
 logger = logging.getLogger("eigencapital.training_pipeline")
@@ -243,9 +244,32 @@ class AssetTrainingPipeline:
         asset._trained = True
         asset._enable_adaptive_macro()
         model.save_model(model_path)
+
+        # Save versioned copy via model registry
+        try:
+            with open(model_path, "rb") as _fm:
+                model_bytes = _fm.read()
+            model_hash = hashlib.sha256(model_bytes).hexdigest()[:16]
+            train_date = asset._current_window_train_end or end_date.strftime("%Y-%m-%d")
+            feature_hash = hashlib.sha256(
+                "|".join(sorted(asset._alpha_feature_cols or [])).encode()
+            ).hexdigest()[:16]
+            registry_save_model(
+                asset=asset.name,
+                model_bytes=model_bytes,
+                train_date=train_date,
+                train_end=end_date.strftime("%Y-%m-%d"),
+                feature_hash=feature_hash,
+                model_hash=model_hash,
+                n_features=len(asset._alpha_feature_cols or []),
+            )
+        except Exception as e:
+            logger.warning("%s: model registry save failed (non-fatal): %s", asset.name, e)
+            with open(model_path, "rb") as _fm:
+                model_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
+
+        # Legacy hash file (backward compat)
         hash_path = model_path.replace(".json", "_hash.txt")
-        with open(model_path, "rb") as _fm:
-            model_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
         with open(hash_path, "w") as _fh:
             _fh.write(model_hash)
         asset._model_hash = model_hash

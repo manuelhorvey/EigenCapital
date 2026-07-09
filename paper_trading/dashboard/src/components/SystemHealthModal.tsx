@@ -167,7 +167,7 @@ export default function SystemHealthModal() {
             metrics={[
               {
                 label: 'Runtime',
-                value: portfolio ? `${portfolio.runtime_hours.toFixed(0)}h` : '—',
+                value: portfolio ? `${(portfolio.runtime_hours ?? 0).toFixed(0)}h` : '—',
                 status: 'good',
               },
               {

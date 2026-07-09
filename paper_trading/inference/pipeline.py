@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -26,6 +28,8 @@ from paper_trading.ops.tracer import (
     shadow_compare_sizing,
     trace_decision,
 )
+from paper_trading.shadow.model import ShadowModelRunner
+from paper_trading.shadow.storage import ShadowStorage
 from shared.calibration.registry import CalibrationRegistry
 
 logger = logging.getLogger("eigencapital.inference_pipeline")
@@ -81,6 +85,57 @@ try:
 except ImportError as _exc:
     _shadow_store = None  # type: ignore[assignment]
     logger.warning("shadow.memory import unavailable — %s", _exc)
+
+# ── Shadow comparison infrastructure (model runner + storage) ────────────
+_ShadowRegistryT = dict[tuple[str, str], ShadowModelRunner]  # (shadow_id, asset_name) -> runner
+_SHADOW_REGISTRY: _ShadowRegistryT = {}
+_SHADOW_STORAGE: ShadowStorage | None = None
+_SHADOW_CONFIGS: dict[str, dict] = {}
+
+
+def _load_shadow_configs() -> dict[str, dict]:
+    """Load shadow model specs from configs/domains/shadow_models.yaml."""
+    import yaml
+
+    config_path = os.path.join(BASE, "configs", "domains", "ml", "shadow_models.yaml")
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f) or {}
+        models = data.get("shadow_models", [])
+        return {m["id"]: m for m in models if m.get("status") in ("shadow", "canary")}
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Failed to load shadow configs: %s", exc)
+        return {}
+
+
+def _get_shadow_storage() -> ShadowStorage:
+    global _SHADOW_STORAGE
+    if _SHADOW_STORAGE is None:
+        base = os.path.join(BASE, "data", "live", "shadow")
+        _SHADOW_STORAGE = ShadowStorage(base_dir=base)
+    return _SHADOW_STORAGE
+
+
+def _get_shadow_runner(shadow_id: str, config: dict, asset_name: str) -> ShadowModelRunner:
+    """Get or create a ShadowModelRunner for the given shadow_id and asset.
+
+    Supports ``{asset}`` placeholder in ``model_path`` (e.g.
+    ``models/canary/{asset}.json``) so a single shadow config can
+    reference per-asset model files.
+    """
+    key = (shadow_id, asset_name)
+    if key not in _SHADOW_REGISTRY:
+        raw_path = config.get("model_path", "")
+        resolved = raw_path.replace("{asset}", asset_name)
+        model_path = os.path.join(BASE, resolved)
+        _SHADOW_REGISTRY[key] = ShadowModelRunner(
+            shadow_id=shadow_id,
+            model_path=model_path,
+        )
+    return _SHADOW_REGISTRY[key]
+
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ET = pytz.timezone("US/Eastern")
@@ -749,6 +804,37 @@ class AssetInferencePipeline:
             wrapper_size=_shadow_size,
             original_size=float(decision.position_size),
         )
+
+        # ── Shadow model inference (candidate model comparison) ─────────
+        # Runs registered shadow models on the same feature vector for
+        # side-effect-free comparison. Results stored in
+        # data/live/shadow/{shadow_id}/{asset}_{date}.parquet.
+        try:
+            if not _SHADOW_CONFIGS:
+                _SHADOW_CONFIGS.update(_load_shadow_configs())
+            if _SHADOW_CONFIGS and feature_vector is not None:
+                _storage = _get_shadow_storage()
+                for _sid, _scfg in list(_SHADOW_CONFIGS.items()):
+                    _runner = _get_shadow_runner(_sid, _scfg, asset_name=asset.name)
+                    _shadow_res = _runner.run(feature_vector, feature_hash=feature_hash)
+                    if _shadow_res is not None:
+                        _storage.record(
+                            shadow_id=_sid,
+                            asset=asset.name,
+                            prod_signal=decision.signal,
+                            prod_confidence=decision.confidence,
+                            prod_p_long=float(proba[-1, 2]),
+                            shadow_signal=_shadow_res.signal,
+                            shadow_confidence=_shadow_res.confidence,
+                            shadow_p_long=_shadow_res.proba_long,
+                            feature_hash=feature_hash,
+                            model_hash=_shadow_res.model_hash,
+                            inference_time_ms=_shadow_res.inference_time_ms,
+                        )
+                        if _storage.should_flush(_sid):
+                            _storage.flush(_sid)
+        except (RuntimeError, ValueError, OSError) as _shadow_err:
+            logger.debug("%s: shadow model inference skipped: %s", asset.name, _shadow_err)
 
         _cfg = get_config()
         if _cfg.optimizations.get("async_diagnostics", True):

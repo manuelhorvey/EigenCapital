@@ -114,7 +114,7 @@ class PurgedWalkForwardFolds(BaseCrossValidator):
             test_start = i * fold_size
             test_end = min(test_start + fold_size, n)
 
-            train_end = test_start - self.gap
+            train_end = max(0, test_start - self.gap)  # BUG FIX: negative would leak via Python slicing
             idx = list(range(n))
 
             train_idx = idx[:train_end]  # expanding (all history)

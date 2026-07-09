@@ -352,10 +352,12 @@ class EngineStateService:
 
     def _compute_factor_exposures(self) -> dict:
         from shared.factor_model import (
-            FACTOR_GROUPS,
             DEFAULT_FACTOR_LIMITS,
+            FACTOR_GROUPS,
             compute_factor_exposures,
             exposure_violations,
+        )
+        from shared.factor_model import (
             summary as factor_summary,
         )
 

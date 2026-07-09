@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import hashlib
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 import xgboost as xgb
 
@@ -12,6 +15,7 @@ from labels.meta_labels import MetaLabelModel
 from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
+from shared.model_registry import save_model as registry_save_model
 from shared.volatility import VolatilityPrimitive
 
 logger = logging.getLogger("eigencapital.training_pipeline")
@@ -243,9 +247,79 @@ class AssetTrainingPipeline:
         asset._trained = True
         asset._enable_adaptive_macro()
         model.save_model(model_path)
+
+        # Save versioned copy via model registry
+        try:
+            with open(model_path, "rb") as _fm:
+                model_bytes = _fm.read()
+            model_hash = hashlib.sha256(model_bytes).hexdigest()[:16]
+            train_date = asset._current_window_train_end or end_date.strftime("%Y-%m-%d")
+            feature_hash = hashlib.sha256("|".join(sorted(asset._alpha_feature_cols or [])).encode()).hexdigest()[:16]
+            version_id = registry_save_model(
+                asset=asset.name,
+                model_bytes=model_bytes,
+                train_date=train_date,
+                train_end=end_date.strftime("%Y-%m-%d"),
+                feature_hash=feature_hash,
+                model_hash=model_hash,
+                n_features=len(asset._alpha_feature_cols or []),
+            )
+
+            # Run validation gates using validation-set returns as candidate_returns.
+            # If gates fail, the model is saved but not deployed — operator must review.
+            if use_validation and version_id:
+                try:
+                    from shared.validation_gates import run_validation_gates
+
+                    y_ev_binary = _prepare_binary_labels(y.loc[x_ev.index], asset.name)
+                    if len(y_ev_binary) >= 20 and y_ev_binary.nunique() >= 2:
+                        _gate_incumbent = None
+                        try:
+                            from shared.model_registry import get_current_version as _get_cur
+
+                            _gate_incumbent = _get_cur(asset.name)
+                        except Exception:
+                            pass
+                        _ev_r = model.predict(x_ev).astype(float)
+                        _ev_r = np.where(_ev_r == 0, -0.5, 1.0) * np.where(y_ev_binary.values == 0, -1, 1)
+                        _gate_results = run_validation_gates(
+                            asset=asset.name,
+                            incumbent=_gate_incumbent,
+                            candidate={
+                                "oos_sharpe": None,
+                                "oos_ic": None,
+                                "oos_max_dd": None,
+                                "ece": None,
+                            },
+                            candidate_returns=_ev_r,
+                        )
+                        _all_pass = all(r.passed for r in _gate_results)
+                        if _all_pass:
+                            logger.info(
+                                "%s: validation gates passed (%d/%d) — model promoted to production",
+                                asset.name,
+                                sum(1 for r in _gate_results if r.passed),
+                                len(_gate_results),
+                            )
+                        else:
+                            logger.warning(
+                                "%s: validation gates %d/%d passed — model saved as staging, not deployed",
+                                asset.name,
+                                sum(1 for r in _gate_results if r.passed),
+                                len(_gate_results),
+                            )
+                            for g in _gate_results:
+                                if not g.passed:
+                                    logger.warning("  FAIL [%s]: %s", g.name, g.message)
+                except Exception as _gate_err:
+                    logger.warning("%s: validation gates error (non-fatal): %s", asset.name, _gate_err)
+        except Exception as e:
+            logger.warning("%s: model registry save failed (non-fatal): %s", asset.name, e)
+            with open(model_path, "rb") as _fm:
+                model_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
+
+        # Legacy hash file (backward compat)
         hash_path = model_path.replace(".json", "_hash.txt")
-        with open(model_path, "rb") as _fm:
-            model_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
         with open(hash_path, "w") as _fh:
             _fh.write(model_hash)
         asset._model_hash = model_hash

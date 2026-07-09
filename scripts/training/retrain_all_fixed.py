@@ -11,12 +11,19 @@ Applies fixes:
   7. Ensemble dead config removed
   8. COT has_cot flag + zero-fill
 
+After production models are trained, also regenerates per-asset canary shadow
+models via ``train_canary.py`` so the shadow-comparison infrastructure stays
+in sync (unless ``--skip-canary`` is passed).
+
 Output: paper_trading/models/{name}_model.json per asset
         data/processed/training_report_{timestamp}.csv
+        paper_trading/models/canary/{name}.json (canary models)
 """
 
+import argparse
 import logging
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -39,7 +46,7 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 ET = pytz.timezone("US/Eastern")
 
 
-def main():
+def main(skip_canary: bool = False, canary_only: bool = False):
     from paper_trading.asset_engine_factory import build_asset_engine
     from paper_trading.config_manager import get_config
     from paper_trading.execution.bridge import ExecutionBridge
@@ -181,6 +188,50 @@ def main():
     print(f"\nReport saved: {report_path}")
     print("=" * 80)
 
+    # ── Canary model training (after production retrain) ─────────────────
+    if not skip_canary:
+        _run_canary_after_retrain()
+
+
+def _run_canary_after_retrain() -> None:
+    """Subprocess train_canary.py to regenerate shadow-comparison models."""
+    # train_canary.py lives in the same directory as retrain_all_fixed.py
+    canary_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "train_canary.py")
+    logger.info("=" * 60)
+    logger.info("Regenerating canary shadow models...")
+    logger.info("=" * 60)
+    t0 = time.perf_counter()
+    result = subprocess.run(
+        [sys.executable, canary_script],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(BASE),
+    )
+    elapsed = time.perf_counter() - t0
+    for line in result.stdout.splitlines():
+        if any(kw in line for kw in ("✓", "✗", "ERROR", "CANARY TRAINING REPORT", "OK:", "Failed:")):
+            logger.info("[CANARY] %s", line.strip())
+    logger.info("Canary models regenerated in %.1fs", elapsed)
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Retrain all production models + regenerate canary shadow models",
+    )
+    parser.add_argument(
+        "--skip-canary",
+        action="store_true",
+        help="Skip canary shadow model regeneration after production retrain",
+    )
+    parser.add_argument(
+        "--canary-only",
+        action="store_true",
+        help="Only regenerate canary shadow models (skip production retrain)",
+    )
+    args = parser.parse_args()
+
+    if args.canary_only:
+        logger.info("=== CANARY-ONLY MODE — regenerating shadow models ===")
+        _run_canary_after_retrain()
+    else:
+        main(skip_canary=args.skip_canary)

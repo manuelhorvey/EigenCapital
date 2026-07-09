@@ -18,13 +18,20 @@ from typing import Any
 
 import numpy as np
 
-from shared.calibration.calibrator import BetaCalibrator, BinnedCalibrator, CalibrationMethod, DirectionalCalibrator
+from shared.calibration.calibrator import (
+    BetaCalibrator,
+    BinnedCalibrator,
+    CalibrationMethod,
+    DirectionalCalibrator,
+    PlattCalibrator,
+)
 
 logger = logging.getLogger("eigencapital.calibration.registry")
 
 CALIBRATOR_TYPES = {
     "BinnedCalibrator": BinnedCalibrator,
     "BetaCalibrator": BetaCalibrator,
+    "PlattCalibrator": PlattCalibrator,
     "DirectionalCalibrator": DirectionalCalibrator,
 }
 

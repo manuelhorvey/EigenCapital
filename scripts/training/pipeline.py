@@ -20,6 +20,7 @@ Usage:
 Pipeline stages:
     1. Capture baseline — run walk-forward + PnL on current models (saved as "baseline" tag)
     2. Retrain — train all 22 models via retrain_all_fixed.py
+    2b. Canary — regenerate shadow-comparison models via train_canary.py
     3. Validate — run walk-forward + PnL on new models ("retrained" tag)
     4. Compare — diff metrics per asset against baseline
     5. Report — save comparison CSV + summary to data/processed/pipeline_report_*.json
@@ -189,6 +190,43 @@ def run_retrain() -> tuple[bool, str]:
         return fail_count == 0, report_path
 
     logger.error("Retrain produced no report CSV!")
+    logger.error("STDOUT (last 2000 chars):\n%s", result.stdout[-2000:])
+    logger.error("STDERR (last 2000 chars):\n%s", result.stderr[-2000:])
+    return False, ""
+
+
+# ── Stage 2b: Regenerate canary models ────────────────────────────────────
+
+
+def run_canary_train() -> tuple[bool, str]:
+    """Run train_canary.py to regenerate per-asset shadow models.
+
+    Returns (success, report_path) where report_path is the canary report CSV.
+    """
+    canary_script = PROJECT_ROOT / "scripts" / "training" / "train_canary.py"
+    cmd = [sys.executable, str(canary_script)]
+    logger.info("Running canary model training...")
+    t0 = time.perf_counter()
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
+    elapsed = time.perf_counter() - t0
+
+    for line in result.stdout.splitlines():
+        if any(kw in line for kw in ("✓", "✗", "ERROR", "CANARY TRAINING REPORT", "OK:", "Failed:")):
+            logger.info("[CANARY] %s", line.strip())
+
+    # Find latest canary report
+    report_pattern = str(DATA_DIR / "canary_report_*.csv")
+    reports = sorted(glob.glob(report_pattern))
+    report_path = reports[-1] if reports else ""
+
+    if report_path:
+        report_df = pd.read_csv(report_path)
+        ok_count = (report_df["status"] == "OK").sum()
+        fail_count = len(report_df) - ok_count
+        logger.info("Canary training complete: %d OK, %d failed in %.1fs", ok_count, fail_count, elapsed)
+        return fail_count == 0, report_path
+
+    logger.error("Canary training produced no report CSV!")
     logger.error("STDOUT (last 2000 chars):\n%s", result.stdout[-2000:])
     logger.error("STDERR (last 2000 chars):\n%s", result.stderr[-2000:])
     return False, ""
@@ -436,6 +474,7 @@ def run_pipeline(
     dry_run: bool = False,
     rollback: bool = False,
     skip_retrain: bool = False,
+    skip_canary: bool = False,
     tag_baseline: str = TAG_BASELINE,
     tag_retrained: str = TAG_RETRAINED,
 ) -> bool:
@@ -482,6 +521,23 @@ def run_pipeline(
             retrain_ok = True
     elif skip_retrain:
         logger.info("STAGE 2/5: Skipping retrain (--skip-retrain)")
+
+    # ── Stage 2b: Regenerate canary models (after production retrain) ──
+    if not skip_canary and not validate_only and retrain_ok:
+        logger.info("=" * 60)
+        logger.info("STAGE 2b: Regenerate canary shadow models")
+        logger.info("=" * 60)
+        if not dry_run:
+            canary_ok, canary_report_path = run_canary_train()
+            if canary_ok:
+                logger.info("Canary models regenerated: %s", canary_report_path)
+            else:
+                logger.warning("Canary training had failures — check report")
+        else:
+            logger.info("[DRY RUN] Would run train_canary.py")
+            canary_ok = True
+    elif skip_canary:
+        logger.info("STAGE 2b: Skipping canary training (--skip-canary)")
 
     # ── Stage 3: Validate ─────────────────────────────────────────────
     retrained_df: pd.DataFrame | None = None
@@ -553,6 +609,7 @@ def run_pipeline(
         print(f"  Baseline tag: {tag_baseline}")
         print(f"  Retrained tag: {tag_retrained}")
         print(f"  Retrain: {'YES' if not skip_retrain else 'SKIP'}")
+        print(f"  Canary: {'YES' if not skip_canary else 'SKIP'}")
         print(f"  Rollback on fail: {'YES' if rollback else 'NO'}")
         print(f"  Walk-forward + PnL: {'baseline + retrained' if not retrain_only else 'none'}")
         print("  Assets: all 22 configured")
@@ -572,14 +629,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Full pipeline
+  # Full pipeline (includes canary regeneration)
   PYTHONPATH=$PYTHONPATH:. python scripts/training/pipeline.py
 
-  # Retrain only (skip baseline/validation — fastest)
+  # Retrain only (skip validation gates — fastest)
   PYTHONPATH=$PYTHONPATH:. python scripts/training/pipeline.py --retrain-only
 
   # Validate only (compare existing walk-forward parquets)
   PYTHONPATH=$PYTHONPATH:. python scripts/training/pipeline.py --validate-only
+
+  # Skip canary regeneration
+  PYTHONPATH=$PYTHONPATH:. python scripts/training/pipeline.py --skip-canary
 
   # With rollback on gate failure
   PYTHONPATH=$PYTHONPATH:. python scripts/training/pipeline.py --rollback
@@ -615,6 +675,11 @@ Examples:
         help="Skip the retrain step (manual retrain already completed)",
     )
     parser.add_argument(
+        "--skip-canary",
+        action="store_true",
+        help="Skip canary shadow model regeneration after retrain",
+    )
+    parser.add_argument(
         "--baseline-tag",
         default=TAG_BASELINE,
         help=f"Tag for baseline walk-forward parquets (default: {TAG_BASELINE})",
@@ -644,6 +709,7 @@ Examples:
         dry_run=args.dry_run,
         rollback=args.rollback,
         skip_retrain=args.skip_retrain,
+        skip_canary=args.skip_canary,
         tag_baseline=args.baseline_tag,
         tag_retrained=args.retrained_tag,
     )

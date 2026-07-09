@@ -1,3 +1,5 @@
+regime_sizing: true
+
 shadow_sltp:
   enabled: true
   method: trailing

@@ -26,6 +26,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.special import expit
+from sklearn.linear_model import LogisticRegression
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -248,13 +249,102 @@ class BetaCalibrator(CalibrationMethod):
         return cal
 
 
+class PlattCalibrator(CalibrationMethod):
+    """Platt scaling on log-odds — 2-parameter logistic calibration.
+
+    Fits: ``logit(calibrated_p) = a * logit(p) + b``
+
+    This is equivalent to fitting a logistic regression on the log-odds
+    of the raw predictions. It is the recommended default for compressed
+    probability distributions because:
+
+    - Only 2 parameters (a, b) — robust to severe compression
+    - Operates on log-odds, the native space of XGBoost's binary:logistic
+    - Monotonic — preserves rank ordering of predictions
+    - Extrapolates reasonably outside the training range
+
+    Uses sklearn's LogisticRegression with C=1e6 (essentially no
+    regularization) on ``logit(p_long)`` as the single feature.
+
+    Reference: Platt (1999), "Probabilistic Outputs for Support Vector
+    Machines and Comparisons to Regularized Likelihood Methods."
+    """
+
+    def __init__(self):
+        self.a: float = 1.0
+        self.b: float = 0.0
+        self.fitted = False
+        self._model: LogisticRegression | None = None
+
+    def fit(self, p_long: np.ndarray, outcomes: np.ndarray) -> Self:
+        p_long = np.asarray(p_long, dtype=float).ravel()
+        outcomes = np.asarray(outcomes, dtype=int).ravel()
+
+        eps = 1e-6
+        p = np.clip(p_long, eps, 1.0 - eps)
+        logit_p = np.log(p / (1.0 - p))
+
+        X = logit_p.reshape(-1, 1)
+        self._model = LogisticRegression(C=1e6, solver="lbfgs", random_state=42)
+        self._model.fit(X, outcomes)
+        self.a = float(self._model.coef_[0, 0])
+        self.b = float(self._model.intercept_[0])
+        self.fitted = True
+        return self
+
+    def calibrate(self, p_long: np.ndarray) -> np.ndarray:
+        if not self.fitted or self._model is None:
+            logger.warning("PlattCalibrator not fitted — returning raw probabilities")
+            return np.asarray(p_long, dtype=float)
+
+        p_long = np.asarray(p_long, dtype=float).ravel()
+        eps = 1e-6
+        p = np.clip(p_long, eps, 1.0 - eps)
+        logit_p = np.log(p / (1.0 - p))
+        X = logit_p.reshape(-1, 1)
+        calibrated = self._model.predict_proba(X)[:, 1]
+        return np.clip(calibrated, 0.001, 0.999)
+
+    def save(self, path: str | Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "type": "PlattCalibrator",
+            "a": self.a,
+            "b": self.b,
+        }
+        with open(path, "w") as f:
+            json.dump(data, f)
+        logger.info("Saved PlattCalibrator to %s", path)
+
+    @classmethod
+    def load(cls, path: str | Path) -> Self:
+        path = Path(path)
+        with open(path) as f:
+            data = json.load(f)
+        cal = cls()
+        cal.a = float(data["a"])
+        cal.b = float(data["b"])
+        cal.fitted = True
+        # Reconstruct the sklearn model from saved params
+        cal._model = LogisticRegression(C=1e6, solver="lbfgs", random_state=42)
+        cal._model.coef_ = np.array([[cal.a]])
+        cal._model.intercept_ = np.array([cal.b])
+        cal._model.classes_ = np.array([0, 1])
+        return cal
+
+
 class DirectionalCalibrator(CalibrationMethod):
     """Direction-conditional probability calibrator.
 
-    Trains separate BinnedCalibrator instances on BUY-prediction and
+    Trains separate calibrator instances on BUY-prediction and
     SELL-prediction subsets of the training data.  At inference time,
     applies the direction-appropriate calibrator based on the raw
     prediction.
+
+    The base calibrator type can be selected via ``base_calibrator``:
+    - ``"binned"`` (default): uses BinnedCalibrator for each side
+    - ``"platt"``: uses PlattCalibrator (recommended for compressed distributions)
 
     This directly addresses the finding that "wrong BUY is more confident
     than correct BUY" (GBPJPY, USDJPY, NZDUSD) — by fitting the
@@ -272,11 +362,22 @@ class DirectionalCalibrator(CalibrationMethod):
     the 5.6x gap is the primary failure mode this calibrator targets.
     """
 
-    def __init__(self, n_bins: int = 10, min_samples_per_bin: int = 5):
+    BASE_CALIBRATORS = {
+        "binned": BinnedCalibrator,
+        "platt": PlattCalibrator,
+    }
+
+    def __init__(self, n_bins: int = 10, min_samples_per_bin: int = 5, base_calibrator: str = "binned"):
         self.n_bins = n_bins
         self.min_samples_per_bin = min_samples_per_bin
-        self.buy_calibrator = BinnedCalibrator(n_bins=n_bins, min_samples_per_bin=min_samples_per_bin)
-        self.sell_calibrator = BinnedCalibrator(n_bins=n_bins, min_samples_per_bin=min_samples_per_bin)
+        self.base_calibrator_type = base_calibrator
+        CalibratorCls = self.BASE_CALIBRATORS.get(base_calibrator, BinnedCalibrator)
+        if base_calibrator == "binned":
+            self.buy_calibrator = CalibratorCls(n_bins=n_bins, min_samples_per_bin=min_samples_per_bin)
+            self.sell_calibrator = CalibratorCls(n_bins=n_bins, min_samples_per_bin=min_samples_per_bin)
+        else:
+            self.buy_calibrator = CalibratorCls()
+            self.sell_calibrator = CalibratorCls()
         self._buy_fitted = False
         self._sell_fitted = False
         self.fitted = False
@@ -372,30 +473,48 @@ class DirectionalCalibrator(CalibrationMethod):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Serialize each sub-calibrator's internal state
-        buy_data = None
-        if self._buy_fitted and self.buy_calibrator.bin_centers is not None:
+        # Delegate serialization to sub-calibrators
+        buy_data: dict | None = None
+        if self._buy_fitted:
             buy_data = {
-                "bin_centers": self.buy_calibrator.bin_centers.tolist(),
+                "type": type(self.buy_calibrator).__name__,
+                "a": getattr(self.buy_calibrator, "a", None),
+                "b": getattr(self.buy_calibrator, "b", None),
+                "bin_centers": (
+                    self.buy_calibrator.bin_centers.tolist()
+                    if hasattr(self.buy_calibrator, "bin_centers") and self.buy_calibrator.bin_centers is not None
+                    else None
+                ),
                 "bin_empirical_probs": (
                     self.buy_calibrator.bin_empirical_probs.tolist()
-                    if self.buy_calibrator.bin_empirical_probs is not None
+                    if hasattr(self.buy_calibrator, "bin_empirical_probs")
+                    and self.buy_calibrator.bin_empirical_probs is not None
                     else None
                 ),
             }
-        sell_data = None
-        if self._sell_fitted and self.sell_calibrator.bin_centers is not None:
+
+        sell_data: dict | None = None
+        if self._sell_fitted:
             sell_data = {
-                "bin_centers": self.sell_calibrator.bin_centers.tolist(),
+                "type": type(self.sell_calibrator).__name__,
+                "a": getattr(self.sell_calibrator, "a", None),
+                "b": getattr(self.sell_calibrator, "b", None),
+                "bin_centers": (
+                    self.sell_calibrator.bin_centers.tolist()
+                    if hasattr(self.sell_calibrator, "bin_centers") and self.sell_calibrator.bin_centers is not None
+                    else None
+                ),
                 "bin_empirical_probs": (
                     self.sell_calibrator.bin_empirical_probs.tolist()
-                    if self.sell_calibrator.bin_empirical_probs is not None
+                    if hasattr(self.sell_calibrator, "bin_empirical_probs")
+                    and self.sell_calibrator.bin_empirical_probs is not None
                     else None
                 ),
             }
 
         data = {
             "type": "DirectionalCalibrator",
+            "base_calibrator_type": self.base_calibrator_type,
             "n_bins": self.n_bins,
             "min_samples_per_bin": self.min_samples_per_bin,
             "buy_fitted": self._buy_fitted,
@@ -414,25 +533,52 @@ class DirectionalCalibrator(CalibrationMethod):
             data = json.load(f)
         n_bins = int(data["n_bins"])
         min_samples = int(data.get("min_samples_per_bin", 5))
-        cal = cls(n_bins=n_bins, min_samples_per_bin=min_samples)
+        base_cal = data.get("base_calibrator_type", "binned")
+        cal = cls(n_bins=n_bins, min_samples_per_bin=min_samples, base_calibrator=base_cal)
 
         # Restore BUY calibrator
         buy_raw = data.get("buy_calibrator")
-        if buy_raw is not None and buy_raw.get("bin_centers"):
-            cal.buy_calibrator.bin_centers = np.array(buy_raw["bin_centers"], dtype=float)
-            if buy_raw.get("bin_empirical_probs"):
-                cal.buy_calibrator.bin_empirical_probs = np.array(buy_raw["bin_empirical_probs"], dtype=float)
-            cal.buy_calibrator.fitted = True
+        if buy_raw is not None:
             cal._buy_fitted = data.get("buy_fitted", False)
+            buy_type = buy_raw.get("type", "BinnedCalibrator")
+            if buy_type == "PlattCalibrator":
+                cal.buy_calibrator.a = float(buy_raw.get("a", 1.0))
+                cal.buy_calibrator.b = float(buy_raw.get("b", 0.0))
+                cal.buy_calibrator.fitted = cal._buy_fitted
+                if cal._buy_fitted:
+                    from sklearn.linear_model import LogisticRegression
+
+                    cal.buy_calibrator._model = LogisticRegression(C=1e6, solver="lbfgs", random_state=42)
+                    cal.buy_calibrator._model.coef_ = np.array([[cal.buy_calibrator.a]])
+                    cal.buy_calibrator._model.intercept_ = np.array([cal.buy_calibrator.b])
+                    cal.buy_calibrator._model.classes_ = np.array([0, 1])
+            elif buy_raw.get("bin_centers"):
+                cal.buy_calibrator.bin_centers = np.array(buy_raw["bin_centers"], dtype=float)
+                if buy_raw.get("bin_empirical_probs"):
+                    cal.buy_calibrator.bin_empirical_probs = np.array(buy_raw["bin_empirical_probs"], dtype=float)
+                cal.buy_calibrator.fitted = cal._buy_fitted
 
         # Restore SELL calibrator
         sell_raw = data.get("sell_calibrator")
-        if sell_raw is not None and sell_raw.get("bin_centers"):
-            cal.sell_calibrator.bin_centers = np.array(sell_raw["bin_centers"], dtype=float)
-            if sell_raw.get("bin_empirical_probs"):
-                cal.sell_calibrator.bin_empirical_probs = np.array(sell_raw["bin_empirical_probs"], dtype=float)
-            cal.sell_calibrator.fitted = True
+        if sell_raw is not None:
             cal._sell_fitted = data.get("sell_fitted", False)
+            sell_type = sell_raw.get("type", "BinnedCalibrator")
+            if sell_type == "PlattCalibrator":
+                cal.sell_calibrator.a = float(sell_raw.get("a", 1.0))
+                cal.sell_calibrator.b = float(sell_raw.get("b", 0.0))
+                cal.sell_calibrator.fitted = cal._sell_fitted
+                if cal._sell_fitted:
+                    from sklearn.linear_model import LogisticRegression
+
+                    cal.sell_calibrator._model = LogisticRegression(C=1e6, solver="lbfgs", random_state=42)
+                    cal.sell_calibrator._model.coef_ = np.array([[cal.sell_calibrator.a]])
+                    cal.sell_calibrator._model.intercept_ = np.array([cal.sell_calibrator.b])
+                    cal.sell_calibrator._model.classes_ = np.array([0, 1])
+            elif sell_raw.get("bin_centers"):
+                cal.sell_calibrator.bin_centers = np.array(sell_raw["bin_centers"], dtype=float)
+                if sell_raw.get("bin_empirical_probs"):
+                    cal.sell_calibrator.bin_empirical_probs = np.array(sell_raw["bin_empirical_probs"], dtype=float)
+                cal.sell_calibrator.fitted = cal._sell_fitted
 
         cal.fitted = cal._buy_fitted or cal._sell_fitted
         return cal

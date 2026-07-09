@@ -963,8 +963,39 @@ def apply_first_cycle_suppression(ctx: DecisionContext) -> None:
         logger.info("%s: first-cycle suppression — skipping decision", engine.name)
 
 
+def apply_weekend_gate(ctx: DecisionContext) -> None:
+    """Block new entries during weekends (Sat/Sun) for non-BTCUSD assets.
+
+    Weekend Sharpe = 0.08 (essentially noise) across all assets except BTCUSD
+    which trades 24/7. Blocking weekend entries eliminates this noise without
+    affecting crypto positions.
+    """
+    if ctx.new_side is None:
+        return
+
+    engine = ctx.engine
+    now = utc_now()
+    if now.weekday() < 5:
+        return
+
+    asset_name = getattr(engine, "name", "")
+    if "BTC" in asset_name.upper():
+        return
+
+    logger.info(
+        "%s: WEEKEND GATE — blocking %s entry on %s (weekend Sharpe=0.08)",
+        asset_name,
+        ctx.new_side,
+        now.strftime("%a %Y-%m-%d %H:%M UTC"),
+    )
+    ctx.new_side = None
+    ctx.reason = "weekend_gate"
+    ctx.abort = True
+
+
 DEFAULT_STAGES: list[StageFn] = [
     apply_first_cycle_suppression,
+    apply_weekend_gate,
     apply_bar_jump_suppression,
     store_prediction_metadata,
     update_mae_mfe,

@@ -331,7 +331,7 @@ def build_alpha_features(
     vix: pd.Series | None = None,
     spx: pd.Series | None = None,
     commodities: pd.DataFrame | None = None,
-    cot_data: pd.DataFrame | None = None,
+    cot_data: pd.DataFrame | None = None,  # DEPRECATED 2026-07-09 — COT features had zero gain
     shared_features: dict[str, pd.Series] | None = None,
     ohlcv: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
@@ -349,6 +349,10 @@ def build_alpha_features(
     'close', 'volume' columns), additional trend-exhaustion features
     are computed: MACD histogram, Stochastic %K/%D, BB %B, ADX slope,
     and RSI divergence.
+
+    Note: cot_data parameter is deprecated (2026-07-09). COT features
+    had zero gain across all 22 assets and are no longer populated
+    from COT data. The parameter is kept for backward compatibility.
 
     Returns a DataFrame with no NaN rows (ffill then dropna at end).
     """
@@ -375,9 +379,9 @@ def build_alpha_features(
         features[f"{asset_upper}_vol_ratio"] = vol_regime_ratio(close)
         features[f"{asset_upper}_dow_signal"] = day_of_week_signal(close)
 
-        # COT coverage flag — 1 if asset has CFTC COT data, 0 otherwise
-        has_cot = int(asset_upper in _COT_COVERED_NAMES)
-        features[f"{asset_upper}_has_cot"] = has_cot
+        # has_cot flag — zero gain across all 22 assets, kept as 0.0 for
+        # backward compatibility with existing trained model feature columns.
+        features[f"{asset_upper}_has_cot"] = 0.0
 
         # ── Trend-exhaustion indicators (Tier 1) ─────────────────────
         # These require OHLCV data.  If ohlcv is provided, use its
@@ -422,41 +426,19 @@ def build_alpha_features(
             for comm in commodities.columns:
                 features[f"{comm.upper()}_mom_21d"] = commodity_momentum(commodities[comm]).reindex(features.index)
 
-    # Initialize per-asset COT features for directly covered assets.
+    # COT features removed 2026-07-09 — zero gain across all 22 assets.
+    # Kept as constant 0.0 columns for backward compatibility with
+    # existing trained models that expect these columns.
     for asset_upper in (c.upper() for c in prices.columns):
-        if asset_upper in _COT_COVERED_NAMES:
-            features[f"{asset_upper}_cot_z"] = 0.0
-            features[f"{asset_upper}_cot_change_4w"] = 0.0
-
-    # Add COT features filtered by factor group relevance.
-    # COT is published Friday 3:30pm ET for Tuesday snapshot — 3-day publication lag.
-    cot_lag_days = 3
-    if cot_data is not None and not cot_data.empty:
-        # Determine which COT pairs are relevant to the current portfolio.
-        # Only include COT pairs whose factor groups overlap with at least
-        # one asset in the portfolio.
-        portfolio_factor_groups: set[str] = set()
-        for asset_upper in (c.upper() for c in prices.columns):
-            portfolio_factor_groups.update(_ASSET_FACTOR_GROUPS.get(asset_upper, set()))
-
-        relevant_cot_pairs: set[str] = set()
-        for pair_raw, pair_groups in _COT_PAIR_FACTOR_GROUPS.items():
-            if pair_groups & portfolio_factor_groups:
-                relevant_cot_pairs.add(pair_raw)
-
-        for col in cot_data.columns:
-            # Parse the pair symbol from the column name (e.g., "EURUSD_cot_z" -> "EURUSD")
-            pair_sym = col.replace("_cot_z", "").replace("_cot_change_4w", "")
-            if pair_sym in relevant_cot_pairs:
-                cot_lagged = cot_data[col].shift(cot_lag_days)
-                features[col] = cot_lagged.reindex(features.index, method="ffill")
+        features[f"{asset_upper}_cot_z"] = 0.0
+        features[f"{asset_upper}_cot_change_4w"] = 0.0
 
     # Final forward-fill and dropna to handle indicator warmup.
     # We also fill any remaining NaNs in cross-asset/COT features with 0.0
     # to prevent an entirely NaN column from discarding all rows.
     features = features.ffill()
     for col in features.columns:
-        if "cot" in col or col in ["dxy_mom_21d", "vix_mom_5d", "spx_mom_5d"] or "WTI_mom" in col:
+        if col in ["dxy_mom_21d", "vix_mom_5d", "spx_mom_5d"] or "WTI_mom" in col:
             features[col] = features[col].fillna(0.0)
 
     return features.dropna()

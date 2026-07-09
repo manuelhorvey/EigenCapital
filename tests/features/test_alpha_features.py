@@ -258,6 +258,8 @@ def test_build_alpha_features_expected_columns(sample_prices, sample_rate_diffs,
         "AUDJPY_vol_ratio",
         "AUDJPY_dow_signal",
         "AUDJPY_has_cot",
+        "AUDJPY_cot_z",
+        "AUDJPY_cot_change_4w",
         "EURCAD_carry_vol_adj",
         "EURCAD_mom_21d",
         "EURCAD_mom_63d",
@@ -267,6 +269,8 @@ def test_build_alpha_features_expected_columns(sample_prices, sample_rate_diffs,
         "EURCAD_vol_ratio",
         "EURCAD_dow_signal",
         "EURCAD_has_cot",
+        "EURCAD_cot_z",
+        "EURCAD_cot_change_4w",
         "dxy_mom_21d",
         "vix_mom_5d",
         "spx_mom_5d",
@@ -367,66 +371,51 @@ def test_build_alpha_features_missing_rate_diff_defaults_to_zero(
     assert carry_col.dropna().abs().max() < 1e-10
 
 
-def test_build_alpha_features_with_cot_data(
+def test_build_alpha_features_cot_deprecated(
     sample_prices, sample_rate_diffs, sample_macro,
 ):
-    """COT columns from relevant factor groups appear when cot_data is provided."""
-    idx = sample_prices.index
-    # Use COT pairs whose factor groups overlap with the portfolio (AUDJPY ↔ AUD/JPY, EURCAD ↔ EUR/CAD).
-    # EURUSD overlaps with EUR, AUDUSD overlaps with AUD.
-    cot_data = pd.DataFrame({
-        "EURUSD_cot_z": np.random.default_rng(42).normal(0, 1, len(idx)),
-        "EURUSD_cot_change_4w": np.random.default_rng(43).normal(0, 0.5, len(idx)),
-        "AUDUSD_cot_z": np.random.default_rng(44).normal(0, 1, len(idx)),
-        "AUDUSD_cot_change_4w": np.random.default_rng(45).normal(0, 0.5, len(idx)),
-    }, index=idx)
+    """COT features are deprecated — all COT columns are constant 0.0."""
     result = build_alpha_features(
         sample_prices, sample_rate_diffs,
         dxy=sample_macro["dxy"], vix=sample_macro["vix"],
         spx=sample_macro["spx"], commodities=sample_macro["comms"],
-        cot_data=cot_data,
     )
-    assert "EURUSD_cot_z" in result.columns
-    assert "EURUSD_cot_change_4w" in result.columns
-    assert "AUDUSD_cot_z" in result.columns
-    assert "AUDUSD_cot_change_4w" in result.columns
+    # Per-asset COT columns are always 0.0 (backward compat with trained models)
+    assert "AUDJPY_cot_z" in result.columns
+    assert "EURCAD_cot_z" in result.columns
+    assert (result["AUDJPY_cot_z"] == 0.0).all()
+    # External COT pair columns are no longer injected
+    assert "EURUSD_cot_z" not in result.columns
 
 
-def test_build_alpha_features_cot_initialized_zero_when_missing(
+def test_build_alpha_features_cot_zero_when_missing(
     sample_prices, sample_rate_diffs, sample_macro,
 ):
-    """When cot_data is None, COT columns are still initialized to 0.0.
-    Uses AUDUSD which IS in FX_COT_CONTRACTS.
-    """
-    prices = pd.DataFrame({"AUDUSD": sample_prices["AUDJPY"].values}, index=sample_prices.index)
-    rate = pd.DataFrame({"AUDUSD": sample_rate_diffs["AUDJPY"].values}, index=sample_prices.index)
-    result = build_alpha_features(
-        prices, rate,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
-        cot_data=None,
-    )
-    assert "AUDUSD_cot_z" in result.columns
-    assert (result["AUDUSD_cot_z"] == 0.0).all()
-
-
-def test_build_alpha_features_cot_three_day_lag(
-    sample_prices, sample_rate_diffs, sample_macro,
-):
-    """COT features are shifted by 3 days (publication lag)."""
-    idx = sample_prices.index
-    values = np.random.default_rng(42).normal(0, 1, len(idx))
-    cot_data = pd.DataFrame({"EURUSD_cot_z": values}, index=idx)
+    """COT columns are always 0.0 for all assets."""
     result = build_alpha_features(
         sample_prices, sample_rate_diffs,
         dxy=sample_macro["dxy"], vix=sample_macro["vix"],
         spx=sample_macro["spx"], commodities=sample_macro["comms"],
-        cot_data=cot_data,
     )
-    # The lag means the first 3 rows of cot_z should be NaN (filled by ffill)
-    # and the last 3 rows of cot_data should be absent from the result
-    # Just check the column exists and has correct values
-    assert "EURUSD_cot_z" in result.columns
+    assert "AUDJPY_cot_z" in result.columns
+    assert (result["AUDJPY_cot_z"] == 0.0).all()
+    assert "EURCAD_cot_z" in result.columns
+    assert (result["EURCAD_cot_z"] == 0.0).all()
+
+
+def test_build_alpha_features_cot_no_lag_applied(
+    sample_prices, sample_rate_diffs, sample_macro,
+):
+    """COT data is no longer injected — all COT columns are per-asset 0.0."""
+    result = build_alpha_features(
+        sample_prices, sample_rate_diffs,
+        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
+        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+    )
+    assert "AUDJPY_cot_z" in result.columns
+    assert (result["AUDJPY_cot_z"] == 0.0).all()
+    assert "EURCAD_cot_z" in result.columns
+    assert (result["EURCAD_cot_z"] == 0.0).all()
 
 
 # ── cot_net_positioning ─────────────────────────────────────────────────────

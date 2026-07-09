@@ -9,7 +9,7 @@ sqlite_state: true
 vectorized_labels: true
 async_diagnostics: true
 regime_conviction_flip_gate:
-  enabled: false
+  enabled: true
   regime_margin_threshold: 0.35
   confidence_threshold: 0.5
   min_bars_in_regime: 3

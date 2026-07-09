@@ -25,6 +25,8 @@ threadpoolctl==3.6.0
 tzdata==2026.2
 xgboost==3.2.0
 yfinance==1.2.0
+hypothesis==6.152.9
 pytest==8.3.5
 pytest-cov==6.1.1
 ruff==0.15.13
+sortedcontainers==2.4.0

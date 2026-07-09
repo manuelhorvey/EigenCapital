@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Canonical portfolio weight computation — SINGLE source of truth.
 
 Every weight computation in the system (backtest, live rebalance,
@@ -18,8 +20,6 @@ Versioning:
 import logging
 
 logger = logging.getLogger(__name__)
-
-from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass

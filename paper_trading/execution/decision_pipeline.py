@@ -516,6 +516,9 @@ def poll_deferred_entries(ctx: DecisionContext) -> None:
 def update_prob_history(ctx: DecisionContext) -> None:
     engine = ctx.engine
     d = ctx.decision
+    # Use live price (updated every cycle from MT5 / 5d fallback) so the
+    # sparkline shows intraday price action instead of a flat daily-close line.
+    live_price = getattr(engine, "current_price", None)
     engine.prob_history.append(
         {
             "date": d.timestamp,
@@ -523,7 +526,7 @@ def update_prob_history(ctx: DecisionContext) -> None:
             "prob_short": round(d.prob_short * 100, 2),
             "signal": d.signal,
             "confidence": d.confidence,
-            "close_price": d.close_price,
+            "close_price": live_price if live_price is not None else d.close_price,
         }
     )
     MAX_PROB_HISTORY = 1000  # noqa: N806

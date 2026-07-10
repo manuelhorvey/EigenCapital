@@ -475,6 +475,27 @@ class PaperTradingEngine:
                     exc_info=True,
                 )
 
+        # ── Automatic retraining trigger (every 100 cycles ≈ 50min) ─────
+        if not hasattr(self, "_retrain_cycle_counter"):
+            self._retrain_cycle_counter = 0
+        self._retrain_cycle_counter += 1
+        if self._retrain_cycle_counter % 100 == 0:
+            _rt_min_stale_days = 90
+            for _rt_name, _rt_asset in list(self.assets.items()):
+                _rt_mp = getattr(_rt_asset, "model_path", None)
+                if _rt_mp and os.path.exists(_rt_mp):
+                    try:
+                        _rt_mtime = os.path.getmtime(_rt_mp)
+                        _rt_age_days = (time.time() - _rt_mtime) / 86400
+                        if _rt_age_days > _rt_min_stale_days:
+                            logger.info(
+                                "retrain: %s model is %.0f days old (threshold=%d) — retraining",
+                                _rt_name, _rt_age_days, _rt_min_stale_days,
+                            )
+                            _rt_asset.train(force=True)
+                    except OSError:
+                        pass
+
         # ── Fault-isolated asset execution via orchestrator ──────────
         # The orchestrator owns Phases 1-4 (refresh, signal, validity,
         # portfolio health, persist).  It is the sole source of truth

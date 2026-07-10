@@ -4,6 +4,8 @@ sl_mult: 0.52
 tp_mult: 2.01
 spread_tier: fx_cross
 max_depth: 2
+adaptive_exit:
+  enabled: false
 regime_geometry:
   GREEN:
     sl_mult: 1.0

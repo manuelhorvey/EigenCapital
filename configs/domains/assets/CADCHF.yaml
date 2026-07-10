@@ -3,6 +3,8 @@ allocation: 0.05
 sl_mult: 1.0
 tp_mult: 4.0
 max_depth: 2
+adaptive_exit:
+  enabled: false
 regime_geometry:
   GREEN:
     sl_mult: 1.5

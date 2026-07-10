@@ -118,9 +118,10 @@ def test_per_asset_adaptive_exit_overrides_apply():
 
 
 def test_per_asset_adaptive_exit_defaults_match_when_absent():
-    """USDCAD adaptive_exit block absent -> default 0.8 trail_activation."""
+    """USDCAD has adaptive_exit set to false — override applied."""
     raw = yaml.safe_load((ASSETS_DIR / "USDCAD.yaml").read_text())
-    assert "adaptive_exit" not in raw, "USDCAD should inherit adaptive_exit from defaults"
+    ae = raw.get("adaptive_exit", {})
+    assert ae.get("enabled") is False, "USDCAD adaptive_exit should be disabled"
 
 
 def test_no_per_asset_file_adapts_to_defaults():

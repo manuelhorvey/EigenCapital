@@ -4,6 +4,8 @@ sl_mult: 0.5
 tp_mult: 4.0
 spread_tier: indices
 max_depth: 3
+adaptive_exit:
+  enabled: false
 regime_geometry:
   GREEN:
     sl_mult: 1.0

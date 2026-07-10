@@ -334,6 +334,23 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
   degraded PnL (ES: -0.0232R from additional trades). ES had 3 trades in 8 years and was
   SELL_ONLY on a mildly BUY-biased model — the threshold couldn't fix this alone.
 
+## Per-Asset Adaptive Exit Gate (ADDED 2026-07-10)
+
+- **Disabled for 5 assets** where the running-peak trail (33% retrace, production activation thresholds) degrades fixed TP/SL performance by ≥25R: USDCHF (−104R), ^DJI (−81R), CADCHF (−57R), USDCAD (−41R), AUDJPY (−27R). These are high-TP-multiple winners (3.0–4.0R) where the trail clips profits before TP is hit. Config: `adaptive_exit.enabled: false` in each asset's YAML.
+- **Re-enabled for 17 assets** where the trail was neutral or beneficial (GBPAUD +91R, EURNZD +89R, GBPCHF +33R, NZDUSD +25R, etc.). The net effect on the 22-asset portfolio: total R improved from +521 (Δ=−101 vs fixed) to +830 (Δ=+209 vs fixed) in the Monte Carlo simulation. CAGR improved from 8.33% to 12.77%.
+- **Selection heuristic**: assets where `trail_R < fixed_R` by ≥25R get disabled; all others keep the trail. The 6 assets with aggressive `trail_activation_r: 0.5` (NZDUSD, GBPCHF, GBPAUD, EURNZD, EURAUD, AUDUSD) were evaluated individually — only AUDUSD was borderline (−4.67R degradation, kept enabled).
+- **Validation**: The per-asset gate produces +830.41R (vs +621.85R fixed, +521.10R universal trail). Bootstrap p5/p95 improves from $565/$612 to $610/$667.
+
+## Drawdown Prevention Features (ADDED 2026-07-10)
+
+*Root cause analysis* of the 2026 Jan-Feb drawdown (worst 2-month period, −164R, 18.2% WR) found it was **concentrated in 5 assets** (GBPAUD −43R, AUDUSD −42R, EURCHF −37R, NZDUSD −24R, GC −22R) where the model made high-confidence wrong-direction bets for 2 months straight. The market experienced a regime shift (commodity currencies up, USD down, CHF safe-haven bid) but the model was never retrained (`retrain_freq: annual` is descriptive only — no scheduler existed).
+
+Three features added to prevent recurrence:
+
+- **Automatic retraining trigger** (`paper_trading/engine.py`): Every 100 cycles (~50min), checks each asset's model file age. If >90 days since last retrain, calls `train(force=True)`. The `retrain_freq` config is now operational instead of descriptive.
+- **Regime transition gate** (`decision_pipeline.py:apply_regime_transition_gate`): Detects bull↔bear transitions (close crossing MA50). After a transition, suppresses entries for 30 days — the window where the model's pre-transition directional bias is most wrong. Added to `DEFAULT_STAGES` after `apply_session_gate`.
+- **Calibration drift gate** (`decision_pipeline.py:apply_calibration_drift_gate`): Tracks a rolling 30-trade window of (confidence, outcome) per asset. If mean confidence exceeds mean win rate by >20pp, suppresses entries. Catches the "confidently wrong" pattern (e.g., p_long=0.01 with 0% WR). Outcome recording wired into `manage_position` flip path. Added to `DEFAULT_STAGES` after `apply_confidence_gate`.
+
 ## Known Issues
 
 - **GBPNZD (REMOVED 2026-06-20)**: tp/sl ratio 0.33 required 75% breakeven WR, model achieved 72.3% — net-negative. Removed from trading.

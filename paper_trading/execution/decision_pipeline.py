@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -104,6 +105,30 @@ class DecisionContext:
 # ── Stage type ──────────────────────────────────────────────────────────
 
 StageFn = Callable[[DecisionContext], None]
+
+
+# ── Calibration drift tracker (module-level) ─────────────────────────────
+# Tracks recent trade outcomes per asset to detect overconfidence patterns.
+# The "confidently wrong" pattern (confidence >> actual win rate) is a leading
+# indicator of model decay — as seen in the Jan-Feb 2026 drawdown.
+
+DRIFT_WINDOW = 30
+DRIFT_GAP_THRESHOLD = 0.20
+
+_outcome_records: dict[str, deque] = {}
+
+def _record_drift_outcome(asset: str, confidence: float, was_win: bool) -> None:
+    if asset not in _outcome_records:
+        _outcome_records[asset] = deque(maxlen=DRIFT_WINDOW)
+    _outcome_records[asset].append((confidence, was_win))
+
+def _get_drift_gap(asset: str) -> float | None:
+    records = _outcome_records.get(asset)
+    if records is None or len(records) < 10:
+        return None
+    mean_conf = sum(r[0] for r in records) / len(records)
+    mean_wr = sum(1 for r in records if r[1]) / len(records)
+    return mean_conf - mean_wr
 
 
 # ── Individual stages ───────────────────────────────────────────────────
@@ -387,7 +412,11 @@ def manage_position(ctx: DecisionContext) -> None:
                 ctx.new_side,
                 stack_layer_count,
             )
+        # Record flip outcome for drift tracking
+        pre_close_pnl = engine.pos_mgr.position_pnl(d.close_price) if has_pos and d.close_price > 0 else 0.0
         ok = engine._close_all_positions(d.close_price, d.timestamp, "FLIP")
+        if ok:
+            _record_drift_outcome(engine.name, getattr(engine, "_last_confidence", 0.5), pre_close_pnl >= 0)
         if not ok:
             ctx.new_side = None
             return
@@ -868,6 +897,80 @@ def apply_session_gate(ctx: DecisionContext) -> None:
     ctx.new_side = None
 
 
+# ── Regime transition gate ────────────────────────────────────────────────
+
+REGIME_TRANSITION_SUPPRESS_DAYS = 30
+
+
+def apply_regime_transition_gate(ctx: DecisionContext) -> None:
+    """Suppress entries for 30 days after a bull↔bear regime transition.
+
+    Detects when close crosses the 50-period MA. During regime transitions,
+    the model's learned directional bias is unreliable — the Jan-Feb 2026
+    drawdown was caused by the model betting confidently in the pre-transition
+    direction for 2 months after the transition had already occurred.
+    """
+    if ctx.new_side is None:
+        return
+    engine = ctx.engine
+    try:
+        close = ctx.df["close"].dropna()
+        if len(close) < 60:
+            return
+        ma50 = close.rolling(50).mean()
+        current_close = close.iloc[-1]
+        current_ma = ma50.iloc[-1]
+        if pd.isna(current_ma):
+            return
+        new_trend = "bull" if current_close > current_ma else "bear"
+        last_trend = getattr(engine, "_regime_last_trend", None)
+        transition_date = getattr(engine, "_regime_transition_date", None)
+        if last_trend is not None and new_trend != last_trend:
+            now = utc_now()
+            engine._regime_transition_date = now
+            engine._regime_last_trend = new_trend
+            logger.info(
+                "%s: regime transition %s→%s — suppressing entries for %d days",
+                engine.name, last_trend, new_trend, REGIME_TRANSITION_SUPPRESS_DAYS,
+            )
+        else:
+            engine._regime_last_trend = new_trend
+        if transition_date is not None:
+            days_since = (utc_now() - transition_date).total_seconds() / 86400
+            if days_since < REGIME_TRANSITION_SUPPRESS_DAYS:
+                logger.info(
+                    "%s: regime transition gate — blocking entry (%.0f/%.0f days since transition)",
+                    engine.name, days_since, float(REGIME_TRANSITION_SUPPRESS_DAYS),
+                )
+                ctx.new_side = None
+    except Exception:
+        logger.debug("%s: regime transition check failed", engine.name, exc_info=True)
+
+
+# ── Calibration drift gate ────────────────────────────────────────────────
+
+
+def apply_calibration_drift_gate(ctx: DecisionContext) -> None:
+    """Suppress entries when the model is overconfident.
+
+    Compares the rolling mean confidence to the rolling win rate over the
+    last 30 trades. A gap >20pp (e.g., 92% confidence with 60% actual WR)
+    indicates the model has decayed — it's confidently wrong, the same
+    pattern that caused the Jan-Feb 2026 drawdown.
+    """
+    if ctx.new_side is None:
+        return
+    engine = ctx.engine
+    gap = _get_drift_gap(engine.name)
+    if gap is not None and gap > DRIFT_GAP_THRESHOLD:
+        logger.info(
+            "%s: calibration drift gate — blocking entry (gap=%.0fpp, threshold=%.0fpp, n=%d)",
+            engine.name, gap * 100, DRIFT_GAP_THRESHOLD * 100,
+            len(_outcome_records.get(engine.name, [])),
+        )
+        ctx.new_side = None
+
+
 # ── ADX entry gate stage ─────────────────────────────────────────────────
 
 ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18
@@ -1008,8 +1111,10 @@ DEFAULT_STAGES: list[StageFn] = [
     apply_sell_only_filter,
     apply_spread_gate,
     apply_session_gate,
+    apply_regime_transition_gate,
     apply_adx_entry_gate,
     apply_confidence_gate,
+    apply_calibration_drift_gate,
     apply_signal_hysteresis,
     apply_meta_label_advisory,
     update_regime_bar_counter,

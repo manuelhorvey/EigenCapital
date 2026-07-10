@@ -1,11 +1,10 @@
 .PHONY: install install-dev test lint run retrain retrain-schedule deps snapshot clean
 
 install:
-	pip install -r requirements.txt
+	uv pip sync requirements.lock
 
 install-dev:
-	pip install -r requirements.txt
-	pip install -r requirements-dev.in
+	uv pip sync requirements.lock requirements-dev.lock
 
 test:
 	python -m pytest tests/ -v $(ARGS)
@@ -112,7 +111,8 @@ all-timers-uninstall: retrain-uninstall health-check-uninstall
 	@echo "All timers removed."
 
 deps:
-	pip-compile requirements.in --output-file requirements.lock
+	uv pip compile requirements.in --output-file requirements.lock
+	uv pip compile requirements-dev.in --output-file requirements-dev.lock
 
 snapshot:
 	python scripts/generate_snapshot.py

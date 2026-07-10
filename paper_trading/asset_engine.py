@@ -133,6 +133,7 @@ class AssetEngine:
         self._calibration_registry: CalibrationRegistry | None = None
         self._load_calibration_registry()
         w = WorkingState()
+        w._cycle_counter = 2
         w._last_signal_flip_cycle = -self.config.get("min_flip_interval_bars", 3) * 2
         w._min_flip_interval_bars = self.config.get("min_flip_interval_bars", 3)
         w._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)

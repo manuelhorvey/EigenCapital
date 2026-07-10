@@ -57,20 +57,31 @@ def compute_liquidity_features(df: pd.DataFrame, window: int = 21, min_samples: 
 
     vol_mean = volume.rolling(window, min_periods=10).mean()
     vol_std = volume.rolling(window, min_periods=10).std().replace(0, 1.0)
-    volume_z = ((volume - vol_mean) / vol_std).iloc[-1]
+
+    # Detect incomplete bar: if the last bar's volume is < 20% of its 21-day
+    # rolling mean, it's likely a partially-filled intraday bar that would
+    # produce a spurious Amihud spike and halt everything. Use the penultimate
+    # bar for the "current" z-score reading instead.
+    last_vol = volume.iloc[-1]
+    last_vol_mean = vol_mean.iloc[-1]
+    incomplete_bar = last_vol_mean > 0 and last_vol / last_vol_mean < 0.20
+    idx = -2 if incomplete_bar else -1
+
+    volume_z = ((volume - vol_mean) / vol_std).iloc[idx]
     if np.isnan(volume_z) or np.isinf(volume_z):
         volume_z = 0.0
 
     amihud_mean = amihud.rolling(window, min_periods=10).mean()
     amihud_std = amihud.rolling(window, min_periods=10).std().replace(0, 1e-12)
-    amihud_z = ((amihud - amihud_mean) / amihud_std).iloc[-1]
+    amihud_z = ((amihud - amihud_mean) / amihud_std).iloc[idx]
     if np.isnan(amihud_z) or np.isinf(amihud_z):
         amihud_z = 0.0
 
+    # Spread estimate also uses the same bar index for consistency
     dp = np.log(high / low).replace([np.inf, -np.inf], 0.0).fillna(0.0)
     dp_sq = dp**2
 
-    alpha = dp_sq.rolling(2).sum().iloc[-1] if len(dp_sq) >= 2 else 0.0
+    alpha = dp_sq.rolling(2).sum().iloc[idx] if len(dp_sq) >= 2 else 0.0
     spread = 2 * (np.exp(np.clip(alpha, -5, 5)) - 1) if alpha < 0 else 0.0
     spread_bps = float(spread * 10_000) if not np.isnan(spread) else 0.0
 

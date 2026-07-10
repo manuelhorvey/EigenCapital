@@ -81,6 +81,9 @@ class ShadowModelRunner:
             return False
         try:
             self._model = xgb.XGBClassifier()
+            # sklearn 1.9 removed _estimator_type from ClassifierMixin, but
+            # xgboost.load_model() still checks it via _get_type().
+            self._model._estimator_type = "classifier"
             self._model.load_model(str(self.model_path))
             with open(self.model_path, "rb") as f:
                 self._model_hash = hashlib.sha256(f.read()).hexdigest()[:16]

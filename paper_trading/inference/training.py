@@ -46,6 +46,9 @@ class AssetTrainingPipeline:
 
         if os.path.exists(model_path) and not force:
             asset.model = xgb.XGBClassifier()
+            # sklearn 1.9 removed _estimator_type from ClassifierMixin, but
+            # xgboost.load_model() still checks it via _get_type().
+            asset.model._estimator_type = "classifier"
             asset.model.load_model(model_path)
             asset._trained = True
             asset._enable_adaptive_macro()

@@ -179,6 +179,9 @@ class RegimeConditionalModel:
         feat_path = f"{base}_features.txt"
         if os.path.exists(json_path):
             self._model = xgb.XGBClassifier()
+            # sklearn 1.9 removed _estimator_type from ClassifierMixin, but
+            # xgboost.load_model() still checks it via _get_type().
+            self._model._estimator_type = "classifier"
             self._model.load_model(json_path)
             self._trained = True
             # Restore feature names

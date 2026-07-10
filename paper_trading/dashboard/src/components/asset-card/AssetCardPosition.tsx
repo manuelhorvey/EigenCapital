@@ -25,7 +25,7 @@ const AssetCardPosition = React.memo(({ info }: Props) => {
     info.positionSide != null
 
   return (
-    <div className="pt-2 border-t border-default/30 space-y-1.5">
+    <div className="pt-2 border-t border-default/30 space-y-1.5 bg-surface/40 rounded-b-lg -mx-5 -mb-4 px-5 pb-4">
       <div className="flex items-center justify-between text-xs text-tertiary">
         <span className="flex items-center gap-1.5">
           <span

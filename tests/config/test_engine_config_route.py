@@ -87,7 +87,7 @@ def test_load_config_uses_sell_only_assets():
 
     cm.reset_config()
     cfg = cm.load_config()
-    assert cfg.sell_only_assets == frozenset({"CADCHF", "NZDCHF", "EURAUD"})
+    assert cfg.sell_only_assets == frozenset({"CADCHF", "EURAUD", "EURCHF", "GBPCHF", "GBPJPY", "NZDCHF"})
 
 
 def test_load_config_assets_match_domain_tree():

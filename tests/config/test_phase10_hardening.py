@@ -237,4 +237,4 @@ def test_full_validator_passes_post_phase10():
     assert result.returncode == 0, result.stdout + result.stderr
     assert "PASSED" in result.stdout
     assert "22 assets" in result.stdout
-    assert "3 sell-only" in result.stdout
+    assert "6 sell-only" in result.stdout

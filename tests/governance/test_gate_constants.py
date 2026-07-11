@@ -15,8 +15,11 @@ from paper_trading.execution.gate_constants import (
 _KNOWN_SELL_ONLY: Final[frozenset[str]] = frozenset(
     {
         "CADCHF",
-        "NZDCHF",
         "EURAUD",
+        "EURCHF",
+        "GBPCHF",
+        "GBPJPY",
+        "NZDCHF",
     }
 )
 
@@ -30,7 +33,7 @@ def test_get_sell_only_assets_returns_default_set() -> None:
     assets = get_sell_only_assets()
     assert isinstance(assets, frozenset)
     assert assets == _KNOWN_SELL_ONLY
-    assert len(assets) == 3
+    assert len(assets) == 6
     cm.reset_config()
 
 
@@ -43,7 +46,7 @@ def test_get_sell_only_assets_includes_known_assets() -> None:
 
 def test_get_sell_only_assets_excludes_non_sell_only() -> None:
     """Assets known to have been removed should not be in the set."""
-    removed = {"GBPJPY", "USDCHF", "EURCHF", "USDJPY", "^DJI", "AUDUSD", "EURNZD", "NZDUSD"}
+    removed = {"USDCHF", "USDJPY", "^DJI", "AUDUSD", "EURNZD", "NZDUSD"}
     assets = get_sell_only_assets()
     for asset in removed:
         assert asset not in assets, f"{asset} should NOT be in SELL_ONLY_ASSETS"

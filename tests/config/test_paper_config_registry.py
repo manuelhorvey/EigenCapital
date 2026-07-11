@@ -35,7 +35,7 @@ def test_registry_loads_without_error(registry):
 def test_registry_summary_shape(registry):
     summary = registry.summary()
     assert summary["assets"] == 22
-    assert summary["sell_only"] == ["CADCHF", "EURAUD", "NZDCHF"]
+    assert summary["sell_only"] == ["CADCHF", "EURAUD", "EURCHF", "GBPCHF", "GBPJPY", "NZDCHF"]
     assert summary["sizing_fields"] == 29
     assert summary["domain_assets"] == 22
     assert summary["legacy_assets"] == 0
@@ -51,7 +51,7 @@ def test_capital_values_from_domain(registry):
 
 def test_sell_only_assets_in_legacy_dict(registry):
     out = registry.as_legacy_dict()
-    assert out["defaults"]["sell_only_assets"] == ["CADCHF", "EURAUD", "NZDCHF"]
+    assert out["defaults"]["sell_only_assets"] == ["CADCHF", "EURAUD", "EURCHF", "GBPCHF", "GBPJPY", "NZDCHF"]
 
 
 def test_asset_set_expected_size(registry):

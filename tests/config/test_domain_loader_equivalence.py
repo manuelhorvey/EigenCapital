@@ -41,7 +41,7 @@ def test_registry_loads_without_error() -> None:
 def test_registry_summary_shape() -> None:
     summary = _load_reg().summary()
     assert summary["assets"] == 22
-    assert summary["sell_only"] == ["CADCHF", "EURAUD", "NZDCHF"]
+    assert summary["sell_only"] == ["CADCHF", "EURAUD", "EURCHF", "GBPCHF", "GBPJPY", "NZDCHF"]
     assert summary["sizing_fields"] == 29
     assert summary["legacy_extras"] == []  # all keys promoted
 
@@ -80,7 +80,7 @@ def test_as_legacy_dict_sell_only() -> None:
     assert "CADCHF" in sell_only
     assert "EURAUD" in sell_only
     assert "NZDCHF" in sell_only
-    assert len(sell_only) == 3
+    assert len(sell_only) == 6
 
 
 def test_as_legacy_dict_adaptive_exit() -> None:

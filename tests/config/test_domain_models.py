@@ -94,7 +94,7 @@ def test_risk_config_exhausts_legacy_defaults_keys(legacy_yaml):
 
 def test_sell_only_assets_resolves_to_frozenset(legacy_yaml):
     rc = risk_mod.RiskConfig.from_legacy(legacy_yaml)
-    expected = frozenset({"CADCHF", "NZDCHF", "EURAUD"})
+    expected = frozenset({"CADCHF", "EURAUD", "EURCHF", "GBPCHF", "GBPJPY", "NZDCHF"})
     assert rc.sell_only.assets == expected
 
 

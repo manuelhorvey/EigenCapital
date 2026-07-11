@@ -60,7 +60,7 @@ def compute_pre_post_ece(df: pd.DataFrame, calibrator: CalibrationMethod) -> dic
 
 def main():
     parser = argparse.ArgumentParser(description="Train calibration models from walk-forward signal parquets")
-    parser.add_argument("--method", default="platt", choices=["binned", "beta", "platt", "directional_platt"], help="Calibration method")
+    parser.add_argument("--method", default="platt", choices=["binned", "beta", "platt", "directional_platt", "directional_binned"], help="Calibration method")
     parser.add_argument("--asset", type=str, default=None, help="Single asset to train (default: all)")
     parser.add_argument("--tag", default="base", help="Signal parquet tag (default base)")
     parser.add_argument("--n-bins", type=int, default=10, help="Number of bins for BinnedCalibrator")
@@ -101,6 +101,8 @@ def main():
             cal = PlattCalibrator()
         elif args.method == "directional_platt":
             cal = DirectionalCalibrator(base_calibrator="platt", min_samples_per_bin=args.min_samples)
+        elif args.method == "directional_binned":
+            cal = DirectionalCalibrator(base_calibrator="binned", n_bins=args.n_bins, min_samples_per_bin=args.min_samples)
         else:
             cal = BinnedCalibrator(n_bins=args.n_bins, min_samples_per_bin=args.min_samples)
 

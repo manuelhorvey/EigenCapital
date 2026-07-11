@@ -144,6 +144,7 @@ def run_walk_forward(
     invert_labels: bool = False,
     sample_weight_flag: bool = False,
     calibrate_flag: bool = False,
+    no_scale_pos_weight: bool = False,
 ) -> pd.DataFrame | None:
     import xgboost as xgb
 
@@ -247,6 +248,9 @@ def run_walk_forward(
         n0 = (y_tr == 0).sum()
         n1 = (y_tr == 1).sum()
         imbalance_ratio = n0 / max(n1, 1)
+        if no_scale_pos_weight:
+            imbalance_ratio = 1.0
+            logger.info("  scale_pos_weight forced to 1.0 (class imbalance ignored)")
 
         # ── Validation split (matching production early stopping) ──
         # When the fold has enough data, reserve 20% for validation + gap.
@@ -526,6 +530,12 @@ def main():
         default=None,
         help="Override max_depth for all assets (default: from production config)",
     )
+    parser.add_argument(
+        "--no-scale-pos-weight",
+        action="store_true",
+        default=False,
+        help="Force scale_pos_weight=1.0 (ignore class imbalance). Tests whether imbalance weighting contributes to sell bias.",
+    )
     args = parser.parse_args()
 
     # Load per-asset pt_sl from production config
@@ -607,6 +617,7 @@ def main():
             invert_labels=args.invert_labels,
             sample_weight_flag=args.weighted,
             calibrate_flag=args.calibrate,
+            no_scale_pos_weight=args.no_scale_pos_weight,
         )
         if result is not None:
             all_summaries.append(result)

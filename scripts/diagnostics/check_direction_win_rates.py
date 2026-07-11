@@ -43,21 +43,34 @@ ALERT_SELL_DRIFT_PP = 10.0  # SELL WR drop >10pp → alert
 ALERT_BUY_OOS_WR = 0.30  # OOS BUY WR > 30% → asymmetry may be healing
 
 
-def compute_dir_wr_from_parquets() -> dict[str, dict]:
+def compute_dir_wr_from_parquets(tag: str = "") -> dict[str, dict]:
     """Compute per-direction win rates from all walk-forward signal parquets.
+
+    Parameters
+    ----------
+    tag : str
+        Optional tag suffix. If provided, reads ``*_wf_signals_{tag}.parquet``.
+        If empty, reads ``*_wf_signals.parquet`` (untagged).
 
     Returns dict[asset_name, {buy_wr, sell_wr, n_buy, n_sell, buy_r, sell_r}].
     """
     pt_sl = _load_pt_sl()
-    files = sorted(Path(WALKDIR).glob("*_wf_signals.parquet"))
+    pattern = f"*_wf_signals_{tag}.parquet" if tag else "*_wf_signals.parquet"
+    files = sorted(Path(WALKDIR).glob(pattern))
     if not files:
         logger.error("No signal parquets found in %s", WALKDIR)
         return {}
 
+    # Extract asset name from parquet filename:
+    #   Untagged: AUDUSD_wf_signals.parquet → AUDUSD
+    #   Tagged:   AUDUSD_wf_signals_retrained.parquet → AUDUSD
+    # The stem is e.g. "AUDUSD_wf_signals" or "AUDUSD_wf_signals_retrained".
+    # Split on "_wf_signals" and take the first part.
     results: dict[str, dict] = {}
     for fpath in files:
-        name = fpath.stem.replace("_wf_signals", "")
+        name = fpath.stem.split("_wf_signals")[0]
         if name not in pt_sl:
+            logger.debug("Skipping %s — not in config assets", name)
             continue
         tp, sl = pt_sl[name]
         df = pd.read_parquet(fpath)
@@ -185,7 +198,7 @@ def format_report(
     lines.append(header)
     lines.append("-" * 90)
 
-    all_assets = sorted(set(list(oos_dir_wr.keys()) | set(live_dir_wr.keys())))
+    all_assets = sorted(set(oos_dir_wr.keys()) | set(live_dir_wr.keys()))
 
     for asset in all_assets:
         is_so = asset in SELL_ONLY_ASSETS
@@ -272,10 +285,15 @@ def main():
         default=str(Path(__file__).resolve().parent.parent / "data/live/state.db"),
         help="Path to live state.db (default: data/live/state.db)",
     )
+    parser.add_argument(
+        "--tag",
+        default="",
+        help="Signal parquet tag suffix (e.g. 'retrained' → *_wf_signals_retrained.parquet)",
+    )
     args = parser.parse_args()
 
     logger.info("Computing OOS per-direction win rates from signal parquets...")
-    oos_wr = compute_dir_wr_from_parquets()
+    oos_wr = compute_dir_wr_from_parquets(tag=args.tag)
     logger.info("Loaded OOS data for %d assets", len(oos_wr))
 
     logger.info("Loading live trades from %s...", args.live_db)

@@ -42,7 +42,7 @@ def test_registry_summary_shape() -> None:
     summary = _load_reg().summary()
     assert summary["assets"] == 22
     assert summary["sell_only"] == ["CADCHF", "EURAUD", "NZDCHF"]
-    assert summary["sizing_fields"] == 27
+    assert summary["sizing_fields"] == 29
     assert summary["legacy_extras"] == []  # all keys promoted
 
 

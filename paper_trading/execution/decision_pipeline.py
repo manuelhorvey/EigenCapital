@@ -117,10 +117,12 @@ DRIFT_GAP_THRESHOLD = 0.20
 
 _outcome_records: dict[str, deque] = {}
 
+
 def _record_drift_outcome(asset: str, confidence: float, was_win: bool) -> None:
     if asset not in _outcome_records:
         _outcome_records[asset] = deque(maxlen=DRIFT_WINDOW)
     _outcome_records[asset].append((confidence, was_win))
+
 
 def _get_drift_gap(asset: str) -> float | None:
     records = _outcome_records.get(asset)
@@ -962,7 +964,10 @@ def apply_regime_transition_gate(ctx: DecisionContext) -> None:
             engine._regime_last_trend = new_trend
             logger.info(
                 "%s: regime transition %s→%s — suppressing entries for %d days",
-                engine.name, last_trend, new_trend, REGIME_TRANSITION_SUPPRESS_DAYS,
+                engine.name,
+                last_trend,
+                new_trend,
+                REGIME_TRANSITION_SUPPRESS_DAYS,
             )
         else:
             engine._regime_last_trend = new_trend
@@ -971,10 +976,12 @@ def apply_regime_transition_gate(ctx: DecisionContext) -> None:
             if days_since < REGIME_TRANSITION_SUPPRESS_DAYS:
                 logger.info(
                     "%s: regime transition gate — blocking entry (%.0f/%.0f days since transition)",
-                    engine.name, days_since, float(REGIME_TRANSITION_SUPPRESS_DAYS),
+                    engine.name,
+                    days_since,
+                    float(REGIME_TRANSITION_SUPPRESS_DAYS),
                 )
                 ctx.new_side = None
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.debug("%s: regime transition check failed", engine.name, exc_info=True)
 
 
@@ -996,7 +1003,9 @@ def apply_calibration_drift_gate(ctx: DecisionContext) -> None:
     if gap is not None and gap > DRIFT_GAP_THRESHOLD:
         logger.info(
             "%s: calibration drift gate — blocking entry (gap=%.0fpp, threshold=%.0fpp, n=%d)",
-            engine.name, gap * 100, DRIFT_GAP_THRESHOLD * 100,
+            engine.name,
+            gap * 100,
+            DRIFT_GAP_THRESHOLD * 100,
             len(_outcome_records.get(engine.name, [])),
         )
         ctx.new_side = None

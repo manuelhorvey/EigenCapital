@@ -593,7 +593,7 @@ class AssetInferencePipeline:
             # So for SELL predictions, the correct confidence is
             # ``1 - calibrated_p_long``, not ``calibrated_p_long``.
             asset._calibrated_confidence = (
-                float(cal_p_long[-1])           # BUY:  P(win|BUY)
+                float(cal_p_long[-1])  # BUY:  P(win|BUY)
                 if raw_p_long[-1] > 0.5
                 else float(1.0 - cal_p_long[-1])  # SELL: P(win|SELL)
             )
@@ -715,9 +715,7 @@ class AssetInferencePipeline:
         # with Spearman rho = -0.235 vs actual win rate (inverted relationship).
         cal_conf_override = getattr(asset, "_calibrated_confidence", None)
         final_confidence = (
-            round(float(cal_conf_override * 100), 2)
-            if cal_conf_override is not None
-            else result.confidence_pct
+            round(float(cal_conf_override * 100), 2) if cal_conf_override is not None else result.confidence_pct
         )
 
         decision = TradeDecision(

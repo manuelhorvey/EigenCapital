@@ -237,9 +237,14 @@ class EngineConfig:
             liquidity_config=governance.get("liquidity_config") or data.get("liquidity_config", {}),
             defaults=data.get("defaults", {}),
             sell_only_assets=frozenset(
-                data.get("defaults", {}).get("sell_only_assets", []) or [
-                    "CADCHF", "NZDCHF", "EURAUD",
-                    "EURCHF", "GBPCHF", "GBPJPY",
+                data.get("defaults", {}).get("sell_only_assets", [])
+                or [
+                    "CADCHF",
+                    "NZDCHF",
+                    "EURAUD",
+                    "EURCHF",
+                    "GBPCHF",
+                    "GBPJPY",
                 ]
             ),
             portfolio=data.get("portfolio", {}),

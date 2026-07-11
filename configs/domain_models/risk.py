@@ -151,12 +151,18 @@ class SellOnlyConfig:
     as a frozenset. Phase 5 unifies them via this typed container.
     """
 
-    assets: frozenset[str] = field(default_factory=lambda: frozenset({
-        "CADCHF", "NZDCHF", "EURAUD",
-        "EURCHF",  # Calibrated signal is 100% SELL despite raw BUY bias
-        "GBPCHF",  # Calibrated signal is 100% SELL
-        "GBPJPY",  # Calibrated signal is >99% SELL
-    }))
+    assets: frozenset[str] = field(
+        default_factory=lambda: frozenset(
+            {
+                "CADCHF",
+                "NZDCHF",
+                "EURAUD",
+                "EURCHF",  # Calibrated signal is 100% SELL despite raw BUY bias
+                "GBPCHF",  # Calibrated signal is 100% SELL
+                "GBPJPY",  # Calibrated signal is >99% SELL
+            }
+        )
+    )
 
     def contains(self, asset_name: str) -> bool:
         return asset_name in self.assets
@@ -241,8 +247,9 @@ class RiskConfig:
 
         # Sell-only
         sell_list = defaults.get("sell_only_assets") or [
-            "CADCHF", "NZDCHF", "EURAUD",
-            "EURCHF", "GBPCHF", "GBPJPY",
+            "CADCHF",
+            "NZDCHF",
+            "EURAUD",
         ]
         sell_only = SellOnlyConfig(assets=frozenset(sell_list))
 

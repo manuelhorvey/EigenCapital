@@ -329,12 +329,14 @@ def _compute_narrative_features() -> dict[str, float]:
       overall_regime
     """
     try:
-        from features.fxstreet_fetcher import NARRATIVE_DIR
         from pathlib import Path
+
+        from features.fxstreet_fetcher import NARRATIVE_DIR
 
         active_path = Path(NARRATIVE_DIR) / "narrative_active.json"
         if active_path.exists():
             from features.macro_narrative import load_narrative_json
+
             narr = load_narrative_json(str(active_path))
             return narr.to_feature_vector()
     except (ImportError, OSError, ValueError, TypeError):
@@ -342,6 +344,7 @@ def _compute_narrative_features() -> dict[str, float]:
 
     # Neutral fallback — all narratives neutral
     from features.macro_narrative import neutral_narrative
+
     return neutral_narrative().to_feature_vector()
 
 

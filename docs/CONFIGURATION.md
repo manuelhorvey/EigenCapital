@@ -81,6 +81,8 @@ Position-sizing guardrails shared across all assets.
 | `entry_defer_max_bars` | `int` | `5` |
 | `min_flip_interval_bars` | `int` | `3` |
 | `min_confidence` | `float` | `55.0` |
+| `min_confidence_buy` | `float` | `45.0` |
+| `min_confidence_sell` | `float` | `55.0` |
 | `max_entry_slippage_pct` | `float` | `2.0` |
 | `profit_lock_threshold_pct` | `float` | `15.0` |
 | `max_position_pct_of_equity` | `float` | `0.15` |

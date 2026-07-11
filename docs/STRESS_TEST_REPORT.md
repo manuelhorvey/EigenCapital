@@ -1,3 +1,5 @@
+**Last updated:** 2026-07-11
+
 # Stress-Test Report: SELL_ONLY Alpha Robustness
 
 ## TL;DR

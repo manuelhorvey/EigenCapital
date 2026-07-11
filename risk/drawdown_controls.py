@@ -21,8 +21,7 @@ from paper_trading.governance.drawdown_controls import (  # noqa: F401
 )
 
 warnings.warn(
-    "risk.drawdown_controls is deprecated. "
-    "Use paper_trading.governance.drawdown_controls instead.",
+    "risk.drawdown_controls is deprecated. Use paper_trading.governance.drawdown_controls instead.",
     DeprecationWarning,
     stacklevel=2,
 )

@@ -1,3 +1,5 @@
+**Last updated:** 2026-07-10
+
 # COT Investigation Protocol — 15 Phases
 
 ## Research Principles
@@ -17,7 +19,7 @@
 
 Determine whether the previous implementation was ever capable of producing a non-zero COT feature.
 
-**Counterfactual experiment**: Reconstruct the exact data pipeline state at the time of the last model training. Check the parquet file timestamps, the `cot_raw.parquet` existence, and whether `try/except` blocks silently caught all COT loading.
+**Counterfactual experiment**: Reconstruct the exact data pipeline state at the time of the last model training. Check the parquet file timestamps, the cot_raw_parquet existence, and whether try/except blocks silently caught all COT loading.
 
 **Test**: Can we reproduce a non-zero COT feature vector by running the original pipeline on any date?
 
@@ -47,7 +49,7 @@ Run counterfactual walk-forward backtests with strictly point-in-time COT data (
 |------------|-------------|------------|
 | A — Baseline | Current (no COT) | Current production state |
 | B — Placeholder COT | Current + old zero-valued COT columns | Zero-value columns → zero contribution |
-| C — Proper COT (direct) | Current + `cot_features.py` outputs as ML features | Proper COT features improve IC |
+| C — Proper COT (direct) | Current + cot_features outputs as ML features | Proper COT features improve IC |
 | D — Proper COT (regime) | Current (COT as non-ML overlay) | COT improves trading metrics without entering the model |
 
 **Metrics**: Gain importance, SHAP values, permutation importance, mutual information, conditional permutation importance.

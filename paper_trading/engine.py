@@ -490,7 +490,9 @@ class PaperTradingEngine:
                         if _rt_age_days > _rt_min_stale_days:
                             logger.info(
                                 "retrain: %s model is %.0f days old (threshold=%d) — retraining",
-                                _rt_name, _rt_age_days, _rt_min_stale_days,
+                                _rt_name,
+                                _rt_age_days,
+                                _rt_min_stale_days,
                             )
                             _rt_asset.train(force=True)
                     except OSError:

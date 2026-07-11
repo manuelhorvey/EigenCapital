@@ -35,18 +35,34 @@ def momentum_features(price: pd.Series, horizons: list = None) -> pd.DataFrame:
     """
     Multi-horizon momentum with skip-1-day to avoid bid-ask bounce.
 
+    Returns both the raw momentum and direction-split components:
+    - ``mom_{h}d``: raw momentum (signed, direction-agnostic)
+    - ``mom_{h}d_up``: positive momentum only (0 when negative). Lets the
+      model learn separate weight for up-momentum vs down-momentum.
+    - ``mom_{h}d_dn``: absolute value of negative momentum (0 when positive).
+      Together with ``_up`` this enables the model to learn asymmetric
+      trend-following: both sides are positive features with opposite
+      implications that the model can weight independently.
+
     Theory: Cross-sectional and time-series momentum documented across
     asset classes. Menkhoff et al. (2012) JFE; Jegadeesh & Titman (1993).
+    The directional split addresses the BUY/SELL information asymmetry:
+    the original single-coefficient per horizon forces the model to use
+    the same weight for up-trends and down-trends, but SELL signal is
+    stronger than BUY signal in the current feature space. Splitting lets
+    the model learn different weights per direction.
+
     Expected decay: 1m momentum ~weeks; 12m momentum ~months.
     """
     if horizons is None:
         horizons = [21, 63, 126, 252]
     mom = pd.DataFrame(index=price.index)
     for h in horizons:
-        # h-day momentum: return from t-h to t (corrected from t-(h+1)
-        # which expanded the horizon by 1 bar — affects all assets)
         ret = np.log(price / price.shift(h))
-        mom[f"mom_{h}d"] = ret.clip(-0.20, 0.20)
+        raw = ret.clip(-0.20, 0.20)
+        mom[f"mom_{h}d"] = raw
+        mom[f"mom_{h}d_up"] = raw.clip(lower=0.0)  # positive momentum (0 when negative)
+        mom[f"mom_{h}d_dn"] = (-raw).clip(lower=0.0)  # |negative momentum| (0 when positive)
     return mom
 
 
@@ -289,6 +305,46 @@ def _compute_trend_exhaustion_features(
     return cache
 
 
+def _compute_narrative_features() -> dict[str, float]:
+    """Load active FXStreet narrative and return numeric feature dict.
+
+    Reads from ``narrative_active.json`` (written by the weekly FXStreet
+    pipeline). Returns neutral defaults when no narrative is available
+    (e.g. before the first weekly fetch, or after a fetch failure).
+
+    The narrative is a weekly-frequency macro overlay that captures
+    central bank hawkishness, currency biases, geopolitical risk, and
+    the overall risk regime.  Adding these as cross-asset features lets
+    the model learn the relationship between the macro narrative and
+    forward returns for each direction.
+
+    Returns 16 numeric features:
+    - ``usd_strength_narr``, ``geopol_risk``, ``fed_hawk``,
+      ``rbnz_hawk``, ``rba_hawk``, ``boj_intervene_risk``,
+      ``energy_pressure``: floats in [0, 1]
+    - ``usd_bias_num``, ``nzd_bias_num``, ``aud_bias_num``,
+      ``jpy_bias_num``, ``cad_bias_num``, ``eur_bias_num``:
+      {-1 = bearish, 0 = neutral, 1 = bullish}
+    - ``regime_risk_on``, ``regime_geopol``: {0, 1} one-hot of
+      overall_regime
+    """
+    try:
+        from features.fxstreet_fetcher import NARRATIVE_DIR
+        from pathlib import Path
+
+        active_path = Path(NARRATIVE_DIR) / "narrative_active.json"
+        if active_path.exists():
+            from features.macro_narrative import load_narrative_json
+            narr = load_narrative_json(str(active_path))
+            return narr.to_feature_vector()
+    except (ImportError, OSError, ValueError, TypeError):
+        logger.debug("Narrative features unavailable — using neutral defaults")
+
+    # Neutral fallback — all narratives neutral
+    from features.macro_narrative import neutral_narrative
+    return neutral_narrative().to_feature_vector()
+
+
 def _compute_shared_features(
     dxy: pd.Series | None = None,
     vix: pd.Series | None = None,
@@ -368,7 +424,16 @@ def build_alpha_features(
             else pd.Series(0.0, index=prices.index)
         )
 
-        features[f"{asset_upper}_carry_vol_adj"] = vol_adjusted_carry(close, rd)
+        carry_raw = vol_adjusted_carry(close, rd)
+        features[f"{asset_upper}_carry_vol_adj"] = carry_raw
+        # ── Asymmetric carry split (D-02 fix) ────────────────────────────
+        # Split carry into positive and negative components. Carry trade
+        # unwind is asymmetric: sharp during risk-off (positive carry ->
+        # sharp reversal) vs gradual during risk-on. The original single
+        # carry column forces the model to learn one coefficient that must
+        # work for both regimes. Splitting lets it learn separate weights.
+        features[f"{asset_upper}_carry_up"] = carry_raw.clip(lower=0.0)  # positive carry only
+        features[f"{asset_upper}_carry_dn"] = (-carry_raw).clip(lower=0.0)  # |negative carry|
 
         mom = momentum_features(close)
         for col in mom.columns:
@@ -400,6 +465,14 @@ def build_alpha_features(
         if commodities is not None:
             for comm in commodities.columns:
                 features[f"{comm.upper()}_mom_21d"] = commodity_momentum(commodities[comm]).reindex(features.index)
+
+    # ── FXStreet narrative features (weekly macro overlay) ────────────
+    # These are constant across all rows in the same weekly window.
+    # When no narrative is available (pre-first-fetch), neutral defaults
+    # are used: all currency biases = 0 (neutral), risk regime = 0, etc.
+    narr_vars = _compute_narrative_features()
+    for name, value in narr_vars.items():
+        features[name] = value
 
     # Final forward-fill and dropna to handle indicator warmup.
     # We also fill any remaining NaNs in cross-asset features with 0.0

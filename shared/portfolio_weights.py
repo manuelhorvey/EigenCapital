@@ -519,7 +519,8 @@ def rolling_weight_matrix(
         if zero_var_mask.any():
             logger.debug(
                 "rolling_weight_matrix: dropping %d zero-variance assets at %s",
-                zero_var_mask.sum(), returns.index[i],
+                zero_var_mask.sum(),
+                returns.index[i],
             )
             hist = hist.loc[:, ~zero_var_mask]
             if hist.shape[1] == 0:

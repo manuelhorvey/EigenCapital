@@ -137,6 +137,9 @@ class EngineConfig:
                 "CADCHF",
                 "NZDCHF",
                 "EURAUD",
+                "EURCHF",
+                "GBPCHF",
+                "GBPJPY",
             }
         )
     )

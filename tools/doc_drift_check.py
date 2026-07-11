@@ -17,9 +17,9 @@ Checks performed:
    of ``paper_trading/models/orphaned/`` and ``paper_trading/models/research/``.
 
 2. **SELL_ONLY list consistency** — the hardcoded fallback
-   ``SELL_ONLY_ASSETS`` in ``paper_trading/execution/gate_constants.py``
-   matches the domain tree (``configs/domains/risk/sizing.yaml``)
-   ``sell_only_assets`` list AND the YAML version is a subset of the active 16-asset list.
+   in ``paper_trading/config_manager.py`` (``EngineConfig.from_dict()``)
+   matches the domain model (``configs/domain_models/risk.py``)
+   ``SellOnlyConfig.assets`` list AND the YAML version (if any) is a subset of the active 22-asset list.
 
 3. **Phase-count consistency** — counts ``_phase_X_*`` methods in
    ``paper_trading/orchestrator/engine.py`` and asserts that the
@@ -90,11 +90,11 @@ PATH_EXCLUDE_PATTERNS = (
 
 # Canonical facts for cross-reference consistency
 CANONICAL_FACTS: dict[str, str] = {
-    "governance_layers": "16 core + 3 adaptive budget",
+    "governance_layers": "17 core + 3 adaptive budget",
     "core_alpha_features": "9 per-asset",
     "trend_exhaustion_features": "6 per-asset",
     "cross_asset_features": "4",
-    "sell_only_count": "3",
+    "sell_only_count": "6",
     "promoted_assets": "22",
     "orchestrator_phases": "5 (PRE + 1a + 1b + 2 + 3 + 4)",
 }
@@ -555,14 +555,15 @@ def _check_metric_consistency() -> list[str]:
         # Governance layer count — look for "N governance" (not section numbers like "6.3")
         for m in re.finditer(r"(?<![.\d])(\d+)\s+(?:core\s+)?governance", text, re.IGNORECASE):
             count = int(m.group(1))
-            expected = 16
+            expected = int(CANONICAL_FACTS["governance_layers"].split()[0])
             if count != expected:
                 out.append(f"{doc}: claims {count} governance layers (expected {expected})")
 
         # Sell-only count — look for "N SELL_ONLY" or "N sell-only"
         for m in re.finditer(r"(\d+)\s+(?:permanent\s+)?(?:SELL_ONLY|sell.only|sell-only)", text, re.IGNORECASE):
             count = int(m.group(1))
-            if count != 3 and "reduced" not in text.lower() and m.start() > 0:
+            expected = int(CANONICAL_FACTS["sell_only_count"])
+            if count != expected and "reduced" not in text.lower() and m.start() > 0:
                 out.append(f"{doc}: claims {count} SELL_ONLY assets (expected {CANONICAL_FACTS['sell_only_count']})")
 
     return out

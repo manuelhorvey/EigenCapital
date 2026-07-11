@@ -177,7 +177,7 @@ The engine runs a continuous 5-phase orchestrator cycle. Each tick (every ~60s) 
 │  PositionManager                                                    │
 │      ↓                                                              │
 │  Position Sizing Guardrails (drawdown taper → equity cap →         │
-│    risk cap → leverage budget → backstop)                          │
+│    risk cap → min viable gate → PEK budget enforcement)            │
 │      ↓                                                              │
 │  EntryService (price deviation gate → submit to broker)            │
 │      ↓                                                              │
@@ -232,7 +232,7 @@ The offline research stage evaluates a universe of 36+ assets using expanding-wi
 
 ### Validation Structure
 
-* 3-year rolling training window
+* 5-year expanding training window
 * 1-year forward evaluation (or 5-year full validation)
 * per-asset SL/TP/depth calibration
 * IC + hit-rate scoring
@@ -308,7 +308,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
       e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
       f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
        g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio (gate applies only to `VIX_GATE_ASSETS = {"CL"}`).
-      h. Sell-only filter — override BUY→FLAT for 3 inverted-BUY assets
+      h. Sell-only filter — override BUY→FLAT for 6 inverted-BUY assets
       i. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
       j. Session gate — block entry outside market session hours per asset-class tier
       k. ADX entry gate — skip if ADX < threshold (observe-only, disabled by default)
@@ -347,7 +347,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Macro narrative        | Global     | SL +10%, size −20%        |
 | Liquidity regime       | Per asset  | THIN: soft adjust, STRESSED: halt |
 | PSI drift              | Per asset  | Penalties + halt at 3+ SEVERE |
-| Sell-only filter       | Per asset  | Override BUY→FLAT for 3 inverted-BUY assets |
+| Sell-only filter       | Per asset  | Override BUY→FLAT for 6 inverted-BUY assets |
 | Calibration (P1)       | Per asset  | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
 | Kelly sizing (P2)      | Per asset  | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3)      | Portfolio  | Factor exposure monitoring via 10 groups (monitoring only) |
@@ -376,7 +376,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Resolve signal | Map proba to BUY/SELL/FLAT |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
 | VIX gate | Suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio. |
-| Sell-only filter | Override BUY→FLAT for 3 inverted-BUY assets |
+| Sell-only filter | Override BUY→FLAT for 6 inverted-BUY assets |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles) |
 | Session gate | Block entry outside market session hours per asset-class tier |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) |

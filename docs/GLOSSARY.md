@@ -86,9 +86,10 @@ lookahead window.
 ### SELL_ONLY
 A decision pipeline filter that overrides BUY signals to FLAT for
 assets where the model's BUY prediction is inverted (p_long > 0.5
-reliably predicts the wrong direction). Currently applied to 3 assets
-(CADCHF, NZDCHF, EURAUD) after walk-forward counterfactual ablation
-falsified all causal hypotheses (carry, DXY) for the BUY inversion.
+reliably predicts the wrong direction). Currently applied to 6 assets
+(CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) after walk-forward
+counterfactual ablation falsified all causal hypotheses (carry, DXY)
+for the BUY inversion.
 
 ### SELL_ONLY Filter Tripwire
 A monitoring mechanism that tracks SELL-side win rate on SELL_ONLY
@@ -412,7 +413,7 @@ Governance penalty aggregation rule: the most negative penalty is applied
 the combined penalty is −0.28 (additive across types).
 
 ### HealthMonitor
-Portfolio-level health surveillance running in Phase 3g. Computes
+Portfolio-level health surveillance running in Phase 3h. Computes
 portfolio volatility, VaR(95), CVaR, halt ratio, and circuit breaker checks.
 Tracks per-asset health snapshots with governance scores.
 

@@ -8,7 +8,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 |-------|-------------|
 | [`docs/OPERATIONS.md`](OPERATIONS.md) | Daily/weekly ops, halt responses, troubleshooting |
 | [`docs/SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) | Architecture, components, data flow, governance |
-| [`docs/GOVERNANCE.md`](GOVERNANCE.md) | 16-layer governance + decision pipeline stages + position sizing guardrails |
+| [`docs/GOVERNANCE.md`](GOVERNANCE.md) | 17-layer governance + 3 adaptive budget layers + decision pipeline + position sizing guardrails |
 | [`docs/FEATURES.md`](FEATURES.md) | Alpha features (9 base + 6 trend-exhaustion per-asset, 4 cross-asset, 7 regime, archetype, labeling) |
 | [`LIVE_CONTRACT.md`](../LIVE_CONTRACT.md) | Immutable production system contract |
 | [`docs/MODES.md`](MODES.md) | Per-mode override matrix (production / challenge_ftmo_10k / live) |
@@ -44,7 +44,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | Broker | `paper_trading/execution/` | PaperBroker (simulated) or MT5Broker (live Exness) |
 | State store | `paper_trading/state_store.py` | SQLite WAL-mode persistent state |
 | Portfolio | `paper_trading/portfolio_builder.py` | 22-asset risk-parity portfolio from YAML config |
-| Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator (HealthMonitor + VaR/CVaR in Phase 3g) |
+| Engine | `paper_trading/engine.py` | PaperTradingEngine with capital sync, parallel orchestrator (HealthMonitor + VaR/CVaR in Phase 3h) |
 | Portfolio weights | `shared/portfolio_weights.py` | P0 portfolio weight computation |
 | Calibration | `shared/calibration/` | P1 calibration layer |
 | Kelly sizing | `shared/kelly.py` | P2 fractional Kelly sizing |
@@ -65,8 +65,8 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 ### Active (22)
 GC, USDCHF, USDCAD, GBPCAD, NZDCAD, NZDUSD, GBPAUD, NZDCHF, CADCHF, AUDUSD, EURCHF, EURCAD, EURNZD, GBPCHF, GBPUSD, EURAUD, ^DJI, BTCUSD, AUDJPY, NZDJPY, GBPJPY, USDJPY
 
-### SELL_ONLY (3 — BUY→FLAT override)
-CADCHF, NZDCHF, EURAUD
+### SELL_ONLY (6 — BUY→FLAT override)
+CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF
 
 ### Removed (post walk-forward, insufficient edge)
 AUDCHF, AUDNZD, EURUSD, GBPNZD

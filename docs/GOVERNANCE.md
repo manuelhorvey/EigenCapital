@@ -13,7 +13,7 @@ The system implements **17 core governance layers** operating at different frequ
 | Liquidity regime | Per signal | Per asset | THIN: SL +15%, size −15% (soft) |
 | | | | STRESSED: SL +30%, size −30%, halt |
 | PSI drift | Per cycle | Per asset | Validity penalty, halt at 3+ SEVERE |
-| Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 3 inverted-BUY assets (CADCHF, NZDCHF, EURAUD) |
+| Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 6 inverted-BUY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) |
 | Calibration (P1) | Per inference | Per asset | Remap raw p_long via BinnedCalibrator, ECE 0.36→0.02 |
 | Kelly sizing (P2) | Per decision | Per asset | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3) | Per cycle | Portfolio | Factor exposures via 10 groups in state.json (monitoring only) |
@@ -31,7 +31,7 @@ The system implements **17 core governance layers** operating at different frequ
 
 **Live VaR/CVaR:** Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail, computed in Phase 3h.
 
-**RecoveryScheduler:** Exponential-backoff probe of halted actors via `is_due()`/`record_result()` in Phase 3g.
+**RecoveryScheduler:** Exponential-backoff probe of halted actors via `is_due()`/`record_result()` in Phase 3h.
 
 ## Decision Pipeline Stages (`DEFAULT_STAGES` order)
 
@@ -40,16 +40,19 @@ Each stage is a standalone function operating on `DecisionContext`. Stages are c
 | Stage | Effect | Thresholds / Config | Fail Mode |
 |-------|--------|-------------------|-----------|
 | First-cycle suppression | Suppress all trading on cold-start cycle 1 | Triggers when `_cycle_counter <= 1` | Abort (halt pipeline) |
+| Weekend gate | Block entries Sat/Sun for non-BTC assets | `weekend_eligible` per-asset flag; crypto tier (0-24) bypasses | Suppresses signal |
 | Bar-jump suppression | Suppress acting on signals for 60 min after bar count changes >100 (e.g., yfinance→MT5 source switch) | `BAR_JUMP_SUPPRESS_MINUTES = 60` | Suppresses signal |
 | Store prediction metadata | Record `_last_label`, `_last_confidence`, `_last_prob_long`/`_last_prob_short`/`_last_prob_neutral`, `_entry_archetype` on engine | No config | Non-blocking |
 | Update MAE/MFE | Update max adverse/favorable excursion for open positions using `high`/`low` from OHLCV DataFrame | Reads `ctx.df["high"]`, `ctx.df["low"]` | Non-blocking (logs warning on failure) |
 | Resolve signal | Convert `SignalType` to `PositionSide`: BUY→LONG, SELL→SHORT, else FLAT | `SignalType` enum (see `paper_trading/entry/decision.py`) | Sets `new_side = None` |
 | Risk-off suppression | Flat AUDUSD when risk-off detected (VIX rising + SPX falling) | `RISK_OFF_ASSETS = {"AUDUSD"}`; reads `engine._risk_off` flag | Suppresses signal |
 | VIX gate | Suppress CL=F when VIX > 30. Fail-open if VIX data missing or >5 days stale. | `VIX_GATE_THRESHOLD = 30.0`; `VIX_GATE_ASSETS = {"CL"}`; stale check: 5d | Fail-open (allow entry when data unavailable) |
-| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (CADCHF, NZDCHF, EURAUD). Force-closes any stale LONG positions from pre-filter era. | Assets resolved via `get_sell_only_assets()` from `paper_trading/execution/gate_constants.py` | Suppresses BUY signal; force-closes LONG |
+| Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF). Force-closes any stale LONG positions from pre-filter era. | Assets resolved via `get_sell_only_assets()` from `paper_trading/execution/gate_constants.py` | Suppresses BUY signal; force-closes LONG |
 | Spread gate | Block new entry if live spread (bps) exceeds per-asset-class threshold. Observe-only for first 720 cycles (~6h). Fail-closed post-observe — missing/stale spread data blocks entry. | `SPREAD_TIER_BPS`: fx_major=10, fx_cross=20, indices=15, metals=20; staleness=300s | Fail-closed post-observe |
 | Session gate | Block new entry outside session windows per asset-class tier. Observe-only for first 720 cycles. | Tiers: fx_major (7-17 UTC), fx_cross (7-17), indices (13-20), metals (8-18), crypto (0-24) | Blocks outside window post-observe |
+| Regime transition gate | Suppress entries for 30d after bull↔bear transition (close crossing MA50) | `REGIME_TRANSITION_SUPPRESS_DAYS = 30`; reads `close < MA50` vs previous state | Suppresses signal |
 | ADX entry gate | Block new entry when ADX < threshold (choppy market). Disabled by default; observe-only by default when enabled. | `ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18`; config key: `adx_entry_gate` with `enabled`, `adx_threshold`, `observe_only` | Observe-only by default |
+| Calibration drift gate | Suppress entry when rolling 30-trade confidence exceeds win rate by >20pp | Window=30; threshold=20pp; outcome recording via `manage_position` flip path | Suppresses signal |
 | Confidence gate | Skip trade if signal confidence below per-asset `min_confidence` threshold | Config key: `min_confidence` (per-asset override, global default 55.0) | Sets `new_side = None` |
 | Signal hysteresis | Require 2-of-3 latest signals to agree before allowing position flip | `HYSTERESIS_WINDOW = 3`, `HYSTERESIS_MIN_AGREE = 2` | Blocks flip |
 | Meta-label advisory | Record meta-label recommendation (no enforcement). Logs when `prob < threshold`. | Config key: `meta_labeling.enabled`; threshold from `meta_label_model.threshold` | Advisory only (no gate) |

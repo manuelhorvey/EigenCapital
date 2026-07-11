@@ -18,7 +18,7 @@ It is NOT a directional prediction system. It does NOT attempt to forecast price
 
 1. **Screening output**: Composite scores + promotion classifications (GREEN/YELLOW/RED) for 30+ tickers
 2. **Per-asset models**: Binary XGBoost classifiers, one per promoted asset
- 3. **Live signals**: BUY/SELL/FLAT decisions every ~60s for 22 assets (SELL_ONLY filter overrides BUY→FLAT for 3 assets)
+ 3. **Live signals**: BUY/SELL/FLAT decisions every ~60s for 22 assets (SELL_ONLY filter overrides BUY→FLAT for 6 assets)
 4. **Portfolio allocation**: Config-gated portfolio weight strategy (P0, active: factor_constrained_v2) with governance overlay
 5. **Execution traces**: Full attribution records (prediction, execution, exit, friction) per trade
 
@@ -309,7 +309,7 @@ Format: XGBoost `.json` (not pickle)
     e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
     g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale
-    h. Sell-only filter — override BUY→FLAT for 3 inverted-BUY assets
+    h. Sell-only filter — override BUY→FLAT for 6 inverted-BUY assets
     i. Spread gate — block entry if spread > per-class tier (observe 720 cycles)
     j. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles)
     k. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
@@ -367,7 +367,7 @@ Computed from OHLCV feature vector (no model inference):
 
 **2026-06-30:** 11 assets bumped to ratio=3.0 via geometric mean constraint. See AGENTS.md for full chronology.
 
-**SELL_ONLY filter active for 3 assets** (BUY→FLAT): CADCHF, NZDCHF, EURAUD.
+**SELL_ONLY filter active for 6 assets** (BUY→FLAT): CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF.
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -426,7 +426,7 @@ Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** —
 | Macro narrative | Weekly | SL +10%, size −20% |
 | Liquidity regime | Per signal | SL +15/30%, size −15/30%, halt |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE |
-| Sell-only filter | Per decision | Override BUY→FLAT for 3 inverted-BUY assets |
+| Sell-only filter | Per decision | Override BUY→FLAT for 6 inverted-BUY assets |
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator; config-gated, enabled |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion; config-gated, disabled |
 | Factor model (P3) | Per cycle | Factor exposure monitoring in state.json; 10 groups |
@@ -494,9 +494,9 @@ In-memory TTL cache per download type:
 12. **SQLite state store**: All persistent state in single WAL-mode database; legacy JSON/parquet files are read-only fallbacks
 13. **Parallel asset isolation**: 22 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently (weekend cycle processes only eligible assets)
 14. **MT5 order lifecycle symmetry**: Every paper open → MT5 `place_order`; paper close → MT5 `close_position`; SL/TP adjust → MT5 `modify_position`
-15. **HealthMonitor in Phase 3g**: VaR(95), CVaR, equity cluster alarm, circuit breaker check, RecoveryScheduler probe
+15. **HealthMonitor in Phase 3h**: VaR(95), CVaR, equity cluster alarm, circuit breaker check, RecoveryScheduler probe
 16. **Schema migration**: DB_SCHEMA_VERSION = "2.0.0"; auto-migrates at connect time; idempotent
-17. **Sell-only filter**: BUY→FLAT for 3 assets with inverted calibration; deferred BUY canceled in entry_service.py
+17. **Sell-only filter**: BUY→FLAT for 6 assets with inverted calibration; deferred BUY canceled in entry_service.py
 18. **P0 weight computation is PURE** — same returns → same weights regardless of engine state
 19. **Calibration (P1) and Kelly sizing (P2) are config-gated** — no behavior change until explicitly enabled
 
@@ -522,7 +522,7 @@ In-memory TTL cache per download type:
 | `paper_trading/orchestrator/engine.py` | Parallel asset orchestration (ThreadPoolExecutor) |
 | `paper_trading/orchestrator/actor.py` | Per-asset actor with health state |
 | `paper_trading/orchestrator/health.py` | HealthMonitor, CircuitBreaker (max_consecutive_losses=7), RecoveryScheduler |
-| `paper_trading/orchestrator/engine.py` | EngineOrchestrator (ThreadPoolExecutor, 5 phases PRE→1a→1b→2→3→4 + MT5 sub-phases A–D inside Phase 3, VaR/CVaR in Phase 3g) |
+| `paper_trading/orchestrator/engine.py` | EngineOrchestrator (ThreadPoolExecutor, 5 phases PRE→1a→1b→2→3→4 + MT5 sub-phases A–D inside Phase 3, VaR/CVaR in Phase 3h) |
 | `paper_trading/models/` | Trained models (.json) — 22 assets (4 archived in `orphaned/`) |
 | `paper_trading/state_store.py` | SQLite state persistence + schema migration (DB_SCHEMA_VERSION=2.0.0) |
 | `paper_trading/execution/decision_pipeline.py` | DEFAULT_STAGES (22 stages), SELL_ONLY_ASSETS frozenset |

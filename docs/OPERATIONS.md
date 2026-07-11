@@ -26,7 +26,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | Weekend behavior | `weekend_eligible` assets (e.g. BTCUSD with `crypto: [0,24]` session tier) run 24/7 at 0.5× allocation multiplier; non-eligible assets pause and show stale data |
 | Weekend polling | Normal 60s for eligible assets; reduced to every 120s (state) / 5 min (secondary) for stale assets |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
-| Retrain frequency | Annual (January 1) |
+| Retrain frequency | Auto-trigger every 100 cycles (~50min) when model >90 days stale |
 | Training window | 5-year expanding |
 | Feature build window | 500d (inference truncation validates and trims to 250d for XGBoost hot path) |
 | Hardening history | `docs/archive/research_system_v1/HARDENING_ROADMAP.md` |
@@ -77,7 +77,7 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 
 **SL/TP Architecture:** Barriers are computed by `DynamicSLTPEngine` using `shared/volatility.py:VolatilityPrimitive` with `method="atr"`. At entry, initial barriers are set. On each refresh within the first `post_adjust_interval_bars` (default 3), `post_entry_adjust()` recomputes barriers based on current ATR — vol spikes (>1.3×) tighten SL; vol collapses (<0.7×) no action. Model-validity adjustments via per-asset `regime_geometry` in `configs/domains/governance/regime_geometry.yaml` — each asset defines its own GREEN/YELLOW/RED multipliers for sl_mult and tp_mult.
 
-**Meta-Confidence as Size Scalar:** The XGBoost-based `MetaLabelModel` produces a continuous probability. Below `threshold` (0.55 for most assets), trade notional is 0. Above threshold, `_meta_size_multiplier()` maps [threshold, 1.0] → [min_size, 1.0] linearly. Meta-confidence never modifies TP geometry, trailing, or scale-out schedules.
+**Meta-Confidence as Size Scalar:** The XGBoost-based `MetaLabelModel` produces a continuous probability. Below `threshold` (0.4 globally via config), trade notional is 0. Above threshold, `_meta_size_multiplier()` maps [threshold, 1.0] → [min_size, 1.0] linearly. Meta-confidence never modifies TP geometry, trailing, or scale-out schedules.
 
 **Scale-Out Strategy:** Profit-taking is split into configurable tiers via `ScaleOutEngine` in `paper_trading/position/scale_out.py`. Tier profiles are generated dynamically by `entry/tp_compiler.py:_generate_scale_out_profile()` based on archetype and convexity — typically 4 equal tiers (25% at 0.25× / 0.50× / 0.75× / 1.00× of original TP multiplier). Stop-loss moves to breakeven after Tier 1 fills. See `ScaleOutEngine` in `paper_trading/position/scale_out.py`.
 
@@ -235,7 +235,7 @@ curl http://127.0.0.1:5000/ping
 - After restart: cycle 1 shows `first-cycle suppression` in logs (normal), trades resume cycle 2+
 - After MT5 reconnect: check for `bar-jump suppression` log — suppresses ~60min if bar count changed >100 (normal after source switch)
 - Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD showing `risk-off suppression — holding flat` (validated behavior)
-- Sell-only filter: 3 SELL_ONLY assets (CADCHF, NZDCHF, EURAUD) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
+- Sell-only filter: 6 SELL_ONLY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
 - Equity cluster alarm: removed 2026-07-01 (ES/NQ/^DJI no longer in portfolio — see `paper_trading/orchestrator/health.py:105`). Historical `equity_cluster_all_*` log lines reference retired assets.
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
 - Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) for non-eligible assets on weekends (BTCUSD continues live)
@@ -307,7 +307,7 @@ for name, a in s['assets'].items():
 
 **Expectations:**
 
-All 22 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 3 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
+All 22 assets should show a balanced BUY/SELL ratio (~1:1) with mean confidence in the 55-75% range. For the 6 SELL_ONLY assets, expect FLAT to dominate BUY (BUY signals are overridden to FLAT). Deviations warrant investigation of the specific asset's governance state and recent market conditions.
 
 ### Narrative Check (Monday Morning)
 

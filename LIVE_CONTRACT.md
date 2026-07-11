@@ -124,13 +124,13 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 
 Applied at decision pipeline stage `g`. Overrides BUY signals to FLAT for assets where the model's BUY calibration is inverted (p_long > 0.5 → ~17% win rate). SELL signals pass through unchanged. See `2026-06-20 diagnostic chain` for full evidence.
 
-**SELL_ONLY_ASSETS** (config-driven, resolved by `paper_trading/execution/gate_constants.py:get_sell_only_assets()`, sourced from per-asset YAML files in `configs/domains/assets/`):
+**SELL_ONLY_ASSETS** (config-driven, resolved by `paper_trading/execution/gate_constants.py:get_sell_only_assets()`, sourced from `SellOnlyConfig` default in `configs/domain_models/risk.py:154-164`; no `sell_only_assets` key exists in domain YAML):
 
 ```
-CADCHF, NZDCHF, EURAUD
+CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF
 ```
 
-**Reduced from 10→3 on 2026-07-01.** Removed GBPJPY, USDCHF, EURCHF, USDJPY, ^DJI after Step 3 trend-exhaustion features improved their BuyWR above breakeven WR thresholds. On 2026-07-01, ES and NQ removed from portfolio entirely (remediation phase). Remaining 3 assets are confirmed as permanent SELL_ONLY — impervious to all tested interventions (loss weighting, calibration, feature addition, label inversion).
+**Expanded to 6 assets on 2026-07-11.** CADCHF, NZDCHF, EURAUD remain from the original 3 permanent SELL_ONLY set. EURCHF, GBPCHF, and GBPJPY were promoted to permanent SELL_ONLY after additional walk-forward analysis confirmed their BUY inversion is irrecoverable under current feature design.
 
 **Epistemic status:** Empirically-grounded — two leading causal hypotheses (carry for CHF+OTHER, DXY for equities) tested via walk-forward counterfactual ablation and **falsified**. Removing SELL_ONLY requires discovering a causal mechanism that does not currently exist in any tested hypothesis.
 
@@ -273,7 +273,7 @@ See Section 3 for the canonical taxonomy.
     e. Resolve signal — map proba to BUY/SELL/FLAT
     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
     g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale
-    h. Sell-only filter — override BUY→FLAT for 3 SELL_ONLY assets (inverted BUY calibration)
+    h. Sell-only filter — override BUY→FLAT for 6 SELL_ONLY assets (inverted BUY calibration)
     i. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
     j. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles first)
     k. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
@@ -511,7 +511,7 @@ max_layers: 3
 | Liquidity regime | Per signal | THIN: SL +15%, size −15% (soft) | `liquidity_config` |
 | | | STRESSED: SL +30%, size −30%, hard halt | |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE | — |
-| Sell-only filter | Per decision | Override BUY→FLAT for 3 inverted-BUY assets | `get_sell_only_assets()` (config-driven from per-asset files in `configs/domains/assets/`) |
+| Sell-only filter | Per decision | Override BUY→FLAT for 6 inverted-BUY assets | `get_sell_only_assets()` (config-driven from per-asset files in `configs/domains/assets/`) |
 | Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
 | Factor model (P3) | Per cycle | Factor exposures via 10 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
@@ -542,7 +542,7 @@ max_layers: 3
 | Update MAE/MFE | Update max adverse/favorable excursion | — |
 | Resolve signal | Map proba to BUY/SELL/FLAT via `FixedThresholdStrategy(0.45)` | `threshold` (default 0.45) |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 | (hardcoded, per-asset pair) |
-| Sell-only filter | Override BUY→FLAT for `get_sell_only_assets()` | (config-driven from per-asset files in `configs/domains/assets/`, 3 assets, reduced from 10 on 2026-07-01) |
+| Sell-only filter | Override BUY→FLAT for `get_sell_only_assets()` | (config-driven from per-asset files in `configs/domains/assets/`, 6 assets) |
 | Spread gate | Block entry if spread > per-class tier (observe 720 cycles first) | `spread_gate_tiers` (fx_major=10bps, fx_cross=20bps, indices=15bps, metals=20bps) |
 | Session gate | Block entry outside market session hours per asset-class tier (observe 720 cycles first) | `session_gate.tiers` (fx_major=[7,17], fx_cross=[7,17], indices=[13,20], metals=[8,18], crypto=[0,24]) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) | `adx_entry_gate` (adx_threshold=18) |

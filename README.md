@@ -6,7 +6,7 @@
 [![codecov](https://codecov.io/gh/manuelhorvey/EigenCapital/graph/badge.svg)](https://codecov.io/gh/manuelhorvey/EigenCapital)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Cross-sectional multi-asset paper trading engine with per-asset XGBoost models, 16-layer governance framework, adaptive exit trailing, MetaTrader 5 bridge execution (Exness demo), and a React SPA dashboard. Every asset must survive expanding-window walk-forward validation before entering the live portfolio.
+Cross-sectional multi-asset paper trading engine with per-asset XGBoost models, 17-layer governance framework, adaptive exit trailing, MetaTrader 5 bridge execution (Exness demo), and a React SPA dashboard. Every asset must survive expanding-window walk-forward validation before entering the live portfolio.
 
 ---
 
@@ -44,7 +44,7 @@ PRE: state snapshot → REFRESH: parallel inference → ADMIT: PEK gate →
 VALIDITY: state updates → PORTFOLIO HEALTH: circuit breaker, VaR, orphan recon → PERSIST: WAL
 ```
 
-Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.36→0.02), a 22-stage decision pipeline, 16 governance layers, and a multiplicative sizing chain before reaching the broker.
+Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.36→0.02), a 22-stage decision pipeline, 17 governance layers, and a multiplicative sizing chain before reaching the broker.
 
 [Full architecture →](docs/SYSTEM_OVERVIEW.md) · [Governance detail →](docs/GOVERNANCE.md) · [Feature reference →](docs/FEATURES.md)
 
@@ -61,7 +61,8 @@ Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilitie
 | 2026-07-04 | BTCUSD (weekend-eligible, 24/7), AUDJPY, NZDJPY, GBPJPY, USDJPY added → 22 assets |
 | 2026-06-30 | 11 assets bumped to ratio=3.0 via optimizer; all models retrained |
 | 2026-06-26 | Trend-exhaustion features (6 new alpha) improved BuyWR; SELL_ONLY reduced 10→3 |
-| 2026-06-22 | GBPUSD promoted (walk-forward IC 0.186); ES/NQ/^DJI removed for portfolio remediation |
+| 2026-07-01 | ES, NQ removed from portfolio (portfolio remediation) |
+| 2026-06-22 | GBPUSD promoted (walk-forward IC 0.186) |
 | 2026-06-20 | AUDNZD, EURUSD, AUDCHF, GBPNZD removed for directional instability |
 
 Per-asset config (SL/TP, allocation, max_depth) in per-asset YAML files under [`configs/domains/assets/`](configs/domains/assets/).
@@ -123,7 +124,7 @@ React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000. 4 routes with si
 | Guide | Contents |
 |-------|----------|
 | [Architecture](docs/SYSTEM_OVERVIEW.md) | Full system design, orchestrator lifecycle, data flow |
-| [Governance](docs/GOVERNANCE.md) | 16-layer framework, decision pipeline, sizing guardrails |
+| [Governance](docs/GOVERNANCE.md) | 17-layer framework, decision pipeline, sizing guardrails |
 | [Features](docs/FEATURES.md) | Alpha, regime, and archetype feature reference |
 | [Operations](docs/OPERATIONS.md) | Runbook, monitoring commands, troubleshooting |
 | [API Reference](docs/API.md) | All dashboard JSON endpoints |
@@ -141,7 +142,7 @@ React SPA (TypeScript, Vite, Tailwind CSS) served on port 5000. 4 routes with si
 ## Active Constraints
 
 - Paper trading only (MT5 Exness demo — no live capital)
-- 3 permanent SELL_ONLY assets (CADCHF, NZDCHF, EURAUD) — BUY signal inversion confirmed permanent
+- 6 permanent SELL_ONLY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) — BUY signal inversion confirmed permanent
 - MT5 bridge requires Wine on Linux; single-threaded (RLock-serialized)
 - Small MT5 demo ($107) → positions quantize to 0.01 lot minimum; desired-vs-actual diverges
 - Circuit breaker at -15% DD or 7 consecutive losses; emergency halt auto-clears on recovery

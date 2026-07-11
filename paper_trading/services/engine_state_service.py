@@ -384,10 +384,24 @@ class EngineStateService:
                         weight = -weight
                     position_weights[name] = round(weight, 6)
 
-            if not position_weights:
-                return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
+            if position_weights:
+                exposures = compute_factor_exposures(position_weights, FACTOR_GROUPS)
+            else:
+                # Fallback: use target allocation weights from config when
+                # _rebalance_weights is empty (not rebalance day) and no
+                # positions are open.  Normalize allocations so they sum
+                # to 1.0 for correct factor exposure computation.
+                alloc_weights: dict[str, float] = {}
+                total_alloc = sum(a.allocation for a in engine.assets.values())
+                if total_alloc > 0:
+                    for name, asset in engine.assets.items():
+                        alloc_weights[name] = asset.allocation / total_alloc
+                else:
+                    eq = 1.0 / max(len(engine.assets), 1)
+                    for name in engine.assets:
+                        alloc_weights[name] = eq
+                exposures = compute_factor_exposures(alloc_weights, FACTOR_GROUPS)
 
-            exposures = compute_factor_exposures(position_weights, FACTOR_GROUPS)
             violations = exposure_violations(exposures, DEFAULT_FACTOR_LIMITS)
             n_violations = sum(1 for v in violations.values() if v["violation"] is not None)
             within_limits = n_violations == 0

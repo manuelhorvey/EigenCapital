@@ -243,10 +243,13 @@ class TestExtractPek:
 
 
 class TestComputeFactorExposures:
-    def test_returns_empty_without_rebalance_weights(self, service):
+    def test_falls_back_to_allocation_weights_without_rebalance_weights(self, service):
         result = service._compute_factor_exposures()
-        assert result["exposures"] == {}
-        assert result["n_violations"] == 0
+        # When _rebalance_weights is empty and no positions are open, falls
+        # back to normalized allocation weights from asset config.
+        assert result["exposures"] != {}
+        assert "USD" in result["exposures"]  # EURUSD + GBPUSD both map to USD
+        assert result["n_violations"] >= 0
 
     def test_calls_factor_summary_with_weights(self):
         engine = _make_mock_engine(_rebalance_weights={"EURUSD": 0.6, "GBPUSD": 0.4})

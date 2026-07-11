@@ -96,15 +96,14 @@ class TestAssetTrainingPipeline:
         }, index=idx)
 
         with patch("paper_trading.inference.training.fetch_asset_data", return_value=(prices, pd.DataFrame(), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.DataFrame())):
-            with patch("paper_trading.inference.training.fetch_cot_features", return_value=pd.DataFrame()):
-                with patch("paper_trading.inference.training.fetch_asset_ohlcv", return_value=ohlcv):
-                    with patch("paper_trading.inference.training.build_alpha_features", return_value=features):
-                        with patch("paper_trading.inference.training.apply_triple_barrier", return_value=pd.DataFrame({"label": [0] * 50}, index=idx)):
-                            with patch("paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()):
-                                with patch("os.path.exists", return_value=False):
-                                    pipeline = AssetTrainingPipeline(mock_asset)
-                                    pipeline.train()
-                                    assert mock_asset._trained is False
+            with patch("paper_trading.inference.training.fetch_asset_ohlcv", return_value=ohlcv):
+                with patch("paper_trading.inference.training.build_alpha_features", return_value=features):
+                    with patch("paper_trading.inference.training.apply_triple_barrier", return_value=pd.DataFrame({"label": [0] * 50}, index=idx)):
+                        with patch("paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()):
+                            with patch("os.path.exists", return_value=False):
+                                pipeline = AssetTrainingPipeline(mock_asset)
+                                pipeline.train()
+                                assert mock_asset._trained is False
 
     def test_sufficient_data_trains_model(self, mock_asset):
         np.random.seed(42)
@@ -125,16 +124,15 @@ class TestAssetTrainingPipeline:
         features["label"] = np.random.choice([-1, 1], size=400)
 
         with patch("paper_trading.inference.training.fetch_asset_data", return_value=(prices, pd.DataFrame(), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.DataFrame())):
-            with patch("paper_trading.inference.training.fetch_cot_features", return_value=pd.DataFrame()):
-                with patch("paper_trading.inference.training.fetch_asset_ohlcv", return_value=ohlcv):
-                    with patch("paper_trading.inference.training.build_alpha_features", return_value=features):
-                        with patch("paper_trading.inference.training.apply_triple_barrier", return_value=pd.DataFrame({"label": [1 if i < 200 else -1 for i in range(400)]}, index=idx)):
-                            with patch("paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()):
-                                with patch("os.path.exists", return_value=False):
-                                    with patch("paper_trading.inference.training.RegimeConditionalModel.load", return_value=False):
-                                        pipeline = AssetTrainingPipeline(mock_asset)
-                                        pipeline.train()
-                                        assert mock_asset.model is not None
+            with patch("paper_trading.inference.training.fetch_asset_ohlcv", return_value=ohlcv):
+                with patch("paper_trading.inference.training.build_alpha_features", return_value=features):
+                    with patch("paper_trading.inference.training.apply_triple_barrier", return_value=pd.DataFrame({"label": [1 if i < 200 else -1 for i in range(400)]}, index=idx)):
+                        with patch("paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()):
+                            with patch("os.path.exists", return_value=False):
+                                with patch("paper_trading.inference.training.RegimeConditionalModel.load", return_value=False):
+                                    pipeline = AssetTrainingPipeline(mock_asset)
+                                    pipeline.train()
+                                    assert mock_asset.model is not None
 
     def test_regime_model_skipped_when_base_weight_full(self, mock_asset):
         mock_asset.config = {"ensemble": {"base_weight": 1.0}}

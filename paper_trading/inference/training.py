@@ -9,7 +9,7 @@ import pandas as pd
 import xgboost as xgb
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 from features.regime_features import generate_regime_features
 from labels.meta_labels import MetaLabelModel
 from labels.triple_barrier import apply_triple_barrier
@@ -72,8 +72,6 @@ class AssetTrainingPipeline:
             asset.ticker,
         )
 
-        cot_data = fetch_cot_features(prices.index)
-
         # Fetch OHLCV early — needed for trend-exhaustion features, vectorized
         # labels, and regime features
         ohlcv = fetch_asset_ohlcv(asset.ticker)
@@ -85,7 +83,6 @@ class AssetTrainingPipeline:
             vix=vix,
             spx=spx,
             commodities=commodities,
-            cot_data=cot_data,
             ohlcv=ohlcv,
         )
 

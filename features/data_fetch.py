@@ -246,18 +246,31 @@ def _fetch_single_series(ticker: str, name: str | None = None) -> pd.Series:
 
 
 def _fetch_fred_series(ticker: str) -> pd.Series:
-    """Fetch a single macro series from FRED CSV endpoint (no API key required).
+    """Fetch a single macro series from FRED CSV endpoint.
 
     Uses stdlib urllib — no external dependency beyond pandas.
+    Supports optional API key via ``FRED_API_KEY`` env var for higher rate limits.
+    With a key, uses the authenticated JSON API (returns CSV); without a key,
+    uses the public graph export (unauthenticated, subject to rate limiting).
     """
     import csv
     import io
+    import os
     import urllib.request
 
     series_id = _FRED_FALLBACK.get(ticker)
     if series_id is None:
         return pd.Series(dtype=float)
-    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+
+    api_key = os.environ.get("FRED_API_KEY", "")
+    if api_key:
+        url = (
+            f"https://api.stlouisfed.org/fred/series/observations"
+            f"?series_id={series_id}&api_key={api_key}&file_type=csv"
+            f"&observation_start=2020-01-01&sort_order=desc&limit=2000"
+        )
+    else:
+        url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
     try:
         with urllib.request.urlopen(url, timeout=15) as resp:
             text = resp.read().decode("utf-8")
@@ -309,42 +322,17 @@ def fetch_yf_series(ticker: str, name: str, period: str | None = None) -> pd.Ser
 def fetch_cot_features(
     price_index: pd.DatetimeIndex,
 ) -> pd.DataFrame:
-    """Load COT positioning features aligned to price_index.
+    """DEPRECATED — COT features had zero gain across all 22 assets.
 
-    Returns DataFrame with columns per FX pair (e.g. EURUSD_cot_z).
-    Returns empty DataFrame if COT data is unavailable.
+    Previously loaded COT positioning data from CFTC weekly reports and
+    built per-pair features (cot_z, cot_change_4w). These features were
+    deprecated 2026-07-09 and are no longer used in training or inference.
+
+    Returns an empty DataFrame. Kept for backward compatibility with
+    scripts that still import this function.
     """
-    try:
-        from data.loaders.cot_loader import FX_COT_CONTRACTS, align_cot_to_daily, get_contract_series, load_cot_weekly
-        from features.cot_features import build_cot_features
-
-        cot_weekly = _get_cycle_cached("cot_weekly_raw")
-        if cot_weekly is None:
-            cot_weekly = load_cot_weekly()
-            _set_cycle_cache("cot_weekly_raw", cot_weekly)
-        if cot_weekly.empty:
-            return pd.DataFrame()
-
-        result = pd.DataFrame(index=price_index)
-        for symbol in FX_COT_CONTRACTS:
-            series = get_contract_series(cot_weekly, symbol)
-            if series is None or series.empty:
-                continue
-            aligned = align_cot_to_daily(series, price_index)
-            feats = build_cot_features(aligned)
-            if feats.empty:
-                continue
-            if "lev_net_cot_index" in feats.columns:
-                val = feats["lev_net_cot_index"].reindex(price_index, method="ffill")
-                result[f"{symbol}_cot_z"] = val.fillna(0.0)
-            if "lev_net_change_4w" in feats.columns:
-                val = feats["lev_net_change_4w"].reindex(price_index, method="ffill")
-                result[f"{symbol}_cot_change_4w"] = val.fillna(0.0)
-
-        return result
-    except (OSError, ValueError, TypeError, KeyError) as exc:
-        logger.debug("COT features unavailable: %s", exc)
-        return pd.DataFrame()
+    logger.debug("fetch_cot_features called but COT features are deprecated — returning empty DataFrame")
+    return pd.DataFrame()
 
 
 def fetch_asset_data(

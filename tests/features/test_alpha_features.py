@@ -257,9 +257,6 @@ def test_build_alpha_features_expected_columns(sample_prices, sample_rate_diffs,
         "AUDJPY_zscore_20",
         "AUDJPY_vol_ratio",
         "AUDJPY_dow_signal",
-        "AUDJPY_has_cot",
-        "AUDJPY_cot_z",
-        "AUDJPY_cot_change_4w",
         "EURCAD_carry_vol_adj",
         "EURCAD_mom_21d",
         "EURCAD_mom_63d",
@@ -268,9 +265,6 @@ def test_build_alpha_features_expected_columns(sample_prices, sample_rate_diffs,
         "EURCAD_zscore_20",
         "EURCAD_vol_ratio",
         "EURCAD_dow_signal",
-        "EURCAD_has_cot",
-        "EURCAD_cot_z",
-        "EURCAD_cot_change_4w",
         "dxy_mom_21d",
         "vix_mom_5d",
         "spx_mom_5d",
@@ -371,51 +365,20 @@ def test_build_alpha_features_missing_rate_diff_defaults_to_zero(
     assert carry_col.dropna().abs().max() < 1e-10
 
 
-def test_build_alpha_features_cot_deprecated(
+def test_build_alpha_features_cot_removed(
     sample_prices, sample_rate_diffs, sample_macro,
 ):
-    """COT features are deprecated — all COT columns are constant 0.0."""
+    """COT features are removed — no COT columns in the output."""
     result = build_alpha_features(
         sample_prices, sample_rate_diffs,
         dxy=sample_macro["dxy"], vix=sample_macro["vix"],
         spx=sample_macro["spx"], commodities=sample_macro["comms"],
     )
-    # Per-asset COT columns are always 0.0 (backward compat with trained models)
-    assert "AUDJPY_cot_z" in result.columns
-    assert "EURCAD_cot_z" in result.columns
-    assert (result["AUDJPY_cot_z"] == 0.0).all()
-    # External COT pair columns are no longer injected
-    assert "EURUSD_cot_z" not in result.columns
-
-
-def test_build_alpha_features_cot_zero_when_missing(
-    sample_prices, sample_rate_diffs, sample_macro,
-):
-    """COT columns are always 0.0 for all assets."""
-    result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
-    )
-    assert "AUDJPY_cot_z" in result.columns
-    assert (result["AUDJPY_cot_z"] == 0.0).all()
-    assert "EURCAD_cot_z" in result.columns
-    assert (result["EURCAD_cot_z"] == 0.0).all()
-
-
-def test_build_alpha_features_cot_no_lag_applied(
-    sample_prices, sample_rate_diffs, sample_macro,
-):
-    """COT data is no longer injected — all COT columns are per-asset 0.0."""
-    result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
-    )
-    assert "AUDJPY_cot_z" in result.columns
-    assert (result["AUDJPY_cot_z"] == 0.0).all()
-    assert "EURCAD_cot_z" in result.columns
-    assert (result["EURCAD_cot_z"] == 0.0).all()
+    # COT columns were removed 2026-07-11
+    assert "AUDJPY_cot_z" not in result.columns, "COT column should not exist"
+    assert "AUDJPY_has_cot" not in result.columns, "COT column should not exist"
+    assert "EURCAD_cot_z" not in result.columns, "COT column should not exist"
+    assert "EURUSD_cot_z" not in result.columns, "COT column should not exist"
 
 
 # ── cot_net_positioning ─────────────────────────────────────────────────────

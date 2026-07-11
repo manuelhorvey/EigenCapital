@@ -44,7 +44,7 @@ from eigencapital.domain.value_objects.statistical_metrics import (
     probabilistic_sharpe_ratio,
 )
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 from labels.compat import PurgedWalkForwardFolds
 from labels.triple_barrier import apply_triple_barrier
 
@@ -225,8 +225,6 @@ def run_asset_counterfactual(
     if not commodities.empty:
         commodities = commodities.iloc[-_trunc_rows:]
 
-    cot_data = fetch_cot_features(hist_prices.index)
-
     alpha_df = build_alpha_features(
         hist_prices,
         rate_diffs,
@@ -234,7 +232,6 @@ def run_asset_counterfactual(
         vix=vix,
         spx=spx,
         commodities=commodities,
-        cot_data=cot_data,
     )
 
     alpha_df = _modify_features(alpha_df, args)

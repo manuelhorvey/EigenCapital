@@ -4,48 +4,7 @@ import numpy as np
 import pandas as pd
 import ta
 
-from data.loaders.cot_loader import FX_COT_CONTRACTS
-
 logger = logging.getLogger("eigencapital.alpha_features")
-
-logger = logging.getLogger("eigencapital.alpha_features")
-
-# Asset name -> available in COT data lookup
-_COT_COVERED_NAMES: set[str] = set(k.upper() for k in FX_COT_CONTRACTS)
-
-# Factor groups covered by each COT pair.
-# Only assets whose factor group overlaps with a COT pair's groups
-# should receive that pair's COT features.
-# Derived from factor groups in shared/factor_model.py FACTOR_GROUPS.
-_COT_PAIR_FACTOR_GROUPS: dict[str, frozenset[str]] = {
-    "EURUSD": frozenset({"EUR", "USD"}),
-    "GBPUSD": frozenset({"GBP", "USD"}),
-    "USDJPY": frozenset({"USD", "JPY"}),
-    "AUDUSD": frozenset({"AUD", "USD"}),
-    "USDCAD": frozenset({"USD", "CAD"}),
-    "USDCHF": frozenset({"USD", "CHF"}),
-    "NZDUSD": frozenset({"NZD", "USD"}),
-    "MXNUSD": frozenset({"USD"}),
-}
-
-
-# Derive asset-to-factor-group mapping from shared/factor_model.py FACTOR_GROUPS.
-# Invert the FACTOR_GROUPS dict (factor -> set of assets) to get asset -> set of factors.
-# This avoids maintaining a parallel mapping that would drift from the canonical one.
-def _build_asset_factor_groups() -> dict[str, frozenset[str]]:
-    try:
-        from shared.factor_model import FACTOR_GROUPS
-
-        result: dict[str, set[str]] = {}
-        for factor, assets in FACTOR_GROUPS.items():
-            for asset in assets:
-                result.setdefault(asset, set()).add(factor)
-        return {k: frozenset(v) for k, v in result.items()}
-    except (ImportError, AttributeError, TypeError):
-        return {}
-
-
-_ASSET_FACTOR_GROUPS: dict[str, frozenset[str]] = _build_asset_factor_groups()
 
 
 def vol_adjusted_carry(price: pd.Series, rate_diff: pd.Series, vol_window: int = 21) -> pd.Series:
@@ -287,14 +246,57 @@ def day_of_week_signal(price: pd.Series) -> pd.Series:
     return result
 
 
+def _compute_trend_exhaustion_features(
+    ohlcv: pd.DataFrame,
+    price_index: pd.Index,
+) -> dict[str, pd.Series]:
+    """Compute trend-exhaustion indicators from OHLCV data once.
+
+    These features are the same for all assets sharing the same OHLCV data.
+    Computing them once and broadcasting via ``reindex`` avoids N redundant
+    sequence-level computations (MACD, Stoch, BB, ADX, RSI all involve
+    rolling-window operations over the full series).
+
+    Returns a dict of ``{feature_name: pd.Series}`` where each Series is
+    indexed by *price_index* (the aligned feature DataFrame index).  Returns
+    an empty dict if *ohlcv* is None or empty.
+    """
+    if ohlcv is None or ohlcv.empty:
+        return {}
+
+    _h = ohlcv["high"].reindex(price_index).ffill()
+    _l = ohlcv["low"].reindex(price_index).ffill()
+    _c = ohlcv["close"].reindex(price_index).ffill()
+
+    cache: dict[str, pd.Series] = {}
+    cache["macd_hist"] = macd_histogram(_c)
+
+    _k, _d = stochastic_oscillator(_h, _l, _c)
+    cache["stoch_k"] = _k
+    cache["stoch_d"] = _d
+
+    cache["bb_pct_b"] = bb_pct_b(_c)
+    cache["adx_slope"] = adx_slope(_h, _l, _c)
+
+    try:
+        from features.divergence import rsi_divergence
+
+        cache["rsi_divergence"] = rsi_divergence(_h, _l, _c)
+    except (ImportError, ValueError, TypeError):
+        logger.debug("RSI divergence unavailable — defaulting to 0")
+        cache["rsi_divergence"] = pd.Series(0.0, index=price_index)
+
+    return cache
+
+
 def _compute_shared_features(
     dxy: pd.Series | None = None,
     vix: pd.Series | None = None,
     spx: pd.Series | None = None,
     commodities: pd.DataFrame | None = None,
-    cot_data: pd.DataFrame | None = None,
     index: pd.Index | None = None,
 ) -> dict[str, pd.Series]:
+    """Compute cross-asset features shared across all portfolio assets."""
     features: dict[str, pd.Series] = {}
     if dxy is not None:
         v = dxy_momentum(dxy)
@@ -317,10 +319,6 @@ def _compute_shared_features(
             if index is not None:
                 v = v.reindex(index)
             features[f"{comm.upper()}_mom_21d"] = v
-    # COT features are NOT added to shared_features — they flow directly through
-    # build_alpha_features()'s cot_data parameter where factor-group relevance
-    # filtering is applied.  This prevents the shared_features shortcut from
-    # bypassing the per-asset filter (see build_alpha_features cot_data loop).
     return features
 
 
@@ -331,7 +329,6 @@ def build_alpha_features(
     vix: pd.Series | None = None,
     spx: pd.Series | None = None,
     commodities: pd.DataFrame | None = None,
-    cot_data: pd.DataFrame | None = None,  # DEPRECATED 2026-07-09 — COT features had zero gain
     shared_features: dict[str, pd.Series] | None = None,
     ohlcv: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
@@ -350,13 +347,15 @@ def build_alpha_features(
     are computed: MACD histogram, Stochastic %K/%D, BB %B, ADX slope,
     and RSI divergence.
 
-    Note: cot_data parameter is deprecated (2026-07-09). COT features
-    had zero gain across all 22 assets and are no longer populated
-    from COT data. The parameter is kept for backward compatibility.
-
     Returns a DataFrame with no NaN rows (ffill then dropna at end).
     """
     features = pd.DataFrame(index=prices.index)
+
+    # Pre-compute trend-exhaustion indicators from shared OHLCV once.
+    # These rolling-window computations (MACD, Stoch, BB, ADX, RSI) are
+    # identical for all assets using the same OHLCV. Computing once and
+    # broadcasting via reindex saves N× overhead for an N-asset portfolio.
+    _trend_cache = _compute_trend_exhaustion_features(ohlcv, prices.index)
 
     for pair in prices.columns:
         asset_upper = pair.upper()
@@ -379,37 +378,13 @@ def build_alpha_features(
         features[f"{asset_upper}_vol_ratio"] = vol_regime_ratio(close)
         features[f"{asset_upper}_dow_signal"] = day_of_week_signal(close)
 
-        # has_cot flag — zero gain across all 22 assets, kept as 0.0 for
-        # backward compatibility with existing trained model feature columns.
-        features[f"{asset_upper}_has_cot"] = 0.0
-
         # ── Trend-exhaustion indicators (Tier 1) ─────────────────────
-        # These require OHLCV data.  If ohlcv is provided, use its
-        # high/low/close aligned to the current pair's price index.
-        if ohlcv is not None and not ohlcv.empty:
-            _h = ohlcv["high"].reindex(close.index).ffill()
-            _l = ohlcv["low"].reindex(close.index).ffill()
-            _c = ohlcv["close"].reindex(close.index).ffill()
-
-            features[f"{asset_upper}_macd_hist"] = macd_histogram(_c)
-
-            _k, _d = stochastic_oscillator(_h, _l, _c)
-            features[f"{asset_upper}_stoch_k"] = _k
-            features[f"{asset_upper}_stoch_d"] = _d
-
-            features[f"{asset_upper}_bb_pct_b"] = bb_pct_b(_c)
-
-            features[f"{asset_upper}_adx_slope"] = adx_slope(_h, _l, _c)
-
-            # RSI divergence (Tier 2) — requires high/low/close
-            try:
-                from features.divergence import rsi_divergence
-
-                _div = rsi_divergence(_h, _l, _c)
-                features[f"{asset_upper}_rsi_divergence"] = _div
-            except (ImportError, ValueError, TypeError):
-                logger.debug("RSI divergence unavailable for %s", asset_upper)
-                features[f"{asset_upper}_rsi_divergence"] = 0
+        # Pre-computed from shared OHLCV — broadcast to each asset via
+        # reindex, which is a fast column-level operation rather than a
+        # full sequence computation (MACD, Stoch, BB, ADX all involve
+        # rolling-window operations over the full OHLCV series).
+        for feat_name, feat_series in _trend_cache.items():
+            features[f"{asset_upper}_{feat_name}"] = feat_series.reindex(close.index)
 
     # Cross-asset features (reuse pre-computed if provided)
     if shared_features is not None:
@@ -426,15 +401,8 @@ def build_alpha_features(
             for comm in commodities.columns:
                 features[f"{comm.upper()}_mom_21d"] = commodity_momentum(commodities[comm]).reindex(features.index)
 
-    # COT features removed 2026-07-09 — zero gain across all 22 assets.
-    # Kept as constant 0.0 columns for backward compatibility with
-    # existing trained models that expect these columns.
-    for asset_upper in (c.upper() for c in prices.columns):
-        features[f"{asset_upper}_cot_z"] = 0.0
-        features[f"{asset_upper}_cot_change_4w"] = 0.0
-
     # Final forward-fill and dropna to handle indicator warmup.
-    # We also fill any remaining NaNs in cross-asset/COT features with 0.0
+    # We also fill any remaining NaNs in cross-asset features with 0.0
     # to prevent an entirely NaN column from discarding all rows.
     features = features.ffill()
     for col in features.columns:

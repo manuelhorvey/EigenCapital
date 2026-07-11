@@ -49,7 +49,7 @@ PSI_MODERATE = 0.25
 # Feature names for ES feature-level PSI
 ES_FEATURE_COLS = [
     "ES_carry_vol_adj", "ES_mom_21d", "ES_mom_63d", "ES_mom_126d", "ES_mom_252d",
-    "ES_zscore_20", "ES_vol_ratio", "ES_dow_signal", "ES_has_cot",
+    "ES_zscore_20", "ES_vol_ratio", "ES_dow_signal",
     "dxy_mom_21d", "vix_mom_5d", "spx_mom_5d",
 ]
 
@@ -147,7 +147,7 @@ def generate_features(asset: str, ticker: str) -> pd.DataFrame | None:
         ohlcv = fetch_asset_ohlcv(ticker)
         alpha_df = build_alpha_features(
             prices, rate_diffs, dxy=dxy, vix=vix, spx=spx,
-            commodities=commodities, cot_data=None,
+            commodities=commodities,
         )
 
         if not ohlcv.empty:

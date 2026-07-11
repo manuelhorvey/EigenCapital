@@ -26,7 +26,7 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 from features.regime_features import generate_regime_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from paper_trading.inference.ensemble import EnsembleSignal
@@ -81,10 +81,9 @@ def run_ensemble_pilot(
     ohlcv = fetch_asset_ohlcv(ticker)
 
     labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=20)
-    cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
-        prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities, cot_data=cot_data
-    )  # noqa: E501
+        prices, rate_diffs, dxy=dxy, vix=vix, spx=spx, commodities=commodities
+    )
 
     alpha_df["label"] = labels.reindex(alpha_df.index).astype(int)
     alpha_df = alpha_df.dropna()

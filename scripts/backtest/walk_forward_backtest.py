@@ -27,7 +27,7 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 from features.regime_features import generate_regime_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from labels.trend_adjusted_labels import trend_adjusted_labels
@@ -164,7 +164,6 @@ def run_walk_forward(
     # Use vertical_barrier=20 by default (matches FEATURE_REGISTRY), gap >= barrier
     labels = compute_labels(prices, ohlcv, pt_sl=pt_sl, vertical_barrier=20, label_type=label_type)
     gap = max(gap, 20)
-    cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
         prices,
         rate_diffs,
@@ -172,7 +171,6 @@ def run_walk_forward(
         vix=vix,
         spx=spx,
         commodities=commodities,
-        cot_data=cot_data,
         ohlcv=ohlcv,
     )
 

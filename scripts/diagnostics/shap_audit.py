@@ -19,7 +19,7 @@ import shap
 import xgboost as xgb
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_cot_features
+from features.data_fetch import fetch_asset_data
 from labels.compat import triple_barrier_labels
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -79,7 +79,6 @@ def fetch_features(
         raise ValueError(msg)
 
     labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=20, vol_lookback=21)
-    cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
         prices,
         rate_diffs,
@@ -87,7 +86,6 @@ def fetch_features(
         vix=vix,
         spx=spx,
         commodities=commodities,
-        cot_data=cot_data,
     )
     alpha_df["label"] = labels.reindex(alpha_df.index).astype(int)
     alpha_df = alpha_df.dropna()
@@ -143,7 +141,6 @@ def run_shap_audit(asset_name: str, ticker: str, pt_sl: tuple[float, float], max
     # Re-compute labels on the same data
     prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset_name, ticker)
     labels = triple_barrier_labels(prices, pt_sl=pt_sl, vertical_barrier=20, vol_lookback=21)
-    cot_data = fetch_cot_features(prices.index)
     alpha_df = build_alpha_features(
         prices,
         rate_diffs,
@@ -151,7 +148,6 @@ def run_shap_audit(asset_name: str, ticker: str, pt_sl: tuple[float, float], max
         vix=vix,
         spx=spx,
         commodities=commodities,
-        cot_data=cot_data,
     )
     alpha_df["label"] = labels.reindex(alpha_df.index).astype(int)
     alpha_df = alpha_df.dropna()

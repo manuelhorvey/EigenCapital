@@ -238,7 +238,7 @@ def load_data(asset):
 
     try:
         from features.alpha_features import build_alpha_features
-        from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, fetch_cot_features
+        from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 
         prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset, info["ticker"])
         if prices.empty or len(prices) < 100:
@@ -246,10 +246,9 @@ def load_data(asset):
             return None
 
         ohlcv = fetch_asset_ohlcv(info["ticker"])
-        cot_data = fetch_cot_features(prices.index)
         alpha_df = build_alpha_features(
             prices, rate_diffs, dxy=dxy, vix=vix, spx=spx,
-            commodities=commodities, cot_data=cot_data,
+            commodities=commodities,
         )
 
         if not ohlcv.empty:

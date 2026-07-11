@@ -495,7 +495,6 @@ class TestGenerateAndApply:
         _fetch_mock = patch.object(pipeline, "_fetch_and_prepare_data", return_value=prep_df)
         _fad_mock = patch("features.data_fetch.fetch_asset_data")
         _ohlcv_mock = patch("features.data_fetch.fetch_asset_ohlcv")
-        _cot_mock = patch("features.data_fetch.fetch_cot_features")
         _sf_mock = patch("features.alpha_features._compute_shared_features")
         _af_mock = patch("features.alpha_features.build_alpha_features")
         _rf_mock = patch("features.regime_features.generate_regime_features")
@@ -505,7 +504,6 @@ class TestGenerateAndApply:
             _fetch_mock,
             _fad_mock as mock_fad,
             _ohlcv_mock as mock_ohlcv,
-            _cot_mock as mock_cot,
             _sf_mock as mock_sf,
             _af_mock as mock_af,
             _rf_mock as mock_rf,
@@ -521,7 +519,6 @@ class TestGenerateAndApply:
             )
             ohlcv = _make_price_df(100)
             mock_ohlcv.return_value = ohlcv
-            mock_cot.return_value = pd.DataFrame()
             mock_sf.return_value = pd.DataFrame(index=_make_price_df(300).index)
             af = pd.DataFrame(
                 {

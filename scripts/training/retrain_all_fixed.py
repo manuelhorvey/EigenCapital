@@ -31,7 +31,8 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJECT_ROOT)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,7 +40,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("retrain_all")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = PROJECT_ROOT
 MODEL_DIR = os.path.join(BASE, "paper_trading", "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 

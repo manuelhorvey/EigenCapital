@@ -7,15 +7,21 @@ used as a trade filter: only enter when meta-label predicts TP > SL.
 
 Meta-label = 1  → trade will hit TP first (or timeout neutral)
 Meta-label = 0  → trade will hit SL first
+
+Persistence uses JSON (2026-07-11): the XGBoost Booster is serialised
+via ``save_raw`` / raw bytes, base64-encoded into the JSON payload.
+Integrity is verified via SHA-256 checksum embedded in the same JSON
+(``_checksum``).
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import json
 import logging
 import os
-import pickle
 
 import numpy as np
 import pandas as pd
@@ -151,12 +157,7 @@ class MetaLabelModel:
         self._trained = True
 
         if self.retain_meta_on_disk:
-            with open(model_path, "wb") as f:
-                pickle.dump(self, f)
-            with open(model_path, "rb") as f:
-                sig = hashlib.sha256(f.read()).hexdigest()
-            with open(model_path + ".sig", "w") as sf:
-                sf.write(sig + "\n")
+            self._save_json(model_path)
             logger.info(
                 "%s: meta model trained (pos_weight=%.2f, n=%d, threshold=%.2f)",
                 asset,
@@ -217,26 +218,91 @@ class MetaLabelModel:
         return base
 
     def _model_path(self, asset: str) -> str:
-        return os.path.join(META_MODEL_DIR, f"{asset}_meta.pkl")
+        return os.path.join(META_MODEL_DIR, f"{asset}_meta.json")
+
+    def _save_json(self, path: str) -> None:
+        """Persist model as JSON with embedded SHA-256 checksum.
+
+        The XGBoost Booster is serialised via ``save_raw()`` and base64-encoded.
+        Python-native attributes (threshold, n_estimators, etc.) are stored directly.
+        """
+        if self.model is None:
+            logger.warning("Meta model is None — skipping persistence")
+            return
+        raw = self.model.get_booster().save_raw()
+        model_bytes_b64 = base64.b64encode(raw).decode("ascii")
+        payload = {
+            "format": "meta_label_v2",
+            "version": 2,
+            "n_estimators": self.n_estimators,
+            "max_depth": self.max_depth,
+            "learning_rate": self.learning_rate,
+            "threshold": self.threshold,
+            "min_train_samples": self.min_train_samples,
+            "_trained": self._trained,
+            "_feature_names": self._feature_names,
+            "model_bytes_b64": model_bytes_b64,
+        }
+        payload_str = json.dumps(payload, sort_keys=True)
+        checksum = hashlib.sha256(payload_str.encode()).hexdigest()
+        payload["_checksum"] = checksum
+        tmp_path = path + ".tmp"
+        try:
+            with open(tmp_path, "w") as f:
+                json.dump(payload, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def _load(self, path: str) -> None:
+        """Load a meta-label model from JSON.
+
+        The JSON payload includes ``_checksum`` (SHA-256 of sorted JSON keys)
+        and ``model_bytes_b64`` (base64-encoded XGBoost booster raw bytes).
+        """
         try:
-            with open(path, "rb") as f:
-                content = f.read()
-            sig_path = path + ".sig"
-            if not os.path.exists(sig_path):
-                logger.critical("Missing .sig file for %s — refusing to load untrusted model", path)
+            if not os.path.exists(path):
+                logger.warning("No meta model found at %s", path)
                 return
-            with open(sig_path) as sf:
-                expected = sf.read().strip()
-            actual = hashlib.sha256(content).hexdigest()
-            if not hmac.compare_digest(expected, actual):
-                raise ValueError(f"Model integrity check failed for {path}")
-            obj = pickle.loads(content)
-            self.model = obj.model
-            self._feature_names = obj._feature_names
-            self._trained = obj._trained
-            self.threshold = obj.threshold
+
+            with open(path) as f:
+                payload = json.load(f)
+
+            # Integrity verification: SHA-256 checksum
+            stored_checksum = payload.pop("_checksum", None)
+            if stored_checksum is not None:
+                payload_str = json.dumps(payload, sort_keys=True)
+                actual_checksum = hashlib.sha256(payload_str.encode()).hexdigest()
+                if not hmac.compare_digest(stored_checksum, actual_checksum):
+                    raise ValueError(f"JSON integrity check failed for {path}")
+
+            # Restore Python-native attributes
+            self.n_estimators = payload.get("n_estimators", self.n_estimators)
+            self.max_depth = payload.get("max_depth", self.max_depth)
+            self.learning_rate = payload.get("learning_rate", self.learning_rate)
+            self.threshold = payload.get("threshold", self.threshold)
+            self.min_train_samples = payload.get("min_train_samples", self.min_train_samples)
+            self._trained = payload.get("_trained", False)
+            self._feature_names = payload.get("_feature_names")
+
+            # Deserialise XGBoost Booster from base64
+            model_bytes_b64 = payload.get("model_bytes_b64", "")
+            if model_bytes_b64:
+                raw = base64.b64decode(model_bytes_b64)
+                booster = xgb.Booster()
+                booster.load_raw(raw)
+                self.model = xgb.XGBClassifier(tree_method="hist")
+                self.model._Booster = booster  # type: ignore[attr-defined]
+                self.model._estimator_type = "classifier"
+                self.model.n_classes_ = 2
+                self.model.classes_ = np.array([0, 1])
+                if self._feature_names is not None:
+                    self.model._feature_names = list(self._feature_names)
+
             logger.info("Loaded meta model from %s", path)
         except Exception as e:
             logger.warning("Failed to load meta model: %s", e)

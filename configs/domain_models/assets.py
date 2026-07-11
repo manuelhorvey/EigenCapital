@@ -137,6 +137,15 @@ class AssetConfig:
     spread_tier: str | None = None
     max_depth: int | None = None
     min_confidence: float | None = None
+    min_confidence_buy: float | None = None
+    """Direction-conditional override: lower threshold for BUY signals.
+
+    Per-asset override of the global ``defaults.min_confidence_buy``.
+    When set, applies only to BUY/LONG signals; SELL signals still use
+    ``min_confidence_sell`` or the global default.
+    """
+    min_confidence_sell: float | None = None
+    """Direction-conditional override: threshold for SELL signals."""
     max_entry_slippage_pct: float | None = None
     max_positions_per_asset: int | None = None
     weekend_eligible: bool = False
@@ -173,6 +182,8 @@ class AssetConfig:
             "spread_tier",
             "max_depth",
             "min_confidence",
+            "min_confidence_buy",
+            "min_confidence_sell",
             "max_entry_slippage_pct",
             "max_positions_per_asset",
             "weekend_eligible",
@@ -193,6 +204,8 @@ class AssetConfig:
             min_confidence=raw.get("min_confidence"),
             max_entry_slippage_pct=raw.get("max_entry_slippage_pct"),
             max_positions_per_asset=raw.get("max_positions_per_asset"),
+            min_confidence_buy=raw.get("min_confidence_buy"),
+            min_confidence_sell=raw.get("min_confidence_sell"),
             weekend_eligible=bool(raw.get("weekend_eligible", False)),
             weekend_allocation_multiplier=float(raw.get("weekend_allocation_multiplier", 0.5)),
             regime_geometry=RegimeGeometry.from_dict(raw.get("regime_geometry")),
@@ -221,6 +234,10 @@ class AssetConfig:
             body["max_depth"] = self.max_depth
         if self.min_confidence is not None:
             body["min_confidence"] = self.min_confidence
+        if self.min_confidence_buy is not None:
+            body["min_confidence_buy"] = self.min_confidence_buy
+        if self.min_confidence_sell is not None:
+            body["min_confidence_sell"] = self.min_confidence_sell
         if self.max_entry_slippage_pct is not None:
             body["max_entry_slippage_pct"] = self.max_entry_slippage_pct
         if self.max_positions_per_asset is not None:

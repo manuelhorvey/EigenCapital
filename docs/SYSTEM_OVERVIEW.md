@@ -494,7 +494,7 @@ Pure function weight computation. 8 registered strategies:
 
 **Files:** `shared/calibration/` — `BinnedCalibrator`, `BetaCalibrator`, `CalibrationRegistry`, `ECETracker`
 
-Raw XGBoost probabilities are binned-calibrated per asset. Applied in `pipeline.py` after `_run_inference()`, before the decision pipeline. ECE reduced from 0.36→0.02 (94.3% avg, 16/16 assets >80%).
+Raw XGBoost probabilities are binned-calibrated per asset. Applied in `pipeline.py` after `_run_inference()`, before the decision pipeline. ECE reduced from 0.36→0.02 (94.3% avg, all 22 assets improved). The current production calibration uses the DirectionalCalibrator (Platt scaling) which achieves ECE 0.0178 with direction-conditional thresholds (buy=45, sell=55).
 
 **Config:** `calibration.enabled: true`, `calibration.method: binned`, `calibration.n_bins: 10`
 

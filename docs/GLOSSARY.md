@@ -139,9 +139,7 @@ A four-stage exit management system:
 1. **Breakeven lock** (at `be_lock_r` MFE, default 0.5R): move SL to entry
 2. **R-based scale-out** (at `scale_out_r` MFE, default 2.5R): close a fraction (`scale_out_fraction`, default 0.7) at target R
 3. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): trail remainder at `trail_retrace_pct` (default 0.33) from peak
-4. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approaches
-Validated to improve portfolio total_R from +519.5R to +3,209R (6.2×)
-in walk-forward simulation.
+4. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approachesValidated as part of the original 16-asset portfolio (walk-forward simulation) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +838.06 R with direction-conditional thresholds, bringing every asset into profitable territory.
 
 ### Scale-Out (Pyramiding Tiers)
 Partial profit-taking at configurable levels. Tier profiles are generated

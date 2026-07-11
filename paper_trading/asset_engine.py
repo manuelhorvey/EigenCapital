@@ -133,7 +133,10 @@ class AssetEngine:
         self._calibration_registry: CalibrationRegistry | None = None
         self._load_calibration_registry()
         w = WorkingState()
-        w._cycle_counter = 2
+        w._cycle_counter = 0
+        # Cycle 0 → first _apply_decision increments to 1 → pipeline check `<= 1` matches → first cycle suppressed
+        # This ensures the cold-start transient prediction (full-row inference before truncation validates)
+        # is never acted upon. Changed from 2 → 0 on 2026-07-11 (was silently bypassing suppression).
         w._last_signal_flip_cycle = -self.config.get("min_flip_interval_bars", 3) * 2
         w._min_flip_interval_bars = self.config.get("min_flip_interval_bars", 3)
         w._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)

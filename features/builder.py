@@ -1,5 +1,22 @@
+"""DEPRECATED — legacy per-asset feature pipeline.
+
+Replaced by ``features/alpha_features.py`` + ``features/regime_features.py`` which
+build a single cross-asset feature matrix for all 22 assets simultaneously.
+
+This module (``build_features``, ``compute_training_data``, etc.) uses the old
+``FeatureContract`` / ``FEATURE_REGISTRY`` system with per-asset config-driven
+features and publication-lag-aware macro processing.  It is kept for backward
+compatibility with historical scripts (``scripts/backtest/walk_forward_all.py``,
+``scripts/training/train_all_assets.py``).
+
+New scripts and pipelines MUST import from ``features.alpha_features`` instead.
+
+Will be removed in a future release.
+"""
+
 import logging
 import os
+import warnings
 
 import pandas as pd
 
@@ -11,6 +28,12 @@ from features.publication_lags import (
 )
 from features.registry import FEATURE_CONTRACT_VALIDATION, FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
+
+warnings.warn(
+    "features.builder is deprecated. Use features.alpha_features.build_alpha_features instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = logging.getLogger("eigencapital.features.builder")
 

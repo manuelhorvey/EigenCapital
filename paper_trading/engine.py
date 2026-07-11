@@ -523,6 +523,17 @@ class PaperTradingEngine:
         # All persistence (trades, positions, WAL) is handled inside _phase_4_persist.
         # This call discards the buffer so it doesn't grow unbounded — commands are
         # not reprocessed here because doing so would double-write to state.json / WAL.
+        #
+        # DESIGN NOTES (2026-07-11):
+        #   - Phase 4 writes directly to the WAL writer (self._wal). The persist_buffer
+        #     is an in-memory batch that gets drained every cycle — commands are deliberately
+        #     discarded after phase 4 has committed them to WAL.
+        #   - PaperTradingEngine.run_once() does NOT need to re-process these commands.
+        #     If we did, we'd double-write: once in _phase_4_persist → WAL, once here → WAL.
+        #   - BackgroundWriter.flush() below handles the actual fsync to disk.
+        #   - Verified: all trade/position persistence happens inside _phase_4_persist or
+        #     earlier (Phase 1b PEK budget close, Phase 3a circuit breaker flatten).
+        #     No writer outputs are lost by discarding this buffer.
         self._orchestrator.drain_persist_buffer()
 
         _t1 = time.perf_counter()

@@ -1,8 +1,28 @@
+"""DEPRECATED — legacy per-asset feature functions.
+
+Replaced by ``features/alpha_features.py`` which builds unified cross-asset
+features with per-asset factor groups and trend-exhaustion indicators.
+
+This module contains per-asset feature builders (``build_eurusd_features``,
+``build_usdjpy_features``, etc.) from the ``FeatureContract`` era.  They are
+no longer used in production and are kept only for historical script compat.
+
+Will be removed in a future release.
+"""
+
+import warnings
+
 import pandas as pd
 import yfinance as yf
 
 from features.cot_features import EURUSD_COT_FEATURES, build_cot_features
 from features.publication_lags import apply_lag_to_macro_derived
+
+warnings.warn(
+    "features.pair_specific is deprecated. Use features.alpha_features instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def yf_download_safe(symbol, start="2008-01-01", end="2026-12-31"):

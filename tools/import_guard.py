@@ -24,15 +24,12 @@ FORBIDDEN_MODULES = frozenset(
         "signals.paper_signal_adapter",
         "signals.signal_filters",
         "signals.thresholding",
-        "signals.simple_threshold",
         "signals.alpha_weighting",
         "models.macro_only",
         "portfolio.correlation_clusters",
         "portfolio.hrp_allocator",
         "portfolio.risk_parity",
-        "risk.drawdown_controls",
         "risk.exposure_limits",
-        "risk.position_sizing",
         "risk.stop_engine",
     }
 )

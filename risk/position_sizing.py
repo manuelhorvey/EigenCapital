@@ -1,8 +1,23 @@
-import logging
+"""DEPRECATED — legacy position sizing function.
+
+This module is no longer used in live trading.  Position sizing flows through
+``paper_trading/entry/`` (``EntryService``, ``EntryOptimizer``) and the
+``run_decision_pipeline`` sizing chain (Kelly multiplier, drawdown taper,
+position cap, risk cap).
+
+Kept for backward compatibility with existing tests and scripts.
+Will be removed in a future release.
+"""
+
+import warnings
 
 import pandas as pd
 
-logger = logging.getLogger("eigencapital.position_sizing")
+warnings.warn(
+    "risk.position_sizing is deprecated and will be removed.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def calculate_position_size(
@@ -11,26 +26,7 @@ def calculate_position_size(
     """
     Calculates position sizes based on signals and regime multipliers.
 
-    Args:
-        signal_df: DataFrame with 'signal' and 'risk_multiplier'.
-        base_risk: Percentage of account to risk per trade (e.g., 0.01 for 1%).
-        account_value: Total account equity.
-
-    Returns:
-        pd.Series: Position size in units/lots.
+    .. deprecated::
+        Use ``paper_trading.entry.EntryService`` instead.
     """
-    # For simulation, we return the relative size (multiplier)
-    # as we don't have asset price/volatility here yet.
-    # A value of 1.0 means full base risk.
     return signal_df["signal"] * signal_df["risk_multiplier"]
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    try:
-        signals = pd.read_parquet("data/processed/EURUSD_signals.parquet")
-        sizes = calculate_position_size(signals)
-        logger.info("\nPosition Sizes (Sample):")
-        logger.info("\n%s", sizes.tail())
-    except (FileNotFoundError, pd.errors.EmptyDataError, ValueError) as e:
-        logger.error("Position sizing test failed: %s", e)

@@ -381,6 +381,54 @@ def _compute_shared_features(
     return features
 
 
+def _compute_asset_feature_columns(
+    prices: pd.DataFrame,
+    rate_diffs: pd.DataFrame,
+    _trend_cache: dict[str, pd.Series],
+) -> list[pd.DataFrame]:
+    """Batch-compute per-asset feature columns.
+
+    Instead of assigning columns one-by-one for each asset (which triggers
+    pandas reindex validation 15+ times per asset), this pre-computes all
+    feature groups and returns a list of DataFrames for a single concat.
+
+    Returns a list of DataFrames, one per asset, each with prefixed columns.
+    """
+    asset_dfs: list[pd.DataFrame] = []
+    for pair in prices.columns:
+        asset_upper = pair.upper()
+        close = prices[pair]
+
+        rd = (
+            rate_diffs[pair].reindex(prices.index, method="ffill")
+            if pair in rate_diffs.columns
+            else pd.Series(0.0, index=prices.index)
+        )
+
+        parts: dict[str, pd.Series | pd.DataFrame] = {}
+
+        carry_raw = vol_adjusted_carry(close, rd)
+        parts[f"{asset_upper}_carry_vol_adj"] = carry_raw
+        parts[f"{asset_upper}_carry_up"] = carry_raw.clip(lower=0.0)
+        parts[f"{asset_upper}_carry_dn"] = (-carry_raw).clip(lower=0.0)
+
+        # Batch momentum features — compute once, assign all 12 columns at once
+        mom = momentum_features(close)
+        for col in mom.columns:
+            parts[f"{asset_upper}_{col}"] = mom[col]
+
+        parts[f"{asset_upper}_zscore_20"] = zscore_reversion(close)
+        parts[f"{asset_upper}_vol_ratio"] = vol_regime_ratio(close)
+        parts[f"{asset_upper}_dow_signal"] = day_of_week_signal(close)
+
+        # Trend-exhaustion: broadcast from shared cache (fast reindex)
+        for feat_name, feat_series in _trend_cache.items():
+            parts[f"{asset_upper}_{feat_name}"] = feat_series.reindex(close.index)
+
+        asset_dfs.append(pd.DataFrame(parts, index=prices.index))
+    return asset_dfs
+
+
 def build_alpha_features(
     prices: pd.DataFrame,
     rate_diffs: pd.DataFrame,
@@ -416,43 +464,12 @@ def build_alpha_features(
     # broadcasting via reindex saves N× overhead for an N-asset portfolio.
     _trend_cache = _compute_trend_exhaustion_features(ohlcv, prices.index)
 
-    for pair in prices.columns:
-        asset_upper = pair.upper()
-        close = prices[pair]
-
-        # Align rate_diff to this asset's price index
-        rd = (
-            rate_diffs[pair].reindex(prices.index, method="ffill")
-            if pair in rate_diffs.columns
-            else pd.Series(0.0, index=prices.index)
-        )
-
-        carry_raw = vol_adjusted_carry(close, rd)
-        features[f"{asset_upper}_carry_vol_adj"] = carry_raw
-        # ── Asymmetric carry split (D-02 fix) ────────────────────────────
-        # Split carry into positive and negative components. Carry trade
-        # unwind is asymmetric: sharp during risk-off (positive carry ->
-        # sharp reversal) vs gradual during risk-on. The original single
-        # carry column forces the model to learn one coefficient that must
-        # work for both regimes. Splitting lets it learn separate weights.
-        features[f"{asset_upper}_carry_up"] = carry_raw.clip(lower=0.0)  # positive carry only
-        features[f"{asset_upper}_carry_dn"] = (-carry_raw).clip(lower=0.0)  # |negative carry|
-
-        mom = momentum_features(close)
-        for col in mom.columns:
-            features[f"{asset_upper}_{col}"] = mom[col]
-
-        features[f"{asset_upper}_zscore_20"] = zscore_reversion(close)
-        features[f"{asset_upper}_vol_ratio"] = vol_regime_ratio(close)
-        features[f"{asset_upper}_dow_signal"] = day_of_week_signal(close)
-
-        # ── Trend-exhaustion indicators (Tier 1) ─────────────────────
-        # Pre-computed from shared OHLCV — broadcast to each asset via
-        # reindex, which is a fast column-level operation rather than a
-        # full sequence computation (MACD, Stoch, BB, ADX all involve
-        # rolling-window operations over the full OHLCV series).
-        for feat_name, feat_series in _trend_cache.items():
-            features[f"{asset_upper}_{feat_name}"] = feat_series.reindex(close.index)
+    # Batch-compute all per-asset feature columns into a list of DataFrames
+    # and concat at once — avoids 264+ individual column assignments that
+    # each trigger pandas reindex validation overhead.
+    _asset_dfs = _compute_asset_feature_columns(prices, rate_diffs, _trend_cache)
+    if _asset_dfs:
+        features = pd.concat([features] + _asset_dfs, axis=1)
 
     # Cross-asset features (reuse pre-computed if provided)
     if shared_features is not None:

@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from shared.portfolio_weights import (
+    IncrementalEWMACov,
     WeightVector,
     _ewma_cov,
     _shrinkage_cov,
@@ -185,6 +186,75 @@ class TestComputeWeights:
         df = pd.DataFrame()
         wv = compute_weights("equal_v1", df)
         assert wv.weights == {}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# IncrementalEWMACov
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestIncrementalEWMACov:
+    def test_initial_state(self):
+        cov = IncrementalEWMACov(span=60)
+        assert cov.cov is None
+        assert cov._n == 0
+        assert not cov._initialized
+
+    def test_updates_single_asset(self):
+        cov = IncrementalEWMACov(span=60)
+        dates = pd.date_range("2025-01-01", periods=5, freq="D")
+        for i in range(5):
+            row = pd.Series({"A": np.random.randn()}, name=dates[i])
+            cov.update(row)
+        assert cov._initialized
+        assert cov.cov is not None
+        assert "A" in cov.cov.columns
+
+    def test_converges_to_finite_values(self):
+        """Incremental EWMA covariance should produce finite, reasonable
+        values after many observations.  The incremental version does NOT
+        annualize (the annualization factor is incompatible with incremental
+        updates), so values are at daily frequency scale (~1e-5 to 1e-4).
+
+        Use ``batch_annualize()`` to get annualized values comparable to
+        ``_ewma_cov()``.
+        """
+        rng = np.random.default_rng(42)
+        dates = pd.date_range("2025-01-01", periods=200, freq="D")
+        returns = pd.DataFrame({
+            "A": rng.normal(0.0003, 0.005, 200),
+            "B": rng.normal(0.0002, 0.006, 200),
+        }, index=dates)
+
+        inc = IncrementalEWMACov(span=60)
+        for idx in range(len(returns)):
+            inc.update(returns.iloc[idx])
+
+        # After 200 observations, cov should be finite and non-NaN
+        assert inc.cov is not None
+        assert not np.any(np.isnan(inc.cov.values))
+        assert not np.any(np.isinf(inc.cov.values))
+        # Values are daily-scale (not annualized), so should be small
+        assert -0.01 < inc.cov.values.min() < 0.01
+        assert -0.01 < inc.cov.values.max() < 0.01
+        # batch_annualize should return annualized values
+        ann = inc.batch_annualize()
+        assert ann is not None
+        assert ann.shape == inc.cov.shape
+
+    def test_raises_on_name_mismatch(self):
+        cov = IncrementalEWMACov(span=60)
+        cov.update(pd.Series({"A": 0.01}))
+        with pytest.raises(ValueError, match="Asset names changed"):
+            cov.update(pd.Series({"B": 0.01}))
+
+    def test_reset(self):
+        cov = IncrementalEWMACov(span=60)
+        cov.update(pd.Series({"A": 0.01}))
+        assert cov._initialized
+        cov.reset()
+        assert not cov._initialized
+        assert cov.cov is None
 
 
 # ═══════════════════════════════════════════════════════════════════

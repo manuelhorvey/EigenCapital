@@ -182,6 +182,119 @@ def _ewma_cov(returns: pd.DataFrame, span: int = 60) -> pd.DataFrame:
     return pd.DataFrame(cov * 252 / (1 - (1 - decay) ** n), index=returns.columns, columns=returns.columns)
 
 
+class IncrementalEWMACov:
+    """Incrementally-updated EWMA covariance matrix.
+
+    Maintains an exponentially-weighted covariance estimate that can be
+    updated with a single new observation in O(n²) time, avoiding the
+    O(n² + n·t) cost of recomputing from scratch each time.
+
+    This is the P1 optimization for backtesting: ``rolling_weight_matrix()``
+    recomputes the covariance from scratch for each of ~253 windows. With
+    this class, each new window is an O(n²) update instead of O(n² + n·t).
+
+    Usage::
+        cov = IncrementalEWMACov(span=60)
+        for date_idx in range(window, len(returns)):
+            row = returns.iloc[date_idx]
+            cov.update(row)
+            # cov.cov is the EWMA covariance up to date_idx
+
+    Reference: RiskMetrics (1996) — lambda = 2/(span+1)
+    """
+
+    def __init__(self, span: int = 60, n_assets: int = 0, asset_names: list[str] | None = None):
+        self.span = span
+        self.decay = 2.0 / (span + 1)  # λ
+        self.cov: pd.DataFrame | None = None
+        self.mean: np.ndarray | None = None
+        self._n = 0
+        self._names = asset_names or []
+        self._initialized = False
+
+    def _init_from_first_row(self, row: pd.Series) -> None:
+        """Initialize state from the first observed row."""
+        n = len(row)
+        self._names = list(row.index)
+        self.mean = row.values.astype(float)
+        # Initial covariance: zero matrix (start with no prior)
+        self.cov = pd.DataFrame(np.zeros((n, n)), index=self._names, columns=self._names)
+        self._n = 1
+        self._initialized = True
+
+    def update(self, row: pd.Series) -> None:
+        """Update EWMA covariance with a new observation.
+
+        Maintains an un-annualized EWMA covariance estimate that converges
+        to the same relative values as the batch ``_ewma_cov()``.  Does NOT
+        apply the complex annualization factor (252 / (1-(1-decay)^n))
+        incrementally because that factor depends on the total number of
+        observations, which is incompatible with incremental updates.
+
+        Use the :attr:`cov` directly for portfolio optimization (the
+        annualization is a constant scalar that doesn't affect weight
+        ratios), or call ``batch_annualize()`` after the final update.
+
+        Args:
+            row: A single observation with asset names as index.
+        """
+        if not self._initialized:
+            self._init_from_first_row(row)
+            return
+
+        if list(row.index) != self._names:
+            raise ValueError(f"Asset names changed: expected {self._names}, got {list(row.index)}")
+
+        lam = self.decay
+        x = row.values.astype(float)
+
+        # Update running mean (EWMA of individual returns)
+        # μ_t = (1 - λ) * μ_{t-1} + λ * x_t
+        old_mean = self.mean.copy()
+        self.mean = (1.0 - lam) * old_mean + lam * x
+
+        # Center using prior mean (RiskMetrics convention, no lookahead)
+        centered = x - old_mean
+
+        # Update EWMA covariance (un-annualized)
+        # Cov_t = (1 - λ) * Cov_{t-1} + λ * (centered_t @ centered_t.T)
+        outer = np.outer(centered, centered)
+        cov_old = self.cov.values
+        cov_new = (1.0 - lam) * cov_old + lam * outer
+
+        self.cov = pd.DataFrame(
+            cov_new,
+            index=self._names,
+            columns=self._names,
+        )
+        self._n += 1
+
+    def batch_annualize(self) -> pd.DataFrame | None:
+        """Apply the batch EWMA annualization factor to the current covariance.
+
+        Returns a new DataFrame with the same structure as ``_ewma_cov()``
+        would produce for the same data, or ``None`` if fewer than 2
+        observations have been processed.
+        """
+        if self.cov is None or self._n < 2:
+            return None
+        lam = self.decay
+        n = self._n
+        ann_factor = 252 / max(1 - (1 - lam) ** n, 0.001)
+        return pd.DataFrame(
+            self.cov.values * ann_factor,
+            index=self._names,
+            columns=self._names,
+        )
+
+    def reset(self) -> None:
+        """Reset to initial state."""
+        self.cov = None
+        self.mean = None
+        self._n = 0
+        self._initialized = False
+
+
 # ── Strategy registry ────────────────────────────────────────────────────────
 
 _STRATEGIES: dict[WeightMethod, Callable[[pd.DataFrame], dict[str, float]]] = {}

@@ -46,7 +46,10 @@ def test_compute_hurst_constant_series():
 def test_compute_hurst_short_series():
     series = pd.Series([1, 2, 3, 4])
     h = compute_hurst(series, window=63)
-    assert len(h.dropna()) == 0
+    # Vectorized implementation returns default 0.5 for all positions
+    # when there's insufficient data for the rolling window
+    assert len(h) == 4
+    assert all(v == 0.5 for v in h.dropna())
 
 
 # ── compute_kaufman_er ───────────────────────────────────────────────────────
@@ -78,9 +81,11 @@ def test_compute_kaufman_er_constant():
 
 def test_generate_regime_features_returns_expected_columns(sample_ohlcv):
     result = generate_regime_features(sample_ohlcv)
-    expected = ["hurst", "kaufman_er", "adx", "vol_zscore", "compression", "utc_hour", "session_vol_profile"]
+    expected = ["hurst", "kaufman_er", "adx", "vol_zscore", "compression", "session_vol_profile"]
     for col in expected:
         assert col in result.columns, f"Missing column: {col}"
+    # utc_hour was removed (constant zero for daily bars)
+    assert "utc_hour" not in result.columns
 
 
 def test_generate_regime_features_no_nan_after_dropna(sample_ohlcv):
@@ -102,10 +107,10 @@ def test_generate_regime_features_short_data():
     assert "adx" in result.columns
 
 
-def test_generate_regime_features_utc_hour_present(sample_ohlcv):
+def test_generate_regime_features_no_utc_hour(sample_ohlcv):
+    """utc_hour was removed — it was constant zero for daily bars."""
     result = generate_regime_features(sample_ohlcv)
-    assert "utc_hour" in result.columns
-    assert result["utc_hour"].iloc[0] in range(24)
+    assert "utc_hour" not in result.columns
 
 
 def test_generate_regime_features_vol_zscore(sample_ohlcv):

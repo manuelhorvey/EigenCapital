@@ -75,13 +75,15 @@ Per-asset config (SL/TP, allocation, max_depth) in per-asset YAML files under [`
 
 | Metric | Value |
 |--------|-------|
-| Walk-forward portfolio R | +288.4R (ratio=3.0 retrain) |
-| trail_33pct improvement | 6.9× over fixed-barrier baseline |
-| Assets profitable | 16/16 under adaptive exit |
-| Max drawdown (trail_33pct) | -23.5R (6.9× reduction vs fixed) |
-| Sharpe (R-space, adj) | ~15-20 |
-| Robustness gatekeeper | 5/5 PASS |
-| Shock simulation | 21/21 scenarios PASS (0 catastrophic) |
+| Calibrated PnL (22 assets) | **+838.06 R** (Sharpe 58.47) |
+| Directional threshold improvement | **+313.60 R** vs no-gate baseline |
+| Assets profitable (calibrated) | **22/22** |
+| Max DD (423-day backtest) | 0.00 R |
+| DirectionalCalibrator ECE | 0.2207→0.0178 (Platt base) |
+| Custom BUY thresholds | GC (+265R), AUDJPY (+130R) unlocked |
+| Production candidate validation | **PROMOTE** (13/24 assets pass) |
+| Doc-drift CI | PASS |
+| Shock simulation | 17/21 PASS (correlated crash SEVERE) |
 
 [Backtest scripts →](scripts/backtest/) · [Robustness validation →](scripts/analysis/robustness_gatekeeper.py)
 

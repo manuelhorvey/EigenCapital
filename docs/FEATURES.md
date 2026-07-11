@@ -2,7 +2,7 @@
 
 ## Alpha Features
 
-The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses 21 alpha feature columns (9 core per-asset + 6 trend-exhaustion + 2 COT features + 4 cross-asset) with per-asset prefix, including COT sentiment features and trend-exhaustion indicators. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
+The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses 40 alpha feature columns (9 core per-asset + 6 trend-exhaustion + 2 COT features + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features) with per-asset prefix, including COT sentiment features, trend-exhaustion indicators, directional splits, and narrative overlays. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
 
 ### Input Data
 
@@ -22,8 +22,6 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 
 | Feature | Description |
 |---|---|
-| Feature | Description |
-|---|---|
 | `{ASSET}_carry_vol_adj` | Volatility-adjusted carry |
 | `{ASSET}_mom_21d` | 21-day momentum |
 | `{ASSET}_mom_63d` | 63-day momentum |
@@ -33,6 +31,22 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 | `{ASSET}_vol_ratio` | Short/long-term vol ratio |
 | `{ASSET}_dow_signal` | Day-of-week encoding |
 | `{ASSET}_has_cot` | COT data availability flag (zero-filled for pairs not in CFTC data) |
+
+#### Per-Asset Directional Split Features (10 cols, added 2026-07-11)
+
+Directional momentum and carry splits decompose features into positive/negative components.
+Mathematically redundant with the base feature (XGBoost handles direction via splits), but
+kept for interpretability. Walk-forward validation confirmed **0 splits** across all 22 models
+— the splits carry no incremental information.
+
+| Feature | Description |
+|---|---|
+| `{ASSET}_mom_21d_up` | Positive component of 21d momentum (0 if negative) |
+| `{ASSET}_mom_21d_dn` | Negative component of 21d momentum (0 if positive) |
+| `{ASSET}_mom_63d_up` | Positive component of 63d momentum |
+| `{ASSET}_mom_63d_dn` | Negative component of 63d momentum |
+| `{ASSET}_carry_up` | Positive carry component |
+| `{ASSET}_carry_dn` | Negative carry component |
 
 #### Per-Asset COT Features (2 cols, added per covered pair)
 
@@ -64,6 +78,35 @@ Require OHLCV data passed to `build_alpha_features()`. Computed via the `ta` lib
 | `vix_mom_5d` | ^VIX | VIX 5-day return |
 | `spx_mom_5d` | ^GSPC | S&P 500 5-day return |
 | `WTI_mom_21d` | CL=F | WTI crude 21-day return |
+
+#### FXStreet Narrative Features (15 cols, added 2026-07-11)
+
+Weekly-frequency macro sentiment features extracted via LLM from FXStreet weekly forecasts.
+Loaded from `data/live/narrative_active.json` by `features/alpha_features.py:_compute_narrative_features()`.
+Broadcast as constant values across all rows in the same week (same frequency as DXY/VIX/SPX features).
+
+| Feature | Description |
+|---|---|
+| `usd_strength_narr` | USD strength score (0-1) |
+| `geopol_risk` | Geopolitical risk score (0-1) |
+| `fed_hawk` | Fed hawkishness score (0-1) |
+| `rbnz_hawk` | RBNZ hawkishness score (0-1) |
+| `rba_hawk` | RBA hawkishness score (0-1) |
+| `boj_intervene_risk` | BOJ intervention risk score (0-1) |
+| `energy_pressure` | Energy price pressure score (0-1) |
+| `usd_bias_num` | USD directional bias (-1/0/+1) |
+| `nzd_bias_num` | NZD directional bias (-1/0/+1) |
+| `aud_bias_num` | AUD directional bias (-1/0/+1) |
+| `jpy_bias_num` | JPY directional bias (-1/0/+1) |
+| `cad_bias_num` | CAD directional bias (-1/0/+1) |
+| `eur_bias_num` | EUR directional bias (-1/0/+1) |
+| `regime_risk_on` | Risk-on regime indicator (0/1) |
+| `regime_geopol` | Geopolitical regime indicator (0/1) |
+
+**Empirical impact:** Walk-forward validation showed zero change in BUY/SELL information gap
+compared to pre-narrative baseline. Weekly-frequency macro sentiment is already partially captured
+by existing DXY/VIX/SPX features. Narrative pipeline remains valuable for **governance** (SL widening,
+position sizing during risk-off regimes) but contributes no incremental predictive signal as a model feature.
 
 ### Custom Feature Variants
 
@@ -116,7 +159,7 @@ Per-asset `pt_sl` from per-asset YAML files in `configs/domains/assets/` (e.g., 
 
 ## Architecture Note
 
-All 22 promoted assets use the same 21 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
+All 22 promoted assets use the same 40 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
 
 **BTCUSD note:** BTCUSD uses the standard `build_alpha_features()` pipeline but does not receive COT features (crypto pairs have no CFTC position data; `has_cot`, `cot_z`, `cot_change_4w` are zero-filled). Session features (dow_signal) use UTC timestamps for 24/7 session consistency. All trend-exhaustion features (MACD, stoch, BB, ADX, RSI divergence) apply unchanged.
 

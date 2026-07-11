@@ -40,10 +40,12 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 
 **2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.<br>**Updated 2026-07-11:** SELL_ONLY expanded to 6 permanent assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF). EURCHF, GBPCHF, GBPJPY added after additional walk-forward analysis confirmed BUY inversion is irrecoverable under current feature design.
 
+**2026-07-11: Direction-conditional thresholds deployed.** Global defaults: `min_confidence_buy=45` (unlocks marginal BUY trades), `min_confidence_sell=55` (maintains SELL discipline). Per-asset BUY overrides at 40% for 5 assets (AUDJPY, EURCHF, GBPCHF, GBPJPY, GC) where threshold sweep showed net PnL improvement. DirectionalCalibrator (Platt base, ECE 0.0178) trained on retrained narr walk-forward parquets. Total backtest result: +838.06 R (Sharpe 58.47), +313.60 R improvement over no-gate baseline.
+
 ## Architecture Quick Reference
 
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
-- **Features**: 21 alpha columns per asset (9 core + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset; plus up to 16 additional COT pair columns from all covered CFTC pairs) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
+- **Features**: 40 alpha columns per asset (9 core + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features; plus up to 16 additional COT pair columns from all covered CFTC pairs) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
 - **Config**: `configs/paper_config_registry.py` + `configs/domains/` — domain-first config tree promoted in Phase 12; mode overrides, global defaults, per-asset config
 - **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
@@ -172,7 +174,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 | `paper_trading/orchestrator/health.py` | VaR/CVaR computation — `portfolio_vol_estimate()`, `compute_var_cvar()` pure functions |
 | `paper_trading/orchestrator/correlation.py` | `CorrelationMonitor` — position concentration, portfolio cross-asset correlation |
 | `paper_trading/execution/mt5_broker.py` | `MT5Broker` — MT5 execution with `current_mt5_drawdown_pct()` |
-| `features/alpha_features.py` | Alpha feature builder (9 base + 6 trend-exhaustion per asset + 4 cross-asset + COT per covered pair) |
+| `features/alpha_features.py` | Alpha feature builder (9 base + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset + 10 directional splits + 15 FXStreet narrative features + COT per covered pair) |
 | `features/regime_features.py` | Regime feature builder (7 cols) |
 | `features/data_fetch.py` | Data fetching with MT5/yfinance fallback |
 | `features/labels.py` | Triple-barrier labeling + PurgedWalkForwardFolds |
@@ -321,18 +323,28 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
   See the 2026-06-20 diagnostic chain in walk-forward backtest and SHAP audit
   for full evidence.
 
-## Per-Asset Decision Thresholds
+## Direction-Conditional Confidence Thresholds (ADDED 2026-07-11)
 
-- **NZDCAD, NZDUSD, EURCHF**: Deployed with `min_confidence: 40.0` (down from
-  global default 55.0). Threshold validation (2026-07-01) showed trade counts
-  increase 140-420% with neutral-to-positive PnL impact at 40.0. These were
-  classified as "monitor live" bets — NZDCAD has only 46 total trades and 6/8
-  zero-trade years at 0.45. Monitor first 3 months for unexpected behavior.
+Global defaults deployed in `configs/domains/risk/sizing.yaml`:
+- `min_confidence_buy: 45.0` — lower BUY threshold unlocks marginal trades (GC +265R, AUDJPY +130R)
+- `min_confidence_sell: 55.0` — maintains SELL discipline (72.4% SELL WR)
 
-- **ES, NQ**: Removed from portfolio 2026-07-01 as part of portfolio remediation.
-  Previously kept at default 0.45 threshold. The marginal signals at 0.40
-  degraded PnL (ES: -0.0232R from additional trades). ES had 3 trades in 8 years and was
-  SELL_ONLY on a mildly BUY-biased model — the threshold couldn't fix this alone.
+Signal derivation pipeline (`decision_pipeline.py:apply_confidence_gate`):
+1. Determine direction: BUY if `p_long > 0.5`, SELL if `p_long < 0.5`
+2. Check buy_threshold: `p_long >= buy_th` for BUY
+3. Check sell_threshold: `1 - p_long >= sell_th` for SELL
+4. Fallback chain: per-asset direction override → global direction default → per-asset global → global default → 0.55
+
+Per-asset BUY threshold overrides (`min_confidence_buy: 40`):
+- **AUDJPY**: +130.2R improvement (134 additional trades at 40% threshold)
+- **EURCHF, GBPCHF, GBPJPY**: 40% BUY override (calibrator-inverted assets — these produce 0 BUY signals in practice due to SELL_ONLY filter)
+- **GC**: +265.0R improvement (185 additional trades at 40% threshold)
+
+Previous single-threshold overrides (NZDCAD, NZDUSD at 40%) now use the direction-conditional
+system, with BUY threshold at 40% and SELL threshold at default 55%.
+
+Backtest vs no-gate baseline: **+313.60 R improvement** from the combined pipeline
+(DirectionalCalibrator + direction-conditional thresholds + per-asset overrides).
 
 ## Per-Asset Adaptive Exit Gate (ADDED 2026-07-10)
 

@@ -439,6 +439,7 @@ export const FeatureStabilitySchema = z.object({
 export const AssetExitReasonsSchema = z.object({
   tp_rate: z.number().optional().default(0),
   sl_rate: z.number().optional().default(0),
+  trailing_sl_rate: z.number().optional().default(0),
   breakeven_rate: z.number().optional().default(0),
   flip_rate: z.number().optional().default(0),
   expiry_rate: z.number().optional().default(0),
@@ -507,6 +508,7 @@ export const AssetMetricsSchema = z.object({
   exit_reasons: AssetExitReasonsSchema.catch({
     tp_rate: 0,
     sl_rate: 0,
+    trailing_sl_rate: 0,
     breakeven_rate: 0,
     flip_rate: 0,
     expiry_rate: 0,

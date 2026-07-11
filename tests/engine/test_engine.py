@@ -829,4 +829,5 @@ class TestStopOutCooldown:
         engine._regime_adjusted_entry = True
         engine._record_stop_out("short", exit_price=158.55)
         assert engine._last_stop_out_side == "short"
-        assert engine._last_stop_out_cycle == 0
+        # _cycle_counter starts at 2 (first-cycle suppression offset)
+        assert engine._last_stop_out_cycle == engine._cycle_counter

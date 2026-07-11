@@ -143,6 +143,7 @@ class MetricsSnapshot:
             exit_reasons = {
                 "tp_rate": round(reasons.count("TP") / n, 4),
                 "sl_rate": round(reasons.count("SL") / n, 4),
+                "trailing_sl_rate": round(reasons.count("TRAILING_SL") / n, 4),
                 "breakeven_rate": round(reasons.count("BREAKEVEN") / n, 4),
                 "flip_rate": round(reasons.count("FLIP") / n, 4),
                 "expiry_rate": round(reasons.count("EXPIRY") / n, 4),

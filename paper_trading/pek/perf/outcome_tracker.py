@@ -23,14 +23,26 @@ class OutcomeTracker:
 
     def record_trade(
         self,
-        exit_reason: str,  # "TP" | "SL" | "manual" | "circuit_breaker"
+        exit_reason: str,  # "TP" | "SL" | "TRAILING_SL" | "BREAKEVEN" | "FLIP" | "EXPIRY" | "MANUAL"
         r_multiple: float,
         mae_pct: float,
         mfe_pct: float,
     ) -> None:
-        """Record a completed trade outcome."""
+        """Record a completed trade outcome.
+
+        Determines win/loss from exit reason and R-multiple:
+        - TP, TRAILING_SL, BREAKEVEN → always wins
+        - SL → always loss
+        - FLIP, EXPIRY, MANUAL → use R-multiple sign (can be win or loss)
+        """
         with self._lock:
-            is_win = exit_reason == "TP"
+            if exit_reason in ("TP", "TRAILING_SL", "BREAKEVEN"):
+                is_win = True
+            elif exit_reason == "SL":
+                is_win = False
+            else:
+                # FLIP, EXPIRY, MANUAL — use R-multiple to determine outcome
+                is_win = r_multiple > 0
             self._outcomes.append(
                 {
                     "exit_reason": exit_reason,

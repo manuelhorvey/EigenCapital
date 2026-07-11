@@ -62,11 +62,21 @@ class TestCircuitBreaker:
         assert not client.ensure_connected()
 
     def test_ensure_connected_reconnects_when_disconnected(self, client):
+        # Simulate a connection that was live and then lost
+        client._ever_connected = True
         client._proto.connected = False
         client._proto.connect.side_effect = None
         result = client.ensure_connected()
         assert result
         client._proto.connect.assert_called_once()
+
+    def test_ensure_connected_skips_when_never_connected(self, client):
+        """If connect() was never successful, ensure_connected() should
+        return False immediately without attempting reconnection."""
+        client._ever_connected = False
+        client._proto.connected = False
+        assert not client.ensure_connected()
+        client._proto.connect.assert_not_called()
 
     def test_ensure_connected_sends_heartbeat_when_due(self, client):
         import time
@@ -313,19 +323,17 @@ class TestFrameProtocol:
         proto.shutdown()
         assert not proto.connected
 
-    def test_send_request_raises_when_disconnected(self):
-        """When the pool is empty, send_request retries via _reconnect()
-        and propagates whatever that raises (since commit ec0632e).  The
-        old contract — fail-fast MT5ConnectionError on empty pool — was
-        replaced by an auto-reconnect attempt."""
+    def test_send_request_raises_when_empty_pool(self):
+        """When the pool was never populated (empty _conns), send_request
+        should fail fast with MT5ConnectionError and NOT attempt reconnect."""
         proto = _FrameProtocol("127.0.0.1", 9999)
-        # Stub _reconnect to raise a deterministic error so we don't attempt
-        # a real network call against a non-listening port.
-        sentinel = OSError("mock connect failure")
-        proto._reconnect = MagicMock(side_effect=sentinel)  # type: ignore[assignment]
-        with pytest.raises(OSError, match="mock connect failure"):
+        assert not proto._conns  # empty pool
+        with pytest.raises(MT5ConnectionError, match="No connections in pool"):
             proto.send_request("test")
-        proto._reconnect.assert_called_once_with()
+        # Should NOT have called _reconnect — empty pool is not a transient
+        # disconnection, it means the bridge was never available.
+        with pytest.raises(MT5ConnectionError, match="No connections in pool"):
+            proto.send_request("test")
 
     def test_get_conn_round_robin(self):
         proto = _FrameProtocol("127.0.0.1", 9999)

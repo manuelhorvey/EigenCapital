@@ -90,8 +90,18 @@ def _exit_reason_breakdown(df: pd.DataFrame) -> dict:
     flip = int((reasons == "FLIP").sum())
     expiry = int((reasons == "EXPIRY").sum())
     manual = int((reasons == "MANUAL").sum())
-    other = int((~reasons.isin(["SL", "TP", "BREAKEVEN", "FLIP", "EXPIRY", "MANUAL"])).sum())
-    return {"SL": sl, "TP": tp, "BREAKEVEN": be, "FLIP": flip, "EXPIRY": expiry, "MANUAL": manual, "other": other}
+    other = int((~reasons.isin(["SL", "TP", "BREAKEVEN", "FLIP", "EXPIRY", "MANUAL", "TRAILING_SL"])).sum())
+    trailing_sl = int((reasons == "TRAILING_SL").sum())
+    return {
+        "SL": sl,
+        "TP": tp,
+        "BREAKEVEN": be,
+        "FLIP": flip,
+        "EXPIRY": expiry,
+        "MANUAL": manual,
+        "TRAILING_SL": trailing_sl,
+        "other": other,
+    }
 
 
 def _top_trades(df: pd.DataFrame, field: str = "return", n: int = 3, ascending: bool = False) -> list[dict]:

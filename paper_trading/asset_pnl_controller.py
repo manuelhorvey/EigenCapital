@@ -253,13 +253,18 @@ class AssetPnlController:
                 logger.info("%s: trailing activated by scale-out tier fill", asset.name)
 
     def _check_position_sltp_hit(self, asset, pos_dict: dict, trade_id: str) -> bool:
-        """Check SL/TP for a single position dict (primary or re-entry)."""
+        """Check SL/TP for a single position dict (primary or re-entry).
+
+        Distinguishes TRAILING_SL (profit-locked trailing stop, SL above entry
+        for longs / below entry for shorts) from SL (actual loss).
+        """
         current_price = asset.current_price
         if current_price is None or pd.isna(current_price) or current_price <= 0:
             return False
         side = pos_dict.get("side")
         sl = pos_dict.get("sl")
         tp = pos_dict.get("tp")
+        entry = pos_dict.get("entry", 0)
         if sl is None or tp is None or pd.isna(sl) or pd.isna(tp):
             return False
 
@@ -281,12 +286,24 @@ class AssetPnlController:
             return False
 
         last_bar = str(datetime.now(tz=ET).date())
-        entry = pos_dict.get("entry", 0)
         ret = (hit_price / entry - 1) if side == "long" else (entry / hit_price - 1)
+
+        # Determine exit reason — profit-locked trailing stop vs actual loss.
+        # Use hit_price (the SL/TP level that was crossed) rather than
+        # current_price to maintain consistency with _check_sltp_hit and
+        # avoid drift between the check and the classification decision.
+        if hit_reason == "tp":
+            _exit_reason = "TP"
+        elif entry > 0 and ((side == "long" and hit_price > entry) or (side == "short" and hit_price < entry)):
+            # The trailing stop was above entry (profit-locked), not a loss hit
+            _exit_reason = "TRAILING_SL"
+        else:
+            _exit_reason = "SL"
+
         logger.info(
             "%s: SL/TP HIT: %s at %.4f (Current: %.4f, Entry: %.4f, Ret: %.4f%%, Side: %s, Trade: %s)",
             asset.name,
-            hit_reason.upper(),
+            _exit_reason,
             hit_price,
             current_price,
             entry,
@@ -294,7 +311,6 @@ class AssetPnlController:
             side,
             trade_id,
         )
-        _exit_reason = "TP" if hit_reason == "tp" else "SL"
         asset._close_position(hit_price, last_bar, _exit_reason, trade_id=trade_id)
         if asset.current_value > asset.peak_value:
             asset.peak_value = asset.current_value
@@ -326,7 +342,22 @@ class AssetPnlController:
         if hasattr(asset, "_shadow_sltp") and asset._shadow_sltp is not None:
             asset._shadow_sltp.close_shadow(float(hit[1]), last_bar, hit[0])
             asset._shadow_sltp.set_live_outcome(hit[0], _compute_r(asset, float(hit[1])))
-        _exit_reason = "BREAKEVEN" if hit[0] == "breakeven" else "TP" if hit[0] == "tp" else "SL"
+
+        # Determine exit reason — distinguish breakeven, profit-locked trailing stop, TP, and actual SL
+        if hit[0] == "breakeven":
+            _exit_reason = "BREAKEVEN"
+        elif hit[0] == "tp":
+            _exit_reason = "TP"
+        elif asset.pos_mgr.position is not None:
+            entry = asset.pos_mgr.position.entry_price
+            side = asset.pos_mgr.position.side
+            if entry > 0 and ((side == "long" and hit[1] > entry) or (side == "short" and hit[1] < entry)):
+                _exit_reason = "TRAILING_SL"
+            else:
+                _exit_reason = "SL"
+        else:
+            _exit_reason = "SL"
+
         asset._close_position(hit[1], last_bar, _exit_reason)
         if asset.current_value > asset.peak_value:
             asset.peak_value = asset.current_value

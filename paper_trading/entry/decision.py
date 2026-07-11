@@ -5,7 +5,7 @@ from typing import Literal
 from eigencapital.domain.entities.position import PositionIntent, PositionSide  # noqa: F401
 from eigencapital.domain.entities.signal import SignalType, TradeDecision  # noqa: F401
 
-ExitReason = Literal["SL", "TP", "BREAKEVEN", "EXPIRY", "FLIP", "MANUAL"]
+ExitReason = Literal["SL", "TP", "BREAKEVEN", "EXPIRY", "FLIP", "MANUAL", "TRAILING_SL"]
 
 
 class ValidityState(str, Enum):

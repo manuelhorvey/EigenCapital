@@ -63,6 +63,9 @@ class _AnalyticsStore:
                     .str.upper()
                     .replace({"SL_HIT": "SL", "TP_HIT": "TP", "GATE_CLOSED": "FLIP"})
                 )
+            # Normalize TRAILING_SL to a canonical form for upstream consumers
+            if reason_col in df.columns:
+                df[reason_col] = df[reason_col].str.replace("TRAILING_STOP", "TRAILING_SL", regex=False)
             if ret_col in df.columns:
                 df[ret_col] = pd.to_numeric(df[ret_col], errors="coerce").fillna(0.0)
 

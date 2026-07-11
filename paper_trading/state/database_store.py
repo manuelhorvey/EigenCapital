@@ -31,7 +31,11 @@ class _DatabaseStore:
             self._init_db()
 
     def _migrate_exit_reasons(self, conn) -> None:
-        """One-time migration: canonicalize legacy lowercase exit reasons."""
+        """One-time migration: canonicalize legacy exit reasons.
+
+        Converts lowercase reasons to uppercase and normalizes
+        legacy naming conventions.
+        """
         with contextlib.suppress(Exception):
             conn.executescript("""
                 UPDATE trades SET reason = 'SL' WHERE reason = 'sl';

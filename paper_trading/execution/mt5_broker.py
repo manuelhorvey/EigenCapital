@@ -17,7 +17,7 @@ import pytz
 
 from paper_trading.config_manager import DEFAULT_MT5_BRIDGE_PORT
 from paper_trading.execution.broker_interface import AccountSummary, BrokerInterface, Order, Position
-from paper_trading.ops.mt5_client import MT5Client
+from paper_trading.ops.mt5_client import MT5Client, MT5ConnectionError
 
 logger = logging.getLogger("eigencapital.mt5_broker")
 
@@ -352,7 +352,7 @@ class MT5Broker(BrokerInterface):
             with self._cache_lock:
                 self._position_cache = positions
                 self._position_cache_time = time.monotonic()
-        except (OSError, TypeError, ValueError, KeyError) as e:
+        except (OSError, TypeError, ValueError, KeyError, MT5ConnectionError) as e:
             logger.error("SLTP_VERIFY: failed to fetch positions for ticket=%s asset=%s: %s", ticket, asset, e)
             return False
         for p in positions:
@@ -472,7 +472,7 @@ class MT5Broker(BrokerInterface):
 
         try:
             raw = self._client.get_positions()
-        except (OSError, TypeError, ValueError, KeyError) as e:
+        except (OSError, TypeError, ValueError, KeyError, MT5ConnectionError) as e:
             logger.error("Failed to fetch positions: %s", e)
             with self._cache_lock:
                 return list(self._position_cache) if self._position_cache else []

@@ -20,6 +20,7 @@ function reasonLabel(reason?: string): string {
   const r = reason?.toLowerCase() ?? ''
   if (r === 'tp' || r === 'tp_hit') return 'TP'
   if (r === 'sl' || r === 'sl_hit' || r === 'stop_loss') return 'SL'
+  if (r === 'trailing_sl') return 'TRAIL'
   if (r === 'signal_flip' || r === 'flip') return 'FLIP'
   return reason ?? '—'
 }

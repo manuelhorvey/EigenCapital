@@ -105,7 +105,12 @@ class _FrameConnection:
                 self._sock.close()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.settimeout(15.0)
-        self._sock.connect((self._host, self._port))
+        try:
+            self._sock.connect((self._host, self._port))
+        except OSError as e:
+            self._sock.close()
+            self._sock = None
+            raise MT5ConnectionError(str(e)) from e
         self._sock.settimeout(30.0)
 
     def disconnect(self) -> None:
@@ -179,11 +184,33 @@ class _FrameProtocol:
         with self._lock:
             self.disconnect()
 
-            def _connect_one(_conn: _FrameConnection) -> None:
-                _conn.connect()
+            def _connect_one(_conn: _FrameConnection) -> bool:
+                try:
+                    _conn.connect()
+                    return True
+                except MT5ConnectionError:
+                    return False
 
             conns = [_FrameConnection(self._host, self._port) for _ in range(self._POOL_SIZE)]
-            list(self._executor.map(_connect_one, conns))
+            results = list(self._executor.map(_connect_one, conns))
+            succeeded = sum(1 for r in results if r)
+
+            if succeeded == 0:
+                for c in conns:
+                    c.disconnect()
+                raise MT5ConnectionError(f"All {self._POOL_SIZE} connection attempts failed")
+
+            if succeeded < self._POOL_SIZE:
+                logger.warning(
+                    "MT5 bridge: %d/%d connections succeeded — using partial pool",
+                    succeeded,
+                    self._POOL_SIZE,
+                )
+                for i, r in enumerate(results):
+                    if not r:
+                        conns[i].disconnect()
+                conns = [c for c, r in zip(conns, results) if r]
+
             self._conns = conns
 
     def disconnect(self) -> None:
@@ -204,6 +231,11 @@ class _FrameProtocol:
             try:
                 conn = self._get_conn()
             except MT5ConnectionError:
+                if not self._conns:
+                    # Pool was never populated — don't attempt reconnect.
+                    # Reconnect is for recovering a lost connection, not for
+                    # establishing one that was never available.
+                    raise
                 self._reconnect()
                 conn = self._get_conn()
             try:
@@ -328,6 +360,10 @@ class MT5Client:
         self._proto = _FrameProtocol(bridge_host, bridge_port)
         self._last_heartbeat = 0.0
         self._heartbeat_interval = 15.0
+        # If connect() was never successful since start, skip reconnection
+        # attempts in ensure_connected().  Reconnection only makes sense
+        # after a live connection was lost, not when one was never established.
+        self._ever_connected = False
 
     # ── Connection lifecycle ─────────────────────────────────────────────
 
@@ -343,6 +379,7 @@ class MT5Client:
                 self._account,
                 self._server,
             )
+            self._ever_connected = True
             return True
         except MT5ConnectionError as e:
             logger.error("MT5 client connect failed: %s", e)
@@ -354,6 +391,13 @@ class MT5Client:
 
     def ensure_connected(self) -> bool:
         global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
+
+        # Fast-path: if the bridge was never successfully connected since
+        # process start, skip reconnection entirely.  Reconnection only makes
+        # sense after a live connection was lost, not when one was never
+        # established (e.g., MT5 bridge is down at startup).
+        if not self._ever_connected and not self._proto.connected:
+            return False
 
         # Circuit breaker: if too many recent failures, back off
         with _CIRCUIT_BREAKER_LOCK:

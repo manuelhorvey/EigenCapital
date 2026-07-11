@@ -69,7 +69,7 @@ export function signalToBadge(signal: string): { variant: BadgeVariant; icon: Ba
 
 export function reasonToBadge(reason?: string | null): BadgeVariant {
   const r = reason?.toLowerCase() ?? ''
-  if (r === 'tp' || r === 'tp_hit') return 'success'
+  if (r === 'tp' || r === 'tp_hit' || r === 'trailing_sl') return 'success'
   if (r === 'sl' || r === 'sl_hit' || r === 'stop_loss') return 'error'
   if (r === 'signal_flip' || r === 'flip') return 'warning'
   return 'neutral'

@@ -22,6 +22,7 @@ data/shadow_feedback/
 data/shadow_learning/
 data/sandbox/
 data/research/
+data/yfinance_10yr/
 paper_trading/data/research/
 .ruff_cache/
 .hypothesis/

@@ -4,6 +4,7 @@ sl_mult: 0.52
 tp_mult: 2.01
 spread_tier: fx_cross
 max_depth: 2
+min_confidence_buy: 40.0  # Lower BUY threshold — unlocked +134 trades/+130R in backtest
 adaptive_exit:
   enabled: false
 regime_geometry:

@@ -104,6 +104,8 @@ def _validate_asset(name: str, cfg: dict, errors: list[str], warnings: list[str]
         "max_entry_slippage_pct",
         "max_positions_per_asset",
         "min_confidence",
+        "min_confidence_buy",
+        "min_confidence_sell",
     ):
         _check_optional(cfg, key, (int, float, str), prefix, errors)
 
@@ -460,6 +462,8 @@ def validate(config_path: str | None = None) -> int:
     defaults = data.get("defaults") or {}
     if isinstance(defaults, dict):
         _check_optional(defaults, "min_confidence", (int, float), "defaults", errors)
+        _check_optional(defaults, "min_confidence_buy", (int, float), "defaults", errors)
+        _check_optional(defaults, "min_confidence_sell", (int, float), "defaults", errors)
         _check_optional(defaults, "max_position_pct_of_equity", (int, float), "defaults", errors)
         _check_optional(defaults, "max_risk_per_trade_pct", (int, float), "defaults", errors)
         _check_optional(defaults, "portfolio_max_leverage", (int, float), "defaults", errors)

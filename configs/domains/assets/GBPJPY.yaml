@@ -4,6 +4,7 @@ sl_mult: 0.5
 tp_mult: 2.22
 spread_tier: fx_cross
 max_depth: 2
+min_confidence_buy: 40.0  # Zero-SELL asset — lower BUY threshold to capture marginal signals
 regime_geometry:
   GREEN:
     sl_mult: 1.0

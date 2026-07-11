@@ -25,6 +25,8 @@ mt5_enable_max_risk_per_trade_pct: false
 mt5_max_risk_per_trade_pct: 10.0
 mt5_bypass_risk_cap_at_min_lot: true
 min_confidence: 55.0
+min_confidence_buy: 45.0  # Lower for BUY — portfolio avg WR ~41% vs SELL ~72%
+min_confidence_sell: 55.0  # Standard — SELL signals are well-calibrated
 
 # Stacking — same-side position addition (pyramiding)
 # Enabled: allows up to max_positions_per_asset positions simultaneously

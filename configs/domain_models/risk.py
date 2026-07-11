@@ -65,6 +65,23 @@ class SizingConfig:
     entry_defer_max_bars: int = 5
     min_flip_interval_bars: int = 3
     min_confidence: float = 55.0
+    min_confidence_buy: float = 45.0
+    """Direction-conditional confidence threshold for BUY signals.
+
+    BUY signals have systematically lower win rates (portfolio avg ~41%)
+    than SELL signals (~72%). A lower threshold lets in more BUY trades
+    at calibrated confidence levels, capturing alpha that would otherwise
+    be filtered out. Default is 10pp below the global min_confidence.
+
+    Falls back to ``min_confidence`` if not set, preserving backward
+    compatibility with existing configs.
+    """
+    min_confidence_sell: float = 55.0
+    """Direction-conditional confidence threshold for SELL signals.
+
+    SELL signals are well-calibrated (WR ~72%), so the standard threshold
+    is appropriate. Falls back to ``min_confidence`` if not set.
+    """
     max_entry_slippage_pct: float = 2.0
     profit_lock_threshold_pct: float = 15.0
     max_position_pct_of_equity: float = 0.15
@@ -134,7 +151,12 @@ class SellOnlyConfig:
     as a frozenset. Phase 5 unifies them via this typed container.
     """
 
-    assets: frozenset[str] = field(default_factory=lambda: frozenset({"CADCHF", "NZDCHF", "EURAUD"}))
+    assets: frozenset[str] = field(default_factory=lambda: frozenset({
+        "CADCHF", "NZDCHF", "EURAUD",
+        "EURCHF",  # Calibrated signal is 100% SELL despite raw BUY bias
+        "GBPCHF",  # Calibrated signal is 100% SELL
+        "GBPJPY",  # Calibrated signal is >99% SELL
+    }))
 
     def contains(self, asset_name: str) -> bool:
         return asset_name in self.assets
@@ -218,7 +240,10 @@ class RiskConfig:
         )
 
         # Sell-only
-        sell_list = defaults.get("sell_only_assets") or ["CADCHF", "NZDCHF", "EURAUD"]
+        sell_list = defaults.get("sell_only_assets") or [
+            "CADCHF", "NZDCHF", "EURAUD",
+            "EURCHF", "GBPCHF", "GBPJPY",
+        ]
         sell_only = SellOnlyConfig(assets=frozenset(sell_list))
 
         return cls(capital=capital, halt=halt, sizing=sizing, exits_default=exits_default, sell_only=sell_only)

@@ -92,7 +92,7 @@ def factor_constrained_weights(
 
     if result.success:
         final = result.x / result.x.sum()
-        out = dict(zip(assets_list, [round(float(w), 6) for w in final]))
+        out = dict(zip(assets_list, [float(w) for w in final]))
         with _WEIGHTS_CACHE_LOCK:
             _last_valid_weights["v1"] = out
         return out
@@ -189,7 +189,7 @@ def factor_constrained_weights_v2(
 
     if result.success:
         final = result.x / max(result.x.sum(), 1e-12)
-        out = dict(zip(assets_list, [round(float(w), 6) for w in final]))
+        out = dict(zip(assets_list, [float(w) for w in final]))
         with _WEIGHTS_CACHE_LOCK:
             _last_valid_weights["v2"] = out
         return out

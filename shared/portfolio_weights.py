@@ -87,8 +87,12 @@ class WeightVector:
         total = sum(self.weights.values())
         if total <= 0:
             return
-        if abs(total - 1.0) > 1e-6:
+        if abs(total - 1.0) > 1e-4:
             logger.warning("Weight vector sums to %.4f — auto-normalizing for %s", total, self.date)
+            normalized = {k: v / total for k, v in self.weights.items()}
+            object.__setattr__(self, "weights", normalized)
+        elif abs(total - 1.0) > 1e-6:
+            logger.debug("Weight vector sums to %.6f — auto-normalizing (FP noise) for %s", total, self.date)
             normalized = {k: v / total for k, v in self.weights.items()}
             object.__setattr__(self, "weights", normalized)
 

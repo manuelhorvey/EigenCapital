@@ -100,23 +100,52 @@ def _asset_pt_sl_from_config() -> dict[str, tuple[float, float]]:
     return result
 
 
-def _asset_min_confidence_from_config() -> dict[str, float]:
-    """Return per-asset min_confidence as absolute p_long values (0-1 scale).
+def _resolve_threshold(val, fallback: float | None) -> float:
+    """Convert a percent-scale config value (or None) to 0-1 fraction, using fallback."""
+    if val is not None:
+        return float(val) / 100.0
+    if fallback is not None:
+        return float(fallback) / 100.0
+    return 0.0
 
-    Live ``decision.confidence`` is on a 0-100 percent scale (``paper_trading/ops/wrappers.py:38``):
-    ``confidence_pct = round(confidence * 100, 2)``.  Config ``min_confidence``
-    values are expressed in that same percent scale (40.0, 55.0).  We divide
-    by 100 so callers can compare directly against ``p_long`` from the
-    walk-forward parquets, which are on the 0-1 scale.
+
+def _asset_direction_thresholds_from_config() -> dict[str, tuple[float, float]]:
+    """Return per-asset direction-conditional thresholds (buy_th, sell_th) as 0-1 fractions.
+
+    Matches the live engine's fallback chain (``decision_pipeline.py:apply_confidence_gate``):
+      1. Per-asset ``min_confidence_buy`` / ``min_confidence_sell``
+      2. Global ``defaults.min_confidence_buy`` / ``defaults.min_confidence_sell``
+      3. Per-asset ``min_confidence``
+      4. Global ``defaults.min_confidence``
+      5. 0.0 (always allow)
     """
     from paper_trading.config_manager import get_config
 
     cfg = get_config()
-    default_mc = float(cfg.defaults.get("min_confidence", 55.0))
-    out: dict[str, float] = {}
+    # These are None when not in the config (unlike get() with default).
+    def_buy = cfg.defaults.get("min_confidence_buy")
+    def_sell = cfg.defaults.get("min_confidence_sell")
+    def_global = cfg.defaults.get("min_confidence")
+    out: dict[str, tuple[float, float]] = {}
     for name, acfg in cfg.assets.items():
-        mc = acfg.get("min_confidence")
-        out[name] = (float(mc) / 100.0) if mc is not None else (default_mc / 100.0)
+        asset_buy = acfg.get("min_confidence_buy")
+        asset_sell = acfg.get("min_confidence_sell")
+        asset_global = acfg.get("min_confidence")
+        # Buy: try 1→2→3→4→5
+        buy_th = _resolve_threshold(asset_buy, def_buy)
+        if buy_th == 0.0 and asset_global is not None:
+            buy_th = float(asset_global) / 100.0
+        elif buy_th == 0.0 and def_global is not None:
+            buy_th = float(def_global) / 100.0
+        else:
+            buy_th = buy_th  # keep resolved value
+        # Sell: try 1→2→3→4→5
+        sell_th = _resolve_threshold(asset_sell, def_sell)
+        if sell_th == 0.0 and asset_global is not None:
+            sell_th = float(asset_global) / 100.0
+        elif sell_th == 0.0 and def_global is not None:
+            sell_th = float(def_global) / 100.0
+        out[name] = (buy_th, sell_th)
     return out
 
 
@@ -146,35 +175,30 @@ def compute_asset_daily_r(
     return pd.Series(r, index=df.index, name="daily_r")
 
 
-def rederive_signals_from_p_long(df: pd.DataFrame, threshold_abs: float | None) -> pd.DataFrame:
-    """Override ``df['signal']`` from ``p_long`` at the given absolute threshold.
+def rederive_signals_from_p_long(
+    df: pd.DataFrame,
+    buy_th: float | None,
+    sell_th: float | None,
+) -> pd.DataFrame:
+    """Override ``df['signal']`` from ``p_long`` using direction-conditional thresholds.
 
-    Mirrors live engine semantics (``paper_trading/ops/wrappers.py:37``):
-      side = BUY if p_long > 0.5 else SELL
-      trade fires iff max(p_long, 1-p_long) >= threshold_abs
+    Mirrors live engine semantics (``decision_pipeline.py:apply_confidence_gate``):
+      BUY  if p_long > 0.5 and p_long >= buy_th
+      SELL if p_long < 0.5 and 1 - p_long >= sell_th
 
-    For threshold_abs > 0.5:
-      BUY  if p_long >= threshold_abs
-      SELL if p_long <= 1 - threshold_abs
-    For threshold_abs <= 0.5:
-      BUY  if p_long > 0.5
-      SELL if p_long < 0.5
-    For threshold_abs is None: returns df unchanged.
-
-    ``threshold_abs`` is on the 0-1 scale (e.g. 0.575 reproduces the
-    walk-forward default; 0.55 / 0.40 reproduce production
-    ``min_confidence`` after the percent → fraction conversion).
+    When a threshold is None (not configured), uses the WF parquet's
+    baked-in signal column unchanged.  When buy_th <= 0.5 and sell_th <= 0.5,
+    effectively all directional signals pass (for assets with intentionally
+    low thresholds like NZDCAD).
     """
-    if threshold_abs is None or "p_long" not in df.columns:
+    if buy_th is None and sell_th is None or "p_long" not in df.columns:
         return df
     p_long = df["p_long"].astype(float).values
     sig = np.zeros(len(p_long), dtype=int)
-    if threshold_abs > 0.5:
-        sig[p_long >= threshold_abs] = 1
-        sig[p_long <= 1.0 - threshold_abs] = -1
-    else:
-        sig[p_long > 0.5] = 1
-        sig[p_long < 0.5] = -1
+    if buy_th is not None:
+        sig[(p_long > 0.5) & (p_long >= buy_th)] = 1
+    if sell_th is not None:
+        sig[(p_long < 0.5) & (1.0 - p_long >= sell_th)] = -1
     df = df.copy()
     df["signal"] = sig
     return df
@@ -506,35 +530,42 @@ def main():
     print("  or transaction costs.  Not currency PnL.")
     print()
 
-    # Resolve the per-asset threshold map (None = use parquet's baked-in signal).
-    threshold_map: dict[str, float | None] | None = None
+    # Resolve the per-asset direction-conditional threshold map.
+    # Values are (buy_th, sell_th) as 0-1 fractions.  None = use parquet's baked-in signal.
+    dir_threshold_map: dict[str, tuple[float | None, float | None]] | None = None
     if args.use_prod_thresholds:
-        mc = _asset_min_confidence_from_config()
-        threshold_map = {name: mc.get(name) for name in mc}
-        n_overrides = sum(1 for v in threshold_map.values() if v is not None)
+        dir_threshold_map = _asset_direction_thresholds_from_config()
         logger.info(
-            "Using production min_confidence from config: %d assets loaded (percent → fraction conversion applied)",
-            n_overrides,
+            "Using production direction-conditional thresholds: %d assets loaded",
+            len(dir_threshold_map),
         )
     if args.min_confidence_map:
         with open(args.min_confidence_map) as f:
             mc_overrides = json.load(f)
-        if threshold_map is None:
-            threshold_map = {}
+        if dir_threshold_map is None:
+            dir_threshold_map = {}
         for asset, v in mc_overrides.items():
-            threshold_map[asset] = float(v) / 100.0 if v is not None else None
+            if isinstance(v, (list, tuple)) and len(v) == 2:
+                buy, sell = v
+                dir_threshold_map[asset] = (
+                    float(buy) / 100.0 if buy is not None else None,
+                    float(sell) / 100.0 if sell is not None else None,
+                )
+            else:
+                val = float(v) / 100.0 if v is not None else None
+                dir_threshold_map[asset] = (val, val)
         logger.info(
             "Applied per-asset overrides from %s for %d assets",
             args.min_confidence_map,
             len(mc_overrides),
         )
     if args.min_confidence is not None:
-        if threshold_map is None:
-            threshold_map = {}
-        # Apply to every asset in the pt_sl_map.
+        if dir_threshold_map is None:
+            dir_threshold_map = {}
         pt_sl_preview = _asset_pt_sl_from_config()
         for name in pt_sl_preview:
-            threshold_map[name] = args.min_confidence / 100.0
+            val = args.min_confidence / 100.0
+            dir_threshold_map[name] = (val, val)
         logger.info(
             "Global --min-confidence override %.2f%% applied to all assets",
             args.min_confidence,
@@ -543,6 +574,11 @@ def main():
     # Load per-asset pt_sl
     pt_sl_map = _asset_pt_sl_from_config()
     logger.info("Loaded pt_sl for %d assets from production config", len(pt_sl_map))
+
+    # Resolve SELL_ONLY list from production config once
+    from paper_trading.execution.gate_constants import get_sell_only_assets
+
+    SELL_ONLY_ASSETS = get_sell_only_assets() if args.sell_only else frozenset()
 
     # Discover signal parquets
     pattern = f"*_wf_signals_{tag}.parquet"
@@ -577,39 +613,26 @@ def main():
             logger.warning("%s: empty signal parquet — skipping", asset)
             continue
 
-        # Re-derive signals from p_long when an override threshold is
-        # supplied.  The parquet's ``signal`` column was written at the
-        # walk-forward pipeline's default (0.575 absolute) which can be
-        # tighter than the production min_confidence for some assets.
-        # Without this override the parquet silently under-counts the
-        # trade flow that paper trading would actually generate.
-        if threshold_map is not None and asset in threshold_map:
-            thr_abs = threshold_map[asset]
-            if thr_abs is not None and "p_long" in df.columns:
-                df = rederive_signals_from_p_long(df, thr_abs)
+        # Re-derive signals from p_long using direction-conditional thresholds.
+        # The parquet's baked-in signal uses 0.575 which can be tighter than
+        # production, so this aligns the backtest with live paper flow.
+        if dir_threshold_map is not None and asset in dir_threshold_map:
+            buy_th, sell_th = dir_threshold_map[asset]
+            if (buy_th is not None or sell_th is not None) and "p_long" in df.columns:
+                before = df["signal"].copy()
+                df = rederive_signals_from_p_long(df, buy_th, sell_th)
+                n_buy = int((df["signal"] == 1).sum())
+                n_sell = int((df["signal"] == -1).sum())
+                n_flat = int((df["signal"] == 0).sum())
                 logger.info(
-                    "%s: re-derived signals at threshold %.3f (p_long) — %d BUY / %d SELL / %d FLAT",
-                    asset,
-                    thr_abs,
-                    int((df["signal"] == 1).sum()),
-                    int((df["signal"] == -1).sum()),
-                    int((df["signal"] == 0).sum()),
+                    "%s: re-derived (buy_th=%.3f sell_th=%.3f) — %d BUY / %d SELL / %d FLAT",
+                    asset, buy_th or 0, sell_th or 0, n_buy, n_sell, n_flat,
                 )
 
-        # SELL-only filter for assets with inverted BUY calibration
+        # SELL-only filter — uses production config (get_sell_only_assets)
         if args.sell_only:
-            # Current production SELL_ONLY list (5 assets).
-            # Step 3 features restored GBPJPY, USDCHF, EURCHF, USDJPY, ^DJI.
-            # See AGENTS.md "Trend-Exhaustion Features — Tier 1+2 (2026-06-26)".
-            SELL_ONLY_ASSETS = frozenset(
-                {
-                    "CADCHF",
-                    "NZDCHF",
-                    "EURAUD",
-                }
-            )
             if asset in SELL_ONLY_ASSETS:
-                n_override = (df["signal"] == 1).sum()
+                n_override = int((df["signal"] == 1).sum())
                 df.loc[df["signal"] == 1, "signal"] = 0
                 if n_override > 0:
                     logger.info("%s: sell-only filter — overrode %d BUY signals to FLAT", asset, n_override)

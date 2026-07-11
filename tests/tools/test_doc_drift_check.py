@@ -36,7 +36,7 @@ class TestCanonicalFacts:
         assert "governance_layers" in CANONICAL_FACTS
         assert "core_alpha_features" in CANONICAL_FACTS
         assert "sell_only_count" in CANONICAL_FACTS
-        assert CANONICAL_FACTS["sell_only_count"] == "3"
+        assert CANONICAL_FACTS["sell_only_count"] == "6"
 
     def test_promoted_assets_count(self):
         assert CANONICAL_FACTS["promoted_assets"] == "22"

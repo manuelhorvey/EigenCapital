@@ -66,6 +66,7 @@ def mock_asset():
     asset._shadow_action = None
     asset._shadow_learning = None
     asset._last_meta_proba = None
+    asset._calibrated_confidence = None  # D-01: override not set when calibration is disabled
     asset.regime_classifier = MagicMock()
     asset.regime_classifier.classify = MagicMock(
         return_value=pd.DataFrame({"regime": ["trending"], "P_trend": [0.8], "P_range": [0.1], "P_volatile": [0.1]})
@@ -383,6 +384,7 @@ class TestBuildDecision:
         )
         asset.last_signal_date = None
         asset._last_meta_proba = None
+        asset._calibrated_confidence = None  # Calibration not applied — fallback to result.confidence_pct
         result = MagicMock()
         result.signal_data = asset.signal_data
         result.signal_type = "BUY"
@@ -412,6 +414,7 @@ class TestBuildDecision:
         )
         asset.last_signal_date = None
         asset._last_meta_proba = 0.68321
+        asset._calibrated_confidence = None  # Calibration not applied — fallback to result.confidence_pct
         result = MagicMock()
         result.signal_data = asset.signal_data
         result.signal_type = "BUY"
@@ -422,8 +425,34 @@ class TestBuildDecision:
             asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
         )
         assert decision.meta_label_confidence == pytest.approx(68.32, abs=0.01)
-        # The legacy ``confidence`` field is unchanged
+        # The legacy ``confidence`` field is unchanged (fallback when calibration not applied)
         assert decision.confidence == 75.0
+
+    def test_uses_calibrated_confidence_when_available(self, pipeline):
+        """When ``_calibrated_confidence`` is set (D-01 fix), the decision's
+        confidence uses the calibrated P(win|direction) instead of
+        ``result.confidence_pct`` (which uses ``max(prob_long, prob_short)``).
+        """
+        asset = pipeline.asset
+        asset._record_inference_proxies = MagicMock()
+        tz_utc = _dt.timezone.utc
+        asset.signal_data = pd.DataFrame(
+            {"close": [1.1050], "prob_long": [0.7], "prob_short": [0.2], "prob_neutral": [0.1]},
+            index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=tz_utc)]),
+        )
+        asset.last_signal_date = None
+        asset._last_meta_proba = None
+        asset._calibrated_confidence = 0.653  # DirectionalCalibrator: P(TP hit | direction) = 65.3%
+        result = MagicMock()
+        result.signal_data = asset.signal_data
+        result.signal_type = "BUY"
+        result.label = 1
+        result.confidence_pct = 75.0  # Old max(prob_long, prob_short) — would be wrong
+        df = pd.DataFrame({"close": [1.1050]})
+        decision = pipeline._build_decision(
+            asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
+        )
+        assert decision.confidence == pytest.approx(65.3, abs=0.01)  # 0.653 * 100 = 65.3
 
 
 class TestValidateInferenceTruncation:

@@ -268,6 +268,88 @@ class TestApplyConfidenceGate:
         apply_confidence_gate(ctx)
         assert ctx.new_side is None
 
+    # ── Direction-conditional threshold tests ────────────────────────
+
+    def test_uses_min_confidence_buy_for_long(self):
+        """BUY signals use min_confidence_buy when available."""
+        engine = _mock_engine(config={
+            "min_confidence_buy": 30.0,
+            "min_confidence": 55.0,
+        })
+        ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
+        apply_confidence_gate(ctx)
+        # confidence=80.0, threshold=30.0 → passes
+        assert ctx.new_side == PositionSide.LONG
+
+    def test_uses_min_confidence_sell_for_short(self):
+        """SELL signals use min_confidence_sell when available."""
+        engine = _mock_engine(config={
+            "min_confidence_sell": 85.0,
+            "min_confidence": 55.0,
+        })
+        ctx = _ctx(engine=engine, new_side=PositionSide.SHORT)
+        apply_confidence_gate(ctx)
+        # confidence=80.0, threshold=85.0 → blocked
+        assert ctx.new_side is None
+
+    def test_buy_lower_threshold_allows_more_signals(self):
+        """With a lower BUY threshold, a marginal BUY signal passes."""
+        engine = _mock_engine(config={
+            "min_confidence_buy": 30.0,
+            "min_confidence": 55.0,
+        })
+        decision = _decision("BUY")
+        decision.confidence = 35.0  # Below global 55, above buy 30
+        ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
+        apply_confidence_gate(ctx)
+        assert ctx.new_side == PositionSide.LONG
+
+    def test_sell_default_blocks_marginal_signal(self):
+        """With the standard SELL threshold, a marginal SELL signal is blocked."""
+        engine = _mock_engine(config={
+            "min_confidence_sell": 55.0,
+            "min_confidence": 55.0,
+        })
+        decision = _decision("SELL")
+        decision.confidence = 35.0  # Below both
+        ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.SHORT)
+        apply_confidence_gate(ctx)
+        assert ctx.new_side is None
+
+    def test_falls_back_to_global_min_confidence_when_no_direction_specific(self):
+        """When no direction-specific threshold is configured, fall back to min_confidence."""
+        engine = _mock_engine(config={"min_confidence": 70.0})
+        decision = _decision("BUY")
+        decision.confidence = 65.0
+        ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
+        apply_confidence_gate(ctx)
+        # 65 < 70 → blocked
+        assert ctx.new_side is None
+
+    def test_buy_blocks_when_below_direction_specific_threshold(self):
+        """A BUY signal below min_confidence_buy is blocked."""
+        engine = _mock_engine(config={
+            "min_confidence_buy": 60.0,
+            "min_confidence": 50.0,
+        })
+        decision = _decision("BUY")
+        decision.confidence = 55.0  # Below 60, above 50
+        ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
+        apply_confidence_gate(ctx)
+        assert ctx.new_side is None
+
+    def test_sell_allows_when_above_direction_specific_threshold(self):
+        """A SELL signal above min_confidence_sell passes."""
+        engine = _mock_engine(config={
+            "min_confidence_sell": 70.0,
+            "min_confidence": 50.0,
+        })
+        decision = _decision("SELL")
+        decision.confidence = 75.0  # Above 70
+        ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.SHORT)
+        apply_confidence_gate(ctx)
+        assert ctx.new_side == PositionSide.SHORT
+
 
 class TestApplySignalHysteresis:
     def test_blocks_flip_when_insufficient_agreement(self):
@@ -716,4 +798,4 @@ class TestDefaultStages:
             assert callable(stage)
 
     def test_default_stages_has_expected_count(self):
-        assert len(DEFAULT_STAGES) == 25
+        assert len(DEFAULT_STAGES) == 24

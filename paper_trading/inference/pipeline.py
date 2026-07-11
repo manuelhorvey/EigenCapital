@@ -584,6 +584,20 @@ class AssetInferencePipeline:
             raw_p_long = proba[:, 2].copy()
             cal_p_long = cal_registry.calibrate(asset.name, raw_p_long)
             proba[:, 2] = cal_p_long
+
+            # ── D-01 fix: store direction-conditional calibrated confidence ──
+            # The DirectionalCalibrator produces calibrated_p_long for both
+            # directions. However, the SELL calibrator uses inverse perspective:
+            #   - BUY:  calibrated_p_long = P(TP hit | BUY)  = P(win | BUY)
+            #   - SELL: calibrated_p_long = P(TP hit | SELL) = 1 - P(win | SELL)
+            # So for SELL predictions, the correct confidence is
+            # ``1 - calibrated_p_long``, not ``calibrated_p_long``.
+            asset._calibrated_confidence = (
+                float(cal_p_long[-1])           # BUY:  P(win|BUY)
+                if raw_p_long[-1] > 0.5
+                else float(1.0 - cal_p_long[-1])  # SELL: P(win|SELL)
+            )
+
             _row_sum = proba.sum(axis=1, keepdims=True)
             np.divide(proba, _row_sum, out=proba, where=_row_sum > 0)
             return True
@@ -694,11 +708,23 @@ class AssetInferencePipeline:
         meta_proba = getattr(asset, "_last_meta_proba", None)
         meta_label_confidence = round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
 
+        # ── D-01 fix: override confidence with calibrated P(win|direction) ──
+        # The DirectionalCalibrator (deployed 2026-07-11) produces calibrated
+        # P(TP hit | direction) for both BUY and SELL predictions. This replaces
+        # result.confidence_pct which uses max(prob_long, prob_short) — a metric
+        # with Spearman rho = -0.235 vs actual win rate (inverted relationship).
+        cal_conf_override = getattr(asset, "_calibrated_confidence", None)
+        final_confidence = (
+            round(float(cal_conf_override * 100), 2)
+            if cal_conf_override is not None
+            else result.confidence_pct
+        )
+
         decision = TradeDecision(
             asset=asset.name,
             signal=SignalType(result.signal_type),
             label=result.label,
-            confidence=result.confidence_pct,
+            confidence=final_confidence,
             prob_long=round(float(latest["prob_long"]), 4),
             prob_short=round(float(latest["prob_short"]), 4),
             prob_neutral=round(float(latest["prob_neutral"]), 4),

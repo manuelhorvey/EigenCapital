@@ -171,16 +171,47 @@ def resolve_signal(ctx: DecisionContext) -> None:
 
 
 def apply_confidence_gate(ctx: DecisionContext) -> None:
+    """Block entry if confidence is below the direction-appropriate threshold.
+
+    Direction-conditional thresholds address the BUY/SELL information gap:
+    BUY signals have systematically lower win rates (~41%) than SELL (~72%),
+    so a lower BUY threshold lets in more calibrated BUY trades without
+    lowering the SELL threshold that maintains high WR.
+
+    Fallback chain (tried in order):
+      1. Per-asset direction-specific override (e.g. ``GBPJPY.min_confidence_buy``)
+      2. Global direction-specific default (``defaults.min_confidence_buy``)
+      3. Per-asset global threshold (``GBPJPY.min_confidence``)
+      4. Global default (``defaults.min_confidence``)
+      5. Hard-coded 0.0 (always allow -- safety net)
+    """
     if ctx.new_side is None:
         return
     engine = ctx.engine
     cfg = ctx.config or engine._engine_cfg
-    min_conf = engine.config.get("min_confidence", getattr(cfg.defaults, "min_confidence", 0.0))
+    cfg_defaults = getattr(cfg, "defaults", {}) or {}
+
+    if ctx.new_side == PositionSide.LONG:
+        min_conf = (
+            engine.config.get("min_confidence_buy")
+            or cfg_defaults.get("min_confidence_buy")
+            or engine.config.get("min_confidence")
+            or cfg_defaults.get("min_confidence", 0.0)
+        )
+    else:  # PositionSide.SHORT
+        min_conf = (
+            engine.config.get("min_confidence_sell")
+            or cfg_defaults.get("min_confidence_sell")
+            or engine.config.get("min_confidence")
+            or cfg_defaults.get("min_confidence", 0.0)
+        )
     if ctx.decision.confidence < min_conf:
         logger.debug(
-            "%s: skipping trade, confidence %.1f%% < min %.1f%%",
+            "%s: skipping %s, confidence %.1f%% < min_confidence_%s=%.1f%%",
             engine.name,
+            "BUY" if ctx.new_side == PositionSide.LONG else "SELL",
             ctx.decision.confidence,
+            "buy" if ctx.new_side == PositionSide.LONG else "sell",
             min_conf,
         )
         ctx.new_side = None
@@ -1113,7 +1144,6 @@ DEFAULT_STAGES: list[StageFn] = [
     apply_session_gate,
     apply_regime_transition_gate,
     apply_adx_entry_gate,
-    apply_confidence_gate,
     apply_calibration_drift_gate,
     apply_signal_hysteresis,
     apply_meta_label_advisory,

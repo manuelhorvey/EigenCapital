@@ -510,10 +510,39 @@ def rolling_weight_matrix(
         hist = returns.iloc[i - window : i]
         if hist.dropna(how="all").shape[0] < min_periods:
             continue
+
+        # Drop zero-variance assets — they produce singular covariance matrices
+        # that cause SLSQP to concentrate weight on "risk-free" assets.
+        variances = hist.var()
+        zero_var_mask = variances < 1e-10
+        dropped_assets = list(variances.index[zero_var_mask])
+        if zero_var_mask.any():
+            logger.debug(
+                "rolling_weight_matrix: dropping %d zero-variance assets at %s",
+                zero_var_mask.sum(), returns.index[i],
+            )
+            hist = hist.loc[:, ~zero_var_mask]
+            if hist.shape[1] == 0:
+                logger.debug(
+                    "rolling_weight_matrix: all assets zero-variance at %s — skipping",
+                    returns.index[i],
+                )
+                continue
+            if hist.shape[1] < 2:
+                logger.debug(
+                    "rolling_weight_matrix: only 1 non-zero-var asset at %s — single-asset weight",
+                    returns.index[i],
+                )
+
         idx_val = returns.index[i]
         date_str = str(idx_val.date()) if isinstance(idx_val, pd.Timestamp) else str(idx_val)
         wv = compute_weights(method, hist, date=date_str, **kwargs)
-        records.append(wv.to_series())
+        # Re-insert zero-weight entries for dropped assets so the weight
+        # DataFrame always has the same columns as the input returns.
+        s = wv.to_series()
+        for asset in dropped_assets:
+            s[asset] = 0.0
+        records.append(s)
     if not records:
         return pd.DataFrame(columns=returns.columns)
     return pd.DataFrame(records, index=returns.index[window:])

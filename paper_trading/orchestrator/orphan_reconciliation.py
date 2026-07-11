@@ -341,7 +341,7 @@ class OrphanReconciler:
             side = "long" if p.quantity >= 0 else "short"
             vol = abs(p.quantity)
 
-            logger.warning(
+            logger.debug(
                 "PHASE_C_ORPHAN: ticket=%s mt5_symbol=%s ticker=%s "
                 "engine_actor=%s side=%s vol=%.4f entry=%.5f price=%.5f "
                 "upnl=%.2f first_seen=%s reason=%s",

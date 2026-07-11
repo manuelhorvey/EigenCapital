@@ -105,7 +105,7 @@ Calibrators are trained from walk-forward signal parquets. Run after parquet reg
 
 ### What does "SELL_ONLY" mean?
 
-The model's BUY signal is inverted for 3 assets (CADCHF, NZDCHF, EURAUD) — `p_long > 0.5` reliably predicts the wrong direction. The SELL_ONLY filter overrides BUY signals to FLAT for these assets. SELL signals pass through unchanged. This is a permanent architectural limitation — the root cause is unknown and two causal hypotheses (carry, DXY) have been falsified.
+The model's BUY signal is inverted for 6 assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) — `p_long > 0.5` reliably predicts the wrong direction. The SELL_ONLY filter overrides BUY signals to FLAT for these assets. SELL signals pass through unchanged. This is a permanent architectural limitation — the root cause is unknown and two causal hypotheses (carry, DXY) have been falsified.
 
 ### Why does an asset show BUY but no trade is placed?
 

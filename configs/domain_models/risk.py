@@ -250,6 +250,9 @@ class RiskConfig:
             "CADCHF",
             "NZDCHF",
             "EURAUD",
+            "EURCHF",
+            "GBPCHF",
+            "GBPJPY",
         ]
         sell_only = SellOnlyConfig(assets=frozenset(sell_list))
 

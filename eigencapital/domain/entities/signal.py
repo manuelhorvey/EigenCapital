@@ -1,3 +1,26 @@
+"""Domain entities for model signals and trade decisions.
+
+Defines signal data structures:
+
+- SignalType: BUY/SELL/FLAT enum with label (1/-1/0) and string mapping.
+  Used as the canonical signal representation across inference,
+  governance, and execution layers.
+- SignalResult: Immutable signal output containing type, confidence,
+  probabilities, and direction. Constructed from DataFrame rows in
+  backtesting context via from_dataframe_row().
+- TradeDecision: Complete decision payload passed from inference
+  pipeline through decision pipeline stages to execution. Includes
+  feature_hash for WAL replay chain continuity, meta_label_confidence
+  for the P2 meta-labeling gate, and archetype classification.
+
+Key integration points:
+- TradeDecision is built by AssetInferencePipeline and consumed by
+  the decision pipeline's DEFAULT_STAGES
+- TradeDecision.feature_hash threads through DecisionContext for
+  WAL causal boundary verification
+- SignalType.from_label() maps triple-barrier labels to signals
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

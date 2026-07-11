@@ -1,3 +1,20 @@
+"""Domain entities for portfolio-level state and aggregation.
+
+Defines portfolio data structures:
+
+- Portfolio: Mutable runtime state holding total capital, peak value,
+  asset allocations, and risk-parity weights. Provides drawdown(),
+  total_return(), and update_peak() for portfolio-level calculations.
+- PortfolioSummary: Snapshot dataclass serialized into state.json.
+  Contains total_value, return percentages, open/closed trade counts,
+  and average validity exposure.
+
+Key integration points:
+- Portfolio is constructed by PortfolioBuilder at engine startup
+- PortfolioSummary is produced by EngineStateService each cycle
+- drawdown() and total_return() are used by CircuitBreaker
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

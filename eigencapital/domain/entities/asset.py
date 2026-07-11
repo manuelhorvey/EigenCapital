@@ -1,3 +1,21 @@
+"""Domain entities for financial asset representation.
+
+Defines the core asset data structures used throughout the system:
+
+- AssetContract: Immutable frozen dataclass representing a tradable
+  instrument's identity and label parameters. Used as the canonical
+  reference for ticker → name resolution in features/ and registry.
+- AssetSpec: Mutable runtime specification combining an AssetContract
+  with per-asset execution parameters (allocation, SL/TP, halt config,
+  regime geometry, initial capital). Constructed at engine startup from
+  domain YAML files.
+
+Key integration points:
+- AssetSpec is the primary config shape consumed by PortfolioBuilder
+  and AssetEngine._load_config()
+- AssetContract is the canonical key in feature registry lookups
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

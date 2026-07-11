@@ -1,3 +1,19 @@
+"""Feature importance persistence and stability tracking.
+
+Tracks per-asset XGBoost feature importance over retrain cycles.
+Computes two stability metrics fed into the ValidityStateMachine:
+- Jaccard similarity of top-N features between consecutive retrains
+- Spearman rank correlation on shared features
+
+Key exports:
+- ImportanceStore: Persists/loads importance snapshots to parquet
+- compute_stability_penalty(): Maps Jaccard/Spearman → validity penalty
+- StabilityResult: Dataclass consumed by governance state machine
+
+Integration: Called by inference/training.py after model.fit().
+Results surface in assets[].feature_stability_jaccard/spearman fields.
+"""
+
 from __future__ import annotations
 
 import logging

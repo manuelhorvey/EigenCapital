@@ -41,7 +41,7 @@ Data ingested from MT5 bridge (primary) or yfinance (fallback):
 | `{ASSET}_cot_z` | COT speculative positioning z-score |
 | `{ASSET}_cot_change_4w` | 4-week change in COT net positioning |
 
-> COT features are initialized to `0.0` for all COT-covered assets (those in CFTC data), then overwritten by `cot_data` after a 3-day publication lag. If COT data is unavailable, the zero-fallback prevents NaN columns. See `features/alpha_features.py:395-405`.
+> **COT injection tech debt:** The initialization loop attempting per-asset COT feature naming does not fire (the DataFrame column is named `"close"`, not the asset ticker). Instead, ALL columns from `cot_data` (~16 cols × 2 features from 8 COT-covered pairs) are joined into *every* asset's feature vector — including non-COT assets (GC, ES, NQ). COT features are zero-filled for pairs not in CFTC data. This means assets not in COT data still receive unrelated COT positioning data. Flagged as tech debt: COT injection should be filtered per factor group.
 
 #### Per-Asset Trend-Exhaustion Features (6 cols, added 2026-06-26)
 
@@ -122,4 +122,4 @@ All 22 promoted assets use the same 21 alpha features from `features/alpha_featu
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-11

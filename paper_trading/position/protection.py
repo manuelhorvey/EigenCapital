@@ -1,3 +1,23 @@
+"""Position-level stop loss protection (breakeven + trailing stops).
+
+PositionProtection.update() is called each cycle to evaluate whether a
+position's stop loss should be adjusted:
+1. Breakeven lock: Moves SL to entry price when unrealized R >= threshold
+2. Trail: Tightens SL behind price as favorable excursion increases
+
+Both operations update position.risk_floor which feeds into the
+AdaptiveExitEngine's effective_sl computation.
+
+Key exports:
+- PositionProtection: Stateless protection logic (update() + _unrealized_r())
+- _update_position_protection: Legacy wrapper for backward compatibility
+
+Config keys:
+- breakeven_threshold_r (default 0.5): R-multiple to trigger breakeven
+- trail_activate_r (default 1.0): R-multiple to activate trailing
+- trail_distance_r (default 0.5): Trailing stop distance in R-units
+"""
+
 from __future__ import annotations
 
 import logging

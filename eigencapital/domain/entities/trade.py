@@ -1,3 +1,21 @@
+"""Domain entities for historical trade records and analytics.
+
+Defines trade data structures:
+
+- Trade: Complete historical trade record with entry/exit prices,
+  bars held, realized R-multiple, MAE/MFE, slippage, and execution
+  quality fields. Serialized to/from dicts for database persistence.
+- TradeLog: Collection of Trades with computed aggregates (win rate,
+  profit factor, average return, average R-multiple). Used for
+  dashboard analytics and performance reporting.
+
+Key integration points:
+- Trade records are produced by PositionManager on position close
+- TradeLog aggregates are consumed by MetricsService for state.json
+- Trade schemas map to the SQLite trades table columns
+- from_dict/to_dict enable JSON serialization for the dashboard API
+"""
+
 from __future__ import annotations
 
 import dataclasses

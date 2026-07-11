@@ -1,3 +1,24 @@
+"""Domain entities for position lifecycle and stacking.
+
+Defines position data structures:
+
+- PositionSide: LONG/SHORT enum with inversion and signal-type mapping.
+- PositionState: PENDING/OPEN/CLOSED/CANCELLED lifecycle states.
+- PositionIntent: Core position dataclass holding entry price, stop
+  loss, take profit, layers (for pyramiding), risk envelope fields
+  (breakeven_set, risk_floor, peak_price), and effective_sl computation.
+  Provides invariant enforcement for layer price averaging.
+- StackLayer: Individual pyramid layer within a stacked position.
+- OrderType: ENTRY/STACK/REDUCE/EXIT order classification.
+- StackCommand: Execution instruction from stacking evaluation.
+
+Key integration points:
+- PositionIntent is the primary contract between decision_pipeline.py
+  (which builds it) and PositionManager (which executes it)
+- effective_sl is consumed by DynamicSLTPEngine and AdaptiveExitEngine
+- enforce_invariant() guards against avg_price drift from layers
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

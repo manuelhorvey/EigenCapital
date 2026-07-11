@@ -27,7 +27,7 @@
 
 **Status**: Closed as "known unknown, monitored." Root cause unknown. Two causal hypotheses (carry for CHF+OTHER, DXY for equities) falsified by walk-forward counterfactual ablation 2026-06-20. SELL_ONLY filter is the empirically validated treatment.
 
-**Risk**: 3 assets have an inverted BUY signal (CADCHF, NZDCHF, EURAUD — p_long > 0.5 predicts the wrong direction). The filter suppresses BUY, so the system never acts on these signals — but if the underlying inversion were to change (asymmetry healing or the SELL side also degrading), the filter would need updating.
+**Risk**: 6 assets have an inverted BUY signal (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF — p_long > 0.5 predicts the wrong direction). The filter suppresses BUY, so the system never acts on these signals — but if the underlying inversion were to change (asymmetry healing or the SELL side also degrading), the filter would need updating.
 
 **Monitoring**:
 - `scripts/diagnostics/check_direction_win_rates.py` provides two signals:
@@ -35,7 +35,7 @@
   2. **Slow signal**: OOS BUY WR trend on SELL_ONLY assets. If >30%, reopen investigation — asymmetry may be healing.
 - Run this script monthly or after every retrain.
 
-**Trigger to reopen investigation**: OOS BUY WR on any of the 3 SELL_ONLY assets exceeds 30%, or live SELL WR on any SELL_ONLY asset drops >10pp below baseline.
+**Trigger to reopen investigation**: OOS BUY WR on any of the 6 SELL_ONLY assets exceeds 30%, or live SELL WR on any SELL_ONLY asset drops >10pp below baseline.
 
 ---
 

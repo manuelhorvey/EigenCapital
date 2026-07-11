@@ -38,7 +38,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 
 **2026-06-23: AUDUSD, EURNZD, NZDUSD removed from SELL_ONLY filter.** Corrected walk-forward methodology shows BUY WR > 50% for all three (AUDUSD 64.5%, EURNZD 57.6%, NZDUSD 57.7%) — BUY is no longer inverted. The original SELL_ONLY diagnosis was based on a broken walk-forward (no purging, EWM labels, validation-split early stopping). The filter no longer trades BUY on the remaining 3 assets (CADCHF, NZDCHF, EURAUD) where BUY WR remains 11-31%. ^DJI, USDCHF, EURCHF removed from SELL_ONLY 2026-06-26 after trend-exhaustion features improved BuyWR above breakeven. ES, NQ removed from SELL_ONLY 2026-07-01 after portfolio remediation.
 
-**2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.<br>**Updated 2026-07-04:** Portfolio now at 22 assets. SELL_ONLY reduced to 3 permanent assets (CADCHF, NZDCHF, EURAUD). The 8-asset count in the original analysis is historical.
+**2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.<br>**Updated 2026-07-11:** SELL_ONLY expanded to 6 permanent assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF). EURCHF, GBPCHF, GBPJPY added after additional walk-forward analysis confirmed BUY inversion is irrecoverable under current feature design.
 
 ## Architecture Quick Reference
 
@@ -313,7 +313,7 @@ The dashboard HTTP server (`paper_trading/serve.py`) supports optional bearer-to
 
 ## Structural Limitations (Permanent)
 
-- **BUY signal inversion (3 assets — CADCHF, NZDCHF, EURAUD)**:
+- **BUY signal inversion (6 assets — CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF)**:
   The feature space encodes SELL alpha but not BUY alpha for these assets.
   Counterfactual walk-forward ablation disproved both carry and DXY as causal
   mechanisms. SELL_ONLY filter is the correct long-term answer, not a stopgap.
@@ -437,7 +437,7 @@ The full historical research record (Walk-Forward PnL Backtest, BUY Inversion Di
 Key conclusions that remain relevant to current operations:
 
 - **Ensemble disabled** — base_weight=1.0 portfolio-wide (see ADR-026). Regime features still computed at inference for trace logging.
-- **SELL_ONLY** — 3 permanent assets (CADCHF, NZDCHF, EURAUD). See config-driven `get_sell_only_assets()` in `paper_trading/execution/gate_constants.py`.
+- **SELL_ONLY** — 6 permanent assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF). See config-driven `get_sell_only_assets()` in `paper_trading/execution/gate_constants.py`.
 - **Adaptive exit engine** — 4-stage retracement trailing (breakeven lock → R-based scale-out → retracement trail → time decay). Config per asset.
 - **Factor constraints** — `factor_constrained_v2` with hard linear inequality constraints, pinning CHF at 20%.
 - **Drift detector** — live win-rate drift against breakeven WR; dashboard at `/optimization.json`.

@@ -2,10 +2,10 @@
 
 Key scripts, commands, benchmarks, and contributing information for the EigenCapital paper trading platform.
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-11
 
-> **Scripts quick reference:** See [`docs/development.md`](development.md) for a
-> compact categorized script table (training, backtesting, analysis, optimization,
+> **Scripts quick reference:** See the [Key Scripts](#key-scripts) section below
+> for categorized script tables (training, backtesting, analysis, optimization,
 > operations, diagnostics). This file covers project structure, benchmarks,
 > testing, and validation tooling.
 
@@ -47,51 +47,58 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 
 ### Training
 
-| Command | Description |
-|---------|-------------|
-| `python scripts/training/retrain_all_fixed.py` | Retrain all assets with pipeline fixes |
-| `python scripts/training/train_regime_models.py` | Train regime-conditional models |
-| `python scripts/training/train_calibration.py` | Train calibrators from walk-forward signal parquets |
-| `python scripts/training/retrain_counterfactual.py` | Feature ablation walk-forward test |
+| Script | Description |
+|--------|-------------|
+| `scripts/training/retrain_all_fixed.py` | Retrain all assets with current pipeline |
+| `scripts/training/train_regime_models.py` | Train regime-conditional models |
+| `scripts/training/train_calibration.py` | Fit calibrators from walk-forward signals |
+| `scripts/training/retrain_counterfactual.py` | Feature ablation walk-forward (SHAP mechanism test) |
 
 ### Backtesting & Analysis
 
-| Command | Description |
-|---------|-------------|
-| `python scripts/backtest/walk_forward_backtest.py --asset <TICKER>` | Walk-forward validation per asset |
-| `python scripts/backtest/backtest_pnl.py --weight-method factor_constrained_v2` | PnL backtest from OOS signal parquets |
-| `python scripts/backtest/backtest_pnl.py --tag base --ensemble-tag ensemble` | Compare ensemble vs base |
-| `python scripts/analysis/production_audit.py` | 18-phase production audit |
-| `python scripts/analysis/trade_lifecycle.py` | Reconstruct + analyze trade lifecycle |
-| `python scripts/analysis/trailing_stop_sim.py` | Retracement trailing stop simulation |
-| `python scripts/analysis/robustness_gatekeeper.py` | 5-test robustness validation |
-| `python scripts/analysis/mfe_stationarity.py` | MFE stationarity analysis |
-| `python scripts/analysis/shock_simulation.py` | Structural fragility simulation |
+| Script | Description |
+|--------|-------------|
+| `scripts/backtest/walk_forward_backtest.py [--asset <TICKER>]` | Multi-asset expanding-window validation |
+| `scripts/backtest/backtest_pnl.py [--weight-method factor_constrained_v2]` | PnL from signal parquets |
+| `scripts/backtest/compare_ensemble.py` | Ensemble vs base with per-fold sign test |
+| `scripts/backtest/filter_direction.py` | Directional filter diagnostic |
+| `scripts/backtest/crisis_replay.py` | Crisis windows (Dec 2024, tariff, selloffs) |
+| `scripts/backtest/monte_carlo_drawdown.py` | Block-bootstrap drawdown (3 horizons, 10K sims) |
+| `scripts/analysis/production_audit.py` | 18-phase production audit + scoring |
+| `scripts/analysis/trade_lifecycle.py` | 18-phase trade reconstruction |
+| `scripts/analysis/trailing_stop_sim.py` | Retracement trailing stop simulation |
+| `scripts/analysis/robustness_gatekeeper.py` | 5-test robustness validation suite |
+| `scripts/analysis/mfe_stationarity.py` | MFE stationarity + retrace stability |
+| `scripts/analysis/shock_simulation.py` | 7-class structural fragility test |
 
 ### Optimization
 
-| Command | Description |
-|---------|-------------|
-| `python scripts/optimization/portfolio_sltp_optimizer.py` | Grid search TP/SL ratio space |
-| `python scripts/optimization/sl_fragility_test.py` | Intraday SL hit rate test |
-| `python scripts/optimization/drift_detector.py --json > data/live/optimization.json` | Live win-rate drift check |
-| `python scripts/optimization/per_asset_quality.py` | Asset quality classification |
+| Script | Description |
+|--------|-------------|
+| `scripts/optimization/portfolio_sltp_optimizer.py` | TP/SL ratio grid search |
+| `scripts/optimization/sl_fragility_test.py` | Intraday SL hit rate validation |
+| `scripts/optimization/drift_detector.py [--json]` | Live win-rate drift vs breakeven WR |
+| `scripts/optimization/portfolio_balancer.py` | Correlation-aware cluster risk penalty |
+| `scripts/optimization/per_asset_quality.py` | Asset quality classification |
 
 ### Operations
 
-| Command | Description |
-|---------|-------------|
-| `python -m paper_trading.ops.monitor` | Run engine + dashboard |
-| `./monitor_all` | One-command launch: MT5 + bridge + engine + dashboard |
+| Script | Description |
+|--------|-------------|
+| `./monitor_all` | One-command launch (terminal + bridge + engine + dashboard) |
 | `python scripts/ops/monitor_paper_trading.py` | Poll dashboard + CSV logging |
-| `python scripts/ops/mt5_bridge_supervisor.py` | MT5 bridge watchdog |
+| `python scripts/ops/mt5_bridge_supervisor.py` | Bridge watchdog |
+| `scripts/replay/replay_rebalance.py [--verify]` | Historical weight reconstruction |
+| `tools/reset_halt.py` | Emergency halt CLI override |
 
 ### Replay & Diagnostics
 
-| Command | Description |
-|---------|-------------|
-| `python scripts/replay/replay_rebalance.py --verify` | Reconstruct historical portfolio weights |
-| `python scripts/diagnostics/check_chf_correlation.py` | CHF cluster independence verification |
+| Script | Description |
+|--------|-------------|
+| `scripts/replay/replay_rebalance.py --verify` | Reconstruct historical portfolio weights |
+| `scripts/diagnostics/check_chf_correlation.py` | CHF cluster independence check |
+| `scripts/diagnostics/check_direction_win_rates.py` | Per-direction BUY/SELL win rate audit |
+| `benchmarks/microbenchmark.py` | Runtime microbenchmarking |
 
 ---
 
@@ -157,6 +164,75 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for:
 
 ---
 
+## Dashboard Development
+
+### Quick Start
+
+```bash
+cd paper_trading/dashboard
+npm ci
+npx tsc -b --noEmit  # TypeScript type-check
+npx vitest run        # Run frontend tests
+npm run build         # Production build
+```
+
+The dashboard is a React SPA (Vite + TypeScript + Tailwind CSS) served by the engine's HTTP server on port 5000.
+
+### Key Architecture
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Framework | React 18 | UI components |
+| Build | Vite | Dev server + production builds |
+| State | React Query | Server-state caching + polling |
+| Validation | Zod | API response schema validation |
+| Styling | Tailwind CSS | Utility-first styling |
+| Charts | Recharts | Equity curves, PnL waterfall |
+| Icons | Lucide React | UI icons |
+
+### Route Structure
+
+| Route | Page Component | Primary Job |
+|-------|---------------|-------------|
+| `/` | `CommandCenter` | Glance: equity curve, open positions, asset list |
+| `/trading` | `TradingWorkspace` | Operate: signal queue, admission, trades |
+| `/execution` | `ExecutionWorkspace` | Quality: EIS/FQI, attribution, MAE/MFE |
+| `/risk` | `RiskWorkspace` | Governance: PEK, metrics, health scores |
+
+### Data Flow
+
+```
+Backend (port 5000)                    Frontend (browser)
+┌─────────────────────┐               ┌──────────────────────────┐
+│ /state-bundle.json   │─────fetch───▶│ React Query              │
+│ /state.json          │              │  └─useSystemSnapshot()   │
+│ /health.json         │              │     └─sliced selectors   │
+│ ...                  │              │        per component     │
+└─────────────────────┘              │  Poll: 5s (open)         │
+                                     │        30s (closed)      │
+                                     └──────────────────────────┘
+```
+
+### Component Pattern
+
+```typescript
+// ✅ Always use sliced selectors — never subscribe to full state
+const drawdown = useSystemSnapshot(s => s.portfolio.drawdown_pct);
+const assets = useSystemSnapshot(s => s.assets);
+```
+
+### Style Guide
+
+- **Single accent** (lifted emerald `#3dd9ae`) for primary actions and highlights
+- **Governance semantic** colors (green/yellow/red) only on values that signal state
+- **Mono supremacy** — all data values in monospace
+- **Hairline rules** between cells on desktop; no shadow contrast between same-elevation panels
+- **Operator voice** — concise, active, domain-specific copy
+
+See [`docs/DASHBOARD.md`](docs/DASHBOARD.md) for the full frontend architecture reference.
+
+---
+
 ## Key Documents
 
 | Document | What it covers |
@@ -169,4 +245,6 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for:
 | `docs/FEATURES.md` | Feature engineering details |
 | `docs/GOVERNANCE.md` | Governance layer reference |
 | `docs/SECURITY.md` | Security model |
+| `docs/DASHBOARD.md` | Frontend architecture (React, Routing, Components) |
+| `docs/DISASTER_RECOVERY.md` | Incident response and recovery playbook |
 | `docs/adr/ADR-000-index.md` | Architectural decision record index |

@@ -61,7 +61,7 @@ The documentation synchronization audit identified **22 actionable items** acros
 **Scope:**
 - How do I switch modes? → Edit mode file in `configs/domains/modes/` and restart
 - When do models retrain? → Annual (January 1), or forced via `retrain_all_fixed.py`
-- How do I interpret the SELL_ONLY filter behavior? → 3 assets with inverted BUY signal
+- How do I interpret the SELL_ONLY filter behavior? → 6 assets with inverted BUY signal
 - What does "bar-jump suppression" mean? → Data source switch detected, 60min pause
 - How do I know if the dashboard connection is healthy? → ConnectionStatus bar shows Live/Degraded/Offline
 - How is the risk budget calculated? → PEK admission controller with adaptive scaling

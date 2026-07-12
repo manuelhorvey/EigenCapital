@@ -6,8 +6,8 @@ import pytz
 
 from features.fxstreet_fetcher import confirm_pending_narrative, get_narrative_status
 from paper_trading.api.common import (
-    _STORE,
     cache_set,
+    get_server_store,
     json_dumps,
 )
 from paper_trading.governance.health import compute_all as _compute_health_all
@@ -48,7 +48,7 @@ def handle_health_asset(path: str, query: dict, state_store=None) -> tuple[str, 
 
 
 def handle_governance(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     governance = {}
     if snapshot and snapshot.assets:
@@ -87,7 +87,7 @@ def handle_governance(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_statistical_metrics(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     result: dict[str, dict] = {}
     if snapshot and snapshot.assets:
@@ -107,7 +107,7 @@ def handle_statistical_metrics(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_risk_parity(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     rp = getattr(snapshot, "risk_parity", None) if snapshot else None
     data = json_dumps(rp or {}, indent=2)
@@ -116,7 +116,7 @@ def handle_risk_parity(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_psi(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     psi_data = {}
     if snapshot and snapshot.assets:
@@ -138,7 +138,7 @@ def handle_psi(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_trade_outcomes(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     outcomes = store.read_trade_outcomes()
     if outcomes is None:
         outcomes = {
@@ -166,7 +166,7 @@ def handle_narrative(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_liquidity(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     regimes = {}
     if snapshot and snapshot.assets:
@@ -192,14 +192,14 @@ def handle_narrative_confirm(body: bytes) -> tuple[str, int]:
 
 
 def handle_weekly_review(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     data = json_dumps(compute_weekly_review(store), indent=2)
     cache_set("/weekly-review.json", data)
     return data
 
 
 def handle_weekly_review_acknowledge(body: bytes, state_store=None) -> tuple[str, int]:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     now = datetime.now(tz=ET).isoformat()
     entry = {"acknowledged_at": now}
     rlp = store.review_log_path

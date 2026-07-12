@@ -49,18 +49,19 @@ def register_engine(engine: object) -> None:
 def register_state_store(store: StateStore | None) -> None:
     """Register a StateStore instance for use when the live engine is not available.
 
-    Allows tests and dashboard code to inject a specific store instead of
-    ``_get_state_store()`` creating its own independent singleton.
-    Pass ``None`` to reset to default behavior (lazy create on first use).
+    Must be called before ``_get_state_store()``. Pass ``None`` to clear.
+    Unlike the old lazy-singleton pattern, this no longer creates an
+    independent StateStore on first use — the caller must provide one.
     """
     global _STATE_STORE
     _STATE_STORE = store
 
 
-def _get_state_store() -> StateStore:
-    global _STATE_STORE
-    if _STATE_STORE is None:
-        _STATE_STORE = StateStore(os.path.dirname(BASE_DIR))
+def _get_state_store() -> StateStore | None:
+    """Return the registered StateStore, or None if not set.
+
+    Callers must handle None (e.g., by injecting from the server context).
+    """
     return _STATE_STORE
 
 
@@ -75,12 +76,14 @@ def _load_state_assets() -> dict:
         except (AttributeError, TypeError, ValueError, KeyError):
             logger.warning("Failed to load engine state from live engine", exc_info=True)
     # Fallback: state store snapshot
-    try:
-        snapshot = _get_state_store().load_snapshot()
-        if snapshot is not None and snapshot.assets:
-            return snapshot.assets
-    except (AttributeError, OSError, TypeError, ValueError):
-        logger.warning("Failed to load snapshot from state store", exc_info=True)
+    store = _get_state_store()
+    if store is not None:
+        try:
+            snapshot = store.load_snapshot()
+            if snapshot is not None and snapshot.assets:
+                return snapshot.assets
+        except (AttributeError, OSError, TypeError, ValueError):
+            logger.warning("Failed to load snapshot from state store", exc_info=True)
     return {}
 
 

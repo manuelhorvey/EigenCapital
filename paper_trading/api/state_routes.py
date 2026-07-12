@@ -7,13 +7,13 @@ from datetime import datetime
 import pytz
 
 from paper_trading.api.common import (
-    _STORE,
     CONFIDENCE_PATH,
     HEALTHCHECK_PATH,
     LOG_PATH,
     OPTIMIZATION_PATH,
     cache_get,
     cache_set,
+    get_server_store,
     get_vol_baselines,
     json_dumps,
 )
@@ -27,7 +27,7 @@ ET = pytz.timezone("US/Eastern")
 
 
 def handle_state(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     cached = cache_get(path)
     if cached is not None:
         return cached
@@ -89,7 +89,7 @@ def handle_state(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_trades(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 10)), 200))
     offset = max(0, int(query.get("offset", 0)))
     trades = store.read_trades(limit + offset)
@@ -137,7 +137,7 @@ def handle_trades(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_equity_history(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     history = store.read_equity_history()
     data = json_dumps(history)
     cache_set("/equity_history.json", data)
@@ -145,7 +145,7 @@ def handle_equity_history(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_confidence(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     cached = cache_get(path)
     if cached is not None:
         return cached
@@ -178,7 +178,7 @@ def handle_confidence(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_volatility(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     regimes = []
     vol_baselines = get_vol_baselines()
@@ -230,7 +230,7 @@ def handle_ping(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_engine_health(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     import time
     from pathlib import Path
 

@@ -122,7 +122,7 @@ class StateStore:
 
     def connect(self):
         """Open a direct SQLite connection. Used by tests."""
-        return self.db._connect()
+        return self.db._create_connection()
 
     # ── Data cache ─────────────────────────────────────────────────
 

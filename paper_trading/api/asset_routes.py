@@ -2,15 +2,15 @@ import json
 import os
 
 from paper_trading.api.common import (
-    _STORE,
     cache_set,
     get_mt5_status,
+    get_server_store,
     json_dumps,
 )
 
 
 def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, int]:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     asset_name = path[len("/asset/") : -len(".json")]
     snapshot = store.load_snapshot()
     if not snapshot or not snapshot.assets or asset_name not in snapshot.assets:

@@ -19,6 +19,8 @@ from paper_trading.execution.mt5_broker import MT5Broker
 from paper_trading.execution.paper_broker import PaperBroker
 from paper_trading.execution_context import ExecutionContext
 from paper_trading.governance.risk import reset as _reset_risk_governance
+from paper_trading.logging.correlation import CorrelationIdFilter
+from paper_trading.logging.json_formatter import install_json_logging
 from paper_trading.ops.data_fetcher import (  # noqa: F401
     _cache_path,
     fetch_history,
@@ -56,16 +58,62 @@ class ExecutionState(Enum):
 
 ET = pytz.timezone("US/Eastern")
 
-logger = logging.getLogger("eigencapital.engine")
+# ── Logging setup ────────────────────────────────────────────────────────────
+def _setup_logging() -> logging.Logger:
+    """Configure structured logging with file rotation and correlation IDs.
+
+    Replaces the legacy ``logging.basicConfig()`` default with:
+      - RotatingFileHandler (10 MB, 5 backups) for durable capture
+      - StreamHandler for stdout (JSON format, for log aggregators)
+      - CorrelationIdFilter on all handlers
+    """
+    root = logging.getLogger("eigencapital")
+    root.setLevel(logging.INFO)
+
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "live")
+    log_path = os.path.join(log_dir, "engine.log")
+    os.makedirs(log_dir, exist_ok=True)
+
+    # File handler with rotation (10 MB per file, keep 5 backups)
+    from logging.handlers import RotatingFileHandler
+
+    file_handler = RotatingFileHandler(log_path, maxBytes=10 * 1024 * 1024, backupCount=5)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] [%(correlation_id)s] %(name)s: %(message)s")
+    )
+    file_handler.addFilter(CorrelationIdFilter())
+    root.addHandler(file_handler)
+
+    # JSON stream handler for aggregators (stdout)
+    json_handler = install_json_logging(logger=root, level=logging.INFO, replace=False)
+    json_handler.addFilter(CorrelationIdFilter())
+
+    # Ensure only one set of handlers is active
+    logger = logging.getLogger("eigencapital.engine")
+    return logger
+
+
+logger = _setup_logging()
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_STORE = StateStore(BASE)
-STATE_PATH = _STORE.state_path
-CACHE_DIR = _STORE.cache_dir
-LOG_PATH = os.path.join(BASE, "data", "live", "engine.log")
+_LIVE_DIR = os.path.join(BASE, "data", "live")
+STATE_PATH = os.path.join(_LIVE_DIR, "state.json")
+CACHE_DIR = os.path.join(_LIVE_DIR, "cache")
+LOG_PATH = os.path.join(_LIVE_DIR, "engine.log")  # backward compat
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 
 os.makedirs(MODEL_DIR, exist_ok=True)
+
+# Backward-compat: _STORE was eagerly created here; now None unless explicitly set.
+_STORE: StateStore | None = None
+
+
+def _set_module_store(store: StateStore | None) -> None:
+    """Set the module-level _STORE for backward compat with scripts that import
+    ``paper_trading.engine._STORE``. Call once at engine startup."""
+    global _STORE
+    _STORE = store
 
 
 class PaperTradingEngine:
@@ -81,6 +129,11 @@ class PaperTradingEngine:
             )
 
         self.state_store = state_store or StateStore(BASE)
+        _set_module_store(self.state_store)
+        # Wire the store into data_fetcher for cache operations
+        from paper_trading.ops.data_fetcher import _set_store as _set_df_store
+
+        _set_df_store(self.state_store)
         self.assets = {}
         self.start_date = datetime.now(tz=ET)
         self.last_update = None
@@ -331,10 +384,12 @@ class PaperTradingEngine:
         return self._state.save_state()
 
     def _prune_old_data(self) -> None:
-        """Prune data files older than their per-type retention period.
+        """Prune data files and SQLite tables older than their per-type retention period.
 
         Runs at most once per calendar day to keep disk usage bounded
-        without slowing down every cycle.
+        without slowing down every cycle. Retention periods are read from
+        the engine config (``self._engine_cfg.retention``), falling back
+        to module-level defaults in ``prune_data.RETENTION``.
         """
         today = datetime.now(tz=ET).strftime("%Y-%m-%d")
         if self._last_prune_date == today:
@@ -342,10 +397,34 @@ class PaperTradingEngine:
         self._last_prune_date = today
 
         try:
-            from paper_trading.ops.prune_data import prune_all
+            from paper_trading.ops.prune_data import RETENTION, prune_all
 
-            logger.info("Pruning data older than retention limits...")
-            stats = prune_all(apply=True)
+            retention = dict(RETENTION)
+            cfg_retention = getattr(self._engine_cfg, "retention", {})
+            # Map config keys to prune_data keys
+            key_map = {
+                "trades_days": "trades",
+                "attribution_days": "attribution",
+                "equity_history_days": "equity_history",
+                "trace_days": "trace.jsonl",
+                "wal_days": "wal/engine.jsonl",
+                "log_days": "engine.log",
+                "shadow_feedback_days": "shadow_feedback",
+                "shadow_memory_days": "shadow_memory",
+            }
+            for cfg_key, ret_key in key_map.items():
+                val = cfg_retention.get(cfg_key)
+                if val is not None and isinstance(val, (int, float)) and val > 0:
+                    retention[ret_key] = int(val)
+
+            logger.info(
+                "Pruning data older than retention limits: trades=%dd, attr=%dd, eq=%dd, log=%dd",
+                retention.get("trades", 365),
+                retention.get("attribution", 365),
+                retention.get("equity_history", 90),
+                retention.get("engine.log", 14),
+            )
+            stats = prune_all(apply=True, retention=retention)
             total = sum(s.get("pruned", 0) + s.get("pruned_files", 0) for s in stats.values() if isinstance(s, dict))
             if total > 0:
                 logger.info("Pruned %d items across %d data types", total, len(stats))

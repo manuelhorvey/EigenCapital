@@ -95,8 +95,22 @@ class AssetEngine:
         self.max_depth = max_depth
         self.regime_geometry = regime_geometry or {}
 
-        # ── Capital & position management ────────────────────────────
-        self.initial_capital = initial_capital if initial_capital is not None else engine_cfg.capital * allocation
+        # ── Delegated initialization (ARCH-02) ───────────────────────
+        self._init_capital_state(engine_cfg, initial_capital, position_size)
+        self._init_runtime_state(engine_cfg, retrain_window, wal_writer)
+        self._init_working_state()
+        self._init_infrastructure(ctx, journal_path, registry)
+        self._init_monitoring_governance()
+        self._init_entry_machinery()
+        self._init_sub_pipelines()
+
+    # ── ARCH-02: extracted initialization helpers ──────────────────
+
+    def _init_capital_state(self, engine_cfg, initial_capital, position_size) -> None:
+        """Initialise capital base, peak tracking, and position manager."""
+        self.initial_capital = (
+            initial_capital if initial_capital is not None else engine_cfg.capital * self.allocation
+        )
         self.capital_base = self.initial_capital
         self.peak_value = self.initial_capital
         self.current_value = self.initial_capital
@@ -105,7 +119,8 @@ class AssetEngine:
             position_size if position_size is not None else engine_cfg.position_size,
         )
 
-        # ── Runtime state (extracted to keep __init__ readable) ──────
+    def _init_runtime_state(self, engine_cfg, retrain_window, wal_writer) -> None:
+        """Initialise all runtime state variables (model, prices, counters)."""
         self.start_time = datetime.now(tz=ET)
         self.model = None
         self.signal_data = None
@@ -127,23 +142,11 @@ class AssetEngine:
         self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
         self._rolling_window = engine_cfg.defaults.get("rolling_window_bars", None)
         self._rolling_window_bars = self.config.get("rolling_window_bars", 756)
-        self.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
+        self.model_path = os.path.join(BASE, "paper_trading", "models", f"{self.contract.name}_model.json")
         self._wal_writer = wal_writer
         self._model_hash = self._load_model_hash()
         self._calibration_registry: CalibrationRegistry | None = None
         self._load_calibration_registry()
-        w = WorkingState()
-        w._cycle_counter = 0
-        # Cycle 0 → first _apply_decision increments to 1 → pipeline check `<= 1` matches → first cycle suppressed
-        # This ensures the cold-start transient prediction (full-row inference before truncation validates)
-        # is never acted upon. Changed from 2 → 0 on 2026-07-11 (was silently bypassing suppression).
-        w._last_signal_flip_cycle = -self.config.get("min_flip_interval_bars", 3) * 2
-        w._min_flip_interval_bars = self.config.get("min_flip_interval_bars", 3)
-        w._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
-        w._spread_tier = self.config.get("spread_tier", "fx_cross")
-        for f in dataclass_fields(w):
-            setattr(self, f.name, getattr(w, f.name))
-        self._ws = w
 
         self._last_stop_out_side = None
         self._last_stop_out_cycle = -999
@@ -167,7 +170,23 @@ class AssetEngine:
         self._last_stability = None
         self._last_psi_drift = None
 
-        # ── Infrastructure dependencies ──────────────────────────────
+    def _init_working_state(self) -> None:
+        """Initialise WorkingState (flip cycle tracking, churn, spread tier)."""
+        w = WorkingState()
+        w._cycle_counter = 0
+        # Cycle 0 → first _apply_decision increments to 1 → pipeline check `<= 1` matches → first cycle suppressed
+        # This ensures the cold-start transient prediction (full-row inference before truncation validates)
+        # is never acted upon. Changed from 2 → 0 on 2026-07-11 (was silently bypassing suppression).
+        w._last_signal_flip_cycle = -self.config.get("min_flip_interval_bars", 3) * 2
+        w._min_flip_interval_bars = self.config.get("min_flip_interval_bars", 3)
+        w._churn_ratio_threshold = self.config.get("churn_ratio_threshold", 0.50)
+        w._spread_tier = self.config.get("spread_tier", "fx_cross")
+        for f in dataclass_fields(w):
+            setattr(self, f.name, getattr(w, f.name))
+        self._ws = w
+
+    def _init_infrastructure(self, ctx, journal_path, registry) -> None:
+        """Initialise execution bridge, state store, market data, strategy registry."""
         self.execution_bridge = ctx.get_execution_bridge()
         self.state_store = ctx.get_state_store()
         if journal_path is _SKIP_JOURNAL:
@@ -177,7 +196,8 @@ class AssetEngine:
         self._reg = registry or StrategyRegistry.get_instance()
         self._setup_registry_strategies()
 
-        # ── Monitoring & governance ──────────────────────────────────
+    def _init_monitoring_governance(self) -> None:
+        """Initialise monitoring, governance, regime classification, validity state."""
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self._importance_store = ImportanceStore(base_dir)
         self._psi_monitor = PSIMonitor(base_dir)
@@ -189,7 +209,8 @@ class AssetEngine:
         self.governance.load_liquidity_state(getattr(self, "price_data", None))
         self._setup_shadow_sltp()
 
-        # ── SL/TP & entry machinery ──────────────────────────────────
+    def _init_entry_machinery(self) -> None:
+        """Initialise SL/TP, scaling, entry services, and detectors."""
         self._sltp_engine = build_dynamic_sltp_from_config(self.config)
         self._scale_out_engine = build_scale_out_from_config(self.config)
         self._entry = EntryService()
@@ -197,11 +218,10 @@ class AssetEngine:
         self._execution_policy = ExecutionPolicyLayer()
         self._structure_detector = MarketStructureDetector()
         self._archetype_classifier = ArchetypeClassifier()
-
-        # ── Attribution ──────────────────────────────────────────────
         self._attribution = AttributionCollector()
 
-        # ── Sub-pipelines (training, inference, PnL, position) ──────
+    def _init_sub_pipelines(self) -> None:
+        """Initialise training, PnL, inference, and position sub-pipelines."""
         self._training = AssetTrainingPipeline(self)
         self._pnl = AssetPnlController(self)
         self._inference = AssetInferencePipeline(self)
@@ -625,19 +645,19 @@ class AssetEngine:
             if spread_bps is not None:
                 self._last_spread_bps = spread_bps
                 self._last_spread_time = time.time()
-        except Exception:
+        except (OSError, ValueError, TypeError, AttributeError):
             logger.warning("%s: refresh_spread failed", self.name, exc_info=True)
 
     def train(self, force=False):
         self._training.train(force=force)
         self._load_calibration_registry()
 
-    def generate_signal(self, threshold=0.45):
+    def generate_signal(self, threshold=0.45, shared_macro: dict[str, pd.Series] | None = None):
         halt = self.check_halt_conditions()
         if halt.get("halted", False):
             logger.info("%s: skip signal generation — asset halted", self.name)
             return None
-        return self._inference.generate_signal(threshold)
+        return self._inference.generate_signal(threshold, shared_macro=shared_macro)
 
     def _apply_decision(self, decision: TradeDecision, df):
         self._cycle_counter += 1

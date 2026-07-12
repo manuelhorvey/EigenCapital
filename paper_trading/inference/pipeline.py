@@ -455,14 +455,16 @@ class AssetInferencePipeline:
         if not getattr(asset, "_psi_drift_initialized", False):
             asset._psi_drift_initialized = True
             return
+        if len(x) < 100:
+            return
         try:
             latest_df, _ = asset._importance_store.get_latest_two_snapshots(asset.name)
             if latest_df is not None and not latest_df.empty:
                 top10 = latest_df[latest_df["rank"] <= 10]
                 top_features = [(r["feature"], r["importance_score"]) for r in top10.to_dict("records")]
                 x_current = x.iloc[_MAX_INDICATOR_LOOKBACK:]
-                if len(x_current) < 21:
-                    x_current = x.tail(21)
+                if len(x_current) < 100:
+                    return
                 asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, x_current, top_features)
         except (ValueError, TypeError, KeyError) as e:
             logger.debug("%s: PSI drift skipped: %s", asset.name, e)

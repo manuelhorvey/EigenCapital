@@ -76,16 +76,20 @@ echo "  Building dashboard..."
 (cd paper_trading/dashboard && yarn build) || echo "  Dashboard build skipped (error above)"
 
 # ── Cleanup on exit ─────────────────────────────────────────
-# Only kill daemons that this script started
 cleanup() {
     echo ""
-    echo "  Shutting down..."
-    kill "$MONITOR_PID" 2>/dev/null; wait "$MONITOR_PID" 2>/dev/null
+    echo "  Shutting down all EigenCapital processes..."
+    # Kill all direct children of this script
+    pkill -P $$ 2>/dev/null; sleep 1
+    pkill -9 -P $$ 2>/dev/null
+    # Kill any remaining grandchild processes by name pattern
+    pkill -f 'python.*paper_trading.ops.monitor' 2>/dev/null
+    pkill -f 'python.*paper_trading.ops.slack_alerter' 2>/dev/null
+    pkill -f 'python.*model_health_monitor' 2>/dev/null
+    pkill -f 'mt5_bridge.py' 2>/dev/null
+    # Free the dashboard port
+    fuser -k 5000/tcp 2>/dev/null || true
     sleep 1
-    [ -n "$LAUNCHED_BRIDGE" ]       && { kill "$LAUNCHED_BRIDGE" 2>/dev/null;       wait "$LAUNCHED_BRIDGE" 2>/dev/null;       }
-    [ -n "$LAUNCHED_TERM" ]         && { kill "$LAUNCHED_TERM" 2>/dev/null;         wait "$LAUNCHED_TERM" 2>/dev/null;         }
-    [ -n "${SLACK_ALERTER_PID:-}" ] && { kill "$SLACK_ALERTER_PID" 2>/dev/null;     wait "$SLACK_ALERTER_PID" 2>/dev/null;     }
-    [ -n "${HEALTH_MONITOR_PID:-}" ] && { kill "$HEALTH_MONITOR_PID" 2>/dev/null;    wait "$HEALTH_MONITOR_PID" 2>/dev/null;    }
     echo "  Done."
 }
 trap cleanup EXIT INT TERM

@@ -134,4 +134,4 @@ SELL_ONLY_ASSETS truth.
 | `assets` | `frozenset[str]` | `(default_factory)` |
 
 
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-12

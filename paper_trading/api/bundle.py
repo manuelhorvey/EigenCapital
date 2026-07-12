@@ -38,10 +38,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from paper_trading.api.common import (
-    _STORE,
     cache_get,
     cache_set,
     get_mt5_status,
+    get_server_store,
     json_dumps,
 )
 from paper_trading.governance.health import compute_all as compute_health_all
@@ -100,7 +100,7 @@ def _background_refresh(name: str, fetch_fn: Callable[[], Any]) -> None:
         result["is_fresh"] = True
         with _LIVE_CACHE_LOCK:
             _LIVE_CACHE[name] = (result, now + _LIVE_CACHE_TTL, now, False)
-    except (OSError, ValueError, TypeError, TimeoutError, ConnectionError) as exc:
+    except (OSError, ValueError, TypeError, TimeoutError, ConnectionError, NameError, RuntimeError) as exc:
         logger.warning("bundle bg refresh '%s' failed: %s", name, exc)
         # Cache the failure so the next N polls don't re-attempt.
         now = time.time()
@@ -194,7 +194,7 @@ def _strip_publish_markers(obj: Any) -> None:
 
 
 def handle_state_bundle(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     cached = cache_get("/state-bundle.json")
     if cached is not None:
         return cached

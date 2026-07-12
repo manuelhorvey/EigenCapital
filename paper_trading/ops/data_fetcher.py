@@ -18,26 +18,30 @@ _STORE: object | None = None
 _STORE_LOCK = threading.Lock()
 
 
-def _get_store(override: object | None = None):
-    """Get the global StateStore, optionally overriding for testing/multi-instance.
+def _set_store(store: object | None) -> None:
+    """Set the global store instance for cache operations.
 
-    Returns ``override`` immediately if provided. Otherwise returns the cached
-    singleton, creating one on first call.
+    Called once by the engine at startup. No longer creates a singleton
+    on first use — the caller must provide a store.
+    """
+    global _STORE
+    with _STORE_LOCK:
+        _STORE = store
+
+
+def _get_store(override: object | None = None):
+    """Get the global store instance, optionally overriding.
+
+    Returns ``override`` immediately if provided. Otherwise returns the
+    cached instance set by ``_set_store()``, or None if not set.
     """
     if override is not None:
         return override
-    global _STORE
-    if _STORE is None:
-        with _STORE_LOCK:
-            if _STORE is None:
-                from paper_trading.state_store import StateStore
-
-                _STORE = StateStore(BASE)
     return _STORE
 
 
 def _reset_store() -> None:
-    """Reset the StateStore cache. Test-harness use only."""
+    """Reset the store cache. Test-harness use only."""
     global _STORE
     with _STORE_LOCK:
         _STORE = None
@@ -202,7 +206,12 @@ def norm_index(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _cache_path(ticker: str) -> str:
-    return _get_store().cache_path(ticker)
+    store = _get_store()
+    if store is not None:
+        return store.cache_path(ticker)
+    cache_dir = os.path.join(BASE, "data", "live", "cache")
+    safe = ticker.replace("-", "_").replace("^", "")
+    return os.path.join(cache_dir, f"{safe}.parquet")
 
 
 def safe_download(ticker: str, **kwargs) -> pd.DataFrame:

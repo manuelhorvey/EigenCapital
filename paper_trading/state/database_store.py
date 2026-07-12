@@ -1,7 +1,17 @@
+"""SQLite-backed append store for trades, attribution, shadow trades,
+confidence buckets, and equity history.
+
+Uses a thread-local connection pool to avoid creating a fresh connection
+on every operation. Foreign keys are enforced. Schema migrations are
+version-tracked via the ``strategy_metadata`` table.
+"""
+
+import atexit
 import contextlib
 import json
 import logging
 import sqlite3
+import threading
 
 import pandas as pd
 
@@ -9,8 +19,11 @@ logger = logging.getLogger("eigencapital.state_store")
 
 
 class _DatabaseStore:
-    """SQLite-backed append store for trades, attribution, shadow trades,
-    confidence buckets, and equity history."""
+    """SQLite-backed append store with thread-local connection pool.
+
+    Each thread gets its own connection, reused across operations.
+    Connections are validated before use and re-created if dead.
+    """
 
     REQUIRED_TABLES = [
         "trades",
@@ -18,7 +31,11 @@ class _DatabaseStore:
         "shadow_trades",
         "confidence_buckets",
         "equity_history",
+        "equity_asset_snapshots",
     ]
+
+    # Thread-local storage for connection reuse
+    _local = threading.local()
 
     def __init__(self, db_path: str, checkpoint_interval: int = 50):
         self._db_path = db_path
@@ -29,12 +46,13 @@ class _DatabaseStore:
         except (RuntimeError, sqlite3.DatabaseError, OSError):
             logger.warning("DB init verification failed — retrying once: %s", db_path)
             self._init_db()
+        atexit.register(self.close_all_connections)
 
     def _migrate_exit_reasons(self, conn) -> None:
         """One-time migration: canonicalize legacy exit reasons.
 
         Converts lowercase reasons to uppercase and normalizes
-        legacy naming conventions.
+        legacy naming conventions. Idempotent — skipped if already applied.
         """
         with contextlib.suppress(sqlite3.OperationalError):
             conn.executescript("""
@@ -46,18 +64,19 @@ class _DatabaseStore:
             """)
 
     def _init_db(self) -> None:
-        with self._connect() as conn:
+        with self._get_connection() as conn:
             conn.executescript("""
                 PRAGMA synchronous=NORMAL;
                 PRAGMA wal_autocheckpoint=1000;
+                PRAGMA foreign_keys=ON;
 
                 CREATE TABLE IF NOT EXISTS trades (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     asset TEXT NOT NULL,
-                    side TEXT,
-                    entry REAL,
-                    exit REAL,
-                    entry_date TEXT,
+                    side TEXT NOT NULL CHECK(side IN ('long','short')),
+                    entry REAL NOT NULL CHECK(entry > 0),
+                    exit REAL CHECK(exit IS NULL OR exit > 0),
+                    entry_date TEXT NOT NULL,
                     exit_date TEXT,
                     return REAL,
                     pnl REAL,
@@ -81,6 +100,7 @@ class _DatabaseStore:
                     pred_confidence REAL,
                     pred_archetype TEXT,
                     pred_regime TEXT,
+                    cycle_id INTEGER,
                     created_at TEXT DEFAULT (datetime('now'))
                 );
 
@@ -138,8 +158,6 @@ class _DatabaseStore:
                     exit_price REAL,
                     sl_price REAL,
                     tp_price REAL,
-                    stop_loss REAL,
-                    take_profit REAL,
                     reason TEXT,
                     return REAL,
                     pnl REAL,
@@ -152,18 +170,11 @@ class _DatabaseStore:
 
                 CREATE TABLE IF NOT EXISTS confidence_buckets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    asset TEXT,
-                    date TEXT,
-                    count_0_10 INTEGER DEFAULT 0,
-                    count_10_20 INTEGER DEFAULT 0,
-                    count_20_30 INTEGER DEFAULT 0,
-                    count_30_40 INTEGER DEFAULT 0,
-                    count_40_50 INTEGER DEFAULT 0,
-                    count_50_60 INTEGER DEFAULT 0,
-                    count_60_70 INTEGER DEFAULT 0,
-                    count_70_80 INTEGER DEFAULT 0,
-                    count_80_90 INTEGER DEFAULT 0,
-                    count_90_100 INTEGER DEFAULT 0,
+                    asset TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    bucket_start INTEGER NOT NULL CHECK(bucket_start >= 0 AND bucket_start < 100),
+                    bucket_end INTEGER NOT NULL CHECK(bucket_end > bucket_start AND bucket_end <= 100),
+                    count INTEGER NOT NULL DEFAULT 0 CHECK(count >= 0),
                     mean_conf REAL,
                     n_signals INTEGER,
                     created_at TEXT DEFAULT (datetime('now'))
@@ -177,7 +188,16 @@ class _DatabaseStore:
                     drawdown REAL,
                     gross_exposure REAL,
                     net_exposure REAL,
-                    assets TEXT,
+                    vol_spike REAL,
+                    var_95 REAL,
+                    created_at TEXT DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS equity_asset_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    equity_id INTEGER NOT NULL REFERENCES equity_history(id) ON DELETE CASCADE,
+                    asset_name TEXT NOT NULL,
+                    asset_value REAL NOT NULL,
                     created_at TEXT DEFAULT (datetime('now'))
                 );
 
@@ -186,8 +206,6 @@ class _DatabaseStore:
                     value TEXT
                 );
             """)
-            with contextlib.suppress(sqlite3.OperationalError):
-                conn.execute("ALTER TABLE equity_history ADD COLUMN assets TEXT")
             self._migrate_exit_reasons(conn)
             self._run_migrations(conn)
         self.verify()
@@ -219,11 +237,23 @@ class _DatabaseStore:
             "CREATE INDEX IF NOT EXISTS idx_trades_asset_entry ON trades(asset, entry_date)",
             "CREATE INDEX IF NOT EXISTS idx_attribution_entry ON attribution(entry_date)",
         ],
+        "3.0.0": [
+            "CREATE INDEX IF NOT EXISTS idx_trades_exit_date ON trades(exit_date DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_trades_asset_exit ON trades(asset, exit_date DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_attribution_exit_date ON attribution(exit_date DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_attribution_filter ON attribution(asset, pred_archetype_at_entry, pred_regime_at_entry, exit_date DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_shadow_alt_label ON shadow_trades(alt_label, exit_date DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_shadow_exit_date ON shadow_trades(exit_date DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_confidence_asset_date ON confidence_buckets(asset, date)",
+            "CREATE INDEX IF NOT EXISTS idx_equity_timestamp ON equity_history(timestamp DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_equity_assets_equity_id ON equity_asset_snapshots(equity_id)",
+            "CREATE INDEX IF NOT EXISTS idx_equity_assets_name ON equity_asset_snapshots(asset_name)",
+        ],
     }
 
     def _run_migrations(self, conn) -> None:
         current = self._read_db_version(conn)
-        target = "2.0.0"
+        target = "3.0.0"
         if self._parse_version(current) >= self._parse_version(target):
             return
         logger.info("DB schema migration: %s \u2192 %s", current, target)
@@ -241,7 +271,7 @@ class _DatabaseStore:
         self._write_db_version(conn, target)
 
     def verify(self) -> None:
-        with self._connect() as conn:
+        with self._get_connection() as conn:
             existing = {
                 row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             }
@@ -250,23 +280,46 @@ class _DatabaseStore:
             raise RuntimeError(f"Database {self._db_path} missing tables after init: {missing}")
         logger.debug("Database %s \u2014 all %d tables present", self._db_path, len(self.REQUIRED_TABLES))
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db_path, timeout=5.0)
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get or create a thread-local SQLite connection. Validates liveness
+        and that the connection points to the correct database path."""
+        conn = getattr(_DatabaseStore._local, "conn", None)
+        path_ok = getattr(_DatabaseStore._local, "db_path", None) == self._db_path
+        if conn is not None and path_ok:
+            try:
+                conn.execute("SELECT 1").fetchone()
+                return conn
+            except (sqlite3.DatabaseError, sqlite3.ProgrammingError, AttributeError):
+                logger.debug("Re-creating stale thread-local SQLite connection")
+                try:
+                    conn.close()
+                except (sqlite3.Error, OSError):
+                    pass
+        # No live connection for this database path — create one
+        conn = self._create_connection()
+        _DatabaseStore._local.conn = conn
+        _DatabaseStore._local.db_path = self._db_path
+        return conn
+
+    def _create_connection(self) -> sqlite3.Connection:
+        """Create a fresh SQLite connection with WAL mode and foreign keys."""
+        conn = sqlite3.connect(self._db_path, timeout=10.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
     def checkpoint_wal(self) -> None:
         self._write_count += 1
         if self._write_count % self._checkpoint_interval == 0:
             try:
-                with self._connect() as conn:
+                with self._get_connection() as conn:
                     conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
             except (sqlite3.DatabaseError, OSError, RuntimeError) as _we:
                 logger.debug("WAL checkpoint skipped: %s", _we, exc_info=True)
 
     def append_trade(self, trade: dict) -> None:
-        with self._connect() as conn:
+        with self._get_connection() as conn:
             conn.execute(
                 """INSERT INTO trades (
                     asset, side, entry, exit, entry_date, exit_date,
@@ -311,7 +364,7 @@ class _DatabaseStore:
 
     def read_trades(self, limit: int = 10) -> list:
         try:
-            with self._connect() as conn:
+            with self._get_connection() as conn:
                 rows = conn.execute("SELECT * FROM trades ORDER BY exit_date DESC LIMIT ?", (limit,)).fetchall()
                 return [dict(r) for r in rows]
         except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
@@ -321,7 +374,7 @@ class _DatabaseStore:
     def read_trades_since(self, date: str) -> pd.DataFrame:
         columns = ["asset", "side", "entry", "exit", "return", "bars", "reason", "entry_date", "exit_date"]
         try:
-            with self._connect() as conn:
+            with self._get_connection() as conn:
                 rows = conn.execute(
                     "SELECT asset, side, entry, exit, return, bars, reason, entry_date, exit_date "
                     "FROM trades WHERE exit_date >= ? ORDER BY exit_date DESC",
@@ -335,7 +388,7 @@ class _DatabaseStore:
             return pd.DataFrame(columns=columns)
 
     def append_attribution(self, record_dict: dict) -> None:
-        with self._connect() as conn:
+        with self._get_connection() as conn:
             conn.execute(
                 """INSERT INTO attribution (
                     asset, trade_id, entry_date, exit_date,
@@ -402,7 +455,7 @@ class _DatabaseStore:
         asset: str | None = None,
     ) -> list:
         try:
-            with self._connect() as conn:
+            with self._get_connection() as conn:
                 query = "SELECT * FROM attribution WHERE 1=1"
                 clause_strings = []
                 clause_params = []
@@ -425,7 +478,8 @@ class _DatabaseStore:
                 for rec in records:
                     if "entry_price" not in rec or rec["entry_price"] is None:
                         rec["entry_price"] = rec.get("exec_entry_price")
-                    rec["exit_exit_reason"] = rec.get("exit_reason")
+                    # Fix: map exit_reason column value to exit_exit_reason for backward compat
+                    rec["exit_exit_reason"] = rec.get("exit_exit_reason") or rec.get("exit_reason")
                     rec["exit_theoretical_r"] = rec.get("theoretical_r")
                     if rec.get("exit_archetype") is None and rec.get("exit_exit_archetype") is not None:
                         rec["exit_archetype"] = rec["exit_exit_archetype"]
@@ -435,15 +489,15 @@ class _DatabaseStore:
             return []
 
     def append_shadow_trade(self, record_dict: dict) -> None:
-        with self._connect() as conn:
+        with self._get_connection() as conn:
             conn.execute(
                 """INSERT INTO shadow_trades (
                     asset, alt_label, entry_date, exit_date,
                     side, entry_price, exit_price,
-                    sl_price, tp_price, stop_loss, take_profit,
+                    sl_price, tp_price,
                     reason, return, pnl, realized_r, bars_held,
                     live_exit_reason, live_realized_r
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     record_dict.get("asset"),
                     record_dict.get("alt_label"),
@@ -454,8 +508,6 @@ class _DatabaseStore:
                     record_dict.get("exit_price"),
                     record_dict.get("sl_price"),
                     record_dict.get("tp_price"),
-                    record_dict.get("stop_loss"),
-                    record_dict.get("take_profit"),
                     record_dict.get("reason"),
                     record_dict.get("return"),
                     record_dict.get("pnl"),
@@ -468,7 +520,7 @@ class _DatabaseStore:
 
     def read_shadow_trades(self, limit: int = 100, offset: int = 0, alt_label: str | None = None) -> list:
         try:
-            with self._connect() as conn:
+            with self._get_connection() as conn:
                 if alt_label:
                     rows = conn.execute(
                         "SELECT * FROM shadow_trades WHERE alt_label = ? ORDER BY exit_date DESC LIMIT ? OFFSET ?",
@@ -485,40 +537,52 @@ class _DatabaseStore:
             return []
 
     def append_confidence_bucket(self, bucket: dict) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """INSERT INTO confidence_buckets (
-                    asset, date,
-                    count_0_10, count_10_20, count_20_30, count_30_40,
-                    count_40_50, count_50_60, count_60_70, count_70_80,
-                    count_80_90, count_90_100,
-                    mean_conf, n_signals
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    bucket.get("asset"),
-                    bucket.get("date"),
-                    bucket.get("count_0_10", 0),
-                    bucket.get("count_10_20", 0),
-                    bucket.get("count_20_30", 0),
-                    bucket.get("count_30_40", 0),
-                    bucket.get("count_40_50", 0),
-                    bucket.get("count_50_60", 0),
-                    bucket.get("count_60_70", 0),
-                    bucket.get("count_70_80", 0),
-                    bucket.get("count_80_90", 0),
-                    bucket.get("count_90_100", 0),
-                    bucket.get("mean_conf", 0.0),
-                    bucket.get("n_signals", 0),
-                ),
-            )
+        """Append confidence bucket rows. Accepts both the legacy wide-format
+        (10 count columns) and the normalized format (bucket_start, bucket_end, count).
+        """
+        with self._get_connection() as conn:
+            # Check if this is the legacy format (has count_0_10, etc.)
+            if "count_0_10" in bucket:
+                # Legacy format: convert to normalized rows
+                asset = bucket.get("asset")
+                date = bucket.get("date")
+                mean_conf = bucket.get("mean_conf", 0.0)
+                n_signals = bucket.get("n_signals", 0)
+                for i in range(10):
+                    lo = i * 10
+                    hi = (i + 1) * 10
+                    count = bucket.get(f"count_{lo}_{hi}", 0)
+                    if count > 0:
+                        conn.execute(
+                            """INSERT INTO confidence_buckets
+                            (asset, date, bucket_start, bucket_end, count, mean_conf, n_signals)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                            (asset, date, lo, hi, count, mean_conf, n_signals),
+                        )
+            else:
+                # Normalized format
+                conn.execute(
+                    """INSERT INTO confidence_buckets
+                    (asset, date, bucket_start, bucket_end, count, mean_conf, n_signals)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        bucket.get("asset"),
+                        bucket.get("date"),
+                        bucket.get("bucket_start", 0),
+                        bucket.get("bucket_end", 10),
+                        bucket.get("count", 0),
+                        bucket.get("mean_conf", 0.0),
+                        bucket.get("n_signals", 0),
+                    ),
+                )
 
     def append_equity_history(self, record: dict) -> None:
-        with self._connect() as conn:
-            conn.execute(
+        with self._get_connection() as conn:
+            cursor = conn.execute(
                 """INSERT INTO equity_history (
                     timestamp, portfolio_value, portfolio_return, drawdown,
-                    gross_exposure, net_exposure, assets
-                ) VALUES (?,?,?,?,?,?,?)""",
+                    gross_exposure, net_exposure
+                ) VALUES (?,?,?,?,?,?)""",
                 (
                     record.get("timestamp"),
                     record.get("portfolio_value"),
@@ -526,24 +590,166 @@ class _DatabaseStore:
                     record.get("drawdown"),
                     record.get("gross_exposure"),
                     record.get("net_exposure"),
-                    json.dumps(record.get("assets", {})),
                 ),
             )
+            # Write per-asset values to normalized equity_asset_snapshots table
+            assets_dict = record.get("assets", {})
+            if isinstance(assets_dict, dict) and assets_dict:
+                equity_id = cursor.lastrowid
+                for asset_name, asset_value in assets_dict.items():
+                    if isinstance(asset_value, (int, float)):
+                        conn.execute(
+                            "INSERT INTO equity_asset_snapshots (equity_id, asset_name, asset_value) VALUES (?, ?, ?)",
+                            (equity_id, asset_name, asset_value),
+                        )
         self.checkpoint_wal()
 
     def read_equity_history(self) -> list:
+        """Read all equity history rows with per-asset values via a single JOIN."""
         try:
-            with self._connect() as conn:
-                rows = conn.execute("SELECT * FROM equity_history ORDER BY id ASC").fetchall()
-                result = []
+            with self._get_connection() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT eh.*, eav.asset_name, eav.asset_value
+                    FROM equity_history eh
+                    LEFT JOIN equity_asset_snapshots eav ON eh.id = eav.equity_id
+                    ORDER BY eh.id ASC
+                    """
+                ).fetchall()
+                # Assemble: group by equity_history.id
+                result: list[dict] = []
+                current_id = None
+                current_row: dict = {}
                 for r in rows:
                     row = dict(r)
-                    if isinstance(row.get("assets"), str):
-                        row["assets"] = json.loads(row["assets"])
-                    elif row.get("assets") is None:
-                        row["assets"] = {}
-                    result.append(row)
+                    equity_id = row["id"]
+                    if equity_id != current_id:
+                        if current_row:
+                            result.append(current_row)
+                        current_row = {
+                            "id": equity_id,
+                            "timestamp": row.get("timestamp"),
+                            "portfolio_value": row.get("portfolio_value"),
+                            "portfolio_return": row.get("portfolio_return"),
+                            "drawdown": row.get("drawdown"),
+                            "gross_exposure": row.get("gross_exposure"),
+                            "net_exposure": row.get("net_exposure"),
+                            "vol_spike": row.get("vol_spike"),
+                            "var_95": row.get("var_95"),
+                            "created_at": row.get("created_at"),
+                            "assets": {},
+                        }
+                        current_id = equity_id
+                    asset_name = row.get("asset_name")
+                    asset_value = row.get("asset_value")
+                    if asset_name is not None and asset_value is not None:
+                        current_row["assets"][asset_name] = asset_value
+                if current_row:
+                    result.append(current_row)
                 return result
         except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
             logger.debug("read_equity_history failed: %s", _e, exc_info=True)
             return []
+
+    def append_equity_asset_snapshot(self, equity_id: int, asset_name: str, asset_value: float) -> None:
+        """Add a single per-asset snapshot to an existing equity_history row."""
+        try:
+            with self._get_connection() as conn:
+                conn.execute(
+                    "INSERT INTO equity_asset_snapshots (equity_id, asset_name, asset_value) VALUES (?, ?, ?)",
+                    (equity_id, asset_name, asset_value),
+                )
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
+            logger.debug("append_equity_asset_snapshot failed: %s", _e, exc_info=True)
+
+    def prune_trades(self, cutoff_date: str, apply: bool = False) -> dict:
+        """Delete trades with exit_date older than *cutoff_date* (ISO format).
+
+        Returns stats dict with total, kept, pruned counts.
+        """
+        try:
+            with self._get_connection() as conn:
+                total = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+                to_delete = conn.execute(
+                    "SELECT id FROM trades WHERE exit_date < ?", (cutoff_date,)
+                ).fetchall()
+                pruned = len(to_delete)
+                if pruned > 0 and apply:
+                    ids = tuple(r["id"] for r in to_delete)
+                    conn.execute(
+                        f"DELETE FROM trades WHERE id IN ({','.join('?' * len(ids))})", ids
+                    )
+                kept = total - pruned
+                return {"total": total, "kept": kept, "pruned": pruned}
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as e:
+            logger.warning("prune_trades failed: %s", e)
+            return {"error": str(e)}
+
+    def prune_attribution(self, cutoff_date: str, apply: bool = False) -> dict:
+        """Delete attribution rows with exit_date older than *cutoff_date* (ISO format).
+
+        Returns stats dict with total, kept, pruned counts.
+        """
+        try:
+            with self._get_connection() as conn:
+                total = conn.execute("SELECT COUNT(*) FROM attribution").fetchone()[0]
+                to_delete = conn.execute(
+                    "SELECT id FROM attribution WHERE exit_date < ?", (cutoff_date,)
+                ).fetchall()
+                pruned = len(to_delete)
+                if pruned > 0 and apply:
+                    ids = tuple(r["id"] for r in to_delete)
+                    conn.execute(
+                        f"DELETE FROM attribution WHERE id IN ({','.join('?' * len(ids))})", ids
+                    )
+                kept = total - pruned
+                return {"total": total, "kept": kept, "pruned": pruned}
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as e:
+            logger.warning("prune_attribution failed: %s", e)
+            return {"error": str(e)}
+
+    def prune_equity_history(self, cutoff_date: str, apply: bool = False) -> dict:
+        """Delete equity_history rows with timestamp older than *cutoff_date* (ISO format).
+
+        Related rows in equity_asset_snapshots are deleted via ON DELETE CASCADE.
+        Returns stats dict with total, kept, pruned counts.
+        """
+        try:
+            with self._get_connection() as conn:
+                total = conn.execute("SELECT COUNT(*) FROM equity_history").fetchone()[0]
+                to_delete = conn.execute(
+                    "SELECT id FROM equity_history WHERE timestamp < ?", (cutoff_date,)
+                ).fetchall()
+                pruned = len(to_delete)
+                if pruned > 0 and apply:
+                    ids = tuple(r["id"] for r in to_delete)
+                    conn.execute(
+                        f"DELETE FROM equity_history WHERE id IN ({','.join('?' * len(ids))})", ids
+                    )
+                kept = total - pruned
+                return {"total": total, "kept": kept, "pruned": pruned}
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as e:
+            logger.warning("prune_equity_history failed: %s", e)
+            return {"error": str(e)}
+
+    def prune_all(self, cutoff_date: str, apply: bool = False) -> dict:
+        """Prune all time-series tables (trades, attribution, equity_history).
+
+        Convenience method that calls all three prune methods and aggregates
+        results. Does NOT vacuum — caller should vacuum after a large prune.
+        """
+        return {
+            "trades": self.prune_trades(cutoff_date, apply=apply),
+            "attribution": self.prune_attribution(cutoff_date, apply=apply),
+            "equity_history": self.prune_equity_history(cutoff_date, apply=apply),
+        }
+
+    def close_all_connections(self) -> None:
+        """Close the thread-local connection if it exists. Call for cleanup."""
+        conn = getattr(_DatabaseStore._local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except (sqlite3.Error, OSError):
+                pass
+            _DatabaseStore._local.conn = None

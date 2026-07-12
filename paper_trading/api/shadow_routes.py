@@ -3,8 +3,8 @@ from datetime import datetime
 import pytz
 
 from paper_trading.api.common import (
-    _STORE,
     cache_set,
+    get_server_store,
     json_dumps,
 )
 
@@ -12,7 +12,7 @@ ET = pytz.timezone("US/Eastern")
 
 
 def handle_shadow_trades_route(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 50)), 500))
     offset = max(0, int(query.get("offset", 0)))
     alt_label = query.get("alt_label") or None
@@ -23,7 +23,7 @@ def handle_shadow_trades_route(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_shadow_summary(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_shadow_trades(limit=limit)
     if not records:
@@ -39,7 +39,7 @@ def handle_shadow_summary(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_shadow_actions(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     actions = getattr(snapshot, "shadow_actions", None) if snapshot else None
     data = json_dumps(actions or {}, indent=2)
@@ -48,7 +48,7 @@ def handle_shadow_actions(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_shadow_actions_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     asset = path[len("/shadow-actions/") : -len(".json")]
     snapshot = store.load_snapshot()
     actions = getattr(snapshot, "shadow_actions", None) if snapshot else None

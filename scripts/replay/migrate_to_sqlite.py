@@ -66,14 +66,14 @@ def migrate():
                         row.get("asset"),
                         row.get("trade_id"),
                         str(row.get("entry_date", "")),
-                        str(row.get("exit_date", "")),  # noqa: E501
+                        str(row.get("exit_date", "")),
                         row.get("side"),
                         row.get("exit_price"),
                         row.get("exit_reason"),
                         row.get("realized_r"),
                         row.get("realized_return"),
                         row.get("realized_pnl"),
-                        row.get("theoretical_r"),  # noqa: E501
+                        row.get("theoretical_r"),
                         row.get("policy_hash"),
                         row.get("archetype_version"),
                         row.get("exit_archetype"),
@@ -83,20 +83,20 @@ def migrate():
                         row.get("pred_prob_long"),
                         row.get("pred_prob_short"),
                         row.get("pred_prob_neutral"),
-                        row.get("pred_meta_proba"),  # noqa: E501
+                        row.get("pred_meta_proba"),
                         row.get("pred_regime_at_entry"),
                         row.get("pred_archetype_at_entry"),
                         row.get("exec_entry_type"),
                         row.get("exec_deferred_bars"),
                         row.get("exec_entry_price"),
                         row.get("exec_mid_price_at_signal"),
-                        row.get("exec_entry_slippage_bps"),  # noqa: E501
+                        row.get("exec_entry_slippage_bps"),
                         row.get("friction_entry_slippage_bps"),
                         row.get("friction_exit_slippage_bps"),
                         row.get("exit_mae"),
                         row.get("exit_mfe"),
                         row.get("exit_mae_per_bar"),
-                        row.get("exit_mfe_per_bar"),  # noqa: E501
+                        row.get("exit_mfe_per_bar"),
                         row.get("exit_realized_r"),
                         row.get("exit_bars_held"),
                         row.get("exit_exit_archetype"),
@@ -164,13 +164,14 @@ def migrate():
         try:
             with open(EQUITY_PATH) as f:
                 history = json.load(f)
+            snapshot_count = 0
             for record in history:
                 exists = conn.execute(
                     "SELECT id FROM equity_history WHERE timestamp = ?", (record.get("timestamp"),)
                 ).fetchone()
 
                 if not exists:
-                    conn.execute(
+                    cursor = conn.execute(
                         """INSERT INTO equity_history (
                             timestamp, portfolio_value, portfolio_return, drawdown,
                             gross_exposure, net_exposure
@@ -184,7 +185,18 @@ def migrate():
                             record.get("net_exposure"),
                         ),
                     )
-            print("  Done migrating equity history.")
+                    equity_id = cursor.lastrowid
+                    # Write per-asset values to normalized equity_asset_snapshots
+                    assets_dict = record.get("assets", {})
+                    if isinstance(assets_dict, dict) and assets_dict:
+                        for asset_name, asset_value in assets_dict.items():
+                            if isinstance(asset_value, (int, float)):
+                                conn.execute(
+                                    "INSERT INTO equity_asset_snapshots (equity_id, asset_name, asset_value) VALUES (?, ?, ?)",
+                                    (equity_id, asset_name, asset_value),
+                                )
+                    snapshot_count += 1
+            print(f"  Done migrating {snapshot_count} equity history rows (+ per-asset snapshots).")
         except Exception as e:  # noqa: BLE001
             print(f"  Failed to migrate equity history: {e}")
 

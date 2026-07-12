@@ -3,8 +3,8 @@ from datetime import datetime
 import pytz
 
 from paper_trading.api.common import (
-    _STORE,
     cache_set,
+    get_server_store,
     json_dumps,
 )
 
@@ -12,7 +12,7 @@ ET = pytz.timezone("US/Eastern")
 
 
 def handle_attribution_trades(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 50)), 500))
     offset = max(0, int(query.get("offset", 0)))
     archetype = query.get("archetype") or None
@@ -31,7 +31,7 @@ def handle_attribution_trades(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_attribution_summary(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     all_records = store.read_attribution(limit=limit)
     if not all_records:
@@ -65,7 +65,7 @@ def handle_attribution_summary(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_attribution_waterfall(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
     if not records:
@@ -91,7 +91,7 @@ def handle_attribution_waterfall(path: str, query: dict, state_store=None) -> st
 
 
 def handle_analytics_snapshot(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.read_analytics_snapshot()
     if snapshot is not None:
         return json_dumps(snapshot, indent=2)
@@ -99,7 +99,7 @@ def handle_analytics_snapshot(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_live_attribution(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     open_positions = snapshot.open_positions if snapshot else {}
     live = []
@@ -121,7 +121,7 @@ def handle_live_attribution(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_archetype_stats(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
     if not records:
@@ -153,7 +153,7 @@ def handle_archetype_stats(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_execution_quality(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
     if not records:
@@ -202,7 +202,7 @@ def handle_execution_quality(path: str, query: dict, state_store=None) -> str:
 
 
 def handle_execution_slippage(path: str, query: dict, state_store=None) -> str:
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
     if not records:

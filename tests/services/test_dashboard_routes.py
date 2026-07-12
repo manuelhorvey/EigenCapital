@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from paper_trading.api import common
+from paper_trading.api.common import get_server_store, init_server_store, reset_server_store
 from paper_trading.api.routes import (
     GET_ROUTES,
     GET_ROUTES_PREFIX,
@@ -40,14 +41,6 @@ from paper_trading.api.routes import (
 )
 from paper_trading.state_store import EngineSnapshot, StateStore
 
-_STORE_MODULES = [
-    "paper_trading.api.state_routes",
-    "paper_trading.api.analytics_routes",
-    "paper_trading.api.shadow_routes",
-    "paper_trading.api.governance_routes",
-    "paper_trading.api.asset_routes",
-]
-
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
@@ -57,10 +50,9 @@ def _clear_cache():
 @pytest.fixture
 def tmp_store(tmp_path):
     store = StateStore(str(tmp_path))
-    with contextlib.ExitStack() as stack:
-        for mod in _STORE_MODULES:
-            stack.enter_context(patch(f"{mod}._STORE", store))
-        yield store
+    init_server_store(store=store)
+    yield store
+    reset_server_store()
 
 
 @pytest.fixture
@@ -142,7 +134,7 @@ class TestTrades:
     def test_trades_with_data(self, tmp_store):
         trade = {
             "asset": "EURUSD",
-            "side": "buy",
+            "side": "long",
             "entry": 1.0500,
             "exit": 1.0600,
             "entry_date": "2026-06-01",
@@ -335,6 +327,7 @@ class TestTradeOutcomes:
         tmp_store.append_trade(
             {
                 "asset": "EURUSD",
+                "side": "long",
                 "entry": 1.05,
                 "exit": 1.06,
                 "entry_date": "2026-06-01",
@@ -347,6 +340,7 @@ class TestTradeOutcomes:
         tmp_store.append_trade(
             {
                 "asset": "EURUSD",
+                "side": "long",
                 "entry": 1.06,
                 "exit": 1.05,
                 "entry_date": "2026-06-02",

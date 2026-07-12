@@ -43,31 +43,31 @@ class TestCommonResetStore:
     """api/common.py reset_store() clears the singleton for test isolation."""
 
     def test_reset_store_clears_singleton(self):
-        """After reset_store(), a new init_store() creates a different object."""
-        from paper_trading.api.common import init_store, reset_store
+        """After reset_server_store(), a new init_server_store() creates a different object."""
+        from paper_trading.api.common import get_server_store, init_server_store, reset_server_store
 
         with tempfile.TemporaryDirectory() as tmp:
-            init_store(base_dir=tmp)
-            store_a = _get_api_store()
+            init_server_store(base_dir=tmp)
+            store_a = get_server_store()
             assert store_a is not None
             assert os.path.exists(store_a.live_dir)
 
-            reset_store()
-            init_store(base_dir=tmp)
-            store_b = _get_api_store()
+            reset_server_store()
+            init_server_store(base_dir=tmp)
+            store_b = get_server_store()
 
             assert store_b is not store_a
 
     def test_init_store_accepts_precreated_store(self):
-        """init_store(store=...) uses the provided instance instead of creating one."""
-        from paper_trading.api.common import init_store, reset_store
+        """init_server_store(store=...) uses the provided instance instead of creating one."""
+        from paper_trading.api.common import get_server_store, init_server_store, reset_server_store
         from paper_trading.state_store import StateStore
 
-        reset_store()
+        reset_server_store()
         with tempfile.TemporaryDirectory() as tmp:
             custom_store = StateStore(tmp)
-            init_store(store=custom_store)
-            store = _get_api_store()
+            init_server_store(store=custom_store)
+            store = get_server_store()
             assert store is custom_store
 
 
@@ -88,19 +88,20 @@ class TestHealthStoreInjection:
             finally:
                 register_state_store(None)
 
-    def test_register_none_resets_to_lazy_init(self):
-        """Passing None restores lazy-init behavior (different instance)."""
+    def test_register_none_clears_store(self):
+        """Passing None clears the store (no lazy init fallback)."""
         from paper_trading.governance.health import _get_state_store, register_state_store
         from paper_trading.state_store import StateStore
 
         with tempfile.TemporaryDirectory() as tmp:
             custom_store = StateStore(tmp)
             register_state_store(custom_store)
-            register_state_store(None)
-
             store = _get_state_store()
-            assert store is not custom_store
-            assert store is not None
+            assert store is custom_store
+
+            register_state_store(None)
+            store = _get_state_store()
+            assert store is None
 
     def test_health_compute_all_with_injected_store(self):
         """compute_all works with an injected state store (no live engine)."""
@@ -120,13 +121,4 @@ class TestHealthStoreInjection:
                 register_state_store(None)
                 register_engine(None)
 
-
-# ── Helpers ─────────────────────────────────────────────────────────────────
-
-
-def _get_api_store():
-    """Read the current _STORE from api/common."""
-    from paper_trading import api
-
-    return api.common._STORE
 

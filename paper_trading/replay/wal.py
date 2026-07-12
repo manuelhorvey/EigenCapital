@@ -33,6 +33,7 @@ Invariants:
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import os
@@ -105,6 +106,7 @@ class WalWriter:
         source: str = "engine",
         batch_size: int = 64,
         wal_dir: str | Path | None = None,
+        archive_daily: bool = True,
     ):
         self._base_dir = Path(base_dir).resolve()
         if wal_dir is not None:
@@ -113,12 +115,42 @@ class WalWriter:
             self._wal_dir = self._base_dir / DEFAULT_WAL_SUBDIR
         self._source = source
         self._batch_size = max(batch_size, 1)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # reentrant lock — _rotate_if_needed calls flush() which re-acquires
         self._buffer: list[str] = []
-        self._path = self._wal_dir / f"{source}.jsonl"
+        self._archive_daily = archive_daily
+        self._current_date: str | None = None
+        self._path = self._resolve_current_path()
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._first_write = not self._path.exists()
         self._seq = self._read_last_sequence()
+
+    def _resolve_current_path(self) -> Path:
+        """Return the WAL path for the current date.
+
+        If archival is enabled, uses a per-date subdirectory so that
+        ``data/live/wal/2026-07-12/engine.jsonl`` is the active file.
+        Old daily directories can be archived or deleted independently.
+        """
+        today = datetime.date.today().isoformat()
+        self._current_date = today
+        if self._archive_daily:
+            day_dir = self._wal_dir / today
+            day_dir.mkdir(parents=True, exist_ok=True)
+            return day_dir / f"{self._source}.jsonl"
+        return self._wal_dir / f"{self._source}.jsonl"
+
+    def _rotate_if_needed(self) -> None:
+        """Check if the date has changed and rotate the WAL file if so."""
+        if not self._archive_daily:
+            return
+        today = datetime.date.today().isoformat()
+        if self._current_date != today:
+            # Flush remaining buffer to old file
+            self.flush()
+            self._path = self._resolve_current_path()
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._first_write = not self._path.exists()
+            self._seq = self._read_last_sequence()
 
     def _read_last_sequence(self) -> int:
         """Read the last sequence number from existing WAL file."""
@@ -170,8 +202,11 @@ class WalWriter:
         Lock scope is minimized to sequence increment + event construction
         only. File I/O (``flush()``) runs outside the lock so a hung fsync on
         one thread cannot block other actors from writing.
+
+        Checks for daily rotation before writing.
         """
         with self._lock:
+            self._rotate_if_needed()
             self._seq += 1
             seq = self._seq
             event = WalEvent(

@@ -39,7 +39,7 @@ def get_mt5_status(state_store=None) -> dict:
     When ``state_store`` is provided (e.g., from the injected server
     state store), it is used instead of the ``_STORE`` global singleton.
     """
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     try:
         snapshot = store.load_snapshot()
         if snapshot is not None and hasattr(snapshot, "mt5"):
@@ -59,7 +59,7 @@ def _get_state_meta(state_store=None) -> tuple[str, int]:
     """
     from paper_trading.state_store import EngineSnapshot
 
-    store = state_store or _STORE
+    store = state_store or get_server_store()
     snapshot: EngineSnapshot | None = store.load_snapshot()
     if snapshot is not None:
         return snapshot.timestamp, snapshot.sequence_id
@@ -88,38 +88,38 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-# Module-level StateStore instance (initialized explicitly at server startup,
-# or patched in tests).  No longer a lazy singleton -- serve.py calls
-# init_store() to set this before the first request.
-_STORE = None  # noqa: N816 -- set by init_store() or patched in tests
+# Server-context StateStore — initialized explicitly at server startup
+# via init_server_store(). Route handlers always receive state_store via
+# the handler dispatch (handler.py passes self.server._state_store).
+# This module-level variable is only for scripts and tests that call
+# handlers directly; prefer injecting state_store explicitly.
+_SERVER_STORE: object | None = None
 
 
-def init_store(store=None, base_dir: str | None = None) -> None:
-    """Initialize the module-level StateStore.
+def init_server_store(store: object | None = None, base_dir: str | None = None) -> None:
+    """Initialize the server-context StateStore.
 
-    Called once at server startup by ``serve.py``.  Replaces the old
-    ``_LazyStore`` singleton pattern (H-06 Phase 2).
-
-    Accepts an optional pre-existing ``store`` instance to avoid creating
-    two StateStore objects pointing at the same data directory.
+    Called once at server startup by ``serve.py``. Accepts an optional
+    pre-existing ``store`` instance (preferred) or a base_dir to create one.
     """
-    global _STORE
+    global _SERVER_STORE
     if store is not None:
-        _STORE = store
+        _SERVER_STORE = store
         return
     from paper_trading.state_store import StateStore
 
-    _STORE = StateStore(base_dir or _PROJECT_ROOT)
+    _SERVER_STORE = StateStore(base_dir or _PROJECT_ROOT)
 
 
-def reset_store() -> None:
-    """Reset the module-level StateStore. Test-harness use only.
+def get_server_store() -> object | None:
+    """Return the server-context StateStore, or None if not initialized."""
+    return _SERVER_STORE
 
-    Call between test cases to clear the cached singleton so the next
-    ``init_store()`` call creates a fresh instance.
-    """
-    global _STORE
-    _STORE = None
+
+def reset_server_store() -> None:
+    """Reset the server-context StateStore. Test-harness use only."""
+    global _SERVER_STORE
+    _SERVER_STORE = None
 
 
 DASHBOARD_DIST = os.path.join(BASE, "dashboard", "dist")

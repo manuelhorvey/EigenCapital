@@ -104,14 +104,50 @@ health-check-status:
 	@echo "Latest health report:"
 	@cat data/logs/healthcheck/latest.json 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "  (no report yet)"
 
+# ── SQLite backup ────────────────────────────────────────────────────────────
+
+backup-run:
+	@mkdir -p data/logs/backup
+	PYTHONPATH=$$PYTHONPATH:. python scripts/ops/backup_sqlite.py
+
+backup-verify:
+	PYTHONPATH=$$PYTHONPATH:. python scripts/ops/backup_sqlite.py --verify
+
+backup-install:
+	@echo "Installing systemd backup timer..."
+	@mkdir -p ~/.config/systemd/user
+	@cp ops/eigencapital-backup.service ~/.config/systemd/user/eigencapital-backup.service
+	@cp ops/eigencapital-backup.timer ~/.config/systemd/user/eigencapital-backup.timer
+	@systemctl --user daemon-reload
+	@systemctl --user enable eigencapital-backup.timer
+	@systemctl --user start eigencapital-backup.timer
+	@echo "Backup timer installed and started. Status:"
+	@systemctl --user status eigencapital-backup.timer --no-pager
+
+backup-uninstall:
+	@echo "Removing systemd backup timer..."
+	-systemctl --user stop eigencapital-backup.timer 2>/dev/null || true
+	-systemctl --user disable eigencapital-backup.timer 2>/dev/null || true
+	@rm -f ~/.config/systemd/user/eigencapital-backup.service
+	@rm -f ~/.config/systemd/user/eigencapital-backup.timer
+	@systemctl --user daemon-reload
+	@echo "Backup timer removed."
+
+backup-status:
+	@echo "Backup timer status:"
+	-systemctl --user status eigencapital-backup.timer --no-pager 2>/dev/null || echo "  (not installed)"
+	@echo ""
+	@echo "Recent backups:"
+	@ls -lt data/backups/sqlite/ 2>/dev/null | head -5 || echo "  (none)"
+
 # ── Combined install ─────────────────────────────────────────────────────────
 
-all-timers-install: retrain-install health-check-install
+all-timers-install: retrain-install health-check-install backup-install
 	@echo ""
 	@echo "All timers installed:"
 	-systemctl --user list-timers --no-pager 2>/dev/null | grep eigencapital || true
 
-all-timers-uninstall: retrain-uninstall health-check-uninstall
+all-timers-uninstall: retrain-uninstall health-check-uninstall backup-uninstall
 	@echo "All timers removed."
 
 deps:

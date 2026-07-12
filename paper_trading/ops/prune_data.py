@@ -43,13 +43,17 @@ SHADOW_MEMORY_DIR = os.path.join(BASE, "data", "shadow_memory")
 STATE_DB = os.path.join(LIVE_DIR, "state.db")
 
 # Per-type retention in days
+# Config-driven: engine sets these via ``retention`` section in EngineConfig.
+# Module-level defaults are used when config is not available (CLI usage).
 RETENTION: dict[str, int] = {
+    "trades": 365,
+    "attribution": 365,
+    "equity_history": 90,
     "trace.jsonl": 30,
     "wal/engine.jsonl": 90,
     "engine.log": 14,
     "shadow_feedback": 90,
     "shadow_memory": 60,
-    "equity_history": 90,
 }
 
 # Timestamp regex for engine.log lines: "2026-06-26 09:16:51 ..."
@@ -226,57 +230,60 @@ def prune_date_files(
     }
 
 
-def prune_equity_history(
-    cutoff: datetime,
+def prune_sqlite_table(
+    table_name: str,
+    date_column: str,
+    cutoff_date: str,
     *,
     apply: bool,
     dry_run_stats: dict,
 ) -> None:
-    """Delete equity_history rows where timestamp is older than cutoff.
+    """Prune rows from a single SQLite table where *date_column* < *cutoff_date*.
 
-    After deletion, runs VACUUM to reclaim space since SQLite does not
-    automatically shrink the database file on DELETE.
+    Uses the canonical ``_DatabaseStore`` path when available (thread-local
+    pool, FK enforcement). Falls back to direct SQLite for CLI usage.
     """
     if not os.path.isfile(STATE_DB):
         return
 
     try:
+        from paper_trading.state_store import StateStore
+
+        store = StateStore(BASE)
+        if hasattr(store, "db") and hasattr(store.db, f"prune_{table_name}"):
+            method = getattr(store.db, f"prune_{table_name}")
+            result = method(cutoff_date, apply=apply)
+            dry_run_stats[table_name] = result
+            return
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "Store-based prune for %s failed (%s); falling back to direct", table_name, e
+        )
+
+    # Fallback: direct SQLite
+    try:
         import sqlite3
 
-        conn = sqlite3.connect(STATE_DB)
+        conn = sqlite3.connect(STATE_DB, timeout=10.0)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys=ON")
 
-        # Count total rows
-        total = conn.execute("SELECT COUNT(*) FROM equity_history").fetchone()[0]
-
-        # Find rows older than cutoff by parsing the ISO timestamp column
-        rows = conn.execute("SELECT id, timestamp FROM equity_history ORDER BY id ASC").fetchall()
-        to_delete: list[int] = []
-        for row in rows:
-            ts = parse_timestamp_iso(row["timestamp"])
-            if ts is not None and ts < cutoff:
-                to_delete.append(row["id"])
-
+        total = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+        to_delete = conn.execute(
+            f"SELECT id FROM {table_name} WHERE {date_column} < ?", (cutoff_date,)
+        ).fetchall()
         pruned = len(to_delete)
-        kept = total - pruned
-
         if pruned > 0 and apply:
-            ids_str = ",".join(str(i) for i in to_delete)
-            conn.execute(f"DELETE FROM equity_history WHERE id IN ({ids_str})")
-            conn.execute("VACUUM")
-            logger.info("Deleted %d equity_history rows, vacuumed DB", pruned)
-
+            ids = tuple(r["id"] for r in to_delete)
+            conn.execute(
+                f"DELETE FROM {table_name} WHERE id IN ({','.join('?' * len(ids))})", ids
+            )
+        kept = total - pruned
+        dry_run_stats[table_name] = {"total": total, "kept": kept, "pruned": pruned}
         conn.close()
-
-        dry_run_stats["equity_history"] = {
-            "total": total,
-            "kept": kept,
-            "pruned": pruned,
-        }
-
     except Exception as e:  # noqa: BLE001
-        logger.error("Failed to prune equity_history: %s", e)
-        dry_run_stats["equity_history"] = {"error": str(e)}
+        logger.error("Direct SQLite prune for %s failed: %s", table_name, e)
+        dry_run_stats[table_name] = {"error": str(e)}
 
 
 def _fmt_size(bytes_val: int) -> str:
@@ -366,14 +373,21 @@ def prune_all(
         label="shadow_memory",
     )
 
-    # 6. equity_history — 90 days (SQLite)
-    eq_days = retention.get("equity_history", 90)
-    cutoff = now - timedelta(days=eq_days)
-    prune_equity_history(
-        cutoff,
-        apply=apply,
-        dry_run_stats=stats,
-    )
+    # 6. SQLite tables — trades, attribution, equity_history (per-table cutoffs)
+    sqlite_tables: list[tuple[str, str, int]] = [
+        ("trades", "exit_date", retention.get("trades", 365)),
+        ("attribution", "exit_date", retention.get("attribution", 365)),
+        ("equity_history", "timestamp", retention.get("equity_history", 90)),
+    ]
+    for table_name, date_col, days in sqlite_tables:
+        cutoff_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+        prune_sqlite_table(
+            table_name,
+            date_col,
+            cutoff_date,
+            apply=apply,
+            dry_run_stats=stats,
+        )
 
     return stats
 

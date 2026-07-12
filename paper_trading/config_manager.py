@@ -201,6 +201,19 @@ class EngineConfig:
                 merged[key] = value
         return merged
 
+    retention: dict = field(
+        default_factory=lambda: {
+            "trades_days": 365,
+            "attribution_days": 365,
+            "equity_history_days": 90,
+            "trace_days": 30,
+            "wal_days": 90,
+            "log_days": 14,
+            "shadow_feedback_days": 90,
+            "shadow_memory_days": 60,
+        }
+    )
+
     @classmethod
     def from_dict(cls, data: dict) -> "EngineConfig":
         halt = dict(data.get("halt", _default_halt()))
@@ -279,6 +292,7 @@ class EngineConfig:
             "defaults": self.defaults,
             "portfolio": self.portfolio,
             "optimizations": self.optimizations,
+            "retention": dict(self.retention),
         }
 
 

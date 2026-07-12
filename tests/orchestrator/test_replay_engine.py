@@ -7,7 +7,7 @@ import pytest
 
 from paper_trading.engine import AssetEngine
 from paper_trading.entry.decision import PositionIntent
-from paper_trading.engine import _SKIP_JOURNAL
+from paper_trading.state_store import _SKIP_JOURNAL
 from features.registry import FEATURE_REGISTRY
 from paper_trading.config_manager import get_config
 from paper_trading.portfolio_builder import build_paper_portfolio

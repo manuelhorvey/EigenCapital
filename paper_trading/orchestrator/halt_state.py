@@ -134,11 +134,7 @@ class HaltState:
             )
 
         # 2. Phantom drawdown clamp (>15% on startup = composition change)
-        if (
-            self.peak_portfolio_value is not None
-            and init_equity is not None
-            and init_equity > 0
-        ):
+        if self.peak_portfolio_value is not None and init_equity is not None and init_equity > 0:
             dd_from_peak = (init_equity - self.peak_portfolio_value) / self.peak_portfolio_value
             if dd_from_peak < -0.15:
                 logger.warning(
@@ -152,14 +148,14 @@ class HaltState:
                 self.peak_portfolio_value = init_equity
 
         # 3. Safety clamp: peak >= current equity
-        if init_equity is not None and init_equity > 0 and (
-            self.peak_portfolio_value is None or init_equity > self.peak_portfolio_value
+        if (
+            init_equity is not None
+            and init_equity > 0
+            and (self.peak_portfolio_value is None or init_equity > self.peak_portfolio_value)
         ):
             self.peak_portfolio_value = init_equity
 
-    def auto_clear_stale_halt(
-        self, init_equity: float | None, alert_callback: Any = None
-    ) -> bool:
+    def auto_clear_stale_halt(self, init_equity: float | None, alert_callback: Any = None) -> bool:
         """Auto-clear stale emergency halt if equity >= 99% of peak.
 
         Returns True if the halt was cleared.  Only applies when
@@ -233,9 +229,7 @@ class HaltState:
         self.halt_detail = ""
         self.unhalt_recovery_cycles = 0
 
-    def maybe_warn_persistent(
-        self, cycles_elapsed: int, total_equity: float | None = None
-    ) -> None:
+    def maybe_warn_persistent(self, cycles_elapsed: int, total_equity: float | None = None) -> None:
         """Emit throttled WARNING when stuck in halt-persistent mode.
 
         Fires on throttle schedule (every 10 cycles) regardless of halt state.

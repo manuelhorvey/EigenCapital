@@ -508,9 +508,7 @@ def validate(config_path: str | None = None) -> int:
             else:
                 for factor, limit in fel.items():
                     if not isinstance(limit, (list, tuple)) or len(limit) != 2:
-                        errors.append(
-                            f"portfolio.factor_exposure_limits.{factor}: expected [min, max], got {limit!r}"
-                        )
+                        errors.append(f"portfolio.factor_exposure_limits.{factor}: expected [min, max], got {limit!r}")
                         continue
                     lo, hi = limit
                     if not (isinstance(lo, (int, float)) and isinstance(hi, (int, float))):

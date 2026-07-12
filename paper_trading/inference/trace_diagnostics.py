@@ -142,16 +142,12 @@ def trace_and_diagnostics(
 
     # ── Trace.jsonl decision entry ───────────────────────────────────
     _regime_label = (
-        asset._last_regime_row.regime_label
-        if getattr(asset, "_last_regime_row", None) is not None
-        else None
+        asset._last_regime_row.regime_label if getattr(asset, "_last_regime_row", None) is not None else None
     )
     trace_decision(
         asset=asset.name,
         features=(
-            feature_vector
-            if feature_vector is not None
-            else {k: round(float(v), 6) for k, v in x.iloc[-1].items()}
+            feature_vector if feature_vector is not None else {k: round(float(v), 6) for k, v in x.iloc[-1].items()}
         ),
         proba=[float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])],
         threshold=threshold,
@@ -164,8 +160,7 @@ def trace_and_diagnostics(
         current_price=asset.current_price,
         regime_long_prob=asset._last_regime_long_prob,
         regime_short_prob=(
-            round(float(asset._last_regime_raw_probas[0]), 6)
-            if asset._last_regime_raw_probas is not None else None
+            round(float(asset._last_regime_raw_probas[0]), 6) if asset._last_regime_raw_probas is not None else None
         ),
         regime_label=_regime_label,
         regime_features=asset._last_regime_features,
@@ -247,7 +242,14 @@ def trace_and_diagnostics(
         get_diagnostics_queue().enqueue(_snap)
     else:
         run_shadow_feedback(
-            asset, decision, proba, x, df, threshold, _shadow_stype, _shadow_conf_pct,
+            asset,
+            decision,
+            proba,
+            x,
+            df,
+            threshold,
+            _shadow_stype,
+            _shadow_conf_pct,
         )
 
 
@@ -290,12 +292,19 @@ def run_shadow_feedback(
     try:
         _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
         _sig_div = _diag.analyze_signal_divergence(
-            _proba_list, threshold, decision.signal, decision.confidence,
-            shadow_stype, shadow_conf_pct,
+            _proba_list,
+            threshold,
+            decision.signal,
+            decision.confidence,
+            shadow_stype,
+            shadow_conf_pct,
         )
         _mod_div = _diag.analyze_model_distribution(asset.name, _proba_list)
         _feat_drivers = _diag.analyze_feature_impact(
-            asset.model, x.iloc[[-1]], asset.features, proba[-1:],
+            asset.model,
+            x.iloc[[-1]],
+            asset.features,
+            proba[-1:],
         )
         _regime = _diag.analyze_regime_context(df["close"])
         _report = _diag.build_shadow_report(

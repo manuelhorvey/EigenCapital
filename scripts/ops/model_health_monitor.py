@@ -438,7 +438,10 @@ def run_checks(args):
     stability_results = check_feature_stability()
     volume_results = check_inference_volume()
     urgency = compute_retrain_urgency(
-        age_results, psi_results, stability_results, volume_results,
+        age_results,
+        psi_results,
+        stability_results,
+        volume_results,
         urgency_threshold=args.urgency_threshold,
     )
     elapsed = time.perf_counter() - t0

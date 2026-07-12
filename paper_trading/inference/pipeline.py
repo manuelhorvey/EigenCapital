@@ -509,4 +509,3 @@ class AssetInferencePipeline:
                 len(x),
             )
             self._truncate_inference = True
-

@@ -315,10 +315,12 @@ def print_human(results: list[CheckResult]) -> None:
     print(f"\n{'=' * 60}")
     print(f"  EigenCapital Live Validation   [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
     print(f"{'=' * 60}")
-    print(f"  {status_counts.get('PASS', 0):>3} passed  "
-          f"{status_counts.get('WARN', 0):>3} warnings  "
-          f"{status_counts.get('ERROR', 0):>3} errors  "
-          f"{status_counts.get('INFO', 0):>3} info")
+    print(
+        f"  {status_counts.get('PASS', 0):>3} passed  "
+        f"{status_counts.get('WARN', 0):>3} warnings  "
+        f"{status_counts.get('ERROR', 0):>3} errors  "
+        f"{status_counts.get('INFO', 0):>3} info"
+    )
     print(f"{'=' * 60}\n")
 
     for r in results:

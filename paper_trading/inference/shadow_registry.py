@@ -87,9 +87,7 @@ class ShadowModelRegistry:
             self._storage = ShadowStorage(base_dir=base)
         return self._storage
 
-    def get_or_create_runner(
-        self, shadow_id: str, config: dict[str, Any], asset_name: str
-    ) -> ShadowModelRunner:
+    def get_or_create_runner(self, shadow_id: str, config: dict[str, Any], asset_name: str) -> ShadowModelRunner:
         """Get or create a ShadowModelRunner for the given shadow_id and asset.
 
         Supports ``{asset}`` placeholder in ``model_path`` (e.g.

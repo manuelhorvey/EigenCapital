@@ -108,9 +108,7 @@ class AssetEngine:
 
     def _init_capital_state(self, engine_cfg, initial_capital, position_size) -> None:
         """Initialise capital base, peak tracking, and position manager."""
-        self.initial_capital = (
-            initial_capital if initial_capital is not None else engine_cfg.capital * self.allocation
-        )
+        self.initial_capital = initial_capital if initial_capital is not None else engine_cfg.capital * self.allocation
         self.capital_base = self.initial_capital
         self.peak_value = self.initial_capital
         self.current_value = self.initial_capital

@@ -36,6 +36,8 @@ def _flush_server_cache() -> None:
                     print(f"  Server on port {port} returned status {resp.status}")
         except (urllib.error.URLError, urllib.error.HTTPError, ConnectionRefusedError, OSError):
             print(f"  No server on port {port} (expected if engine is stopped)")
+
+
 LIVE_DIR = os.path.join(BASE_DIR, "data", "live")
 SHADOW_FEEDBACK_DIR = os.path.join(BASE_DIR, "data", "shadow_feedback")
 SHADOW_MEMORY_DIR = os.path.join(BASE_DIR, "data", "shadow_memory")

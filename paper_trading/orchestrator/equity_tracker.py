@@ -53,17 +53,15 @@ class EquityTracker:
         var_95: float | None = None
         cvar_95: float | None = None
 
-        if (
-            portfolio_value > 0
-            and self.var_prev_value is not None
-            and self.var_prev_value > 0
-        ):
+        if portfolio_value > 0 and self.var_prev_value is not None and self.var_prev_value > 0:
             r = (portfolio_value - self.var_prev_value) / self.var_prev_value
             self.portfolio_returns.append(r)
             if len(self.portfolio_returns) > _MAX_RETURN_WINDOW:
                 self.portfolio_returns = self.portfolio_returns[-_MAX_RETURN_WINDOW:]
             var_95, cvar_95 = compute_var_cvar(
-                self.portfolio_returns, window=60, percentile=0.05,
+                self.portfolio_returns,
+                window=60,
+                percentile=0.05,
             )
             if var_95 is not None:
                 var_95 = round(var_95, 6)

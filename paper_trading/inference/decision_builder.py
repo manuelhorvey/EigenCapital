@@ -48,18 +48,14 @@ def build_decision(
     # Record inference proxy directions
     asset._last_macro_dir = None
     asset._last_blend_dir = None
-    asset._entry_signal_dir = (
-        1 if result.signal_type == "BUY" else (-1 if result.signal_type == "SELL" else 0)
-    )
+    asset._entry_signal_dir = 1 if result.signal_type == "BUY" else (-1 if result.signal_type == "SELL" else 0)
 
     macro_head = getattr(asset.model, "macro_head", None) if asset.model else None
     if macro_head is not None:
         try:
             macro_cols = [c for c in macro_head.features if c in result.signal_data.columns]
             if len(macro_cols) >= 3:
-                macro_probs = macro_head.predict_proba(
-                    result.signal_data.iloc[[-1]][macro_cols]
-                )[0]
+                macro_probs = macro_head.predict_proba(result.signal_data.iloc[[-1]][macro_cols])[0]
                 asset._last_macro_dir = int(np.argmax(macro_probs)) - 1
                 asset._last_blend_dir = int(np.argmax(result.signal_data.iloc[-1].values)) - 1
         except (ValueError, TypeError, IndexError):
@@ -78,16 +74,12 @@ def build_decision(
 
     # ── Meta-label confidence ───────────────────────────────────────
     meta_proba = getattr(asset, "_last_meta_proba", None)
-    meta_label_confidence = (
-        round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
-    )
+    meta_label_confidence = round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
 
     # ── Calibrated confidence ───────────────────────────────────────
     cal_conf_override = getattr(asset, "_calibrated_confidence", None)
     final_confidence = (
-        round(float(cal_conf_override * 100), 2)
-        if cal_conf_override is not None
-        else result.confidence_pct
+        round(float(cal_conf_override * 100), 2) if cal_conf_override is not None else result.confidence_pct
     )
 
     decision = TradeDecision(

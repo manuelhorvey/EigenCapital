@@ -126,6 +126,7 @@ def prefetch_shared_data() -> dict[str, pd.Series]:
     """
     return _fetch_macro_batch()
 
+
 # Cycle-scoped cache for fetch_asset_data results — keyed by asset name.
 # Each cycle increments _cycle_id; stale entries are evicted on access.
 # Thread-safe via _cycle_lock.

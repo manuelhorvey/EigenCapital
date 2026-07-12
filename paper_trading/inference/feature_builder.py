@@ -71,7 +71,9 @@ class FeatureBuilder:
 
         # ── Fetch raw data ──────────────────────────────────────────
         hist_prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(
-            asset.name, asset.ticker, macro_data=shared_macro,
+            asset.name,
+            asset.ticker,
+            macro_data=shared_macro,
         )
 
         if self._truncate_inference:
@@ -87,16 +89,24 @@ class FeatureBuilder:
 
         # ── Cross-asset features ────────────────────────────────────
         shared_features = _compute_shared_features(
-            dxy=dxy, vix=vix, spx=spx, commodities=commodities,
+            dxy=dxy,
+            vix=vix,
+            spx=spx,
+            commodities=commodities,
             index=hist_prices.index,
         )
 
         # ── Alpha features ──────────────────────────────────────────
         ohlcv = fetch_asset_ohlcv(asset.ticker)
         alpha_df = build_alpha_features(
-            hist_prices, rate_diffs,
-            dxy=dxy, vix=vix, spx=spx, commodities=commodities,
-            shared_features=shared_features, ohlcv=ohlcv,
+            hist_prices,
+            rate_diffs,
+            dxy=dxy,
+            vix=vix,
+            spx=spx,
+            commodities=commodities,
+            shared_features=shared_features,
+            ohlcv=ohlcv,
         )
         alpha_idx = alpha_df.index
 
@@ -111,9 +121,9 @@ class FeatureBuilder:
             ema_20 = ta.trend.ema_indicator(ohlcv["close"], window=20)
             ema_50 = ta.trend.ema_indicator(ohlcv["close"], window=50)
             archetype_df["ema_spread"] = ((ema_20 - ema_50) / ema_50).reindex(alpha_idx)
-            archetype_df["adx"] = ta.trend.adx(
-                ohlcv["high"], ohlcv["low"], ohlcv["close"], window=14
-            ).reindex(alpha_idx)
+            archetype_df["adx"] = ta.trend.adx(ohlcv["high"], ohlcv["low"], ohlcv["close"], window=14).reindex(
+                alpha_idx
+            )
             archetype_df["rsi"] = ta.momentum.rsi(ohlcv["close"], window=14).reindex(alpha_idx)
             bb = ta.volatility.BollingerBands(ohlcv["close"], window=20, window_dev=2)
             bb_mavg = bb.bollinger_mavg()

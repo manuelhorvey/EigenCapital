@@ -88,14 +88,10 @@ def check_rollback_conditions(current: dict, baseline: dict) -> list[str]:
         return warnings  # too few data points
 
     if current.get("win_rate", 0) < baseline.get("win_rate", 0) * 0.85:
-        warnings.append(
-            f"Win rate {current['win_rate']:.1%} < 85% of baseline {baseline['win_rate']:.1%}"
-        )
+        warnings.append(f"Win rate {current['win_rate']:.1%} < 85% of baseline {baseline['win_rate']:.1%}")
 
     if current.get("avg_R", 0) < baseline.get("avg_R", 0) * 0.75:
-        warnings.append(
-            f"Avg R {current['avg_R']:.4f} < 75% of baseline {baseline['avg_R']:.4f}"
-        )
+        warnings.append(f"Avg R {current['avg_R']:.4f} < 75% of baseline {baseline['avg_R']:.4f}")
 
     return warnings
 

@@ -66,6 +66,7 @@ from shared.calibration import CalibrationRegistry
 
 logger = logging.getLogger("eigencapital.orchestrator.engine")
 
+
 class EnginePhase:
     REFRESH = "refresh"
     SIGNAL = "signal"
@@ -319,11 +320,7 @@ class EngineOrchestrator:
         total_equity = sum(a._engine.mtm_value for a in _aggregate_actors.values() if hasattr(a._engine, "mtm_value"))
         self._cycle_total_equity = total_equity
         _peak = self._halt_state.peak_portfolio_value
-        current_dd = (
-            (total_equity - _peak) / max(_peak, 1.0)
-            if _peak is not None and _peak > 0
-            else 0.0
-        )
+        current_dd = (total_equity - _peak) / max(_peak, 1.0) if _peak is not None and _peak > 0 else 0.0
 
         # Build portfolio state snapshot from live actors
         daily_pnl = 0.0

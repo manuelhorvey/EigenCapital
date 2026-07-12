@@ -4,11 +4,19 @@ Each AssetActor owns ONE asset's complete lifecycle: data refresh, signal
 generation, position management, and persistence.  No actor shares mutable
 state with any other actor.
 
-Health model:
-    - GREEN:  normal operation, no recent failures
-    - DEGRADED:  consecutive failures ≤ threshold, operations continue
-    - HALTED:  consecutive failures > threshold, actor suspends execution
-    - RECOVERING:  after HALTED, cooldown period, then probe before resume
+Health model (percentage-based rolling window):
+    - A sliding window of the last N cycle outcomes (success/failure) is
+      maintained.  health_score = (successes / window_size) * 100, ranging
+      0-100.
+    - GREEN:   health_score >= 80  (default threshold)
+    - DEGRADED: health_score >= 50 (default threshold)
+    - HALTED:   health_score < 50  OR consecutive_failures >= max_failures
+    - Recovery (HALTED -> RECOVERING -> GREEN) unchanged.
+
+    Cold-start grace: the first 5 cycles use the old consecutive-failure
+    rules (any failure = DEGRADED, max_failures = HALTED) so a single
+    early failure doesn't permanently lock the score before the window
+    fills.
 
 Thread safety:
     Actors communicate via immutable commands sent to a single writer thread.
@@ -19,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
@@ -32,6 +41,12 @@ from paper_trading.replay.wal import WalWriter
 SharedMacroData = dict[str, pd.Series]
 
 logger = logging.getLogger("eigencapital.orchestrator.actor")
+
+# Default health thresholds — configurable per-actor via constructor.
+HEALTH_WINDOW_SIZE: int = 20
+HEALTH_GREEN_THRESHOLD: float = 80.0  # score >= 80 = GREEN
+HEALTH_HALTED_THRESHOLD: float = 50.0  # score < 50 = HALTED (else DEGRADED)
+HEALTH_MIN_CYCLES_BEFORE_SCORING: int = 5  # cold-start grace period
 
 
 class ActorHealth(Enum):
@@ -89,9 +104,12 @@ class PersistCommand:
 class AssetActor:
     """Isolated execution unit for a single asset.
 
+    Health is determined by a rolling window of cycle outcomes.
+    See module docstring for threshold details.
+
     Usage::
         actor = AssetActor("EURUSD", asset_engine)
-        result = actor.run_cycle(market_data)
+        result = actor.run_cycle()
         if not result.success:
             actor.consecutive_failures += 1
     """
@@ -100,9 +118,12 @@ class AssetActor:
         self,
         name: str,
         engine: Any,  # AssetEngine
-        max_consecutive_failures: int = 3,
+        max_consecutive_failures: int = 10,
         recovery_cooldown_seconds: float = 60.0,
         wal_writer: WalWriter | None = None,
+        health_window_size: int = HEALTH_WINDOW_SIZE,
+        health_green_threshold: float = HEALTH_GREEN_THRESHOLD,
+        health_halted_threshold: float = HEALTH_HALTED_THRESHOLD,
     ):
         self.name = name
         self._engine = engine
@@ -112,13 +133,27 @@ class AssetActor:
         if wal_writer is not None:
             engine._wal_writer = wal_writer
 
+        # ── Health scoring ──
         self.health: ActorHealth = ActorHealth.GREEN
+        self._outcome_window: deque[bool] = deque(maxlen=health_window_size)
+        self._health_window_size = health_window_size
+        self._health_green_threshold = health_green_threshold
+        self._health_halted_threshold = health_halted_threshold
+
         self.metrics = ActorMetrics()
         self._last_recovery_probe: float = 0.0
         self._persist_queue: list[PersistCommand] = []
         self._fault_reason: str = ""
         self._last_trade_count: int = 0
         self._last_price: float | None = None
+
+    @property
+    def health_score(self) -> float:
+        """Current health percentage (0-100) from rolling outcome window."""
+        if not self._outcome_window:
+            return 100.0
+        successes = sum(1 for x in self._outcome_window if x)
+        return round((successes / len(self._outcome_window)) * 100.0, 1)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -167,8 +202,10 @@ class AssetActor:
             logger.error("%s actor exception:\n%s", self.name, traceback.format_exc())
             self._handle_failure(t0, traceback.format_exc())
             return AssetResult.failed(
-                self.name, "actor_exception",
-                self.metrics.cycle_id, self.metrics.cycle_duration_ms,
+                self.name,
+                "actor_exception",
+                self.metrics.cycle_id,
+                self.metrics.cycle_duration_ms,
             )
 
     def drain_persist_queue(self) -> list[PersistCommand]:
@@ -183,6 +220,7 @@ class AssetActor:
     def reset(self) -> None:
         """Reset actor to GREEN health and clear halted flags."""
         self.health = ActorHealth.GREEN
+        self._outcome_window.clear()
         self.metrics = ActorMetrics()
         self._fault_reason = ""
         self._persist_queue.clear()
@@ -210,7 +248,9 @@ class AssetActor:
             / max(self.metrics.total_cycles, 1),
             2,
         )
-        self.health = ActorHealth.GREEN
+        # Record success in rolling window and update health
+        self._outcome_window.append(True)
+        self._update_health()
 
     def _handle_failure(self, t0: float, error: str) -> None:
         elapsed = (time.monotonic() - t0) * 1000.0
@@ -220,8 +260,11 @@ class AssetActor:
         self.metrics.cycle_duration_ms = round(elapsed, 2)
         self._fault_reason = error
 
-        if self.metrics.consecutive_failures >= self._max_failures:
-            self.health = ActorHealth.HALTED
+        # Record failure in rolling window and update health
+        self._outcome_window.append(False)
+        self._update_health()
+
+        if self.health == ActorHealth.HALTED:
             logger.error(
                 "%s actor HALTED after %d consecutive failures (max=%d). Last error: %s",
                 self.name,
@@ -229,15 +272,57 @@ class AssetActor:
                 self._max_failures,
                 error,
             )
-        else:
-            self.health = ActorHealth.DEGRADED
+        elif self.health == ActorHealth.DEGRADED:
             logger.warning(
-                "%s actor degraded (%d/%d failures): %s",
+                "%s actor DEGRADED (%d/%d failures, health_score=%.1f): %s",
                 self.name,
                 self.metrics.consecutive_failures,
                 self._max_failures,
+                self.health_score,
                 error,
             )
+        else:
+            logger.info(
+                "%s actor had a failure (health still GREEN at score=%.1f): %s",
+                self.name,
+                self.health_score,
+                error,
+            )
+
+    def _update_health(self) -> None:
+        """Update health state from rolling window score and consecutive failures.
+
+        Priority:
+            1. Consecutive failures >= max_failures → HALTED (rapid response)
+            2. Cold start (< HEALTH_MIN_CYCLES_BEFORE_SCORING cycles in window):
+               - 0 failures in window → GREEN
+               - Any failures, but < max_failures → DEGRADED
+            3. Standard percentage scoring:
+               - health_score >= green_threshold → GREEN
+               - health_score >= halted_threshold → DEGRADED
+               - health_score < halted_threshold → HALTED
+        """
+        score = self.health_score
+
+        # 1. Rapid halt on consecutive failures (always applies)
+        if self.metrics.consecutive_failures >= self._max_failures:
+            self.health = ActorHealth.HALTED
+            return
+
+        n = len(self._outcome_window)
+
+        # 2. Cold-start grace period
+        if n < HEALTH_MIN_CYCLES_BEFORE_SCORING:
+            self.health = ActorHealth.DEGRADED if self.metrics.consecutive_failures > 0 else ActorHealth.GREEN
+            return
+
+        # 3. Standard percentage-based scoring
+        if score >= self._health_green_threshold:
+            self.health = ActorHealth.GREEN
+        elif score >= self._health_halted_threshold:
+            self.health = ActorHealth.DEGRADED
+        else:
+            self.health = ActorHealth.HALTED
 
     def _maybe_probe_recovery(self) -> None:
         """Check if enough time has passed to attempt recovery."""

@@ -456,6 +456,17 @@ class EngineStateService:
         except (KeyError, ValueError, TypeError, AttributeError):
             logger.exception("Failed to extract PEK state")
 
+        # Inject per-asset health_score from orchestrator actors
+        # health_score is a 0-100 rolling-window percentage on each AssetActor,
+        # exposed via AssetActor.health_score property.
+        try:
+            if orch is not None and hasattr(orch, "_actors"):
+                for _name, _adata in state.get("assets", {}).items():
+                    _actor = orch._actors.get(_name)
+                    _adata["health_score"] = getattr(_actor, "health_score", 100.0)
+        except (KeyError, ValueError, TypeError, AttributeError):
+            logger.exception("Failed to inject health_score into state")
+
         # Capture MT5 connection status (embedded in state snapshot — replaces global set_mt5_status)
         mt5_status = {"connected": False, "status": "DISCONNECTED", "last_heartbeat": None, "account": None}
         try:

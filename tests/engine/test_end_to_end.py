@@ -23,6 +23,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+from collections import deque
+
 from paper_trading.orchestrator.actor import AssetActor, AssetResult, ActorHealth, ActorMetrics
 from paper_trading.orchestrator.engine import EngineOrchestrator
 
@@ -86,13 +88,18 @@ def _make_mock_actor(name: str, **engine_kwargs) -> AssetActor:
     actor._engine = mock_engine
     actor.metrics = ActorMetrics()
     actor.health = ActorHealth.GREEN
+    actor._health_score = 100.0
+    actor._outcome_window = deque(maxlen=20)
+    actor._health_window_size = 20
+    actor._health_green_threshold = 80.0
+    actor._health_halted_threshold = 50.0
     actor._persist_queue = []
     actor._wal = None
     actor._fault_reason = ""
     actor._last_price = None
     actor._last_trade_count = 0
     # Attributes normally set by __init__ that run_cycle expects
-    actor._max_failures = 3
+    actor._max_failures = 10
     actor._recovery_cooldown = 60.0
     actor._last_recovery_probe = 0.0
     return actor

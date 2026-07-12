@@ -347,3 +347,182 @@ class TestRecoveryScheduler:
         sched.record_result("TEST", success=False)  # attempt 1
         sched.record_result("TEST", success=True)   # reset
         assert sched._attempts.get("TEST", 0) == 0
+
+
+# ── Test 8: Percentage-Based Health Scoring (post-cold-start) ────────────────
+
+
+class TestPercentageHealthScoring:
+    """Percentage-based rolling-window health scoring after cold-start grace.
+
+    After 5+ cycles in the outcome window, health is determined by:
+        - score >= 80 → GREEN
+        - score >= 50 → DEGRADED
+        - score < 50  → HALTED
+
+    Consecutive failures >= max_failures (10) still force HALTED as override.
+    """
+
+    def test_health_score_empty_window_returns_100(self):
+        """Empty outcome window should report 100 (healthy default)."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=20)
+        assert actor.health_score == 100.0
+        assert actor.health == ActorHealth.GREEN
+
+    def test_health_score_all_successes_returns_100(self):
+        """All successes should yield 100% health score."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=10)
+        for _ in range(10):
+            actor._outcome_window.append(True)
+            actor._update_health()
+        assert actor.health_score == 100.0
+        assert actor.health == ActorHealth.GREEN
+
+    def test_health_score_90_pct_one_failure_in_ten(self):
+        """1 failure in 10 = 90% → GREEN."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=10)
+        for _ in range(9):
+            actor._outcome_window.append(True)
+        actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health_score == 90.0
+        assert actor.health == ActorHealth.GREEN
+
+    def test_green_threshold_score_80_exactly(self):
+        """Score exactly 80 should still be GREEN (>= 80)."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=10)
+        for _ in range(8):
+            actor._outcome_window.append(True)
+        for _ in range(2):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health_score == 80.0
+        assert actor.health == ActorHealth.GREEN
+
+    def test_degraded_at_75_pct(self):
+        """Score 75 (5 failures in 20) → DEGRADED."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=20)
+        for _ in range(15):
+            actor._outcome_window.append(True)
+        for _ in range(5):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health_score == 75.0
+        assert actor.health == ActorHealth.DEGRADED
+
+    def test_degraded_at_50_pct_exactly(self):
+        """Score exactly 50 should still be DEGRADED (>= 50)."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=10)
+        for _ in range(5):
+            actor._outcome_window.append(True)
+        for _ in range(5):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health_score == 50.0
+        assert actor.health == ActorHealth.DEGRADED
+
+    def test_halted_at_45_pct(self):
+        """Score 45 (11 failures in 20) → HALTED."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=20)
+        for _ in range(9):
+            actor._outcome_window.append(True)
+        for _ in range(11):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health_score == 45.0
+        assert actor.health == ActorHealth.HALTED
+
+    def test_halted_at_zero_pct(self):
+        """All failures → score 0 → HALTED."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=10)
+        for _ in range(10):
+            actor._outcome_window.append(False)
+            actor._update_health()
+        assert actor.health_score == 0.0
+        assert actor.health == ActorHealth.HALTED
+
+    def test_cold_start_grace_ends_after_5_cycles(self):
+        """After 5 cycles, percentage system takes over from failure-count rules.
+
+        Cycle 1-5 (cold start): 1 failure = DEGRADED.
+        Cycle 6 (window full enough): 1 failure in 6 = 83% = GREEN."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=20)
+        # Fill window with successes
+        for _ in range(5):
+            actor._outcome_window.append(True)
+        actor._update_health()
+        assert actor.health == ActorHealth.GREEN
+        # Add a failure on cycle 6 — cold start is over (6 >= 5), score=5/6=83% → GREEN
+        actor._outcome_window.append(False)
+        actor._update_health()
+        assert len(actor._outcome_window) >= 5
+        assert actor.health_score > 80.0
+        assert actor.health == ActorHealth.GREEN, (
+            "After cold start, 1 failure in 6 cycles (83%) should be GREEN"
+        )
+
+    def test_success_after_degraded_restores_green(self):
+        """After sustained failures push score to DEGRADED, successes should
+        eventually restore GREEN once score passes 80."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=20)
+        # Push to DEGRADED: 10 successes, 5 failures = 67% score
+        for _ in range(10):
+            actor._outcome_window.append(True)
+        for _ in range(5):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health == ActorHealth.DEGRADED
+        # Add successes to push score above 80
+        for _ in range(25):  # window slides, new successes push out old failures
+            actor._outcome_window.append(True)
+        actor._update_health()
+        assert actor.health_score > 80.0
+        assert actor.health == ActorHealth.GREEN
+
+    def test_reset_clears_window_and_restores_green(self):
+        """Reset should clear outcome window and set health to GREEN."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=10)
+        # Push to DEGRADED
+        for _ in range(6):
+            actor._outcome_window.append(True)
+        for _ in range(4):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health == ActorHealth.DEGRADED
+        # Reset
+        actor.reset()
+        assert len(actor._outcome_window) == 0
+        assert actor.health_score == 100.0
+        assert actor.health == ActorHealth.GREEN
+
+    def test_health_score_property_reflects_rolling_window(self):
+        """health_score property should always reflect the current window."""
+        engine = _MockEngine("TEST")
+        actor = AssetActor("TEST", engine, health_window_size=5)
+        # Fill with 3 successes, 2 failures = 60%
+        for _ in range(3):
+            actor._outcome_window.append(True)
+        for _ in range(2):
+            actor._outcome_window.append(False)
+        actor._update_health()
+        assert actor.health_score == 60.0
+        # Add 2 more successes — window slides, drops oldest 2 (now: T,T,F,F,T = 3/5 = 60%)
+        # Actually with deque maxlen=5: [T,T,T,F,F] then push T,T → [T,F,F,T,T] = 3/5 = 60%
+        for _ in range(2):
+            actor._outcome_window.append(True)
+        assert actor.health_score == 60.0
+        # Add more successes until fully green
+        for _ in range(3):
+            actor._outcome_window.append(True)
+        assert actor.health_score == 100.0

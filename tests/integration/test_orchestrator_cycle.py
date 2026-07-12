@@ -144,9 +144,10 @@ def _make_actor(name: str, engine=None) -> SimpleNamespace:
     return SimpleNamespace(
         name=name,
         health=ActorHealth.GREEN,
+        health_score=100.0,
         metrics=ActorMetrics(),
         _engine=engine,
-        _max_failures=3,
+        _max_failures=10,
         _recovery_cooldown=60.0,
         _wal=None,
         _persist_queue=[],

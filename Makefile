@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint run retrain retrain-schedule deps snapshot clean
+.PHONY: install install-dev test lint lint-e501 run retrain retrain-schedule deps snapshot clean
 
 install:
 	uv pip sync requirements.lock
@@ -13,8 +13,12 @@ test-cov:
 	python -m pytest tests/ --cov=. --cov-report=term-missing -v
 
 lint:
-	python -m py_compile paper_trading/engine.py paper_trading/serve.py paper_trading/ops/monitor.py
-	python -m py_compile features/labels.py risk/position_sizing.py monitoring/validity_state_machine.py
+	ruff check . --force-exclude
+	ruff format --check --force-exclude .
+
+# Quick line-length-only check (saves time during iterative refactoring)
+lint-e501:
+	ruff check --select E501 . --force-exclude
 
 run:
 	PYTHONPATH=$$PYTHONPATH:. python -m paper_trading.ops.monitor

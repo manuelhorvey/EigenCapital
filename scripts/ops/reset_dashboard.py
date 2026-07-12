@@ -14,8 +14,8 @@ Usage::
 import os
 import shutil
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

@@ -92,8 +92,8 @@ class OrphanReconciler:
                             ),
                             asset=name,
                         )
-                    except Exception:  # noqa: BLE001
-                        logger.exception("Alerter dispatch failed for orphan abandonment")
+                    except (OSError, RuntimeError, KeyError) as _alert_exc:
+                        logger.exception("Alerter dispatch failed for orphan abandonment: %s", _alert_exc)
                 engine._mt5_cleanup_queue = []
                 engine._mt5_cleanup_retries = 0
                 continue
@@ -185,15 +185,22 @@ class OrphanReconciler:
                                 utc_now(),
                                 "MT5_STALE_TICKET",
                             )
-                        except Exception:  # noqa: BLE001
+                        except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as _close_exc:
                             logger.exception(
-                                "MT5_STALE_TICKET: %s failed to close paper position — position may be a ghost",
+                                "MT5_STALE_TICKET: %s failed to close paper position — position may be a ghost: %s",
                                 name,
+                                _close_exc,
                             )
                 elif missing_for >= STALE_TICKET_DEAL_CHECK_CYCLES:
                     try:
                         deal = broker.get_deal_by_ticket(int(mt5_ticket))
-                    except Exception:  # noqa: BLE001
+                    except (OSError, ConnectionError, ValueError, AttributeError, KeyError):
+                        logger.debug(
+                            "MT5_STALE_TICKET_DEAL_CHECK: %s ticket=%s — deal lookup failed",
+                            name,
+                            mt5_ticket,
+                            exc_info=True,
+                        )
                         deal = None
                     if deal is not None:
                         logger.info(
@@ -227,10 +234,12 @@ class OrphanReconciler:
                                     utc_now(),
                                     "MT5_ORDER_REJECTED",
                                 )
-                            except Exception:  # noqa: BLE001
+                            except (ValueError, TypeError, AttributeError, RuntimeError, OSError) as _close_exc:
                                 logger.exception(
-                                    "MT5_ORDER_REJECTED: %s failed to close paper position — position may be a ghost",
+                                    "MT5_ORDER_REJECTED: %s failed to close paper position"
+                                    " — position may be a ghost: %s",
                                     name,
+                                    _close_exc,
                                 )
                 else:
                     logger.info(

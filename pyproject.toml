@@ -43,18 +43,18 @@ classifiers = [
 
 dependencies = [
     "pandas>=2.3.3,<3.0",
-    "numpy>=1.24",
-    "yfinance>=0.2",
-    "scikit-learn>=1.2",
-    "xgboost>=1.7",
-    "matplotlib>=3.7",
-    "ta>=0.10",
-    "pyarrow>=10",
-    "scipy>=1.10",
-    "statsmodels>=0.14",
-    "shap>=0.42",
-    "pyyaml>=6.0",
-    "python-dotenv>=1.0",
+    "numpy>=1.24,<3.0",
+    "yfinance>=0.2,<2.0",
+    "scikit-learn>=1.2,<2.0",
+    "xgboost>=1.7,<4.0",
+    "matplotlib>=3.7,<4.0",
+    "ta>=0.10,<1.0",
+    "pyarrow>=10,<30.0",
+    "scipy>=1.10,<2.0",
+    "statsmodels>=0.14,<1.0",
+    "shap>=0.42,<1.0",
+    "pyyaml>=6.0,<7.0",
+    "python-dotenv>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -81,7 +81,19 @@ extend-exclude = [
     "models",
     "notebooks",
     "paper_trading/dashboard",
-    "scripts",
+    "scripts/analysis",
+    "scripts/backtest",
+    "scripts/capital_study",
+    "scripts/diagnostics",
+    "scripts/investigation",
+    "scripts/optimization",
+    "scripts/replay",
+    "scripts/research",
+    "scripts/restoration",
+    "scripts/setup",
+    "scripts/simulations",
+    "scripts/training",
+    "scripts/validation",
     "signals",
     "tests",
     "main.py",
@@ -89,7 +101,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
-# BLE001 grandfathered across most files — 101 violations remain repo-wide.
+# BLE001: all violations remediated as of 2026-07-12 — no new bare-except allowed.
 
 [tool.ruff.lint.per-file-ignores]
 "paper_trading/__init__.py" = ["N999"]
@@ -97,71 +109,22 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
 "labels/__init__.py" = ["N999"]
 "tests/__init__.py" = ["N999"]
 # ML convention: X (uppercase) for feature matrices, y for targets
-"paper_trading/asset_engine.py" = ["N803", "N806", "BLE001"]
+"paper_trading/asset_engine.py" = ["N803", "N806"]
 "paper_trading/asset_inference_pipeline.py" = ["N803", "N806"]
 "paper_trading/asset_training_pipeline.py" = ["N803", "N806"]
 "paper_trading/serve_handler.py" = ["N802"]
 "paper_trading/diagnostics.py" = ["N803", "N806"]
 "paper_trading/wrappers.py" = ["N803", "N806"]
 # ML convention: X (uppercase) for feature matrices, y for targets
-"labels/meta_labels.py" = ["N803", "N806", "BLE001"]
+"labels/meta_labels.py" = ["N803", "N806"]
 # Research scripts use uppercase X for ML feature matrix convention
 "scripts/*.py" = ["N806", "N803"]
 "tests/**/*.py" = ["N806", "N803"]
 "shared/*.py" = ["N806", "N803"]
-# Pre-existing line length issues (grandfathered)
-"paper_trading/decision.py" = ["E501"]
-"paper_trading/drift_scoring.py" = ["E501"]
-"paper_trading/risk_governance.py" = ["E501"]
-"paper_trading/shadow_learning.py" = ["E501"]
-"paper_trading/simulation_snapshot.py" = ["E501"]
-
-# Grandfathered BLE001 (blind-except) — 59 files, root-caused in #findings-v2
-"labels/generator.py" = ["BLE001"]
-"labels/triple_barrier.py" = ["BLE001"]
-"paper_trading/alerting/channels/pagerduty.py" = ["BLE001"]
-"paper_trading/alerting/channels/webhook.py" = ["BLE001"]
-"paper_trading/alerting/manager.py" = ["BLE001"]
-"paper_trading/api/asset_routes.py" = ["BLE001"]
-"paper_trading/api/bundle.py" = ["BLE001"]
-"paper_trading/api/common.py" = ["BLE001"]
-"paper_trading/api/governance_routes.py" = ["BLE001"]
-"paper_trading/api/state_routes.py" = ["BLE001"]
-
-"paper_trading/asset_pnl_controller.py" = ["BLE001"]
-# BLE001 removals per Phase 1 audit — fixed files no longer need blanket suppression.
-# Remaining files still need remediation.
-"paper_trading/engine.py" = ["BLE001"]
-"paper_trading/entry/optimizer.py" = ["BLE001"]
-"paper_trading/entry/policy.py" = ["BLE001"]
-"paper_trading/execution/gate_constants.py" = ["BLE001"]
-"paper_trading/execution/paper_broker.py" = ["BLE001"]
-"paper_trading/governance/asset.py" = ["BLE001"]
-"paper_trading/governance/risk_registry.py" = ["BLE001"]
-"paper_trading/inference/async_diagnostics.py" = ["BLE001"]
-"paper_trading/inference/training.py" = ["BLE001"]
-"paper_trading/metrics/engine_metrics.py" = ["BLE001"]
-"paper_trading/ops/diagnostics.py" = ["BLE001"]
-"paper_trading/ops/market_data_service.py" = ["BLE001"]
-"paper_trading/ops/monitor.py" = ["BLE001"]
-"paper_trading/ops/mt5_bridge.py" = ["BLE001"]
-"paper_trading/ops/mt5_client.py" = ["BLE001"]
-"paper_trading/ops/simulation_snapshot.py" = ["BLE001"]
-"paper_trading/ops/slack_alerter.py" = ["BLE001"]
-"paper_trading/orchestrator/actor.py" = ["BLE001"]
-"paper_trading/services/engine_rebalance_service.py" = ["BLE001"]
-"paper_trading/services/position_service.py" = ["BLE001"]
-"paper_trading/services/signal_service.py" = ["BLE001"]
-"paper_trading/shadow/actions.py" = ["BLE001"]
-"paper_trading/shadow/analytics.py" = ["BLE001"]
-"paper_trading/shadow/feedback.py" = ["BLE001"]
-"paper_trading/shadow/learning.py" = ["BLE001"]
-"paper_trading/shadow/memory.py" = ["BLE001"]
-"paper_trading/state/analytics_store.py" = ["BLE001"]
-"paper_trading/state/database_store.py" = ["BLE001"]
-"paper_trading/state/data_cache.py" = ["BLE001"]
-"paper_trading/state/snapshot_manager.py" = ["BLE001"]
-"shared/calibration/registry.py" = ["BLE001"]
+# BLE001: all violations remediated and removed from per-file-ignores as of 2026-07-12.
+# E501: all grandfathered files (decision.py, drift_scoring.py, risk_governance.py,
+#       shadow_learning.py, simulation_snapshot.py) removed from codebase as of 2026-07.
+#       No remaining E501 per-file-ignores.
 
 
 [tool.ruff.format]

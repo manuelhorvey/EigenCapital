@@ -69,5 +69,15 @@ repos:
         name: no plaintext secrets
         entry: python tools/check_no_plaintext_secrets.py
         language: system
-        files: '\.py$|\.yaml$|\.yml$|\.sh$'
+        files: '\.py$|\.yaml$|\.yml$|\.sh$|\.env$'
         pass_filenames: false
+
+      # ── detect-secrets (credential leak prevention) ────────────
+      - id: detect-secrets
+        name: detect-secrets
+        entry: detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        files: '\.py$|\.yaml$|\.yml$|\.sh$|\.env$'
+        pass_filenames: false
+        require_serial: true
+        exclude: '^tests/|^\.git/|\.secrets\.baseline$'

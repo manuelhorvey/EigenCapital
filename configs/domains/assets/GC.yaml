@@ -3,9 +3,10 @@ allocation: 0.07
 sl_mult: 1.0
 tp_mult: 4.0
 spread_tier: metals
+max_depth: 4
 max_entry_slippage_pct: 5.0
 max_positions_per_asset: 1
-min_confidence_buy: 40.0  # Lower BUY threshold — unlocked +185 trades/+265R in backtest
+min_confidence_buy: 40.0
 regime_geometry:
   GREEN:
     sl_mult: 1.0

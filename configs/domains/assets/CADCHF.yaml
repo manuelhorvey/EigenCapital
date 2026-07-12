@@ -2,7 +2,7 @@ ticker: CADCHF=X
 allocation: 0.05
 sl_mult: 1.0
 tp_mult: 4.0
-max_depth: 2
+max_depth: 3
 adaptive_exit:
   enabled: false
 regime_geometry:

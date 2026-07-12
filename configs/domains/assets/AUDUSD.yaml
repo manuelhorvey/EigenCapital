@@ -3,7 +3,7 @@ allocation: 0.04
 sl_mult: 1.41
 tp_mult: 4.24
 spread_tier: fx_major
-max_depth: 2
+max_depth: 5
 regime_geometry:
   GREEN:
     sl_mult: 1.33

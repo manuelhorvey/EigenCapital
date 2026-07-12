@@ -3,7 +3,7 @@ allocation: 0.02
 sl_mult: 0.5
 tp_mult: 4.0
 spread_tier: indices
-max_depth: 3
+max_depth: 4
 adaptive_exit:
   enabled: false
 regime_geometry:

@@ -2,7 +2,7 @@ ticker: EURNZD=X
 allocation: 0.03
 sl_mult: 1.12
 tp_mult: 3.36
-max_depth: 3
+max_depth: 5
 regime_geometry:
   GREEN:
     sl_mult: 1.33

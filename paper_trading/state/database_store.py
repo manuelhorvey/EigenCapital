@@ -8,7 +8,6 @@ version-tracked via the ``strategy_metadata`` table.
 
 import atexit
 import contextlib
-import json
 import logging
 import sqlite3
 import threading
@@ -241,7 +240,10 @@ class _DatabaseStore:
             "CREATE INDEX IF NOT EXISTS idx_trades_exit_date ON trades(exit_date DESC)",
             "CREATE INDEX IF NOT EXISTS idx_trades_asset_exit ON trades(asset, exit_date DESC)",
             "CREATE INDEX IF NOT EXISTS idx_attribution_exit_date ON attribution(exit_date DESC)",
-            "CREATE INDEX IF NOT EXISTS idx_attribution_filter ON attribution(asset, pred_archetype_at_entry, pred_regime_at_entry, exit_date DESC)",
+            (
+                "CREATE INDEX IF NOT EXISTS idx_attribution_filter "
+                "ON attribution(asset, pred_archetype_at_entry, pred_regime_at_entry, exit_date DESC)"
+            ),
             "CREATE INDEX IF NOT EXISTS idx_shadow_alt_label ON shadow_trades(alt_label, exit_date DESC)",
             "CREATE INDEX IF NOT EXISTS idx_shadow_exit_date ON shadow_trades(exit_date DESC)",
             "CREATE INDEX IF NOT EXISTS idx_confidence_asset_date ON confidence_buckets(asset, date)",
@@ -291,10 +293,8 @@ class _DatabaseStore:
                 return conn
             except (sqlite3.DatabaseError, sqlite3.ProgrammingError, AttributeError):
                 logger.debug("Re-creating stale thread-local SQLite connection")
-                try:
+                with contextlib.suppress(sqlite3.Error, OSError):
                     conn.close()
-                except (sqlite3.Error, OSError):
-                    pass
         # No live connection for this database path — create one
         conn = self._create_connection()
         _DatabaseStore._local.conn = conn
@@ -670,15 +670,11 @@ class _DatabaseStore:
         try:
             with self._get_connection() as conn:
                 total = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
-                to_delete = conn.execute(
-                    "SELECT id FROM trades WHERE exit_date < ?", (cutoff_date,)
-                ).fetchall()
+                to_delete = conn.execute("SELECT id FROM trades WHERE exit_date < ?", (cutoff_date,)).fetchall()
                 pruned = len(to_delete)
                 if pruned > 0 and apply:
                     ids = tuple(r["id"] for r in to_delete)
-                    conn.execute(
-                        f"DELETE FROM trades WHERE id IN ({','.join('?' * len(ids))})", ids
-                    )
+                    conn.execute(f"DELETE FROM trades WHERE id IN ({','.join('?' * len(ids))})", ids)
                 kept = total - pruned
                 return {"total": total, "kept": kept, "pruned": pruned}
         except (sqlite3.DatabaseError, OSError, RuntimeError) as e:
@@ -693,15 +689,11 @@ class _DatabaseStore:
         try:
             with self._get_connection() as conn:
                 total = conn.execute("SELECT COUNT(*) FROM attribution").fetchone()[0]
-                to_delete = conn.execute(
-                    "SELECT id FROM attribution WHERE exit_date < ?", (cutoff_date,)
-                ).fetchall()
+                to_delete = conn.execute("SELECT id FROM attribution WHERE exit_date < ?", (cutoff_date,)).fetchall()
                 pruned = len(to_delete)
                 if pruned > 0 and apply:
                     ids = tuple(r["id"] for r in to_delete)
-                    conn.execute(
-                        f"DELETE FROM attribution WHERE id IN ({','.join('?' * len(ids))})", ids
-                    )
+                    conn.execute(f"DELETE FROM attribution WHERE id IN ({','.join('?' * len(ids))})", ids)
                 kept = total - pruned
                 return {"total": total, "kept": kept, "pruned": pruned}
         except (sqlite3.DatabaseError, OSError, RuntimeError) as e:
@@ -717,15 +709,11 @@ class _DatabaseStore:
         try:
             with self._get_connection() as conn:
                 total = conn.execute("SELECT COUNT(*) FROM equity_history").fetchone()[0]
-                to_delete = conn.execute(
-                    "SELECT id FROM equity_history WHERE timestamp < ?", (cutoff_date,)
-                ).fetchall()
+                to_delete = conn.execute("SELECT id FROM equity_history WHERE timestamp < ?", (cutoff_date,)).fetchall()
                 pruned = len(to_delete)
                 if pruned > 0 and apply:
                     ids = tuple(r["id"] for r in to_delete)
-                    conn.execute(
-                        f"DELETE FROM equity_history WHERE id IN ({','.join('?' * len(ids))})", ids
-                    )
+                    conn.execute(f"DELETE FROM equity_history WHERE id IN ({','.join('?' * len(ids))})", ids)
                 kept = total - pruned
                 return {"total": total, "kept": kept, "pruned": pruned}
         except (sqlite3.DatabaseError, OSError, RuntimeError) as e:
@@ -748,8 +736,6 @@ class _DatabaseStore:
         """Close the thread-local connection if it exists. Call for cleanup."""
         conn = getattr(_DatabaseStore._local, "conn", None)
         if conn is not None:
-            try:
+            with contextlib.suppress(sqlite3.Error, OSError):
                 conn.close()
-            except (sqlite3.Error, OSError):
-                pass
             _DatabaseStore._local.conn = None

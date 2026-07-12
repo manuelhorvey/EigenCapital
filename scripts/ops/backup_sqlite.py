@@ -15,7 +15,8 @@ Dependencies (optional for S3):
     pip install boto3  # for S3 upload
 
 Add to crontab for daily backups at midnight:
-    0 0 * * * cd /path/to/project && PYTHONPATH=$PYTHONPATH:. python scripts/ops/backup_sqlite.py >> data/logs/backup.log 2>&1
+    0 0 * * * cd /path/to/project && PYTHONPATH=$PYTHONPATH:. \\
+        python scripts/ops/backup_sqlite.py >> data/logs/backup.log 2>&1
 """
 
 from __future__ import annotations
@@ -25,13 +26,13 @@ import glob
 import gzip
 import logging
 import os
-import sqlite3
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 logging.basicConfig(
     level=logging.INFO,
@@ -92,9 +93,8 @@ def create_backup(
 
         if compress:
             compressed_path = backup_path + ".gz"
-            with open(backup_path, "rb") as f_in:
-                with gzip.open(compressed_path, "wb", compresslevel=6) as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+            with open(backup_path, "rb") as f_in, gzip.open(compressed_path, "wb", compresslevel=6) as f_out:
+                shutil.copyfileobj(f_in, f_out)
             os.unlink(backup_path)
             logger.info("Compressed: %s (%.1f MB)", compressed_path, os.path.getsize(compressed_path) / 1e6)
             return compressed_path
@@ -152,7 +152,6 @@ def upload_to_s3(backup_path: str, bucket: str, prefix: str = "backups/sqlite") 
 
     try:
         import boto3
-        from botocore.exceptions import ClientError
 
         s3 = boto3.client("s3")
         s3.upload_file(backup_path, bucket, s3_key)
@@ -189,9 +188,8 @@ def verify_backup(backup_path: str) -> bool:
         if backup_path.endswith(".gz"):
             with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
                 decompressed_path = tmp.name
-            with gzip.open(backup_path, "rb") as f_in:
-                with open(decompressed_path, "wb") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+            with gzip.open(backup_path, "rb") as f_in, open(decompressed_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
         else:
             decompressed_path = backup_path
 
@@ -201,10 +199,7 @@ def verify_backup(backup_path: str) -> bool:
             if result and result[0] == "ok":
                 # Check that key tables exist
                 tables = {
-                    row[0]
-                    for row in conn.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table'"
-                    ).fetchall()
+                    row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
                 }
                 required = {"trades", "attribution", "equity_history", "strategy_metadata"}
                 missing = required - tables

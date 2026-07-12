@@ -11,8 +11,8 @@ import numpy as np
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
 SCHEMA_VERSION = "1.0.0"
-DB_SCHEMA_VERSION = "2.0.0"
-CONTRACT_VERSION = 2
+DB_SCHEMA_VERSION = "3.0.0"
+CONTRACT_VERSION = 3
 
 
 @dataclass

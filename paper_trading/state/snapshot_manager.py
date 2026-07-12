@@ -60,11 +60,21 @@ class _SnapshotManager:
             snapshot = EngineSnapshot.from_dict(data)
             version = getattr(snapshot, "contract_version", 0)
             if version < CONTRACT_VERSION:
-                logger.warning(
-                    "Snapshot contract_version=%d < current=%d — fields may be missing",
-                    version,
-                    CONTRACT_VERSION,
-                )
+                # Allow forward migration: snapshots from version 2 are
+                # still loadable and will repopulate missing fields.
+                if version == 2 and CONTRACT_VERSION == 3:
+                    logger.info(
+                        "Snapshot contract_version=%d < current=%d — migrating forward "
+                        "(missing fields will be repopulated on next save)",
+                        version,
+                        CONTRACT_VERSION,
+                    )
+                else:
+                    logger.warning(
+                        "Snapshot contract_version=%d < current=%d — fields may be missing",
+                        version,
+                        CONTRACT_VERSION,
+                    )
             elif version > CONTRACT_VERSION:
                 logger.error(
                     "Snapshot contract_version=%d > current=%d — possibly incompatible",

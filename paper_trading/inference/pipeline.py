@@ -139,7 +139,7 @@ class AssetInferencePipeline:
             },
         )
         return asset._decision_to_dict(decision, final_signal=getattr(asset, "_last_final_signal", None))
-    
+
     # ── Focused pipeline stages ────────────────────────────────────
 
     def _apply_async_diagnostics(self, asset) -> None:

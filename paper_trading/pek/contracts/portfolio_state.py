@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-
 logger = logging.getLogger("eigencapital.pek.portfolio_state")
 
 

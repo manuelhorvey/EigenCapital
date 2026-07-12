@@ -276,9 +276,9 @@ class TestPrePhasePekFullPortfolioDrawdown:
 
         orch_instance = MagicMock(spec=EngineOrchestrator)
         # Stub the methods _pre_phase_pek depends on
-        orch_instance._peak_portfolio_value = 75_000.0
+        orch_instance._halt_state = MagicMock()
+        orch_instance._halt_state.peak_portfolio_value = 75_000.0
         orch_instance._cycles_elapsed = 0
-        orch_instance._var_prev_value = None
         # Build actor mocks: each has _engine.mtm_value
         btc = MagicMock()
         btc._engine.mtm_value = 2_000.0
@@ -300,14 +300,18 @@ class TestPrePhasePekFullPortfolioDrawdown:
 
 def _compute_aggregate(orch, aggregate_actors):
     """Mirror of _pre_phase_pek's total_equity / current_dd computation, exposed
-    for testing without invoking the full method (which depends on many subsystems)."""
+    for testing without invoking the full method (which depends on many subsystems).
+
+    Accesses peak via _halt_state (moved from direct attribute during MAINT-01).
+    """
     total_equity = sum(
         a._engine.mtm_value for a in aggregate_actors.values() if hasattr(a._engine, "mtm_value")
     )
-    peak = orch._peak_portfolio_value or 1.0
+    peak = orch._halt_state.peak_portfolio_value or 1.0
+    pv = orch._halt_state.peak_portfolio_value
     current_dd = (
-        (total_equity - orch._peak_portfolio_value) / max(orch._peak_portfolio_value, 1.0)
-        if orch._peak_portfolio_value is not None and orch._peak_portfolio_value > 0
+        (total_equity - pv) / max(pv, 1.0)
+        if pv is not None and pv > 0
         else 0.0
     )
     return total_equity, peak, current_dd

@@ -10,13 +10,13 @@ import logging
 from typing import Any
 
 from eigencapital.domain.time import utc_now
+from paper_trading.config_manager import get_config
 from paper_trading.pek.contracts.portfolio_state import (
     AssetGateState,
     ClusterInfo,
     PortfolioStateSnapshot,
     PositionInfo,
 )
-from paper_trading.config_manager import get_config
 from shared.factor_model import FACTOR_GROUPS
 
 logger = logging.getLogger("eigencapital.pek.state")

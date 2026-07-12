@@ -14,12 +14,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import ta
 
-from features.regime_features import generate_regime_features
 from features.data_fetch import _cycle_id
+from features.regime_features import generate_regime_features
 
 logger = logging.getLogger("eigencapital.feature_builder")
 

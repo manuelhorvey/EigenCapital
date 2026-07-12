@@ -21,8 +21,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from eigencapital.domain.time import utc_now
-
 logger = logging.getLogger("eigencapital.orchestrator.halt_state")
 
 # Drawdown recovery threshold for automatic unhalt (must be above trip

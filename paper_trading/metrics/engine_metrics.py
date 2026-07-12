@@ -52,7 +52,12 @@ def update_engine_metrics(engine):
     _positions_gauge.set(positions_count["short"], asset="__portfolio__", direction="short")
     _mtm_total_gauge.set(mtm_total)
 
-    peak = getattr(engine, "_peak_portfolio_value", mtm_total) or mtm_total
+    # Peak portfolio value moved to HaltState during MAINT-01 refactoring.
+    orchestrator = getattr(engine, "_orchestrator", None)
+    if orchestrator is not None and hasattr(orchestrator, "_halt_state"):
+        peak = orchestrator._halt_state.peak_portfolio_value or mtm_total
+    else:
+        peak = mtm_total
     if peak > 0:
         drawdown_pct = (mtm_total - peak) / peak * 100
         _drawdown_gauge.set(drawdown_pct)

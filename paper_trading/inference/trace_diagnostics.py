@@ -29,8 +29,14 @@ from paper_trading.inference.async_diagnostics import (
 )
 from paper_trading.inference.shadow_registry import (
     SHADOW_CONFIGS as _SHADOW_CONFIGS,
+)
+from paper_trading.inference.shadow_registry import (
     get_shadow_runner as _get_shadow_runner,
+)
+from paper_trading.inference.shadow_registry import (
     get_shadow_storage as _get_shadow_storage,
+)
+from paper_trading.inference.shadow_registry import (
     load_shadow_configs as _load_shadow_configs,
 )
 from paper_trading.ops import wrappers as _w

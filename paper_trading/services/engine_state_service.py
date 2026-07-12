@@ -535,10 +535,11 @@ class EngineStateService:
         # breaker_daily_pnl is only available from CircuitBreaker.
         orch = getattr(engine, "_orchestrator", None)
         if orch is not None:
-            snapshot.emergency_halt = orch._emergency_halt
-            snapshot.halt_reason = orch._halt_reason.value if orch._halt_reason is not None else ""
-            snapshot.halt_detail = orch._halt_detail
-            snapshot.peak_portfolio_value = orch._peak_portfolio_value
+            hs = orch._halt_state
+            snapshot.emergency_halt = hs.emergency_halt
+            snapshot.halt_reason = hs.halt_reason or ""
+            snapshot.halt_detail = hs.halt_detail
+            snapshot.peak_portfolio_value = hs.peak_portfolio_value
             # Store the capital base that this peak was relative to, so at restore
             # time we can detect stale peaks caused by capital rebalancing.
             snapshot.peak_capital_base = self.engine._engine_cfg.capital
@@ -548,17 +549,17 @@ class EngineStateService:
             # Observability guard: warn if persisting a halt while live equity
             # is within 99.5 % of peak — indicates an edge case the auto-clear
             # (orchestrator init) missed, or a race in the save-vs-cycle timing.
-            if orch._emergency_halt and orch._peak_portfolio_value is not None and orch._peak_portfolio_value > 0:
+            if hs.emergency_halt and hs.peak_portfolio_value is not None and hs.peak_portfolio_value > 0:
                 _save_equity = sum(a.mtm_value for a in engine.assets.values())
-                _save_ratio = _save_equity / orch._peak_portfolio_value
+                _save_ratio = _save_equity / hs.peak_portfolio_value
                 if _save_ratio >= 0.995:
                     logger.warning(
                         "Persisting emergency_halt=True while live equity=%.2f is at "
                         "%.2f%% of peak=%.2f (reason=%s) — may be stale",
                         _save_equity,
                         _save_ratio * 100,
-                        orch._peak_portfolio_value,
-                        orch._halt_reason.value if orch._halt_reason else "unknown",
+                        hs.peak_portfolio_value,
+                        hs.halt_reason or "unknown",
                     )
         for name, asset in engine.assets.items():
             if asset.pos_mgr.has_position():

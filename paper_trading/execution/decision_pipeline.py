@@ -1149,6 +1149,7 @@ DEFAULT_STAGES: list[StageFn] = [
     apply_risk_off_suppression,
     apply_vix_gate,
     apply_sell_only_filter,
+    apply_confidence_gate,
     apply_spread_gate,
     apply_session_gate,
     apply_regime_transition_gate,

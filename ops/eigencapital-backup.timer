@@ -1,0 +1,16 @@
+[Unit]
+Description=EigenCapital Daily SQLite Database Backup
+Documentation=https://github.com/manuelhorvey/EigenCapital
+
+[Timer]
+# Run every day at 05:00 (UTC) — 1h after healthcheck at 04:00
+OnCalendar=*-*-* 05:00:00
+# Random delay to spread load
+RandomizedDelaySec=300
+# Persist missed runs when system was powered off
+Persistent=true
+# Run 2 hours after boot if timer was missed
+OnBootSec=2h
+
+[Install]
+WantedBy=timers.target

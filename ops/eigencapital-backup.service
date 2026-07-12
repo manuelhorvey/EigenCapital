@@ -1,0 +1,19 @@
+[Unit]
+Description=EigenCapital Daily SQLite Database Backup
+Documentation=https://github.com/manuelhorvey/EigenCapital
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Projects/EigenCapital
+Environment=PYTHONPATH=%h/Projects/EigenCapital
+ExecStartPre=/bin/bash -c 'mkdir -p %h/Projects/EigenCapital/data/logs/backup'
+ExecStart=/usr/bin/env python3 %h/Projects/EigenCapital/scripts/ops/backup_sqlite.py --retention 30
+StandardOutput=append:%h/Projects/EigenCapital/data/logs/backup/backup-service.log
+StandardError=inherit
+# Hardening (user-level compatible)
+PrivateTmp=true
+# Backup should complete within 5 minutes
+TimeoutStopSec=300
+
+[Install]
+WantedBy=default.target

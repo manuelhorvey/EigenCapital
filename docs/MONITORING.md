@@ -23,6 +23,8 @@ curl http://127.0.0.1:5000/metrics
 | `eigencapital_engine_calibration_applied` | gauge | — | 1.0 if calibration applied on last inference |
 | `eigencapital_engine_risk_exposure` | gauge | — | Current gross portfolio exposure as fraction of equity |
 | `eigencapital_engine_leverage_budget_remaining` | gauge | — | Remaining leverage budget (USD) |
+| `eigencapital_engine_gate_blocked_total` | counter | `asset`, `gate` | Decisions blocked per gate name and asset |
+| `eigencapital_engine_inference_cycles_total` | counter | `asset` | Inference cycles run per asset |
 
 ## Key Files
 

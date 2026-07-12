@@ -105,4 +105,4 @@ The primary data flow is: `GET /state-bundle.json` → sliced via React Query se
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-12

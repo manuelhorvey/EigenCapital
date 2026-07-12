@@ -1,6 +1,8 @@
 # ADR-006: XLF as Primary Equity Asset Over SPY/QQQ
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **OBSOLETE** — XLF was removed from the portfolio during expansion. The current portfolio contains ^DJI as the sole index asset. See configs/domains/assets/ for the current asset roster.
 
 **Status:** Accepted
 

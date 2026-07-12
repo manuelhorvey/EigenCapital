@@ -1,6 +1,8 @@
 # ADR-015: Asset-Specific Label Horizons
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **Updated 2026-07:** The label system now uses per-asset ATR-based pt_sl from configs/domains/assets/*.yaml. tb20 is the default; fwd60 is no longer used for any active asset. The principle of asset-specific label selection remains valid.
 
 **Status:** Superseded (May 2026 — see below)
 

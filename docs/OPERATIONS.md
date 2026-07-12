@@ -11,7 +11,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | Start command | `./monitor_all` |
 | Dashboard URL | `http://127.0.0.1:5000` |
 | Config files | `configs/domains/` directory tree |
-| `calibration.enabled` | `true` — BinnedCalibrator applied per inference, reduces ECE 0.36→0.02 |
+| `calibration.enabled` | `true` — DirectionalCalibrator (Platt base) applied per inference, reduces ECE 0.2207→0.0178 |
 | `portfolio.weight_method` | `factor_constrained_v2` — active weight strategy (P0, hard linear constraints) |
 | `kelly.enabled` | `false` — P2 Kelly sizing disabled pending live data |
 | Active mode | `production` (config: `mode:` in `configs/domains/modes/production.yaml`) |
@@ -45,24 +45,24 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 **2026-06-20:** AUDNZD, EURUSD, AUDCHF, GBPNZD removed (directional instability). USDCAD and NZDUSD halved from 5%→2.5%.
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|---|
-| GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
-| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 5 |
-| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 2 |
+|---|---|---|---|---|---|---|---|
+| GC | GC=F | 7.0% | 1.00 | 4.00 | 4 |
+| USDCHF | USDCHF=X | 2.0% | 0.85 | 3.00 | 4 |
+| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 3 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 5 |
 | NZDCAD | NZDCAD=X | 5.0% | 1.83 | 5.48 | 2 |
-| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 5 |
+| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 2 |
 | GBPAUD | GBPAUD=X | 5.0% | 1.00 | 3.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
-| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
-| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 2 |
+| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 3 |
+| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 5 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
 | EURCAD | EURCAD=X | 2.0% | 0.71 | 2.12 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 5 |
 | GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
-| GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
-| EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
-| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 3 |
+| GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 4 |
+| EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 5 |
+| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 4 |
 | BTCUSD | BTC-USD | 2.0% | 0.58 | 1.51 | 3 |
 | AUDJPY | AUDJPY=X | 2.0% | 0.52 | 2.01 | 2 |
 | NZDJPY | NZDJPY=X | 2.0% | 0.51 | 2.02 | 2 |
@@ -203,7 +203,7 @@ The script:
 3. Downloads macro data (DXY, VIX, SPX, WTI, TNX) via yfinance
 4. Computes alpha + regime + archetype features
 5. Runs inference on all assets (base model — ensemble disabled portfolio-wide)
-6. Applies decision pipeline stages (22 stages: first-cycle suppression → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → VIX gate → sell-only filter → spread gate → session gate → ADX entry gate → confidence gate → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
+6. Applies decision pipeline stages (25 stages: first-cycle suppression → weekend gate → bar-jump → store metadata → update MAE/MFE → resolve signal → risk-off → VIX gate → sell-only filter → confidence gate → spread gate → session gate → regime transition gate → ADX entry gate → calibration drift gate → hysteresis → meta-label advisory → regime bar counter → conviction gate → kelly sizing → manage position [includes profit lock] → build artifacts → route execution → poll deferred → update prob history)
 7. Routes through 15 governance layers + HealthMonitor (circuit breaker, VaR/CVaR, equity cluster alarm) + RecoveryScheduler
 8. Opens/closes positions based on signal vs current position (MT5 bridge + paper)
 9. Serves dashboard on port 5000
@@ -236,7 +236,7 @@ curl http://127.0.0.1:5000/ping
 - After MT5 reconnect: check for `bar-jump suppression` log — suppresses ~60min if bar count changed >100 (normal after source switch)
 - Risk-off conditions: if VIX>0 & SPX<0, expect AUDUSD showing `risk-off suppression — holding flat` (validated behavior)
 - Sell-only filter: 6 SELL_ONLY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) will show `sell-only filter — suppressing BUY signal` for BUY signals, holding flat instead
-- Equity cluster alarm: removed 2026-07-01 (ES/NQ/^DJI no longer in portfolio — see `paper_trading/orchestrator/health.py:105`). Historical `equity_cluster_all_*` log lines reference retired assets.
+- Equity cluster alarm: removed 2026-07-01 (ES/NQ no longer in portfolio). Historical `equity_cluster_all_*` log lines reference retired assets.
 - Spread gate observe mode: in first 720 cycles (~6h), check for `spread gate would block` logs; after observation window, `spread gate blocked entry` is expected for high-spread conditions
 - Market status badge shows **OPEN** (green) during trading hours, **CLSD** (yellow) for non-eligible assets on weekends (BTCUSD continues live)
 - **LAST** timestamp in the header shows when signals were last refreshed

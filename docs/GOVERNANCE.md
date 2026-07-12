@@ -1,6 +1,6 @@
 # EigenCapital — Risk & Governance Layer
 
-The system implements **17 core governance layers** operating at different frequencies and granularities, plus **3 adaptive budget layers** (RiskEngineV2, PEK admission controller, PerformanceState velocity), **HealthMonitor** circuit breaker, **22-stage decision pipeline**, and **position sizing guardrails**.
+The system implements **17 core governance layers** operating at different frequencies and granularities, plus **3 adaptive budget layers** (RiskEngineV2, PEK admission controller, PerformanceState velocity), **HealthMonitor** circuit breaker, **25-stage decision pipeline**, and **position sizing guardrails**.
 
 ## Governance Layers (17 core)
 
@@ -14,7 +14,7 @@ The system implements **17 core governance layers** operating at different frequ
 | | | | STRESSED: SL +30%, size −30%, halt |
 | PSI drift | Per cycle | Per asset | Validity penalty, halt at 3+ SEVERE |
 | Sell-only filter | Per decision | Per asset | Override BUY→FLAT for 6 inverted-BUY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) |
-| Calibration (P1) | Per inference | Per asset | Remap raw p_long via BinnedCalibrator, ECE 0.36→0.02 |
+| Calibration (P1) | Per inference | Per asset | Remap raw p_long via DirectionalCalibrator (Platt base), ECE 0.2207→0.0178 |
 | Kelly sizing (P2) | Per decision | Per asset | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3) | Per cycle | Portfolio | Factor exposures via 10 groups in state.json (monitoring only) |
 | Position concentration | Per cycle | Portfolio | Flags >75% net-short skew (recommendation) |
@@ -48,12 +48,12 @@ Each stage is a standalone function operating on `DecisionContext`. Stages are c
 | Risk-off suppression | Flat AUDUSD when risk-off detected (VIX rising + SPX falling) | `RISK_OFF_ASSETS = {"AUDUSD"}`; reads `engine._risk_off` flag | Suppresses signal |
 | VIX gate | Suppress CL=F when VIX > 30. Fail-open if VIX data missing or >5 days stale. | `VIX_GATE_THRESHOLD = 30.0`; `VIX_GATE_ASSETS = {"CL"}`; stale check: 5d | Fail-open (allow entry when data unavailable) |
 | Sell-only filter | Override BUY→FLAT for `SELL_ONLY_ASSETS` (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF). Force-closes any stale LONG positions from pre-filter era. | Assets resolved via `get_sell_only_assets()` from `paper_trading/execution/gate_constants.py` | Suppresses BUY signal; force-closes LONG |
+| Confidence gate | Skip trade if signal confidence below direction-appropriate threshold. BUY uses `min_confidence_buy` (default 45), SELL uses `min_confidence_sell` (default 55). Per-asset overrides supported. | Config keys: `min_confidence_buy`, `min_confidence_sell`, `min_confidence` (fallback), global defaults | Sets `new_side = None` |
 | Spread gate | Block new entry if live spread (bps) exceeds per-asset-class threshold. Observe-only for first 720 cycles (~6h). Fail-closed post-observe — missing/stale spread data blocks entry. | `SPREAD_TIER_BPS`: fx_major=10, fx_cross=20, indices=15, metals=20; staleness=300s | Fail-closed post-observe |
 | Session gate | Block new entry outside session windows per asset-class tier. Observe-only for first 720 cycles. | Tiers: fx_major (7-17 UTC), fx_cross (7-17), indices (13-20), metals (8-18), crypto (0-24) | Blocks outside window post-observe |
 | Regime transition gate | Suppress entries for 30d after bull↔bear transition (close crossing MA50) | `REGIME_TRANSITION_SUPPRESS_DAYS = 30`; reads `close < MA50` vs previous state | Suppresses signal |
 | ADX entry gate | Block new entry when ADX < threshold (choppy market). Disabled by default; observe-only by default when enabled. | `ADX_ENTRY_GATE_DEFAULT_THRESHOLD = 18`; config key: `adx_entry_gate` with `enabled`, `adx_threshold`, `observe_only` | Observe-only by default |
 | Calibration drift gate | Suppress entry when rolling 30-trade confidence exceeds win rate by >20pp | Window=30; threshold=20pp; outcome recording via `manage_position` flip path | Suppresses signal |
-| Confidence gate | Skip trade if signal confidence below per-asset `min_confidence` threshold | Config key: `min_confidence` (per-asset override, global default 55.0) | Sets `new_side = None` |
 | Signal hysteresis | Require 2-of-3 latest signals to agree before allowing position flip | `HYSTERESIS_WINDOW = 3`, `HYSTERESIS_MIN_AGREE = 2` | Blocks flip |
 | Meta-label advisory | Record meta-label recommendation (no enforcement). Logs when `prob < threshold`. | Config key: `meta_labeling.enabled`; threshold from `meta_label_model.threshold` | Advisory only (no gate) |
 | Update regime bar counter | Increment `_regime_bar_counter` each cycle in same regime; reset to 1 on regime change | Reads `engine._current_regime` vs `_last_regime_label` | Non-blocking |
@@ -65,7 +65,7 @@ Each stage is a standalone function operating on `DecisionContext`. Stages are c
 | Poll deferred entries | Execute pending deferred orders from previous cycles | Calls `engine._poll_pending_entries(ctx.df)` on each cycle | Non-blocking |
 | Update prob history | Append signal + confidence to `prob_history` (max 1000 entries); update confidence buckets | `MAX_PROB_HISTORY = 1000` | Non-blocking |
 
-Stage source: `DEFAULT_STAGES` list in `paper_trading/execution/decision_pipeline.py:967-990`.
+Stage source: `DEFAULT_STAGES` list in `paper_trading/execution/decision_pipeline.py:1205-1231`.
 
 ## Position Sizing Guardrails
 
@@ -182,7 +182,7 @@ Validity penalties (feature stability + PSI drift) are additive and feed into th
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-12
 
 ```
 validity_score = 0.80 − drawdown_penalty − pf_penalty − drought_penalty − drift_penalty − narrative_penalty − liquidity_penalty + stability_penalty + psi_penalty

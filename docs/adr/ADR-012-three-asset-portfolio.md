@@ -4,7 +4,7 @@
 
 **Status:** Superseded
 
-> **Note (May 2026):** The portfolio has expanded to 6 assets (added EURAUD, CADJPY, USDCAD, GC=F). BTC was moved to a separate high-vol satellite bucket per ADR-018. See the current asset table in README.md and `features/registry.py` for the live allocation. The correlation and diversification methodology documented here remains the framework for all portfolio expansions.
+> **Note (July 2026):** The portfolio has expanded to 22 assets (all FX, commodities, indices, and BTCUSD). BTC was never isolated as a satellite — it's a permanent member of the portfolio. See `configs/domains/assets/_index.yaml` for the current 22-asset roster. The correlation and diversification methodology documented here remains the framework for all portfolio expansions.
 
 ## Context
 

@@ -40,12 +40,12 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 
 **2026-06-25: Structural asymmetry confirmed — SELL_ONLY is permanent under current feature design.** Three independent experiments prove BUY direction is not recoverable for the original 8 flagged assets: (1) threshold scan 0.01-0.99 — no threshold produces BUY WR > 50%; (2) rolling 252 window — p_long mean shifts 0.4→0.6 in wrong direction (more BUY, worse accuracy); (3) label inversion (y' = 1-y training) — EURAUD BUY WR only improves 22.7%→31.0%. The feature space encodes SELL predictability (62-90% WR) but not BUY predictability (0-32% WR). This is a portfolio-wide issue, not subset-specific — non-SELL_ONLY assets average only 49.3% BUY WR. The architecture is a **pure SELL alpha engine** for these 8 assets; BUY restoration is closed under current feature/label design. See `scripts/restoration/` for the diagnostic framework, gatekeeper, and architecture document.<br>**Updated 2026-07-11:** SELL_ONLY expanded to 6 permanent assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF). EURCHF, GBPCHF, GBPJPY added after additional walk-forward analysis confirmed BUY inversion is irrecoverable under current feature design.
 
-**2026-07-11: Direction-conditional thresholds deployed.** Global defaults: `min_confidence_buy=45` (unlocks marginal BUY trades), `min_confidence_sell=55` (maintains SELL discipline). Per-asset BUY overrides at 40% for 5 assets (AUDJPY, EURCHF, GBPCHF, GBPJPY, GC) where threshold sweep showed net PnL improvement. DirectionalCalibrator (Platt base, ECE 0.0178) trained on retrained narr walk-forward parquets. Total backtest result: +838.06 R (Sharpe 58.47), +313.60 R improvement over no-gate baseline.
+**2026-07-11: Direction-conditional thresholds deployed.** Global defaults: `min_confidence_buy=45` (unlocks marginal BUY trades), `min_confidence_sell=55` (maintains SELL discipline). Per-asset BUY overrides at 40% for 5 assets (AUDJPY, EURCHF, GBPCHF, GBPJPY, GC) where threshold sweep showed net PnL improvement. DirectionalCalibrator (Platt base, ECE 0.0178) trained on retrained narr walk-forward parquets. Total backtest result: +732.73 R (Sharpe 56.45), +364.89 R improvement over no-gate baseline (base: +367.84 R / Sharpe 34.57).
 
 ## Architecture Quick Reference
 
 - **Models**: Per-asset XGBClassifier (base only) — regime-conditional ensemble disabled 2026-06-20 (walk-forward p=0.83; see ADR-026)
-- **Features**: 40 alpha columns per asset (9 core + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features; plus up to 16 additional COT pair columns from all covered CFTC pairs) + 7 regime (hurst, kaufman_er, adx, vol_zscore, compression, utc_hour, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
+- **Features**: 40 alpha columns per asset (9 core + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features; plus up to 16 additional COT pair columns from all covered CFTC pairs) + 6 regime (hurst, kaufman_er, adx, vol_zscore, compression, session_vol_profile). See `docs/FEATURES.md` for canonical taxonomy.
 - **Labels**: Triple-barrier with per-asset pt_sl, vertical_barrier=20, gap >= vb
 - **Config**: `configs/paper_config_registry.py` + `configs/domains/` — domain-first config tree promoted in Phase 12; mode overrides, global defaults, per-asset config
 - **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
@@ -137,7 +137,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
                  └───────────────────────────────┘
 ```
 
-- **Governance**: 17 core layers + 3 adaptive budget layers (RiskEngineV2, PEK admission, PerformanceState velocity) + HealthMonitor + VaR/CVaR + RecoveryScheduler + 22-stage decision pipeline + position sizing guardrails
+- **Governance**: 17 core layers + 3 adaptive budget layers (RiskEngineV2, PEK admission, PerformanceState velocity) + HealthMonitor + VaR/CVaR + RecoveryScheduler + 25-stage decision pipeline + position sizing guardrails
 - **MT5 Bridge**: `paper_trading/ops/mt5_client.py` — TCP frame protocol to Wine-hosted MT5 (port 9879)
 - **Dashboard**: React SPA on port 5000, state via `state.json`
 
@@ -147,7 +147,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 |------|---------|
 | `configs/paper_config_registry.py` + `configs/domains/` | Domain-first config tree (capital, assets, SL/TP, sizing, exits, halt, MT5, governance, ML, alerting, …) |
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies, decorator pattern, pure functions |
-| `shared/calibration/` | P1 calibration layer — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
+| `shared/calibration/` | P1 calibration layer — `DirectionalCalibrator` (Platt), `CalibrationRegistry`, `ECETracker` |
 | `shared/kelly.py` | P2 fractional Kelly sizing — `compute_kelly_fraction`, `compute_kelly_multiplier` |
 | `paper_trading/pek/contracts/portfolio_state.py` | Immutable `PortfolioStateSnapshot` — single source of truth for portfolio exposure |
 | `paper_trading/pek/contracts/performance_state.py` | Immutable `PerformanceState` with `RegimeVelocity` — system behavioral telemetry |
@@ -343,7 +343,7 @@ Per-asset BUY threshold overrides (`min_confidence_buy: 40`):
 Previous single-threshold overrides (NZDCAD, NZDUSD at 40%) now use the direction-conditional
 system, with BUY threshold at 40% and SELL threshold at default 55%.
 
-Backtest vs no-gate baseline: **+313.60 R improvement** from the combined pipeline
+Backtest vs no-gate baseline: **+364.89 R improvement** (base: +367.84 R → calibrated: +732.73 R) from the combined pipeline
 (DirectionalCalibrator + direction-conditional thresholds + per-asset overrides).
 
 ## Per-Asset Adaptive Exit Gate (ADDED 2026-07-10)

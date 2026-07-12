@@ -849,7 +849,7 @@ readiness audit:
 - pre-commit yaml: valid, includes 6 hooks.
 
 ---
-> **Historical note:** The results in this section (total_R +175.79, 16/16 assets) were computed on the original 16-asset portfolio during the remediation phase. The current production system operates on **22 assets** with calibrated probabilities, direction-conditional thresholds, and adaptive exit engine, producing **+838.06 R** (Sharpe 58.47) with all 22 assets profitable. See [AGENTS.md](../AGENTS.md) and [README.md](../README.md) for current metrics.
+> **Historical note:** The results in this section (total_R +175.79, 16/16 assets) were computed on the original 16-asset portfolio during the remediation phase. The current production system operates on **22 assets** with calibrated probabilities, direction-conditional thresholds, and adaptive exit engine, producing **+732.73 R** (Sharpe 56.45) with all 22 assets profitable (base model: +367.84 R / Sharpe 34.57). See [AGENTS.md](../AGENTS.md) and [README.md](../README.md) for current metrics.
 
 ## Portfolio Remediation & Adaptive Exit Engine (2026-07-01)
 

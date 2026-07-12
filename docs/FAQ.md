@@ -89,7 +89,7 @@ The regime-conditional ensemble was disabled on 2026-06-20 after walk-forward Pn
 
 ### How is model probability calibration done?
 
-Raw XGBoost probabilities are binned-calibrated per asset using `BinnedCalibrator` (P1 layer). This reduces Expected Calibration Error (ECE) from ~0.36 to ~0.02 (94.3% reduction). Configured via `calibration.enabled: true` in the config.
+Raw XGBoost probabilities are calibrated per asset using `DirectionalCalibrator` (Platt base, P1 layer). This reduces Expected Calibration Error (ECE) from 0.2207 to 0.0178. The legacy `BinnedCalibrator` (0.36→0.02) was superseded on 2026-07-11. Configured via `calibration.enabled: true` in the config.
 
 ### How do I train calibration models?
 

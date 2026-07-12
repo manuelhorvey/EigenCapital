@@ -1,6 +1,8 @@
 # ADR-005: Macro Expert Head With Protected Weight in Ensemble
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **OBSOLETE 2026-06-20** — Ensemble disabled per ADR-026. The Macro Expert Head no longer participates in signal generation.
 
 **Status:** Accepted
 

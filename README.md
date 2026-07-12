@@ -44,7 +44,7 @@ PRE: state snapshot → REFRESH: parallel inference → ADMIT: PEK gate →
 VALIDITY: state updates → PORTFOLIO HEALTH: circuit breaker, VaR, orphan recon → PERSIST: WAL
 ```
 
-Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.36→0.02), a 22-stage decision pipeline, 17 governance layers, and a multiplicative sizing chain before reaching the broker.
+Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilities pass through P1 calibration (ECE 0.2207→0.0178 via DirectionalCalibrator), a 25-stage decision pipeline, 17 governance layers, and a multiplicative sizing chain before reaching the broker.
 
 [Full architecture →](docs/SYSTEM_OVERVIEW.md) · [Governance detail →](docs/GOVERNANCE.md) · [Feature reference →](docs/FEATURES.md)
 
@@ -75,8 +75,8 @@ Per-asset config (SL/TP, allocation, max_depth) in per-asset YAML files under [`
 
 | Metric | Value |
 |--------|-------|
-| Calibrated PnL (22 assets) | **+838.06 R** (Sharpe 58.47) |
-| Directional threshold improvement | **+313.60 R** vs no-gate baseline |
+| Calibrated PnL (22 assets) | **+732.73 R** (Sharpe 56.45) |
+| Directional threshold improvement | **+364.89 R** vs no-gate baseline |
 | Assets profitable (calibrated) | **22/22** |
 | Max DD (423-day backtest) | 0.00 R |
 | DirectionalCalibrator ECE | 0.2207→0.0178 (Platt base) |

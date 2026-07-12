@@ -139,7 +139,7 @@ A four-stage exit management system:
 1. **Breakeven lock** (at `be_lock_r` MFE, default 0.5R): move SL to entry
 2. **R-based scale-out** (at `scale_out_r` MFE, default 2.5R): close a fraction (`scale_out_fraction`, default 0.7) at target R
 3. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): trail remainder at `trail_retrace_pct` (default 0.33) from peak
-4. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approachesValidated as part of the original 16-asset portfolio (walk-forward simulation) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +838.06 R with direction-conditional thresholds, bringing every asset into profitable territory.
+4. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approachesValidated as part of the original 16-asset portfolio (walk-forward simulation) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +732.73 R (Sharpe 56.45) with direction-conditional thresholds, bringing every asset into profitable territory.
 
 ### Scale-Out (Pyramiding Tiers)
 Partial profit-taking at configurable levels. Tier profiles are generated
@@ -329,7 +329,7 @@ Migrations run at connect time via `_run_migrations()`. Current migration
 17 core governance mechanisms operating at different frequencies and
 granularities, plus 3 adaptive budget layers (RiskEngineV2, PEK admission,
 PerformanceState velocity), plus HealthMonitor circuit breaker, position
-sizing guardrails, weekend trading governance, and 22-stage decision pipeline.
+sizing guardrails, weekend trading governance, and 25-stage decision pipeline.
 
 ### Validity State Machine
 Per-asset state machine (`monitoring/validity_state_machine.py`) with
@@ -425,7 +425,7 @@ Five-layer portfolio management stack:
 | Layer | Component | Status |
 |-------|-----------|--------|
 | P0 | Weight strategies (`factor_constrained_v2`) | Enabled |
-| P1 | Probability calibration (`BinnedCalibrator`) | Enabled |
+| P1 | Probability calibration (`DirectionalCalibrator` Platt base) | Enabled |
 | P2 | Fractional Kelly sizing | Disabled |
 | P3 | Factor model (10 groups, monitoring) | Enabled for monitoring |
 | P4 | HRP allocator fix (`optimal_leaf_ordering`) | Available |
@@ -448,10 +448,13 @@ recursive bisection for weight allocation. Fixed in EigenCapital with
 preventing arbitrary weight volatility from near-singular correlation
 matrices.
 
+### DirectionalCalibrator
+P1 calibration method (active): trains separate Platt calibrators (LogisticRegression on logit(p_long)) for BUY and SELL directions. Handles p_long compression naturally with a 2-parameter fit. ECE reduced from 0.2207 → 0.0178. Supersedes the legacy BinnedCalibrator.
+
 ### BinnedCalibrator
-P1 calibration method: divides [0, 1] into `n_bins` equal-width bins,
+P1 calibration method (legacy, superseded 2026-07-11): divides [0, 1] into `n_bins` equal-width bins,
 maps raw model probability → empirical P(label=1) per bin with linear
-interpolation between bin centers. Reduces ECE from 0.36 → 0.02 (94.3%).
+interpolation between bin centers. Previously reduced ECE from 0.36 → 0.02 (94.3%).
 
 ### CalibrationRegistry
 Loads/saves per-asset calibrator models from `paper_trading/models/calibration/`.
@@ -517,9 +520,9 @@ probabilities. Disabled after walk-forward showed −3.19R difference vs
 base-only (p=0.1685, not significant). `base_weight = 1.0` in production.
 
 ### Calibration (Inference)
-Post-inference probability calibration using `BinnedCalibrator`. Applied
+Post-inference probability calibration using `DirectionalCalibrator` (Platt base). Applied
 to raw XGBoost `p_long` before the decision pipeline. Reduces ECE from
-~0.36 to ~0.02. Config-gated via `calibration.enabled`.
+0.2207 → 0.0178. Config-gated via `calibration.enabled`.
 
 ### Scale Pos Weight
 XGBoost parameter that inversely weights classes by their frequency.
@@ -691,7 +694,7 @@ PF > 1.0 indicates profitability. Used as a hard gate for asset promotion.
 ### Expected Calibration Error (ECE)
 The average absolute difference between predicted probability and
 observed frequency across bins. A perfectly calibrated model has ECE=0.
-EigenCapital calibration reduces ECE from 0.36 → 0.02.
+EigenCapital calibration reduces ECE from 0.2207 → 0.0178 (DirectionalCalibrator Platt base).
 
 ### MFE (Maximum Favorable Excursion)
 The maximum profit (in R) a trade reached before being closed. Used to

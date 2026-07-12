@@ -1,6 +1,8 @@
 # ADR-001: Triple Barrier Labeling Over Simple Directional Labels
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **Updated 2026-07:** pt_sl is now ATR-based per-asset (configs/domains/assets/*.yaml), not the fixed 2.0 EWM-scaled barriers described here. The vertical barrier (20 bars) and triple-barrier structure remain unchanged.
 
 **Status:** Accepted
 

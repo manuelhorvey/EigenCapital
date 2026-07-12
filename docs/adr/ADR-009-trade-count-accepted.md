@@ -1,6 +1,8 @@
 # ADR-009: Accepted 150-250 Annual Trades for XLF
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **OBSOLETE** — XLF removed from portfolio. Trade count governance is now managed by the PEK admission controller (ADR-027) and per-asset direction-conditional thresholds.
 
 **Status:** Accepted
 

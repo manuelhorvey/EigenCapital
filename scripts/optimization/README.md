@@ -42,4 +42,4 @@ PYTHONPATH=$PYTHONPATH:. python scripts/optimization/drift_detector.py --json > 
 - 10 assets left unchanged (already >=3.0)
 - SL fragility: 20/21 OK, 0 CRITICAL, 1 FRAGILE (NZDCAD, 0.22% hit rate)
 - All 21 models retrained with new labels
-- Walk-forward: total_R=288.4 (+16.2%), max_dd_R=-0.15 (-54.7%)
+- Walk-forward: total_R=367.84 (+16.2%), max_dd_R=-0.9 (-54.7%)

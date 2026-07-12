@@ -1,6 +1,8 @@
 # ADR-010: Driver Atlas Framework — Asset-Specific Feature Sets
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **Updated 2026-07:** Driver atlas now covers 22 assets. The yield_equity (XLF) and usd_macro (EURUSD) clusters are no longer active. See features/registry.py for current asset-to-cluster mappings.
 
 **Status:** Accepted
 

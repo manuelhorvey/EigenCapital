@@ -1,6 +1,8 @@
 # ADR-002: Regime Classifier as Router, Not Alpha Source
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **OBSOLETE 2026-06-20** — Ensemble disabled per ADR-026. The regime classifier is no longer used as a model router. Regime features remain in the alpha pipeline for trace logging only.
 
 **Status:** Accepted
 

@@ -125,17 +125,15 @@ The engine runs a continuous 5-phase orchestrator cycle. Each tick (every ~60s) 
 │                                                                     │
 │  36+ tickers                                                        │
 │      ↓                                                              │
-│  trade_analysis.py (walk-forward style)                             │
+│  walk_forward_backtest.py (per-asset walk-forward)                  │
 │      ↓                                                              │
-│  walk_forward_backtest.py                                           │
-│      ↓                                                              │
-│  score_tickers.py                                                   │
+│  backtest_pnl.py (PnL backtest from signal parquets)                │
 │      ↓                                                              │
 │  Promotion to dashboard                                             │
 │                                                                     │
 │  Output:                                                            │
 │  - per-asset SL/TP/depth calibration                                │
-│  - GREEN / YELLOW / RED states                                      │
+│  - walk-forward IC, hit-rate, Sharpe                                │
 └─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -294,19 +292,20 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
  7. PSI drift check (rolling 21d vs baseline, skipped first cycle)
   8. Validate inference truncation
   9. Run XGBoost inference → 3-col proba expansion
- 10. **Calibrate probabilities** — apply per-asset `BinnedCalibrator` (P1; config-gated via `calibration.enabled`, default `true`). Reduces ECE from 0.36→0.02.
+ 10. **Calibrate probabilities** — apply per-asset `DirectionalCalibrator` (Platt base; P1; config-gated via `calibration.enabled`, default `true`). Reduces ECE from 0.2207→0.0178.
  11. Regime ensemble blend skipped (disabled portfolio-wide; base_weight=1.0)
  12. Meta-label inference (optional, XGBoost)
  13. FixedThresholdStrategy(0.45) → BUY/SELL/FLAT
  14. Archetype classification → TradeDecision
  15. Refresh MT5 spread for spread gate
-   16. Decision pipeline stages (22 stages, `DEFAULT_STAGES`):
+   16. Decision pipeline stages (25 stages, `DEFAULT_STAGES`):
       a. First-cycle suppression — suppress trading on cold-start cycle 1
-      b. Bar-jump suppression — suppress 60min if bar count changed >100
-      c. Store prediction metadata — record pre-decision signal state
-      d. Update MAE/MFE — update max adverse/favorable excursion
-      e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
-      f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
+      b. Weekend gate — suppress entries during weekend (0.5× allocation, filtered cycles)
+      c. Bar-jump suppression — suppress 60min if bar count changed >100
+      d. Store prediction metadata — record pre-decision signal state
+      e. Update MAE/MFE — update max adverse/favorable excursion
+      f. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
+      g. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
        g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio (gate applies only to `VIX_GATE_ASSETS = {"CL"}`).
       h. Sell-only filter — override BUY→FLAT for 6 inverted-BUY assets
       i. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
@@ -323,7 +322,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
       t. Route execution policy — direct to PaperBroker or MT5Broker
       u. Poll deferred entries — execute pending deferred orders
       v. Update prob history — record probability history for drift monitoring
-   17. Route through governance (16 layers + PEK admission + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
+   17. Route through governance (17 core layers + 3 adaptive budget layers + PEK admission + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
   19. Position sizing chain (drawdown taper → position cap → risk cap → min viable gate)
     → PEK budget enforcement (closes lowest-ranked positions if portfolio notional exceeds max)
@@ -348,7 +347,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Liquidity regime       | Per asset  | THIN: soft adjust, STRESSED: halt |
 | PSI drift              | Per asset  | Penalties + halt at 3+ SEVERE |
 | Sell-only filter       | Per asset  | Override BUY→FLAT for 6 inverted-BUY assets |
-| Calibration (P1)       | Per asset  | Remap raw p_long via BinnedCalibrator (config-gated, enabled) |
+| Calibration (P1)       | Per asset  | Remap raw p_long via DirectionalCalibrator (Platt base; config-gated, enabled) |
 | Kelly sizing (P2)      | Per asset  | Scale position by Kelly criterion (config-gated, disabled) |
 | Factor model (P3)      | Portfolio  | Factor exposure monitoring via 10 groups (monitoring only) |
 | Circuit breaker        | Portfolio  | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
@@ -412,7 +411,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 
 ## Position Sizing Guardrails
 
-Applied multiplicatively in `EntryService._submit_to_broker()`:
+Applied multiplicatively via `SizingChain` (`shared/sizing_chain.py`) in `EntryService._submit_to_broker()`:
 
 | Guardrail | Effect | Config |
 |-----------|--------|--------|
@@ -492,11 +491,11 @@ Pure function weight computation. 8 registered strategies:
 
 ## P1 — Calibration Layer (enabled)
 
-**Files:** `shared/calibration/` — `BinnedCalibrator`, `BetaCalibrator`, `CalibrationRegistry`, `ECETracker`
+**Files:** `shared/calibration/` — `DirectionalCalibrator` (Platt base), `BinnedCalibrator` (legacy), `CalibrationRegistry`, `ECETracker`
 
-Raw XGBoost probabilities are binned-calibrated per asset. Applied in `pipeline.py` after `_run_inference()`, before the decision pipeline. ECE reduced from 0.36→0.02 (94.3% avg, all 22 assets improved). The current production calibration uses the DirectionalCalibrator (Platt scaling) which achieves ECE 0.0178 with direction-conditional thresholds (buy=45, sell=55).
+Raw XGBoost probabilities are calibrated per asset using DirectionalCalibrator (Platt base). Applied in `pipeline.py` after `_run_inference()`, before the decision pipeline. ECE reduced from 0.2207→0.0178 with direction-conditional thresholds (buy=45, sell=55). The previous BinnedCalibrator achieved 0.36→0.02 but was superseded by DirectionalCalibrator in 2026-07-11 (Platt handles p_long compression naturally).
 
-**Config:** `calibration.enabled: true`, `calibration.method: binned`, `calibration.n_bins: 10`
+**Config:** `calibration.enabled: true`, `calibration.method: platt`
 
 ## P2 — Fractional Kelly Sizing (disabled)
 
@@ -547,7 +546,7 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | Module | Role |
 |--------|------|
 | `portfolio_weights.py` | P0 — 8 weight strategies, decorator pattern, `compute_weights()` |
-| `calibration/` | P1 — `BinnedCalibrator`, `CalibrationRegistry`, `ECETracker` |
+| `calibration/` | P1 — `DirectionalCalibrator` (Platt base), `CalibrationRegistry`, `ECETracker` |
 | `kelly.py` | P2 — `compute_kelly_fraction`, `compute_kelly_multiplier` |
 | `factor_model.py` | P3 — 10 factor groups, factor-constrained optimization |
 | `sizing.py` | Deprecated — replaced by P0–P2 layers |
@@ -561,26 +560,33 @@ Each asset executes independently. Failures in data ingestion, inference, govern
 | `AssetInferencePipeline` | Live inference + calibration (P1) |
 | `AssetTrainingPipeline`  | Training pipeline           |
 | `PortfolioBuilder`       | Asset registry construction |
-| `DecisionPipeline`       | 22-stage decision pipeline with Kelly sizing (config-gated)
+| `DecisionPipeline`       | 25-stage decision pipeline with Kelly sizing (config-gated)
 | `EngineRebalanceService` | Live portfolio rebalance via `compute_weights()` (P0) |
 | `StateStore`             | SQLite persistence facade (`paper_trading/state_store.py`) — delegates to `_DatabaseStore`, `_SnapshotManager`, `_AnalyticsStore`, `_DataCache` in `paper_trading/state/` |
 | `EntryOptimizer`         | Entry conditioning          |
+| `DeferredEntry`          | First-class deferred-entry state machine (PENDING/TRIGGERED/EXPIRED/CANCELLED) — `paper_trading/entry/deferred_entry.py` |
 | `ExecutionPolicyLayer`   | Unified execution routing   |
 | `PositionManager`        | Position lifecycle          |
+| `PositionBatch`          | Per-entry tracked position with independent trailing lifecycle (`paper_trading/position/batch.py`) |
+| `PositionProtection`     | Stateless SL protection — breakeven lock + trailing stop updates (`paper_trading/position/protection.py`) |
 | `PaperBroker`            | Simulated fills             |
 | `ExecutionBridge`        | Slippage + impact           |
 | `ShadowSLTPEngine`       | Counterfactual replay       |
 | `DynamicSLTPEngine`      | Live trailing SL/TP         |
 | `ScaleOutEngine`         | Partial profit-taking tiers |
-| `AttributionCollector`   | Attribution pipeline        |
+| `AttributionCollector`   | Attribution pipeline — four domains: prediction, execution, exit, friction (`paper_trading/attribution/collector.py`) |
 | `EngineOrchestrator`     | Parallel orchestration      |
 | `AssetActor`             | Asset execution wrapper     |
 | `HealthMonitor`          | Portfolio-level health      |
+| `EdgeHealthMonitor`      | Reversal-rate tracking (losing trades where MFE ≥ 1R before reversal) — `paper_trading/performance/edge_health.py` |
 | `EntryService`           | Entry validation + RR check + Kelly sizing chain |
 | `MetricsService`         | Dashboard metrics           |
 | `GovernanceService`      | Governance state aggregation|
 | `PositionService`        | Position lifecycle          |
 | `ReplayRunner`           | Deterministic replay engine (`paper_trading/replay/runner.py`) |
+| `ImportanceStore`        | Feature importance persistence + Jaccard/Spearman stability tracking (`monitoring/importance_tracker.py`); see ADR-019 |
+| `PagerDutyChannel`       | PagerDuty Events API v2 alert channel (`paper_trading/alerting/channels/pagerduty.py`) |
+| `WebhookChannel`         | Generic JSON webhook alert channel — Slack/Discord/Teams format (`paper_trading/alerting/channels/webhook.py`) |
 
 ---
 
@@ -645,7 +651,7 @@ Dashboard URL: http://127.0.0.1:5000
 
 # Document Metadata
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-12
 
 ---
 

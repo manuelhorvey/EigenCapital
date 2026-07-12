@@ -2,6 +2,8 @@
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
 
+**Updated 2026-07-10:** The 4-tier scale-out described here was superseded by the Adaptive Exit Engine (4-stage retracement trail: breakeven lock → R-based scale-out → retracement trail → time decay). The ATR-based calibration (calibration_scale=1.2) remains in use. See `paper_trading/exit/adaptive_exit.py` for the current implementation. The scale-out principle (partial profit-taking) is preserved, but the tier structure and activation logic have changed.
+
 ## Status
 Accepted
 

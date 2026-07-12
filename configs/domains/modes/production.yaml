@@ -1,9 +1,8 @@
-description: "Standard paper trading \u2014 16-asset, 0.95 base size, factor-constrained\
-  \ RP"
+description: "Standard paper trading \u2014 22-asset, 0.95 base size, factor-constrained RP"
 capital: 100000
 defaults:
   max_risk_per_trade_pct: 2.0
-  min_risk_per_trade_pct: 0.001
+  min_risk_per_trade_pct: 0.01
   risk_per_trade_pct: 0.02
   max_daily_loss_pct: 0.08
   max_concurrent_positions: 13

@@ -19,10 +19,10 @@ early_stopping_rounds=50
 **Per-asset max_depth:**
 | Depth | Assets |
 |-------|--------|
-| 2 | GC, GBPCAD, NZDCAD, NZDCHF, CADCHF, AUDUSD, GBPCHF, GBPUSD, EURAUD, AUDJPY, NZDJPY, GBPJPY, USDJPY |
-| 3 | GBPAUD, EURCAD, EURNZD, ^DJI, BTCUSD |
-| 4 | USDCHF, EURCHF |
-| 5 | USDCAD, NZDUSD |
+| 2 | NZDCAD, NZDUSD, NZDCHF, GBPCHF, AUDJPY, NZDJPY, GBPJPY, USDJPY |
+| 3 | USDCAD, GBPAUD, CADCHF, EURCAD, BTCUSD |
+| 4 | GC, USDCHF, EURCHF, GBPUSD, ^DJI |
+| 5 | GBPCAD, AUDUSD, EURNZD, EURAUD |
 
 **Signature:** `model.predict(X: pd.DataFrame) -> np.ndarray`
 **Output shape:** `(N, 1)` — raw probability of LONG class
@@ -259,35 +259,38 @@ See Section 3 for the canonical taxonomy.
 8. PSI drift check (rolling 21d vs baseline; skipped on first cycle)
 9. Inference truncation validation — if proven safe, predict only last row
 10. XGBoost predict → 3-column proba expansion `[p_short, 0, p_long]`
-11. Calibrate probabilities — apply per-asset `BinnedCalibrator` to raw `p_long` (config-gated via `calibration.enabled`; default `true`). See Section 16.1 (P1).
+11. Calibrate probabilities — apply per-asset `DirectionalCalibrator` (Platt base) to raw `p_long` (config-gated via `calibration.enabled`; default `true`). See Section 16.1 (P1).
 12. Ensemble blend skipped (regime model not loaded — disabled portfolio-wide)
 13. Optional meta-label inference
 14. `FixedThresholdStrategy(0.45)` → BUY/SELL/FLAT
 15. Archetype classification → `TradeDecision`
 16. Refresh MT5 spread for spread gate
-17. Decision pipeline stages (applied sequentially, 22 stages):
+17. Decision pipeline stages (applied sequentially, 25 stages):
     a. First-cycle suppression — suppress trading on cold-start cycle 1
-    b. Bar-jump suppression — suppress 60min if bar count changed >100
-    c. Store prediction metadata — record pre-decision signal state
-    d. Update MAE/MFE — update max adverse/favorable excursion
-    e. Resolve signal — map proba to BUY/SELL/FLAT
-    f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
-    g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale
-    h. Sell-only filter — override BUY→FLAT for 6 SELL_ONLY assets (inverted BUY calibration)
-    i. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
-    j. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles first)
-    k. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
-    l. Confidence gate — abort if net confidence below threshold
-    m. Signal hysteresis — 2-of-3 agreement before flip
-    n. Meta-label advisory — record meta-label recommendation without enforcement
-    o. Update regime bar counter — track bars since last regime shift
-    p. Conviction gate — flip gate based on regime conviction
-    q. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 15.3 (P2).
-    r. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > `profit_lock_threshold_pct`, default 15%)
-    s. Build entry artifacts — construct TradeDecision for execution
-    t. Route execution policy — direct to PaperBroker or MT5Broker
-    u. Poll deferred entries — execute previously deferred pending orders
-    v. Update prob history — record probability history for drift monitoring
+    b. Weekend gate — suppress entries during weekend (0.5× allocation, filtered cycles)
+    c. Bar-jump suppression — suppress 60min if bar count changed >100
+    d. Store prediction metadata — record pre-decision signal state
+    e. Update MAE/MFE — update max adverse/favorable excursion
+    f. Resolve signal — map proba to BUY/SELL/FLAT
+    g. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
+    h. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale
+    i. Sell-only filter — override BUY→FLAT for 6 SELL_ONLY assets (inverted BUY calibration)
+    j. Confidence gate — abort if net confidence below threshold (direction-conditional buy/sell thresholds)
+    k. Spread gate — block entry if spread > per-class threshold (observe 720 cycles first)
+    l. Session gate — block entry outside market session hours per asset-class tier (observe 720 cycles first)
+    m. Regime transition gate — suppress entries for 30 days after bull↔bear transition (close crossing MA50)
+    n. ADX entry gate — block entry if ADX below threshold (observe-only, disabled by default)
+    o. Calibration drift gate — suppress entry if mean confidence exceeds mean WR by >20pp (30-trade window)
+    p. Signal hysteresis — 2-of-3 agreement before flip
+    q. Meta-label advisory — record meta-label recommendation without enforcement
+    r. Update regime bar counter — track bars since last regime shift
+    s. Conviction gate — flip gate based on regime conviction
+    t. Kelly sizing — scale position by Kelly criterion (config-gated via `kelly.enabled`; default `false`). See Section 15.3 (P2).
+    u. Manage position — close/re-open with entry gate check (includes embedded profit lock — blocks flip if unrealized PnL > `profit_lock_threshold_pct`, default 15%)
+    v. Build entry artifacts — construct TradeDecision for execution
+    w. Route execution policy — direct to PaperBroker or MT5Broker
+    x. Poll deferred entries — execute previously deferred pending orders
+    y. Update prob history — record probability history for drift monitoring
 18. Route through governance layers (15 mechanisms)
 19. Position sizing chain: Kelly multiplier → drawdown taper → cap → risk cap → leverage budget → backstop
 20. Independent MT5 sizing (`_compute_mt5_qty` with broker equity)
@@ -331,28 +334,28 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 
 > **2026-06-30 update:** 11 assets adjusted to ratio=3.0 via geometric mean constraint.
 > Methodology: `scripts/optimization/portfolio_sltp_optimizer.py`. See AGENTS.md for full chronology.
-> All 22 assets retrained with new labels. Backtest: total_R=288.4, max_dd_R=-0.15.
+> All 22 assets retrained with new labels. Backtest (base): total_R=367.84 (Sharpe 34.57), max_dd_R=-0.9. Calibrated + direction-conditional thresholds: total_R=732.73 (Sharpe 56.45).
 
 ### Current assets (22 promoted)
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
-|---|---|---|---|---|---|
-| GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
-| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 5 |
-| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 2 |
+|---|---|---|---|---|---|---|
+| GC | GC=F | 7.0% | 1.00 | 4.00 | 4 |
+| USDCHF | USDCHF=X | 2.0% | 0.85 | 3.00 | 4 |
+| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 3 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 5 |
 | NZDCAD | NZDCAD=X | 5.0% | 1.83 | 5.48 | 2 |
-| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 5 |
+| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 2 |
 | GBPAUD | GBPAUD=X | 5.0% | 1.00 | 3.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
-| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
-| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 2 |
+| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 3 |
+| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 5 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
 | EURCAD | EURCAD=X | 2.0% | 0.71 | 2.12 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 5 |
 | GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
-| GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
-| EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
-| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 3 |
+| GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 4 |
+| EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 5 |
+| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 4 |
 | BTCUSD | BTC-USD | 2.0% | 0.58 | 1.51 | 3 |
 | AUDJPY | AUDJPY=X | 2.0% | 0.52 | 2.01 | 2 |
 | NZDJPY | NZDJPY=X | 2.0% | 0.51 | 2.02 | 2 |
@@ -500,10 +503,10 @@ max_layers: 3
 
 ## 12. GOVERNANCE CONTRACT
 
-16 layered governance mechanisms (equity cluster alarm removed 2026-07-01 — ES/NQ removed; ^DJI retained as sole US_EQUITY asset) plus RiskEngineV2, PEK admission, and PerformanceState velocity, each independently configurable. See `docs/GOVERNANCE.md` for the canonical taxonomy.
+17 layered governance mechanisms plus RiskEngineV2, PEK admission, and PerformanceState velocity, each independently configurable. See `docs/GOVERNANCE.md` for the canonical taxonomy.
 
 | Layer | Frequency | Effect | Config key |
-|---|---|---|---|---|---|
+|---|---|---|---|---|
 | Validity state machine | Per tick | Exposure 0–100% | `halt.*` |
 | Feature stability | Per retrain | Validity penalty | — |
 | Meta-labeling (XGBoost) | Per signal | Size scalar [0–1] | `meta_labeling` |
@@ -512,7 +515,8 @@ max_layers: 3
 | | | STRESSED: SL +30%, size −30%, hard halt | |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE | — |
 | Sell-only filter | Per decision | Override BUY→FLAT for 6 inverted-BUY assets | `get_sell_only_assets()` (config-driven from per-asset files in `configs/domains/assets/`) |
-| Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator, ECE ↓ from 0.36→0.02 | `calibration.*` (config-gated) |
+| Sell tripwire | Per exit | 20-trade sliding window, 65% SELL win-rate WARNING threshold | (hardcoded in `RiskRegistry`) |
+| Calibration (P1) | Per inference | Remap raw p_long via DirectionalCalibrator (Platt base), ECE ↓ from 0.2207→0.0178 | `calibration.*` (config-gated) |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion (disabled pending live data) | `kelly.*` (config-gated, default disabled) |
 | Factor model (P3) | Per cycle | Factor exposures via 10 groups in state.json (monitoring only) | `portfolio.factor_constraints.*` |
 | Position concentration | Per cycle | Flags >75% net-short skew | `net_short_concentration_threshold` |
@@ -667,8 +671,9 @@ config-gated — no behavior change until explicitly enabled.
 **Files:** `shared/calibration/` — `calibrator.py`, `registry.py`, `ece_tracker.py`
 
 **Calibrators:**
-- `BinnedCalibrator` — divides `[0, 1]` into `n_bins` equal-width bins, maps raw p_long → empirical P(label=1) per bin. Linear interpolation between bin centers. Default: 10 bins, min 5 samples per bin.
-- `BetaCalibrator` — parametric beta regression (used as alternative; default is binned).
+- `DirectionalCalibrator` (Platt base) — trains separate Platt calibrators (LogisticRegression on logit(p_long)) for BUY and SELL directions. Handles p_long compression naturally (2-parameter fit). Default: `calibration.method: platt`.
+- `BinnedCalibrator` (legacy) — divides `[0, 1]` into `n_bins` equal-width bins, maps raw p_long → empirical P(label=1) per bin. Linear interpolation between bin centers. Superseded by DirectionalCalibrator in 2026-07-11.
+- `BetaCalibrator` — parametric beta regression (used as alternative).
 
 **CalibrationRegistry:**
 - Loads/saves calibrator models per asset from `paper_trading/models/calibration/`.
@@ -676,11 +681,11 @@ config-gated — no behavior change until explicitly enabled.
 - Applied in `pipeline.py:_generate_and_apply()` after `_run_inference()` (step 11 of the inference pipeline).
 
 **Integration:**
-- Config key: `calibration.enabled: true` (default).
+- Config key: `calibration.enabled: true` (default), `calibration.method: platt`.
 - `ECETracker` — rolling ECE tracked per asset; drift detection via configurable threshold.
 - Calibration operator in `state.json`: each asset reports `calibration_applied: true/false`.
 
-**Known performance:** ECE reduced from 0.36 → 0.02 (94.3% avg reduction, 19/19 assets >80%).
+**Known performance:** ECE reduced from 0.2207 → 0.0178 (DirectionalCalibrator Platt base).
 
 **Training:** `scripts/training/train_calibration.py` — fits calibrators from walk-forward signal parquets. Run when walk-forward parquets are regenerated.
 

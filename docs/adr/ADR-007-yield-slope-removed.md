@@ -1,6 +1,8 @@
 # ADR-007: Removed yield_slope and real_yield_10y From XLF Feature Set
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **OBSOLETE** — XLF removed from portfolio. Note: yield_slope and real_yield_10y are still computed system-wide for other assets (e.g., macro_filters in registry.py); the removal was XLF-specific. real_yield_delta_63 remains in active use for GC.
 
 **Status:** Accepted
 

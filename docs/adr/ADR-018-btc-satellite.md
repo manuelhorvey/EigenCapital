@@ -1,6 +1,6 @@
 # ADR-018: BTC Satellite Isolation With Regime Gate (NOT IMPLEMENTED)
 
-**Status:** Accepted (proposal accepted; implementation deferred indefinitely)
+**Status:** OBSOLETE 2026-07
 
 **Date:** 2026-05
 
@@ -14,19 +14,22 @@ portfolio governance.
 
 ## Decision
 
-Accepted in principle, but never implemented. BTC-USD was removed from the asset
-universe during portfolio rationalization (2026-06-20) before deployment. The
-BTC satellite concept is effectively superseded by the removal decision.
+**OBSOLETE 2026-07** — BTC was never isolated as a satellite. It was briefly removed
+during the June 2026 portfolio rationalization but was later restored and is now
+actively traded as a full member of the 22-asset portfolio. The satellite isolation
+architecture was never implemented and is no longer relevant.
 
-## Rationale for Removal
+## Current Status
 
-BTC-USD was part of the initial 22-asset portfolio but was removed along with
-AUDNZD, EURUSD, and AUDCHF during the June 2026 diagnostic chain. No BTC-specific
-model exists in production. BTC was never deployed in any live paper trading
-environment.
+BTCUSD is a permanent member of the 22-asset portfolio with a per-asset XGBoost model,
+direction-conditional confidence thresholds, and standard governance pipeline (PEK
+admission, adaptive exit, sizing guardrails). See `configs/domains/assets/` for
+current configuration.
 
-## Key References
+## Historical Context
 
-- ADR-012: Three-asset portfolio (historical — included BTC)
-- `AGENTS.md`: Portfolio removal timeline (2026-06-20)
-- `scripts/restoration/`: Asset restoration framework (BTC not listed)
+The satellite proposal was evaluated in May 2026 but overtaken by events:
+1. BTC was removed from trading June 2026-20 during the diagnostic chain
+2. BTC was restored when the 22-asset portfolio was finalized
+3. The portfolio governance (PEK, factor constraints, budget enforcement) handles
+   BTC as a regular asset — no special satellite treatment is needed

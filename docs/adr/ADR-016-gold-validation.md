@@ -1,6 +1,8 @@
 # ADR-016: GC=F Validated with fwd60 + Real Yield Features
 
 > **⚠ Historical Context Notice** — This ADR describes a research-stage decision that influenced system evolution. Some referenced components may no longer exist in the current production system.
+>
+> **Updated 2026-07:** GC remains in the portfolio (22 assets). Allocation is now part of a dynamic factor-constrained portfolio, not the fixed 20% described here. The label system has evolved to per-asset ATR-based pt_sl; fwd60 may no longer be active for GC.
 
 **Status:** Accepted
 

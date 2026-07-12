@@ -30,8 +30,8 @@ modes are ignored.
 | **Factor exposure limits (upper bound)** | | | |
 | &nbsp;&nbsp;`USD` | 0.60 | 0.60 | 0.60 |
 | &nbsp;&nbsp;`EUR` | 0.30 | 0.30 | 0.30 |
-| &nbsp;&nbsp;`AUD` | 0.20 | 0.20 | 0.20 |
-| &nbsp;&nbsp;`NZD` | 0.20 | 0.20 | 0.20 |
+| &nbsp;&nbsp;`AUD` | 0.25 | 0.20 | 0.20 |
+| &nbsp;&nbsp;`NZD` | 0.25 | 0.20 | 0.20 |
 | &nbsp;&nbsp;`CHF` | 0.20 | 0.15 | 0.15 |
 | &nbsp;&nbsp;`CAD` | 0.20 | 0.20 | 0.20 |
 | &nbsp;&nbsp;`GBP` | 0.15 | 0.15 | 0.15 |

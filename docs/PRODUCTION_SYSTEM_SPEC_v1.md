@@ -295,16 +295,17 @@ Format: XGBoost `.json` (not pickle)
     if raw.shape[1] == 2:  # binary model
         proba = np.column_stack([1.0 - raw[:,1], zeros, raw[:,1]])
     ```
-11. **Calibrate probabilities** — apply per-asset BinnedCalibrator (P1; config-gated, enabled). ECE 0.36→0.02.
+11. **Calibrate probabilities** — apply per-asset DirectionalCalibrator (Platt base; P1; config-gated, enabled). ECE 0.2207→0.0178.
 12. Ensemble blend skipped (disabled portfolio-wide; base_weight=1.0)
 13. Meta-label inference (XGBoost, continuous size scalar)
 14. `FixedThresholdStrategy(threshold=0.45)` → SignalType (BUY/SELL/FLAT)
 15. Archetype classification → `TradeDecision(close_price, confidence, probs, ...)`
 16. Refresh MT5 spread for spread gate
-17. Decision pipeline (22 stages, `DEFAULT_STAGES`):
+17. Decision pipeline (25 stages, `DEFAULT_STAGES`):
     a. First-cycle suppression — suppress trading on cold-start cycle 1
-    b. Bar-jump suppression — suppress 60min if bar count changed >100
-    c. Store prediction metadata — record pre-decision signal state
+    b. Weekend gate — suppress entries during weekend (0.5× allocation, filtered cycles)
+    c. Bar-jump suppression — suppress 60min if bar count changed >100
+    d. Store prediction metadata — record pre-decision signal state
     d. Update MAE/MFE — update max adverse/favorable excursion
     e. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
     f. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
@@ -427,7 +428,7 @@ Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** —
 | Liquidity regime | Per signal | SL +15/30%, size −15/30%, halt |
 | PSI drift | Per cycle | Validity penalty, halt at 3+ SEVERE |
 | Sell-only filter | Per decision | Override BUY→FLAT for 6 inverted-BUY assets |
-| Calibration (P1) | Per inference | Remap raw p_long via BinnedCalibrator; config-gated, enabled |
+| Calibration (P1) | Per inference | Remap raw p_long via DirectionalCalibrator (Platt base); config-gated, enabled |
 | Kelly sizing (P2) | Per decision | Scale position by Kelly criterion; config-gated, disabled |
 | Factor model (P3) | Per cycle | Factor exposure monitoring in state.json; 10 groups |
 | Circuit breaker | Per cycle | Multi-condition: dd, vol spike, halt ratio, consecutive losses (threshold=7) |
@@ -444,7 +445,7 @@ Portfolio-level leverage budget is enforced by **PEK admission in Phase 1b** —
 **Live VaR/CVaR**: Rolling 60-period portfolio returns → VaR(95)=5th percentile, CVaR=mean of tail.
 **Schema migration**: SQLite at `DB_SCHEMA_VERSION = "2.0.0"`. Auto-migrates at connect time — adds `cycle_id` to trades, `vol_spike`/`var_95` to equity_history, and indexes.
 
-Plus decision pipeline stages (22 stages: first-cycle, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, VIX gate, sell-only filter, spread gate, session gate, ADX entry gate, confidence gate, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) and position sizing guardrails (drawdown taper, per-position cap, risk-per-trade cap).
+Plus decision pipeline stages (25 stages: first-cycle, weekend gate, bar-jump, store metadata, update MAE/MFE, resolve signal, risk-off, VIX gate, sell-only filter, confidence gate, spread gate, session gate, regime transition gate, ADX entry gate, calibration drift gate, hysteresis, meta-label advisory, regime bar counter, conviction gate, kelly sizing, manage position [includes profit lock], build artifacts, route execution, poll deferred, update prob history) and position sizing guardrails (drawdown taper, per-position cap, risk-per-trade cap).
 
 ---
 
@@ -525,9 +526,9 @@ In-memory TTL cache per download type:
 | `paper_trading/orchestrator/engine.py` | EngineOrchestrator (ThreadPoolExecutor, 5 phases PRE→1a→1b→2→3→4 + MT5 sub-phases A–D inside Phase 3, VaR/CVaR in Phase 3h) |
 | `paper_trading/models/` | Trained models (.json) — 22 assets (4 archived in `orphaned/`) |
 | `paper_trading/state_store.py` | SQLite state persistence + schema migration (DB_SCHEMA_VERSION=2.0.0) |
-| `paper_trading/execution/decision_pipeline.py` | DEFAULT_STAGES (22 stages), SELL_ONLY_ASSETS frozenset |
+| `paper_trading/execution/decision_pipeline.py` | DEFAULT_STAGES (25 stages), SELL_ONLY_ASSETS frozenset |
 | `shared/portfolio_weights.py` | P0 portfolio truth layer — 4 weight strategies |
-| `shared/calibration/` | P1 calibration — BinnedCalibrator, CalibrationRegistry, ECETracker |
+| `shared/calibration/` | P1 calibration — DirectionalCalibrator (Platt base), CalibrationRegistry, ECETracker |
 | `shared/kelly.py` | P2 fractional Kelly sizing |
 | `shared/factor_model.py` | P3 factor model — 10 groups, constrained optimization |
 | `portfolio/hrp_allocator.py` | P4 HRP fix — optimal_leaf_ordering |

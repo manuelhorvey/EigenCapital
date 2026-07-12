@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 from datetime import datetime
 
@@ -92,6 +93,9 @@ _SHADOW_REGISTRY: _ShadowRegistryT = {}
 _SHADOW_STORAGE: ShadowStorage | None = None
 _SHADOW_CONFIGS: dict[str, dict] = {}
 
+# Thread lock for _SHADOW_REGISTRY mutations (accessed from ThreadPoolExecutor workers).
+_SHADOW_REGISTRY_LOCK = threading.Lock()
+
 
 def _load_shadow_configs() -> dict[str, dict]:
     """Load shadow model specs from configs/domains/shadow_models.yaml."""
@@ -124,17 +128,22 @@ def _get_shadow_runner(shadow_id: str, config: dict, asset_name: str) -> ShadowM
     Supports ``{asset}`` placeholder in ``model_path`` (e.g.
     ``models/canary/{asset}.json``) so a single shadow config can
     reference per-asset model files.
+
+    Thread-safe: uses _SHADOW_REGISTRY_LOCK around the check-then-set
+    pattern to prevent concurrent ThreadPoolExecutor workers from racing
+    on the same key.
     """
     key = (shadow_id, asset_name)
-    if key not in _SHADOW_REGISTRY:
-        raw_path = config.get("model_path", "")
-        resolved = raw_path.replace("{asset}", asset_name)
-        model_path = os.path.join(BASE, resolved)
-        _SHADOW_REGISTRY[key] = ShadowModelRunner(
-            shadow_id=shadow_id,
-            model_path=model_path,
-        )
-    return _SHADOW_REGISTRY[key]
+    with _SHADOW_REGISTRY_LOCK:
+        if key not in _SHADOW_REGISTRY:
+            raw_path = config.get("model_path", "")
+            resolved = raw_path.replace("{asset}", asset_name)
+            model_path = os.path.join(BASE, resolved)
+            _SHADOW_REGISTRY[key] = ShadowModelRunner(
+                shadow_id=shadow_id,
+                model_path=model_path,
+            )
+        return _SHADOW_REGISTRY[key]
 
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -578,9 +587,14 @@ class AssetInferencePipeline:
         """
         cal_registry: CalibrationRegistry | None = getattr(asset, "_calibration_registry", None)
         if cal_registry is None:
+            logger.debug("%s: _apply_calibration: cal_registry is None", asset.name)
             return False
         _cal_cfg = get_config().defaults.get("calibration", {})
         if not _cal_cfg.get("enabled", False):
+            logger.debug("%s: _apply_calibration: calibration disabled (enabled=%s)", asset.name, _cal_cfg.get("enabled", False))
+            return False
+        if asset.name not in cal_registry._calibrators:
+            logger.debug("%s: _apply_calibration: no calibrator for asset (keys=%s)", asset.name, list(cal_registry._calibrators.keys())[:5])
             return False
         try:
             raw_p_long = proba[:, 2].copy()
@@ -602,6 +616,9 @@ class AssetInferencePipeline:
 
             _row_sum = proba.sum(axis=1, keepdims=True)
             np.divide(proba, _row_sum, out=proba, where=_row_sum > 0)
+            logger.debug("%s: _apply_calibration: raw=%.4f cal=%.4f conf=%.4f enabled=%s",
+                         asset.name, raw_p_long[-1], cal_p_long[-1],
+                         asset._calibrated_confidence, _cal_cfg.get("enabled", False))
             return True
         except (ValueError, TypeError, IndexError) as e:
             logger.error("%s: calibration inference failed: %s", asset.name, e)

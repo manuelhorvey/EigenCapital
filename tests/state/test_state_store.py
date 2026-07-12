@@ -91,7 +91,14 @@ class TestStateStore:
         assert data["schema_version"] == "1.0.0"
 
     def test_append_and_read_trades(self, tmp_store):
-        trade = {"asset": "BTC", "side": "long", "pnl": 100.0, "exit_date": "2026-06-01"}
+        trade = {
+            "asset": "BTC",
+            "side": "long",
+            "entry": 50000.0,
+            "entry_date": "2026-06-01",
+            "exit_date": "2026-06-02",
+            "pnl": 100.0,
+        }
         tmp_store.append_trade(trade)
         trades = tmp_store.read_trades(limit=10)
         assert len(trades) == 1
@@ -99,20 +106,33 @@ class TestStateStore:
 
     def test_append_multiple_trades(self, tmp_store):
         for i in range(3):
-            tmp_store.append_trade({"asset": "BTC", "pnl": i * 50, "exit_date": f"2026-06-0{i+1}"})
+            tmp_store.append_trade({
+                "asset": "BTC",
+                "side": "long",
+                "entry": 50000.0,
+                "entry_date": f"2026-06-0{i+1}",
+                "exit_date": f"2026-06-0{i+2}",
+                "pnl": i * 50,
+            })
         trades = tmp_store.read_trades(limit=10)
         assert len(trades) == 3
 
     def test_append_and_read_equity_history(self, tmp_store):
-        record = {"timestamp": "2026-06-01", "portfolio_value": 100000}
+        record = {"timestamp": "2026-06-01", "portfolio_value": 100000, "assets": {"BTC": 50000}}
         tmp_store.append_equity_history(record)
         history = tmp_store.read_equity_history()
         assert len(history) == 1
+        # Verify per-asset snapshots were stored and loaded back
+        assert history[0].get("assets", {}) == {"BTC": 50000}
 
     def test_equity_history_all_entries(self, tmp_store):
         """SQLite stores all entries (no cap)."""
         for i in range(2010):
-            tmp_store.append_equity_history({"timestamp": f"2026-06-{i:03d}", "portfolio_value": i})
+            tmp_store.append_equity_history({
+                "timestamp": f"2026-06-{i:03d}",
+                "portfolio_value": i,
+                "assets": {},
+            })
         history = tmp_store.read_equity_history()
         assert len(history) == 2010
 
@@ -132,15 +152,16 @@ class TestStateStore:
         assert tmp_store.load_cache("NONEXISTENT") is None
 
     def test_append_confidence_bucket(self, tmp_store):
-        bucket = {"asset": "BTC", "date": "2026-06-01", "mean_conf": 0.5}
+        bucket = {"asset": "BTC", "date": "2026-06-01", "count_0_10": 5, "count_80_90": 3, "mean_conf": 0.5, "n_signals": 8}
         tmp_store.append_confidence_bucket(bucket)
-        with tmp_store.db._connect() as conn:
-            rows = conn.execute("SELECT * FROM confidence_buckets").fetchall()
-        assert len(rows) == 1
-        assert rows[0]["asset"] == "BTC"
+        conn = tmp_store.db._get_connection()
+        rows = conn.execute("SELECT * FROM confidence_buckets").fetchall()
+        assert len(rows) == 2  # Two buckets with non-zero counts
+        assert all(r["asset"] == "BTC" for r in rows)
 
 
 class TestSkipJournal:
     def test_skip_journal_is_sentinel(self):
+        from paper_trading.state_store import _SKIP_JOURNAL
         assert _SKIP_JOURNAL is not None
         assert type(_SKIP_JOURNAL).__name__ == "object"

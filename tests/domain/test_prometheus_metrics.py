@@ -3,11 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from eigencapital.observability.metrics import (
-    MetricsRegistry,
-    _escape,
-    default_registry,
-)
+from paper_trading.metrics.exposition import MetricsRegistry, _escape, default_registry
 
 
 class TestRegistryBasics:

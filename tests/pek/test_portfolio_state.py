@@ -54,13 +54,15 @@ class TestPortfolioStateSnapshotValidation:
         with pytest.raises(ValueError, match="open_position_count"):
             _make_minimal_snapshot(open_position_count=-1)
 
-    def test_drawdown_below_minus_one_raises(self):
-        with pytest.raises(ValueError):
-            _make_minimal_snapshot(drawdown_pct=-1.5)
+    def test_drawdown_below_minus_one_clamps(self):
+        """drawdown_pct < -1.0 is clamped to -1.0, no longer raises ValueError."""
+        snap = _make_minimal_snapshot(drawdown_pct=-1.5)
+        assert snap.drawdown_pct == -1.0
 
-    def test_drawdown_above_zero_raises(self):
-        with pytest.raises(ValueError):
-            _make_minimal_snapshot(drawdown_pct=0.5)
+    def test_drawdown_above_zero_clamps(self):
+        """drawdown_pct > 0.0 is clamped to 0.0, no longer raises ValueError."""
+        snap = _make_minimal_snapshot(drawdown_pct=0.5)
+        assert snap.drawdown_pct == 0.0
 
     def test_valid_snapshot_creates_ok(self):
         snap = _make_minimal_snapshot()

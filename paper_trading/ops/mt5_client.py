@@ -227,23 +227,29 @@ class _FrameProtocol:
             return self._conns[self._rr_idx]
 
     def send_request(self, method: str, params: dict | None = None) -> dict:
-        with self._lock:
-            try:
+        # Hold _lock only for connection selection, NOT for the TCP round-trip.
+        # Each _FrameConnection already has its own per-connection _lock,
+        # so the TCP request is serialized only per-connection, not across
+        # the entire pool.  This avoids serializing all ThreadPoolExecutor
+        # workers through a single mutex.
+        try:
+            with self._lock:
                 conn = self._get_conn()
-            except MT5ConnectionError:
+        except MT5ConnectionError:
+            with self._lock:
                 if not self._conns:
                     # Pool was never populated — don't attempt reconnect.
-                    # Reconnect is for recovering a lost connection, not for
-                    # establishing one that was never available.
                     raise
                 self._reconnect()
                 conn = self._get_conn()
-            try:
-                return conn.send_request(method, params)
-            except (MT5ConnectionError, OSError):
-                # Connection failed — reconnect all and retry once
+        try:
+            return conn.send_request(method, params)
+        except (MT5ConnectionError, OSError):
+            # Connection failed — reconnect all and retry once
+            with self._lock:
                 self._reconnect()
-                return self._get_conn().send_request(method, params)
+                conn = self._get_conn()
+            return conn.send_request(method, params)
 
     def _reconnect(self) -> None:
         """Replace all pool connections with fresh ones.
@@ -437,7 +443,7 @@ class MT5Client:
             try:
                 self._proto.send_request("heartbeat")
                 self._last_heartbeat = now
-            except Exception:
+            except (TimeoutError, OSError, ConnectionError):
                 logger.warning("MT5 bridge heartbeat failed — reconnecting")
                 return self.ensure_connected()
         return True

@@ -379,12 +379,20 @@ class TestTimestampProvenance:
         The yfinance public ticker endpoint is permitted to fail under
         network/rate-limit conditions.  We test the invariant via a
         deterministic mock so the network isn't a flake source.
+
+        Must invalidate ``_macro_cache`` before the mock because
+        ``fetch_yf_series("DX-Y.NYB", ...)`` checks the macro cache
+        first (``DX-Y.NYB`` is in ``_MACRO_TICKERS``).  If another
+        test already populated the cache, the mock is never reached.
         """
         from unittest.mock import patch
 
         import pandas as pd
 
-        from features.data_fetch import fetch_yf_series
+        from features.data_fetch import _macro_cache, fetch_yf_series
+
+        # Clear any previous session data so the yfinance mock is reached
+        _macro_cache.invalidate()
 
         idx = pd.DatetimeIndex(
             [

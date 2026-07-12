@@ -16,7 +16,8 @@ from paper_trading.pek.contracts.portfolio_state import (
     PortfolioStateSnapshot,
     PositionInfo,
 )
-from shared.factor_model import DEFAULT_FACTOR_LIMITS, FACTOR_GROUPS
+from paper_trading.config_manager import get_config
+from shared.factor_model import FACTOR_GROUPS
 
 logger = logging.getLogger("eigencapital.pek.state")
 
@@ -38,6 +39,9 @@ class PortfolioStateBuilder:
 
     def __init__(self, mode_config: dict[str, Any]):
         self._mode = mode_config
+        # Read factor exposure limits from config (P3). Falls back to
+        # shared/factor_model.DEFAULT_FACTOR_LIMITS if not configured.
+        self._factor_limits = _resolve_factor_limits()
 
     def build(
         self,
@@ -85,11 +89,17 @@ class PortfolioStateBuilder:
                 else 0.0
             )
 
-            notional = getattr(eng, "_last_entry_notional", 0.0) or 0.0
+            # Compute notional from live position size × current price,
+            # NOT from _last_entry_notional which is cached at trade entry
+            # and becomes stale after SL/TP hits, partial closes, or scale-outs.
+            # _last_entry_notional reflects the initial trade size, not the
+            # current position's market value.
+            qty = getattr(pos, "quantity", 0) or 0
+            live_notional = abs(qty) * current_price if qty and current_price > 0 else 0.0
             if side == "long":
-                total_long_notional += notional
+                total_long_notional += live_notional
             elif side == "short":
-                total_short_notional += notional
+                total_short_notional += live_notional
 
             sl_distance_pct = 0.0
             sl_price = getattr(pos, "stop_loss", None)
@@ -100,7 +110,7 @@ class PortfolioStateBuilder:
                 PositionInfo(
                     asset=name,
                     side=side,
-                    notional=notional,
+                    notional=live_notional,
                     entry_price=entry_price,
                     current_price=current_price,
                     sl_distance_pct=sl_distance_pct,
@@ -142,7 +152,7 @@ class PortfolioStateBuilder:
         for factor, factor_assets in FACTOR_GROUPS.items():
             exposure = sum(position_weights.get(a, 0.0) for a in factor_assets)
             factor_exposures_list.append((factor, round(exposure, 6)))
-            lo, hi = DEFAULT_FACTOR_LIMITS.get(factor, (-1.0, 1.0))
+            lo, hi = self._factor_limits.get(factor, (-1.0, 1.0))
             factor_limits_list.append((factor, lo, hi))
             headroom = max(0.0, hi - exposure) if exposure >= 0 else max(0.0, exposure - lo)
             factor_headroom_list.append((factor, round(headroom, 6)))
@@ -224,52 +234,81 @@ class PortfolioStateBuilder:
           5. risk_off_ok   — from _risk_off flag (VIX>0 & SPX<0)
           6. hysteresis_ok — from _last_gates_trace
           7. conviction_ok — from _last_gates_trace
+
+        All exceptions are caught and logged individually so a single gate
+        computation failure doesn't crash the entire snapshot.  Failed gates
+        default to ``False`` (fail-closed: block entry) to be conservative.
         """
         from paper_trading.execution.decision_pipeline import SESSION_TIER_WINDOWS
         from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_only_assets
 
         # ── spread_ok ──
-        spread_bps = getattr(engine, "_last_spread_bps", None)
-        if isinstance(spread_bps, (int, float)):
-            tier = getattr(engine, "_spread_tier", "fx_cross")
-            threshold = SPREAD_TIER_BPS.get(tier, 20.0)
-            spread_ok = spread_bps < threshold
-        else:
-            spread_ok = False  # no data — fail-closed (blocks entry)
-            logger.warning("%s: no spread data available — spread gate blocking entries", name)
+        spread_ok = False
+        try:
+            spread_bps = getattr(engine, "_last_spread_bps", None)
+            if isinstance(spread_bps, (int, float)):
+                tier = getattr(engine, "_spread_tier", "fx_cross")
+                threshold = SPREAD_TIER_BPS.get(tier, 20.0)
+                spread_ok = spread_bps < threshold
+            else:
+                logger.warning("%s: no spread data available — spread gate blocking entries", name)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
+            logger.warning("%s: spread gate computation failed: %s", name, exc, exc_info=True)
 
         # ── session_ok ──
-        tier = getattr(engine, "_spread_tier", "fx_cross")
-        window = SESSION_TIER_WINDOWS.get(tier)
-        if window is not None:
-            start, end = window
-            current_hour = utc_now().hour
-            session_ok = start <= current_hour < end
-        else:
-            session_ok = True
+        session_ok = True
+        try:
+            tier = getattr(engine, "_spread_tier", "fx_cross")
+            window = SESSION_TIER_WINDOWS.get(tier)
+            if window is not None:
+                start, end = window
+                current_hour = utc_now().hour
+                session_ok = start <= current_hour < end
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
+            logger.warning("%s: session gate computation failed: %s", name, exc, exc_info=True)
 
         # ── sell_only_ok ──
-        sell_only_ok = name not in get_sell_only_assets()
+        sell_only_ok = True
+        try:
+            sell_only_ok = name not in get_sell_only_assets()
+        except (ValueError, TypeError, RuntimeError) as exc:
+            logger.warning("%s: sell_only gate computation failed: %s", name, exc, exc_info=True)
 
         # ── confidence_ok ──
-        from paper_trading.config_manager import get_config as get_paper_config
+        confidence_ok = True
+        try:
+            from paper_trading.config_manager import get_config as get_paper_config
 
-        cfg = get_paper_config()
-        asset_cfg = cfg.assets.get(name, {}) if hasattr(cfg, "assets") else {}
-        min_conf = asset_cfg.get("min_confidence", 55.0)
-        last_conf = getattr(engine, "_last_confidence", 100.0)
-        confidence_ok = last_conf >= min_conf if isinstance(last_conf, (int, float)) else True
+            cfg = get_paper_config()
+            asset_cfg = cfg.assets.get(name, {}) if hasattr(cfg, "assets") else {}
+            min_conf = asset_cfg.get("min_confidence", 55.0)
+            last_conf = getattr(engine, "_last_confidence", 100.0)
+            confidence_ok = last_conf >= min_conf if isinstance(last_conf, (int, float)) else True
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
+            logger.warning("%s: confidence gate computation failed: %s — defaulting to pass", name, exc, exc_info=True)
 
         # ── risk_off_ok ──
-        risk_off_ok = not getattr(engine, "_risk_off", False)
+        risk_off_ok = True
+        try:
+            risk_off_ok = not getattr(engine, "_risk_off", False)
+        except (ValueError, TypeError, AttributeError) as exc:
+            logger.warning("%s: risk_off gate computation failed: %s", name, exc, exc_info=True)
 
         # ── hysteresis_ok (from last gate trace) ──
-        gates_trace = getattr(engine, "_last_gates_trace", None) or {}
-        # apply_signal_hysteresis ran in last cycle → we reached that stage
-        hysteresis_ok = gates_trace.get("apply_signal_hysteresis", True)
+        hysteresis_ok = True
+        try:
+            gates_trace = getattr(engine, "_last_gates_trace", None) or {}
+            hysteresis_ok = gates_trace.get("apply_signal_hysteresis", True)
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            logger.warning("%s: hysteresis gate computation failed: %s", name, exc, exc_info=True)
 
         # ── conviction_ok (from last gate trace) ──
-        conviction_ok = gates_trace.get("evaluate_conviction_gate", True)
+        conviction_ok = True
+        try:
+            gates_trace = getattr(engine, "_last_gates_trace", None) or {}
+            conviction_ok = gates_trace.get("evaluate_conviction_gate", True)
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            logger.warning("%s: conviction gate computation failed: %s", name, exc, exc_info=True)
 
         return AssetGateState(
             asset=name,
@@ -281,3 +320,57 @@ class PortfolioStateBuilder:
             hysteresis_ok=hysteresis_ok,
             conviction_ok=conviction_ok,
         )
+
+
+def _resolve_factor_limits() -> dict[str, tuple[float, float]]:
+    """Resolve factor exposure limits from config, falling back to hardcoded defaults.
+
+    Reads ``portfolio.factor_exposure_limits`` from the global config (P3 domain
+    file ``configs/domains/portfolio/factor_model.yaml``). If not configured,
+    returns ``DEFAULT_FACTOR_LIMITS`` from ``shared/factor_model``.
+
+    Returns:
+        {factor: (min, max)} dict with the same structure as DEFAULT_FACTOR_LIMITS.
+    """
+    from shared.factor_model import DEFAULT_FACTOR_LIMITS
+
+    try:
+        cfg = get_config()
+        limits_raw = getattr(cfg, "portfolio", {}).get("factor_exposure_limits")
+    except (ValueError, TypeError, AttributeError, RuntimeError):
+        limits_raw = None
+
+    if limits_raw is None:
+        return dict(DEFAULT_FACTOR_LIMITS)
+
+    if not isinstance(limits_raw, dict):
+        logger.warning("factor_exposure_limits: expected mapping, got %s — using defaults", type(limits_raw).__name__)
+        return dict(DEFAULT_FACTOR_LIMITS)
+
+    # Validate and coerce each limit into (min, max) tuple
+    validated: dict[str, tuple[float, float]] = {}
+    for factor, raw_limit in limits_raw.items():
+        if not isinstance(raw_limit, (list, tuple)) or len(raw_limit) != 2:
+            logger.warning(
+                "factor_exposure_limits.%s: expected [min, max], got %s — skipping",
+                factor,
+                raw_limit,
+            )
+            continue
+        try:
+            lo, hi = float(raw_limit[0]), float(raw_limit[1])
+            validated[factor] = (lo, hi)
+        except (ValueError, TypeError):
+            logger.warning(
+                "factor_exposure_limits.%s: non-numeric bounds %s — skipping",
+                factor,
+                raw_limit,
+            )
+            continue
+
+    # Fall back to DEFAULT_FACTOR_LIMITS for factors not in config
+    for factor, default_limit in DEFAULT_FACTOR_LIMITS.items():
+        if factor not in validated:
+            validated[factor] = default_limit
+
+    return validated

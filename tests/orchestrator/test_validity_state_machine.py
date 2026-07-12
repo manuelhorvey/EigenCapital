@@ -254,10 +254,8 @@ class TestCircuitBreaker:
         from paper_trading.orchestrator.health import CircuitBreaker
 
         cb = CircuitBreaker(max_drawdown_pct=0.20, vol_spike_threshold=99.0, max_consecutive_losses=99)
-        # First call establishes peak at 100
-        cb.check(portfolio_value=100.0)
-        # Drop to 79 crosses the 20% threshold
-        result = cb.check(portfolio_value=79.0)
+        # peak_value is now passed as a parameter — no longer stored internally
+        result = cb.check(portfolio_value=79.0, peak_value=100.0)
         assert result.trip
         assert "dd" in result.reason
         assert result.severity == "critical"

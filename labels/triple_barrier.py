@@ -122,7 +122,7 @@ if __name__ == "__main__":
         # Save labeled data
         labeled_data.to_parquet("data/processed/EURUSD_labeled.parquet")
         logger.info("\nSaved labeled data to data/processed/EURUSD_labeled.parquet")
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         import traceback
 
         traceback.print_exc()

@@ -74,9 +74,10 @@ class EngineRecoveryService:
                             mt5_sym,
                             mt5_ticket,
                         )
-                    except Exception:
+                    except (KeyError, OSError, ConnectionError, TimeoutError, ValueError, AttributeError) as _re_exc:
                         logger.exception(
-                            "Failed to close orphan MT5 position for removed asset '%s' (ticket=%s)",
+                            "Failed to close orphan MT5 position for removed asset '%s' (ticket=%s): %s",
                             name,
                             mt5_ticket,
+                            _re_exc,
                         )

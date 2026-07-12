@@ -88,6 +88,9 @@ class PaperConfigRegistry:
     # Meta-labeling config — read from configs/domains/ml/meta_labeling.yaml.
     # Unwrapped from the "meta_labeling:" wrapper key. Emitted in defaults block.
     meta_labeling: dict[str, Any] = field(default_factory=dict)
+    # Kelly sizing config — read from configs/domains/ml/kelly.yaml.
+    # Unwrapped from the "kelly:" wrapper key. Emitted in defaults block.
+    kelly: dict[str, Any] = field(default_factory=dict)
     # Triple-barrier label params — read from configs/domains/ml/triple_barrier.yaml.
     # Has a different structure from the other ML files (legacy: + assets: sections).
     # Not emitted in the defaults block — consumed directly by the labeling pipeline.
@@ -290,6 +293,18 @@ class PaperConfigRegistry:
         for k, v in legacy_port.items():
             portfolio.setdefault(k, v)
 
+        # Step 1i-bis: factor model config — configs/domains/portfolio/factor_model.yaml
+        # Factor exposure limits for P3 factor-constrained portfolio optimization.
+        # Merged into the portfolio dict as portfolio.factor_exposure_limits.
+        fm_path = domains_dir / "portfolio" / "factor_model.yaml"
+        if fm_path.exists():
+            fm_raw = yaml.safe_load(fm_path.read_text()) or {}
+            fm_promoted = fm_raw.get("portfolio", {})
+            if "factor_exposure_limits" in fm_promoted:
+                # Per-asset factor_exposure_limits in weights.yaml take precedence
+                # if they exist (unlikely, but respect the override chain).
+                portfolio.setdefault("factor_exposure_limits", fm_promoted["factor_exposure_limits"])
+
         # Step 1j: calibration — configs/domains/ml/calibration.yaml
         calibration: dict[str, Any] = {}
         cal_path = domains_dir / "ml" / "calibration.yaml"
@@ -310,6 +325,14 @@ class PaperConfigRegistry:
         if ml_path.exists():
             ml_raw = yaml.safe_load(ml_path.read_text()) or {}
             meta_labeling = ml_raw.get("meta_labeling", {})
+
+        # Step 1l-bis: kelly sizing — configs/domains/ml/kelly.yaml
+        # Unwrapped from the "kelly:" wrapper key. Emitted in defaults block.
+        kelly: dict[str, Any] = {}
+        kelly_path = domains_dir / "ml" / "kelly.yaml"
+        if kelly_path.exists():
+            kelly_raw = yaml.safe_load(kelly_path.read_text()) or {}
+            kelly = kelly_raw.get("kelly", {})
 
         # Step 1m: triple_barrier label params — configs/domains/ml/triple_barrier.yaml
         # Stored as-is (has legacy: + assets: sections, not a defaults-shaped key).
@@ -408,9 +431,11 @@ class PaperConfigRegistry:
             # modes/*.yaml
             "modes",
         }
-        pruned_top: set[str] = {
-            "kelly",
-        }
+        pruned_top: set[str] = set()
+        # ``kelly`` was previously in pruned_top but is now promoted
+        # to configs/domains/ml/kelly.yaml (P2 config promotion).
+        # It's handled via promoted_defaults since it lives inside
+        # ``defaults`` in the legacy YAML, not as a top-level key.
         # ``alerting`` was previously in pruned_top but is now promoted
         # to configs/domains/infrastructure/alerts.yaml.
         # calibration, ensemble, meta_labeling were previously in
@@ -418,7 +443,7 @@ class PaperConfigRegistry:
         # handled via promoted_defaults at the defaults level, not
         # top-level promoted_top, since they live inside ``defaults``
         # in the legacy YAML (never were top-level keys).
-        ml_keys: set[str] = {"calibration", "ensemble", "meta_labeling"}
+        ml_keys: set[str] = {"calibration", "ensemble", "meta_labeling", "kelly"}
         exec_gate_keys: set[str] = {"spread_gate", "session_gate", "stacking"}
         promoted_defaults: set[str] = set(defaults_blk.keys()) | {"adaptive_exit", "sell_only_assets"}
         promoted_defaults |= set(infra_keys) | ml_keys | exec_gate_keys
@@ -442,6 +467,7 @@ class PaperConfigRegistry:
             calibration=calibration,
             ensemble=ensemble,
             meta_labeling=meta_labeling,
+            kelly=kelly,
             label_params=label_params,
             alerting=alerting,
             stacking=stacking,
@@ -507,6 +533,10 @@ class PaperConfigRegistry:
         # Stacking config — emitted in the defaults block
         if self.stacking:
             defaults["stacking"] = self.stacking
+
+        # Kelly config — emitted in the defaults block
+        if self.kelly:
+            defaults["kelly"] = self.kelly
 
         # Execution gate configs — emitted in the defaults block
         if self.spread_gate:

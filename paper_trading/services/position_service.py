@@ -117,7 +117,7 @@ class PositionService:
                         self.name,
                         mt5_ticket,
                     )
-            except Exception as e:
+            except (OSError, TimeoutError, ConnectionError, ValueError, AttributeError, KeyError) as e:
                 mt5_symbol = broker.ticker_to_mt5_symbol(self.ticker)
                 logger.error(
                     "%s: MT5 close raised exception for ticket=%s on %s: %s — paper close proceeds, orphan queued",

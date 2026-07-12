@@ -46,7 +46,7 @@ def get_mt5_status(state_store=None) -> dict:
             mt5 = snapshot.mt5
             if isinstance(mt5, dict):
                 return mt5
-    except Exception:
+    except (OSError, AttributeError, ValueError):
         pass
     return dict(_MT5_STATUS_DEFAULT)
 
@@ -382,6 +382,6 @@ def try_serve_file(path, resp):
                     else:
                         raise
                 return True
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 pass
     return False

@@ -212,19 +212,20 @@ class CircuitBreaker:
         self._max_losses = max_consecutive_losses
         self._loss_lookback = loss_streak_lookback
         self._daily_pnl_history: list[float] = []
-        self._peak_value: float | None = None
 
     def check(
         self,
         portfolio_value: float,
+        peak_value: float | None = None,
         portfolio_vol: float | None = None,
         baseline_vol: float | None = None,
         actors: dict[str, AssetActor] | None = None,
     ) -> BreakerDecision:
-        if self._peak_value is None or portfolio_value > self._peak_value:
-            self._peak_value = portfolio_value
-
-        dd = (portfolio_value - self._peak_value) / self._peak_value if self._peak_value else 0.0
+        # Peak value is now passed in from the orchestrator (single source of truth).
+        # The CircuitBreaker no longer tracks its own _peak_value to avoid
+        # divergence from EngineOrchestrator._peak_portfolio_value.
+        _peak = peak_value if peak_value is not None else portfolio_value
+        dd = (portfolio_value - _peak) / _peak if _peak > 0 else 0.0
 
         # 1. Drawdown trip
         if dd <= -self._max_drawdown:
@@ -273,13 +274,14 @@ class CircuitBreaker:
         return BreakerDecision(trip=False, reason="ok", severity="info")
 
     def restore_state(self, peak_value: float | None, daily_pnl: list[float] | None) -> None:
-        if peak_value is not None:
-            self._peak_value = peak_value
+        # peak_value is no longer stored locally — it is passed from the orchestrator.
+        # Only restore daily PnL history which is unique to the CircuitBreaker.
         if daily_pnl is not None:
             self._daily_pnl_history = list(daily_pnl)
 
     def snapshot_state(self) -> tuple[float | None, list[float]]:
-        return (self._peak_value, list(self._daily_pnl_history))
+        # peak_value is no longer stored locally — the orchestrator owns the canonical peak.
+        return (None, list(self._daily_pnl_history))
 
     def record_daily_pnl(self, pnl: float) -> None:
         self._daily_pnl_history.append(pnl)

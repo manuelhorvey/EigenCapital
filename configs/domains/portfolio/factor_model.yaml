@@ -1,0 +1,36 @@
+# Factor exposure limits for factor-constrained portfolio optimization (P3).
+# Each limit is [min, max] as a fraction of portfolio capital.
+# Applied as linear inequality constraints during portfolio optimization
+# (factor_constrained_v1 and factor_constrained_v2 weight methods).
+#
+# Factor group definitions are hardcoded in shared/factor_model.py::FACTOR_GROUPS.
+# These limits are consumed by:
+#   - shared/constrained_weights.py (optimizer constraints)
+#   - paper_trading/pek/state/portfolio_state_builder.py (PEK state snapshot)
+#   - paper_trading/services/engine_rebalance_service.py (live rebalance)
+#
+# Currency blocs:
+#   USD:  -40% to +60%  (core reserve currency — wider range)
+#   EUR:  -30% to +30%  (major EUR crosses)
+#   AUD:  -20% to +20%  (commodity currency)
+#   NZD:  -20% to +20%  (commodity currency)
+#   CHF:  -20% to +20%  (safe-haven — pinned by factor_constrained_v2)
+#   CAD:  -20% to +20%  (commodity currency)
+#   GBP:  -15% to +15%  (tighter range vs EUR/USD — smaller portfolio share)
+#   JPY:  -25% to +25%  (carry trade currency)
+#
+# Asset class blocs:
+#   US_EQUITY:  -10% to +15%  (ES, NQ, ^DJI — equity index ETFs)
+#   COMMODITY:    0% to +5%   (GC — gold only, no shorting)
+portfolio:
+  factor_exposure_limits:
+    USD: [-0.4, 0.6]
+    EUR: [-0.3, 0.3]
+    AUD: [-0.2, 0.2]
+    NZD: [-0.2, 0.2]
+    CHF: [-0.2, 0.2]
+    CAD: [-0.2, 0.2]
+    GBP: [-0.15, 0.15]
+    JPY: [-0.25, 0.25]
+    US_EQUITY: [-0.1, 0.15]
+    COMMODITY: [0.0, 0.05]

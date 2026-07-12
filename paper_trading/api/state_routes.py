@@ -168,7 +168,7 @@ def handle_confidence(path: str, query: dict, state_store=None) -> str:
 
                 df = pd.read_parquet(CONFIDENCE_PATH)
                 historical = json.loads(df.to_json(orient="records", default_handler=str))
-        except Exception:
+        except (OSError, ValueError, KeyError):
             pass
         data = json_dumps({"live": live, "historical": historical}, indent=2)
     else:
@@ -305,7 +305,7 @@ def handle_log_error(body: bytes, state_store=None) -> tuple[str, int]:
         logger = logging.getLogger("eigencapital.dashboard_error")
         logger.warning("FE error [%s]: %s\n%s", name, error, stack)
         return json_dumps({"status": "ok"}), 200
-    except Exception as exc:
+    except (json.JSONDecodeError, KeyError, OSError, TypeError) as exc:
         logger.debug("Failed to log client error: %s", exc)
         return json_dumps({"status": "error"}), 500
 

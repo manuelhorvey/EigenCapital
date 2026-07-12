@@ -54,8 +54,10 @@ class PagerDutyChannel(Channel):
         try:
             resp = urllib.request.urlopen(req, timeout=10)
             ok = resp.status == 202
-        except Exception as exc:
-            logger.warning("PagerDuty POST failed: %s", exc)
+        except (OSError, TimeoutError, ConnectionError, ValueError) as _pd_exc:
+            # urllib.error.URLError is a subclass of OSError (since Python 3.3+),
+            # so it's already covered.  No need to import urllib.error separately.
+            logger.warning("PagerDuty POST failed: %s", _pd_exc)
             ok = False
         if ok:
             self._last_send = now
@@ -96,6 +98,6 @@ class PagerDutyChannel(Channel):
         try:
             resp = urllib.request.urlopen(req, timeout=10)
             return resp.status == 202
-        except Exception as exc:
-            logger.warning("PagerDuty resolve failed: %s", exc)
+        except (OSError, TimeoutError, ConnectionError, ValueError) as _pd_exc:
+            logger.warning("PagerDuty resolve failed: %s", _pd_exc)
             return False

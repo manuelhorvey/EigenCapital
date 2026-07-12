@@ -110,7 +110,7 @@ def _make_engine(**overrides):
     engine._training = overrides.get("_training", SimpleNamespace(train=lambda force=None: None))
     engine._inference = overrides.get(
         "_inference",
-        SimpleNamespace(generate_signal=lambda threshold=0.45: {"signal": "BUY"}),
+        SimpleNamespace(generate_signal=lambda threshold=0.45, **kwargs: {"signal": "BUY"}),
     )
     engine._pnl = overrides.get(
         "_pnl",
@@ -229,7 +229,7 @@ class TestGenerateSignal:
         engine.check_halt_conditions = lambda **kw: {"halted": False}
         generated = []
 
-        engine._inference.generate_signal = lambda threshold: generated.append(threshold) or {"signal": "BUY"}
+        engine._inference.generate_signal = lambda threshold, **kwargs: generated.append(threshold) or {"signal": "BUY"}
 
         result = engine.generate_signal(threshold=0.45)
         assert result == {"signal": "BUY"}
@@ -241,7 +241,7 @@ class TestGenerateSignal:
         engine.check_halt_conditions = lambda **kw: {"halted": True, "reasons": ["drawdown"]}
         inference_called = []
 
-        engine._inference.generate_signal = lambda threshold: inference_called.append(1) or {"signal": "BUY"}
+        engine._inference.generate_signal = lambda threshold, **kwargs: inference_called.append(1) or {"signal": "BUY"}
 
         result = engine.generate_signal()
         assert result is None
@@ -252,7 +252,7 @@ class TestGenerateSignal:
         engine.check_halt_conditions = lambda **kw: {"halted": False}
         captured = []
 
-        engine._inference.generate_signal = lambda threshold: captured.append(threshold) or {}
+        engine._inference.generate_signal = lambda threshold, **kwargs: captured.append(threshold) or {}
 
         engine.generate_signal()
         assert captured[0] == 0.45
@@ -262,7 +262,7 @@ class TestGenerateSignal:
         engine.check_halt_conditions = lambda **kw: {"halted": False}
         captured = []
 
-        engine._inference.generate_signal = lambda threshold: captured.append(threshold) or {}
+        engine._inference.generate_signal = lambda threshold, **kwargs: captured.append(threshold) or {}
 
         engine.generate_signal(threshold=0.40)
         assert captured[0] == 0.40

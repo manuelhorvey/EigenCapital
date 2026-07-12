@@ -18,7 +18,7 @@ class SignalService:
             if model._trained:
                 logger.info("%s: meta-label model loaded from cache", name)
                 return model
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
             logger.debug("%s: no cached meta-label model: %s", name, e)
         return None
 

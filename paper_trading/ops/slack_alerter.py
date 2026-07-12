@@ -46,7 +46,7 @@ def _send_slack(webhook_url: str, message: dict) -> bool:
     try:
         resp = urllib.request.urlopen(req, timeout=10)
         return resp.status == 200
-    except Exception as exc:
+    except (OSError, ValueError, TimeoutError) as exc:
         logger.error("Slack POST failed: %s", exc)
         return False
 
@@ -55,7 +55,7 @@ def _load_alert_state() -> dict:
     if ALERT_STATE_PATH.exists():
         try:
             return json.loads(ALERT_STATE_PATH.read_text())
-        except Exception:
+        except (OSError, ValueError, json.JSONDecodeError):
             logger.warning("Corrupt alert state, resetting")
     return {
         "wal_position": 0,
@@ -84,7 +84,7 @@ def _check_drawdown() -> float | None:
         peak = portfolio.get("peak_value")
         if pv is not None and peak and peak > 0:
             return (pv / peak) - 1
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         logger.warning("Failed to parse state.json for drawdown check: %s", exc)
     return None
 

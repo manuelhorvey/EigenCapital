@@ -35,7 +35,7 @@ class EntryOptimizer:
 
         try:
             return policy_func(signal, structure, config or {})
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             logger.error("Entry policy execution failed for %s: %s", archetype, e)
             return EntryAction.SKIP  # Fail-closed: skip entry on policy error
 

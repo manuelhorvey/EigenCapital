@@ -1,0 +1,5 @@
+kelly:
+  enabled: true           # P2 enabled — requires calibrated probabilities (P1, already enabled)
+  fraction: 0.25          # Quarter-Kelly: f = f* × 0.25 (conservative)
+  max_cap: 1.0            # Maximum multiplier — never increase base size
+  min_edge: 0.0           # Minimum expected return (R) required to trade (0.0 = any edge)

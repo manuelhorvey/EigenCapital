@@ -38,7 +38,7 @@ class TestSendSlack:
             assert not _send_slack("https://hooks.slack.com/foo", {"text": "test"})
 
     def test_returns_false_on_exception(self):
-        with patch("paper_trading.ops.slack_alerter.urllib.request.urlopen", side_effect=Exception("no network")):
+        with patch("paper_trading.ops.slack_alerter.urllib.request.urlopen", side_effect=OSError("no network")):
             assert not _send_slack("https://hooks.slack.com/foo", {"text": "test"})
 
 

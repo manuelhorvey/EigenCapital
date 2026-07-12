@@ -501,6 +501,33 @@ def validate(config_path: str | None = None) -> int:
     pf = data.get("portfolio", {})
     if isinstance(pf, dict):
         _check_optional(pf, "weight_method", str, "portfolio", errors)
+        fel = pf.get("factor_exposure_limits")
+        if fel is not None:
+            if not isinstance(fel, dict):
+                errors.append("portfolio.factor_exposure_limits: expected mapping")
+            else:
+                for factor, limit in fel.items():
+                    if not isinstance(limit, (list, tuple)) or len(limit) != 2:
+                        errors.append(
+                            f"portfolio.factor_exposure_limits.{factor}: expected [min, max], got {limit!r}"
+                        )
+                        continue
+                    lo, hi = limit
+                    if not (isinstance(lo, (int, float)) and isinstance(hi, (int, float))):
+                        errors.append(
+                            f"portfolio.factor_exposure_limits.{factor}: bounds must be numeric, got {limit!r}"
+                        )
+                        continue
+                    if lo > 0:
+                        warnings.append(
+                            f"portfolio.factor_exposure_limits.{factor}.min={lo} is positive; "
+                            "this prevents shorting the factor"
+                        )
+                    if hi < 0:
+                        warnings.append(
+                            f"portfolio.factor_exposure_limits.{factor}.max={hi} is negative; "
+                            "this prevents going long the factor"
+                        )
 
     exc = data.get("execution", {})
     if not isinstance(exc, dict):

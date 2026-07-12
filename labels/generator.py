@@ -28,7 +28,7 @@ class LabelGenerator:
         for ticker, contract in FEATURE_REGISTRY.items():
             try:
                 results[ticker] = self.generate_asset_labels(contract, force=force)
-            except Exception as e:
+            except (OSError, ValueError, TypeError, KeyError) as e:
                 logger.error("Failed to generate labels for %s: %s", ticker, e)
         return results
 

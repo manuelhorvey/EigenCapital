@@ -88,7 +88,7 @@ class ExecutionPolicyLayer:
         # 2. Compile Decision
         try:
             return policy_cls.route(action, decision, archetype, structure, tp_geo, deferred)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             logger.error("Policy routing failed for %s: %s", archetype, e)
             # Emergency Fallback: strictly follow action with no frills
             return PolicyDecision(

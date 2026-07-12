@@ -20,13 +20,16 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum, auto
 from typing import Any
 
 import pandas as pd
 
+from eigencapital.domain.time import utc_now
 from paper_trading.replay.wal import WalWriter
+
+# Type alias for pre-fetched shared macro data dict (ticker → Series)
+SharedMacroData = dict[str, pd.Series]
 
 logger = logging.getLogger("eigencapital.orchestrator.actor")
 
@@ -119,8 +122,13 @@ class AssetActor:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def run_cycle(self, market_data: dict | None = None) -> AssetResult:
+    def run_cycle(self, market_data: dict | None = None, shared_macro: SharedMacroData | None = None) -> AssetResult:
         """Execute one full lifecycle cycle for this asset.
+
+        When *shared_macro* is provided (pre-fetched macro data from the
+        orchestrator pre-phase), the actor passes it through to the inference
+        pipeline so cross-asset data (DXY, VIX, SPX, WTI) is fetched once
+        per cycle rather than redundantly in each actor thread.
 
         Returns an immutable AssetResult.  Does not raise.
         """
@@ -144,18 +152,24 @@ class AssetActor:
             self._engine.update_pnl()
             self._write_position_events()
 
-            signal = self._engine.generate_signal()
+            signal = self._engine.generate_signal(shared_macro=shared_macro)
             self._write_signal(signal)
 
             self._handle_success(t0)
             self._queue_persist("signal", signal or {})
             return AssetResult.ok(self.name, signal or {}, self.metrics.cycle_id, self.metrics.cycle_duration_ms)
-        except Exception as e:
+        # Broad catch intentional: actor must isolate asset failures from the
+        # orchestrator.  Any unexpected exception from engine operations should
+        # be caught here so a single asset bug doesn't crash the entire portfolio.
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, ImportError):
             import traceback
 
             logger.error("%s actor exception:\n%s", self.name, traceback.format_exc())
-            self._handle_failure(t0, str(e))
-            return AssetResult.failed(self.name, str(e), self.metrics.cycle_id, self.metrics.cycle_duration_ms)
+            self._handle_failure(t0, traceback.format_exc())
+            return AssetResult.failed(
+                self.name, "actor_exception",
+                self.metrics.cycle_id, self.metrics.cycle_duration_ms,
+            )
 
     def drain_persist_queue(self) -> list[PersistCommand]:
         """Return and clear queued persist commands.
@@ -252,7 +266,7 @@ class AssetActor:
                     {
                         "asset": self.name,
                         "price": float(price),
-                        "time": str(datetime.now()),
+                        "time": utc_now().isoformat(),
                     },
                 )
             except Exception:
@@ -294,7 +308,7 @@ class AssetActor:
                         "signal": signal.get("signal"),
                         "confidence": signal.get("confidence"),
                         "position_size": signal.get("position_size", 0),
-                        "time": str(datetime.now()),
+                        "time": utc_now().isoformat(),
                     },
                 )
             except Exception:

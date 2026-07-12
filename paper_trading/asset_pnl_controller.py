@@ -79,7 +79,7 @@ def _sync_broker_sltp(asset, trade_id: str | None = None) -> bool:
                     sl,
                     tp,
                 )
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError, ConnectionError) as e:
             logger.error(
                 "%s: MT5 modify_position raised exception for ticket=%s: %s",
                 asset.name,

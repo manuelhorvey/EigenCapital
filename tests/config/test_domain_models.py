@@ -86,6 +86,7 @@ def test_risk_config_exhausts_legacy_defaults_keys(legacy_yaml):
         "calibration",
         "ensemble",
         "meta_labeling",
+        "kelly",  # P2: promoted to configs/domains/ml/kelly.yaml
     }
     legacy_keys.difference_update(known_excluded)
     missing = legacy_keys - sizing_field_names

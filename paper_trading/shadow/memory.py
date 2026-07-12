@@ -60,11 +60,11 @@ def read_events(asset: str, days: int = 90) -> list:
                         line = line.strip()
                         if line:
                             events.append(json.loads(line))
-            except Exception as e:
+            except (OSError, ValueError, json.JSONDecodeError, TypeError, KeyError) as e:
                 logger.warning("Failed to read shadow event file %s: %s: %s", fpath, type(e).__name__, e)
                 continue
         return events
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, FileNotFoundError) as e:
         logger.warning("Failed to read shadow events for %s: %s: %s", asset, type(e).__name__, e)
         return []
 
@@ -182,7 +182,7 @@ def load_baseline(asset: str) -> dict | None:
             return None
         with open(path) as f:
             return json.load(f)
-    except Exception as e:
+    except (OSError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e:
         logger.warning("Failed to load shadow baseline for %s: %s: %s", asset, type(e).__name__, e)
         return None
 

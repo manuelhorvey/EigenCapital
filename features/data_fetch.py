@@ -111,6 +111,21 @@ class _TTLCache:
 # Module-level cache shared across all assets in the same cycle.
 _macro_cache = _TTLCache(ttl=300)
 
+
+def prefetch_shared_data() -> dict[str, pd.Series]:
+    """Pre-fetch macro batch data once per cycle for all assets.
+
+    Designed to be called from the orchestrator pre-phase (main thread,
+    before any ThreadPoolExecutor workers start).  Populates the internal
+    macro cache so subsequent ``fetch_asset_data()`` calls within the same
+    cycle skip the network fetch entirely.
+
+    Returns the full macro batch dict (ticker → Series) so callers can
+    pass it directly to ``fetch_asset_data(..., macro_data=...)`` to avoid
+    a redundant ``_macro_cache.get`` lookup in each worker thread.
+    """
+    return _fetch_macro_batch()
+
 # Cycle-scoped cache for fetch_asset_data results — keyed by asset name.
 # Each cycle increments _cycle_id; stale entries are evicted on access.
 # Thread-safe via _cycle_lock.
@@ -338,6 +353,7 @@ def fetch_cot_features(
 def fetch_asset_data(
     asset_name: str,
     ticker: str,
+    macro_data: dict[str, pd.Series] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.DataFrame]:
     """Fetch asset OHLCV + macro data.
 
@@ -373,9 +389,13 @@ def fetch_asset_data(
 
     prices = close.to_frame(asset_name)
 
-    # Macro data is batch-fetched once per cycle and cached
-    logger.debug("  fetching macro (DXY, VIX, SPY, CL=F, TNX)...")
-    macro = _fetch_macro_batch()
+    # Macro data — use pre-fetched batch if provided (avoids per-asset
+    # _macro_cache.get() calls and ensures fetch completed on main thread).
+    if macro_data is not None:
+        macro = macro_data
+    else:
+        logger.debug("  fetching macro (DXY, VIX, SPY, CL=F, TNX)...")
+        macro = _fetch_macro_batch()
     dxy = macro.get("DX-Y.NYB", pd.Series(dtype=float))
     vix = macro.get("^VIX", pd.Series(dtype=float))
     spx = macro.get("^GSPC", pd.Series(dtype=float))

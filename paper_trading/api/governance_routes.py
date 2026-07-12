@@ -208,7 +208,7 @@ def handle_weekly_review_acknowledge(body: bytes, state_store=None) -> tuple[str
         try:
             with open(rlp) as f:
                 existing = json.load(f)
-        except Exception:
+        except (OSError, ValueError, json.JSONDecodeError):
             existing = []
     existing.append(entry)
     with open(rlp, "w") as f:

@@ -57,7 +57,7 @@ def compute_shadow_actions(
             },
             "recommended_guardrails": guardrails,
         }
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
         logger.warning("Shadow actions failed for %s: %s: %s", asset, type(e).__name__, e)
         return _fallback("SHADOW_FAILURE")
 

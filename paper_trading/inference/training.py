@@ -278,8 +278,12 @@ class AssetTrainingPipeline:
                             from shared.model_registry import get_current_version as _get_cur
 
                             _gate_incumbent = _get_cur(asset.name)
-                        except Exception:
-                            pass
+                        except (ValueError, TypeError, ImportError, RuntimeError):
+                            logger.debug(
+                                "%s: no incumbent model for validation gates",
+                                asset.name,
+                                exc_info=True,
+                            )
                         _ev_r = model.predict(x_ev).astype(float)
                         _ev_r = np.where(_ev_r == 0, -0.5, 1.0) * np.where(y_ev_binary.values == 0, -1, 1)
                         _gate_results = run_validation_gates(
@@ -311,10 +315,10 @@ class AssetTrainingPipeline:
                             for g in _gate_results:
                                 if not g.passed:
                                     logger.warning("  FAIL [%s]: %s", g.name, g.message)
-                except Exception as _gate_err:
-                    logger.warning("%s: validation gates error (non-fatal): %s", asset.name, _gate_err)
-        except Exception as e:
-            logger.warning("%s: model registry save failed (non-fatal): %s", asset.name, e)
+                except (ValueError, TypeError, RuntimeError, ImportError) as _gate_err:
+                    logger.warning("%s: validation gates error (non-fatal): %s", asset.name, _gate_err, exc_info=True)
+        except (OSError, ValueError, TypeError, RuntimeError) as _ms_err:
+            logger.warning("%s: model registry save failed (non-fatal): %s", asset.name, _ms_err, exc_info=True)
             with open(model_path, "rb") as _fm:
                 model_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
 
@@ -334,8 +338,8 @@ class AssetTrainingPipeline:
         # Persist PSI baseline
         try:
             asset._psi_monitor.persist_baseline(asset.name, x)
-        except Exception as e:
-            logger.warning("%s: failed to persist PSI baseline: %s", asset.name, e)
+        except (OSError, ValueError, TypeError, AttributeError, RuntimeError) as _psi_err:
+            logger.warning("%s: failed to persist PSI baseline: %s", asset.name, _psi_err, exc_info=True)
 
         # Train meta-label model using OOS primary predictions
         if asset.config.get("meta_labeling", {}).get("enabled", False):
@@ -353,8 +357,8 @@ class AssetTrainingPipeline:
                     asset.name,
                     len(ev_data),
                 )
-            except Exception as e:
-                logger.warning("%s: meta-label training failed: %s", asset.name, e)
+            except (ValueError, TypeError, KeyError, RuntimeError, AttributeError) as _meta_err:
+                logger.warning("%s: meta-label training failed: %s", asset.name, _meta_err, exc_info=True)
 
         # Log feature importances
         asset._window_id_counter += 1
@@ -381,8 +385,8 @@ class AssetTrainingPipeline:
                     stability.spearman_rank_corr,
                     stability.penalty,
                 )
-        except Exception as e:
-            logger.warning("%s: failed to log feature importances: %s", asset.name, e)
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError, AttributeError) as _imp_err:
+            logger.warning("%s: failed to log feature importances: %s", asset.name, _imp_err, exc_info=True)
 
         self._train_regime_if_configured(train_features=train, features_df=features)
 

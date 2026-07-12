@@ -9,6 +9,7 @@ class MockPosition:
     entry_price = 1.10
     stop_loss = 1.09
     take_profit = 1.12
+    quantity = 10000  # needed for live_notional computation in PortfolioStateBuilder
 
 
 class MockPosMgr:
@@ -70,7 +71,8 @@ class TestPortfolioStateBuilder:
         assert snap.open_position_count == 1
         assert len(snap.positions) == 1
         assert snap.positions[0].side == "long"
-        assert snap.positions[0].notional == 10_000.0
+        # Notional is now computed from live qty * current_price (10000 * 1.105 = 11050)
+        assert snap.positions[0].notional == 11050.0
 
     def test_build_factor_exposures_signed_short(self, builder):
         # Verify signed factor exposures: short positions contribute negative weight
@@ -79,6 +81,7 @@ class TestPortfolioStateBuilder:
             entry_price = 1.10
             stop_loss = 1.11
             take_profit = 1.08
+            quantity = 10000  # needed for live_notional computation in PortfolioStateBuilder
 
         class ShortPosMgr(MockPosMgr):
             def __init__(self):

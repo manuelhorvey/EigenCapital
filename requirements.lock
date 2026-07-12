@@ -77,7 +77,7 @@ platformdirs==4.5.1
     # via yfinance
 protobuf==7.35.1
     # via yfinance
-pyarrow==23.0.1
+pyarrow==19.0.1
     # via -r requirements.in
 pycparser==3.0
     # via cffi

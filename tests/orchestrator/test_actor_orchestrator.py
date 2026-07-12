@@ -52,7 +52,7 @@ class _MockEngine:
         if self._should_fail and self._call_count > 1:
             raise ValueError(f"{self.name}: pnl update failed")
 
-    def generate_signal(self):
+    def generate_signal(self, **kwargs):
         self.last_signal = {"asset": self.name, "signal": "BUY", "confidence": 0.75}
         return self.last_signal
 
@@ -292,8 +292,8 @@ class TestCircuitBreaker:
 
     def test_trips_on_drawdown(self):
         cb = CircuitBreaker(max_drawdown_pct=0.25)
-        cb._peak_value = 100.0
-        decision = cb.check(portfolio_value=70.0)
+        # peak_value is now passed as a parameter, not stored internally
+        decision = cb.check(portfolio_value=70.0, peak_value=100.0)
         assert decision.trip is True
         assert decision.severity == "critical"
 

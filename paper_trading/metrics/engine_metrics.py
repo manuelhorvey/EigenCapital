@@ -74,5 +74,5 @@ def update_engine_metrics(engine):
         data = tracker.compute()
         if data.get("available"):
             _slippage_gauge.set(data.get("model_timing_gap_pct", 0.0))
-    except Exception:
+    except (OSError, ValueError, TypeError, ImportError, AttributeError):
         pass

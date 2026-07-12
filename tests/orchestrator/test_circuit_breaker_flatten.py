@@ -231,7 +231,7 @@ class TestDrawdownBreakerIntegration:
             eng.mtm_value = 85.0
         orch = _make_orchestrator(engines)
         # Manually set peak to trigger 15% drawdown
-        orch._peak_portfolio_value = 100.0 + 100.0  # 200 peak
+        orch._halt_state.peak_portfolio_value = 100.0 + 100.0  # 200 peak
         results = orch.run_once()
         assert results["drawdown"]["halted"]
         assert results["circuit_breaker"]["triggered"]
@@ -246,7 +246,7 @@ class TestDrawdownBreakerIntegration:
             "AUDUSD": _MockAssetEngine("AUDUSD", mtm_value=95.0, current_price=0.65, has_position=True),
         }
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 100.0
+        orch._halt_state.peak_portfolio_value = 100.0
         results = orch.run_once()
         assert not results["drawdown"]["halted"]
         # Breaker did not fire, positions NOT closed
@@ -257,7 +257,7 @@ class TestDrawdownBreakerIntegration:
             "AUDUSD": _MockAssetEngine("AUDUSD", mtm_value=80.0, current_price=0.65, has_position=True),
         }
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 100.0
+        orch._halt_state.peak_portfolio_value = 100.0
         r1 = orch.run_once()
         assert r1["circuit_breaker"]["triggered"]
         assert len(engines["AUDUSD"].closed_positions) == 1
@@ -291,7 +291,7 @@ class TestCorrelatedAUDSyntheticCascade:
     def test_aud_cascade_15pct_drop_triggers_breaker(self):
         engines = self._scenario_equities(0.15)
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 300.0  # 3 × 100 start
+        orch._halt_state.peak_portfolio_value = 300.0  # 3 × 100 start
         results = orch.run_once()
         assert results["drawdown"]["halted"]
         assert results["drawdown"]["drawdown"] <= -0.149
@@ -304,7 +304,7 @@ class TestCorrelatedAUDSyntheticCascade:
     def test_aud_cascade_10pct_drop_does_not_trigger_breaker(self):
         engines = self._scenario_equities(0.10)
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 300.0
+        orch._halt_state.peak_portfolio_value = 300.0
         results = orch.run_once()
         assert not results["drawdown"]["halted"]
         assert results["circuit_breaker"] is None or not results["circuit_breaker"]["triggered"]
@@ -316,7 +316,7 @@ class TestCorrelatedAUDSyntheticCascade:
         """Between -10% and -15%, exposure is reduced but no halt."""
         engines = self._scenario_equities(0.12)  # -12% total
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 300.0
+        orch._halt_state.peak_portfolio_value = 300.0
         results = orch.run_once()
         assert not results["drawdown"]["halted"]
         assert results["drawdown"]["exposure_multiplier"] < 1.0
@@ -329,14 +329,14 @@ class TestCorrelatedAUDSyntheticCascade:
         """Simulate a drop to 15%, then recovery above threshold but breaker stays set."""
         engines = self._scenario_equities(0.15)
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 300.0
+        orch._halt_state.peak_portfolio_value = 300.0
         r1 = orch.run_once()
         assert r1["circuit_breaker"]["triggered"]
         assert len(engines["AUDUSD"].closed_positions) == 1
         # Now prices recover to 100 — still halted
         for eng in engines.values():
             eng.mtm_value = 100.0
-        orch._peak_portfolio_value = 300.0  # peak unchanged
+        orch._halt_state.peak_portfolio_value = 300.0  # peak unchanged
         r2 = orch.run_once()
         assert r2["circuit_breaker"]["triggered"]
         assert r2["circuit_breaker"]["reason"] == "emergency_halt_persistent"
@@ -347,7 +347,7 @@ class TestCorrelatedAUDSyntheticCascade:
         """After reset_emergency_halt, the breaker allows new cycles."""
         engines = self._scenario_equities(0.15)
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 300.0
+        orch._halt_state.peak_portfolio_value = 300.0
         r1 = orch.run_once()
         assert r1["circuit_breaker"]["triggered"]
         # Positions are closed; recovery price resets the peak
@@ -356,7 +356,7 @@ class TestCorrelatedAUDSyntheticCascade:
             eng.mtm_value = 100.0
             eng.current_value = 100.0
         # Peak resets to new high since all recovered
-        orch._peak_portfolio_value = 300.0
+        orch._halt_state.peak_portfolio_value = 300.0
         r2 = orch.run_once()
         # Cycle succeeds — drawdown is now 0% since mtm == peak
         assert r2["circuit_breaker"] is None
@@ -372,7 +372,7 @@ class TestSequentialCascade:
             "EURUSD": _MockAssetEngine("EURUSD", mtm_value=100.0, has_position=True),
         }
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 200.0
+        orch._halt_state.peak_portfolio_value = 200.0
 
         # Cycle 1: AUDUSD drops 10% (cumulative portfolio -5%), no trip
         engines["AUDUSD"].mtm_value = 90.0
@@ -405,7 +405,7 @@ class TestSequentialCascade:
             "EURUSD": _MockAssetEngine("EURUSD", mtm_value=95.0, has_position=True),
         }
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 200.0
+        orch._halt_state.peak_portfolio_value = 200.0
 
         # Cycle 1: portfolio at 190 (190/200 = -5%)
         r1 = orch.run_once()
@@ -441,7 +441,7 @@ class TestSingleAssetConcentratedDrop:
             "EURUSD": _MockAssetEngine("EURUSD", mtm_value=100.0, has_position=True),
         }
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 500.0
+        orch._halt_state.peak_portfolio_value = 500.0
 
         # GC drops 25%: 300 → 225, portfolio: 425/500 = -15%
         engines["GC"].mtm_value = 225.0
@@ -463,7 +463,7 @@ class TestSingleAssetConcentratedDrop:
             "EURUSD": _MockAssetEngine("EURUSD", mtm_value=100.0, has_position=True),
         }
         orch = _make_orchestrator(engines)
-        orch._peak_portfolio_value = 500.0
+        orch._halt_state.peak_portfolio_value = 500.0
 
         engines["GC"].mtm_value = 255.0  # -15% on GC = -9% portfolio hit
         engines["GC"].current_value = 255.0

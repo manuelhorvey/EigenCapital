@@ -112,7 +112,7 @@ def test_legacy_extras_empty_without_legacy_file(registry):
     assert out.get("optimizations", {}).get("batch_http") is True
     assert out.get("portfolio", {}).get("weight_method") == "factor_constrained_v2"
     assert out.get("execution", {}).get("governance", {}).get("regime_geometry", {}).get("GREEN") is not None
-    assert out.get("defaults", {}).get("calibration", {}).get("method") == "binned"
+    assert out.get("defaults", {}).get("calibration", {}).get("method") == "platt"
     assert out.get("defaults", {}).get("calibration", {}).get("enabled") is True
     assert out.get("defaults", {}).get("ensemble", {}).get("base_weight") == 1.0
     assert out.get("defaults", {}).get("ensemble", {}).get("regime_feature_window") == 63

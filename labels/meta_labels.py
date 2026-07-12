@@ -304,7 +304,7 @@ class MetaLabelModel:
                     self.model._feature_names = list(self._feature_names)
 
             logger.info("Loaded meta model from %s", path)
-        except Exception as e:
+        except (OSError, ValueError, json.JSONDecodeError, KeyError, AttributeError, ImportError) as e:
             logger.warning("Failed to load meta model: %s", e)
 
 

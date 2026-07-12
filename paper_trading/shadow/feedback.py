@@ -166,6 +166,6 @@ def read_feedback(asset: str, months: int = 3) -> list:
                     if line:
                         events.append(json.loads(line))
         return events
-    except Exception as e:
+    except (OSError, ValueError, json.JSONDecodeError, TypeError, KeyError) as e:
         logger.warning("Failed to read shadow feedback for %s: %s: %s", asset, type(e).__name__, e)
         return []

@@ -64,8 +64,8 @@ class AlertManager:
             if _severity_ge(severity, threshold):
                 try:
                     ok = channel.send(alert)
-                except Exception as exc:
-                    logger.warning("Alert channel %s failed: %s", type(channel).__name__, exc)
+                except (OSError, TimeoutError, ConnectionError, RuntimeError) as _ch_exc:
+                    logger.warning("Alert channel %s failed: %s", type(channel).__name__, _ch_exc)
                     ok = False
                 results.append(ok)
                 if not ok:
@@ -158,7 +158,7 @@ def setup_alerting_from_config(config: dict | None = None) -> AlertManager:
             from paper_trading.config_manager import get_config
 
             config = get_config()
-        except Exception:
+        except (OSError, ValueError, ImportError):
             config = {}
     alerting_cfg = config.get("alerting", {}) if isinstance(config, dict) else getattr(config, "alerting", None) or {}
     channels_cfg = alerting_cfg.get("channels", {}) if isinstance(alerting_cfg, dict) else {}

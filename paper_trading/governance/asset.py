@@ -52,13 +52,13 @@ class AssetGovernance:
             narr = get_active_narrative()
             if narr is not None:
                 self._apply_narrative_scalars(narr)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.debug("%s: no active narrative: %s", self.name, e)
 
     def set_narrative_state(self, narr) -> None:
         try:
             self._apply_narrative_scalars(narr)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             logger.error("%s: failed to set narrative state: %s", self.name, e)
 
     def load_liquidity_state(self, price_data: pd.DataFrame | None) -> None:
@@ -67,7 +67,7 @@ class AssetGovernance:
         try:
             if price_data is not None and len(price_data) > 22:
                 self.refresh_liquidity(price_data)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             logger.debug("%s: no liquidity state on init: %s", self.name, e)
 
     def refresh_liquidity(self, df: pd.DataFrame) -> None:

@@ -93,7 +93,8 @@ def atomic_write_json(path: str, data: dict) -> None:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, path)
-    except Exception:
+    except (OSError, TypeError, ValueError) as _ae:
+        logger.error("atomic_write_json failed: %s", _ae, exc_info=True)
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise

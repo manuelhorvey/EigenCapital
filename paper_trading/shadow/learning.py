@@ -51,7 +51,7 @@ def compile_shadow_learning(
 
         _save_compiled(asset, compiled)
         return compiled
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
         logger.warning("Shadow learning compilation failed for %s: %s: %s", asset, type(e).__name__, e)
         return _empty_report(asset)
 
@@ -299,7 +299,7 @@ def load_compiled(asset: str) -> dict | None:
             return None
         with open(path) as f:
             return json.load(f)
-    except Exception as e:
+    except (OSError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e:
         logger.warning("Failed to load compiled learning for %s: %s: %s", asset, type(e).__name__, e)
         return None
 

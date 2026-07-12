@@ -506,7 +506,7 @@ class TestPaperTradingEngine:
         asset = SimpleNamespace(
             ticker="EURUSD",
             name="A",
-            train=lambda force=None: (_ for _ in ()).throw(Exception("train failed")),
+            train=lambda force=None: (_ for _ in ()).throw(RuntimeError("train failed")),
             sl_mult=1.0,
             tp_mult=2.0,
         )

@@ -100,7 +100,7 @@ def _background_refresh(name: str, fetch_fn: Callable[[], Any]) -> None:
         result["is_fresh"] = True
         with _LIVE_CACHE_LOCK:
             _LIVE_CACHE[name] = (result, now + _LIVE_CACHE_TTL, now, False)
-    except Exception as exc:
+    except (OSError, ValueError, TypeError, TimeoutError, ConnectionError) as exc:
         logger.warning("bundle bg refresh '%s' failed: %s", name, exc)
         # Cache the failure so the next N polls don't re-attempt.
         now = time.time()

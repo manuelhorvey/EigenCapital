@@ -29,6 +29,6 @@ class _DataCache:
                 df = pd.read_parquet(path)
                 if not df.empty:
                     return df
-            except Exception as e:
-                logger.warning("Cache read error for %s: %s", ticker, e)
+            except (OSError, ValueError, TypeError, KeyError) as _ce:
+                logger.warning("Cache read error for %s: %s", ticker, _ce)
         return None

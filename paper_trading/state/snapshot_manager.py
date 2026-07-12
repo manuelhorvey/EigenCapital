@@ -74,6 +74,6 @@ class _SnapshotManager:
                 return None
             self._cache = (snapshot, time.monotonic() + self._cache_ttl)
             return snapshot
-        except Exception as e:
-            logger.warning("Failed to load state snapshot: %s", e)
+        except (OSError, json.JSONDecodeError, ValueError, KeyError, TypeError) as _se:
+            logger.warning("Failed to load state snapshot: %s", _se, exc_info=True)
             return None

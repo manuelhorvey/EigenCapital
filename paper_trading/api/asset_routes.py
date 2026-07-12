@@ -46,7 +46,7 @@ def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, 
                 }
                 for i, (f, v) in enumerate(sorted(importance.items(), key=lambda x: -x[1]))
             ]
-        except Exception:
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError, OSError):
             feature_importance = [{"error": "Model parse error"}]
 
     trade_log = metrics.get("trade_log") or []

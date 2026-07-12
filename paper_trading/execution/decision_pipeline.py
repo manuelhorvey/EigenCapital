@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -26,6 +27,94 @@ from paper_trading.execution.stacking import StackingGate
 from paper_trading.position.protection import PositionProtection
 
 logger = logging.getLogger("eigencapital.decision_pipeline")
+
+
+# ── Thread-safe outcome tracking ───────────────────────────────────────────
+# _outcome_records is mutated from ThreadPoolExecutor workers via
+# _record_drift_outcome().  A per-key lock prevents concurrent writes
+# from different actors racing on the same deque.
+#
+# Encapsulated in DriftOutcomeRecorder for explicit lifecycle management
+# (ARCH-01).  Module-level convenience references are kept for backward
+# compatibility; new code should prefer the class-based API.
+
+
+class DriftOutcomeRecorder:
+    """Thread-safe tracker of confidence vs outcome per asset.
+
+    Maintains a rolling window of (confidence, was_win) pairs per asset,
+    used by the calibration drift gate to detect overconfidence patterns.
+
+    Lifecycle:
+        Instances are module-level singletons.  Call ``reset()`` in test
+        fixtures to clear state between test cases.
+    """
+
+    def __init__(self, window: int = 30, gap_threshold: float = 0.20):
+        self._window = window
+        self._gap_threshold = gap_threshold
+        self._records: dict[str, deque] = {}
+        self._lock = threading.Lock()
+
+    def record(self, asset: str, confidence: float, was_win: bool) -> None:
+        """Record one trade outcome for an asset."""
+        with self._lock:
+            if asset not in self._records:
+                self._records[asset] = deque(maxlen=self._window)
+            self._records[asset].append((confidence, was_win))
+
+    def get_gap(self, asset: str) -> float | None:
+        """Return confidence - win_rate gap for an asset, or None if insufficient data."""
+        with self._lock:
+            records = self._records.get(asset)
+            if records is None or len(records) < 10:
+                return None
+            mean_conf = sum(r[0] for r in records) / len(records)
+            mean_wr = sum(1 for r in records if r[1]) / len(records)
+            return mean_conf - mean_wr
+
+    @property
+    def gap_threshold(self) -> float:
+        return self._gap_threshold
+
+    def record_count(self, asset: str) -> int:
+        """Return number of records for an asset (for diagnostics)."""
+        with self._lock:
+            return len(self._records.get(asset, []))
+
+    def reset(self) -> None:
+        """Clear all records.  Call in test fixtures to prevent state bleeding."""
+        with self._lock:
+            self._records.clear()
+
+
+# Module-level singleton for backward compatibility.
+# Production code uses this instance; tests can call ``_drift_recorder.reset()``
+# between test cases to prevent state bleeding across fixtures.
+_drift_recorder = DriftOutcomeRecorder()
+
+
+# Backward-compatible module-level convenience references
+_outcome_lock = _drift_recorder._lock
+
+
+DRIFT_WINDOW = 30
+DRIFT_GAP_THRESHOLD = 0.20
+
+_outcome_records: dict[str, deque] = _drift_recorder._records
+
+
+def _record_drift_outcome(asset: str, confidence: float, was_win: bool) -> None:
+    _drift_recorder.record(asset, confidence, was_win)
+
+
+def _get_drift_gap(asset: str) -> float | None:
+    return _drift_recorder.get_gap(asset)
+
+
+def reset_drift_recorder() -> None:
+    """Test hook: clear all drift records."""
+    _drift_recorder.reset()
 
 
 def _log_eager_import_failure(name: str, exc: BaseException) -> None:
@@ -105,32 +194,6 @@ class DecisionContext:
 # ── Stage type ──────────────────────────────────────────────────────────
 
 StageFn = Callable[[DecisionContext], None]
-
-
-# ── Calibration drift tracker (module-level) ─────────────────────────────
-# Tracks recent trade outcomes per asset to detect overconfidence patterns.
-# The "confidently wrong" pattern (confidence >> actual win rate) is a leading
-# indicator of model decay — as seen in the Jan-Feb 2026 drawdown.
-
-DRIFT_WINDOW = 30
-DRIFT_GAP_THRESHOLD = 0.20
-
-_outcome_records: dict[str, deque] = {}
-
-
-def _record_drift_outcome(asset: str, confidence: float, was_win: bool) -> None:
-    if asset not in _outcome_records:
-        _outcome_records[asset] = deque(maxlen=DRIFT_WINDOW)
-    _outcome_records[asset].append((confidence, was_win))
-
-
-def _get_drift_gap(asset: str) -> float | None:
-    records = _outcome_records.get(asset)
-    if records is None or len(records) < 10:
-        return None
-    mean_conf = sum(r[0] for r in records) / len(records)
-    mean_wr = sum(1 for r in records if r[1]) / len(records)
-    return mean_conf - mean_wr
 
 
 # ── Individual stages ───────────────────────────────────────────────────

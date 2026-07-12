@@ -123,8 +123,8 @@ class _AnalyticsStore:
             }
             atomic_write_json(self._trade_outcomes_path, payload)
             return payload
-        except Exception:
-            logger.exception("Failed to compute trade outcomes")
+        except (OSError, sqlite3.DatabaseError, ValueError, KeyError) as _ae:
+            logger.exception("Failed to compute trade outcomes: %s", _ae)
             return None
 
     def write_snapshot(self) -> None:
@@ -207,5 +207,6 @@ class _AnalyticsStore:
         try:
             with open(self._analytics_path) as f:
                 return json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError):
+            logger.exception("Failed to read analytics snapshot")
             return None

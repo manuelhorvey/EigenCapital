@@ -26,7 +26,7 @@ class _DatabaseStore:
         self._checkpoint_interval = checkpoint_interval
         try:
             self._init_db()
-        except RuntimeError:
+        except (RuntimeError, sqlite3.DatabaseError, OSError):
             logger.warning("DB init verification failed — retrying once: %s", db_path)
             self._init_db()
 
@@ -36,7 +36,7 @@ class _DatabaseStore:
         Converts lowercase reasons to uppercase and normalizes
         legacy naming conventions.
         """
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(sqlite3.OperationalError):
             conn.executescript("""
                 UPDATE trades SET reason = 'SL' WHERE reason = 'sl';
                 UPDATE trades SET reason = 'TP' WHERE reason = 'tp';
@@ -262,8 +262,8 @@ class _DatabaseStore:
             try:
                 with self._connect() as conn:
                     conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
-            except Exception as e:
-                logger.debug("WAL checkpoint skipped: %s", e)
+            except (sqlite3.DatabaseError, OSError, RuntimeError) as _we:
+                logger.debug("WAL checkpoint skipped: %s", _we, exc_info=True)
 
     def append_trade(self, trade: dict) -> None:
         with self._connect() as conn:
@@ -314,7 +314,8 @@ class _DatabaseStore:
             with self._connect() as conn:
                 rows = conn.execute("SELECT * FROM trades ORDER BY exit_date DESC LIMIT ?", (limit,)).fetchall()
                 return [dict(r) for r in rows]
-        except Exception:
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
+            logger.debug("read_trades failed: %s", _e, exc_info=True)
             return []
 
     def read_trades_since(self, date: str) -> pd.DataFrame:
@@ -329,7 +330,8 @@ class _DatabaseStore:
                 if not rows:
                     return pd.DataFrame(columns=columns)
                 return pd.DataFrame([dict(r) for r in rows])
-        except Exception:
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
+            logger.debug("read_trades_since failed: %s", _e, exc_info=True)
             return pd.DataFrame(columns=columns)
 
     def append_attribution(self, record_dict: dict) -> None:
@@ -428,8 +430,8 @@ class _DatabaseStore:
                     if rec.get("exit_archetype") is None and rec.get("exit_exit_archetype") is not None:
                         rec["exit_archetype"] = rec["exit_exit_archetype"]
                 return records
-        except Exception as e:
-            logger.warning("Failed to read attribution: %s", e)
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
+            logger.warning("Failed to read attribution: %s", _e, exc_info=True)
             return []
 
     def append_shadow_trade(self, record_dict: dict) -> None:
@@ -478,7 +480,8 @@ class _DatabaseStore:
                         (limit, offset),
                     ).fetchall()
                 return [dict(r) for r in rows]
-        except Exception:
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
+            logger.debug("read_shadow_trades failed: %s", _e, exc_info=True)
             return []
 
     def append_confidence_bucket(self, bucket: dict) -> None:
@@ -541,5 +544,6 @@ class _DatabaseStore:
                         row["assets"] = {}
                     result.append(row)
                 return result
-        except Exception:
+        except (sqlite3.DatabaseError, OSError, RuntimeError) as _e:
+            logger.debug("read_equity_history failed: %s", _e, exc_info=True)
             return []

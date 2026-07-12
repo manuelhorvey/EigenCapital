@@ -39,7 +39,7 @@ class EngineRebalanceService:
                 hist = fetch_live(asset.ticker, min_days=window + 60)
                 if hist is not None and "close" in hist.columns and len(hist) >= window:
                     price_data[name] = hist["close"]
-            except Exception:
+            except (OSError, ValueError, TypeError, KeyError):
                 logger.warning("Failed to fetch history for %s", name, exc_info=True)
                 continue
         if not price_data:
@@ -79,10 +79,17 @@ class EngineRebalanceService:
 
         total_value = engine._state.compute_mtm_total()
 
+        # Read factor exposure limits from config (P3) for factor-constrained methods.
+        # Falls back to DEFAULT_FACTOR_LIMITS if not configured.
+        factor_limits = get_config().portfolio.get("factor_exposure_limits", None)
+        kwargs = {}
+        if factor_limits is not None:
+            kwargs["factor_limits"] = factor_limits
+
         try:
-            pw = compute_weights(method, returns)
-        except Exception as e:
-            logger.error("Risk parity optimization failed: %s", e)
+            pw = compute_weights(method, returns, **kwargs)
+        except (ValueError, TypeError, RuntimeError) as _rp_exc:
+            logger.error("Risk parity optimization failed: %s", _rp_exc, exc_info=True)
             return
 
         engine._rebalance_weights = pw.weights

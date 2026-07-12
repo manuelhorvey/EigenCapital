@@ -272,8 +272,12 @@ class RiskRegistry:
                     )
 
             return signal
-        except Exception:
-            logger.exception("risk_registry.evaluate(%s) failed — returning fallback signal", asset)
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as _re_exc:
+            logger.exception(
+                "risk_registry.evaluate(%s) failed: %s — returning fallback signal",
+                asset,
+                _re_exc,
+            )
             try:
                 from paper_trading.alerting.manager import Severity, global_alert_manager
 
@@ -283,8 +287,12 @@ class RiskRegistry:
                     message="Risk evaluation crashed — returning HIGH risk, PAUSE action",
                     asset=asset,
                 )
-            except Exception:
-                logger.exception("risk_registry.evaluate(%s) — AlertManager dispatch also failed", asset)
+            except (OSError, RuntimeError, KeyError) as _am_exc:
+                logger.exception(
+                    "risk_registry.evaluate(%s) — AlertManager dispatch also failed: %s",
+                    asset,
+                    _am_exc,
+                )
             return self._fallback_signal(asset)
 
     def get_latest(self, asset: str | None = None):

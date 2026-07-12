@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from paper_trading.inference.decision_builder import build_decision
+from paper_trading.inference.feature_builder import FeatureBuilder
 from paper_trading.inference.pipeline import AssetInferencePipeline
 
 
@@ -92,8 +94,8 @@ class TestInit:
         assert p._truncation_validated is False
         assert p._validated_model_id == -1
         assert p._truncate_inference is False
-        assert p._regime_cache_cycle == -1
-        assert p._regime_features_cache is None
+        assert p._feature_builder._regime_cache_cycle == -1
+        assert p._feature_builder._regime_features_cache is None
 
 
 class TestDetectBarJump:
@@ -129,7 +131,7 @@ class TestDetectRiskOff:
         asset.name = "AUDUSD"
         asset.config = {"risk_off_enabled": True}
         df = pd.DataFrame({"vix_mom_5d": [0.5], "spx_mom_5d": [-0.3]})
-        pipeline._detect_risk_off(asset, df)
+        FeatureBuilder._detect_risk_off(asset, df)
         assert asset._risk_off
 
     def test_clears_risk_off_when_not_both_conditions(self, pipeline):
@@ -137,7 +139,7 @@ class TestDetectRiskOff:
         asset.name = "AUDUSD"
         asset.config = {"risk_off_enabled": True}
         df = pd.DataFrame({"vix_mom_5d": [-0.1], "spx_mom_5d": [-0.3]})
-        pipeline._detect_risk_off(asset, df)
+        FeatureBuilder._detect_risk_off(asset, df)
         assert not asset._risk_off
 
     def test_disabled_by_default_for_all_assets(self, pipeline):
@@ -145,7 +147,7 @@ class TestDetectRiskOff:
         asset.name = "AUDUSD"
         asset.config = {}  # no risk_off_enabled
         df = pd.DataFrame({"vix_mom_5d": [0.5], "spx_mom_5d": [-0.3]})
-        pipeline._detect_risk_off(asset, df)
+        FeatureBuilder._detect_risk_off(asset, df)
         assert not asset._risk_off
 
     def test_missing_columns_no_error(self, pipeline):
@@ -153,7 +155,7 @@ class TestDetectRiskOff:
         asset.name = "AUDUSD"
         asset.config = {"risk_off_enabled": True}
         df = pd.DataFrame({"close": [1.0]})
-        pipeline._detect_risk_off(asset, df)
+        FeatureBuilder._detect_risk_off(asset, df)
         assert not asset._risk_off
 
 
@@ -376,7 +378,6 @@ def asset_label() -> str:
 class TestBuildDecision:
     def test_creates_trade_decision(self, pipeline):
         asset = pipeline.asset
-        asset._record_inference_proxies = MagicMock()
         tz_utc = _dt.timezone.utc
         asset.signal_data = pd.DataFrame(
             {"close": [1.1050], "prob_long": [0.7], "prob_short": [0.2], "prob_neutral": [0.1]},
@@ -391,7 +392,7 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0
         df = pd.DataFrame({"close": [1.1050]})
-        decision = pipeline._build_decision(
+        decision = build_decision(
             asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
         )
         assert decision.asset == "EURUSD"
@@ -406,7 +407,6 @@ class TestBuildDecision:
         percentage in [0, 100] alongside the direction-conditional confidence.
         """
         asset = pipeline.asset
-        asset._record_inference_proxies = MagicMock()
         tz_utc = _dt.timezone.utc
         asset.signal_data = pd.DataFrame(
             {"close": [1.1050], "prob_long": [0.7], "prob_short": [0.2], "prob_neutral": [0.1]},
@@ -421,7 +421,7 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0
         df = pd.DataFrame({"close": [1.1050]})
-        decision = pipeline._build_decision(
+        decision = build_decision(
             asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
         )
         assert decision.meta_label_confidence == pytest.approx(68.32, abs=0.01)
@@ -434,7 +434,6 @@ class TestBuildDecision:
         ``result.confidence_pct`` (which uses ``max(prob_long, prob_short)``).
         """
         asset = pipeline.asset
-        asset._record_inference_proxies = MagicMock()
         tz_utc = _dt.timezone.utc
         asset.signal_data = pd.DataFrame(
             {"close": [1.1050], "prob_long": [0.7], "prob_short": [0.2], "prob_neutral": [0.1]},
@@ -449,7 +448,7 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0  # Old max(prob_long, prob_short) — would be wrong
         df = pd.DataFrame({"close": [1.1050]})
-        decision = pipeline._build_decision(
+        decision = build_decision(
             asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
         )
         assert decision.confidence == pytest.approx(65.3, abs=0.01)  # 0.653 * 100 = 65.3
@@ -584,20 +583,61 @@ class TestGenerateAndApply:
 
 
 class TestRecordInferenceProxies:
+    """Proxy direction logic is now in build_decision (decision_builder.py)."""
+
     def test_buy_signal_sets_dir(self, pipeline):
         asset = pipeline.asset
-        signal_data = MagicMock()
-        pipeline._record_inference_proxies(signal_data, "BUY")
+        asset._last_macro_dir = None
+        tz_utc = _dt.timezone.utc
+        asset.signal_data = pd.DataFrame(
+            {"close": [1.1050], "prob_long": [0.7], "prob_short": [0.2], "prob_neutral": [0.1]},
+            index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=tz_utc)]),
+        )
+        result = MagicMock()
+        result.signal_data = asset.signal_data
+        result.signal_type = "BUY"
+        result.label = 1
+        result.confidence_pct = 75.0
+        asset._last_meta_proba = None
+        asset._calibrated_confidence = None
+        df = pd.DataFrame({"close": [1.1050]})
+        build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df)
         assert asset._entry_signal_dir == 1
 
     def test_sell_signal_sets_dir(self, pipeline):
         asset = pipeline.asset
-        signal_data = MagicMock()
-        pipeline._record_inference_proxies(signal_data, "SELL")
+        asset._last_macro_dir = None
+        tz_utc = _dt.timezone.utc
+        asset.signal_data = pd.DataFrame(
+            {"close": [1.1050], "prob_long": [0.2], "prob_short": [0.7], "prob_neutral": [0.1]},
+            index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=tz_utc)]),
+        )
+        result = MagicMock()
+        result.signal_data = asset.signal_data
+        result.signal_type = "SELL"
+        result.label = -1
+        result.confidence_pct = 75.0
+        asset._last_meta_proba = None
+        asset._calibrated_confidence = None
+        df = pd.DataFrame({"close": [1.1050]})
+        build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df)
         assert asset._entry_signal_dir == -1
 
     def test_flat_signal_sets_dir_zero(self, pipeline):
         asset = pipeline.asset
-        signal_data = MagicMock()
-        pipeline._record_inference_proxies(signal_data, "HOLD")
+        asset._last_macro_dir = None
+        tz_utc = _dt.timezone.utc
+        asset.signal_data = pd.DataFrame(
+            {"close": [1.1050], "prob_long": [0.2], "prob_short": [0.2], "prob_neutral": [0.6]},
+            index=pd.DatetimeIndex([_dt.datetime(2025, 6, 1, tzinfo=tz_utc)]),
+        )
+        result = MagicMock()
+        result.signal_data = asset.signal_data
+        result.signal_type = "FLAT"
+        result.label = 0
+        result.confidence_pct = 50.0
+        asset._last_meta_proba = None
+        asset._calibrated_confidence = None
+        df = pd.DataFrame({"close": [1.1050]})
+        build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df)
         assert asset._entry_signal_dir == 0

@@ -33,7 +33,7 @@ def priced_broker(zero_spread_config):
 class TestPaperBroker:
     @pytest.fixture(autouse=True)
     def _mock_yfinance(self):
-        with patch("paper_trading.execution.paper_broker.yf.Ticker", side_effect=RuntimeError("yfinance unavailable")):
+        with patch("paper_trading.execution.paper_broker.yf.Ticker", side_effect=ConnectionError("yfinance unavailable")):
             yield
 
     @pytest.fixture

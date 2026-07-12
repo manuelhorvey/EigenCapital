@@ -701,7 +701,7 @@ class TestCompileShadowLearning:
         assert result["event_count"] == 3
 
     def test_compile_shadow_learning_fallback_on_error(self, monkeypatch):
-        monkeypatch.setattr("paper_trading.shadow.learning._compute_learning_profile", lambda e: (_ for _ in ()).throw(Exception("test")))
+        monkeypatch.setattr("paper_trading.shadow.learning._compute_learning_profile", lambda e: (_ for _ in ()).throw(RuntimeError("test")))
         monkeypatch.setattr("paper_trading.shadow.learning._save_compiled", lambda a, r: None)
         result = compile_shadow_learning("EURUSD", feedback_logs=[{"derived": {"instability_index": 0.1}}])
         assert result["event_count"] == 0

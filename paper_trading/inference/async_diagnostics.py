@@ -119,7 +119,7 @@ class DiagnosticsQueue:
                         "shadow_action": shadow_action,
                         "shadow_learning": shadow_learning,
                     }
-            except Exception:
+            except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
                 logger.debug("%s: shadow learning feedback skipped", snap.asset_name)
 
     def apply_pending(self, asset_name: str, asset) -> bool:

@@ -50,8 +50,10 @@ class WebhookChannel(Channel):
         try:
             resp = urllib.request.urlopen(req, timeout=10)
             ok = resp.status == 200
-        except Exception as exc:
-            logger.warning("Webhook POST failed: %s", exc)
+        except (OSError, TimeoutError, ConnectionError, ValueError) as _wh_exc:
+            # urllib.error.URLError is a subclass of OSError (since Python 3.3+),
+            # so it's already covered.  No need to import urllib.error separately.
+            logger.warning("Webhook POST failed: %s", _wh_exc)
             ok = False
         if ok:
             self._last_send = now

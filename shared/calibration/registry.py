@@ -125,7 +125,7 @@ class CalibrationRegistry:
                 self._calibrators[asset] = cal
                 count += 1
                 logger.debug("Loaded %s for %s (type=%s)", fpath.name, asset, cal_type)
-            except Exception as e:
+            except (OSError, ValueError, json.JSONDecodeError, KeyError) as e:
                 logger.warning("Failed to load calibrator %s: %s", fpath.name, e)
 
         logger.debug("Loaded %d calibrators from %s", count, directory)
@@ -140,7 +140,7 @@ class CalibrationRegistry:
             try:
                 cal.save(str(directory / f"{asset}.json"))
                 count += 1
-            except Exception as e:
+            except (OSError, ValueError, TypeError, KeyError) as e:
                 logger.warning("Failed to save calibrator for %s: %s", asset, e)
         logger.info("Saved %d calibrators to %s", count, directory)
         return count

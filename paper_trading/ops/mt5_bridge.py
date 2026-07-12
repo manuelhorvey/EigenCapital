@@ -474,7 +474,7 @@ def _dispatch(method: str, params: dict, conn: socket.socket) -> dict:
 
     try:
         return handler(params)
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, ConnectionError) as e:
         logger.exception("Handler error for %s", method)
         return {"error": str(e)}
 
@@ -493,7 +493,7 @@ def _handle_client(conn: socket.socket) -> None:
             _send_frame(conn, resp)
     except ConnectionResetError:
         pass
-    except Exception as e:
+    except (OSError, ConnectionError, ValueError, json.JSONDecodeError) as e:
         logger.warning("Client error: %s", e)
     finally:
         with contextlib.suppress(Exception):

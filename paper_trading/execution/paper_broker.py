@@ -243,7 +243,7 @@ class PaperBroker(BrokerInterface):
                 price = float(data["Close"].iloc[-1])
                 self._price_cache[asset] = price
                 return price
-        except Exception as e:
+        except (OSError, ValueError, KeyError, IndexError, ConnectionError) as e:
             logger.warning("Price fetch failed for %s: %s", asset, e)
         return 0.0
 

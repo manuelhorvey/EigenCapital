@@ -32,7 +32,7 @@ def tmp_wal_dir() -> str:
 
 @pytest.fixture
 def writer(tmp_wal_dir: str) -> WalWriter:
-    return WalWriter(tmp_wal_dir, source="test_engine", batch_size=1)
+    return WalWriter(tmp_wal_dir, source="test_engine", batch_size=1, archive_daily=False)
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ class TestWalWriter:
         assert e2.sequence == 2
 
     def test_writes_persist_to_disk(self, tmp_wal_dir: str):
-        w = WalWriter(tmp_wal_dir, source="persist_test", batch_size=1)
+        w = WalWriter(tmp_wal_dir, source="persist_test", batch_size=1, archive_daily=False)
         w.write("price_update", {"price": 1.10})
         assert os.path.exists(w.path)
         with open(w.path) as f:
@@ -111,7 +111,7 @@ class TestWalWriter:
         assert data["event_type"] == "price_update"
 
     def test_append_only(self, tmp_wal_dir: str):
-        w = WalWriter(tmp_wal_dir, source="append_test", batch_size=1)
+        w = WalWriter(tmp_wal_dir, source="append_test", batch_size=1, archive_daily=False)
         w.write("event_a", {"val": 1})
         w.write("event_b", {"val": 2})
         with open(w.path) as f:
@@ -125,8 +125,8 @@ class TestWalWriter:
         assert writer.current_sequence == 100
 
     def test_file_per_source(self, tmp_wal_dir: str):
-        w1 = WalWriter(tmp_wal_dir, source="src_a", batch_size=1)
-        w2 = WalWriter(tmp_wal_dir, source="src_b", batch_size=1)
+        w1 = WalWriter(tmp_wal_dir, source="src_a", batch_size=1, archive_daily=False)
+        w2 = WalWriter(tmp_wal_dir, source="src_b", batch_size=1, archive_daily=False)
         assert w1.path != w2.path
         w1.write("event", {})
         w2.write("event", {})
@@ -392,7 +392,7 @@ class TestWalConcurrency:
         """100 concurrent writes from multiple threads all land on disk."""
         import threading
 
-        writer = WalWriter(tmp_wal_dir, source="concurrent", batch_size=1)
+        writer = WalWriter(tmp_wal_dir, source="concurrent", batch_size=1, archive_daily=False)
         n_per_thread = 25
         n_threads = 8
         total_events = n_per_thread * n_threads
@@ -431,7 +431,7 @@ class TestWalConcurrency:
         """Concurrent writes + flush calls do not interleave writes half-completed."""
         import threading
 
-        writer = WalWriter(tmp_wal_dir, source="concurrent_flush", batch_size=2)
+        writer = WalWriter(tmp_wal_dir, source="concurrent_flush", batch_size=2, archive_daily=False)
         n_per_thread = 10
         n_threads = 4
 

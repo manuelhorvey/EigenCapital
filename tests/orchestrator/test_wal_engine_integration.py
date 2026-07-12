@@ -63,7 +63,7 @@ class TestAssetActorWALEmission:
     """AssetActor emits WAL events during run_cycle."""
 
     def test_emits_price_update(self, wal_dir):
-        writer = WalWriter(wal_dir, source="test", batch_size=1)
+        writer = WalWriter(wal_dir, source="test", batch_size=1, archive_daily=False)
         engine = _make_mock_engine("EURUSD")
         actor = AssetActor("EURUSD", engine, wal_writer=writer)
 
@@ -74,7 +74,7 @@ class TestAssetActorWALEmission:
         assert any(e.event_type == "price_update" for e in events)
 
     def test_emits_signal_generated(self, wal_dir):
-        writer = WalWriter(wal_dir, source="test", batch_size=1)
+        writer = WalWriter(wal_dir, source="test", batch_size=1, archive_daily=False)
         engine = _make_mock_engine("EURUSD")
         actor = AssetActor("EURUSD", engine, wal_writer=writer)
 
@@ -85,7 +85,7 @@ class TestAssetActorWALEmission:
         assert any(e.event_type == "signal_generated" for e in events)
 
     def test_event_ordering(self, wal_dir):
-        writer = WalWriter(wal_dir, source="test", batch_size=1)
+        writer = WalWriter(wal_dir, source="test", batch_size=1, archive_daily=False)
         engine = _make_mock_engine("EURUSD")
         actor = AssetActor("EURUSD", engine, wal_writer=writer)
 
@@ -97,7 +97,7 @@ class TestAssetActorWALEmission:
         assert types.index("price_update") < types.index("signal_generated")
 
     def test_emits_position_closed_when_trade_log_grows(self, wal_dir):
-        writer = WalWriter(wal_dir, source="test", batch_size=1)
+        writer = WalWriter(wal_dir, source="test", batch_size=1, archive_daily=False)
         engine = _make_mock_engine("EURUSD")
         engine.trade_log = [
             {"reason": "sl_hit", "pnl": -150.0, "exit_price": 98.5, "entry_price": 100.0, "side": "long", "exit_date": "2026-05-29"}
@@ -120,7 +120,7 @@ class TestAssetActorWALEmission:
         assert result.success
 
     def test_signal_payload_contains_expected_fields(self, wal_dir):
-        writer = WalWriter(wal_dir, source="test", batch_size=1)
+        writer = WalWriter(wal_dir, source="test", batch_size=1, archive_daily=False)
         engine = _make_mock_engine("EURUSD")
         actor = AssetActor("EURUSD", engine, wal_writer=writer)
 
@@ -146,7 +146,7 @@ class TestOrchestratorWALEmission:
 
     @pytest.fixture
     def actors(self, wal_dir):
-        writer = WalWriter(wal_dir, source="test_orch", batch_size=1)
+        writer = WalWriter(wal_dir, source="test_orch", batch_size=1, archive_daily=False)
         eur = _make_mock_engine("EURUSD", price=1.1050)
         gbp = _make_mock_engine("GBPUSD", price=1.2650)
         return {
@@ -155,7 +155,7 @@ class TestOrchestratorWALEmission:
         }
 
     def test_emits_state_committed(self, wal_dir, actors):
-        writer = WalWriter(wal_dir, source="test_orch", batch_size=1)
+        writer = WalWriter(wal_dir, source="test_orch", batch_size=1, archive_daily=False)
         orch = EngineOrchestrator(actors, wal_writer=writer)
 
         orch.run_once()
@@ -165,7 +165,7 @@ class TestOrchestratorWALEmission:
         assert any(e.event_type == "state_committed" for e in events)
 
     def test_emits_actor_health(self, wal_dir, actors):
-        writer = WalWriter(wal_dir, source="test_orch", batch_size=1)
+        writer = WalWriter(wal_dir, source="test_orch", batch_size=1, archive_daily=False)
         orch = EngineOrchestrator(actors, wal_writer=writer)
 
         orch.run_once()
@@ -175,7 +175,7 @@ class TestOrchestratorWALEmission:
         assert any(e.event_type == "actor_health" for e in events)
 
     def test_health_payload(self, wal_dir, actors):
-        writer = WalWriter(wal_dir, source="test_orch", batch_size=1)
+        writer = WalWriter(wal_dir, source="test_orch", batch_size=1, archive_daily=False)
         orch = EngineOrchestrator(actors, wal_writer=writer)
 
         orch.run_once()
@@ -197,7 +197,7 @@ class TestEndToEndReplay:
     """ReplayRunner produces state consistent with engine execution from WAL."""
 
     def test_replay_produces_all_assets(self, wal_dir):
-        writer = WalWriter(wal_dir, source="e2e", batch_size=1)
+        writer = WalWriter(wal_dir, source="e2e", batch_size=1, archive_daily=False)
         eur = _make_mock_engine("EURUSD")
         gbp = _make_mock_engine("GBPUSD")
         actors = {
@@ -216,7 +216,7 @@ class TestEndToEndReplay:
         assert "assets" in state
 
     def test_replay_captures_signals(self, wal_dir):
-        writer = WalWriter(wal_dir, source="e2e", batch_size=1)
+        writer = WalWriter(wal_dir, source="e2e", batch_size=1, archive_daily=False)
         eur = _make_mock_engine("EURUSD", signal={"signal": "SELL", "confidence": 0.8, "position_size": 0.5})
         actors = {"EURUSD": AssetActor("EURUSD", eur, wal_writer=writer)}
         orch = EngineOrchestrator(actors, wal_writer=writer)
@@ -234,7 +234,7 @@ class TestEndToEndReplay:
                 assert sig.get("confidence") == 0.8
 
     def test_replay_deterministic(self, wal_dir):
-        writer = WalWriter(wal_dir, source="e2e", batch_size=1)
+        writer = WalWriter(wal_dir, source="e2e", batch_size=1, archive_daily=False)
         eur = _make_mock_engine("EURUSD")
         actors = {"EURUSD": AssetActor("EURUSD", eur, wal_writer=writer)}
         orch = EngineOrchestrator(actors, wal_writer=writer)
@@ -248,7 +248,7 @@ class TestEndToEndReplay:
         assert state1["events_replayed"] == state2["events_replayed"]
 
     def test_multiple_cycles_are_monotonic(self, wal_dir):
-        writer = WalWriter(wal_dir, source="e2e", batch_size=1)
+        writer = WalWriter(wal_dir, source="e2e", batch_size=1, archive_daily=False)
         eur = _make_mock_engine("EURUSD")
         actors = {"EURUSD": AssetActor("EURUSD", eur, wal_writer=writer)}
         orch = EngineOrchestrator(actors, wal_writer=writer)
@@ -263,7 +263,7 @@ class TestEndToEndReplay:
         assert len(set(sequences)) == len(sequences)  # no duplicates
 
     def test_replay_ignores_unknown_event_types(self, wal_dir):
-        writer = WalWriter(wal_dir, source="e2e", batch_size=1)
+        writer = WalWriter(wal_dir, source="e2e", batch_size=1, archive_daily=False)
         writer.write("unknown_event_type", {"foo": "bar"})
 
         eur = _make_mock_engine("EURUSD")
@@ -315,7 +315,7 @@ class TestCausalChainHashIntegrity:
 
         wal_dir = tmp_path / "wal"
         wal_dir.mkdir()
-        writer = WalWriter(str(wal_dir), source="test_chain", batch_size=1)
+        writer = WalWriter(str(wal_dir), source="test_chain", batch_size=1, archive_daily=False)
         engine._wal_writer = writer
 
         features = {"feature_0": 0.75, "feature_1": -0.30, "feature_2": 0.10}
@@ -352,7 +352,7 @@ class TestCausalChainHashIntegrity:
 
         wal_dir = tmp_path / "wal"
         wal_dir.mkdir()
-        writer = WalWriter(str(wal_dir), source="test_chain", batch_size=1)
+        writer = WalWriter(str(wal_dir), source="test_chain", batch_size=1, archive_daily=False)
 
         features = {"f0": 0.5, "f1": -0.1, "f2": 0.3, "f3": 0.0}
         feature_hash = hashlib.md5(json.dumps(features, sort_keys=True).encode()).hexdigest()[:12]

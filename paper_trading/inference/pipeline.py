@@ -3,151 +3,23 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
-import threading
 import time
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import pytz
-import ta
 
 from eigencapital.domain.time import utc_now
 from features.regime_features import generate_regime_features
 from paper_trading.config_manager import get_config
-from paper_trading.entry.decision import SignalType, TradeDecision
 from paper_trading.governance.conviction_gate import RegimeRow
-from paper_trading.inference.async_diagnostics import (
-    DiagnosticsSnapshot,
-    get_diagnostics_queue,
-)
-from paper_trading.ops import wrappers as _w
+from paper_trading.inference.async_diagnostics import get_diagnostics_queue
+from paper_trading.inference.decision_builder import build_decision
+from paper_trading.inference.feature_builder import FeatureBuilder
+from paper_trading.inference.trace_diagnostics import trace_and_diagnostics
 from paper_trading.ops.data_fetcher import fetch_live
-from paper_trading.ops.tracer import (
-    shadow_compare_signal,
-    shadow_compare_sizing,
-    trace_decision,
-)
-from paper_trading.shadow.model import ShadowModelRunner
-from paper_trading.shadow.storage import ShadowStorage
 from shared.calibration.registry import CalibrationRegistry
 
 logger = logging.getLogger("eigencapital.inference_pipeline")
-
-# ── Eagerly hoist shadow/diagnostics imports (issue #3 pattern) ──────
-# ``_run_shadow_feedback`` previously imported these inside the function
-# body after inference state had already been written.  Hoist to module
-# level so import errors surface at process start rather than mid-cycle.
-try:
-    from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
-except ImportError as _exc:
-    _get_drift = None  # type: ignore[assignment]
-    logger.warning("shadow_intelligence import unavailable — %s", _exc)
-
-try:
-    from paper_trading.governance.risk import evaluate as _risk_evaluate
-except ImportError as _exc:
-    _risk_evaluate = None  # type: ignore[assignment]
-    logger.warning("risk.evaluate import unavailable — %s", _exc)
-
-try:
-    from paper_trading.ops import diagnostics as _diag
-except ImportError as _exc:
-    _diag = None  # type: ignore[assignment]
-    logger.warning("ops.diagnostics import unavailable — %s", _exc)
-
-try:
-    from paper_trading.ops.tracer import trace_diagnostic_report as _trace_diag
-except ImportError as _exc:
-    _trace_diag = None  # type: ignore[assignment]
-    logger.warning("tracer.trace_diagnostic_report import unavailable — %s", _exc)
-
-try:
-    from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow
-except ImportError as _exc:
-    _compute_shadow = None  # type: ignore[assignment]
-    logger.warning("shadow.actions import unavailable — %s", _exc)
-
-try:
-    from paper_trading.shadow.feedback import record_shadow_feedback as _record_feedback
-except ImportError as _exc:
-    _record_feedback = None  # type: ignore[assignment]
-    logger.warning("shadow.feedback import unavailable — %s", _exc)
-
-try:
-    from paper_trading.shadow.learning import compile_shadow_learning as _compile_learning
-except ImportError as _exc:
-    _compile_learning = None  # type: ignore[assignment]
-    logger.warning("shadow.learning import unavailable — %s", _exc)
-
-try:
-    from paper_trading.shadow.memory import store_event as _shadow_store
-except ImportError as _exc:
-    _shadow_store = None  # type: ignore[assignment]
-    logger.warning("shadow.memory import unavailable — %s", _exc)
-
-# ── Shadow comparison infrastructure (model runner + storage) ────────────
-_ShadowRegistryT = dict[tuple[str, str], ShadowModelRunner]  # (shadow_id, asset_name) -> runner
-_SHADOW_REGISTRY: _ShadowRegistryT = {}
-_SHADOW_STORAGE: ShadowStorage | None = None
-_SHADOW_CONFIGS: dict[str, dict] = {}
-
-# Thread lock for _SHADOW_REGISTRY mutations (accessed from ThreadPoolExecutor workers).
-_SHADOW_REGISTRY_LOCK = threading.Lock()
-
-
-def _load_shadow_configs() -> dict[str, dict]:
-    """Load shadow model specs from configs/domains/shadow_models.yaml."""
-    import yaml
-
-    config_path = os.path.join(BASE, "configs", "domains", "ml", "shadow_models.yaml")
-    if not os.path.exists(config_path):
-        return {}
-    try:
-        with open(config_path) as f:
-            data = yaml.safe_load(f) or {}
-        models = data.get("shadow_models", [])
-        return {m["id"]: m for m in models if m.get("status") in ("shadow", "canary")}
-    except (OSError, ValueError, TypeError) as exc:
-        logger.warning("Failed to load shadow configs: %s", exc)
-        return {}
-
-
-def _get_shadow_storage() -> ShadowStorage:
-    global _SHADOW_STORAGE
-    if _SHADOW_STORAGE is None:
-        base = os.path.join(BASE, "data", "live", "shadow")
-        _SHADOW_STORAGE = ShadowStorage(base_dir=base)
-    return _SHADOW_STORAGE
-
-
-def _get_shadow_runner(shadow_id: str, config: dict, asset_name: str) -> ShadowModelRunner:
-    """Get or create a ShadowModelRunner for the given shadow_id and asset.
-
-    Supports ``{asset}`` placeholder in ``model_path`` (e.g.
-    ``models/canary/{asset}.json``) so a single shadow config can
-    reference per-asset model files.
-
-    Thread-safe: uses _SHADOW_REGISTRY_LOCK around the check-then-set
-    pattern to prevent concurrent ThreadPoolExecutor workers from racing
-    on the same key.
-    """
-    key = (shadow_id, asset_name)
-    with _SHADOW_REGISTRY_LOCK:
-        if key not in _SHADOW_REGISTRY:
-            raw_path = config.get("model_path", "")
-            resolved = raw_path.replace("{asset}", asset_name)
-            model_path = os.path.join(BASE, resolved)
-            _SHADOW_REGISTRY[key] = ShadowModelRunner(
-                shadow_id=shadow_id,
-                model_path=model_path,
-            )
-        return _SHADOW_REGISTRY[key]
-
-
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ET = pytz.timezone("US/Eastern")
 
 _MAX_INDICATOR_LOOKBACK = 253
 
@@ -158,13 +30,12 @@ class AssetInferencePipeline:
         self._truncation_validated = False
         self._validated_model_id = -1
         self._truncate_inference = False
-        self._regime_features_cache: pd.DataFrame | None = None
-        self._regime_cache_cycle: int = -1
+        self._feature_builder = FeatureBuilder()
 
-    def generate_signal(self, threshold=0.45):
-        return self._generate_and_apply(threshold)
+    def generate_signal(self, threshold=0.45, shared_macro: dict[str, pd.Series] | None = None):
+        return self._generate_and_apply(threshold, shared_macro=shared_macro)
 
-    def _generate_and_apply(self, threshold=0.45):
+    def _generate_and_apply(self, threshold=0.45, shared_macro: dict[str, pd.Series] | None = None):
         _t0 = time.perf_counter()
         asset = self.asset
 
@@ -195,7 +66,7 @@ class AssetInferencePipeline:
 
         _t_fetch = time.perf_counter()
         self._truncate_inference = True
-        alpha_df, features_df, x = self._build_feature_set(asset, df)
+        alpha_df, features_df, x = self._feature_builder.build(asset, df, shared_macro=shared_macro)
 
         _t_features = time.perf_counter()
         self._check_archetype_nans(asset, features_df)
@@ -215,9 +86,7 @@ class AssetInferencePipeline:
         # ── Calibrate probabilities ──────────────────────────────────
         asset._calibration_applied = self._apply_calibration(asset, proba)
 
-        # Guard: if calibration is enabled but failed, handle per-asset:
-        #   - No calibrator trained for this asset → use raw XGBoost probabilities with warning
-        #   - Calibrator exists but inference failed → force neutral with error
+        # Guard: if calibration is enabled but failed, handle per-asset
         _cal_cfg = get_config().defaults.get("calibration", {})
         if _cal_cfg.get("enabled", False) and not asset._calibration_applied:
             cal_registry = getattr(asset, "_calibration_registry", None)
@@ -227,12 +96,6 @@ class AssetInferencePipeline:
                     asset.name,
                 )
             else:
-                # This else branch fires only when:
-                # (a) calibration is enabled globally AND
-                # (b) a calibrator IS registered for this asset AND
-                # (c) calibrate() raised an exception (caught in _apply_calibration)
-                # In that case we force neutral to avoid acting on a malformed
-                # probability vector (e.g. NaN or zeroed-out from a partial state).
                 logger.error(
                     "%s: calibration inference failed — forcing neutral",
                     asset.name,
@@ -257,10 +120,10 @@ class AssetInferencePipeline:
 
         self._log_ensemble_breakdown(asset, alpha_df, proba, result)
         archetype = self._classify_archetype(asset, features_df)
-        decision = self._build_decision(asset, result, pos_size, archetype, df, feature_hash=feature_hash)
+        decision = build_decision(asset, result, pos_size, archetype, df, feature_hash=feature_hash)
 
         asset._apply_decision(decision, df)
-        self._trace_and_diagnostics(asset, decision, proba, x, df, threshold, feature_vector, feature_hash)
+        trace_and_diagnostics(asset, decision, proba, x, df, threshold, feature_vector, feature_hash)
 
         _t_total = time.perf_counter()
         self._log_pipeline_benchmark(asset, x, _t0, _t_fetch, _t_features, _t_infer, _t_total)
@@ -276,7 +139,7 @@ class AssetInferencePipeline:
             },
         )
         return asset._decision_to_dict(decision, final_signal=getattr(asset, "_last_final_signal", None))
-
+    
     # ── Focused pipeline stages ────────────────────────────────────
 
     def _apply_async_diagnostics(self, asset) -> None:
@@ -336,117 +199,6 @@ class AssetInferencePipeline:
         df["close"] = df["close"].ffill()
         df = df[~df.index.duplicated(keep="last")]
         return df
-
-    def _build_feature_set(self, asset, df):
-        from features.alpha_features import _compute_shared_features, build_alpha_features
-        from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
-
-        hist_prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset.name, asset.ticker)
-        self._detect_bar_jump(asset, len(hist_prices))
-        if self._truncate_inference:
-            _trunc_rows = _MAX_INDICATOR_LOOKBACK + 50
-            hist_prices = hist_prices.iloc[-_trunc_rows:]
-            if not rate_diffs.empty:
-                rate_diffs = rate_diffs.iloc[-_trunc_rows:]
-            dxy = dxy.iloc[-_trunc_rows:]
-            vix = vix.iloc[-_trunc_rows:]
-            spx = spx.iloc[-_trunc_rows:]
-            if not commodities.empty:
-                commodities = commodities.iloc[-_trunc_rows:]
-
-        # Cross-asset features (DXY, VIX, SPX, commodities) computed once per
-        # asset call and shared — avoids recomputing for every row in the loop.
-        shared_features = _compute_shared_features(
-            dxy=dxy,
-            vix=vix,
-            spx=spx,
-            commodities=commodities,
-            index=hist_prices.index,
-        )
-
-        # Fetch OHLCV for trend-exhaustion features (Tier 1+2)
-        ohlcv = fetch_asset_ohlcv(asset.ticker)
-
-        alpha_df = build_alpha_features(
-            hist_prices,
-            rate_diffs,
-            dxy=dxy,
-            vix=vix,
-            spx=spx,
-            commodities=commodities,
-            shared_features=shared_features,
-            ohlcv=ohlcv,
-        )
-        alpha_idx = alpha_df.index
-
-        if not ohlcv.empty:
-            if self._truncate_inference:
-                ohlcv = ohlcv.iloc[-_trunc_rows:]
-            ohlcv = ohlcv.reindex(alpha_idx).ffill()
-
-        archetype_df = pd.DataFrame(index=alpha_idx)
-        if not ohlcv.empty:
-            ema_20 = ta.trend.ema_indicator(ohlcv["close"], window=20)
-            ema_50 = ta.trend.ema_indicator(ohlcv["close"], window=50)
-            archetype_df["ema_spread"] = ((ema_20 - ema_50) / ema_50).reindex(alpha_idx)
-            archetype_df["adx"] = ta.trend.adx(ohlcv["high"], ohlcv["low"], ohlcv["close"], window=14).reindex(
-                alpha_idx
-            )
-            archetype_df["rsi"] = ta.momentum.rsi(ohlcv["close"], window=14).reindex(alpha_idx)
-            bb = ta.volatility.BollingerBands(ohlcv["close"], window=20, window_dev=2)
-            bb_mavg = bb.bollinger_mavg()
-            bb_std = bb.bollinger_hband() - bb_mavg
-            archetype_df["bb_zscore"] = ((ohlcv["close"] - bb_mavg) / (bb_std / 2)).reindex(alpha_idx)
-        archetype_df = archetype_df.bfill()
-
-        # Generate regime features from OHLCV, prefixed per-asset (matches training).
-        # Cache per cycle to avoid recomputation when regime sizing is enabled.
-        from features.data_fetch import _cycle_id
-
-        regime_inference_df = pd.DataFrame(index=alpha_idx)
-        if not ohlcv.empty:
-            cache_key = (_cycle_id, asset.name)
-            if self._regime_cache_cycle != cache_key:
-                raw_regime = generate_regime_features(ohlcv)
-                self._regime_features_cache = raw_regime
-                self._regime_cache_cycle = cache_key
-            else:
-                raw_regime = self._regime_features_cache
-            prefix = asset.name.upper()
-            renaming = {col: f"{prefix}_{col}" for col in raw_regime.columns}
-            prefixed = raw_regime.rename(columns=renaming)
-            common_idx = alpha_idx.intersection(prefixed.index)
-            regime_inference_df = prefixed.reindex(common_idx)
-
-        feature_cols = getattr(asset, "_alpha_feature_cols", None)
-        if not feature_cols:
-            feature_cols = [c for c in alpha_df.columns]
-            asset._alpha_feature_cols = feature_cols
-        available = [c for c in feature_cols if c in alpha_df.columns]
-        if not available:
-            raise ValueError(f"No alpha feature columns found for {asset.name}")
-        x = alpha_df[available]
-        features_df = pd.concat([alpha_df, archetype_df, regime_inference_df], axis=1)
-
-        self._detect_risk_off(asset, features_df)
-        return alpha_df, features_df, x
-
-    def _detect_risk_off(self, asset, features_df) -> None:
-        """Detect risk-off regime and set _risk_off flag on the asset.
-
-        Only activates for assets with risk_off_enabled: true in config.
-        When VIX is rising and SPX is falling, risk-off is flagged —
-        the consuming code in _generate_and_apply suppresses BUY signals.
-        """
-        if not asset.config.get("risk_off_enabled", False):
-            asset._risk_off = False
-            return
-        try:
-            vix_mom = features_df["vix_mom_5d"].iloc[-1]
-            spx_mom = features_df["spx_mom_5d"].iloc[-1]
-            asset._risk_off = vix_mom > 0.0 and spx_mom < 0.0
-        except (KeyError, IndexError):
-            asset._risk_off = False
 
     def _check_archetype_nans(self, asset, features_df) -> None:
         for col in ["adx", "rsi", "bb_zscore", "ema_spread"]:
@@ -629,12 +381,14 @@ class AssetInferencePipeline:
         if asset.config.get("regime_sizing"):
             from features.data_fetch import _cycle_id
 
-            if self._regime_cache_cycle == _cycle_id and self._regime_features_cache is not None:
-                regime_features_df = self._regime_features_cache
+            # Use the feature builder's regime cache to avoid redundant computation
+            fb = self._feature_builder
+            if fb._regime_cache_cycle == _cycle_id and fb._regime_features_cache is not None:
+                regime_features_df = fb._regime_features_cache
             else:
                 regime_features_df = generate_regime_features(df)
-                self._regime_features_cache = regime_features_df
-                self._regime_cache_cycle = _cycle_id
+                fb._regime_features_cache = regime_features_df
+                fb._regime_cache_cycle = _cycle_id
             regime_results = asset.regime_classifier.classify(regime_features_df)
             last_row = regime_results.iloc[-1]
             asset._current_regime = last_row["regime"]
@@ -705,263 +459,6 @@ class AssetInferencePipeline:
                 logger.debug("%s: archetype classification failed: %s", asset.name, e)
         return archetype
 
-    def _build_decision(self, asset, result, pos_size, archetype, df, feature_hash=""):
-        self._record_inference_proxies(result.signal_data, result.signal_type)
-        asset.signal_data = result.signal_data
-        latest = asset.signal_data.iloc[-1]
-        asset.last_signal_date = latest.name
-        close_price = float(latest["close"])
-        if pd.isna(close_price) or close_price == 0.0:
-            close_price = float(df["close"].ffill().iloc[-1])
-        if pd.isna(close_price) and asset.current_price is not None:
-            close_price = float(asset.current_price)
-
-        # ── C-03 follow-up: surface meta-label P(TP>SL) alongside confidence ──
-        # When meta-labeling is enabled per-asset, _last_meta_proba is a
-        # more reliable P(win|trade) than the calibrated direction-conditional
-        # confidence derived from the 3-class softmax. We expose it as a
-        # separate field so dashboards and diagnostics can choose which
-        # metric drives their view. The canonical ``confidence`` field is
-        # unchanged so existing gate logic is unaffected.
-        meta_proba = getattr(asset, "_last_meta_proba", None)
-        meta_label_confidence = round(float(meta_proba) * 100.0, 2) if meta_proba is not None else None
-
-        # ── D-01 fix: override confidence with calibrated P(win|direction) ──
-        # The DirectionalCalibrator (deployed 2026-07-11) produces calibrated
-        # P(TP hit | direction) for both BUY and SELL predictions. This replaces
-        # result.confidence_pct which uses max(prob_long, prob_short) — a metric
-        # with Spearman rho = -0.235 vs actual win rate (inverted relationship).
-        cal_conf_override = getattr(asset, "_calibrated_confidence", None)
-        final_confidence = (
-            round(float(cal_conf_override * 100), 2) if cal_conf_override is not None else result.confidence_pct
-        )
-
-        decision = TradeDecision(
-            asset=asset.name,
-            signal=SignalType(result.signal_type),
-            label=result.label,
-            confidence=final_confidence,
-            prob_long=round(float(latest["prob_long"]), 4),
-            prob_short=round(float(latest["prob_short"]), 4),
-            prob_neutral=round(float(latest["prob_neutral"]), 4),
-            close_price=round(close_price, 4),
-            timestamp=str(datetime.now(tz=ET).date()),
-            position_size=float(pos_size),
-            archetype=archetype,
-            feature_hash=feature_hash,
-            meta_label_confidence=meta_label_confidence,
-        )
-        logger.debug(
-            "%s ENTRY: signal=%s close_price=%.4f current_price=%s confidence=%.1f pos_size=%.4f",
-            asset.name,
-            decision.signal,
-            decision.close_price,
-            asset.current_price,
-            decision.confidence,
-            pos_size,
-        )
-        return decision
-
-    def _trace_and_diagnostics(
-        self,
-        asset,
-        decision,
-        proba,
-        x,
-        df,
-        threshold,
-        feature_vector=None,
-        feature_hash="",
-    ) -> None:
-        # ── WAL: features_snapshot (causal boundary P0.1) ─────────────────
-        wal = getattr(asset, "_wal_writer", None)
-        if wal is not None and feature_vector is not None:
-            try:
-                wal.write(
-                    "features_snapshot",
-                    {
-                        "asset": asset.name,
-                        "features": feature_vector,
-                        "feature_hash": feature_hash,
-                        "feature_schema": getattr(asset, "_last_feature_schema", sorted(feature_vector.keys())),
-                        "model_hash": getattr(asset, "_model_hash", "unknown"),
-                    },
-                )
-            except (OSError, RuntimeError, KeyError):
-                logger.warning("WAL write failed for features_snapshot on %s", asset.name, exc_info=True)
-
-        # ── Trace.jsonl decision entry (derives from same feature_vector) ──
-        _regime_label = (
-            asset._last_regime_row.regime_label if getattr(asset, "_last_regime_row", None) is not None else None
-        )
-        trace_decision(
-            asset=asset.name,
-            features=(
-                feature_vector if feature_vector is not None else {k: round(float(v), 6) for k, v in x.iloc[-1].items()}
-            ),
-            proba=[float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])],
-            threshold=threshold,
-            signal=decision.signal,
-            confidence=decision.confidence,
-            pos_size=float(decision.position_size),
-            close_price=decision.close_price,
-            current_side=asset.pos_mgr.current_side(),
-            halt_flags=asset.check_halt_conditions(),
-            current_price=asset.current_price,
-            regime_long_prob=asset._last_regime_long_prob,
-            regime_short_prob=(
-                round(float(asset._last_regime_raw_probas[0]), 6) if asset._last_regime_raw_probas is not None else None
-            ),
-            regime_label=_regime_label,
-            regime_features=asset._last_regime_features,
-            feature_hash=feature_hash,
-            model_hash=getattr(asset, "_model_hash", "unknown"),
-        )
-
-        _shadow_signal_df = _w.compute_signals(proba[-1:], x.index[-1:], threshold)
-        _shadow_latest = _shadow_signal_df.iloc[-1]
-        _shadow_stype, _shadow_conf, _shadow_conf_pct = _w.signal_type_and_confidence(
-            int(_shadow_latest["signal"]),
-            float(_shadow_latest["prob_long"]),
-            float(_shadow_latest["prob_short"]),
-        )
-        shadow_compare_signal(
-            asset=asset.name,
-            proba_produced=[float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])],
-            wrapper_signal=_shadow_stype,
-            wrapper_confidence=_shadow_conf_pct,
-            original_signal=decision.signal,
-            original_confidence=decision.confidence,
-        )
-
-        _shadow_size = _w.compute_vol_scalar(df["close"]) if asset.config.get("vol_scalar") else 1.0
-        shadow_compare_sizing(
-            asset=asset.name,
-            wrapper_size=_shadow_size,
-            original_size=float(decision.position_size),
-        )
-
-        # ── Shadow model inference (candidate model comparison) ─────────
-        # Runs registered shadow models on the same feature vector for
-        # side-effect-free comparison. Results stored in
-        # data/live/shadow/{shadow_id}/{asset}_{date}.parquet.
-        try:
-            if not _SHADOW_CONFIGS:
-                _SHADOW_CONFIGS.update(_load_shadow_configs())
-            if _SHADOW_CONFIGS and feature_vector is not None:
-                _storage = _get_shadow_storage()
-                for _sid, _scfg in list(_SHADOW_CONFIGS.items()):
-                    _runner = _get_shadow_runner(_sid, _scfg, asset_name=asset.name)
-                    _shadow_res = _runner.run(feature_vector, feature_hash=feature_hash)
-                    if _shadow_res is not None:
-                        _storage.record(
-                            shadow_id=_sid,
-                            asset=asset.name,
-                            prod_signal=decision.signal,
-                            prod_confidence=decision.confidence,
-                            prod_p_long=float(proba[-1, 2]),
-                            shadow_signal=_shadow_res.signal,
-                            shadow_confidence=_shadow_res.confidence,
-                            shadow_p_long=_shadow_res.proba_long,
-                            feature_hash=feature_hash,
-                            model_hash=_shadow_res.model_hash,
-                            inference_time_ms=_shadow_res.inference_time_ms,
-                        )
-                        if _storage.should_flush(_sid):
-                            _storage.flush(_sid)
-        except (RuntimeError, ValueError, OSError) as _shadow_err:
-            logger.debug("%s: shadow model inference skipped: %s", asset.name, _shadow_err)
-
-        _cfg = get_config()
-        if _cfg.optimizations.get("async_diagnostics", True):
-            _snap = DiagnosticsSnapshot(
-                asset_name=asset.name,
-                proba_long=float(proba[-1, 2]),
-                proba_short=float(proba[-1, 0]),
-                proba_neutral=float(proba[-1, 1]),
-                threshold=threshold,
-                signal=decision.signal,
-                confidence=decision.confidence,
-                shadow_stype=_shadow_stype,
-                shadow_conf_pct=_shadow_conf_pct,
-                feature_row={k: float(v) for k, v in x.iloc[-1].items()},
-                close_prices=df["close"].ffill().iloc[-20:].tolist(),
-                timestamp=str(datetime.now(tz=ET).date()),
-                model=asset.model,
-                features=asset.features,
-            )
-            get_diagnostics_queue().enqueue(_snap)
-        else:
-            self._run_shadow_feedback(asset, decision, proba, x, df, threshold, _shadow_stype, _shadow_conf_pct)
-
-    def _run_shadow_feedback(self, asset, decision, proba, x, df, threshold, shadow_stype, shadow_conf_pct) -> None:
-        # Guard: all shadow imports must be available
-        if any(
-            dep is None
-            for dep in (
-                _get_drift,
-                _risk_evaluate,
-                _diag,
-                _trace_diag,
-                _compute_shadow,
-                _record_feedback,
-                _compile_learning,
-                _shadow_store,
-            )
-        ):
-            logger.debug("%s: shadow feedback skipped — one or more modules unavailable at process start", asset.name)
-            return
-
-        try:
-            _proba_list = [float(proba[-1, 0]), float(proba[-1, 1]), float(proba[-1, 2])]
-            _sig_div = _diag.analyze_signal_divergence(
-                _proba_list,
-                threshold,
-                decision.signal,
-                decision.confidence,
-                shadow_stype,
-                shadow_conf_pct,
-            )
-            _mod_div = _diag.analyze_model_distribution(asset.name, _proba_list)
-            _feat_drivers = _diag.analyze_feature_impact(asset.model, x.iloc[[-1]], asset.features, proba[-1:])
-            _regime = _diag.analyze_regime_context(df["close"])
-            _report = _diag.build_shadow_report(
-                asset=asset.name,
-                timestamp=str(datetime.now(tz=ET).date()),
-                signal_match=_sig_div["match"],
-                signal_divergence=_sig_div,
-                model_divergence=_mod_div,
-                feature_drivers=_feat_drivers,
-                regime_context=_regime,
-            )
-            _trace_diag(_report)
-            if _shadow_store is not None:
-                _shadow_store(asset.name, _report)
-            asset._risk_signal = _risk_evaluate(asset.name)
-            asset._shadow_drift_intel = _get_drift(asset.name)
-            asset._shadow_action = _compute_shadow(
-                asset=asset.name,
-                state=None,
-                drift_report=asset._shadow_drift_intel,
-                risk_signal=asset._risk_signal,
-            )
-            if _record_feedback is not None:
-                _record_feedback(
-                    asset=asset.name,
-                    signal_data={"signal": decision.signal, "confidence": decision.confidence},
-                    drift=asset._shadow_drift_intel,
-                    risk=asset._risk_signal,
-                    action=asset._shadow_action,
-                )
-            asset._shadow_learning = _compile_learning(
-                asset=asset.name,
-                feedback_logs=None,
-                drift_history=asset._shadow_drift_intel,
-                risk_history=asset._risk_signal,
-            )
-        except (ValueError, TypeError, KeyError):
-            logger.debug("%s: shadow learning feedback skipped", asset.name)
-
     def _log_pipeline_benchmark(self, asset, x, t0, t_fetch, t_features, t_infer, t_total) -> None:
         fetch_time = t_fetch - t0
         feat_time = t_features - t_fetch
@@ -1013,21 +510,3 @@ class AssetInferencePipeline:
             )
             self._truncate_inference = True
 
-    def _record_inference_proxies(self, signal_data, signal: str) -> None:
-        asset = self.asset
-        asset._last_macro_dir = None
-        asset._last_blend_dir = None
-        asset._entry_signal_dir = 1 if signal == "BUY" else (-1 if signal == "SELL" else 0)
-
-        macro_head = getattr(asset.model, "macro_head", None) if asset.model else None
-        if macro_head is None:
-            return
-        try:
-            macro_cols = [c for c in macro_head.features if c in signal_data.columns]
-            if len(macro_cols) < 3:
-                return
-            macro_probs = macro_head.predict_proba(signal_data.iloc[[-1]][macro_cols])[0]
-            asset._last_macro_dir = int(np.argmax(macro_probs)) - 1
-            asset._last_blend_dir = int(np.argmax(signal_data.iloc[-1].values)) - 1
-        except (ValueError, TypeError, IndexError):
-            logger.debug("%s: macro proxy inference failed", asset.name)

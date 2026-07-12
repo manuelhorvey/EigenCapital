@@ -587,14 +587,11 @@ class AssetInferencePipeline:
         """
         cal_registry: CalibrationRegistry | None = getattr(asset, "_calibration_registry", None)
         if cal_registry is None:
-            logger.info("%s: _apply_calibration FAILED: cal_registry is None", asset.name)
             return False
         _cal_cfg = get_config().defaults.get("calibration", {})
         if not _cal_cfg.get("enabled", False):
-            logger.info("%s: _apply_calibration FAILED: calibration disabled (enabled=%s)", asset.name, _cal_cfg.get("enabled", False))
             return False
         if asset.name not in cal_registry._calibrators:
-            logger.info("%s: _apply_calibration FAILED: no calibrator for asset (keys=%s)", asset.name, list(cal_registry._calibrators.keys())[:5])
             return False
         try:
             raw_p_long = proba[:, 2].copy()
@@ -621,9 +618,6 @@ class AssetInferencePipeline:
 
             _row_sum = proba.sum(axis=1, keepdims=True)
             np.divide(proba, _row_sum, out=proba, where=_row_sum > 0)
-            logger.info("%s: _apply_calibration: raw=%.4f cal=%.4f conf=%.4f enabled=%s",
-                         asset.name, raw_p_long[-1], cal_p_long[-1],
-                         asset._calibrated_confidence, _cal_cfg.get("enabled", False))
             return True
         except (ValueError, TypeError, IndexError) as e:
             logger.error("%s: calibration inference failed: %s", asset.name, e)

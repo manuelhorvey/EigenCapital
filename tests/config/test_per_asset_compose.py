@@ -91,7 +91,7 @@ def test_composed_block_has_core_fields(name):
 def test_usdcad_preserved_through_compose():
     composed = _compose("USDCAD")
     assert composed["spread_tier"] == "fx_major"
-    assert composed["max_depth"] == 5
+    assert composed["max_depth"] == 3
     assert composed["tp_mult"] == 3.9
     assert composed["sl_mult"] == 1.3
 

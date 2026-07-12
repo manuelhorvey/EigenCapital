@@ -40,9 +40,12 @@ from eigencapital.domain.value_objects.statistical_metrics import (
     minimum_track_record_length,
     probabilistic_sharpe_ratio,
 )
+from shared.calibration.registry import CalibrationRegistry
 from shared.portfolio_weights import list_methods, rolling_weight_matrix
 
 logger = logging.getLogger("backtest_pnl")
+
+MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "paper_trading" / "models"
 
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 
@@ -513,6 +516,17 @@ def main():
             "Recommended for backtests that should mirror live paper flow."
         ),
     )
+    parser.add_argument(
+        "--calibrate",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Apply saved calibrators (from paper_trading/models/calibration/) "
+            "to ``p_long`` before deriving signals.  Mirrors the live engine's "
+            "DirectionalCalibrator step.  Use with --use-prod-thresholds for "
+            "the most accurate proxy of live paper flow."
+        ),
+    )
     args = parser.parse_args()
     tag = args.tag
 
@@ -529,6 +543,13 @@ def main():
     print("  Does not reflect live position sizing, correlation-adjusted portfolio risk,")
     print("  or transaction costs.  Not currency PnL.")
     print()
+
+    # Load calibration registry if --calibrate is set
+    cal_registry: CalibrationRegistry | None = None
+    if args.calibrate:
+        cal_dir = MODEL_DIR / "calibration"
+        cal_registry = CalibrationRegistry.get_or_load(cal_dir)
+        logger.info("Calibration registry loaded from %s", cal_dir)
 
     # Resolve the per-asset direction-conditional threshold map.
     # Values are (buy_th, sell_th) as 0-1 fractions.  None = use parquet's baked-in signal.
@@ -612,6 +633,17 @@ def main():
         if df.empty:
             logger.warning("%s: empty signal parquet — skipping", asset)
             continue
+
+        # Apply saved calibrator to p_long before thresholding
+        # Mirrors the live engine's DirectionalCalibrator step.
+        if args.calibrate and "p_long" in df.columns:
+            p_long_raw = df["p_long"].astype(float).values
+            p_long_cal = cal_registry.calibrate(asset, p_long_raw)
+            df["p_long"] = p_long_cal
+            logger.info(
+                "%s: calibrated p_long applied (%.4f → %.4f mean shift)",
+                asset, float(np.nanmean(p_long_raw)), float(np.nanmean(p_long_cal)),
+            )
 
         # Re-derive signals from p_long using direction-conditional thresholds.
         # The parquet's baked-in signal uses 0.575 which can be tighter than

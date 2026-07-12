@@ -270,7 +270,7 @@ def asset_metrics(daily_r: pd.Series) -> dict:
     running_max = cum.expanding().max()
     dd_r = cum - running_max
     max_dd_r = float(dd_r.min())
-    calmar = float(total_R / abs(max_dd_r)) if max_dd_r < 0 else float("inf")
+    calmar = float(total_R / abs(max_dd_r)) if max_dd_r < 0 else None
 
     # Loss clustering — count days where >30% of this asset's trades lose
     # (single asset version; cross-asset done at portfolio level)
@@ -286,7 +286,7 @@ def asset_metrics(daily_r: pd.Series) -> dict:
         "sharpe": round(sharpe, 4),
         "sharpe_adj": round(sharpe_adj, 4),
         "max_dd_R": round(max_dd_r, 2),
-        "calmar": round(calmar, 2),
+        "calmar": round(calmar, 2) if calmar is not None else None,
         "loss_ratio": round(loss_cluster_pct, 4),
         "skew": round(skew, 4),
         "ex_kurt": round(ex_kurt, 4),
@@ -400,7 +400,7 @@ def portfolio_metrics(
     running_max = cum.expanding().max()
     dd_r = cum - running_max
     max_dd_r = float(dd_r.min())
-    calmar = float(total_R / abs(max_dd_r)) if max_dd_r < 0 else float("inf")
+    calmar = float(total_R / abs(max_dd_r)) if max_dd_r < 0 else None
 
     # Autocorrelation-adjusted Sharpe (Lo, 2002)
     rho = r.autocorr() if len(r) > 1 else 0.0
@@ -426,7 +426,7 @@ def portfolio_metrics(
         "sharpe": round(sharpe, 4),
         "sharpe_adj": round(sharpe_adj, 4),
         "max_dd_R": round(max_dd_r, 2),
-        "calmar": round(calmar, 2),
+        "calmar": round(calmar, 2) if calmar is not None else None,
         "n_loss_cluster_days": int(cluster_days),
         "n_weekly_clusters": n_weekly_clusters,
         "median_n_assets": int(pf_df["n_assets"].median()),
@@ -716,7 +716,8 @@ def main():
     print(f"Portfolio ({args.weight_method}, ≥{args.min_assets} assets, DSR num_trials=22)")
     print("-" * 72)
     for k, v in pf_metrics.items():
-        print(f"  {k:25s} = {v}")
+        display = "---" if v is None else v
+        print(f"  {k:25s} = {display}")
     print()
 
     # Save per-asset metrics

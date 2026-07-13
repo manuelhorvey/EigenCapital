@@ -143,7 +143,7 @@ Each failure mode has:
 | | |
 |---|---|
 | **Manifestation** | Portfolio value drops 5% in one cycle. GovernanceRadar still shows "GREEN". No alert fires. Next cycle, the halt trigger fires and the market circuit breaker stops trading — after the drawdown already occurred. |
-| **Root cause** | Governance state (`selectors.governance`) derives from snapshot, which is updated at engine cycle frequency (~30s). The drawdown calculation in the selector uses `portfolio.drawdown` from the snapshot. But the engine's *live* drawdown (tracked intra-cycle) is not reflected in the snapshot until the cycle completes. |
+| **Root cause** | Governance state (`selectors.governance`) derives from snapshot, which is updated at engine cycle frequency (~60s). The drawdown calculation in the selector uses `portfolio.drawdown` from the snapshot. But the engine's *live* drawdown (tracked intra-cycle) is not reflected in the snapshot until the cycle completes. |
 | **Mitigation** | **Snapshot includes real-time drawdown estimate.** The engine should compute an intra-cycle drawdown estimate and write it to the snapshot on each tick (not just on cycle completion). The selector reads `snapshot.portfolio.realtime_drawdown` if available, falling back to `portfolio.drawdown`. The UI should show both: "Current drawdown: 4.2% (settled: 1.1%)". |
 | **Prevented by design?** | **No** — drawdown is cycle-latent. |
 

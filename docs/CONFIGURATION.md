@@ -24,6 +24,7 @@ Domains sourced from `configs/domains/` and wired through `PaperConfigRegistry`.
 | Calibration | `ml/calibration.yaml` | ✅ promoted |
 | Ensemble | `ml/ensemble.yaml` | ✅ promoted |
 | Meta-labeling | `ml/meta_labeling.yaml` | ✅ promoted |
+| Kelly sizing | `ml/kelly.yaml` | ✅ promoted (P2, emitted via defaults.kelly) |
 | Triple-barrier (label params) | `ml/triple_barrier.yaml` | ✅ promoted (stored as label_params) |
 | Alerts | `infrastructure/alerts.yaml` | ✅ promoted |
 | Spread gate | `execution/spreads.yaml` | ✅ promoted |
@@ -34,7 +35,7 @@ Domains sourced from `configs/domains/` and wired through `PaperConfigRegistry`.
 | Environment overlays | `environments/*.yaml` | ✅ promoted (final overlay layer) |
 
 **Pruned keys** (never consumed through EngineConfig):
-`kelly`
+`(none)`
 
 
 ## `CapitalConfig`
@@ -132,6 +133,19 @@ SELL_ONLY_ASSETS truth.
 | Field | Type | Default |
 |---|---|---|
 | `assets` | `frozenset[str]` | `(default_factory)` |
+
+
+## Environment Variable Overrides
+
+
+The following environment variables override hardcoded defaults at runtime. They are **not** stored in any YAML config file.
+
+
+| Variable | Default | Description |
+|---|---|---|
+
+| `EIGENCAPITAL_REFRESH_INTERVAL` | `60` | Engine cycle interval in seconds. Controls how often the main loop refreshes signals, runs inference, and persists state. Set lower for faster updates (higher CPU load) or higher for reduced resource usage. See `paper_trading/ops/monitor.py`. |
+
 
 
 **Last updated:** 2026-07-13

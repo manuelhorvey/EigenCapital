@@ -22,7 +22,7 @@ modes are ignored.
 |---|---|---|---|
 | `capital` | 100,000 | 10,000 | 100,000 |
 | `portfolio_drawdown_limit` | −0.15 | −0.08 | −0.10 |
-| `max_concurrent_positions` | 8 | 5 | 6 |
+| `max_concurrent_positions` | 13 | 5 | 6 |
 | `risk_per_trade_pct` | 0.02 | 0.01 | 0.01 |
 | `max_risk_per_trade_pct` | 2.0 | 0.03 (≙ 3%) | 0.03 (≙ 3%) |
 | `min_risk_per_trade_pct` | 0.001 | 0.001 | 0.002 |
@@ -47,7 +47,7 @@ modes are ignored.
 
 Standard paper trading baseline:
 - $100 K simulated capital.
-- 8 concurrent positions max.
+- 13 concurrent positions max.
 - Tighter DD ceiling (−15%) for research-grade exploration.
 
 ### `challenge_ftmo_10k`
@@ -113,5 +113,5 @@ The following live at the top level (apply to all modes):
 
 ---
 
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-13
 

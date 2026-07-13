@@ -135,6 +135,7 @@ def _promoted_status_table() -> str:
         ("Calibration", "ml/calibration.yaml", "✅ promoted"),
         ("Ensemble", "ml/ensemble.yaml", "✅ promoted"),
         ("Meta-labeling", "ml/meta_labeling.yaml", "✅ promoted"),
+        ("Kelly sizing", "ml/kelly.yaml", "✅ promoted (P2, emitted via defaults.kelly)"),
         ("Triple-barrier (label params)", "ml/triple_barrier.yaml", "✅ promoted (stored as label_params)"),
         ("Alerts", "infrastructure/alerts.yaml", "✅ promoted"),
         ("Spread gate", "execution/spreads.yaml", "✅ promoted"),
@@ -163,7 +164,7 @@ def _promoted_status_table() -> str:
     for name, source, status in domains:
         out += f"| {name} | `{source}` | {status} |\n"
     out += "\n**Pruned keys** (never consumed through EngineConfig):\n"
-    out += "`kelly`\n\n"
+    out += "`(none)`\n\n"
     if extras:
         out += f"**Remaining legacy_extras** ({len(extras)} keys):\n"
         out += ", ".join(f"`{k}`" for k in extras) + "\n\n"
@@ -264,6 +265,21 @@ def render_markdown() -> str:
             blocks.append(_table_for_dataclass(cls))
         except Exception as e:  # noqa: BLE001
             blocks.append(f"\n*Skipped `{cls_name}` due to render error: {e}*\n")
+
+    blocks.append("## Environment Variable Overrides\n\n")
+    blocks.append(
+        "The following environment variables override hardcoded defaults at "
+        "runtime. They are **not** stored in any YAML config file.\n\n"
+    )
+    blocks.append("| Variable | Default | Description |\n|---|---|---|\n")
+    blocks.append(
+        "| `EIGENCAPITAL_REFRESH_INTERVAL` | `60` | "
+        "Engine cycle interval in seconds. Controls how often the main loop "
+        "refreshes signals, runs inference, and persists state. "
+        "Set lower for faster updates (higher CPU load) or higher for reduced "
+        "resource usage. See `paper_trading/ops/monitor.py`. |\n"
+    )
+    blocks.append("\n")
 
     from datetime import datetime, timezone
 

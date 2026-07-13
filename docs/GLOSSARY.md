@@ -229,7 +229,7 @@ files in `configs/domains/`.
 ## Engine & Orchestration
 
 ### 5-Phase Cycle
-The orchestrator's main loop executed every ~30s:
+The orchestrator's main loop executes every ~60s:
 1. **PRE** — Build `PortfolioStateSnapshot`, `RiskBudget`, `PerformanceState`
 2. **Phase 1a (REFRESH)** — Parallel actor refresh and signal generation (8 threads)
 3. **Phase 1b (ADMIT)** — PEK collects intents → filter → rank → enforce budget
@@ -664,7 +664,7 @@ artefact.
 The Sharpe ratio adjusted for autocorrelation using the Lo (2002)
 correction: `Sharpe_adj = Sharpe × sqrt((1-ρ) / (1+ρ))` where ρ is
 the first-order autocorrelation of returns. Essential for high-frequency
-(30s cycle) returns where autocorrelation is significant.
+(60s cycle) returns where autocorrelation is significant.
 
 ### Information Coefficient (IC)
 The rank correlation between model predictions and actual outcomes.

@@ -602,7 +602,7 @@ class PaperTradingEngine:
                     exc_info=True,
                 )
 
-        # ── Automatic retraining trigger (every 100 cycles ≈ 50min) ─────
+        # ── Automatic retraining trigger (every 100 cycles ≈ 100min at 60s interval) ─────
         if not hasattr(self, "_retrain_cycle_counter"):
             self._retrain_cycle_counter = 0
         self._retrain_cycle_counter += 1

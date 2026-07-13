@@ -393,14 +393,32 @@ class PaperConfigRegistry:
                 env_name = env_file.stem
                 environments[env_name] = yaml.safe_load(env_file.read_text()) or {}
 
-        # Step 2: asset loading — per-asset files take precedence.
+        # Step 2: asset loading — **authoritative source is _index.yaml**.
+        # _index.yaml defines the canonical asset list. Per-asset YAML files
+        # provide the config data for each listed asset. Any per-asset file
+        # present on disk but absent from _index.yaml is silently ignored.
+        # Legacy asset blocks are only used as a fallback for index-listed
+        # assets that lack a per-asset domain file.
+        #
         # Pass regime_geometry_defaults so per-asset composition can use
         # the governance default when a per-asset file lacks regime_geometry.
+        index_names: set[str] | None = None
+        index_path = domains_dir / "assets" / "_index.yaml"
+        if index_path.exists():
+            index_raw = yaml.safe_load(index_path.read_text()) or {}
+            raw_list = index_raw.get("assets", [])
+            if raw_list:
+                index_names = set(raw_list)
+        if index_names is None:
+            # No _index.yaml (e.g. test fixture without one) —
+            # fall back to filesystem scanning for backward compat
+            pass
         merged_assets, asset_sources = _merge_assets(
             domains_dir=domains_dir,
             legacy_assets=legacy_raw.get("assets") or {},
             defaults_exit=risk.exits_default,
             governance_regime_geometry=regime_geometry_defaults,
+            index_names=index_names,
         )
 
         # Step 3: collect legacy_extras — keys not yet in a domain file
@@ -625,7 +643,19 @@ def _merge_assets(
     legacy_assets: dict[str, dict],
     defaults_exit,
     governance_regime_geometry: dict[str, Any] | None = None,
+    index_names: set[str] | None = None,
 ) -> tuple[dict[str, AssetConfig], dict[str, str]]:
+    """Merge per-asset configs into the registry.
+
+    Parameters
+    ----------
+    index_names
+        Authoritative set of asset names from ``_index.yaml``.
+        When provided, only assets in this set are loaded. Per-asset
+        files on disk that are not in the index are silently ignored.
+        When ``None``, falls back to filesystem scanning (backward
+        compatibility for tests that don't have ``_index.yaml``).
+    """
     assets_out: dict[str, AssetConfig] = {}
     sources: dict[str, str] = {}
 
@@ -636,7 +666,16 @@ def _merge_assets(
 
     per_asset_files = {fn.stem: fn for fn in (domains_dir / "assets").glob("[!_]*.yaml")}
 
-    all_names = set(per_asset_files) | set(legacy_assets)
+    if index_names is not None:
+        # _index.yaml is authoritative — only load assets listed in it
+        all_names = index_names
+        # Log a warning for index-listed assets without a per-asset file
+        for name in sorted(all_names):
+            if name not in per_asset_files and name not in legacy_assets:
+                logger.warning("Asset '%s' listed in _index.yaml but no per-asset YAML or legacy block found", name)
+    else:
+        all_names = set(per_asset_files) | set(legacy_assets)
+
     for name in sorted(all_names):
         per_file = per_asset_files.get(name)
         legacy_block = legacy_assets.get(name) or {}

@@ -60,6 +60,9 @@ DOCS_TO_SCAN = (
     "LIVE_CONTRACT.md",
     "docs/SYSTEM_OVERVIEW.md",
     "docs/PRODUCTION_SYSTEM_SPEC_v1.md",
+    "docs/GOVERNANCE.md",
+    "docs/CONFIGURATION.md",
+    "docs/MODES.md",
 )
 
 # Directories to scan for path validity checking (all .md files)
@@ -97,6 +100,19 @@ CANONICAL_FACTS: dict[str, str] = {
     "sell_only_count": "6",
     "promoted_assets": "22",
     "orchestrator_phases": "5 (PRE + 1a + 1b + 2 + 3 + 4)",
+    # Decision pipeline — verified against paper_trading/execution/decision_pipeline.py DEFAULT_STAGES
+    "decision_pipeline_stages": "25",
+    # Governance size-scalar formula — code uses max() not min()
+    # See paper_trading/governance/multipliers.py:44
+    "governance_size_scalar_formula_operator": "max",
+    # Config defaults — verified against configs/domains/risk/sizing.yaml
+    "min_confidence_buy_default": "45.0",
+    "min_confidence_sell_default": "55.0",
+    # Mode values — verified against configs/domains/modes/production.yaml
+    "production_max_concurrent_positions": "13",
+    "production_capital": "100000",
+    # Infrastructure — verified against configs/domains/infrastructure/config.yaml
+    "retrain_window": "10",
 }
 
 
@@ -537,12 +553,141 @@ def _check_last_updated_dates() -> list[str]:
     return out
 
 
+def _check_index_yaml_authority() -> list[str]:
+    """Verify _index.yaml is authoritative: PaperConfigRegistry reads it directly.
+
+    As of 2026-07-13, ``PaperConfigRegistry.load()`` reads ``_index.yaml`` to
+    determine the canonical asset set. Per-asset YAML files not listed in the
+    index are silently ignored by the registry.
+
+    This check verifies all three sources agree:
+    - ``_index.yaml`` is parseable and contains an ``assets:`` list
+    - Filesystem has a ``.yaml`` file for every asset in ``_index.yaml``
+    - The registry's loaded assets match ``_index.yaml`` exactly
+    """
+    out: list[str] = []
+
+    index_path = REPO_ROOT / "configs" / "domains" / "assets" / "_index.yaml"
+    if not index_path.exists():
+        out.append("configs/domains/assets/_index.yaml: missing — required as authoritative asset index")
+        return out
+
+    try:
+        import yaml
+
+        index_data = yaml.safe_load(_read(index_path)) or {}
+    except Exception as exc:  # noqa: BLE001
+        out.append(f"configs/domains/assets/_index.yaml: unparseable — {exc}")
+        return out
+
+    index_assets: list[str] = sorted(index_data.get("assets", []))
+    if not index_assets:
+        out.append("configs/domains/assets/_index.yaml: empty `assets:` list")
+        return out
+
+    # Assets from filesystem: all [!_]*.yaml files (excluding _index and _defaults)
+    assets_dir = REPO_ROOT / "configs" / "domains" / "assets"
+    fs_assets = sorted(
+        fn.stem for fn in assets_dir.glob("[!_]*.yaml") if fn.name != "_index.yaml"
+    )
+
+    # Every asset in the index must have a corresponding YAML file on disk
+    only_index = set(index_assets) - set(fs_assets)
+    if only_index:
+        out.append(f"_index.yaml lists assets with no per-asset YAML file: {sorted(only_index)}")
+
+    # Verify registry agrees with the index (it reads _index.yaml directly now)
+    try:
+        reg_assets = sorted(_registry_assets())
+        if reg_assets != index_assets:
+            only_reg = set(reg_assets) - set(index_assets)
+            only_index_reg = set(index_assets) - set(reg_assets)
+            if only_reg:
+                out.append(f"registry loaded assets not in _index.yaml: {sorted(only_reg)}")
+            if only_index_reg:
+                out.append(f"_index.yaml lists assets not loaded by registry: {sorted(only_index_reg)}")
+    except Exception as exc:  # noqa: BLE001
+        out.append(f"cannot verify registry-vs-index parity: {exc}")
+
+    # Verify filesystem doesn't have orphan assets (those with YAML but absent from index)
+    only_fs = sorted(set(fs_assets) - set(index_assets))
+    if only_fs:
+        out.append(f"filesystem has per-asset YAML files not in _index.yaml (will be ignored): {only_fs}")
+
+    # If any issues were found, suggest the auto-generator
+    if out:
+        out.append(
+            "hint: run `PYTHONPATH=$PYTHONPATH:. python tools/generate_index_yaml.py` "
+            "to auto-regenerate _index.yaml from the filesystem"
+        )
+
+    return out
+
+
+def _check_doc_asset_tables() -> list[str]:
+    """Count rows in asset tables within documentation files.
+
+    The canonical asset tables in LIVE_CONTRACT.md, PRODUCTION_SYSTEM_SPEC_v1.md,
+    and OPERATIONS.md each list 22 promoted assets with columns:
+    | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
+
+    Counts data rows after the header separator (|---|---|...| line).
+    """
+    out: list[str] = []
+    expected = int(CANONICAL_FACTS["promoted_assets"])
+
+    docs_with_tables = [
+        "LIVE_CONTRACT.md",
+        "docs/PRODUCTION_SYSTEM_SPEC_v1.md",
+        "docs/OPERATIONS.md",
+    ]
+
+    for doc in docs_with_tables:
+        path = REPO_ROOT / doc
+        if not path.exists():
+            continue
+        text = _read(path)
+        lines = text.splitlines()
+
+        # Find the asset table: look for the header row with Asset | Ticker
+        # then count data rows until a blank line or non-table line
+        in_table = False
+        found_separator = False
+        data_rows = 0
+        for line in lines:
+            if not in_table:
+                if re.match(r"\|\s*Asset\s*\|\s*Ticker", line):
+                    in_table = True
+                continue
+
+            # Header separator row: |---|---|...|
+            if not found_separator:
+                if re.match(r"\|[-\s]+\|", line):
+                    found_separator = True
+                continue
+
+            # Data rows: must start with pipe and contain a ticker
+            if re.match(r"\|\s*[A-Z0-9^]+\s*\|", line):
+                data_rows += 1
+            else:
+                # End of table
+                break
+
+        if data_rows != expected:
+            out.append(
+                f"{doc}: asset table has {data_rows} rows (expected {expected} — "
+                f"see configs/domains/assets/_index.yaml)"
+            )
+
+    return out
+
+
 def _check_metric_consistency() -> list[str]:
     """Verify key metrics are consistent across documents.
 
-    Checks that the governance layer count, feature counts, and
-    asset counts mentioned in documentation files align with
-    canonical facts.
+    Checks that the governance layer count, feature counts, asset counts,
+    stage counts, formula correctness, and config defaults mentioned
+    in documentation files align with canonical facts.
     """
     out: list[str] = []
 
@@ -565,6 +710,144 @@ def _check_metric_consistency() -> list[str]:
             expected = int(CANONICAL_FACTS["sell_only_count"])
             if count != expected and "reduced" not in text.lower() and m.start() > 0:
                 out.append(f"{doc}: claims {count} SELL_ONLY assets (expected {CANONICAL_FACTS['sell_only_count']})")
+
+        # Decision pipeline stage count — look for "N-stage decision pipeline"
+        # (not just "N-stage" which would catch orchestrator phase references)
+        for m in re.finditer(r"(\d+)-stage decision pipeline", text, re.IGNORECASE):
+            count = int(m.group(1))
+            expected = int(CANONICAL_FACTS["decision_pipeline_stages"])
+            if count != expected:
+                out.append(
+                    f"{doc}: claims {count}-stage decision pipeline "
+                    f"(expected {CANONICAL_FACTS['decision_pipeline_stages']})"
+                )
+
+    # ── GOVERNANCE.md specific checks ─────────────────────────────────
+    governance_path = REPO_ROOT / "docs/GOVERNANCE.md"
+    if governance_path.exists():
+        gov_text = _read(governance_path)
+
+        # Check size-scalar formula: code uses max(), doc should NOT say min()
+        for m in re.finditer(r"min\(narrative_size_scalar", gov_text):
+            line_no = gov_text[: m.start()].count("\n") + 1
+            out.append(
+                f"docs/GOVERNANCE.md:{line_no}: size-scalar formula uses `min(...)` "
+                f"but code uses `max()` — see paper_trading/governance/multipliers.py:44"
+            )
+
+        # Check the numeric floor value matches code
+        # Uses a generic pattern for the formula structure to avoid
+        # matching the × character which requires Unicode escapes.
+        expected_floor = 0.30  # _MIN_SIZE_FLOOR in multipliers.py
+        for m in re.finditer(r"min\(narrative_size_scalar[^(]+,\s*([\d.]+)\)", gov_text):
+            try:
+                val = float(m.group(1))
+            except ValueError:
+                continue
+            if abs(val - expected_floor) > 0.001:
+                line_no = gov_text[: m.start()].count("\n") + 1
+                out.append(
+                    f"docs/GOVERNANCE.md:{line_no}: "
+                    f"size-scalar floor is {val} but code has {expected_floor}"
+                )
+
+    # ── CONFIGURATION.md specific checks ─────────────────────────────
+    config_path = REPO_ROOT / "docs/CONFIGURATION.md"
+    if config_path.exists():
+        cfg_text = _read(config_path)
+
+        # Check retrain_window default matches infrastructure config
+        # MODES.md documents retrain_window: 10 — CONFIGURATION.md is auto-generated
+        # so we verify against the canonical fact
+
+        # Check that rolling_window_bars mention is consistent with
+        # the current dynamic default (None). The config doc shows the
+        # domain model default, not the runtime default.
+        # We just check that it's not hardcoded to 756 in the doc.
+        for m in re.finditer(r"rolling_window_bars.*756", cfg_text):
+            out.append(
+                "docs/CONFIGURATION.md: rolling_window_bars should be `None` (dynamic from retrain_window), "
+                "not hardcoded to 756 — see asset_engine.py:_init_runtime_state()"
+            )
+
+        # Check key sizing defaults match canonical facts
+        fact_checks = [
+            (r"min_confidence_buy.*`(\d+(?:\.\d+)?)`", CANONICAL_FACTS["min_confidence_buy_default"]),
+            (r"min_confidence_sell.*`(\d+(?:\.\d+)?)`", CANONICAL_FACTS["min_confidence_sell_default"]),
+        ]
+        for pattern, expected in fact_checks:
+            for m in re.finditer(pattern, cfg_text):
+                if m.group(1) != expected:
+                    line_no = cfg_text[: m.start()].count("\n") + 1
+                    out.append(
+                        f"docs/CONFIGURATION.md:{line_no}: documented value `{m.group(1)}` "
+                        f"should be `{expected}` — see configs/domains/risk/sizing.yaml"
+                    )
+
+    # ── Refresh interval consistency (cross-doc) ───────────────────────
+    # Verify docs that claim a specific refresh interval all agree on ~60s.
+    refresh_docs = [
+        (REPO_ROOT / "docs/PRODUCTION_SYSTEM_SPEC_v1.md", r"~60s\b|~60 seconds\b|every ~60", "~60s"),
+        (REPO_ROOT / "docs/OPERATIONS.md", r"60s\b|60 seconds\b", "60s"),
+        (REPO_ROOT / "docs/CONFIGURATION.md",
+         r"EIGENCAPITAL_REFRESH_INTERVAL.*`60`",
+         "EIGENCAPITAL_REFRESH_INTERVAL default 60"),
+    ]
+    for rpath, pattern, label in refresh_docs:
+        if rpath.exists():
+            rtext = _read(rpath)
+            if not re.search(pattern, rtext):
+                out.append(
+                    f"{rpath.relative_to(REPO_ROOT)}: missing '{label}' refresh interval claim "
+                    f"— should say ~60s (see monitor.py:EIGENCAPITAL_REFRESH_INTERVAL default 60)"
+                )
+
+    # ── MODES.md specific checks ─────────────────────────────────────
+    modes_path = REPO_ROOT / "docs/MODES.md"
+    if modes_path.exists():
+        modes_text = _read(modes_path)
+
+        # Check retrain_window: 10 (not 5)
+        if not re.search(r"retrain_window\s*[:=]?\s*10", modes_text):
+            # Check if it says something other than 10
+            m = re.search(r"retrain_window\s*[:=]?\s*(\d+)", modes_text)
+            if m:
+                out.append(
+                    f"docs/MODES.md: retrain_window={m.group(1)} but config says "
+                    f"{CANONICAL_FACTS['retrain_window']} — see configs/domains/infrastructure/config.yaml"
+                )
+            else:
+                out.append(
+                    f"docs/MODES.md: missing retrain_window: {CANONICAL_FACTS['retrain_window']} "
+                    f"— see configs/domains/infrastructure/config.yaml"
+                )
+
+        # Check production max_concurrent_positions
+        # The doc has a comparison table with | max_concurrent_positions | 8 | 5 | 6 |
+        # but production.yaml actually says 13
+        prod_row = re.search(
+            r"max_concurrent_positions\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)",
+            modes_text,
+        )
+        if prod_row:
+            prod_val = prod_row.group(1)
+            expected_prod = CANONICAL_FACTS["production_max_concurrent_positions"]
+            if prod_val != expected_prod:
+                out.append(
+                    f"docs/MODES.md: production max_concurrent_positions={prod_val} "
+                    f"but production.yaml says {expected_prod}"
+                )
+
+        # Check production capital
+        cap_m = re.search(r"`capital`\s*\|\s*([\d,]+)\s*\|\s*([\d,]+)\s*\|\s*([\d,]+)", modes_text)
+        if cap_m:
+            prod_cap = cap_m.group(1).replace(",", "")
+            expected_cap = CANONICAL_FACTS["production_capital"]
+            if prod_cap != expected_cap:
+                out.append(
+                    f"docs/MODES.md: production capital={cap_m.group(1)} "
+                    f"but production.yaml says {expected_cap}"
+                )
 
     return out
 
@@ -632,7 +915,15 @@ def main() -> int:
     date_issues = _check_last_updated_dates()
     findings.extend(date_issues)
 
-    # 12. cross-reference metric consistency (Sprint 4)
+    # 12. _index.yaml authority
+    index_issues = _check_index_yaml_authority()
+    findings.extend(index_issues)
+
+    # 13. doc asset table row counts (LIVE_CONTRACT, PRODUCTION_SPEC, OPERATIONS)
+    table_issues = _check_doc_asset_tables()
+    findings.extend(table_issues)
+
+    # 14. cross-reference metric consistency (Sprint 4)
     metric_issues = _check_metric_consistency()
     findings.extend(metric_issues)
 

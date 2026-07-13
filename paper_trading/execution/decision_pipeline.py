@@ -845,7 +845,7 @@ def apply_sell_only_filter(ctx: DecisionContext) -> None:
 # ── Spread gate stage ────────────────────────────────────────────────────
 
 SPREAD_GATE_STALENESS_SECS = 300  # 5 minutes — refreshed every cycle
-SPREAD_GATE_MIN_OBSERVE_CYCLES = 720  # ~6h at 30s — covers opens, mid-session, closes
+SPREAD_GATE_MIN_OBSERVE_CYCLES = 720  # ~12h at 60s — covers opens, mid-session, closes
 
 # SPREAD_TIER_BPS imported from paper_trading.execution.gate_constants
 
@@ -856,8 +856,8 @@ def apply_spread_gate(ctx: DecisionContext) -> None:
     Fail-closed: if spread data is missing or stale, the entry is blocked
     (conservative — entering blind is worse than missing a trade).
 
-    Observe mode: for the first SPREAD_GATE_MIN_OBSERVE_CYCLES cycles (~6h
-    at 30s cadence) the gate logs what it *would* do but does not block, to
+    Observe mode: for the first SPREAD_GATE_MIN_OBSERVE_CYCLES cycles (~12h
+    at 60s cadence) the gate logs what it *would* do but does not block, to
     validate thresholds against real market conditions before going live.
     """
     cfg = ctx.config or getattr(ctx.engine, "_engine_cfg", None)
@@ -925,7 +925,7 @@ def apply_spread_gate(ctx: DecisionContext) -> None:
 
 # ── Session gate stage ───────────────────────────────────────────────────
 
-SESSION_GATE_MIN_OBSERVE_CYCLES = 720  # ~6h at 30s — covers opens, mid-session, closes
+SESSION_GATE_MIN_OBSERVE_CYCLES = 720  # ~12h at 60s — covers opens, mid-session, closes
 
 SESSION_TIER_WINDOWS: dict[str, tuple[int, int]] = {
     "fx_major": (7, 17),  # London+NY overlap 07:00–17:00 UTC
@@ -939,12 +939,12 @@ SESSION_TIER_WINDOWS: dict[str, tuple[int, int]] = {
 def apply_session_gate(ctx: DecisionContext) -> None:
     """Block new entries outside configurable UTC session windows.
 
-    The model produces daily-bar signals but the engine runs every ~30s.
+    The model produces daily-bar signals but the engine runs every ~60s.
     Entering at 02:00 UTC or Sunday open exposes positions to wide spreads
     and low-liquidity conditions absent in training data.
 
     Observe mode: for the first ``SESSION_GATE_MIN_OBSERVE_CYCLES`` cycles
-    (~6h) the gate logs what it would do but does not block, to validate
+    (~12h) the gate logs what it would do but does not block, to validate
     windows against real market conditions before going live.
     """
     # Only applies to new entries (existing positions unaffected)

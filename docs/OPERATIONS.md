@@ -183,7 +183,7 @@ The engine supports three operational modes via the `mode:` key:
 
 | Mode | Capital | Max Risk/Trade | Max Concurrent | DD Limit | Use Case |
 |------|---------|---------------|----------------|----------|----------|
-| `production` | $100K | 2.0% | 8 | -15% | Standard paper trading |
+| `production` | $100K | 2.0% | 13 | -15% | Standard paper trading |
 | `challenge_ftmo_10k` | $10K | 3.0% | 5 | -8% | FTMO 10K challenge |
 | `live` | $100K | 3.0% | 6 | -10% | Live funded account |
 
@@ -701,4 +701,4 @@ The WAL (`data/live/wal/engine.jsonl`) captures every step in the trading decisi
 
 ---
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-13

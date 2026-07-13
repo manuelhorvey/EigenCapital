@@ -276,7 +276,7 @@ Format: XGBoost `.json` (not pickle)
 
 ### 5.1 Pipeline (`paper_trading/inference/pipeline.py`)
 
-**Frequency**: Every ~30 seconds (no configurable env var — cycle timing is fixed)
+**Frequency**: Every ~60 seconds (configurable via `EIGENCAPITAL_REFRESH_INTERVAL` env var, defaults to 60)
 
 **Parallel execution**: 22 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
 

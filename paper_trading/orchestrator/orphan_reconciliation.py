@@ -23,14 +23,14 @@ logger = logging.getLogger("eigencapital.orchestrator.orphan_reconciliation")
 # After this many consecutive close failures, abandon the orphan and log CRITICAL.
 MAX_CLEANUP_RETRIES = 5
 # Number of consecutive cycles a ticket must be missing from broker positions
-# before the paper position is closed as stale. At 30s/cycle this is ~5 minutes.
+# before the paper position is closed as stale. At 60s/cycle this is ~10 minutes.
 # Prevents premature closure during MT5 order fill propagation delay.
 MAX_STALE_TICKET_CYCLES = 10
 # After this many missing cycles, check the MT5 deal history (history_deals_get)
 # to determine whether the ticket was ever filled. If it was, the position
 # was closed by MT5-native SL/TP or manual intervention. If no deal exists,
 # the order was never filled (e.g. broker rejection) and the paper position
-# is a ghost. At 30s/cycle this is ~90s for the deal-history check.
+# is a ghost. At 60s/cycle this is ~3 min for the deal-history check.
 STALE_TICKET_DEAL_CHECK_CYCLES = 3
 
 

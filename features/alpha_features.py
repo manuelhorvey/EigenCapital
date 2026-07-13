@@ -145,27 +145,6 @@ def spx_momentum(spx_price: pd.Series, horizon: int = 5) -> pd.Series:
     return ret.clip(-0.05, 0.05)
 
 
-def cot_net_positioning(
-    net_spec_long: pd.Series,
-    open_interest: pd.Series,
-    lookback: int = 52,
-) -> pd.Series:
-    """
-    COT speculative positioning normalized by open interest, z-scored.
-
-    Theory: Extreme spec long positions predict mean reversion.
-    Klosse & Rzepkowski (2019) — weekly horizon predictive power.
-    Limitation: released Friday for Tuesday data (3-day stale).
-    Use as regime context, not entry signal.
-    Expected decay: 1-4 weeks.
-    """
-    normalized = net_spec_long / open_interest.replace(0, np.nan)
-    roll_mean = normalized.rolling(lookback, min_periods=26).mean()
-    roll_std = normalized.rolling(lookback, min_periods=26).std()
-    z = (normalized - roll_mean) / roll_std.replace(0, np.nan)
-    return z.clip(-3, 3)
-
-
 def macd_histogram(close: pd.Series) -> pd.Series:
     """
     MACD histogram — difference between MACD line and signal line,

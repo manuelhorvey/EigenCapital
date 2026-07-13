@@ -7,7 +7,6 @@ from features.alpha_features import (
     bb_pct_b,
     build_alpha_features,
     commodity_momentum,
-    cot_net_positioning,
     day_of_week_signal,
     dxy_momentum,
     macd_histogram,
@@ -415,39 +414,6 @@ def test_build_alpha_features_cot_removed(
     assert "AUDJPY_has_cot" not in result.columns, "COT column should not exist"
     assert "EURCAD_cot_z" not in result.columns, "COT column should not exist"
     assert "EURUSD_cot_z" not in result.columns, "COT column should not exist"
-
-
-# ── cot_net_positioning ─────────────────────────────────────────────────────
-
-
-def test_cot_net_positioning_basic():
-    normalised = pd.Series([0.1, 0.2, 0.3, 0.4, 0.5] * 20)
-    oi = pd.Series([100.0] * 100)
-    result = cot_net_positioning(normalised, oi)
-    assert isinstance(result, pd.Series)
-    assert not result.isna().all()
-
-
-def test_cot_net_positioning_zero_open_interest():
-    normalised = pd.Series([0.1] * 100)
-    oi = pd.Series([0.0] * 100)
-    result = cot_net_positioning(normalised, oi)
-    assert not result.empty
-
-
-def test_cot_net_positioning_clips_extremes():
-    rng = np.random.default_rng(42)
-    normalised = pd.Series(rng.normal(0, 1, 200))
-    oi = pd.Series([100.0] * 200)
-    result = cot_net_positioning(normalised, oi)
-    assert result.dropna().between(-3, 3).all()
-
-
-def test_cot_net_positioning_short_history():
-    normalised = pd.Series([0.1] * 10)
-    oi = pd.Series([100.0] * 10)
-    result = cot_net_positioning(normalised, oi, lookback=52)
-    assert result.isna().all() or result.empty
 
 
 # ── macd_histogram ──────────────────────────────────────────────────────────

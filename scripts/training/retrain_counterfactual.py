@@ -120,11 +120,6 @@ def _modify_features(alpha_df: pd.DataFrame, args) -> pd.DataFrame:
         for c in zscore_cols:
             result[c] = 0.0
 
-    if args.remove_cot:
-        cot_cols = [c for c in result.columns if "cot" in c.lower()]
-        for c in cot_cols:
-            result[c] = 0.0
-
     return result
 
 
@@ -192,7 +187,6 @@ def _infer_trial_count(asset_list: list[str], args) -> int:
             args.remove_dxy,
             args.remove_momentum,
             args.remove_zscore,
-            args.remove_cot,
         ]
     )
     if n_ablations == 0:
@@ -324,8 +318,6 @@ def run_baseline(asset_name: str, ticker: str) -> tuple[list[dict], pd.DataFrame
         remove_dxy = False
         remove_momentum = False
         remove_zscore = False
-        remove_cot = False
-
     return run_asset_counterfactual(asset_name, ticker, NoOpArgs(), tag="baseline")
 
 
@@ -339,8 +331,6 @@ def build_tags_from_args(args) -> list[str]:
         tags.append("no_momentum")
     if args.remove_zscore:
         tags.append("no_zscore")
-    if args.remove_cot:
-        tags.append("no_cot")
     return tags
 
 
@@ -351,7 +341,6 @@ def main():
     parser.add_argument("--remove-dxy", action="store_true", help="Zero-fill DXY feature")
     parser.add_argument("--remove-momentum", action="store_true", help="Zero-fill momentum features")
     parser.add_argument("--remove-zscore", action="store_true", help="Zero-fill zscore feature")
-    parser.add_argument("--remove-cot", action="store_true", help="Zero-fill COT features")
     parser.add_argument("--tag", default="", help="Custom experiment tag (default: auto from flags)")
     parser.add_argument("--parallel-workers", type=int, default=1, help="Parallel asset workers")
     parser.add_argument(

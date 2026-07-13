@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 Crisis scenario replay — stress-test assets and portfolio against known
-historical crisis windows within the available OOS data (Aug 2024 - May 2026).
+historical crisis windows within the available OOS data.
 
 Usage:
-    PYTHONPATH=$PYTHONPATH:. python scripts/crisis_replay.py
-    PYTHONPATH=$PYTHONPATH:. python scripts/crisis_replay.py --output-dir data/crisis_reports
+    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/crisis_replay.py
+    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/crisis_replay.py --tag expanded_10yr
+    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/crisis_replay.py --output-dir data/crisis_reports
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import json
 import logging
 import os
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -28,17 +30,19 @@ logger = logging.getLogger("crisis_replay")
 
 WALKDIR = Path(__file__).resolve().parent.parent / "walkforward"
 
+# Current SELL_ONLY assets from configs/domain_models/risk.py
 SELL_ONLY_ASSETS: frozenset[str] = frozenset(
     {
         "CADCHF",
+        "EURCHF",
+        "GBPCHF",
+        "GBPJPY",
         "NZDCHF",
         "EURAUD",
     }
 )
 
-# ── Crisis windows within Oct 2024 - May 2026 ──────────────────────────────
-# Identified by data-mining for concentrated loss periods and confirmed
-# against known market events.
+# ── Crisis windows within Oct 2024 - Jul 2026 ──────────────────────────────
 CRISIS_WINDOWS: list[dict] = [
     {
         "name": "dec_2024_selloff",
@@ -116,8 +120,6 @@ class CrisisWindowResult:
 
     # Correlation change
     avg_pairwise_corr_in_crisis: float = 0.0
-    avg_pairwise_corr_outside: float = 0.0
-    corr_during_crisis_increased: bool = False
 
     # Per-asset
     asset_metrics: list[AssetCrisisMetrics] = field(default_factory=list)
@@ -135,15 +137,23 @@ class CrisisWindowResult:
     cluster_losses: dict[str, dict] = field(default_factory=dict)
 
 
-# ── Core R computation ──────────────────────────────────────────────────────
+# ── Vectorized R computation ──────────────────────────────────────────────
 
 
-def compute_r(signal: int, label: int, tp: float, sl: float) -> float:
-    if signal == 1:
-        return tp if label == 1 else -sl
-    if signal == -1:
-        return tp if label == 0 else -sl
-    return 0.0
+def _vectorized_compute_r(
+    signal: pd.Series, label: pd.Series, tp: float, sl: float
+) -> np.ndarray:
+    """Compute R-multiple for all rows in one vectorized pass."""
+    result = np.zeros(len(signal), dtype=np.float64)
+    sig_vals = signal.values
+    lbl_vals = label.values
+    # BUY signals (signal == 1): won if label == 1
+    buy_mask = sig_vals == 1
+    result[buy_mask] = np.where(lbl_vals[buy_mask] == 1, tp, -sl)
+    # SELL signals (signal == -1): won if label == 0
+    sell_mask = sig_vals == -1
+    result[sell_mask] = np.where(lbl_vals[sell_mask] == 0, tp, -sl)
+    return result
 
 
 # ── Load data ────────────────────────────────────────────────────────────────
@@ -161,13 +171,18 @@ def load_pt_sl() -> dict[str, tuple[float, float]]:
     return result
 
 
-def load_all_signals() -> dict[str, pd.DataFrame]:
-    """Load all asset signal parquets from walkforward dir."""
+def load_all_signals(tag: str | None = None) -> dict[str, pd.DataFrame]:
+    """Load all asset signal parquets from walkforward dir, precomputing R
+    values vectorized at load time."""
     assets: dict[str, pd.DataFrame] = {}
-    pattern = os.path.join(WALKDIR, "*_wf_signals.parquet")
+    suffix = f"_wf_signals{'_' + tag if tag else ''}.parquet"
+    pattern = os.path.join(WALKDIR, f"*{suffix}")
+    pt_sl_map = load_pt_sl()
     for fpath in glob.glob(pattern):
-        name = os.path.basename(fpath).replace("_wf_signals.parquet", "")
+        name = os.path.basename(fpath).replace(suffix, "")
         df = pd.read_parquet(fpath)
+        tp, sl = pt_sl_map.get(name, (2.0, 2.0))
+        df["r"] = _vectorized_compute_r(df["signal"], df["label"], tp, sl)
         assets[name] = df
     return assets
 
@@ -180,53 +195,47 @@ def analyze_asset(
     df: pd.DataFrame,
     crisis_start: str,
     crisis_end: str,
-    tp: float,
-    sl: float,
 ) -> AssetCrisisMetrics:
-    """Compare asset performance inside vs outside a crisis window."""
+    """Compare asset performance inside vs outside a crisis window.
+    Uses precomputed 'r' column from load_all_signals."""
     is_sell_only = name in SELL_ONLY_ASSETS
 
     crisis_mask = (df.index >= crisis_start) & (df.index <= crisis_end)
     crisis_df = df[crisis_mask]
     normal_df = df[~crisis_mask]
 
-    def _compute(df_subset: pd.DataFrame, label: str) -> dict:
-        if df_subset.empty:
+    def _subset_stats(subset: pd.DataFrame) -> dict:
+        if subset.empty:
             return {"total_r": 0.0, "win_rate": 0.0, "avg_r": 0.0, "n_trades": 0, "r_list": []}
-
-        active = df_subset[df_subset["signal"] != 0]
-        if active.empty:
+        active_mask = subset["signal"] != 0
+        if not active_mask.any():
             return {"total_r": 0.0, "win_rate": 0.0, "avg_r": 0.0, "n_trades": 0, "r_list": []}
-
-        rs = active.apply(lambda row: compute_r(row["signal"], row["label"], tp, sl), axis=1)
-        wins = (rs > 0).sum()
+        rs = subset.loc[active_mask, "r"]
         return {
             "total_r": float(rs.sum()),
-            "win_rate": float(wins / len(rs)),
+            "win_rate": float((rs > 0).sum() / len(rs)),
             "avg_r": float(rs.mean()),
             "n_trades": len(rs),
             "r_list": rs.tolist(),
         }
 
-    crisis = _compute(crisis_df, "crisis")
-    normal = _compute(normal_df, "normal")
+    crisis = _subset_stats(crisis_df)
+    normal = _subset_stats(normal_df)
 
     # Consecutive losses in crisis
-    r_list = crisis["r_list"]
     max_consec = 0
     consec = 0
-    for r in r_list:
-        if r < 0:
+    for r_val in crisis["r_list"]:
+        if r_val < 0:
             consec += 1
             max_consec = max(max_consec, consec)
         else:
             consec = 0
 
-    # Volatility
     crisis_vol = float(np.std(crisis["r_list"])) if len(crisis["r_list"]) > 1 else 0.0
     normal_vol = float(np.std(normal["r_list"])) if len(normal["r_list"]) > 1 else 1e-9
 
-    m = AssetCrisisMetrics(
+    return AssetCrisisMetrics(
         name=name,
         crisis_total_r=crisis["total_r"],
         crisis_win_rate=crisis["win_rate"],
@@ -246,7 +255,6 @@ def analyze_asset(
         consecutive_losses_in_crisis=max_consec,
         would_trip_loss_streak=max_consec >= CIRCUIT_BREAKER_MAX_CONSECUTIVE_LOSSES,
     )
-    return m
 
 
 # ── Correlation analysis ──────────────────────────────────────────────────
@@ -256,33 +264,32 @@ def compute_avg_pairwise_corr(
     assets_data: dict[str, pd.DataFrame],
     date_range: tuple[str, str],
 ) -> float:
-    """Compute average pairwise return correlation within a date range."""
+    """Compute average pairwise return correlation within a date range
+    using precomputed 'r' columns."""
     start, end = date_range
     # Build return matrix aligned by date
-    all_dates = sorted({d for df in assets_data.values() for d in df.index if start <= str(d.date()) <= end})
+    all_dates = sorted(
+        {
+            d
+            for df in assets_data.values()
+            for d in df.index
+            if start <= str(d.date()) <= end and "r" in df.columns
+        }
+    )
     if len(all_dates) < 5:
         return 0.0
 
-    returns_mat: dict[str, list[float]] = {}
+    returns_dict: dict[str, pd.Series] = {}
     for name, df in assets_data.items():
-        rets = []
-        for d in all_dates:
-            if d in df.index:
-                row = df.loc[d]
-                sig, lbl = row["signal"], row["label"]
-                tp, sl = load_pt_sl().get(name, (2.0, 2.0))
-                rets.append(compute_r(sig, lbl, tp, sl))
-            else:
-                rets.append(0.0)
-        returns_mat[name] = rets
+        if "r" in df.columns:
+            returns_dict[name] = df["r"].reindex(all_dates, fill_value=0.0)
 
-    df_rets = pd.DataFrame(returns_mat, index=all_dates)
+    df_rets = pd.DataFrame(returns_dict, index=all_dates)
     corr = df_rets.corr()
-    # Average of upper triangle
     vals = []
-    assets = list(corr.columns)
-    for i in range(len(assets)):
-        for j in range(i + 1, len(assets)):
+    cols = list(corr.columns)
+    for i in range(len(cols)):
+        for j in range(i + 1, len(cols)):
             v = corr.iloc[i, j]
             if not np.isnan(v):
                 vals.append(v)
@@ -300,35 +307,30 @@ def analyze_clusters(
     """Check how predefined clusters behave during crisis."""
     clusters = {
         "chf": {"assets": ["CADCHF", "NZDCHF", "USDCHF", "EURCHF"], "label": "CHF pairs (all SELL-only)"},
-        "equities": {"assets": ["ES", "NQ", "^DJI"], "label": "US equities (all SELL-only)"},
+        "equities": {"assets": ["^DJI"], "label": "US equities"},
         "aud": {"assets": ["AUDUSD", "EURAUD"], "label": "AUD pairs"},
         "commodity": {"assets": ["GC"], "label": "Gold"},
     }
 
-    pt_sl = load_pt_sl()
     results: dict[str, dict] = {}
     for cluster_name, cluster_info in clusters.items():
-        asset_names = cluster_info["assets"]
-        # Filter to assets that exist in data
-        existing = [a for a in asset_names if a in assets_data]
+        existing = [a for a in cluster_info["assets"] if a in assets_data]
         if not existing:
             continue
 
-        # Total R for crisis period
         total_r = 0.0
         n_losses = 0
         n_trades = 0
         for name in existing:
             df = assets_data[name]
+            if "r" not in df.columns:
+                continue
             crisis = df[(df.index >= crisis_start) & (df.index <= crisis_end)]
             active = crisis[crisis["signal"] != 0]
-            for _, row in active.iterrows():
-                tp, sl = pt_sl.get(name, (2.0, 2.0))
-                r = compute_r(row["signal"], row["label"], tp, sl)
-                total_r += r
-                if r < 0:
-                    n_losses += 1
-                n_trades += 1
+            rs = active["r"]
+            total_r += rs.sum()
+            n_losses += (rs < 0).sum()
+            n_trades += len(rs)
 
         results[cluster_name] = {
             "label": cluster_info["label"],
@@ -348,61 +350,48 @@ def simulate_circuit_breaker(
     crisis_start: str,
     crisis_end: str,
 ) -> dict:
-    """Simulate the portfolio circuit breaker during crisis.
+    """Simulate the portfolio circuit breaker during crisis using precomputed R.
 
     Checks:
       1. Consecutive portfolio loss streak (15-day threshold)
       2. Vol spike (rolling 10-day vol vs baseline vol, 3x threshold)
     """
-    dates = sorted({d for df in assets_data.values() for d in df.index if crisis_start <= str(d.date()) <= crisis_end})
+    dates = sorted(
+        {
+            d
+            for df in assets_data.values()
+            for d in df.index
+            if crisis_start <= str(d.date()) <= crisis_end and "r" in df.columns
+        }
+    )
     if not dates:
         return {"tripped": False, "reason": "no_data"}
 
-    pt_sl = load_pt_sl()
-
-    # Daily portfolio returns
+    # Daily portfolio returns from precomputed R
     daily_rs: list[float] = []
     for d in dates:
-        rs: list[float] = []
-        for name, df in assets_data.items():
-            if d in df.index:
-                row = df.loc[d]
-                sig, lbl = row["signal"], row["label"]
-                tp, sl = pt_sl.get(name, (2.0, 2.0))
-                rs.append(compute_r(sig, lbl, tp, sl))
+        rs = [
+            assets_data[name].loc[d, "r"]
+            for name in assets_data
+            if d in assets_data[name].index and "r" in assets_data[name].columns
+        ]
         daily_rs.append(float(np.mean(rs)) if rs else 0.0)
 
     # 1. Consecutive loss streak
     max_streak = 0
     streak = 0
-    for r in daily_rs:
-        if r < 0:
+    for r_val in daily_rs:
+        if r_val < 0:
             streak += 1
             max_streak = max(max_streak, streak)
         else:
             streak = 0
-
     loss_trip = max_streak >= CIRCUIT_BREAKER_MAX_CONSECUTIVE_LOSSES
 
     # 2. Vol spike
-    baseline_start = "2024-10-17"
-    baseline_dates = sorted(
-        {d for df in assets_data.values() for d in df.index if baseline_start <= str(d.date()) <= crisis_start}
-    )
-    baseline_rs: list[float] = []
-    for d in baseline_dates:
-        rs = []
-        for name, df in assets_data.items():
-            if d in df.index:
-                row = df.loc[d]
-                sig, lbl = row["signal"], row["label"]
-                tp, sl = pt_sl.get(name, (2.0, 2.0))
-                rs.append(compute_r(sig, lbl, tp, sl))
-        baseline_rs.append(float(np.mean(rs)) if rs else 0.0)
-
+    baseline_rs = _baseline_daily_rs(assets_data, crisis_start)
     baseline_vol = float(np.std(baseline_rs)) if len(baseline_rs) > 10 else 1e-6
     crisis_vol = float(np.std(daily_rs)) if len(daily_rs) > 1 else 0.0
-
     vol_ratio = crisis_vol / baseline_vol if baseline_vol > 0 else 0.0
     vol_trip = vol_ratio >= CIRCUIT_BREAKER_VOL_SPIKE_THRESHOLD
 
@@ -418,6 +407,42 @@ def simulate_circuit_breaker(
     }
 
 
+def _baseline_daily_rs(
+    assets_data: dict[str, pd.DataFrame],
+    crisis_start: str,
+) -> list[float]:
+    """Compute daily portfolio returns from precomputed R for baseline period."""
+    baseline_start = "2024-10-17"
+    dates = sorted(
+        {
+            d
+            for df in assets_data.values()
+            for d in df.index
+            if baseline_start <= str(d.date()) <= crisis_start and "r" in df.columns
+        }
+    )
+    if len(dates) < 10:
+        return [0.0]
+    rs: list[float] = []
+    for d in dates:
+        r_vals = [
+            assets_data[name].loc[d, "r"]
+            for name in assets_data
+            if d in assets_data[name].index and "r" in assets_data[name].columns
+        ]
+        rs.append(float(np.mean(r_vals)) if r_vals else 0.0)
+    return rs
+
+
+def baseline_vol_if_available(
+    assets_data: dict[str, pd.DataFrame],
+    crisis_start: str,
+) -> float:
+    """Estimate baseline daily portfolio vol before crisis using precomputed R."""
+    rs = _baseline_daily_rs(assets_data, crisis_start)
+    return float(np.std(rs)) if len(rs) > 1 else 1e-6
+
+
 # ── Per-crisis analysis ────────────────────────────────────────────────────
 
 
@@ -427,9 +452,8 @@ def analyze_crisis_window(
     start: str,
     end: str,
     assets_data: dict[str, pd.DataFrame],
-    pt_sl_map: dict[str, tuple[float, float]],
 ) -> CrisisWindowResult:
-    """Run full analysis for one crisis window."""
+    """Run full analysis for one crisis window using precomputed R columns."""
     logger.info("Analyzing crisis window: %s (%s to %s)", name, start, end)
 
     result = CrisisWindowResult(name=name, description=desc, start=start, end=end)
@@ -437,31 +461,37 @@ def analyze_crisis_window(
     # Per-asset analysis
     asset_metrics: list[AssetCrisisMetrics] = []
     for aname, df in assets_data.items():
-        tp, sl = pt_sl_map.get(aname, (2.0, 2.0))
-        m = analyze_asset(aname, df, start, end, tp, sl)
+        m = analyze_asset(aname, df, start, end)
         asset_metrics.append(m)
     result.asset_metrics = asset_metrics
 
     # Trading days in window
-    all_dates = sorted(set(d for df in assets_data.values() for d in df.index if start <= str(d.date()) <= end))
+    all_dates = sorted(
+        {
+            d
+            for df in assets_data.values()
+            for d in df.index
+            if start <= str(d.date()) <= end and "r" in df.columns
+        }
+    )
     result.n_trading_days = len(all_dates)
 
-    # Portfolio-level metrics
+    # Portfolio-level daily metrics from precomputed R
     daily_rs: list[float] = []
     for d in all_dates:
-        rs = []
-        for aname, df in assets_data.items():
-            if d in df.index:
-                row = df.loc[d]
-                sig, lbl = row["signal"], row["label"]
-                tp, sl = pt_sl_map.get(aname, (2.0, 2.0))
-                rs.append(compute_r(sig, lbl, tp, sl))
+        rs = [
+            assets_data[aname].loc[d, "r"]
+            for aname in assets_data
+            if d in assets_data[aname].index and "r" in assets_data[aname].columns
+        ]
         daily_rs.append(float(np.mean(rs)) if rs else 0.0)
 
     result.portfolio_total_r = round(sum(daily_rs), 2)
     result.portfolio_avg_daily_r = round(float(np.mean(daily_rs)), 4) if daily_rs else 0.0
     result.portfolio_daily_r_vol = round(float(np.std(daily_rs)), 4) if len(daily_rs) > 1 else 0.0
-    result.portfolio_loss_day_ratio = round(sum(1 for r in daily_rs if r < 0) / len(daily_rs), 3) if daily_rs else 0.0
+    result.portfolio_loss_day_ratio = (
+        round(sum(1 for r_val in daily_rs if r_val < 0) / len(daily_rs), 3) if daily_rs else 0.0
+    )
 
     # Max drawdown within crisis
     cum = np.cumsum(daily_rs) if daily_rs else [0.0]
@@ -472,8 +502,8 @@ def analyze_crisis_window(
     # Consecutive portfolio losses
     max_streak = 0
     streak = 0
-    for r in daily_rs:
-        if r < 0:
+    for r_val in daily_rs:
+        if r_val < 0:
             streak += 1
             max_streak = max(max_streak, streak)
         else:
@@ -485,7 +515,7 @@ def analyze_crisis_window(
     bl_vol = baseline_vol_if_available(assets_data, start)
     result.would_trip_vol_spike = result.portfolio_daily_r_vol > CIRCUIT_BREAKER_VOL_SPIKE_THRESHOLD * bl_vol
 
-    # Correlation change
+    # Correlation change (uses precomputed R)
     result.avg_pairwise_corr_in_crisis = compute_avg_pairwise_corr(assets_data, (start, end))
 
     # Worst-hit assets (by total_R in crisis)
@@ -494,35 +524,10 @@ def analyze_crisis_window(
     sorted_by_wr = sorted(asset_metrics, key=lambda m: m.crisis_win_rate)
     result.worst_assets_wr = [(m.name, m.crisis_win_rate) for m in sorted_by_wr[:5]]
 
-    # Cluster analysis
+    # Cluster analysis (uses precomputed R)
     result.cluster_losses = analyze_clusters(assets_data, start, end)
 
     return result
-
-
-def baseline_vol_if_available(
-    assets_data: dict[str, pd.DataFrame],
-    crisis_start: str,
-) -> float:
-    """Estimate baseline daily portfolio vol before crisis."""
-    baseline_start = "2024-10-17"
-    dates = sorted(
-        {d for df in assets_data.values() for d in df.index if baseline_start <= str(d.date()) <= crisis_start}
-    )
-    if len(dates) < 10:
-        return 1e-6
-    pt_sl = load_pt_sl()
-    rs: list[float] = []
-    for d in dates:
-        r_vals = []
-        for name, df in assets_data.items():
-            if d in df.index:
-                row = df.loc[d]
-                sig, lbl = row["signal"], row["label"]
-                tp, sl = pt_sl.get(name, (2.0, 2.0))
-                r_vals.append(compute_r(sig, lbl, tp, sl))
-        rs.append(float(np.mean(r_vals)) if r_vals else 0.0)
-    return float(np.std(rs)) if len(rs) > 1 else 1e-6
 
 
 # ── Summary report ────────────────────────────────────────────────────────
@@ -536,15 +541,17 @@ def generate_summary(
     lines.append("=" * 72)
     lines.append("CRISIS REPLAY REPORT")
     lines.append("=" * 72)
-    lines.append("Data range: Oct 2024 - May 2026")
-    lines.append("Assets analyzed: current 19-asset portfolio (incl. GBPUSD)")
+    lines.append("Data range: Oct 2024 - Jul 2026")
+    lines.append(f"Assets analyzed: {len(results[0].asset_metrics) if results else 0} assets")
     lines.append(f"Crisis windows: {len(results)}")
     lines.append("")
 
     for result in results:
         lines.append("-" * 72)
         lines.append(f"Crisis: {result.name}")
-        lines.append(f"  Period: {result.start} to {result.end} ({result.n_trading_days} trading days)")
+        lines.append(
+            f"  Period: {result.start} to {result.end} ({result.n_trading_days} trading days)"
+        )
         lines.append(f"  Description: {result.description}")
         lines.append("")
 
@@ -571,26 +578,28 @@ def generate_summary(
         lines.append("")
 
         lines.append("  ── Worst 5 assets by total R ──")
-        for name, r_val in result.worst_assets_total_r:
-            m = next((x for x in result.asset_metrics if x.name == name), None)
+        for aname, r_val in result.worst_assets_total_r:
+            m = next((x for x in result.asset_metrics if x.name == aname), None)
             sell_tag = " [SELL_ONLY]" if m and m.is_sell_only else ""
             wr = f"{m.crisis_win_rate:.0%}" if m else "N/A"
-            lines.append(f"    {name:>10s}: total_R={r_val:>7.2f}  WR={wr}{sell_tag}")
+            lines.append(f"    {aname:>10s}: total_R={r_val:>7.2f}  WR={wr}{sell_tag}")
 
         lines.append("")
         lines.append("  ── Worst 5 assets by win rate ──")
-        for name, wr_val in result.worst_assets_wr:
-            m = next((x for x in result.asset_metrics if x.name == name), None)
+        for aname, wr_val in result.worst_assets_wr:
+            m = next((x for x in result.asset_metrics if x.name == aname), None)
             sell_tag = " [SELL_ONLY]" if m and m.is_sell_only else ""
             rv = f"{m.crisis_total_r:.2f}" if m else "N/A"
-            lines.append(f"    {name:>10s}: WR={wr_val:.0%}  total_R={rv}{sell_tag}")
+            lines.append(f"    {aname:>10s}: WR={wr_val:.0%}  total_R={rv}{sell_tag}")
 
         lines.append("")
         lines.append("  ── Best 5 assets by total R ──")
         best = sorted(result.asset_metrics, key=lambda m: m.crisis_total_r, reverse=True)[:5]
         for m in best:
             sell_tag = " [SELL_ONLY]" if m.is_sell_only else ""
-            lines.append(f"    {m.name:>10s}: total_R={m.crisis_total_r:>7.2f}  WR={m.crisis_win_rate:.0%}{sell_tag}")
+            lines.append(
+                f"    {m.name:>10s}: total_R={m.crisis_total_r:>7.2f}  WR={m.crisis_win_rate:.0%}{sell_tag}"
+            )
 
         lines.append("")
         lines.append("  ── Asset cluster losses ──")
@@ -599,8 +608,9 @@ def generate_summary(
             r_val = info["crisis_total_r"]
             lr = info["crisis_loss_rate"]
             nt = info["n_trades_in_crisis"]
-            lines.append(f"    {cname:>15s} ({label}): total_R={r_val:>7.2f}  loss_rate={lr:.0%}  trades={nt}")
-
+            lines.append(
+                f"    {cname:>15s} ({label}): total_R={r_val:>7.2f}  loss_rate={lr:.0%}  trades={nt}"
+            )
         lines.append("")
 
     # ── Cross-crisis summary ──
@@ -608,31 +618,25 @@ def generate_summary(
     lines.append("CROSS-CRISIS SUMMARY")
     lines.append("=" * 72)
 
-    # Assets that consistently underperform across crises
-    from collections import Counter
-
     worst_frequent: Counter[str] = Counter()
     for result in results:
-        for name, _ in result.worst_assets_total_r:
-            worst_frequent[name] += 1
+        for aname, _ in result.worst_assets_total_r:
+            worst_frequent[aname] += 1
     lines.append(f"\nAssets appearing in worst-5-totalR across {len(results)} crises:")
-    for name, count in worst_frequent.most_common(5):
+    for aname, count in worst_frequent.most_common(5):
         pct = count / len(results) * 100
-        sell_tag = " [SELL_ONLY]" if name in SELL_ONLY_ASSETS else ""
-        lines.append(f"  {name:>10s}: {count}/{len(results)} crises ({pct:.0f}%){sell_tag}")
+        sell_tag = " [SELL_ONLY]" if aname in SELL_ONLY_ASSETS else ""
+        lines.append(f"  {aname:>10s}: {count}/{len(results)} crises ({pct:.0f}%){sell_tag}")
 
     # SELL_ONLY filter assessment
     lines.append("\nSELL_ONLY filter assessment:")
     for result in results:
         sell_only_assets = [m for m in result.asset_metrics if m.is_sell_only]
         non_sell = [m for m in result.asset_metrics if not m.is_sell_only]
-
-        so_avg_r = np.mean([m.crisis_total_r for m in sell_only_assets]) if sell_only_assets else 0.0
-        ns_avg_r = np.mean([m.crisis_total_r for m in non_sell]) if non_sell else 0.0
-
-        so_wr = np.mean([m.crisis_win_rate for m in sell_only_assets]) if sell_only_assets else 0.0
-        ns_wr = np.mean([m.crisis_win_rate for m in non_sell]) if non_sell else 0.0
-
+        so_avg_r = float(np.mean([m.crisis_total_r for m in sell_only_assets])) if sell_only_assets else 0.0
+        ns_avg_r = float(np.mean([m.crisis_total_r for m in non_sell])) if non_sell else 0.0
+        so_wr = float(np.mean([m.crisis_win_rate for m in sell_only_assets])) if sell_only_assets else 0.0
+        ns_wr = float(np.mean([m.crisis_win_rate for m in non_sell])) if non_sell else 0.0
         lines.append(f"  {result.name}:")
         lines.append(f"    SELL_ONLY assets   avg_R={so_avg_r:>7.2f}  avg_WR={so_wr:.0%}")
         lines.append(f"    Non-SELL_ONLY      avg_R={ns_avg_r:>7.2f}  avg_WR={ns_wr:.0%}")
@@ -644,24 +648,20 @@ def generate_summary(
 
     for result in results:
         lines.append(f"\n  ── {result.name} normal-period ──")
-        # Per-asset normal metrics
         lines.append(f"  {'Asset':>10s}  {'Normal R':>9s}  {'Avg R':>7s}  {'WR':>5s}  {'SO?':>4s}")
         lines.append(f"  {'-' * 10}  {'-' * 9}  {'-' * 7}  {'-' * 5}  {'-' * 4}")
         for m in sorted(result.asset_metrics, key=lambda x: -x.normal_total_r)[:18]:
             so_mark = "SO" if m.is_sell_only else ""
-            nr = m.normal_total_r
-            avg = m.normal_avg_r
-            wr = m.normal_win_rate
-            lines.append(f"  {m.name:>10s}  {nr:>9.2f}  {avg:>7.4f}  {wr:>4.0%}  {so_mark:>4s}")
+            lines.append(
+                f"  {m.name:>10s}  {m.normal_total_r:>9.2f}  {m.normal_avg_r:>7.4f}  {m.normal_win_rate:>4.0%}  {so_mark:>4s}"
+            )
 
-        # Aggregated: SO vs non-SO normal-period profit
         so_assets = [m for m in result.asset_metrics if m.is_sell_only]
         ns_assets = [m for m in result.asset_metrics if not m.is_sell_only]
         so_total_r = sum(m.normal_total_r for m in so_assets)
         ns_total_r = sum(m.normal_total_r for m in ns_assets)
         so_avg_wr = float(np.mean([m.normal_win_rate for m in so_assets])) if so_assets else 0.0
         ns_avg_wr = float(np.mean([m.normal_win_rate for m in ns_assets])) if ns_assets else 0.0
-
         total_both = so_total_r + ns_total_r + 1e-9
         so_pct_norm = so_total_r / total_both * 100
         ns_pct_norm = ns_total_r / total_both * 100
@@ -672,7 +672,7 @@ def generate_summary(
         lines.append(f"      Total normal R:    {ns_total_r:>8.2f}  ({ns_pct_norm:.1f}% of portfolio)")
         lines.append(f"      Avg normal WR:     {ns_avg_wr:>8.1%}")
 
-    # Overall: all periods combined (crisis + normal)
+    # Whole-sample profit contribution
     lines.append("\n  ── Whole-sample profit contribution ──")
     so_by_asset: dict[str, list[AssetCrisisMetrics]] = {}
     ns_by_asset: dict[str, list[AssetCrisisMetrics]] = {}
@@ -681,25 +681,24 @@ def generate_summary(
             target = so_by_asset if m.is_sell_only else ns_by_asset
             target.setdefault(m.name, []).append(m)
 
-    def asset_total_normal_r(metrics_list: list[AssetCrisisMetrics]) -> float:
-        return sum(m.normal_total_r + m.crisis_total_r for m in metrics_list)
-
-    so_totals = {name: asset_total_normal_r(lst) for name, lst in so_by_asset.items()}
-    ns_totals = {name: asset_total_normal_r(lst) for name, lst in ns_by_asset.items()}
-
     lines.append(f"  {'Asset':>10s}  {'Total R':>9s}  {'SO?':>4s}")
     lines.append(f"  {'-' * 10}  {'-' * 9}  {'-' * 4}")
-    for name in sorted(set(list(so_totals.keys()) + list(ns_totals.keys()))):
-        is_so = name in so_totals
-        r_val = so_totals.get(name, 0.0) if is_so else ns_totals.get(name, 0.0)
+    all_names = sorted(set(list(so_by_asset.keys()) + list(ns_by_asset.keys())))
+    for aname in all_names:
+        is_so = aname in so_by_asset
+        lst = so_by_asset.get(aname, []) or ns_by_asset.get(aname, [])
+        r_val = sum(m.normal_total_r + m.crisis_total_r for m in lst)
         so_mark = "SO" if is_so else ""
-        for mlist in so_by_asset.get(name, []) + ns_by_asset.get(name, []):
-            r_val = mlist.normal_total_r + mlist.crisis_total_r
-            break
-        lines.append(f"  {name:>10s}  {r_val:>9.2f}  {so_mark:>4s}")
+        lines.append(f"  {aname:>10s}  {r_val:>9.2f}  {so_mark:>4s}")
 
-    total_so_r = sum(v for v in so_totals.values())
-    total_ns_r = sum(v for v in ns_totals.values())
+    total_so_r = sum(
+        sum(m.normal_total_r + m.crisis_total_r for m in lst)
+        for lst in so_by_asset.values()
+    )
+    total_ns_r = sum(
+        sum(m.normal_total_r + m.crisis_total_r for m in lst)
+        for lst in ns_by_asset.values()
+    )
     total_all = total_so_r + total_ns_r
     lines.append(f"\n  Portfolio total R:    {total_all:>8.2f}")
     if total_all != 0:
@@ -707,21 +706,6 @@ def generate_summary(
         ns_pct = total_ns_r / total_all * 100
         lines.append(f"  SELL_ONLY contrib:   {total_so_r:>8.2f}  ({so_pct:.1f}%)")
         lines.append(f"  Non-SELL_ONLY contrib: {total_ns_r:>8.2f}  ({ns_pct:.1f}%)")
-
-    lines.append("\n  ── SELL_ONLY profit cost (what BUY signals would have earned) ──")
-    lines.append("  If SELL_ONLY assets were allowed to BUY during normal periods:")
-    for result in results:
-        so_assets_t = [m for m in result.asset_metrics if m.is_sell_only]
-        if not so_assets_t:
-            continue
-        # How much did they earn by SELL-only?
-        actual_r = sum(m.normal_total_r for m in so_assets_t)
-        # Estimate what BUY would have earned: SELL-only means we only take SELL signals.
-        # For normal periods, we can approximate: if they had taken BOTH sides,
-        # total R ≈ normal_total_r (which is SELL-only) + BUY_contrib.
-        # We don't have BUY_contrib directly, but we can approximate by checking
-        # if the asset would have won on BUY predictions.
-        lines.append(f"    {result.name}: SELL-only earned {actual_r:>7.2f}R during normal period")
 
     # Circuit breaker assessment
     lines.append("\nCircuit breaker assessment:")
@@ -735,7 +719,6 @@ def generate_summary(
             if result.would_trip_vol_spike:
                 reasons.append("vol_spike")
             lines.append(f"    {result.name}: {', '.join(reasons)}")
-
     lines.append("")
     lines.append("=" * 72)
     return "\n".join(lines)
@@ -803,14 +786,24 @@ def main():
     desc = "Crisis replay — stress-test portfolio against historical crisis windows"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument(
-        "--output-dir", default=None, help="Output directory for JSON reports (prints to stdout by default)"
+        "--output-dir",
+        default=None,
+        help="Output directory for JSON reports (prints to stdout by default)",
+    )
+    parser.add_argument(
+        "--tag",
+        default=None,
+        help="Signal parquet tag (e.g. 'expanded_10yr' → *_wf_signals_expanded_10yr.parquet)",
     )
     args = parser.parse_args()
 
-    logger.info("Loading signal parquets from %s", WALKDIR)
-    assets_data = load_all_signals()
-    pt_sl_map = load_pt_sl()
-    logger.info("Loaded %d assets, %d with pt_sl config", len(assets_data), len(pt_sl_map))
+    tag_desc = f" (tag='{args.tag}')" if args.tag else ""
+    logger.info("Loading signal parquets from %s%s", WALKDIR, tag_desc)
+    assets_data = load_all_signals(tag=args.tag)
+    logger.info(
+        "Loaded %d assets (R precomputed vectorized at load time)",
+        len(assets_data),
+    )
 
     results: list[CrisisWindowResult] = []
     for cw in CRISIS_WINDOWS:
@@ -820,29 +813,25 @@ def main():
             start=cw["start"],
             end=cw["end"],
             assets_data=assets_data,
-            pt_sl_map=pt_sl_map,
         )
         results.append(r)
 
-    # Summary
     report = generate_summary(results)
     print(report)
 
-    # Export JSON
     if args.output_dir:
         out_dir = Path(args.output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_path = out_dir / f"crisis_replay_{ts}.json"
+        tag_suffix = f"_{args.tag}" if args.tag else ""
+        json_path = out_dir / f"crisis_replay{tag_suffix}_{ts}.json"
         with open(json_path, "w") as f:
             json.dump(results_to_serializable(results), f, indent=2)
         logger.info("Report saved to %s", json_path)
 
-    # Return non-zero if any breaker would have tripped
     for r in results:
         if r.would_trip_loss_streak or r.would_trip_vol_spike:
             sys.exit(1)
-
     sys.exit(0)
 
 

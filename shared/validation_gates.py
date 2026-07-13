@@ -234,10 +234,18 @@ def run_validation_gates(
     results: list[GateResult] = []
 
     # Sharpe improvement gate
+    def _coalesce(v: object | None, default: float = -999.0) -> float:
+        if v is None:
+            return default
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+
     results.append(
         gate_sharpe_improvement(
-            incumbent_sharpe=float(incumbent.get("oos_sharpe", -999)) if incumbent else -999,
-            candidate_sharpe=float(candidate.get("oos_sharpe", -999)) if candidate else -999,
+            incumbent_sharpe=_coalesce(incumbent.get("oos_sharpe")) if incumbent else -999.0,
+            candidate_sharpe=_coalesce(candidate.get("oos_sharpe")) if candidate else -999.0,
         )
     )
 

@@ -243,6 +243,34 @@ class AssetInferencePipeline:
     def _run_inference(self, asset, x, features_df, feature_hash=""):
         _infer_idx = x.index[-1:] if self._truncate_inference else x.index
 
+        # Align input features to the model's expected schema.
+        # The model was trained with a specific feature set; inference may
+        # produce extra (Group 1 cross-sectional) or miss features (Group 2
+        # volume for forex pairs).  Silently drop extras and NaN-fill gaps.
+        try:
+            booster = asset.model.get_booster()
+            model_feats = booster.feature_names
+            if model_feats:
+                existing = [c for c in model_feats if c in x.columns]
+                missing = [c for c in model_feats if c not in x.columns]
+                if missing:
+                    logger.debug(
+                        "%s: inference missing %d model features (filling 0): %s",
+                        asset.name, len(missing), missing,
+                    )
+                # Promote to wider DataFrame with model's column order
+                aligned = pd.DataFrame(0.0, index=x.index, columns=model_feats)
+                aligned[existing] = x[existing]
+                # Preserve dtype continuity for XGBoost
+                for c in existing:
+                    aligned[c] = aligned[c].astype(x[c].dtype)
+                x = aligned
+        except Exception:
+            logger.warning(
+                "%s: feature alignment failed — falling back to raw inference",
+                asset.name, exc_info=True,
+            )
+
         raw = asset._model_iface.predict(asset.model, x)
         if raw.shape[1] == 2:
             proba = np.column_stack([1.0 - raw[:, 1], np.zeros(raw.shape[0]), raw[:, 1]])

@@ -27,7 +27,7 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
+from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, _fetch_macro_batch
 from features.regime_features import generate_regime_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from labels.trend_adjusted_labels import trend_adjusted_labels
@@ -174,6 +174,38 @@ def run_walk_forward(
         commodities=commodities,
         ohlcv=ohlcv,
     )
+
+    # ── Group 2: Positioning features (volume momentum) ──────────────
+    from features.positioning_features import check_oi_availability, compute_volume_features
+
+    prefix = asset_name.upper()
+    vol_df = compute_volume_features(ohlcv)
+    if vol_df is not None and not vol_df.empty:
+        for col in vol_df.columns:
+            alpha_df[f"{prefix}_{col}"] = vol_df[col].reindex(alpha_df.index)
+    alpha_df[f"{prefix}_oi_available"] = check_oi_availability(ticker)
+
+    # ── Group 3: Rates & carry features ─────────────────────────────
+    from features.rates_features import compute_all as compute_rates
+
+    _macro = _fetch_macro_batch()
+    rd_series = (
+        rate_diffs[asset_name]
+        if rate_diffs is not None and asset_name in rate_diffs.columns
+        else pd.Series(0.0, index=alpha_df.index)
+    )
+    rates_df = compute_rates(_macro, rd_series, alpha_df.index)
+    if rates_df is not None and not rates_df.empty:
+        for col in rates_df.columns:
+            alpha_df[f"{prefix}_{col}"] = rates_df[col].reindex(alpha_df.index)
+
+    # ── Group 4: Event & calendar features ──────────────────────────
+    from features.event_features import compute_event_features
+
+    event_df = compute_event_features(alpha_df.index)
+    if event_df is not None and not event_df.empty:
+        for col in event_df.columns:
+            alpha_df[f"{prefix}_{col}"] = event_df[col].reindex(alpha_df.index)
 
     alpha_df["label"] = labels.reindex(alpha_df.index).fillna(0).astype(int)
     alpha_df = alpha_df.dropna()
@@ -537,6 +569,16 @@ def main():
         help="Force scale_pos_weight=1.0 (ignore class imbalance). Tests whether imbalance weighting contributes to sell bias.",
     )
     args = parser.parse_args()
+
+    # Ensure data fetcher has a no-op store (for yfinance-only operation)
+    from paper_trading.ops.data_fetcher import _set_store
+
+    class _NullStore:
+        def save_cache(self, *args, **kwargs): pass
+        def load_cache(self, *args, **kwargs): return None
+        def cache_path(self, *args, **kwargs): return "/dev/null"
+
+    _set_store(_NullStore())
 
     # Load per-asset pt_sl from production config
     from paper_trading.config_manager import get_config

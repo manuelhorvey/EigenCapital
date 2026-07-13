@@ -110,6 +110,49 @@ class FeatureBuilder:
         )
         alpha_idx = alpha_df.index
 
+        # ── Cross-sectional features (Group 1) ──────────────────────
+        # Lazily assembles the full price panel and computes momentum
+        # ranks, cross-sectional z-scores, and DXY/SPX correlations.
+        # Only adds columns that exist in the training schema (avoids
+        # silent schema drift if models are not yet retrained).
+        xs_df = self._compute_cross_sectional_for_asset(
+            asset, alpha_idx, shared_macro,
+        )
+        if xs_df is not None and not xs_df.empty:
+            for col in xs_df.columns:
+                alpha_df[col] = xs_df[col].reindex(alpha_idx)
+
+        # ── Positioning features (Group 2 — volume momentum) ─────────
+        from features.positioning_features import check_oi_availability, compute_volume_features
+
+        prefix = asset.name.upper()
+        vol_df = compute_volume_features(ohlcv)
+        if vol_df is not None and not vol_df.empty:
+            for col in vol_df.columns:
+                alpha_df[f"{prefix}_{col}"] = vol_df[col].reindex(alpha_idx)
+        alpha_df[f"{prefix}_oi_available"] = check_oi_availability(asset.ticker)
+
+        # ── Rates & carry features (Group 3) ─────────────────────────
+        from features.rates_features import compute_all as compute_rates
+
+        rd_series = (
+            rate_diffs[asset.name]
+            if rate_diffs is not None and asset.name in rate_diffs.columns
+            else pd.Series(0.0, index=alpha_idx)
+        )
+        rates_df = compute_rates(shared_macro or {}, rd_series, alpha_idx)
+        if rates_df is not None and not rates_df.empty:
+            for col in rates_df.columns:
+                alpha_df[f"{prefix}_{col}"] = rates_df[col].reindex(alpha_idx)
+
+        # ── Event & calendar features (Group 4) ─────────────────────
+        from features.event_features import compute_event_features
+
+        event_df = compute_event_features(alpha_idx)
+        if event_df is not None and not event_df.empty:
+            for col in event_df.columns:
+                alpha_df[f"{prefix}_{col}"] = event_df[col].reindex(alpha_idx)
+
         # ── Archetype features (EMA, ADX, RSI, Bollinger) ───────────
         if not ohlcv.empty:
             if self._truncate_inference:
@@ -179,6 +222,61 @@ class FeatureBuilder:
             asset._risk_off = vix_mom > 0.0 and spx_mom < 0.0
         except (KeyError, IndexError):
             asset._risk_off = False
+
+    def _compute_cross_sectional_for_asset(
+        self,
+        asset: Any,
+        alpha_idx: pd.Index,
+        shared_macro: dict[str, Any] | None = None,
+    ) -> pd.DataFrame | None:
+        """Compute cross-sectional features for a single asset.
+
+        Assembles the full 22-asset price panel lazily (cycle-cached),
+        computes all Group 1 features, and returns only the current
+        asset's ``xs_`` prefixed columns aligned to *alpha_idx*.
+
+        Returns ``None`` when the full panel cannot be assembled (e.g.
+        ``_all_assets`` not in *shared_macro*, or insufficient data).
+        """
+        from features.cross_sectional import compute_all as compute_xs
+        from features.data_fetch import _get_cycle_cached, _set_cycle_cache, fetch_asset_data
+
+        all_assets = (shared_macro or {}).get("_all_assets")
+        if not all_assets:
+            return None
+
+        # Lazy full panel — cycle-cached so only the first caller pays
+        cached = _get_cycle_cached("_full_panel")
+        if cached is not None:
+            full_panel = cached
+        else:
+            panel: dict[str, pd.Series] = {}
+            for asset_name, ticker in all_assets.items():
+                try:
+                    prices, _, _, _, _, _ = fetch_asset_data(asset_name, ticker)
+                    if prices is not None and not prices.empty:
+                        panel[asset_name] = prices.iloc[:, 0]
+                except Exception:
+                    continue
+            full_panel = pd.DataFrame(panel).ffill().dropna(how="all")
+            _set_cycle_cache("_full_panel", full_panel)
+
+        if full_panel.empty or len(full_panel.columns) < 2:
+            return None
+
+        # Extract DXY/SPX from shared_macro for benchmark correlations
+        dxy_s = (shared_macro or {}).get("DX-Y.NYB", pd.Series(dtype=float))
+        spx_s = (shared_macro or {}).get("^GSPC", pd.Series(dtype=float))
+
+        # Compute all cross-sectional features, align to alpha index
+        xs_full = compute_xs(full_panel, dxy=dxy_s, spx=spx_s)
+        prefix = asset.name.upper()
+        asset_cols = [c for c in xs_full.columns if c.startswith(f"{prefix}_xs_")]
+        if not asset_cols:
+            return None
+
+        xs_aligned = xs_full[asset_cols].reindex(alpha_idx).ffill()
+        return xs_aligned.fillna(0.0)
 
     def reset(self) -> None:
         """Clear regime feature cache.  Call in test fixtures."""

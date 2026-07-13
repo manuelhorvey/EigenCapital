@@ -27,6 +27,7 @@ _MACRO_TICKERS = [
     "^FVX",
     "^TYX",
     "^IRX",
+    "^2YR",
     "^DE10Y",
     "^UK10Y",
     "^JP10Y",
@@ -34,6 +35,8 @@ _MACRO_TICKERS = [
     "^AU10Y",
     "^NZ10Y",
     "^CA10Y",
+    "^TIPS10Y",
+    "^BREKEVEN10Y",
 ]
 
 # Currency -> benchmark 10-year sovereign yield ticker mapping.
@@ -69,6 +72,7 @@ _FRED_FALLBACK: dict[str, str] = {
     "^FVX": "DGS5",
     "^TYX": "DGS30",
     "^IRX": "DGS3MO",
+    "^2YR": "DGS2",
     # Sovereign 10-year benchmark yields via FRED IRLTLT01{CC}M156N series
     "^DE10Y": "IRLTLT01DEM156N",
     "^UK10Y": "IRLTLT01GBM156N",
@@ -77,6 +81,8 @@ _FRED_FALLBACK: dict[str, str] = {
     "^AU10Y": "IRLTLT01AUM156N",
     "^NZ10Y": "IRLTLT01NZM156N",
     "^CA10Y": "IRLTLT01CAM156N",
+    "^TIPS10Y": "DFII10",
+    "^BREKEVEN10Y": "T10YIE",
 }
 
 
@@ -226,6 +232,7 @@ def _fetch_macro_batch() -> dict[str, pd.Series]:
         "^FVX",
         "^TYX",
         "^IRX",
+        "^2YR",
         "^DE10Y",
         "^UK10Y",
         "^JP10Y",
@@ -233,6 +240,8 @@ def _fetch_macro_batch() -> dict[str, pd.Series]:
         "^AU10Y",
         "^NZ10Y",
         "^CA10Y",
+        "^TIPS10Y",
+        "^BREKEVEN10Y",
     }
     for yt in _yield_tickers:
         if yt in result and not result[yt].empty:

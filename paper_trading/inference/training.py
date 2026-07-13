@@ -9,7 +9,7 @@ import pandas as pd
 import xgboost as xgb
 
 from features.alpha_features import build_alpha_features
-from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
+from features.data_fetch import _fetch_macro_batch, fetch_asset_data, fetch_asset_ohlcv
 from features.regime_features import generate_regime_features
 from labels.meta_labels import MetaLabelModel
 from labels.triple_barrier import apply_triple_barrier
@@ -40,7 +40,7 @@ class AssetTrainingPipeline:
     def __init__(self, asset):
         self.asset = asset
 
-    def train(self, force=False):
+    def train(self, force=False, full_panel=None):
         asset = self.asset
         model_path = f"{asset.model_path.rsplit('.', 1)[0]}.json"
 
@@ -86,6 +86,52 @@ class AssetTrainingPipeline:
             ohlcv=ohlcv,
         )
 
+        # ── Cross-sectional features (if full panel provided) ────────
+        if full_panel is not None and not full_panel.empty and len(full_panel.columns) >= 2:
+            from features.cross_sectional import compute_all as compute_xs
+
+            dxy_s = dxy if not dxy.empty else pd.Series(dtype=float)
+            spx_s = spx if not spx.empty else pd.Series(dtype=float)
+            xs_full = compute_xs(full_panel, dxy=dxy_s, spx=spx_s)
+            prefix = asset.name.upper()
+            asset_cols = [c for c in xs_full.columns if c.startswith(f"{prefix}_xs_")]
+            if asset_cols:
+                xs_aligned = xs_full[asset_cols].reindex(features.index).ffill().fillna(0.0)
+                for col in xs_aligned.columns:
+                    features[col] = xs_aligned[col]
+
+        # ── Positioning features (Group 2 — volume momentum) ────────
+        from features.positioning_features import check_oi_availability, compute_volume_features
+
+        prefix = asset.name.upper()
+        vol_df = compute_volume_features(ohlcv)
+        if vol_df is not None and not vol_df.empty:
+            for col in vol_df.columns:
+                features[f"{prefix}_{col}"] = vol_df[col].reindex(features.index)
+        features[f"{prefix}_oi_available"] = check_oi_availability(asset.ticker)
+
+        # ── Rates & carry features (Group 3) ────────────────────────
+        from features.rates_features import compute_all as compute_rates
+
+        _macro = _fetch_macro_batch()
+        rd_series = (
+            rate_diffs[asset.name]
+            if rate_diffs is not None and asset.name in rate_diffs.columns
+            else pd.Series(0.0, index=features.index)
+        )
+        rates_df = compute_rates(_macro, rd_series, features.index)
+        if rates_df is not None and not rates_df.empty:
+            for col in rates_df.columns:
+                features[f"{prefix}_{col}"] = rates_df[col].reindex(features.index)
+
+        # ── Event & calendar features (Group 4) ─────────────────────
+        from features.event_features import compute_event_features
+
+        event_df = compute_event_features(features.index)
+        if event_df is not None and not event_df.empty:
+            for col in event_df.columns:
+                features[f"{prefix}_{col}"] = event_df[col].reindex(features.index)
+
         tp_mult = float(getattr(asset, "tp_mult", 2.0))
         sl_mult = float(getattr(asset, "sl_mult", 2.0))
         pt_sl = (tp_mult, sl_mult)
@@ -117,7 +163,13 @@ class AssetTrainingPipeline:
 
             labels = _legacy_labels(prices, pt_sl=pt_sl, vertical_barrier=vb)
         features["label"] = labels.reindex(features.index).astype(int)
-        features = features.dropna()
+        # Drop rows where the label is missing (end of series where forward
+        # returns aren't available).  Groups 2-4 features may have NaN from
+        # rolling warmup or non-overlapping date ranges — fill those with 0
+        # rather than dropping the row entirely.
+        cols_to_fill = [c for c in features.columns if c != "label"]
+        features[cols_to_fill] = features[cols_to_fill].fillna(0.0)
+        features = features.dropna(subset=["label"])
         logger.info("%s: %d alpha feature rows, %d columns", asset.name, len(features), len(features.columns) - 1)
 
         # Store alpha feature column names on the asset for inference

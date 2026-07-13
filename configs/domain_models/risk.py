@@ -58,7 +58,16 @@ class SizingConfig:
     they live as a single typed aggregate with no inheritance.
     """
 
-    rolling_window_bars: int | None = 756
+    rolling_window_bars: int | None = None
+    """Rolling window in bars for training data truncation.
+
+    When set, training uses only the last N rows of features. Defaults to
+    None — the effective window is determined by ``retrain_window * 252``
+    at runtime in ``asset_engine.py``, so training uses the full configured
+    retrain window instead of being silently capped at a hardcoded value.
+    Per-asset overrides via ``rolling_window_bars`` in asset YAML still
+    take precedence when explicitly set.
+    """
     churn_ratio_threshold: float = 0.35
     cooldown_half_life_hours: float = 4.0
     cooldown_max_penalty_pct: float = 20.0

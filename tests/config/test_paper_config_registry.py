@@ -106,7 +106,7 @@ def test_legacy_extras_empty_without_legacy_file(registry):
     assert out.get("rebalance") == "daily"
     assert out.get("research_mode") is False
     assert out.get("retrain_freq") == "annual"
-    assert out.get("retrain_window") == 5
+    assert out.get("retrain_window") == 10
     assert out.get("mt5", {}).get("enabled") is True
     assert out.get("execution", {}).get("governance", {}).get("regime_geometry") is not None
     assert out.get("optimizations", {}).get("batch_http") is True

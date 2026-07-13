@@ -7,13 +7,14 @@
 #   data_source   — "mt5" or "yfinance"
 #   rebalance     — "daily", "weekly", "monthly", or "none"
 #   research_mode — when true, bypasses certain production guards
-#   retrain_freq  — "annual" or "quarterly"
-#   retrain_window — number of past models to keep
+#   retrain_freq  — "annual" or "quarterly"#   retrain_window — number of years of data to train on
+
+
 #   api_token     — dashboard bearer token; primarily set via EIGENCAPITAL_API_TOKEN env var
 
 data_source: mt5
 rebalance: daily
 research_mode: false
 retrain_freq: annual
-retrain_window: 5
+retrain_window: 10
 api_token: ""

@@ -74,7 +74,7 @@ Position-sizing guardrails shared across all assets.
 
 | Field | Type | Default |
 |---|---|---|
-| `rolling_window_bars` | `Optional[int]` | `756` |
+| `rolling_window_bars` | `Optional[int]` | `None` |
 | `churn_ratio_threshold` | `float` | `0.35` |
 | `cooldown_half_life_hours` | `float` | `4.0` |
 | `cooldown_max_penalty_pct` | `float` | `20.0` |

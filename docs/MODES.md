@@ -105,7 +105,7 @@ The following live at the top level (apply to all modes):
 - `position_size: 0.95`
 - `rebalance: daily`
 - `retrain_freq: annual`
-- `retrain_window: 5`  (years of training history)
+- `retrain_window: 10`  (years of training history)
 - `research_mode: false`
 - `data_source: mt5`
 - `portfolio.weight_method: factor_constrained_v2`

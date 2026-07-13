@@ -175,7 +175,7 @@ Computed inline in `paper_trading/inference/pipeline.py:_generate_and_apply()` v
 | `MT5` / `yfinance` | Daily OHLCV for all assets + macro (DXY=DX-Y.NYB, VIX=^VIX, SPX=^GSPC, WTI=CL=F, TNX=^TNX) | Daily bars |
 
 ### Ingestion rules
-- `fetch_live(ticker)` — 5 years OHLCV (`_FETCH_PERIOD = "5y"`, `_FETCH_WARMUP_BUFFER = 1250`), truncated to `_MAX_INDICATOR_LOOKBACK + 50` rows when inference truncation is validated
+- `fetch_live(ticker)` — OHLCV via MT5 bridge (primary) or yfinance fallback (`_FETCH_PERIOD = "5y"`, `_FETCH_WARMUP_BUFFER = 1250`), truncated to `_MAX_INDICATOR_LOOKBACK + 50` rows when inference truncation is validated. Training uses the expanded data cache (`data/yfinance_10yr/`) providing 10y+ history.
 - All date indices are `datetime64[ns]` at daily resolution (no intraday)
 - No FRED data — all macro derived from yfinance tickers
 - Deduplication: `df = df[~df.index.duplicated(keep="last")]` applied after ffill to handle duplicate dates from UTC normalization
@@ -219,7 +219,7 @@ df.index = pd.to_datetime(df.index.tz_convert("UTC").date)
 ## 6. MODEL TRAINING CONTRACT
 
 **Pipeline:** `paper_trading/inference/training.py:AssetTrainingPipeline.train()`
-**Data window:** 5y history from yfinance (`_FETCH_PERIOD = "5y"`, `_FETCH_WARMUP_BUFFER = 1250`), train on last `retrain_window` years (default 5)
+**Data window:** 10y+ history from expanded data cache (`data/yfinance_10yr/`), train on last `retrain_window` years (default 10)
 **Feature builder:** `build_alpha_features()` — when OHLCV is provided, emits 15 per-asset columns (9 base `carry_vol_adj, mom_21d, mom_63d, mom_126d, mom_252d, zscore_20, vol_ratio, dow_signal, has_cot` + 6 trend-exhaustion `macd_hist, stoch_k, stoch_d, bb_pct_b, adx_slope, rsi_divergence`) + 4 cross-asset (`dxy_mom_21d, vix_mom_5d, spx_mom_5d, WTI_mom_21d`) + 2 × N COT-covered pairs (`cot_z, cot_change_4w`) joined into every asset's vector.
 Without OHLCV: 9 per-asset + 4 cross-asset + per-pair COT.
 See Section 3 for the canonical taxonomy.
@@ -249,7 +249,7 @@ See Section 3 for the canonical taxonomy.
 **Pipeline:** `paper_trading/inference/pipeline.py:AssetInferencePipeline._generate_and_apply()`
 **Per-cycle (every ~60s):**
 
-1. `fetch_live(ticker)` — 5y OHLCV, deduplicate index
+1. `fetch_live(ticker)` — OHLCV via MT5 bridge (primary) or yfinance fallback (`_FETCH_PERIOD = "5y"`), deduplicate index
 2. Normalize index to UTC TZ-naive
 3. `refresh_price()` — patch last close with real-time or 5d fallback
 4. `ffill()` close column

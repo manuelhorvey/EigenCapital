@@ -51,7 +51,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 - **Portfolio Maturity Framework (5-layer, P0–P4)**: P0 weights (`shared/portfolio_weights.py`), P1 calibration (`shared/calibration/`), P2 Kelly (`shared/kelly.py`), P3 factor model (`shared/factor_model.py`), P4 HRP (`portfolio/hrp_allocator.py`). All config-gated.
 - **PEK (Portfolio Execution Kernel)**: `PortfolioStateSnapshot` (built pre-phase) + `RiskEngineV2` (adaptive budget) + `PerformanceState` (velocity + outcome telemetry) + `PortfolioAdmissionController` (two-stage filter → rank → enforce)
 - **Inference**: `paper_trading/inference/pipeline.py` → base model → calibration (P1) → governance → execute (ensemble disabled)
-- **Training**: `paper_trading/inference/training.py` — base model only, scale_pos_weight, meta-labeling. Expanding-window.
+- **Training**: `paper_trading/inference/training.py` — base model only, scale_pos_weight, meta-labeling. Expanding-window. **Data source:** expanded cache (`data/yfinance_10yr/`) providing 10y+ history per asset, bypassing the 5y `_FETCH_PERIOD` limit used for live inference fallback.
 - **Entry gates**: `entry_service.py` price deviation check; profit lock in `manage_position` (blocks flips when PnL > profit_lock_threshold_pct); **PEK budget enforcement** (closes lowest-ranked if portfolio notional exceeds max)
 - **Position sizing guardrails**: drawdown taper → per-position equity cap → risk-per-trade cap → min viable gate (leverage budget removed — replaced by PEK central admission)
 - **Independent MT5 sizing**: Paper from $100K mtm_value; MT5 from broker balance via `_compute_mt5_qty()`
@@ -176,7 +176,7 @@ Cross-sectional multi-asset paper trading engine. 22-asset portfolio (21 FX/comm
 | `paper_trading/execution/mt5_broker.py` | `MT5Broker` — MT5 execution with `current_mt5_drawdown_pct()` |
 | `features/alpha_features.py` | Alpha feature builder (9 base + 6 trend-exhaustion + 2+ COT z/change + 4 cross-asset + 10 directional splits + 15 FXStreet narrative features + COT per covered pair) |
 | `features/regime_features.py` | Regime feature builder (7 cols) |
-| `features/data_fetch.py` | Data fetching with MT5/yfinance fallback |
+| `features/data_fetch.py` | Data fetching (MT5 primary, yfinance fallback with `_FETCH_PERIOD="5y"`). Training bypasses via `data/yfinance_10yr/` expanded cache |
 | `features/labels.py` | Triple-barrier labeling + PurgedWalkForwardFolds |
 | `LIVE_CONTRACT.md` | Immutable system contract (update when architecture changes) |
 | `scripts/backtest/backtest_pnl.py` | PnL backtest from OOS signal parquets (R-multiples, autocorrelation-adj Sharpe, `--weight-method` option) |
@@ -250,9 +250,16 @@ PYTHONPATH=$PYTHONPATH:. python scripts/training/retrain_all_fixed.py
 PYTHONPATH=$PYTHONPATH:. python scripts/training/train_regime_models.py
 ```
 
-### Walk-Forward Backtest (diagnostic)
+### Expanded Walk-Forward Backtest (10-year data)
 ```bash
-PYTHONPATH=$PYTHONPATH:. python scripts/backtest/walk_forward_backtest.py --asset GBPCAD
+PYTHONPATH=$PYTHONPATH:. python scripts/analysis/run_expanded_walkforward_v2.py
+# Then backtest with production thresholds:
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/backtest_pnl.py --tag expanded_10yr --use-prod-thresholds --calibrate
+```
+
+### Walk-Forward Backtest (diagnostic, per-asset)
+```bash
+PYTHONPATH=$PYTHONPATH:. python scripts/backtest/walk_forward_backtest.py --asset GBPCAD --expanded-dir auto
 ```
 
 ### PnL Backtest from Signal Parquets

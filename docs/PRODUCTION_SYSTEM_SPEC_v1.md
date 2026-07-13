@@ -256,7 +256,7 @@ Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`
 | n_jobs | 1 |
 | tree_method | `hist` |
 
-**Training window**: Last 5 years of data (minimum 200 rows)
+**Training window**: Last 10 years of data (from expanded cache `data/yfinance_10yr/`, minimum 200 rows)
 **Train/val split**: 80/20 chronological, stratified if min class count ≥ 2
 **Serialization**: `model.save_model(path)` → `.json` format
 **Post-training**:
@@ -281,7 +281,7 @@ Format: XGBoost `.json` (not pickle)
 **Parallel execution**: 22 AssetEngine instances run via ThreadPoolExecutor (max_workers=8) in phases: REFRESH+Signal (parallel), VALIDITY (sequential), PORTFOLIO health, PERSIST.
 
 **Steps**:
-1. `fetch_live(ticker)` — 5y OHLCV (`_FETCH_PERIOD = "5y"`)
+1. `fetch_live(ticker)` — OHLCV via MT5 bridge (primary) or yfinance fallback (`_FETCH_PERIOD = "5y"`)
 2. Normalize index to UTC TZ-naive date (fixes FX cross date shift)
 3. `refresh_price()` — real-time price via MT5 bridge or 5d fallback
 4. `ffill()` close column, deduplicate index
@@ -491,7 +491,7 @@ In-memory TTL cache per download type:
 8. **Worst-wins governance**: Most negative penalty applied, not averaged
 9. **Per-asset pt_sl**: Barrier geometry from config, applied label-time and runtime
 10. **.json serialization**: No pickle in production
-11. **Inference truncation symmetry**: Training uses 5y data; live inference fetches 5y, truncates to `_MAX_INDICATOR_LOOKBACK + 50` when validated
+11. **Inference truncation symmetry**: Training uses 10y data from expanded cache (`data/yfinance_10yr/`); live inference fetches up to 5y via MT5 or yfinance fallback, truncates to `_MAX_INDICATOR_LOOKBACK + 50` when validated
 12. **SQLite state store**: All persistent state in single WAL-mode database; legacy JSON/parquet files are read-only fallbacks
 13. **Parallel asset isolation**: 22 AssetEngine instances execute independently via ThreadPoolExecutor; health monitor tracks per-asset DEGRADED/HALTED states independently (weekend cycle processes only eligible assets)
 14. **MT5 order lifecycle symmetry**: Every paper open → MT5 `place_order`; paper close → MT5 `close_position`; SL/TP adjust → MT5 `modify_position`

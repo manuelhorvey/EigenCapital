@@ -230,8 +230,8 @@ The offline research stage evaluates a universe of 36+ assets using expanding-wi
 
 ### Validation Structure
 
-* 5-year expanding training window
-* 1-year forward evaluation (or 5-year full validation)
+* 10-year expanding training window (from expanded data cache `data/yfinance_10yr/`)
+* 1-year forward evaluation (or 10-year full validation)
 * per-asset SL/TP/depth calibration
 * IC + hit-rate scoring
 * directional consistency weighting
@@ -283,7 +283,7 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
 ## Runtime Pipeline
 
 ```text
- 1. Fetch 5y OHLCV (MT5 or yfinance)
+ 1. Fetch OHLCV via MT5 bridge (primary) or yfinance fallback
  2. Normalize timestamps (UTC TZ-naive)
  3. Refresh latest price (MT5 or 5d fallback)
   4. Build alpha features (21 per-asset + cross-asset feature columns: 9 core per-asset + 6 trend-exhaustion + 2 COT + 4 cross-asset; includes core momenta, carry, trend-exhaustion, and RSI divergence when OHLCV available)

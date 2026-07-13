@@ -27,7 +27,7 @@ Operational procedures for the paper trading system. This document is for the pe
 | Weekend polling | Normal 60s for eligible assets; reduced to every 120s (state) / 5 min (secondary) for stale assets |
 | Market hours logic | `paper_trading/ops/market_hours.py` — `is_market_closed()` |
 | Retrain frequency | Auto-trigger every 100 cycles (~50min) when model >90 days stale |
-| Training window | 5-year expanding |
+| Training window | 10-year expanding (from expanded cache `data/yfinance_10yr/`) |
 | Feature build window | 500d (inference truncation validates and trims to 250d for XGBoost hot path) |
 | Hardening history | `docs/archive/research_system_v1/HARDENING_ROADMAP.md` |
 | Benchmarks | `benchmarks/README.md` (reference: 1.63s warm p50 for 15 assets, 8 workers) |

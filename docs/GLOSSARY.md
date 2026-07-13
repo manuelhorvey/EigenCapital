@@ -557,7 +557,7 @@ on cycle 1.
 
 ### Inference Truncation
 When validated, truncates the feature DataFrame to 250 rows for the
-XGBoost hot path (vs full 5y fetch). Significantly reduces inference
+XGBoost hot path (vs full OHLCV fetch). Significantly reduces inference
 latency. Only applied when feature computation is deterministic.
 
 ---

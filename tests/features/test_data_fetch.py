@@ -158,12 +158,18 @@ class TestFetchFredSeries:
             result = _fetch_fred_series("^TNX")
         assert result.empty
 
-    def test_filters_before_2020(self):
+    def test_no_longer_filters_before_2020(self):
+        # Previously FRED responses were truncated to >=2020-01-01, capping
+        # macro history at ~6y. Dropped that constraint so retrain + walk-
+        # forward can use the same wide range the live engine sees. Both
+        # dates now get through.
         csv = b"observation_date,value\n2019-12-01,1.00\n2020-01-02,1.50\n"
         with patch("urllib.request.urlopen") as mock_urlopen:
             mock_urlopen.return_value.__enter__.return_value.read.return_value = csv
             result = _fetch_fred_series("^TNX")
-        assert len(result) == 1  # 2020 row only
+        assert len(result) == 2
+        assert result.iloc[0] == 1.0
+        assert result.iloc[-1] == 1.5
 
     def test_skips_empty_rows(self):
         csv = b"observation_date,value\n2020-01-02,1.50\n2020-01-03,\n2020-01-04,1.55\n"

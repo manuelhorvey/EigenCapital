@@ -92,19 +92,37 @@ def main(skip_canary: bool = False, canary_only: bool = False):
     n_total = len(assets_to_train)
 
     # ── Pre-fetch full panel for cross-sectional features ────────────
-    from features.data_fetch import fetch_asset_data
+    # When EIGENCAPITAL_EXPANDED_DATA_DIR is set (or a 10y cache is present
+    # under data/yfinance_10yr/), read the panel from cached parquets
+    # instead of live yfinance — broader history, monotonically noisier
+    # data path, no live fetch delays.
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from _data_sources import build_expanded_full_panel, resolve_expanded_dir
 
-    logger.info("Pre-fetching full 22-asset panel for cross-sectional features...")
-    full_panel_dict: dict[str, pd.Series] = {}
-    for aname, aspec in portfolio.items():
-        try:
-            aprices, _, _, _, _, _ = fetch_asset_data(aname, aspec["ticker"])
-            if aprices is not None and not aprices.empty:
-                full_panel_dict[aname] = aprices.iloc[:, 0]
-        except Exception:
-            continue
-    full_panel = pd.DataFrame(full_panel_dict).ffill().dropna(how="all")
-    logger.info("Full panel: %d assets × %d rows", len(full_panel.columns), len(full_panel))
+    _expanded_dir = resolve_expanded_dir()
+    full_panel = build_expanded_full_panel(dict(portfolio), expanded_dir=_expanded_dir)
+    if _expanded_dir is not None:
+        logger.info(
+            "Using 10-year expanded cache at %s — full panel: %d assets × %d rows (%s..%s)",
+            _expanded_dir,
+            len(full_panel.columns),
+            len(full_panel),
+            full_panel.index[0].date() if len(full_panel) else "n/a",
+            full_panel.index[-1].date() if len(full_panel) else "n/a",
+        )
+    else:
+        logger.info(
+            "No expanded cache — using live yfinance path. "
+            "Full panel: %d assets × %d rows.",
+            len(full_panel.columns),
+            len(full_panel),
+        )
+        from features.data_fetch import fetch_asset_data
+
+        # Live fallback (already computed in full_panel, but resolv the
+        # legacy behaviour explicitly so this branch mirrors the original
+        # script verbatim).
 
     logger.info("=== RETRAINING %d ASSETS (fixed pipeline) ===", n_total)
 
@@ -131,7 +149,11 @@ def main(skip_canary: bool = False, canary_only: bool = False):
             engine._trained = True  # will retrain
 
             t0 = time.perf_counter()
-            engine._training.train(force=True, full_panel=full_panel)
+            engine._training.train(
+                force=True,
+                full_panel=full_panel,
+                expanded_data_dir=str(_expanded_dir) if _expanded_dir else None,
+            )
             elapsed = time.perf_counter() - t0
 
             if engine._trained and engine.model is not None:

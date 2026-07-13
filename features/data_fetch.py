@@ -288,11 +288,14 @@ def _fetch_fred_series(ticker: str) -> pd.Series:
         return pd.Series(dtype=float)
 
     api_key = os.environ.get("FRED_API_KEY", "")
+    # With an API key, request full history (limit=99999 covers even the
+    # longest-living series like DGS10 back to 1962). Without a key, the
+    # public CSV endpoint returns complete history by default.
     if api_key:
         url = (
             f"https://api.stlouisfed.org/fred/series/observations"
             f"?series_id={series_id}&api_key={api_key}&file_type=csv"
-            f"&observation_start=2020-01-01&sort_order=desc&limit=2000"
+            f"&sort_order=asc&observation_start=1900-01-01&limit=99999"
         )
     else:
         url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
@@ -316,7 +319,6 @@ def _fetch_fred_series(ticker: str) -> pd.Series:
             dates.append(r[date_col])
             values.append(v)
         s = pd.Series(values, index=pd.to_datetime(dates), dtype=float, name=ticker)
-        s = s.loc[s.index >= "2020-01-01"]
         s.index = _normalize_index(s.index)
         logger.debug("FRED fallback succeeded for %s (%s): %d rows", ticker, series_id, len(s))
         return s

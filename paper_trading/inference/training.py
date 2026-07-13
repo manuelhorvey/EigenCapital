@@ -40,7 +40,7 @@ class AssetTrainingPipeline:
     def __init__(self, asset):
         self.asset = asset
 
-    def train(self, force=False, full_panel=None):
+    def train(self, force=False, full_panel=None, expanded_data_dir=None):
         asset = self.asset
         model_path = f"{asset.model_path.rsplit('.', 1)[0]}.json"
 
@@ -66,15 +66,125 @@ class AssetTrainingPipeline:
             self._train_regime_if_configured()
             return
 
-        logger.info("%s: downloading history from yfinance...", asset.name)
-        prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(
-            asset.name,
-            asset.ticker,
-        )
+        # ── Expanded data path (offline retrain only) ───────────────────
+        # When expanded_data_dir points to data/yfinance_10yr/, bypass the
+        # ~5y window in fetch_asset_data and read the asset's full 10y+ OHLCV
+        # from a local parquet.  Macro/vix/spx/dxy still come from the live
+        # batch fetch (small payload).  This keeps the live cycle cap at ~5y
+        # while letting offline retrain use the full history we already
+        # cached via download_expanded_data.py.
+        _skip_live_fetch = False
+        _expanded_features = None
+        _expanded_ohlcv = pd.DataFrame()
+        _expanded_prices = None
+        _expanded_rate_diffs = None
+        _expanded_dxy = pd.Series(dtype=float)
+        _expanded_vix = pd.Series(dtype=float)
+        _expanded_spx = pd.Series(dtype=float)
+        _expanded_commodities = None
 
-        # Fetch OHLCV early — needed for trend-exhaustion features, vectorized
-        # labels, and regime features
-        ohlcv = fetch_asset_ohlcv(asset.ticker)
+        if expanded_data_dir is not None:
+            from pathlib import Path
+
+            from features.data_fetch import _normalize_index
+
+            pq_path = Path(expanded_data_dir) / f"{asset.name}_ohlcv.parquet"
+            if not pq_path.exists():
+                logger.warning(
+                    "%s: expanded_data_dir=%s but no %s — falling back to live fetch",
+                    asset.name,
+                    expanded_data_dir,
+                    pq_path.name,
+                )
+            else:
+                _expanded_ohlcv = pd.read_parquet(pq_path)
+                _expanded_ohlcv.index = _normalize_index(_expanded_ohlcv.index)
+                logger.info(
+                    "%s: loaded %d OHLCV rows from %s (%s..%s)",
+                    asset.name,
+                    len(_expanded_ohlcv),
+                    pq_path.name,
+                    _expanded_ohlcv.index[0].date(),
+                    _expanded_ohlcv.index[-1].date(),
+                )
+
+                macro = _fetch_macro_batch()
+                _expanded_dxy = macro.get("DX-Y.NYB", pd.Series(dtype=float))
+                _expanded_vix = macro.get("^VIX", pd.Series(dtype=float))
+                _expanded_spx = macro.get("^GSPC", pd.Series(dtype=float))
+                wti = macro.get("CL=F", pd.Series(dtype=float))
+                tnx = macro.get("^TNX", pd.Series(dtype=float))
+
+                for s in (_expanded_dxy, _expanded_vix, _expanded_spx, wti, tnx):
+                    if not s.empty and s.index.duplicated().any():
+                        s.index = s.index[~s.index.duplicated(keep="last")]
+
+                common = _expanded_ohlcv.index
+                for s in (_expanded_dxy, _expanded_vix, _expanded_spx, wti):
+                    if not s.empty:
+                        common = common.intersection(s.index)
+                if not tnx.empty:
+                    common = common.intersection(tnx.dropna().index)
+
+                _expanded_prices = _expanded_ohlcv["close"].to_frame(asset.name).loc[common]
+                _expanded_rate_diffs = pd.DataFrame(index=common)
+                _expanded_commodities = pd.DataFrame(index=common)
+                if not wti.empty:
+                    _expanded_commodities["WTI"] = wti.reindex(common).ffill()
+
+                asset_upper = asset.name.upper()
+                base_ccy = asset_upper[:3]
+                quote_ccy = asset_upper[3:]
+                try:
+                    from features.data_fetch import (
+                        _KNOWN_CURRENCIES,
+                        _ZERO_RATE_ASSETS,
+                        CURRENCY_YIELD_TICKERS,
+                    )
+
+                    if (
+                        base_ccy in _KNOWN_CURRENCIES
+                        and quote_ccy in _KNOWN_CURRENCIES
+                        and asset_upper not in _ZERO_RATE_ASSETS
+                        and asset_upper != "BTCUSD"
+                    ):
+                        from features.rates_features import fetch_yield_curve
+
+                        base_yc = pd.Series(dtype=float)
+                        quote_yc = pd.Series(dtype=float)
+                        try:
+                            base_yc = fetch_yield_curve(CURRENCY_YIELD_TICKERS.get(base_ccy, ""), base_ccy).reindex(
+                                common
+                            )
+                            quote_yc = fetch_yield_curve(CURRENCY_YIELD_TICKERS.get(quote_ccy, ""), quote_ccy).reindex(
+                                common
+                            )
+                        except (OSError, ValueError, KeyError):
+                            pass
+                        rate_diff = (base_yc - quote_yc).fillna(0.0)
+                        _expanded_rate_diffs[asset.name] = rate_diff
+                    else:
+                        _expanded_rate_diffs[asset.name] = pd.Series(0.0, index=common)
+                except ImportError:
+                    _expanded_rate_diffs[asset.name] = pd.Series(0.0, index=common)
+
+                _skip_live_fetch = True
+
+        if _skip_live_fetch:
+            prices = _expanded_prices
+            ohlcv = _expanded_ohlcv
+            rate_diffs = _expanded_rate_diffs
+            dxy = _expanded_dxy
+            vix = _expanded_vix
+            spx = _expanded_spx
+            commodities = _expanded_commodities
+        else:
+            logger.info("%s: downloading history from yfinance...", asset.name)
+            prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(
+                asset.name,
+                asset.ticker,
+            )
+            ohlcv = fetch_asset_ohlcv(asset.ticker)
 
         features = build_alpha_features(
             prices,

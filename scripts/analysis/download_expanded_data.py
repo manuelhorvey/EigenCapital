@@ -84,10 +84,26 @@ def download_macro_data():
     
     macro_tickers = {
         "DX-Y.NYB": "dxy",
-        "^VIX": "vix", 
+        "^VIX": "vix",
         "^GSPC": "spx",
         "CL=F": "wti",
         "^TNX": "tnx",
+        # Yield curve + sovereign spreads (Group 3 carry / real-rate features)
+        # — fetched here so the live engine + retrain can build features across
+        # 10-20y instead of being capped at 2020 by the FRED endpoint.
+        "^IRX": "irx",
+        "^FVX": "fvx",
+        "^TYX": "tyx",
+        "^2YR": "two_year",
+        "^DE10Y": "de10y",
+        "^UK10Y": "uk10y",
+        "^JP10Y": "jp10y",
+        "^CH10Y": "ch10y",
+        "^AU10Y": "au10y",
+        "^NZ10Y": "nz10y",
+        "^CA10Y": "ca10y",
+        "^TIPS10Y": "tips10y",
+        "^BREKEVEN10Y": "breakeven10y",
     }
     
     result = {}
@@ -102,10 +118,34 @@ def download_macro_data():
         logger.info(f"macro {name} ({ticker}): downloading...")
         df = yf.download(ticker, period="max", auto_adjust=True, progress=False)
         if df is None or df.empty:
-            logger.warning(f"macro {name}: no data")
-            result[name] = pd.Series(dtype=float)
+            # yfinance returned nothing — fall back to FRED via the
+            # _FRED_FALLBACK map in features.data_fetch. Yields the same
+            # 10-50y history FRED has been collecting since the 1960s.
+            logger.info(
+                f"macro {name} ({ticker}): yfinance empty, trying FRED fallback..."
+            )
+            try:
+                from features.data_fetch import _FRED_FALLBACK, _fetch_fred_series
+                if ticker in _FRED_FALLBACK:
+                    s = _fetch_fred_series(ticker)
+                else:
+                    logger.warning(f"macro {name}: no FRED mapping for {ticker}")
+                    s = pd.Series(dtype=float)
+                if s.empty:
+                    logger.warning(f"macro {name}: FRED also empty")
+                    s = pd.Series(dtype=float)
+            except Exception as exc:
+                logger.warning(f"macro {name}: FRED fallback failed — {exc}")
+                s = pd.Series(dtype=float)
+            result[name] = s
+            if not s.empty:
+                # Persist to the same parquet cache so the live engine can
+                # pick it up too.
+                s.name = "close"
+                s.to_frame().to_parquet(cache_path)
+                logger.info(f"macro {name}: saved {len(s)} rows (FRED)")
             continue
-        
+
         s = df["Close"].squeeze().copy()
         s.index = s.index.tz_localize("UTC") if s.index.tz is None else s.index.tz_convert("UTC")
         s.index = s.index.normalize()

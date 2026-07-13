@@ -42,9 +42,14 @@ def main() -> None:
     from paper_trading.ops.data_fetcher import _set_store
 
     class _NullStore:
-        def save_cache(self, *args, **kwargs): pass
-        def load_cache(self, *args, **kwargs): return None
-        def cache_path(self, *args, **kwargs): return "/dev/null"
+        def save_cache(self, *args, **kwargs):
+            pass
+
+        def load_cache(self, *args, **kwargs):
+            return None
+
+        def cache_path(self, *args, **kwargs):
+            return "/dev/null"
 
     _set_store(_NullStore())
 
@@ -76,19 +81,16 @@ def main() -> None:
     _reg.register_defaults(list(portfolio.keys()))
 
     # ── Pre-fetch full panel for cross-sectional features ────────────
-    from features.data_fetch import fetch_asset_data
+    # When EIGENCAPITAL_EXPANDED_DATA_DIR is set (or data/yfinance_10yr/
+    # exists), read the panel from cached parquets via the shared helper
+    # at scripts/training/_data_sources.py.
+    import sys as _sys
 
-    logger.info("Pre-fetching full %d-asset panel for cross-sectional features...", len(portfolio))
-    full_panel_dict: dict[str, pd.Series] = {}
-    for aname, aspec in portfolio.items():
-        try:
-            aprices, _, _, _, _, _ = fetch_asset_data(aname, aspec["ticker"])
-            if aprices is not None and not aprices.empty:
-                full_panel_dict[aname] = aprices.iloc[:, 0]
-        except Exception:
-            continue
-    full_panel = pd.DataFrame(full_panel_dict).ffill().dropna(how="all")
-    logger.info("Full panel: %d assets × %d rows", len(full_panel.columns), len(full_panel))
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from _data_sources import build_expanded_full_panel, resolve_expanded_dir
+
+    _expanded_dir = resolve_expanded_dir()
+    full_panel = build_expanded_full_panel(dict(portfolio), expanded_dir=_expanded_dir)
 
     results = []
     assets_to_train = sorted(portfolio.keys())
@@ -123,20 +125,26 @@ def main() -> None:
             engine._trained = True  # force retrain
 
             t0 = time.perf_counter()
-            engine._training.train(force=True, full_panel=full_panel)
+            engine._training.train(
+                force=True,
+                full_panel=full_panel,
+                expanded_data_dir=str(_expanded_dir) if _expanded_dir else None,
+            )
             elapsed = time.perf_counter() - t0
 
             if engine._trained and engine.model is not None:
                 # Verify the file exists
                 file_size = os.path.getsize(canary_path) if os.path.exists(canary_path) else 0
-                results.append({
-                    "asset": name,
-                    "ticker": ticker,
-                    "model_path": canary_path,
-                    "file_size_bytes": file_size,
-                    "train_time_s": round(elapsed, 1),
-                    "status": "OK",
-                })
+                results.append(
+                    {
+                        "asset": name,
+                        "ticker": ticker,
+                        "model_path": canary_path,
+                        "file_size_bytes": file_size,
+                        "train_time_s": round(elapsed, 1),
+                        "status": "OK",
+                    }
+                )
                 logger.info(
                     "  ✓ %s: trained in %.1fs → %s (%d bytes)",
                     name,
@@ -145,23 +153,28 @@ def main() -> None:
                     file_size,
                 )
             else:
-                results.append({
-                    "asset": name,
-                    "ticker": ticker,
-                    "status": "FAILED",
-                    "train_time_s": round(elapsed, 1),
-                })
+                results.append(
+                    {
+                        "asset": name,
+                        "ticker": ticker,
+                        "status": "FAILED",
+                        "train_time_s": round(elapsed, 1),
+                    }
+                )
                 logger.warning("  ✗ %s: training returned no model", name)
 
         except Exception as e:  # noqa: BLE001
             logger.error("  ✗ %s: ERROR — %s", name, e)
             import traceback
+
             traceback.print_exc()
-            results.append({
-                "asset": name,
-                "ticker": ticker,
-                "status": f"ERROR: {e}",
-            })
+            results.append(
+                {
+                    "asset": name,
+                    "ticker": ticker,
+                    "status": f"ERROR: {e}",
+                }
+            )
 
     # Save report
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")

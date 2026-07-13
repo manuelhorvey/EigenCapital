@@ -127,7 +127,7 @@ def _to_binary(y):
 
 
 def run_asset(asset_name, ticker, pt_sl, max_depth=2, window_years=5, step_years=2, n_folds=5, gap=20,
-             ensemble_weight=1.0, ensemble_threshold=0.15, tag="expanded_10yr"):
+              ensemble_weight=1.0, ensemble_threshold=0.15, tag="expanded_10yr", calibrate_flag=False):
     import xgboost as xgb
     from features.alpha_features import build_alpha_features
     from features.regime_features import generate_regime_features
@@ -236,8 +236,34 @@ def run_asset(asset_name, ticker, pt_sl, max_depth=2, window_years=5, step_years
             model.fit(X_tr_fit[alpha_cols], y_tr_fit, verbose=False)
         
         base_p_long = model.predict_proba(X_te[alpha_cols])[:, 1]
-        
+
         p_long = base_p_long
+        # When --calibrate is set, fit a DirectionalCalibrator on OUT-OF-SAMPLE
+        # validation predictions (held out during model training) then apply to
+        # the test fold. Mirrors the logic in walk_forward_backtest.py:348-375.
+        # Avoids fitting the calibrator on in-sample predictions which are
+        # systematically overconfident.
+        if calibrate_flag:
+            from shared.calibration import DirectionalCalibrator
+            if use_early_stopping and len(X_val) >= 10:
+                cal_p = model.predict_proba(X_val[alpha_cols])[:, 1]
+                cal = DirectionalCalibrator(n_bins=10)
+                cal.fit(cal_p, y_val.values)
+                p_long = cal.calibrate(p_long)
+                logger.info(
+                    "  fold %d: calibration on %d OOS val samples (buy=%s sell=%s)",
+                    fold,
+                    len(cal_p),
+                    getattr(cal, "_buy_fitted", "n/a"),
+                    getattr(cal, "_sell_fitted", "n/a"),
+                )
+            else:
+                logger.warning(
+                    "  fold %d: skipping calibration — need >=10 val samples (got %d)",
+                    fold,
+                    len(X_val) if use_early_stopping else 0,
+                )
+
         if ensemble_weight < 1.0 and regime_ok and regime_cols:
             X_tr_regime = X_tr[all_cols]
             X_te_regime = X_te[all_cols]
@@ -314,17 +340,19 @@ def run_asset(asset_name, ticker, pt_sl, max_depth=2, window_years=5, step_years
     return summary
 
 
-def main():
+def main(calibrate_flag: bool = False, tag: str = "expanded_10yr"):
     logger.info("=" * 60)
     logger.info("Expanded walk-forward backtest (10+ year cached data)")
+    if calibrate_flag:
+        logger.info("Per-fold calibration ENABLED")
     logger.info("=" * 60)
-    
+
     from paper_trading.config_manager import get_config
     cfg = get_config()
-    
+
     all_summaries = []
     btc_pt_sl = (2.5, 3.0)
-    
+
     for name, ticker in ASSETS.items():
         if ticker == "BTC-USD":
             pt_sl = btc_pt_sl
@@ -334,31 +362,57 @@ def main():
             sl = float(acfg.get("sl_mult", 2.0))
             pt_sl = (tp, sl)
         md = int(cfg.assets.get(name, {}).get("max_depth", 2))
-        
+
         try:
             result = run_asset(name, ticker, pt_sl, max_depth=md,
                                window_years=5, step_years=2, n_folds=5,
-                               tag="expanded_10yr")
+                               tag=tag, calibrate_flag=calibrate_flag)
         except Exception as e:
             logger.error(f"{name}: FAILED — {e}", exc_info=True)
             continue
-        
+
         if result is not None:
             all_summaries.append(result)
-    
+
     if all_summaries:
         combined = pd.concat(all_summaries)
-        combined_path = OUTPUT_DIR / _tag_path("all_assets_wf_summary.csv", "expanded_10yr")
+        combined_path = OUTPUT_DIR / _tag_path("all_assets_wf_summary.csv", tag)
         combined.to_csv(combined_path, index=False)
         logger.info(f"\nCombined summary -> {combined_path}")
-        
+
         print("\n=== Cross-Asset Walk-Forward Summary (10yr Expanded) ===")
         metrics = ["hit_rate", "directional", "long_rate", "short_rate", "flat_rate"]
         avg = combined.groupby("asset")[metrics].mean()
         print(avg.to_string(float_format="%.3f"))
-    
-    logger.info("\nDone. Now run: PYTHONPATH=$PYTHONPATH:. python scripts/validation/validate_directional_skill.py --tag expanded_10yr --save")
+
+    logger.info(
+        "\nDone. Next: PYTHONPATH=$PYTHONPATH:. python scripts/validation/validate_directional_skill.py --tag %s --save",
+        tag,
+    )
+
+
+def _parse_args():
+    import argparse as _ap
+
+    p = _ap.ArgumentParser(
+        description="Expanded 10-yr walk-forward backtest with optional per-fold calibration",
+    )
+    p.add_argument(
+        "--calibrate",
+        action="store_true",
+        help=(
+            "Fit a DirectionalCalibrator on each fold's OOS validation predictions "
+            "and apply to the test fold. Mirrors live inference calibration."
+        ),
+    )
+    p.add_argument(
+        "--tag",
+        default="expanded_10yr",
+        help="Output filename suffix (default: expanded_10yr)",
+    )
+    return p.parse_args()
 
 
 if __name__ == "__main__":
-    main()
+    _args = _parse_args()
+    main(calibrate_flag=_args.calibrate, tag=_args.tag)

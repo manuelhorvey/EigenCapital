@@ -2,7 +2,7 @@
 
 ## Alpha Features
 
-The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses 40 alpha feature columns (9 core per-asset + 6 trend-exhaustion + 2 COT features + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features) with per-asset prefix, including COT sentiment features, trend-exhaustion indicators, directional splits, and narrative overlays. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
+The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses base alpha features (9 core per-asset + 6 trend-exhaustion + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features) with per-asset prefix, including trend-exhaustion indicators, directional splits, and narrative overlays. During training, additional feature groups are appended: Group 1 (cross-sectional momentum), Group 2 (positioning/volume momentum), Group 3 (rates & carry), and Group 4 (event/calendar features), expanding the total feature count significantly beyond the base set. COT features were deprecated 2026-07-09 after walk-forward validation showed zero gain across all 22 assets. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
 
 ### Input Data
 
@@ -55,7 +55,19 @@ kept for interpretability. Walk-forward validation confirmed **0 splits** across
 | `{ASSET}_cot_z` | COT speculative positioning z-score |
 | `{ASSET}_cot_change_4w` | 4-week change in COT net positioning |
 
-> **COT injection tech debt:** The initialization loop attempting per-asset COT feature naming does not fire (the DataFrame column is named `"close"`, not the asset ticker). Instead, ALL columns from `cot_data` (~16 cols × 2 features from 8 COT-covered pairs) are joined into *every* asset's feature vector — including non-COT assets (GC, ES, NQ). COT features are zero-filled for pairs not in CFTC data. This means assets not in COT data still receive unrelated COT positioning data. Flagged as tech debt: COT injection should be filtered per factor group.
+> **COT features — DEPRECATED 2026-07-09:** Walk-forward validation showed zero gain across all 22 assets. The function `fetch_cot_features()` now returns an empty DataFrame. No COT columns are produced in training or inference. Kept as placeholder columns for backward compatibility.
+
+#### Training-Only Feature Groups (Groups 1-4)
+
+During training via `AssetTrainingPipeline.train()`, four additional feature groups are appended to the base alpha set. These are NOT reproduced in the live inference pipeline (which uses the base alpha set from `build_alpha_features()` plus regime + archetype features):
+
+**Group 1 — Cross-Sectional Features** (`features/cross_sectional.py`): Momentum-based features computed across the full asset panel. Requires `full_panel` DataFrame passed to `train()`. Added in `training.py:131-141`.
+
+**Group 2 — Positioning & Volume Features** (`features/positioning_features.py`): Volume momentum and open interest indicators from OHLCV volume. See `training.py:144-152`.
+
+**Group 3 — Rates & Carry Features** (`features/rates_features.py`): Government bond yield curves, rate differentials, and carry proxies via FRED/yfinance. See `training.py:155-169`.
+
+**Group 4 — Event & Calendar Features** (`features/event_features.py`): Calendar-based features (month-end, FOMC, NFP, etc.) from the date index. See `training.py:172-178`.
 
 #### Per-Asset Trend-Exhaustion Features (6 cols, added 2026-06-26)
 
@@ -110,7 +122,7 @@ position sizing during risk-off regimes) but contributes no incremental predicti
 
 ### Custom Feature Variants
 
-Some assets have additional or replacement features beyond the 21-base set:
+Some assets have additional or replacement features beyond the base set:
 
 | Asset | Variant |
 |---|---|
@@ -159,10 +171,10 @@ Per-asset `pt_sl` from per-asset YAML files in `configs/domains/assets/` (e.g., 
 
 ## Architecture Note
 
-All 22 promoted assets use the same 40 alpha features from `features/alpha_features.py:build_alpha_features()`. A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
+All 22 promoted assets use the same alpha feature pipeline from `features/alpha_features.py:build_alpha_features()`. During training, Groups 1-4 are appended (cross-sectional, positioning, rates, events). During live inference, only base alpha features (9 core + 6 trend-exhaustion + 4 cross-asset + 10 directional splits + 15 FXStreet narrative) are used, plus regime features (7 cols) and archetype features (4 cols). A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
 
-**BTCUSD note:** BTCUSD uses the standard `build_alpha_features()` pipeline but does not receive COT features (crypto pairs have no CFTC position data; `has_cot`, `cot_z`, `cot_change_4w` are zero-filled). Session features (dow_signal) use UTC timestamps for 24/7 session consistency. All trend-exhaustion features (MACD, stoch, BB, ADX, RSI divergence) apply unchanged.
+**BTCUSD note:** BTCUSD uses the standard `build_alpha_features()` pipeline. COT features (`cot_z`, `cot_change_4w`) are zero-filled (deprecated). Session features (dow_signal) use UTC timestamps for 24/7 session consistency. All trend-exhaustion features (MACD, stoch, BB, ADX, RSI divergence) apply unchanged.
 
 ---
 
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-13

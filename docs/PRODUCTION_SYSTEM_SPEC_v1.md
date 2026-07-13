@@ -159,11 +159,11 @@ yfinance ──▶ fetch_asset_data ──▶ alpha_features ──▶ triple_ba
 
 | Parameter | Value |
 |---|---|
-| Train window | 3 years |
+| Train window | 10 years |
 | Step | 1 year |
 | Folds | 5 (expanding) |
 | Label | triple barrier with per-asset pt_sl |
-| Feature window | 10 years from yfinance |
+| Feature window | 10 years from expanded cache (`data/yfinance_10yr/`) |
 | Per-asset pt_sl | From `configs/domains/assets/` files and `features/registry.py` (all 22 assets synced) |
 
 **Output** (per ticker in `walkforward/`):
@@ -372,23 +372,23 @@ Computed from OHLCV feature vector (no model inference):
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| GC | GC=F | 7.0% | 1.00 | 4.00 | 2 |
-| USDCHF | USDCHF=X | 4.0% | 0.85 | 3.00 | 4 |
-| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 5 |
-| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 2 |
+| GC | GC=F | 7.0% | 1.00 | 4.00 | 4 |
+| USDCHF | USDCHF=X | 2.0% | 0.85 | 3.00 | 4 |
+| USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 3 |
+| GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 5 |
 | NZDCAD | NZDCAD=X | 5.0% | 1.83 | 5.48 | 2 |
-| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 5 |
+| NZDUSD | NZDUSD=X | 2.5% | 1.29 | 3.87 | 2 |
 | GBPAUD | GBPAUD=X | 5.0% | 1.00 | 3.00 | 3 |
 | NZDCHF | NZDCHF=X | 7.0% | 1.00 | 4.00 | 2 |
-| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 2 |
-| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 2 |
+| CADCHF | CADCHF=X | 5.0% | 1.00 | 4.00 | 3 |
+| AUDUSD | AUDUSD=X | 4.0% | 1.41 | 4.24 | 5 |
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
 | EURCAD | EURCAD=X | 2.0% | 0.71 | 2.12 | 3 |
-| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 3 |
+| EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 5 |
 | GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
-| GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 2 |
-| EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 2 |
-| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 3 |
+| GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 4 |
+| EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 5 |
+| ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 4 |
 | BTCUSD | BTC-USD | 2.0% | 0.58 | 1.51 | 3 |
 | AUDJPY | AUDJPY=X | 2.0% | 0.52 | 2.01 | 2 |
 | NZDJPY | NZDJPY=X | 2.0% | 0.51 | 2.02 | 2 |
@@ -581,7 +581,7 @@ In-memory TTL cache per download type:
 
 ---
 
-*Spec version 1.2 — July 2026*
+*Spec version 1.3 — July 2026*
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-13
 *Supersedes all prior documentation. Production code is truth.*

@@ -138,8 +138,12 @@ class AssetEngine:
         self._sl_exits = 0
         self._research_mode = engine_cfg.research_mode
         self._retrain_window = retrain_window if retrain_window is not None else engine_cfg.retrain_window
-        self._rolling_window = engine_cfg.defaults.get("rolling_window_bars", None)
-        self._rolling_window_bars = self.config.get("rolling_window_bars", 756)
+        # rolling_window_bars defaults to retrain_window * 252 so training uses the
+        # full retrain window instead of being silently capped at a hardcoded 756 bars (~3y).
+        # Per-asset or sizing.yaml overrides still take effect when explicitly set.
+        _default_window_bars = self._retrain_window * 252
+        self._rolling_window = engine_cfg.defaults.get("rolling_window_bars", _default_window_bars)
+        self._rolling_window_bars = self.config.get("rolling_window_bars", _default_window_bars)
         self.model_path = os.path.join(BASE, "paper_trading", "models", f"{self.contract.name}_model.json")
         self._wal_writer = wal_writer
         self._model_hash = self._load_model_hash()
@@ -647,7 +651,22 @@ class AssetEngine:
             logger.warning("%s: refresh_spread failed", self.name, exc_info=True)
 
     def train(self, force=False, full_panel=None):
-        self._training.train(force=force, full_panel=full_panel)
+        # Auto-detect expanded 10-year cache and pass it to the training
+        # pipeline. When available, training uses the full cached history
+        # (10y+) instead of the live 5y yfinance fetch.
+        # Resolution order (matches resolve_expanded_dir in _data_sources.py):
+        #   1. EIGENCAPITAL_EXPANDED_DATA_DIR env var
+        #   2. data/yfinance_10yr/ under the project root
+        _expanded_dir: str | None = None
+        _env_dir = os.environ.get("EIGENCAPITAL_EXPANDED_DATA_DIR")
+        if _env_dir and os.path.isdir(_env_dir):
+            _expanded_dir = _env_dir
+        else:
+            _data_dir = os.path.join(BASE, "data", "yfinance_10yr")
+            if os.path.isdir(_data_dir):
+                _expanded_dir = _data_dir
+
+        self._training.train(force=force, full_panel=full_panel, expanded_data_dir=_expanded_dir)
         self._load_calibration_registry()
 
     def generate_signal(self, threshold=0.45, shared_macro: dict[str, pd.Series] | None = None):

@@ -180,7 +180,7 @@ class TestTrain:
         engine = _make_engine()
         trained = []
 
-        engine._training.train = lambda force=False, full_panel=None: trained.append(force)
+        engine._training.train = lambda force=False, full_panel=None, expanded_data_dir=None: trained.append(force)
         engine._load_calibration_registry = lambda: None
 
         engine.train(force=True)
@@ -191,7 +191,7 @@ class TestTrain:
         engine = _make_engine()
         loaded = []
 
-        engine._training.train = lambda force=False, full_panel=None: None
+        engine._training.train = lambda force=False, full_panel=None, expanded_data_dir=None: None
         engine._load_calibration_registry = lambda: loaded.append(1)
 
         engine.train()
@@ -201,7 +201,7 @@ class TestTrain:
         engine = _make_engine()
         trained = []
 
-        engine._training.train = lambda force=False, full_panel=None: trained.append(force)
+        engine._training.train = lambda force=False, full_panel=None, expanded_data_dir=None: trained.append(force)
         engine._load_calibration_registry = lambda: None
 
         engine.train()
@@ -211,7 +211,7 @@ class TestTrain:
     def test_training_exception_propagates(self):
         engine = _make_engine()
 
-        engine._training.train = lambda force=False, full_panel=None: (_ for _ in ()).throw(RuntimeError("train failed"))
+        engine._training.train = lambda force=False, full_panel=None, expanded_data_dir=None: (_ for _ in ()).throw(RuntimeError("train failed"))
         engine._load_calibration_registry = lambda: None
 
         with pytest.raises(RuntimeError, match="train failed"):

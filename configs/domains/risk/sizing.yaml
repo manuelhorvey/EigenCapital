@@ -1,4 +1,7 @@
-rolling_window_bars: 756
+# rolling_window_bars is now dynamic — computed as retrain_window * 252 in asset_engine.py
+# (e.g. retrain_window=10 → 2520 bars). Remove the static default here so the dynamic
+# default in asset_engine.py takes effect instead of silently capping training to ~3y.
+# rolling_window_bars: 756
 churn_ratio_threshold: 0.35
 cooldown_half_life_hours: 4.0
 cooldown_max_penalty_pct: 20.0

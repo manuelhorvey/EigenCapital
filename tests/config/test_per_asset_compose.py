@@ -109,6 +109,39 @@ def test_defaults_yaml_adaptive_exit_matches_known_default():
     assert defaults["trail_activation_r"] == 0.8
     assert defaults["trail_retrace_pct"] == 0.33
     assert defaults["enabled"] is True
+    assert defaults.get("mfe_ratio_tighten", {}).get("enabled") is True
+
+
+def test_mfe_ratio_tighten_flows_from_defaults_to_per_asset():
+    """Per-asset files without mfe_ratio_tighten inherit from defaults."""
+    composed = _compose("EURNZD")
+    mfe = composed["config"]["adaptive_exit"]["mfe_ratio_tighten"]
+    assert mfe["enabled"] is True
+    assert mfe["ratio_thresholds"] == [[1.5, 0.85], [2.0, 0.7], [3.0, 0.5]]
+
+
+def test_mfe_ratio_tighten_2x_default():
+    """At MFE/SL ratio 2.0 (1.56R peak / 1.0R SL dist), retrace tightens."""
+    from paper_trading.position.adaptive_exit import AdaptiveExitEngine
+
+    engine = AdaptiveExitEngine()
+    engine._breakeven_activated = True
+    # peak_r = 2.0  (mfe_sl_ratio = 2.0 / 1.0 = 2.0)
+    engine._best_price = 104.0
+    cfg = {
+        "trail_activation_r": 0.5,
+        "trail_retrace_pct": 0.33,
+        "mfe_ratio_tighten": {"enabled": True, "ratio_thresholds": [[2.0, 0.7]]},
+    }
+    result = engine.compute(
+        side="long", entry_price=100, current_price=101, current_sl=100,
+        vol_at_entry=0.02, bars_since_entry=5, config=cfg,
+    )
+    # effective_retrace = 0.33 * 0.70 = 0.231
+    # retrace_level = 104 - 0.231 * 4 = 103.076
+    assert result.action == "trail"
+    assert result.new_sl == pytest.approx(103.076, abs=0.01)
+    assert "mfe_ratio_tighten=0.7" in result.description
 
 
 def test_per_asset_adaptive_exit_overrides_apply():

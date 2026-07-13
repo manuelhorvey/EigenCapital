@@ -22,6 +22,8 @@ class AdaptiveExitEngine:
       1. Breakeven lock — move SL to entry at X R-multiple MFE
       2. R-based scale-out — close fraction at target R-multiple
       3. Retracement trail — trail remainder at X% retrace from peak MFE
+         Retrace percentage is dynamically tightened when MFE / SL distance
+         exceeds configurable thresholds (mfe_ratio_tighten).
       4. Time decay — tighten trailing tolerance as max-hold approaches
 
     Tracks its own peak price so it can be used independently of
@@ -39,6 +41,41 @@ class AdaptiveExitEngine:
         self._current_phase: str = "STATIC"
         self._peak_r: float | None = None
         self._scale_out_fired: bool = False
+        self._mfe_tighten_activated: bool = False
+
+    def _apply_mfe_ratio_tighten(self, peak_r: float, config: dict) -> float:
+        """Dynamically reduce trail_retrace_pct when MFE/SL ratio is high.
+
+        Config keys (under ``mfe_ratio_tighten``):
+          enabled: bool              — default False
+          ratio_thresholds: list[[float, float]]
+              Each entry is [mfe_sl_ratio, retrace_multiplier].
+              Example: [[2.0, 0.8], [3.0, 0.6]] means:
+                - When MFE > 2× SL distance, multiply retrace by 0.8
+                - When MFE > 3× SL distance, multiply retrace by 0.6
+
+        Returns the effective retrace_pct multiplier [0.0, 1.0].
+        """
+        tighten_cfg = config.get("mfe_ratio_tighten", {})
+        if not tighten_cfg.get("enabled", False):
+            return 1.0
+
+        sl_dist_r = max(config.get("sl_distance_r", 1.0), 0.01)
+        mfe_sl_ratio = peak_r / sl_dist_r
+        thresholds = tighten_cfg.get("ratio_thresholds", [[2.0, 0.8], [3.0, 0.6]])
+        if not thresholds:
+            return 1.0
+
+        # Find the most aggressive multiplier that applies
+        multiplier = 1.0
+        for ratio_thresh, retrace_mult in sorted(thresholds, key=lambda x: x[0]):
+            if mfe_sl_ratio >= ratio_thresh:
+                multiplier = min(multiplier, retrace_mult)
+
+        if multiplier < 1.0:
+            self._mfe_tighten_activated = True
+
+        return max(multiplier, 0.1)  # cap at 10% minimum
 
     def compute(
         self,
@@ -108,26 +145,32 @@ class AdaptiveExitEngine:
             self._current_phase = "SCALE_OUT"
             return result
 
-        # Stage 3: Retracement trailing
+        # Stage 3: Retracement trailing (with MFE-ratio dynamic tightening)
         activation_r = config.get("trail_activation_r", 0.8)
         retrace_pct = config.get("trail_retrace_pct", 0.50)
+        mfe_mult = self._apply_mfe_ratio_tighten(peak_r, config)
+        effective_retrace = retrace_pct * mfe_mult
 
         if peak_r >= activation_r:
             if side == "long":
-                retrace_level = best - retrace_pct * (best - entry_price)
+                retrace_level = best - effective_retrace * (best - entry_price)
                 if retrace_level > current_sl:
                     result.new_sl = retrace_level
                     result.action = "trail"
                     result.description = (
-                        f"trail {retrace_pct * 100:.0f}% retrace (peak={best:.4f}, peak_r={peak_r:.2f})"
+                        f"trail {effective_retrace * 100:.0f}% retrace"
+                        f" (peak={best:.4f}, peak_r={peak_r:.2f}"
+                        f"{', mfe_ratio_tighten=' + str(mfe_mult) if mfe_mult < 1.0 else ''})"
                     )
             else:
-                retrace_level = best + retrace_pct * (entry_price - best)
+                retrace_level = best + effective_retrace * (entry_price - best)
                 if retrace_level < current_sl:
                     result.new_sl = retrace_level
                     result.action = "trail"
                     result.description = (
-                        f"trail {retrace_pct * 100:.0f}% retrace (peak={best:.4f}, peak_r={peak_r:.2f})"
+                        f"trail {effective_retrace * 100:.0f}% retrace"
+                        f" (peak={best:.4f}, peak_r={peak_r:.2f}"
+                        f"{', mfe_ratio_tighten=' + str(mfe_mult) if mfe_mult < 1.0 else ''})"
                     )
             self._trail_activated = True
 
@@ -137,7 +180,7 @@ class AdaptiveExitEngine:
         if max_hold > 0 and bars_since_entry >= decay_start and bars_since_entry < max_hold and self._trail_activated:
             progress = (bars_since_entry - decay_start) / max(max_hold - decay_start, 1)
             if progress > 0.3 and result.action == "none":
-                tighter_retrace = retrace_pct * max(1.0 - progress * 0.3, 0.3)
+                tighter_retrace = effective_retrace * max(1.0 - progress * 0.3, 0.3)
                 if side == "long":
                     tighter_level = best - tighter_retrace * (best - entry_price)
                     if tighter_level > current_sl:
@@ -155,7 +198,10 @@ class AdaptiveExitEngine:
         if self._trail_activated and max_hold > 0 and bars_since_entry >= decay_start and bars_since_entry < max_hold:
             self._current_phase = "DECAY"
         elif self._trail_activated:
-            self._current_phase = "TRAILING"
+            if self._mfe_tighten_activated:
+                self._current_phase = "MFE_TIGHTEN"
+            else:
+                self._current_phase = "TRAILING"
         elif self._breakeven_activated:
             self._current_phase = "BREAKEVEN"
         else:
@@ -165,7 +211,7 @@ class AdaptiveExitEngine:
 
     @property
     def phase(self) -> str:
-        """SCALE_OUT | BREAKEVEN | TRAILING | DECAY | STATIC"""
+        """SCALE_OUT | BREAKEVEN | MFE_TIGHTEN | TRAILING | DECAY | STATIC"""
         return self._current_phase
 
     @property

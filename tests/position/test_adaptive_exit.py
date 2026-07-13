@@ -485,3 +485,138 @@ class TestAdaptiveExitEngine:
             result = engine.compute(side="long", entry_price=100, current_price=price,
                                     current_sl=95, vol_at_entry=0.02, bars_since_entry=1)
             assert isinstance(result, AdaptiveExitResult)
+
+
+class TestMfeRatioTightening:
+    """MFE-ratio-based dynamic retracement tightening (Stage 3 enhancement)."""
+
+    MFE_CFG = {
+        "be_lock_r": 99.0,  # disable breakeven
+        "trail_activation_r": 0.5,
+        "trail_retrace_pct": 0.50,
+        "mfe_ratio_tighten": {
+            "enabled": True,
+            "ratio_thresholds": [[2.0, 0.8], [3.0, 0.5]],
+        },
+    }
+
+    def test_disabled_by_default(self):
+        """Without mfe_ratio_tighten enabled, retrace_pct is unchanged."""
+        engine = AdaptiveExitEngine()
+        # peak_r = (103 - 100) / (100 * 0.02) = 1.5
+        result = engine.compute(
+            side="long", entry_price=100, current_price=103, current_sl=97,
+            vol_at_entry=0.02, bars_since_entry=5,
+            config={"be_lock_r": 99.0, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50},
+        )
+        # retrace_level = 103 - 0.5 * 3 = 101.5
+        assert result.new_sl == pytest.approx(101.5)
+
+    def test_tightens_at_2x_ratio(self):
+        """At MFE/SL ratio >= 2.0, retrace_multiplier 0.8 tightens trail."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True  # skip stage 1
+        # peak_r = 2.0, MFE/SL ratio = 2.0 / 1.0 = 2.0 => mult 0.8
+        engine._best_price = 104.0
+        result = engine.compute(
+            side="long", entry_price=100, current_price=102, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=self.MFE_CFG,
+        )
+        # effective_retrace = 0.50 * 0.8 = 0.40
+        # retrace_level = 104 - 0.40 * 4 = 102.4
+        assert result.action == "trail"
+        assert result.new_sl == pytest.approx(102.4)
+        assert "mfe_ratio_tighten=0.8" in result.description
+
+    def test_tightens_at_3x_ratio(self):
+        """At MFE/SL ratio >= 3.0, retrace_multiplier 0.5 tightens more."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True
+        # peak_r = 3.0 => MFE/SL ratio = 3.0 => mult 0.5
+        engine._best_price = 106.0
+        result = engine.compute(
+            side="long", entry_price=100, current_price=102, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=self.MFE_CFG,
+        )
+        # effective_retrace = 0.50 * 0.5 = 0.25
+        # retrace_level = 106 - 0.25 * 6 = 104.5
+        assert result.action == "trail"
+        assert result.new_sl == pytest.approx(104.5)
+        assert "mfe_ratio_tighten=0.5" in result.description
+
+    def test_no_tighten_below_threshold(self):
+        """Below the first threshold (MFE/SL < 2.0), retrace is unchanged."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True
+        # peak_r = 1.5 => MFE/SL ratio = 1.5 < 2.0 => no tighten
+        engine._best_price = 103.0
+        result = engine.compute(
+            side="long", entry_price=100, current_price=101, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=self.MFE_CFG,
+        )
+        # effective_retrace = 0.50 * 1.0 = 0.50
+        # retrace_level = 103 - 0.5 * 3 = 101.5
+        assert result.new_sl == pytest.approx(101.5)
+        assert "mfe_ratio_tighten" not in result.description
+
+    def test_mfe_tighten_short_symmetry(self):
+        """Same MFE-ratio tightening works for short trades."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True
+        # Short: peak_r = (100 - 94) / (100 * 0.02) = 3.0
+        # MFE/SL ratio = 3.0 => mult 0.5
+        engine._best_price = 94.0
+        result = engine.compute(
+            side="short", entry_price=100, current_price=98, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=self.MFE_CFG,
+        )
+        # retrace_level = 94 + 0.25 * 6 = 95.5
+        assert result.action == "trail"
+        assert result.new_sl == pytest.approx(95.5)
+
+    def test_phase_reflects_mfe_tighten(self):
+        """Phase shows MFE_TIGHTEN when MFE-ratio tightening is active."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True
+        engine._best_price = 106.0
+        engine.compute(
+            side="long", entry_price=100, current_price=102, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=self.MFE_CFG,
+        )
+        assert engine.phase == "MFE_TIGHTEN"
+
+    def test_sl_distance_r_custom_ratio(self):
+        """Custom sl_distance_r shifts the MFE/SL ratio threshold."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True
+        # peak_r = 2.0, sl_distance_r = 1.5 => MFE/SL = 1.33 (below 2.0)
+        engine._best_price = 104.0
+        cfg = {
+            "be_lock_r": 99.0, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50,
+            "sl_distance_r": 1.5,
+            "mfe_ratio_tighten": {"enabled": True, "ratio_thresholds": [[2.0, 0.8]]},
+        }
+        result = engine.compute(
+            side="long", entry_price=100, current_price=102, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=cfg,
+        )
+        # MFE/SL = 1.33 < 2.0 => no tighten, retrace = 0.50
+        # retrace_level = 104 - 0.5 * 4 = 102.0
+        assert result.new_sl == pytest.approx(102.0)
+
+    def test_mfe_tighten_minimum_cap(self):
+        """multiplier is capped at 0.1 minimum."""
+        engine = AdaptiveExitEngine()
+        engine._breakeven_activated = True
+        engine._best_price = 110.0
+        cfg = {
+            "be_lock_r": 99.0, "trail_activation_r": 0.5, "trail_retrace_pct": 0.50,
+            "mfe_ratio_tighten": {"enabled": True, "ratio_thresholds": [[0.5, 0.001]]},
+        }
+        result = engine.compute(
+            side="long", entry_price=100, current_price=105, current_sl=100,
+            vol_at_entry=0.02, bars_since_entry=5, config=cfg,
+        )
+        # effective_retrace = 0.50 * 0.10 = 0.05 (capped)
+        # retrace_level = 110 - 0.05 * 10 = 109.5
+        assert result.new_sl == pytest.approx(109.5)

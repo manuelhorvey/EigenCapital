@@ -18,6 +18,15 @@ adaptive_exit:
   trail_retrace_pct: 0.33
   max_hold_candles: 60
   time_decay_start: 30
+  mfe_ratio_tighten:
+    enabled: true
+    ratio_thresholds:
+    - - 1.5
+      - 0.85
+    - - 2.0
+      - 0.70
+    - - 3.0
+      - 0.50
 trailing:
   anchor:
     atr_mult: 1.5

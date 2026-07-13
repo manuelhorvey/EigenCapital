@@ -9,7 +9,8 @@ from paper_trading.ops.data_fetcher import fetch_live as _provider_fetch_live
 
 logger = logging.getLogger("eigencapital.data_fetch")
 
-# Fetch ~5 years for training.
+# Fetch period for yfinance fallback (live inference only — training uses the
+# expanded cache from data/yfinance_10yr/ which provides 10y+).
 # Indicator max lookback is 253 bars; 1250 provides ~1k-bar warmup margin.
 _FETCH_PERIOD = "5y"
 _FETCH_WARMUP_BUFFER = 1250

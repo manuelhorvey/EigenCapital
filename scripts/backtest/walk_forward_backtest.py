@@ -20,6 +20,7 @@ import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -145,6 +146,7 @@ def run_walk_forward(
     sample_weight_flag: bool = False,
     calibrate_flag: bool = False,
     no_scale_pos_weight: bool = False,
+    expanded_data_dir: str | None = None,
 ) -> pd.DataFrame | None:
     import xgboost as xgb
 
@@ -156,12 +158,34 @@ def run_walk_forward(
         pt_sl,
     )
 
-    prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset_name, ticker)
-    if prices.empty or len(prices) < 100:
+    # Use expanded 10y+ cache when available (same pattern as retrain_all_fixed.py).
+    # When expanded_data_dir is None, falls back to live fetch (backward compatible).
+    if expanded_data_dir is not None:
+        from scripts.training._data_sources import (
+            fetch_from_expanded_or_live,
+            fetch_ohlcv_from_expanded_or_live,
+        )
+
+        expanded_path = None if expanded_data_dir == "auto" else Path(expanded_data_dir)
+        prices, rate_diffs, dxy, vix, spx, commodities = fetch_from_expanded_or_live(
+            asset_name, ticker, expanded_dir=expanded_path,
+        )
+        ohlcv = fetch_ohlcv_from_expanded_or_live(
+            asset_name, ticker, expanded_dir=expanded_path,
+        )
+        if prices is not None and not prices.empty:
+            logger.info(
+                "  using expanded cache — %d rows (%s..%s)",
+                len(prices),
+                prices.index[0].date(),
+                prices.index[-1].date(),
+            )
+    else:
+        prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset_name, ticker)
+        ohlcv = fetch_asset_ohlcv(ticker)
+    if prices is None or prices.empty or len(prices) < 100:
         logger.warning("SKIP: %s (%s) — no data or insufficient rows", asset_name, ticker)
         return None
-    # Fetch OHLCV for labels (matching production apply_triple_barrier)
-    ohlcv = fetch_asset_ohlcv(ticker)
     # Use vertical_barrier=20 by default (matches FEATURE_REGISTRY), gap >= barrier
     labels = compute_labels(prices, ohlcv, pt_sl=pt_sl, vertical_barrier=20, label_type=label_type)
     gap = max(gap, 20)
@@ -568,6 +592,18 @@ def main():
         default=False,
         help="Force scale_pos_weight=1.0 (ignore class imbalance). Tests whether imbalance weighting contributes to sell bias.",
     )
+    parser.add_argument(
+        "--expanded-dir",
+        type=str,
+        default=None,
+        help=(
+            "Path to 10-year cached OHLCV parquet directory "
+            "(e.g. data/yfinance_10yr). When set, reads from cached parquet "
+            "instead of live yfinance, enabling longer walk-forward windows. "
+            "Use 'auto' to auto-detect via EIGENCAPITAL_EXPANDED_DATA_DIR env var "
+            "or the default data/yfinance_10yr/ path."
+        ),
+    )
     args = parser.parse_args()
 
     # Ensure data fetcher has a no-op store (for yfinance-only operation)
@@ -660,6 +696,7 @@ def main():
             sample_weight_flag=args.weighted,
             calibrate_flag=args.calibrate,
             no_scale_pos_weight=args.no_scale_pos_weight,
+            expanded_data_dir=args.expanded_dir,
         )
         if result is not None:
             all_summaries.append(result)

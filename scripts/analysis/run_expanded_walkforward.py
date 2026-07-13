@@ -82,6 +82,7 @@ def main():
                 invert_labels=False,
                 sample_weight_flag=False,
                 calibrate_flag=False,
+                expanded_data_dir="auto",
             )
         except Exception as e:
             logger.error(f"{name}: FAILED with {e}")

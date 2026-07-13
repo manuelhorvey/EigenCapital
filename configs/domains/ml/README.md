@@ -10,7 +10,6 @@ Training and inference parameters for the ML pipeline.
 | `configs/domains/ml/meta_labeling.yaml` | Meta-label confidence thresholds |
 | `configs/domains/ml/shadow_models.yaml` | Shadow/canary model config — side-effect-free candidate comparison, logged to `data/live/shadow/` |
 | `configs/domains/ml/triple_barrier.yaml` | Per-asset TP/SL multipliers for label generation (`pt`/`sl`/`vol_method`/`atr_period`) |
-| `configs/domains/ml/labels/` | (reserved) Future per-asset label config overrides |
 
 The triple-barrier file is the canonical source for label parameters, used by
 `features/registry.py` and the training pipeline. It also archives REMOVED

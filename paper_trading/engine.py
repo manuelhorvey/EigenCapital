@@ -496,7 +496,7 @@ class PaperTradingEngine:
                 aprices, _, _, _, _, _ = fetch_asset_data(aname, ticker)
                 if aprices is not None and not aprices.empty:
                     panel_dict[aname] = aprices.iloc[:, 0]
-            except (OSError, ValueError, KeyError, RuntimeError):
+            except (OSError, ValueError, KeyError, RuntimeError, AttributeError):
                 continue
 
         if not panel_dict:

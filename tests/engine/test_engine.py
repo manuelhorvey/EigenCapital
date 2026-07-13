@@ -408,7 +408,7 @@ class TestPaperTradingEngine:
             "A": SimpleNamespace(
                 ticker="EURUSD",
                 name="A",
-                train=lambda force=None: None,
+                train=lambda force=None, full_panel=None: None,
                 sl_mult=1.0,
                 tp_mult=2.0,
             )
@@ -469,7 +469,7 @@ class TestPaperTradingEngine:
         asset = SimpleNamespace(
             ticker="EURUSD",
             name="A",
-            train=lambda force=None: trained.append(1),
+            train=lambda force=None, full_panel=None: trained.append(1),
             sl_mult=1.0,
             tp_mult=2.0,
         )
@@ -506,7 +506,7 @@ class TestPaperTradingEngine:
         asset = SimpleNamespace(
             ticker="EURUSD",
             name="A",
-            train=lambda force=None: (_ for _ in ()).throw(RuntimeError("train failed")),
+            train=lambda force=None, full_panel=None: (_ for _ in ()).throw(RuntimeError("train failed")),
             sl_mult=1.0,
             tp_mult=2.0,
         )
@@ -524,7 +524,7 @@ class TestPaperTradingEngine:
             "BTCUSD": SimpleNamespace(
                 ticker="BTC-USD",
                 name="BTCUSD",
-                train=lambda force=None: None,
+                train=lambda force=None, full_panel=None: None,
                 sl_mult=1.0,
                 tp_mult=2.0,
                 config={"weekend_eligible": True},
@@ -546,7 +546,7 @@ class TestPaperTradingEngine:
             "BTCUSD": SimpleNamespace(
                 ticker="BTC-USD",
                 name="BTCUSD",
-                train=lambda force=None: None,
+                train=lambda force=None, full_panel=None: None,
                 sl_mult=1.0,
                 tp_mult=2.0,
                 config={"weekend_eligible": True},
@@ -566,7 +566,7 @@ class TestPaperTradingEngine:
             "BTCUSD": SimpleNamespace(
                 ticker="BTC-USD",
                 name="BTCUSD",
-                train=lambda force=None: None,
+                train=lambda force=None, full_panel=None: None,
                 sl_mult=1.0,
                 tp_mult=2.0,
                 config={"weekend_eligible": True},
@@ -591,7 +591,7 @@ class TestPaperTradingEngine:
             "BTCUSD": SimpleNamespace(
                 ticker="BTC-USD",
                 name="BTCUSD",
-                train=lambda force=None: None,
+                train=lambda force=None, full_panel=None: None,
                 sl_mult=1.0,
                 tp_mult=2.0,
                 config={"weekend_eligible": True},
@@ -599,7 +599,7 @@ class TestPaperTradingEngine:
             "EURUSD": SimpleNamespace(
                 ticker="EURUSD=X",
                 name="EURUSD",
-                train=lambda force=None: None,
+                train=lambda force=None, full_panel=None: None,
                 sl_mult=1.0,
                 tp_mult=2.0,
                 config={},

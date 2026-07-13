@@ -646,8 +646,8 @@ class AssetEngine:
         except (OSError, ValueError, TypeError, AttributeError):
             logger.warning("%s: refresh_spread failed", self.name, exc_info=True)
 
-    def train(self, force=False):
-        self._training.train(force=force)
+    def train(self, force=False, full_panel=None):
+        self._training.train(force=force, full_panel=full_panel)
         self._load_calibration_registry()
 
     def generate_signal(self, threshold=0.45, shared_macro: dict[str, pd.Series] | None = None):

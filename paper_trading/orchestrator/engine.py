@@ -368,6 +368,11 @@ class EngineOrchestrator:
         from features.data_fetch import prefetch_shared_data
 
         self._shared_macro = prefetch_shared_data()
+        self._shared_macro["_all_assets"] = {
+            name: actor._engine.ticker
+            for name, actor in self._actors.items()
+            if hasattr(actor._engine, "ticker")
+        }
 
         # Lazy-init PEK admission controller
         if self._pek is None:

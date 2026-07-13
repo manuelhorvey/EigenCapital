@@ -48,6 +48,17 @@ ET = pytz.timezone("US/Eastern")
 
 
 def main(skip_canary: bool = False, canary_only: bool = False):
+    # Ensure data fetcher has a no-op store so yfinance can serve as the
+    # data source during offline training (no live engine running).
+    from paper_trading.ops.data_fetcher import _set_store
+
+    class _NullStore:
+        def save_cache(self, *args, **kwargs): pass
+        def load_cache(self, *args, **kwargs): return None
+        def cache_path(self, *args, **kwargs): return "/dev/null"
+
+    _set_store(_NullStore())
+
     from paper_trading.asset_engine_factory import build_asset_engine
     from paper_trading.config_manager import get_config
     from paper_trading.execution.bridge import ExecutionBridge
@@ -80,6 +91,21 @@ def main(skip_canary: bool = False, canary_only: bool = False):
     assets_to_train = list(portfolio.keys())
     n_total = len(assets_to_train)
 
+    # ── Pre-fetch full panel for cross-sectional features ────────────
+    from features.data_fetch import fetch_asset_data
+
+    logger.info("Pre-fetching full 22-asset panel for cross-sectional features...")
+    full_panel_dict: dict[str, pd.Series] = {}
+    for aname, aspec in portfolio.items():
+        try:
+            aprices, _, _, _, _, _ = fetch_asset_data(aname, aspec["ticker"])
+            if aprices is not None and not aprices.empty:
+                full_panel_dict[aname] = aprices.iloc[:, 0]
+        except Exception:
+            continue
+    full_panel = pd.DataFrame(full_panel_dict).ffill().dropna(how="all")
+    logger.info("Full panel: %d assets × %d rows", len(full_panel.columns), len(full_panel))
+
     logger.info("=== RETRAINING %d ASSETS (fixed pipeline) ===", n_total)
 
     for idx, name in enumerate(assets_to_train, 1):
@@ -105,7 +131,7 @@ def main(skip_canary: bool = False, canary_only: bool = False):
             engine._trained = True  # will retrain
 
             t0 = time.perf_counter()
-            engine._training.train(force=True)
+            engine._training.train(force=True, full_panel=full_panel)
             elapsed = time.perf_counter() - t0
 
             if engine._trained and engine.model is not None:

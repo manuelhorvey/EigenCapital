@@ -452,7 +452,8 @@ class PaperTradingEngine:
                     registry_params["pt"],
                 )
             try:
-                asset.train(force=True)
+                _full_panel = self._build_full_panel()
+                asset.train(force=True, full_panel=_full_panel)
                 logger.info("%s: training done", name)
             except (OSError, ValueError, TypeError, RuntimeError, ImportError) as e:
                 logger.error("%s: training FAILED - %s", name, e)
@@ -462,6 +463,54 @@ class PaperTradingEngine:
         return {
             name for name, asset in self.assets.items() if getattr(asset, "config", {}).get("weekend_eligible", False)
         }
+
+    def _build_full_panel(self):
+        """Pre-fetch all per-asset price series for cross-sectional (Group 1) features.
+
+        Returns a DataFrame of close prices (one column per asset), ffill-cleaned,
+        or None on failure. Used by train() so it includes the same Group 1
+        cross-sectional feature set that the live inference pipeline produces —
+        without this, retrained models get 74 features while inference expects
+        84, breaking inference for the freshly-trained model.
+
+        Cycle-cached: callers should hold the returned frame and pass it to
+        train(force=..., full_panel=full_panel).
+        """
+        import pandas as pd
+
+        from features.data_fetch import fetch_asset_data
+
+        # If we already built it this engine instance, reuse (rare — process restart
+        # usually degrades the cache). Otherwise construct fresh.
+        cached = getattr(self, "_full_panel_cache", None)
+        if cached is not None and not cached.empty and len(cached.columns) == len(self.assets):
+            return cached
+
+        panel_dict: dict[str, pd.Series] = {}
+        for aname, aengine in self.assets.items():
+            try:
+                ticker = getattr(aengine, "ticker", None) or getattr(
+                    getattr(aengine, "asset", None), "ticker", None
+                )
+                if ticker is None:
+                    continue
+                aprices, _, _, _, _, _ = fetch_asset_data(aname, ticker)
+                if aprices is not None and not aprices.empty:
+                    panel_dict[aname] = aprices.iloc[:, 0]
+            except Exception:
+                continue
+
+        if not panel_dict:
+            self._full_panel_cache = None
+            return None
+
+        full_panel = pd.DataFrame(panel_dict).ffill().dropna(how="all")
+        self._full_panel_cache = full_panel
+        return full_panel
+
+    def _invalidate_full_panel(self) -> None:
+        """Clear the cached full panel (call after adding/removing an asset)."""
+        self._full_panel_cache = None
 
     def _collect_results(self, results: dict, orch_results: dict) -> None:
         """Propagate orchestrator results into the engine-level results dict."""
@@ -573,7 +622,8 @@ class PaperTradingEngine:
                                 _rt_age_days,
                                 _rt_min_stale_days,
                             )
-                            _rt_asset.train(force=True)
+                            _rt_full_panel = self._build_full_panel()
+                            _rt_asset.train(force=True, full_panel=_rt_full_panel)
                     except OSError:
                         pass
 

@@ -37,6 +37,17 @@ os.makedirs(CANARY_DIR, exist_ok=True)
 
 
 def main() -> None:
+    # Ensure data fetcher has a no-op store so yfinance can serve as the
+    # data source during offline training (no live engine running).
+    from paper_trading.ops.data_fetcher import _set_store
+
+    class _NullStore:
+        def save_cache(self, *args, **kwargs): pass
+        def load_cache(self, *args, **kwargs): return None
+        def cache_path(self, *args, **kwargs): return "/dev/null"
+
+    _set_store(_NullStore())
+
     from paper_trading.asset_engine_factory import build_asset_engine
     from paper_trading.config_manager import get_config
     from paper_trading.execution.bridge import ExecutionBridge
@@ -63,6 +74,21 @@ def main() -> None:
     _reg = StrategyRegistry.get_instance()
     portfolio = build_paper_portfolio(cfg.halt)
     _reg.register_defaults(list(portfolio.keys()))
+
+    # ── Pre-fetch full panel for cross-sectional features ────────────
+    from features.data_fetch import fetch_asset_data
+
+    logger.info("Pre-fetching full %d-asset panel for cross-sectional features...", len(portfolio))
+    full_panel_dict: dict[str, pd.Series] = {}
+    for aname, aspec in portfolio.items():
+        try:
+            aprices, _, _, _, _, _ = fetch_asset_data(aname, aspec["ticker"])
+            if aprices is not None and not aprices.empty:
+                full_panel_dict[aname] = aprices.iloc[:, 0]
+        except Exception:
+            continue
+    full_panel = pd.DataFrame(full_panel_dict).ffill().dropna(how="all")
+    logger.info("Full panel: %d assets × %d rows", len(full_panel.columns), len(full_panel))
 
     results = []
     assets_to_train = sorted(portfolio.keys())
@@ -97,7 +123,7 @@ def main() -> None:
             engine._trained = True  # force retrain
 
             t0 = time.perf_counter()
-            engine._training.train(force=True)
+            engine._training.train(force=True, full_panel=full_panel)
             elapsed = time.perf_counter() - t0
 
             if engine._trained and engine.model is not None:

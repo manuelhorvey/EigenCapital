@@ -4,7 +4,7 @@
 > EigenCapital codebase and documentation. Entries are organized by
 > category for quick lookup.
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-13
 
 ---
 
@@ -132,14 +132,14 @@ use a 0.5× allocation multiplier.
 
 ### Weekend Allocation Multiplier
 A scalar (default 0.5) applied to position sizes for weekend-eligible
-assets. Reduces exposure during lower-liquidity weekend conditions.
+assets. Reduces exposure during lower-liquidity weekend conditions.### Adaptive Exit Engine
 
-### Adaptive Exit Engine
-A four-stage exit management system:
+A state-machine exit management system with three active phases:
 1. **Breakeven lock** (at `be_lock_r` MFE, default 0.5R): move SL to entry
-2. **R-based scale-out** (at `scale_out_r` MFE, default 2.5R): close a fraction (`scale_out_fraction`, default 0.7) at target R
-3. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): trail remainder at `trail_retrace_pct` (default 0.33) from peak
-4. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approachesValidated as part of the original 16-asset portfolio (walk-forward simulation) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +732.73 R (Sharpe 56.45) with direction-conditional thresholds, bringing every asset into profitable territory.
+2. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): trail remainder at `trail_retrace_pct` (default 0.33) from peak
+3. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approaches
+
+Scale-out (R-based partial profit-taking at `scale_out_r` MFE) is handled by a **separate** component (`ScaleOutEngine`), not as a stage of the adaptive exit state machine. The engine state machine transitions through `STATIC → BE_LOCK → TRAILING → TIME_DECAY`.Validated as part of the original 16-asset portfolio (walk-forward simulation) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +732.73 R (Sharpe 56.45) with direction-conditional thresholds, bringing every asset into profitable territory.
 
 ### Scale-Out (Pyramiding Tiers)
 Partial profit-taking at configurable levels. Tier profiles are generated

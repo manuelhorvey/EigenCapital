@@ -17,6 +17,7 @@ Centralized reference for all environment variables used by the EigenCapital pap
 | `MT5_ACCOUNT` | — | Yes* | MT5 bridge | MetaTrader 5 account number. |
 | `SLACK_WEBHOOK_URL` | — | No | Slack alerter | Webhook URL for Slack alert integration. |
 | `OPENCODE_ZEN_API_KEY` | — | No | Macro narrative pipeline | API key for Claude LLM access (weekly FXStreet narrative extraction). |
+| `FRED_API_KEY` | — | No | FRED data fetch | API key for FRED CSV endpoint (higher rate limits when set). Falls back to unauthenticated graph export without a key. |
 | `PAGERDUTY_ROUTING_KEY` | — | No | PagerDuty channel | Routing key for PagerDuty event integration. |
 | `QUANTFORGE_API_TOKEN` | — | No | (Legacy) | Historical token for QuantForge integration (not currently used). |
 

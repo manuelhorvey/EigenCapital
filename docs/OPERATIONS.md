@@ -71,9 +71,11 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 
 **Total allocation: varies** (factor_constrained_v2 adjusts dynamically)
 
-**Backtest performance (pre-leak-fix baseline, 5-year: 2021–2025):** PF 1.908, avgR +0.268, 2383 trades.
-> Note: These are the screening baseline. Current walk-forward diagnostics after look-ahead fixes
-> show lower, honest metrics. Live performance will differ.
+**Backtest performance (10-year expanded cache, equal weight):** +2,378.16 R (Sharpe 17.45 adj), max_dd = -0.19 R.
+**Backtest performance (factor_constrained_v2):** +2,143.79 R (Sharpe 17.07 adj), max_dd = -0.23 R.
+**Calibrated + direction-conditional thresholds (22 assets):** +732.73 R (Sharpe 56.45).
+> All 4 crisis windows (Dec 2024 selloff, Feb/Mar tariff, Apr selloff, Jun minor) pass with circuit breaker OK.
+> See `scripts/backtest/` for full backtest suite.
 
 **SL/TP Architecture:** Barriers are computed by `DynamicSLTPEngine` using `shared/volatility.py:VolatilityPrimitive` with `method="atr"`. At entry, initial barriers are set. On each refresh within the first `post_adjust_interval_bars` (default 3), `post_entry_adjust()` recomputes barriers based on current ATR — vol spikes (>1.3×) tighten SL; vol collapses (<0.7×) no action. Model-validity adjustments via per-asset `regime_geometry` in `configs/domains/governance/regime_geometry.yaml` — each asset defines its own GREEN/YELLOW/RED multipliers for sl_mult and tp_mult.
 

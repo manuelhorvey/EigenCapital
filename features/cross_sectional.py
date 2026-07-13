@@ -163,12 +163,16 @@ def compute_benchmark_correlations(
     dxy_rets = np.log(dxy_a / dxy_a.shift(1))
     spx_rets = np.log(spx_a / spx_a.shift(1))
 
-    dxy_corr_s = pd.DataFrame({c: asset_rets[c].rolling(corr_window, min_periods=corr_window).corr(dxy_rets)
-                                for c in prices_a.columns}, index=prices_a.index)
+    dxy_corr_s = pd.DataFrame(
+        {c: asset_rets[c].rolling(corr_window, min_periods=corr_window).corr(dxy_rets) for c in prices_a.columns},
+        index=prices_a.index,
+    )
     dxy_corr_s.columns = [f"{c.upper()}_xs_dxy_corr_{corr_window}d" for c in dxy_corr_s.columns]
 
-    spx_corr_s = pd.DataFrame({c: asset_rets[c].rolling(corr_window, min_periods=corr_window).corr(spx_rets)
-                                for c in prices_a.columns}, index=prices_a.index)
+    spx_corr_s = pd.DataFrame(
+        {c: asset_rets[c].rolling(corr_window, min_periods=corr_window).corr(spx_rets) for c in prices_a.columns},
+        index=prices_a.index,
+    )
     spx_corr_s.columns = [f"{c.upper()}_xs_spx_corr_{corr_window}d" for c in spx_corr_s.columns]
 
     fisher_dxy = np.arctanh(dxy_corr_s.clip(-0.9999, 0.9999))

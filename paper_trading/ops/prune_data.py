@@ -256,9 +256,7 @@ def prune_sqlite_table(
             dry_run_stats[table_name] = result
             return
     except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "Store-based prune for %s failed (%s); falling back to direct", table_name, e
-        )
+        logger.warning("Store-based prune for %s failed (%s); falling back to direct", table_name, e)
 
     # Fallback: direct SQLite
     try:
@@ -269,15 +267,11 @@ def prune_sqlite_table(
         conn.execute("PRAGMA foreign_keys=ON")
 
         total = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-        to_delete = conn.execute(
-            f"SELECT id FROM {table_name} WHERE {date_column} < ?", (cutoff_date,)
-        ).fetchall()
+        to_delete = conn.execute(f"SELECT id FROM {table_name} WHERE {date_column} < ?", (cutoff_date,)).fetchall()
         pruned = len(to_delete)
         if pruned > 0 and apply:
             ids = tuple(r["id"] for r in to_delete)
-            conn.execute(
-                f"DELETE FROM {table_name} WHERE id IN ({','.join('?' * len(ids))})", ids
-            )
+            conn.execute(f"DELETE FROM {table_name} WHERE id IN ({','.join('?' * len(ids))})", ids)
         kept = total - pruned
         dry_run_stats[table_name] = {"total": total, "kept": kept, "pruned": pruned}
         conn.close()

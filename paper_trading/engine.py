@@ -58,6 +58,7 @@ class ExecutionState(Enum):
 
 ET = pytz.timezone("US/Eastern")
 
+
 # ── Logging setup ────────────────────────────────────────────────────────────
 def _setup_logging() -> logging.Logger:
     """Configure structured logging with file rotation and correlation IDs.
@@ -489,15 +490,13 @@ class PaperTradingEngine:
         panel_dict: dict[str, pd.Series] = {}
         for aname, aengine in self.assets.items():
             try:
-                ticker = getattr(aengine, "ticker", None) or getattr(
-                    getattr(aengine, "asset", None), "ticker", None
-                )
+                ticker = getattr(aengine, "ticker", None) or getattr(getattr(aengine, "asset", None), "ticker", None)
                 if ticker is None:
                     continue
                 aprices, _, _, _, _, _ = fetch_asset_data(aname, ticker)
                 if aprices is not None and not aprices.empty:
                     panel_dict[aname] = aprices.iloc[:, 0]
-            except Exception:
+            except (OSError, ValueError, KeyError, RuntimeError):
                 continue
 
         if not panel_dict:

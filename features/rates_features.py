@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import logging
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("eigencapital.rates_features")
@@ -226,7 +225,13 @@ def compute_all(
     # tz-aware target_index (UTC).  Stripping tz avoids ``Cannot join
     # tz-naive with tz-aware DatetimeIndex``.
     target_clean = target_index.tz_localize(None) if getattr(target_index, "tz", None) is not None else target_index
-    parts = [p.set_axis(p.index.tz_localize(None) if getattr(p.index, "tz", None) is not None else p.index) for p in parts]
+
+    def _drop_tz(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
+        if getattr(idx, "tz", None) is not None:
+            return idx.tz_localize(None)
+        return idx
+
+    parts = [p.set_axis(_drop_tz(p.index)) for p in parts]
 
     combined = pd.concat(parts, axis=1)
     combined = combined.reindex(target_clean).ffill()

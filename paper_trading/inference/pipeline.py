@@ -256,7 +256,9 @@ class AssetInferencePipeline:
                 if missing:
                     logger.debug(
                         "%s: inference missing %d model features (filling 0): %s",
-                        asset.name, len(missing), missing,
+                        asset.name,
+                        len(missing),
+                        missing,
                     )
                 # Promote to wider DataFrame with model's column order
                 aligned = pd.DataFrame(0.0, index=x.index, columns=model_feats)
@@ -265,10 +267,11 @@ class AssetInferencePipeline:
                 for c in existing:
                     aligned[c] = aligned[c].astype(x[c].dtype)
                 x = aligned
-        except Exception:
+        except (KeyError, ValueError, AttributeError, TypeError):
             logger.warning(
                 "%s: feature alignment failed — falling back to raw inference",
-                asset.name, exc_info=True,
+                asset.name,
+                exc_info=True,
             )
 
         raw = asset._model_iface.predict(asset.model, x)

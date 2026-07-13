@@ -116,7 +116,9 @@ class FeatureBuilder:
         # Only adds columns that exist in the training schema (avoids
         # silent schema drift if models are not yet retrained).
         xs_df = self._compute_cross_sectional_for_asset(
-            asset, alpha_idx, shared_macro,
+            asset,
+            alpha_idx,
+            shared_macro,
         )
         if xs_df is not None and not xs_df.empty:
             for col in xs_df.columns:
@@ -256,7 +258,7 @@ class FeatureBuilder:
                     prices, _, _, _, _, _ = fetch_asset_data(asset_name, ticker)
                     if prices is not None and not prices.empty:
                         panel[asset_name] = prices.iloc[:, 0]
-                except Exception:
+                except (OSError, ValueError, KeyError, RuntimeError):
                     continue
             full_panel = pd.DataFrame(panel).ffill().dropna(how="all")
             _set_cycle_cache("_full_panel", full_panel)

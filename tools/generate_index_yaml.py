@@ -31,9 +31,7 @@ def _discover_filesystem_assets() -> list[str]:
     Scans ``configs/domains/assets/`` for ``[!_]*.yaml`` files, excluding
     ``_index.yaml`` and ``_defaults.yaml``.
     """
-    assets = sorted(
-        fn.stem for fn in ASSETS_DIR.glob("[!_]*.yaml") if fn.name not in ("_index.yaml", "_defaults.yaml")
-    )
+    assets = sorted(fn.stem for fn in ASSETS_DIR.glob("[!_]*.yaml") if fn.name not in ("_index.yaml", "_defaults.yaml"))
     return assets
 
 
@@ -107,8 +105,7 @@ def main() -> int:
             print("_index.yaml is up to date.")
             return 0
         print(
-            "_index.yaml is stale — run `PYTHONPATH=$PYTHONPATH:. python tools/generate_index_yaml.py` "
-            "to regenerate",
+            "_index.yaml is stale — run `PYTHONPATH=$PYTHONPATH:. python tools/generate_index_yaml.py` to regenerate",
             file=sys.stderr,
         )
         return 1

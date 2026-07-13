@@ -587,9 +587,7 @@ def _check_index_yaml_authority() -> list[str]:
 
     # Assets from filesystem: all [!_]*.yaml files (excluding _index and _defaults)
     assets_dir = REPO_ROOT / "configs" / "domains" / "assets"
-    fs_assets = sorted(
-        fn.stem for fn in assets_dir.glob("[!_]*.yaml") if fn.name != "_index.yaml"
-    )
+    fs_assets = sorted(fn.stem for fn in assets_dir.glob("[!_]*.yaml") if fn.name != "_index.yaml")
 
     # Every asset in the index must have a corresponding YAML file on disk
     only_index = set(index_assets) - set(fs_assets)
@@ -746,10 +744,7 @@ def _check_metric_consistency() -> list[str]:
                 continue
             if abs(val - expected_floor) > 0.001:
                 line_no = gov_text[: m.start()].count("\n") + 1
-                out.append(
-                    f"docs/GOVERNANCE.md:{line_no}: "
-                    f"size-scalar floor is {val} but code has {expected_floor}"
-                )
+                out.append(f"docs/GOVERNANCE.md:{line_no}: size-scalar floor is {val} but code has {expected_floor}")
 
     # ── CONFIGURATION.md specific checks ─────────────────────────────
     config_path = REPO_ROOT / "docs/CONFIGURATION.md"
@@ -789,9 +784,11 @@ def _check_metric_consistency() -> list[str]:
     refresh_docs = [
         (REPO_ROOT / "docs/PRODUCTION_SYSTEM_SPEC_v1.md", r"~60s\b|~60 seconds\b|every ~60", "~60s"),
         (REPO_ROOT / "docs/OPERATIONS.md", r"60s\b|60 seconds\b", "60s"),
-        (REPO_ROOT / "docs/CONFIGURATION.md",
-         r"EIGENCAPITAL_REFRESH_INTERVAL.*`60`",
-         "EIGENCAPITAL_REFRESH_INTERVAL default 60"),
+        (
+            REPO_ROOT / "docs/CONFIGURATION.md",
+            r"EIGENCAPITAL_REFRESH_INTERVAL.*`60`",
+            "EIGENCAPITAL_REFRESH_INTERVAL default 60",
+        ),
     ]
     for rpath, pattern, label in refresh_docs:
         if rpath.exists():
@@ -845,8 +842,7 @@ def _check_metric_consistency() -> list[str]:
             expected_cap = CANONICAL_FACTS["production_capital"]
             if prod_cap != expected_cap:
                 out.append(
-                    f"docs/MODES.md: production capital={cap_m.group(1)} "
-                    f"but production.yaml says {expected_cap}"
+                    f"docs/MODES.md: production capital={cap_m.group(1)} but production.yaml says {expected_cap}"
                 )
 
     return out

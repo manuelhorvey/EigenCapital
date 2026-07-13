@@ -30,7 +30,7 @@ FORBIDDEN_MODULES = frozenset(
         "features.lead_lag_features",
         "features.pair_specific",
         "features.publication_lags",
-        "features.cot_features",
+        # "features.cot_features" removed 2026-07-09 (deprecated)
         "features.base_features",
         "features.structural_features",
         "features.interaction_features",

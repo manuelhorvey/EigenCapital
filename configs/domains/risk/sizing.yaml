@@ -12,9 +12,9 @@ profit_lock_threshold_pct: 15.0
 max_position_pct_of_equity: 0.15
 max_risk_per_trade_pct: 2.0
 min_viable_position_pct: 0.01
-size_taper_start_dd: -0.05
-size_taper_end_dd: -0.15
-size_taper_min: 0.5
+size_taper_start_dd: -0.03
+size_taper_end_dd: -0.10
+size_taper_min: 0.3
 max_positions_per_asset: 2
 max_concurrent_positions: 13
 max_daily_loss_pct: 0.08
@@ -24,9 +24,9 @@ portfolio_leverage_tolerance: 0.001
 mt5_leverage_budget_enabled: false
 mt5_leverage_budget_soft: true
 net_short_concentration_threshold: 0.75
-mt5_enable_max_risk_per_trade_pct: false
-mt5_max_risk_per_trade_pct: 10.0
-mt5_bypass_risk_cap_at_min_lot: true
+mt5_enable_max_risk_per_trade_pct: true
+mt5_max_risk_per_trade_pct: 2.0
+mt5_bypass_risk_cap_at_min_lot: false
 min_confidence: 55.0
 min_confidence_buy: 45.0  # Lower for BUY — portfolio avg WR ~41% vs SELL ~72%
 min_confidence_sell: 55.0  # Standard — SELL signals are well-calibrated

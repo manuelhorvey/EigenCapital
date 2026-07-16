@@ -46,7 +46,7 @@ Each asset uses risk-parity allocation with per-asset sl_mult, tp_mult, and max_
 
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|---|---|
-| GC | GC=F | 7.0% | 1.00 | 4.00 | 4 |
+| GC | GC=F | 7.0% | 1.00 | 4.00 | 2 (rolled back from 4) |
 | USDCHF | USDCHF=X | 2.0% | 0.85 | 3.00 | 4 |
 | USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 3 |
 | GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 5 |

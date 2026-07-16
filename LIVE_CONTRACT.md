@@ -19,9 +19,9 @@ early_stopping_rounds=50
 **Per-asset max_depth:**
 | Depth | Assets |
 |-------|--------|
-| 2 | NZDCAD, NZDUSD, NZDCHF, GBPCHF, AUDJPY, NZDJPY, GBPJPY, USDJPY |
+| 2 | GC (rolled back from 4), NZDCAD, NZDUSD, NZDCHF, GBPCHF (rolled back from 4), AUDJPY, NZDJPY, GBPJPY, USDJPY |
 | 3 | USDCAD, GBPAUD, CADCHF, EURCAD, BTCUSD |
-| 4 | GC, USDCHF, EURCHF, GBPUSD, ^DJI |
+| 4 | USDCHF, EURCHF, GBPUSD, ^DJI |
 | 5 | GBPCAD, AUDUSD, EURNZD, EURAUD |
 
 **Signature:** `model.predict(X: pd.DataFrame) -> np.ndarray`
@@ -104,7 +104,10 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 | `spx_mom_5d` | SPX 5-day return |
 | `WTI_mom_21d` | WTI crude 21-day return |
 
-> **COT injection note:** COT features are NOT generated per-asset. The initialization loop (matching column names against `_COT_COVERED_NAMES`) does not fire because the DataFrame column is named `"close"`. Instead, ALL columns from `cot_data` (~16 cols × 2 features from 8 COT-covered pairs) are joined into every asset's feature vector. This means assets not in COT data (GC, ES, NQ) still receive COT positioning data for unrelated pairs. Flagged as tech debt: COT should be filtered per factor group.
+> **COT features — DEPRECATED 2026-07-09:** Walk-forward validation showed zero gain across all 22 assets. `fetch_cot_features()` now returns an empty DataFrame. No COT columns are produced in training or inference. The COT placeholder columns (`has_cot`, `cot_z`, `cot_change_4w`) are kept for backward compatibility but always zero-filled.
+>
+> The following **historical** description is preserved for reference only — it no longer applies to current production:
+> "COT features were injected via a per-column join that matched `cot_data` columns against `_COT_COVERED_NAMES`. However, the initialization loop never fired because the DataFrame column is named `"close"`. Instead, ALL columns from `cot_data` were joined into every asset's feature vector. Assets not in COT data (GC, ES, NQ) received unrelated COT positioning data."
 
 **Trend-exhaustion features** (added 2026-06-26) require OHLCV data passed to `build_alpha_features()`. Computed via the `ta` library. See `features/divergence.py` for RSI divergence detection logic (local extrema within 20-bar lookback window).
 
@@ -112,13 +115,22 @@ random_state=42, n_jobs=1, tree_method='hist', verbosity=0
 
 | Asset | Additional features |
 |-------|--------------------|
-| EURCHF | `mom126` (+126d momentum, replaces base mom) |
-| NZDUSD | `mom126` (+126d momentum, replaces base mom) |
+| EURCHF | `mom126` (+126d momentum, replaces base mom), `gc_lead_1` (added 2026-07-16) |
+| NZDUSD | `mom126` (+126d momentum, replaces base mom), `gc_lead_1`, `dji_lead_1` |
 | GBPAUD | `yield_slope` (US yield curve slope) |
-| CADCHF | `yield_slope` |
-| AUDNZD | `yield_slope` |
+| CADCHF | `yield_slope`, `gc_lead_1` |
 | EURNZD | `yield_slope` |
-| GBPCHF | `yield_slope` |
+| GBPCHF | `yield_slope`, `gc_lead_1`, `mom126` (+126d momentum, added 2026-07-16) |
+| AUDUSD | `gc_lead_1` (added 2026-07-16) |
+| NZDJPY | `dji_lead_1`, `gc_lead_1` |
+| AUDJPY | `nzdjpy_lead_3`, `dji_lead_1` |
+| USDJPY | `gc_lead_1` |
+| USDCHF | `gc_lead_1` |
+| NZDCHF | `gc_lead_1` |
+| USDCAD | `dji_lead_1` |
+| EURAUD | `dji_lead_1` |
+| GBPJPY | `dji_lead_1`, `gc_lead_1` |
+| NZDCAD | (none) |
 
 ### Sell-Only Filter (Decision Pipeline Stage)
 
@@ -339,7 +351,7 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 ### Current assets (22 promoted)
 | Asset | Ticker | Allocation | sl_mult | tp_mult | max_depth |
 |---|---|---|---|---|---|---|
-| GC | GC=F | 7.0% | 1.00 | 4.00 | 4 |
+| GC | GC=F | 7.0% | 1.00 | 4.00 | 2 (rolled back from 4) |
 | USDCHF | USDCHF=X | 2.0% | 0.85 | 3.00 | 4 |
 | USDCAD | USDCAD=X | 2.5% | 1.30 | 3.90 | 3 |
 | GBPCAD | GBPCAD=X | 5.0% | 1.45 | 4.34 | 5 |
@@ -352,7 +364,7 @@ Before placing an MT5 order, the engine checks if a position already exists for 
 | EURCHF | EURCHF=X | 5.0% | 1.00 | 3.00 | 4 |
 | EURCAD | EURCAD=X | 2.0% | 0.71 | 2.12 | 3 |
 | EURNZD | EURNZD=X | 3.0% | 1.12 | 3.36 | 5 |
-| GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 |
+| GBPCHF | GBPCHF=X | 3.0% | 0.82 | 2.45 | 2 (rolled back from 4) |
 | GBPUSD | GBPUSD=X | 4.0% | 0.52 | 1.97 | 4 |
 | EURAUD | EURAUD=X | 1.0% | 0.54 | 1.77 | 5 |
 | ^DJI | ^DJI | 2.0% | 0.50 | 4.00 | 4 |

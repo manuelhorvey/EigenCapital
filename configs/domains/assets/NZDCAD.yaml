@@ -2,6 +2,7 @@ ticker: NZDCAD=X
 allocation: 0.05
 sl_mult: 1.83
 tp_mult: 5.48
+max_depth: 2  # Rolled back from 4 — depth=4 collapsed the raw model (std 0.0056, near-zero variance). Baseline depth=2 had 100% neutral signals (safe, 0R). Depth=4 produced confident-but-wrong BUY signals (-183R).
 min_confidence: 40.0
 regime_geometry:
   GREEN:

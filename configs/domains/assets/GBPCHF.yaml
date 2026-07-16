@@ -2,7 +2,7 @@ ticker: GBPCHF=X
 allocation: 0.03
 sl_mult: 0.82
 tp_mult: 2.45
-max_depth: 2
+max_depth: 2  # Rolled back from 4 — depth=4 collapsed the raw model (std 0.0023, near-zero variance). Baseline depth=2 had 100% neutral signals (safe, 0R). Calibration CANNOT fix zero variance.
 min_confidence_buy: 40.0  # Zero-SELL asset — lower BUY threshold to capture marginal signals
 regime_geometry:
   GREEN:

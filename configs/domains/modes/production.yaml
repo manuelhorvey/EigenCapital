@@ -1,8 +1,8 @@
 description: "Standard paper trading \u2014 22-asset, 0.95 base size, factor-constrained RP"
 capital: 100000
 defaults:
-  max_risk_per_trade_pct: 2.0
-  min_risk_per_trade_pct: 0.01
+  max_risk_per_trade_pct: 1.0  # Must match sizing.yaml — risk-tier logic dynamically selects 2.0% for equity >= $5K
+  min_risk_per_trade_pct: 0.001  # Must match sizing.yaml
   risk_per_trade_pct: 0.02
   max_daily_loss_pct: 0.08
   max_concurrent_positions: 13

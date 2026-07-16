@@ -71,6 +71,66 @@ DEFAULT_LEAD_LAG_EDGES: list[dict] = [
         "lag": 1,
         "column": "gc_lead_1",
     },
+    {
+        "target": "EURCHF=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "GBPCHF=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "GBPJPY=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "NZDJPY=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "CADCHF=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "NZDCHF=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "AUDCHF=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "CHFJPY=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "EURJPY=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
+    {
+        "target": "CADJPY=X",
+        "leader": "GC=F",
+        "lag": 1,
+        "column": "gc_lead_1",
+    },
 ]
 
 

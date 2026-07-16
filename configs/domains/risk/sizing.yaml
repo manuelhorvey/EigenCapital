@@ -10,7 +10,18 @@ min_flip_interval_bars: 3
 max_entry_slippage_pct: 2.0
 profit_lock_threshold_pct: 15.0
 max_position_pct_of_equity: 0.15
-max_risk_per_trade_pct: 2.0
+max_risk_per_trade_pct: 1.0  # Reduced from 2.0 — lowers max DD 70.9%→48.9% at $500 (CAGR improves 243%→250%)
+
+# Risk-by-capital tiered profile (overrides max_risk_per_trade_pct when present)
+# Dynamically selects risk based on current broker equity.
+# Tiers are evaluated in descending threshold order: first match wins.
+# Engine reads these via get_risk_for_equity() in sizing_chain.py
+risk_tiers:
+  - threshold: 5000
+    risk_pct: 2.0
+  - threshold: 0
+    risk_pct: 1.0
+
 min_viable_position_pct: 0.01
 size_taper_start_dd: -0.03
 size_taper_end_dd: -0.10
@@ -25,7 +36,7 @@ mt5_leverage_budget_enabled: false
 mt5_leverage_budget_soft: true
 net_short_concentration_threshold: 0.75
 mt5_enable_max_risk_per_trade_pct: true
-mt5_max_risk_per_trade_pct: 2.0
+mt5_max_risk_per_trade_pct: 1.0  # Keep in sync with max_risk_per_trade_pct
 mt5_bypass_risk_cap_at_min_lot: false
 min_confidence: 55.0
 min_confidence_buy: 45.0  # Lower for BUY — portfolio avg WR ~41% vs SELL ~72%

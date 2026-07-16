@@ -104,7 +104,7 @@ def dxy_momentum(dxy_price: pd.Series, horizon: int = 21) -> pd.Series:
     USD-short pairs (EUR, AUD, GBP) weaken when USD strengthens.
     Expected decay: 5-20 days.
     """
-    ret = np.log(dxy_price / dxy_price.shift(horizon + 1))
+    ret = np.log(dxy_price / dxy_price.shift(horizon))
     return ret.clip(-0.05, 0.05)
 
 
@@ -117,7 +117,7 @@ def commodity_momentum(commodity_price: pd.Series, horizon: int = 21) -> pd.Seri
     Chen & Rogoff (2003) JIE.
     Expected decay: 5-15 days.
     """
-    ret = np.log(commodity_price / commodity_price.shift(horizon + 1))
+    ret = np.log(commodity_price / commodity_price.shift(horizon))
     return ret.clip(-0.10, 0.10)
 
 
@@ -183,24 +183,6 @@ def stochastic_oscillator(high: pd.Series, low: pd.Series, close: pd.Series) -> 
     return pct_k / 100.0, pct_d / 100.0  # Normalize to [0, 1]
 
 
-def bb_pct_b(close: pd.Series, window: int = 20, std_dev: int = 2) -> pd.Series:
-    """
-    Bollinger Band %B — normalized position within the bands.
-
-    %B = (close - lower) / (upper - lower).
-    0 = at lower band, 1 = at upper band, >1 = above upper, <0 = below lower.
-    Prolonged stay above 1 (strong trend) or below 0 (strong downtrend)
-    followed by re-entry suggests trend exhaustion.
-
-    Returns a Series with the same index as *close*.
-    """
-    bb = ta.volatility.BollingerBands(close, window=window, window_dev=std_dev)
-    upper = bb.bollinger_hband()
-    lower = bb.bollinger_lband()
-    pct_b = (close - lower) / (upper - lower).replace(0, pd.NA)
-    return pct_b.clip(-2, 3)
-
-
 def adx_slope(high: pd.Series, low: pd.Series, close: pd.Series, window: int = 14) -> pd.Series:
     """
     ADX slope — rate of change of ADX over 5 days.
@@ -249,7 +231,7 @@ def _compute_trend_exhaustion_features(
 
     These features are the same for all assets sharing the same OHLCV data.
     Computing them once and broadcasting via ``reindex`` avoids N redundant
-    sequence-level computations (MACD, Stoch, BB, ADX, RSI all involve
+    sequence-level computations (MACD, Stoch, ADX all involve
     rolling-window operations over the full series).
 
     Returns a dict of ``{feature_name: pd.Series}`` where each Series is
@@ -270,16 +252,7 @@ def _compute_trend_exhaustion_features(
     cache["stoch_k"] = _k
     cache["stoch_d"] = _d
 
-    cache["bb_pct_b"] = bb_pct_b(_c)
     cache["adx_slope"] = adx_slope(_h, _l, _c)
-
-    try:
-        from features.divergence import rsi_divergence
-
-        cache["rsi_divergence"] = rsi_divergence(_h, _l, _c)
-    except (ImportError, ValueError, TypeError):
-        logger.debug("RSI divergence unavailable — defaulting to 0")
-        cache["rsi_divergence"] = pd.Series(0.0, index=price_index)
 
     return cache
 
@@ -430,15 +403,14 @@ def build_alpha_features(
 
     When *ohlcv* is provided (DataFrame with 'open', 'high', 'low',
     'close', 'volume' columns), additional trend-exhaustion features
-    are computed: MACD histogram, Stochastic %K/%D, BB %B, ADX slope,
-    and RSI divergence.
+    are computed: MACD histogram, Stochastic %K/%D, and ADX slope.
 
     Returns a DataFrame with no NaN rows (ffill then dropna at end).
     """
     features = pd.DataFrame(index=prices.index)
 
     # Pre-compute trend-exhaustion indicators from shared OHLCV once.
-    # These rolling-window computations (MACD, Stoch, BB, ADX, RSI) are
+    # These rolling-window computations (MACD, Stoch, ADX) are
     # identical for all assets using the same OHLCV. Computing once and
     # broadcasting via reindex saves N× overhead for an N-asset portfolio.
     _trend_cache = _compute_trend_exhaustion_features(ohlcv, prices.index)

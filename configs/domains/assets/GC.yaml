@@ -3,7 +3,7 @@ allocation: 0.07
 sl_mult: 1.0
 tp_mult: 4.0
 spread_tier: metals
-max_depth: 4
+max_depth: 2  # Rolled back from 4 — depth=4 caused 0% neutral signals (overconfidence). Baseline depth=2 had 70% neutrals with balanced +195R performance.
 max_entry_slippage_pct: 5.0
 max_positions_per_asset: 1
 min_confidence_buy: 40.0

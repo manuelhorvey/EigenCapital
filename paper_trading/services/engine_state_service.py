@@ -9,6 +9,7 @@ import pytz
 
 from paper_trading.execution.gate_constants import get_sell_only_assets
 from paper_trading.governance.risk import get_sell_tripwire_state
+from shared.sizing_chain import get_risk_for_equity
 from paper_trading.metrics.engine_metrics import update_engine_metrics
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.simulation_snapshot import build_asset_snapshot
@@ -276,6 +277,7 @@ class EngineStateService:
             )
             or _PC_FALLBACK,
             "factor_exposures": self._compute_factor_exposures(),
+            "active_risk_tier": self._compute_active_risk_tier(mtm_total),
         }
 
     @staticmethod
@@ -415,6 +417,54 @@ class EngineStateService:
         except (KeyError, ValueError, TypeError, AttributeError, ImportError):
             logger.exception("Failed to compute factor exposures")
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
+
+    def _compute_active_risk_tier(self, current_equity: float) -> dict:
+        """Compute the active risk tier based on current account equity.
+
+        Reads risk_tiers from the sizing config (configured in
+        sizing.yaml) and determines which tier threshold the current
+        equity falls into, along with the effective risk percentage.
+
+        Returns a dict with:
+          risk_pct: effective max_risk_per_trade_pct for this equity level
+          matched_threshold: the tier threshold that was matched (or None)
+          current_equity: the equity value used for the lookup
+        """
+        try:
+            risk_tiers: list[dict] = (
+                self.engine._engine_cfg.defaults.get("risk_tiers", []) or []
+            )
+            default_risk: float = (
+                self.engine._engine_cfg.defaults.get("max_risk_per_trade_pct", 2.0) or 2.0
+            )
+
+            effective_risk = get_risk_for_equity(
+                current_equity, risk_tiers, default_risk
+            )
+
+            # Find which threshold matched for display purposes
+            matched_threshold: float | None = None
+            if risk_tiers:
+                sorted_tiers = sorted(
+                    risk_tiers, key=lambda t: t.get("threshold", 0), reverse=True
+                )
+                for tier in sorted_tiers:
+                    if current_equity >= tier.get("threshold", 0):
+                        matched_threshold = tier.get("threshold", 0)
+                        break
+
+            return {
+                "risk_pct": round(effective_risk, 2),
+                "matched_threshold": matched_threshold,
+                "current_equity": round(current_equity, 2),
+            }
+        except (KeyError, ValueError, TypeError, AttributeError):
+            logger.exception("Failed to compute active risk tier")
+            return {
+                "risk_pct": 1.0,
+                "matched_threshold": None,
+                "current_equity": round(current_equity, 2),
+            }
 
     def save_state(self):
         engine = self.engine

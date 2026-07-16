@@ -29,12 +29,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, _fetch_macro_batch
+from features.registry import FEATURE_REGISTRY
 from features.regime_features import generate_regime_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from labels.trend_adjusted_labels import trend_adjusted_labels
 from labels.triple_barrier import apply_triple_barrier
 from paper_trading.inference.ensemble import EnsembleSignal
 from paper_trading.inference.regime_model import RegimeConditionalModel
+from shared.volatility import VolatilityPrimitive
 
 logging.basicConfig(
     level=logging.INFO,
@@ -98,6 +100,7 @@ def compute_labels(
     pt_sl: tuple[float, float] = (2.0, 2.0),
     vertical_barrier: int = 20,
     label_type: str = "standard",
+    vol_primitive: VolatilityPrimitive | None = None,
 ) -> pd.Series:
     if label_type == "trend_adjusted":
         return trend_adjusted_labels(
@@ -110,6 +113,7 @@ def compute_labels(
             ohlcv,
             pt_sl=list(pt_sl),
             vertical_barrier=vertical_barrier,
+            vol_primitive=vol_primitive,
         )
         return labeled["label"].reindex(prices.index).fillna(0).astype(int)
     return triple_barrier_labels(
@@ -146,16 +150,18 @@ def run_walk_forward(
     sample_weight_flag: bool = False,
     calibrate_flag: bool = False,
     no_scale_pos_weight: bool = False,
+    allowed_direction: str = "BOTH",
     expanded_data_dir: str | None = None,
 ) -> pd.DataFrame | None:
     import xgboost as xgb
 
     logger.info(
-        "=== %s walk-forward (%dy windows, %dy step, pt_sl=%s) ===",
+        "=== %s walk-forward (%dy windows, %dy step, pt_sl=%s, dir=%s) ===",
         asset_name,
         window_years,
         step_years,
         pt_sl,
+        allowed_direction,
     )
 
     # Use expanded 10y+ cache when available (same pattern as retrain_all_fixed.py).
@@ -186,8 +192,21 @@ def run_walk_forward(
     if prices is None or prices.empty or len(prices) < 100:
         logger.warning("SKIP: %s (%s) — no data or insufficient rows", asset_name, ticker)
         return None
+    # Load per-asset vol_method from FEATURE_REGISTRY (if configured)
+    _vol_primitive: VolatilityPrimitive | None = None
+    for _ticker, _contract in FEATURE_REGISTRY.items():
+        if _contract.name == asset_name:
+            _vm = _contract.label_params.get("vol_method", "ewm_100")
+            if _vm == "atr":
+                _ap = _contract.label_params.get("atr_period", 14)
+                _vol_primitive = VolatilityPrimitive(period=_ap)
+                logger.info("  %s: using ATR vol (period=%d) for labels", asset_name, _ap)
+            else:
+                logger.info("  %s: using EWM vol (span=100) for labels", asset_name)
+            break
+
     # Use vertical_barrier=20 by default (matches FEATURE_REGISTRY), gap >= barrier
-    labels = compute_labels(prices, ohlcv, pt_sl=pt_sl, vertical_barrier=20, label_type=label_type)
+    labels = compute_labels(prices, ohlcv, pt_sl=pt_sl, vertical_barrier=20, label_type=label_type, vol_primitive=_vol_primitive)
     gap = max(gap, 20)
     alpha_df = build_alpha_features(
         prices,
@@ -221,7 +240,11 @@ def run_walk_forward(
     rates_df = compute_rates(_macro, rd_series, alpha_df.index)
     if rates_df is not None and not rates_df.empty:
         for col in rates_df.columns:
-            alpha_df[f"{prefix}_{col}"] = rates_df[col].reindex(alpha_df.index)
+            _series = rates_df[col].reindex(alpha_df.index)
+            # Fill all-NaN columns to 0 to prevent dropna from killing all rows
+            if _series.isna().all():
+                _series = pd.Series(0.0, index=alpha_df.index)
+            alpha_df[f"{prefix}_{col}"] = _series
 
     # ── Group 4: Event & calendar features ──────────────────────────
     from features.event_features import compute_event_features
@@ -282,8 +305,36 @@ def run_walk_forward(
     windows = []
     all_oos_signals = []
 
-    hi_thresh = 0.5 + ensemble_threshold / 2.0
-    lo_thresh = 0.5 - ensemble_threshold / 2.0
+    # ── Load per-asset confidence thresholds from production config ──
+    # Matches the fallback chain in decision_pipeline.py:apply_confidence_gate:
+    #   1. Per-asset direction-specific override (e.g. GBPJPY.min_confidence_buy)
+    #   2. Global direction-specific default (defaults.min_confidence_buy)
+    #   3. Per-asset global threshold (GBPJPY.min_confidence)
+    #   4. Global default (defaults.min_confidence)
+    from paper_trading.config_manager import get_config as _get_prod_cfg
+    _prod_cfg = _get_prod_cfg()
+    _def = getattr(_prod_cfg, "defaults", {}) or {}
+    _acfg = _prod_cfg.assets.get(asset_name, {})
+    _buy_conf = (
+        _acfg.get("min_confidence_buy")
+        or _def.get("min_confidence_buy")
+        or _acfg.get("min_confidence")
+        or _def.get("min_confidence", 55.0)
+    )
+    _sell_conf = (
+        _acfg.get("min_confidence_sell")
+        or _def.get("min_confidence_sell")
+        or _acfg.get("min_confidence")
+        or _def.get("min_confidence", 55.0)
+    )
+    hi_thresh = _buy_conf / 100.0  # BUY when p_long >= _buy_conf%
+    lo_thresh = 1.0 - _sell_conf / 100.0  # SELL when (1-p_long) >= _sell_conf%
+    sell_thresh = _sell_conf / 100.0  # SELL confidence gate for direction-conditional logic
+    logger.info(
+        "  thresholds: BUY>=%.3f SELL>=%.3f (conf); (from config: buy=%s sell=%s)",
+        hi_thresh, sell_thresh, _buy_conf, _sell_conf,
+    )
+    # ensemble_threshold is now used only for ensemble blending, not signal generation
 
     for fold, (train_idx, test_idx) in enumerate(cv.split(X_all)):
         train_start = X_all.index[train_idx[0]]
@@ -398,10 +449,27 @@ def run_walk_forward(
                     len(X_val) if use_early_stopping else 0,
                 )
 
-        # Signal from binary P(LONG)
+        # Signal from direction-conditional thresholds (matches production decision_pipeline.py)
+        # Determine direction first (p_long >= 0.5 = BUY), then check confidence gate.
+        # BUY gate: p_long >= min_confidence_buy% (hi_thresh = buy_conf/100)
+        # SELL gate: (1-p_long) >= min_confidence_sell% (sell_thresh = sell_conf/100)
+        # When neither gate passes, signal is neutral (0).
+        # NOTE: lo_thresh = 1 - sell_conf/100 is a p_long threshold for the OLD logic;
+        # for direction-conditional we need the raw sell confidence threshold.
+        sell_thresh = _sell_conf / 100.0
         signals = np.zeros(len(p_long), dtype=int)
-        signals[p_long > hi_thresh] = 1
-        signals[p_long < lo_thresh] = -1
+        signals[(p_long >= 0.5) & (p_long >= hi_thresh)] = 1
+        signals[(p_long < 0.5) & ((1.0 - p_long) >= sell_thresh)] = -1
+
+        # ── Directional filter (Architecture C validation) ────────────
+        # When --allowed-direction is BUY or SELL, suppress signals that
+        # trade the opposite direction so the model only produces trades
+        # in the tested direction. This validates the directional-specialist
+        # hypothesis without requiring separate model retraining.
+        if allowed_direction == "BUY":
+            signals[signals == -1] = 0  # null out SELL signals
+        elif allowed_direction == "SELL":
+            signals[signals == 1] = 0   # null out BUY signals
 
         # direction-aware accuracy: maps labels {0,1} to {-1,1} so SELL
         # predictions are correctly counted — old (signals == y_te)
@@ -455,7 +523,7 @@ def run_walk_forward(
         all_oos_signals.append(oos_df)
 
         logger.info(
-            "  fold %d: train=%s..%s (%d) | test=%s..%s (%d) | hit=%.3f dir=%.3f long=%.2f short=%.2f",
+            "  fold %d: train=%s..%s (%d) | test=%s..%s (%d) | hit=%.3f dir=%.3f long=%.2f short=%.2f dir_filter=%s",
             fold,
             window["train_start"],
             window["train_end"],
@@ -467,6 +535,7 @@ def run_walk_forward(
             directional,
             long_rate,
             short_rate,
+            allowed_direction,
         )
 
     if not windows:
@@ -593,6 +662,13 @@ def main():
         help="Force scale_pos_weight=1.0 (ignore class imbalance). Tests whether imbalance weighting contributes to sell bias.",
     )
     parser.add_argument(
+        "--allowed-direction",
+        type=str,
+        default="BOTH",
+        choices=["BOTH", "BUY", "SELL"],
+        help="Filter signals to only BUY, only SELL, or BOTH (default). Validates directional-specialist architecture.",
+    )
+    parser.add_argument(
         "--expanded-dir",
         type=str,
         default=None,
@@ -696,6 +772,7 @@ def main():
             sample_weight_flag=args.weighted,
             calibrate_flag=args.calibrate,
             no_scale_pos_weight=args.no_scale_pos_weight,
+            allowed_direction=args.allowed_direction,
             expanded_data_dir=args.expanded_dir,
         )
         if result is not None:

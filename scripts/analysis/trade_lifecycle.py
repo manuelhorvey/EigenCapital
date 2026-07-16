@@ -156,7 +156,10 @@ def fetch_ohlcv(ticker: str) -> pd.DataFrame:
     """Fetch OHLCV data from yfinance directly (bypass MT5 for dev env)."""
     import yfinance as yf
 
-    df = yf.download(ticker, period="2y", auto_adjust=True, progress=False)
+    # Use 5y to ensure enough history for ATR computation (needs 14+ bars before
+    # first signal date). Trade lifecycle signals from walk-forward backtests
+    # may start as early as 2023, so 2y is insufficient.
+    df = yf.download(ticker, period="5y", auto_adjust=True, progress=False)
     if df is None or df.empty:
         return pd.DataFrame()
     if isinstance(df.columns, pd.MultiIndex):

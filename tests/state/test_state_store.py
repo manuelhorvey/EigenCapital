@@ -31,6 +31,40 @@ class TestEngineSnapshot:
         restored = EngineSnapshot.from_dict({"timestamp": "2026-01-01"})
         assert restored.schema_version == "0.0.0"
 
+    def test_from_dict_roundtrip_comprehensive(self):
+        snap = EngineSnapshot(
+            schema_version="1.0.0",
+            contract_version=3,
+            sequence_id=42,
+            timestamp="2026-07-16T10:30:00",
+            portfolio={"total_value": 95000.0, "drawdown": -0.05},
+            assets={"BTC": {"price": 50000}, "EURUSD": {"price": 1.10}},
+            open_positions={"BTC_long": {"notional": 10000, "pnl": 500}},
+            engine_status={"initialized": True, "mode": "production"},
+            halt_conditions={"emergency_halt": False},
+            risk_signals={"BTC": {"score": 0.75}},
+            shadow_actions={"EURUSD": "none"},
+            risk_parity={"chf_cap": 0.20},
+            emergency_halt=False,
+            halt_reason="",
+            halt_detail="",
+            peak_portfolio_value=100000.0,
+            peak_capital_base=100000.0,
+            breaker_daily_pnl=[-500.0, 200.0, -100.0],
+            mt5={"connected": True, "balance": 100.0},
+            asset_values={"BTC": 50000.0, "EURUSD": 1.10},
+            risk_state={"var": 0.02, "cvar": 0.03},
+            performance_state={"sharpe": 0.5, "trades": 100},
+        )
+        d = snap.__dict__.copy()
+        restored = EngineSnapshot.from_dict(d)
+        assert restored.sequence_id == 42
+        assert restored.open_positions == snap.open_positions
+        assert restored.risk_state == snap.risk_state
+        assert restored.performance_state == snap.performance_state
+        assert restored.breaker_daily_pnl == snap.breaker_daily_pnl
+        assert restored.mt5 == snap.mt5
+
 
 class TestSanitize:
     def test_handles_inf(self):

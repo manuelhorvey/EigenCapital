@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -16,3 +17,18 @@ class RiskBudget:
     drawdown_scalar: float  # for info/debugging: what dd adjustment was applied
     performance_scalar: float  # for info/debugging: composite from PerformanceState
     velocity_scalar: float  # for info/debugging: velocity adjustment
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "max_risk_per_trade_pct": self.max_risk_per_trade_pct,
+            "max_portfolio_heat": self.max_portfolio_heat,
+            "max_concurrent_positions": self.max_concurrent_positions,
+            "volatility_scalar": self.volatility_scalar,
+            "drawdown_scalar": self.drawdown_scalar,
+            "performance_scalar": self.performance_scalar,
+            "velocity_scalar": self.velocity_scalar,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> RiskBudget:
+        return cls(**d)

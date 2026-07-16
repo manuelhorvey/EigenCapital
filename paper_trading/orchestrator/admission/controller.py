@@ -108,14 +108,17 @@ class PortfolioAdmissionController:
         #    cluster on the same side would exceed max_positions_per_cluster.
         #    No break — assets like NZDCHF belong to multiple clusters (CHF + NZD).
         for cluster in snapshot.clusters:
-            if signal.asset in cluster.assets and cluster.dominant_side is not None:
-                if signal.side.value == cluster.dominant_side:
-                    if cluster.position_count >= snapshot.max_positions_per_cluster:
-                        return FilterResult(
-                            False,
-                            f"cluster_{cluster.factor_group}_position_limit_"
-                            f"({cluster.position_count}/{snapshot.max_positions_per_cluster})",
-                        )
+            if (
+                signal.asset in cluster.assets
+                and cluster.dominant_side is not None
+                and signal.side.value == cluster.dominant_side
+                and cluster.position_count >= snapshot.max_positions_per_cluster
+            ):
+                return FilterResult(
+                    False,
+                    f"cluster_{cluster.factor_group}_position_limit_"
+                    f"({cluster.position_count}/{snapshot.max_positions_per_cluster})",
+                )
 
         # 7. Per-asset gates
         for gate in snapshot.asset_gates:
@@ -172,14 +175,17 @@ class PortfolioAdmissionController:
                 continue
             if remaining_concurrent <= 0:
                 rejected.append((sig, "max_concurrent_positions_reached"))
-                continue            # Correlated cluster limit (same check as fast_filter)
+                continue  # Correlated cluster limit (same check as fast_filter)
             # No break — assets like NZDCHF belong to multiple clusters (CHF + NZD).
             for cluster in snapshot.clusters:
-                if sig.asset in cluster.assets and cluster.dominant_side is not None:
-                    if sig.side.value == cluster.dominant_side:
-                        if cluster.position_count >= snapshot.max_positions_per_cluster:
-                            rejected.append((sig, f"cluster_{cluster.factor_group}_position_limit"))
-                            break
+                if (
+                    sig.asset in cluster.assets
+                    and cluster.dominant_side is not None
+                    and sig.side.value == cluster.dominant_side
+                    and cluster.position_count >= snapshot.max_positions_per_cluster
+                ):
+                    rejected.append((sig, f"cluster_{cluster.factor_group}_position_limit"))
+                    break
             # If rejected by cluster limit, skip admission
             if rejected and rejected[-1][0] is sig:
                 continue

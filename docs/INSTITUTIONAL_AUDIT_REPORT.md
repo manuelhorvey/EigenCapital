@@ -60,8 +60,8 @@ All features in `features/alpha_features.py` and `features/regime_features.py`:
 | Stochastic Osc | `stochastic_oscillator()` | ta.momentum.StochasticOscillator | ✅ None | N/A |
 | ADX slope | `adx_slope()` | ta.trend.ADXIndicator | ✅ None | N/A |
 | Day-of-week | `day_of_week_signal()` | Rolling 252-day mean, shift(1) | ✅ None | N/A |
-| Narrative | `_compute_narrative_features()` | Loads from `narrative_active.json` | ⚠️ See 1.2.1 | **LOW** |
-| Macro derived | `builder.py` | `apply_publication_lags()` | ✅ None | N/A |
+| Narrative | `_compute_narrative_features()` | Loads from `data/live/narrative_active.json` | ⚠️ See 1.2.1 | **LOW** |
+| Macro derived | `features/builder.py` | `apply_publication_lags()` | ✅ None | N/A |
 | Regime (Hurst) | `compute_hurst()` | Rolling 63-day, lag variables | ✅ None | N/A |
 | Regime (Kaufman ER) | `compute_kaufman_er()` | Rolling window | ✅ None | N/A |
 | Regime (ADX) | ta.trend.adx | Rolling window | ✅ None | N/A |
@@ -174,8 +174,8 @@ The feature stability analysis was conducted via multiple prior investigations:
 
 | Investigation | File | Findings |
 |---------------|------|----------|
-| PSI monitoring | `paper_trading/monitoring/psi_monitor.py` | Tracks population stability index per asset |
-| Feature drift detection | `paper_trading/monitoring/drift_detection.py` | KS statistic, mean shift detection |
+| PSI monitoring | `scripts/ops/model_health_monitor.py` | Tracks population stability index per asset |
+| Feature drift detection | `scripts/optimization/drift_detector.py` | KS statistic, mean shift detection |
 | Feature importance validation | `scripts/research/feature_importance_validation.py` | Gain, SHAP, permutation importance |
 
 ### 2.2 PSI / Drift Observations
@@ -309,16 +309,14 @@ For every asset, compute: break-even WR = 1 / (1 + avg_RR), actual WR, expected 
 | Mitigation | File | Status | Effective Against |
 |------------|------|--------|-------------------|
 | Auto-retrain trigger (90-day model age) | `paper_trading/engine.py` | ✅ Implemented | Stale models |
-| Regime transition gate (MA50 crossing → 30-day suppression) | `decision_pipeline.py` | ✅ Implemented | Regime shift whipsaw |
-| Calibration drift gate (30-trade confidence vs WR) | `decision_pipeline.py` | ✅ Implemented | Confidently wrong pattern |
+| Regime transition gate (MA50 crossing → 30-day suppression) | `paper_trading/execution/decision_pipeline.py` | ✅ Implemented | Regime shift whipsaw |
+| Calibration drift gate (30-trade confidence vs WR) | `paper_trading/execution/decision_pipeline.py` | ✅ Implemented | Confidently wrong pattern |
 | Emergency halt (-15% DD) | `EngineOrchestrator` | ✅ Implemented | Extreme loss |
 | Recovery scheduler | `EngineOrchestrator` | ✅ Implemented | Auto-recovery after halt |
 
 ### 4.4 ATLAS Regime Detection
 
-**Source:** `paper_trading/observability/atlas.py`
-
-ATLAS is the observability system. Based on prior findings, ATLAS did not explicitly flag the 2024-Q3 regime transition. The MA50 crossing detection in `decision_pipeline.py` would have triggered for assets that experienced a bull↔bear transition during that period.
+Based on prior findings, the MA50 crossing detection in `paper_trading/execution/decision_pipeline.py` would have triggered for assets that experienced a bull↔bear transition during that period.
 
 **Verdict:** The regime transition gate would have partially mitigated the 2024-Q3 drawdown but not prevented it entirely — some assets (EURCHF, GBPAUD) had model-level failures beyond what a MA50 gate can catch.
 
@@ -696,4 +694,5 @@ A systematic ±10% perturbation grid was executed (`scripts/analysis/robustness_
 
 ---
 
+**Last updated:** 2026-07-16
 *Report compiled: 2026-07-16 | Audit methodology: Institutional Investment Committee Framework | Sources: codebase reading (33 files), 6 diagnostic scripts, 3 prior investigation reports*

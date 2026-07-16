@@ -122,15 +122,22 @@ class DiagnosticsQueue:
                 logger.debug("%s: shadow learning feedback skipped", snap.asset_name)
 
     def apply_pending(self, asset_name: str, asset) -> bool:
-        """Apply any pending async results to the asset. Returns True if applied."""
+        """Apply any pending async results to the asset. Returns True if applied.
+
+        The asset attribute writes are performed under ``self._lock`` so that
+        the four result fields are applied atomically — a concurrent reader
+        (e.g. ``EngineStateService.save_state()`` on the main thread) will
+        either see all four updated values from a previous cycle or none of
+        them.
+        """
         with self._lock:
             results = self._results.pop(asset_name, None)
-        if results is not None:
-            asset._risk_signal = results["risk_signal"]
-            asset._shadow_drift_intel = results["shadow_drift_intel"]
-            asset._shadow_action = results["shadow_action"]
-            asset._shadow_learning = results["shadow_learning"]
-            return True
+            if results is not None:
+                asset._risk_signal = results["risk_signal"]
+                asset._shadow_drift_intel = results["shadow_drift_intel"]
+                asset._shadow_action = results["shadow_action"]
+                asset._shadow_learning = results["shadow_learning"]
+                return True
         return False
 
 

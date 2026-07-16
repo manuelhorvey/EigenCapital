@@ -4,6 +4,7 @@ from typing import Literal
 
 from eigencapital.domain.entities.position import PositionIntent, PositionSide  # noqa: F401
 from eigencapital.domain.entities.signal import SignalType, TradeDecision  # noqa: F401
+from features.types import MarketStructureState  # noqa: F401  — canonical home
 
 ExitReason = Literal["SL", "TP", "BREAKEVEN", "EXPIRY", "FLIP", "MANUAL", "TRAILING_SL"]
 
@@ -12,21 +13,6 @@ class ValidityState(str, Enum):
     GREEN = "GREEN"
     YELLOW = "YELLOW"
     RED = "RED"
-
-
-@dataclass
-class MarketStructureState:
-    """
-    Structural snapshot of the market.
-    Purely informational, no decision logic.
-    """
-
-    trend_strength: float
-    compression_score: float
-    distance_to_swing_high: float
-    distance_to_swing_low: float
-    volatility_regime: float
-    breakout_pressure: float
 
 
 class EntryAction(str, Enum):

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import threading
 import time
 from dataclasses import asdict
 
@@ -11,7 +12,14 @@ logger = logging.getLogger("eigencapital.state_store")
 
 
 class _SnapshotManager:
-    """JSON state snapshot save/load with monotonic-time TTL cache."""
+    """JSON state snapshot save/load with monotonic-time TTL cache.
+
+    Thread safety:
+        ``save()`` and ``load()`` are guarded by a ``threading.Lock``.
+        The main engine thread calls ``save()`` while dashboard HTTP threads
+        call ``load()`` — the lock ensures a consistent view of the cache
+        tuple and prevents torn reads of the ``EngineSnapshot`` reference.
+    """
 
     _sequence_counter: int = 0
 
@@ -19,6 +27,7 @@ class _SnapshotManager:
         self._state_path = state_path
         self._cache_ttl = cache_ttl
         self._cache: tuple[EngineSnapshot, float] | None = None
+        self._lock = threading.Lock()
 
     def save(self, snapshot: EngineSnapshot) -> None:
         _SnapshotManager._sequence_counter += 1
@@ -27,14 +36,16 @@ class _SnapshotManager:
         os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
         data = sanitize(asdict(snapshot))
         atomic_write_json(self._state_path, data)
-        self._cache = (snapshot, time.monotonic())
+        with self._lock:
+            self._cache = (snapshot, time.monotonic())
 
     def load(self) -> EngineSnapshot | None:
-        if self._cache is not None:
-            cached, expiry = self._cache
-            if time.monotonic() < expiry:
-                return cached
-            self._cache = None
+        with self._lock:
+            if self._cache is not None:
+                cached, expiry = self._cache
+                if time.monotonic() < expiry:
+                    return cached
+                self._cache = None
         if not os.path.exists(self._state_path):
             return None
         try:

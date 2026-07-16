@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger("eigencapital.pek.portfolio_state")
 
@@ -20,6 +21,22 @@ class PositionInfo:
     current_pnl_pct: float
     mtm_value: float
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "asset": self.asset,
+            "side": self.side,
+            "notional": self.notional,
+            "entry_price": self.entry_price,
+            "current_price": self.current_price,
+            "sl_distance_pct": self.sl_distance_pct,
+            "current_pnl_pct": self.current_pnl_pct,
+            "mtm_value": self.mtm_value,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> PositionInfo:
+        return cls(**d)
+
 
 @dataclass(frozen=True)
 class ClusterInfo:
@@ -31,6 +48,27 @@ class ClusterInfo:
     total_notional: float
     position_count: int
     average_correlation: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "factor_group": self.factor_group,
+            "assets": list(self.assets),
+            "dominant_side": self.dominant_side,
+            "total_notional": self.total_notional,
+            "position_count": self.position_count,
+            "average_correlation": self.average_correlation,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ClusterInfo:
+        return cls(
+            factor_group=d["factor_group"],
+            assets=tuple(d["assets"]),
+            dominant_side=d.get("dominant_side"),
+            total_notional=d["total_notional"],
+            position_count=d["position_count"],
+            average_correlation=d["average_correlation"],
+        )
 
 
 @dataclass(frozen=True)
@@ -58,6 +96,22 @@ class AssetGateState:
             and self.hysteresis_ok
             and self.conviction_ok
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "asset": self.asset,
+            "spread_ok": self.spread_ok,
+            "session_ok": self.session_ok,
+            "sell_only_ok": self.sell_only_ok,
+            "confidence_ok": self.confidence_ok,
+            "risk_off_ok": self.risk_off_ok,
+            "hysteresis_ok": self.hysteresis_ok,
+            "conviction_ok": self.conviction_ok,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> AssetGateState:
+        return cls(**d)
 
 
 @dataclass(frozen=True)
@@ -110,6 +164,73 @@ class PortfolioStateSnapshot:
     min_risk_per_trade_pct: float
     position_ranking_enabled: bool
     max_positions_per_cluster: int = 3
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "generated_at": self.generated_at.isoformat(),
+            "mode": self.mode,
+            "total_equity": self.total_equity,
+            "peak_value": self.peak_value,
+            "drawdown_pct": self.drawdown_pct,
+            "positions": [p.to_dict() for p in self.positions],
+            "total_long_notional": self.total_long_notional,
+            "total_short_notional": self.total_short_notional,
+            "gross_exposure": self.gross_exposure,
+            "net_exposure": self.net_exposure,
+            "open_position_count": self.open_position_count,
+            "daily_pnl": self.daily_pnl,
+            "daily_loss_remaining": self.daily_loss_remaining,
+            "max_daily_loss": self.max_daily_loss,
+            "drawdown_remaining": self.drawdown_remaining,
+            "leverage_remaining": self.leverage_remaining,
+            "max_leverage": self.max_leverage,
+            "concurrent_remaining": self.concurrent_remaining,
+            "max_concurrent": self.max_concurrent,
+            "factor_exposures": [list(t) for t in self.factor_exposures],
+            "factor_limits": [list(t) for t in self.factor_limits],
+            "factor_headroom": [list(t) for t in self.factor_headroom],
+            "clusters": [c.to_dict() for c in self.clusters],
+            "asset_gates": [g.to_dict() for g in self.asset_gates],
+            "max_risk_per_trade_pct": self.max_risk_per_trade_pct,
+            "min_risk_per_trade_pct": self.min_risk_per_trade_pct,
+            "position_ranking_enabled": self.position_ranking_enabled,
+            "max_positions_per_cluster": self.max_positions_per_cluster,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> PortfolioStateSnapshot:
+        return cls(
+            version=d["version"],
+            generated_at=datetime.fromisoformat(d["generated_at"]),
+            mode=d["mode"],
+            total_equity=d["total_equity"],
+            peak_value=d["peak_value"],
+            drawdown_pct=d["drawdown_pct"],
+            positions=tuple(PositionInfo.from_dict(p) for p in d["positions"]),
+            total_long_notional=d["total_long_notional"],
+            total_short_notional=d["total_short_notional"],
+            gross_exposure=d["gross_exposure"],
+            net_exposure=d["net_exposure"],
+            open_position_count=d["open_position_count"],
+            daily_pnl=d["daily_pnl"],
+            daily_loss_remaining=d["daily_loss_remaining"],
+            max_daily_loss=d["max_daily_loss"],
+            drawdown_remaining=d["drawdown_remaining"],
+            leverage_remaining=d["leverage_remaining"],
+            max_leverage=d["max_leverage"],
+            concurrent_remaining=d["concurrent_remaining"],
+            max_concurrent=d["max_concurrent"],
+            factor_exposures=tuple(tuple(t) for t in d["factor_exposures"]),
+            factor_limits=tuple(tuple(t) for t in d["factor_limits"]),
+            factor_headroom=tuple(tuple(t) for t in d["factor_headroom"]),
+            clusters=tuple(ClusterInfo.from_dict(c) for c in d["clusters"]),
+            asset_gates=tuple(AssetGateState.from_dict(g) for g in d["asset_gates"]),
+            max_risk_per_trade_pct=d["max_risk_per_trade_pct"],
+            min_risk_per_trade_pct=d["min_risk_per_trade_pct"],
+            position_ranking_enabled=d["position_ranking_enabled"],
+            max_positions_per_cluster=d.get("max_positions_per_cluster", 3),
+        )
 
     def __post_init__(self):
         if self.total_equity < 0:

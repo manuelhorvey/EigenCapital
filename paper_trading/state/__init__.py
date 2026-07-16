@@ -64,6 +64,7 @@ class EngineSnapshot:
             mt5=d.get("mt5"),
             asset_values=d.get("asset_values"),
             risk_state=d.get("risk_state"),
+            performance_state=d.get("performance_state"),
         )
 
 

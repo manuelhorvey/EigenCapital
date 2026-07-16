@@ -52,6 +52,13 @@ class BackgroundWriter:
         writer.enqueue(WriteCommand(WriteOp.WAL_EVENT, {"kind": "signal", ...}))
         writer.flush()  # block until all queued writes complete
         writer.shutdown()  # stop the background thread
+
+    Thread safety:
+        ``enqueue()`` is safe to call from any thread.  ``flush()`` uses a
+        sequence-number guard to ensure it only returns once every command
+        that was enqueued *before* the call has been executed.  Commands
+        enqueued while ``flush()`` is waiting are not required to be done
+        (they'll be picked up on the next flush cycle).
     """
 
     def __init__(
@@ -67,27 +74,70 @@ class BackgroundWriter:
         self._flush_done = threading.Event()
         self._thread = threading.Thread(target=self._run, name="qf-writer", daemon=True)
         self._shutdown_flag = False
+        self._enqueue_seq = 0
+        self._processed_count = 0
+        self._flush_target = 0
+        self._count_lock = threading.Lock()
         self._thread.start()
 
     def enqueue(self, cmd: WriteCommand) -> None:
-        """Enqueue a write command (thread-safe)."""
+        """Enqueue a write command (thread-safe).
+
+        The item is placed in the queue *before* the sequence counter is
+        incremented to avoid a TOCTOU race: ``flush()`` records the sequence
+        number at call time, so any item whose put() completes before that
+        snapshot is guaranteed to have a sequence number ≤ the target.
+        """
         self._queue.put_nowait(cmd)
+        with self._count_lock:
+            self._enqueue_seq += 1
 
     def flush(self, timeout: float = 10.0) -> bool:
-        """Block until all previously enqueued writes are persisted (WAL + DB)."""
+        """Block until all previously enqueued writes are persisted (WAL + DB).
+
+        Uses a sequence-number watermark to determine which writes are "in
+        scope" — only commands whose ``enqueue()`` completed before this call
+        are required to be finished.  New writes arriving while flush waits
+        do not extend the wait.
+
+        Returns ``True`` if all target writes completed within *timeout*.
+        """
+        with self._count_lock:
+            self._flush_target = self._enqueue_seq
+        if self._flush_target <= self._processed_count:
+            if self._wal is not None:
+                try:
+                    self._wal.flush()
+                except Exception:
+                    logger.exception("Background writer WAL flush failed")
+            return True
         self._flush_event.set()
-        ok = self._flush_done.wait(timeout)
-        if ok and self._wal is not None:
+        while True:
+            ok = self._flush_done.wait(timeout)
+            if not ok:
+                return False
+            with self._count_lock:
+                if self._processed_count >= self._flush_target:
+                    break
+            self._flush_done.clear()
+            self._flush_event.set()
+        if self._wal is not None:
             try:
                 self._wal.flush()
             except Exception:
                 logger.exception("Background writer WAL flush failed")
-        return ok
+        return True
 
     def shutdown(self, timeout: float = 5.0) -> None:
-        """Signal shutdown and wait for the background thread to finish."""
-        self._shutdown_flag = True
+        """Signal shutdown and wait for the background thread to finish.
+
+        The ``None`` sentinel is enqueued *before* the shutdown flag is set
+        so the background thread sees the sentinel first (via ``queue.get``)
+        rather than blocking in ``queue.get(timeout=1.0)`` while waiting for
+        the flag check.
+        """
         self._queue.put_nowait(None)
+        self._shutdown_flag = True
         if self._thread.is_alive():
             self._thread.join(timeout)
 
@@ -104,6 +154,8 @@ class BackgroundWriter:
                 self._execute(cmd)
             except Exception:
                 logger.exception("Background writer failed to execute %s", cmd.op)
+            with self._count_lock:
+                self._processed_count += 1
             self._queue.task_done()
             if cmd.callback:
                 try:
@@ -111,9 +163,10 @@ class BackgroundWriter:
                 except Exception:
                     logger.exception("Background writer callback failed")
             if self._flush_event.is_set():
-                self._flush_event.clear()
-                self._flush_done.set()
-                self._flush_done.clear()
+                with self._count_lock:
+                    if self._processed_count >= self._flush_target:
+                        self._flush_event.clear()
+                        self._flush_done.set()
 
     def _execute(self, cmd: WriteCommand) -> None:
         if cmd.op == WriteOp.WAL_EVENT:

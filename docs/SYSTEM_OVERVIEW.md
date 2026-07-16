@@ -306,22 +306,24 @@ The live engine executes every ~60 seconds by default (configurable via `EIGENCA
       e. Update MAE/MFE — update max adverse/favorable excursion
       f. Resolve signal — map proba to BUY/SELL/FLAT via FixedThresholdStrategy(0.45)
       g. Risk-off suppression — flat AUDUSD when VIX>0 & SPX<0
-       g. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio (gate applies only to `VIX_GATE_ASSETS = {"CL"}`).
-      h. Sell-only filter — override BUY→FLAT for 6 inverted-BUY assets
-      i. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
-      j. Session gate — block entry outside market session hours per asset-class tier
-      k. ADX entry gate — skip if ADX < threshold (observe-only, disabled by default)
-      l. Confidence gate — abort if net confidence below threshold
-      m. Signal hysteresis — 2-of-3 agreement before flip
-      n. Meta-label advisory — record meta-label recommendation (no enforcement)
-      o. Update regime bar counter — track bars since last regime shift
-      p. Conviction gate — flip gate based on regime conviction
-      q. **Kelly sizing (P2)** — scale position by Kelly criterion (config-gated, disabled by default)
-      r. Manage position — close/re-open with entry gate check (includes embedded profit lock)
-      s. Build entry artifacts — construct TradeDecision for execution
-      t. Route execution policy — direct to PaperBroker or MT5Broker
-      u. Poll deferred entries — execute pending deferred orders
-      v. Update prob history — record probability history for drift monitoring
+      h. VIX gate — suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio (gate applies only to `VIX_GATE_ASSETS = {"CL"}`).
+      i. Sell-only filter — override BUY→FLAT for 6 inverted-BUY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF)
+      j. Confidence gate — abort if net confidence below direction-conditional threshold (buy=45, sell=55)
+      k. Spread gate — block entry if spread > per-class threshold (observe 720 cycles)
+      l. Session gate — block entry outside market session hours per asset-class tier
+      m. Regime transition gate — suppress entries for 30 days after bull↔bear transition (close crossing MA50)
+      n. ADX entry gate — skip if ADX < threshold (observe-only, disabled by default)
+      o. Calibration drift gate — suppress entry if mean confidence exceeds mean WR by >20pp (30-trade window)
+      p. Signal hysteresis — 2-of-3 agreement before flip
+      q. Meta-label advisory — record meta-label recommendation (no enforcement)
+      r. Update regime bar counter — track bars since last regime shift
+      s. Conviction gate — flip gate based on regime conviction
+      t. **Kelly sizing (P2)** — scale position by Kelly criterion (config-gated, disabled by default)
+      u. Manage position — close/re-open with entry gate check (includes embedded profit lock)
+      v. Build entry artifacts — construct TradeDecision for execution
+      w. Route execution policy — direct to PaperBroker or MT5Broker
+      x. Poll deferred entries — execute pending deferred orders
+      y. Update prob history — record probability history for drift monitoring
    17. Route through governance (17 core layers + 3 adaptive budget layers + PEK admission + P3 factor model monitoring + HealthMonitor + VaR/CVaR + sizing guardrails)
   18. Entry price deviation gate (skip if price drifted > max_entry_slippage_pct)
   19. Position sizing chain (drawdown taper → position cap → risk cap → min viable gate)
@@ -375,11 +377,13 @@ EigenCapital uses independently configurable governance layers with worst-wins a
 | Resolve signal | Map proba to BUY/SELL/FLAT |
 | Risk-off suppression | Flat AUDUSD when VIX>0 & SPX<0 |
 | VIX gate | Suppress CL=F when VIX > 30; fail-open if VIX data missing or stale (>5 days old). Currently dormant — CL=F not in portfolio. |
-| Sell-only filter | Override BUY→FLAT for 6 inverted-BUY assets |
+| Sell-only filter | Override BUY→FLAT for 6 inverted-BUY assets (CADCHF, EURAUD, EURCHF, GBPCHF, GBPJPY, NZDCHF) |
+| Confidence gate | Abort if net confidence below direction-conditional threshold (buy=45, sell=55) |
 | Spread gate | Block entry if spread > per-class threshold (observe 720 cycles) |
 | Session gate | Block entry outside market session hours per asset-class tier |
+| Regime transition gate | Suppress entries for 30 days after bull↔bear transition (close crossing MA50) |
 | ADX entry gate | Block entry if ADX below threshold (observe-only, disabled by default) |
-| Confidence gate | Abort if net confidence below threshold |
+| Calibration drift gate | Suppress entry if mean confidence exceeds mean WR by >20pp (30-trade window) |
 | Signal hysteresis | 2-of-3 agreement before flip |
 | Meta-label advisory | Record meta-label recommendation (no enforcement) |
 | Update regime bar counter | Track bars since last regime shift |
@@ -399,7 +403,7 @@ EigenCapital uses independently configurable governance layers with worst-wins a
                                                  BUY/SELL     Suppress     Filter
                                  │
                                  ▼
-  GATE     ── Spread ──► Session ──► ADX ──► Confidence
+  GATE     ── Confidence ──► Spread ──► Session ──► Regime Transition ──► ADX ──► Calibration Drift
                              │
                              ▼
   POSITION ── Stability ──► Hysteresis ──► Meta-Label ──► Conviction ──► Kelly ──► Profit ──► Manage
@@ -651,7 +655,7 @@ Dashboard URL: http://127.0.0.1:5000
 
 # Document Metadata
 
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-16
 
 ---
 

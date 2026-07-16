@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from paper_trading.entry.decision import MarketStructureState
+from features.types import MarketStructureState
 
 logger = logging.getLogger("eigencapital.features.market_structure")
 

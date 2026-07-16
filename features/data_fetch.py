@@ -5,7 +5,26 @@ from typing import Any
 
 import pandas as pd
 
-from paper_trading.ops.data_fetcher import fetch_live as _provider_fetch_live
+# fetch_live is re-resolved once at runtime via _get_fetch_live() to keep
+# features/ a leaf layer — the import lives in the function body instead
+# of at module scope.
+_LIVE_FETCHER = None
+
+
+def _get_fetch_live():
+    global _LIVE_FETCHER
+    if _LIVE_FETCHER is None:
+        from paper_trading.ops.data_fetcher import fetch_live as _fn
+
+        _LIVE_FETCHER = _fn
+    return _LIVE_FETCHER
+
+
+# Backward-compatible alias so test patches keep working.
+# The module-level name is patchable by tests (``@patch("features.data_fetch._provider_fetch_live")``)
+# while the actual implementation is resolved lazily via _get_fetch_live().
+def _provider_fetch_live(ticker, min_days=500):
+    return _get_fetch_live()(ticker, min_days=min_days)
 
 logger = logging.getLogger("eigencapital.data_fetch")
 

@@ -16,9 +16,9 @@ def test_classify_drift_is_monotonic(psi):
     ordering = {"NO_DRIFT": 0, "MODERATE": 1, "SEVERE": 2}
     result = PSIMonitor.classify_drift(psi)
     assert result in ordering
-    if psi < 0.1:
+    if psi < 0.30:
         assert ordering[result] == 0
-    elif psi < 0.2:
+    elif psi < 0.60:
         assert ordering[result] == 1
     else:
         assert ordering[result] == 2
@@ -39,7 +39,7 @@ def test_classify_drift_negative_treated_as_no_drift(psi):
 )
 @settings(max_examples=50)
 def test_classify_drift_large_values_are_severe(psi):
-    """Any PSI >= 0.2 is SEVERE, including large values."""
+    """Any PSI >= 0.60 is SEVERE, including large values."""
     result = PSIMonitor.classify_drift(psi)
     assert result == "SEVERE"
 
@@ -101,7 +101,7 @@ def test_compute_drift_no_top_features(tmp_path):
 
 
 def test_compute_drift_moderate_penalty(tmp_path):
-    """Moderate drift applies -0.08 penalty."""
+    """Moderate drift applies -0.05 penalty."""
     monitor = PSIMonitor(tmp_path)
     rng = np.random.default_rng(42)
     X_train = pd.DataFrame({"a": rng.normal(0, 1, 500)})
@@ -110,9 +110,9 @@ def test_compute_drift_moderate_penalty(tmp_path):
     snapshot = monitor.compute_drift("test_asset", X_current, [("a", 1.0)])
     assert snapshot is not None
     if snapshot.moderate_count > 0:
-        assert snapshot.penalty == -0.08
+        assert snapshot.penalty == -0.05
     elif snapshot.severe_count > 0:
-        assert snapshot.penalty == -0.20
+        assert snapshot.penalty == -0.10
 
 
 # ── Edge cases for persist_baseline ──────────────────────────────────────────

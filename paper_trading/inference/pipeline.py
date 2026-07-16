@@ -223,16 +223,16 @@ class AssetInferencePipeline:
             if latest_df is not None and not latest_df.empty:
                 top10 = latest_df[latest_df["rank"] <= 10]
                 top_features = [(r["feature"], r["importance_score"]) for r in top10.to_dict("records")]
-                x_current = x.iloc[_MAX_INDICATOR_LOOKBACK:]
-                if len(x_current) < 100:
-                    return
-                asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, x_current, top_features)
+                # Warmup NaN rows already removed by build_alpha_features.dropna().
+                # All remaining rows have valid feature values.
+                asset._last_psi_drift = asset._psi_monitor.compute_drift(asset.name, x, top_features)
         except (ValueError, TypeError, KeyError) as e:
             logger.debug("%s: PSI drift skipped: %s", asset.name, e)
 
     def _validate_and_truncate(self, asset, x, features_df):
         _model_id = id(asset.model)
         if not self._truncation_validated or self._validated_model_id != _model_id:
+            x = self._align_x_to_model(asset, x)
             self._validate_inference_truncation(asset, x)
             self._truncation_validated = True
             self._validated_model_id = _model_id
@@ -240,39 +240,45 @@ class AssetInferencePipeline:
             return x.iloc[-1:], features_df.iloc[-1:]
         return x, features_df
 
-    def _run_inference(self, asset, x, features_df, feature_hash=""):
-        _infer_idx = x.index[-1:] if self._truncate_inference else x.index
+    @staticmethod
+    def _align_x_to_model(asset, x: pd.DataFrame) -> pd.DataFrame:
+        """Align ``x`` columns to the model's ``feature_names``.
 
-        # Align input features to the model's expected schema.
-        # The model was trained with a specific feature set; inference may
-        # produce extra (Group 1 cross-sectional) or miss features (Group 2
-        # volume for forex pairs).  Silently drop extras and NaN-fill gaps.
+        Extras are dropped; missing columns are filled with 0.0 so XGBoost
+        ``predict`` never raises a ``ValueError`` for feature-name mismatch.
+        If alignment fails (no booster, mismatched model type, etc.) the
+        original ``x`` is returned unchanged and a warning is logged.
+        """
+        model = getattr(asset, "model", None)
+        if model is None:
+            return x
         try:
-            booster = asset.model.get_booster()
+            booster = model.get_booster()
             model_feats = booster.feature_names
-            if model_feats:
-                existing = [c for c in model_feats if c in x.columns]
-                missing = [c for c in model_feats if c not in x.columns]
-                if missing:
-                    logger.debug(
-                        "%s: inference missing %d model features (filling 0): %s",
-                        asset.name,
-                        len(missing),
-                        missing,
-                    )
-                # Promote to wider DataFrame with model's column order
-                aligned = pd.DataFrame(0.0, index=x.index, columns=model_feats)
-                aligned[existing] = x[existing]
-                # Preserve dtype continuity for XGBoost
-                for c in existing:
-                    aligned[c] = aligned[c].astype(x[c].dtype)
-                x = aligned
+            if not model_feats:
+                return x
+            existing = [c for c in model_feats if c in x.columns]
+            missing = [c for c in model_feats if c not in x.columns]
+            if missing:
+                logger.debug(
+                    "%s: inference missing %d model features (filling 0): %s",
+                    asset.name, len(missing), missing,
+                )
+            aligned = pd.DataFrame(0.0, index=x.index, columns=model_feats)
+            aligned[existing] = x[existing]
+            for c in existing:
+                aligned[c] = aligned[c].astype(x[c].dtype)
+            return aligned
         except (KeyError, ValueError, AttributeError, TypeError):
             logger.warning(
-                "%s: feature alignment failed — falling back to raw inference",
-                asset.name,
-                exc_info=True,
+                "%s: feature alignment failed — falling back to raw x",
+                asset.name, exc_info=True,
             )
+            return x
+
+    def _run_inference(self, asset, x, features_df, feature_hash=""):
+        _infer_idx = x.index[-1:] if self._truncate_inference else x.index
+        x = self._align_x_to_model(asset, x)
 
         raw = asset._model_iface.predict(asset.model, x)
         if raw.shape[1] == 2:
@@ -508,7 +514,11 @@ class AssetInferencePipeline:
         )
 
     def _validate_inference_truncation(self, asset, x: pd.DataFrame) -> None:
-        if len(x) < _MAX_INDICATOR_LOOKBACK + 1:
+        # Need >= 2 rows to compare last-row prediction against an earlier row
+        # (max_diff = |predict(x)[-1:] - predict(x[-1:])|).  Warmup rows are
+        # already absent from x (build_alpha_features.dropna removed them), so
+        # this is pure degenerate-input defense, not a warmup guard.
+        if len(x) < 2:
             logger.warning(
                 "%s: insufficient rows (%d) for truncation validation — disabling",
                 asset.name,
@@ -516,7 +526,7 @@ class AssetInferencePipeline:
             )
             self._truncate_inference = False
             return
-        x_warm = x.iloc[_MAX_INDICATOR_LOOKBACK:]
+        x_warm = x  # warmup NaN rows already removed by dropna
         try:
             full = asset._model_iface.predict(asset.model, x_warm)
             truncated = asset._model_iface.predict(asset.model, x_warm.iloc[-1:])

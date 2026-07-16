@@ -188,6 +188,27 @@ class TestCheckPsiDrift:
         pipeline._check_psi_drift(asset, x)
         asset._psi_monitor.compute_drift.assert_not_called()
 
+    def test_computes_drift_and_sets_last_psi_drift(self, pipeline):
+        asset = pipeline.asset
+        asset._psi_drift_initialized = True
+        feature_names = [f"feat{i}" for i in range(10)]
+        snapshot_df = pd.DataFrame({
+            "feature": feature_names,
+            "importance_score": [0.2 - i * 0.01 for i in range(10)],
+            "rank": range(1, 11),
+        })
+        asset._importance_store.get_latest_two_snapshots.return_value = (snapshot_df, None)
+        expected_snapshot = MagicMock()
+        asset._psi_monitor.compute_drift.return_value = expected_snapshot
+        n = 300
+        x = pd.DataFrame({f: np.random.randn(n) for f in ["feat0", "feat1"]})
+        pipeline._check_psi_drift(asset, x)
+        asset._psi_monitor.compute_drift.assert_called_once_with(
+            asset.name, x,
+            [(f"feat{i}", 0.2 - i * 0.01) for i in range(10)],
+        )
+        assert asset._last_psi_drift is expected_snapshot
+
 
 class TestValidateAndTruncate:
     def test_truncates_when_validated(self, pipeline):
@@ -458,7 +479,7 @@ class TestValidateInferenceTruncation:
     def test_disables_when_insufficient_rows(self, pipeline, caplog):
         caplog.set_level("WARNING")
         asset = pipeline.asset
-        x = pd.DataFrame({"a": range(10)})
+        x = pd.DataFrame({"a": [0]})  # 1 row — need >= 2 for validation
         pipeline._validate_inference_truncation(asset, x)
         assert pipeline._truncate_inference is False
         assert "insufficient rows" in caplog.text

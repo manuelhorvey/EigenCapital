@@ -4,7 +4,6 @@ import pytest
 
 from features.alpha_features import (
     adx_slope,
-    bb_pct_b,
     build_alpha_features,
     commodity_momentum,
     day_of_week_signal,
@@ -347,7 +346,7 @@ def test_build_alpha_features_output_not_empty(sample_prices, sample_rate_diffs,
 def test_build_alpha_features_adds_trend_exhaustion_with_ohlcv(
     sample_prices, sample_rate_diffs, sample_macro,
 ):
-    """When ohlcv is provided, all 6 trend-exhaustion columns appear."""
+    """When ohlcv is provided, trend-exhaustion columns appear."""
     idx = sample_prices.index
     ohlcv = pd.DataFrame({
         "open": np.random.default_rng(42).uniform(99, 101, len(idx)),
@@ -364,7 +363,7 @@ def test_build_alpha_features_adds_trend_exhaustion_with_ohlcv(
     )
     for asset in sample_prices.columns:
         upper = asset.upper()
-        for feat in ("macd_hist", "stoch_k", "stoch_d", "bb_pct_b", "adx_slope", "rsi_divergence"):
+        for feat in ("macd_hist", "stoch_k", "stoch_d", "adx_slope"):
             assert f"{upper}_{feat}" in result.columns, f"Missing {upper}_{feat}"
 
 
@@ -462,25 +461,6 @@ def test_stochastic_kd_constant_prices():
     low = pd.Series([99.0] * 300)
     k, d = stochastic_oscillator(high, low, close)
     assert not k.isna().all()
-
-
-# ── bb_pct_b ────────────────────────────────────────────────────────────────
-
-
-def test_bb_pct_basic():
-    rng = np.random.default_rng(42)
-    close = pd.Series(100 + rng.standard_normal(300).cumsum())
-    result = bb_pct_b(close)
-    assert isinstance(result, pd.Series)
-    assert len(result) == 300
-
-
-def test_bb_pct_constant_close():
-    close = pd.Series([100.0] * 300)
-    result = bb_pct_b(close)
-    # Constant price -> zero band width -> undefined %B (NaN or near-zero)
-    assert isinstance(result, pd.Series)
-    assert len(result) == 300
 
 
 # ── adx_slope ───────────────────────────────────────────────────────────────

@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
+from pathlib import Path
+
 from features.alpha_features import build_alpha_features
 from features.data_fetch import _fetch_macro_batch, fetch_asset_data, fetch_asset_ohlcv
 from features.regime_features import generate_regime_features
@@ -195,6 +197,47 @@ class AssetTrainingPipeline:
             commodities=commodities,
             ohlcv=ohlcv,
         )
+
+        # ── Lead-lag custom features from FeatureContract ──────────────
+        # Custom features like gc_lead_1 are defined in the FEATURE_REGISTRY
+        # contract's custom_features tuple. Compute them as lagged returns
+        # of the leader asset. Requires expanded_data_dir for leader OHLCV.
+        _custom_feats = asset.contract.custom_features
+        if _custom_feats and expanded_data_dir is not None:
+            from features.lead_lag_features import load_lead_lag_edges
+
+            _edges = load_lead_lag_edges()
+            _leader_cache: dict[str, pd.Series] = {}
+            for _edge in _edges:
+                if _edge.get("target") != asset.ticker:
+                    continue
+                _col = _edge.get("column", "")
+                if _col not in _custom_feats or _col in features.columns:
+                    continue
+                _leader_ticker = _edge.get("leader", "")
+                _lag = _edge.get("lag", 1)
+                if _leader_ticker not in _leader_cache:
+                    _lname = (
+                        _leader_ticker.replace("=X", "").replace("=F", "").replace("^", "")
+                    )
+                    _lpath = Path(expanded_data_dir) / f"{_lname}_ohlcv.parquet"
+                    if _lpath.exists():
+                        _ldf = pd.read_parquet(_lpath)
+                        _leader_cache[_leader_ticker] = _ldf["close"]
+                    else:
+                        logger.warning(
+                            "%s: leader data not found at %s — skipping feature '%s'",
+                            asset.name, _lpath, _col,
+                        )
+                        continue
+                _leader_close = _leader_cache.get(_leader_ticker)
+                if _leader_close is not None:
+                    _lret = _leader_close.pct_change().dropna()
+                    features[_col] = _lret.shift(_lag).reindex(features.index)
+                    logger.info(
+                        "%s: added lead-lag feature '%s' (leader=%s, lag=%d, rows=%d)",
+                        asset.name, _col, _leader_ticker, _lag, len(features),
+                    )
 
         # ── Cross-sectional features (if full panel provided) ────────
         if full_panel is not None and not full_panel.empty and len(full_panel.columns) >= 2:

@@ -1,11 +1,75 @@
 from __future__ import annotations
 
 import logging
-from typing import Final
+from pathlib import Path
+from typing import Any, Final
+
+import yaml
 
 from paper_trading.config_manager import get_config
 
 logger = logging.getLogger("eigencapital.gate_constants")
+
+
+# ── Directional classification (shadow/observation only) ────────────────────
+
+
+VALID_TIERS: frozenset[str] = frozenset(
+    {"BIDIRECTIONAL", "BUY_STRONG", "SELL_STRONG", "SELL_LEANING"}
+)
+
+_DIRECTIONAL_MAP_PATH: Final[Path] = (
+    Path(__file__).resolve().parent.parent.parent
+    / "configs" / "domains" / "risk" / "directional_map.yaml"
+)
+
+
+def get_directional_classification() -> dict[str, dict[str, Any]]:
+    """Return the per-asset directional classification map.
+
+    Loaded directly from ``configs/domains/risk/directional_map.yaml``.
+    This is a shadow/observation-only config: the engine LOGS per-asset
+    directional constraints but does NOT enforce any direction filter from
+    this map. Directional enforcement remains with the SELL_ONLY filter in
+    ``SellOnlyConfig`` and the direction-conditional thresholds in
+    ``sizing.yaml`` (``min_confidence_buy`` / ``min_confidence_sell``).
+
+    Returns
+    -------
+    dict
+        Keys are asset names (e.g. ``"EURCHF"``). Values are dicts with
+        ``tier``, ``depth``, ``notes``, etc. Empty dict if the map is not
+        loaded or the file is unavailable.
+    """
+    try:
+        if _DIRECTIONAL_MAP_PATH.exists():
+            data = yaml.safe_load(_DIRECTIONAL_MAP_PATH.read_text()) or {}
+            return dict(data.get("assets", {}))
+    except Exception:
+        logger.warning("Could not load directional classification map", exc_info=True)
+    return {}
+
+
+def get_asset_tier(asset_name: str) -> str:
+    """Return the directional tier for a single asset.
+
+    Returns
+    -------
+    str
+        One of ``BIDIRECTIONAL``, ``BUY_STRONG``, ``SELL_STRONG``,
+        ``SELL_LEANING``, or ``"UNCLASSIFIED"`` if the asset is not
+        in the map.
+    """
+    mapping = get_directional_classification()
+    entry = mapping.get(asset_name)
+    if entry and isinstance(entry, dict):
+        tier = entry.get("tier", "")
+        if tier in VALID_TIERS:
+            return tier
+    return "UNCLASSIFIED"
+
+
+# ── SELL_ONLY assets (ENFORCED) ────────────────────────────────────────────
 
 
 def get_sell_only_assets() -> frozenset[str]:

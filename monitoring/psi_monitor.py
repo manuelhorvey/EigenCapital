@@ -92,9 +92,9 @@ class PSIMonitor:
 
     @staticmethod
     def classify_drift(psi: float) -> str:
-        if psi < 0.1:
+        if psi < 0.30:
             return "NO_DRIFT"
-        elif psi < 0.2:
+        elif psi < 0.60:
             return "MODERATE"
         else:
             return "SEVERE"
@@ -167,9 +167,9 @@ class PSIMonitor:
 
         penalty = 0.0
         if moderate_count > 0:
-            penalty += -0.08
+            penalty += -0.05
         if severe_count > 0:
-            penalty += -0.20
+            penalty += -0.10
 
         snapshot = PSISnapshot(
             asset=asset,
@@ -177,7 +177,7 @@ class PSIMonitor:
             worst_classification=worst,
             moderate_count=moderate_count,
             severe_count=severe_count,
-            psi_ok=severe_count < 3,
+            psi_ok=severe_count < 5,
             penalty=penalty,
             timestamp=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         )

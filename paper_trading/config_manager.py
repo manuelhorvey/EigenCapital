@@ -184,22 +184,26 @@ class EngineConfig:
             raise ValueError("EngineConfig validation failed:\n  " + "\n  ".join(errors))
 
     @classmethod
-    def _merge_mode_overrides(cls, base: dict, mode_overrides: dict) -> dict:
-        """Deep-merge mode overrides into base config dict.
+    def _deep_merge(cls, base: dict, overrides: dict) -> dict:
+        """Recursively merge *overrides* into *base*, mutating *base* in place.
 
-        Top-level scalars from mode_overrides replace base values.
-        Nested dicts (e.g. defaults) are merged key-by-key.
-        Lists are replaced (not merged).
+        Scalars in *overrides* replace values in *base*.
+        Nested dicts are merged key-by-key at every depth level.
+        Lists are replaced entirely (not merged).
         """
-        merged = dict(base)
-        for key, value in mode_overrides.items():
+        for key, value in overrides.items():
             if key in ("description",):
                 continue
-            if isinstance(value, dict) and isinstance(merged.get(key), dict):
-                merged[key] = {**merged[key], **value}
+            if isinstance(value, dict) and isinstance(base.get(key), dict):
+                cls._deep_merge(base[key], value)
             else:
-                merged[key] = value
-        return merged
+                base[key] = value
+        return base
+
+    @classmethod
+    def _merge_mode_overrides(cls, base: dict, mode_overrides: dict) -> dict:
+        """Deep-merge mode overrides into a copy of *base*."""
+        return cls._deep_merge(dict(base), mode_overrides)
 
     retention: dict = field(
         default_factory=lambda: {

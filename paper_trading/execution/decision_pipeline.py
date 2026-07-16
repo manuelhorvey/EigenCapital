@@ -230,6 +230,14 @@ def resolve_signal(ctx: DecisionContext) -> None:
         ctx.new_side = None
 
 
+def _first_non_none(*values: object) -> object:
+    """Return the first value that is not ``None``."""
+    for v in values:
+        if v is not None:
+            return v
+    return None
+
+
 def apply_confidence_gate(ctx: DecisionContext) -> None:
     """Block entry if confidence is below the direction-appropriate threshold.
 
@@ -243,7 +251,7 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
       2. Global direction-specific default (``defaults.min_confidence_buy``)
       3. Per-asset global threshold (``GBPJPY.min_confidence``)
       4. Global default (``defaults.min_confidence``)
-      5. Hard-coded 0.0 (always allow -- safety net)
+      5. Hard-coded 0.55 (separation-of-concerns safety net)
     """
     if ctx.new_side is None:
         return
@@ -252,18 +260,20 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
     cfg_defaults = getattr(cfg, "defaults", {}) or {}
 
     if ctx.new_side == PositionSide.LONG:
-        min_conf = (
-            engine.config.get("min_confidence_buy")
-            or cfg_defaults.get("min_confidence_buy")
-            or engine.config.get("min_confidence")
-            or cfg_defaults.get("min_confidence", 0.0)
+        min_conf = _first_non_none(
+            engine.config.get("min_confidence_buy"),
+            cfg_defaults.get("min_confidence_buy"),
+            engine.config.get("min_confidence"),
+            cfg_defaults.get("min_confidence"),
+            0.55,
         )
     else:  # PositionSide.SHORT
-        min_conf = (
-            engine.config.get("min_confidence_sell")
-            or cfg_defaults.get("min_confidence_sell")
-            or engine.config.get("min_confidence")
-            or cfg_defaults.get("min_confidence", 0.0)
+        min_conf = _first_non_none(
+            engine.config.get("min_confidence_sell"),
+            cfg_defaults.get("min_confidence_sell"),
+            engine.config.get("min_confidence"),
+            cfg_defaults.get("min_confidence"),
+            0.55,
         )
     if ctx.decision.confidence < min_conf:
         logger.debug(

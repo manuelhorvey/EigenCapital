@@ -483,9 +483,11 @@ def _check_markdown_paths() -> list[str]:
                 continue
             # Skip paths under gitignored build artifacts (paper_trading/dashboard/dist/)
             # and optional directories (paper_trading/models/orphaned/)
-            if candidate.startswith("paper_trading/dashboard/dist/") or candidate.startswith(
-                "paper_trading/models/orphaned/"
-            ) or candidate.startswith("paper_trading/models/calibration/"):
+            if (
+                candidate.startswith("paper_trading/dashboard/dist/")
+                or candidate.startswith("paper_trading/models/orphaned/")
+                or candidate.startswith("paper_trading/models/calibration/")
+            ):
                 continue
 
             # Normalize: strip leading ./ or cwd references

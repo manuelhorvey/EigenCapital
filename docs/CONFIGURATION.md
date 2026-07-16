@@ -150,3 +150,123 @@ The following environment variables override hardcoded defaults at runtime. They
 
 
 **Last updated:** 2026-07-16
+
+---
+
+# Supplementary Configuration
+
+The following configurations are **not** part of the typed domain model system. They are loaded
+by `PaperConfigRegistry` or the engine directly from YAML files. The auto-generator
+(`tools/config_docs.py`) does not cover them — update this section manually when these
+configs change.
+
+---
+
+## Directional Classification Map (Shadow/Observation Only)
+
+**File:** `configs/domains/risk/directional_map.yaml`
+
+**Loaded by:** `PaperConfigRegistry` (step 1q-bis), stored as `EngineConfig.directional_map`
+
+**Purpose:** Documents the per-asset directional-skill classification for logging and monitoring.
+This file is **not enforced** — it is an observation-only label. Directional enforcement
+remains with `SellOnlyConfig` (SELL_ONLY filter) and the direction-conditional confidence
+thresholds (`min_confidence_buy`/`min_confidence_sell`) in `configs/domains/risk/sizing.yaml`.
+
+**Tiers:**
+
+| Tier | Meaning |
+|------|---------|
+| `BIDIRECTIONAL` | Both BUY and SELL have positive expectancy. Calibration improves confidence but is not required to discover direction. |
+| `BUY_STRONG` | BUY has positive expectancy; SELL weak/negative. Model naturally predicts BUY. |
+| `SELL_STRONG` | SELL has strong positive expectancy; BUY weak/negative. Raw model may be inverted (always predicts BUY) or collapsed (always neutral). Calibration corrects the inversion. |
+| `SELL_LEANING` | SELL preferred but BUY marginally positive. Not strong enough for SELL_STRONG. |
+| `NEUTRAL` | No reliable directional edge. Asset may need remedial action or removal. |
+
+---
+
+## Risk-by-Capital Tiered Profile
+
+**File:** `configs/domains/risk/sizing.yaml` -> `risk_tiers` key
+
+**Implementation:** `shared/sizing_chain.py:get_risk_for_equity()`
+
+**Purpose:** Dynamically selects `max_risk_per_trade_pct` based on current account equity.
+Overrides the static `max_risk_per_trade_pct` default (2.0) when equity-dependent risk
+is beneficial (e.g., small accounts need tighter risk to survive drawdowns).
+
+**Current production tiers:**
+
+| Threshold (equity >=) | Risk per trade |
+|----------------------|----------------|
+| $5,000 | 2.0% |
+| $0 | 1.0% |
+
+**Logic:** Tiers are sorted by threshold descending. The first tier where
+`equity >= threshold` wins. If no tiers match, falls back to the static default.
+
+### Integration
+
+- **Paper sizing:** `EntryService._submit_to_broker()` calls `get_risk_for_equity()` with paper equity
+- **MT5 sizing:** `EntryService._compute_mt5_qty()` calls `get_risk_for_equity()` with broker equity
+- Both paths apply tiered risk through the same `SizingChain` guardrail (risk cap)
+
+---
+
+## Stacking (Pyramiding) Configuration
+
+**File:** `configs/domains/risk/sizing.yaml` -> `stacking` key
+
+**Status:** `enabled: true`, `dry_run: false`
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_layers` | `2` | Maximum additional layers beyond initial entry |
+| `min_confidence` | `0.60` | Minimum calibrated confidence to add a layer |
+| `adx_threshold` | `25` | Minimum ADX for trending regime |
+| `stack_sl_tighten` | `0.5` | SL multiplier per layer (tighter than initial) |
+| `layer_multipliers` | `[0.8, 0.5]` | Fraction of base entry size per subsequent layer |
+
+---
+
+## Per-Asset Model Depth Reference
+
+**Files:** `configs/domains/assets/<TICKER>.yaml` -> `max_depth` key
+
+**Purpose:** Each asset has an independent `max_depth` for its XGBoost model.
+
+| Depth | Assets |
+|-------|--------|
+| 2 | GC (rolled back from 4), NZDCAD (rolled back from 4), NZDUSD, NZDCHF, GBPCHF (rolled back from 4), AUDJPY, USDJPY |
+| 3 | USDCAD, GBPAUD, CADCHF, EURCAD, BTCUSD, GBPJPY |
+| 4 | USDCHF, EURCHF, GBPUSD, ^DJI |
+| 5 | GBPCAD, AUDUSD, EURNZD, EURAUD, NZDJPY |
+
+**Rollback notes:** GC, NZDCAD, and GBPCHF were rolled back from depth=4 to depth=2
+after the depth optimizer showed that increased depth caused model collapse.
+
+---
+
+## Production Mode Defaults
+
+**File:** `configs/domains/modes/production.yaml`
+
+| Field | Value | Notes |
+|-------|-------|-------|
+| `capital` | `100000` | Paper equity baseline |
+| `max_risk_per_trade_pct` | `1.0` | Risk-tier logic overrides to 2.0% for equity >= $5K |
+| `max_concurrent_positions` | `13` | Portfolio-wide position limit |
+| `factor_exposure_limits.CHF` | `0.20` | Hard constraint in factor_constrained_v2 |
+| `factor_exposure_limits.US_EQUITY` | `0.15` | |
+| `factor_exposure_limits.AUD` | `0.25` | |
+| `factor_exposure_limits.NZD` | `0.25` | |
+| `factor_exposure_limits.JPY` | `0.25` | |
+| `factor_exposure_limits.USD` | `0.60` | |
+| `factor_exposure_limits.EUR` | `0.30` | |
+| `factor_exposure_limits.CAD` | `0.20` | |
+| `factor_exposure_limits.GBP` | `0.15` | |
+| `factor_exposure_limits.COMMODITY` | `0.05` | |
+
+---
+
+**Last updated:** 2026-07-16

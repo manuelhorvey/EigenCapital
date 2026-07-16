@@ -114,6 +114,11 @@ class PaperConfigRegistry:
     # Narrative / macro config — read from configs/domains/governance/narrative.yaml.
     # Also composed into execution.governance.narrative_config for EngineConfig.
     narrative_config: dict[str, Any] = field(default_factory=dict)
+    # Directional classification map — read from configs/domains/risk/directional_map.yaml.
+    # Shadow/observation-only config: the engine loads this to LOG per-asset
+    # directional constraints (e.g. in state.json or the alerter) but does NOT
+    # enforce any direction filter from this file.
+    directional_map: dict[str, Any] = field(default_factory=dict)
     # Mode overrides — read from configs/domains/modes/*.yaml.
     # Each file becomes a mode entry keyed by its stem. Top-level key.
     modes: dict[str, Any] = field(default_factory=dict)
@@ -371,6 +376,15 @@ class PaperConfigRegistry:
         if ss_path.exists():
             session_gate = yaml.safe_load(ss_path.read_text()) or {}
 
+        # Step 1q(bis): directional classification map — configs/domains/risk/directional_map.yaml
+        # Shadow/observation-only. Loaded for logging/monitoring, not enforcement.
+        directional_map: dict[str, Any] = {}
+        dm_path = domains_dir / "risk" / "directional_map.yaml"
+        if dm_path.exists():
+            directional_map = yaml.safe_load(dm_path.read_text()) or {}
+            logger.info("Loaded directional classification map (%d assets classified)",
+                        len(directional_map.get("assets", {})))
+
         # Step 1q: mode overrides — configs/domains/modes/*.yaml
         # Each file becomes a mode entry keyed by its stem (e.g. production.yaml → modes["production"]).
         modes: dict[str, Any] = {}
@@ -493,6 +507,7 @@ class PaperConfigRegistry:
             session_gate=session_gate,
             liquidity_config=liquidity_config,
             narrative_config=narrative_config,
+            directional_map=directional_map,
             modes=modes,
             environments=environments,
             environment_name=environment,
@@ -717,9 +732,16 @@ def _compose_asset(unique: dict, defaults_yaml: dict, governance_regime_geometry
     # Regime geometry: per-asset file wins; governance default is fallback
     if governance_regime_geometry and "regime_geometry" not in composite:
         composite["regime_geometry"] = governance_regime_geometry
+    # Propagate shared defaults from _defaults.yaml to per-asset config
     composite.setdefault("adaptive_exit", defaults_yaml.get("adaptive_exit", {}))
     composite.setdefault("shadow_sltp", defaults_yaml.get("shadow_sltp", {}))
     composite.setdefault("dynamic_sltp", defaults_yaml.get("dynamic_sltp", {}))
+    # regime_sizing is top-level boolean in _defaults.yaml — propagate so
+    # portfolio_builder.py picks it up via AssetConfig.extras → to_legacy_dict()
+    if "regime_sizing" not in composite:
+        _rs = defaults_yaml.get("regime_sizing")
+        if _rs is not None:
+            composite["regime_sizing"] = _rs
     composite["config"] = {
         "shadow_sltp": composite.pop("shadow_sltp"),
         "dynamic_sltp": composite.pop("dynamic_sltp"),

@@ -7,7 +7,7 @@ to legacy YAML keys with the matching path.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import MISSING, Field, dataclass, field
 from typing import Any, Literal
 
 # ── Capital ──────────────────────────────────────────────────────────────
@@ -96,6 +96,14 @@ class SizingConfig:
     max_position_pct_of_equity: float = 0.15
     max_risk_per_trade_pct: float = 2.0
     min_risk_per_trade_pct: float = 0.001
+    risk_tiers: list[dict] = field(default_factory=list)
+    """Risk-by-capital tiered profile.
+
+    List of ``{threshold: float, risk_pct: float}`` dicts evaluated
+    descending threshold. Dynamically overrides ``max_risk_per_trade_pct``
+    based on current account equity. Empty list = disabled (uses flat
+    ``max_risk_per_trade_pct``). Configured in ``sizing.yaml``.
+    """
     min_viable_position_pct: float = 0.01
     size_taper_start_dd: float = -0.05
     size_taper_end_dd: float = -0.15
@@ -233,9 +241,26 @@ class RiskConfig:
         halt = HaltConfig(**canonical_halt)
 
         # Sizing — touch every key so the typed model exhausts the legacy surface
+        def _default_for_field(f: Field) -> Any:
+            """Return the effective default for a dataclass field.
+
+            ``field(default_factory=list)`` creates a field whose default
+            is stored as a factory, not as a class-level attribute.
+            ``getattr(SizingConfig, f.name)`` raises ``AttributeError``
+            for such fields, so we resolve the default via
+            ``f.default`` or ``f.default_factory``.
+            """
+            if f.default is not MISSING:
+                return f.default
+            if f.default_factory is not MISSING:
+                return f.default_factory()
+            return None
+        
+
         sizing_kw = {
             f.name: _coerce(
-                getattr(SizingConfig, f.name), defaults.get(_legacy_key(f.name), getattr(SizingConfig, f.name))
+                _default_for_field(f),
+                defaults.get(_legacy_key(f.name), _default_for_field(f)),
             )
             for f in SizingConfig.__dataclass_fields__.values()
         }

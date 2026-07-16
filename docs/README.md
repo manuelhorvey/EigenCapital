@@ -10,6 +10,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | [`docs/SYSTEM_OVERVIEW.md`](SYSTEM_OVERVIEW.md) | Architecture, components, data flow, governance |
 | [`docs/GOVERNANCE.md`](GOVERNANCE.md) | 17-layer governance + 3 adaptive budget layers + decision pipeline + position sizing guardrails |
 | [`docs/FEATURES.md`](FEATURES.md) | Alpha features (9 base + 6 trend-exhaustion per-asset, 4 cross-asset, 7 regime, archetype, labeling) |
+| [`docs/PRODUCTION_READINESS_AUDIT.md`](PRODUCTION_READINESS_AUDIT.md) | Production readiness assessment, capital growth simulation, risk parameters, deployment checklist |
 | [`LIVE_CONTRACT.md`](../LIVE_CONTRACT.md) | Immutable production system contract |
 | [`docs/MODES.md`](MODES.md) | Per-mode override matrix (production / challenge_ftmo_10k / live) |
 | [`docs/SECURITY.md`](SECURITY.md) | Bearer token auth, MT5 loopback enforcement, .env permission check, secrets scanner |

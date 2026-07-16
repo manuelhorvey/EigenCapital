@@ -191,7 +191,6 @@ def generate_features(asset: str, ticker: str) -> pd.DataFrame | None:
             vix=vix,
             spx=spx,
             commodities=commodities,
-            cot_data=None,
         )
 
         if not ohlcv.empty:

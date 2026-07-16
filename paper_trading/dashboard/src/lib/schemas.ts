@@ -377,6 +377,11 @@ export const PortfolioSummarySchema = z.object({
   live_sharpe: LiveSharpeSchema.optional(),
   admission: PortfolioAdmissionSchema.optional(),
   pek: PekDataSchema.optional(),
+  active_risk_tier: z.object({
+    risk_pct: z.number(),
+    matched_threshold: z.number().nullable(),
+    current_equity: z.number(),
+  }).optional(),
   edge_health: EdgeHealthSummarySchema.optional(),
   weekend_cycle: z.boolean().optional(),
 })

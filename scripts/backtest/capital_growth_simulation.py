@@ -185,7 +185,7 @@ def _compute_lots(notional: float, asset_class: str, class_params: dict, equity:
     else:
         raw_lots = notional / 100000.0
 
-    if raw_lots <= 0:
+    if not math.isfinite(raw_lots) or raw_lots <= 0:
         return 0.0, 0.0
 
     # Round UP to nearest min_lot increment
@@ -276,12 +276,15 @@ def compute_trade_pnl_dollar(
 
     # Risk cap: max loss = equity × max_risk_per_trade_pct
     # For accounts where min-lot constraints force larger positions,
-    # allow up to 3× the normal risk cap (institutional practice)
+    # allow up to 3× the normal risk cap (institutional practice).
+    # EXCEPTION: accounts under $1,000 equity keep the cap at 1× so
+    # the 1% risk config binds fully and prevents outsized drawdowns
+    # from min-lot quantization at small equity levels.
     if r_multiple < 0:
         normal_max_loss = equity * (params.max_risk_per_trade_pct / 100.0)
-        min_lot_risk_multiplier = 3.0
+        min_lot_risk_multiplier = 1.0 if equity < 1000.0 else 3.0
         max_loss = normal_max_loss * min_lot_risk_multiplier
-        if abs(pnl) > max_loss:
+        if abs(pnl) > max_loss and max_loss > 0:
             pnl = -max_loss
 
     # Spread cost based on actual notional
@@ -324,9 +327,18 @@ def parse_dt(s: Any) -> datetime:
     return datetime(2024, 1, 1)
 
 
-def load_trades() -> list[SimTrade]:
-    """Load all historical trades from the trade lifecycle results."""
-    with open(TRADE_PATH) as f:
+def load_trades(trade_path: Path | None = None) -> list[SimTrade]:
+    """Load all historical trades from the trade lifecycle results.
+
+    Parameters
+    ----------
+    trade_path : Path | None
+        Path to the trade lifecycle JSON file.  Falls back to the module-level
+        ``TRADE_PATH`` constant (``data/processed/trade_lifecycle_results.json``)
+        when ``None``.
+    """
+    path = trade_path or TRADE_PATH
+    with open(path) as f:
         data = json.load(f)
 
     raw_trades = data.get("_trades", {})
@@ -344,9 +356,20 @@ def load_trades() -> list[SimTrade]:
 
         for t in trades:
             r_mult = t.get("r_multiple", 0.0)
+            if r_mult is None or not math.isfinite(r_mult):
+                r_mult = 0.0
+
             atr_pct = t.get("atr_pct_entry", 0.01)
-            if atr_pct is None or atr_pct <= 0:
+            if atr_pct is None or not math.isfinite(atr_pct) or atr_pct <= 0:
                 atr_pct = 0.01
+
+            entry_px = t.get("entry_price", 0.0)
+            if entry_px is None or not math.isfinite(entry_px):
+                entry_px = 0.0
+
+            exit_px = t.get("exit_price", 0.0)
+            if exit_px is None or not math.isfinite(exit_px):
+                exit_px = 0.0
 
             entry = parse_dt(t.get("entry_date"))
             exit_dt = parse_dt(t.get("exit_date"))
@@ -358,8 +381,8 @@ def load_trades() -> list[SimTrade]:
                 exit_date=exit_dt,
                 r_multiple=float(r_mult),
                 atr_pct_entry=float(atr_pct),
-                entry_price=float(t.get("entry_price", 0.0)),
-                exit_price=float(t.get("exit_price", 0.0)),
+                entry_price=float(entry_px),
+                exit_price=float(exit_px),
                 tp_price=float(t.get("tp_price", 0.0)),
                 sl_price=float(t.get("sl_price", 0.0)),
                 exit_reason=t.get("exit_reason", "unknown"),
@@ -1796,10 +1819,21 @@ def main():
     parser.add_argument("--no-bootstrap", action="store_true", help="Skip bootstrap Monte Carlo")
     parser.add_argument("--bootstrap-trials", type=int, default=500, help="Number of bootstrap trials (default: 500)")
     parser.add_argument("--sensitivity", action="store_true", help="Run sensitivity analysis")
+    parser.add_argument("--trade-path", type=str, default=None,
+                        help="Path to trade lifecycle JSON (default: data/processed/trade_lifecycle_results.json)")
     parser.add_argument("--unrounded", action="store_true",
                         help="Skip min-lot rounding in compounding comparison so the true "
                              "compounding benefit is isolated from broker constraints")
     args = parser.parse_args()
+
+    # Resolve trade path
+    if args.trade_path:
+        trade_path = Path(args.trade_path)
+        if not trade_path.is_absolute():
+            trade_path = ROOT / trade_path
+        logger.info("Using custom trade path: %s", trade_path)
+    else:
+        trade_path = TRADE_PATH
 
     start_capital = args.start_capital
     output_path = Path(args.output) if args.output else REPORT_PATH
@@ -1814,7 +1848,7 @@ def main():
 
     # Step 1: Load trades
     logger.info("Loading trade data...")
-    trades = load_trades()
+    trades = load_trades(trade_path=trade_path)
     logger.info(f"Loaded {len(trades)} trades")
 
     # Step 2: Load sizing params

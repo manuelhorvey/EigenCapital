@@ -186,8 +186,13 @@ class PortfolioStateBuilder:
                 continue
             gates_list.append(self._compute_asset_gates(name, eng))
 
-        # ── Risk parameters from mode config ──
-        max_risk_pt = self._mode.get("max_risk_per_trade_pct", 1.0)
+        # ── Risk parameters from mode config (tiered by equity) ──
+        from shared.sizing_chain import get_risk_for_equity
+        max_risk_pt = get_risk_for_equity(
+            total_equity,
+            self._mode.get("risk_tiers"),
+            self._mode.get("max_risk_per_trade_pct", 1.0),
+        )
         min_risk_pt = self._mode.get("min_risk_per_trade_pct", 0.10)
         ranking_enabled = self._mode.get("position_ranking", {}).get("enabled", False)
 

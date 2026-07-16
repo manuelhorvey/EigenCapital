@@ -77,7 +77,7 @@ class FeatureBuilder:
         )
 
         if self._truncate_inference:
-            _trunc_rows = _MAX_INDICATOR_LOOKBACK + 50
+            _trunc_rows = _MAX_INDICATOR_LOOKBACK + 256
             hist_prices = hist_prices.iloc[-_trunc_rows:]
             if not rate_diffs.empty:
                 rate_diffs = rate_diffs.iloc[-_trunc_rows:]
@@ -154,6 +154,50 @@ class FeatureBuilder:
         if event_df is not None and not event_df.empty:
             for col in event_df.columns:
                 alpha_df[f"{prefix}_{col}"] = event_df[col].reindex(alpha_idx)
+
+        # ── Lead-lag custom features from FeatureContract ────────────
+        # Custom features like gc_lead_1 are computed as lagged returns
+        # of the leader asset. Uses the same OHLCV data pipeline as the
+        # asset's own features.
+        _custom_feats = getattr(asset.contract, "custom_features", ())
+        if _custom_feats:
+            from features.lead_lag_features import load_lead_lag_edges
+
+            _edges = load_lead_lag_edges()
+            _leader_cache_local: dict[str, pd.Series] = {}
+            for _edge in _edges:
+                if _edge.get("target") != asset.ticker:
+                    continue
+                _col = _edge.get("column", "")
+                if _col not in _custom_feats or _col in alpha_df.columns:
+                    continue
+                _leader_ticker = _edge.get("leader", "")
+                _lag = _edge.get("lag", 1)
+                if _leader_ticker not in _leader_cache_local:
+                    try:
+                        _lohlcv = fetch_asset_ohlcv(_leader_ticker)
+                        if _lohlcv is not None and not _lohlcv.empty and "close" in _lohlcv.columns:
+                            _leader_cache_local[_leader_ticker] = _lohlcv["close"]
+                        else:
+                            logger.warning(
+                                "%s: leader OHLCV empty for %s — skipping '%s'",
+                                asset.name, _leader_ticker, _col,
+                            )
+                            continue
+                    except (OSError, ValueError, KeyError) as _exc:
+                        logger.warning(
+                            "%s: failed to fetch leader %s for '%s': %s",
+                            asset.name, _leader_ticker, _col, _exc,
+                        )
+                        continue
+                _leader_close = _leader_cache_local.get(_leader_ticker)
+                if _leader_close is not None:
+                    _lret = _leader_close.pct_change().dropna()
+                    alpha_df[_col] = _lret.shift(_lag).reindex(alpha_idx)
+                    logger.info(
+                        "%s: added lead-lag feature '%s' at inference (leader=%s, lag=%d)",
+                        asset.name, _col, _leader_ticker, _lag,
+                    )
 
         # ── Archetype features (EMA, ADX, RSI, Bollinger) ───────────
         if not ohlcv.empty:

@@ -205,6 +205,18 @@ def norm_index(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _save_cache(ticker: str, df: pd.DataFrame) -> None:
+    """Persist *df* to the store cache if a store is available.
+
+    Safe to call from diagnostic scripts (``psi_feature_deepdive.py``,
+    ``psi_sweep.py``, etc.) that have no running engine — store is
+    ``None`` and the call becomes a no-op.
+    """
+    store = _get_store()
+    if store is not None:
+        store.save_cache(ticker, df)
+
+
 def _cache_path(ticker: str) -> str:
     store = _get_store()
     if store is not None:
@@ -232,7 +244,7 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
         df = _mt5_fetch_ohlcv(ticker, years=int(years) + 1)
         if not df.empty:
             _cache_set(cache_key, df, "download")
-            _get_store().save_cache(ticker, df)
+            _save_cache(ticker, df)
             _check_data_quality(df, ticker, source="mt5")
             return df
         logger.warning("MT5 fetch returned empty for %s — falling back to yfinance", ticker)
@@ -251,7 +263,7 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = [c[0] for c in df.columns]
                 _cache_set(cache_key, df, "download")
-                _get_store().save_cache(ticker, df)
+                _save_cache(ticker, df)
                 _check_data_quality(df, ticker, source="live")
                 return df
             logger.warning("%s empty response attempt %d/3", ticker, attempt)
@@ -260,9 +272,11 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
         if attempt < len(delays):
             time.sleep(delay)
     logger.error("%s failed after 3 attempts — using cached data", ticker)
-    df = _get_store().load_cache(ticker)
+    store = _get_store()
+    df = store.load_cache(ticker) if store is not None else None
     if df is not None:
-        logger.info("%s using cached data from %s", ticker, _get_store().cache_path(ticker))
+        cache_p = store.cache_path(ticker) if store is not None else "unknown"
+        logger.info("%s using cached data from %s", ticker, cache_p)
         _check_data_quality(df, ticker, source="cache")
         return df
     logger.error("%s no cached data available", ticker)

@@ -13,7 +13,7 @@ from paper_trading.ops.market_hours import is_weekend
 from paper_trading.position.adaptive_exit import AdaptiveExitEngine
 from paper_trading.position.batch import PositionBatch
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine
-from shared.sizing_chain import SizingChain, SizingInput, SizingResult
+from shared.sizing_chain import SizingChain, SizingInput, SizingResult, get_risk_for_equity
 from shared.volatility import estimate_ewm_vol
 
 logger = logging.getLogger("eigencapital.entry_service")
@@ -445,12 +445,17 @@ class EntryService:
                     size_scalar,
                 )
 
+            max_risk = get_risk_for_equity(
+                effective_cap,
+                cfg.get("risk_tiers"),
+                cfg.get("max_risk_per_trade_pct", 2.0),
+            )
             sizing_input = SizingInput(
                 equity=effective_cap,
                 drawdown_pct=dd_pct,
                 size_scalar=size_scalar,
                 max_position_pct=cfg.get("max_position_pct_of_equity", 0.15),
-                max_risk_pct=cfg.get("max_risk_per_trade_pct", 2.0),
+                max_risk_pct=max_risk,
                 min_viable_pct=cfg.get("min_viable_position_pct", 0.01),
                 drawdown_taper_start=cfg.get("size_taper_start_dd", -0.05),
                 drawdown_taper_end=cfg.get("size_taper_end_dd", -0.15),
@@ -545,12 +550,24 @@ class EntryService:
         # mt5_enable_max_risk_per_trade_pct: master switch (defaults to
         # False). When false, pass inf as max_risk_pct so sizing chain
         # step 3 never binds — the broker's margin controls handle risk.
-        # mt5_max_risk_per_trade_pct: the percentage value (only used when
-        #   above is true).
+        # mt5_max_risk_per_trade_pct: fallback percentage (used when
+        #   above is true and no tiered risk_tiers are configured).
         # mt5_bypass_risk_cap_at_min_lot: when risk cap IS enabled, allows
         #   the bump to min viable lot even if it exceeds the cap.
+        #
+        # Tiered risk: when risk_tiers is configured (see sizing.yaml),
+        # the system applies equity-dependent risk via get_risk_for_equity(),
+        # matching the paper path behavior. This allows e.g. 1.0% for
+        # accounts < $5K and 2.0% for $5K+ on MT5 as well.
         mt5_risk_enabled = cfg.get("mt5_enable_max_risk_per_trade_pct", False)
-        max_risk_pct = cfg.get("mt5_max_risk_per_trade_pct", 10.0) if mt5_risk_enabled else float("inf")
+        if mt5_risk_enabled:
+            risk_tiers = cfg.get("risk_tiers")
+            if risk_tiers:
+                max_risk_pct = get_risk_for_equity(mt5_equity, risk_tiers, cfg.get("mt5_max_risk_per_trade_pct", 10.0))
+            else:
+                max_risk_pct = cfg.get("mt5_max_risk_per_trade_pct", 10.0)
+        else:
+            max_risk_pct = float("inf")
 
         sizing_input = SizingInput(
             equity=mt5_equity,

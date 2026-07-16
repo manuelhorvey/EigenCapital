@@ -7,6 +7,32 @@ import { Skeleton } from './ui/Skeleton'
 import { formatTimeAgo } from '../utils/format'
 import { gridMetric7, GRID_GAP } from '../design/grid'
 
+/** Color-coded risk tier badge. */
+function RiskTierBadge({ riskPct, matchedThreshold }: { riskPct: number; matchedThreshold: number | null }) {
+  const isLow = riskPct <= 1.0
+  const isMid = riskPct > 1.0 && riskPct <= 1.5
+
+  const bg = isLow ? 'bg-gov-green/10 border-gov-green/20 text-gov-green'
+    : isMid ? 'bg-gov-yellow/10 border-gov-yellow/20 text-gov-yellow'
+    : 'bg-gov-red/10 border-gov-red/20 text-gov-red'
+
+  const dotColor = isLow ? 'bg-gov-green' : isMid ? 'bg-gov-yellow' : 'bg-gov-red'
+
+  const label = matchedThreshold != null && matchedThreshold > 0
+    ? `Risk ${riskPct.toFixed(1)}% (≥ $${matchedThreshold.toLocaleString()})`
+    : `Risk ${riskPct.toFixed(1)}%`
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wider ${bg}`}
+      title={`Active risk tier: ${riskPct.toFixed(1)}% per trade`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+      {label}
+    </span>
+  )
+}
+
 function Stat({
   label,
   value,
@@ -41,6 +67,7 @@ function QuickStatsGridInner() {
     p?.last_update ?? snapshot?.engine_status?.last_update ?? snapshot?.timestamp
   const alerts = useMonitorAlerts()
   const criticalAlerts = alerts.filter((a) => a.severity === 'critical').length
+  const riskTier = p?.active_risk_tier
 
   if (!p) {
     return (
@@ -61,7 +88,12 @@ function QuickStatsGridInner() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 text-2xs text-tertiary font-mono tabular-nums border-b border-default">
-        <span>{lastUpdate ? `Snapshot ${formatTimeAgo(lastUpdate)}` : ''}</span>
+        <span className="flex items-center gap-2">
+          <span>{lastUpdate ? `Snapshot ${formatTimeAgo(lastUpdate)}` : ''}</span>
+          {riskTier && (
+            <RiskTierBadge riskPct={riskTier.risk_pct} matchedThreshold={riskTier.matched_threshold} />
+          )}
+        </span>
         <span>{p.start_date ? `Since ${p.start_date}` : ''}</span>
         {criticalAlerts > 0 && (
           <span role="status" className="text-gov-red font-semibold">

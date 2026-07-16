@@ -206,8 +206,9 @@ def run_single(asset_name: str, ticker: str, pt_sl: tuple[float, float],
                 label_type="standard",
                 invert_labels=False,
                 sample_weight_flag=False,
-                calibrate_flag=False,
+                calibrate_flag=True,
                 no_scale_pos_weight=False,
+                expanded_data_dir="auto",
             )
     except Exception as e:
         logger.error("FAIL: %s depth=%d — %s", asset_name, depth, e)

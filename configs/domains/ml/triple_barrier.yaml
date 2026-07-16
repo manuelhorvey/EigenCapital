@@ -57,6 +57,8 @@ assets:
   EURCHF:
     pt: 3.0
     sl: 1.0
+    vol_method: atr
+    atr_period: 14
   EURCAD:
     pt: 2.12
     sl: 0.71
@@ -68,6 +70,8 @@ assets:
   GBPCHF:
     pt: 2.45
     sl: 0.82
+    vol_method: atr
+    atr_period: 14
   GBPUSD:
     pt: 1.97
     sl: 0.52
@@ -95,6 +99,8 @@ assets:
   GBPJPY:
     pt: 2.22
     sl: 0.50
+    vol_method: atr
+    atr_period: 14
   USDJPY:
     pt: 1.97
     sl: 0.52

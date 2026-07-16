@@ -48,14 +48,14 @@ def test_classify_drift_no_drift():
 
 
 def test_classify_drift_moderate():
-    assert PSIMonitor.classify_drift(0.1) == "MODERATE"
-    assert PSIMonitor.classify_drift(0.15) == "MODERATE"
-    assert PSIMonitor.classify_drift(0.1999) == "MODERATE"
+    assert PSIMonitor.classify_drift(0.30) == "MODERATE"
+    assert PSIMonitor.classify_drift(0.45) == "MODERATE"
+    assert PSIMonitor.classify_drift(0.5999) == "MODERATE"
 
 
 def test_classify_drift_severe():
-    assert PSIMonitor.classify_drift(0.2) == "SEVERE"
-    assert PSIMonitor.classify_drift(0.5) == "SEVERE"
+    assert PSIMonitor.classify_drift(0.60) == "SEVERE"
+    assert PSIMonitor.classify_drift(0.80) == "SEVERE"
     assert PSIMonitor.classify_drift(1.0) == "SEVERE"
 
 
@@ -177,7 +177,7 @@ def test_penalty_moderate():
         X_current = pd.DataFrame({"a": np.random.normal(1.5, 1, 100)})
         snapshot = monitor.compute_drift("test_asset", X_current, [("a", 1.0)])
 
-        assert snapshot.penalty in (0.0, -0.08, -0.20)
+        assert snapshot.penalty in (0.0, -0.05, -0.10)
 
 
 def test_penalty_severe():
@@ -189,7 +189,7 @@ def test_penalty_severe():
         X_current = pd.DataFrame({"a": np.random.normal(5, 1, 100)})
         snapshot = monitor.compute_drift("test_asset", X_current, [("a", 1.0)])
 
-        assert snapshot.penalty == -0.20
+        assert snapshot.penalty == -0.10
 
 
 def test_penalty_moderate_and_severe_additive():
@@ -210,12 +210,12 @@ def test_penalty_moderate_and_severe_additive():
 
         assert snapshot is not None
         assert snapshot.moderate_count > 0 or snapshot.severe_count > 0
-        # When both MODERATE and SEVERE fire, penalty = -0.08 + -0.20 = -0.28
+        # When both MODERATE and SEVERE fire, penalty = -0.05 + -0.10 = -0.15
         if snapshot.moderate_count > 0 and snapshot.severe_count > 0:
-            assert snapshot.penalty == -0.28, f"Expected -0.28 for both flags, got {snapshot.penalty}"
+            assert snapshot.penalty == -0.15, f"Expected -0.15 for both flags, got {snapshot.penalty}"
 
 
-def test_psi_ok_requires_3_severe():
+def test_psi_ok_requires_5_severe():
     with tempfile.TemporaryDirectory() as tmp:
         monitor = PSIMonitor(tmp)
         rng = np.random.default_rng(42)
@@ -233,13 +233,13 @@ def test_psi_ok_requires_3_severe():
             "c": rng.normal(0, 1, 100),
         })
         snap = monitor.compute_drift("test_asset", X_two, [("a", 0.4), ("b", 0.3), ("c", 0.3)])
-        if snap and snap.severe_count >= 3:
+        if snap and snap.severe_count >= 5:
             assert snap.psi_ok is False
         elif snap:
             assert snap.psi_ok is True
 
 
-def test_psi_ok_halted_at_3_severe():
+def test_psi_ok_halted_at_5_severe():
     with tempfile.TemporaryDirectory() as tmp:
         monitor = PSIMonitor(tmp)
         rng = np.random.default_rng(42)
@@ -247,15 +247,19 @@ def test_psi_ok_halted_at_3_severe():
             "a": rng.normal(0, 1, 500),
             "b": rng.normal(0, 1, 500),
             "c": rng.normal(0, 1, 500),
+            "d": rng.normal(0, 1, 500),
+            "e": rng.normal(0, 1, 500),
         })
         monitor.persist_baseline("test_asset", X_train)
 
-        X_three = pd.DataFrame({
+        X_five = pd.DataFrame({
             "a": rng.normal(5, 1, 100),
             "b": rng.normal(5, 1, 100),
             "c": rng.normal(5, 1, 100),
+            "d": rng.normal(5, 1, 100),
+            "e": rng.normal(5, 1, 100),
         })
-        snap = monitor.compute_drift("test_asset", X_three, [("a", 0.4), ("b", 0.3), ("c", 0.3)])
+        snap = monitor.compute_drift("test_asset", X_five, [("a", 0.2), ("b", 0.2), ("c", 0.2), ("d", 0.2), ("e", 0.2)])
         if snap:
-            assert snap.severe_count >= 3, f"Expected >=3 severe, got {snap.severe_count}"
+            assert snap.severe_count >= 5, f"Expected >=5 severe, got {snap.severe_count}"
             assert snap.psi_ok is False

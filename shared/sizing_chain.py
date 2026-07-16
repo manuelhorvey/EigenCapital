@@ -6,6 +6,50 @@ from dataclasses import dataclass, field
 logger = logging.getLogger("eigencapital.sizing_chain")
 
 
+# ── Risk-tier helper ────────────────────────────────────────────────
+# Risk tiers are defined in configs/domains/risk/sizing.yaml as a list of
+# {threshold: float, risk_pct: float} dicts, evaluated descending threshold.
+
+
+def get_risk_for_equity(
+    equity: float,
+    risk_tiers: list[dict] | None = None,
+    default_risk: float = 2.0,
+) -> float:
+    """Select max_risk_per_trade_pct based on tiered equity profile.
+
+    Tiers are sorted by threshold descending, then the first tier where
+    ``equity >= threshold`` wins. If no tiers match or tiers are empty,
+    returns ``default_risk``.
+
+    Parameters
+    ----------
+    equity:
+        Current account equity (paper or MT5).
+    risk_tiers:
+        List of ``{threshold: float, risk_pct: float}`` dicts from config.
+        Example: ``[{threshold: 5000, risk_pct: 2.0}, {threshold: 0, risk_pct: 1.0}]``
+    default_risk:
+        Fallback if no tiers are configured or equity is <= 0.
+
+    Returns
+    -------
+        Effective ``max_risk_per_trade_pct`` as a percentage (e.g. 1.0 = 1%).
+    """
+    if equity <= 0 or not risk_tiers:
+        return default_risk
+
+    # Sort descending by threshold so higher thresholds match first.
+    # This allows: >=5000 -> 2.0%, else -> 1.0%
+    sorted_tiers = sorted(risk_tiers, key=lambda t: t.get("threshold", 0), reverse=True)
+    for tier in sorted_tiers:
+        threshold = tier.get("threshold", 0)
+        if equity >= threshold:
+            return tier.get("risk_pct", default_risk)
+
+    return default_risk
+
+
 @dataclass
 class SizingInput:
     """Pure data — no references to AssetEngine or broker internals."""

@@ -37,7 +37,7 @@ CORE_FEATURES = {
     "zscore_20", "vol_ratio", "dow_signal", "has_cot",
 }
 TREND_EXHAUSTION = {
-    "macd_hist", "stoch_k", "stoch_d", "bb_pct_b", "adx_slope", "rsi_divergence",
+    "macd_hist", "stoch_k", "stoch_d", "adx_slope",
 }
 REGIME_FEATURES = {
     "hurst", "kaufman_er", "adx", "vol_zscore", "compression",
@@ -201,7 +201,7 @@ def analyze_feature_redundancy(results: dict[str, dict]) -> list[dict]:
     """Compute pairwise rank-correlation of base features across all assets.
 
     Uses Spearman correlation of mean feature ranks.
-    Excludes zero-gain features (has_cot, bb_pct_b, rsi_divergence, cot_z, cot_change_4w)
+    Excludes zero-gain features (has_cot, cot_z, cot_change_4w)
     which bias correlations via constant tie at bottom ranks.
     """
     rank_by_asset: dict[str, dict[str, float]] = {}
@@ -404,8 +404,6 @@ def generate_report(
     w()
     for _, row in bottom_feats.iterrows():
         extra = ""
-        if row["base_feature"] == "bb_pct_b":
-            extra = " (only NZDJPY has nonzero gain)"
         if row["base_feature"] == "stoch_d":
             extra = " (nonzero for 13 assets despite low median)"
         w(f"- **{row['base_feature']}**: mean rank {row['mean_rank']:.1f}, median gain {row['median_gain_pct']:.2f}%, present in {row['presence_pct']:.0f}% of assets{extra}")
@@ -556,7 +554,7 @@ def generate_report(
     w("### Tier 2 — Include (useful but narrower applicability)")
     w("- **macd_hist**: trend-exhaustion, top-5 for many assets")
     w("- **stoch_k / stoch_d**: overbought/oversold, moderate importance")
-    w("- **bb_pct_b**: Bollinger %B position")
+    w("- **adx_slope**: trend exhaustion, moderate importance")
     w("- **adx_slope**: trend exhaustion, moderate importance")
     w("- **dxy_mom_21d**: USD momentum — important for FX assets")
     w("- **vix_mom_5d**: risk sentiment — important during risk-off")

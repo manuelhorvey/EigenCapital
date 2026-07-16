@@ -46,8 +46,14 @@ class RiskEngineV2:
         Returns:
             RiskBudget: effective risk limits for this cycle.
         """
-        # ── Base risk from config ──
-        base_risk = self._mode.get("max_risk_per_trade_pct", 1.0)
+        # ── Base risk from config (tiered by equity) ──
+        from shared.sizing_chain import get_risk_for_equity
+
+        base_risk = get_risk_for_equity(
+            portfolio.total_equity,
+            self._mode.get("risk_tiers"),
+            self._mode.get("max_risk_per_trade_pct", 1.0),
+        )
         min_risk = self._mode.get("min_risk_per_trade_pct", 0.10)
 
         # ── Drawdown scalar — tighter as drawdown deepens ──

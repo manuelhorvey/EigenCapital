@@ -1,0 +1,405 @@
+# EigenCapital — Per-Asset Directional Classification Map
+#
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║  SHADOW / OBSERVATION-ONLY CONFIG                                       ║
+# ║                                                                         ║
+# ║  This file documents the current directional-skill classification for   ║
+# ║  each asset in the 22-asset portfolio. The engine loads this config to   ║
+# ║  LOG the per-asset directional constraint (e.g. in state.json or the     ║
+# ║  alerter), but does NOT enforce any direction filter from this file.     ║
+# ║                                                                         ║
+# ║  The authoritative ENFORCED direction filter remains the                 ║
+# ║  SELL_ONLY_ASSETS list in configs/domain_models/risk.py (SellOnlyConfig)║
+# ║  and the `get_sell_only_assets()` function in                            ║
+# ║  paper_trading/execution/gate_constants.py.                             ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
+#
+# Methodology
+# ===========
+# Classification was determined through a systematic end-to-end investigation
+# (July 2026) that analyzed:
+#
+#   1. Raw (uncalibrated) p_long probability distribution spread & mean
+#   2. Calibrated signal BUY/SELL trade counts and win rates
+#   3. Production trade lifecycle R-multiple contribution by direction
+#   4. Walk-forward stability across rolling windows (365d window, 182d step)
+#   5. Calibration dependency (how much the model relies on calibration to
+#      produce viable signals)
+#   6. Calibrator Platt coefficients — simulated calibrated signal performance
+#      from raw walk-forward p_long values
+#
+# Tiers
+# =====
+#   BIDIRECTIONAL   — Both BUY and SELL have positive expectancy.
+#                     Calibration improves confidence but is not required
+#                     to discover direction.
+#
+#   SELL_STRONG     — SELL has strong positive expectancy; BUY has
+#                     negative or near-zero expectancy. Raw model may be
+#                     inverted (always predicts BUY) or collapsed (always
+#                     neutral). Calibration corrects the inversion and
+#                     reveals SELL alpha.
+#
+#   BUY_STRONG      — BUY has positive expectancy; SELL has negative or
+#                     near-zero expectancy. The model naturally predicts
+#                     BUY direction.
+#
+#   SELL_LEANING    — SELL is preferred but BUY shows marginal positive
+#                     expectancy. Not strong enough to classify as fully
+#                     SELL_STRONG. Monitor for directional drift.
+#
+#   NEUTRAL         — No reliable directional edge. Directional performance
+#                     is negative or inconsistent across windows. Asset may
+#                     be degrading and needs remedial action (depth revert,
+#                     feature additions, or removal consideration).
+#
+# Revision history
+# ================
+# 2026-07-16  v2 — Updated with fresh_v2 retrained model stability analysis
+#             (21 assets) and calibration impact simulation (4 key assets).
+# 2026-07-16  v2.1 — EURCAD reclassified NEUTRAL→SELL_STRONG. Full 22-asset
+#             calibration impact analysis showed raw SELL R=+444.87 vs
+#             raw BUY R=+39.50. The -76.78R NEUTRAL finding was an
+#             R-computation bug in the stability analysis.
+# 2026-07-16  v2.2 — EURNZD and NZDUSD reclassified NEUTRAL→SELL_STRONG.
+#             Both were also victims of the stability-analysis R bug.
+#             EURNZD: raw SELL R=+717.92 (actually improved from +65R v1)
+#             NZDUSD: raw SELL R=+899.13 (variance compressed but correct)
+#             Key changes (items marked † are R-bug corrections to v2):
+#             - GBPCHF: SELL_STRONG → NEUTRAL (collapsed model, std 0.0023)
+#             - EURCAD: BUY_STRONG → NEUTRAL † (corrected: SELL_STRONG +445R)
+#             - EURNZD: SELL_STRONG → NEUTRAL † (corrected: SELL_STRONG +718R)
+#             - NZDUSD: SELL_STRONG → NEUTRAL † (corrected: SELL_STRONG +899R)
+#             - AUDUSD: BIDIRECTIONAL → NEUTRAL (near-zero, -2.29R)
+#             - GBPJPY: BIDIRECTIONAL → BUY_STRONG (shifted direction)
+#             - USDCAD: BIDIRECTIONAL → SELL_STRONG (shifted to SELL)
+#             - GBPCAD: BIDIRECTIONAL → SELL_STRONG (shifted to SELL)
+#             - EURCHF: kept SELL_STRONG (calibration recovers +494R from
+#               raw -90R; the inversion is fully correctable)
+#             - NZDCAD: kept SELL_STRONG (corrected R shows +972R SELL
+#               profit; previous -285R was from a computation bug)
+#             - GC: kept BIDIRECTIONAL (corrected R shows +536R raw / +161R
+#               calibrated, both directions profitable)
+# 2026-07-16  v3 — Feature remediation cycle (feature_fix_v3 retrain).
+#             GBPCHF FIXED: added 126 momentum window → hit_rate +0.730,
+#             100% SELL (was collapsed at std 0.0023). NZDUSD/AUDUSD
+#             did not respond to feature additions. EURCHF unchanged.
+# 2026-07-15  v1 — Initial classification from comprehensive directional audit.
+
+metadata:
+  version: 3
+  date: 2026-07-16
+  methodology: >-
+    End-to-end directional audit: raw p_long distribution (fresh_v2
+    walk-forward), calibrated signal simulation via DirectionalPlatt,
+    rolling-window stability analysis (365d window, 182d step),
+    calibration dependency analysis.
+  source_investigations:
+    - Phase 1: fresh_v2 walk-forward signal parquet analysis
+    - Phase 2: Directional stability analysis (21 assets, rolling windows)
+    - Phase 3: Calibration impact simulation (4 degraded assets)
+    - Phase 4: Calibrator Platt coefficient analysis
+    - Phase 5: Trade lifecycle attribution (fresh_v2 signals, corrected R)
+  shadow_only: true
+  notes: >-
+    This map is for logging and monitoring only. Directional enforcement
+    should remain with the SELL_ONLY filter in SellOnlyConfig and the
+    direction-conditional thresholds (min_confidence_buy/min_confidence_sell)
+    in sizing.yaml. Several assets show low temporal stability (<60%) —
+    classifications may shift after the next retrain cycle.
+
+# ── Per-asset classification ───────────────────────────────────────────────
+assets:
+  # ── BIDIRECTIONAL (Both BUY and SELL have positive expectancy) ──────────
+  AUDJPY:
+    tier: BIDIRECTIONAL
+    raw_p_long_mean: 0.50
+    raw_p_long_std: 0.016
+    calibrated_BUY_R: ~+60
+    calibrated_SELL_R: ~+40
+    depth: 2
+    notes: >-
+      Walker-forward shows balanced BUY (+100.41R total). SELL also
+      profitable. Low temporal stability (50%) — direction shifts between
+      windows. Default depth=2 sufficient.
+
+  GBPAUD:
+    tier: BIDIRECTIONAL
+    raw_p_long_mean: 0.49
+    raw_p_long_std: 0.020
+    calibrated_BUY_R: ~+70
+    calibrated_SELL_R: ~+40
+    depth: 3
+    notes: >-
+      Moderate stability (50%). BUY_DOMINANT lean in recent windows.
+      Both directions positive. +110.20R total.
+
+  BTCUSD:
+    tier: BIDIRECTIONAL
+    raw_p_long_mean: 0.50
+    raw_p_long_std: 0.018
+    calibrated_BUY_R: ~+80
+    calibrated_SELL_R: ~+45
+    depth: 3
+    notes: >-
+      Crypto-specific volatility handled by depth=3. Low temporal
+      stability (33%) — volatile classification.
+
+  GC:
+    tier: BIDIRECTIONAL
+    raw_p_long_mean: 0.44
+    raw_p_long_std: 0.172
+    calibrated_BUY_R: +58
+    calibrated_SELL_R: +103
+    depth: 4
+    notes: >-
+      Corrected R from calibration impact analysis: +536R raw (BUY +104,
+      SELL +432), +161R calibrated (BUY +58, SELL +103). Both directions
+      profitable under calibration. The depth=4 model is overconfident
+      (0% neutral signals vs 70% in baseline depth=2) — calibration
+      correctly filters 325/384 signals as neutral. Previous -31R finding
+      was from an R-computation bug in the stability analysis.
+
+  GBPUSD:
+    tier: BIDIRECTIONAL
+    raw_p_long_mean: 0.48
+    raw_p_long_std: 0.022
+    calibrated_BUY_R: ~+60
+    calibrated_SELL_R: ~+45
+    depth: 4
+    notes: >-
+      Low temporal stability (25%) — classification flips between
+      windows. Total R +104.57 but direction unreliable.
+
+  # ── BUY_STRONG (BUY has positive expectancy; SELL is weak/negative) ──────
+  GBPJPY:
+    tier: BUY_STRONG
+    raw_p_long_mean: 0.52
+    raw_p_long_std: 0.014
+    calibrated_BUY_R: ~+70
+    calibrated_SELL_R: ~+35
+    depth: 3
+    notes: >-
+      Shifted from BIDIRECTIONAL (v1) to BUY_STRONG in fresh_v2.
+      Transition map: Bi > Bd > B! > B! — progressively more BUY-confident
+      over time. Moderate stability (50%). Total R +104.48. Previously
+      SELL_ONLY in legacy config — depth=3 and features recovered BUY
+      alpha but SELL has weakened.
+
+  USDCHF:
+    tier: BUY_STRONG
+    raw_p_long_mean: 0.55
+    raw_p_long_std: 0.030
+    calibrated_BUY_R: ~+90
+    calibrated_SELL_R: ~+40
+    depth: 4
+    notes: >-
+      Highest total R (+133.50). Low temporal stability (25%) —
+      classification alternates between BUY and SELL windows. The CHF
+      safe-haven dynamic produces asymmetric BUY profitability on longer
+      horizons.
+
+  USDJPY:
+    tier: BUY_STRONG
+    raw_p_long_mean: 0.52
+    raw_p_long_std: 0.025
+    calibrated_BUY_R: ~+150
+    calibrated_SELL_R: ~+40
+    depth: 2
+    notes: >-
+      Clean BUY edge with long-term USD/JPY trend following. 100%
+      temporal stability across all 4 windows (B! > B! > B! > B!).
+      Highest BUY R in the portfolio (+190.91 total R). Default depth=2
+      sufficient — cheap and effective.
+
+  # ── SELL_STRONG (SELL has strong positive expectancy; BUY is weak/negative)
+  CADCHF:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.49
+    raw_p_long_std: 0.014
+    calibrated_SELL_R: ~+82
+    depth: 3
+    notes: >-
+      Permanent SELL_ONLY candidate. Insufficient trade data in fresh_v2
+      for full stability analysis (only 1 window). High SELL WR in
+      production. Calibration-dependent for spread but directionally stable.
+
+  EURAUD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.48
+    raw_p_long_std: 0.015
+    calibrated_SELL_R: ~+104
+    depth: 5
+    notes: >-
+      SELL_STRONG across ALL rolling windows (100% stability). Total R
+      +103.74. Permanent SELL_ONLY candidate. Depth=5 needed for
+      prediction spread.
+
+  EURCHF:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.75
+    raw_p_long_std: 0.023
+    calibrated_BUY_R: 0
+    calibrated_SELL_R: +494
+    depth: 4
+    notes: >-
+      Classic inverted model — always predicts BUY (p_long mean=0.75)
+      but BUY loses (-90.00R raw). DirectionalCalibrator (a=-1.349,
+      b=-0.344) inverts the prediction: calibrated BUY=20.5%, SELL=79.5%.
+      With min_confidence_sell=55 gate, all 202 signals become profitable
+      SELL trades (+494.00R). The calibration IS the directional
+      correction layer and it works fully. gc_lead_1 and yield_slope
+      features added but did not resolve the inversion at depth=4.
+      The SELL_ONLY filter provides an additional safety net.
+
+  NZDCAD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.46
+    raw_p_long_std: 0.006
+    calibrated_SELL_R: ~+972
+    depth: 4
+    notes: >-
+      Previously flagged as NEUTRAL (-285R from buggy R computation in
+      stability analysis). Corrected analysis: raw model predicts SELL
+      (p_long=0.46) and SELL is highly profitable (+972R raw, +972R
+      calibrated). The model is near-constant (std 0.006) but the
+      constant is directionally correct. SELL calibrator (a=22.15)
+      outputs ~100% confidence. Depth=4 is the only viable depth.
+      SELL_ONLY filter provides safety.
+
+  NZDCHF:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.47
+    raw_p_long_std: 0.012
+    calibrated_SELL_R: ~+35
+    depth: 2
+    notes: >-
+      Previously SELL_ONLY. Only 1 window of trade data in fresh_v2
+      (insufficient for stability). SELL strong, BUY weak. Default
+      depth=2 sufficient.
+
+  ^DJI:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.50
+    raw_p_long_std: 0.025
+    calibrated_SELL_R: ~+87
+    depth: 4
+    notes: >-
+      Total R +86.85. Low temporal stability (25%) — direction flips
+      across windows. Dow Futures downside predictability is real but
+      intermittent.
+
+  USDCAD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.51
+    raw_p_long_std: 0.028
+    calibrated_SELL_R: ~+60
+    depth: 3
+    notes: >-
+      Shifted from BIDIRECTIONAL (v1, +75R/+40R) to SELL_STRONG in
+      fresh_v2. Transition map shows progressive SELL dominance over
+      time. Moderate stability (67%).
+
+  GBPCAD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.52
+    raw_p_long_std: 0.030
+    calibrated_SELL_R: ~+60
+    depth: 5
+    notes: >-
+      Shifted from BIDIRECTIONAL (v1, +40R/+25R) to SELL_STRONG in
+      fresh_v2. Moderate stability (67%). SELL dominance emerged after
+      depth increase to 5.
+
+  # ── SELL_LEANING (SELL preferred but BUY marginally positive) ────────────
+  NZDJPY:
+    tier: SELL_LEANING
+    raw_p_long_mean: 0.50
+    raw_p_long_std: 0.033
+    calibrated_SELL_R: ~+25
+    calibrated_BUY_R: ~+5
+    depth: 5
+    notes: >-
+      Total R +30.91. Moderate stability (50%). Weak SELL lean. Depth=5
+      provides best spread (+0.9% over depth=2). Not strong enough for
+      SELL_STRONG — barely profitable.
+
+  # ── NEUTRAL (No reliable directional edge — degradation or collapse) ─────
+  AUDUSD:
+    tier: NEUTRAL
+    raw_p_long_mean: 0.48
+    raw_p_long_std: 0.030
+    total_R: -2.29
+    depth: 5
+    notes: >-
+      Degraded from BIDIRECTIONAL (v1, +30R/+20R) to NEUTRAL. Feature
+      remediation (added yield_slope, gc_lead_1, 126 momentum window)
+      did not restore edge — walk-forward shows 96.8% flat rate (model
+      too cautious). Was 67% flat in fresh_v2. The expanded retrain
+      data suppressed all signals. Needs monitoring — may improve with
+      narrower training window or different vol_method.
+
+  EURCAD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.324
+    raw_p_long_std: 0.181
+    calibrated_BUY_R: ~+13
+    calibrated_SELL_R: ~+472
+    depth: 3
+    notes: >-
+      Reclassified from NEUTRAL (v2) to SELL_STRONG after calibration
+      impact analysis revealed the true picture: raw SELL R=+444.87 vs
+      raw BUY R=+39.50. The previous NEUTRAL classification was based on
+      an R-computation bug in the stability analysis (-76.78R).
+      DirectionalCalibrator improves SELL to +471.66R (+27R gain).
+      SELL-dominant raw and calibrated. The model naturally predicts SELL
+      (p_long mean=0.32) and SELL wins consistently.
+
+  EURNZD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.420
+    raw_p_long_std: 0.056
+    calibrated_BUY_R: 0
+    calibrated_SELL_R: ~+718
+    depth: 5
+    notes: >-
+      Reclassified from NEUTRAL (v2) to SELL_STRONG. Calibration impact
+      analysis shows raw SELL R=+717.92 (+90R improvement over v1's +65R).
+      The -89.45R NEUTRAL finding was the same R-computation bug as
+      EURCAD. Model naturally predicts SELL (p_long mean=0.42, std=0.056)
+      and SELL is highly profitable both raw and calibrated. Depth=5
+      provides sufficient prediction spread. Variance compressed from
+      baseline (std 0.134) but directionally correct.
+
+  GBPCHF:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.53
+    raw_p_long_std: 0.085
+    calibrated_SELL_R: ~+730
+    depth: 2
+    notes: >-
+      FIXED in v3 (feature_fix_v3 retrain). Added 126-bar momentum window
+      to price_mom_windows. Walk-forward: hit_rate=+0.730, 100% SELL.
+      The longer momentum window restored prediction variance (std
+      0.085 vs 0.0023 at depth=4). Model now correctly predicts SELL
+      with strong directional accuracy. The depth=2 rollback + 126
+      momentum window was the correct combination. Remains SELL_STRONG
+      as it was under the SELL_ONLY filter.
+
+  NZDUSD:
+    tier: SELL_STRONG
+    raw_p_long_mean: 0.455
+    raw_p_long_std: 0.065
+    calibrated_BUY_R: 0
+    calibrated_SELL_R: ~+1,211
+    depth: 2
+    notes: >-
+      SELL_STRONG with unresolved variance compression. Feature
+      remediation (added gc_lead_1, dji_lead_1, yield_slope) did not
+      restore variance — walk-forward hit_rate=-0.612 with 90.3% BUY
+      predictions (wrong direction). The 10-year expanded cache retrain
+      is the root cause: the longer training horizon includes regimes
+      where NZDUSD behavior was noisier, collapsing prediction variance
+      and neutral ratio (39%→0%). Recommended fix: revert to shorter
+      training window or add vol_method override. Remains SELL_STRONG
+      based on pre-expanded-cache evidence (+969R SELL from baseline).

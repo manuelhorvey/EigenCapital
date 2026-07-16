@@ -96,4 +96,4 @@ The module has 211 unit tests in `tests/backtests/` covering all public function
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-16

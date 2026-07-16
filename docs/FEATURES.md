@@ -122,16 +122,28 @@ position sizing during risk-off regimes) but contributes no incremental predicti
 
 ### Custom Feature Variants
 
-Some assets have additional or replacement features beyond the base set:
+Some assets have additional or replacement features beyond the base set.
+Custom features are defined in `features/registry.py` via `custom_features` tuples
+and `price_mom_windows` overrides.
 
-| Asset | Variant |
-|---|---|
-| EURCHF | `mom126` replaces base momentum (126d momentum) |
-| NZDUSD | `mom126` replaces base momentum |
-| GBPAUD | `yield_slope` (US yield curve slope) |
-| CADCHF | `yield_slope` |
-| EURNZD | `yield_slope` |
-| GBPCHF | `yield_slope` |
+| Asset | Custom features | Notes |
+|-------|----------------|-------|
+| EURCHF | `mom126` (+126d momentum, replaces base mom), `gc_lead_1` | Added 2026-07-16 |
+| NZDUSD | `mom126` (+126d momentum, replaces base mom), `gc_lead_1`, `dji_lead_1` | Variance compressed since 10y retrain |
+| GBPAUD | `yield_slope` (US yield curve slope) | |
+| CADCHF | `yield_slope`, `gc_lead_1` | |
+| EURNZD | `yield_slope` | |
+| GBPCHF | `yield_slope`, `gc_lead_1`, `mom126` (+126d momentum) | 126d window fixed collapse at depth=4 |
+| AUDUSD | `gc_lead_1` | Added 2026-07-16; did not restore edge |
+| NZDJPY | `dji_lead_1`, `gc_lead_1` | |
+| AUDJPY | `nzdjpy_lead_3`, `dji_lead_1` | |
+| USDJPY | `gc_lead_1` | |
+| USDCHF | `gc_lead_1` | |
+| NZDCHF | `gc_lead_1` | |
+| USDCAD | `dji_lead_1` | |
+| EURAUD | `dji_lead_1` | |
+| GBPJPY | `dji_lead_1`, `gc_lead_1` | |
+| NZDCAD | (none) | Depth=4 compensates for generic features |
 
 ## Archetype Features
 
@@ -171,10 +183,24 @@ Per-asset `pt_sl` from per-asset YAML files in `configs/domains/assets/` (e.g., 
 
 ## Architecture Note
 
-All 22 promoted assets use the same alpha feature pipeline from `features/alpha_features.py:build_alpha_features()`. During training, Groups 1-4 are appended (cross-sectional, positioning, rates, events). During live inference, only base alpha features (9 core + 6 trend-exhaustion + 4 cross-asset + 10 directional splits + 15 FXStreet narrative) are used, plus regime features (7 cols) and archetype features (4 cols). A few assets additionally use `yield_slope` or `mom126` variants defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
+All 22 promoted assets use the same alpha feature pipeline from `features/alpha_features.py:build_alpha_features()`. During training, Groups 1-4 are appended (cross-sectional, positioning, rates, events). During live inference, only base alpha features (9 core + 6 trend-exhaustion + 4 cross-asset + 15 FXStreet narrative) are used, plus regime features (7 cols) and archetype features (4 cols). Several assets additionally use custom feature variants (`gc_lead_1`, `dji_lead_1`, `nzdjpy_lead_3`, `yield_slope`, or `mom126` overrides) defined in `features/registry.py`. Each asset has an independent XGBoost model — no shared feature manifold across all assets.
 
-**BTCUSD note:** BTCUSD uses the standard `build_alpha_features()` pipeline. COT features (`cot_z`, `cot_change_4w`) are zero-filled (deprecated). Session features (dow_signal) use UTC timestamps for 24/7 session consistency. All trend-exhaustion features (MACD, stoch, BB, ADX, RSI divergence) apply unchanged.
+### COT Features — Deprecated
+
+COT features (`{ASSET}_cot_z`, `{ASSET}_cot_change_4w`, `{ASSET}_has_cot`) were deprecated 2026-07-09 after walk-forward validation showed zero gain across all 22 assets. `fetch_cot_features()` returns an empty DataFrame. These placeholder columns are kept for backward compatibility but always zero-filled.
+
+### Directional Splits — Zero Impact
+
+Directional momentum and carry split features (`mom_{h}d_up`, `mom_{h}d_dn`, `carry_up`, `carry_dn`) were added 2026-07-11 but walk-forward validation confirmed **zero splits across all 22 assets** — they carry no incremental information beyond the base features. XGBoost handles directional asymmetry natively via tree splits. Kept in the codebase for backward compatibility.
+
+### Per-Asset Model Depth
+
+Each asset has an independent `max_depth` for its XGBoost model, configured in `configs/domains/assets/<TICKER>.yaml`. See the depth reference table in [`docs/CONFIGURATION.md`](CONFIGURATION.md) for the full per-asset depth map.
+
+### BTCUSD Note
+
+BTCUSD uses the standard `build_alpha_features()` pipeline. COT features (`cot_z`, `cot_change_4w`) are zero-filled (deprecated). Session features (dow_signal) use UTC timestamps for 24/7 session consistency. All trend-exhaustion features (MACD, stoch, BB, ADX, RSI divergence) apply unchanged.
 
 ---
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-16

@@ -32,6 +32,7 @@ from paper_trading.inference.training import AssetTrainingPipeline
 from paper_trading.ops.data_fetcher import flatten
 from paper_trading.ops.tracer import trace_exit
 from paper_trading.performance.edge_health import get_monitor as _get_edge_monitor
+from paper_trading.position.adaptive_exit import AdaptiveExitEngine
 from paper_trading.position.batch import PositionBatch
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
@@ -221,6 +222,8 @@ class AssetEngine:
         self._structure_detector = MarketStructureDetector()
         self._archetype_classifier = ArchetypeClassifier()
         self._attribution = AttributionCollector()
+        ae_cfg = self.config.get("adaptive_exit", {})
+        self._adaptive_exit_engine = AdaptiveExitEngine() if ae_cfg.get("enabled", False) else None
 
     def _init_sub_pipelines(self) -> None:
         """Initialise training, PnL, inference, and position sub-pipelines."""

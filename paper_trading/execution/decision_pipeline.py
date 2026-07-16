@@ -21,6 +21,7 @@ from typing import Any
 import pandas as pd
 
 from eigencapital.domain.time import utc_now
+from paper_trading.asset_pnl_controller import _sync_broker_sltp
 from paper_trading.entry.decision import EntryAction, PositionSide, SignalType, TradeDecision
 from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_only_assets
 from paper_trading.execution.stacking import StackingGate
@@ -427,18 +428,34 @@ def manage_position(ctx: DecisionContext) -> None:
     if current_price is not None and current_price > 0 and engine.pos_mgr.position is not None:
         protection_cfg = engine.config.get("stacking", {})
         action = PositionProtection.update(engine.pos_mgr.position, current_price, protection_cfg)
-        if action.action == "breakeven":
-            logger.info(
-                "%s: breakeven SL activated at %.5f",
-                engine.name,
-                action.new_sl,
-            )
-        elif action.action == "trail":
-            logger.info(
-                "%s: trailing SL tightened to %.5f",
-                engine.name,
-                action.new_sl,
-            )
+        if action.new_sl is not None:
+            if action.action == "breakeven":
+                logger.info(
+                    "%s: breakeven SL activated at %.5f",
+                    engine.name,
+                    action.new_sl,
+                )
+            elif action.action == "trail":
+                logger.info(
+                    "%s: trailing SL tightened to %.5f",
+                    engine.name,
+                    action.new_sl,
+                )
+            # Sync to anchor batch stop_loss (dual-SL reconciliation)
+            if engine.batches:
+                anchor = next(
+                    (b for b in engine.batches.values() if b.is_anchor),
+                    None,
+                )
+                if anchor is not None:
+                    anchor.update_stop_loss(float(action.new_sl))
+                    logger.debug(
+                        "%s: synced PositionProtection SL %.5f to anchor batch",
+                        engine.name,
+                        action.new_sl,
+                    )
+            # Push to broker (MT5)
+            _sync_broker_sltp(engine)
 
     if has_pos and ctx.new_side == ctx.current_side:
         stacking_cfg = engine.config.get("stacking", {})

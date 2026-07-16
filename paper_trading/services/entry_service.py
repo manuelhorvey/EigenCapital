@@ -901,6 +901,13 @@ class EntryService:
             exit_engine = AdaptiveExitEngine()
         else:
             exit_engine = getattr(asset, "_adaptive_exit_engine", None)
+            if ae_cfg.get("enabled", False) and exit_engine is None:
+                logger.warning(
+                    "%s: adaptive_exit enabled but no asset-level engine — "
+                    "anchor batch will not use adaptive exit logic. "
+                    "This should not happen after the 2026-07-16 fix.",
+                    asset.name,
+                )
 
         batch = PositionBatch(
             trade_id=trade_id,

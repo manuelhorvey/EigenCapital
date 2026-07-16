@@ -12,6 +12,7 @@ from paper_trading.ops.tracer import (
     shadow_compare_sltp,
     trace_diagnostic_report,
 )
+from paper_trading.position.protection import PositionProtection
 from paper_trading.shadow.memory import store_event as _shadow_store
 
 logger = logging.getLogger("eigencapital.pnl_controller")
@@ -110,6 +111,25 @@ class AssetPnlController:
         self._settle_daily_pnl(asset)
 
     def _check_intraday_sltp(self, asset, max_hold) -> bool:
+        # ── Position protection (runs before SL checks to fix cycle ordering) ──
+        # This was previously only in the decision pipeline (manage_position),
+        # which runs AFTER update_pnl, causing a 1-cycle delay between risk_floor
+        # updates and SL checks. Running here ensures the tightened SL is used
+        # for the current cycle's SL check.
+        current_price = getattr(asset, "current_price", None)
+        if current_price is not None and current_price > 0 and asset.pos_mgr.position is not None:
+            protection_cfg = asset.config.get("stacking", {})
+            pp_action = PositionProtection.update(asset.pos_mgr.position, current_price, protection_cfg)
+            if pp_action.new_sl is not None and asset.batches:
+                anchor = next((b for b in asset.batches.values() if b.is_anchor), None)
+                if anchor is not None and abs(anchor.stop_loss - float(pp_action.new_sl)) > 1e-8:
+                    logger.debug(
+                        "%s: syncing PositionProtection SL %.5f to anchor batch (was %.5f)",
+                        asset.name,
+                        pp_action.new_sl,
+                        anchor.stop_loss,
+                    )
+
         self._reconcile_position_tp(asset)
         self._tick_shadow_sltp(asset)
         self._check_scale_out_tiers(asset)
@@ -130,6 +150,26 @@ class AssetPnlController:
         for batch in list(asset.batches.values()):
             if self._check_position_sltp_hit(asset, batch.position_dict, batch.trade_id):
                 return True
+
+        # ── SL divergence monitoring ──────────────────────────────────────
+        # Detect divergence between PositionProtection's effective_sl and
+        # the anchor batch's stop_loss. These should converge; significant
+        # drift (>5% of price) indicates a desync in the dual-SL system.
+        if asset.pos_mgr.position is not None and asset.batches:
+            pos_anchor = next((b for b in asset.batches.values() if b.is_anchor), None)
+            if pos_anchor is not None:
+                eff_sl = asset.pos_mgr.position.effective_sl
+                batch_sl = pos_anchor.stop_loss
+                if eff_sl is not None and batch_sl is not None and not pd.isna(eff_sl) and not pd.isna(batch_sl):
+                    divergence = abs(eff_sl - batch_sl) / max(asset.current_price or 1.0, 1e-9)
+                    if divergence > 0.05:
+                        logger.warning(
+                            "%s: SL DIVERGENCE — effective_sl=%.5f batch_sl=%.5f divergence=%.2f%%",
+                            asset.name,
+                            eff_sl,
+                            batch_sl,
+                            divergence * 100,
+                        )
 
         return self._check_time_stop(asset, max_hold)
 
@@ -421,6 +461,15 @@ class AssetPnlController:
             return
         if not asset.batches:
             return
+
+        # Check if anchor batch lacks an engine (should not happen after init fix)
+        anchor = next((b for b in asset.batches.values() if b.is_anchor), None)
+        if anchor is not None and anchor.adaptive_exit_engine is None:
+            logger.warning(
+                "%s: anchor batch has no adaptive_exit_engine — falling back to no-op. "
+                "Check asset._adaptive_exit_engine initialization.",
+                asset.name,
+            )
 
         for batch in list(asset.batches.values()):
             ae = batch.adaptive_exit_engine

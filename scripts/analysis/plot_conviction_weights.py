@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
 WALKDIR = ROOT / "scripts" / "walkforward"
-OUTPUT_DIR = ROOT / "data" / "processed"
+OUTPUT_DIR = ROOT / "data" / "processed" / "charts"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 

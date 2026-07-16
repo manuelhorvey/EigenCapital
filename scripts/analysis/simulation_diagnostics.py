@@ -31,7 +31,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-JSON_PATH = ROOT / "data" / "processed" / "capital_growth_simulation.json"
+JSON_PATH = ROOT / "data" / "processed" / "simulations" / "capital_growth_simulation.json"
 OUTPUT_DIR = ROOT / "data" / "processed" / "charts"
 
 # ── Color scheme (matches capital_growth_charts.py) ──

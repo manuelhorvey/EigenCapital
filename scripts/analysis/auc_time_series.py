@@ -27,7 +27,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-JSON_PATH = ROOT / "data" / "processed" / "trade_lifecycle_results.json"
+JSON_PATH = ROOT / "data" / "processed" / "audits" / "trade_lifecycle_results.json"
 OUTPUT_DIR = ROOT / "data" / "processed" / "charts"
 
 # ── Color palette for up to 8 overlaid assets ──

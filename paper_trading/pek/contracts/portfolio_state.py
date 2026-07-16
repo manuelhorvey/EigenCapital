@@ -109,6 +109,7 @@ class PortfolioStateSnapshot:
     max_risk_per_trade_pct: float
     min_risk_per_trade_pct: float
     position_ranking_enabled: bool
+    max_positions_per_cluster: int = 3
 
     def __post_init__(self):
         if self.total_equity < 0:

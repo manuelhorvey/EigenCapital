@@ -14,8 +14,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-TRADE_PATH = ROOT / "data" / "processed" / "trade_lifecycle_results.json"
-CHART_PATH = ROOT / "data" / "processed" / "equity_curve_production_7025.png"
+TRADE_PATH = ROOT / "data" / "processed" / "audits" / "trade_lifecycle_results.json"
+CHART_PATH = ROOT / "data" / "processed" / "charts" / "equity_curve_production_7025.png"
 
 # Production config: 70% scale-out at 2.5R, 15% trail on remainder
 PROD_CONFIG = {

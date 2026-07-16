@@ -27,7 +27,7 @@ from typing import Any
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("shock_simulation")
 
-DATA_PATH = Path("data/processed/trade_data/trade_lifecycle_results.json")
+DATA_PATH = Path("data/processed/audits/trade_lifecycle_results.json")
 BASELINE_RETRACE = 0.50
 MIN_MFE = 0.0
 

@@ -136,6 +136,7 @@ class PortfolioStateBuilder:
         leverage_remaining = max(0.0, max_leverage * total_equity - gross_exposure)
         max_concurrent = self._mode.get("max_concurrent_positions", 21)
         concurrent_remaining = max(0, max_concurrent - open_count)
+        max_positions_per_cluster = self._mode.get("max_positions_per_cluster", 3)
 
         # ── Factor exposures from LIVE positions (signed: short = negative weight) ──
         position_weights: dict[str, float] = {}
@@ -218,6 +219,7 @@ class PortfolioStateBuilder:
             max_leverage=max_leverage,
             concurrent_remaining=concurrent_remaining,
             max_concurrent=max_concurrent,
+            max_positions_per_cluster=max_positions_per_cluster,
             factor_exposures=tuple(factor_exposures_list),
             factor_limits=tuple(factor_limits_list),
             factor_headroom=tuple(factor_headroom_list),

@@ -95,6 +95,7 @@ Position-sizing guardrails shared across all assets.
 | `size_taper_end_dd` | `float` | `-0.15` |
 | `size_taper_min` | `float` | `0.5` |
 | `max_positions_per_asset` | `int` | `2` |
+| `max_positions_per_cluster` | `int` | `3` |
 | `max_concurrent_positions` | `int` | `8` |
 | `max_daily_loss_pct` | `float` | `0.08` |
 | `portfolio_max_leverage` | `float` | `2.0` |

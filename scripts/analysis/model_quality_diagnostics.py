@@ -13,7 +13,7 @@ Also prints a summary table of AUC and ECE for all 22 assets.
 Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/model_quality_diagnostics.py
     PYTHONPATH=$PYTHONPATH:. python scripts/analysis/model_quality_diagnostics.py \\
-        --json data/processed/trade_data/trade_lifecycle_results.json \\
+        --json data/processed/audits/trade_lifecycle_results.json \\
         --output-dir data/processed
 """
 
@@ -29,8 +29,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-JSON_PATH = ROOT / "data" / "processed" / "trade_lifecycle_results.json"
-OUTPUT_DIR = ROOT / "data" / "processed"
+JSON_PATH = ROOT / "data" / "processed" / "audits" / "trade_lifecycle_results.json"
+OUTPUT_DIR = ROOT / "data" / "processed" / "charts"
 
 # ── Color scheme (matches simulation_diagnostics.py) ──
 BG = "#0f1119"

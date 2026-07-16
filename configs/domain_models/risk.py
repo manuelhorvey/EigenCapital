@@ -109,6 +109,15 @@ class SizingConfig:
     size_taper_end_dd: float = -0.15
     size_taper_min: float = 0.50
     max_positions_per_asset: int = 2
+    max_positions_per_cluster: int = 3
+    """Maximum concurrent positions in the same correlated cluster.
+
+    When a signal's asset belongs to a correlated cluster group (e.g. CHF:
+    EURCHF, USDCHF, NZDCHF, CADCHF, GBPCHF), and that cluster already has
+    *max_positions_per_cluster* positions with the same dominant side, the
+    signal is rejected.  This prevents concentrated risk from correlated
+    pairs moving together against the portfolio.
+    """
     max_concurrent_positions: int = 8
     max_daily_loss_pct: float = 0.08
     portfolio_max_leverage: float = 2.0

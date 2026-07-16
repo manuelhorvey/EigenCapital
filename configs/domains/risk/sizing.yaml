@@ -27,6 +27,7 @@ size_taper_start_dd: -0.03
 size_taper_end_dd: -0.10
 size_taper_min: 0.3
 max_positions_per_asset: 2
+max_positions_per_cluster: 3
 max_concurrent_positions: 13
 max_daily_loss_pct: 0.08
 min_risk_per_trade_pct: 0.001

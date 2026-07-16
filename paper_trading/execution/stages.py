@@ -9,20 +9,20 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
-from collections import deque
-from typing import Any
 
 import pandas as pd
 
 from eigencapital.domain.time import utc_now
 from paper_trading.asset_pnl_controller import _sync_broker_sltp
-from paper_trading.entry.decision import EntryAction, PositionSide, SignalType, TradeDecision
+from paper_trading.entry.decision import EntryAction, PositionSide, SignalType
 from paper_trading.execution.decision_pipeline import (
+    DRIFT_GAP_THRESHOLD,
     DecisionContext,
+    StageFn,
+    _drift_recorder,
     _get_drift_gap,
     _log_eager_import_failure,
     _record_drift_outcome,
-    reset_drift_recorder,
 )
 from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_only_assets
 from paper_trading.execution.stacking import StackingGate
@@ -1110,5 +1110,3 @@ DEFAULT_STAGES: list[StageFn] = [
     poll_deferred_entries,
     update_prob_history,
 ]
-
-

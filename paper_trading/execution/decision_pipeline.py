@@ -9,10 +9,8 @@ an AssetEngine.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import threading
-import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -20,12 +18,7 @@ from typing import Any
 
 import pandas as pd
 
-from eigencapital.domain.time import utc_now
-from paper_trading.asset_pnl_controller import _sync_broker_sltp
-from paper_trading.entry.decision import EntryAction, PositionSide, SignalType, TradeDecision
-from paper_trading.execution.gate_constants import SPREAD_TIER_BPS, get_sell_only_assets
-from paper_trading.execution.stacking import StackingGate
-from paper_trading.position.protection import PositionProtection
+from paper_trading.entry.decision import PositionSide, TradeDecision
 
 logger = logging.getLogger("eigencapital.decision_pipeline")
 
@@ -191,7 +184,6 @@ class DecisionContext:
 StageFn = Callable[[DecisionContext], None]
 
 
-
 def run_decision_pipeline(
     engine: Any,
     decision: TradeDecision,
@@ -277,7 +269,6 @@ from paper_trading.execution.stacking import (  # noqa: E402, F401
     _should_stack,
     _stack_sl_price,
 )
-from paper_trading.position.protection import _update_position_protection  # noqa: E402, F401
 
 # ── Backward-compatible re-exports for moved stage functions ────────────────
 from paper_trading.execution.stages import (  # noqa: E402, F401
@@ -311,18 +302,5 @@ from paper_trading.execution.stages import (  # noqa: E402, F401
     update_mae_mfe,
     update_prob_history,
     update_regime_bar_counter,
-)
-from paper_trading.execution.stacking import (  # noqa: E402, F401
-    _compute_stack_size,
-    _execute_stack,
-    _get_adx,
-    _is_trending,
-    _last_stack_entry_price,
-    _log_stack_rejection,
-    _position_risk_at_sl,
-    _position_unrealized_r,
-    _projected_risk_for_stack,
-    _should_stack,
-    _stack_sl_price,
 )
 from paper_trading.position.protection import _update_position_protection  # noqa: E402, F401

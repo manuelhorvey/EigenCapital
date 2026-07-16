@@ -26,6 +26,7 @@ def _get_fetch_live():
 def _provider_fetch_live(ticker, min_days=500):
     return _get_fetch_live()(ticker, min_days=min_days)
 
+
 logger = logging.getLogger("eigencapital.data_fetch")
 
 # Fetch period for yfinance fallback (live inference only — training uses the

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -64,9 +65,16 @@ class AssetTrainingPipeline:
         values are ``None`` (caller falls back to live ``fetch_asset_data()``).
         """
         if expanded_data_dir is None:
-            return (None, pd.DataFrame(), None, pd.Series(dtype=float), pd.Series(dtype=float), pd.Series(dtype=float), None)
+            return (
+                None,
+                pd.DataFrame(),
+                None,
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                None,
+            )
 
-        from pathlib import Path
         from features.data_fetch import _normalize_index
 
         asset = self.asset
@@ -78,7 +86,15 @@ class AssetTrainingPipeline:
                 expanded_data_dir,
                 pq_path.name,
             )
-            return (None, pd.DataFrame(), None, pd.Series(dtype=float), pd.Series(dtype=float), pd.Series(dtype=float), None)
+            return (
+                None,
+                pd.DataFrame(),
+                None,
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                None,
+            )
 
         ohlcv = pd.read_parquet(pq_path)
         ohlcv.index = _normalize_index(ohlcv.index)

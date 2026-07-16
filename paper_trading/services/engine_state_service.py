@@ -268,7 +268,7 @@ class EngineStateService:
             "execution_state": exec_state.value,
             "weekend_cycle": bool(getattr(engine, "_cycle_weekend", False)),
             "average_validity_exposure": round(overall_validity / n, 4),
-            "portfolio_drawdown": round(portfolio_dd, 6),  # fraction (0-1 range)
+            "portfolio_drawdown": round(portfolio_dd, 6),  # fraction (-1 to 0 range, negative = below peak)
             "portfolio_peak_value": round(engine.portfolio_peak_value, 2) if engine.portfolio_peak_value else None,
             "position_concentration": getattr(
                 getattr(engine, "_orchestrator", None),

@@ -108,7 +108,8 @@ export function useMonitorAlerts(): Alert[] {
     const v = versionRef.current
     const alerts: Alert[] = []
     const dismissed = loadDismissed(v)
-    const now = state?.timestamp ?? new Date().toISOString()
+    // Always use real time for alert timestamps, not the potentially stale snapshot timestamp
+    const now = new Date().toISOString()
 
     // Group halted assets by reason
     const haltByReason = new Map<string, string[]>()
@@ -145,8 +146,9 @@ export function useMonitorAlerts(): Alert[] {
     const healthDegraded: string[] = []
     if (health?.assets) {
       for (const [name, h] of Object.entries(health.assets)) {
-        if (h.health_score < 0.5) healthCritical.push(name)
-        else if (h.health_score < 0.8) healthDegraded.push(name)
+        // Governance health scores are 0-1; backend thresholds: >= 0.80 HEALTHY, >= 0.55 DEGRADED, < 0.55 CRITICAL
+        if (h.health_score < 0.55) healthCritical.push(name)
+        else if (h.health_score < 0.80) healthDegraded.push(name)
       }
     }
 

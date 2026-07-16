@@ -6,7 +6,27 @@ import StatCard from './ui/StatCard'
 import EmptyState from './ui/EmptyState'
 import { gridMetric4, GRID_GAP } from '../design/grid'
 
-/** Live Sharpe ratio cards with cycle-level, daily-window, and slippage metrics. */
+/** Live Sharpe ratio cards with cycle-level, daily-window, and slippage metrics.
+ *
+ * Methodology
+ * -----------
+ * - **Cycle Sharpe (adj)**: Autocorrelation-adjusted Sharpe across engine cycles
+ *   (~30s bars). The adjustment accounts for serial correlation in cycle-level
+ *   returns using ρ (autocorrelation estimate). Formula: Sharpe_adj = Sharpe_raw ×
+ *   sqrt((1 - ρ) / (1 + ρ)). Displayed with n_cycles for context.
+ *
+ * - **Window Sharpe**: Daily returns aggregated over rolling windows (7d, 30d, 90d).
+ *   Includes Probabilistic Sharpe Ratio (PSR) — probability that the true Sharpe
+ *   exceeds 0, accounting for non-normality via higher moments (skew, kurtosis).
+ *   Displayed with n_days for sample size context.
+ *
+ * - **Per-asset Sharpe** (displayed in SignalsTable / AssetDetailPanel): Computed
+ *   from individual trade PnL history using autocorrelation-adjusted formula.
+ *   Treat with caution when n_trades < 20 (see SignalsTable.tsx comments).
+ *
+ * All Sharpe values use risk-free rate = 0 (consistent with backtest methodology
+ * in scripts/backtest/backtest_pnl.py).
+ */
 export default function LiveSharpeCard() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const ls = portfolio?.live_sharpe

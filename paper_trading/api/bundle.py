@@ -273,10 +273,7 @@ def handle_state_bundle(path: str, query: dict, state_store=None) -> str:
 
     data = json_dumps(bundle)
 
-    # Primary cache key includes engine sequence to prevent cache poisoning after engine restart.
-    # Secondary un-keyed cache is for backward compat (dashboard polls without seq).
-    # Risk window is bounded by BUNDLE_CACHE_TTL (5s) — acceptable for now.
+    # Cache key includes engine sequence to prevent cache poisoning after engine restart.
     cache_set(f"/state-bundle.json?seq={engine_seq}", data, ttl=BUNDLE_CACHE_TTL)
-    cache_set("/state-bundle.json", data, ttl=BUNDLE_CACHE_TTL)
 
     return data

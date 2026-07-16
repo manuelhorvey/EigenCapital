@@ -49,11 +49,24 @@ export function useAnimatedValue(
       return
     }
 
+    // Use performance.now() for background-tab resilience: if the tab was
+    // hidden (and rAF was paused), the elapsed delta will far exceed
+    // duration, so we jump to the target instead of animating a stale path.
+    const startWall = performance.now()
     startTimeRef.current = null
 
     const animate = (timestamp: number) => {
       if (startTimeRef.current === null) {
         startTimeRef.current = timestamp
+      }
+
+      const elapsedWall = performance.now() - startWall
+      // If wall-clock elapsed far exceeds duration, the tab was backgrounded
+      // during animation — jump straight to target.
+      if (elapsedWall > duration * 2) {
+        setDisplay(target)
+        previousRef.current = target
+        return
       }
 
       const elapsed = timestamp - startTimeRef.current

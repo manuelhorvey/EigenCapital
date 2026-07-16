@@ -16,7 +16,9 @@ const FALLBACK: EngineHealth = {
   engine_alive: false,
 }
 
-/** Polls the engine health endpoint every 5s. @returns {object} - React Query result with EngineHealth data */
+/** Polls the engine health endpoint at low frequency (30s).
+ *  Primary health data comes via useSystemSnapshot (bundle).
+ *  This is a lightweight fallback for engine_alive detection. */
 export function useEngineHealth() {
   return useQuery({
     queryKey: QUERY_KEYS.engine,
@@ -30,8 +32,8 @@ export function useEngineHealth() {
       }
       return parsed.data
     },
-    refetchInterval: 5_000,
-    staleTime: 0,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
     retry: 2,
     retryDelay: 1_000,
     placeholderData: (previousData: EngineHealth | undefined) => previousData ?? FALLBACK,

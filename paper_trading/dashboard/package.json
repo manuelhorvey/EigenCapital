@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate": "tsc -b --noEmit && vitest run"
+    "validate": "tsc -b --noEmit && vitest run",
+    "check-bundle-size": "tsx scripts/check-bundle-size.ts"
   },
   "dependencies": {
     "@sentry/browser": "^10.64.0",

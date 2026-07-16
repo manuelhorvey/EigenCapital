@@ -116,7 +116,7 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
                     </Badge>
                   </td>
                   <td className="text-right py-1.5 pr-2 font-mono tabular-nums">
-                    {(c.confidence * 100).toFixed(0)}
+                    {c.confidence.toFixed(0)}
                   </td>
                   <td className="py-1.5 pr-2">
                     {c.halted ? (

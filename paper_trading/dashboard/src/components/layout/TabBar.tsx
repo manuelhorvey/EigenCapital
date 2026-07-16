@@ -34,7 +34,7 @@ export default function TabBar() {
             key={tab.to}
             to={tab.to}
             end
-            aria-label={tab.label}
+            aria-label={`${tab.label} tab`}
             className={({ isActive }) =>
               `flex items-center gap-1 px-2 py-2 text-xs font-medium rounded-md transition-colors shrink-0 ${
                 isActive

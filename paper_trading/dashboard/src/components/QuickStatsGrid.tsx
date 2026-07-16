@@ -4,7 +4,7 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { systemSelectors } from '../selectors/system'
 import { Skeleton } from './ui/Skeleton'
-import { formatTimeAgo } from '../utils/format'
+import { formatTimeAgo, formatPct } from '../utils/format'
 import { gridMetric7, GRID_GAP } from '../design/grid'
 
 /** Color-coded risk tier badge. */
@@ -108,18 +108,18 @@ function QuickStatsGridInner() {
         />
         <Stat
           label="Total Return"
-          value={`${posReturn ? '+' : ''}${totalReturn.toFixed(2)}%`}
+          value={formatPct(totalReturn)}
           tone={posReturn ? 'good' : 'bad'}
         />
         <Stat
           label="Realized P&L"
-          value={`${posRealized ? '+' : ''}${(p.realized_return ?? 0).toFixed(2)}%`}
+          value={formatPct(p.realized_return ?? 0)}
           tone={posRealized ? 'good' : 'bad'}
         />
         <Stat
           label="Drawdown"
-          value={`-${drawdownPct.toFixed(2)}%`}
-          tone={drawdownPct >= 5 ? 'bad' : drawdownPct >= 1 ? 'warn' : undefined}
+          value={formatPct(drawdownPct)}
+          tone={Math.abs(drawdownPct) >= 5 ? 'bad' : Math.abs(drawdownPct) >= 1 ? 'warn' : undefined}
         />
         <Stat
           label="Open / Closed"

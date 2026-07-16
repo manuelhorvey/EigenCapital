@@ -28,7 +28,9 @@ export function clampPercent(value: number | null | undefined): number {
 
 export function confidenceToPercent(value: number | null | undefined): number {
   if (value == null || !isFinite(value)) return 0
-  return clampPercent(value <= 1 ? value * 100 : value)
+  // Backend confidence is 0-100 percentage. This guard catches 0-1 values
+  // that might leak through from uncalibrated model paths.
+  return clampPercent(value <= 1 && value > 0 ? value * 100 : value)
 }
 
 export function formatHeldDuration(bars?: number | null): string {

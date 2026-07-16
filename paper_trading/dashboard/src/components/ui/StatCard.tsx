@@ -54,10 +54,9 @@ export default function StatCard({
     { decimals },
   )
 
-  // Resolve display value: animatedValue overrides when provided and no explicit value
-  const displayValue = (animatedValue !== undefined && value === undefined)
-    ? animatedDisplay
-    : value
+  // Resolve display value: animatedValue takes priority when provided
+  // Falls back to children `value` prop when animatedValue is not used
+  const displayValue = animatedValue !== undefined ? animatedDisplay : value
 
   if (loading) return <LoadingSkeleton variant={variant} />
 

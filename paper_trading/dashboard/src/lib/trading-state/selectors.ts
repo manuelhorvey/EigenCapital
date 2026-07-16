@@ -217,7 +217,7 @@ export function toPortfolioTradingState(
   const pnlEfficiency = assetList.length > 0 ? effSum / assetList.length : 0
 
   // ── Risk ─────────────────────────────────────────────────────
-  // portfolio_drawdown from backend is a fraction (0-1 range)
+  // portfolio_drawdown from backend is a negative fraction (-1 to 0, negative = below peak)
   const drawdownPct = portfolio.portfolio_drawdown ?? 0
   const drawdown = Math.abs(drawdownPct)
 

@@ -27,7 +27,7 @@ export default function Gauge({
   const offset = circ * (1 - pct)
 
   return (
-    <div className={`flex flex-col items-center gap-1 ${className}`}>
+    <div className={`flex flex-col items-center gap-1 ${className}`} role="img" aria-label={`${label}: ${(pct * 100).toFixed(0)}%`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <linearGradient id={`gauge-track-${label.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">

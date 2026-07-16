@@ -37,15 +37,28 @@ class ServingHandler(Handler, http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def end_headers(self) -> None:
+        # Production CSP: Vite generates hashed module scripts (no unsafe-eval).
+        # unsafe-inline on script-src is required for the inline theme-restoration
+        # <script> in index.html (runs before React loads).
+        # style-src 'unsafe-inline' is required for Tailwind utility classes and
+        # React style attributes at runtime.
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com; "
+            "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
             "connect-src 'self' http://127.0.0.1:5000; "
             "frame-ancestors 'none'",
+        )
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header(
+            "Permissions-Policy",
+            "geolocation=(), microphone=(), camera=(), midi=(), payment=(), "
+            "usb=(), screen-wake-lock=(), xr-spatial-tracking=()",
         )
         super().end_headers()
 

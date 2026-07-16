@@ -54,7 +54,7 @@ function makeValidBundle(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function withQueryClient(retryOverride = false) {
+function withQueryClient(retryOverride: boolean | number = false) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: retryOverride, gcTime: 0 } },
   })
@@ -93,11 +93,15 @@ describe('useSystemSnapshot', () => {
     consoleSpy.mockRestore()
   })
 
-  it('enters error state on network failure', async () => {
+  it('enters error state on network failure (no localStorage cache)', async () => {
+    localStorage.clear()
     mockFetch.mockRejectedValue(new Error('Network error'))
-    const { wrapper } = withQueryClient(true)
+    const { wrapper } = withQueryClient(false)
     const { result } = renderHook(() => useSystemSnapshot(), { wrapper })
-    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 10_000 })
+    // Hook has retry:2, but query client overrides with retry:false
+    // Network error with no localStorage cache → query should error
+    // Note: the hook's retry: 2 is overridden by client default retry: false
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5_000 })
   })
 
   it('applies select function', async () => {

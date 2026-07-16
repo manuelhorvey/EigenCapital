@@ -34,19 +34,29 @@ export default function EquityChart() {
   const { data: capital } = useSystemSnapshot(capitalSelector)
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
 
-  const MAX_POINTS = 2000
+  const MAX_POINTS = 5000
 
   const chartData = useMemo(
-    () =>
-      (data ?? [])
-        .slice(-MAX_POINTS)
+    () => {
+      const raw = (data ?? [])
         .filter(d => d.portfolio_value != null && !isNaN(d.portfolio_value))
         .map(d => ({
           t: d.timestamp?.split('T')[0] ?? '',
           portfolio: d.portfolio_value,
           drawdown: d.drawdown,
           ...d.assets,
-        })),
+        }))
+      // Downsample to MAX_POINTS by picking evenly-spaced samples.
+      // Preserves first and last points for accurate range display.
+      if (raw.length <= MAX_POINTS) return raw
+      const step = (raw.length - 1) / (MAX_POINTS - 1)
+      const sampled: typeof raw = []
+      for (let i = 0; i < MAX_POINTS; i++) {
+        const idx = Math.round(i * step)
+        sampled.push(raw[idx])
+      }
+      return sampled
+    },
     [data],
   )
 

@@ -89,7 +89,7 @@ def download_year(year: int) -> pd.DataFrame | None:
 def download_all_years(
     start_year: int = 2006,
     end_year: int | None = None,
-    path: str = "data/processed/cot_raw.parquet",
+    path: str = "data/processed/trade_data/cot_raw.parquet",
 ) -> pd.DataFrame:
     if end_year is None:
         end_year = pd.Timestamp.now().year

@@ -118,7 +118,7 @@ def simulate_trailing_running_peak(
 
 def main():
     print(CAVEAT)
-    path = Path("data/processed/trade_lifecycle_results.json")
+    path = Path("data/processed/trade_data/trade_lifecycle_results.json")
     if not path.exists():
         print(f"File not found: {path}")
         sys.exit(1)

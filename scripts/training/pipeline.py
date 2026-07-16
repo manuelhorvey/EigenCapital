@@ -23,7 +23,7 @@ Pipeline stages:
     2b. Canary — regenerate shadow-comparison models via train_canary.py
     3. Validate — run walk-forward + PnL on new models ("retrained" tag)
     4. Compare — diff metrics per asset against baseline
-    5. Report — save comparison CSV + summary to data/processed/pipeline_report_*.json
+    5. Report — save comparison CSV + summary to data/processed/audits/pipeline_report_*.json
     6. Rollback (optional) — restore old model files if validation gates fail
 """
 

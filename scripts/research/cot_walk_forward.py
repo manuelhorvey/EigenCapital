@@ -11,7 +11,7 @@ Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/research/cot_walk_forward.py --assets USDCAD,GBPUSD
 
 Output:
-    data/processed/cot_investigation_results.json  — comparison metrics
+    data/processed/audits/cot_investigation_results.json  — comparison metrics
 """
 
 from __future__ import annotations
@@ -358,7 +358,7 @@ def main():
     parser = argparse.ArgumentParser(description="COT Counterfactual Walk-Forward Investigation")
     parser.add_argument("--assets", default="USDCAD,GBPUSD", help="Comma-separated asset names")
     parser.add_argument("--n-folds", type=int, default=3, help="Number of walk-forward folds")
-    parser.add_argument("--output", default="data/processed/cot_investigation_results.json", help="Output JSON path")
+    parser.add_argument("--output", default="data/processed/audits/cot_investigation_results.json", help="Output JSON path")
     args = parser.parse_args()
 
     assets = [a.strip() for a in args.assets.split(",")]

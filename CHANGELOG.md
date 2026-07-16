@@ -51,7 +51,7 @@ This major release resolves all critical bugs hindering system performance. The 
 ### Production Documentation
 - **MT5 Deployment Risk Table** (`docs/MT5_DEPLOYMENT_RISK_TABLE.md`): Risk-by-capital recommendations, bootstrap CIs, deployment sequence
 - **Production Readiness Audit** (`docs/PRODUCTION_READINESS_AUDIT.md`): Comprehensive audit of all protections, gates, risk controls
-- **Capital growth baseline** locked: `data/processed/capital_growth_baseline.json`
+- **Capital growth baseline** locked: `data/processed/simulations/capital_growth_baseline.json`
 - All 22 models + 22 calibrators retrained (2026-07-16)
 
 ### Chore

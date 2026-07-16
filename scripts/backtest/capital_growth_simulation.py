@@ -334,7 +334,7 @@ def load_trades(trade_path: Path | None = None) -> list[SimTrade]:
     ----------
     trade_path : Path | None
         Path to the trade lifecycle JSON file.  Falls back to the module-level
-        ``TRADE_PATH`` constant (``data/processed/trade_lifecycle_results.json``)
+        ``TRADE_PATH`` constant (``data/processed/trade_data/trade_lifecycle_results.json``)
         when ``None``.
     """
     path = trade_path or TRADE_PATH
@@ -1773,7 +1773,7 @@ def generate_report(
     lines.append("")
     lines.append("### Simulation Engine")
     lines.append("")
-    lines.append("- **Data Source:** `data/processed/trade_lifecycle_results.json` — 6,646 historical trades across 22 assets")
+    lines.append("- **Data Source:** `data/processed/trade_data/trade_lifecycle_results.json` — 6,646 historical trades across 22 assets")
     lines.append("- **Period:** 2024-08-19 to 2026-06-29 (679 trading days, ~1.86 years)")
     lines.append("- **Position Sizing:** Production chain from `PaperConfigRegistry` (drawdown taper → position cap → risk cap)")
     lines.append("- **Exit Simulation:** Running-peak adaptive trail (BE lock at 0.5R, activate at 0.8R, retrace 33%, time decay from candle 30)")
@@ -1820,7 +1820,7 @@ def main():
     parser.add_argument("--bootstrap-trials", type=int, default=500, help="Number of bootstrap trials (default: 500)")
     parser.add_argument("--sensitivity", action="store_true", help="Run sensitivity analysis")
     parser.add_argument("--trade-path", type=str, default=None,
-                        help="Path to trade lifecycle JSON (default: data/processed/trade_lifecycle_results.json)")
+                        help="Path to trade lifecycle JSON (default: data/processed/trade_data/trade_lifecycle_results.json)")
     parser.add_argument("--unrounded", action="store_true",
                         help="Skip min-lot rounding in compounding comparison so the true "
                              "compounding benefit is isolated from broker constraints")

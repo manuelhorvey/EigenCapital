@@ -11,7 +11,7 @@ Usage:
 
 Output:
     paper_trading/models/canary/{ASSET}.json  — per-asset canary model
-    data/processed/canary_report_{timestamp}.csv
+    data/processed/canary/canary_report_{timestamp}.csv
 """
 
 import logging

@@ -2,7 +2,7 @@
 
 ## Production Trade Lifecycle Audit (2026-07-02)
 
-**Save**: `data/processed/full_audit_results.json` (15 phases, 11 recommendations)
+**Save**: `data/processed/audits/full_audit_results.json` (15 phases, 11 recommendations)
 
 ```
 [ALPHA] (score=0.510) Deploy exit strategy: trail_33pct
@@ -20,7 +20,7 @@
 [SIGMA] (score=0.333) Regime transitions degrade performance (56% assets worse)
 ```
 
-**Run**: `PYTHONPATH=$PYTHONPATH:. python scripts/analysis/production_audit.py --output data/processed/full_audit_results.json`
+**Run**: `PYTHONPATH=$PYTHONPATH:. python scripts/analysis/production_audit.py --output data/processed/audits/full_audit_results.json`
 
 **Architecture**: `scripts/analysis/audit_phases/` — 16 phase modules + orchestrator. Phase 0 (`phase_data.py`) augments trades with temporal metadata and defines shared constants. Phases 1–17 are independent forensics. Phase 18 aggregates and scores.
 

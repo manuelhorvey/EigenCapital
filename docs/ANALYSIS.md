@@ -5,7 +5,7 @@
 ### `scripts/analysis/production_audit.py`
 Comprehensive 18-phase forensic audit of the entire trade lifecycle. Runs all phases sequentially from `scripts/analysis/audit_phases/`. Produces structured JSON (`--output`) and terminal report.
 
-**Methodology**: Reads pre-computed trade lifecycle data (`data/processed/trade_lifecycle_results.json`), passes through 15 forensic phases (Phase 0 augments temporal data, Phases 1-17 are independent, Phase 18 aggregates + scores). Outputs scored recommendations (Alpha/Sigma/Info) with impact estimates.
+**Methodology**: Reads pre-computed trade lifecycle data (`data/processed/trade_data/trade_lifecycle_results.json`), passes through 15 forensic phases (Phase 0 augments temporal data, Phases 1-17 are independent, Phase 18 aggregates + scores). Outputs scored recommendations (Alpha/Sigma/Info) with impact estimates.
 
 **Usage**: `PYTHONPATH=$PYTHONPATH:. python scripts/analysis/production_audit.py [--phases 4,7] [--output path.json]`
 

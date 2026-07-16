@@ -9,7 +9,7 @@ from data.loaders.macro_loader import FRED_SERIES
 
 
 def download_all(start='1990-01-01', end='2026-12-31',
-                 path='data/processed/macro_factors.parquet'):
+                 path='data/processed/trade_data/macro_factors.parquet'):
     raw_series = {}
     for name, series_id in FRED_SERIES.items():
         if series_id is None:

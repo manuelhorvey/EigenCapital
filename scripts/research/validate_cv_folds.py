@@ -10,7 +10,7 @@ Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/research/validate_cv_folds.py
 
 Output:
-    Console table + data/processed/cv_audit_report.md
+    Console table + data/processed/reports/cv_audit_report.md
 """
 
 from __future__ import annotations

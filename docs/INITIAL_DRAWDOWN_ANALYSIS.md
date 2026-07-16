@@ -341,7 +341,7 @@ The tail-risk stress test was conducted by:
 
 **Related documents:**
 - `docs/PRODUCTION_READINESS_AUDIT.md` — Full production readiness audit
-- `data/processed/trade_lifecycle_results.json` — Trade data used for analysis
+- `data/processed/trade_data/trade_lifecycle_results.json` — Trade data used for analysis
 - `/tmp/tail_risk_stress_test.py` — Reusable stress test script
 
 **Last updated:** 2026-07-15

@@ -3,7 +3,7 @@
 Final aggregation script for the Multi-Position Architecture Research Study.
 
 Compiles results from all parallel experiments into a structured JSON report
-at data/processed/stacking_architecture_results.json.
+at data/processed/audits/stacking_architecture_results.json.
 
 Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/research/stacking_research_report.py

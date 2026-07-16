@@ -4,7 +4,7 @@ Six checks to stress-test SELL_ONLY alpha robustness.
 Usage:
   PYTHONPATH=$PYTHONPATH:. python scripts/analysis/stress_test_6_checks.py
 
-Output: data/processed/stress_test_6_checks.json + printed summary
+Output: data/processed/audits/stress_test_6_checks.json + printed summary
 """
 
 import json

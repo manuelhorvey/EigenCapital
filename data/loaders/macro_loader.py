@@ -70,7 +70,7 @@ def align_macro_to_daily(macro_df: pd.DataFrame,
 
 
 def load_macro_features(price_index: pd.DatetimeIndex = None,
-                        path: str = 'data/processed/macro_factors.parquet') -> pd.DataFrame:
+                        path: str = 'data/processed/trade_data/macro_factors.parquet') -> pd.DataFrame:
     raw = pd.read_parquet(path)
 
     derived = compute_derived_features(raw)

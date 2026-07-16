@@ -222,7 +222,7 @@ class TradeAugmenter:
         return {"total_trades": total, "unknown_session": unknown, "ok": unknown == 0}
 
 
-def load_and_augment(path: str = "data/processed/trade_lifecycle_results.json") -> tuple[dict[str, list[dict]], dict[str, Any]]:
+def load_and_augment(path: str = "data/processed/trade_data/trade_lifecycle_results.json") -> tuple[dict[str, list[dict]], dict[str, Any]]:
     """Load the trade lifecycle results and augment with temporal data.
 
     Returns (augmented_trades_map, phases_data).

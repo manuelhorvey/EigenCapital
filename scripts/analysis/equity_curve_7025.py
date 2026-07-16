@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -50,12 +51,24 @@ def simulate(trade, asset):
     return max(captured, 0)
 
 
+def _clean(trades: list[dict]) -> None:
+    """Replace NaN r_multiple and mfe_r with 0.0 in-place."""
+    for t in trades:
+        rm = t.get("r_multiple")
+        if rm is None or (isinstance(rm, float) and math.isnan(rm)):
+            t["r_multiple"] = 0.0
+        mfe = t.get("mfe_r")
+        if mfe is None or (isinstance(mfe, float) and math.isnan(mfe)):
+            t["mfe_r"] = 0.0
+
+
 def main():
     with open(TRADE_PATH) as f:
         data = json.load(f)
 
     all_trades = []
     for asset, trades in data["_trades"].items():
+        _clean(trades)
         for t in trades:
             t["_asset"] = asset
             all_trades.append(t)

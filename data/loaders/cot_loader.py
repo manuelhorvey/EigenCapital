@@ -14,7 +14,7 @@ FX_COT_CONTRACTS = {
 
 
 def load_cot_weekly(
-    path: str = "data/processed/cot_raw.parquet",
+    path: str = "data/processed/trade_data/cot_raw.parquet",
 ) -> pd.DataFrame:
     return pd.read_parquet(path)
 

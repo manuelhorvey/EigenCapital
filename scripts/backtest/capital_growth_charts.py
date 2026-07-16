@@ -8,7 +8,7 @@ and sensitivity analysis.
 
 Usage:
     PYTHONPATH=$PYTHONPATH:. python scripts/backtest/capital_growth_charts.py
-    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/capital_growth_charts.py --json data/processed/capital_growth_simulation.json
+    PYTHONPATH=$PYTHONPATH:. python scripts/backtest/capital_growth_charts.py --json data/processed/simulations/capital_growth_simulation.json
 """
 
 from __future__ import annotations
@@ -148,7 +148,7 @@ def generate_charts(data: dict, output_dir: Path) -> list[Path]:
         ax2.spines[s].set_color(SPINE)
 
     dd = daily["drawdown"].values
-    ax2.fill_between(x, 0, dd, color=RED if dd.min() < -5 else AMBER, alpha=0.4)
+    ax2.fill_between(x, 0, dd, color=RED if dd.max() >= 5 else AMBER, alpha=0.4)
     ax2.axhline(y=-10, color=TEXT2, linewidth=0.4, linestyle="--", alpha=0.3)
     ax2.axhline(y=-20, color=TEXT2, linewidth=0.4, linestyle="--", alpha=0.3)
     ax2.axhline(y=-dd.max(), color=RED, linewidth=0.7, linestyle=":", alpha=0.7)
@@ -158,9 +158,9 @@ def generate_charts(data: dict, output_dir: Path) -> list[Path]:
     ax2.xaxis.set_visible(False)
 
     # Annotate max drawdown
-    dd_min_idx = np.argmin(dd)
-    ax2.annotate(f"Max DD: {dd[dd_min_idx]:.1f}%",
-                 xy=(x[dd_min_idx], dd[dd_min_idx]),
+    dd_max_idx = np.argmax(dd)
+    ax2.annotate(f"Max DD: {dd[dd_max_idx]:.1f}%",
+                 xy=(x[dd_max_idx], dd[dd_max_idx]),
                  xytext=(30, -20), textcoords="offset points",
                  color=RED, fontsize=9, fontweight="bold",
                  arrowprops=dict(arrowstyle="->", color=RED, lw=1.2),
@@ -200,9 +200,12 @@ def generate_charts(data: dict, output_dir: Path) -> list[Path]:
     # Custom colormap: red (negative) → dark (zero) → green (positive)
     cmap = LinearSegmentedColormap.from_list("rd_gn", ["#ef4444", "#1a1c2a", "#3dd9ae"], N=128)
 
+    # Clip color scale to ±25% so outlier months (e.g., +110%) don't wash out
+    # the rest of the heatmap. Values beyond the clip still show the end color.
+    data_range = max(abs(np.nanmin(heatmap_data)), abs(np.nanmax(heatmap_data)))
+    clim = min(25.0, data_range)
     im = ax3.imshow(heatmap_data, cmap=cmap, aspect="auto",
-                    vmin=-max(abs(np.nanmin(heatmap_data)), abs(np.nanmax(heatmap_data))),
-                    vmax=max(abs(np.nanmin(heatmap_data)), abs(np.nanmax(heatmap_data))),
+                    vmin=-clim, vmax=clim,
                     interpolation="nearest")
 
     # Annotate each cell

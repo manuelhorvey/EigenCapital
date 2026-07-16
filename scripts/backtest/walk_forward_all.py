@@ -300,7 +300,7 @@ def main():
     os.makedirs(os.path.join(BASE, "data", "processed"), exist_ok=True)
     summary_df.to_csv(os.path.join(BASE, "data", "processed", "walkforward_summary.csv"), index=False)
     windows_df.to_csv(os.path.join(BASE, "data", "processed", "walkforward_windows.csv"), index=False)
-    logger.info("Results saved to data/processed/walkforward_summary.csv")
+    logger.info("Results saved to data/processed/trade_data/walkforward_summary.csv")
 
 
 if __name__ == "__main__":

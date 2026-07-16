@@ -12,7 +12,7 @@ Usage (run daily):
 Output:
     - Logs comparison of current vs historical exit performance
     - WARNING if max_dd exceeds threshold or win_rate drops below baseline
-    - data/processed/ab_test_exit_results.json (cumulative record)
+    - data/processed/audits/ab_test_exit_results.json (cumulative record)
 
 Rollback: revert configs/domains/risk/exits.yaml and _defaults.yaml
     trail_activation_r: 0.3 -> 0.5

@@ -3,7 +3,7 @@
 
 Reads walk-forward signal parquets, applies adaptive exit simulation,
 computes comprehensive baseline metrics in both R-space and %-space.
-Output: data/processed/phase1_baseline.json
+Output: data/processed/audits/phase1_baseline.json
 """
 
 from __future__ import annotations

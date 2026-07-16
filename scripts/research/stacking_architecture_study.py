@@ -8,7 +8,7 @@ portfolio heat constraints, correlation-aware stacking, asset-by-asset optimizat
 session/regime analysis, bootstrap validation, transaction cost sensitivity, stress
 testing, and Monte Carlo simulations.
 
-Output: data/processed/stacking_architecture_results.json — comprehensive structured report.
+Output: data/processed/audits/stacking_architecture_results.json — comprehensive structured report.
 
 Every recommendation is supported by statistical evidence with bootstrap confidence
 intervals, regime robustness checks, and out-of-sample validation.

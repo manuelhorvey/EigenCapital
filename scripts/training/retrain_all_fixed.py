@@ -16,7 +16,7 @@ models via ``train_canary.py`` so the shadow-comparison infrastructure stays
 in sync (unless ``--skip-canary`` is passed).
 
 Output: paper_trading/models/{name}_model.json per asset
-        data/processed/training_report_{timestamp}.csv
+        data/processed/trade_data/training_report_{timestamp}.csv
         paper_trading/models/canary/{name}.json (canary models)
 """
 

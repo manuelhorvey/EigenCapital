@@ -1049,7 +1049,7 @@ The adaptive exit system is **structurally shock-stationary** — edge degrades 
 | `paper_trading/position/manager.py` | `check_sl_tp()` now uses `effective_sl` (risk_floor fix) |
 | `paper_trading/asset_pnl_controller.py` | `_apply_adaptive_exit()` integration in `_check_intraday_sltp` |
 | `configs/paper_trading.yaml` | Per-asset `adaptive_exit` config blocks |
-| `data/processed/trade_lifecycle_results.json` | Full lifecycle analysis output (1.8MB, 4679 trades)
+| `data/processed/trade_data/trade_lifecycle_results.json` | Full lifecycle analysis output (1.8MB, 4679 trades)
 
 ---
 ## Production Audit Remediation (2026-07-01+)

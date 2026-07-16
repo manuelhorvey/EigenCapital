@@ -166,7 +166,7 @@ def main():
 
 
 def load_macro_data():
-    m = pd.read_parquet(os.path.join(BASE, "data/processed/macro_factors.parquet"))
+    m = pd.read_parquet(os.path.join(BASE, "data/processed/trade_data/macro_factors.parquet"))
     return compute_macro_derived(m)
 
 

@@ -385,28 +385,28 @@ class TestApplySignalHysteresis:
 
 
 class TestApplySellOnlyFilter:
-    @patch("paper_trading.execution.decision_pipeline.get_sell_only_assets", return_value=frozenset({"TEST"}))
+    @patch("paper_trading.execution.stages.get_sell_only_assets", return_value=frozenset({"TEST"}))
     def test_suppresses_buy_on_sell_only_asset(self, mock_soa):
         engine = _mock_engine(name="TEST")
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
         apply_sell_only_filter(ctx)
         assert ctx.new_side is None
 
-    @patch("paper_trading.execution.decision_pipeline.get_sell_only_assets", return_value=frozenset({"TEST"}))
+    @patch("paper_trading.execution.stages.get_sell_only_assets", return_value=frozenset({"TEST"}))
     def test_allows_sell_on_sell_only_asset(self, mock_soa):
         engine = _mock_engine(name="TEST", has_position=False)
         ctx = _ctx(engine=engine, new_side=PositionSide.SHORT)
         apply_sell_only_filter(ctx)
         assert ctx.new_side == PositionSide.SHORT
 
-    @patch("paper_trading.execution.decision_pipeline.get_sell_only_assets", return_value=frozenset({"OTHER"}))
+    @patch("paper_trading.execution.stages.get_sell_only_assets", return_value=frozenset({"OTHER"}))
     def test_noop_on_non_sell_only_asset(self, mock_soa):
         engine = _mock_engine(name="EURUSD")
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
         apply_sell_only_filter(ctx)
         assert ctx.new_side == PositionSide.LONG
 
-    @patch("paper_trading.execution.decision_pipeline.get_sell_only_assets", return_value=frozenset({"TEST"}))
+    @patch("paper_trading.execution.stages.get_sell_only_assets", return_value=frozenset({"TEST"}))
     def test_force_closes_existing_long(self, mock_soa):
         engine = _mock_engine(name="TEST", current_price=100.0)
         engine.pos_mgr.has_position.return_value = True
@@ -418,7 +418,7 @@ class TestApplySellOnlyFilter:
 
 class TestApplyBarJumpSuppression:
     def test_suppresses_when_suppress_until_active(self, monkeypatch):
-        monkeypatch.setattr("paper_trading.execution.decision_pipeline.time.time", lambda: 500.0)
+        monkeypatch.setattr("paper_trading.execution.stages.time.time", lambda: 500.0)
         engine = _mock_engine()
         engine._suppress_until = 1000.0
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
@@ -426,7 +426,7 @@ class TestApplyBarJumpSuppression:
         assert ctx.new_side is None
 
     def test_no_suppression_when_expired(self, monkeypatch):
-        monkeypatch.setattr("paper_trading.execution.decision_pipeline.time.time", lambda: 2000.0)
+        monkeypatch.setattr("paper_trading.execution.stages.time.time", lambda: 2000.0)
         engine = _mock_engine()
         engine._suppress_until = 1000.0
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
@@ -458,7 +458,7 @@ class TestApplyRiskOffSuppression:
 
 
 class TestApplySpreadGate:
-    @patch("paper_trading.execution.decision_pipeline.time.time", return_value=2000.0)
+    @patch("paper_trading.execution.stages.time.time", return_value=2000.0)
     def test_blocks_when_spread_exceeds_threshold(self, mock_time):
         engine = _mock_engine()
         engine._last_spread_bps = 25.0
@@ -469,7 +469,7 @@ class TestApplySpreadGate:
         apply_spread_gate(ctx)
         assert ctx.new_side is None
 
-    @patch("paper_trading.execution.decision_pipeline.time.time", return_value=2000.0)
+    @patch("paper_trading.execution.stages.time.time", return_value=2000.0)
     def test_allows_when_spread_within_threshold(self, mock_time):
         engine = _mock_engine()
         engine._last_spread_bps = 5.0
@@ -480,7 +480,7 @@ class TestApplySpreadGate:
         apply_spread_gate(ctx)
         assert ctx.new_side == PositionSide.LONG
 
-    @patch("paper_trading.execution.decision_pipeline.time.time", return_value=2000.0)
+    @patch("paper_trading.execution.stages.time.time", return_value=2000.0)
     def test_observe_mode_does_not_block(self, mock_time):
         engine = _mock_engine()
         engine._last_spread_bps = 100.0

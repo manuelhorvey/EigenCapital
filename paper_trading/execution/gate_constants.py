@@ -14,13 +14,10 @@ logger = logging.getLogger("eigencapital.gate_constants")
 # ── Directional classification (shadow/observation only) ────────────────────
 
 
-VALID_TIERS: frozenset[str] = frozenset(
-    {"BIDIRECTIONAL", "BUY_STRONG", "SELL_STRONG", "SELL_LEANING"}
-)
+VALID_TIERS: frozenset[str] = frozenset({"BIDIRECTIONAL", "BUY_STRONG", "SELL_STRONG", "SELL_LEANING"})
 
 _DIRECTIONAL_MAP_PATH: Final[Path] = (
-    Path(__file__).resolve().parent.parent.parent
-    / "configs" / "domains" / "risk" / "directional_map.yaml"
+    Path(__file__).resolve().parent.parent.parent / "configs" / "domains" / "risk" / "directional_map.yaml"
 )
 
 

@@ -256,7 +256,6 @@ class RiskConfig:
                 return f.default_factory()
             return None
 
-
         sizing_kw = {
             f.name: _coerce(
                 _default_for_field(f),

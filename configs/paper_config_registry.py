@@ -382,8 +382,9 @@ class PaperConfigRegistry:
         dm_path = domains_dir / "risk" / "directional_map.yaml"
         if dm_path.exists():
             directional_map = yaml.safe_load(dm_path.read_text()) or {}
-            logger.debug("Loaded directional classification map (%d assets classified)",
-                         len(directional_map.get("assets", {})))
+            logger.debug(
+                "Loaded directional classification map (%d assets classified)", len(directional_map.get("assets", {}))
+            )
 
         # Step 1q: mode overrides — configs/domains/modes/*.yaml
         # Each file becomes a mode entry keyed by its stem (e.g. production.yaml → modes["production"]).

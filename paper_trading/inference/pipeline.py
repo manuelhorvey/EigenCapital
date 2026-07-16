@@ -262,7 +262,9 @@ class AssetInferencePipeline:
             if missing:
                 logger.debug(
                     "%s: inference missing %d model features (filling 0): %s",
-                    asset.name, len(missing), missing,
+                    asset.name,
+                    len(missing),
+                    missing,
                 )
             aligned = pd.DataFrame(0.0, index=x.index, columns=model_feats)
             aligned[existing] = x[existing]
@@ -272,7 +274,8 @@ class AssetInferencePipeline:
         except (KeyError, ValueError, AttributeError, TypeError):
             logger.warning(
                 "%s: feature alignment failed — falling back to raw x",
-                asset.name, exc_info=True,
+                asset.name,
+                exc_info=True,
             )
             return x
 

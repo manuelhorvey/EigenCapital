@@ -89,6 +89,7 @@ Position-sizing guardrails shared across all assets.
 | `max_position_pct_of_equity` | `float` | `0.15` |
 | `max_risk_per_trade_pct` | `float` | `2.0` |
 | `min_risk_per_trade_pct` | `float` | `0.001` |
+| `risk_tiers` | `list[dict]` | `(default_factory)` |
 | `min_viable_position_pct` | `float` | `0.01` |
 | `size_taper_start_dd` | `float` | `-0.05` |
 | `size_taper_end_dd` | `float` | `-0.15` |
@@ -148,4 +149,4 @@ The following environment variables override hardcoded defaults at runtime. They
 
 
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-16

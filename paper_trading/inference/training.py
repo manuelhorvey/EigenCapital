@@ -215,9 +215,7 @@ class AssetTrainingPipeline:
                 _leader_ticker = _edge.get("leader", "")
                 _lag = _edge.get("lag", 1)
                 if _leader_ticker not in _leader_cache:
-                    _lname = (
-                        _leader_ticker.replace("=X", "").replace("=F", "").replace("^", "")
-                    )
+                    _lname = _leader_ticker.replace("=X", "").replace("=F", "").replace("^", "")
                     _lpath = Path(expanded_data_dir) / f"{_lname}_ohlcv.parquet"
                     if _lpath.exists():
                         _ldf = pd.read_parquet(_lpath)
@@ -225,7 +223,9 @@ class AssetTrainingPipeline:
                     else:
                         logger.warning(
                             "%s: leader data not found at %s — skipping feature '%s'",
-                            asset.name, _lpath, _col,
+                            asset.name,
+                            _lpath,
+                            _col,
                         )
                         continue
                 _leader_close = _leader_cache.get(_leader_ticker)
@@ -234,7 +234,11 @@ class AssetTrainingPipeline:
                     features[_col] = _lret.shift(_lag).reindex(features.index)
                     logger.info(
                         "%s: added lead-lag feature '%s' (leader=%s, lag=%d, rows=%d)",
-                        asset.name, _col, _leader_ticker, _lag, len(features),
+                        asset.name,
+                        _col,
+                        _leader_ticker,
+                        _lag,
+                        len(features),
                     )
 
         # ── Cross-sectional features (if full panel provided) ────────

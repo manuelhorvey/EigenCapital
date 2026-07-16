@@ -188,6 +188,7 @@ class PortfolioStateBuilder:
 
         # ── Risk parameters from mode config (tiered by equity) ──
         from shared.sizing_chain import get_risk_for_equity
+
         max_risk_pt = get_risk_for_equity(
             total_equity,
             self._mode.get("risk_tiers"),

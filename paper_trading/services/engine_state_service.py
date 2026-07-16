@@ -431,23 +431,15 @@ class EngineStateService:
           current_equity: the equity value used for the lookup
         """
         try:
-            risk_tiers: list[dict] = (
-                self.engine._engine_cfg.defaults.get("risk_tiers", []) or []
-            )
-            default_risk: float = (
-                self.engine._engine_cfg.defaults.get("max_risk_per_trade_pct", 2.0) or 2.0
-            )
+            risk_tiers: list[dict] = self.engine._engine_cfg.defaults.get("risk_tiers", []) or []
+            default_risk: float = self.engine._engine_cfg.defaults.get("max_risk_per_trade_pct", 2.0) or 2.0
 
-            effective_risk = get_risk_for_equity(
-                current_equity, risk_tiers, default_risk
-            )
+            effective_risk = get_risk_for_equity(current_equity, risk_tiers, default_risk)
 
             # Find which threshold matched for display purposes
             matched_threshold: float | None = None
             if risk_tiers:
-                sorted_tiers = sorted(
-                    risk_tiers, key=lambda t: t.get("threshold", 0), reverse=True
-                )
+                sorted_tiers = sorted(risk_tiers, key=lambda t: t.get("threshold", 0), reverse=True)
                 for tier in sorted_tiers:
                     if current_equity >= tier.get("threshold", 0):
                         matched_threshold = tier.get("threshold", 0)

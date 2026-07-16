@@ -181,13 +181,18 @@ class FeatureBuilder:
                         else:
                             logger.warning(
                                 "%s: leader OHLCV empty for %s — skipping '%s'",
-                                asset.name, _leader_ticker, _col,
+                                asset.name,
+                                _leader_ticker,
+                                _col,
                             )
                             continue
                     except (OSError, ValueError, KeyError) as _exc:
                         logger.warning(
                             "%s: failed to fetch leader %s for '%s': %s",
-                            asset.name, _leader_ticker, _col, _exc,
+                            asset.name,
+                            _leader_ticker,
+                            _col,
+                            _exc,
                         )
                         continue
                 _leader_close = _leader_cache_local.get(_leader_ticker)
@@ -196,7 +201,10 @@ class FeatureBuilder:
                     alpha_df[_col] = _lret.shift(_lag).reindex(alpha_idx)
                     logger.info(
                         "%s: added lead-lag feature '%s' at inference (leader=%s, lag=%d)",
-                        asset.name, _col, _leader_ticker, _lag,
+                        asset.name,
+                        _col,
+                        _leader_ticker,
+                        _lag,
                     )
 
         # ── Archetype features (EMA, ADX, RSI, Bollinger) ───────────

@@ -11,6 +11,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | [`docs/GOVERNANCE.md`](GOVERNANCE.md) | 17-layer governance + 3 adaptive budget layers + decision pipeline + position sizing guardrails |
 | [`docs/FEATURES.md`](FEATURES.md) | Alpha features (9 base + 6 trend-exhaustion per-asset, 4 cross-asset, 7 regime, archetype, labeling) |
 | [`docs/PRODUCTION_READINESS_AUDIT.md`](PRODUCTION_READINESS_AUDIT.md) | Production readiness assessment, capital growth simulation, risk parameters, deployment checklist |
+| [`docs/INSTITUTIONAL_AUDIT_REPORT.md`](INSTITUTIONAL_AUDIT_REPORT.md) | Full 9-phase institutional forensic audit: data integrity, feature stability, calibration, robustness surface, production verdict |
 | [`LIVE_CONTRACT.md`](../LIVE_CONTRACT.md) | Immutable production system contract |
 | [`docs/MODES.md`](MODES.md) | Per-mode override matrix (production / challenge_ftmo_10k / live) |
 | [`docs/SECURITY.md`](SECURITY.md) | Bearer token auth, MT5 loopback enforcement, .env permission check, secrets scanner |
@@ -29,6 +30,7 @@ Project documentation for the EigenCapital cross-sectional factor ranking and pa
 | `python scripts/backtest/backtest_pnl.py` | PnL backtest from OOS signal parquets |
 | `python scripts/optimization/drift_detector.py --json` | Live win-rate drift check |
 | `python scripts/analysis/production_audit.py` | 18-phase production audit |
+| `python scripts/analysis/robustness_surface.py` | ±10% perturbation grid — classifies system as broad plateau or fragile optimum |
 | `python scripts/ops/monitor_paper_trading.py` | Poll dashboard + CSV logging |
 
 ## Core Pipeline

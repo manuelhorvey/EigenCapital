@@ -73,19 +73,25 @@ Per-asset config (SL/TP, allocation, max_depth) in per-asset YAML files under [`
 
 ## Key Results
 
-| Metric | Value |
-|--------|-------|
-| Calibrated PnL (22 assets) | **+732.73 R** (Sharpe 56.45) |
-| Directional threshold improvement | **+364.89 R** vs no-gate baseline |
-| Assets profitable (calibrated) | **22/22** |
-| Max DD (423-day backtest) | 0.00 R |
-| DirectionalCalibrator ECE | 0.2207→0.0178 (Platt base) |
-| Custom BUY thresholds | GC (+265R), AUDJPY (+130R) unlocked |
-| Production candidate validation | **PROMOTE** (13/24 assets pass) |
-| Doc-drift CI | PASS |
-| Shock simulation | 17/21 PASS (correlated crash SEVERE) |
+> **⚠️ Two classes of metrics:** R-space backtests (Sharpe 56.45) measure **signal quality** — independent per-asset R-multiples with no capital constraints, correlation, or slippage. The **capital-growth simulation** ($500 start, 1% risk, spread costs, min-lot constraints, adaptive exits) measures realistic portfolio performance. The latter is the production benchmark.
 
-[Backtest scripts →](scripts/backtest/) · [Robustness validation →](scripts/analysis/robustness_gatekeeper.py)
+| Metric | Value | Type |
+|--------|-------|------|
+| Capital growth ($500 start) | **$3,172** (+534%) | Realistic simulation |
+| Sharpe (simulated) | **1.05** | Realistic simulation |
+| Max Drawdown (simulated) | **−34.9%** | Realistic simulation |
+| CAGR (simulated) | **45.1%** | Realistic simulation |
+| Profit Factor (simulated) | **1.27** | Realistic simulation |
+| Total trades (8,494) | **40.7% WR**, 0.31 expectancy | Realistic simulation |
+| Signal quality (R-space Sharpe) | **56.45** | Signal quality only |
+| Calibrated PnL | **+732.73 R** | Signal quality only |
+| Assets profitable (calibrated) | **22/22** | Signal quality only |
+| DirectionalCalibrator ECE | 0.2207→0.0178 | Calibration quality |
+| Directional threshold improvement | +364.89 R vs no-gate baseline | Ablation study |
+| Test suite | 3,899 passed, 0 failed | CI quality |
+| Shock simulation | 17/21 PASS (correlated crash: SEVERE) | Stress test |
+
+[Capital growth simulation →](scripts/backtest/capital_growth_simulation.py) · [Robustness surface →](scripts/analysis/robustness_surface.py) · [Institutional audit →](docs/INSTITUTIONAL_AUDIT_REPORT.md)
 
 ---
 

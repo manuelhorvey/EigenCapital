@@ -2,6 +2,8 @@
 
 The system implements **17 core governance layers** operating at different frequencies and granularities, plus **3 adaptive budget layers** (RiskEngineV2, PEK admission controller, PerformanceState velocity), **HealthMonitor** circuit breaker, **25-stage decision pipeline**, and **position sizing guardrails**.
 
+> **See also:** [`docs/INSTITUTIONAL_AUDIT_REPORT.md`](INSTITUTIONAL_AUDIT_REPORT.md) — full 9-phase forensic audit validating data integrity, feature stability, model calibration, robustness surface, and production verdict for the governance framework.
+
 ## Governance Layers (17 core)
 
 | Layer | Frequency | Scope | Effect |

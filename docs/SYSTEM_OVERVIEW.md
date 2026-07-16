@@ -2,7 +2,11 @@
 
 Architecture, component responsibilities, execution lifecycle, and persistence model for the EigenCapital cross-sectional research and paper trading platform.
 
-> **See also:** [`docs/PRODUCTION_SYSTEM_SPEC_v1.md`](PRODUCTION_SYSTEM_SPEC_v1.md) for the production system specification — scope, constraints, P0–P4 framework, and the complete system contract. SYSTEM_OVERVIEW.md covers day-to-day architecture; PRODUCTION_SYSTEM_SPEC.md defines what the system IS.
+> **See also:** 
+> * [`docs/INSTITUTIONAL_AUDIT_REPORT.md`](INSTITUTIONAL_AUDIT_REPORT.md) — full 9-phase forensic audit: data integrity, feature stability, model calibration, robustness surface, production verdict
+> * [`docs/PRODUCTION_SYSTEM_SPEC_v1.md`](PRODUCTION_SYSTEM_SPEC_v1.md) — production system specification: scope, constraints, P0–P4 framework, and the complete system contract
+> 
+> SYSTEM_OVERVIEW.md covers day-to-day architecture; PRODUCTION_SYSTEM_SPEC.md defines what the system IS; INSTITUTIONAL_AUDIT_REPORT.md validates that it works.
 
 ---
 

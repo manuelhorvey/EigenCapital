@@ -4,6 +4,8 @@
 
 The primary feature builder is `features/alpha_features.py:build_alpha_features()`. Every asset uses base alpha features (9 core per-asset + 6 trend-exhaustion + 4 cross-asset + 10 directional momentum/carry splits + 15 FXStreet narrative cross-asset features) with per-asset prefix, including trend-exhaustion indicators, directional splits, and narrative overlays. During training, additional feature groups are appended: Group 1 (cross-sectional momentum), Group 2 (positioning/volume momentum), Group 3 (rates & carry), and Group 4 (event/calendar features), expanding the total feature count significantly beyond the base set. COT features were deprecated 2026-07-09 after walk-forward validation showed zero gain across all 22 assets. The per-asset contracts in `features/registry.py` are used by the backtest pipeline for custom feature variants.
 
+> **See also:** [`docs/INSTITUTIONAL_AUDIT_REPORT.md`](INSTITUTIONAL_AUDIT_REPORT.md) — full 9-phase forensic audit covering feature integrity (no look-ahead bias), feature stability (PSI/drift analysis), and feature-directional capability analysis across all 22 assets.
+
 ### Input Data
 
 Data ingested from MT5 bridge (primary) or yfinance (fallback):

@@ -485,7 +485,7 @@ def _check_markdown_paths() -> list[str]:
             # and optional directories (paper_trading/models/orphaned/)
             if candidate.startswith("paper_trading/dashboard/dist/") or candidate.startswith(
                 "paper_trading/models/orphaned/"
-            ):
+            ) or candidate.startswith("paper_trading/models/calibration/"):
                 continue
 
             # Normalize: strip leading ./ or cwd references

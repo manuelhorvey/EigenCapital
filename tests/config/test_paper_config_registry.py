@@ -36,7 +36,7 @@ def test_registry_summary_shape(registry):
     summary = registry.summary()
     assert summary["assets"] == 22
     assert summary["sell_only"] == ["CADCHF", "EURAUD", "EURCHF", "GBPCHF", "GBPJPY", "NZDCHF"]
-    assert summary["sizing_fields"] == 29
+    assert summary["sizing_fields"] == 30
     assert summary["domain_assets"] == 22
     assert summary["legacy_assets"] == 0
 

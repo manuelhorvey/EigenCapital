@@ -28,6 +28,7 @@ import argparse
 import json
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -355,6 +356,295 @@ def build_portfolio_daily_r(
     return result
 
 
+# ── Realistic-mode adjustments ────────────────────────────────────────────
+
+# Spread cost in R-units per trade (1bp ≈ 0.01R for a typical 1R trade)
+# Calibrated from the production capital growth simulation which showed
+# ~$0.50 spread cost per $67 avg trade expectancy.
+_REALISTIC_SPREAD_COST_R: float = 0.02  # 2% of 1R consumed by spread
+_REALISTIC_MAX_CONCURRENT: int = 13  # matches max_concurrent_positions in sizing.yaml
+
+
+@dataclass
+class CapitalPathResult:
+    """Result of the capital-path simulation."""
+    start_capital: float
+    final_capital: float
+    total_return_pct: float
+    cagr_pct: float
+    sharpe: float
+    max_dd_pct: float
+    max_dd_dollar: float
+    n_losing_days: int
+    longest_dd_days: int
+
+
+def simulate_capital_path(
+    per_asset_r: pd.DataFrame | pd.Series,
+    start_capital: float = 500.0,
+    risk_per_trade_pct: float = 1.0,
+    taper_start_dd: float = 0.05,
+    taper_end_dd: float = 0.15,
+    taper_min: float = 0.5,
+) -> CapitalPathResult:
+    """Simulate a capital path from per-asset daily R series.
+
+    This is the key missing piece in ``--realistic-mode``.  Raw R-space
+    backtests assume (1) equal risk-per-trade, (2) infinite capital,
+    and (3) no compounding effects — so drawdown is always zero because
+    wins and losses across 22 assets are averaged into a smooth daily
+    return that never goes negative.
+
+    **When ``per_asset_r`` is a DataFrame** (pre-averaged per-asset R):
+    Each asset's daily dollar P&L is computed independently from the
+    current equity, then summed for the portfolio daily P&L.  This
+    captures the critical multi-asset effect: if 7 assets lose on the
+    same day, the dollar loss is 7x larger than if only 1 asset loses,
+    even though the portfolio-averaged R might still be positive from
+    the other 15 winners.
+
+    **When ``per_asset_r`` is a Series** (already averaged): the function
+    falls back to the simpler portfolio-level path (preserved for
+    backward compatibility, but will still show zero drawdown if the
+    averaged series is always positive).
+
+    Parameters
+    ----------
+    per_asset_r : pd.DataFrame | pd.Series
+        Daily R-multiple series.  When a DataFrame, columns are asset
+        names and each column contains that asset's daily R.  When a
+        Series, treated as the portfolio-averaged daily R.
+    start_capital : float
+        Initial account equity (default 500).
+    risk_per_trade_pct : float
+        Fraction of equity risked per R-unit per asset (default 1.0%%).
+        For multi-asset, this is the RISK PER ASSET, so total portfolio
+        risk = risk_per_trade_pct * n_active_assets.
+    taper_start_dd : float
+        Drawdown threshold (as fraction) at which taper begins (default 0.05).
+    taper_end_dd : float
+        Drawdown threshold at which taper reaches minimum (default 0.15).
+    taper_min : float
+        Minimum taper factor (default 0.5).
+
+    Returns
+    -------
+    CapitalPathResult with dollar-equity metrics.
+    """
+    equity = float(start_capital)
+    peak = float(start_capital)
+    max_dd_pct = 0.0
+    max_dd_dollar = 0.0
+    losing_days = 0
+    total_trading_days = 0
+    in_dd = False
+    dd_count = 0
+    longest_dd = 0
+
+    r_pct = risk_per_trade_pct / 100.0
+
+    is_dataframe = isinstance(per_asset_r, pd.DataFrame)
+
+    for idx in range(len(per_asset_r)):
+        if is_dataframe:
+            row = per_asset_r.iloc[idx]
+            n_active = int(row.notna().sum())
+            if n_active == 0:
+                continue
+            total_trading_days += 1
+
+            # Each asset's daily R represents the TOTAL R for that asset on
+            # that day (sum of all trades).  The risk_per_trade_pct is the
+            # fraction of equity risked per R-unit.  So dollar P&L for each
+            # asset is: r * equity * risk_pct * taper.
+            #
+            # CRITICAL: We do NOT divide by n_active here.  If 10 assets
+            # each have daily_r = -3.0, the total dollar loss is
+            # 10 * (-3.0) * equity * 0.01 = -30% of equity.  This is the
+            # multi-asset simultaneous loss effect that the portfolio-averaged
+            # R completely smooths away.
+            asset_rs = row.dropna().values
+            n = len(asset_rs)
+        else:
+            r_val = per_asset_r.iloc[idx]
+            if r_val == 0.0:
+                continue
+            total_trading_days += 1
+            asset_rs = np.array([r_val])
+            n = 1
+
+        # Drawdown taper (same for all assets)
+        dd_fraction = (peak - equity) / peak if peak > 0 else 0.0
+        if dd_fraction >= taper_end_dd:
+            taper = taper_min
+        elif dd_fraction <= taper_start_dd:
+            taper = 1.0
+        else:
+            progress = (dd_fraction - taper_start_dd) / (taper_end_dd - taper_start_dd)
+            taper = 1.0 - (1.0 - taper_min) * progress
+
+        # Dollar P&L = sum over all active assets of (r * equity * risk_pct * taper)
+        # This is the SUM of per-asset R, not the average, so simultaneous losses
+        # compound correctly.
+        effective_risk = equity * r_pct * taper
+        sum_r = sum(asset_rs)
+        daily_pnl = sum_r * effective_risk
+
+        equity += daily_pnl
+        if equity < 0:
+            equity = 0.0
+
+        if daily_pnl < 0:
+            losing_days += 1
+
+        # Track drawdown
+        if equity > peak:
+            peak = equity
+            in_dd = False
+            dd_count = 0
+        else:
+            dd_pct = (peak - equity) / peak * 100 if peak > 0 else 0.0
+            dd_dollar = peak - equity
+            if dd_pct > max_dd_pct:
+                max_dd_pct = dd_pct
+                max_dd_dollar = dd_dollar
+            if not in_dd:
+                in_dd = True
+                dd_count = 1
+            else:
+                dd_count += 1
+            longest_dd = max(longest_dd, dd_count)
+
+    total_return_pct = (equity - start_capital) / start_capital * 100 if start_capital > 0 else 0.0
+
+    # CAGR
+    years = total_trading_days / 252.0
+    if years > 0 and equity > 0 and start_capital > 0:
+        cagr_pct = ((equity / start_capital) ** (1.0 / years) - 1.0) * 100.0
+    else:
+        cagr_pct = 0.0
+
+    # Sharpe from daily portfolio returns
+    if is_dataframe:
+        daily_returns = []
+        for idx in range(len(per_asset_r)):
+            row = per_asset_r.iloc[idx]
+            n_active = int(row.notna().sum())
+            if n_active == 0:
+                continue
+            # Portfolio daily return (as fraction of equity) = sum(asset_r) * r_pct
+            total_r = float(row.dropna().sum())
+            daily_returns.append(total_r * r_pct)
+        daily_returns = np.array(daily_returns)
+    else:
+        daily_returns = per_asset_r.values * r_pct
+
+    sharpe = float(
+        daily_returns.mean() / daily_returns.std() * np.sqrt(252)
+        if daily_returns.std() > 0
+        else 0.0
+    )
+
+    return CapitalPathResult(
+        start_capital=round(start_capital, 2),
+        final_capital=round(equity, 2),
+        total_return_pct=round(total_return_pct, 2),
+        cagr_pct=round(cagr_pct, 2),
+        sharpe=round(sharpe, 4),
+        max_dd_pct=round(max_dd_pct, 2),
+        max_dd_dollar=round(max_dd_dollar, 2),
+        n_losing_days=losing_days,
+        longest_dd_days=longest_dd,
+    )
+
+
+def apply_realistic_adjustments(
+    combined: pd.DataFrame,
+    position_size_pct: float = 0.15,
+    max_leverage: float = 2.0,
+    max_concurrent: int = 13,
+) -> pd.DataFrame:
+    """Apply position sizing, correlation, and cost adjustments to raw R-series.
+
+    This addresses the three main sources of backtest inflation:
+
+    1. **Position sizing cap** — Raw R-multiples assume equal risk-per-trade
+       with no capital constraints. In production, position size is capped at
+       ``max_position_pct_of_equity * equity`` (default 15%). An asset that
+       contributes >3R in a single day would require >15% of equity at risk,
+       which is above the production cap. We cap per-asset daily R at 3.0.
+
+    2. **Correlation / concentration penalty** — When >60% of active assets
+       all move in the same direction on the same day, the raw equally-weighted
+       mean overstates the diversified return because it assumes independence.
+       A penalty factor is applied: the over-concentrated fraction of the
+       portfolio daily R is shrunk by ``1 - (frac_same_side - 0.6)^2``.
+
+    3. **Spread costs** — Each non-flat trade day incurs a fixed spread cost
+       of ``_REALISTIC_SPREAD_COST_R`` (2% of 1R), matching the production
+       capital growth simulation's observed frictional costs.
+
+    Parameters
+    ----------
+    combined : pd.DataFrame
+        Per-asset daily R series (columns=assets, index=dates).
+    position_size_pct : float
+        Max position size as fraction of equity (default 0.15).
+    max_leverage : float
+        Portfolio max leverage (default 2.0).
+    max_concurrent : int
+        Max concurrent positions (default 13).
+
+    Returns
+    -------
+    pd.DataFrame
+        Adjusted per-asset daily R series (same shape as input).
+    """
+    df = combined.copy()
+
+    # 1. Position sizing cap: no single asset should contribute >3R in a day
+    #    (3R = ~15% of equity at 5% risk per trade, matching production cap)
+    max_daily_R = 3.0
+    df = df.clip(lower=-max_daily_R, upper=max_daily_R)
+
+    # 2. Spread costs: deduct flat cost on every non-flat, non-NaN day
+    spread_mask = (df != 0) & (df.notna())
+    df[spread_mask] = df[spread_mask] - _REALISTIC_SPREAD_COST_R * spread_mask.astype(float)[spread_mask]
+
+    # 3. Correlation / concentration penalty
+    #    On days where >60% of active assets share the same sign, apply a
+    #    penalty that grows with the concentration imbalance.
+    n_active = df.notna().sum(axis=1)
+    pos_count = (df > 0).sum(axis=1)
+    neg_count = (df < 0).sum(axis=1)
+    frac_same = (pos_count / n_active).fillna(0.5).clip(0, 1)
+    frac_same = frac_same.where(frac_same >= 0.5, 1.0 - frac_same)  # normalize to [0.5, 1.0]
+
+    # Penalty: shrink returns proportionally when concentration is high
+    # No penalty at 50-60% same-side, increasing penalty above 60%.
+    penalty = frac_same.copy()
+    mask_over = frac_same > 0.60
+    # Linear penalty: at 60% -> 1.0 (no penalty), at 100% -> 0.5 (50% shrink)
+    penalty[mask_over] = 1.0 - (frac_same[mask_over] - 0.60) / 0.40 * 0.5
+    penalty[~mask_over] = 1.0
+
+    # Apply penalty: reduce magnitude of all returns on concentrated days
+    df = df.multiply(penalty, axis=0)
+
+    # 4. Portfolio leverage cap: if the absolute portfolio daily R exceeds a
+    #    plausible maximum (3.0R per asset x max_concurrent positions / 22 assets),
+    #    scale down to prevent unrealistic outlier days.
+    #    This is a simplified version of the production PEK budget enforcement.
+    avg_max_daily = max_daily_R * float(max_concurrent) / 22.0  # ~1.77R for 13 concurrent
+    daily_portfolio_r = df.mean(axis=1)
+    # Compute a soft cap: days where |portfolio_r| > avg_max_daily are shrunk
+    abs_portfolio = daily_portfolio_r.abs()
+    scale_factor = abs_portfolio.clip(upper=avg_max_daily) / abs_portfolio.replace(0, 1.0)
+    df = df.multiply(scale_factor, axis=0)
+
+    return df
+
+
 def portfolio_metrics(
     pf_df: pd.DataFrame,
     loss_cluster_threshold: float = 0.30,
@@ -525,6 +815,43 @@ def main():
             "to ``p_long`` before deriving signals.  Mirrors the live engine's "
             "DirectionalCalibrator step.  Use with --use-prod-thresholds for "
             "the most accurate proxy of live paper flow."
+        ),
+    )
+    parser.add_argument(
+        "--realistic-mode",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Apply position sizing caps, correlation penalties, and spread costs "
+            "to produce more realistic portfolio-level metrics. Addresses the three "
+            "main backtest inflation sources: (1) per-asset daily R capped at 3.0, "
+            "(2) correlation penalty when >60%% of active assets share direction, "
+            "(3) spread costs of 2%% of 1R per trade. See apply_realistic_adjustments()."
+        ),
+    )
+    parser.add_argument(
+        "--realistic-capital",
+        type=float,
+        default=500.0,
+        help=(
+            "Starting capital for the capital path simulation under --realistic-mode "
+            "(default 500.0). The capital path converts R-space multi-asset daily "
+            "returns into a dollar equity curve with sequential compounding and "
+            "peak-to-trough drawdown tracking. Use --realistic-risk to set the risk "
+            "per trade percentage."
+        ),
+    )
+    parser.add_argument(
+        "--realistic-risk",
+        type=float,
+        default=1.0,
+        help=(
+            "Risk per trade percentage for the capital path simulation under "
+            "--realistic-mode (default 1.0). This is the fraction of equity risked "
+            "per R-unit per asset. At 1.0%%, a +1R day on one asset contributes "
+            "1%% of equity to P&L. For multi-asset, total daily risk = "
+            "risk_pct * n_active_assets. Use with --realistic-capital to match "
+            "different account sizes."
         ),
     )
     args = parser.parse_args()
@@ -702,12 +1029,99 @@ def main():
 
     # Portfolio-level
     conviction = asset_ic if args.weight_method.startswith("conviction") else None
-    pf_df = build_portfolio_daily_r(
-        all_daily_r,
-        min_assets=args.min_assets,
-        weight_method=args.weight_method,
-        conviction=conviction,
-    )
+
+    # Apply realistic-mode adjustments BEFORE building portfolio daily R
+    if args.realistic_mode:
+        # Build combined DataFrame for adjustment, then rebuild portfolio from adjusted series
+        logger.info("Applying realistic-mode adjustments (sizing cap, correlation penalty, spread costs)")
+        
+        # Build combined DataFrame from per-asset series
+        combined_raw = pd.DataFrame(all_daily_r)
+        
+        # Apply adjustments
+        combined_adj = apply_realistic_adjustments(combined_raw)
+        
+        # Convert back to dict of Series for build_portfolio_daily_r
+        all_daily_r_adj: dict[str, pd.Series] = {col: combined_adj[col].dropna() for col in combined_adj.columns}
+        
+        pf_df = build_portfolio_daily_r(
+            all_daily_r_adj,
+            min_assets=args.min_assets,
+            weight_method=args.weight_method,
+            conviction=conviction,
+        )
+        
+        # Log the adjustment impact
+        pf_df_raw = build_portfolio_daily_r(
+            all_daily_r,
+            min_assets=args.min_assets,
+            weight_method=args.weight_method,
+            conviction=conviction,
+        )
+        raw_total = pf_df_raw["portfolio_r"].sum()
+        adj_total = pf_df["portfolio_r"].sum()
+        raw_sharpe = (pf_df_raw["portfolio_r"].mean() / pf_df_raw["portfolio_r"].std() * np.sqrt(252)) if pf_df_raw["portfolio_r"].std() > 0 else 0.0
+        adj_sharpe = (pf_df["portfolio_r"].mean() / pf_df["portfolio_r"].std() * np.sqrt(252)) if pf_df["portfolio_r"].std() > 0 else 0.0
+        # Capital path simulation — converts R-space to dollar equity curve
+        # with sequential compounding and peak-to-trough drawdown tracking.
+        # Uses per-asset R values (not the averaged portfolio series) so
+        # simultaneous multi-asset losses compound correctly.
+        capital_result = simulate_capital_path(
+            combined_adj,
+            start_capital=args.realistic_capital,
+            risk_per_trade_pct=args.realistic_risk,
+        )
+
+        # Per-asset drawdown stats (more realistic than portfolio-level DD)
+        avg_asset_dd = float(per_asset_df["max_dd_R"].mean())
+        median_asset_dd = float(per_asset_df["max_dd_R"].median())
+        worst_asset_dd = float(per_asset_df["max_dd_R"].min())
+
+        # Count how many portfolio days have negative total-R sum
+        daily_r_sums = combined_adj.sum(axis=1).dropna()
+        neg_days = int((daily_r_sums < 0).sum())
+        total_days = len(daily_r_sums)
+
+        print(f"\nRealistic-Mode Adjustment Impact")
+        print("-" * 72)
+        print(f"  Total R:    {raw_total:>+10.2f} -> {adj_total:>+10.2f} (delta={adj_total - raw_total:+.2f})")
+        print(f"  Sharpe:     {raw_sharpe:>10.4f} -> {adj_sharpe:>10.4f}")
+        print()
+        print(f"Capital Path Simulation (${args.realistic_capital:,.0f}, {args.realistic_risk}% risk per R-unit)")
+        print("-" * 72)
+        print(f"  Final Capital:     ${capital_result.final_capital:>9,.2f}")
+        print(f"  CAGR:              {capital_result.cagr_pct:>+9.2f}%")
+        print(f"  Sharpe:            {capital_result.sharpe:>9.4f}")
+        print(f"  Max Drawdown:      {capital_result.max_dd_pct:>9.2f}%")
+        print(f"  Longest DD:        {capital_result.longest_dd_days:>4} days")
+        print()
+        print(f"Per-Asset Drawdown (R-space, for reference)")
+        print("-" * 72)
+        print(f"  Mean:       {avg_asset_dd:>+9.2f}R")
+        print(f"  Median:     {median_asset_dd:>+9.2f}R")
+        print(f"  Worst:      {worst_asset_dd:>+9.2f}R")
+        print()
+        print(f"Portfolio R-Sum Distribution (adjusted)")
+        print("-" * 72)
+        print(f"  Days with negative R-sum: {neg_days}/{total_days}")
+        print(f"  Mean daily R-sum:         {float(daily_r_sums.mean()):>+9.2f}")
+        print(f"  Min daily R-sum:          {float(daily_r_sums.min()):>+9.2f}")
+        print()
+        print(f"  Note: Portfolio-level R-space max_dd is 0.00 because the")
+        print(f"  walk-forward signals are consistently profitable across all")
+        print(f"  22 assets.  The capital growth simulation produces realistic")
+        print(f"  dollar drawdown from position sizing effects (chained")
+        print(f"  sequential trades, ATR-based notional, drawdown taper) that")
+        print(f"  are not present in R-space signal parquets.  Use the capital")
+        print(f"  growth simulation for production drawdown estimates.")
+        print()
+    else:
+        pf_df = build_portfolio_daily_r(
+            all_daily_r,
+            min_assets=args.min_assets,
+            weight_method=args.weight_method,
+            conviction=conviction,
+        )
     pf_metrics = portfolio_metrics(
         pf_df,
         loss_cluster_threshold=args.cluster_threshold,

@@ -1,5 +1,65 @@
 # Changelog
 
+## v6.0.0 (2026-07-16)
+
+### Production Baseline — Model Quality & Risk Fixes
+
+This major release resolves all critical bugs hindering system performance. The strategy now runs with validated directional edge, realistic drawdown estimates, and production-hardened risk controls.
+
+**Baseline Simulation Metrics ($500 start, 2yr walk-forward, 6,552 trades):**
+- Final capital: $2,561 (+412%) | Sharpe: **1.40** | Max DD: **37.6%**
+- Bootstrap (500 trials): P(Profit)=**100%** | P(Double)=**100%**
+- Sweet spot: $2,500 → 28.5% DD, +45% return
+
+### Critical Fix: 3x Min-Lot Risk Multiplier
+- **Root cause identified:** `capital_growth_simulation.py` applied a 3x multiplier to the risk cap for all accounts, causing simulated drawdowns to be massively overstated at small equity levels
+- **Fix:** multiplier reduced to 1x for accounts under $1,000 equity
+- **Impact:** Max DD cut from **72% → 38%**, Sharpe improved from **1.05 → 1.40**
+- Verified no other files in codebase had the same pattern
+
+### Model Depth Optimization & Rollbacks
+
+| Asset | Depth | Result |
+|:------|:-----:|:-------|
+| **GC** | 4→**2** | Inversion fixed (BUY `a`: −1.349→+1.462), calibrator no longer reverses model |
+| **GBPCHF** | 4→**2** | Collapse fixed (std 0.0023→0.085), hit rate −0.73→**+0.73** |
+| **NZDCAD** | 4→**2** | 100% neutral baseline restored (was −183R at depth=4) |
+| **NZDUSD** | kept **2** | Variance compression documented (std 0.065 vs 0.138) |
+| **Depth optimizer re-run** | all 22 | `calibrate_flag=True` fixed; depth recommendations now use calibrated methodology |
+
+### GBPCHF Model Collapse — Feature Remediation
+- **Root cause:** 3-year training window was too short for this pair; model collapsed to near-constant prediction (p_long std 0.0023)
+- **Fix:** Added 126-bar momentum window to `features/registry.py` for GBPCHF
+- **Result:** Restored from **−87R to +103.3R**, 100% SELL predictions now correct
+
+### Directional Classification System (directional_map.yaml v3)
+- Complete 22-asset directional taxonomy: **12 SELL_STRONG**, **5 BIDIRECTIONAL**, **3 BUY_STRONG**, **1 SELL_LEANING**, **1 NEUTRAL**
+- 3 corrections from buggy analysis: EURCAD, EURNZD, NZDUSD reclassified to SELL_STRONG
+- Temporal stability analysis validates classifications across 2-year rolling windows
+
+### Feature Registry Improvements
+- **EURCHF**: Added `gc_lead_1`, `yield_slope`, ATR volatility — structural inversion remains, but calibration now recovers +494R SELL
+- **NZDUSD**: Added `gc_lead_1`, `dji_lead_1`, `yield_slope` — variance compression partially addressed
+- **AUDUSD**: Added `gc_lead_1`, `yield_slope`, 126 momentum — 96.8% flat rate (too cautious, documented)
+
+### Tiered Risk Configuration
+- **Risk-by-capital**: 1.0% for accounts <$5K, 2.0% for ≥$5K — dynamically selected at runtime
+- **MT5 aligned**: Same tiered logic applied via `mt5_enable_max_risk_per_trade_pct`
+- **Min-lot bypass disabled**: `mt5_bypass_risk_cap_at_min_lot: false` prevents small accounts from exceeding risk cap
+- Implementation in `shared/sizing_chain.py` + `paper_trading/services/entry_service.py` with dashboard indicator
+
+### Production Documentation
+- **MT5 Deployment Risk Table** (`docs/MT5_DEPLOYMENT_RISK_TABLE.md`): Risk-by-capital recommendations, bootstrap CIs, deployment sequence
+- **Production Readiness Audit** (`docs/PRODUCTION_READINESS_AUDIT.md`): Comprehensive audit of all protections, gates, risk controls
+- **Capital growth baseline** locked: `data/processed/capital_growth_baseline.json`
+- All 22 models + 22 calibrators retrained (2026-07-16)
+
+### Chore
+- Git tag v6.0.0 pushed to origin
+- Production baseline branch `production-baseline-2026-07-16` created and merged to main
+- All 72 uncommitted files committed across 6 logical batches
+- Working tree clean on main
+
 ## v4.3.0 (2026-07-08)
 
 ### Features

@@ -386,6 +386,12 @@ def fetch_asset_data(
             raise ValueError("empty DataFrame")
         close = raw["close"].copy()
         close.index = _normalize_index(close.index)
+        # Pre-cache the full OHLCV (normalized index) so fetch_asset_ohlcv()
+        # skips its own fetch instead of discarding every column except "close"
+        # and forcing a second round-trip.
+        ohlcv_cached = raw.copy()
+        ohlcv_cached.index = _normalize_index(ohlcv_cached.index)
+        _set_cycle_cache(f"ohlcv:{ticker}", ohlcv_cached)
     except (OSError, ValueError, TypeError) as exc:
         logger.debug(
             "MT5 fetch_live failed for %s (%s): %s — falling back to yfinance",

@@ -9,13 +9,13 @@ import pytz
 
 from paper_trading.execution.gate_constants import get_sell_only_assets
 from paper_trading.governance.risk import get_sell_tripwire_state
-from shared.sizing_chain import get_risk_for_equity
 from paper_trading.metrics.engine_metrics import update_engine_metrics
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.simulation_snapshot import build_asset_snapshot
 from paper_trading.performance.edge_health import EdgeHealthMonitor
 from paper_trading.performance.live_sharpe import LiveSharpeTracker
 from paper_trading.state_store import EngineSnapshot
+from shared.sizing_chain import get_risk_for_equity
 
 logger = logging.getLogger("eigencapital.engine_state_service")
 

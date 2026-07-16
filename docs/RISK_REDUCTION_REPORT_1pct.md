@@ -21,7 +21,7 @@ At $5K+, 1.0% and 2.0% produce **identical risk-adjusted returns** (same Sharpe,
 
 | Parameter | Value |
 |:----------|:------|
-| **Data source** | `trade_lifecycle_results.json` (6,646 trades, Jul 9) |
+| **Data source** | `data/processed/trade_lifecycle_results.json` (6,646 trades, Jul 9) |
 | **Starting capital** | $500 (primary) / $1K–$50K (sensitivity) |
 | **Max risk/trade** | 1.0% (was 2.0%) |
 | **Other params** | Production defaults unchanged |

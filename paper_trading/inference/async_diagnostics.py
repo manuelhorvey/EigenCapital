@@ -43,7 +43,6 @@ class DiagnosticsQueue:
         self._queue.put_nowait(snapshot)
 
     def _run(self) -> None:
-        import numpy as np
         import pandas as pd
 
         from paper_trading.governance.drift import get_shadow_intelligence as _get_drift

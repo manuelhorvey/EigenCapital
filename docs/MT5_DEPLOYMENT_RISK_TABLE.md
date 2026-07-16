@@ -170,4 +170,6 @@ mt5_bypass_risk_cap_at_min_lot: false   # Do NOT bypass — cap binds
 ---
 
 *For the full production readiness audit, see [`docs/PRODUCTION_READINESS_AUDIT.md`](./PRODUCTION_READINESS_AUDIT.md).*  
+**Last updated:** 2026-07-16
+
 *For the latest simulation JSON, see `data/processed/capital_growth_sensitivity_full.json`.*

@@ -255,7 +255,7 @@ class RiskConfig:
             if f.default_factory is not MISSING:
                 return f.default_factory()
             return None
-        
+
 
         sizing_kw = {
             f.name: _coerce(

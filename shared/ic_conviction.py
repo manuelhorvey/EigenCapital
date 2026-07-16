@@ -22,7 +22,6 @@ Usage
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -129,7 +128,7 @@ def ic_to_conviction(
             scores[asset] = 1.0
         else:
             raw = ic / scale_factor if scale_factor > 0 else 1.0
-            scores[asset] = round(float(np.clip(raw, min_score, max_score)), 4)
+            scores[asset] = round(float(np.clip(raw, min_score, max_score)), 4)  # noqa: SIM108
 
     return scores
 
@@ -205,7 +204,7 @@ def compute_rolling_ic_conviction(
     n_negative = sum(1 for v in ic_values.values() if v < -0.01)
     n_positive = sum(1 for v in ic_values.values() if v > 0.01)
 
-    if n_with_data > 0:
+    if n_with_data > 0:  # noqa: SIM108
         mean_ic = float(np.mean([v for v in ic_values.values() if abs(v) > 0.01]))
     else:
         mean_ic = 0.0

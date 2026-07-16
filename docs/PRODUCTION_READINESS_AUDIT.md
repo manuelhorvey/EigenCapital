@@ -20,7 +20,7 @@ The architecture is production-ready with three conditions:
 
 ## 1. Capital Growth Simulation — Final Baseline (trailing_v1 + 3x Multiplier Fix)
 
-The `backtest_pnl.py` R-space backtest (Sharpe 55, DD 0) is **not production-realistic**. The capital growth simulation is the correct benchmark.
+The `scripts/backtest/backtest_pnl.py` R-space backtest (Sharpe 55, DD 0) is **not production-realistic**. The capital growth simulation is the correct benchmark.
 
 ### Production Baseline ($500 start, trailing_v1 data, all fixes + 3x multiplier removed for accounts <$1K)
 

@@ -45,7 +45,7 @@ def get_directional_classification() -> dict[str, dict[str, Any]]:
         if _DIRECTIONAL_MAP_PATH.exists():
             data = yaml.safe_load(_DIRECTIONAL_MAP_PATH.read_text()) or {}
             return dict(data.get("assets", {}))
-    except Exception:
+    except (OSError, yaml.YAMLError):
         logger.warning("Could not load directional classification map", exc_info=True)
     return {}
 

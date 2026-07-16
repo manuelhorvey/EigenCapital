@@ -95,14 +95,8 @@ class DriftOutcomeRecorder:
 _drift_recorder = DriftOutcomeRecorder()
 
 
-# Backward-compatible module-level convenience references
-_outcome_lock = _drift_recorder._lock
-
-
 DRIFT_WINDOW = 30
 DRIFT_GAP_THRESHOLD = 0.20
-
-_outcome_records: dict[str, deque] = _drift_recorder._records
 
 
 def _record_drift_outcome(asset: str, confidence: float, was_win: bool) -> None:
@@ -1086,7 +1080,7 @@ def apply_calibration_drift_gate(ctx: DecisionContext) -> None:
             engine.name,
             gap * 100,
             DRIFT_GAP_THRESHOLD * 100,
-            len(_outcome_records.get(engine.name, [])),
+            _drift_recorder.record_count(engine.name),
         )
         ctx.new_side = None
 

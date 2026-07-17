@@ -30,6 +30,7 @@ from paper_trading.governance.regime import RegimeClassifier
 from paper_trading.inference.pipeline import AssetInferencePipeline
 from paper_trading.inference.training import AssetTrainingPipeline
 from paper_trading.ops.data_fetcher import flatten
+from paper_trading.ops.mt5_client import MT5ConnectionError
 from paper_trading.ops.tracer import trace_exit
 from paper_trading.performance.edge_health import get_monitor as _get_edge_monitor
 from paper_trading.position.adaptive_exit import AdaptiveExitEngine
@@ -650,7 +651,7 @@ class AssetEngine:
             if spread_bps is not None:
                 self._last_spread_bps = spread_bps
                 self._last_spread_time = time.time()
-        except (OSError, ValueError, TypeError, AttributeError):
+        except (OSError, ValueError, TypeError, AttributeError, MT5ConnectionError):
             logger.warning("%s: refresh_spread failed", self.name, exc_info=True)
 
     def train(self, force=False, full_panel=None):

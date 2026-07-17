@@ -4,6 +4,8 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
+from paper_trading.execution.gate_constants import get_sell_only_assets
+
 logger = logging.getLogger("eigencapital.governance_service")
 
 ET = pytz.timezone("US/Eastern")
@@ -115,30 +117,36 @@ class GovernanceService:
         drift_ok = True
         prob_drift_min_samples = hc.get("prob_drift_min_samples", 10)
         if len(prob_history) >= prob_drift_min_samples:
-            prob_drift_limit = hc.get("prob_drift", 0.25)
-            expected_prob_conf = hc.get("expected_prob_conf", 0.65)
-            mean_conf = metrics.get("mean_confidence", 0) / 100
-            if pd.isna(mean_conf):
-                mean_conf = 0
-            drift = abs(mean_conf - expected_prob_conf)
-            logger.debug(
-                "%s drift check: n=%d mean_conf=%.3f expected=%.3f drift=%.3f limit=%.3f",
-                name,
-                len(prob_history),
-                mean_conf,
-                expected_prob_conf,
-                drift,
-                prob_drift_limit,
-            )
-            if drift > prob_drift_limit:
-                soft_warnings.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
-                drift_ok = False
-                logger.info(
-                    "%s confidence drift: drift=%.3f limit=%.2f (soft, penalty -0.15)",
+            # SELL_ONLY assets produce near-zero prob_long consistently (by design), which
+            # would trigger a false-positive confidence drift against expected_prob_conf=0.65.
+            # Skip the drift check for these assets — their signal distribution is intentionally
+            # skewed toward SELL and the drift metric does not apply.
+            sell_only_assets = get_sell_only_assets()
+            if name not in sell_only_assets:
+                prob_drift_limit = hc.get("prob_drift", 0.25)
+                expected_prob_conf = hc.get("expected_prob_conf", 0.65)
+                mean_conf = metrics.get("mean_confidence", 0) / 100
+                if pd.isna(mean_conf):
+                    mean_conf = 0
+                drift = abs(mean_conf - expected_prob_conf)
+                logger.debug(
+                    "%s drift check: n=%d mean_conf=%.3f expected=%.3f drift=%.3f limit=%.3f",
                     name,
+                    len(prob_history),
+                    mean_conf,
+                    expected_prob_conf,
                     drift,
                     prob_drift_limit,
                 )
+                if drift > prob_drift_limit:
+                    soft_warnings.append(f"Confidence drift: {drift:.3f} > {prob_drift_limit:.2f}")
+                    drift_ok = False
+                    logger.info(
+                        "%s confidence drift: drift=%.3f limit=%.2f (soft, penalty -0.15)",
+                        name,
+                        drift,
+                        prob_drift_limit,
+                    )
 
         narrative_ok = True
         narr_warnings = governance.narrative_warnings()

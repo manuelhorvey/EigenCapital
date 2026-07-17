@@ -516,7 +516,7 @@ class MT5Client:
         symbol = self._map_symbol(ticker)
         try:
             return self._proto.send_request("realtime_price", {"symbol": symbol})
-        except MT5DataError:
+        except (MT5DataError, MT5ConnectionError):
             return None
 
     def realtime_mid_price(self, ticker: str) -> float | None:

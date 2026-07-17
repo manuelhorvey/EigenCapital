@@ -72,6 +72,41 @@ _LEGACY_FALLBACK_PATH = os.path.join(
 DEFAULT_CONFIG_PATH: str | None = None
 
 
+def _validate_engine_config_hand_rolled(
+    *,
+    capital: float,
+    position_size: float,
+    rebalance: str,
+    retrain_window: int,
+    data_source: str,
+    portfolio_drawdown_limit: float,
+    mt5_bridge_port: int,
+) -> None:
+    """Hand-rolled config validation fallback (used when pydantic is unavailable).
+
+    Mirrors the same checks that ``EngineConfigValidation`` enforces, so the
+    two code paths are equivalent.  Raises ``ValueError`` on first failure.
+    """
+    errors: list[str] = []
+    if capital <= 0:
+        errors.append(f"capital must be positive, got {capital}")
+    if not 0 < position_size <= 1.0:
+        errors.append(f"position_size must be in (0, 1], got {position_size}")
+    if rebalance not in ("daily", "weekly", "monthly", "none"):
+        errors.append(f"rebalance must be 'daily', 'weekly', 'monthly', or 'none', got '{rebalance}'")
+    if retrain_window < 1:
+        errors.append(f"retrain_window must be >= 1, got {retrain_window}")
+    if data_source not in ("yfinance", "mt5"):
+        errors.append(f"data_source must be 'yfinance' or 'mt5', got '{data_source}'")
+    if not -1.0 <= portfolio_drawdown_limit <= 0.0:
+        errors.append(f"portfolio_drawdown_limit must be in [-1.0, 0.0], got {portfolio_drawdown_limit}")
+    if mt5_bridge_port <= 0 or mt5_bridge_port > 65535:
+        errors.append(f"mt5.bridge_port must be in [1, 65535], got {mt5_bridge_port}")
+    if errors:
+        raise ValueError("EngineConfig validation failed:\n  " + "\n  ".join(errors))
+
+
+
 def _default_halt() -> dict:
     return {
         "drawdown": -0.08,
@@ -168,23 +203,42 @@ class EngineConfig:
     alerting: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        errors: list[str] = []
-        if self.capital <= 0:
-            errors.append(f"capital must be positive, got {self.capital}")
-        if not 0 < self.position_size <= 1.0:
-            errors.append(f"position_size must be in (0, 1], got {self.position_size}")
-        if self.rebalance not in ("daily", "weekly", "monthly", "none"):
-            errors.append(f"rebalance must be 'daily', 'weekly', 'monthly', or 'none', got '{self.rebalance}'")
-        if self.retrain_window < 1:
-            errors.append(f"retrain_window must be >= 1, got {self.retrain_window}")
-        if self.data_source not in ("yfinance", "mt5"):
-            errors.append(f"data_source must be 'yfinance' or 'mt5', got '{self.data_source}'")
-        if not -1.0 <= self.portfolio_drawdown_limit <= 0.0:
-            errors.append(f"portfolio_drawdown_limit must be in [-1.0, 0.0], got {self.portfolio_drawdown_limit}")
-        if self.mt5.bridge_port <= 0 or self.mt5.bridge_port > 65535:
-            errors.append(f"mt5.bridge_port must be in [1, 65535], got {self.mt5.bridge_port}")
-        if errors:
-            raise ValueError("EngineConfig validation failed:\n  " + "\n  ".join(errors))
+        # Pydantic compositional guard layer — validates at construction time
+        # with structured error messages, while keeping EngineConfig as a
+        # plain dataclass for full backward compatibility (~80 call sites).
+        #
+        # NOTE: pydantic.ValidationError IS a subclass of ValueError in
+        # Pydantic v2, so it propagates naturally to existing callers that
+        # catch ValueError.  No broad ``except Exception`` wrapper needed.
+        try:
+            from configs.pydantic_models import EngineConfigValidation
+        except ImportError:
+            # Fall back to hand-rolled validation if pydantic is unavailable
+            # (e.g. minimal dependency install, older lock file without it).
+            # The hand-rolled logic is a dead-man's switch; the Pydantic path
+            # is the primary validation engine.
+            _validate_engine_config_hand_rolled(
+                capital=self.capital,
+                position_size=self.position_size,
+                rebalance=self.rebalance,
+                retrain_window=self.retrain_window,
+                data_source=self.data_source,
+                portfolio_drawdown_limit=self.portfolio_drawdown_limit,
+                mt5_bridge_port=self.mt5.bridge_port,
+            )
+            return
+
+        # Pydantic path — ValidationError (ValueError subclass) propagates
+        # naturally to callers.  No wrapper needed.
+        EngineConfigValidation(
+            capital=self.capital,
+            position_size=self.position_size,
+            rebalance=self.rebalance,
+            retrain_window=self.retrain_window,
+            data_source=self.data_source,
+            portfolio_drawdown_limit=self.portfolio_drawdown_limit,
+            mt5_bridge_port=self.mt5.bridge_port,
+        )
 
     @classmethod
     def _deep_merge(cls, base: dict, overrides: dict) -> dict:

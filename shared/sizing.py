@@ -1,3 +1,4 @@
+import typing
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -8,7 +9,7 @@ def risk_contribution(weights: np.ndarray, cov: np.ndarray) -> np.ndarray:
     portfolio_var = weights @ cov @ weights
     marginal_risk = cov @ weights
     risk_contrib = weights * marginal_risk / np.sqrt(portfolio_var)
-    return risk_contrib
+    return typing.cast(np.ndarray, risk_contrib)
 
 
 # DEPRECATED: risk_parity_weights and compute_equal_risk_weights moved to
@@ -59,7 +60,7 @@ class VolTargetSizing(PositionSizingStrategy):
         impact_bps = config.get("impact_bps")
         if impact_bps is not None:
             scalar *= self.edge_decay(float(impact_bps))
-        return min(scalar, 1.0)
+        return typing.cast(float, min(scalar, 1.0))
 
     def edge_decay(self, impact_bps: float, threshold_bps: float = 5.0) -> float:
         """Scales down position size when estimated impact exceeds a threshold."""

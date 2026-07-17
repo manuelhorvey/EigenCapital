@@ -177,7 +177,7 @@ exclude = [
 # shared/ modules
 "shared/factor_model.py" = ["no-any-return"]
 
-"shared/sizing.py" = ["no-any-return"]
+
 "shared/volatility.py" = ["no-any-return"]
 "shared/meta_labeling.py" = ["annotation-unchecked"]
 "shared/vault_secrets.py" = ["no-any-return"]

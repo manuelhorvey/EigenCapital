@@ -15,9 +15,10 @@ from paper_trading.asset_engine import AssetEngine  # noqa: F401
 from paper_trading.asset_engine_factory import build_asset_engine
 from paper_trading.config_manager import get_config
 from paper_trading.execution.bridge import ExecutionBridge
-from paper_trading.execution.mt5_broker import MT5Broker
+from paper_trading.execution.mt5_broker import MT5Broker  # noqa: F401  (re-exported for backward compat)
 from paper_trading.execution.paper_broker import PaperBroker
 from paper_trading.execution_context import ExecutionContext
+from paper_trading.factories.broker_factory import BrokerFactory
 from paper_trading.governance.risk_registry import reset as _reset_risk_governance
 from paper_trading.logging.correlation import CorrelationIdFilter
 from paper_trading.logging.json_formatter import install_json_logging
@@ -32,7 +33,6 @@ from paper_trading.ops.data_fetcher import (  # noqa: F401
 )
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.market_hours import is_market_closed
-from paper_trading.ops.mt5_client import MT5Client
 from paper_trading.ops.simulation_snapshot import SimulationStore
 from paper_trading.orchestrator.actor import AssetActor
 from paper_trading.orchestrator.engine import EngineOrchestrator
@@ -177,13 +177,13 @@ class PaperTradingEngine:
             logger.debug("Alerting setup skipped (no config section or invalid)", exc_info=True)
 
         if cfg.mt5.enabled:
-            self.broker = self._create_mt5_broker(cfg)
+            self.broker = BrokerFactory.create_mt5_broker(cfg)
             # Wire WAL writer into broker for MT5 order lifecycle events
             if hasattr(self.broker, "set_wal_writer"):
                 self.broker.set_wal_writer(self._wal)
             is_real_broker = True
             # Install MT5 client as global data provider for data_fetcher
-            self._install_mt5_data_provider(cfg)
+            BrokerFactory.install_mt5_data_provider(cfg)
             # Populate broker's MT5 connection pool before first cycle so
             # refresh_spread() in Phase 1a doesn't hit "No connections in pool"
             if self.broker.ensure_connected():
@@ -284,54 +284,6 @@ class PaperTradingEngine:
         self._orchestrator.shutdown()
         self._background_writer.shutdown()
         self.save_state()
-
-    def _create_mt5_broker(self, cfg):
-        import yaml
-
-        mt5 = cfg.mt5
-        symbol_map: dict[str, str] = {}
-        if mt5.symbol_map_path:
-            map_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), mt5.symbol_map_path)
-            if os.path.exists(map_path):
-                with open(map_path) as f:
-                    symbol_map = yaml.safe_load(f) or {}
-                logger.info("Loaded MT5 symbol map from %s (%d symbols)", map_path, len(symbol_map))
-            else:
-                logger.warning("MT5 symbol map not found at %s", map_path)
-
-        return MT5Broker(
-            account=mt5.account,
-            password=mt5.password,
-            server=mt5.server,
-            symbol_map=symbol_map,
-            bridge_host=mt5.bridge_host,
-            bridge_port=mt5.bridge_port,
-        )
-
-    def _install_mt5_data_provider(self, cfg) -> None:
-        import yaml
-
-        from paper_trading.ops.data_fetcher import set_mt5_client
-
-        symbol_map: dict[str, str] = {}
-        if cfg.mt5.symbol_map_path:
-            map_path = os.path.join(BASE, cfg.mt5.symbol_map_path)
-            if os.path.exists(map_path):
-                with open(map_path) as f:
-                    symbol_map = yaml.safe_load(f) or {}
-
-        client = MT5Client(
-            account=cfg.mt5.account,
-            password=cfg.mt5.password,
-            server=cfg.mt5.server,
-            bridge_host=cfg.mt5.bridge_host,
-            bridge_port=cfg.mt5.bridge_port,
-            symbol_map=symbol_map,
-        )
-        if not client.connect():
-            logger.error("MT5 data provider failed to connect — data fetches will fall back to yfinance")
-        set_mt5_client(client, symbol_map)
-        logger.info("MT5 data provider installed")
 
     def _build_asset_registry(self) -> None:
         portfolio = build_paper_portfolio(self._engine_cfg.halt)

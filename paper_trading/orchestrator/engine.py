@@ -387,17 +387,13 @@ class EngineOrchestrator:
                 mode_config=get_config().defaults or {},
             )
 
-        # Distribute cycle values to actors (no leverage_budget_ref).
-        # This is done BEFORE any ThreadPoolExecutor futures are submitted,
-        # ensuring no data race on actor._engine attributes.
+        # Compute base exposure multiplier from drawdown
         exp_mult, _ = compute_exposure_multiplier(current_dd)
-        for actor in self._actors.values():
-            self._inject_cycle_context(actor, total_equity, current_dd, exp_mult)
 
         # PEK budget backfeed: if the previous cycle overran its budget,
-        # reduce the exposure multiplier for the current cycle so that
-        # position sizing stays within the budget proactively rather than
-        # closing positions reactively after overrun.
+        # reduce the exposure multiplier BEFORE distributing to actors so
+        # that position sizing stays within the budget proactively rather
+        # than closing positions reactively after overrun.
         _budget_util = getattr(self, "_pek_budget_utilization", 1.0)
         if _budget_util > 1.0:
             _reduction = 1.0 / max(_budget_util, 1.001)
@@ -408,6 +404,13 @@ class EngineOrchestrator:
                 (1 - _reduction) * 100,
                 exp_mult,
             )
+
+        # Distribute cycle values to actors (no leverage_budget_ref).
+        # This is done AFTER the backfeed reduction and BEFORE any
+        # ThreadPoolExecutor futures are submitted, ensuring no data race
+        # on actor._engine attributes.
+        for actor in self._actors.values():
+            self._inject_cycle_context(actor, total_equity, current_dd, exp_mult)
 
         # Dummy budget_ref for backward compat with any remaining callers
         budget_ref = [max_leverage * total_equity]

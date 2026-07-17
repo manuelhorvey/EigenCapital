@@ -168,21 +168,3 @@ exclude = [
     "paper_trading/dashboard/",
 ]
 
-# ── mypy per-file-ignores: suppress existing errors while catching new ones ─
-# These are acknowledged technical debt. Each error code can be removed
-# incrementally as the associated file is type-annotated.
-# Format: "pattern" = ["error-code1", "error-code2"]
-
-[tool.mypy.per-file-ignores]
-# shared/ modules
-
-
-
-"shared/volatility.py" = ["no-any-return"]
-
-# portfolio/ modules
-"portfolio/hrp_allocator.py" = ["no-any-return"]
-# paper_trading/governance/ modules (preexisting)
-
-
-

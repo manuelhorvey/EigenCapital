@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import typing
 from collections import deque
 
 from eigencapital.domain.time import utc_now_iso
@@ -80,7 +81,7 @@ class RiskRegistry:
             dq = self._sl_hit_rates.get(asset)
             if dq is None or len(dq) < 5:
                 return None
-            return sum(dq) / len(dq)
+            return typing.cast(float, sum(dq) / len(dq))
 
     def get_sl_hit_rate_all(self) -> dict[str, float]:
         """Return SL hit rate for all tracked assets."""
@@ -147,7 +148,7 @@ class RiskRegistry:
             dq = self._sell_win_rates.get(asset)
             if dq is None or len(dq) < 5:
                 return None
-            return sum(dq) / len(dq)
+            return typing.cast(float, sum(dq) / len(dq))
 
     def get_sell_tripwire_state(self, asset: str, sell_only: bool = False) -> dict:
         win_rate = self.get_sell_win_rate(asset)

@@ -1,3 +1,5 @@
+import typing
+
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, optimal_leaf_ordering
@@ -46,7 +48,7 @@ def _get_quasi_diag_single(link: np.ndarray) -> list[int]:
 def _get_cluster_variance(cov: pd.DataFrame, cluster_indices: list[int]) -> float:
     cluster_cov = cov.iloc[cluster_indices, cluster_indices]
     w = np.ones(len(cluster_indices)) / len(cluster_indices)
-    return w @ cluster_cov.values @ w
+    return typing.cast(float, w @ cluster_cov.values @ w)
 
 
 def _hrp_weights(cov: pd.DataFrame, link: np.ndarray) -> pd.Series:

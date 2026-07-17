@@ -238,7 +238,7 @@ def run_validation_gates(
         if v is None:
             return default
         try:
-            return float(v)
+            return float(v)  # type: ignore[arg-type]
         except (TypeError, ValueError):
             return default
 

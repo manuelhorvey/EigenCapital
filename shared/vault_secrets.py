@@ -15,6 +15,7 @@ import logging
 import os
 import threading
 import time
+import typing
 from dataclasses import dataclass
 from typing import Any
 
@@ -75,7 +76,7 @@ class VaultSecretsProvider:
         if self._hvac_module is not None:
             return self._hvac_module
         try:
-            import hvac  # type: ignore[import-untyped]
+            import hvac
 
             self._hvac_module = hvac
             return hvac
@@ -149,17 +150,17 @@ class VaultSecretsProvider:
         with self._cache_lock:
             cached = self._cache.get(ck)
             if cached is not None and now - cached[1] < self._config.cache_ttl:
-                return cached[0]
+                return typing.cast(dict[str, Any] | None, cached[0])
 
         client = self._ensure_client()
         if client is None:
             return None
 
         try:
-            response = client.secrets.kv.v2.read_secret_version(
+            response = typing.cast(dict[str, Any], client.secrets.kv.v2.read_secret_version(
                 path=p,
                 mount_point=mp,
-            )
+            ))
             data: dict[str, Any] = response.get("data", {}).get("data", {})
             with self._cache_lock:
                 self._cache[ck] = (data, now)

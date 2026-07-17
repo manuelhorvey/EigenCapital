@@ -178,7 +178,7 @@ exclude = [
 "shared/model.py" = ["no-any-return"]
 "shared/portfolio_weights.py" = ["no-any-return", "union-attr"]
 "shared/factor_model.py" = ["no-any-return"]
-"shared/metrics_snapshot.py" = ["assignment"]
+
 "shared/sizing.py" = ["no-any-return"]
 "shared/volatility.py" = ["no-any-return"]
 "shared/meta_labeling.py" = ["annotation-unchecked"]

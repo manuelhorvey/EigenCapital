@@ -1,7 +1,7 @@
 import logging
 import math
 from dataclasses import dataclass, field, fields
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -187,7 +187,7 @@ class MetricsSnapshot:
             liquidity_size_scalar=engine.governance._liquidity_size_scalar,
         )
 
-        stat_metrics = {
+        stat_metrics: dict[str, float | int | None] = {
             "sharpe_ratio": None,
             "psr_gt_0": None,
             "psr_gt_1": None,
@@ -308,7 +308,7 @@ class MetricsSnapshot:
             sharpe_ratio=stat_metrics["sharpe_ratio"],
             psr_gt_0=stat_metrics["psr_gt_0"],
             psr_gt_1=stat_metrics["psr_gt_1"],
-            min_trl=stat_metrics["min_trl"],
+            min_trl=cast(int | None, stat_metrics["min_trl"]),
             crs=stat_metrics["crs"],
             hhi=stat_metrics["hhi"],
         )

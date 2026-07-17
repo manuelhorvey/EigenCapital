@@ -2,6 +2,8 @@
 
 System architecture, component descriptions, and design decisions for developers.
 
+**Last updated:** 2026-07-17
+
 ---
 
 ## Project Identity

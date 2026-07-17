@@ -2,12 +2,14 @@
 
 Operational commands, common tasks, health checks, and troubleshooting.
 
+**Last updated:** 2026-07-17
+
 ---
 
 ## Quick Start
 
 ```bash
-# Run paper trading (monitor + dashboard)
+# Run paper trading (monitor + dashboard, ~60s refresh interval)
 PYTHONPATH=$PYTHONPATH:. python paper_trading/ops/monitor.py
 
 # Full launcher (MT5 + Dashboard + Slack Alerter)

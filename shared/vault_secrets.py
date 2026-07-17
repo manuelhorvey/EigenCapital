@@ -45,8 +45,7 @@ class VaultConfig:
             token=os.environ.get("VAULT_TOKEN", ""),
             mount_point=os.environ.get("VAULT_MOUNT_POINT", "secret"),
             path=os.environ.get("VAULT_SECRET_PATH", "eigencapital/mt5"),
-            enabled=os.environ.get("VAULT_ENABLED", "").lower()
-            in ("1", "true", "yes"),
+            enabled=os.environ.get("VAULT_ENABLED", "").lower() in ("1", "true", "yes"),
             timeout_seconds=int(os.environ.get("VAULT_TIMEOUT", "5")),
         )
 
@@ -82,10 +81,7 @@ class VaultSecretsProvider:
             return hvac
         except ImportError:
             self._hvac_module = None
-            logger.warning(
-                "hvac library not installed. Vault integration disabled. "
-                "Install with: pip install hvac"
-            )
+            logger.warning("hvac library not installed. Vault integration disabled. Install with: pip install hvac")
             return None
 
     def _ensure_client(self) -> Any | None:

@@ -124,6 +124,27 @@ class AssetResult:
         )
 
 
+@dataclass(frozen=True)
+class CycleContext:
+    """Immutable snapshot of cycle-level parameters distributed to actors.
+
+    Built once per cycle in the orchestrator's pre-phase (on the main thread),
+    then passed as a function parameter to each actor's ``run_cycle()``. The
+    frozen dataclass eliminates the temporal ordering race condition because
+    the values are captured at construction time, not written to shared mutable
+    attributes on the engine/pos_mgr.
+
+    Attrs:
+        total_equity:  Portfolio equity for this cycle.
+        drawdown_pct:  Current drawdown as a fraction (negative).
+        exp_mult:      Exposure multiplier (0.0–1.0) from drawdown controls.
+    """
+
+    total_equity: float = 0.0
+    drawdown_pct: float = 0.0
+    exp_mult: float = 1.0
+
+
 @dataclass
 class PersistCommand:
     """Immutable command sent from actor to persistence writer thread."""
@@ -191,13 +212,26 @@ class AssetActor:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def run_cycle(self, market_data: dict | None = None, shared_macro: SharedMacroData | None = None) -> AssetResult:
+    def run_cycle(
+        self,
+        market_data: dict | None = None,
+        shared_macro: SharedMacroData | None = None,
+        cycle_context: CycleContext | None = None,
+    ) -> AssetResult:
         """Execute one full lifecycle cycle for this asset.
 
         When *shared_macro* is provided (pre-fetched macro data from the
         orchestrator pre-phase), the actor passes it through to the inference
         pipeline so cross-asset data (DXY, VIX, SPX, WTI) is fetched once
         per cycle rather than redundantly in each actor thread.
+
+        When *cycle_context* is provided (immutable CycleContext dataclass
+        built in the orchestrator's pre-phase), the actor atomically injects
+        the cycle parameters (total_equity, drawdown_pct, exp_mult) into the
+        engine under ``_cycle_context_lock`` before running the cycle. This
+        eliminates the temporal-ordering race condition: the immutable
+        snapshot is captured at closure-creation time by the ``_run_actor``
+        callback, not written to shared mutable attributes on the main thread.
 
         Returns an immutable AssetResult.  Does not raise.
         """
@@ -213,6 +247,20 @@ class AssetActor:
                     f"actor_halted: {self._fault_reason}",
                     self.metrics.cycle_id,
                 )
+
+        # Inject cycle context under per-actor lock (H2 remediation).
+        # The CycleContext is an immutable snapshot built once in the
+        # orchestrator's pre-phase. By writing from within run_cycle()
+        # (the worker thread) under the lock, we eliminate temporal
+        # ordering: the values are captured at closure creation time,
+        # not written to shared mutable attributes on the main thread
+        # before future submission.
+        if cycle_context is not None:
+            with self._cycle_context_lock:
+                self._engine._cycle_total_equity = cycle_context.total_equity
+                self._engine._cycle_drawdown_pct = cycle_context.drawdown_pct
+                if hasattr(self._engine, "pos_mgr"):
+                    self._engine.pos_mgr.exposure_multiplier = cycle_context.exp_mult
 
         try:
             self._engine.refresh_price()

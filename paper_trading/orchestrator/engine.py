@@ -35,6 +35,7 @@ from paper_trading.logging.correlation import set_correlation_id
 from paper_trading.orchestrator.actor import (
     AssetActor,
     AssetResult,
+    CycleContext,
     compute_health_snapshot,
 )
 from paper_trading.orchestrator.admission import AdmissionSignal, PortfolioAdmissionController
@@ -254,9 +255,10 @@ class EngineOrchestrator:
 
         # ── Pre-phase ────────────────────────────────────────────────────
         defaults, max_leverage, budget_ref = self._pre_phase_pek()
+        cycle_context: CycleContext | None = getattr(self, "_cycle_context", None)
 
         # ── Phase 1a: Signal generation ──────────────────────────────────
-        self._phase_1_refresh_signal(market_data, results)
+        self._phase_1_refresh_signal(market_data, results, cycle_context=cycle_context)
 
         # ── Phase 1b: PEK admission review ───────────────────────────────
         self._phase_1b_admission_review(results, defaults, max_leverage, budget_ref)
@@ -277,40 +279,14 @@ class EngineOrchestrator:
 
     # ── Phase helpers ───────────────────────────────────────────────────────────
 
-    def _inject_cycle_context(self, actor, total_equity: float, current_dd: float, exp_mult: float) -> None:
-        """Atomically inject cycle context into an actor under its per-actor lock.
-
-        Acquires the actor's ``_cycle_context_lock`` while writing so that
-        the worker thread reading these attributes inside ``generate_signal()``
-        sees a consistent snapshot.  The lock is held for <1 microsecond per
-        write — contention is essentially zero because:
-          (a) the pre-phase runs entirely on the main thread before any
-              Phase 1a futures are submitted, and
-          (b) the actor docs state "No actor reads or writes global state
-              files directly" — the orchestrator writes before submission.
-        """
-        lock = getattr(actor, "_cycle_context_lock", None)
-        if lock is not None:
-            with lock:
-                actor._engine._cycle_total_equity = total_equity
-                actor._engine._cycle_drawdown_pct = current_dd
-                if hasattr(actor._engine, "pos_mgr"):
-                    actor._engine.pos_mgr.exposure_multiplier = exp_mult
-        else:
-            actor._engine._cycle_total_equity = total_equity
-            actor._engine._cycle_drawdown_pct = current_dd
-            if hasattr(actor._engine, "pos_mgr"):
-                actor._engine.pos_mgr.exposure_multiplier = exp_mult
-
     def _pre_phase_pek(self) -> tuple[dict, float, list]:
         """Build PEK state: PortfolioStateSnapshot, PerformanceState, RiskBudget.
 
-        Distributes cycle equity/drawdown to actors (no longer distributes
-        leverage_budget_ref — that is now managed by the PEK).
-
-        IMPORTANT: All actor._engine mutations MUST happen in this method,
-        BEFORE _phase_1_refresh_signal submits futures to the ThreadPoolExecutor.
-        The _inject_cycle_context helper is the single entrypoint for these writes.
+        Builds an immutable ``CycleContext`` snapshot containing the cycle's
+        total_equity, drawdown_pct, and exposure_multiplier.  The snapshot is
+        consumed by ``run_cycle()`` on each actor's worker thread under its
+        per-actor lock — no more main-thread attribute writes before future
+        submission (H2 remediation).
 
         Returns (defaults, max_leverage, dummy_budget_ref) — keeping the
         same return signature as the old _pre_phase_equity_snapshot for
@@ -405,23 +381,33 @@ class EngineOrchestrator:
                 exp_mult,
             )
 
-        # Distribute cycle values to actors (no leverage_budget_ref).
-        # This is done AFTER the backfeed reduction and BEFORE any
-        # ThreadPoolExecutor futures are submitted, ensuring no data race
-        # on actor._engine attributes.
-        for actor in self._actors.values():
-            self._inject_cycle_context(actor, total_equity, current_dd, exp_mult)
+        # Build immutable CycleContext snapshot (H2 remediation).
+        # The snapshot is passed as a function parameter to each actor's
+        # run_cycle(), which injects values under its per-actor lock on
+        # the worker thread.  No more main-thread attribute writes before
+        # future submission — eliminates the temporal ordering race condition.
+        self._cycle_context = CycleContext(
+            total_equity=total_equity,
+            drawdown_pct=current_dd,
+            exp_mult=exp_mult,
+        )
 
         # Dummy budget_ref for backward compat with any remaining callers
         budget_ref = [max_leverage * total_equity]
         return defaults, max_leverage, budget_ref
 
-    def _phase_1_refresh_signal(self, market_data: dict | None, results: dict) -> None:
+    def _phase_1_refresh_signal(
+        self,
+        market_data: dict | None,
+        results: dict,
+        cycle_context: CycleContext | None = None,
+    ) -> None:
         """Parallel actor refresh + signal generation (Phase 1).
 
-        Passes pre-fetched macro data (from _pre_phase_pek) to each actor
-        so cross-asset data is fetched once per cycle on the main thread
-        rather than redundantly in each worker thread.
+        Passes pre-fetched macro data and the immutable CycleContext snapshot
+        to each actor so cross-asset data is fetched once per cycle and the
+        cycle parameters (equity, drawdown, exposure multiplier) are injected
+        under the actor's per-actor lock on its worker thread.
         """
         results["phasetimestamps"][EnginePhase.REFRESH] = utc_now_iso()
         shared_macro = getattr(self, "_shared_macro", None)
@@ -430,7 +416,7 @@ class EngineOrchestrator:
         def _run_actor(name: str, actor: AssetActor) -> AssetResult:
             if actor.health == actor.health.HALTED:
                 return AssetResult.failed(name, "actor_halted", actor.metrics.cycle_id)
-            return actor.run_cycle(market_data, shared_macro=shared_macro)
+            return actor.run_cycle(market_data, shared_macro=shared_macro, cycle_context=cycle_context)
 
         futures = {self._pool.submit(_run_actor, n, a): n for n, a in self._actors.items()}
         for future in as_completed(futures):

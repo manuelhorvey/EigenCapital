@@ -175,7 +175,7 @@ exclude = [
 
 [tool.mypy.per-file-ignores]
 # shared/ modules
-"shared/factor_model.py" = ["no-any-return"]
+
 
 
 "shared/volatility.py" = ["no-any-return"]

@@ -109,7 +109,7 @@ def compute_factor_exposures(
 def exposure_violations(
     exposures: dict[str, float],
     limits: dict[str, tuple[float, float]] | None = None,
-) -> dict[str, dict[str, float]]:
+) -> dict[str, dict[str, Any]]:
     """Check which factor exposures violate their limits.
 
     Args:
@@ -122,7 +122,7 @@ def exposure_violations(
     if limits is None:
         limits = DEFAULT_FACTOR_LIMITS
 
-    violations: dict[str, dict[str, float]] = {}
+    violations: dict[str, dict[str, Any]] = {}
     for factor, exposure in exposures.items():
         lo, hi = limits.get(factor, (-1.0, 1.0))
         status: str | None = None
@@ -232,9 +232,9 @@ def compute_factor_returns(
                     betas.append(lr.coef_[list(proxy_df.columns).index(factor)])
                 except (ValueError, IndexError):
                     betas.append(0.0)
-            betas = np.array(betas)
-            betas = betas / (np.abs(betas).sum() + 1e-10)
-            weighted = returns[available_assets].loc[proxy_df.index] @ betas
+            beta_arr = np.array(betas)
+            beta_arr = beta_arr / (np.abs(beta_arr).sum() + 1e-10)
+            weighted = returns[available_assets].loc[proxy_df.index] @ beta_arr
             factor_mimicking[factor] = weighted.values
 
         return pd.DataFrame(factor_mimicking, index=proxy_df.index)

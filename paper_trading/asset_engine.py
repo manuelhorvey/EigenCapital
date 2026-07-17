@@ -4,6 +4,7 @@ import os
 import time
 from dataclasses import fields as dataclass_fields
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 import pytz
@@ -62,23 +63,23 @@ class AssetEngine:
 
     def __init__(
         self,
-        ticker,
-        name,
-        contract,
-        allocation,
-        halt_config=None,
-        config=None,
-        journal_path=None,
-        sl_mult=1.0,
-        tp_mult=2.5,
-        max_depth=2,
-        regime_geometry=None,
-        initial_capital=None,
-        position_size=None,
-        retrain_window=None,
-        context=None,
-        wal_writer=None,
-        registry=None,
+        ticker: str,
+        name: str,
+        contract: Any,
+        allocation: float,
+        halt_config: dict | None = None,
+        config: dict | None = None,
+        journal_path: str | None = None,
+        sl_mult: float = 1.0,
+        tp_mult: float = 2.5,
+        max_depth: int = 2,
+        regime_geometry: dict | None = None,
+        initial_capital: float | None = None,
+        position_size: float | None = None,
+        retrain_window: int | None = None,
+        context: Any | None = None,
+        wal_writer: Any | None = None,
+        registry: Any | None = None,
     ):
         ctx = context or ExecutionContext()
         engine_cfg = ctx.get_engine_config()

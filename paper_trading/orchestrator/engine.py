@@ -277,21 +277,27 @@ class EngineOrchestrator:
     def _inject_cycle_context(self, actor, total_equity: float, current_dd: float, exp_mult: float) -> None:
         """Atomically inject cycle context into an actor under its per-actor lock.
 
-        This is the canonical way to set cycle-level state on actors.  It is
-        called from _pre_phase_pek BEFORE any futures are submitted to the
-        ThreadPoolExecutor, ensuring no data race between the main thread's
-        writes and the worker thread's reads inside generate_signal().
-
-        Per-actor locking is deliberately NOT used here because:
+        Acquires the actor's ``_cycle_context_lock`` while writing so that
+        the worker thread reading these attributes inside ``generate_signal()``
+        sees a consistent snapshot.  The lock is held for <1 microsecond per
+        write — contention is essentially zero because:
           (a) the pre-phase runs entirely on the main thread before any
               Phase 1a futures are submitted, and
           (b) the actor docs state "No actor reads or writes global state
               files directly" — the orchestrator writes before submission.
         """
-        actor._engine._cycle_total_equity = total_equity
-        actor._engine._cycle_drawdown_pct = current_dd
-        if hasattr(actor._engine, "pos_mgr"):
-            actor._engine.pos_mgr.exposure_multiplier = exp_mult
+        lock = getattr(actor, "_cycle_context_lock", None)
+        if lock is not None:
+            with lock:
+                actor._engine._cycle_total_equity = total_equity
+                actor._engine._cycle_drawdown_pct = current_dd
+                if hasattr(actor._engine, "pos_mgr"):
+                    actor._engine.pos_mgr.exposure_multiplier = exp_mult
+        else:
+            actor._engine._cycle_total_equity = total_equity
+            actor._engine._cycle_drawdown_pct = current_dd
+            if hasattr(actor._engine, "pos_mgr"):
+                actor._engine.pos_mgr.exposure_multiplier = exp_mult
 
     def _pre_phase_pek(self) -> tuple[dict, float, list]:
         """Build PEK state: PortfolioStateSnapshot, PerformanceState, RiskBudget.

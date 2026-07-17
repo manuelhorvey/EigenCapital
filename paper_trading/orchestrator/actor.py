@@ -26,6 +26,7 @@ Thread safety:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -178,6 +179,7 @@ class AssetActor:
         self._fault_reason: str = ""
         self._last_trade_count: int = 0
         self._last_price: float | None = None
+        self._cycle_context_lock: threading.Lock = threading.Lock()
 
     @property
     def health_score(self) -> float:

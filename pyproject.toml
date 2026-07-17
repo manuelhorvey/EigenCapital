@@ -186,4 +186,4 @@ exclude = [
 
 "paper_trading/governance/asset.py" = ["no-any-return"]
 "paper_trading/governance/health.py" = ["no-any-return"]
-"paper_trading/orchestrator/admission/controller.py" = ["attr-defined"]
+

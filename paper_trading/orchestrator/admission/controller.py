@@ -13,6 +13,7 @@ Key invariant: PEK is the ONLY execution gate. No trade enters without PEK appro
 from __future__ import annotations
 
 import logging
+import typing
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -154,7 +155,7 @@ class PortfolioAdmissionController:
 
         # Sort descending by score
         scored.sort(key=lambda x: -x[0])
-        ranking_scores = {s.asset: round(s, 4) for s, _ in scored}
+        ranking_scores = {sig.asset: round(score, 4) for score, sig in scored}
 
         # Allocate
         admitted: list[AdmissionSignal] = []
@@ -239,7 +240,7 @@ class PortfolioAdmissionController:
             + w_corr * corr_penalty
         ) * age_decay
 
-        return max(0.0, raw)
+        return typing.cast(float, max(0.0, raw))
 
     # ── Main entry point ──
 
@@ -260,11 +261,11 @@ class PortfolioAdmissionController:
         rejected: list[tuple[AdmissionSignal, str]] = []
 
         for sig in candidates:
-            result = self.fast_filter(sig, snapshot)
-            if result.passed:
+            filter_result = self.fast_filter(sig, snapshot)
+            if filter_result.passed:
                 passed.append(sig)
             else:
-                rejected.append((sig, result.reason))
+                rejected.append((sig, filter_result.reason))
 
         if not passed:
             return AdmissionResult(rejected=rejected)

@@ -72,6 +72,14 @@ repos:
         files: '\.py$|\.yaml$|\.yml$|\.sh$|\.env$'
         pass_filenames: false
 
+      # ── Trailing whitespace ───────────────────────────────────
+      - id: trailing-whitespace
+        name: trailing whitespace
+        entry: bash -c 'git diff --cached --check || true'
+        language: system
+        pass_filenames: false
+        require_serial: true
+
       # ── detect-secrets (credential leak prevention) ────────────
       - id: detect-secrets
         name: detect-secrets

@@ -1,22 +1,32 @@
-"""Risk governance — delegate to RiskRegistry from risk_registry.
+"""Risk governance — DEPRECATED. Import RiskRegistry from risk_registry directly.
 
-This module now delegates all state to a default RiskRegistry instance
-for backward compatibility.  New code should import RiskRegistry directly
-from risk_registry and instantiate its own instance.
+This module exists only for backward compatibility.  All code should
+import RiskRegistry directly from ``paper_trading.governance.risk_registry``
+and instantiate its own instance.
 """
 
 from __future__ import annotations
 
-from paper_trading.governance.risk_registry import (
+import logging
+import warnings
+
+from paper_trading.governance.risk_registry import (  # noqa: F401
     FLAG_THRESHOLD,
     SL_HIT_RATE_ALERT,
     SL_HIT_RATE_CRITICAL,
     SL_HIT_RATE_WINDOW,
     TRIPWIRE_THRESHOLD,
     WEIGHTS,
-    RiskRegistry,  # noqa: F401
+    RiskRegistry,
     _default_registry,
 )
+
+_DEPRECATION_MSG = (
+    "paper_trading.governance.risk is deprecated. "
+    "Import RiskRegistry directly from paper_trading.governance.risk_registry instead."
+)
+warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
+logging.getLogger("eigencapital.risk").warning("%s", _DEPRECATION_MSG)
 
 # ── Module-level constants (preserved for external importers) ───────────
 

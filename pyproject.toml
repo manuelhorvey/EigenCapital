@@ -139,3 +139,29 @@ filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
 source = ["backtests", "diagnostics", "eigencapital", "features", "labels", "models", "monitoring", "paper_trading", "portfolio", "risk", "shared", "signals"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+follow_imports = "silent"
+show_error_codes = true
+strict_optional = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+files = [
+    "paper_trading/governance/",
+    "paper_trading/pek/contracts/",
+    "paper_trading/orchestrator/admission/",
+    "shared/portfolio_weights.py",
+    "shared/kelly.py",
+    "shared/factor_model.py",
+]
+exclude = [
+    "tests/",
+    "scripts/",
+    "backtests/",
+    "paper_trading/dashboard/",
+]

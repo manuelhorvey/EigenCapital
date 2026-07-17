@@ -78,15 +78,39 @@ class ServingHandler(Handler, http.server.SimpleHTTPRequestHandler):
 
 def serve(port=DEFAULT_PORT, shutdown_event=None):
     bind = DEFAULT_BIND
+
+    # ── Auth enforcement ────────────────────────────────────────────────
+    from paper_trading.api.common import _load_auth_token
+    from paper_trading.config_manager import get_config
+
+    cfg = get_config()
+    mode = cfg.mode if hasattr(cfg, "mode") else "production"
+    auth_token = _load_auth_token()
+
     if bind != "127.0.0.1":
+        # Non-loopback binding — auth is MANDATORY
+        if not auth_token:
+            logger.error(
+                "⚠  CRITICAL: Dashboard binding to %s (non-localhost) WITHOUT authentication. "
+                "Set EIGENCAPITAL_API_TOKEN env var to secure the API. "
+                "Refusing to start.",
+                bind,
+            )
+            raise RuntimeError(
+                f"Dashboard binding to {bind} requires EIGENCAPITAL_API_TOKEN. "
+                "Set the env var or use 127.0.0.1 for local-only access."
+            )
         logger.warning(
-            "⚠  Dashboard binding to %s (not localhost). "
-            "Ensure API auth token is configured via the EIGENCAPITAL_API_TOKEN env var or the dashboard auth config.",
+            "⚠  Dashboard binding to %s (not localhost). API auth token is configured.",
             bind,
         )
-        from paper_trading.api.common import _load_auth_token
-
-        _load_auth_token()
+    elif mode == "production" and not auth_token:
+        # Localhost in production mode — warn but still start
+        logger.warning(
+            "⚠  Production mode WITHOUT API authentication. "
+            "Set EIGENCAPITAL_API_TOKEN env var to secure the dashboard API. "
+            "Dashboard bound to 127.0.0.1 only (local access)."
+        )
 
     # Create a single StateStore instance and inject it into the server
     # so route handlers receive it via self.server._state_store instead of

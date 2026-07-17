@@ -107,6 +107,103 @@ _FRED_FALLBACK: dict[str, str] = {
 }
 
 
+class _DataFetchCircuitBreaker:
+    """Cross-asset circuit breaker for data fetching.
+
+    Prevents redundant MT5 -> yfinance fallback cascades across 22+ assets
+    when MT5 is systematically down. Tracks consecutive MT5 failures across
+    ALL assets and opens the circuit after a threshold, causing subsequent
+    assets to skip the MT5 call and go straight to the yfinance fallback.
+
+    States:
+        CLOSED   — normal operation, MT5 calls attempted
+        OPEN     — MT5 calls skipped until cooldown expires
+        HALF_OPEN — cooldown expired, one probe MT5 call is allowed
+
+    Thread-safe via ``threading.Lock``.
+    """
+
+    def __init__(self, max_mt5_failures: int = 3, cooldown_seconds: int = 120):
+        self._max_failures = max_mt5_failures
+        self._cooldown = cooldown_seconds
+        self._lock = threading.Lock()
+        self._reset()
+
+    def _reset(self) -> None:
+        self._consecutive_mt5_failures: int = 0
+        self._total_mt5_failures: int = 0
+        self._total_mt5_successes: int = 0
+        self._mt5_open_until: float = 0.0
+
+    def record_mt5_failure(self) -> bool:
+        """Record an MT5 failure across any asset.
+
+        Returns ``True`` if the circuit just transitioned to OPEN
+        (first time the threshold was crossed).
+        """
+        with self._lock:
+            self._consecutive_mt5_failures += 1
+            self._total_mt5_failures += 1
+            tripped = self._consecutive_mt5_failures >= self._max_failures and self._mt5_open_until == 0.0
+            if self._consecutive_mt5_failures >= self._max_failures:
+                self._mt5_open_until = time.monotonic() + self._cooldown
+            if tripped:
+                logger.warning(
+                    "CircuitBreaker: MT5 circuit OPEN after %d consecutive failures (total=%d) — skipping MT5 for %ds",
+                    self._consecutive_mt5_failures,
+                    self._total_mt5_failures,
+                    self._cooldown,
+                )
+            return tripped
+
+    def record_mt5_success(self) -> None:
+        """Record an MT5 success — resets consecutive counter, closes circuit."""
+        with self._lock:
+            self._consecutive_mt5_failures = 0
+            was_open = self._mt5_open_until > 0.0
+            self._mt5_open_until = 0.0
+            self._total_mt5_successes += 1
+            if was_open:
+                logger.info(
+                    "CircuitBreaker: MT5 circuit CLOSED after successful probe (total_successes=%d, total_failures=%d)",
+                    self._total_mt5_successes,
+                    self._total_mt5_failures,
+                )
+
+    def is_mt5_probe_allowed(self) -> bool:
+        """Check if an MT5 probe is allowed.
+
+        Returns ``True`` if:
+        - Circuit is CLOSED (normal operation), **or**
+        - Circuit is HALF_OPEN (cooldown expired, one probe allowed)
+        """
+        with self._lock:
+            return self._mt5_open_until == 0.0 or time.monotonic() >= self._mt5_open_until
+
+    @property
+    def mt5_available(self) -> bool:
+        """Check if MT5 is available (read-only, no side effects)."""
+        return self.is_mt5_probe_allowed()
+
+    def stats(self) -> dict:
+        """Return current circuit breaker stats for observability."""
+        with self._lock:
+            remaining = max(0.0, self._mt5_open_until - time.monotonic()) if self._mt5_open_until > 0.0 else 0.0
+            return {
+                "consecutive_mt5_failures": self._consecutive_mt5_failures,
+                "total_mt5_failures": self._total_mt5_failures,
+                "total_mt5_successes": self._total_mt5_successes,
+                "mt5_open": self._mt5_open_until > 0.0,
+                "mt5_open_remaining_s": round(remaining, 1),
+                "max_failures": self._max_failures,
+                "cooldown_s": self._cooldown,
+            }
+
+
+# Module-level singleton shared across all assets in the same process.
+_data_fetch_cb = _DataFetchCircuitBreaker()
+
+
 class _TTLCache:
     """Thread-safe TTL cache for fetched data.
 
@@ -399,26 +496,44 @@ def fetch_asset_data(
     # Per-asset close via MT5 provider (falls back to yfinance automatically).
     # fetch_live returns US/Eastern index; normalise to UTC midnight to
     # align with macro data from yfinance.
+    #
+    # The cross-asset circuit breaker tracks consecutive MT5 failures across
+    # ALL assets. When MT5 is systematically down (3+ consecutive failures),
+    # the circuit opens and subsequent assets skip the MT5 call entirely,
+    # going straight to the yfinance fallback. This prevents 22x redundant
+    # MT5 timeout + yfinance fallback cascades per cycle.
     logger.info("  fetching %s (%s) ...", asset_name, ticker)
-    try:
-        raw = _provider_fetch_live(ticker, min_days=_FETCH_WARMUP_BUFFER)
-        if raw.empty:
-            raise ValueError("empty DataFrame")
-        close = raw["close"].copy()
-        close.index = _normalize_index(close.index)
-        # Pre-cache the full OHLCV (normalized index) so fetch_asset_ohlcv()
-        # skips its own fetch instead of discarding every column except "close"
-        # and forcing a second round-trip.
-        ohlcv_cached = raw.copy()
-        ohlcv_cached.index = _normalize_index(ohlcv_cached.index)
-        _set_cycle_cache(f"ohlcv:{ticker}", ohlcv_cached)
-    except (OSError, ValueError, TypeError) as exc:
+    close = None
+    if _data_fetch_cb.mt5_available:
+        try:
+            raw = _provider_fetch_live(ticker, min_days=_FETCH_WARMUP_BUFFER)
+            if raw.empty:
+                raise ValueError("empty DataFrame")
+            close = raw["close"].copy()
+            close.index = _normalize_index(close.index)
+            # Pre-cache the full OHLCV (normalized index) so fetch_asset_ohlcv()
+            # skips its own fetch instead of discarding every column except "close"
+            # and forcing a second round-trip.
+            ohlcv_cached = raw.copy()
+            ohlcv_cached.index = _normalize_index(ohlcv_cached.index)
+            _set_cycle_cache(f"ohlcv:{ticker}", ohlcv_cached)
+            _data_fetch_cb.record_mt5_success()
+        except (OSError, ValueError, TypeError) as exc:
+            _data_fetch_cb.record_mt5_failure()
+            logger.debug(
+                "MT5 fetch_live failed for %s (%s): %s — falling back to yfinance",
+                asset_name,
+                ticker,
+                exc,
+            )
+    else:
         logger.debug(
-            "MT5 fetch_live failed for %s (%s): %s — falling back to yfinance",
+            "CircuitBreaker: MT5 open — skipping MT5 for %s (%s), using yfinance fallback",
             asset_name,
             ticker,
-            exc,
         )
+
+    if close is None:
         close = fetch_yf_series(ticker, f"{asset_name}_close")
 
     if len(close) < _MIN_HISTORY_ROWS:
@@ -560,18 +675,29 @@ def fetch_asset_ohlcv(
     if cached is not None:
         return cached
 
-    try:
-        df = _provider_fetch_live(ticker, min_days=_FETCH_WARMUP_BUFFER)
-        if df.empty:
-            raise ValueError("empty DataFrame")
-        df.index = _normalize_index(df.index)
-        _set_cycle_cache(cache_key, df)
-        return df
-    except (OSError, ValueError, TypeError) as exc:
+    # Check cross-asset circuit breaker before attempting MT5.
+    # When MT5 is systematically down, skip the network call entirely
+    # and go straight to the yfinance fallback.
+    if _data_fetch_cb.mt5_available:
+        try:
+            df = _provider_fetch_live(ticker, min_days=_FETCH_WARMUP_BUFFER)
+            if df.empty:
+                raise ValueError("empty DataFrame")
+            df.index = _normalize_index(df.index)
+            _set_cycle_cache(cache_key, df)
+            _data_fetch_cb.record_mt5_success()
+            return df
+        except (OSError, ValueError, TypeError) as exc:
+            _data_fetch_cb.record_mt5_failure()
+            logger.debug(
+                "MT5 fetch_live failed for %s: %s — falling back to yfinance",
+                ticker,
+                exc,
+            )
+    else:
         logger.debug(
-            "MT5 fetch_live failed for %s: %s — falling back to yfinance",
+            "CircuitBreaker: MT5 open — skipping MT5 for OHLCV %s, using yfinance fallback",
             ticker,
-            exc,
         )
 
     period = period or _FETCH_PERIOD

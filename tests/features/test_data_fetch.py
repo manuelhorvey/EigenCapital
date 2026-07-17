@@ -10,22 +10,232 @@ import pandas as pd
 import pytest
 
 from features.data_fetch import (
-    _TTLCache,
+    _data_fetch_cb,
+    _DataFetchCircuitBreaker,
     _fetch_fred_series,
     _fetch_macro_batch,
-    _fetch_single_series,
     _get_cycle_cached,
-    _KNOWN_CURRENCIES,
     _macro_cache,
     _normalize_index,
     _set_cycle_cache,
-    _ZERO_RATE_ASSETS,
+    _TTLCache,
     bump_cycle_id,
-    CURRENCY_YIELD_TICKERS,
     fetch_asset_data,
     fetch_asset_ohlcv,
     fetch_yf_series,
 )
+
+# ── _DataFetchCircuitBreaker ─────────────────────────────────────────────
+
+
+class TestDataFetchCircuitBreaker:
+    """Tests for _DataFetchCircuitBreaker — cross-asset MT5 failure cascade prevention."""
+
+    def test_initially_closed(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=3, cooldown_seconds=120)
+        assert cb.mt5_available is True
+        assert cb.is_mt5_probe_allowed() is True
+        stats = cb.stats()
+        assert stats["mt5_open"] is False
+        assert stats["consecutive_mt5_failures"] == 0
+
+    def test_opens_after_max_failures(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=3, cooldown_seconds=60)
+        # Two failures — still closed
+        cb.record_mt5_failure()
+        cb.record_mt5_failure()
+        assert cb.mt5_available is True
+        # Third failure — trips open
+        tripped = cb.record_mt5_failure()
+        assert tripped is True
+        assert cb.mt5_available is False
+        stats = cb.stats()
+        assert stats["mt5_open"] is True
+        assert stats["consecutive_mt5_failures"] == 3
+
+    def test_does_not_trip_below_threshold(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=5, cooldown_seconds=60)
+        for _ in range(4):
+            tripped = cb.record_mt5_failure()
+            assert tripped is False  # never tripped below threshold
+            assert cb.mt5_available is True
+        # Fifth failure trips
+        tripped = cb.record_mt5_failure()
+        assert tripped is True
+        assert cb.mt5_available is False
+
+    def test_resets_on_success(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=3, cooldown_seconds=60)
+        cb.record_mt5_failure()
+        cb.record_mt5_failure()
+        cb.record_mt5_success()  # resets before tripping
+        assert cb.mt5_available is True
+        stats = cb.stats()
+        assert stats["consecutive_mt5_failures"] == 0
+        assert stats["total_mt5_failures"] == 2  # total count preserved
+
+    def test_success_closes_open_circuit(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=2, cooldown_seconds=60)
+        cb.record_mt5_failure()
+        cb.record_mt5_failure()
+        assert cb.mt5_available is False  # OPEN
+        cb.record_mt5_success()  # CLOSED
+        assert cb.mt5_available is True
+        stats = cb.stats()
+        assert stats["mt5_open"] is False
+        assert stats["total_mt5_successes"] == 1
+
+    def test_counters_reset_on_internal_reset(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=2, cooldown_seconds=60)
+        cb.record_mt5_failure()
+        cb.record_mt5_failure()  # tripped
+        cb._reset()
+        stats = cb.stats()
+        assert stats["consecutive_mt5_failures"] == 0
+        assert stats["total_mt5_failures"] == 0
+        assert stats["total_mt5_successes"] == 0
+        assert stats["mt5_open"] is False
+
+    def test_tripped_only_once_on_repeated_failures(self):
+        """Once open, additional failures don't re-trigger the "just tripped" signal."""
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=3, cooldown_seconds=60)
+        cb.record_mt5_failure()
+        cb.record_mt5_failure()
+        first_trip = cb.record_mt5_failure()  # third — trips
+        assert first_trip is True
+        # Fourth failure while still open
+        cb.record_mt5_success()  # close circuit (set _mt5_open_until = 0)
+        cb.record_mt5_failure()  # first failure after close
+        cb.record_mt5_failure()  # second
+        second_trip = cb.record_mt5_failure()  # third — trips again
+        assert second_trip is True
+
+    def test_probe_allowed_at_state_transitions(self):
+        """Circuit transitions: CLOSED -> OPEN -> HALF_OPEN -> CLOSED."""
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=2, cooldown_seconds=0.05)
+        # CLOSED — probe allowed
+        assert cb.is_mt5_probe_allowed() is True
+        cb.record_mt5_failure()
+        cb.record_mt5_failure()  # -> OPEN
+        # OPEN — probe NOT allowed
+        assert cb.is_mt5_probe_allowed() is False
+        # Wait for cooldown -> HALF_OPEN
+        import time as _real_time
+
+        _real_time.sleep(0.06)
+        assert cb.is_mt5_probe_allowed() is True  # HALF_OPEN
+        # Record success -> CLOSED
+        cb.record_mt5_success()
+        assert cb.is_mt5_probe_allowed() is True  # CLOSED
+
+    def test_stats_remaining_s(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=1, cooldown_seconds=60)
+        cb.record_mt5_failure()  # trips after 1
+        stats = cb.stats()
+        assert stats["mt5_open_remaining_s"] > 0.0
+        assert stats["mt5_open_remaining_s"] <= 60.0
+
+    def test_returns_false_when_closed_and_no_failures(self):
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=3, cooldown_seconds=60)
+        cb.record_mt5_failure()  # 1/3
+        tripped = cb.record_mt5_failure()  # 2/3
+        assert tripped is False
+
+    def test_thread_safety_not_broken(self):
+        """Rapid concurrent failure/success calls should not corrupt state."""
+        import concurrent.futures
+
+        cb = _DataFetchCircuitBreaker(max_mt5_failures=3, cooldown_seconds=1)
+
+        def _fail() -> None:
+            cb.record_mt5_failure()
+
+        def _succeed() -> None:
+            cb.record_mt5_success()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [pool.submit(_fail) for _ in range(10)] + [pool.submit(_succeed) for _ in range(5)]
+            concurrent.futures.wait(futures)
+            for f in futures:
+                if f.exception():
+                    raise f.exception()
+
+        # No exception means no race condition — state machine not corrupted
+        stats = cb.stats()
+        assert stats["total_mt5_failures"] + stats["total_mt5_successes"] == 15
+
+
+# ── Circuit Breaker integration with fetch_asset_data ──────────────────────
+
+
+class TestCircuitBreakerIntegration:
+    """Tests that the circuit breaker correctly prevents MT5 calls when open."""
+
+    @pytest.fixture(autouse=True)
+    def _reset(self):
+        bump_cycle_id()
+        _macro_cache.invalidate()
+        _data_fetch_cb._reset()
+        yield
+
+    def test_skips_mt5_when_circuit_open_fetch_asset_data(self):
+        """When circuit is open, fetch_asset_data should skip MT5 and use yfinance."""
+        import datetime as _dt
+
+        import numpy as np
+
+        base = _dt.datetime(2026, 1, 1)
+        idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(260)])
+        close = pd.Series(np.linspace(1.0, 1.1, 260), index=idx, name="close")
+
+        # Open the circuit breaker with default max_failures=3 (don't mutate
+        # the singleton's _max_failures to avoid polluting later tests).
+        _data_fetch_cb._reset()
+        _data_fetch_cb.record_mt5_failure()
+        _data_fetch_cb.record_mt5_failure()
+        _data_fetch_cb.record_mt5_failure()  # tripped (default max=3)
+        assert _data_fetch_cb.mt5_available is False
+
+        # fetch_asset_data should NOT call _provider_fetch_live (MT5)
+        with patch("features.data_fetch._provider_fetch_live") as mock_mt5:
+            with patch("features.data_fetch.fetch_yf_series", return_value=close):
+                with patch("features.data_fetch._fetch_macro_batch", return_value={}):
+                    with patch("features.data_fetch._normalize_index", side_effect=lambda idx: idx):
+                        result = fetch_asset_data("EURUSD", "EURUSD=X")
+                        prices, *_ = result
+                        assert "EURUSD" in prices.columns
+                        mock_mt5.assert_not_called()  # MT5 was skipped!
+
+    def test_skips_mt5_when_circuit_open_fetch_asset_ohlcv(self):
+        """When circuit is open, fetch_asset_ohlcv should skip MT5 and use yfinance."""
+        idx = pd.DatetimeIndex(["2026-01-01", "2026-01-02"])
+        raw = pd.DataFrame(
+            {
+                "Open": [1.0, 1.01],
+                "High": [1.1, 1.11],
+                "Low": [0.9, 0.91],
+                "Close": [1.05, 1.06],
+                "Volume": [1000, 1100],
+            },
+            index=idx,
+        )
+
+        # Open the circuit breaker with default max_failures=3 (don't mutate
+        # the singleton's _max_failures to avoid polluting later tests).
+        _data_fetch_cb._reset()
+        _data_fetch_cb.record_mt5_failure()
+        _data_fetch_cb.record_mt5_failure()
+        _data_fetch_cb.record_mt5_failure()  # tripped (default max=3)
+        assert _data_fetch_cb.mt5_available is False
+
+        with patch("features.data_fetch._provider_fetch_live") as mock_mt5:
+            with patch("yfinance.download", return_value=raw):
+                with patch("features.data_fetch._normalize_index", side_effect=lambda idx: idx):
+                    result = fetch_asset_ohlcv("EURUSD")
+                    assert not result.empty
+                    assert "open" in result.columns
+                    assert "close" in result.columns
+                    mock_mt5.assert_not_called()  # MT5 was skipped!
 
 
 # ── _TTLCache ──────────────────────────────────────────────────────────────
@@ -203,6 +413,7 @@ class TestFetchMacroBatch:
 
     def test_fred_fills_some_tickers(self):
         """When FRED serves some tickers but not others, missing go through yfinance."""
+
         def _fred_side_effect(ticker):
             if ticker == "^TNX":
                 return pd.Series([0.04, 0.05], index=pd.DatetimeIndex(["2026-01-02", "2026-01-05"]), name="^TNX")
@@ -236,10 +447,12 @@ class TestFetchAssetDataRateDiff:
     def _reset(self):
         bump_cycle_id()
         _macro_cache.invalidate()
+        _data_fetch_cb._reset()
         yield
 
     def _make_engine(self, n=260):
         import datetime as _dt
+
         base = _dt.datetime(2026, 1, 1)
         idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(n)])
         close = pd.Series(np.linspace(1.0, 1.1, n), index=idx, name="close")
@@ -331,6 +544,7 @@ class TestFetchAssetData:
     def _reset_cache(self):
         bump_cycle_id()
         _macro_cache.invalidate()
+        _data_fetch_cb._reset()
         yield
 
     def test_returns_cached_result(self):
@@ -342,8 +556,9 @@ class TestFetchAssetData:
             mock_provider.assert_not_called()
 
     def test_falls_back_to_yfinance_on_provider_failure(self):
-        import numpy as np
         import datetime as _dt
+
+        import numpy as np
 
         base = _dt.datetime(2026, 1, 1)
         idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(260)])
@@ -365,8 +580,9 @@ class TestFetchAssetData:
                         fetch_asset_data("EURUSD", "EURUSD=X")
 
     def test_returns_rate_diffs_for_fx(self):
-        import numpy as np
         import datetime as _dt
+
+        import numpy as np
 
         base = _dt.datetime(2026, 1, 1)
         idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(260)])
@@ -399,6 +615,7 @@ class TestFetchAssetOhlcv:
     @pytest.fixture(autouse=True)
     def _reset(self):
         bump_cycle_id()
+        _data_fetch_cb._reset()
         yield
 
     def test_returns_empty_on_failure(self):
@@ -416,10 +633,16 @@ class TestFetchAssetOhlcv:
                 assert r1 is r2
 
     def test_returns_dataframe_with_expected_columns(self):
-        raw = pd.DataFrame({
-            "Open": [1.0], "High": [1.1], "Low": [0.9],
-            "Close": [1.05], "Volume": [1000],
-        }, index=pd.DatetimeIndex(["2026-01-01"]))
+        raw = pd.DataFrame(
+            {
+                "Open": [1.0],
+                "High": [1.1],
+                "Low": [0.9],
+                "Close": [1.05],
+                "Volume": [1000],
+            },
+            index=pd.DatetimeIndex(["2026-01-01"]),
+        )
         raw.index = _normalize_index(raw.index)
         with patch("features.data_fetch._provider_fetch_live", side_effect=ValueError("fail")):
             with patch("yfinance.download", return_value=raw):

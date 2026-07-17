@@ -251,8 +251,10 @@ class IncrementalEWMACov:
 
         # Update running mean (EWMA of individual returns)
         # μ_t = (1 - λ) * μ_{t-1} + λ * x_t
-        assert self.mean is not None  # guaranteed by _init_from_first_row
-        assert self.cov is not None  # guaranteed by _init_from_first_row
+        if self.mean is None:
+            raise ValueError("mean was not initialized — call _init_from_first_row first")
+        if self.cov is None:
+            raise ValueError("cov was not initialized — call _init_from_first_row first")
         old_mean = self.mean.copy()
         self.mean = (1.0 - lam) * old_mean + lam * x
 

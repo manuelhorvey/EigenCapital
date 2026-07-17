@@ -169,6 +169,9 @@ class EngineOrchestrator:
         # MT5 orphan reconciler (stateful — owns stale ticket counters, etc.)
         self._orphan_reconciler = OrphanReconciler()
 
+        # PEK budget utilization from previous cycle (for sizing backfeed)
+        self._pek_budget_utilization: float = 0.0
+
         # Position concentration snapshot (updated each cycle in Phase 3e)
         self._position_concentration: dict = {
             "long": 0,
@@ -391,6 +394,21 @@ class EngineOrchestrator:
         for actor in self._actors.values():
             self._inject_cycle_context(actor, total_equity, current_dd, exp_mult)
 
+        # PEK budget backfeed: if the previous cycle overran its budget,
+        # reduce the exposure multiplier for the current cycle so that
+        # position sizing stays within the budget proactively rather than
+        # closing positions reactively after overrun.
+        _budget_util = getattr(self, "_pek_budget_utilization", 1.0)
+        if _budget_util > 1.0:
+            _reduction = 1.0 / max(_budget_util, 1.001)
+            exp_mult = min(exp_mult, exp_mult * _reduction)
+            logger.info(
+                "PEK_BUDGET_BACKFEED: utilization=%.2f%% reducing exp_mult by %.1f%% to %.3f",
+                _budget_util * 100,
+                (1 - _reduction) * 100,
+                exp_mult,
+            )
+
         # Dummy budget_ref for backward compat with any remaining callers
         budget_ref = [max_leverage * total_equity]
         return defaults, max_leverage, budget_ref
@@ -530,6 +548,8 @@ class EngineOrchestrator:
                 return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
 
             current_notional = sum(_entry_notionals(actor) for actor in self._actors.values())
+            # Store budget utilization for next cycle's sizing backfeed
+            self._pek_budget_utilization = current_notional / max(max_notional, 1.0)
             if current_notional > max_notional:
                 logger.warning(
                     "PEK_BUDGET_OVERRUN: notional=%.2f max=%.2f over=%.2f%% — reviewing %d admitted",

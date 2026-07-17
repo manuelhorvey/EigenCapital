@@ -1,32 +1,16 @@
-"""DEPRECATED — legacy position sizing function.
+"""DEPRECATED — moved to ``archive.deprecated._position_sizing``.
 
-This module is no longer used in live trading.  Position sizing flows through
-``paper_trading/entry/`` (``EntryService``, ``EntryOptimizer``) and the
-``run_decision_pipeline`` sizing chain (Kelly multiplier, drawdown taper,
-position cap, risk cap).
-
-Kept for backward compatibility with existing tests and scripts.
-Will be removed in a future release.
+Kept as a backward-compatible shim.  Will be removed in v4.0.
 """
 
 import warnings
 
-import pandas as pd
+from archive.deprecated._position_sizing import (  # noqa: F401
+    calculate_position_size,
+)
 
 warnings.warn(
-    "risk.position_sizing is deprecated and will be removed.",
+    "risk.position_sizing is deprecated. Use paper_trading.entry.EntryService instead.",
     DeprecationWarning,
     stacklevel=2,
 )
-
-
-def calculate_position_size(
-    signal_df: pd.DataFrame, base_risk: float = 0.01, account_value: float = 100000
-) -> pd.Series:
-    """
-    Calculates position sizes based on signals and regime multipliers.
-
-    .. deprecated::
-        Use ``paper_trading.entry.EntryService`` instead.
-    """
-    return signal_df["signal"] * signal_df["risk_multiplier"]

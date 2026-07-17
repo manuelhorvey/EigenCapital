@@ -1,29 +1,17 @@
-"""DEPRECATED — legacy threshold-based signal logic.
+"""DEPRECATED — moved to ``archive.deprecated._simple_threshold``.
 
-This module is no longer used in production.  Signal generation now flows
-through ``paper_trading/inference/pipeline.py`` -> ``run_decision_pipeline``.
-
-Kept for backward compatibility with existing tests and scripts.
-Will be removed in a future release.
+Kept as a backward-compatible shim.  Will be removed in v4.0.
 """
 
 import warnings
 
-import numpy as np
+from archive.deprecated._simple_threshold import (  # noqa: F401
+    THRESHOLD,
+    generate_signals,
+)
 
 warnings.warn(
-    "signals.simple_threshold is deprecated and will be removed.",
+    "signals.simple_threshold is deprecated. Use paper_trading.inference.pipeline instead.",
     DeprecationWarning,
     stacklevel=2,
 )
-
-# Backward-compatible API (preserved for existing tests/scripts)
-THRESHOLD = 0.475
-
-
-def generate_signals(probs: np.ndarray) -> np.ndarray:
-    """Generate signals from probabilities (deprecated — use decision pipeline)."""
-    signals = np.zeros(len(probs), dtype=np.int8)
-    signals[probs[:, 2] > THRESHOLD] = 1
-    signals[probs[:, 0] > THRESHOLD] = -1
-    return signals

@@ -272,6 +272,154 @@ class TestComputeFactorExposures:
 # ═══════════════════════════════════════════════════════════════════
 
 
+class TestSaveStateCircuitBreaker:
+    """Dedicated tests for the data fetch circuit breaker stats in
+    ``save_state()`` output.
+
+    The circuit breaker stats are injected into ``state["mt5"]["data_fetch_circuit_breaker"]``
+    by a lazy import of ``_data_fetch_cb`` from ``features.data_fetch`` inside
+    ``save_state()``.  These tests verify the stats appear with the correct
+    shape under normal operation, and fall back gracefully on import failure.
+    """
+
+    def _run_save_state(self, service, mock_cb_stats=None):
+        """Run save_state with all standard mocks plus the circuit breaker."""
+        saved = []
+
+        def capture(snap):
+            saved.append(snap)
+
+        service.engine.state_store.save_snapshot = capture
+
+        if mock_cb_stats is not None:
+            cb_patch = patch(
+                "features.data_fetch._data_fetch_cb",
+                spec_set=["stats"],
+            )
+            mock_cb = cb_patch.start()
+            mock_cb.stats.return_value = mock_cb_stats
+        else:
+            cb_patch = None
+
+        try:
+            with (
+                patch("paper_trading.services.engine_state_service.LiveSharpeTracker") as mock_sharpe,
+                patch("paper_trading.performance.edge_health.get_monitor") as mock_monitor,
+                patch("paper_trading.services.engine_state_service.update_engine_metrics"),
+            ):
+                mock_sharpe.return_value.compute.return_value = {"available": True, "n_cycles": 100}
+                mock_monitor.return_value.summary = {"available": True}
+
+                state = service.save_state()
+        finally:
+            if cb_patch is not None:
+                cb_patch.stop()
+
+        return state
+
+    def test_circuit_breaker_stats_in_state(self, service):
+        """Normal path: circuit breaker stats appear in state["mt5"] with
+        the expected scalar fields from ``_DataFetchCircuitBreaker.stats()``."""
+        fake_stats = {
+            "consecutive_mt5_failures": 0,
+            "total_mt5_failures": 5,
+            "total_mt5_successes": 120,
+            "mt5_open": False,
+            "mt5_open_remaining_s": 0.0,
+            "max_failures": 3,
+            "cooldown_s": 120,
+        }
+        state = self._run_save_state(service, mock_cb_stats=fake_stats)
+
+        assert "mt5" in state, "state must have mt5 key"
+        assert "data_fetch_circuit_breaker" in state["mt5"], (
+            "mt5 must have data_fetch_circuit_breaker key"
+        )
+        cb = state["mt5"]["data_fetch_circuit_breaker"]
+        assert cb["consecutive_mt5_failures"] == 0
+        assert cb["total_mt5_failures"] == 5
+        assert cb["total_mt5_successes"] == 120
+        assert cb["mt5_open"] is False
+        assert cb["mt5_open_remaining_s"] == 0.0
+        assert cb["max_failures"] == 3
+        assert cb["cooldown_s"] == 120
+
+    def test_circuit_breaker_open_state(self, service):
+        """When the circuit is open (mt5_open=True), the remaining seconds
+        and failure counts reflect the open state."""
+        fake_stats = {
+            "consecutive_mt5_failures": 3,
+            "total_mt5_failures": 10,
+            "total_mt5_successes": 100,
+            "mt5_open": True,
+            "mt5_open_remaining_s": 45.0,
+            "max_failures": 3,
+            "cooldown_s": 120,
+        }
+        state = self._run_save_state(service, mock_cb_stats=fake_stats)
+
+        cb = state["mt5"]["data_fetch_circuit_breaker"]
+        assert cb["consecutive_mt5_failures"] == 3
+        assert cb["mt5_open"] is True
+        assert cb["mt5_open_remaining_s"] == 45.0
+        assert cb["total_mt5_failures"] == 10
+
+    def test_circuit_breaker_stats_failure(self, service):
+        """When ``.stats()`` raises (e.g. transient I/O error), the
+        fallback ``{"available": False}`` is stored.  This exercises
+        the ``except (ImportError, AttributeError, OSError)`` catch-all
+        via the AttributeError / OSError branches."""
+        saved = []
+
+        def capture(snap):
+            saved.append(snap)
+
+        service.engine.state_store.save_snapshot = capture
+
+        # Make the module-level singleton's .stats() raise AttributeError
+        # (simulates a broken module or renamed method). The try/except
+        # in save_state() catches this and stores the fallback dict.
+        with (
+            patch("features.data_fetch._data_fetch_cb") as mock_cb,
+            patch("paper_trading.services.engine_state_service.LiveSharpeTracker") as mock_sharpe,
+            patch("paper_trading.performance.edge_health.get_monitor") as mock_monitor,
+            patch("paper_trading.services.engine_state_service.update_engine_metrics"),
+        ):
+            mock_cb.stats.side_effect = AttributeError("broken mock")
+            mock_sharpe.return_value.compute.return_value = {"available": True, "n_cycles": 100}
+            mock_monitor.return_value.summary = {"available": True}
+
+            state = service.save_state()
+
+        cb = state["mt5"]["data_fetch_circuit_breaker"]
+        assert cb == {"available": False}, (
+            f"expected fallback dict, got {cb}"
+        )
+
+    def test_circuit_breaker_coexists_with_mt5_status(self, service):
+        """Both MT5 connection status and circuit breaker stats coexist
+        under state["mt5"]."""
+        fake_stats = {
+            "consecutive_mt5_failures": 0,
+            "total_mt5_failures": 2,
+            "total_mt5_successes": 50,
+            "mt5_open": False,
+            "mt5_open_remaining_s": 0.0,
+            "max_failures": 3,
+            "cooldown_s": 120,
+        }
+        state = self._run_save_state(service, mock_cb_stats=fake_stats)
+
+        # MT5 status should still be present (from the broker mock)
+        assert "mt5" in state
+        assert "connected" in state["mt5"]
+        assert "status" in state["mt5"]
+        # Circuit breaker stats should be present alongside
+        assert "data_fetch_circuit_breaker" in state["mt5"]
+        assert state["mt5"]["connected"] is False  # no broker set on mock
+        assert state["mt5"]["data_fetch_circuit_breaker"]["total_mt5_failures"] == 2
+
+
 class TestSaveState:
     def test_saves_snapshot(self, service):
         from paper_trading.state_store import EngineSnapshot

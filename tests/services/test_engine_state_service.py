@@ -420,6 +420,184 @@ class TestSaveStateCircuitBreaker:
         assert state["mt5"]["data_fetch_circuit_breaker"]["total_mt5_failures"] == 2
 
 
+def _make_mock_orchestrator(**overrides):
+    """Build a mock orchestrator with all attributes ``save_state()`` accesses.
+
+    ``save_state()`` reads several attributes from the orchestrator:
+    - ``_halt_state`` (required) — has ``emergency_halt``, ``halt_reason``,
+      ``halt_detail``, ``peak_portfolio_value``
+    - ``_circuit_breaker`` (optional) — accessed via ``getattr(..., None)`` guard
+    - ``_perf_builder`` (optional) — accessed via ``hasattr`` guard
+    - ``_actors`` (optional) — accessed via ``hasattr`` guard
+
+    Only non-``None`` optional attributes are included on the mock so that
+    ``hasattr()`` returns ``False`` for untouched ones (otherwise calling
+    ``None.save_state()`` raises ``AttributeError``, which the production
+    code does **not** catch — ``AttributeError`` is not in the except list).
+    """
+    halt_state = overrides.get(
+        "_halt_state",
+        SimpleNamespace(
+            emergency_halt=False,
+            halt_reason="",
+            halt_detail="",
+            peak_portfolio_value=None,
+        ),
+    )
+    # Only include non-None optional attrs so hasattr returns False for
+    # attributes not explicitly set (prevents None.save_state() crashes).
+    _attrs: dict = {
+        "_halt_state": halt_state,
+    }
+    for _key in (
+        "_pek_budget_utilization",
+        "_last_admission",
+        "_circuit_breaker",
+        "_perf_builder",
+        "_actors",
+        "_performance_state",
+        "_risk_budget",
+        "_portfolio_snapshot",
+    ):
+        _val = overrides.get(_key)
+        if _val is not None:
+            _attrs[_key] = _val
+    return SimpleNamespace(**_attrs)
+
+
+class TestSaveStatePekBudgetUtilization:
+    """Dedicated tests for ``pek_budget_utilization`` in ``save_state()`` output.
+
+    The field is injected into ``state["portfolio"]["pek_budget_utilization"]``
+    from ``orch._pek_budget_utilization`` (set by the orchestrator's
+    ``_pre_phase_pek`` / ``_phase_1b_admission_review``).  These tests verify
+    it appears with the correct value when set, is absent when unset,
+    and coexists with other portfolio fields.
+    """
+
+    def _run_save_state(self, service):
+        """Run save_state with standard mocks."""
+        saved = []
+
+        def capture(snap):
+            saved.append(snap)
+
+        service.engine.state_store.save_snapshot = capture
+
+        with (
+            patch("paper_trading.services.engine_state_service.LiveSharpeTracker") as mock_sharpe,
+            patch("paper_trading.performance.edge_health.get_monitor") as mock_monitor,
+            patch("paper_trading.services.engine_state_service.update_engine_metrics"),
+        ):
+            mock_sharpe.return_value.compute.return_value = {"available": True, "n_cycles": 100}
+            mock_monitor.return_value.summary = {"available": True}
+
+            state = service.save_state()
+
+        return state
+
+    def test_pek_budget_utilization_in_state_when_set(self):
+        """When orchestrator has ``_pek_budget_utilization`` set (e.g. after
+        Phase 1b admission review), the value appears under
+        ``state["portfolio"]["pek_budget_utilization"]`` rounded to 4 decimals."""
+        mock_orch = _make_mock_orchestrator(
+            _pek_budget_utilization=0.8743,
+            _last_admission={
+                "n_intents": 10,
+                "n_admitted": 8,
+                "n_rejected": 2,
+                "budget_notional": 150_000,
+                "admitted": ["EURUSD", "GBPUSD"],
+                "rejected": ["CADCHF"],
+            },
+        )
+        engine = _make_mock_engine(_orchestrator=mock_orch)
+        svc = EngineStateService(engine)
+        state = self._run_save_state(svc)
+
+        assert "portfolio" in state
+        assert "pek_budget_utilization" in state["portfolio"], (
+            "pek_budget_utilization should appear in portfolio when orchestrator has it set"
+        )
+        assert state["portfolio"]["pek_budget_utilization"] == 0.8743
+
+    def test_pek_budget_utilization_over_budget(self):
+        """When utilization > 1.0 (over budget, triggers backfeed), the
+        value is passed through correctly."""
+        mock_orch = _make_mock_orchestrator(
+            _pek_budget_utilization=1.1532,
+            _last_admission={
+                "n_intents": 10,
+                "n_admitted": 8,
+                "n_rejected": 2,
+                "budget_notional": 150_000,
+                "admitted": [],
+                "rejected": [],
+            },
+        )
+        engine = _make_mock_engine(_orchestrator=mock_orch)
+        svc = EngineStateService(engine)
+        state = self._run_save_state(svc)
+
+        assert state["portfolio"]["pek_budget_utilization"] == 1.1532
+
+    def test_pek_budget_utilization_rounded_to_four_decimals(self):
+        """The value is rounded to 4 decimal places by ``round(_util, 4)``."""
+        mock_orch = _make_mock_orchestrator(
+            _pek_budget_utilization=0.87654321,
+            _last_admission={
+                "n_intents": 10,
+                "n_admitted": 8,
+                "n_rejected": 2,
+                "budget_notional": 150_000,
+                "admitted": [],
+                "rejected": [],
+            },
+        )
+        engine = _make_mock_engine(_orchestrator=mock_orch)
+        svc = EngineStateService(engine)
+        state = self._run_save_state(svc)
+
+        # round(0.87654321, 4) = 0.8765
+        assert state["portfolio"]["pek_budget_utilization"] == 0.8765
+
+    def test_pek_budget_utilization_absent_when_orch_unset(self, service):
+        """When orchestrator does not have ``_pek_budget_utilization`` set
+        (first-cycle path before Phase 1b has run), the key should NOT appear
+        in the state dict (not just None)."""
+        state = self._run_save_state(service)
+
+        # The default mock engine has _orchestrator=None,
+        # so the PEK block is never entered and the key should be absent.
+        assert "pek_budget_utilization" not in state.get("portfolio", {}), (
+            "pek_budget_utilization should not appear when orchestrator lacks the attribute"
+        )
+
+    def test_pek_budget_utilization_coexists_with_admission_data(self):
+        """Both ``pek_budget_utilization`` and ``admission`` data appear
+        under ``state["portfolio"]`` when the orchestrator has both set."""
+        mock_orch = _make_mock_orchestrator(
+            _pek_budget_utilization=0.95,
+            _last_admission={
+                "n_intents": 10,
+                "n_admitted": 8,
+                "n_rejected": 2,
+                "budget_notional": 150_000,
+                "admitted": ["EURUSD"],
+                "rejected": ["CADCHF", "GBPJPY"],
+            },
+        )
+        engine = _make_mock_engine(_orchestrator=mock_orch)
+        svc = EngineStateService(engine)
+        state = self._run_save_state(svc)
+
+        assert state["portfolio"]["pek_budget_utilization"] == 0.95
+        assert "admission" in state["portfolio"]
+        assert state["portfolio"]["admission"]["n_intents"] == 10
+        assert state["portfolio"]["admission"]["n_rejected"] == 2
+        assert state["portfolio"]["admission"]["admitted"] == ["EURUSD"]
+
+
 class TestSaveState:
     def test_saves_snapshot(self, service):
         from paper_trading.state_store import EngineSnapshot

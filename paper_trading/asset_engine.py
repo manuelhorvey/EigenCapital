@@ -4,7 +4,6 @@ import os
 import time
 from dataclasses import fields as dataclass_fields
 from datetime import datetime
-from typing import Any
 
 import pandas as pd
 import pytz
@@ -12,6 +11,7 @@ import pytz
 from eigencapital.domain.entities.position import OrderType
 from eigencapital.domain.time import utc_now
 from features.archetypes import ArchetypeClassifier
+from features.contract import FeatureContract
 from features.market_structure import MarketStructureDetector
 from monitoring.importance_tracker import ImportanceStore
 from monitoring.psi_monitor import PSIMonitor
@@ -39,6 +39,7 @@ from paper_trading.position.batch import PositionBatch
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
 from paper_trading.position.scale_out import build_scale_out_from_config
+from paper_trading.replay.wal import WalWriter
 from paper_trading.services.attribution_service import AttributionService as _AttributionService
 from paper_trading.services.entry_service import EntryService
 from paper_trading.services.governance_service import GovernanceService
@@ -65,7 +66,7 @@ class AssetEngine:
         self,
         ticker: str,
         name: str,
-        contract: Any,
+        contract: FeatureContract,
         allocation: float,
         halt_config: dict | None = None,
         config: dict | None = None,
@@ -77,10 +78,10 @@ class AssetEngine:
         initial_capital: float | None = None,
         position_size: float | None = None,
         retrain_window: int | None = None,
-        context: Any | None = None,
-        wal_writer: Any | None = None,
-        registry: Any | None = None,
-    ):
+        context: ExecutionContext | None = None,
+        wal_writer: WalWriter | None = None,
+        registry: StrategyRegistry | None = None,
+    ) -> None:
         ctx = context or ExecutionContext()
         engine_cfg = ctx.get_engine_config()
         self._engine_cfg = engine_cfg

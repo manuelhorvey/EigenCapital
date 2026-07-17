@@ -94,7 +94,6 @@ extend-exclude = [
     "scripts/simulations",
     "scripts/training",
     "scripts/validation",
-    "signals",
     "tests",
     "main.py",
 ]

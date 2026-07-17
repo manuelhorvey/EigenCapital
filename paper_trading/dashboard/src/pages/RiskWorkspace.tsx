@@ -6,6 +6,8 @@ import FactorExposureBreakdown from '../components/FactorExposureBreakdown'
 import PekScalarPanel from '../components/PekScalarPanel'
 import PerformanceStateVelocityChart from '../components/PerformanceStateVelocityChart'
 import RiskBudgetChart from '../components/RiskBudgetChart'
+import DrawdownChart from '../components/DrawdownChart'
+import CorrelationHeatmap from '../components/CorrelationHeatmap'
 import HealthMonitorPanel from '../components/monitor/HealthMonitorPanel'
 import PageShell from '../components/ui/PageShell'
 import Section from '../components/ui/Section'
@@ -72,6 +74,16 @@ export default function RiskWorkspace() {
             <div className={`${gridSplit2(true)} ${GRID_GAP}`}>
               <PerformanceStateVelocityChart />
               <RiskBudgetChart />
+            </div>
+          </EntranceAnimator>
+        </Section>
+
+        {/* Drawdown + Correlation (V3, V4) — side by side */}
+        <Section id="drawdown-correlation" errorTitle="Drawdown & Correlation">
+          <EntranceAnimator variant="fade-up">
+            <div className={`${gridSplit2(true)} ${GRID_GAP}`}>
+              <DrawdownChart />
+              <CorrelationHeatmap />
             </div>
           </EntranceAnimator>
         </Section>

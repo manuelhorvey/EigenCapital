@@ -54,10 +54,7 @@
     100% { background-position: -200% 0; }
   }
 
-  @keyframes shrink {
-    0% { transform: scaleX(1); }
-    100% { transform: scaleX(0); }
-  }
+
 }
 
 @layer base {

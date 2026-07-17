@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import { useSnapshotReconciler } from '../../hooks/useSnapshotReconciler'
 import { useSystemIntegrity } from '../../hooks/useSystemIntegrity'
+import { useSelectedAsset } from '../../hooks/useSelectedAsset'
 import { SystemDegradedBanner } from '../ui/SystemDegradedBanner'
 import ErrorScreen from '../ui/ErrorScreen'
 import PageTransition from '../ui/PageTransition'
@@ -11,6 +12,8 @@ import TopBar from './TopBar'
 import TabBar from './TabBar'
 import EmergencyHaltBanner from '../EmergencyHaltBanner'
 import KeyboardShortcuts from './KeyboardShortcuts'
+import CommandPalette from '../CommandPalette'
+import NotificationCenter from '../NotificationCenter'
 
 interface AppShellProps {
   children: ReactNode
@@ -25,8 +28,17 @@ export default function AppShell({ children }: AppShellProps) {
   useSnapshotReconciler(bundle)
   const integrity = useSystemIntegrity(bundle)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [notifCenterOpen, setNotifCenterOpen] = useState(false)
   const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), [])
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
+  const toggleNotifications = useCallback(() => setNotifCenterOpen(prev => !prev), [])
+  const closeNotifications = useCallback(() => setNotifCenterOpen(false), [])
+  const { setSelectedAsset } = useSelectedAsset()
+
+  // Extract asset names from snapshot for command palette search
+  const assetNames = bundle?.snapshot?.assets
+    ? Object.keys(bundle.snapshot.assets).sort()
+    : []
 
   // Focus main content after page transitions complete (WCAG 2.4.3)
   const focusMain = useCallback(() => {
@@ -50,7 +62,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-app text-secondary flex flex-col">
-      <TopBar onToggleSidebar={toggleSidebar} />
+      <TopBar onToggleSidebar={toggleSidebar} onToggleNotifications={toggleNotifications} />
       <TabBar />
       <SystemDegradedBanner integrity={integrity} />
       <EmergencyHaltBanner />
@@ -74,6 +86,8 @@ export default function AppShell({ children }: AppShellProps) {
           </main>
 
           <KeyboardShortcuts />
+          <CommandPalette assetNames={assetNames} onSelectAsset={setSelectedAsset} />
+          <NotificationCenter open={notifCenterOpen} onClose={closeNotifications} />
         </div>
       </div>
     </div>

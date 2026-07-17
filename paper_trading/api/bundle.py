@@ -80,6 +80,39 @@ _LIVE_REFRESH_IN_FLIGHT: dict[str, bool] = {}
 # ── Background refresh ─────────────────────────────────────────────────────
 
 
+def _make_placeholder(name: str) -> dict:
+    """Return a schema-safe placeholder for a live source.
+
+    The placeholder includes dummy values for all fields required by
+    the frontend Zod schema so that ``SystemBundleSchema`` validation
+    does not fail during the brief window before background refresh
+    populates real data.
+    """
+    now_iso = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    base: dict = {
+        "fetch_time": now_iso,
+        "fetch_age_seconds": 0.0,
+        "is_fresh": False,
+    }
+    if name == "health":
+        base["assets"] = {}
+        base["system_health"] = {
+            "mean_health_score": 0.0,
+            "n_assets": 0,
+            "healthiest_asset": None,
+            "weakest_asset": None,
+            "n_healthy": 0,
+            "n_degraded": 0,
+            "n_critical": 0,
+        }
+    elif name == "mt5":
+        base["connected"] = False
+        base["status"] = "UNKNOWN"
+        base["last_heartbeat"] = None
+        base["account"] = None
+    return base
+
+
 def _background_refresh(name: str, fetch_fn: Callable[[], Any]) -> None:
     """Fetch a live source asynchronously and cache the result.
 
@@ -104,13 +137,8 @@ def _background_refresh(name: str, fetch_fn: Callable[[], Any]) -> None:
         logger.warning("bundle bg refresh '%s' failed: %s", name, exc)
         # Cache the failure so the next N polls don't re-attempt.
         now = time.time()
-        placeholder = {
-            "fetch_time": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-            "fetch_age_seconds": 0.0,
-            "is_fresh": False,
-            "status": "error",
-            "error": str(exc),
-        }
+        placeholder = _make_placeholder(name)
+        placeholder["error"] = str(exc)
         with _LIVE_CACHE_LOCK:
             _LIVE_CACHE[name] = (placeholder, now + _LIVE_CACHE_TTL, now, True)
     finally:
@@ -164,13 +192,7 @@ def _live_get(name: str, fetch_fn: Callable[[], Any]) -> dict:
 
     # ── 4. No cache at all — return placeholder ───────────────────────
     logger.warning("bundle live source '%s' has no cached data — returning placeholder", name)
-    now_iso = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-    return {
-        "fetch_time": now_iso,
-        "fetch_age_seconds": 0.0,
-        "is_fresh": False,
-        "status": "pending",
-    }
+    return _make_placeholder(name)
 
 
 def _strip_publish_markers(obj: Any) -> None:

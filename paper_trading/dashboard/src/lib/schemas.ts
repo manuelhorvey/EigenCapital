@@ -737,8 +737,8 @@ export const SystemBundleSchema = z.object({
   meta: BundleMetaSchema,
   snapshot: EngineSnapshotSchema,
   live: z.object({
-    health: LiveSourceMetaSchema.merge(HealthResponseSchema),
-    mt5: LiveSourceMetaSchema.merge(MT5StatusSchema),
+    health: LiveSourceMetaSchema.merge(HealthResponseSchema).partial(),
+    mt5: LiveSourceMetaSchema.merge(MT5StatusSchema).partial(),
   }),
 })
 

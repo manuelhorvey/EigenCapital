@@ -495,6 +495,11 @@ class EngineStateService:
                 adm = getattr(orch, "_last_admission", None)
                 if adm is not None:
                     state["portfolio"]["admission"] = adm
+                # PEK budget utilization for sizing backfeed display
+                # 1.0 = at budget, >1.0 = overrun (triggers backfeed reduction)
+                _util = getattr(orch, "_pek_budget_utilization", None)
+                if _util is not None:
+                    state["portfolio"]["pek_budget_utilization"] = round(_util, 4)
         except (KeyError, ValueError, TypeError, AttributeError):
             logger.exception("Failed to extract PEK state")
 

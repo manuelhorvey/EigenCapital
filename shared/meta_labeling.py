@@ -7,6 +7,7 @@ then filters/reduces primary signals based on predicted profitability.
 from __future__ import annotations
 
 import logging
+import typing
 from dataclasses import dataclass
 
 import numpy as np
@@ -113,7 +114,7 @@ class MetaModel:
     def __init__(self):
         self.model: LogisticRegression | None = None
         self.scaler: StandardScaler | None = None
-        self._trained = False
+        self._trained: bool = False
         self._n_trades = 0
         self._val_accuracy: float | None = None
         self.feature_names = FEATURE_NAMES
@@ -240,7 +241,7 @@ class MetaModel:
 
         row = np.array([[features[f] for f in FEATURE_NAMES]])
         row_scaled = self.scaler.transform(row)
-        proba = self.model.predict_proba(row_scaled)[0]
+        proba = typing.cast(np.ndarray, self.model.predict_proba(row_scaled))[0]
         # proba[0] = class 0 (losing trade), proba[1] = class 1 (winning trade)
         win_prob = float(proba[1])
         return decision_from_confidence(win_prob)

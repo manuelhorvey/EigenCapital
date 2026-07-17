@@ -120,7 +120,7 @@ class CalibrationRegistry:
                 if CalibratorCls is None:
                     logger.warning("Unknown calibrator type '%s' in %s — skipping", cal_type, fpath.name)
                     continue
-                cal = CalibratorCls.load(str(fpath))
+                cal = CalibratorCls.load(str(fpath))  # type: ignore[attr-defined]
                 asset = fpath.stem  # filename (without .json) = asset name
                 self._calibrators[asset] = cal
                 count += 1

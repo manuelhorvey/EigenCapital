@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import typing
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -134,7 +135,7 @@ class BinnedCalibrator(CalibrationMethod):
 
         p_long = np.asarray(p_long, dtype=float).ravel()
         result = np.interp(p_long, self.bin_centers, self.bin_empirical_probs)
-        return np.clip(result, 0.001, 0.999)
+        return typing.cast(np.ndarray, np.clip(result, 0.001, 0.999))
 
     def save(self, path: str | Path) -> None:
         path = Path(path)
@@ -223,7 +224,7 @@ class BetaCalibrator(CalibrationMethod):
         logit_p = np.log(p / (1.0 - p))
         logits = self.a * logit_p + self.b
         calibrated = expit(logits)
-        return np.clip(calibrated, 0.001, 0.999)
+        return typing.cast(np.ndarray, np.clip(calibrated, 0.001, 0.999))
 
     def save(self, path: str | Path) -> None:
         path = Path(path)
@@ -303,7 +304,7 @@ class PlattCalibrator(CalibrationMethod):
         logit_p = np.log(p / (1.0 - p))
         X = logit_p.reshape(-1, 1)
         calibrated = self._model.predict_proba(X)[:, 1]
-        return np.clip(calibrated, 0.001, 0.999)
+        return typing.cast(np.ndarray, np.clip(calibrated, 0.001, 0.999))
 
     def save(self, path: str | Path) -> None:
         path = Path(path)
@@ -467,7 +468,7 @@ class DirectionalCalibrator(CalibrationMethod):
 
         # Neutral predictions (p_long == 0.5) pass through unchanged
 
-        return np.clip(result, 0.001, 0.999)
+        return typing.cast(np.ndarray, np.clip(result, 0.001, 0.999))
 
     def save(self, path: str | Path) -> None:
         path = Path(path)

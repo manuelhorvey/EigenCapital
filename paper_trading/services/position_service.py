@@ -239,8 +239,8 @@ class PositionService:
         if self.state_store is not None:
             self.state_store.append_trade(trade)
             self.state_store.write_analytics_snapshot()
-        from paper_trading.governance.risk import record_sell_side_outcome as _record_sell_outcome
-        from paper_trading.governance.risk import record_trade_outcome as _record_exit_outcome
+        from paper_trading.governance.risk_registry import record_sell_side_outcome as _record_sell_outcome
+        from paper_trading.governance.risk_registry import record_trade_outcome as _record_exit_outcome
 
         _record_exit_outcome(self.name, reason)
         trade_side = str(trade.get("side", "long"))

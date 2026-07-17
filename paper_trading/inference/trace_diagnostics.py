@@ -60,7 +60,7 @@ except ImportError as _exc:
     logger.warning("shadow_intelligence import unavailable — %s", _exc)
 
 try:
-    from paper_trading.governance.risk import evaluate as _risk_evaluate
+    from paper_trading.governance.risk_registry import evaluate as _risk_evaluate
 except ImportError as _exc:
     _risk_evaluate = None  # type: ignore[assignment]
     logger.warning("risk.evaluate import unavailable — %s", _exc)

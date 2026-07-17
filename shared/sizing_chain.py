@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import typing
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("eigencapital.sizing_chain")
@@ -45,7 +46,7 @@ def get_risk_for_equity(
     for tier in sorted_tiers:
         threshold = tier.get("threshold", 0)
         if equity >= threshold:
-            return tier.get("risk_pct", default_risk)
+            return typing.cast(float, tier.get("risk_pct", default_risk))
 
     return default_risk
 

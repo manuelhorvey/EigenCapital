@@ -31,6 +31,8 @@ jobs:
         run: |
           ruff check . --output-format=github
           ruff format . --check
+      - name: Type check with mypy
+        run: mypy
       - name: Bandit SAST
         run: |
           pip install bandit

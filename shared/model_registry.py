@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+import typing
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -72,10 +73,10 @@ def _load_manifest(asset: str) -> dict[str, Any]:
     if path.exists():
         try:
             with open(path) as f:
-                return json.load(f)
+                return typing.cast(dict[str, Any], json.load(f))
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("Corrupt manifest for %s: %s", asset, e)
-    return {"versions": [], "current": None}
+    return typing.cast(dict[str, Any], {"versions": [], "current": None})
 
 
 def _save_manifest(asset: str, manifest: dict[str, Any]) -> None:
@@ -205,7 +206,7 @@ def rollback(asset: str) -> str | None:
                 v["deployment_status"] = "rolled_back"
         _save_manifest(asset, updated)
         logger.info("%s: rolled back from %s → %s", asset, current, prev_id)
-        return prev_id
+        return typing.cast(str | None, prev_id)
 
     return None
 
@@ -213,7 +214,7 @@ def rollback(asset: str) -> str | None:
 def list_versions(asset: str) -> list[dict[str, Any]]:
     """List all available versions for an asset."""
     manifest = _load_manifest(asset)
-    return manifest.get("versions", [])
+    return typing.cast(list[dict[str, Any]], manifest.get("versions", []))
 
 
 def get_current_version(asset: str) -> dict[str, Any] | None:
@@ -222,7 +223,7 @@ def get_current_version(asset: str) -> dict[str, Any] | None:
     current = manifest.get("current")
     if not current:
         return None
-    for v in manifest.get("versions", []):
+    for v in typing.cast(list[dict[str, Any]], manifest.get("versions", [])):
         if v.get("version_id") == current:
             return v
     return None
@@ -232,7 +233,7 @@ def get_version(asset: str, version_id: str) -> dict[str, Any] | None:
     """Get metadata for a specific version."""
     for v in list_versions(asset):
         if v.get("version_id") == version_id:
-            return v
+            return typing.cast(dict[str, Any] | None, v)
     return None
 
 

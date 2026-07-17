@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import threading
+import typing
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
@@ -69,10 +70,10 @@ def _load_state_assets() -> dict:
     # Live engine path — no file round-trip, always current.
     if _ENGINE is not None:
         try:
-            state = _ENGINE.get_state()
+            state = typing.cast(typing.Any, _ENGINE).get_state()
             assets = state.get("assets", {})
             if assets:
-                return assets
+                return typing.cast(dict, assets)
         except (AttributeError, TypeError, ValueError, KeyError):
             logger.warning("Failed to load engine state from live engine", exc_info=True)
     # Fallback: state store snapshot
@@ -93,7 +94,7 @@ def _load_cmss(asset: str) -> float | None:
         if os.path.exists(path):
             with open(path) as f:
                 data = json.load(f)
-            return data.get("cmss")
+            return typing.cast(float | None, data.get("cmss"))
     except (OSError, ValueError, KeyError, TypeError):
         logger.warning("Failed to load CMSS for %s", asset, exc_info=True)
     return None
@@ -121,7 +122,7 @@ def _compute_drift_health(drift_scores: dict) -> float:
 
 def _compute_pnl_health(drift_scores: dict) -> float:
     pnl_drift = drift_scores.get("pnl_drift", 0.0)
-    return 1.0 - pnl_drift
+    return typing.cast(float, 1.0 - pnl_drift)
 
 
 def _compute_shadow_agreement(drift_scores: dict, intelligence: dict) -> float:
@@ -133,7 +134,7 @@ def _compute_shadow_agreement(drift_scores: dict, intelligence: dict) -> float:
     kl_score = model_data.get("average_kl", 0.0)
 
     effective_drift = max(mismatch_rate, min(kl_score * 2, 1.0))
-    return 1.0 - effective_drift
+    return typing.cast(float, 1.0 - effective_drift)
 
 
 def compute(asset: str, assets: dict | None = None) -> dict:

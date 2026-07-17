@@ -116,17 +116,34 @@ class GovernanceService:
         prob_drift_min_samples = hc.get("prob_drift_min_samples", 10)
         if len(prob_history) >= prob_drift_min_samples:
             prob_drift_limit = hc.get("prob_drift", 0.25)
-            expected_prob_conf = hc.get("expected_prob_conf", 0.65)
             mean_conf = metrics.get("mean_confidence", 0) / 100
             if pd.isna(mean_conf):
                 mean_conf = 0
-            drift = abs(mean_conf - expected_prob_conf)
+
+            # Compare mean confidence against actual win rate instead of a static 0.65.
+            # The static comparison falsely flags directionally-skewed models (e.g.,
+            # SELL_ONLY assets, NZDCAD with mean_conf~0.31) as drifting even when
+            # confidence matches performance. Using win_rate as the anchor measures
+            # whether the model's average signal confidence aligns with its accuracy.
+            n_trades = metrics.get("n_trades", 0)
+            if n_trades >= prob_drift_min_samples:
+                win_rate = metrics.get("win_rate", 0) / 100
+                if pd.isna(win_rate):
+                    win_rate = 0
+                drift = abs(mean_conf - win_rate)
+                anchor_label = f"win_rate={win_rate:.3f}"
+            else:
+                # Not enough trades — fall back to static comparison
+                expected_prob_conf = hc.get("expected_prob_conf", 0.65)
+                drift = abs(mean_conf - expected_prob_conf)
+                anchor_label = f"expected={expected_prob_conf:.2f}"
+
             logger.debug(
-                "%s drift check: n=%d mean_conf=%.3f expected=%.3f drift=%.3f limit=%.3f",
+                "%s drift check: n=%d mean_conf=%.3f %s drift=%.3f limit=%.3f",
                 name,
                 len(prob_history),
                 mean_conf,
-                expected_prob_conf,
+                anchor_label,
                 drift,
                 prob_drift_limit,
             )

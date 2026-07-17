@@ -95,10 +95,13 @@ class MT5Config:
 
     @classmethod
     def from_dict(cls, data: dict) -> "MT5Config":
-        # YAML values are defaults; env vars take precedence (security)
-        account = int(os.environ.get("MT5_ACCOUNT") or data.get("account", 0))
-        password = os.environ.get("MT5_PASSWORD", data.get("password", ""))
-        server = os.environ.get("MT5_SERVER", data.get("server", ""))
+        # Resolution order: Vault KV v2 → env vars → YAML defaults
+        from shared.vault_secrets import resolve_mt5_credentials
+
+        resolved = resolve_mt5_credentials(config_data=data)
+        account = int(resolved.get("account", data.get("account", 0)))
+        password = resolved.get("password", data.get("password", ""))
+        server = resolved.get("server", data.get("server", ""))
 
         return cls(
             enabled=data.get("enabled", False),

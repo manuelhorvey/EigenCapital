@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import typing
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -63,7 +64,7 @@ def risk_contribution(weights: np.ndarray, cov: np.ndarray) -> np.ndarray:
     if portfolio_var <= 1e-12:
         return np.full_like(weights, 1.0 / len(weights))
     marginal_risk = cov @ weights
-    return weights * marginal_risk / np.sqrt(portfolio_var)
+    return typing.cast(np.ndarray, weights * marginal_risk / np.sqrt(portfolio_var))
 
 
 # ── WeightVector: the canonical output type ──────────────────────────────────
@@ -111,7 +112,7 @@ class WeightVector:
         Weighted sum of returns = portfolio R for this date.
         """
         w = self.weights
-        return sum(daily_r[a] * w[a] for a in w if a in daily_r.index)
+        return typing.cast(float, sum(daily_r[a] * w[a] for a in w if a in daily_r.index))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -250,6 +251,10 @@ class IncrementalEWMACov:
 
         # Update running mean (EWMA of individual returns)
         # μ_t = (1 - λ) * μ_{t-1} + λ * x_t
+        if self.mean is None:
+            raise ValueError("mean was not initialized — call _init_from_first_row first")
+        if self.cov is None:
+            raise ValueError("cov was not initialized — call _init_from_first_row first")
         old_mean = self.mean.copy()
         self.mean = (1.0 - lam) * old_mean + lam * x
 

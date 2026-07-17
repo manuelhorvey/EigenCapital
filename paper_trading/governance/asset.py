@@ -115,7 +115,7 @@ class AssetGovernance:
             )
 
     def narrative_warnings(self) -> list[str]:
-        reasons = []
+        reasons: list[str] = []
         if (
             self._narrative_active is not None
             and not self._narrative_stale
@@ -130,12 +130,13 @@ class AssetGovernance:
         return reasons
 
     def liquidity_warnings(self) -> list[str]:
-        reasons = []
+        reasons: list[str] = []
+        features = self._liquidity_features or {}
         if self._liquidity_halted:
             reasons.append(
                 f"Liquidity STRESSED: regime={self._liquidity_regime} "
-                f"vol_z={self._liquidity_features.get('volume_z', 0):.2f} "
-                f"amihud_z={self._liquidity_features.get('amihud_z', 0):.2f}"
+                f"vol_z={features.get('volume_z', 0):.2f} "
+                f"amihud_z={features.get('amihud_z', 0):.2f}"
             )
         elif self._liquidity_regime != "NORMAL":
             reasons.append(

@@ -13,6 +13,7 @@ from labels.generator import LabelGenerator
 
 class FakeContract:
     """Minimal contract stub for testing LabelGenerator."""
+
     def __init__(self, name="TEST", ticker="TEST=X", label_params=None, label_version="abc123def456"):
         self.name = name
         self.ticker = ticker
@@ -29,12 +30,14 @@ def gen():
 @pytest.fixture
 def raw_data():
     rng = np.random.RandomState(42)
-    return pd.DataFrame({
-        "close": 100 + np.cumsum(rng.randn(300) * 0.5),
-        "high": 100 + np.cumsum(rng.randn(300) * 0.5) * 1.01,
-        "low": 100 + np.cumsum(rng.randn(300) * 0.5) * 0.99,
-        "volume": rng.randint(100000, 1000000, 300),
-    })
+    return pd.DataFrame(
+        {
+            "close": 100 + np.cumsum(rng.randn(300) * 0.5),
+            "high": 100 + np.cumsum(rng.randn(300) * 0.5) * 1.01,
+            "low": 100 + np.cumsum(rng.randn(300) * 0.5) * 0.99,
+            "volume": rng.randint(100000, 1000000, 300),
+        }
+    )
 
 
 class TestLabelGenerator:
@@ -151,6 +154,7 @@ class TestGenerateAll:
         """When an asset fails to generate labels, generate_all logs the error
         and returns results without the failed ticker key."""
         from features.contract import FeatureContract
+
         mock_contract = FeatureContract(
             ticker="MISSING=X",
             name="MISSING",

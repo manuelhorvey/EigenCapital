@@ -68,13 +68,18 @@ class TestCheckHalts:
         assert flags == []
 
     def test_detects_halted_asset(self):
-        state = _make_state({
-            "assets": {
-                "EURUSD": _make_asset("EURUSD", {
-                    "halt": {"halted": True, "reasons": ["drawdown"]},
-                }),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "EURUSD": _make_asset(
+                        "EURUSD",
+                        {
+                            "halt": {"halted": True, "reasons": ["drawdown"]},
+                        },
+                    ),
+                },
+            }
+        )
         flags = check_halts(state, pd.DataFrame())
         assert len(flags) == 1
         assert flags[0]["type"] == "engine_halt"
@@ -87,15 +92,21 @@ class TestCheckHalts:
 
     def test_detects_signal_drought(self):
         """Signal drought is detected when last_signal_date is far in the past."""
-        state = _make_state({
-            "assets": {
-                "NZDJPY": _make_asset("NZDJPY", {
-                    "metrics": {"last_signal_date": "2026-01-01"},
-                }),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "NZDJPY": _make_asset(
+                        "NZDJPY",
+                        {
+                            "metrics": {"last_signal_date": "2026-01-01"},
+                        },
+                    ),
+                },
+            }
+        )
         # Patch datetime at module level so both now() and strptime() work
         import monitoring.paper_dashboard as pd_mod
+
         with patch.object(pd_mod, "datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2026, 7, 7)
             mock_dt.strptime = datetime.strptime  # keep real strptime
@@ -106,14 +117,20 @@ class TestCheckHalts:
 
     def test_skips_recent_signals(self):
         """Recent signals within the early warning threshold are not flagged."""
-        state = _make_state({
-            "assets": {
-                "NZDJPY": _make_asset("NZDJPY", {
-                    "metrics": {"last_signal_date": "2026-07-06"},
-                }),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "NZDJPY": _make_asset(
+                        "NZDJPY",
+                        {
+                            "metrics": {"last_signal_date": "2026-07-06"},
+                        },
+                    ),
+                },
+            }
+        )
         import monitoring.paper_dashboard as pd_mod
+
         with patch.object(pd_mod, "datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2026, 7, 7)
             mock_dt.strptime = datetime.strptime
@@ -122,11 +139,13 @@ class TestCheckHalts:
         assert len(drought) == 0
 
     def test_handles_missing_metrics(self):
-        state = _make_state({
-            "assets": {
-                "BTC": _make_asset("BTC", {"metrics": {}}),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "BTC": _make_asset("BTC", {"metrics": {}}),
+                },
+            }
+        )
         flags = check_halts(state, pd.DataFrame())
         assert flags == []
 
@@ -148,11 +167,13 @@ class TestComputePnlCorrelation:
     def test_returns_correlation_with_xlf_btc_columns(self):
         """compute_pnl_correlation looks for columns named 'XLF', 'BTC', 'NZDJPY'."""
         rng = np.random.RandomState(42)
-        hist = pd.DataFrame({
-            "XLF": rng.randn(20),
-            "BTC": rng.randn(20),
-            "NZDJPY": rng.randn(20),
-        })
+        hist = pd.DataFrame(
+            {
+                "XLF": rng.randn(20),
+                "BTC": rng.randn(20),
+                "NZDJPY": rng.randn(20),
+            }
+        )
         corr = compute_pnl_correlation(hist)
         assert corr is not None
         assert corr.shape == (3, 3)
@@ -160,41 +181,56 @@ class TestComputePnlCorrelation:
 
 class TestComputeRollingPf:
     def test_returns_none_with_few_trades(self):
-        state = _make_state({
-            "assets": {
-                "BTC": _make_asset("BTC", {
-                    "metrics": {"trade_log": [{"pnl": 1}]},
-                }),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "BTC": _make_asset(
+                        "BTC",
+                        {
+                            "metrics": {"trade_log": [{"pnl": 1}]},
+                        },
+                    ),
+                },
+            }
+        )
         result = compute_rolling_pf(state)
         assert result.get("BTC") is None
 
     def test_computes_profit_factor_with_sufficient_trades(self):
-        state = _make_state({
-            "assets": {
-                "BTC": _make_asset("BTC", {
-                    "metrics": {
-                        "trade_log": [{"pnl": 10}] * 10 + [{"pnl": -5}] * 10,
-                    },
-                }),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "BTC": _make_asset(
+                        "BTC",
+                        {
+                            "metrics": {
+                                "trade_log": [{"pnl": 10}] * 10 + [{"pnl": -5}] * 10,
+                            },
+                        },
+                    ),
+                },
+            }
+        )
         result = compute_rolling_pf(state)
         assert result.get("BTC") is not None
         assert result["BTC"] == pytest.approx(2.0, abs=0.1)
 
     def test_handles_zero_losses(self):
         """When all recent trades profit, profit_factor returns None (no losses)."""
-        state = _make_state({
-            "assets": {
-                "BTC": _make_asset("BTC", {
-                    "metrics": {
-                        "trade_log": [{"pnl": 10}] * 30,
-                    },
-                }),
-            },
-        })
+        state = _make_state(
+            {
+                "assets": {
+                    "BTC": _make_asset(
+                        "BTC",
+                        {
+                            "metrics": {
+                                "trade_log": [{"pnl": 10}] * 30,
+                            },
+                        },
+                    ),
+                },
+            }
+        )
         result = compute_rolling_pf(state)
         assert result.get("BTC") is None
 

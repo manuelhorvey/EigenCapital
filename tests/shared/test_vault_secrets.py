@@ -115,9 +115,7 @@ class TestVaultSecretsProviderWithVault:
         client = MagicMock()
         client.is_authenticated.return_value = True
         if data is not None:
-            client.secrets.kv.v2.read_secret_version.return_value = {
-                "data": {"data": data}
-            }
+            client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": data}}
         else:
             client.secrets.kv.v2.read_secret_version.side_effect = KeyError("Secret path not found")
         return client

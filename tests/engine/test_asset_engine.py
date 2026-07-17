@@ -211,7 +211,9 @@ class TestTrain:
     def test_training_exception_propagates(self):
         engine = _make_engine()
 
-        engine._training.train = lambda force=False, full_panel=None, expanded_data_dir=None: (_ for _ in ()).throw(RuntimeError("train failed"))
+        engine._training.train = lambda force=False, full_panel=None, expanded_data_dir=None: (_ for _ in ()).throw(
+            RuntimeError("train failed")
+        )
         engine._load_calibration_registry = lambda: None
 
         with pytest.raises(RuntimeError, match="train failed"):

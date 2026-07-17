@@ -273,10 +273,12 @@ class TestApplyConfidenceGate:
 
     def test_uses_min_confidence_buy_for_long(self):
         """BUY signals use min_confidence_buy when available."""
-        engine = _mock_engine(config={
-            "min_confidence_buy": 30.0,
-            "min_confidence": 55.0,
-        })
+        engine = _mock_engine(
+            config={
+                "min_confidence_buy": 30.0,
+                "min_confidence": 55.0,
+            }
+        )
         ctx = _ctx(engine=engine, new_side=PositionSide.LONG)
         apply_confidence_gate(ctx)
         # confidence=80.0, threshold=30.0 → passes
@@ -284,10 +286,12 @@ class TestApplyConfidenceGate:
 
     def test_uses_min_confidence_sell_for_short(self):
         """SELL signals use min_confidence_sell when available."""
-        engine = _mock_engine(config={
-            "min_confidence_sell": 85.0,
-            "min_confidence": 55.0,
-        })
+        engine = _mock_engine(
+            config={
+                "min_confidence_sell": 85.0,
+                "min_confidence": 55.0,
+            }
+        )
         ctx = _ctx(engine=engine, new_side=PositionSide.SHORT)
         apply_confidence_gate(ctx)
         # confidence=80.0, threshold=85.0 → blocked
@@ -295,10 +299,12 @@ class TestApplyConfidenceGate:
 
     def test_buy_lower_threshold_allows_more_signals(self):
         """With a lower BUY threshold, a marginal BUY signal passes."""
-        engine = _mock_engine(config={
-            "min_confidence_buy": 30.0,
-            "min_confidence": 55.0,
-        })
+        engine = _mock_engine(
+            config={
+                "min_confidence_buy": 30.0,
+                "min_confidence": 55.0,
+            }
+        )
         decision = _decision("BUY")
         decision.confidence = 35.0  # Below global 55, above buy 30
         ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
@@ -307,10 +313,12 @@ class TestApplyConfidenceGate:
 
     def test_sell_default_blocks_marginal_signal(self):
         """With the standard SELL threshold, a marginal SELL signal is blocked."""
-        engine = _mock_engine(config={
-            "min_confidence_sell": 55.0,
-            "min_confidence": 55.0,
-        })
+        engine = _mock_engine(
+            config={
+                "min_confidence_sell": 55.0,
+                "min_confidence": 55.0,
+            }
+        )
         decision = _decision("SELL")
         decision.confidence = 35.0  # Below both
         ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.SHORT)
@@ -329,10 +337,12 @@ class TestApplyConfidenceGate:
 
     def test_buy_blocks_when_below_direction_specific_threshold(self):
         """A BUY signal below min_confidence_buy is blocked."""
-        engine = _mock_engine(config={
-            "min_confidence_buy": 60.0,
-            "min_confidence": 50.0,
-        })
+        engine = _mock_engine(
+            config={
+                "min_confidence_buy": 60.0,
+                "min_confidence": 50.0,
+            }
+        )
         decision = _decision("BUY")
         decision.confidence = 55.0  # Below 60, above 50
         ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
@@ -341,10 +351,12 @@ class TestApplyConfidenceGate:
 
     def test_sell_allows_when_above_direction_specific_threshold(self):
         """A SELL signal above min_confidence_sell passes."""
-        engine = _mock_engine(config={
-            "min_confidence_sell": 70.0,
-            "min_confidence": 50.0,
-        })
+        engine = _mock_engine(
+            config={
+                "min_confidence_sell": 70.0,
+                "min_confidence": 50.0,
+            }
+        )
         decision = _decision("SELL")
         decision.confidence = 75.0  # Above 70
         ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.SHORT)
@@ -646,11 +658,13 @@ class TestApplyKellySizing:
 
     def test_computes_quarter_kelly_with_edge(self):
         """Prob 0.65, tp=2.0, sl=1.0 → full Kelly f*=0.475 → quarter≈0.119."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
-            "tp_mult": 2.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
+                "tp_mult": 2.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.65
@@ -659,16 +673,19 @@ class TestApplyKellySizing:
         # f* = 0.65 - 0.35 * 1.0/2.0 = 0.65 - 0.175 = 0.475
         # quarter = 0.475 * 0.25 ≈ 0.11875
         import pytest
+
         assert engine._kelly_multiplier == pytest.approx(0.475 * 0.25, abs=1e-4)
         assert ctx.new_side == PositionSide.LONG
 
     def test_blocks_when_no_edge(self):
         """Prob 0.5, tp=1.0, sl=1.0 → edge=0 → Kelly blocks."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "min_edge": 0.0},
-            "tp_mult": 1.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "min_edge": 0.0},
+                "tp_mult": 1.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.5
@@ -679,11 +696,13 @@ class TestApplyKellySizing:
 
     def test_blocks_when_min_edge_not_met(self):
         """Edge=0.05R but min_edge=0.2R → Kelly blocks."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "min_edge": 0.2},
-            "tp_mult": 2.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "min_edge": 0.2},
+                "tp_mult": 2.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("SELL")
         # prob_long=0.35 → edge = 0.35*2 - 0.65*1 = 0.05R < 0.2 min_edge → blocked
@@ -695,11 +714,13 @@ class TestApplyKellySizing:
 
     def test_half_kelly_uses_correct_fraction(self):
         """Fraction=0.5 should double the quarter-Kelly multiplier."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.5, "max_cap": 1.0, "min_edge": 0.0},
-            "tp_mult": 2.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.5, "max_cap": 1.0, "min_edge": 0.0},
+                "tp_mult": 2.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.65
@@ -707,16 +728,19 @@ class TestApplyKellySizing:
         apply_kelly_sizing(ctx)
         # full f* = 0.475, half = 0.2375
         import pytest
+
         assert engine._kelly_multiplier == pytest.approx(0.475 * 0.5, abs=1e-4)
         assert ctx.new_side == PositionSide.LONG
 
     def test_max_cap_limits_multiplier(self):
         """max_cap=0.05 should clamp a large Kelly position."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 0.05, "min_edge": 0.0},
-            "tp_mult": 3.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 0.05, "min_edge": 0.0},
+                "tp_mult": 3.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.85
@@ -727,11 +751,13 @@ class TestApplyKellySizing:
 
     def test_high_confidence_high_tp(self):
         """Prob 0.9, tp=5.0, sl=1.0 → strong edge → non-trivial multiplier."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
-            "tp_mult": 5.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
+                "tp_mult": 5.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.9
@@ -746,17 +772,20 @@ class TestApplyKellySizing:
         """After apply_kelly_sizing sets _kelly_multiplier on the engine,
         a SizingInput using that multiplier should produce a reduced notional."""
         # Step 1: Run apply_kelly_sizing to compute the Kelly multiplier
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
-            "tp_mult": 2.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
+                "tp_mult": 2.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.65
         ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
         apply_kelly_sizing(ctx)
         import pytest
+
         kelly = engine._kelly_multiplier
         assert kelly == pytest.approx(0.475 * 0.25, abs=1e-4)
 
@@ -780,23 +809,27 @@ class TestApplyKellySizing:
         assert result.is_viable
         # Notional should include kelly: notional = equity * (base_scalar * kelly) * taper
         import pytest
+
         assert result.notional == pytest.approx(100_000 * base_scalar * kelly, abs=1e-4)
         assert "kelly" in result.chain_breakdown
 
     def test_kelly_multiplier_flows_via_chain_mt5(self):
         """On the MT5 path, Kelly multiplier is passed directly to SizingInput
         and reduces the sized notional."""
-        engine = _mock_engine(config={
-            "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
-            "tp_mult": 2.0,
-            "sl_mult": 1.0,
-        })
+        engine = _mock_engine(
+            config={
+                "kelly": {"enabled": True, "fraction": 0.25, "max_cap": 1.0, "min_edge": 0.0},
+                "tp_mult": 2.0,
+                "sl_mult": 1.0,
+            }
+        )
         engine._calibration_applied = True
         decision = _decision("BUY")
         decision.prob_long = 0.65
         ctx = _ctx(engine=engine, decision=decision, new_side=PositionSide.LONG)
         apply_kelly_sizing(ctx)
         import pytest
+
         kelly = engine._kelly_multiplier
         assert kelly == pytest.approx(0.475 * 0.25, abs=1e-4)
 

@@ -72,14 +72,18 @@ def sample_feedback_events():
             "inputs": {
                 "signal": {"type": "LONG", "confidence": 80.0},
                 "drift": {
-                    "model": 0.10, "signal": 0.20, "pnl": 0.05,
-                    "feature": 0.10, "regime": 0.15,
+                    "model": 0.10,
+                    "signal": 0.20,
+                    "pnl": 0.05,
+                    "feature": 0.10,
+                    "regime": 0.15,
                 },
                 "risk": {"risk_level": "LOW", "risk_score": 0.20, "risk_flags": []},
                 "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
             },
             "derived": {
-                "agreement_score": 0.8800, "instability_index": 0.1175,
+                "agreement_score": 0.8800,
+                "instability_index": 0.1175,
                 "risk_alignment": 1.0,
             },
         },
@@ -87,14 +91,18 @@ def sample_feedback_events():
             "inputs": {
                 "signal": {"type": "LONG", "confidence": 75.0},
                 "drift": {
-                    "model": 0.15, "signal": 0.25, "pnl": 0.08,
-                    "feature": 0.12, "regime": 0.18,
+                    "model": 0.15,
+                    "signal": 0.25,
+                    "pnl": 0.08,
+                    "feature": 0.12,
+                    "regime": 0.18,
                 },
                 "risk": {"risk_level": "LOW", "risk_score": 0.25, "risk_flags": []},
                 "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
             },
             "derived": {
-                "agreement_score": 0.8100, "instability_index": 0.1590,
+                "agreement_score": 0.8100,
+                "instability_index": 0.1590,
                 "risk_alignment": 1.0,
             },
         },
@@ -102,14 +110,18 @@ def sample_feedback_events():
             "inputs": {
                 "signal": {"type": "LONG", "confidence": 70.0},
                 "drift": {
-                    "model": 0.20, "signal": 0.30, "pnl": 0.10,
-                    "feature": 0.15, "regime": 0.20,
+                    "model": 0.20,
+                    "signal": 0.30,
+                    "pnl": 0.10,
+                    "feature": 0.15,
+                    "regime": 0.20,
                 },
                 "risk": {"risk_level": "MEDIUM", "risk_score": 0.40, "risk_flags": ["MODEL_DRIFT"]},
                 "shadow_action": {"action_type": "REDUCE_EXPOSURE", "exposure_adjustment": 0.6},
             },
             "derived": {
-                "agreement_score": 0.7100, "instability_index": 0.2035,
+                "agreement_score": 0.7100,
+                "instability_index": 0.2035,
                 "risk_alignment": 1.0,
             },
         },
@@ -132,14 +144,18 @@ def mock_feedback_events(monkeypatch):
             "inputs": {
                 "signal": {"type": "LONG", "confidence": 85.0},
                 "drift": {
-                    "model": 0.05, "signal": 0.10, "pnl": 0.02,
-                    "feature": 0.03, "regime": 0.08,
+                    "model": 0.05,
+                    "signal": 0.10,
+                    "pnl": 0.02,
+                    "feature": 0.03,
+                    "regime": 0.08,
                 },
                 "risk": {"risk_level": "LOW", "risk_score": 0.10, "risk_flags": []},
                 "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
             },
             "derived": {
-                "agreement_score": 0.9200, "instability_index": 0.0590,
+                "agreement_score": 0.9200,
+                "instability_index": 0.0590,
                 "risk_alignment": 1.0,
             },
         },
@@ -147,14 +163,18 @@ def mock_feedback_events(monkeypatch):
             "inputs": {
                 "signal": {"type": "SHORT", "confidence": 60.0},
                 "drift": {
-                    "model": 0.30, "signal": 0.40, "pnl": 0.15,
-                    "feature": 0.20, "regime": 0.35,
+                    "model": 0.30,
+                    "signal": 0.40,
+                    "pnl": 0.15,
+                    "feature": 0.20,
+                    "regime": 0.35,
                 },
                 "risk": {"risk_level": "HIGH", "risk_score": 0.70, "risk_flags": ["MODEL_DRIFT"]},
                 "shadow_action": {"action_type": "PAUSE_TRADING", "exposure_adjustment": 0.3},
             },
             "derived": {
-                "agreement_score": 0.4200, "instability_index": 0.3030,
+                "agreement_score": 0.4200,
+                "instability_index": 0.3030,
                 "risk_alignment": 1.0,
             },
         },
@@ -227,7 +247,9 @@ class TestBuildBaseline:
         assert baseline["event_count"] == 2
 
     def test_build_baseline_no_model_divergence(self):
-        events = [{"signal_divergence": {"match": True}, "pnl_decomposition": {"original_pnl": 100.0, "computed_pnl": 99.0}}]
+        events = [
+            {"signal_divergence": {"match": True}, "pnl_decomposition": {"original_pnl": 100.0, "computed_pnl": 99.0}}
+        ]
         baseline = build_baseline("EURUSD", events=events)
         assert baseline["model_proba_distribution"]["count"] == 0
 
@@ -269,8 +291,11 @@ class TestComputeDerivedMetrics:
         signal_data = {"signal": "LONG", "confidence": 0.8}
         drift = {
             "drift_scores": {
-                "model_drift": 0.1, "signal_drift": 0.2, "pnl_drift": 0.05,
-                "feature_stability": 0.1, "regime_consistency": 0.15,
+                "model_drift": 0.1,
+                "signal_drift": 0.2,
+                "pnl_drift": 0.05,
+                "feature_stability": 0.1,
+                "regime_consistency": 0.15,
             },
         }
         risk = {"risk_level": "LOW", "risk_score": 0.2}
@@ -284,8 +309,11 @@ class TestComputeDerivedMetrics:
         signal_data = {"signal": "FLAT", "confidence": 1.0}
         drift = {
             "drift_scores": {
-                "model_drift": 0.0, "signal_drift": 0.0, "pnl_drift": 0.0,
-                "feature_stability": 0.0, "regime_consistency": 0.0,
+                "model_drift": 0.0,
+                "signal_drift": 0.0,
+                "pnl_drift": 0.0,
+                "feature_stability": 0.0,
+                "regime_consistency": 0.0,
             },
         }
         risk = {"risk_level": "LOW", "risk_score": 0.0}
@@ -299,8 +327,11 @@ class TestComputeDerivedMetrics:
         signal_data = {"signal": "SHORT", "confidence": 0.3}
         drift = {
             "drift_scores": {
-                "model_drift": 0.8, "signal_drift": 0.7, "pnl_drift": 0.9,
-                "feature_stability": 0.6, "regime_consistency": 0.5,
+                "model_drift": 0.8,
+                "signal_drift": 0.7,
+                "pnl_drift": 0.9,
+                "feature_stability": 0.6,
+                "regime_consistency": 0.5,
             },
         }
         risk = {"risk_level": "HIGH", "risk_score": 0.8}
@@ -364,7 +395,15 @@ class TestComputeAlignment:
 class TestBuildEvent:
     def test__build_event_structure(self):
         signal_data = {"signal": "LONG", "confidence": 0.8}
-        drift = {"drift_scores": {"model_drift": 0.1, "signal_drift": 0.2, "pnl_drift": 0.05, "feature_stability": 0.1, "regime_consistency": 0.15}}
+        drift = {
+            "drift_scores": {
+                "model_drift": 0.1,
+                "signal_drift": 0.2,
+                "pnl_drift": 0.05,
+                "feature_stability": 0.1,
+                "regime_consistency": 0.15,
+            }
+        }
         risk = {"risk_level": "LOW", "risk_score": 0.2}
         action = {"action_type": "NONE", "exposure_adjustment": 1.0}
         derived = {"agreement_score": 0.88, "instability_index": 0.1175, "risk_alignment": 1.0}
@@ -392,7 +431,15 @@ class TestRecordShadowFeedback:
         stored = []
         monkeypatch.setattr("paper_trading.shadow.feedback._store_event", lambda a, e: stored.append(e))
         signal_data = {"signal": "LONG", "confidence": 0.8}
-        drift = {"drift_scores": {"model_drift": 0.1, "signal_drift": 0.2, "pnl_drift": 0.05, "feature_stability": 0.1, "regime_consistency": 0.15}}
+        drift = {
+            "drift_scores": {
+                "model_drift": 0.1,
+                "signal_drift": 0.2,
+                "pnl_drift": 0.05,
+                "feature_stability": 0.1,
+                "regime_consistency": 0.15,
+            }
+        }
         risk = {"risk_level": "LOW", "risk_score": 0.2}
         action = {"action_type": "NONE", "exposure_adjustment": 1.0}
         record_shadow_feedback("EURUSD", signal_data, drift, risk, action)
@@ -437,7 +484,13 @@ class TestRecordShadowFeedback:
 class TestComputeLearningProfile:
     def test__compute_learning_profile_empty(self):
         profile = _compute_learning_profile([])
-        for k in ("behavioral_stability", "drift_resilience", "signal_consistency", "risk_sensitivity", "action_coherence"):
+        for k in (
+            "behavioral_stability",
+            "drift_resilience",
+            "signal_consistency",
+            "risk_sensitivity",
+            "action_coherence",
+        ):
             assert profile[k] == 0.0
 
     def test__compute_learning_profile_normal(self, sample_feedback_events):
@@ -452,15 +505,17 @@ class TestComputeLearningProfile:
         assert profile["behavioral_stability"] == pytest.approx(float(expected_stability), rel=1e-4)
 
     def test__compute_learning_profile_default_risk_sensitivity(self):
-        events = [{
-            "inputs": {
-                "signal": {"type": "LONG", "confidence": 80.0},
-                "drift": {"model": 0.0, "signal": 0.0, "pnl": 0.0, "feature": 0.0, "regime": 0.0},
-                "risk": {"risk_level": "LOW", "risk_score": 0.0, "risk_flags": []},
-                "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
-            },
-            "derived": {"agreement_score": 1.0, "instability_index": 0.0, "risk_alignment": 1.0},
-        }]
+        events = [
+            {
+                "inputs": {
+                    "signal": {"type": "LONG", "confidence": 80.0},
+                    "drift": {"model": 0.0, "signal": 0.0, "pnl": 0.0, "feature": 0.0, "regime": 0.0},
+                    "risk": {"risk_level": "LOW", "risk_score": 0.0, "risk_flags": []},
+                    "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
+                },
+                "derived": {"agreement_score": 1.0, "instability_index": 0.0, "risk_alignment": 1.0},
+            }
+        ]
         profile = _compute_learning_profile(events)
         assert profile["risk_sensitivity"] == pytest.approx(0.5)
 
@@ -490,15 +545,17 @@ class TestMineLatentPatterns:
         events = []
         for i in range(10):
             rl = "HIGH" if i < 4 else "LOW"
-            events.append({
-                "inputs": {
-                    "signal": {"type": "LONG", "confidence": 80.0},
-                    "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
-                    "risk": {"risk_level": rl, "risk_score": 0.5, "risk_flags": []},
-                    "shadow_action": {"action_type": "REDUCE_EXPOSURE", "exposure_adjustment": 0.6},
-                },
-                "derived": {"agreement_score": 0.8, "instability_index": 0.1, "risk_alignment": 1.0},
-            })
+            events.append(
+                {
+                    "inputs": {
+                        "signal": {"type": "LONG", "confidence": 80.0},
+                        "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
+                        "risk": {"risk_level": rl, "risk_score": 0.5, "risk_flags": []},
+                        "shadow_action": {"action_type": "REDUCE_EXPOSURE", "exposure_adjustment": 0.6},
+                    },
+                    "derived": {"agreement_score": 0.8, "instability_index": 0.1, "risk_alignment": 1.0},
+                }
+            )
         patterns = _mine_latent_patterns(events)
         assert "PROLONGED_HIGH_RISK_REGIME_DETECTED" in patterns
 
@@ -507,15 +564,17 @@ class TestMineLatentPatterns:
         for i in range(10):
             rl = "MEDIUM"
             at = "NONE"
-            events.append({
-                "inputs": {
-                    "signal": {"type": "LONG", "confidence": 80.0},
-                    "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
-                    "risk": {"risk_level": rl, "risk_score": 0.4, "risk_flags": []},
-                    "shadow_action": {"action_type": at, "exposure_adjustment": 1.0},
-                },
-                "derived": {"agreement_score": 0.8, "instability_index": 0.1, "risk_alignment": 0.5},
-            })
+            events.append(
+                {
+                    "inputs": {
+                        "signal": {"type": "LONG", "confidence": 80.0},
+                        "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
+                        "risk": {"risk_level": rl, "risk_score": 0.4, "risk_flags": []},
+                        "shadow_action": {"action_type": at, "exposure_adjustment": 1.0},
+                    },
+                    "derived": {"agreement_score": 0.8, "instability_index": 0.1, "risk_alignment": 0.5},
+                }
+            )
         patterns = _mine_latent_patterns(events)
         assert "RISK_UNDERREACTION_IN_MEDIUM_RISK_PERIODS" in patterns
 
@@ -524,15 +583,17 @@ class TestMineLatentPatterns:
         for i in range(10):
             rl = "HIGH"
             at = "NONE"
-            events.append({
-                "inputs": {
-                    "signal": {"type": "LONG", "confidence": 80.0},
-                    "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
-                    "risk": {"risk_level": rl, "risk_score": 0.7, "risk_flags": []},
-                    "shadow_action": {"action_type": at, "exposure_adjustment": 1.0},
-                },
-                "derived": {"agreement_score": 0.5, "instability_index": 0.1, "risk_alignment": 0.0},
-            })
+            events.append(
+                {
+                    "inputs": {
+                        "signal": {"type": "LONG", "confidence": 80.0},
+                        "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
+                        "risk": {"risk_level": rl, "risk_score": 0.7, "risk_flags": []},
+                        "shadow_action": {"action_type": at, "exposure_adjustment": 1.0},
+                    },
+                    "derived": {"agreement_score": 0.5, "instability_index": 0.1, "risk_alignment": 0.0},
+                }
+            )
         patterns = _mine_latent_patterns(events)
         assert "RISK_OVEREACTION_IN_HIGH_VIX_REGIMES" in patterns
 
@@ -541,15 +602,17 @@ class TestMineLatentPatterns:
         for i in range(10):
             d = 0.05 + i * 0.05
             c = max(10.0, 90.0 - i * 8.0)
-            events.append({
-                "inputs": {
-                    "signal": {"type": "LONG", "confidence": c},
-                    "drift": {"model": d, "signal": d, "pnl": d, "feature": d, "regime": d},
-                    "risk": {"risk_level": "LOW", "risk_score": 0.1, "risk_flags": []},
-                    "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
-                },
-                "derived": {"agreement_score": 0.8, "instability_index": d, "risk_alignment": 1.0},
-            })
+            events.append(
+                {
+                    "inputs": {
+                        "signal": {"type": "LONG", "confidence": c},
+                        "drift": {"model": d, "signal": d, "pnl": d, "feature": d, "regime": d},
+                        "risk": {"risk_level": "LOW", "risk_score": 0.1, "risk_flags": []},
+                        "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
+                    },
+                    "derived": {"agreement_score": 0.8, "instability_index": d, "risk_alignment": 1.0},
+                }
+            )
         patterns = _mine_latent_patterns(events)
         found = any("HIGH_DRIFT_PERIODS_CORRELATE_WITH" in p for p in patterns)
         assert found
@@ -562,15 +625,17 @@ class TestMineLatentPatterns:
                 instability = 0.8
             else:
                 instability = 0.1
-            events.append({
-                "inputs": {
-                    "signal": {"type": "LONG", "confidence": 80.0},
-                    "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
-                    "risk": {"risk_level": "LOW", "risk_score": 0.1, "risk_flags": []},
-                    "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
-                },
-                "derived": {"agreement_score": 0.8, "instability_index": instability, "risk_alignment": 1.0},
-            })
+            events.append(
+                {
+                    "inputs": {
+                        "signal": {"type": "LONG", "confidence": 80.0},
+                        "drift": {"model": 0.1, "signal": 0.1, "pnl": 0.1, "feature": 0.1, "regime": 0.1},
+                        "risk": {"risk_level": "LOW", "risk_score": 0.1, "risk_flags": []},
+                        "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
+                    },
+                    "derived": {"agreement_score": 0.8, "instability_index": instability, "risk_alignment": 1.0},
+                }
+            )
         patterns = _mine_latent_patterns(events)
         assert "FEATURE_DECAY_AFTER_VOLATILITY_SPIKES" in patterns
 
@@ -584,28 +649,34 @@ class TestBuildRegimeBehaviorMap:
         assert result["high_vol"]["risk_action_rate"] == 0.0
 
     def test__build_regime_behavior_map_all_low_vol(self):
-        events = [{
-            "inputs": {
-                "drift": {"model": 0.0, "signal": 0.0, "pnl": 0.0, "feature": 0.0, "regime": 0.1},
-                "risk": {"risk_level": "LOW", "risk_score": 0.1, "risk_flags": []},
-                "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
-            },
-            "derived": {"instability_index": 0.1, "risk_alignment": 1.0},
-        } for _ in range(3)]
+        events = [
+            {
+                "inputs": {
+                    "drift": {"model": 0.0, "signal": 0.0, "pnl": 0.0, "feature": 0.0, "regime": 0.1},
+                    "risk": {"risk_level": "LOW", "risk_score": 0.1, "risk_flags": []},
+                    "shadow_action": {"action_type": "NONE", "exposure_adjustment": 1.0},
+                },
+                "derived": {"instability_index": 0.1, "risk_alignment": 1.0},
+            }
+            for _ in range(3)
+        ]
         result = _build_regime_behavior_map(events)
         assert result["low_vol"]["stability"] == pytest.approx(0.9)
         assert result["low_vol"]["risk_action_rate"] == 0.0
         assert result["high_vol"]["stability"] == 0.5
 
     def test__build_regime_behavior_map_all_high_vol(self):
-        events = [{
-            "inputs": {
-                "drift": {"model": 0.0, "signal": 0.0, "pnl": 0.0, "feature": 0.0, "regime": 0.5},
-                "risk": {"risk_level": "HIGH", "risk_score": 0.7, "risk_flags": []},
-                "shadow_action": {"action_type": "PAUSE_TRADING", "exposure_adjustment": 0.3},
-            },
-            "derived": {"instability_index": 0.2, "risk_alignment": 1.0},
-        } for _ in range(3)]
+        events = [
+            {
+                "inputs": {
+                    "drift": {"model": 0.0, "signal": 0.0, "pnl": 0.0, "feature": 0.0, "regime": 0.5},
+                    "risk": {"risk_level": "HIGH", "risk_score": 0.7, "risk_flags": []},
+                    "shadow_action": {"action_type": "PAUSE_TRADING", "exposure_adjustment": 0.3},
+                },
+                "derived": {"instability_index": 0.2, "risk_alignment": 1.0},
+            }
+            for _ in range(3)
+        ]
         result = _build_regime_behavior_map(events)
         assert result["high_vol"]["stability"] == pytest.approx(0.8)
         assert result["high_vol"]["risk_action_rate"] == pytest.approx(1.0)
@@ -651,14 +722,17 @@ class TestComputeShadowInsights:
         assert result["execution_fragility_score"] >= 0.0
 
     def test__compute_shadow_insights_risk_flags(self):
-        events = [{
-            "inputs": {
-                "drift": {"model": 0.5, "signal": 0.3, "pnl": 0.2, "feature": 0.1, "regime": 0.4},
-                "risk": {"risk_level": "HIGH", "risk_score": 0.8, "risk_flags": ["MODEL_DRIFT", "LIQUIDITY"]},
-                "shadow_action": {"action_type": "PAUSE_TRADING", "exposure_adjustment": 0.3},
-            },
-            "derived": {"instability_index": 0.3, "risk_alignment": 1.0},
-        } for _ in range(3)]
+        events = [
+            {
+                "inputs": {
+                    "drift": {"model": 0.5, "signal": 0.3, "pnl": 0.2, "feature": 0.1, "regime": 0.4},
+                    "risk": {"risk_level": "HIGH", "risk_score": 0.8, "risk_flags": ["MODEL_DRIFT", "LIQUIDITY"]},
+                    "shadow_action": {"action_type": "PAUSE_TRADING", "exposure_adjustment": 0.3},
+                },
+                "derived": {"instability_index": 0.3, "risk_alignment": 1.0},
+            }
+            for _ in range(3)
+        ]
         result = _compute_shadow_insights(events)
         assert "model" in result["top_instability_drivers"]
         assert "model_drift" in result["dominant_failure_mode"] or result["dominant_failure_mode"] != "unknown"
@@ -701,7 +775,10 @@ class TestCompileShadowLearning:
         assert result["event_count"] == 3
 
     def test_compile_shadow_learning_fallback_on_error(self, monkeypatch):
-        monkeypatch.setattr("paper_trading.shadow.learning._compute_learning_profile", lambda e: (_ for _ in ()).throw(RuntimeError("test")))
+        monkeypatch.setattr(
+            "paper_trading.shadow.learning._compute_learning_profile",
+            lambda e: (_ for _ in ()).throw(RuntimeError("test")),
+        )
         monkeypatch.setattr("paper_trading.shadow.learning._save_compiled", lambda a, r: None)
         result = compile_shadow_learning("EURUSD", feedback_logs=[{"derived": {"instability_index": 0.1}}])
         assert result["event_count"] == 0
@@ -748,16 +825,24 @@ class TestCompareAssets:
     def test_compare_assets_ranking(self, monkeypatch, mock_portfolio):
         profiles = {
             "EURUSD": {
-                "asset": "EURUSD", "event_count": 2,
-                "avg_agreement": 0.85, "avg_instability": 0.10,
-                "avg_risk_alignment": 0.95, "drift_sensitivity": 0.12,
-                "risk_overreaction_rate": 0.0, "shadow_action_utilization": {"NONE": 1.0},
+                "asset": "EURUSD",
+                "event_count": 2,
+                "avg_agreement": 0.85,
+                "avg_instability": 0.10,
+                "avg_risk_alignment": 0.95,
+                "drift_sensitivity": 0.12,
+                "risk_overreaction_rate": 0.0,
+                "shadow_action_utilization": {"NONE": 1.0},
             },
             "GBPUSD": {
-                "asset": "GBPUSD", "event_count": 2,
-                "avg_agreement": 0.75, "avg_instability": 0.25,
-                "avg_risk_alignment": 0.80, "drift_sensitivity": 0.30,
-                "risk_overreaction_rate": 0.1, "shadow_action_utilization": {"NONE": 0.8, "REDUCE_EXPOSURE": 0.2},
+                "asset": "GBPUSD",
+                "event_count": 2,
+                "avg_agreement": 0.75,
+                "avg_instability": 0.25,
+                "avg_risk_alignment": 0.80,
+                "drift_sensitivity": 0.30,
+                "risk_overreaction_rate": 0.1,
+                "shadow_action_utilization": {"NONE": 0.8, "REDUCE_EXPOSURE": 0.2},
             },
         }
         original = build_asset_learning_profile
@@ -785,10 +870,13 @@ class TestCompareLearningProfiles:
     def test_compare_learning_profiles_ranking(self, monkeypatch, mock_portfolio):
         compiled = {
             "EURUSD": {
-                "asset": "EURUSD", "event_count": 5,
+                "asset": "EURUSD",
+                "event_count": 5,
                 "learning_profile": {
-                    "behavioral_stability": 0.85, "drift_resilience": 0.80,
-                    "risk_sensitivity": 0.70, "action_coherence": 0.90,
+                    "behavioral_stability": 0.85,
+                    "drift_resilience": 0.80,
+                    "risk_sensitivity": 0.70,
+                    "action_coherence": 0.90,
                 },
                 "shadow_insights": {
                     "execution_fragility_score": 0.15,
@@ -796,10 +884,13 @@ class TestCompareLearningProfiles:
                 },
             },
             "GBPUSD": {
-                "asset": "GBPUSD", "event_count": 5,
+                "asset": "GBPUSD",
+                "event_count": 5,
                 "learning_profile": {
-                    "behavioral_stability": 0.65, "drift_resilience": 0.60,
-                    "risk_sensitivity": 0.50, "action_coherence": 0.70,
+                    "behavioral_stability": 0.65,
+                    "drift_resilience": 0.60,
+                    "risk_sensitivity": 0.50,
+                    "action_coherence": 0.70,
                 },
                 "shadow_insights": {
                     "execution_fragility_score": 0.35,
@@ -841,7 +932,14 @@ class TestDetectSystemicPatterns:
         }
 
         def mock_compile(asset):
-            return compiled.get(asset, {"latent_patterns": [], "shadow_insights": {"execution_fragility_score": 0.0}, "learning_profile": {"behavioral_stability": 0.0}})
+            return compiled.get(
+                asset,
+                {
+                    "latent_patterns": [],
+                    "shadow_insights": {"execution_fragility_score": 0.0},
+                    "learning_profile": {"behavioral_stability": 0.0},
+                },
+            )
 
         monkeypatch.setattr("paper_trading.shadow.analytics.compile_shadow_learning", mock_compile)
         result = detect_systemic_patterns()

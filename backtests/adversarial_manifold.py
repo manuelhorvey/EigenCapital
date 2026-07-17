@@ -214,9 +214,7 @@ def evaluate_adversarial_manifold(asset, model, x, close, threshold=0.45, predic
             - normal_score: Baseline (unperturbed) stability score.
     """
     # Baseline predictions
-    baseline_proba = (
-        predict_fn(model, x) if predict_fn is not None else model.predict_proba(x)
-    )
+    baseline_proba = predict_fn(model, x) if predict_fn is not None else model.predict_proba(x)
 
     regime_scores = {}
     normal_score = _compute_regime_score(model, x, x, close, baseline_proba)

@@ -22,6 +22,7 @@ Usage::
             with pytest.raises(MT5ConnectionError):
                 mt5_client.fetch_ohlcv("EURUSD", years=2)
 """
+
 from __future__ import annotations
 
 import random
@@ -63,9 +64,7 @@ class ChaosRegistry:
 REGISTRY = ChaosRegistry()
 
 
-def _patched_factory(
-    recipe: FaultRecipe, original: Callable[..., Any]
-) -> Callable[..., Any]:
+def _patched_factory(recipe: FaultRecipe, original: Callable[..., Any]) -> Callable[..., Any]:
     """Wrap *original* with a fault injector based on *recipe*."""
 
     state = {"failures_left": recipe.n_failures}

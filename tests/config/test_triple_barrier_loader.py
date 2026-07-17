@@ -71,9 +71,7 @@ def test_features_registry_sourcing_is_off_yaml():
     sys.path.insert(0, str(REPO_ROOT))
     import features.registry as reg
 
-    yaml_data = yaml.safe_load(
-        (REPO_ROOT / "configs" / "domains" / "ml" / "triple_barrier.yaml").read_text()
-    )
+    yaml_data = yaml.safe_load((REPO_ROOT / "configs" / "domains" / "ml" / "triple_barrier.yaml").read_text())
     yaml_assets = yaml_data.get("assets") or {}
 
     # Every key in YAML must appear in the loaded dict
@@ -94,9 +92,7 @@ def test_features_registry_loaded_pt_values_match_yaml():
     """pt values in the loaded dict must come from YAML."""
     import features.registry as reg
 
-    yaml_data = yaml.safe_load(
-        (REPO_ROOT / "configs" / "domains" / "ml" / "triple_barrier.yaml").read_text()
-    )
+    yaml_data = yaml.safe_load((REPO_ROOT / "configs" / "domains" / "ml" / "triple_barrier.yaml").read_text())
     yaml_assets = yaml_data["assets"]
     for key, raw in yaml_assets.items():
         assert reg.ASSET_LABEL_PARAMS[key]["pt"] == raw["pt"]
@@ -109,8 +105,8 @@ def test_engine_runtime_drift_check_still_warns():
     """
     src = (REPO_ROOT / "paper_trading" / "engine.py").read_text()
     assert "ASSET_LABEL_PARAMS.get(name)" in src
-    assert "registry_params[\"sl\"]" in src
-    assert "registry_params[\"pt\"]" in src
+    assert 'registry_params["sl"]' in src
+    assert 'registry_params["pt"]' in src
 
 
 def test_loader_rejects_yaml_with_missing_required_fields(loader_mod, tmp_path: Path):

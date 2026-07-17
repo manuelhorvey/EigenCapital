@@ -95,21 +95,15 @@ class TestCalculatePositionSize:
         assert 0 < size <= 0.95
 
     def test_regime_aware_bull(self, close_series):
-        size_bull = calculate_position_size(
-            close_series, {"position_size": 0.95}, regime="bull", regime_aware=True
-        )
+        size_bull = calculate_position_size(close_series, {"position_size": 0.95}, regime="bull", regime_aware=True)
         assert size_bull > 0
 
     def test_regime_aware_bear(self, close_series):
-        size_bear = calculate_position_size(
-            close_series, {"position_size": 0.95}, regime="bear", regime_aware=True
-        )
+        size_bear = calculate_position_size(close_series, {"position_size": 0.95}, regime="bear", regime_aware=True)
         assert size_bear > 0
 
     def test_regime_aware_crisis(self, close_series):
-        size_crisis = calculate_position_size(
-            close_series, {"position_size": 0.95}, regime="crisis", regime_aware=True
-        )
+        size_crisis = calculate_position_size(close_series, {"position_size": 0.95}, regime="crisis", regime_aware=True)
         assert size_crisis > 0
 
     def test_short_window_falls_back(self):

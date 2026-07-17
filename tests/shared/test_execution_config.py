@@ -106,9 +106,7 @@ class TestBuildExecutionConfigs:
         assert configs["EURUSD"].base_spread_bps == 1.0
 
     def test_btc_config_not_overwritten_when_present(self):
-        configs = build_execution_configs(
-            {"BTC": {"ticker": "BTC-USD", "execution_config": {"base_spread_bps": 3.0}}}
-        )
+        configs = build_execution_configs({"BTC": {"ticker": "BTC-USD", "execution_config": {"base_spread_bps": 3.0}}})
         assert "BTC" in configs
         # Should use the override from the asset spec
         assert configs["BTC"].base_spread_bps == 3.0

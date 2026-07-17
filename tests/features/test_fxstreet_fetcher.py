@@ -1,36 +1,42 @@
 import json
 import os
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests.exceptions
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
 
-from features.macro_narrative import MacroNarrativeFeatures
 from features.fxstreet_fetcher import (
-    fetch_fxstreet_article,
+    _write_error,
     call_llm,
-    run_weekly_narrative_pipeline,
     confirm_pending_narrative,
+    fetch_fxstreet_article,
     get_active_narrative,
-    get_pending_narrative,
-    is_narrative_stale,
     get_fetch_error,
     get_narrative_status,
-    _write_error,
+    get_pending_narrative,
+    is_narrative_stale,
+    run_weekly_narrative_pipeline,
 )
-
+from features.macro_narrative import MacroNarrativeFeatures
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def sample_html():
-    return '<html><a href="/analysis/week-ahead-fx-2026">Week Ahead</a><div class="article-content"><p>USD strengthens on hawkish Fed outlook.</p></div></html>'
+    return (
+        '<html><a href="/analysis/week-ahead-fx-2026">Week Ahead</a>'
+        '<div class="article-content"><p>USD strengthens on hawkish Fed outlook.</p></div></html>'
+    )
 
 
 @pytest.fixture
 def sample_weekly_outlook_html():
-    return '<html><a href="/analysis/weekly-outlook">Weekly Outlook</a><div class="article-content"><p>Markets calm this week.</p></div></html>'
+    return (
+        '<html><a href="/analysis/weekly-outlook">Weekly Outlook</a>'
+        '<div class="article-content"><p>Markets calm this week.</p></div></html>'
+    )
 
 
 @pytest.fixture
@@ -80,6 +86,7 @@ def sample_narrative(tmp_path):
 
 # ── fetch_fxstreet_article ───────────────────────────────────────────────────
 
+
 def _make_fxstreet_mock_resp(text, status_code=200):
     resp = MagicMock()
     resp.status_code = status_code
@@ -89,14 +96,28 @@ def _make_fxstreet_mock_resp(text, status_code=200):
 
 @patch("features.fxstreet_fetcher.requests.get")
 def test_fetch_fxstreet_returns_text(mock_get):
-    listing_page = '<html><a href="/weekly-forex-forecast">Weekly forex forecast</a></html>'
+    listing_page = (
+        '<html><a href="/weekly-forex-forecast">Weekly forex forecast</a></html>'
+    )
     article_page = (
         '<html><div class="overflow-clip">'
-        'Weekly forex forecast: EUR/USD, Gold, Bitcoin and more'
-        'USD strengthens on hawkish Fed outlook. The Federal Reserve maintained its hawkish stance during the latest FOMC meeting, signaling that rates will remain elevated for longer. This has provided strong support for the US dollar across the board. Market participants are now pricing in a higher probability of additional rate hikes if inflation does not moderate as expected.'
-        'EURUSD tested key support levels as the euro struggled amid a widening interest rate differential. The ECB\'s more cautious approach contrasts sharply with the Fed\'s determination to keep policy restrictive, which continues to weigh on the single currency. Analysts expect further downside risks for EURUSD in the near term.'
-        'Commodity currencies were mixed, with the Australian dollar showing resilience on the back of stronger-than-expected employment data. The RBA\'s recent rate hike has provided some support, though global growth concerns remain a headwind for risk-sensitive currencies.'
-        '</div></html>'
+        "Weekly forex forecast: EUR/USD, Gold, Bitcoin and more"
+        "USD strengthens on hawkish Fed outlook. The Federal Reserve maintained"
+        " its hawkish stance during the latest FOMC meeting, signaling that rates"
+        " will remain elevated for longer. This has provided strong support for"
+        " the US dollar across the board. Market participants are now pricing in"
+        " a higher probability of additional rate hikes if inflation does not"
+        " moderate as expected."
+        "EURUSD tested key support levels as the euro struggled amid a widening"
+        " interest rate differential. The ECB's more cautious approach contrasts"
+        " sharply with the Fed's determination to keep policy restrictive, which"
+        " continues to weigh on the single currency. Analysts expect further"
+        " downside risks for EURUSD in the near term."
+        "Commodity currencies were mixed, with the Australian dollar showing"
+        " resilience on the back of stronger-than-expected employment data."
+        " The RBA's recent rate hike has provided some support, though global"
+        " growth concerns remain a headwind for risk-sensitive currencies."
+        "</div></html>"
     )
     mock_get.side_effect = [
         _make_fxstreet_mock_resp(listing_page),
@@ -109,9 +130,7 @@ def test_fetch_fxstreet_returns_text(mock_get):
 
 @patch("features.fxstreet_fetcher.requests.get")
 def test_fetch_fxstreet_no_article_found(mock_get):
-    mock_get.return_value = _make_fxstreet_mock_resp(
-        "<html><body>No relevant articles here</body></html>"
-    )
+    mock_get.return_value = _make_fxstreet_mock_resp("<html><body>No relevant articles here</body></html>")
     result = fetch_fxstreet_article()
     assert result is None
 
@@ -133,7 +152,11 @@ def test_fetch_fxstreet_handles_http_error(mock_get):
 
 @patch("features.fxstreet_fetcher.requests.get")
 def test_fetch_fxstreet_weekly_outlook_fallback(mock_get):
-    listing_page = '<html><div class="text-body-md">Markets calm this week as traders await key economic data releases. The US dollar traded in a tight range against major peers as investors digested the latest Fed commentary.</div></html>'
+    listing_page = (
+        '<html><div class="text-body-md">Markets calm this week as traders await'
+        ' key economic data releases. The US dollar traded in a tight range against'
+        ' major peers as investors digested the latest Fed commentary.</div></html>'
+    )
     article_page = None  # not reached; Strategy 2 should catch it
     mock_get.side_effect = [
         _make_fxstreet_mock_resp(listing_page),
@@ -146,13 +169,12 @@ def test_fetch_fxstreet_weekly_outlook_fallback(mock_get):
 
 # ── call_llm ─────────────────────────────────────────────────────────────────
 
+
 @patch("features.fxstreet_fetcher.requests.post")
 def test_call_llm_returns_parsed_json(mock_post, sample_llm_json):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "choices": [{"message": {"content": json.dumps(sample_llm_json)}}]
-    }
+    mock_resp.json.return_value = {"choices": [{"message": {"content": json.dumps(sample_llm_json)}}]}
     mock_post.return_value = mock_resp
 
     result = call_llm("Some text", "fake-api-key")
@@ -175,9 +197,7 @@ def test_call_llm_handles_no_choices(mock_post):
 def test_call_llm_handles_no_json_in_response(mock_post):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "choices": [{"message": {"content": "Just text without JSON"}}]
-    }
+    mock_resp.json.return_value = {"choices": [{"message": {"content": "Just text without JSON"}}]}
     mock_post.return_value = mock_resp
 
     result = call_llm("Some text", "fake-api-key")
@@ -195,9 +215,7 @@ def test_call_llm_handles_network_error(mock_post):
 def test_call_llm_handles_invalid_json(mock_post):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "choices": [{"message": {"content": "{invalid json}"}}]
-    }
+    mock_resp.json.return_value = {"choices": [{"message": {"content": "{invalid json}"}}]}
     mock_post.return_value = mock_resp
 
     result = call_llm("Some text", "fake-api-key")
@@ -205,6 +223,7 @@ def test_call_llm_handles_invalid_json(mock_post):
 
 
 # ── run_weekly_narrative_pipeline ────────────────────────────────────────────
+
 
 @patch("features.fxstreet_fetcher.fetch_fxstreet_article")
 @patch("features.fxstreet_fetcher.save_narrative_json")
@@ -253,9 +272,12 @@ def test_pipeline_no_api_key_uses_neutral(mock_save, mock_neutral, mock_fetch, s
 
 # ── confirm_pending_narrative ────────────────────────────────────────────────
 
+
 def test_confirm_pending_no_file(tmp_path):
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "active.json")):
+    with (
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "active.json")),
+    ):
         result = confirm_pending_narrative()
         assert result is False
 
@@ -267,9 +289,11 @@ def test_confirm_pending_success(tmp_path):
     pending.write_text('{"week_start": "2026-05-25", "confidence": 0.5}')
     error_file.write_text('{"reason": "old_error"}')
 
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending)), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active)), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(error_file)):
+    with (
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending)),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active)),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(error_file)),
+    ):
         result = confirm_pending_narrative()
         assert result is True
         assert active.exists()
@@ -279,10 +303,13 @@ def test_confirm_pending_success(tmp_path):
 def test_confirm_pending_copy_failure(tmp_path):
     pending = tmp_path / "narrative_pending.json"
     active = tmp_path / "narrative_active.json"
-    pending.write_text('{}')
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending)), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active)):
+    pending.write_text("{}")
+    with (
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending)),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active)),
+    ):
         import shutil
+
         original = shutil.copy2
         shutil.copy2 = MagicMock(side_effect=PermissionError("denied"))
         try:
@@ -293,6 +320,7 @@ def test_confirm_pending_copy_failure(tmp_path):
 
 
 # ── get_active_narrative / get_pending_narrative ─────────────────────────────
+
 
 def test_get_active_narrative_no_file(tmp_path):
     with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "nonexistent.json")):
@@ -342,6 +370,7 @@ def test_get_pending_narrative_corrupt_file(tmp_path):
 
 # ── is_narrative_stale ───────────────────────────────────────────────────────
 
+
 def test_narrative_not_stale():
     week_start = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
     assert is_narrative_stale(week_start) is False
@@ -367,6 +396,7 @@ def test_narrative_stale_empty_string():
 
 # ── _write_error ─────────────────────────────────────────────────────────────
 
+
 def test_write_error_creates_file(tmp_path):
     error_path = tmp_path / "narrative_error.json"
     with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(error_path)):
@@ -383,6 +413,7 @@ def test_write_error_handles_exception(tmp_path):
 
 
 # ── get_fetch_error ──────────────────────────────────────────────────────────
+
 
 def test_get_fetch_error_no_file(tmp_path):
     with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")):
@@ -409,10 +440,13 @@ def test_get_fetch_error_corrupt(tmp_path):
 
 # ── get_narrative_status ─────────────────────────────────────────────────────
 
+
 def test_narrative_status_no_files(tmp_path):
-    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "nonexistent_active.json")), \
-         patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent_pending.json")), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent_error.json")):
+    with (
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "nonexistent_active.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent_pending.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent_error.json")),
+    ):
         status = get_narrative_status()
         assert status["active"] is None
         assert status["pending"] is None
@@ -425,9 +459,11 @@ def test_narrative_status_no_files(tmp_path):
 def test_narrative_status_with_active(tmp_path, sample_narrative):
     active_path = tmp_path / "narrative_active.json"
     active_path.write_text(json.dumps(sample_narrative.to_dict()))
-    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active_path)), \
-         patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")):
+    with (
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active_path)),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")),
+    ):
         status = get_narrative_status()
         assert status["active"] is not None
         assert status["active"]["week_start"] == "2026-05-25"
@@ -440,9 +476,11 @@ def test_narrative_status_needs_confirmation(tmp_path, sample_narrative):
     pending_features = sample_narrative.to_dict()
     pending_features["week_start"] = "2026-06-01"
     pending_path.write_text(json.dumps(pending_features))
-    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active_path)), \
-         patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending_path)), \
-         patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")):
+    with (
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active_path)),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending_path)),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")),
+    ):
         status = get_narrative_status()
         assert status["has_pending"] is True
         assert status["needs_confirmation"] is True

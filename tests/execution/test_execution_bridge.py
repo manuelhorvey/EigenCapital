@@ -1,4 +1,3 @@
-
 from paper_trading.execution.paper_broker import PaperBroker
 from paper_trading.execution.bridge import ExecutionBridge
 from shared.execution_config import ExecutionConfig

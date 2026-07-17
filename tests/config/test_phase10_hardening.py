@@ -198,13 +198,9 @@ def test_settings_directory_size_under_budget():
         per_asset_total += sum(1 for _ in fn.read_text().splitlines())
     # 22 per-asset files should average < 30 lines each
     avg_lines = per_asset_total / max(len(asset_files), 1)
-    assert avg_lines < 30, (
-        f"per-asset average {avg_lines:.1f} lines exceeds 30-line budget"
-    )
+    assert avg_lines < 30, f"per-asset average {avg_lines:.1f} lines exceeds 30-line budget"
     # Total per-asset files should be well under 1000 lines
-    assert per_asset_total < 800, (
-        f"per-asset total {per_asset_total} lines exceeds 800-line budget"
-    )
+    assert per_asset_total < 800, f"per-asset total {per_asset_total} lines exceeds 800-line budget"
 
 
 def test_documented_subtraction():

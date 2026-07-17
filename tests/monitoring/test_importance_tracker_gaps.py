@@ -16,6 +16,7 @@ from monitoring.importance_tracker import (
 
 # ── Property-based tests for compute_stability_penalty ───────────────────────
 
+
 @given(
     jaccard=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
     spearman=st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
@@ -52,6 +53,7 @@ def test_jaccard_no_overlap_is_zero(n):
 
 # ── Edge cases for compute_jaccard_top_n ─────────────────────────────────────
 
+
 def test_jaccard_n_greater_than_available():
     """Jaccard handles n > available features gracefully."""
     cur = [{"feature": "a", "importance_score": 1.0}]
@@ -78,6 +80,7 @@ def test_jaccard_empty_previous():
 
 # ── Edge cases for compute_spearman_rank_corr ────────────────────────────────
 
+
 def test_spearman_empty_current():
     """Spearman with empty current returns 0.0."""
     cur = []
@@ -100,6 +103,7 @@ def test_spearman_exactly_2_common_returns_zero():
 
 
 # ── Edge cases for compute_stability_penalty ─────────────────────────────────
+
 
 def test_penalty_jaccard_between_soft_and_hard():
     """Jaccard between soft and hard thresholds triggers only soft penalty."""
@@ -138,6 +142,7 @@ def test_penalty_exact_threshold_no_penalty():
 
 
 # ── Edge cases for ImportanceStore ───────────────────────────────────────────
+
 
 def test_store_roundtrip(tmp_path):
     """Full roundtrip: log snapshot and verify data integrity."""
@@ -186,12 +191,16 @@ def test_store_get_latest_two_snapshots_same_window(tmp_path):
     """get_latest_two_snapshots with duplicate window IDs."""
     store = ImportanceStore(tmp_path)
     store.log_snapshot(
-        asset="TEST", feature_names=["a"],
-        importances=np.array([1.0]), window_id="w1",
+        asset="TEST",
+        feature_names=["a"],
+        importances=np.array([1.0]),
+        window_id="w1",
     )
     store.log_snapshot(
-        asset="TEST", feature_names=["b"],
-        importances=np.array([1.0]), window_id="w1",
+        asset="TEST",
+        feature_names=["b"],
+        importances=np.array([1.0]),
+        window_id="w1",
     )
     latest, prev = store.get_latest_two_snapshots("TEST")
     assert latest is not None
@@ -219,8 +228,10 @@ def test_store_compute_stability_single_window_returns_none(tmp_path):
     """compute_stability returns None with only one window."""
     store = ImportanceStore(tmp_path)
     store.log_snapshot(
-        asset="TEST", feature_names=["a"],
-        importances=np.array([1.0]), window_id="w1",
+        asset="TEST",
+        feature_names=["a"],
+        importances=np.array([1.0]),
+        window_id="w1",
     )
     result = store.compute_stability("TEST")
     assert result is None
@@ -230,12 +241,14 @@ def test_store_compute_stability_full_pipeline(tmp_path):
     """Full stability computation returns correct structure."""
     store = ImportanceStore(tmp_path)
     store.log_snapshot(
-        asset="TEST", feature_names=["a", "b", "c", "d"],
+        asset="TEST",
+        feature_names=["a", "b", "c", "d"],
         importances=np.array([0.4, 0.3, 0.2, 0.1]),
         window_id="w1",
     )
     store.log_snapshot(
-        asset="TEST", feature_names=["a", "b", "e", "f"],
+        asset="TEST",
+        feature_names=["a", "b", "e", "f"],
         importances=np.array([0.5, 0.3, 0.15, 0.05]),
         window_id="w2",
     )
@@ -250,12 +263,16 @@ def test_store_load_all_assets(tmp_path):
     """load_history without asset filter returns all assets."""
     store = ImportanceStore(tmp_path)
     store.log_snapshot(
-        asset="A", feature_names=["a"],
-        importances=np.array([1.0]), window_id="w1",
+        asset="A",
+        feature_names=["a"],
+        importances=np.array([1.0]),
+        window_id="w1",
     )
     store.log_snapshot(
-        asset="B", feature_names=["b"],
-        importances=np.array([1.0]), window_id="w1",
+        asset="B",
+        feature_names=["b"],
+        importances=np.array([1.0]),
+        window_id="w1",
     )
     df = store.load_history()
     assert len(df) == 2

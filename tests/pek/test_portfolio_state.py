@@ -1,4 +1,5 @@
 """Tests for PortfolioStateSnapshot contract validation."""
+
 import pytest
 
 from paper_trading.pek.contracts.portfolio_state import (
@@ -84,25 +85,40 @@ class TestPortfolioStateSnapshotValidation:
 class TestAssetGateState:
     def test_all_ok_true(self):
         g = AssetGateState(
-            asset="EURUSD", spread_ok=True, session_ok=True,
-            sell_only_ok=True, confidence_ok=True, risk_off_ok=True,
-            hysteresis_ok=True, conviction_ok=True,
+            asset="EURUSD",
+            spread_ok=True,
+            session_ok=True,
+            sell_only_ok=True,
+            confidence_ok=True,
+            risk_off_ok=True,
+            hysteresis_ok=True,
+            conviction_ok=True,
         )
         assert g.all_ok
 
     def test_one_false_all_ok_false(self):
         g = AssetGateState(
-            asset="EURUSD", spread_ok=True, session_ok=True,
-            sell_only_ok=True, confidence_ok=True, risk_off_ok=True,
-            hysteresis_ok=False, conviction_ok=True,
+            asset="EURUSD",
+            spread_ok=True,
+            session_ok=True,
+            sell_only_ok=True,
+            confidence_ok=True,
+            risk_off_ok=True,
+            hysteresis_ok=False,
+            conviction_ok=True,
         )
         assert not g.all_ok
 
     def test_to_dict_roundtrip(self):
         g = AssetGateState(
-            asset="USDJPY", spread_ok=True, session_ok=False,
-            sell_only_ok=True, confidence_ok=True, risk_off_ok=True,
-            hysteresis_ok=True, conviction_ok=True,
+            asset="USDJPY",
+            spread_ok=True,
+            session_ok=False,
+            sell_only_ok=True,
+            confidence_ok=True,
+            risk_off_ok=True,
+            hysteresis_ok=True,
+            conviction_ok=True,
         )
         d = g.to_dict()
         assert d["asset"] == "USDJPY"
@@ -112,9 +128,14 @@ class TestAssetGateState:
 
     def test_to_dict_roundtrip_all_false(self):
         g = AssetGateState(
-            asset="GBPUSD", spread_ok=False, session_ok=False,
-            sell_only_ok=False, confidence_ok=False, risk_off_ok=False,
-            hysteresis_ok=False, conviction_ok=False,
+            asset="GBPUSD",
+            spread_ok=False,
+            session_ok=False,
+            sell_only_ok=False,
+            confidence_ok=False,
+            risk_off_ok=False,
+            hysteresis_ok=False,
+            conviction_ok=False,
         )
         restored = AssetGateState.from_dict(g.to_dict())
         assert restored == g
@@ -124,9 +145,14 @@ class TestAssetGateState:
 class TestPositionInfoSerialization:
     def test_to_dict_roundtrip(self):
         p = PositionInfo(
-            asset="EURUSD", side="long", notional=50000.0,
-            entry_price=1.10, current_price=1.12, sl_distance_pct=0.5,
-            current_pnl_pct=1.8, mtm_value=50900.0,
+            asset="EURUSD",
+            side="long",
+            notional=50000.0,
+            entry_price=1.10,
+            current_price=1.12,
+            sl_distance_pct=0.5,
+            current_pnl_pct=1.8,
+            mtm_value=50900.0,
         )
         d = p.to_dict()
         assert d["asset"] == "EURUSD"
@@ -138,9 +164,12 @@ class TestPositionInfoSerialization:
 class TestClusterInfoSerialization:
     def test_to_dict_roundtrip(self):
         c = ClusterInfo(
-            factor_group="CHF", assets=("EURCHF", "USDCHF"),
-            dominant_side="short", total_notional=80000.0,
-            position_count=2, average_correlation=0.78,
+            factor_group="CHF",
+            assets=("EURCHF", "USDCHF"),
+            dominant_side="short",
+            total_notional=80000.0,
+            position_count=2,
+            average_correlation=0.78,
         )
         d = c.to_dict()
         assert d["factor_group"] == "CHF"
@@ -150,9 +179,12 @@ class TestClusterInfoSerialization:
 
     def test_to_dict_no_dominant_side(self):
         c = ClusterInfo(
-            factor_group="COMMODITY", assets=("GC", "CL"),
-            dominant_side=None, total_notional=0.0,
-            position_count=0, average_correlation=0.0,
+            factor_group="COMMODITY",
+            assets=("GC", "CL"),
+            dominant_side=None,
+            total_notional=0.0,
+            position_count=0,
+            average_correlation=0.0,
         )
         restored = ClusterInfo.from_dict(c.to_dict())
         assert restored == c
@@ -198,9 +230,7 @@ class TestPortfolioStateSnapshotSerialization:
             factor_exposures=(("CHF", -30000.0), ("COMMODITY", 5000.0)),
             factor_limits=(("CHF", -50000.0, 0.0),),
             factor_headroom=(("CHF", 20000.0),),
-            clusters=(
-                ClusterInfo("CHF", ("EURCHF", "USDCHF"), "short", 80000.0, 2, 0.78),
-            ),
+            clusters=(ClusterInfo("CHF", ("EURCHF", "USDCHF"), "short", 80000.0, 2, 0.78),),
             asset_gates=(
                 AssetGateState("EURUSD", True, True, True, True, True, True, True),
                 AssetGateState("GBPUSD", True, True, True, True, True, True, True),

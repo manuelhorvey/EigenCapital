@@ -192,19 +192,31 @@ def mock_data_fetch(mock_price_data):
     # fetch_asset_data/ohlcv are imported inside _build_feature_set from features.data_fetch.
     patches = [
         patch("paper_trading.ops.data_fetcher.fetch_live", return_value=mock_price_data),
-        patch("features.data_fetch.fetch_asset_data", return_value=(
-            mock_price_data, pd.DataFrame(),
-            pd.Series(dtype=float), pd.Series(dtype=float),
-            pd.Series(dtype=float), pd.DataFrame(),
-        )),
+        patch(
+            "features.data_fetch.fetch_asset_data",
+            return_value=(
+                mock_price_data,
+                pd.DataFrame(),
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                pd.DataFrame(),
+            ),
+        ),
         patch("features.data_fetch.fetch_asset_ohlcv", return_value=mock_price_data),
         patch("features.data_fetch.prefetch_shared_data", return_value={}),
         patch("features.alpha_features._compute_shared_features", return_value=pd.DataFrame()),
-        patch("features.alpha_features.build_alpha_features", return_value=pd.DataFrame({
-            "TEST_mom_21d": [0.01] * 300,
-            "TEST_mom_63d": [0.02] * 300,
-            "TEST_zscore_20": [0.5] * 300,
-        }, index=mock_price_data.index)),
+        patch(
+            "features.alpha_features.build_alpha_features",
+            return_value=pd.DataFrame(
+                {
+                    "TEST_mom_21d": [0.01] * 300,
+                    "TEST_mom_63d": [0.02] * 300,
+                    "TEST_zscore_20": [0.5] * 300,
+                },
+                index=mock_price_data.index,
+            ),
+        ),
     ]
     for p in patches:
         p.start()
@@ -414,10 +426,13 @@ class TestOrchestratorCycle:
             "WORKING": _make_actor("WORKING"),
             "FAILING": _make_actor("FAILING"),
         }
+
         # Make the FAILING actor raise on run_cycle
         def _failing_run(market_data=None, shared_macro=None):
             from paper_trading.orchestrator.actor import AssetResult
+
             return AssetResult.failed("FAILING", "simulated_failure")
+
         actors["FAILING"].run_cycle = _failing_run
 
         orch = EngineOrchestrator(actors, max_workers=2)

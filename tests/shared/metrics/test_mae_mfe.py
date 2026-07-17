@@ -37,25 +37,31 @@ class TestComputeMaeMfeStats:
         assert result["overall"]["n"] == 0
 
     def test_single_trade(self):
-        result = compute_mae_mfe_stats([{
-            "exit_mae": 1.0,
-            "exit_mfe": 3.0,
-            "entry_price": 100.0,
-            "exit_exit_reason": "tp",
-        }])
+        result = compute_mae_mfe_stats(
+            [
+                {
+                    "exit_mae": 1.0,
+                    "exit_mfe": 3.0,
+                    "entry_price": 100.0,
+                    "exit_exit_reason": "tp",
+                }
+            ]
+        )
         assert result["overall"]["n"] == 1
         assert result["overall"]["avg_mfe_mae_ratio"] > 0
 
     def test_with_archetype_and_regime(self):
-        result = compute_mae_mfe_stats([
-            {
-                "exit_mae": 0.5,
-                "exit_mfe": 2.0,
-                "entry_price": 100.0,
-                "exit_exit_reason": "tp",
-                "pred_archetype_at_entry": "BREAKOUT",
-                "pred_regime_at_entry": "GREEN",
-            }
-        ])
+        result = compute_mae_mfe_stats(
+            [
+                {
+                    "exit_mae": 0.5,
+                    "exit_mfe": 2.0,
+                    "entry_price": 100.0,
+                    "exit_exit_reason": "tp",
+                    "pred_archetype_at_entry": "BREAKOUT",
+                    "pred_regime_at_entry": "GREEN",
+                }
+            ]
+        )
         assert "BREAKOUT" in result["by_archetype"]
         assert "GREEN" in result["by_regime"]

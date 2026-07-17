@@ -37,9 +37,7 @@ class TestInterfaceCompliance:
         from paper_trading.execution.broker_interface import BrokerInterface
 
         abstract = set(BrokerInterface.__abstractmethods__)  # type: ignore[attr-defined]
-        concrete = set(
-            name for name in dir(MT5Broker) if not name.startswith("_")
-        )
+        concrete = set(name for name in dir(MT5Broker) if not name.startswith("_"))
         assert abstract.issubset(concrete), f"Missing: {abstract - concrete}"
 
 
@@ -172,7 +170,15 @@ class TestPositions:
 
     def test_position_cache_used(self, mock_client):
         mock_client._positions = [
-            {"type": "sell", "symbol": "EURUSD", "volume": 0.1, "price_open": 1.0500, "price_current": 1.0450, "profit": 50.0, "commission": 0.0}
+            {
+                "type": "sell",
+                "symbol": "EURUSD",
+                "volume": 0.1,
+                "price_open": 1.0500,
+                "price_current": 1.0450,
+                "profit": 50.0,
+                "commission": 0.0,
+            }
         ]
         broker = MT5Broker(client=mock_client)
         broker.connect()

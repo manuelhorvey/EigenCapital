@@ -17,6 +17,7 @@ from shared.meta_labeling import (
 # Targets uncovered lines: 138-140 (missing features returns None), 210 (empty entry_date),
 # 219 (matching_signal = prob_history[0]), 274 (features is None continue)
 
+
 class TestTrainMissingFeatures:
     def test_train_missing_features_returns_false(self):
         """Missing required features prevents training (line 138-140)."""
@@ -33,7 +34,11 @@ class TestBuildFeaturesFromTradeEdgeCases:
         """Trade without entry_date returns None (line 210)."""
         trade = {"pnl": 10.0}
         result = build_meta_features_from_trade(
-            trade, [], [], 0.0, close,
+            trade,
+            [],
+            [],
+            0.0,
+            close,
         )
         assert result is None
 
@@ -50,7 +55,11 @@ class TestBuildFeaturesFromTradeEdgeCases:
             {"date": "2026-06-16", "confidence": 80, "signal": "BUY"},
         ]
         features = build_meta_features_from_trade(
-            trade, prob_history, [], 0.0, close,
+            trade,
+            prob_history,
+            [],
+            0.0,
+            close,
         )
         assert features is not None
         assert features["primary_confidence"] == pytest.approx(0.30)
@@ -64,9 +73,12 @@ class TestBuildFeaturesFromTradeEdgeCases:
     def test_inference_features_vol_regime_low(self, close):
         """Vol regime 'low_vol' sets vol_regime_low=1."""
         features = build_inference_features(
-            primary_confidence=0.5, regime_state="GREEN",
-            periods_in_state=5, feature_stability_penalty=0.0,
-            close=close, vol_regime="low_vol",
+            primary_confidence=0.5,
+            regime_state="GREEN",
+            periods_in_state=5,
+            feature_stability_penalty=0.0,
+            close=close,
+            vol_regime="low_vol",
         )
         assert features["vol_regime_low"] == 1.0
         assert features["vol_regime_high"] == 0.0
@@ -74,9 +86,12 @@ class TestBuildFeaturesFromTradeEdgeCases:
     def test_inference_features_vol_regime_high(self, close):
         """Vol regime 'high_vol' sets vol_regime_high=1."""
         features = build_inference_features(
-            primary_confidence=0.5, regime_state="GREEN",
-            periods_in_state=5, feature_stability_penalty=0.0,
-            close=close, vol_regime="high_vol",
+            primary_confidence=0.5,
+            regime_state="GREEN",
+            periods_in_state=5,
+            feature_stability_penalty=0.0,
+            close=close,
+            vol_regime="high_vol",
         )
         assert features["vol_regime_low"] == 0.0
         assert features["vol_regime_high"] == 1.0
@@ -86,17 +101,15 @@ class TestBuildTrainingDataEdgeCases:
     def test_filters_none_features(self):
         """Trades where build_meta_features_from_trade returns None are skipped (line 274)."""
         n = 70
-        trade_log = [
-            {"entry_date": f"2026-06-{i+1:02d}", "pnl": 10.0 if i % 3 == 0 else None}
-            for i in range(n)
-        ]
-        prob_history = [
-            {"date": f"2026-06-{i+1:02d}", "confidence": 60}
-            for i in range(n)
-        ]
+        trade_log = [{"entry_date": f"2026-06-{i + 1:02d}", "pnl": 10.0 if i % 3 == 0 else None} for i in range(n)]
+        prob_history = [{"date": f"2026-06-{i + 1:02d}", "confidence": 60} for i in range(n)]
         close = pd.Series([100.0] * 300)
         X, y = build_meta_training_data(
-            trade_log, prob_history, [], 0.0, close,
+            trade_log,
+            prob_history,
+            [],
+            0.0,
+            close,
         )
         if X is None:
             assert y is None

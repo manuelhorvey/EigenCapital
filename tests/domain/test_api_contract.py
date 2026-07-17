@@ -84,9 +84,7 @@ def _check_fields(obj: dict, fields: dict, path: str = "root") -> list[str]:
             continue
         val = obj[name]
         if not isinstance(val, expected_types):
-            errors.append(
-                f"{path}.{name}: expected {expected_types}, got {type(val).__name__}"
-            )
+            errors.append(f"{path}.{name}: expected {expected_types}, got {type(val).__name__}")
     return errors
 
 

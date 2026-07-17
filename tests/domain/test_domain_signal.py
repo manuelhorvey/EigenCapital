@@ -66,14 +66,16 @@ class TestSignalResult:
         assert sr.direction == 0
 
     def test_from_dataframe_row(self):
-        row = pd.Series({
-            "label": 1,
-            "confidence": 0.9,
-            "prob_long": 0.9,
-            "prob_short": 0.05,
-            "prob_neutral": 0.05,
-            "position_size": 0.5,
-        })
+        row = pd.Series(
+            {
+                "label": 1,
+                "confidence": 0.9,
+                "prob_long": 0.9,
+                "prob_short": 0.05,
+                "prob_neutral": 0.05,
+                "position_size": 0.5,
+            }
+        )
         sr = SignalResult.from_dataframe_row(row)
         assert sr.signal_type == SignalType.BUY
         assert sr.confidence_pct == 0.9
@@ -126,6 +128,8 @@ class TestTradeDecision:
         assert td.archetype == "UNKNOWN"
 
     def test_to_dict_includes_feature_hash(self):
-        td = TradeDecision("EURUSD", SignalType.BUY, 1, 0.7, 0.7, 0.2, 0.1, 1.10, "2026-06-30", 0.5, feature_hash="abc123")  # noqa: E501
+        td = TradeDecision(
+            "EURUSD", SignalType.BUY, 1, 0.7, 0.7, 0.2, 0.1, 1.10, "2026-06-30", 0.5, feature_hash="abc123"
+        )  # noqa: E501
         d = td.to_dict()
         assert d["feature_hash"] == "abc123"

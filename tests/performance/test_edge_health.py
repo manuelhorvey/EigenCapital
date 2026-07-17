@@ -4,6 +4,7 @@ Tests for EdgeHealthMonitor — live structural edge health tracking.
 Covers reversal rate computation, alert transitions, window management,
 and the singleton accessor.
 """
+
 from __future__ import annotations
 
 from paper_trading.performance.edge_health import EdgeHealthMonitor, get_monitor, reset_monitor

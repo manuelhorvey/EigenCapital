@@ -126,12 +126,15 @@ class MockMT5Client:
 
     def symbol_info(self, ticker: str) -> dict | None:
         self._record("symbol_info", ticker)
-        return self._symbol_infos.get(ticker, {
-            "contract_size": 100000.0,
-            "volume_step": 0.01,
-            "min_volume": 0.01,
-            "max_volume": 100.0,
-        })
+        return self._symbol_infos.get(
+            ticker,
+            {
+                "contract_size": 100000.0,
+                "volume_step": 0.01,
+                "min_volume": 0.01,
+                "max_volume": 100.0,
+            },
+        )
 
     # ── Batch operations ─────────────────────────────────────────────────
 
@@ -147,12 +150,15 @@ class MockMT5Client:
         self._record("batch_symbol_info", tuple(tickers))
         results: dict[str, dict | None] = {}
         for t in tickers:
-            results[t] = self._symbol_infos.get(t, {
-                "contract_size": 100000.0,
-                "volume_step": 0.01,
-                "min_volume": 0.01,
-                "max_volume": 100.0,
-            })
+            results[t] = self._symbol_infos.get(
+                t,
+                {
+                    "contract_size": 100000.0,
+                    "volume_step": 0.01,
+                    "min_volume": 0.01,
+                    "max_volume": 100.0,
+                },
+            )
         return results
 
     # ── Trading ──────────────────────────────────────────────────────────

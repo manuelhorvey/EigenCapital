@@ -7,6 +7,7 @@ These are security invariants — they protect against:
     - credentials being sent in plaintext TCP frames
     - loopback bypass via wildcard addresses (0.0.0.0)
 """
+
 from __future__ import annotations
 
 import logging
@@ -59,16 +60,14 @@ class TestMT5ClientSecurityLogging:
     def test_remote_bridge_logs_warning(self, caplog):
         with caplog.at_level(logging.WARNING, logger="eigencapital.mt5_client"):
             MT5Client(account=12345, password="x", server="y", bridge_host="10.0.0.5")
-        assert any(
-            "non-loopback" in record.message for record in caplog.records
-        ), "Expected a non-loopback warning"
+        assert any("non-loopback" in record.message for record in caplog.records), "Expected a non-loopback warning"
 
     def test_loopback_bridge_silent(self, caplog):
         with caplog.at_level(logging.WARNING, logger="eigencapital.mt5_client"):
             MT5Client(account=12345, password="x", server="y", bridge_host="127.0.0.1")
-        assert all(
-            "non-loopback" not in record.message for record in caplog.records
-        ), "Loopback host should not produce warning"
+        assert all("non-loopback" not in record.message for record in caplog.records), (
+            "Loopback host should not produce warning"
+        )
 
     def test_remote_bridge_with_override_silent(self, caplog):
         with caplog.at_level(logging.WARNING, logger="eigencapital.mt5_client"):
@@ -79,9 +78,9 @@ class TestMT5ClientSecurityLogging:
                 bridge_host="10.0.0.5",
                 allow_remote_bridge=True,
             )
-        assert all(
-            "non-loopback" not in record.message for record in caplog.records
-        ), "Explicit override should silence the warning"
+        assert all("non-loopback" not in record.message for record in caplog.records), (
+            "Explicit override should silence the warning"
+        )
 
 
 class TestMT5BridgeConstants:
@@ -126,9 +125,7 @@ class TestMT5BridgeConstants:
         tree = ast.parse(src)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and node.name in ("ArgumentParser",):
-                pytest.fail(
-                    "Bridge must not accept CLI args (password would appear in ps aux)."
-                )
+                pytest.fail("Bridge must not accept CLI args (password would appear in ps aux).")
         assert "ArgumentParser" not in src
 
     def test_bridge_does_not_log_password(self):

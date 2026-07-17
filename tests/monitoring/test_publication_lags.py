@@ -26,11 +26,14 @@ def test_publication_lag_unknown():
 
 def test_apply_publication_lags_shifts_columns():
     """apply_publication_lags should shift columns by their configured lag."""
-    df = pd.DataFrame({
-        "us_2y": np.linspace(3.0, 3.5, 50),
-        "jp_10y": np.full(50, 1.0),
-        "vix": np.full(50, 15.0),
-    }, index=pd.RangeIndex(50))
+    df = pd.DataFrame(
+        {
+            "us_2y": np.linspace(3.0, 3.5, 50),
+            "jp_10y": np.full(50, 1.0),
+            "vix": np.full(50, 15.0),
+        },
+        index=pd.RangeIndex(50),
+    )
 
     shifted = apply_publication_lags(df)
 
@@ -42,10 +45,13 @@ def test_apply_publication_lags_shifts_columns():
 
 def test_apply_publication_lags_ffill():
     """After shift, NaNs after position 0 should be forward-filled."""
-    df = pd.DataFrame({
-        "fed_funds": [2.5, 2.5, 2.75, 2.75, 2.75],
-        "vix": [15.0, 16.0, 14.0, 13.0, 12.0],
-    }, index=pd.RangeIndex(5))
+    df = pd.DataFrame(
+        {
+            "fed_funds": [2.5, 2.5, 2.75, 2.75, 2.75],
+            "vix": [15.0, 16.0, 14.0, 13.0, 12.0],
+        },
+        index=pd.RangeIndex(5),
+    )
 
     shifted = apply_publication_lags(df)
 
@@ -57,11 +63,14 @@ def test_apply_publication_lags_ffill():
 
 def test_apply_lag_to_macro_derived():
     """Derived feature lags should be applied to matching column names."""
-    df = pd.DataFrame({
-        "us_jp_10y_spread": np.full(10, 2.0),
-        "vix_ma21": np.full(10, 15.0),
-        "rate_diff": np.full(10, 1.5),
-    }, index=pd.RangeIndex(10))
+    df = pd.DataFrame(
+        {
+            "us_jp_10y_spread": np.full(10, 2.0),
+            "vix_ma21": np.full(10, 15.0),
+            "rate_diff": np.full(10, 1.5),
+        },
+        index=pd.RangeIndex(10),
+    )
 
     shifted = apply_lag_to_macro_derived(df)
 
@@ -74,11 +83,14 @@ def test_apply_lag_to_macro_derived():
 
 def test_apply_lag_to_macro_derived_noop_for_price_features():
     """Price-only feature columns (momentum) should not be affected."""
-    df = pd.DataFrame({
-        "btc_mom_21": np.linspace(0.01, 0.05, 10),
-        "btc_mom_63": np.linspace(0.02, 0.08, 10),
-        "rate_diff": np.full(10, 1.5),
-    }, index=pd.RangeIndex(10))
+    df = pd.DataFrame(
+        {
+            "btc_mom_21": np.linspace(0.01, 0.05, 10),
+            "btc_mom_63": np.linspace(0.02, 0.08, 10),
+            "rate_diff": np.full(10, 1.5),
+        },
+        index=pd.RangeIndex(10),
+    )
 
     shifted = apply_lag_to_macro_derived(df)
 
@@ -88,11 +100,14 @@ def test_apply_lag_to_macro_derived_noop_for_price_features():
 
 def test_audit_lookahead_runs():
     """audit_lookahead should run without errors on a typical feature frame."""
-    df = pd.DataFrame({
-        "rate_diff": np.random.randn(50),
-        "us_jp_10y_spread": np.random.randn(50),
-        "vix_ma21": np.random.randn(50),
-    }, index=pd.RangeIndex(50))
+    df = pd.DataFrame(
+        {
+            "rate_diff": np.random.randn(50),
+            "us_jp_10y_spread": np.random.randn(50),
+            "vix_ma21": np.random.randn(50),
+        },
+        index=pd.RangeIndex(50),
+    )
     audit_lookahead(df, contract_name="TEST")
 
 
@@ -101,27 +116,38 @@ def test_end_to_end_no_lookahead():
     from features.builder import compute_macro_derived
 
     dates = pd.date_range("2020-01-01", periods=200, freq="D")
-    macro_raw = pd.DataFrame({
-        "fed_funds": np.full(200, 2.5),
-        "ecb_rate": np.full(200, 1.0),
-        "us_2y": np.full(200, 3.0),
-        "us_10y": np.full(200, 3.5),
-        "jp_10y": np.full(200, 0.5),
-        "ca_10y": np.full(200, 2.0),
-        "vix": np.full(200, 15.0),
-        "dxy": np.full(200, 96.0),
-        "real_yield_10y": np.full(200, 0.5),
-        "breakeven_10y": np.full(200, 2.0),
-    }, index=dates)
+    macro_raw = pd.DataFrame(
+        {
+            "fed_funds": np.full(200, 2.5),
+            "ecb_rate": np.full(200, 1.0),
+            "us_2y": np.full(200, 3.0),
+            "us_10y": np.full(200, 3.5),
+            "jp_10y": np.full(200, 0.5),
+            "ca_10y": np.full(200, 2.0),
+            "vix": np.full(200, 15.0),
+            "dxy": np.full(200, 96.0),
+            "real_yield_10y": np.full(200, 0.5),
+            "breakeven_10y": np.full(200, 2.0),
+        },
+        index=dates,
+    )
 
     derived = compute_macro_derived(macro_raw)
 
     # All derived features should exist
     expected_cols = [
-        "rate_diff", "2y_yield_delta_63", "dxy_mom_63", "dxy_mom_21",
-        "vix_ma21", "vix_delta_5", "us_jp_10y_spread", "ca_jp_10y_spread",
-        "ca_jp_spread_mom_21", "ca_jp_spread_mom_5",
-        "real_yield_delta_63", "breakeven_delta_63",
+        "rate_diff",
+        "2y_yield_delta_63",
+        "dxy_mom_63",
+        "dxy_mom_21",
+        "vix_ma21",
+        "vix_delta_5",
+        "us_jp_10y_spread",
+        "ca_jp_10y_spread",
+        "ca_jp_spread_mom_21",
+        "ca_jp_spread_mom_5",
+        "real_yield_delta_63",
+        "breakeven_delta_63",
     ]
     for col in expected_cols:
         assert col in derived.columns, f"Missing derived column: {col}"
@@ -139,10 +165,13 @@ def test_cot_loader_still_handles_lag():
     from data.loaders.cot_loader import align_cot_to_daily
 
     weekly_dates = pd.date_range("2020-01-03", periods=10, freq="W-FRI")
-    cot_df = pd.DataFrame({
-        "lev_net": np.random.randn(10),
-        "dealer_net": np.random.randn(10),
-    }, index=weekly_dates)
+    cot_df = pd.DataFrame(
+        {
+            "lev_net": np.random.randn(10),
+            "dealer_net": np.random.randn(10),
+        },
+        index=weekly_dates,
+    )
 
     daily_idx = pd.date_range("2020-01-01", periods=100, freq="D")
     aligned = align_cot_to_daily(cot_df, daily_idx, release_lag_days=3)
@@ -153,10 +182,13 @@ def test_cot_loader_still_handles_lag():
 
 def test_publication_lags_no_side_effects():
     """apply_publication_lags should not modify the input DataFrame."""
-    original = pd.DataFrame({
-        "us_2y": np.full(10, 3.0),
-        "vix": np.full(10, 15.0),
-    }, index=pd.RangeIndex(10))
+    original = pd.DataFrame(
+        {
+            "us_2y": np.full(10, 3.0),
+            "vix": np.full(10, 15.0),
+        },
+        index=pd.RangeIndex(10),
+    )
     copy = original.copy()
 
     shifted = apply_publication_lags(original)

@@ -108,8 +108,7 @@ class TestL3MutationDetection:
         # Global ffill fills the embargo NaNs — this is the L3 violation
         embargo_nans = filled.iloc[split : split + embargo].isna().sum()
         assert embargo_nans == 0, (
-            "L3 mutation propagated (ffill bridged embargo) — good, "
-            "but we need the embargo test to flag this."
+            "L3 mutation propagated (ffill bridged embargo) — good, but we need the embargo test to flag this."
         )
         # Confirm the original gap had NaNs
         original_nans = series_with_gap.iloc[split : split + embargo].isna().sum()
@@ -126,19 +125,18 @@ class TestL4MutationDetection:
 
     def test_tz_stripping_produces_naive_index(self):
         from datetime import datetime, timezone, timedelta
+
         base = datetime(2020, 1, 1, tzinfo=timezone.utc)
         tz_aware = pd.date_range("2020-01-01", periods=10, freq="D", tz="UTC")
         stripped = L4_tz_stripping(tz_aware)
+        assert stripped.tz is None, "L4 mutation: timezone was not stripped — .date conversion may have changed"
         assert stripped.tz is None, (
-            "L4 mutation: timezone was not stripped — .date conversion may have changed"
-        )
-        assert stripped.tz is None, (
-            "L4 mutation not detectable via tz check — "
-            "Timestamp provenance detection is incomplete."
+            "L4 mutation not detectable via tz check — Timestamp provenance detection is incomplete."
         )
 
     def test_tz_aware_check_rejects_stripped(self):
         from datetime import datetime, timezone, timedelta
+
         base = datetime(2020, 1, 1, tzinfo=timezone.utc)
         tz_aware = pd.date_range("2020-01-01", periods=10, freq="D", tz="UTC")
         stripped = L4_tz_stripping(tz_aware)
@@ -204,8 +202,7 @@ class TestL6MutationDetection:
         drift = L6_schema_drift_features(prices, rd, dxy=dxy, vix=vix, spx=spx, commodities=comm)
         # Schema drift produces different columns per call
         assert set(base.columns) != set(drift.columns), (
-            "L6 mutation not detected: column sets identical across calls "
-            "despite drift injection."
+            "L6 mutation not detected: column sets identical across calls despite drift injection."
         )
 
 
@@ -263,9 +260,7 @@ class TestL8MutationDetection:
         for _ in range(3):
             results.append(L8_nondeterministic_feature(close, seed=42).values)
         # At least one pair should differ
-        all_identical = all(
-            np.allclose(results[0], r, rtol=1e-10, atol=1e-10) for r in results[1:]
-        )
+        all_identical = all(np.allclose(results[0], r, rtol=1e-10, atol=1e-10) for r in results[1:])
         assert not all_identical, (
             "L8 mutation not detected: all 3 runs produced identical output "
             "despite global RNG. Replay determinism detection is incomplete."
@@ -313,6 +308,4 @@ class TestCleanFunctionsPass:
         for t in range(100, 250, 25):
             truncated = vol_adjusted_carry(close.iloc[:t], rate.iloc[:t])
             delta = abs(full.iloc[t - 1] - truncated.iloc[-1])
-            assert delta < 1e-3, (
-                f"Clean vol_adjusted_carry exceeded truncation threshold at t={t}: delta={delta:.2e}"
-            )
+            assert delta < 1e-3, f"Clean vol_adjusted_carry exceeded truncation threshold at t={t}: delta={delta:.2e}"

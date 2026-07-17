@@ -196,16 +196,20 @@ def test_penalty_moderate_and_severe_additive():
     with tempfile.TemporaryDirectory() as tmp:
         monitor = PSIMonitor(tmp)
         rng = np.random.default_rng(42)
-        X_train = pd.DataFrame({
-            "a": rng.normal(0, 1, 500),
-            "b": rng.normal(0, 1, 500),
-        })
+        X_train = pd.DataFrame(
+            {
+                "a": rng.normal(0, 1, 500),
+                "b": rng.normal(0, 1, 500),
+            }
+        )
         monitor.persist_baseline("test_asset", X_train)
 
-        X_current = pd.DataFrame({
-            "a": rng.normal(1.5, 1, 100),
-            "b": rng.normal(5, 1, 100),
-        })
+        X_current = pd.DataFrame(
+            {
+                "a": rng.normal(1.5, 1, 100),
+                "b": rng.normal(5, 1, 100),
+            }
+        )
         snapshot = monitor.compute_drift("test_asset", X_current, [("a", 0.5), ("b", 0.5)])
 
         assert snapshot is not None
@@ -219,19 +223,23 @@ def test_psi_ok_requires_5_severe():
     with tempfile.TemporaryDirectory() as tmp:
         monitor = PSIMonitor(tmp)
         rng = np.random.default_rng(42)
-        X_train = pd.DataFrame({
-            "a": rng.normal(0, 1, 500),
-            "b": rng.normal(0, 1, 500),
-            "c": rng.normal(0, 1, 500),
-        })
+        X_train = pd.DataFrame(
+            {
+                "a": rng.normal(0, 1, 500),
+                "b": rng.normal(0, 1, 500),
+                "c": rng.normal(0, 1, 500),
+            }
+        )
         monitor.persist_baseline("test_asset", X_train)
 
         # 2 severe features — should still be psi_ok
-        X_two = pd.DataFrame({
-            "a": rng.normal(5, 1, 100),
-            "b": rng.normal(5, 1, 100),
-            "c": rng.normal(0, 1, 100),
-        })
+        X_two = pd.DataFrame(
+            {
+                "a": rng.normal(5, 1, 100),
+                "b": rng.normal(5, 1, 100),
+                "c": rng.normal(0, 1, 100),
+            }
+        )
         snap = monitor.compute_drift("test_asset", X_two, [("a", 0.4), ("b", 0.3), ("c", 0.3)])
         if snap and snap.severe_count >= 5:
             assert snap.psi_ok is False
@@ -243,22 +251,26 @@ def test_psi_ok_halted_at_5_severe():
     with tempfile.TemporaryDirectory() as tmp:
         monitor = PSIMonitor(tmp)
         rng = np.random.default_rng(42)
-        X_train = pd.DataFrame({
-            "a": rng.normal(0, 1, 500),
-            "b": rng.normal(0, 1, 500),
-            "c": rng.normal(0, 1, 500),
-            "d": rng.normal(0, 1, 500),
-            "e": rng.normal(0, 1, 500),
-        })
+        X_train = pd.DataFrame(
+            {
+                "a": rng.normal(0, 1, 500),
+                "b": rng.normal(0, 1, 500),
+                "c": rng.normal(0, 1, 500),
+                "d": rng.normal(0, 1, 500),
+                "e": rng.normal(0, 1, 500),
+            }
+        )
         monitor.persist_baseline("test_asset", X_train)
 
-        X_five = pd.DataFrame({
-            "a": rng.normal(5, 1, 100),
-            "b": rng.normal(5, 1, 100),
-            "c": rng.normal(5, 1, 100),
-            "d": rng.normal(5, 1, 100),
-            "e": rng.normal(5, 1, 100),
-        })
+        X_five = pd.DataFrame(
+            {
+                "a": rng.normal(5, 1, 100),
+                "b": rng.normal(5, 1, 100),
+                "c": rng.normal(5, 1, 100),
+                "d": rng.normal(5, 1, 100),
+                "e": rng.normal(5, 1, 100),
+            }
+        )
         snap = monitor.compute_drift("test_asset", X_five, [("a", 0.2), ("b", 0.2), ("c", 0.2), ("d", 0.2), ("e", 0.2)])
         if snap:
             assert snap.severe_count >= 5, f"Expected >=5 severe, got {snap.severe_count}"

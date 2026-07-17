@@ -1,4 +1,5 @@
 """Tests for eigencapital.domain.time helpers."""
+
 import datetime as _dt
 
 from eigencapital.domain.time import utc_now, utc_now_iso, utc_now_naive

@@ -1,4 +1,5 @@
 """Tests for engine rebalance service."""
+
 from unittest.mock import MagicMock
 
 import pytest

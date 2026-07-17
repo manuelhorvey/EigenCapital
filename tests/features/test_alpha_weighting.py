@@ -69,8 +69,7 @@ def test_asset_signals_not_constant(alpha_df):
 
 
 def test_asset_signals_weight_override(alpha_df):
-    weights = {"carry_vol_adj": 1.0, "mom_21d": 0.0, "zscore_20": 0.0,
-               "vol_ratio": 0.0, "dow_signal": 0.0}
+    weights = {"carry_vol_adj": 1.0, "mom_21d": 0.0, "zscore_20": 0.0, "vol_ratio": 0.0, "dow_signal": 0.0}
     result = compute_asset_signals(alpha_df, asset_weights=weights)
     expected = normalize_to_unit(alpha_df["AUDJPY_carry_vol_adj"])
     pd.testing.assert_series_equal(result["AUDJPY"], expected, check_names=False)
@@ -122,9 +121,7 @@ def test_generate_signals_in_range(alpha_df):
 
 def test_generate_signals_overlay_strength_zero(alpha_df):
     result = generate_weighted_signals(alpha_df, overlay_strength=0.0)
-    pd.testing.assert_series_equal(
-        result["AUDJPY_raw"], result["AUDJPY_signal"], check_names=False
-    )
+    pd.testing.assert_series_equal(result["AUDJPY_raw"], result["AUDJPY_signal"], check_names=False)
 
 
 def test_generate_signals_overlay_strength_nonzero_effect(alpha_df):

@@ -44,25 +44,29 @@ class TestComputeEisFromDf:
         assert compute_eis_from_df(df) == {}
 
     def test_with_data(self):
-        df = pd.DataFrame({
-            "asset": ["EURUSD", "EURUSD", "EURUSD"],
-            "friction_entry_slippage_bps": [1.0, 2.0, 3.0],
-            "friction_fill_qty_ratio": [1.0, 0.9, 1.0],
-            "friction_gap_fill": [False, False, False],
-            "friction_partial_fill": [False, False, False],
-            "friction_latency_bars": [0, 1, 0],
-        })
+        df = pd.DataFrame(
+            {
+                "asset": ["EURUSD", "EURUSD", "EURUSD"],
+                "friction_entry_slippage_bps": [1.0, 2.0, 3.0],
+                "friction_fill_qty_ratio": [1.0, 0.9, 1.0],
+                "friction_gap_fill": [False, False, False],
+                "friction_partial_fill": [False, False, False],
+                "friction_latency_bars": [0, 1, 0],
+            }
+        )
         result = compute_eis_from_df(df, min_trades=3)
         assert "EURUSD" in result
         assert 0 < result["EURUSD"] <= 1
 
     def test_too_few_trades(self):
-        df = pd.DataFrame({
-            "asset": ["EURUSD"],
-            "friction_entry_slippage_bps": [1.0],
-            "friction_fill_qty_ratio": [1.0],
-            "friction_gap_fill": [False],
-            "friction_partial_fill": [False],
-            "friction_latency_bars": [0],
-        })
+        df = pd.DataFrame(
+            {
+                "asset": ["EURUSD"],
+                "friction_entry_slippage_bps": [1.0],
+                "friction_fill_qty_ratio": [1.0],
+                "friction_gap_fill": [False],
+                "friction_partial_fill": [False],
+                "friction_latency_bars": [0],
+            }
+        )
         assert compute_eis_from_df(df, min_trades=3) == {}

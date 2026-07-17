@@ -78,9 +78,7 @@ class TestRestoreExistingAsset:
         saved = {"EURUSD": saved_position}
         service._restore_saved_position = MagicMock()
         service.restore_positions(saved)
-        service._restore_saved_position.assert_called_once_with(
-            service.engine.assets["EURUSD"], saved_position
-        )
+        service._restore_saved_position.assert_called_once_with(service.engine.assets["EURUSD"], saved_position)
 
     def test_restore_multiple_mixed(self, service, saved_position):
         """Existing assets restored, orphans only warned (no crash on mixed dict)."""
@@ -92,9 +90,7 @@ class TestRestoreExistingAsset:
         }
         service._restore_saved_position = MagicMock()
         service.restore_positions(saved)
-        service._restore_saved_position.assert_called_once_with(
-            existing["EURUSD"], saved_position
-        )
+        service._restore_saved_position.assert_called_once_with(existing["EURUSD"], saved_position)
 
 
 class TestOrphanDelistedWithMt5Ticket:

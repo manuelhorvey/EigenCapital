@@ -6,6 +6,7 @@ from shared.signal import FixedThresholdStrategy, SignalResult
 
 # ── FixedThresholdStrategy ───────────────────────────────────────────────────
 
+
 @pytest.fixture
 def strategy():
     return FixedThresholdStrategy()
@@ -65,7 +66,12 @@ def test_compute_dataframe_shape(strategy):
     result = strategy.compute(proba, index, 0.5, close, 0.5)
     assert len(result.signal_data) == 3
     assert list(result.signal_data.columns) == [
-        "close", "signal", "prob_long", "prob_short", "prob_neutral", "position_size"
+        "close",
+        "signal",
+        "prob_long",
+        "prob_short",
+        "prob_neutral",
+        "position_size",
     ]
 
 

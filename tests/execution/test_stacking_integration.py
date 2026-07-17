@@ -279,11 +279,7 @@ class TestStackingGateIntegration:
         cfg["dry_run"] = dry_run
         engine = MockEngine(
             current_price=105.0,
-            pos_mgr=MockPosMgr(
-                position=MockPosition(
-                    base_entry_size=1.0, layers=[], entry_price=100.0
-                )
-            ),
+            pos_mgr=MockPosMgr(position=MockPosition(base_entry_size=1.0, layers=[], entry_price=100.0)),
         )
         engine._open_position = MagicMock()
         decision = MockDecision(confidence=0.85, close_price=105.0)

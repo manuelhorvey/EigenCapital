@@ -16,20 +16,24 @@ from features.liquidity_regime import (
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def ohlcv_df():
     np.random.seed(42)
     n = 60
     close = 100 + np.cumsum(np.random.randn(n) * 0.5)
-    return pd.DataFrame({
-        "close": close,
-        "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
-        "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
-        "volume": np.random.randint(1000, 100000, n).astype(float),
-    })
+    return pd.DataFrame(
+        {
+            "close": close,
+            "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
+            "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
+            "volume": np.random.randint(1000, 100000, n).astype(float),
+        }
+    )
 
 
 # ── compute_liquidity_features ───────────────────────────────────────────────
+
 
 def test_compute_liquidity_returns_dict(ohlcv_df):
     result = compute_liquidity_features(ohlcv_df)
@@ -40,12 +44,14 @@ def test_compute_liquidity_returns_dict(ohlcv_df):
 
 
 def test_compute_liquidity_insufficient_data():
-    df = pd.DataFrame({
-        "close": [100, 101],
-        "high": [101, 102],
-        "low": [99, 100],
-        "volume": [1000, 2000],
-    })
+    df = pd.DataFrame(
+        {
+            "close": [100, 101],
+            "high": [101, 102],
+            "low": [99, 100],
+            "volume": [1000, 2000],
+        }
+    )
     result = compute_liquidity_features(df)
     assert result["volume_z"] == 0.0
     assert result["amihud_z"] == 0.0
@@ -53,12 +59,14 @@ def test_compute_liquidity_insufficient_data():
 
 
 def test_compute_liquidity_single_row():
-    df = pd.DataFrame({
-        "close": [100],
-        "high": [101],
-        "low": [99],
-        "volume": [1000],
-    })
+    df = pd.DataFrame(
+        {
+            "close": [100],
+            "high": [101],
+            "low": [99],
+            "volume": [1000],
+        }
+    )
     result = compute_liquidity_features(df)
     assert result["volume_z"] == 0.0
 
@@ -67,23 +75,27 @@ def test_compute_liquidity_zero_volume():
     np.random.seed(42)
     n = 60
     close = 100 + np.cumsum(np.random.randn(n) * 0.5)
-    df = pd.DataFrame({
-        "close": close,
-        "high": close * 1.01,
-        "low": close * 0.99,
-        "volume": [0.0] * n,
-    })
+    df = pd.DataFrame(
+        {
+            "close": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "volume": [0.0] * n,
+        }
+    )
     result = compute_liquidity_features(df)
     assert isinstance(result["volume_z"], float)
 
 
 def test_compute_liquidity_constant_series():
-    df = pd.DataFrame({
-        "close": [100] * 60,
-        "high": [101] * 60,
-        "low": [99] * 60,
-        "volume": [10000] * 60,
-    })
+    df = pd.DataFrame(
+        {
+            "close": [100] * 60,
+            "high": [101] * 60,
+            "low": [99] * 60,
+            "volume": [10000] * 60,
+        }
+    )
     result = compute_liquidity_features(df)
     assert isinstance(result["volume_z"], float)
     assert isinstance(result["amihud_z"], float)
@@ -93,12 +105,14 @@ def test_compute_liquidity_no_future_leakage():
     np.random.seed(99)
     n = 60
     close = 100 + np.cumsum(np.random.randn(n) * 0.5)
-    df = pd.DataFrame({
-        "close": close,
-        "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
-        "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
-        "volume": np.random.randint(1000, 100000, n).astype(float),
-    })
+    df = pd.DataFrame(
+        {
+            "close": close,
+            "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
+            "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
+            "volume": np.random.randint(1000, 100000, n).astype(float),
+        }
+    )
     half = df.iloc[:30].copy()
     full = df.iloc[:50].copy()
     result_half = compute_liquidity_features(half)
@@ -108,6 +122,7 @@ def test_compute_liquidity_no_future_leakage():
 
 
 # ── classify_liquidity_regime ────────────────────────────────────────────────
+
 
 def test_classify_normal():
     features = {"volume_z": 0.0, "amihud_z": 0.0}
@@ -156,6 +171,7 @@ def test_classify_boundary_vol_stressed():
 
 # ── liquidity_governance_scalars ─────────────────────────────────────────────
 
+
 def test_scalars_normal():
     result = liquidity_governance_scalars("NORMAL")
     assert result["sl_mult"] == 1.0
@@ -178,9 +194,7 @@ def test_scalars_stressed():
 
 
 def test_scalars_custom_percentages():
-    result = liquidity_governance_scalars(
-        "THIN", thin_sl_widen_pct=20.0, thin_size_reduce_pct=10.0
-    )
+    result = liquidity_governance_scalars("THIN", thin_sl_widen_pct=20.0, thin_size_reduce_pct=10.0)
     assert result["sl_mult"] == 1.20
     assert result["size_scalar"] == 0.90
 
@@ -193,6 +207,7 @@ def test_scalars_unknown_regime_falls_to_normal():
 
 
 # ── load_liquidity_json ──────────────────────────────────────────────────────
+
 
 def test_load_liquidity_json_success(tmp_path):
     data = {
@@ -241,6 +256,7 @@ def test_load_liquidity_json_missing_fields(tmp_path):
 
 # ── save_liquidity_json ──────────────────────────────────────────────────────
 
+
 def test_save_liquidity_json_roundtrip(tmp_path):
     snapshot = LiquidityRegimeSnapshot(
         timestamp="2026-05-25T00:00:00",
@@ -260,6 +276,7 @@ def test_save_liquidity_json_roundtrip(tmp_path):
 
 
 # ── neutral_liquidity ────────────────────────────────────────────────────────
+
 
 def test_neutral_liquidity_defaults():
     result = neutral_liquidity()

@@ -46,4 +46,5 @@ class TestCallPattern:
 class TestEndToEnd:
     def test_main_passes_on_clean_repo(self):
         from tools.check_snapshot_discipline import main
+
         assert main() == 0

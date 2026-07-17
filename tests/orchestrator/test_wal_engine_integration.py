@@ -100,7 +100,14 @@ class TestAssetActorWALEmission:
         writer = WalWriter(wal_dir, source="test", batch_size=1, archive_daily=False)
         engine = _make_mock_engine("EURUSD")
         engine.trade_log = [
-            {"reason": "sl_hit", "pnl": -150.0, "exit_price": 98.5, "entry_price": 100.0, "side": "long", "exit_date": "2026-05-29"}
+            {
+                "reason": "sl_hit",
+                "pnl": -150.0,
+                "exit_price": 98.5,
+                "entry_price": 100.0,
+                "side": "long",
+                "exit_date": "2026-05-29",
+            }
         ]
         actor = AssetActor("EURUSD", engine, wal_writer=writer)
         actor._last_trade_count = 0
@@ -357,33 +364,46 @@ class TestCausalChainHashIntegrity:
         features = {"f0": 0.5, "f1": -0.1, "f2": 0.3, "f3": 0.0}
         feature_hash = hashlib.md5(json.dumps(features, sort_keys=True).encode()).hexdigest()[:12]
 
-        writer.write("features_snapshot", {
-            "asset": "TESTASSET", "features": features,
-            "feature_hash": feature_hash, "feature_schema": sorted(features.keys()),
-            "model_hash": model_hash,
-        })
+        writer.write(
+            "features_snapshot",
+            {
+                "asset": "TESTASSET",
+                "features": features,
+                "feature_hash": feature_hash,
+                "feature_schema": sorted(features.keys()),
+                "model_hash": model_hash,
+            },
+        )
 
         loaded = xgb.XGBClassifier()
         loaded.load_model(str(model_path))
         iface = XGBoostModel()
         raw = iface.predict(loaded, pd.DataFrame([features]))
         proba = (
-            np.column_stack([1.0 - raw[:, 1], np.zeros(raw.shape[0]), raw[:, 1]])
-            if raw.shape[1] == 2 else raw[:, :3]
+            np.column_stack([1.0 - raw[:, 1], np.zeros(raw.shape[0]), raw[:, 1]]) if raw.shape[1] == 2 else raw[:, :3]
         )
 
-        writer.write("inference_output", {
-            "asset": "TESTASSET",
-            "prob_long": round(float(proba[-1, 2]), 6),
-            "prob_short": round(float(proba[-1, 0]), 6),
-            "prob_neutral": round(float(proba[-1, 1]), 6),
-            "model_hash": model_hash, "feature_hash": feature_hash,
-        })
-        writer.write("decision_output", {
-            "asset": "TESTASSET", "final_signal": "LONG",
-            "gates_aborted": False,
-            "feature_hash": feature_hash, "model_hash": model_hash,
-        })
+        writer.write(
+            "inference_output",
+            {
+                "asset": "TESTASSET",
+                "prob_long": round(float(proba[-1, 2]), 6),
+                "prob_short": round(float(proba[-1, 0]), 6),
+                "prob_neutral": round(float(proba[-1, 1]), 6),
+                "model_hash": model_hash,
+                "feature_hash": feature_hash,
+            },
+        )
+        writer.write(
+            "decision_output",
+            {
+                "asset": "TESTASSET",
+                "final_signal": "LONG",
+                "gates_aborted": False,
+                "feature_hash": feature_hash,
+                "model_hash": model_hash,
+            },
+        )
 
         reader = WalReader(str(wal_dir), source="test_chain")
         runner = ReplayRunner(reader)
@@ -405,7 +425,8 @@ class TestCausalChainHashIntegrity:
         re_raw = iface.predict(reloaded, pd.DataFrame([features]))
         re_proba = (
             np.column_stack([1.0 - re_raw[:, 1], np.zeros(re_raw.shape[0]), re_raw[:, 1]])
-            if re_raw.shape[1] == 2 else re_raw[:, :3]
+            if re_raw.shape[1] == 2
+            else re_raw[:, :3]
         )
         recorded = ast["last_inference"]
         assert re_proba[0, 2] == pytest.approx(recorded["prob_long"], abs=1e-6)

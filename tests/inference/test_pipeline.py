@@ -192,11 +192,13 @@ class TestCheckPsiDrift:
         asset = pipeline.asset
         asset._psi_drift_initialized = True
         feature_names = [f"feat{i}" for i in range(10)]
-        snapshot_df = pd.DataFrame({
-            "feature": feature_names,
-            "importance_score": [0.2 - i * 0.01 for i in range(10)],
-            "rank": range(1, 11),
-        })
+        snapshot_df = pd.DataFrame(
+            {
+                "feature": feature_names,
+                "importance_score": [0.2 - i * 0.01 for i in range(10)],
+                "rank": range(1, 11),
+            }
+        )
         asset._importance_store.get_latest_two_snapshots.return_value = (snapshot_df, None)
         expected_snapshot = MagicMock()
         asset._psi_monitor.compute_drift.return_value = expected_snapshot
@@ -204,7 +206,8 @@ class TestCheckPsiDrift:
         x = pd.DataFrame({f: np.random.randn(n) for f in ["feat0", "feat1"]})
         pipeline._check_psi_drift(asset, x)
         asset._psi_monitor.compute_drift.assert_called_once_with(
-            asset.name, x,
+            asset.name,
+            x,
             [(f"feat{i}", 0.2 - i * 0.01) for i in range(10)],
         )
         assert asset._last_psi_drift is expected_snapshot
@@ -413,9 +416,7 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0
         df = pd.DataFrame({"close": [1.1050]})
-        decision = build_decision(
-            asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
-        )
+        decision = build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123")
         assert decision.asset == "EURUSD"
         assert decision.signal == "BUY"
         assert decision.confidence == 75.0
@@ -442,9 +443,7 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0
         df = pd.DataFrame({"close": [1.1050]})
-        decision = build_decision(
-            asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
-        )
+        decision = build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123")
         assert decision.meta_label_confidence == pytest.approx(68.32, abs=0.01)
         # The legacy ``confidence`` field is unchanged (fallback when calibration not applied)
         assert decision.confidence == 75.0
@@ -469,9 +468,7 @@ class TestBuildDecision:
         result.label = 1
         result.confidence_pct = 75.0  # Old max(prob_long, prob_short) — would be wrong
         df = pd.DataFrame({"close": [1.1050]})
-        decision = build_decision(
-            asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123"
-        )
+        decision = build_decision(asset, result, pos_size=0.02, archetype="TREND", df=df, feature_hash="abc123")
         assert decision.confidence == pytest.approx(65.3, abs=0.01)  # 0.653 * 100 = 65.3
 
 

@@ -196,9 +196,7 @@ class TestGetLatest:
 
 class TestExplanations:
     def test_no_drift_explanation(self):
-        explanations = risk_module._generate_explanations(
-            {"model_drift": 0.05, "signal_drift": 0.03}, [], sl_rate=None
-        )
+        explanations = risk_module._generate_explanations({"model_drift": 0.05, "signal_drift": 0.03}, [], sl_rate=None)
         assert "No significant drift detected" in explanations[0]
 
     def test_model_drift_explanation(self):
@@ -207,7 +205,5 @@ class TestExplanations:
         assert "0.50" in explanations[0]
 
     def test_sl_hit_explanations(self):
-        explanations = risk_module._generate_explanations(
-            {"pnl_drift": 0.1}, ["EXCESSIVE_SL_HITS"], sl_rate=0.60
-        )
+        explanations = risk_module._generate_explanations({"pnl_drift": 0.1}, ["EXCESSIVE_SL_HITS"], sl_rate=0.60)
         assert "60.0%" in explanations[0]

@@ -143,6 +143,7 @@ class TestMetaModel:
         mm.train(X, y)
         assert mm.is_trained
 
+
 class TestBuildFeaturesFromTrade:
     @pytest.fixture
     def trade(self):
@@ -173,7 +174,9 @@ class TestBuildFeaturesFromTrade:
 
     def test_basic_feature_building(self, trade, prob_history, close):
         features = build_meta_features_from_trade(
-            trade, prob_history, [],
+            trade,
+            prob_history,
+            [],
             feature_stability_penalty=-0.10,
             close=close,
         )
@@ -185,8 +188,11 @@ class TestBuildFeaturesFromTrade:
     def test_no_matching_signal_returns_none(self, close):
         trade = {"entry_date": "2025-01-01", "pnl": 10.0}
         features = build_meta_features_from_trade(
-            trade, [], [],
-            feature_stability_penalty=0.0, close=close,
+            trade,
+            [],
+            [],
+            feature_stability_penalty=0.0,
+            close=close,
         )
         assert features is None
 
@@ -196,8 +202,11 @@ class TestBuildFeaturesFromTrade:
             {"date": "2026-06-16", "confidence": 80, "signal": "BUY"},
         ]
         features = build_meta_features_from_trade(
-            trade, prob_history, [],
-            feature_stability_penalty=0.0, close=close,
+            trade,
+            prob_history,
+            [],
+            feature_stability_penalty=0.0,
+            close=close,
         )
         # 2026-06-15 should match 2026-06-14 (closest <= entry_date)
         assert features["primary_confidence"] == pytest.approx(0.30)
@@ -208,8 +217,11 @@ class TestBuildFeaturesFromTrade:
             {"timestamp": "2026-06-10", "state": "YELLOW", "periods_in_state": 5},
         ]
         features = build_meta_features_from_trade(
-            trade, prob_history, validity,
-            feature_stability_penalty=0.0, close=close,
+            trade,
+            prob_history,
+            validity,
+            feature_stability_penalty=0.0,
+            close=close,
         )
         assert features["regime_state_encoded"] == encode_regime("YELLOW")
 
@@ -217,19 +229,16 @@ class TestBuildFeaturesFromTrade:
 class TestBuildTrainingData:
     def test_basic(self):
         n = 60
-        trade_log = [
-            {"entry_date": f"2026-06-{i+1:02d}", "pnl": 10.0 if i % 2 == 0 else -5.0}
-            for i in range(n)
-        ]
-        prob_history = [
-            {"date": f"2026-06-{i+1:02d}", "confidence": 60 + i % 20}
-            for i in range(n)
-        ]
+        trade_log = [{"entry_date": f"2026-06-{i + 1:02d}", "pnl": 10.0 if i % 2 == 0 else -5.0} for i in range(n)]
+        prob_history = [{"date": f"2026-06-{i + 1:02d}", "confidence": 60 + i % 20} for i in range(n)]
         np.random.seed(42)
         close = pd.Series(100 + np.cumsum(np.random.randn(300) * 0.5))
         X, y = build_meta_training_data(
-            trade_log, prob_history, [],
-            feature_stability_penalty=0.0, close=close,
+            trade_log,
+            prob_history,
+            [],
+            feature_stability_penalty=0.0,
+            close=close,
         )
         assert X is not None
         assert y is not None
@@ -242,26 +251,26 @@ class TestBuildTrainingData:
         prob_history = [{"date": "2026-06-01", "confidence": 60}]
         close = pd.Series([100.0] * 300)
         X, y = build_meta_training_data(
-            trade_log, prob_history, [],
-            feature_stability_penalty=0.0, close=close,
+            trade_log,
+            prob_history,
+            [],
+            feature_stability_penalty=0.0,
+            close=close,
         )
         assert X is None
         assert y is None
 
     def test_skips_trades_without_pnl(self):
         n = 120
-        trade_log = [
-            {"entry_date": f"2026-06-{i+1:02d}", "pnl": 10.0 if i % 2 == 0 else None}
-            for i in range(n)
-        ]
-        prob_history = [
-            {"date": f"2026-06-{i+1:02d}", "confidence": 60}
-            for i in range(n)
-        ]
+        trade_log = [{"entry_date": f"2026-06-{i + 1:02d}", "pnl": 10.0 if i % 2 == 0 else None} for i in range(n)]
+        prob_history = [{"date": f"2026-06-{i + 1:02d}", "confidence": 60} for i in range(n)]
         close = pd.Series([100.0] * 300)
         X, y = build_meta_training_data(
-            trade_log, prob_history, [],
-            feature_stability_penalty=0.0, close=close,
+            trade_log,
+            prob_history,
+            [],
+            feature_stability_penalty=0.0,
+            close=close,
         )
         assert X is not None
         assert len(X) == n // 2  # only the ones with pnl set
@@ -287,8 +296,11 @@ class TestBuildInferenceFeatures:
     def test_red_regime(self):
         close = pd.Series([100.0] * 300)
         features = build_inference_features(
-            primary_confidence=0.5, regime_state="RED",
-            periods_in_state=3, feature_stability_penalty=0.0, close=close,
+            primary_confidence=0.5,
+            regime_state="RED",
+            periods_in_state=3,
+            feature_stability_penalty=0.0,
+            close=close,
         )
         assert features["regime_state_encoded"] == 0
         assert features["days_since_regime_change"] == 3.0

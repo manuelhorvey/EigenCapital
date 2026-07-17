@@ -81,6 +81,7 @@ class TestAssetTrainingPipeline:
     def test_insufficient_binary_samples_skips(self, mock_asset):
         mock_asset._alpha_feature_cols = ["cm_5", "cm_21"]
         import datetime as _dt
+
         base = _dt.datetime(2026, 1, 1)
         idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(50)])
         prices = pd.DataFrame({"close": np.linspace(1.0, 1.05, 50)}, index=idx)
@@ -89,17 +90,35 @@ class TestAssetTrainingPipeline:
         ohlcv["high"] = prices["close"] * 1.01
         ohlcv["low"] = prices["close"] * 0.99
         ohlcv["volume"] = 1000
-        features = pd.DataFrame({
-            "cm_5": np.random.randn(50),
-            "cm_21": np.random.randn(50),
-            "label": np.random.choice([-1, 0, 1], size=50),
-        }, index=idx)
+        features = pd.DataFrame(
+            {
+                "cm_5": np.random.randn(50),
+                "cm_21": np.random.randn(50),
+                "label": np.random.choice([-1, 0, 1], size=50),
+            },
+            index=idx,
+        )
 
-        with patch("paper_trading.inference.training.fetch_asset_data", return_value=(prices, pd.DataFrame(), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.DataFrame())):
+        with patch(
+            "paper_trading.inference.training.fetch_asset_data",
+            return_value=(
+                prices,
+                pd.DataFrame(),
+                pd.Series(dtype=float, index=idx),
+                pd.Series(dtype=float, index=idx),
+                pd.Series(dtype=float, index=idx),
+                pd.DataFrame(),
+            ),
+        ):
             with patch("paper_trading.inference.training.fetch_asset_ohlcv", return_value=ohlcv):
                 with patch("paper_trading.inference.training.build_alpha_features", return_value=features):
-                    with patch("paper_trading.inference.training.apply_triple_barrier", return_value=pd.DataFrame({"label": [0] * 50}, index=idx)):
-                        with patch("paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()):
+                    with patch(
+                        "paper_trading.inference.training.apply_triple_barrier",
+                        return_value=pd.DataFrame({"label": [0] * 50}, index=idx),
+                    ):
+                        with patch(
+                            "paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()
+                        ):
                             with patch("os.path.exists", return_value=False):
                                 pipeline = AssetTrainingPipeline(mock_asset)
                                 pipeline.train()
@@ -108,6 +127,7 @@ class TestAssetTrainingPipeline:
     def test_sufficient_data_trains_model(self, mock_asset):
         np.random.seed(42)
         import datetime as _dt
+
         base = _dt.datetime(2026, 1, 1)
         idx = pd.DatetimeIndex([base + _dt.timedelta(days=i) for i in range(400)])
         close = np.cumsum(np.random.randn(400) * 0.005) + 1.0
@@ -117,19 +137,39 @@ class TestAssetTrainingPipeline:
         ohlcv["high"] = prices["close"] * 1.01
         ohlcv["low"] = prices["close"] * 0.99
         ohlcv["volume"] = 1000
-        features = pd.DataFrame({
-            "f1": np.random.randn(400),
-            "f2": np.random.randn(400),
-        }, index=idx)
+        features = pd.DataFrame(
+            {
+                "f1": np.random.randn(400),
+                "f2": np.random.randn(400),
+            },
+            index=idx,
+        )
         features["label"] = np.random.choice([-1, 1], size=400)
 
-        with patch("paper_trading.inference.training.fetch_asset_data", return_value=(prices, pd.DataFrame(), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.Series(dtype=float, index=idx), pd.DataFrame())):
+        with patch(
+            "paper_trading.inference.training.fetch_asset_data",
+            return_value=(
+                prices,
+                pd.DataFrame(),
+                pd.Series(dtype=float, index=idx),
+                pd.Series(dtype=float, index=idx),
+                pd.Series(dtype=float, index=idx),
+                pd.DataFrame(),
+            ),
+        ):
             with patch("paper_trading.inference.training.fetch_asset_ohlcv", return_value=ohlcv):
                 with patch("paper_trading.inference.training.build_alpha_features", return_value=features):
-                    with patch("paper_trading.inference.training.apply_triple_barrier", return_value=pd.DataFrame({"label": [1 if i < 200 else -1 for i in range(400)]}, index=idx)):
-                        with patch("paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()):
+                    with patch(
+                        "paper_trading.inference.training.apply_triple_barrier",
+                        return_value=pd.DataFrame({"label": [1 if i < 200 else -1 for i in range(400)]}, index=idx),
+                    ):
+                        with patch(
+                            "paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()
+                        ):
                             with patch("os.path.exists", return_value=False):
-                                with patch("paper_trading.inference.training.RegimeConditionalModel.load", return_value=False):
+                                with patch(
+                                    "paper_trading.inference.training.RegimeConditionalModel.load", return_value=False
+                                ):
                                     pipeline = AssetTrainingPipeline(mock_asset)
                                     pipeline.train()
                                     assert mock_asset.model is not None
@@ -199,6 +239,7 @@ class TestAssetTrainingPipeline:
 
     def test_model_hash_written_on_save(self, mock_asset):
         import os, tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             model_path = f.name
             f.write(b"dummy model content")

@@ -1,4 +1,5 @@
 """Tests for PortfolioStateBuilder — snapshot construction from live engine state."""
+
 import pytest
 
 from paper_trading.pek.state.portfolio_state_builder import PortfolioStateBuilder
@@ -111,6 +112,7 @@ class TestPortfolioStateBuilder:
     def test_build_missing_attributes_graceful(self, builder):
         class BareActor:
             _engine = None
+
         engine = MockEngineContainer({"TEST": BareActor()})
         # Should not raise
         snap = builder.build(engine, 1, 0.0, peak_value=100_000.0)

@@ -315,7 +315,9 @@ class TestEngineOrchestrator:
 
     def test_emergency_halt_on_high_halt_ratio(self):
         actors = {
-            "A": AssetActor("A", _MockEngine("A", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999),
+            "A": AssetActor(
+                "A", _MockEngine("A", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999
+            ),
         }
         orch = EngineOrchestrator(actors, max_halt_ratio=0.0)
         results = orch.run_once()
@@ -325,7 +327,9 @@ class TestEngineOrchestrator:
         assert "emergency_halt" in (r2.get("circuit_breaker", {}).get("reason", "") or "")
 
     def test_halved_actors_skipped(self):
-        bad = AssetActor("BAD", _MockEngine("BAD", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999)
+        bad = AssetActor(
+            "BAD", _MockEngine("BAD", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999
+        )
         bad.run_cycle()
         assert bad.health == ActorHealth.HALTED
         engine = _MockEngine("GOOD")
@@ -351,7 +355,9 @@ class TestHealthMonitor:
 
     def test_detects_halted_actors(self):
         monitor = HealthMonitor(max_halt_ratio=0.5)
-        bad = AssetActor("BAD", _MockEngine("BAD", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999)
+        bad = AssetActor(
+            "BAD", _MockEngine("BAD", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999
+        )
         bad.run_cycle()
         good = AssetActor("GOOD", _MockEngine("GOOD"))
         summary = monitor.observe({"BAD": bad, "GOOD": good})
@@ -406,7 +412,9 @@ class TestCircuitBreaker:
 
     def test_trips_on_halt_ratio(self):
         cb = CircuitBreaker(max_halt_ratio=0.5)
-        bad = AssetActor("BAD", _MockEngine("BAD", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999)
+        bad = AssetActor(
+            "BAD", _MockEngine("BAD", should_fail=True), max_consecutive_failures=1, recovery_cooldown_seconds=999
+        )
         bad.run_cycle()
         good = AssetActor("GOOD", _MockEngine("GOOD"))
         decision = cb.check(portfolio_value=100.0, actors={"BAD": bad, "GOOD": good})
@@ -438,7 +446,7 @@ class TestRecoveryScheduler:
 
     def test_exponential_backoff(self):
         sched = RecoveryScheduler(base_delay_seconds=0.05, max_delay_seconds=10.0)
-        attempts = [0.05 * (2 ** i) for i in range(4)]
+        attempts = [0.05 * (2**i) for i in range(4)]
         for i, expected in enumerate(attempts):
             assert sched.is_due(f"A{i}") is True
             sched.record_result(f"A{i}", success=False)
@@ -447,7 +455,7 @@ class TestRecoveryScheduler:
     def test_success_resets_counter(self):
         sched = RecoveryScheduler(base_delay_seconds=1.0)
         sched.record_result("TEST", success=False)  # attempt 1
-        sched.record_result("TEST", success=True)   # reset
+        sched.record_result("TEST", success=True)  # reset
         assert sched._attempts.get("TEST", 0) == 0
 
 
@@ -568,9 +576,7 @@ class TestPercentageHealthScoring:
         actor._update_health()
         assert len(actor._outcome_window) >= 5
         assert actor.health_score > 80.0
-        assert actor.health == ActorHealth.GREEN, (
-            "After cold start, 1 failure in 6 cycles (83%) should be GREEN"
-        )
+        assert actor.health == ActorHealth.GREEN, "After cold start, 1 failure in 6 cycles (83%) should be GREEN"
 
     def test_success_after_degraded_restores_green(self):
         """After sustained failures push score to DEGRADED, successes should

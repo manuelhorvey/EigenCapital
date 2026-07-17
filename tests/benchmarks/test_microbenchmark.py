@@ -22,6 +22,7 @@ from benchmarks.microbenchmark import (
 class TestArgumentParser:
     def test_default_values(self):
         from benchmarks.microbenchmark import main as bench_main
+
         # Just verify the parser works without error
         with patch.object(sys, "argv", ["microbenchmark.py", "--quick", "--assets", "1", "--workers", "1"]):
             parser = argparse.ArgumentParser(description="EigenCapital hot-path microbenchmark")
@@ -42,6 +43,7 @@ class TestArgumentParser:
 
     def test_sweep_flag(self):
         from benchmarks.microbenchmark import main as bench_main
+
         parser = argparse.ArgumentParser(description="EigenCapital hot-path microbenchmark")
         parser.add_argument("--sweep", action="store_true")
         parser.add_argument("--quick", action="store_true")
@@ -69,9 +71,16 @@ class TestRunSweep:
                 {"event": "summary", "warm_p50_s": 0.1},
             ]
             args = argparse.Namespace(
-                assets=1, workers=1, bars=100, output="", profile="",
-                skip_validation=True, quick=True, state_dir="",
-                sweep=True, cycles=1,
+                assets=1,
+                workers=1,
+                bars=100,
+                output="",
+                profile="",
+                skip_validation=True,
+                quick=True,
+                state_dir="",
+                sweep=True,
+                cycles=1,
             )
             run_sweep(args)
             captured = capsys.readouterr()
@@ -86,9 +95,15 @@ class TestRunProfiled:
             mock_build.return_value = mock_engine
 
             args = argparse.Namespace(
-                assets=1, workers=1, bars=100, profile=str(prof_path),
-                skip_validation=True, quick=True, state_dir="",
-                sweep=False, cycles=1,
+                assets=1,
+                workers=1,
+                bars=100,
+                profile=str(prof_path),
+                skip_validation=True,
+                quick=True,
+                state_dir="",
+                sweep=False,
+                cycles=1,
             )
             run_profiled(args)
             # Should call engine.run_once at least once (warmup)

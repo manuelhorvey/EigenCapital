@@ -15,10 +15,16 @@ from monitoring.importance_tracker import (
 
 class TestComputeJaccard:
     def test_full_overlap(self):
-        cur = [{"feature": "a", "importance_score": 0.5}, {"feature": "b", "importance_score": 0.3},
-               {"feature": "c", "importance_score": 0.2}]
-        prev = [{"feature": "a", "importance_score": 0.4}, {"feature": "b", "importance_score": 0.35},
-                {"feature": "c", "importance_score": 0.25}]
+        cur = [
+            {"feature": "a", "importance_score": 0.5},
+            {"feature": "b", "importance_score": 0.3},
+            {"feature": "c", "importance_score": 0.2},
+        ]
+        prev = [
+            {"feature": "a", "importance_score": 0.4},
+            {"feature": "b", "importance_score": 0.35},
+            {"feature": "c", "importance_score": 0.25},
+        ]
         assert compute_jaccard_top_n(cur, prev, n=3) == pytest.approx(1.0)
 
     def test_no_overlap(self):
@@ -27,10 +33,16 @@ class TestComputeJaccard:
         assert compute_jaccard_top_n(cur, prev, n=2) == pytest.approx(0.0)
 
     def test_partial_overlap(self):
-        cur = [{"feature": "a", "importance_score": 0.5}, {"feature": "b", "importance_score": 0.3},
-               {"feature": "c", "importance_score": 0.2}]
-        prev = [{"feature": "a", "importance_score": 0.4}, {"feature": "d", "importance_score": 0.35},
-                {"feature": "e", "importance_score": 0.25}]
+        cur = [
+            {"feature": "a", "importance_score": 0.5},
+            {"feature": "b", "importance_score": 0.3},
+            {"feature": "c", "importance_score": 0.2},
+        ]
+        prev = [
+            {"feature": "a", "importance_score": 0.4},
+            {"feature": "d", "importance_score": 0.35},
+            {"feature": "e", "importance_score": 0.25},
+        ]
         # union = {a,b,c,d,e} = 5, intersection = {a} = 1 => 1/5 = 0.2
         assert compute_jaccard_top_n(cur, prev, n=3) == pytest.approx(0.2)
 
@@ -106,16 +118,19 @@ class TestImportanceStore:
 
     def test_log_snapshot_creates_file(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["a", "b", "c"],
+            asset="TEST",
+            feature_names=["a", "b", "c"],
             importances=np.array([0.5, 0.3, 0.2]),
             window_id="w1_2026-01-01",
-            train_start="2021-01-01", train_end="2026-01-01",
+            train_start="2021-01-01",
+            train_end="2026-01-01",
         )
         assert os.path.exists(store.path)
 
     def test_log_snapshot_roundtrip(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["x", "y", "z"],
+            asset="TEST",
+            feature_names=["x", "y", "z"],
             importances=np.array([0.6, 0.3, 0.1]),
             window_id="w1_2026-06-01",
         )
@@ -129,7 +144,8 @@ class TestImportanceStore:
 
     def test_log_mismatched_lengths_does_not_crash(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["a", "b"],
+            asset="TEST",
+            feature_names=["a", "b"],
             importances=np.array([0.5, 0.3, 0.2]),
             window_id="w1",
         )
@@ -137,7 +153,8 @@ class TestImportanceStore:
 
     def test_log_empty_features_does_not_crash(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=[],
+            asset="TEST",
+            feature_names=[],
             importances=np.array([]),
             window_id="w1",
         )
@@ -145,12 +162,14 @@ class TestImportanceStore:
 
     def test_log_two_windows(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["a", "b"],
+            asset="TEST",
+            feature_names=["a", "b"],
             importances=np.array([0.7, 0.3]),
             window_id="w1_2025-01-01",
         )
         store.log_snapshot(
-            asset="TEST", feature_names=["a", "b"],
+            asset="TEST",
+            feature_names=["a", "b"],
             importances=np.array([0.6, 0.4]),
             window_id="w2_2026-01-01",
         )
@@ -162,7 +181,8 @@ class TestImportanceStore:
 
     def test_get_latest_two_snapshots_single_window(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["a"],
+            asset="TEST",
+            feature_names=["a"],
             importances=np.array([1.0]),
             window_id="w1_2026-01-01",
         )
@@ -177,12 +197,14 @@ class TestImportanceStore:
 
     def test_stability_result(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["a", "b", "c", "d"],
+            asset="TEST",
+            feature_names=["a", "b", "c", "d"],
             importances=np.array([0.4, 0.3, 0.2, 0.1]),
             window_id="w1_2025-01-01",
         )
         store.log_snapshot(
-            asset="TEST", feature_names=["a", "b", "e", "f"],
+            asset="TEST",
+            feature_names=["a", "b", "e", "f"],
             importances=np.array([0.4, 0.3, 0.2, 0.1]),
             window_id="w2_2026-01-01",
         )
@@ -194,7 +216,8 @@ class TestImportanceStore:
 
     def test_stability_result_single_window_returns_none(self, store):
         store.log_snapshot(
-            asset="TEST", feature_names=["a"],
+            asset="TEST",
+            feature_names=["a"],
             importances=np.array([1.0]),
             window_id="w1_2026-01-01",
         )
@@ -203,17 +226,20 @@ class TestImportanceStore:
 
     def test_per_asset_isolation(self, store):
         store.log_snapshot(
-            asset="A", feature_names=["a", "b"],
+            asset="A",
+            feature_names=["a", "b"],
             importances=np.array([0.6, 0.4]),
             window_id="w1_2026-01-01",
         )
         store.log_snapshot(
-            asset="A", feature_names=["a", "b"],
+            asset="A",
+            feature_names=["a", "b"],
             importances=np.array([0.7, 0.3]),
             window_id="w2_2026-06-01",
         )
         store.log_snapshot(
-            asset="B", feature_names=["x", "y"],
+            asset="B",
+            feature_names=["x", "y"],
             importances=np.array([0.8, 0.2]),
             window_id="w1_2026-01-01",
         )

@@ -100,8 +100,6 @@ class TestPositionProtection:
         assert short_pos.breakeven_set
         assert short_pos.risk_floor == 1.0  # avg_price, because sentinel was 0
 
-
-
     def test_trail_from_avg_price_not_current_price(self, long_pos, config):
         long_pos.avg_price = 1.0
         long_pos.peak_price = 1.02  # peak established

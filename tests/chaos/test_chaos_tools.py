@@ -7,6 +7,7 @@ Verifies that fault-injection primitives behave correctly:
 - patch restores the original on context exit
 - nested contexts stack correctly
 """
+
 from __future__ import annotations
 
 import pytest
@@ -120,9 +121,7 @@ class TestFaultInjectContextManager:
 
     def test_non_callable_attribute_rejected(self):
         with pytest.raises(TypeError):
-            with fault_inject(
-                object(), "__class__", FaultRecipe(name="x", description="y")
-            ):
+            with fault_inject(object(), "__class__", FaultRecipe(name="x", description="y")):
                 pass
 
     def test_restoration_on_exception(self):

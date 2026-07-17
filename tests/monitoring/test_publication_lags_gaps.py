@@ -10,6 +10,7 @@ from features.publication_lags import (
 # ── audit_lookahead ──────────────────────────────────────────────────────────
 # Covers previously uncovered lines: 136 (early return), 140 (None lag), 146 (NaN), 148 (mom skip)
 
+
 def test_audit_lookahead_single_row_returns_early():
     """audit_lookahead returns early when df has < 2 rows (line 136)."""
     df = pd.DataFrame(
@@ -86,6 +87,7 @@ def test_audit_lookahead_finds_lag_columns():
 def test_all_lags_consistency():
     """ALL_LAGS contains all entries from both PUBLICATION_LAGS_RAW and DERIVED_FEATURE_LAGS."""
     from features.publication_lags import PUBLICATION_LAGS_RAW, DERIVED_FEATURE_LAGS
+
     for k, v in PUBLICATION_LAGS_RAW.items():
         assert ALL_LAGS[k] == v
     for k, v in DERIVED_FEATURE_LAGS.items():

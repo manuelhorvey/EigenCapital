@@ -40,17 +40,20 @@ def _synthetic_prices(n: int = 500, seed: int = 42) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     steps = rng.normal(0, 0.005, n)
     close = 100.0 * np.exp(np.cumsum(steps))
-    return pd.DataFrame({
-        "open": close * (1 + rng.normal(0, 0.002, n)),
-        "high": close * (1 + abs(rng.normal(0, 0.005, n))),
-        "low": close * (1 - abs(rng.normal(0, 0.005, n))),
-        "close": close,
-        "volume": rng.integers(1e6, 1e8, n),
-    })
+    return pd.DataFrame(
+        {
+            "open": close * (1 + rng.normal(0, 0.002, n)),
+            "high": close * (1 + abs(rng.normal(0, 0.005, n))),
+            "low": close * (1 - abs(rng.normal(0, 0.005, n))),
+            "close": close,
+            "volume": rng.integers(1e6, 1e8, n),
+        }
+    )
 
 
 def _synthetic_single_asset(
-    n: int = 500, seed: int = 42,
+    n: int = 500,
+    seed: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.DataFrame]:
     """Return (prices, rate_diffs, dxy, vix, spx, commodities) for 1 asset."""
     close = pd.Series(
@@ -72,7 +75,7 @@ def _synthetic_single_asset(
 
 def _shuffle_future(df: pd.DataFrame, cutoff: int) -> pd.DataFrame:
     """Shuffle all rows from [cutoff:] independently per column.
-    
+
     Preserves the index, column structure, and marginal distributions
     but destroys any temporal dependency across the cutoff boundary.
     """
@@ -110,8 +113,12 @@ class TestFuturePermutationAlphaFeatures:
         dxy_perturbed.iloc[cutoff:] = _shuffle_future(dxy_perturbed.to_frame("dxy"), cutoff).iloc[cutoff:, 0]
 
         pert_features = build_alpha_features(
-            prices_perturbed, rd_perturbed,
-            dxy=dxy_perturbed, vix=vix, spx=spx, commodities=comm,
+            prices_perturbed,
+            rd_perturbed,
+            dxy=dxy_perturbed,
+            vix=vix,
+            spx=spx,
+            commodities=comm,
         )
 
         common_idx = full_features.index.intersection(pert_features.index)
@@ -133,7 +140,9 @@ class TestFuturePermutationAlphaFeatures:
         mom_full = momentum_features(close)
         cutoff = 200
         close_pert = close.copy()
-        close_pert.iloc[cutoff:] = close_pert.iloc[cutoff:] * np.random.default_rng(0).uniform(0.5, 1.5, len(close) - cutoff)
+        close_pert.iloc[cutoff:] = close_pert.iloc[cutoff:] * np.random.default_rng(0).uniform(
+            0.5, 1.5, len(close) - cutoff
+        )
         mom_pert = momentum_features(close_pert)
 
         for h in [21, 63, 126, 252]:
@@ -157,7 +166,8 @@ class TestFuturePermutationAlphaFeatures:
         assert np.allclose(
             z_full.iloc[:safe_boundary].values,
             z_pert.iloc[:safe_boundary].values,
-            rtol=1e-8, equal_nan=True,
+            rtol=1e-8,
+            equal_nan=True,
         ), "Zscore reversion changed before safe boundary after future perturbation"
 
 
@@ -201,7 +211,7 @@ class TestTruncationInvariance:
 
     def test_day_of_week_signal_truncation(self):
         """DOW signal uses rolling(252) mean of forward returns.
-        
+
         The forward return is shift(-1), which introduces a natural
         look-ahead for the very last bar.  Truncation invariance holds
         when t is at least 1 bar before the end of the truncated window.
@@ -296,8 +306,7 @@ class TestEmbargoInvariant:
             train_end = max(train_idx)
             test_start = min(test_idx)
             assert train_end + gap < test_start, (
-                f"Embargo violation: train end {train_end}, test start {test_start}, "
-                f"gap {gap} not respected"
+                f"Embargo violation: train end {train_end}, test start {test_start}, gap {gap} not respected"
             )
 
     def test_no_train_test_overlap_within_fold(self):
@@ -306,9 +315,7 @@ class TestEmbargoInvariant:
         cv = PurgedWalkForwardFolds(n_folds=5, gap=0)
         for fold, (train_idx, test_idx) in enumerate(cv.split(X)):
             overlap = set(train_idx) & set(test_idx)
-            assert len(overlap) == 0, (
-                f"Fold {fold}: {len(overlap)} indices appear in both train and test"
-            )
+            assert len(overlap) == 0, f"Fold {fold}: {len(overlap)} indices appear in both train and test"
             seen_indices.update(train_idx.tolist())
             seen_indices.update(test_idx.tolist())
 
@@ -409,9 +416,7 @@ class TestTimestampProvenance:
         # Series must come back populated (empty would mean a code bug)
         assert len(series) == 3, f"expected 3 rows, got {len(series)}"
         # Timezone must be preserved (this is the invariant under test)
-        assert series.index.tz is not None, (
-            "fetch_yf_series stripped timezone — tz-naive index detected"
-        )
+        assert series.index.tz is not None, "fetch_yf_series stripped timezone — tz-naive index detected"
 
     def test_no_tz_truncation_in_inference_pipeline(self):
         """The tz_convert('UTC').date pattern destroys temporal precision."""
@@ -421,7 +426,8 @@ class TestTimestampProvenance:
         source = inspect.getsource(pipeline)
         if ".date" in source:
             import re as _re
-            if _re.search(r'\.(index\.date|tz_convert.*?\.date)\b', source):
+
+            if _re.search(r"\.(index\.date|tz_convert.*?\.date)\b", source):
                 pytest.fail(
                     "pipeline.py contains .index.date or .tz_convert(...).date pattern — "
                     "this truncates timestamps to midnight UTC, violating I6"
@@ -438,9 +444,7 @@ class TestTimestampProvenance:
             if isinstance(node, ast.Attribute) and node.attr == "date":
                 # Check we're not doing .index.date
                 if isinstance(node.value, ast.Attribute) and node.value.attr == "index":
-                    pytest.fail(
-                        "data_fetch.py: df.index.date truncates timezone — use df.index.normalize() or keep tz"
-                    )
+                    pytest.fail("data_fetch.py: df.index.date truncates timezone — use df.index.normalize() or keep tz")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -456,19 +460,13 @@ class TestSnapshotReproducibility:
         prices, rd, dxy, vix, spx, comm = _synthetic_single_asset(200)
         features = build_alpha_features(prices, rd, dxy=dxy, vix=vix, spx=spx, commodities=comm)
 
-        schema_bytes = b"".join(
-            f"{col}:{features[col].dtype}".encode()
-            for col in features.columns
-        )
+        schema_bytes = b"".join(f"{col}:{features[col].dtype}".encode() for col in features.columns)
         h1 = hashlib.sha256(schema_bytes).hexdigest()[:16]
 
         # Run again — must match
         prices2, rd2, dxy2, vix2, spx2, comm2 = _synthetic_single_asset(200)
         features2 = build_alpha_features(prices2, rd2, dxy=dxy2, vix=vix2, spx=spx2, commodities=comm2)
-        schema_bytes2 = b"".join(
-            f"{col}:{features2[col].dtype}".encode()
-            for col in features2.columns
-        )
+        schema_bytes2 = b"".join(f"{col}:{features2[col].dtype}".encode() for col in features2.columns)
         h2 = hashlib.sha256(schema_bytes2).hexdigest()[:16]
 
         assert h1 == h2, "Feature schema hash changed between runs with identical parameters"

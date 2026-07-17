@@ -1,4 +1,5 @@
 """Tests for PerformanceStateBuilder and its sub-trackers."""
+
 import pytest
 
 from paper_trading.pek.contracts.performance_state import PerformanceState
@@ -18,52 +19,44 @@ class TestMarketStateReader:
 
     def test_trend_regime_returns_08(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=1.0, regime="TREND",
-                      spread_regime="NORMAL", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=1.0, regime="TREND", spread_regime="NORMAL", liquidity_regime="NORMAL")
         assert reader.scalar() == 0.8
 
     def test_range_returns_10(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=1.0, regime="RANGE",
-                      spread_regime="NORMAL", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=1.0, regime="RANGE", spread_regime="NORMAL", liquidity_regime="NORMAL")
         assert reader.scalar() == 1.0
 
     def test_stressed_liquidity_returns_04(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=1.0, regime="TREND",
-                      spread_regime="NORMAL", liquidity_regime="STRESSED")
+        reader.update(atr_ratio=1.0, regime="TREND", spread_regime="NORMAL", liquidity_regime="STRESSED")
         assert reader.scalar() == 0.4
 
     def test_wide_spread_returns_06(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=1.0, regime="TREND",
-                      spread_regime="WIDE", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=1.0, regime="TREND", spread_regime="WIDE", liquidity_regime="NORMAL")
         assert reader.scalar() == 0.6
 
     def test_volatile_high_atr_returns_05(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=2.0, regime="VOLATILE",
-                      spread_regime="NORMAL", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=2.0, regime="VOLATILE", spread_regime="NORMAL", liquidity_regime="NORMAL")
         assert reader.scalar() == 0.5
 
     def test_volatile_low_atr_returns_fallback(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=1.0, regime="VOLATILE",
-                      spread_regime="NORMAL", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=1.0, regime="VOLATILE", spread_regime="NORMAL", liquidity_regime="NORMAL")
         assert reader.scalar() == 0.8
 
     def test_atr_ratio_velocity_zero_with_few_samples(self):
         reader = MarketStateReader()
         assert reader.atr_ratio_velocity() == 0.0
-        reader.update(atr_ratio=1.0, regime="RANGE",
-                      spread_regime="NORMAL", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=1.0, regime="RANGE", spread_regime="NORMAL", liquidity_regime="NORMAL")
         assert reader.atr_ratio_velocity() == 0.0
 
     def test_atr_ratio_velocity_computed_with_5_samples(self):
         reader = MarketStateReader()
         for i in range(5):
-            reader.update(atr_ratio=float(i), regime="RANGE",
-                          spread_regime="NORMAL", liquidity_regime="NORMAL")
+            reader.update(atr_ratio=float(i), regime="RANGE", spread_regime="NORMAL", liquidity_regime="NORMAL")
         vel = reader.atr_ratio_velocity()
         assert vel != 0.0
 
@@ -73,8 +66,7 @@ class TestMarketStateReader:
 
     def test_atr_ratio_after_update(self):
         reader = MarketStateReader()
-        reader.update(atr_ratio=2.5, regime="TREND",
-                      spread_regime="NORMAL", liquidity_regime="NORMAL")
+        reader.update(atr_ratio=2.5, regime="TREND", spread_regime="NORMAL", liquidity_regime="NORMAL")
         assert reader.atr_ratio() == 2.5
 
 
@@ -155,8 +147,7 @@ class TestExecutionQualityTracker:
 
     def test_record_trade_calls_outcome_tracker(self):
         eq = ExecutionQualityTracker()
-        eq.record_trade(asset="EURUSD", exit_reason="TP", r_multiple=2.0,
-                        mae_pct=0.5, mfe_pct=3.0)
+        eq.record_trade(asset="EURUSD", exit_reason="TP", r_multiple=2.0, mae_pct=0.5, mfe_pct=3.0)
         assert eq._total_trades == 0
 
     def test_slippage_velocity_zero_with_few_samples(self):
@@ -178,50 +169,51 @@ class TestVelocityProcessor:
     def test_compute_defaults(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=0.0, vol_velocity=0.0,
-                                 degradation_velocity=0.0, execution_velocity=0.0)
+        vel, scalar = vp.compute(pnl_velocity=0.0, vol_velocity=0.0, degradation_velocity=0.0, execution_velocity=0.0)
         assert scalar == 1.0
 
     def test_crash_detected(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=-0.03, vol_velocity=0.12,
-                                 degradation_velocity=0.0, execution_velocity=0.0)
+        vel, scalar = vp.compute(
+            pnl_velocity=-0.03, vol_velocity=0.12, degradation_velocity=0.0, execution_velocity=0.0
+        )
         assert 0.5 < scalar < 1.0
 
     def test_recovery_detected(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=0.03, vol_velocity=-0.10,
-                                 degradation_velocity=0.0, execution_velocity=0.0)
+        vel, scalar = vp.compute(
+            pnl_velocity=0.03, vol_velocity=-0.10, degradation_velocity=0.0, execution_velocity=0.0
+        )
         assert scalar > 1.0
 
     def test_shock_from_execution(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=0.0, vol_velocity=0.0,
-                                 degradation_velocity=0.0, execution_velocity=0.15)
+        vel, scalar = vp.compute(pnl_velocity=0.0, vol_velocity=0.0, degradation_velocity=0.0, execution_velocity=0.15)
         assert 0.5 <= scalar < 1.0
 
     def test_high_degradation_velocity(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=0.0, vol_velocity=0.0,
-                                 degradation_velocity=0.10, execution_velocity=0.0)
+        vel, scalar = vp.compute(pnl_velocity=0.0, vol_velocity=0.0, degradation_velocity=0.10, execution_velocity=0.0)
         assert 0.5 <= scalar < 1.0
 
     def test_scalar_clamped(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=0.03, vol_velocity=-0.10,
-                                 degradation_velocity=0.0, execution_velocity=0.0)
+        vel, scalar = vp.compute(
+            pnl_velocity=0.03, vol_velocity=-0.10, degradation_velocity=0.0, execution_velocity=0.0
+        )
         assert 1.0 <= scalar <= 1.5
 
     def test_return_velocity_object(self):
         vp = VelocityProcessor()
         vp.update_portfolio_value(100.0)
-        vel, scalar = vp.compute(pnl_velocity=0.01, vol_velocity=0.02,
-                                 degradation_velocity=0.01, execution_velocity=0.01)
+        vel, scalar = vp.compute(
+            pnl_velocity=0.01, vol_velocity=0.02, degradation_velocity=0.01, execution_velocity=0.01
+        )
         assert vel.pnl_velocity == 0.01
         assert vel.vol_velocity == 0.02
 
@@ -246,6 +238,7 @@ class TestPerformanceStateBuilder:
 
     def test_ece_warning_logged_once(self, caplog):
         import logging
+
         caplog.set_level(logging.WARNING)
         builder = PerformanceStateBuilder()
         builder.build(100_000)

@@ -501,7 +501,9 @@ class TestTrailingActivationRace:
         )
         result = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0)
         engine.reset_best_price(100.0)
-        trail = engine.compute_trailing_stop("long", 100.0, 108.0, result.stop_loss, result.stop_loss, result.take_profit, df=df)
+        trail = engine.compute_trailing_stop(
+            "long", 100.0, 108.0, result.stop_loss, result.stop_loss, result.take_profit, df=df
+        )
         assert trail.activated
         assert trail.trailing_sl is not None
 
@@ -511,7 +513,9 @@ class TestTrailingActivationRace:
         )
         result = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0)
         engine.reset_best_price(100.0)
-        trail = engine.compute_trailing_stop("long", 100.0, 101.5, result.stop_loss, result.stop_loss, result.take_profit, df=df)
+        trail = engine.compute_trailing_stop(
+            "long", 100.0, 101.5, result.stop_loss, result.stop_loss, result.take_profit, df=df
+        )
         assert not trail.activated
         assert trail.trailing_sl is None
 
@@ -521,8 +525,12 @@ class TestTrailingActivationRace:
         )
         result = engine.compute_barriers(100.0, "long", df, sl_mult=1.0, tp_mult=1.0)
         engine.reset_best_price(100.0)
-        t1 = engine.compute_trailing_stop("long", 100.0, 103.0, result.stop_loss, result.stop_loss, result.take_profit, df=df)
-        t2 = engine.compute_trailing_stop("long", 100.0, 102.0, result.stop_loss, t1.trailing_sl or result.stop_loss, result.take_profit, df=df)
+        t1 = engine.compute_trailing_stop(
+            "long", 100.0, 103.0, result.stop_loss, result.stop_loss, result.take_profit, df=df
+        )
+        t2 = engine.compute_trailing_stop(
+            "long", 100.0, 102.0, result.stop_loss, t1.trailing_sl or result.stop_loss, result.take_profit, df=df
+        )
         if t1.activated and t2.activated:
             assert (t2.trailing_sl is None) or (t2.trailing_sl >= t1.trailing_sl)
 
@@ -576,7 +584,9 @@ class TestComputeTrailingStopEdgeCases:
 
     def test_no_best_price_init_uses_entry(self, engine, df):
         engine._best_price_seen = None
-        result = engine.compute_trailing_stop("long", 100.0, 102.0, initial_sl=98.0, current_sl=98.0, take_profit=110.0, df=df)
+        result = engine.compute_trailing_stop(
+            "long", 100.0, 102.0, initial_sl=98.0, current_sl=98.0, take_profit=110.0, df=df
+        )
         assert engine._best_price_seen == 102.0
 
     def test_short_side_best_price_tracks_min(self, engine, df):
@@ -587,7 +597,9 @@ class TestComputeTrailingStopEdgeCases:
 
     def test_short_trailing_activates(self, engine, df):
         engine.reset_best_price(100.0)
-        trail = engine.compute_trailing_stop("short", 100.0, 95.0, initial_sl=103.0, current_sl=103.0, take_profit=90.0, df=df)
+        trail = engine.compute_trailing_stop(
+            "short", 100.0, 95.0, initial_sl=103.0, current_sl=103.0, take_profit=90.0, df=df
+        )
         if trail.activated:
             assert trail.trailing_sl is not None
             assert trail.trailing_sl < 103.0

@@ -17,6 +17,7 @@ from shared.sizing import (
 
 # ── risk_contribution ────────────────────────────────────────────────────────
 
+
 def test_risk_contribution_sums_to_portfolio_vol():
     n = 4
     np.random.seed(42)
@@ -28,6 +29,7 @@ def test_risk_contribution_sums_to_portfolio_vol():
 
 
 # ── risk_parity_weights ──────────────────────────────────────────────────────
+
 
 def test_risk_parity_weights_sum_to_one():
     np.random.seed(42)
@@ -46,15 +48,18 @@ def test_risk_parity_weights_all_positive():
 def test_risk_parity_higher_vol_gets_lower_weight():
     np.random.seed(42)
     n = 252
-    returns = pd.DataFrame({
-        "LOW_VOL": np.random.randn(n) * 0.005,
-        "HIGH_VOL": np.random.randn(n) * 0.03,
-    })
+    returns = pd.DataFrame(
+        {
+            "LOW_VOL": np.random.randn(n) * 0.005,
+            "HIGH_VOL": np.random.randn(n) * 0.03,
+        }
+    )
     wv = compute_weights("risk_parity_v1", returns)
     assert wv.weights["LOW_VOL"] > wv.weights["HIGH_VOL"]
 
 
 # ── compute_equal_risk_weights ───────────────────────────────────────────────
+
 
 def test_equal_risk_weights_sum_to_one():
     np.random.seed(42)
@@ -70,6 +75,7 @@ def test_equal_risk_weights_all_assets_in_output():
 
 
 # ── VolTargetSizing ──────────────────────────────────────────────────────────
+
 
 def test_vol_target_sizing_no_scalar():
     sizer = VolTargetSizing()
@@ -142,10 +148,12 @@ def test_risk_parity_v1_higher_vol_lower_weight():
     np.random.seed(42)
     n = 252
     cols = ["LOW_VOL", "HIGH_VOL"]
-    returns = pd.DataFrame({
-        "LOW_VOL": np.random.randn(n) * 0.005,
-        "HIGH_VOL": np.random.randn(n) * 0.03,
-    })
+    returns = pd.DataFrame(
+        {
+            "LOW_VOL": np.random.randn(n) * 0.005,
+            "HIGH_VOL": np.random.randn(n) * 0.03,
+        }
+    )
     wv = compute_weights("risk_parity_v1", returns)
     assert wv.weights["LOW_VOL"] > wv.weights["HIGH_VOL"] + 1e-6
 

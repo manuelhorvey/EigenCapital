@@ -48,9 +48,11 @@ def sample_price_data():
 
 @pytest.fixture
 def sample_macro_data():
-    return pd.DataFrame({
-        "fed_funds": np.full(100, 2.5),
-        "ecb_rate": np.full(100, 1.0),
-        "us_2y": np.full(100, 3.0),
-        "dxy": np.full(100, 96.0),
-    })
+    return pd.DataFrame(
+        {
+            "fed_funds": np.full(100, 2.5),
+            "ecb_rate": np.full(100, 1.0),
+            "us_2y": np.full(100, 3.0),
+            "dxy": np.full(100, 96.0),
+        }
+    )

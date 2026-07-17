@@ -130,9 +130,7 @@ class TestGapThrough:
     def test_gap_down_through_stop_long(self):
         """Long position: price gaps down below SL."""
         market = MarketSnapshot(current_price=95.0, open_price=93.0, high_price=96.0, low_price=92.0, vol_zscore=2.0)
-        result = ExecutionSimulator(seed=42).simulate(
-            "stop_loss", "sell", 97.0, 1000.0, market, _DEFAULT_CONFIG
-        )
+        result = ExecutionSimulator(seed=42).simulate("stop_loss", "sell", 97.0, 1000.0, market, _DEFAULT_CONFIG)
         # open=93 < stop=97 -> gap through. Fill should be at open (93), not stop (97)
         assert result.gap_fill is True, "Gap-through should be detected"
         assert result.fill_price < 97.0, "Fill should be worse than stop price"
@@ -140,10 +138,10 @@ class TestGapThrough:
 
     def test_gap_up_through_stop_short(self):
         """Short position: price gaps up above SL."""
-        market = MarketSnapshot(current_price=105.0, open_price=108.0, high_price=110.0, low_price=104.0, vol_zscore=2.0)
-        result = ExecutionSimulator(seed=42).simulate(
-            "stop_loss", "buy", 103.0, 1000.0, market, _DEFAULT_CONFIG
+        market = MarketSnapshot(
+            current_price=105.0, open_price=108.0, high_price=110.0, low_price=104.0, vol_zscore=2.0
         )
+        result = ExecutionSimulator(seed=42).simulate("stop_loss", "buy", 103.0, 1000.0, market, _DEFAULT_CONFIG)
         # open=108 > stop=103 -> gap through. Fill should be at open (108), not stop (103)
         assert result.gap_fill is True, "Gap-through should be detected"
         assert result.fill_price > 103.0, "Fill should be worse than stop price"
@@ -152,9 +150,7 @@ class TestGapThrough:
     def test_no_gap_no_gap_fill(self):
         """Normal fill: no gap, no gap_fill flag."""
         market = MarketSnapshot(current_price=100.0, open_price=99.0, high_price=101.0, low_price=98.0, vol_zscore=1.0)
-        result = ExecutionSimulator(seed=42).simulate(
-            "stop_loss", "sell", 98.5, 1000.0, market, _DEFAULT_CONFIG
-        )
+        result = ExecutionSimulator(seed=42).simulate("stop_loss", "sell", 98.5, 1000.0, market, _DEFAULT_CONFIG)
         # open=99 > stop=98.5 -> no gap
         assert result.gap_fill is False, "No gap-through should be detected"
 

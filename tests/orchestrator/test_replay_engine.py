@@ -2,6 +2,7 @@
 Deterministic replay tests: given known signal + price sequences,
 assert that PnL, position state, and trade log are fully deterministic.
 """
+
 import pandas as pd
 import pytest
 
@@ -27,16 +28,22 @@ class TestUpdatePnlDeterministic:
         spec = pf[asset_name]
         contract = FEATURE_REGISTRY[spec["ticker"]]
         return AssetEngine(
-            spec["ticker"], asset_name, contract, spec["alloc"],
+            spec["ticker"],
+            asset_name,
+            contract,
+            spec["alloc"],
             journal_path=_SKIP_JOURNAL,
         )
 
     def _make_signal_data(self, prices, signals):
-        return pd.DataFrame({
-            "close": prices,
-            "signal": signals,
-            "position_size": [1.0] * len(prices),
-        }, index=pd.RangeIndex(len(prices)))
+        return pd.DataFrame(
+            {
+                "close": prices,
+                "signal": signals,
+                "position_size": [1.0] * len(prices),
+            },
+            index=pd.RangeIndex(len(prices)),
+        )
 
     def test_monotonic_long_profits(self, engine):
         """Prices go up, signal is long -> positive PnL."""
@@ -87,11 +94,16 @@ class TestPositionManagerDeterministic:
 
     def test_long_position_exact_pnl(self):
         from paper_trading.position.manager import PositionManager
+
         pm = PositionManager(initial_capital=10000, position_size=1.0)
 
         intent = PositionIntent(
-            side="long", entry_price=100.0, entry_date="2026-06-01",
-            stop_loss=90.0, take_profit=110.0, vol=0.05,
+            side="long",
+            entry_price=100.0,
+            entry_date="2026-06-01",
+            stop_loss=90.0,
+            take_profit=110.0,
+            vol=0.05,
         )
         pm.open(intent)
         trade = pm.close(exit_price=110.0, exit_date="2026-06-10", reason="tp")
@@ -101,11 +113,16 @@ class TestPositionManagerDeterministic:
 
     def test_short_position_exact_pnl(self):
         from paper_trading.position.manager import PositionManager
+
         pm = PositionManager(initial_capital=10000, position_size=1.0)
 
         intent = PositionIntent(
-            side="short", entry_price=100.0, entry_date="2026-06-01",
-            stop_loss=110.0, take_profit=90.0, vol=0.05,
+            side="short",
+            entry_price=100.0,
+            entry_date="2026-06-01",
+            stop_loss=110.0,
+            take_profit=90.0,
+            vol=0.05,
         )
         pm.open(intent)
         trade = pm.close(exit_price=90.0, exit_date="2026-06-10", reason="tp")
@@ -115,11 +132,16 @@ class TestPositionManagerDeterministic:
 
     def test_sl_hit_exact_pnl(self):
         from paper_trading.position.manager import PositionManager
+
         pm = PositionManager(initial_capital=10000, position_size=1.0)
 
         intent = PositionIntent(
-            side="long", entry_price=100.0, entry_date="2026-06-01",
-            stop_loss=95.0, take_profit=110.0, vol=0.025,
+            side="long",
+            entry_price=100.0,
+            entry_date="2026-06-01",
+            stop_loss=95.0,
+            take_profit=110.0,
+            vol=0.025,
         )
         pm.open(intent)
         trade = pm.close(exit_price=95.0, exit_date="2026-06-05", reason="sl")
@@ -133,11 +155,16 @@ class TestPositionManagerDeterministic:
         no hit until the price crosses the TP threshold.
         """
         from paper_trading.position.manager import PositionManager
+
         pm = PositionManager(initial_capital=10000, position_size=1.0)
 
         intent = PositionIntent(
-            side="long", entry_price=100.0, entry_date="2026-06-01",
-            stop_loss=95.0, take_profit=110.0, vol=0.025,
+            side="long",
+            entry_price=100.0,
+            entry_date="2026-06-01",
+            stop_loss=95.0,
+            take_profit=110.0,
+            vol=0.025,
         )
         pm.open(intent)
         prices = [101, 103, 105, 108, 112]
@@ -153,18 +180,23 @@ class TestPositionManagerDeterministic:
         Short position: price keeps rising until SL hit.
         """
         from paper_trading.position.manager import PositionManager
+
         pm = PositionManager(initial_capital=10000, position_size=1.0)
 
         intent = PositionIntent(
-            side="short", entry_price=100.0, entry_date="2026-06-01",
-            stop_loss=105.0, take_profit=95.0, vol=0.025,
+            side="short",
+            entry_price=100.0,
+            entry_date="2026-06-01",
+            stop_loss=105.0,
+            take_profit=95.0,
+            vol=0.025,
         )
         pm.open(intent)
         prices = [101, 102, 103, 104, 106]
         for i, price in enumerate(prices):
             hit = pm.check_sl_tp(price)
             if hit:
-                trade = pm.close(hit[1], f"2026-06-0{i+1}", hit[0])
+                trade = pm.close(hit[1], f"2026-06-0{i + 1}", hit[0])
                 assert trade is not None
                 assert trade["reason"] == "sl"
                 break

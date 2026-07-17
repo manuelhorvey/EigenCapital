@@ -57,24 +57,28 @@ class TestBuildMarketSnapshot:
         assert snap.low_price == 1.05
 
     def test_builds_from_ohlcv(self, bridge):
-        ohlcv = pd.DataFrame({
-            "open": [1.04, 1.06],
-            "high": [1.05, 1.08],
-            "low": [1.03, 1.04],
-            "close": [1.045, 1.07],
-        })
+        ohlcv = pd.DataFrame(
+            {
+                "open": [1.04, 1.06],
+                "high": [1.05, 1.08],
+                "low": [1.03, 1.04],
+                "close": [1.045, 1.07],
+            }
+        )
         snap = bridge._build_market_snapshot("EURUSD", mid_price=1.07, ohlcv=ohlcv)
         assert snap.open_price == 1.06
         assert snap.high_price == 1.08
         assert snap.low_price == 1.04
 
     def test_clamps_high_low(self, bridge):
-        ohlcv = pd.DataFrame({
-            "open": [100],
-            "high": [99],
-            "low": [101],
-            "close": [100],
-        })
+        ohlcv = pd.DataFrame(
+            {
+                "open": [100],
+                "high": [99],
+                "low": [101],
+                "close": [100],
+            }
+        )
         snap = bridge._build_market_snapshot("TEST", mid_price=100, ohlcv=ohlcv)
         assert snap.high_price >= snap.open_price
         assert snap.low_price <= snap.open_price
@@ -141,8 +145,12 @@ def _make_pos(side="long", **kw):
 
     s = PositionSide.LONG if side == "long" else PositionSide.SHORT
     defaults = dict(
-        side=s, entry_price=1.05, entry_date="2026-01-01",
-        stop_loss=1.04, take_profit=1.08, vol=0.02,
+        side=s,
+        entry_price=1.05,
+        entry_date="2026-01-01",
+        stop_loss=1.04,
+        take_profit=1.08,
+        vol=0.02,
     )
     defaults.update(kw)
     return PositionIntent(**defaults)
@@ -242,9 +250,7 @@ class TestSubmitMarketOrder:
         bridge = ExecutionBridge(mock_broker, is_real_broker=True)
         bridge.orders = MagicMock()
         bridge.submit_market_order("EURUSD", "buy", 10000, 1.05, sl=1.04, tp=1.08)
-        bridge.orders.submit_market_order.assert_called_with(
-            "EURUSD", "buy", 10000, fill_price=None, sl=1.04, tp=1.08
-        )
+        bridge.orders.submit_market_order.assert_called_with("EURUSD", "buy", 10000, fill_price=None, sl=1.04, tp=1.08)
 
 
 class TestAllowShort:

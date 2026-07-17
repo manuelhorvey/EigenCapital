@@ -33,13 +33,15 @@ class TestMetricsSnapshotDataclass:
         assert d["sharpe_ratio"] == 0.85
 
     def test_from_dict_roundtrip(self):
-        snap = MetricsSnapshot.from_dict({
-            "asset": "GBPUSD",
-            "current_value": 99000.0,
-            "n_trades": 5,
-            "win_rate": 40.0,
-            "nonexistent_key": "ignored",
-        })
+        snap = MetricsSnapshot.from_dict(
+            {
+                "asset": "GBPUSD",
+                "current_value": 99000.0,
+                "n_trades": 5,
+                "win_rate": 40.0,
+                "nonexistent_key": "ignored",
+            }
+        )
         assert snap.asset == "GBPUSD"
         assert snap.n_trades == 5
         assert snap.current_value == 99000.0

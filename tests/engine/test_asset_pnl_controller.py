@@ -12,6 +12,7 @@ Live e2e trading exercises the full controller graph. These tests cover
 the no-position path and helper early-exit paths, with deterministic
 numeric fixtures.
 """
+
 from unittest.mock import MagicMock
 
 import pytest

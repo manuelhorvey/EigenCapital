@@ -57,7 +57,13 @@ class TestPortfolio:
         assert tr == -0.2
 
     def test_no_allocations(self):
-        p = Portfolio(100000.0, 10000.0, 110000.0, datetime(2026, 1, 1, tzinfo=timezone.utc), datetime(2026, 6, 30, tzinfo=timezone.utc))  # noqa: E501
+        p = Portfolio(
+            100000.0,
+            10000.0,
+            110000.0,
+            datetime(2026, 1, 1, tzinfo=timezone.utc),
+            datetime(2026, 6, 30, tzinfo=timezone.utc),
+        )  # noqa: E501
         assert p.allocated_capital == 0.0
         assert p.allocation_ratio == 0.0
 

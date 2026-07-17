@@ -33,12 +33,14 @@ class TestGenerateSignals:
         assert signals[0] == -1  # SELL (last write in the function)
 
     def test_multiple_samples(self):
-        probs = np.array([
-            [0.2, 0.3, 0.5],  # buy
-            [0.6, 0.2, 0.2],  # sell
-            [0.3, 0.4, 0.3],  # flat
-            [0.6, 0.0, 0.6],  # both above, SELL wins (last write)
-        ])
+        probs = np.array(
+            [
+                [0.2, 0.3, 0.5],  # buy
+                [0.6, 0.2, 0.2],  # sell
+                [0.3, 0.4, 0.3],  # flat
+                [0.6, 0.0, 0.6],  # both above, SELL wins (last write)
+            ]
+        )
         signals = generate_signals(probs)
         expected = np.array([1, -1, 0, -1], dtype=np.int8)
         np.testing.assert_array_equal(signals, expected)

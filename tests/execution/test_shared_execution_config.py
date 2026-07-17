@@ -14,6 +14,7 @@ from shared.execution_config import (
 
 # ── ExecutionConfig ──────────────────────────────────────────────────────────
 
+
 def test_execution_config_defaults():
     cfg = ExecutionConfig()
     assert cfg.base_spread_bps == 0.5
@@ -53,6 +54,7 @@ def test_compute_slippage_cost_capped():
 
 # ── execution_config_from_dict ───────────────────────────────────────────────
 
+
 def test_from_dict_empty():
     cfg = execution_config_from_dict(None)
     assert isinstance(cfg, ExecutionConfig)
@@ -73,6 +75,7 @@ def test_from_dict_ignores_invalid_keys():
 
 # ── build_execution_configs ──────────────────────────────────────────────────
 
+
 def test_build_execution_configs_default():
     configs = build_execution_configs({})
     assert "default" in configs
@@ -80,9 +83,7 @@ def test_build_execution_configs_default():
 
 
 def test_build_execution_configs_asset_override():
-    assets = {
-        "EURUSD": {"ticker": "EURUSD=X", "execution_config": {"base_spread_bps": 1.0}}
-    }
+    assets = {"EURUSD": {"ticker": "EURUSD=X", "execution_config": {"base_spread_bps": 1.0}}}
     configs = build_execution_configs(assets)
     cfg = configs["EURUSD=X"]
     assert cfg.base_spread_bps == 1.0
@@ -94,6 +95,7 @@ def test_build_execution_configs_defaults_dict():
 
 
 # ── compute_market_impact ────────────────────────────────────────────────────
+
 
 def test_market_impact_none():
     cfg = ExecutionConfig(impact_model="none")
@@ -123,6 +125,7 @@ def test_market_impact_unknown_model():
 
 
 # ── DEFAULT_EXECUTION_CONFIGS ────────────────────────────────────────────────
+
 
 def test_default_execution_configs_has_btc():
     assert "BTC" in DEFAULT_EXECUTION_CONFIGS

@@ -9,6 +9,7 @@ from shared.pnl import DefaultPnLStrategy
 
 # ── StrategyRegistry ─────────────────────────────────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def reset_registry():
     StrategyRegistry.reset_instance()

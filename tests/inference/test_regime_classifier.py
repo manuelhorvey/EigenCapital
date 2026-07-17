@@ -13,32 +13,38 @@ class TestRegimeClassifier:
     @pytest.fixture
     def trend_features(self):
         n = 30
-        return pd.DataFrame({
-            "kaufman_er": np.full(n, 0.7),
-            "adx": np.full(n, 35.0),
-            "vol_zscore": np.full(n, 0.5),
-            "compression": np.full(n, 0.3),
-        })
+        return pd.DataFrame(
+            {
+                "kaufman_er": np.full(n, 0.7),
+                "adx": np.full(n, 35.0),
+                "vol_zscore": np.full(n, 0.5),
+                "compression": np.full(n, 0.3),
+            }
+        )
 
     @pytest.fixture
     def range_features(self):
         n = 30
-        return pd.DataFrame({
-            "kaufman_er": np.full(n, 0.2),
-            "adx": np.full(n, 15.0),
-            "vol_zscore": np.full(n, 0.5),
-            "compression": np.full(n, 0.8),
-        })
+        return pd.DataFrame(
+            {
+                "kaufman_er": np.full(n, 0.2),
+                "adx": np.full(n, 15.0),
+                "vol_zscore": np.full(n, 0.5),
+                "compression": np.full(n, 0.8),
+            }
+        )
 
     @pytest.fixture
     def volatile_features(self):
         n = 30
-        return pd.DataFrame({
-            "kaufman_er": np.full(n, 0.3),
-            "adx": np.full(n, 20.0),
-            "vol_zscore": np.full(n, 2.0),
-            "compression": np.full(n, 1.5),
-        })
+        return pd.DataFrame(
+            {
+                "kaufman_er": np.full(n, 0.3),
+                "adx": np.full(n, 20.0),
+                "vol_zscore": np.full(n, 2.0),
+                "compression": np.full(n, 1.5),
+            }
+        )
 
     def test_init_defaults(self):
         c = RegimeClassifier()
@@ -56,8 +62,7 @@ class TestRegimeClassifier:
 
     def test_classify_has_expected_columns(self, classifier, trend_features):
         result = classifier.classify(trend_features)
-        expected = {"regime", "P_trend", "P_range", "P_volatile",
-                     "regime_confidence", "regime_raw"}
+        expected = {"regime", "P_trend", "P_range", "P_volatile", "regime_confidence", "regime_raw"}
         assert expected.issubset(result.columns)
 
     def test_trend_features_classify_as_trend(self, classifier, trend_features):
@@ -75,12 +80,14 @@ class TestRegimeClassifier:
     def test_low_confidence_classifies_as_neutral(self):
         classifier = RegimeClassifier(confidence_threshold=0.60, smoothing_window=1)
         n = 30
-        df = pd.DataFrame({
-            "kaufman_er": np.full(n, 0.4),
-            "adx": np.full(n, 20.0),
-            "vol_zscore": np.full(n, 0.0),
-            "compression": np.full(n, 0.5),
-        })
+        df = pd.DataFrame(
+            {
+                "kaufman_er": np.full(n, 0.4),
+                "adx": np.full(n, 20.0),
+                "vol_zscore": np.full(n, 0.0),
+                "compression": np.full(n, 0.5),
+            }
+        )
         result = classifier.classify(df)
         assert result["regime"].iloc[-1] == "neutral"
 
@@ -88,12 +95,14 @@ class TestRegimeClassifier:
         n = 50
         kaufman_er = np.concatenate([np.full(15, 0.7), np.full(20, 0.2), np.full(15, 0.7)])
         adx = np.concatenate([np.full(15, 35.0), np.full(20, 15.0), np.full(15, 35.0)])
-        df = pd.DataFrame({
-            "kaufman_er": kaufman_er,
-            "adx": adx,
-            "vol_zscore": np.full(n, 0.5),
-            "compression": np.full(n, 0.3),
-        })
+        df = pd.DataFrame(
+            {
+                "kaufman_er": kaufman_er,
+                "adx": adx,
+                "vol_zscore": np.full(n, 0.5),
+                "compression": np.full(n, 0.3),
+            }
+        )
         result = classifier.classify(df)
         smoothed = result["regime"]
         transitions = (smoothed != smoothed.shift(1)).sum()

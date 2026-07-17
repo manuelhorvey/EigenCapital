@@ -61,9 +61,7 @@ class TestComputeTakeProfit:
 
     def test_tp_mult_override(self, structure):
         tp_base = compute_take_profit(100.0, 1.0, "GREEN", "BREAKOUT_TEST", structure)
-        tp_override = compute_take_profit(
-            100.0, 1.0, "GREEN", "BREAKOUT_TEST", structure, tp_mult_override=2.0
-        )
+        tp_override = compute_take_profit(100.0, 1.0, "GREEN", "BREAKOUT_TEST", structure, tp_mult_override=2.0)
         # Override should increase TP distance (or at least not decrease it)
         assert tp_override.tp_distance >= tp_base.tp_distance
         assert tp_base.tp_distance > 0

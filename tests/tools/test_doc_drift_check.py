@@ -130,4 +130,5 @@ class TestMain:
     def test_main_passes_when_clean(self):
         # The doc-drift check should pass on the current repo state
         from tools.doc_drift_check import main
+
         assert main() == 0

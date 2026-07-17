@@ -8,6 +8,7 @@ from tools.config_docs import _resolve_hints, _render_type, render_markdown
 @dataclass
 class _SampleDoc:
     """Sample dataclass for _resolve_hints tests."""
+
     x: int
     y: str
 
@@ -19,6 +20,7 @@ class TestRenderType:
 
     def test_optional_type(self):
         import typing
+
         result = _render_type(typing.Optional[str])
         assert "Optional" in result
 

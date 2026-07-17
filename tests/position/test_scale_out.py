@@ -13,7 +13,7 @@ from paper_trading.position.scale_out import (
 
 _TIERS_4 = [(0.25, 0.25), (0.25, 0.50), (0.25, 0.75), (0.25, 1.0)]
 _TIERS_2 = [(0.5, 0.5), (0.5, 1.0)]
-_TIERS_3 = [(1/3, 0.50), (1/3, 1.00), (1/3, 1.50)]
+_TIERS_3 = [(1 / 3, 0.50), (1 / 3, 1.00), (1 / 3, 1.50)]
 _TIERS_1 = [(1.0, 1.0)]
 
 
@@ -47,7 +47,9 @@ class TestBuildPlan:
 
     def test_tiers_have_correct_fractions(self):
         engine = ScaleOutEngine()
-        plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=[(0.5, 0.5), (0.3, 1.0), (0.2, 1.5)])
+        plan = engine.build_plan(
+            "long", entry_price=100.0, take_profit=110.0, tier_specs=[(0.5, 0.5), (0.3, 1.0), (0.2, 1.5)]
+        )
         assert plan.tiers[0].fraction == 0.5
         assert plan.tiers[1].fraction == 0.3
         assert plan.tiers[2].fraction == 0.2
@@ -282,8 +284,9 @@ class TestTrailingAfterTier:
     def test_trailing_emitted_even_with_breakeven_active(self):
         engine = ScaleOutEngine(activate_breakeven_after=0, trailing_after_tier=0)
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_2)
-        fills = engine.check_tiers(plan, "long", current_price=105.0, current_value=10000.0,
-                                   position_size=1.0, exposure_mult=1.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         reasons = [f["reason"] for f in fills]
         assert "trailing_activated" in reasons
 
@@ -345,36 +348,48 @@ class TestEdgeCases:
     def test_zero_position_size_no_fill_pnl(self):
         engine = ScaleOutEngine()
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_1)
-        fills = engine.check_tiers(plan, "long", current_price=110.0, current_value=10000.0, position_size=0.0, exposure_mult=1.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=110.0, current_value=10000.0, position_size=0.0, exposure_mult=1.0
+        )
         assert fills[0]["pnl"] == 0.0
 
     def test_zero_exposure_mult_no_fill_pnl(self):
         engine = ScaleOutEngine()
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_1)
-        fills = engine.check_tiers(plan, "long", current_price=110.0, current_value=10000.0, position_size=1.0, exposure_mult=0.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=110.0, current_value=10000.0, position_size=1.0, exposure_mult=0.0
+        )
         assert fills[0]["pnl"] == 0.0
 
     def test_all_tiers_fill_then_no_remaining(self):
         engine = ScaleOutEngine()
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_2)
-        engine.check_tiers(plan, "long", current_price=110.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0)
+        engine.check_tiers(
+            plan, "long", current_price=110.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         assert plan.remaining_fraction == pytest.approx(0.0)
         assert engine.remaining_targets(plan) == []
 
     def test_partial_fill_then_price_reverses_no_additional_fills(self):
         engine = ScaleOutEngine(activate_breakeven_after=99)
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_2)
-        f1 = engine.check_tiers(plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0)
+        f1 = engine.check_tiers(
+            plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         assert len(f1) == 1
         assert plan.remaining_fraction == pytest.approx(0.5)
-        f2 = engine.check_tiers(plan, "long", current_price=102.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0)
+        f2 = engine.check_tiers(
+            plan, "long", current_price=102.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         assert len(f2) == 0
         assert plan.remaining_fraction == pytest.approx(0.5)
 
     def test_tier_1_and_2_fill_same_bar_breakeven_activates(self):
         engine = ScaleOutEngine(activate_breakeven_after=99)
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_4)
-        fills = engine.check_tiers(plan, "long", current_price=106.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=106.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         assert len(fills) == 2
         assert plan.tiers[0].filled
         assert plan.tiers[1].filled
@@ -384,7 +399,9 @@ class TestEdgeCases:
     def test_breakeven_race_tier1_fills_exactly_at_price(self):
         engine = ScaleOutEngine(activate_breakeven_after=0)
         plan = engine.build_plan("long", entry_price=100.0, take_profit=110.0, tier_specs=_TIERS_2)
-        fills = engine.check_tiers(plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0)
+        fills = engine.check_tiers(
+            plan, "long", current_price=105.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         reasons = [f["reason"] for f in fills]
         assert "scale_out_tier_1" in reasons
         assert "breakeven_stop_activated" in reasons
@@ -392,7 +409,9 @@ class TestEdgeCases:
     def test_breakeven_race_tier1_and_2_same_bar_short(self):
         engine = ScaleOutEngine(activate_breakeven_after=99)
         plan = engine.build_plan("short", entry_price=100.0, take_profit=90.0, tier_specs=_TIERS_2)
-        fills = engine.check_tiers(plan, "short", current_price=89.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0)
+        fills = engine.check_tiers(
+            plan, "short", current_price=89.0, current_value=10000.0, position_size=1.0, exposure_mult=1.0
+        )
         reasons = [f["reason"] for f in fills]
         assert "scale_out_tier_1" in reasons
         assert "scale_out_tier_2" in reasons

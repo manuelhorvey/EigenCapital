@@ -24,9 +24,14 @@ from paper_trading.orchestrator.orphan_reconciliation import (
 # ── Mock helpers ──────────────────────────────────────────────────────────────
 
 
-def _mock_position(position_id: str, asset: str = "EURUSD", quantity: float = 1.0,
-                   avg_entry_price: float = 1.05, current_price: float = 1.06,
-                   unrealized_pnl: float = 10.0) -> MagicMock:
+def _mock_position(
+    position_id: str,
+    asset: str = "EURUSD",
+    quantity: float = 1.0,
+    avg_entry_price: float = 1.05,
+    current_price: float = 1.06,
+    unrealized_pnl: float = 10.0,
+) -> MagicMock:
     p = MagicMock()
     p.position_id = position_id
     p.asset = asset
@@ -37,11 +42,14 @@ def _mock_position(position_id: str, asset: str = "EURUSD", quantity: float = 1.
     return p
 
 
-def _mock_engine(ticker: str = "EURUSD", has_position: bool = False,
-                 mt5_ticket: str | None = None,
-                 cleanup_queue: list | None = None,
-                 cleanup_retries: int = 0,
-                 current_price: float | None = 1.05) -> MagicMock:
+def _mock_engine(
+    ticker: str = "EURUSD",
+    has_position: bool = False,
+    mt5_ticket: str | None = None,
+    cleanup_queue: list | None = None,
+    cleanup_retries: int = 0,
+    current_price: float | None = 1.05,
+) -> MagicMock:
     engine = MagicMock()
     engine.ticker = ticker
     engine.current_price = current_price
@@ -60,8 +68,9 @@ def _mock_actor(name: str, engine: MagicMock) -> MagicMock:
     return actor
 
 
-def _make_broker(connected: bool = True, positions: list | None = None,
-                 symbol_map: dict[str, str] | None = None) -> MagicMock:
+def _make_broker(
+    connected: bool = True, positions: list | None = None, symbol_map: dict[str, str] | None = None
+) -> MagicMock:
     broker = MagicMock()
     broker.ensure_connected.return_value = connected
     broker.get_positions.return_value = positions or []

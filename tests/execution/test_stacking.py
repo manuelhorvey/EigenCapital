@@ -439,10 +439,10 @@ class TestComputeStackSize:
         test_cases = [
             # (asset_name, base_entry_size, ticker, entry_price, capital_base)
             ("AUDUSD", 0.01, "AUDUSD=X", 0.70, 7000.0),
-            ("GC",     0.0162, "GC=F",     4144.0, 490.0),   # 7% of 7000
-            ("BTCUSD", 0.02,   "BTC-USD",  63146.0, 700.0),  # 10% of 7000
-            ("^DJI",   0.01,   "^DJI",     53261.0, 700.0),  # 10% of 7000
-            ("EURJPY", 0.01,   "EURJPY=X", 162.0, 7000.0),
+            ("GC", 0.0162, "GC=F", 4144.0, 490.0),  # 7% of 7000
+            ("BTCUSD", 0.02, "BTC-USD", 63146.0, 700.0),  # 10% of 7000
+            ("^DJI", 0.01, "^DJI", 53261.0, 700.0),  # 10% of 7000
+            ("EURJPY", 0.01, "EURJPY=X", 162.0, 7000.0),
         ]
         for asset_name, base_entry_size, ticker, entry_price, cap_base in test_cases:
             layers = [StackLayer(entry_price=entry_price, size=base_entry_size, timestamp="t1")]
@@ -466,12 +466,10 @@ class TestComputeStackSize:
             size = _compute_stack_size(ctx=_ctx(engine))
             expected = base_entry_size * 0.8
             assert size == pytest.approx(expected, rel=0.2), (
-                f"{asset_name} ({ticker}): stack_size={size} "
-                f"!= base*0.8={expected} — floor incorrectly dominating"
+                f"{asset_name} ({ticker}): stack_size={size} != base*0.8={expected} — floor incorrectly dominating"
             )
             assert size <= base_entry_size * 1.0, (
-                f"{asset_name} ({ticker}): stack_size {size} "
-                f"exceeds base_entry_size {base_entry_size}"
+                f"{asset_name} ({ticker}): stack_size {size} exceeds base_entry_size {base_entry_size}"
             )
 
 
@@ -754,7 +752,7 @@ class TestManagePositionStacking:
                 "min_viable_position_pct": 0.01,
                 "min_stack_size_factor": 0.5,
                 "stack_micro_threshold": 0.0,
-            }
+            },
         }
         engine = _mock_engine(position=pos, config=config, current_price=105.0)
         engine.capital_base = 100.0

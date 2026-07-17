@@ -221,10 +221,13 @@ class TestIncrementalEWMACov:
         """
         rng = np.random.default_rng(42)
         dates = pd.date_range("2025-01-01", periods=200, freq="D")
-        returns = pd.DataFrame({
-            "A": rng.normal(0.0003, 0.005, 200),
-            "B": rng.normal(0.0002, 0.006, 200),
-        }, index=dates)
+        returns = pd.DataFrame(
+            {
+                "A": rng.normal(0.0003, 0.005, 200),
+                "B": rng.normal(0.0002, 0.006, 200),
+            },
+            index=dates,
+        )
 
         inc = IncrementalEWMACov(span=60)
         for idx in range(len(returns)):

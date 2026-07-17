@@ -55,12 +55,22 @@ class TestDriftHealth:
         assert health._compute_drift_health({"model_drift": 0.0, "signal_drift": 0.0}) == 1.0
 
     def test_full_drift_returns_zero(self):
-        assert health._compute_drift_health({
-            "model_drift": 1.0, "signal_drift": 1.0, "feature_stability": 1.0, "regime_consistency": 1.0,
-        }) == 0.0
+        assert (
+            health._compute_drift_health(
+                {
+                    "model_drift": 1.0,
+                    "signal_drift": 1.0,
+                    "feature_stability": 1.0,
+                    "regime_consistency": 1.0,
+                }
+            )
+            == 0.0
+        )
 
     def test_partial_drift(self):
-        score = health._compute_drift_health({"model_drift": 0.2, "signal_drift": 0.2, "feature_stability": 0.2, "regime_consistency": 0.2})
+        score = health._compute_drift_health(
+            {"model_drift": 0.2, "signal_drift": 0.2, "feature_stability": 0.2, "regime_consistency": 0.2}
+        )
         assert score == 0.8
 
 
@@ -93,9 +103,13 @@ class TestShadowAgreement:
 
 class TestCompute:
     def test_healthy_asset(self, monkeypatch, shadow_intelligence):
-        monkeypatch.setattr(health, "_load_state_assets", lambda: {
-            "EURUSD": {"validity_state": "GREEN"},
-        })
+        monkeypatch.setattr(
+            health,
+            "_load_state_assets",
+            lambda: {
+                "EURUSD": {"validity_state": "GREEN"},
+            },
+        )
         monkeypatch.setattr(health, "get_shadow_intelligence", lambda asset, **kw: shadow_intelligence)
         monkeypatch.setattr(health, "_load_cmss", lambda asset: None)
 
@@ -106,22 +120,30 @@ class TestCompute:
         assert result["stress_robustness_source"] == "estimated"
 
     def test_critical_asset(self, monkeypatch):
-        monkeypatch.setattr(health, "_load_state_assets", lambda: {
-            "EURUSD": {"validity_state": "RED"},
-        })
-        monkeypatch.setattr(health, "get_shadow_intelligence", lambda asset, **kw: {
-            "drift_scores": {
-                "model_drift": 0.8,
-                "signal_drift": 0.7,
-                "pnl_drift": 0.9,
-                "feature_stability": 0.8,
-                "regime_consistency": 0.7,
+        monkeypatch.setattr(
+            health,
+            "_load_state_assets",
+            lambda: {
+                "EURUSD": {"validity_state": "RED"},
             },
-            "details": {
-                "model": {"average_kl": 0.8},
-                "signal": {"mismatch_rate": 0.7},
+        )
+        monkeypatch.setattr(
+            health,
+            "get_shadow_intelligence",
+            lambda asset, **kw: {
+                "drift_scores": {
+                    "model_drift": 0.8,
+                    "signal_drift": 0.7,
+                    "pnl_drift": 0.9,
+                    "feature_stability": 0.8,
+                    "regime_consistency": 0.7,
+                },
+                "details": {
+                    "model": {"average_kl": 0.8},
+                    "signal": {"mismatch_rate": 0.7},
+                },
             },
-        })
+        )
         monkeypatch.setattr(health, "_load_cmss", lambda asset: None)
 
         result = health.compute("EURUSD")
@@ -130,9 +152,13 @@ class TestCompute:
         assert result["health_score"] < 0.5
 
     def test_with_cmss_from_adversarial(self, monkeypatch, shadow_intelligence):
-        monkeypatch.setattr(health, "_load_state_assets", lambda: {
-            "EURUSD": {"validity_state": "GREEN"},
-        })
+        monkeypatch.setattr(
+            health,
+            "_load_state_assets",
+            lambda: {
+                "EURUSD": {"validity_state": "GREEN"},
+            },
+        )
         monkeypatch.setattr(health, "get_shadow_intelligence", lambda asset, **kw: shadow_intelligence)
         monkeypatch.setattr(health, "_load_cmss", lambda asset: 0.95)
 
@@ -163,9 +189,13 @@ class TestCompute:
                 "signal": {"mismatch_rate": 0.5},
             },
         }
-        monkeypatch.setattr(health, "_load_state_assets", lambda: {
-            "EURUSD": {"validity_state": "YELLOW"},
-        })
+        monkeypatch.setattr(
+            health,
+            "_load_state_assets",
+            lambda: {
+                "EURUSD": {"validity_state": "YELLOW"},
+            },
+        )
         monkeypatch.setattr(health, "get_shadow_intelligence", lambda asset, **kw: degraded_intel)
         monkeypatch.setattr(health, "_load_cmss", lambda asset: None)
 

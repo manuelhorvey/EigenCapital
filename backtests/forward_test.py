@@ -164,12 +164,11 @@ def _forward_metrics(proba, close):
     # Stability: fraction of rolling sharpe windows with positive sharpe
     window = min(20, len(pnl))
     if window >= 5:
+
         def _rolling_sharpe(vals):
             return _sharpe_ratio(vals) if len(vals) >= 5 else 0.0
 
-        rolling_sharpe = pd.Series(pnl).rolling(window, min_periods=5).apply(
-            _rolling_sharpe, raw=True
-        )
+        rolling_sharpe = pd.Series(pnl).rolling(window, min_periods=5).apply(_rolling_sharpe, raw=True)
         stability = float((rolling_sharpe.dropna() > 0).mean())
     else:
         stability = 1.0 if sharpe > 0 else 0.0

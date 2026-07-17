@@ -11,20 +11,25 @@ from features.regime_features import (
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def sample_ohlcv():
     np.random.seed(42)
     n = 250
     close = 100 + np.cumsum(np.random.randn(n) * 0.5)
-    return pd.DataFrame({
-        "close": close,
-        "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
-        "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
-        "volume": np.random.randint(1000, 100000, n).astype(float),
-    }, index=pd.date_range("2020-01-01", periods=n, freq="D"))
+    return pd.DataFrame(
+        {
+            "close": close,
+            "high": close * (1 + np.random.uniform(0.001, 0.005, n)),
+            "low": close * (1 - np.random.uniform(0.001, 0.005, n)),
+            "volume": np.random.randint(1000, 100000, n).astype(float),
+        },
+        index=pd.date_range("2020-01-01", periods=n, freq="D"),
+    )
 
 
 # ── compute_hurst ────────────────────────────────────────────────────────────
+
 
 def test_compute_hurst_returns_series(sample_ohlcv):
     h = compute_hurst(sample_ohlcv["close"], window=63)
@@ -54,6 +59,7 @@ def test_compute_hurst_short_series():
 
 # ── compute_kaufman_er ───────────────────────────────────────────────────────
 
+
 def test_compute_kaufman_er_returns_series(sample_ohlcv):
     er = compute_kaufman_er(sample_ohlcv["close"], window=10)
     assert isinstance(er, pd.Series)
@@ -79,6 +85,7 @@ def test_compute_kaufman_er_constant():
 
 # ── generate_regime_features ─────────────────────────────────────────────────
 
+
 def test_generate_regime_features_returns_expected_columns(sample_ohlcv):
     result = generate_regime_features(sample_ohlcv)
     expected = ["hurst", "kaufman_er", "adx", "vol_zscore", "compression", "session_vol_profile"]
@@ -97,11 +104,14 @@ def test_generate_regime_features_short_data():
     """Sufficient data for ADX but not for all rolling windows."""
     np.random.seed(42)
     n = 100
-    df = pd.DataFrame({
-        "close": 100 + np.cumsum(np.random.randn(n) * 0.5),
-        "high": [101.5] * n,
-        "low": [98.5] * n,
-    }, index=pd.RangeIndex(n))
+    df = pd.DataFrame(
+        {
+            "close": 100 + np.cumsum(np.random.randn(n) * 0.5),
+            "high": [101.5] * n,
+            "low": [98.5] * n,
+        },
+        index=pd.RangeIndex(n),
+    )
     result = generate_regime_features(df)
     assert len(result) > 0
     assert "adx" in result.columns

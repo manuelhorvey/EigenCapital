@@ -3,6 +3,7 @@
 Verifies that the multiplicative guardrail chain preserves key safety
 properties across a wide range of synthetic inputs (not just fixed cases).
 """
+
 from __future__ import annotations
 
 import hypothesis.strategies as st
@@ -11,17 +12,11 @@ from hypothesis import given, settings
 from shared.sizing_chain import SizingChain, SizingInput, SizingResult
 
 
-positive_finite = st.floats(
-    min_value=1.0, max_value=1e9, allow_nan=False, allow_infinity=False
-)
+positive_finite = st.floats(min_value=1.0, max_value=1e9, allow_nan=False, allow_infinity=False)
 price = st.floats(min_value=1e-3, max_value=1e6, allow_nan=False, allow_infinity=False)
-small_positive = st.floats(
-    min_value=1e-6, max_value=1.0, allow_nan=False, allow_infinity=False
-)
+small_positive = st.floats(min_value=1e-6, max_value=1.0, allow_nan=False, allow_infinity=False)
 drawdown = st.floats(max_value=0.0, allow_nan=False, allow_infinity=False)
-fraction = st.floats(
-    min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False
-)
+fraction = st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
 
 
 @st.composite

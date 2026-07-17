@@ -62,9 +62,7 @@ def sample_macro(sample_prices):
         "dxy": pd.Series(100 + rng.standard_normal(N).cumsum() * 2, index=idx),
         "vix": pd.Series(np.abs(rng.standard_normal(N)) * 10 + 15, index=idx),
         "spx": pd.Series(4000 + rng.standard_normal(N).cumsum() * 50, index=idx),
-        "comms": pd.DataFrame(
-            {"WTI": 80 + rng.standard_normal(N).cumsum() * 2}, index=idx
-        ),
+        "comms": pd.DataFrame({"WTI": 80 + rng.standard_normal(N).cumsum() * 2}, index=idx),
     }
 
 
@@ -317,7 +315,8 @@ def test_build_alpha_features_no_dxy(sample_prices, sample_rate_diffs):
 
 def test_build_alpha_features_no_commodities(sample_prices, sample_rate_diffs, sample_macro):
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
+        sample_prices,
+        sample_rate_diffs,
         dxy=sample_macro["dxy"],
     )
     assert "WTI_mom_21d" not in result.columns
@@ -325,7 +324,8 @@ def test_build_alpha_features_no_commodities(sample_prices, sample_rate_diffs, s
 
 def test_build_alpha_features_preserves_index(sample_prices, sample_rate_diffs, sample_macro):
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
+        sample_prices,
+        sample_rate_diffs,
         dxy=sample_macro["dxy"],
     )
     assert result.index.isin(sample_prices.index).all()
@@ -344,21 +344,29 @@ def test_build_alpha_features_output_not_empty(sample_prices, sample_rate_diffs,
 
 
 def test_build_alpha_features_adds_trend_exhaustion_with_ohlcv(
-    sample_prices, sample_rate_diffs, sample_macro,
+    sample_prices,
+    sample_rate_diffs,
+    sample_macro,
 ):
     """When ohlcv is provided, trend-exhaustion columns appear."""
     idx = sample_prices.index
-    ohlcv = pd.DataFrame({
-        "open": np.random.default_rng(42).uniform(99, 101, len(idx)),
-        "high": np.random.default_rng(43).uniform(100, 103, len(idx)),
-        "low": np.random.default_rng(44).uniform(97, 100, len(idx)),
-        "close": sample_prices["AUDJPY"].values,
-        "volume": np.random.default_rng(45).uniform(1000, 5000, len(idx)),
-    }, index=idx)
+    ohlcv = pd.DataFrame(
+        {
+            "open": np.random.default_rng(42).uniform(99, 101, len(idx)),
+            "high": np.random.default_rng(43).uniform(100, 103, len(idx)),
+            "low": np.random.default_rng(44).uniform(97, 100, len(idx)),
+            "close": sample_prices["AUDJPY"].values,
+            "volume": np.random.default_rng(45).uniform(1000, 5000, len(idx)),
+        },
+        index=idx,
+    )
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        sample_prices,
+        sample_rate_diffs,
+        dxy=sample_macro["dxy"],
+        vix=sample_macro["vix"],
+        spx=sample_macro["spx"],
+        commodities=sample_macro["comms"],
         ohlcv=ohlcv,
     )
     for asset in sample_prices.columns:
@@ -368,13 +376,18 @@ def test_build_alpha_features_adds_trend_exhaustion_with_ohlcv(
 
 
 def test_build_alpha_features_without_ohlcv_skips_trend_exhaustion(
-    sample_prices, sample_rate_diffs, sample_macro,
+    sample_prices,
+    sample_rate_diffs,
+    sample_macro,
 ):
     """Without ohlcv, no trend-exhaustion columns appear."""
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        sample_prices,
+        sample_rate_diffs,
+        dxy=sample_macro["dxy"],
+        vix=sample_macro["vix"],
+        spx=sample_macro["spx"],
+        commodities=sample_macro["comms"],
     )
     for asset in sample_prices.columns:
         upper = asset.upper()
@@ -382,16 +395,21 @@ def test_build_alpha_features_without_ohlcv_skips_trend_exhaustion(
 
 
 def test_build_alpha_features_missing_rate_diff_defaults_to_zero(
-    sample_prices, sample_rate_diffs, sample_macro,
+    sample_prices,
+    sample_rate_diffs,
+    sample_macro,
 ):
     """When an asset's pair is missing from rate_diffs, carry should be ~0."""
     missing_pair = "GBPJPY"
     prices_w_missing = pd.DataFrame({missing_pair: sample_prices["AUDJPY"].values}, index=sample_prices.index)
     # rate_diffs has AUDJPY and EURCAD, not GBPJPY
     result = build_alpha_features(
-        prices_w_missing, sample_rate_diffs,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        prices_w_missing,
+        sample_rate_diffs,
+        dxy=sample_macro["dxy"],
+        vix=sample_macro["vix"],
+        spx=sample_macro["spx"],
+        commodities=sample_macro["comms"],
     )
     assert f"{missing_pair}_carry_vol_adj" in result.columns
     # With zero rate_diff, the carry should be near 0
@@ -400,13 +418,18 @@ def test_build_alpha_features_missing_rate_diff_defaults_to_zero(
 
 
 def test_build_alpha_features_cot_removed(
-    sample_prices, sample_rate_diffs, sample_macro,
+    sample_prices,
+    sample_rate_diffs,
+    sample_macro,
 ):
     """COT features are removed — no COT columns in the output."""
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
-        dxy=sample_macro["dxy"], vix=sample_macro["vix"],
-        spx=sample_macro["spx"], commodities=sample_macro["comms"],
+        sample_prices,
+        sample_rate_diffs,
+        dxy=sample_macro["dxy"],
+        vix=sample_macro["vix"],
+        spx=sample_macro["spx"],
+        commodities=sample_macro["comms"],
     )
     # COT columns were removed 2026-07-11
     assert "AUDJPY_cot_z" not in result.columns, "COT column should not exist"
@@ -481,13 +504,15 @@ def test_adx_slope_basic():
 
 
 def test_build_alpha_features_with_shared_features(
-    sample_prices, sample_rate_diffs,
+    sample_prices,
+    sample_rate_diffs,
 ):
     """Pre-computed shared_features are used instead of recomputing."""
     idx = sample_prices.index
     shared = {"dxy_mom_21d": pd.Series(np.linspace(-0.01, 0.01, len(idx)), index=idx)}
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
+        sample_prices,
+        sample_rate_diffs,
         shared_features=shared,
     )
     assert "dxy_mom_21d" in result.columns
@@ -495,14 +520,16 @@ def test_build_alpha_features_with_shared_features(
 
 
 def test_build_alpha_features_shared_features_reindexed(
-    sample_prices, sample_rate_diffs,
+    sample_prices,
+    sample_rate_diffs,
 ):
     """shared_features are reindexed to feature DataFrame index."""
     idx = sample_prices.index
     shorter_idx = idx[: len(idx) - 10]
     shared = {"dxy_mom_21d": pd.Series(np.linspace(-0.01, 0.01, len(shorter_idx)), index=shorter_idx)}
     result = build_alpha_features(
-        sample_prices, sample_rate_diffs,
+        sample_prices,
+        sample_rate_diffs,
         shared_features=shared,
     )
     assert len(result) > 0

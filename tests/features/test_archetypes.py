@@ -83,12 +83,14 @@ class TestArchetypeClassifier:
 
 class TestTagDataframe:
     def test_adds_archetype_columns(self):
-        data = pd.DataFrame({
-            "adx": [30.0, 15.0, 40.0, 10.0],
-            "rsi": [50.0, 80.0, 50.0, 50.0],
-            "bb_zscore": [1.8, 2.2, 2.5, 0.5],
-            "ema_spread": [0.02, 0.001, 0.03, 0.0001],
-        })
+        data = pd.DataFrame(
+            {
+                "adx": [30.0, 15.0, 40.0, 10.0],
+                "rsi": [50.0, 80.0, 50.0, 50.0],
+                "bb_zscore": [1.8, 2.2, 2.5, 0.5],
+                "ema_spread": [0.02, 0.001, 0.03, 0.0001],
+            }
+        )
         classifier = ArchetypeClassifier()
         tagged = classifier.tag_dataframe(data)
         assert "archetype" in tagged.columns
@@ -96,23 +98,27 @@ class TestTagDataframe:
         assert len(tagged) == 4
 
     def test_archetype_names_are_strings(self):
-        data = pd.DataFrame({
-            "adx": [30.0],
-            "rsi": [50.0],
-            "bb_zscore": [2.5],
-            "ema_spread": [0.02],
-        })
+        data = pd.DataFrame(
+            {
+                "adx": [30.0],
+                "rsi": [50.0],
+                "bb_zscore": [2.5],
+                "ema_spread": [0.02],
+            }
+        )
         classifier = ArchetypeClassifier()
         tagged = classifier.tag_dataframe(data)
         assert isinstance(tagged["archetype_name"].iloc[0], str)
 
     def test_does_not_mutate_input(self):
-        data = pd.DataFrame({
-            "adx": [30.0],
-            "rsi": [50.0],
-            "bb_zscore": [2.5],
-            "ema_spread": [0.02],
-        })
+        data = pd.DataFrame(
+            {
+                "adx": [30.0],
+                "rsi": [50.0],
+                "bb_zscore": [2.5],
+                "ema_spread": [0.02],
+            }
+        )
         original_cols = set(data.columns)
         ArchetypeClassifier().tag_dataframe(data)
         assert set(data.columns) == original_cols
@@ -121,6 +127,13 @@ class TestTagDataframe:
 class TestSetupArchetypeEnum:
     def test_all_values_defined(self):
         values = {e.value for e in SetupArchetype}
-        expected = {"MOMENTUM_IGNITION", "MEAN_REVERSION", "BREAKOUT_TEST",
-                    "TREND_PULLBACK", "VOL_EXPANSION", "LIQUIDITY_SWEEP", "UNKNOWN"}
+        expected = {
+            "MOMENTUM_IGNITION",
+            "MEAN_REVERSION",
+            "BREAKOUT_TEST",
+            "TREND_PULLBACK",
+            "VOL_EXPANSION",
+            "LIQUIDITY_SWEEP",
+            "UNKNOWN",
+        }
         assert values == expected

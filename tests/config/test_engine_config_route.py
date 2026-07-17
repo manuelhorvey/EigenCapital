@@ -100,6 +100,7 @@ def test_load_config_assets_match_domain_tree():
     cm.reset_config()
     cfg = cm.load_config()
     from configs.paper_config_registry import PaperConfigRegistry
+
     reg = PaperConfigRegistry.load()
     assert set(cfg.assets) == set(reg.assets.keys())
 

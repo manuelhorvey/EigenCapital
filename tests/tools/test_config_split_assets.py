@@ -55,6 +55,7 @@ class TestSplit:
                 assert (out_dir / "GBPUSD.yaml").exists()
         finally:
             import os
+
             os.unlink(lpath)
 
     def test_defaults_yaml_has_expected_keys(self):
@@ -72,6 +73,7 @@ class TestSplit:
                 assert defaults["adaptive_exit"]["enabled"] is True
         finally:
             import os
+
             os.unlink(lpath)
 
     def test_per_asset_file_has_unique_keys(self):
@@ -88,6 +90,7 @@ class TestSplit:
                 assert eurusd["regime_geometry"]["GREEN"]["sl_mult"] == 1.0
         finally:
             import os
+
             os.unlink(lpath)
 
     def test_no_assets_returns_error(self):
@@ -101,4 +104,5 @@ class TestSplit:
                 assert rc == 1
             finally:
                 import os
+
                 os.unlink(lpath)

@@ -230,7 +230,9 @@ class TestRestoreFromSnapshot:
         )
         # Small ratio increase (1.05×) so phantom dd clamp doesn't fire
         hs.restore_from_snapshot(
-            snap, init_equity=190.0, capital=105.0,
+            snap,
+            init_equity=190.0,
+            capital=105.0,
         )
         # ratio = 105/100 = 1.05, peak = 200 * 1.05 = 210
         # phantom dd = (190-210)/210 = -9.5% > -15% → no clamp
@@ -307,7 +309,10 @@ class TestRestoreFromSnapshot:
         )
         # equity=190 → dd=(190-200)/200=-5% > -15% → no phantom clamp
         hs.restore_from_snapshot(
-            snap, init_equity=190.0, capital=50.0, peak_capital_base=50.0,
+            snap,
+            init_equity=190.0,
+            capital=50.0,
+            peak_capital_base=50.0,
         )
         # ratio = 50/50 = 1.0, peak stays 200
         # safety: 190 < 200 → no clamp

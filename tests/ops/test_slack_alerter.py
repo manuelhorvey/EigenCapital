@@ -174,7 +174,15 @@ class TestSlackAlerterPoll:
 
     def test_poll_reads_new_events(self, alerter):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
-            f.write(json.dumps({"event_type": "position_concentration", "payload": {"skew": 0.8, "threshold": 0.75, "alert": True, "dominant_side": "short"}}) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "event_type": "position_concentration",
+                        "payload": {"skew": 0.8, "threshold": 0.75, "alert": True, "dominant_side": "short"},
+                    }
+                )
+                + "\n"
+            )
             wal_path = f.name
         try:
             alerter.wal_path = Path(wal_path)
@@ -218,7 +226,10 @@ class TestHandleStateCommitted:
             return a
 
     def test_sends_halt_alert_for_halted_asset(self, alerter):
-        payload = {"actors": {"EURUSD": {"health": "HALTED", "cycle_id": 5, "consecutive_failures": 3}}, "emergency_halt": False}
+        payload = {
+            "actors": {"EURUSD": {"health": "HALTED", "cycle_id": 5, "consecutive_failures": 3}},
+            "emergency_halt": False,
+        }
         alerter._handle_state_committed(payload)
         alerter._send_asset_halted.assert_called_once()
 
@@ -229,6 +240,7 @@ class TestHandleStateCommitted:
 
     def test_respects_halt_cooldown(self, alerter):
         import time
+
         alerter.state["cooldowns"]["halt:EURUSD"] = time.time()
         payload = {"actors": {"EURUSD": {"health": "HALTED"}}, "emergency_halt": False}
         alerter._handle_state_committed(payload)
@@ -236,8 +248,12 @@ class TestHandleStateCommitted:
 
     def test_sends_after_cooldown_expires(self, alerter):
         import time
+
         alerter.state["cooldowns"]["halt:EURUSD"] = time.time() - COOLDOWN_HALT - 10
-        payload = {"actors": {"EURUSD": {"health": "HALTED", "cycle_id": 1, "consecutive_failures": 1}}, "emergency_halt": False}
+        payload = {
+            "actors": {"EURUSD": {"health": "HALTED", "cycle_id": 1, "consecutive_failures": 1}},
+            "emergency_halt": False,
+        }
         alerter._handle_state_committed(payload)
         alerter._send_asset_halted.assert_called_once()
 
@@ -261,6 +277,7 @@ class TestHandleConcentration:
 
     def test_sends_heartbeat_when_sustained(self, alerter):
         import time
+
         alerter.state["concentration_state"] = "above_threshold"
         alerter.state["concentration_heartbeat_due"] = time.time() - 1
         alerter._handle_concentration({"skew": 0.85, "threshold": 0.75, "alert": True, "dominant_side": "short"})
@@ -282,12 +299,14 @@ class TestCheckEngineStale:
 
     def test_sends_alert_when_stale(self, alerter):
         import time
+
         alerter._last_wal_event_time = time.time() - 200
         alerter._check_engine_stale()
         alerter._send_engine_stale.assert_called_once()
 
     def test_sends_only_once(self, alerter):
         import time
+
         alerter._engine_down_sent = True
         alerter._last_wal_event_time = time.time() - 200
         alerter._check_engine_stale()
@@ -295,6 +314,7 @@ class TestCheckEngineStale:
 
     def test_clears_flag_when_engine_recovers(self, alerter):
         import time
+
         alerter._engine_down_sent = True
         alerter._last_wal_event_time = time.time()
         alerter._check_engine_stale()
@@ -331,6 +351,7 @@ class TestMain:
         with patch.dict(os.environ, {}, clear=True):
             with patch("paper_trading.ops.slack_alerter.logger") as mock_log:
                 from paper_trading.ops.slack_alerter import main
+
                 main()
                 mock_log.warning.assert_called_once()
 
@@ -339,5 +360,6 @@ class TestMain:
             with patch("paper_trading.ops.slack_alerter.SlackAlerter.run") as mock_run:
                 with patch.object(Path, "exists", return_value=False):
                     from paper_trading.ops.slack_alerter import main
+
                     main()
                     mock_run.assert_called_once()

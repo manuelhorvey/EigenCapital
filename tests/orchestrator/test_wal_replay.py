@@ -44,10 +44,26 @@ def reader(tmp_wal_dir: str) -> WalReader:
 def full_event_chain(writer: WalWriter) -> list[WalEvent]:
     """Write a complete decision chain for one asset."""
     events = []
-    events.append(writer.write("price_update", {"asset": "EURUSD", "price": 1.1050, "ohlcv": {"open": 1.1040, "high": 1.1060, "low": 1.1030, "close": 1.1050}}))
+    events.append(
+        writer.write(
+            "price_update",
+            {
+                "asset": "EURUSD",
+                "price": 1.1050,
+                "ohlcv": {"open": 1.1040, "high": 1.1060, "low": 1.1030, "close": 1.1050},
+            },
+        )
+    )
     events.append(writer.write("signal_generated", {"asset": "EURUSD", "signal": "BUY", "confidence": 0.72}))
-    events.append(writer.write("entry_executed", {"asset": "EURUSD", "side": "long", "fill_price": 1.1052, "fill_qty": 10000.0, "slippage_bps": 1.8}))
-    events.append(writer.write("sl_executed", {"asset": "EURUSD", "fill_price": 1.1020, "gap_fill": True, "slippage_bps": 3.2}))
+    events.append(
+        writer.write(
+            "entry_executed",
+            {"asset": "EURUSD", "side": "long", "fill_price": 1.1052, "fill_qty": 10000.0, "slippage_bps": 1.8},
+        )
+    )
+    events.append(
+        writer.write("sl_executed", {"asset": "EURUSD", "fill_price": 1.1020, "gap_fill": True, "slippage_bps": 3.2})
+    )
     events.append(writer.write("position_closed", {"asset": "EURUSD", "reason": "sl_hit", "pnl": -32.0}))
     events.append(writer.write("state_committed", {"assets": {"EURUSD": {"position": None}}}))
     events.append(writer.write("actor_health", {"asset": "EURUSD", "health": "GREEN"}))
@@ -215,9 +231,7 @@ class TestDecisionChainCapture:
             "position_closed",
         ]
         recorded_order = [e.event_type for e in full_event_chain if e.event_type in expected_order]
-        assert recorded_order == expected_order, (
-            f"Decision chain order broken: {recorded_order}"
-        )
+        assert recorded_order == expected_order, f"Decision chain order broken: {recorded_order}"
 
     def test_event_payloads_carry_required_fields(self, full_event_chain):
         """Each event type must carry the fields needed for replay."""
@@ -401,10 +415,7 @@ class TestWalConcurrency:
             for i in range(n_per_thread):
                 writer.write("price_update", {"thread": thread_id, "i": i})
 
-        threads = [
-            threading.Thread(target=write_batch, args=(t,))
-            for t in range(n_threads)
-        ]
+        threads = [threading.Thread(target=write_batch, args=(t,)) for t in range(n_threads)]
         for t in threads:
             t.start()
         for t in threads:
@@ -416,9 +427,7 @@ class TestWalConcurrency:
         # Verify all events were written
         reader = WalReader(tmp_wal_dir, source="concurrent")
         events = reader.read_all()
-        assert len(events) == total_events, (
-            f"Expected {total_events} events, got {len(events)}"
-        )
+        assert len(events) == total_events, f"Expected {total_events} events, got {len(events)}"
 
         # Verify sequences are 1..N with no gaps
         sequences = sorted(e.sequence for e in events)
@@ -445,10 +454,7 @@ class TestWalConcurrency:
             except Exception as e:
                 errors.append(e)
 
-        threads = [
-            threading.Thread(target=worker, args=(t,))
-            for t in range(n_threads)
-        ]
+        threads = [threading.Thread(target=worker, args=(t,)) for t in range(n_threads)]
         for t in threads:
             t.start()
         for t in threads:

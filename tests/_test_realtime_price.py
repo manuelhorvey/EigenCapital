@@ -1,5 +1,6 @@
 import sys
 import os
+
 sys.path.insert(0, os.getcwd())
 from paper_trading.ops.data_fetcher import fetch_realtime_price
 

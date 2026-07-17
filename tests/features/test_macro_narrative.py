@@ -12,6 +12,7 @@ from features.macro_narrative import (
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def default_features():
     return MacroNarrativeFeatures(
@@ -37,6 +38,7 @@ def default_features():
 
 # ── MacroNarrativeFeatures ───────────────────────────────────────────────────
 
+
 class TestMacroNarrativeFeatures:
     def test_to_dict(self, default_features):
         d = default_features.to_dict()
@@ -48,10 +50,21 @@ class TestMacroNarrativeFeatures:
     def test_to_feature_vector_returns_all_keys(self, default_features):
         v = default_features.to_feature_vector()
         expected_keys = [
-            "usd_strength_narr", "geopol_risk", "fed_hawk", "rbnz_hawk",
-            "rba_hawk", "boj_intervene_risk", "energy_pressure",
-            "usd_bias_num", "nzd_bias_num", "aud_bias_num", "jpy_bias_num",
-            "cad_bias_num", "eur_bias_num", "regime_risk_on", "regime_geopol",
+            "usd_strength_narr",
+            "geopol_risk",
+            "fed_hawk",
+            "rbnz_hawk",
+            "rba_hawk",
+            "boj_intervene_risk",
+            "energy_pressure",
+            "usd_bias_num",
+            "nzd_bias_num",
+            "aud_bias_num",
+            "jpy_bias_num",
+            "cad_bias_num",
+            "eur_bias_num",
+            "regime_risk_on",
+            "regime_geopol",
         ]
         for k in expected_keys:
             assert k in v, f"Missing key: {k}"
@@ -136,6 +149,7 @@ class TestMacroNarrativeFeatures:
 
 # ── narrative_governance_scalars ─────────────────────────────────────────────
 
+
 class TestNarrativeGovernanceScalars:
     def test_normal_returns_defaults(self, default_features):
         result = narrative_governance_scalars(default_features)
@@ -175,9 +189,7 @@ class TestNarrativeGovernanceScalars:
     def test_custom_percentages(self, default_features):
         default_features.geopol_risk_score = 0.9
         default_features.overall_regime = "risk_off"
-        result = narrative_governance_scalars(
-            default_features, geopol_sl_widen_pct=25.0, risk_off_size_reduce_pct=35.0
-        )
+        result = narrative_governance_scalars(default_features, geopol_sl_widen_pct=25.0, risk_off_size_reduce_pct=35.0)
         assert result["sl_mult"] == 1.25
         assert result["size_scalar"] == 0.65
 
@@ -199,6 +211,7 @@ class TestNarrativeGovernanceScalars:
 
 # ── neutral_narrative ────────────────────────────────────────────────────────
 
+
 class TestNeutralNarrative:
     def test_returns_default_values(self):
         result = neutral_narrative()
@@ -217,10 +230,12 @@ class TestNeutralNarrative:
     def test_with_none_week_start_uses_today(self):
         result = neutral_narrative(week_start=None)
         from datetime import datetime
+
         assert result.week_start == datetime.now().strftime("%Y-%m-%d")
 
 
 # ── load_narrative_json ──────────────────────────────────────────────────────
+
 
 class TestLoadNarrativeJson:
     def test_success(self, tmp_path, default_features):
@@ -242,6 +257,7 @@ class TestLoadNarrativeJson:
 
 
 # ── save_narrative_json ──────────────────────────────────────────────────────
+
 
 class TestSaveNarrativeJson:
     def test_roundtrip(self, tmp_path, default_features):

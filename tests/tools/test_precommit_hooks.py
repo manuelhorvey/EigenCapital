@@ -1,4 +1,5 @@
 """Tests for the pre-commit hooks / security scanners."""
+
 from __future__ import annotations
 
 import subprocess
@@ -59,13 +60,17 @@ def f(x):
 class TestSecretScanner:
     def test_allowed_secret_match(self):
         for placeholder in (
-            "", "your_password", "YOUR_API_KEY", "YOUR_PASSWORD",
-            "${ENV_VAR}", "REPLACE_ME", "your_demo_account_number",
-            "...", "***",
+            "",
+            "your_password",
+            "YOUR_API_KEY",
+            "YOUR_PASSWORD",
+            "${ENV_VAR}",
+            "REPLACE_ME",
+            "your_demo_account_number",
+            "...",
+            "***",
         ):
-            assert _is_allowed_secret_match(placeholder), (
-                f"{placeholder!r} should be allowed"
-            )
+            assert _is_allowed_secret_match(placeholder), f"{placeholder!r} should be allowed"
 
     def test_non_allowed_secret_match(self):
         # Real-looking credentials are NOT in the placeholder allowlist

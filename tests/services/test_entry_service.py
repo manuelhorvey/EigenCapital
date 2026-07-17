@@ -271,13 +271,16 @@ class TestCanEnter:
     def test_cross_side_stopout_cooldown(self, mock_asset):
         svc = EntryService()
         ok, reason = svc.can_enter(
-            "long", 100.0,
-            last_stop_out_cycle=95, last_stop_out_side="short",
+            "long",
+            100.0,
+            last_stop_out_cycle=95,
+            last_stop_out_side="short",
             config={"stopout_cross_side_cooldown_cycles": 10},
             cooldown_penalty_func=lambda s: 0.0,
             pending_entries={},
             cycle_counter=100,
-            last_signal_flip_cycle=0, min_flip_interval_bars=0,
+            last_signal_flip_cycle=0,
+            min_flip_interval_bars=0,
         )
         assert ok is False
         assert "cooldown" in reason
@@ -285,13 +288,16 @@ class TestCanEnter:
     def test_same_cycle_stopout_lock(self, mock_asset):
         svc = EntryService()
         ok, reason = svc.can_enter(
-            "long", 100.0,
-            last_stop_out_cycle=100, last_stop_out_side="long",
+            "long",
+            100.0,
+            last_stop_out_cycle=100,
+            last_stop_out_side="long",
             config={"stopout_cross_side_cooldown_cycles": 0},
             cooldown_penalty_func=lambda s: 0.0,
             pending_entries={},
             cycle_counter=100,
-            last_signal_flip_cycle=0, min_flip_interval_bars=0,
+            last_signal_flip_cycle=0,
+            min_flip_interval_bars=0,
         )
         assert ok is False
         assert "same_cycle" in reason
@@ -299,13 +305,16 @@ class TestCanEnter:
     def test_cooldown_penalty(self, mock_asset):
         svc = EntryService()
         ok, reason = svc.can_enter(
-            "long", 100.0,
-            last_stop_out_cycle=None, last_stop_out_side=None,
+            "long",
+            100.0,
+            last_stop_out_cycle=None,
+            last_stop_out_side=None,
             config={},
             cooldown_penalty_func=lambda s: 3.0,
             pending_entries={},
             cycle_counter=100,
-            last_signal_flip_cycle=0, min_flip_interval_bars=0,
+            last_signal_flip_cycle=0,
+            min_flip_interval_bars=0,
         )
         assert ok is False
         assert "cooldown" in reason
@@ -313,13 +322,16 @@ class TestCanEnter:
     def test_pending_entry_exists(self, mock_asset):
         svc = EntryService()
         ok, reason = svc.can_enter(
-            "long", 100.0,
-            last_stop_out_cycle=None, last_stop_out_side=None,
+            "long",
+            100.0,
+            last_stop_out_cycle=None,
+            last_stop_out_side=None,
             config={},
             cooldown_penalty_func=lambda s: 0.0,
             pending_entries={"long": MagicMock()},
             cycle_counter=100,
-            last_signal_flip_cycle=0, min_flip_interval_bars=0,
+            last_signal_flip_cycle=0,
+            min_flip_interval_bars=0,
         )
         assert ok is False
         assert "pending_entry" in reason
@@ -327,13 +339,16 @@ class TestCanEnter:
     def test_signal_flip_cooldown(self, mock_asset):
         svc = EntryService()
         ok, reason = svc.can_enter(
-            "long", 100.0,
-            last_stop_out_cycle=None, last_stop_out_side=None,
+            "long",
+            100.0,
+            last_stop_out_cycle=None,
+            last_stop_out_side=None,
             config={},
             cooldown_penalty_func=lambda s: 0.0,
             pending_entries={},
             cycle_counter=100,
-            last_signal_flip_cycle=98, min_flip_interval_bars=5,
+            last_signal_flip_cycle=98,
+            min_flip_interval_bars=5,
         )
         assert ok is False
         assert "flip_cooldown" in reason
@@ -341,13 +356,16 @@ class TestCanEnter:
     def test_allows_entry_when_no_gates_active(self, mock_asset):
         svc = EntryService()
         ok, reason = svc.can_enter(
-            "long", 100.0,
-            last_stop_out_cycle=None, last_stop_out_side=None,
+            "long",
+            100.0,
+            last_stop_out_cycle=None,
+            last_stop_out_side=None,
             config={},
             cooldown_penalty_func=lambda s: 0.0,
             pending_entries={},
             cycle_counter=100,
-            last_signal_flip_cycle=90, min_flip_interval_bars=5,
+            last_signal_flip_cycle=90,
+            min_flip_interval_bars=5,
         )
         assert ok is True
         assert reason == "ok"
@@ -382,7 +400,15 @@ class TestValidateSltpInvariants:
         tp_geo = MagicMock()
         tp_geo.tp_distance = 10.0
         result = svc._validate_sltp_invariants(
-            mock_asset, "long", 100.0, 95.0, 110.0, sl_dist=5.0, sl_mult=1.0, tp_mult=2.0, tp_geo=tp_geo,
+            mock_asset,
+            "long",
+            100.0,
+            95.0,
+            110.0,
+            sl_dist=5.0,
+            sl_mult=1.0,
+            tp_mult=2.0,
+            tp_geo=tp_geo,
         )
         assert result is True
 
@@ -391,7 +417,15 @@ class TestValidateSltpInvariants:
         tp_geo = MagicMock()
         tp_geo.tp_distance = 1.0
         result = svc._validate_sltp_invariants(
-            mock_asset, "long", 100.0, 95.0, 101.0, sl_dist=5.0, sl_mult=1.0, tp_mult=2.0, tp_geo=tp_geo,
+            mock_asset,
+            "long",
+            100.0,
+            95.0,
+            101.0,
+            sl_dist=5.0,
+            sl_mult=1.0,
+            tp_mult=2.0,
+            tp_geo=tp_geo,
         )
         assert result is False
 
@@ -411,9 +445,15 @@ class TestSubmitToBroker:
         mock_asset.execution_bridge = bridge
         with patch("shared.sizing_chain.SizingChain.compute") as mock_sc:
             mock_sc.return_value = MagicMock(
-                is_viable=True, quantity=0.02, notional=2000, chain_breakdown={},
-                effective_cap=100000, size_scalar_applied=0.02, drawdown_taper=1.0,
-                position_cap=15000, risk_cap_used=1000,
+                is_viable=True,
+                quantity=0.02,
+                notional=2000,
+                chain_breakdown={},
+                effective_cap=100000,
+                size_scalar_applied=0.02,
+                drawdown_taper=1.0,
+                position_cap=15000,
+                risk_cap_used=1000,
             )
             result = svc._submit_to_broker(mock_asset, "long", 100.0, 95.0, 110.0, "GREEN")
         assert result[0] == 100.5
@@ -438,14 +478,18 @@ class TestComputeTakeProfit:
         svc = EntryService()
         tp_geo = MagicMock()
         tp_geo.tp_distance = 5.0
-        result_geo, final_tp = svc._compute_take_profit(mock_asset, None, PositionSide.LONG, 100.0, 95.0, tp_geo, "GREEN")
+        result_geo, final_tp = svc._compute_take_profit(
+            mock_asset, None, PositionSide.LONG, 100.0, 95.0, tp_geo, "GREEN"
+        )
         assert final_tp == 105.0
 
     def test_clamps_negative_tp(self, mock_asset):
         svc = EntryService()
         with patch("paper_trading.entry.tp_compiler.compute_take_profit") as mock_ctp:
             mock_ctp.return_value = MagicMock(tp_distance=-100.0)
-            result_geo, final_tp = svc._compute_take_profit(mock_asset, None, PositionSide.LONG, 100.0, 95.0, None, "GREEN")
+            result_geo, final_tp = svc._compute_take_profit(
+                mock_asset, None, PositionSide.LONG, 100.0, 95.0, None, "GREEN"
+            )
         assert final_tp > 0
 
 

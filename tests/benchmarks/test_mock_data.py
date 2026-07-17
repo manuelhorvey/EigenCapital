@@ -80,6 +80,7 @@ class TestMockDataFixture:
         mock.install()
         try:
             import yfinance as yf
+
             t = yf.Ticker("EURUSD=X")
             assert t.fast_info.get("lastPrice") == 100.0
             hist = t.history()
@@ -90,6 +91,7 @@ class TestMockDataFixture:
 
     def test_install_and_uninstall_roundtrip(self, mock):
         import yfinance as yf
+
         original_download = yf.download
         mock.install()
         assert yf.download != original_download

@@ -1,4 +1,5 @@
 """Tests for OrderManager."""
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -49,9 +50,7 @@ class MockBroker(BrokerInterface):
     def close_position(self, asset: str, position_id: str) -> bool:
         return True
 
-    def modify_position(
-        self, asset: str, position_id: str, sl: float | None = None, tp: float | None = None
-    ) -> bool:
+    def modify_position(self, asset: str, position_id: str, sl: float | None = None, tp: float | None = None) -> bool:
         return True
 
     def get_current_price(self, asset: str) -> float:

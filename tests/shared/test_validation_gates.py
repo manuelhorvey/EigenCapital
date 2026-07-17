@@ -78,7 +78,8 @@ class TestGateStatisticalSignificance:
 
     def test_defers_when_insufficient_data(self):
         r = gate_statistical_significance(
-            np.array([0.1, 0.2]), np.array([0.3, 0.4]),
+            np.array([0.1, 0.2]),
+            np.array([0.3, 0.4]),
         )
         assert r.passed is True
         assert "Insufficient" in r.message

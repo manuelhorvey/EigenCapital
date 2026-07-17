@@ -7,9 +7,8 @@ from monitoring.psi_monitor import PSIMonitor, PSIDriftEntry, PSISnapshot
 
 # ── Property-based tests for classify_drift ──────────────────────────────────
 
-@given(
-    psi=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
-)
+
+@given(psi=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
 @settings(max_examples=100)
 def test_classify_drift_is_monotonic(psi):
     """Higher PSI never produces a lower severity classification."""
@@ -24,9 +23,7 @@ def test_classify_drift_is_monotonic(psi):
         assert ordering[result] == 2
 
 
-@given(
-    psi=st.floats(min_value=-0.5, max_value=-1e-10, allow_nan=False, allow_infinity=False)
-)
+@given(psi=st.floats(min_value=-0.5, max_value=-1e-10, allow_nan=False, allow_infinity=False))
 @settings(max_examples=50)
 def test_classify_drift_negative_treated_as_no_drift(psi):
     """Negative PSI values are treated as NO_DRIFT."""
@@ -34,9 +31,7 @@ def test_classify_drift_negative_treated_as_no_drift(psi):
     assert result == "NO_DRIFT"
 
 
-@given(
-    psi=st.floats(min_value=1.0 + 1e-10, max_value=10.0, allow_nan=False, allow_infinity=False)
-)
+@given(psi=st.floats(min_value=1.0 + 1e-10, max_value=10.0, allow_nan=False, allow_infinity=False))
 @settings(max_examples=50)
 def test_classify_drift_large_values_are_severe(psi):
     """Any PSI >= 0.60 is SEVERE, including large values."""
@@ -44,9 +39,7 @@ def test_classify_drift_large_values_are_severe(psi):
     assert result == "SEVERE"
 
 
-@given(
-    psi=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
-)
+@given(psi=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
 @settings(max_examples=100)
 def test_compute_trend_is_deterministic(psi):
     """_compute_trend returns one of the three valid states."""
@@ -55,6 +48,7 @@ def test_compute_trend_is_deterministic(psi):
 
 
 # ── Edge cases for compute_psi ───────────────────────────────────────────────
+
 
 def test_compute_psi_empty_series():
     """Empty or all-NaN series returns 0.0."""
@@ -79,6 +73,7 @@ def test_compute_psi_single_value():
 
 
 # ── Edge cases for compute_drift ─────────────────────────────────────────────
+
 
 def test_compute_drift_empty_current_features(tmp_path):
     """Empty current_features DataFrame returns empty snapshot."""
@@ -117,6 +112,7 @@ def test_compute_drift_moderate_penalty(tmp_path):
 
 # ── Edge cases for persist_baseline ──────────────────────────────────────────
 
+
 def test_persist_baseline_empty_dataframe(tmp_path):
     """persist_baseline skips empty DataFrames."""
     monitor = PSIMonitor(tmp_path)
@@ -137,11 +133,13 @@ def test_persist_baseline_single_column(tmp_path):
 
 # ── Edge cases for load_baseline ─────────────────────────────────────────────
 
+
 def test_load_baseline_corrupt_file(tmp_path):
     """load_baseline returns None for corrupt parquet."""
     monitor = PSIMonitor(tmp_path)
     baseline_dir = monitor.baseline_dir
     import os
+
     os.makedirs(baseline_dir, exist_ok=True)
     path = os.path.join(baseline_dir, "corrupt.parquet")
     with open(path, "w") as f:
@@ -159,6 +157,7 @@ def test_load_baseline_nonexistent_asset(tmp_path):
 
 # ── PSIDriftEntry / PSISnapshot dataclass construction ───────────────────────
 
+
 def test_psi_drift_entry_creation():
     entry = PSIDriftEntry(
         feature="rsi_14",
@@ -173,8 +172,11 @@ def test_psi_drift_entry_creation():
 
 def test_psi_snapshot_creation():
     entry = PSIDriftEntry(
-        feature="rsi_14", psi=0.15, classification="MODERATE",
-        trend="STABLE", importance_score=0.6,
+        feature="rsi_14",
+        psi=0.15,
+        classification="MODERATE",
+        trend="STABLE",
+        importance_score=0.6,
     )
     snapshot = PSISnapshot(
         asset="TEST",

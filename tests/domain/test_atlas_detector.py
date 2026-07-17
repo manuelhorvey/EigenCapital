@@ -1,4 +1,5 @@
 """Tests for ATLAS layered change-point detector."""
+
 from __future__ import annotations
 
 import math

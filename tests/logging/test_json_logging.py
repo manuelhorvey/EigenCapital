@@ -1,4 +1,5 @@
 """Tests for the JSON log formatter + install_json_logging helper."""
+
 from __future__ import annotations
 
 import io
@@ -154,8 +155,19 @@ class TestJsonFormatterHardening:
         data = json.loads(stream.getvalue().strip())
         # Reserved attributes should NOT leak (other than the user-visible 'msg')
         for reserved in (
-            "args", "pathname", "filename", "module", "msecs",
-            "exc_info", "exc_text", "stack_info", "funcName", "created",
-            "thread", "threadName", "processName", "process",
+            "args",
+            "pathname",
+            "filename",
+            "module",
+            "msecs",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "funcName",
+            "created",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
         ):
             assert reserved not in data, f"Reserved attr {reserved} leaked"

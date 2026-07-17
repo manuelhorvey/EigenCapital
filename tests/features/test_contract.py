@@ -99,12 +99,14 @@ class TestValidateDataframe:
 class TestValidateNoCrossAssetLeakage:
     def test_passes_with_valid_columns(self):
         c = _make_contract(custom_features=("dji_lead_1",))
-        df = pd.DataFrame({
-            "eurusd_mom_21": [1.0],
-            "rate_diff": [1.0],
-            "vix_ma21": [2.0],
-            "dji_lead_1": [0.5],
-        })
+        df = pd.DataFrame(
+            {
+                "eurusd_mom_21": [1.0],
+                "rate_diff": [1.0],
+                "vix_ma21": [2.0],
+                "dji_lead_1": [0.5],
+            }
+        )
         c.validate_no_cross_asset_leakage(df)
 
     def test_raises_on_other_asset_column(self):
@@ -134,6 +136,7 @@ class TestValidateModel:
     def test_raises_on_feature_mismatch(self):
         try:
             import xgboost
+
             has_xgb = True
         except ImportError:
             has_xgb = False
@@ -142,6 +145,7 @@ class TestValidateModel:
         c = _make_contract(macro_filters=("rate_diff",), price_mom_windows=(21,), vs_spy_windows=())
         import numpy as np
         import xgboost as xgb
+
         X = pd.DataFrame({"wrong_feat": np.random.randn(10)})
         y = np.random.randint(0, 2, 10)
         model = xgb.XGBClassifier(n_estimators=2, max_depth=2, verbosity=0)

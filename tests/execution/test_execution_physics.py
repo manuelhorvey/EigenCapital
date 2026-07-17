@@ -26,6 +26,7 @@ def test_paper_broker_slippage_with_vol():
     assert pos.quantity == 10000
     assert pytest.approx(pos.avg_entry_price) == 1.101155
 
+
 def test_market_impact_linear():
     config = ExecutionConfig(impact_model="linear", impact_coeff=0.1, avg_daily_volume=1e6)
     broker = PaperBroker(initial_capital=1000000, execution_configs={"AAPL": config})
@@ -35,7 +36,7 @@ def test_market_impact_linear():
     # participation = 100k / 1M = 0.1
     # impact_bps = 0.1 * 0.1 * 10000 = 100 bps = 1.0%
     # + base_spread 0.5 bps + latency 0.5 bps = 101 bps = 0.0101
-    order = Order(asset="AAPL", quantity=1000, side="buy", order_type="market") # 1000 * 100 = 100k
+    order = Order(asset="AAPL", quantity=1000, side="buy", order_type="market")  # 1000 * 100 = 100k
     broker.place_order(order)
 
     # Buy price 100.0 * (1 + 0.0101) = 101.01

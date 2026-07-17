@@ -10,6 +10,7 @@ from features.lead_lag_features import (
 
 # ── load_lead_lag_edges ──────────────────────────────────────────────────────
 
+
 def test_load_lead_lag_edges_default_when_no_file():
     """Returns DEFAULT_LEAD_LAG_EDGES when no file exists."""
     edges = load_lead_lag_edges(path="/nonexistent/path.yaml")
@@ -19,6 +20,7 @@ def test_load_lead_lag_edges_default_when_no_file():
 def test_load_lead_lag_edges_with_valid_file(tmp_path):
     """Loads edges from a valid YAML file."""
     import yaml
+
     path = tmp_path / "edges.yaml"
     data = {"edges": [{"target": "EURUSD", "leader": "DXY", "lag": 1, "column": "dxy_lead_1"}]}
     with open(path, "w") as f:
@@ -31,6 +33,7 @@ def test_load_lead_lag_edges_with_valid_file(tmp_path):
 def test_load_lead_lag_edges_empty_file(tmp_path):
     """Returns DEFAULT_LEAD_LAG_EDGES when file has no edges key."""
     import yaml
+
     path = tmp_path / "edges_empty.yaml"
     with open(path, "w") as f:
         yaml.dump({}, f)
@@ -39,6 +42,7 @@ def test_load_lead_lag_edges_empty_file(tmp_path):
 
 
 # ── apply_lead_lag_features ──────────────────────────────────────────────────
+
 
 def test_apply_lead_lag_features_returns_series():
     """Returns a pandas Series with renamed column."""

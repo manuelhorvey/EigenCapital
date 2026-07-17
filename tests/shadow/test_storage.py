@@ -24,9 +24,19 @@ class TestShadowStorage:
             df = pd.read_parquet(parquets[0])
             assert len(df) == 2
             assert list(df.columns) == [
-                "timestamp", "feature_hash", "model_hash", "prod_signal", "prod_confidence",
-                "prod_p_long", "shadow_signal", "shadow_confidence", "shadow_p_long",
-                "inference_time_ms", "signal_agreement", "confidence_delta", "p_long_delta",
+                "timestamp",
+                "feature_hash",
+                "model_hash",
+                "prod_signal",
+                "prod_confidence",
+                "prod_p_long",
+                "shadow_signal",
+                "shadow_confidence",
+                "shadow_p_long",
+                "inference_time_ms",
+                "signal_agreement",
+                "confidence_delta",
+                "p_long_delta",
             ]
 
     def test_should_flush(self):

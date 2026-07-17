@@ -26,22 +26,35 @@ def price_data():
 
     np.random.seed(42)
     prices = 100.0 + np.cumsum(np.random.randn(100) * 0.1) + np.linspace(0, 2, 100)
-    return pd.DataFrame({
-        "open": prices * 0.999,
-        "high": prices * 1.005,
-        "low": prices * 0.995,
-        "close": prices,
-        "volume": 1_000_000,
-    }, index=pd.RangeIndex(100))
+    return pd.DataFrame(
+        {
+            "open": prices * 0.999,
+            "high": prices * 1.005,
+            "low": prices * 0.995,
+            "close": prices,
+            "volume": 1_000_000,
+        },
+        index=pd.RangeIndex(100),
+    )
 
 
 class TestShadowTradeRecord:
     def test_dataclass_fields(self):
         record = ShadowTradeRecord(
-            asset="EURUSD", side="long", entry_price=1.0500, entry_date="2025-01-01",
-            exit_price=1.0600, exit_date="2025-01-02", exit_reason="tp",
-            bars_held=24, realized_r=2.0, sl_price=1.0400, tp_price=1.0600,
-            alt_label="tight_trail", live_exit_reason="sl", live_realized_r=-1.0,
+            asset="EURUSD",
+            side="long",
+            entry_price=1.0500,
+            entry_date="2025-01-01",
+            exit_price=1.0600,
+            exit_date="2025-01-02",
+            exit_reason="tp",
+            bars_held=24,
+            realized_r=2.0,
+            sl_price=1.0400,
+            tp_price=1.0600,
+            alt_label="tight_trail",
+            live_exit_reason="sl",
+            live_realized_r=-1.0,
         )
         assert record.asset == "EURUSD"
         assert record.realized_r == 2.0

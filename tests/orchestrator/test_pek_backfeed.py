@@ -78,9 +78,7 @@ class TestPekBudgetBackfeed:
         # Verify the CycleContext snapshot has the correct exp_mult
         ctx = getattr(orch, "_cycle_context", None)
         assert ctx is not None, "_cycle_context should be set after _pre_phase_pek"
-        assert ctx.exp_mult == 1.0, (
-            f"expected 1.0, got {ctx.exp_mult}"
-        )
+        assert ctx.exp_mult == 1.0, f"expected 1.0, got {ctx.exp_mult}"
 
     def test_backfeed_reduces_after_overrun(self) -> None:
         """After a budget overrun, the next cycle's CycleContext.exp_mult
@@ -97,9 +95,7 @@ class TestPekBudgetBackfeed:
         # With 2x utilization, exp_mult should be halved: 1.0 * (1/2) = 0.5
         ctx = getattr(orch, "_cycle_context", None)
         assert ctx is not None
-        assert ctx.exp_mult == 0.5, (
-            f"expected 0.5, got {ctx.exp_mult}"
-        )
+        assert ctx.exp_mult == 0.5, f"expected 0.5, got {ctx.exp_mult}"
 
     def test_no_backfeed_at_normal_utilization(self) -> None:
         """When utilization is exactly 1.0 or below, no reduction."""
@@ -112,9 +108,7 @@ class TestPekBudgetBackfeed:
 
         ctx = getattr(orch, "_cycle_context", None)
         assert ctx is not None
-        assert ctx.exp_mult == 1.0, (
-            f"expected 1.0, got {ctx.exp_mult}"
-        )
+        assert ctx.exp_mult == 1.0, f"expected 1.0, got {ctx.exp_mult}"
 
     def test_partial_backfeed(self) -> None:
         """At 1.5x utilization, exp_mult should be reduced to 1/1.5 ≈ 0.6667."""
@@ -129,9 +123,7 @@ class TestPekBudgetBackfeed:
         ctx = getattr(orch, "_cycle_context", None)
         assert ctx is not None
         actual = round(ctx.exp_mult, 4)
-        assert actual == expected, (
-            f"expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"expected {expected}, got {actual}"
 
     def test_extreme_overrun_caps_at_minimum(self) -> None:
         """At 10x utilization, exp_mult is capped to 0.1 (1/10)."""
@@ -146,9 +138,7 @@ class TestPekBudgetBackfeed:
         ctx = getattr(orch, "_cycle_context", None)
         assert ctx is not None
         actual = round(ctx.exp_mult, 4)
-        assert actual == expected, (
-            f"expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"expected {expected}, got {actual}"
 
     def test_getattr_default_on_first_cycle(self) -> None:
         """If ``_pek_budget_utilization`` is not set on the orchestrator
@@ -164,9 +154,7 @@ class TestPekBudgetBackfeed:
 
         ctx = getattr(orch, "_cycle_context", None)
         assert ctx is not None
-        assert ctx.exp_mult == 1.0, (
-            f"expected 1.0, got {ctx.exp_mult}"
-        )
+        assert ctx.exp_mult == 1.0, f"expected 1.0, got {ctx.exp_mult}"
 
     def test_injection_into_engine_via_run_cycle(self) -> None:
         """Verify that the CycleContext values are injected into the engine

@@ -1,4 +1,5 @@
 """Tests for execution simulator and its sub-models (SlippageModel, FillModel, LatencyModel)."""
+
 import pytest
 
 from paper_trading.execution.fill import FillModel
@@ -280,11 +281,9 @@ class TestExecutionSimulator:
     def test_simulate_entry_with_no_plan_returns_zero(self, simulator, market, config):
         """simulate_entry with no entry_plan returns zero fill."""
         from paper_trading.entry.decision import PolicyDecision
+
         # PolicyDecision with entry_plan=None
-        dec = PolicyDecision(
-            action=None, entry_plan=None, exit_plan=None,
-            reason="test", archetype="TEST", metadata={}
-        )
+        dec = PolicyDecision(action=None, entry_plan=None, exit_plan=None, reason="test", archetype="TEST", metadata={})
         result = simulator.simulate_entry(dec, mid_price=100.0, market=market, config=config)
         assert result.fill_qty == 0.0
 
@@ -316,6 +315,7 @@ class TestExecutionConfigDefaults:
 
     def test_btc_config_higher_params(self):
         from shared.execution_config import btc_execution_config
+
         cfg = btc_execution_config()
         assert cfg.base_spread_bps == 2.0
         assert cfg.spread_max_bps == 150.0
@@ -325,6 +325,7 @@ class TestExecutionConfigDefaults:
 
     def test_execution_config_from_dict(self):
         from shared.execution_config import execution_config_from_dict
+
         cfg = execution_config_from_dict({"base_spread_bps": 1.5, "delay_bars_max": 5})
         assert cfg.base_spread_bps == 1.5
         assert cfg.delay_bars_max == 5
@@ -333,6 +334,7 @@ class TestExecutionConfigDefaults:
 
     def test_execution_config_from_dict_ignores_invalid(self):
         from shared.execution_config import execution_config_from_dict
+
         cfg = execution_config_from_dict({"invalid_field": 999, "base_spread_bps": 2.0})
         assert cfg.base_spread_bps == 2.0
         assert not hasattr(cfg, "invalid_field")
@@ -341,8 +343,12 @@ class TestExecutionConfigDefaults:
 class TestFillResultImmutable:
     def test_fill_result_frozen(self):
         r = FillResult(
-            fill_price=100.0, fill_qty=1.0, slippage_bps=1.0,
-            latency_bars=0, partial_fill=False, gap_fill=False,
+            fill_price=100.0,
+            fill_qty=1.0,
+            slippage_bps=1.0,
+            latency_bars=0,
+            partial_fill=False,
+            gap_fill=False,
         )
         with pytest.raises(Exception):
             r.fill_price = 99.0
@@ -368,8 +374,11 @@ class TestExecutionSimulatorEdgeCases:
         """Extreme vol z-score should cap degradation."""
         simulator = ExecutionSimulator()
         market = MarketSnapshot(
-            current_price=100.0, open_price=99.0, high_price=101.0,
-            low_price=98.0, vol_zscore=1000.0,
+            current_price=100.0,
+            open_price=99.0,
+            high_price=101.0,
+            low_price=98.0,
+            vol_zscore=1000.0,
         )
         config = ExecutionConfig(spread_max_bps=50.0, min_fill_prob=0.60)
         result = simulator.simulate("entry", "buy", 100.0, 100.0, market, config)

@@ -21,6 +21,7 @@ class TestLoadState:
 
     def test_loads_state(self, tmp_path):
         import json
+
         state = {"portfolio": {"total_value": 100000}}
         state_path = tmp_path / "state.json"
         state_path.write_text(json.dumps(state))
@@ -84,8 +85,10 @@ class TestCheckVolRegime:
 class TestLogVolBaseline:
     def test_writes_log_file(self, tmp_path):
         log_path = tmp_path / "paper_trade_log.md"
-        with patch("monitoring.weekly_report.TRADE_LOG_PATH", str(log_path)), \
-             patch("monitoring.weekly_report.compute_live_ewm_vol") as mock_vol:
+        with (
+            patch("monitoring.weekly_report.TRADE_LOG_PATH", str(log_path)),
+            patch("monitoring.weekly_report.compute_live_ewm_vol") as mock_vol,
+        ):
             mock_vol.return_value = 0.01
             log_vol_baseline()
 
@@ -96,8 +99,10 @@ class TestLogVolBaseline:
     def test_appends_to_existing_file(self, tmp_path):
         log_path = tmp_path / "paper_trade_log.md"
         log_path.write_text("# Existing log\n")
-        with patch("monitoring.weekly_report.TRADE_LOG_PATH", str(log_path)), \
-             patch("monitoring.weekly_report.compute_live_ewm_vol") as mock_vol:
+        with (
+            patch("monitoring.weekly_report.TRADE_LOG_PATH", str(log_path)),
+            patch("monitoring.weekly_report.compute_live_ewm_vol") as mock_vol,
+        ):
             mock_vol.return_value = 0.01
             log_vol_baseline()
 
@@ -107,9 +112,11 @@ class TestLogVolBaseline:
 
     def test_handles_missing_vol_gracefully(self, tmp_path):
         log_path = tmp_path / "paper_trade_log.md"
-        with patch("monitoring.weekly_report.TRADE_LOG_PATH", str(log_path)), \
-             patch("monitoring.weekly_report.compute_live_ewm_vol") as mock_vol, \
-             patch("monitoring.weekly_report.TRAIN_VOLS", {"XLF": 0.01, "BTC": 0.01, "NZDJPY": 0.01}):
+        with (
+            patch("monitoring.weekly_report.TRADE_LOG_PATH", str(log_path)),
+            patch("monitoring.weekly_report.compute_live_ewm_vol") as mock_vol,
+            patch("monitoring.weekly_report.TRAIN_VOLS", {"XLF": 0.01, "BTC": 0.01, "NZDJPY": 0.01}),
+        ):
             mock_vol.return_value = None
             log_vol_baseline()
             content = log_path.read_text()

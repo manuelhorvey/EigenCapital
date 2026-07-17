@@ -332,9 +332,7 @@ class TestSaveStateCircuitBreaker:
         state = self._run_save_state(service, mock_cb_stats=fake_stats)
 
         assert "mt5" in state, "state must have mt5 key"
-        assert "data_fetch_circuit_breaker" in state["mt5"], (
-            "mt5 must have data_fetch_circuit_breaker key"
-        )
+        assert "data_fetch_circuit_breaker" in state["mt5"], "mt5 must have data_fetch_circuit_breaker key"
         cb = state["mt5"]["data_fetch_circuit_breaker"]
         assert cb["consecutive_mt5_failures"] == 0
         assert cb["total_mt5_failures"] == 5
@@ -392,9 +390,7 @@ class TestSaveStateCircuitBreaker:
             state = service.save_state()
 
         cb = state["mt5"]["data_fetch_circuit_breaker"]
-        assert cb == {"available": False}, (
-            f"expected fallback dict, got {cb}"
-        )
+        assert cb == {"available": False}, f"expected fallback dict, got {cb}"
 
     def test_circuit_breaker_coexists_with_mt5_status(self, service):
         """Both MT5 connection status and circuit breaker stats coexist

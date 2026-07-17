@@ -118,7 +118,10 @@ TAXONOMY: dict[LeakageClass, TaxonomyEntry] = {
         id=LeakageClass.L4,
         name="Timestamp truncation / timezone destruction",
         severity=Severity.HIGH,
-        description="TZ-aware timestamps stripped to naive dates, collapsing session boundaries and destroying ordering precision.",
+        description=(
+            "TZ-aware timestamps stripped to naive dates, collapsing session"
+            " boundaries and destroying ordering precision."
+        ),
         detection_rule="All DatetimeIndexes must be tz-aware; .date conversion is forbidden",
         invariant="I6: timestamp provenance — every index carries unambiguous tz-aware timestamps",
         canonical_example="features/data_fetch.py:15 — s.index = pd.to_datetime(s.index.date)",
@@ -137,8 +140,14 @@ TAXONOMY: dict[LeakageClass, TaxonomyEntry] = {
         id=LeakageClass.L5,
         name="Distribution hindsight leakage",
         severity=Severity.HIGH,
-        description="Feature parameters (clipping bounds, scaling factors) depend on full-data distribution, conditioning earlier rows on future states.",
-        detection_rule="Permute data[t:] → earlier distribution estimates unchanged; aka I1 applied to distributional stats",
+        description=(
+            "Feature parameters (clipping bounds, scaling factors) depend on"
+            " full-data distribution, conditioning earlier rows on future states."
+        ),
+        detection_rule=(
+            "Permute data[t:] → earlier distribution estimates unchanged;"
+            " aka I1 applied to distributional stats"
+        ),
         invariant="I2 (distributional form): quantile bounds, scaling factors at t must use data[:t] only",
         canonical_example="features/alpha_features.py:23 — global quantile clipping before expanding fix",
         forbidden=[
@@ -174,13 +183,16 @@ TAXONOMY: dict[LeakageClass, TaxonomyEntry] = {
         id=LeakageClass.L7,
         name="Numerical instability edge case",
         severity=Severity.LOW,
-        description="Division by zero, log of zero, NaN propagation in feature computation that creates undefined or silent incorrect values.",
+        description=(
+            "Division by zero, log of zero, NaN propagation in feature computation"
+            " that creates undefined or silent incorrect values."
+        ),
         detection_rule="Feature outputs must be finite or explicitly NaN for unstable inputs",
         invariant="I8: numerical robustness — no silent NaN, Inf, or zero-divide in feature tensors",
         canonical_example="features/alpha_features.py:22 — realized_vol.replace(0, np.nan) before division",
         forbidden=[
             "/ realized_vol without .replace(0, np.nan)",
-            "np.log(0) or np.log(negative)" without clip",
+            'np.log(0) or np.log(negative) without clip',
             "np.sqrt(negative)",
         ],
         approved=[

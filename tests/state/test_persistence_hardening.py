@@ -120,5 +120,3 @@ class TestHealthStoreInjection:
             finally:
                 register_state_store(None)
                 register_engine(None)
-
-

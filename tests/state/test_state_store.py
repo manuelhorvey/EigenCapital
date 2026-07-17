@@ -140,14 +140,16 @@ class TestStateStore:
 
     def test_append_multiple_trades(self, tmp_store):
         for i in range(3):
-            tmp_store.append_trade({
-                "asset": "BTC",
-                "side": "long",
-                "entry": 50000.0,
-                "entry_date": f"2026-06-0{i+1}",
-                "exit_date": f"2026-06-0{i+2}",
-                "pnl": i * 50,
-            })
+            tmp_store.append_trade(
+                {
+                    "asset": "BTC",
+                    "side": "long",
+                    "entry": 50000.0,
+                    "entry_date": f"2026-06-0{i + 1}",
+                    "exit_date": f"2026-06-0{i + 2}",
+                    "pnl": i * 50,
+                }
+            )
         trades = tmp_store.read_trades(limit=10)
         assert len(trades) == 3
 
@@ -162,11 +164,13 @@ class TestStateStore:
     def test_equity_history_all_entries(self, tmp_store):
         """SQLite stores all entries (no cap)."""
         for i in range(2010):
-            tmp_store.append_equity_history({
-                "timestamp": f"2026-06-{i:03d}",
-                "portfolio_value": i,
-                "assets": {},
-            })
+            tmp_store.append_equity_history(
+                {
+                    "timestamp": f"2026-06-{i:03d}",
+                    "portfolio_value": i,
+                    "assets": {},
+                }
+            )
         history = tmp_store.read_equity_history()
         assert len(history) == 2010
 
@@ -186,7 +190,14 @@ class TestStateStore:
         assert tmp_store.load_cache("NONEXISTENT") is None
 
     def test_append_confidence_bucket(self, tmp_store):
-        bucket = {"asset": "BTC", "date": "2026-06-01", "count_0_10": 5, "count_80_90": 3, "mean_conf": 0.5, "n_signals": 8}
+        bucket = {
+            "asset": "BTC",
+            "date": "2026-06-01",
+            "count_0_10": 5,
+            "count_80_90": 3,
+            "mean_conf": 0.5,
+            "n_signals": 8,
+        }
         tmp_store.append_confidence_bucket(bucket)
         conn = tmp_store.db._get_connection()
         rows = conn.execute("SELECT * FROM confidence_buckets").fetchall()
@@ -197,5 +208,6 @@ class TestStateStore:
 class TestSkipJournal:
     def test_skip_journal_is_sentinel(self):
         from paper_trading.state_store import _SKIP_JOURNAL
+
         assert _SKIP_JOURNAL is not None
         assert type(_SKIP_JOURNAL).__name__ == "object"

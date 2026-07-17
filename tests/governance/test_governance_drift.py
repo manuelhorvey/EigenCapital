@@ -10,10 +10,15 @@ from paper_trading.governance import drift
 
 
 def _make_event(
-    proba_short=0.3, proba_neutral=0.4, proba_long=0.3,
-    signal_match=True, flip_reason=None,
-    original_pnl=100.0, computed_pnl=100.0,
-    regime="low_vol", features=None,
+    proba_short=0.3,
+    proba_neutral=0.4,
+    proba_long=0.3,
+    signal_match=True,
+    flip_reason=None,
+    original_pnl=100.0,
+    computed_pnl=100.0,
+    regime="low_vol",
+    features=None,
 ):
     event = {
         "model_divergence": {
@@ -123,7 +128,11 @@ class TestComputeModelDrift:
         assert result["status"] == "no_baseline"
 
     def test_perfect_match_with_baseline(self, monkeypatch):
-        monkeypatch.setattr(drift, "read_events", lambda asset, **kw: [_make_event(proba_short=0.3, proba_neutral=0.4, proba_long=0.3) for _ in range(10)])
+        monkeypatch.setattr(
+            drift,
+            "read_events",
+            lambda asset, **kw: [_make_event(proba_short=0.3, proba_neutral=0.4, proba_long=0.3) for _ in range(10)],
+        )
         baseline = {
             "model_proba_distribution": {
                 "short": [0.3] * 10,
@@ -136,7 +145,11 @@ class TestComputeModelDrift:
         assert result["score"] < 0.1
 
     def test_drift_detected(self, monkeypatch):
-        monkeypatch.setattr(drift, "read_events", lambda asset, **kw: [_make_event(proba_short=0.9, proba_neutral=0.05, proba_long=0.05) for _ in range(10)])
+        monkeypatch.setattr(
+            drift,
+            "read_events",
+            lambda asset, **kw: [_make_event(proba_short=0.9, proba_neutral=0.05, proba_long=0.05) for _ in range(10)],
+        )
         baseline = {
             "model_proba_distribution": {
                 "short": [0.3] * 10,
@@ -159,14 +172,18 @@ class TestComputeSignalDrift:
         assert result["status"] == "insufficient_data"
 
     def test_no_baseline_returns_mismatch_rate(self, monkeypatch):
-        events = [_make_event(signal_match=False) for _ in range(3)] + [_make_event(signal_match=True) for _ in range(7)]
+        events = [_make_event(signal_match=False) for _ in range(3)] + [
+            _make_event(signal_match=True) for _ in range(7)
+        ]
         monkeypatch.setattr(drift, "read_events", lambda asset, **kw: events)
         result = drift.compute_signal_drift("EURUSD")
         assert result["status"] == "no_baseline"
         assert result["mismatch_rate"] == 0.3
 
     def test_mismatch_with_baseline(self, monkeypatch):
-        events = [_make_event(signal_match=False) for _ in range(3)] + [_make_event(signal_match=True) for _ in range(7)]
+        events = [_make_event(signal_match=False) for _ in range(3)] + [
+            _make_event(signal_match=True) for _ in range(7)
+        ]
         monkeypatch.setattr(drift, "read_events", lambda asset, **kw: events)
         baseline = {"signal_distribution": {"mismatch_rate": 0.1}}
         result = drift.compute_signal_drift("EURUSD", baseline=baseline)
@@ -261,8 +278,10 @@ class TestGetShadowIntelligence:
 
         result = drift.get_shadow_intelligence("EURUSD")
         assert "drift_scores" in result
-        assert all(k in result["drift_scores"] for k in ["model_drift", "signal_drift", "pnl_drift",
-                                                          "feature_stability", "regime_consistency"])
+        assert all(
+            k in result["drift_scores"]
+            for k in ["model_drift", "signal_drift", "pnl_drift", "feature_stability", "regime_consistency"]
+        )
         assert result["trend"] in ("stable", "degrading")
         assert result["risk_flag"] in ("low", "medium", "high")
 

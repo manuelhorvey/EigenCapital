@@ -32,6 +32,7 @@ from paper_trading.orchestrator.engine import EngineOrchestrator
 
 # ── Helpers ──────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class _MockEngine:
     """Minimal mock of AssetEngine for AssetActor testing.
@@ -39,6 +40,7 @@ class _MockEngine:
     Provides no-op implementations of the methods that run_cycle() calls
     so actors can complete successfully where appropriate.
     """
+
     name: str = "TEST"
     ticker: str = "TEST=X"
     current_price: float = 100.0
@@ -67,6 +69,7 @@ class _MockEngine:
 @dataclass
 class _MockPosMgr:
     """Minimal mock of PositionManager."""
+
     position: object = None
     halted: bool = False
     exposure_multiplier: float = 1.0
@@ -364,11 +367,7 @@ class TestOrchestratorWAL:
                     events.append(json.loads(line))
                 except (json.JSONDecodeError, TypeError):
                     pass
-            has_state = any(
-                isinstance(e.get("payload"), dict)
-                and "actors" in e.get("payload", {})
-                for e in events
-            )
+            has_state = any(isinstance(e.get("payload"), dict) and "actors" in e.get("payload", {}) for e in events)
             # Note: WAL events are written in _write_state_committed() which is called
             # from _phase_4_persist(). The buffer may be empty if phase 4 didn't run
             # (e.g. if a circuit breaker halted before persist).

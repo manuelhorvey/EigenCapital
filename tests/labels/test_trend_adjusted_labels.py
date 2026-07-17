@@ -78,8 +78,9 @@ class TestTrendAdjustedPtSl:
         close = pd.Series(np.linspace(100, 200, 300))
         high = close * 1.01
         low = close * 0.99
-        adjusted = trend_adjusted_pt_sl(close, high, low, base_pt_sl=(2.0, 2.0),
-                                         adx_threshold=15.0, widen_factor=1.5, narrow_factor=0.75)
+        adjusted = trend_adjusted_pt_sl(
+            close, high, low, base_pt_sl=(2.0, 2.0), adx_threshold=15.0, widen_factor=1.5, narrow_factor=0.75
+        )
         # After trend is established, tp_mult should be < base and sl_mult > base
         later = adjusted[-50:]
         assert later[:, 0].mean() < 2.0  # TP narrowed
@@ -97,11 +98,13 @@ class TestTrendAdjustedLabels:
     def test_returns_series_with_valid_labels(self):
         rng = np.random.RandomState(42)
         n = 300
-        df = pd.DataFrame({
-            "close": 100 + np.cumsum(rng.randn(n) * 0.5),
-            "high": 100 + np.cumsum(rng.randn(n) * 0.5) * 1.01,
-            "low": 100 + np.cumsum(rng.randn(n) * 0.5) * 0.99,
-        })
+        df = pd.DataFrame(
+            {
+                "close": 100 + np.cumsum(rng.randn(n) * 0.5),
+                "high": 100 + np.cumsum(rng.randn(n) * 0.5) * 1.01,
+                "low": 100 + np.cumsum(rng.randn(n) * 0.5) * 0.99,
+            }
+        )
         labels = trend_adjusted_labels(df, pt_sl=(2.0, 2.0), vertical_barrier=20)
         assert isinstance(labels, pd.Series)
         assert labels.isin([-1, 0, 1]).all()
@@ -115,13 +118,16 @@ class TestTrendAdjustedLabels:
     def test_custom_parameters(self):
         rng = np.random.RandomState(42)
         n = 300
-        df = pd.DataFrame({
-            "close": 100 + np.cumsum(rng.randn(n) * 0.5),
-            "high": 100 + np.cumsum(rng.randn(n) * 0.5) * 1.01,
-            "low": 100 + np.cumsum(rng.randn(n) * 0.5) * 0.99,
-        })
-        labels = trend_adjusted_labels(df, pt_sl=(1.0, 1.0), vertical_barrier=10,
-                                        adx_threshold=25.0, widen_factor=2.0, narrow_factor=0.5)
+        df = pd.DataFrame(
+            {
+                "close": 100 + np.cumsum(rng.randn(n) * 0.5),
+                "high": 100 + np.cumsum(rng.randn(n) * 0.5) * 1.01,
+                "low": 100 + np.cumsum(rng.randn(n) * 0.5) * 0.99,
+            }
+        )
+        labels = trend_adjusted_labels(
+            df, pt_sl=(1.0, 1.0), vertical_barrier=10, adx_threshold=25.0, widen_factor=2.0, narrow_factor=0.5
+        )
         assert len(labels) == n
 
     def test_empty_dataframe(self):

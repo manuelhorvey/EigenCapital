@@ -83,19 +83,13 @@ class TestEngineWeekendCycle:
     def test_weekend_cycle_runs_for_eligible_assets(self, mock_closed):
         engine = MagicMock()
         engine.assets = {
-            "BTCUSD": MagicMock(
-                config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}
-            ),
+            "BTCUSD": MagicMock(config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}),
             "EURUSD": MagicMock(config={}),
         }
         engine._orchestrator.run_once.return_value = {"assets": {"BTCUSD": {"signal": "SELL"}}}
 
         # Manually test the weekend-eligible logic
-        eligible = {
-            name
-            for name, asset in engine.assets.items()
-            if asset.config.get("weekend_eligible", False)
-        }
+        eligible = {name for name, asset in engine.assets.items() if asset.config.get("weekend_eligible", False)}
         assert eligible == {"BTCUSD"}
         assert "EURUSD" not in eligible
 
@@ -106,19 +100,13 @@ class TestEngineWeekendCycle:
             "EURUSD": MagicMock(config={}),
             "GBPUSD": MagicMock(config={}),
         }
-        eligible = {
-            name
-            for name, asset in engine.assets.items()
-            if asset.config.get("weekend_eligible", False)
-        }
+        eligible = {name for name, asset in engine.assets.items() if asset.config.get("weekend_eligible", False)}
         assert eligible == set()
 
     def test_weekday_cycle_ignores_weekend_flag(self):
         engine = MagicMock()
         engine.assets = {
-            "BTCUSD": MagicMock(
-                config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}
-            ),
+            "BTCUSD": MagicMock(config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}),
             "EURUSD": MagicMock(config={}),
         }
         # On a weekday, the market-closed check is False, so all assets run
@@ -128,16 +116,10 @@ class TestEngineWeekendCycle:
     def test_weekend_cycle_scopes_to_eligible_assets(self, mock_closed):
         engine = MagicMock()
         engine.assets = {
-            "BTCUSD": MagicMock(
-                config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}
-            ),
+            "BTCUSD": MagicMock(config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}),
             "EURUSD": MagicMock(config={}),
         }
-        eligible = {
-            name
-            for name, asset in engine.assets.items()
-            if asset.config.get("weekend_eligible", False)
-        }
+        eligible = {name for name, asset in engine.assets.items() if asset.config.get("weekend_eligible", False)}
         assert eligible == {"BTCUSD"}
         engine._orchestrator.run_once.return_value = {"assets": {"BTCUSD": {}}}
         orch_result = engine._orchestrator.run_once(allowed_assets=eligible)
@@ -148,14 +130,8 @@ class TestEngineWeekendCycle:
         engine = MagicMock()
         engine.assets = {}
         engine._cycle_weekend = False
-        engine.assets["BTCUSD"] = MagicMock(
-            config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5}
-        )
-        eligible = {
-            name
-            for name, asset in engine.assets.items()
-            if asset.config.get("weekend_eligible", False)
-        }
+        engine.assets["BTCUSD"] = MagicMock(config={"weekend_eligible": True, "weekend_allocation_multiplier": 0.5})
+        eligible = {name for name, asset in engine.assets.items() if asset.config.get("weekend_eligible", False)}
         if eligible:
             engine._cycle_weekend = True
         assert engine._cycle_weekend is True
@@ -304,16 +280,10 @@ def _compute_aggregate(orch, aggregate_actors):
 
     Accesses peak via _halt_state (moved from direct attribute during MAINT-01).
     """
-    total_equity = sum(
-        a._engine.mtm_value for a in aggregate_actors.values() if hasattr(a._engine, "mtm_value")
-    )
+    total_equity = sum(a._engine.mtm_value for a in aggregate_actors.values() if hasattr(a._engine, "mtm_value"))
     peak = orch._halt_state.peak_portfolio_value or 1.0
     pv = orch._halt_state.peak_portfolio_value
-    current_dd = (
-        (total_equity - pv) / max(pv, 1.0)
-        if pv is not None and pv > 0
-        else 0.0
-    )
+    current_dd = (total_equity - pv) / max(pv, 1.0) if pv is not None and pv > 0 else 0.0
     return total_equity, peak, current_dd
 
 

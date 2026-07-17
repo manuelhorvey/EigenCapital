@@ -1,4 +1,5 @@
 """Tests for RiskEngineV2 adaptive risk budgeting."""
+
 import pytest
 
 from eigencapital.domain.time import utc_now
@@ -51,8 +52,11 @@ def _perf(velocity_scalar=1.0, **overrides) -> PerformanceState:
         market_scalar=1.0,
         execution_scalar=1.0,
         velocity=RegimeVelocity(
-            pnl_velocity=0.0, pnl_acceleration=0.0,
-            vol_velocity=0.0, degradation_velocity=0.0, execution_velocity=0.0,
+            pnl_velocity=0.0,
+            pnl_acceleration=0.0,
+            vol_velocity=0.0,
+            degradation_velocity=0.0,
+            execution_velocity=0.0,
         ),
         velocity_scalar=velocity_scalar,
         composite_scalar=1.0,
@@ -75,12 +79,16 @@ class TestRiskEngineV2:
         assert budget.max_risk_per_trade_pct == 1.0
 
     def test_at_drawdown_limit_effective_zero(self):
-        engine = RiskEngineV2({"max_risk_per_trade_pct": 1.0, "min_risk_per_trade_pct": 0.10, "max_drawdown_pct": -0.15})
+        engine = RiskEngineV2(
+            {"max_risk_per_trade_pct": 1.0, "min_risk_per_trade_pct": 0.10, "max_drawdown_pct": -0.15}
+        )
         budget = engine.compute_budget(_snapshot(drawdown_pct=-0.15), _perf())
         assert budget.max_risk_per_trade_pct == 0.0
 
     def test_min_risk_floor_applied_not_at_limit(self):
-        engine = RiskEngineV2({"max_risk_per_trade_pct": 1.0, "min_risk_per_trade_pct": 0.10, "max_drawdown_pct": -0.15})
+        engine = RiskEngineV2(
+            {"max_risk_per_trade_pct": 1.0, "min_risk_per_trade_pct": 0.10, "max_drawdown_pct": -0.15}
+        )
         # Perf scalar 0.3 should push below min_risk floor
         budget = engine.compute_budget(_snapshot(drawdown_pct=-0.05), _perf(composite_scalar=0.3, velocity_scalar=0.3))
         assert budget.max_risk_per_trade_pct >= 0.10

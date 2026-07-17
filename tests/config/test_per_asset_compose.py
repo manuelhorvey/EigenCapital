@@ -134,8 +134,13 @@ def test_mfe_ratio_tighten_2x_default():
         "mfe_ratio_tighten": {"enabled": True, "ratio_thresholds": [[2.0, 0.7]]},
     }
     result = engine.compute(
-        side="long", entry_price=100, current_price=101, current_sl=100,
-        vol_at_entry=0.02, bars_since_entry=5, config=cfg,
+        side="long",
+        entry_price=100,
+        current_price=101,
+        current_sl=100,
+        vol_at_entry=0.02,
+        bars_since_entry=5,
+        config=cfg,
     )
     # effective_retrace = 0.33 * 0.70 = 0.231
     # retrace_level = 104 - 0.231 * 4 = 103.076

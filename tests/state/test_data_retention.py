@@ -21,14 +21,16 @@ class TestPruneTrades:
     def test_prune_keeps_recent(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_trade({
-                "asset": "EURUSD",
-                "side": "long",
-                "entry": 1.05,
-                "exit": 1.06,
-                "entry_date": "2026-01-01",
-                "exit_date": "2026-07-01",
-            })
+            store.append_trade(
+                {
+                    "asset": "EURUSD",
+                    "side": "long",
+                    "entry": 1.05,
+                    "exit": 1.06,
+                    "entry_date": "2026-01-01",
+                    "exit_date": "2026-07-01",
+                }
+            )
             result = store.db.prune_trades("2026-06-01", apply=True)
             assert result["total"] == 1
             assert result["pruned"] == 0
@@ -37,14 +39,16 @@ class TestPruneTrades:
     def test_prune_removes_old(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_trade({
-                "asset": "EURUSD",
-                "side": "long",
-                "entry": 1.05,
-                "exit": 1.06,
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-            })
+            store.append_trade(
+                {
+                    "asset": "EURUSD",
+                    "side": "long",
+                    "entry": 1.05,
+                    "exit": 1.06,
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                }
+            )
             result = store.db.prune_trades("2026-01-01", apply=True)
             assert result["total"] == 1
             assert result["pruned"] == 1
@@ -53,22 +57,26 @@ class TestPruneTrades:
     def test_prune_keeps_mixed(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_trade({
-                "asset": "EURUSD",
-                "side": "long",
-                "entry": 1.05,
-                "exit": 1.06,
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-            })
-            store.append_trade({
-                "asset": "GBPUSD",
-                "side": "short",
-                "entry": 1.25,
-                "exit": 1.24,
-                "entry_date": "2026-01-01",
-                "exit_date": "2026-07-01",
-            })
+            store.append_trade(
+                {
+                    "asset": "EURUSD",
+                    "side": "long",
+                    "entry": 1.05,
+                    "exit": 1.06,
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                }
+            )
+            store.append_trade(
+                {
+                    "asset": "GBPUSD",
+                    "side": "short",
+                    "entry": 1.25,
+                    "exit": 1.24,
+                    "entry_date": "2026-01-01",
+                    "exit_date": "2026-07-01",
+                }
+            )
             result = store.db.prune_trades("2026-01-01", apply=True)
             assert result["total"] == 2
             assert result["pruned"] == 1
@@ -79,14 +87,16 @@ class TestPruneAttribution:
     def test_prune_removes_old(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_attribution({
-                "asset": "EURUSD",
-                "trade_id": "t1",
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-                "side": "long",
-                "exit_realized_r": 2.0,
-            })
+            store.append_attribution(
+                {
+                    "asset": "EURUSD",
+                    "trade_id": "t1",
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                    "side": "long",
+                    "exit_realized_r": 2.0,
+                }
+            )
             result = store.db.prune_attribution("2026-01-01", apply=True)
             assert result["total"] == 1
             assert result["pruned"] == 1
@@ -94,14 +104,16 @@ class TestPruneAttribution:
     def test_dry_run_does_not_delete(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_attribution({
-                "asset": "EURUSD",
-                "trade_id": "t1",
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-                "side": "long",
-                "exit_realized_r": 2.0,
-            })
+            store.append_attribution(
+                {
+                    "asset": "EURUSD",
+                    "trade_id": "t1",
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                    "side": "long",
+                    "exit_realized_r": 2.0,
+                }
+            )
             result = store.db.prune_attribution("2026-01-01", apply=False)
             assert result["total"] == 1
             assert result["pruned"] == 1
@@ -114,11 +126,13 @@ class TestPruneEquityHistory:
     def test_prune_removes_old(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_equity_history({
-                "timestamp": "2025-01-01T00:00:00",
-                "portfolio_value": 100000,
-                "assets": {},
-            })
+            store.append_equity_history(
+                {
+                    "timestamp": "2025-01-01T00:00:00",
+                    "portfolio_value": 100000,
+                    "assets": {},
+                }
+            )
             result = store.db.prune_equity_history("2026-01-01", apply=True)
             assert result["total"] == 1
             assert result["pruned"] == 1
@@ -126,11 +140,13 @@ class TestPruneEquityHistory:
     def test_cascade_deletes_asset_snapshots(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_equity_history({
-                "timestamp": "2025-01-01T00:00:00",
-                "portfolio_value": 100000,
-                "assets": {"BTC": 50000, "ETH": 20000},
-            })
+            store.append_equity_history(
+                {
+                    "timestamp": "2025-01-01T00:00:00",
+                    "portfolio_value": 100000,
+                    "assets": {"BTC": 50000, "ETH": 20000},
+                }
+            )
             # Verify snapshots exist before prune
             history = store.read_equity_history()
             assert len(history) == 1
@@ -145,27 +161,33 @@ class TestPruneAll:
     def test_prune_all_aggregates(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_trade({
-                "asset": "EURUSD",
-                "side": "long",
-                "entry": 1.05,
-                "exit": 1.06,
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-            })
-            store.append_attribution({
-                "asset": "EURUSD",
-                "trade_id": "t1",
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-                "side": "long",
-                "exit_realized_r": 2.0,
-            })
-            store.append_equity_history({
-                "timestamp": "2025-01-01T00:00:00",
-                "portfolio_value": 100000,
-                "assets": {},
-            })
+            store.append_trade(
+                {
+                    "asset": "EURUSD",
+                    "side": "long",
+                    "entry": 1.05,
+                    "exit": 1.06,
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                }
+            )
+            store.append_attribution(
+                {
+                    "asset": "EURUSD",
+                    "trade_id": "t1",
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                    "side": "long",
+                    "exit_realized_r": 2.0,
+                }
+            )
+            store.append_equity_history(
+                {
+                    "timestamp": "2025-01-01T00:00:00",
+                    "portfolio_value": 100000,
+                    "assets": {},
+                }
+            )
             result = store.db.prune_all("2026-01-01", apply=True)
             assert result["trades"]["pruned"] == 1
             assert result["attribution"]["pruned"] == 1
@@ -174,14 +196,16 @@ class TestPruneAll:
     def test_prune_all_dry_run(self):
         with tempfile.TemporaryDirectory() as td:
             store = StateStore(td)
-            store.append_trade({
-                "asset": "EURUSD",
-                "side": "long",
-                "entry": 1.05,
-                "exit": 1.06,
-                "entry_date": "2025-01-01",
-                "exit_date": "2025-06-01",
-            })
+            store.append_trade(
+                {
+                    "asset": "EURUSD",
+                    "side": "long",
+                    "entry": 1.05,
+                    "exit": 1.06,
+                    "entry_date": "2025-01-01",
+                    "exit_date": "2025-06-01",
+                }
+            )
             result = store.db.prune_all("2026-01-01", apply=False)
             assert result["trades"]["pruned"] == 1
             # Data still exists after dry-run

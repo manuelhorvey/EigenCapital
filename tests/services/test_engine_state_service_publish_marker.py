@@ -10,6 +10,7 @@ fixture rather than a full engine mock because the marker utility is
 isolated and the production path is exercised end-to-end in the
 existing test_engine_state_service.py suite).
 """
+
 import pytest
 
 from paper_trading.services.engine_state_service import (

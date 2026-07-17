@@ -63,9 +63,14 @@ class TestFourDomainSeparation:
 
     def test_prediction_attribution_fields(self):
         attr = PredictionAttribution(
-            signal="BUY", label=1, confidence=75.0,
-            prob_long=0.75, prob_short=0.10, prob_neutral=0.15,
-            meta_proba=0.62, regime_at_entry="trend",
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.10,
+            prob_neutral=0.15,
+            meta_proba=0.62,
+            regime_at_entry="trend",
             archetype_at_entry="BREAKOUT",
         )
         assert attr.signal == "BUY"
@@ -78,10 +83,14 @@ class TestFourDomainSeparation:
 
     def test_execution_attribution_fields(self):
         attr = ExecutionAttribution(
-            entry_type="deferred", deferred_bars=3,
-            entry_price=101.5, mid_price_at_signal=100.0,
-            entry_slippage_bps=2.5, spread_at_entry_bps=1.2,
-            entry_pressure_pct=0.75, entry_volatility_rank=0.3,
+            entry_type="deferred",
+            deferred_bars=3,
+            entry_price=101.5,
+            mid_price_at_signal=100.0,
+            entry_slippage_bps=2.5,
+            spread_at_entry_bps=1.2,
+            entry_pressure_pct=0.75,
+            entry_volatility_rank=0.3,
         )
         assert attr.entry_type == "deferred"
         assert attr.deferred_bars == 3
@@ -90,8 +99,10 @@ class TestFourDomainSeparation:
     def test_execution_timing_efficiency(self):
         # Fill at better price than signal -> efficiency > 1
         better = ExecutionAttribution(
-            entry_type="immediate", deferred_bars=0,
-            entry_price=99.5, mid_price_at_signal=100.0,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=99.5,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         assert better.entry_timing_efficiency is not None
@@ -99,17 +110,25 @@ class TestFourDomainSeparation:
 
         # Fill at worse price -> efficiency < 1
         worse = ExecutionAttribution(
-            entry_type="immediate", deferred_bars=0,
-            entry_price=100.5, mid_price_at_signal=100.0,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.5,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         assert worse.entry_timing_efficiency > 1.0  # bought more expensive
 
     def test_exit_attribution_fields(self):
         attr = ExitAttribution(
-            exit_reason="tp", realized_r=1.5, theoretical_r=2.0,
-            mae=0.5, mfe=2.5, mae_per_bar=0.1, mfe_per_bar=0.5,
-            time_to_max_adverse=2, time_to_max_favorable=5,
+            exit_reason="tp",
+            realized_r=1.5,
+            theoretical_r=2.0,
+            mae=0.5,
+            mfe=2.5,
+            mae_per_bar=0.1,
+            mfe_per_bar=0.5,
+            time_to_max_adverse=2,
+            time_to_max_favorable=5,
             bars_held=10,
             counterfactual_fixed_tp_r=1.2,
             counterfactual_convex_tp_r=1.5,
@@ -122,12 +141,16 @@ class TestFourDomainSeparation:
 
     def test_friction_attribution_fields(self):
         attr = FrictionAttribution(
-            entry_slippage_bps=2.5, exit_slippage_bps=3.0,
-            gap_fill=True, partial_fill=True, fill_qty_ratio=0.7,
+            entry_slippage_bps=2.5,
+            exit_slippage_bps=3.0,
+            gap_fill=True,
+            partial_fill=True,
+            fill_qty_ratio=0.7,
             latency_bars=1,
             counterfactual_ideal_fill_r=2.0,
             counterfactual_real_fill_r=1.5,
-            fill_model_version="v1", execution_model_version="v1",
+            fill_model_version="v1",
+            execution_model_version="v1",
         )
         assert attr.entry_slippage_bps == 2.5
         assert attr.gap_fill is True
@@ -135,8 +158,10 @@ class TestFourDomainSeparation:
 
     def test_decision_quality_fields(self):
         dq = DecisionQuality(
-            entry_pressure_pct=0.8, spread_rank=0.3,
-            volatility_rank=0.6, liquidity_rank=0.9,
+            entry_pressure_pct=0.8,
+            spread_rank=0.3,
+            volatility_rank=0.6,
+            liquidity_rank=0.9,
             entry_distance_from_structure=0.02,
         )
         assert dq.entry_pressure_pct == 0.8
@@ -149,21 +174,46 @@ class TestFourDomainSeparation:
             execution_model_version="v1",
             fill_model_version="v1",
             prediction=PredictionAttribution(
-                "BUY", 1, 75.0, 0.75, 0.1, 0.15, None,
+                "BUY",
+                1,
+                75.0,
+                0.75,
+                0.1,
+                0.15,
+                None,
             ),
             execution=ExecutionAttribution(
-                "immediate", 0, 100.0, 100.0, 0.0,
+                "immediate",
+                0,
+                100.0,
+                100.0,
+                0.0,
             ),
             exit_info=ExitAttribution(
-                "tp", 1.5, 2.0, 0.3, 1.8, 0.03, 0.18,
-                1, 4, 10,
+                "tp",
+                1.5,
+                2.0,
+                0.3,
+                1.8,
+                0.03,
+                0.18,
+                1,
+                4,
+                10,
             ),
             friction=FrictionAttribution(
-                0.5, 0.8, False, False, 1.0, 0,
+                0.5,
+                0.8,
+                False,
+                False,
+                1.0,
+                0,
             ),
             decision_quality=DecisionQuality(None, None, None, None, None),
-            entry_price=100.0, exit_price=105.0,
-            realized_return=0.05, realized_pnl=100.0,
+            entry_price=100.0,
+            exit_price=105.0,
+            realized_return=0.05,
+            realized_pnl=100.0,
         )
         assert rec.trade_id == full_record_data["trade_id"]
         assert rec.prediction.signal == "BUY"
@@ -182,8 +232,12 @@ class TestObserveOnly:
         signal = "BUY"
         confidence = 75.0
         collector.record_prediction(
-            trade_id=trade_id, signal=signal, label=1,
-            confidence=confidence, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal=signal,
+            label=1,
+            confidence=confidence,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         # Inputs unchanged
@@ -193,23 +247,38 @@ class TestObserveOnly:
     def test_collector_has_no_side_effects_on_finalize(self, collector, trade_id):
         price = 100.0
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=price, mid_price_at_signal=price,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=price,
+            mid_price_at_signal=price,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.5,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.5,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
         )
         assert result is not None
@@ -220,32 +289,53 @@ class TestObserveOnly:
     def test_collector_never_finalizes_twice(self, collector, trade_id):
         """Once finalized, the scratch is removed."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         r1 = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
         )
         assert r1 is not None
         # Second finalize returns None (scratch cleaned)
         r2 = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
         )
         assert r2 is None
@@ -312,17 +402,26 @@ class TestMAEMFE:
     def test_mae_mfe_in_finalized_record(self, collector, trade_id):
         """MAE/MFE are stored in the finalized TradeAttributionRecord."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
 
         # Simulate tracking extremes during trade
@@ -332,10 +431,16 @@ class TestMAEMFE:
             collector.update_trade_extremes(trade_id, high, low, bar)
 
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
         )
         assert result is not None
@@ -356,17 +461,26 @@ class TestCounterfactuals:
     def test_prediction_forecast_resolved_at_exit(self, collector, trade_id):
         """Directional correctness is set only at trade close."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
 
         # Scratched record — forecast not yet set
@@ -375,10 +489,16 @@ class TestCounterfactuals:
 
         # Finalize with price up -> correct for long
         r = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
         )
         assert r is not None
@@ -389,23 +509,38 @@ class TestCounterfactuals:
     def test_counterfactual_entry_timing(self, collector, trade_id):
         """Entry timing counterfactual is stored at finalize."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="deferred", deferred_bars=2,
-            entry_price=102.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="deferred",
+            deferred_bars=2,
+            entry_price=102.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=110.0, exit_reason="tp",
-            realized_r=2.0, realized_return=0.08, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=110.0,
+            exit_reason="tp",
+            realized_r=2.0,
+            realized_return=0.08,
+            realized_pnl=100.0,
             theoretical_r=2.0,
             counterfactual_entry_timing_r=1.5,  # immediate entry would have been worse
         )
@@ -415,23 +550,38 @@ class TestCounterfactuals:
     def test_counterfactual_fill(self, collector, trade_id):
         """Fill counterfactuals are stored at finalize."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=2.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=2.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=2.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
             counterfactual_ideal_fill_r=2.0,  # no slippage
             counterfactual_real_fill_r=1.5,  # with slippage
@@ -443,23 +593,38 @@ class TestCounterfactuals:
     def test_counterfactual_tp(self, collector, trade_id):
         """TP counterfactuals are stored at finalize."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
             counterfactual_fixed_tp_r=1.5,  # flat TP
             counterfactual_convex_tp_r=1.8,  # convex TP
@@ -477,24 +642,39 @@ class TestArchetypeDrift:
 
     def test_archetype_drift_recorded(self, collector, trade_id):
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
             archetype_at_entry="BREAKOUT",
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
             exit_archetype="TREND_PULLBACK",
         )
@@ -506,24 +686,39 @@ class TestArchetypeDrift:
     def test_archetype_defaults_to_entry_on_missing_exit(self, collector, trade_id):
         """When exit_archetype is not provided, it defaults to entry archetype."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
             archetype_at_entry="MEAN_REVERSION",
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
         )
         assert result is not None
@@ -538,13 +733,20 @@ class TestDecisionQuality:
 
     def test_decision_quality_collected(self, collector, trade_id):
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_decision_quality(
@@ -556,13 +758,21 @@ class TestDecisionQuality:
             entry_distance_from_structure=0.015,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=103.0, exit_reason="tp",
-            realized_r=1.0, realized_return=0.03, realized_pnl=50.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=103.0,
+            exit_reason="tp",
+            realized_r=1.0,
+            realized_return=0.03,
+            realized_pnl=50.0,
             theoretical_r=2.0,
         )
         assert result is not None
@@ -573,23 +783,38 @@ class TestDecisionQuality:
     def test_decision_quality_defaults(self, collector, trade_id):
         """Missing decision quality defaults to None fields."""
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=103.0, exit_reason="tp",
-            realized_r=1.0, realized_return=0.03, realized_pnl=50.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=103.0,
+            exit_reason="tp",
+            realized_r=1.0,
+            realized_return=0.03,
+            realized_pnl=50.0,
             theoretical_r=2.0,
         )
         assert result is not None
@@ -615,24 +840,40 @@ class TestVersionHashing:
 
     def test_versions_stored_in_record(self, collector, trade_id):
         collector.record_prediction(
-            trade_id=trade_id, signal="BUY", label=1,
-            confidence=75.0, prob_long=0.75, prob_short=0.1,
+            trade_id=trade_id,
+            signal="BUY",
+            label=1,
+            confidence=75.0,
+            prob_long=0.75,
+            prob_short=0.1,
             prob_neutral=0.15,
         )
         collector.record_execution(
-            trade_id=trade_id, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=trade_id,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=trade_id, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
-            fill_model_version="v1", execution_model_version="v2",
+            trade_id=trade_id,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
+            fill_model_version="v1",
+            execution_model_version="v2",
         )
         result = collector.finalize(
-            trade_id=trade_id, asset="TEST",
-            entry_date="2026-05-27", exit_date="2026-05-28",
-            side="long", exit_price=105.0, exit_reason="tp",
-            realized_r=1.5, realized_return=0.05, realized_pnl=100.0,
+            trade_id=trade_id,
+            asset="TEST",
+            entry_date="2026-05-27",
+            exit_date="2026-05-28",
+            side="long",
+            exit_price=105.0,
+            exit_reason="tp",
+            realized_r=1.5,
+            realized_return=0.05,
+            realized_pnl=100.0,
             theoretical_r=2.0,
             policy_hash="a1b2c3d4e5f6",
             archetype_version="1.0",
@@ -654,24 +895,39 @@ class TestTradeLifecycle:
         tid = "lifecycle_test_long_ASSET"
         # Signal -> Open
         collector.record_prediction(
-            trade_id=tid, signal="BUY", label=1,
-            confidence=80.0, prob_long=0.80, prob_short=0.1,
-            prob_neutral=0.1, meta_proba=0.7,
-            regime_at_entry="trend", archetype_at_entry="BREAKOUT",
+            trade_id=tid,
+            signal="BUY",
+            label=1,
+            confidence=80.0,
+            prob_long=0.80,
+            prob_short=0.1,
+            prob_neutral=0.1,
+            meta_proba=0.7,
+            regime_at_entry="trend",
+            archetype_at_entry="BREAKOUT",
         )
         collector.record_execution(
-            trade_id=tid, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
-            entry_slippage_bps=1.0, spread_at_entry_bps=0.5,
+            trade_id=tid,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
+            entry_slippage_bps=1.0,
+            spread_at_entry_bps=0.5,
             entry_pressure_pct=0.7,
         )
         collector.record_friction(
-            trade_id=tid, entry_slippage_bps=1.0, exit_slippage_bps=0.0,
+            trade_id=tid,
+            entry_slippage_bps=1.0,
+            exit_slippage_bps=0.0,
             fill_qty_ratio=0.95,
         )
         collector.record_decision_quality(
-            trade_id=tid, entry_pressure_pct=0.7, spread_rank=0.3,
-            volatility_rank=0.5, liquidity_rank=0.8,
+            trade_id=tid,
+            entry_pressure_pct=0.7,
+            spread_rank=0.3,
+            volatility_rank=0.5,
+            liquidity_rank=0.8,
         )
 
         # During trade — track extremes
@@ -680,12 +936,19 @@ class TestTradeLifecycle:
 
         # Close
         result = collector.finalize(
-            trade_id=tid, asset="ASSET",
-            entry_date="2026-05-27", exit_date="2026-05-30",
-            side="long", exit_price=106.0, exit_reason="tp",
-            realized_r=2.0, realized_return=0.06, realized_pnl=200.0,
+            trade_id=tid,
+            asset="ASSET",
+            entry_date="2026-05-27",
+            exit_date="2026-05-30",
+            side="long",
+            exit_price=106.0,
+            exit_reason="tp",
+            realized_r=2.0,
+            realized_return=0.06,
+            realized_pnl=200.0,
             theoretical_r=2.0,
-            policy_hash="abc", archetype_version="1.0",
+            policy_hash="abc",
+            archetype_version="1.0",
         )
         assert result is not None
         assert result.prediction.archetype_at_entry == "BREAKOUT"
@@ -701,29 +964,46 @@ class TestTradeLifecycle:
     def test_lifecycle_deferred_entry(self, collector):
         tid = "lifecycle_def_ASSET"
         collector.record_prediction(
-            trade_id=tid, signal="BUY", label=1,
-            confidence=70.0, prob_long=0.70, prob_short=0.2,
+            trade_id=tid,
+            signal="BUY",
+            label=1,
+            confidence=70.0,
+            prob_long=0.70,
+            prob_short=0.2,
             prob_neutral=0.1,
-            regime_at_entry="volatile", archetype_at_entry="TREND_PULLBACK",
+            regime_at_entry="volatile",
+            archetype_at_entry="TREND_PULLBACK",
         )
         collector.record_execution(
-            trade_id=tid, entry_type="deferred", deferred_bars=3,
-            entry_price=101.5, mid_price_at_signal=100.0,
+            trade_id=tid,
+            entry_type="deferred",
+            deferred_bars=3,
+            entry_price=101.5,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=1.2,
         )
         collector.record_friction(
-            trade_id=tid, entry_slippage_bps=1.2, exit_slippage_bps=0.0,
+            trade_id=tid,
+            entry_slippage_bps=1.2,
+            exit_slippage_bps=0.0,
         )
         collector.update_trade_extremes(tid, 103.0, 99.5, 0)
         collector.update_trade_extremes(tid, 104.0, 101.0, 1)
 
         result = collector.finalize(
-            trade_id=tid, asset="ASSET",
-            entry_date="2026-05-27", exit_date="2026-05-29",
-            side="long", exit_price=103.0, exit_reason="tp",
-            realized_r=1.2, realized_return=0.015, realized_pnl=50.0,
+            trade_id=tid,
+            asset="ASSET",
+            entry_date="2026-05-27",
+            exit_date="2026-05-29",
+            side="long",
+            exit_price=103.0,
+            exit_reason="tp",
+            realized_r=1.2,
+            realized_return=0.015,
+            realized_pnl=50.0,
             theoretical_r=1.5,
-            policy_hash="def", archetype_version="1.0",
+            policy_hash="def",
+            archetype_version="1.0",
         )
         assert result is not None
         assert result.execution.entry_type == "deferred"
@@ -737,23 +1017,38 @@ class TestTradeLifecycle:
         for i in range(3):
             tid = f"trade_{i}"
             collector.record_prediction(
-                trade_id=tid, signal="BUY", label=1,
-                confidence=50.0, prob_long=0.5, prob_short=0.3,
+                trade_id=tid,
+                signal="BUY",
+                label=1,
+                confidence=50.0,
+                prob_long=0.5,
+                prob_short=0.3,
                 prob_neutral=0.2,
             )
             collector.record_execution(
-                trade_id=tid, entry_type="immediate", deferred_bars=0,
-                entry_price=100.0, mid_price_at_signal=100.0,
+                trade_id=tid,
+                entry_type="immediate",
+                deferred_bars=0,
+                entry_price=100.0,
+                mid_price_at_signal=100.0,
                 entry_slippage_bps=0.0,
             )
             collector.record_friction(
-                trade_id=tid, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+                trade_id=tid,
+                entry_slippage_bps=0.0,
+                exit_slippage_bps=0.0,
             )
             collector.finalize(
-                trade_id=tid, asset="TEST",
-                entry_date="2026-05-27", exit_date="2026-05-28",
-                side="long", exit_price=105.0, exit_reason="tp",
-                realized_r=1.0, realized_return=0.05, realized_pnl=100.0,
+                trade_id=tid,
+                asset="TEST",
+                entry_date="2026-05-27",
+                exit_date="2026-05-28",
+                side="long",
+                exit_price=105.0,
+                exit_reason="tp",
+                realized_r=1.0,
+                realized_return=0.05,
+                realized_pnl=100.0,
                 theoretical_r=1.5,
             )
         assert collector.count() == 3
@@ -764,23 +1059,38 @@ class TestTradeLifecycle:
         for i in range(2):
             tid = f"flush_{i}"
             collector.record_prediction(
-                trade_id=tid, signal="BUY", label=1,
-                confidence=50.0, prob_long=0.5, prob_short=0.3,
+                trade_id=tid,
+                signal="BUY",
+                label=1,
+                confidence=50.0,
+                prob_long=0.5,
+                prob_short=0.3,
                 prob_neutral=0.2,
             )
             collector.record_execution(
-                trade_id=tid, entry_type="immediate", deferred_bars=0,
-                entry_price=100.0, mid_price_at_signal=100.0,
+                trade_id=tid,
+                entry_type="immediate",
+                deferred_bars=0,
+                entry_price=100.0,
+                mid_price_at_signal=100.0,
                 entry_slippage_bps=0.0,
             )
             collector.record_friction(
-                trade_id=tid, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+                trade_id=tid,
+                entry_slippage_bps=0.0,
+                exit_slippage_bps=0.0,
             )
             collector.finalize(
-                trade_id=tid, asset="TEST",
-                entry_date="2026-05-27", exit_date="2026-05-28",
-                side="long", exit_price=105.0, exit_reason="tp",
-                realized_r=1.0, realized_return=0.05, realized_pnl=100.0,
+                trade_id=tid,
+                asset="TEST",
+                entry_date="2026-05-27",
+                exit_date="2026-05-28",
+                side="long",
+                exit_price=105.0,
+                exit_reason="tp",
+                realized_r=1.0,
+                realized_return=0.05,
+                realized_pnl=100.0,
                 theoretical_r=1.5,
             )
         external = []
@@ -791,17 +1101,26 @@ class TestTradeLifecycle:
     def test_reset_clears_everything(self, collector):
         tid = "reset_test"
         collector.record_prediction(
-            trade_id=tid, signal="BUY", label=1,
-            confidence=50.0, prob_long=0.5, prob_short=0.3,
+            trade_id=tid,
+            signal="BUY",
+            label=1,
+            confidence=50.0,
+            prob_long=0.5,
+            prob_short=0.3,
             prob_neutral=0.2,
         )
         collector.record_execution(
-            trade_id=tid, entry_type="immediate", deferred_bars=0,
-            entry_price=100.0, mid_price_at_signal=100.0,
+            trade_id=tid,
+            entry_type="immediate",
+            deferred_bars=0,
+            entry_price=100.0,
+            mid_price_at_signal=100.0,
             entry_slippage_bps=0.0,
         )
         collector.record_friction(
-            trade_id=tid, entry_slippage_bps=0.0, exit_slippage_bps=0.0,
+            trade_id=tid,
+            entry_slippage_bps=0.0,
+            exit_slippage_bps=0.0,
         )
         collector.reset()
         assert collector.count() == 0
@@ -816,7 +1135,13 @@ class TestStructuralPurity:
     def test_prediction_attribution_frozen_after_exit(self):
         """forecast_direction_correct is the only field updated at exit."""
         attr = PredictionAttribution(
-            "BUY", 1, 75.0, 0.75, 0.1, 0.15, None,
+            "BUY",
+            1,
+            75.0,
+            0.75,
+            0.1,
+            0.15,
+            None,
         )
         attr.forecast_direction_correct = True
         assert attr.forecast_direction_correct is True
@@ -824,6 +1149,7 @@ class TestStructuralPurity:
     def test_collector_no_import_from_strategy_modules(self):
         """AttributionCollector does not import strategy modules."""
         import paper_trading.attribution.collector as ta
+
         src = str(ta.__file__)
         with open(src) as f:
             content = f.read()
@@ -839,20 +1165,46 @@ class TestStructuralPurity:
             execution_model_version="v1",
             fill_model_version="v1",
             prediction=PredictionAttribution(
-                "BUY", 1, 75.0, 0.75, 0.1, 0.15, None,
+                "BUY",
+                1,
+                75.0,
+                0.75,
+                0.1,
+                0.15,
+                None,
             ),
             execution=ExecutionAttribution(
-                "immediate", 0, 100.0, 100.0, 0.0,
+                "immediate",
+                0,
+                100.0,
+                100.0,
+                0.0,
             ),
             exit_info=ExitAttribution(
-                "tp", 1.5, 2.0, 0.3, 1.8, 0.03, 0.18, 1, 4, 10,
+                "tp",
+                1.5,
+                2.0,
+                0.3,
+                1.8,
+                0.03,
+                0.18,
+                1,
+                4,
+                10,
             ),
             friction=FrictionAttribution(
-                0.5, 0.8, False, False, 1.0, 0,
+                0.5,
+                0.8,
+                False,
+                False,
+                1.0,
+                0,
             ),
             decision_quality=DecisionQuality(None, None, None, None, None),
-            entry_price=100.0, exit_price=105.0,
-            realized_return=0.05, realized_pnl=100.0,
+            entry_price=100.0,
+            exit_price=105.0,
+            realized_return=0.05,
+            realized_pnl=100.0,
         )
         data = pickle.dumps(rec)
         restored = pickle.loads(data)

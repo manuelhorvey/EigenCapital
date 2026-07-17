@@ -150,9 +150,7 @@ class TestMetaModel:
 
 class TestBuildMetaFeaturesFromTrade:
     def test_no_entry_date_returns_none(self):
-        result = build_meta_features_from_trade(
-            {"pnl": 100}, [], [], 0.0, pd.Series([100.0, 101.0])
-        )
+        result = build_meta_features_from_trade({"pnl": 100}, [], [], 0.0, pd.Series([100.0, 101.0]))
         assert result is None
 
     def test_empty_prob_history_returns_none(self):

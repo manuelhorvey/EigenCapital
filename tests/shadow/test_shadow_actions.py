@@ -66,8 +66,11 @@ class TestComputeShadowActions:
     def test_no_drift_returns_none(self):
         drift = {
             "drift_scores": {
-                "model_drift": 0.0, "signal_drift": 0.0, "pnl_drift": 0.0,
-                "feature_stability": 0.0, "regime_consistency": 0.0,
+                "model_drift": 0.0,
+                "signal_drift": 0.0,
+                "pnl_drift": 0.0,
+                "feature_stability": 0.0,
+                "regime_consistency": 0.0,
             }
         }
         risk = {"risk_level": "LOW", "risk_score": 0.0, "risk_flags": []}
@@ -78,8 +81,11 @@ class TestComputeShadowActions:
     def test_high_model_drift_triggers_flag(self):
         drift = {
             "drift_scores": {
-                "model_drift": 0.5, "signal_drift": 0.0, "pnl_drift": 0.0,
-                "feature_stability": 0.0, "regime_consistency": 0.0,
+                "model_drift": 0.5,
+                "signal_drift": 0.0,
+                "pnl_drift": 0.0,
+                "feature_stability": 0.0,
+                "regime_consistency": 0.0,
             }
         }
         risk = {"risk_level": "LOW", "risk_score": 0.0, "risk_flags": []}
@@ -89,8 +95,11 @@ class TestComputeShadowActions:
     def test_multiple_drifts_accumulate(self):
         drift = {
             "drift_scores": {
-                "model_drift": 0.5, "signal_drift": 0.4, "pnl_drift": 0.6,
-                "feature_stability": 0.3, "regime_consistency": 0.35,
+                "model_drift": 0.5,
+                "signal_drift": 0.4,
+                "pnl_drift": 0.6,
+                "feature_stability": 0.3,
+                "regime_consistency": 0.35,
             }
         }
         risk = {"risk_level": "MEDIUM", "risk_score": 0.4, "risk_flags": []}
@@ -101,8 +110,11 @@ class TestComputeShadowActions:
     def test_high_risk_pauses(self):
         drift = {
             "drift_scores": {
-                "model_drift": 0.8, "signal_drift": 0.7, "pnl_drift": 0.9,
-                "feature_stability": 0.6, "regime_consistency": 0.5,
+                "model_drift": 0.8,
+                "signal_drift": 0.7,
+                "pnl_drift": 0.9,
+                "feature_stability": 0.6,
+                "regime_consistency": 0.5,
             }
         }
         risk = {"risk_level": "HIGH", "risk_score": 0.7, "risk_flags": ["MODEL_DRIFT"]}
@@ -117,8 +129,11 @@ class TestComputeShadowActions:
     def test_drift_summary_included(self):
         drift = {
             "drift_scores": {
-                "model_drift": 0.1, "signal_drift": 0.2, "pnl_drift": 0.3,
-                "feature_stability": 0.4, "regime_consistency": 0.5,
+                "model_drift": 0.1,
+                "signal_drift": 0.2,
+                "pnl_drift": 0.3,
+                "feature_stability": 0.4,
+                "regime_consistency": 0.5,
             }
         }
         risk = {"risk_level": "LOW", "risk_score": 0.0, "risk_flags": []}

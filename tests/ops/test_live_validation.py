@@ -234,16 +234,12 @@ class TestCheckCalibration:
         assert r.status == "PASS"
 
     def test_overconfident(self, healthy_state):
-        healthy_state["assets"]["NZDCAD"] = {
-            "metrics": {"n_trades": 25, "mean_confidence": 92.0, "win_rate": 60.0}
-        }
+        healthy_state["assets"]["NZDCAD"] = {"metrics": {"n_trades": 25, "mean_confidence": 92.0, "win_rate": 60.0}}
         r = check_calibration(healthy_state)
         assert r.status == "WARN"
 
     def test_insufficient_trades(self, healthy_state):
-        healthy_state["assets"]["NZDCAD"] = {
-            "metrics": {"n_trades": 5, "mean_confidence": 92.0, "win_rate": 60.0}
-        }
+        healthy_state["assets"]["NZDCAD"] = {"metrics": {"n_trades": 5, "mean_confidence": 92.0, "win_rate": 60.0}}
         r = check_calibration(healthy_state)
         assert r.status == "PASS"
 

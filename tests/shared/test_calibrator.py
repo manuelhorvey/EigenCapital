@@ -302,10 +302,12 @@ class TestDirectionalPlattCalibrator:
         cal = DirectionalCalibrator(base_calibrator="platt", min_samples_per_bin=1)
         rng = np.random.default_rng(42)
         n = 100
-        p_long = np.concatenate([
-            rng.uniform(0.55, 0.75, n),  # BUY predictions
-            rng.uniform(0.25, 0.45, n),  # SELL predictions
-        ])
+        p_long = np.concatenate(
+            [
+                rng.uniform(0.55, 0.75, n),  # BUY predictions
+                rng.uniform(0.25, 0.45, n),  # SELL predictions
+            ]
+        )
         # Make BUY predictions overconfident (actual WR ~55%)
         buy_out = (rng.uniform(0, 1, n) < 0.55).astype(int)
         sell_out = (rng.uniform(0, 1, n) < 0.65).astype(int)

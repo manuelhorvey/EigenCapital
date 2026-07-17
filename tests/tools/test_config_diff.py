@@ -100,9 +100,11 @@ class TestEndToEnd:
         try:
             from tools.config_diff import main
             import sys
+
             sys.argv = ["config_diff.py", lpath, rpath]
             assert main() == 0
         finally:
             import os
+
             os.unlink(lpath)
             os.unlink(rpath)

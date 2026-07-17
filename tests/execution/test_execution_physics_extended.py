@@ -32,37 +32,43 @@ from shared.execution_config import ExecutionConfig
 @pytest.fixture
 def normal_market_ohlc() -> pd.DataFrame:
     """A 5-bar OHLC series representing a normal trading day."""
-    return pd.DataFrame({
-        "open": [100.0, 101.0, 100.5, 101.5, 102.0],
-        "high": [101.5, 102.0, 101.5, 102.5, 103.0],
-        "low":  [99.5,  100.5, 99.8,  101.0, 101.5],
-        "close":[101.0, 100.5, 101.5, 102.0, 102.5],
-        "volume": [1e7, 1.2e7, 8e6, 1.5e7, 2e7],
-    })
+    return pd.DataFrame(
+        {
+            "open": [100.0, 101.0, 100.5, 101.5, 102.0],
+            "high": [101.5, 102.0, 101.5, 102.5, 103.0],
+            "low": [99.5, 100.5, 99.8, 101.0, 101.5],
+            "close": [101.0, 100.5, 101.5, 102.0, 102.5],
+            "volume": [1e7, 1.2e7, 8e6, 1.5e7, 2e7],
+        }
+    )
 
 
 @pytest.fixture
 def gap_down_ohlc() -> pd.DataFrame:
     """OHLC with a large gap-down (flash crash scenario) — last bar opens below stop."""
-    return pd.DataFrame({
-        "open": [100.0, 101.0, 100.5, 99.0, 95.0],
-        "high": [101.0, 102.0, 101.0, 100.0, 96.0],
-        "low":  [99.5,  100.0, 99.0,  98.0,  93.0],
-        "close":[95.5,  100.5, 99.5,  99.0,  94.0],
-        "volume": [1e7, 3e7, 2e7, 1.8e7, 1.5e7],
-    })
+    return pd.DataFrame(
+        {
+            "open": [100.0, 101.0, 100.5, 99.0, 95.0],
+            "high": [101.0, 102.0, 101.0, 100.0, 96.0],
+            "low": [99.5, 100.0, 99.0, 98.0, 93.0],
+            "close": [95.5, 100.5, 99.5, 99.0, 94.0],
+            "volume": [1e7, 3e7, 2e7, 1.8e7, 1.5e7],
+        }
+    )
 
 
 @pytest.fixture
 def gap_up_ohlc() -> pd.DataFrame:
     """OHLC with a large gap-up (short squeeze)."""
-    return pd.DataFrame({
-        "open": [100.0, 108.0, 107.0, 109.0, 108.5],
-        "high": [101.0, 110.0, 109.0, 110.0, 109.5],
-        "low":  [99.5,  107.0, 106.0, 108.0, 107.5],
-        "close":[101.0, 108.5, 107.5, 109.0, 108.0],
-        "volume": [1e7, 5e7, 3e7, 4e7, 3.5e7],
-    })
+    return pd.DataFrame(
+        {
+            "open": [100.0, 108.0, 107.0, 109.0, 108.5],
+            "high": [101.0, 110.0, 109.0, 110.0, 109.5],
+            "low": [99.5, 107.0, 106.0, 108.0, 107.5],
+            "close": [101.0, 108.5, 107.5, 109.0, 108.0],
+            "volume": [1e7, 5e7, 3e7, 4e7, 3.5e7],
+        }
+    )
 
 
 @pytest.fixture
@@ -92,7 +98,7 @@ class TestMarketSnapshotOHLC:
 
     def test_bridge_constructs_snapshot_without_ohlc_falls_back_to_mid(self, default_config):
         """When no OHLC provided, snapshot falls back to mid for all fields.
-        
+
         This is the current (broken) behavior — test documents the fallback.
         """
         broker = PaperBroker(execution_configs={"TEST": default_config})
@@ -246,8 +252,7 @@ class TestEntryFillQuality:
         fill_high_vol, _, _ = bridge.fill_price("TEST", "buy", 1000, 100.0)
 
         assert fill_high_vol >= fill_low_vol, (
-            f"Higher vol must produce worse (higher) buy fill: "
-            f"low_vol={fill_low_vol:.6f} high_vol={fill_high_vol:.6f}"
+            f"Higher vol must produce worse (higher) buy fill: low_vol={fill_low_vol:.6f} high_vol={fill_high_vol:.6f}"
         )
 
     def test_fill_never_negative(self, default_config):
@@ -319,7 +324,11 @@ class TestEndToEndFill:
         """Enter long, then price gaps down through stop: fill at gap open."""
         # Entry
         entry_fill, entry_slip, _ = bridge_with_simulator.fill_price(
-            "TEST", "buy", 10000, 100.0, ohlcv=gap_down_ohlc,
+            "TEST",
+            "buy",
+            10000,
+            100.0,
+            ohlcv=gap_down_ohlc,
         )
         assert entry_fill > 100.0
 
@@ -342,7 +351,11 @@ class TestEndToEndFill:
     def test_entry_then_tp_fill_normal(self, normal_market_ohlc, bridge_with_simulator):
         """Entry long, TP hit normally — no gap, favorable fill."""
         entry_fill, _, _ = bridge_with_simulator.fill_price(
-            "TEST", "buy", 10000, 100.0, ohlcv=normal_market_ohlc,
+            "TEST",
+            "buy",
+            10000,
+            100.0,
+            ohlcv=normal_market_ohlc,
         )
         position = PositionIntent(
             side=PositionSide.LONG,
@@ -352,7 +365,9 @@ class TestEndToEndFill:
             take_profit=105.0,
             vol=0.01,
         )
-        tp_result = bridge_with_simulator.fill_take_profit("TEST", position, current_price=106.0, ohlcv=normal_market_ohlc)
+        tp_result = bridge_with_simulator.fill_take_profit(
+            "TEST", position, current_price=106.0, ohlcv=normal_market_ohlc
+        )
         assert tp_result.gap_fill is False
         # TP should fill near target (limit order)
         assert tp_result.fill_price >= 105.0 * 0.999, "TP fill should be near target price"
@@ -394,8 +409,7 @@ class TestPartialFillQuantitative:
         # Ratios should be non-increasing
         for i in range(1, len(ratios)):
             assert ratios[i] <= ratios[i - 1] + 1e-6, (
-                f"Fill ratio increased at vol_z={np.linspace(0.5, 6.0, 20)[i]}: "
-                f"{ratios[i-1]:.4f} → {ratios[i]:.4f}"
+                f"Fill ratio increased at vol_z={np.linspace(0.5, 6.0, 20)[i]}: {ratios[i - 1]:.4f} → {ratios[i]:.4f}"
             )
 
     def test_min_fill_prob_floor_respected(self):
@@ -444,9 +458,7 @@ class TestSlippageAsymmetry:
             s = slip.stop_loss_slippage(100.0, vol_z, config, "long")
             slippages.append(s)
         for i in range(1, len(slippages)):
-            assert slippages[i] >= slippages[i - 1], (
-                f"SL slippage decreased at vol_z={np.linspace(1.0, 5.0, 10)[i]}"
-            )
+            assert slippages[i] >= slippages[i - 1], f"SL slippage decreased at vol_z={np.linspace(1.0, 5.0, 10)[i]}"
 
     def test_tp_slippage_remains_near_zero(self):
         config = ExecutionConfig(base_spread_bps=2.0)

@@ -1,4 +1,5 @@
 """Tests for the Prometheus metrics registry + text exposition format."""
+
 from __future__ import annotations
 
 import pytest
@@ -109,9 +110,7 @@ class TestDefaultRegistry:
 
     def test_signal_total_labeled(self):
         reg = default_registry()
-        signals = reg.counter(
-            "eigencapital_engine_signal_total", "Sig", labelnames=("asset", "side")
-        )
+        signals = reg.counter("eigencapital_engine_signal_total", "Sig", labelnames=("asset", "side"))
         signals.inc(asset="EURUSD", side="long")
         signals.inc(asset="EURUSD", side="short")
         rendered = reg.render()
@@ -127,9 +126,7 @@ class TestRenderOrdering:
         reg.counter("beta_total", "B")
         rendered = reg.render()
         # Find the order of "# TYPE" lines
-        lines = [
-            line for line in rendered.splitlines() if line.startswith("# TYPE")
-        ]
+        lines = [line for line in rendered.splitlines() if line.startswith("# TYPE")]
         names = [line.split()[2] for line in lines]
         assert names == sorted(names)
 
@@ -140,10 +137,7 @@ class TestRenderOrdering:
         c.inc(k="a")
         c.inc(k="m")
         rendered = reg.render()
-        body_lines = [
-            line for line in rendered.splitlines()
-            if line.startswith("hits_total{")
-        ]
+        body_lines = [line for line in rendered.splitlines() if line.startswith("hits_total{")]
         # Should be sorted by label key alphabetically
         assert body_lines[0].startswith('hits_total{k="a"')
         assert body_lines[2].startswith('hits_total{k="z"')

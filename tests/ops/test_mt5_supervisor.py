@@ -1,5 +1,6 @@
 """Supervisor tests — verify the watchdog correctly detects a dead bridge,
 marks the health endpoint unhealthy, and avoids flapping."""
+
 from __future__ import annotations
 
 import http.client

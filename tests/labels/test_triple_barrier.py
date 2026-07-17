@@ -51,6 +51,7 @@ class TestApplyTripleBarrier:
 
     def test_main_executes_without_error(self):
         import labels.triple_barrier as tb
+
         assert hasattr(tb, "apply_triple_barrier")
 
     def test_all_three_labels_appear_with_enough_data(self):

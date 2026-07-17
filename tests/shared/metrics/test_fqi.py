@@ -61,13 +61,15 @@ class TestComputeFqiFromDf:
         assert result == {}
 
     def test_single_asset(self):
-        df = pd.DataFrame({
-            "asset": ["EURUSD", "EURUSD", "EURUSD"],
-            "friction_fill_qty_ratio": [1.0, 0.8, 1.0],
-            "friction_gap_fill": [False, False, True],
-            "friction_partial_fill": [False, True, False],
-            "friction_latency_bars": [0, 1, 0],
-        })
+        df = pd.DataFrame(
+            {
+                "asset": ["EURUSD", "EURUSD", "EURUSD"],
+                "friction_fill_qty_ratio": [1.0, 0.8, 1.0],
+                "friction_gap_fill": [False, False, True],
+                "friction_partial_fill": [False, True, False],
+                "friction_latency_bars": [0, 1, 0],
+            }
+        )
         result = compute_fqi_from_df(df, min_trades=3)
         assert "EURUSD" in result
         assert 0 < result["EURUSD"] <= 1

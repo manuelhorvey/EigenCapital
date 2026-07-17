@@ -196,9 +196,7 @@ def evaluate_promotion(
         recommended_action = "schedule_review_14d"
     else:
         decision = "REJECT"
-        recommended_action = (
-            "blocked_by_multiple_failures" if met_count < total - 2 else "blocked_by_low_mas"
-        )
+        recommended_action = "blocked_by_multiple_failures" if met_count < total - 2 else "blocked_by_low_mas"
 
     result = {
         "asset": asset,

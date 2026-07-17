@@ -42,7 +42,9 @@ class _MockPosMgr:
 class _MockAssetEngine:
     """Minimal mock for what EngineOrchestrator accesses on AssetEngine."""
 
-    def __init__(self, name: str, current_price: float = 100.0, mtm_value: float = 1000.0, current_value: float | None = None):
+    def __init__(
+        self, name: str, current_price: float = 100.0, mtm_value: float = 1000.0, current_value: float | None = None
+    ):
         self.name = name
         self.current_price = current_price
         self.current_value = current_value if current_value is not None else mtm_value
@@ -200,6 +202,7 @@ class TestAutoUnhaltEligibility:
         actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
         orch = EngineOrchestrator(actors)
         from paper_trading.orchestrator.halt_state import HaltState
+
         orch._halt_state = HaltState()
         orch._halt_state.set_halt("HALT_RATIO", "halt_ratio=0.60")
         orch._halt_state.peak_portfolio_value = 10000.0
@@ -216,6 +219,7 @@ class TestAutoUnhaltEligibility:
         actors = {"BTCUSD": AssetActor("BTCUSD", eng)}
         orch = EngineOrchestrator(actors)
         from paper_trading.orchestrator.halt_state import HaltState
+
         orch._halt_state = HaltState()
         orch._halt_state.set_halt("DRAWDOWN", "dd=-0.15")
         orch._halt_state.peak_portfolio_value = 10000.0
@@ -400,15 +404,11 @@ class TestWeekendAggregateEquity:
             # Pretending we're inside _phase_3c_check_portfolio_health
             _aggregate_actors = getattr(orch, "_saved_full_actors", None) or orch._actors
             aggregate_total = sum(
-                a._engine.current_value
-                for a in _aggregate_actors.values()
-                if hasattr(a._engine, "current_value")
+                a._engine.current_value for a in _aggregate_actors.values() if hasattr(a._engine, "current_value")
             )
             # Filtered-subset summary: would be 2000 if we used `orch._actors`
             filtered_total = sum(
-                a._engine.current_value
-                for a in orch._actors.values()
-                if hasattr(a._engine, "current_value")
+                a._engine.current_value for a in orch._actors.values() if hasattr(a._engine, "current_value")
             )
         finally:
             orch._actors = saved

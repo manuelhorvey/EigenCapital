@@ -47,8 +47,7 @@ class TestInterfaceParity:
             real_sig = inspect.signature(real_attr)
             mock_sig = inspect.signature(mock_attr)
             assert real_sig.return_annotation == mock_sig.return_annotation, (
-                f"Return annotation mismatch for {name}: "
-                f"{real_sig.return_annotation} vs {mock_sig.return_annotation}"
+                f"Return annotation mismatch for {name}: {real_sig.return_annotation} vs {mock_sig.return_annotation}"
             )
 
 
@@ -119,7 +118,11 @@ class TestMockMT5Client:
         assert info["volume_step"] == 0.01
 
     def test_symbol_info_custom(self):
-        client = MockMT5Client(symbol_infos={"XAUUSD": {"contract_size": 100.0, "volume_step": 0.1, "min_volume": 0.01, "max_volume": 100.0}})
+        client = MockMT5Client(
+            symbol_infos={
+                "XAUUSD": {"contract_size": 100.0, "volume_step": 0.1, "min_volume": 0.01, "max_volume": 100.0}
+            }
+        )
         info = client.symbol_info("XAUUSD")
         assert info["contract_size"] == 100.0
 

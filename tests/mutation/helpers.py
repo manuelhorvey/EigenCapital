@@ -13,7 +13,8 @@ def synthetic_series(n: int = 300, seed: int = 42) -> pd.Series:
 
 
 def synthetic_asset_data(
-    n: int = 500, seed: int = 42,
+    n: int = 500,
+    seed: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.DataFrame]:
     rng = np.random.default_rng(seed)
     close = pd.Series(
@@ -70,7 +71,9 @@ _drift_counter: int = 0
 
 
 def L6_schema_drift_features(
-    prices: pd.DataFrame, rate_diffs: pd.DataFrame, **kwargs,
+    prices: pd.DataFrame,
+    rate_diffs: pd.DataFrame,
+    **kwargs,
 ) -> pd.DataFrame:
     """Adds a random-suffix column name (L6 violation)."""
     global _drift_counter

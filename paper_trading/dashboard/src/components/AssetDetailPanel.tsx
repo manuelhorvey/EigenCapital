@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Shield, Sliders, Activity, BarChart3, List } from 'lucide-react'
+import { X, Shield, Sliders, Activity, BarChart3, Clock, List } from 'lucide-react'
 import type { z } from 'zod'
 import { AssetStateSchema } from '../lib/schemas'
 
@@ -9,8 +9,7 @@ import OverviewTab from './AssetDetailPanel/OverviewTab'
 import GovernanceTab from './AssetDetailPanel/GovernanceTab'
 import SizingTab from './AssetDetailPanel/SizingTab'
 import DiagnosticsTab from './AssetDetailPanel/DiagnosticsTab'
-
-type TabId = 'overview' | 'governance' | 'sizing' | 'diagnostics' | 'wal'
+import Tabs, { TabPanel } from './ui/Tabs'
 
 interface Props {
   asset: AssetState
@@ -18,20 +17,30 @@ interface Props {
   onClose: () => void
 }
 
-const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
-  { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'governance', label: 'Governance', icon: Shield },
-  { id: 'sizing', label: 'Sizing', icon: Sliders },
-  { id: 'diagnostics', label: 'Diagnostics', icon: Activity },
-  { id: 'wal', label: 'WAL', icon: List },
+type TabId = 'overview' | 'governance' | 'sizing' | 'diagnostics' | 'wal'
+
+const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+  { id: 'governance', label: 'Governance', icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+  { id: 'sizing', label: 'Sizing', icon: <Sliders className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+  { id: 'diagnostics', label: 'Diagnostics', icon: <Activity className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+  { id: 'wal', label: 'WAL', icon: <List className="w-3.5 h-3.5" strokeWidth={1.5} /> },
 ]
 
 /**
  * Slide-over detail panel for a single asset. Contains tabs for Overview, Governance, Sizing, Diagnostics, and WAL timeline.
- * @param {{ asset: AssetState, name: string, onClose: () => void }} props
  */
 export default function AssetDetailPanel({ asset, name, onClose }: Props) {
   const [tab, setTab] = useState<TabId>('overview')
+
+  // Determine model freshness from asset metrics
+  const nTrades = asset.metrics?.n_trades ?? 0
+  const lastSignalDate = asset.metrics?.last_signal_date
+  const daysSinceLastSignal = lastSignalDate
+    ? Math.round((Date.now() - new Date(lastSignalDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null
+  const modelAgeDays = daysSinceLastSignal ?? null
+  const modelStale = modelAgeDays !== null && modelAgeDays > 90
 
   return (
     <>
@@ -52,41 +61,52 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel transition-colors"
-            aria-label="Close detail panel"
-          >
-            <X className="w-4 h-4 text-secondary" strokeWidth={2} />
-          </button>
-        </div>
-
-        <div className="flex border-b border-default overflow-x-auto">
-          {TABS.map(({ id, label, icon: Icon }) => (
+          <div className="flex items-center gap-2">
+            {/* Model freshness indicator (W3) */}
+            {modelAgeDays !== null && (
+              <span
+                className={`flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${
+                  modelStale
+                    ? 'bg-gov-red-muted text-gov-red border-gov-red/20'
+                    : modelAgeDays > 60
+                    ? 'bg-gov-yellow-muted text-gov-yellow border-gov-yellow/20'
+                    : 'bg-gov-green-muted text-gov-green border-gov-green/20'
+                }`}
+                title={`Last signal ${modelAgeDays} days ago${nTrades > 0 ? ` · ${nTrades} trades` : ''} — signal freshness, not retrain age`}
+              >
+                <Clock className="w-2.5 h-2.5" strokeWidth={2} />
+                {modelAgeDays}d
+              </span>
+            )}
             <button
-              key={id}
               type="button"
-              onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-                tab === id
-                  ? 'border-accent-emerald text-primary'
-                  : 'border-transparent text-tertiary hover:text-secondary'
-              }`}
+              onClick={onClose}
+              className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel transition-colors"
+              aria-label="Close detail panel"
             >
-              <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
-              {label}
+              <X className="w-4 h-4 text-secondary" strokeWidth={2} />
             </button>
-          ))}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {tab === 'overview' && <OverviewTab asset={asset} />}
-          {tab === 'governance' && <GovernanceTab asset={asset} />}
-          {tab === 'sizing' && <SizingTab asset={asset} />}
-          {tab === 'diagnostics' && <DiagnosticsTab asset={asset} />}
-          {tab === 'wal' && <WalTimeline assetName={name} />}
-        </div>
+        {/* Tabs using canonical Tabs component — generic type inferred from TABS */}
+        <Tabs tabs={TABS} activeTab={tab} onTabChange={setTab} />
+
+        <TabPanel id="overview" active={tab === 'overview'} className="p-4 space-y-4">
+          <OverviewTab asset={asset} />
+        </TabPanel>
+        <TabPanel id="governance" active={tab === 'governance'} className="p-4 space-y-4">
+          <GovernanceTab asset={asset} />
+        </TabPanel>
+        <TabPanel id="sizing" active={tab === 'sizing'} className="p-4 space-y-4">
+          <SizingTab asset={asset} />
+        </TabPanel>
+        <TabPanel id="diagnostics" active={tab === 'diagnostics'} className="p-4 space-y-4">
+          <DiagnosticsTab asset={asset} />
+        </TabPanel>
+        <TabPanel id="wal" active={tab === 'wal'} className="p-4 space-y-4">
+          <WalTimeline assetName={name} />
+        </TabPanel>
       </div>
     </>
   )

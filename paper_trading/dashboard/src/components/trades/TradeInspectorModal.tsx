@@ -8,6 +8,7 @@ import { computeDomainScores } from '../attribution/domainScores'
 import { Skeleton } from '../ui/Skeleton'
 import { BarRow } from '../ui/ProgressBar'
 import Modal from '../ui/Modal'
+import Tabs, { TabPanel } from '../ui/Tabs'
 
 interface TradeInspectorModalProps {
   asset: string
@@ -18,18 +19,14 @@ interface TradeInspectorModalProps {
 
 type TabId = 'timeline' | 'attribution' | 'counterfactual' | 'governance'
 
-const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
-  { id: 'timeline', label: 'Timeline', icon: Clock },
-  { id: 'attribution', label: 'Attribution', icon: BarChart3 },
-  { id: 'counterfactual', label: 'Counterfactual', icon: GitCompare },
-  { id: 'governance', label: 'Governance', icon: Shield },
+const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'timeline', label: 'Timeline', icon: <Clock className="w-3 h-3" strokeWidth={1.5} /> },
+  { id: 'attribution', label: 'Attribution', icon: <BarChart3 className="w-3 h-3" strokeWidth={1.5} /> },
+  { id: 'counterfactual', label: 'Counterfactual', icon: <GitCompare className="w-3 h-3" strokeWidth={1.5} /> },
+  { id: 'governance', label: 'Governance', icon: <Shield className="w-3 h-3" strokeWidth={1.5} /> },
 ]
 
-/** Full-screen modal for inspecting a single trade across timeline, attribution, counterfactual, and governance tabs.
- * @param {string} asset - Asset symbol
- * @param {string} entryDate - Trade entry date string
- * @param {string} [exitDate] - Trade exit date string
- * @param {() => void} onClose - Callback to close the modal */
+/** Full-screen modal for inspecting a single trade across timeline, attribution, counterfactual, and governance tabs. */
 export default function TradeInspectorModal({ asset, entryDate, exitDate, onClose }: TradeInspectorModalProps) {
   const [tab, setTab] = useState<TabId>('timeline')
   const tradeData = useTradeInspector(asset, entryDate, exitDate)
@@ -57,29 +54,10 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-0 px-3 border-b border-default shrink-0 overflow-x-auto">
-          {TABS.map(t => {
-            const Icon = t.icon
-            const isActive = tab === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-2xs font-medium border-b-2 transition-all ${
-                  isActive
-                    ? 'text-accent-emerald border-accent-emerald'
-                    : 'text-tertiary border-transparent hover:text-secondary'
-                }`}
-              >
-                <Icon className="w-3 h-3" strokeWidth={1.5} />
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
+        {/* Tabs using canonical Tabs component — generic type inferred from TABS */}
+        <Tabs tabs={TABS} activeTab={tab} onTabChange={setTab} size="sm" />
 
-        {/* Content */}
+        {/* Content using TabPanel for proper ARIA */}
         <div className="flex-1 overflow-y-auto p-4">
           {!attribution ? (
             <div className="space-y-3">
@@ -87,50 +65,57 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
               <Skeleton className="h-32 rounded-lg" />
               <Skeleton className="h-24 rounded-lg" />
             </div>
-          ) : tab === 'timeline' ? (
-            <TradeTimeline data={attribution} />
-          ) : tab === 'attribution' ? (
-            <div className="space-y-4">
-              {(() => {
-                const scores = computeDomainScores(attribution)
-                return (
-                  <>
-                    <div className="space-y-2">
-                      <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
-                      <BarRow label="Prediction" value={scores.prediction_score} color="var(--color-accent-blue)" cssColor />
-                      <BarRow label="Execution" value={scores.execution_score} color="var(--color-accent-purple)" cssColor />
-                      <BarRow label="Exit" value={scores.exit_score} color="var(--color-gov-green)" cssColor />
-                      <BarRow label="Friction" value={scores.friction_score} color="var(--color-accent-amber)" cssColor />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-default">
-                      <div className="space-y-1">
-                        <p className="text-2xs text-tertiary">Signal</p>
-                        <p className="text-xs font-mono text-primary">{attribution.pred_signal}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xs text-tertiary">Confidence</p>
-                        <p className="text-xs font-mono text-primary">{(attribution.pred_confidence * 100).toFixed(0)}%</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xs text-tertiary">Realized R</p>
-                        <p className={`text-xs font-mono font-bold ${attribution.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
-                          {attribution.exit_realized_r.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xs text-tertiary">Exit Reason</p>
-                        <p className="text-xs font-mono text-primary">{attribution.exit_exit_reason}</p>
-                      </div>
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          ) : tab === 'counterfactual' ? (
-            <TradeCounterfactual data={attribution} />
           ) : (
-            <TradeGovernanceAudit data={attribution} />
+            <>
+              <TabPanel id="timeline" active={tab === 'timeline'}>
+                <TradeTimeline data={attribution} />
+              </TabPanel>
+              <TabPanel id="attribution" active={tab === 'attribution'}>
+                <div className="space-y-4">
+                  {(() => {
+                    const scores = computeDomainScores(attribution)
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
+                          <BarRow label="Prediction" value={scores.prediction_score} color="var(--color-accent-blue)" cssColor />
+                          <BarRow label="Execution" value={scores.execution_score} color="var(--color-accent-purple)" cssColor />
+                          <BarRow label="Exit" value={scores.exit_score} color="var(--color-gov-green)" cssColor />
+                          <BarRow label="Friction" value={scores.friction_score} color="var(--color-accent-amber)" cssColor />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-default">
+                          <div className="space-y-1">
+                            <p className="text-2xs text-tertiary">Signal</p>
+                            <p className="text-xs font-mono text-primary">{attribution.pred_signal}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-2xs text-tertiary">Confidence</p>
+                            <p className="text-xs font-mono text-primary">{(attribution.pred_confidence * 100).toFixed(0)}%</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-2xs text-tertiary">Realized R</p>
+                            <p className={`text-xs font-mono font-bold ${attribution.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+                              {attribution.exit_realized_r.toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-2xs text-tertiary">Exit Reason</p>
+                            <p className="text-xs font-mono text-primary">{attribution.exit_exit_reason}</p>
+                          </div>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </TabPanel>
+              <TabPanel id="counterfactual" active={tab === 'counterfactual'}>
+                <TradeCounterfactual data={attribution} />
+              </TabPanel>
+              <TabPanel id="governance" active={tab === 'governance'}>
+                <TradeGovernanceAudit data={attribution} />
+              </TabPanel>
+            </>
           )}
         </div>
 

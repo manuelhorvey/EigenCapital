@@ -157,10 +157,13 @@ class VaultSecretsProvider:
             return None
 
         try:
-            response = typing.cast(dict[str, Any], client.secrets.kv.v2.read_secret_version(
-                path=p,
-                mount_point=mp,
-            ))
+            response = typing.cast(
+                dict[str, Any],
+                client.secrets.kv.v2.read_secret_version(
+                    path=p,
+                    mount_point=mp,
+                ),
+            )
             data: dict[str, Any] = response.get("data", {}).get("data", {})
             with self._cache_lock:
                 self._cache[ck] = (data, now)

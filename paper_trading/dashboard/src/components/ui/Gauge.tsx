@@ -26,16 +26,26 @@ export default function Gauge({
   const circ = 2 * Math.PI * r
   const offset = circ * (1 - pct)
 
+  const uniqueId = `gauge-track-${label.replace(/\s/g, '')}`
+
   return (
-    <div className={`flex flex-col items-center gap-1 ${className}`} role="img" aria-label={`${label}: ${(pct * 100).toFixed(0)}%`}>
+    <div
+      className={`flex flex-col items-center gap-1 ${className}`}
+      role="meter"
+      aria-label={label}
+      aria-valuenow={Math.round(pct * 100)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuetext={`${label}: ${(pct * 100).toFixed(0)}%`}
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
-          <linearGradient id={`gauge-track-${label.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={uniqueId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-border-strong)" />
             <stop offset="100%" stopColor="var(--color-border)" />
           </linearGradient>
         </defs>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`url(#gauge-track-${label.replace(/\s/g, '')})`} strokeWidth={6} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`url(#${uniqueId})`} strokeWidth={6} />
         <circle
           cx={size / 2}
           cy={size / 2}

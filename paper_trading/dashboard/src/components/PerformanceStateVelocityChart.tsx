@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
-import StatCard from './ui/StatCard'
 import EmptyState from './ui/EmptyState'
 
 function velocityColor(v: number): string {
@@ -18,7 +17,34 @@ function degradationColor(v: number): string {
   return 'var(--color-gov-red)'
 }
 
-/** Performance state velocity metrics: PnL velocity/acceleration, vol, degradation, and execution. */
+/** Compact sparkline bar showing velocity direction and magnitude. */
+function VelocitySparkline({ value, label }: { value: number; label: string }) {
+  const abs = Math.abs(value)
+  const barWidth = Math.min(abs * 2000, 100) // Scale to show meaningful differences
+  const isNegative = value < 0
+  const positive = value >= 0
+  const color = velocityColor(abs)
+
+  return (
+    <div className="flex items-center gap-1.5 w-full" title={`${label}: ${value.toFixed(4)}`}>
+      <div className="flex-1 h-1.5 bg-panel rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${barWidth}%`,
+            backgroundColor: color,
+            marginLeft: isNegative ? `${100 - barWidth}%` : '0%',
+          }}
+        />
+      </div>
+      <span className="text-[9px] font-mono tabular-nums w-12 text-right shrink-0" style={{ color }}>
+        {positive ? '+' : ''}{value.toFixed(2)}
+      </span>
+    </div>
+  )
+}
+
+/** Performance state velocity metrics: PnL velocity/acceleration, vol, degradation, and execution with context sparklines. */
 export default function PerformanceStateVelocityChart() {
   const { data: portfolio } = useSystemSnapshot(systemSelectors.portfolio)
   const v = portfolio?.pek?.performance_state?.velocity
@@ -31,11 +57,11 @@ export default function PerformanceStateVelocityChart() {
     const degV = typeof v.degradation_velocity === 'number' ? v.degradation_velocity : 0
     const execV = typeof v.execution_velocity === 'number' ? v.execution_velocity : 0.5
     return [
-      { label: 'PnL Velocity', value: pnlV.toFixed(4), accent: velocityColor(pnlV) },
-      { label: 'PnL Acceleration', value: pnlA.toFixed(4), accent: velocityColor(pnlA) },
-      { label: 'Vol Velocity', value: volV.toFixed(4), accent: velocityColor(volV) },
-      { label: 'Degradation Velocity', value: degV.toFixed(4), accent: degradationColor(degV) },
-      { label: 'Execution Velocity', value: execV.toFixed(4), accent: velocityColor(execV - 0.5) },
+      { label: 'PnL Velocity', value: pnlV, accent: velocityColor(pnlV) },
+      { label: 'PnL Acceleration', value: pnlA, accent: velocityColor(pnlA) },
+      { label: 'Vol Velocity', value: volV, accent: velocityColor(volV) },
+      { label: 'Degradation Velocity', value: degV, accent: degradationColor(degV) },
+      { label: 'Execution Velocity', value: execV, accent: velocityColor(execV - 0.5) },
     ]
   }, [v])
 
@@ -49,11 +75,19 @@ export default function PerformanceStateVelocityChart() {
 
   return (
     <Panel padding="md">
-      <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block mb-3">Performance State Velocity</span>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-        {cards.map(c => (
-          <StatCard key={c.label} label={c.label} value={c.value} variant="kpi" accent={c.accent} />
-        ))}
+      <div className="space-y-3">
+        <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block">Performance State Velocity</span>
+        <div className="space-y-2">
+          {cards.map(c => (
+            <div key={c.label} className="flex items-center gap-2">
+              <span className="text-2xs text-tertiary w-28 shrink-0">{c.label}</span>
+              <VelocitySparkline value={c.value} label={c.label} />
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-muted/60 italic mt-1">
+          Positive values indicate favorable trend direction
+        </p>
       </div>
     </Panel>
   )

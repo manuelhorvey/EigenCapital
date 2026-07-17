@@ -170,7 +170,7 @@ class EngineOrchestrator:
         self._orphan_reconciler = OrphanReconciler()
 
         # PEK budget utilization from previous cycle (for sizing backfeed)
-        self._pek_budget_utilization: float = 0.0
+        # Not set here; _pre_phase_pek uses getattr with default 1.0 ("no throttling")
 
         # Position concentration snapshot (updated each cycle in Phase 3e)
         self._position_concentration: dict = {

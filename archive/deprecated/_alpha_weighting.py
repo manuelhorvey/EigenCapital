@@ -1,6 +1,5 @@
 import logging
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("eigencapital.alpha_weighting")

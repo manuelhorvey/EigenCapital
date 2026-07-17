@@ -616,7 +616,7 @@ class AssetEngine:
             min_bars_in_regime=gate_cfg.get("min_bars_in_regime", 3),
         )
 
-    def refresh_price(self):
+    def refresh_price(self) -> None:
         # 1. Try real-time price first
         lp = self._market_data.get_realtime_price(self.ticker)
         if lp is not None:
@@ -655,7 +655,7 @@ class AssetEngine:
         except (OSError, ValueError, TypeError, AttributeError, MT5ConnectionError):
             logger.warning("%s: refresh_spread failed", self.name, exc_info=True)
 
-    def train(self, force=False, full_panel=None):
+    def train(self, force: bool = False, full_panel: pd.DataFrame | None = None) -> None:
         # Auto-detect expanded 10-year cache and pass it to the training
         # pipeline. When available, training uses the full cached history
         # (10y+) instead of the live 5y yfinance fetch.
@@ -674,7 +674,7 @@ class AssetEngine:
         self._training.train(force=force, full_panel=full_panel, expanded_data_dir=_expanded_dir)
         self._load_calibration_registry()
 
-    def generate_signal(self, threshold=0.45, shared_macro: dict[str, pd.Series] | None = None):
+    def generate_signal(self, threshold: float = 0.45, shared_macro: dict[str, pd.Series] | None = None) -> dict | None:
         halt = self.check_halt_conditions()
         if halt.get("halted", False):
             logger.info("%s: skip signal generation — asset halted", self.name)
@@ -703,7 +703,7 @@ class AssetEngine:
             pos_mgr=self.pos_mgr,
         )
 
-    def update_pnl(self):
+    def update_pnl(self) -> None:
         self._pnl.update_pnl()
 
     @property
@@ -730,7 +730,7 @@ class AssetEngine:
             last_psi_drift=self._last_psi_drift,
         )
 
-    def check_halt_conditions(self, metrics: dict | None = None):
+    def check_halt_conditions(self, metrics: dict | None = None) -> dict:
         return GovernanceService.check_halt_conditions(
             get_metrics=(lambda: metrics if metrics is not None else self.get_metrics()),
             name=self.name,

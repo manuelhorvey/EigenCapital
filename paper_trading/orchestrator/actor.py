@@ -49,6 +49,23 @@ HEALTH_HALTED_THRESHOLD: float = 50.0  # score < 50 = HALTED (else DEGRADED)
 HEALTH_MIN_CYCLES_BEFORE_SCORING: int = 5  # cold-start grace period
 
 
+class FaultCategory(Enum):
+    """Category of failure for an actor cycle.
+
+    Discriminates between transient network/data issues (expected in
+    production) and logic bugs (code defects requiring investigation).
+
+    Values:
+        NETWORK — OSError, ConnectionError, TimeoutError (transient I/O)
+        LOGIC   — KeyError, AttributeError, RuntimeError, ImportError (code bugs)
+        UNKNOWN — default when no exception was raised (e.g. halted actors)
+    """
+
+    NETWORK = "network"
+    LOGIC = "logic"
+    UNKNOWN = "unknown"
+
+
 class ActorHealth(Enum):
     GREEN = auto()
     DEGRADED = auto()
@@ -79,6 +96,7 @@ class AssetResult:
     success: bool
     signal: dict | None = None
     error: str | None = None
+    fault_category: str = "unknown"
     cycle_id: int = 0
     duration_ms: float = 0.0
 
@@ -87,8 +105,22 @@ class AssetResult:
         return cls(asset=asset, success=True, signal=signal, cycle_id=cycle_id, duration_ms=duration_ms)
 
     @classmethod
-    def failed(cls, asset: str, error: str, cycle_id: int = 0, duration_ms: float = 0.0) -> AssetResult:
-        return cls(asset=asset, success=False, error=error, cycle_id=cycle_id, duration_ms=duration_ms)
+    def failed(
+        cls,
+        asset: str,
+        error: str,
+        cycle_id: int = 0,
+        duration_ms: float = 0.0,
+        fault_category: str = "unknown",
+    ) -> AssetResult:
+        return cls(
+            asset=asset,
+            success=False,
+            error=error,
+            cycle_id=cycle_id,
+            duration_ms=duration_ms,
+            fault_category=fault_category,
+        )
 
 
 @dataclass
@@ -193,19 +225,52 @@ class AssetActor:
             self._handle_success(t0)
             self._queue_persist("signal", signal or {})
             return AssetResult.ok(self.name, signal or {}, self.metrics.cycle_id, self.metrics.cycle_duration_ms)
-        # Broad catch intentional: actor must isolate asset failures from the
-        # orchestrator.  Any unexpected exception from engine operations should
-        # be caught here so a single asset bug doesn't crash the entire portfolio.
-        except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, ImportError):
-            import traceback
-
-            logger.error("%s actor exception:\n%s", self.name, traceback.format_exc())
-            self._handle_failure(t0, traceback.format_exc())
+        # ── Network / data failures (expected transient) ─────────────────
+        # OSError: MT5 connection timeout, socket reset, file I/O errors.
+        # ValueError / TypeError: malformed data from external sources (empty
+        # DataFrames, None where Series expected, type mismatches from yfinance).
+        # These are EXPECTED in production. Log once at WARNING, not ERROR.
+        except (OSError, ValueError, TypeError) as exc:
+            _exc_type = type(exc).__name__
+            logger.warning(
+                "%s actor transient failure [%s]: %s",
+                self.name,
+                _exc_type,
+                exc,
+            )
+            self._handle_failure(t0, f"transient:{_exc_type}:{exc}", fault_category=FaultCategory.NETWORK.value)
             return AssetResult.failed(
                 self.name,
-                "actor_exception",
+                f"actor_exception:transient:{_exc_type}",
                 self.metrics.cycle_id,
                 self.metrics.cycle_duration_ms,
+                fault_category=FaultCategory.NETWORK.value,
+            )
+        # ── Logic bugs (code defects — need investigation) ────────────────
+        # KeyError: dict access with missing key.
+        # AttributeError: access to non-existent attribute on engine/position.
+        # RuntimeError: general runtime invariant violation.
+        # ImportError: missing module (deployment issue or broken refactor).
+        # These indicate a CODE BUG. Log at ERROR with full traceback so
+        # developers get actionable diagnostics.
+        except (KeyError, AttributeError, RuntimeError, ImportError) as exc:
+            import traceback
+
+            _tb = traceback.format_exc()
+            _exc_type = type(exc).__name__
+            logger.error(
+                "%s actor LOGIC BUG [%s]:\n%s",
+                self.name,
+                _exc_type,
+                _tb,
+            )
+            self._handle_failure(t0, f"logic:{_exc_type}:{exc}", fault_category=FaultCategory.LOGIC.value)
+            return AssetResult.failed(
+                self.name,
+                f"actor_exception:logic:{_exc_type}",
+                self.metrics.cycle_id,
+                self.metrics.cycle_duration_ms,
+                fault_category=FaultCategory.LOGIC.value,
             )
 
     def drain_persist_queue(self) -> list[PersistCommand]:
@@ -252,13 +317,13 @@ class AssetActor:
         self._outcome_window.append(True)
         self._update_health()
 
-    def _handle_failure(self, t0: float, error: str) -> None:
+    def _handle_failure(self, t0: float, error: str, fault_category: str = "unknown") -> None:
         elapsed = (time.monotonic() - t0) * 1000.0
         self.metrics.last_failure_time = time.monotonic()
         self.metrics.consecutive_failures += 1
         self.metrics.total_failures += 1
         self.metrics.cycle_duration_ms = round(elapsed, 2)
-        self._fault_reason = error
+        self._fault_reason = f"[{fault_category}] {error}"
 
         # Record failure in rolling window and update health
         self._outcome_window.append(False)
@@ -266,16 +331,18 @@ class AssetActor:
 
         if self.health == ActorHealth.HALTED:
             logger.error(
-                "%s actor HALTED after %d consecutive failures (max=%d). Last error: %s",
+                "%s actor HALTED [%s] after %d consecutive failures (max=%d). Last error: %s",
                 self.name,
+                fault_category,
                 self.metrics.consecutive_failures,
                 self._max_failures,
                 error,
             )
         elif self.health == ActorHealth.DEGRADED:
             logger.warning(
-                "%s actor DEGRADED (%d/%d failures, health_score=%.1f): %s",
+                "%s actor DEGRADED [%s] (%d/%d failures, health_score=%.1f): %s",
                 self.name,
+                fault_category,
                 self.metrics.consecutive_failures,
                 self._max_failures,
                 self.health_score,
@@ -283,8 +350,9 @@ class AssetActor:
             )
         else:
             logger.info(
-                "%s actor had a failure (health still GREEN at score=%.1f): %s",
+                "%s actor failure [%s] (health still GREEN at score=%.1f): %s",
                 self.name,
+                fault_category,
                 self.health_score,
                 error,
             )

@@ -12,10 +12,10 @@ Covers:
 import time
 from datetime import datetime, timezone
 
-
 from paper_trading.orchestrator.actor import (
-    AssetActor,
     ActorHealth,
+    AssetActor,
+    FaultCategory,
 )
 from paper_trading.orchestrator.engine import EngineOrchestrator, EnginePhase
 from paper_trading.orchestrator.health import (
@@ -24,17 +24,28 @@ from paper_trading.orchestrator.health import (
     RecoveryScheduler,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
 class _MockEngine:
-    """Simulates an AssetEngine with controllable success/failure."""
+    """Simulates an AssetEngine with controllable success/failure.
 
-    def __init__(self, name: str, should_fail: bool = False, fail_after: int = 0):
+    When *error_type* is set (an Exception instance), ``refresh_price()``
+    raises it on every call.  Used to test fault classification in
+    AssetActor.run_cycle().
+    """
+
+    def __init__(
+        self,
+        name: str,
+        should_fail: bool = False,
+        fail_after: int = 0,
+        error_type: BaseException | None = None,
+    ):
         self.name = name
         self._should_fail = should_fail
         self._fail_after = fail_after
+        self._error_type = error_type
         self._call_count = 0
         self.last_refresh = None
         self.last_pnl = None
@@ -43,9 +54,10 @@ class _MockEngine:
     def refresh_price(self):
         self._call_count += 1
         self.last_refresh = datetime.now(timezone.utc).replace(tzinfo=None)
-        if self._should_fail:
-            if self._fail_after <= 0 or self._call_count > self._fail_after:
-                raise ConnectionError(f"{self.name}: price refresh failed")
+        if self._error_type is not None:
+            raise self._error_type
+        if self._should_fail and (self._fail_after <= 0 or self._call_count > self._fail_after):
+            raise ConnectionError(f"{self.name}: price refresh failed")
 
     def update_pnl(self):
         self.last_pnl = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -85,9 +97,9 @@ class TestAssetActorLifecycle:
     def test_halted_after_max_failures(self):
         engine = _MockEngine("TEST", should_fail=True)
         actor = AssetActor("TEST", engine, max_consecutive_failures=2, recovery_cooldown_seconds=0.1)
-        r1 = actor.run_cycle()
+        actor.run_cycle()
         assert actor.health == ActorHealth.DEGRADED
-        r2 = actor.run_cycle()
+        actor.run_cycle()
         assert actor.health == ActorHealth.HALTED
         # Subsequent calls return failure immediately without calling engine
         r3 = actor.run_cycle()
@@ -128,6 +140,96 @@ class TestAssetActorLifecycle:
         result = actor.run_cycle()
         assert result.success is True
         assert actor.health == ActorHealth.GREEN
+
+
+# ── Test 9: Exception Fault Classification ────────────────────────────────────
+
+
+class TestFaultClassification:
+    """Broad exception handling is split to discriminate network failures from logic bugs.
+
+    Two catch blocks in AssetActor.run_cycle():
+        - (OSError, ValueError, TypeError) -> fault_category=NETWORK
+        - (KeyError, AttributeError, RuntimeError, ImportError) -> fault_category=LOGIC
+
+    Both categories still ensure fault isolation — neither re-raises.
+    """
+
+    def _make_actor(self, fail_engine: _MockEngine) -> AssetActor:
+        return AssetActor("TEST", fail_engine, max_consecutive_failures=3, recovery_cooldown_seconds=999)
+
+    def test_oserror_is_network_fault(self):
+        engine = _MockEngine("TEST", error_type=OSError("connection reset"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.NETWORK.value
+        assert "transient" in (result.error or "")
+
+    def test_valueerror_is_network_fault(self):
+        engine = _MockEngine("TEST", error_type=ValueError("empty DataFrame"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.NETWORK.value
+
+    def test_typeerror_is_network_fault(self):
+        engine = _MockEngine("TEST", error_type=TypeError("cannot unpack"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.NETWORK.value
+
+    def test_keyerror_is_logic_fault(self):
+        engine = _MockEngine("TEST", error_type=KeyError("missing_key"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.LOGIC.value
+        assert "logic" in (result.error or "")
+
+    def test_attributeerror_is_logic_fault(self):
+        engine = _MockEngine("TEST", error_type=AttributeError("'NoneType' object has no attribute 'foo'"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.LOGIC.value
+
+    def test_runtimeerror_is_logic_fault(self):
+        engine = _MockEngine("TEST", error_type=RuntimeError("generator raised StopIteration"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.LOGIC.value
+
+    def test_importerror_is_logic_fault(self):
+        engine = _MockEngine("TEST", error_type=ImportError("No module named 'nonexistent'"))
+        actor = self._make_actor(engine)
+        result = actor.run_cycle()
+        assert result.success is False
+        assert result.fault_category == FaultCategory.LOGIC.value
+
+    def test_halted_actor_no_exception_in_result(self):
+        """A HALTED actor returns immediately without calling engine."""
+        engine = _MockEngine("TEST", error_type=ValueError("fail"))
+        actor = AssetActor("TEST", engine, max_consecutive_failures=1, recovery_cooldown_seconds=999)
+        # First call — triggers the exception
+        result1 = actor.run_cycle()
+        assert result1.success is False
+        assert actor.health == ActorHealth.HALTED
+        # Second call — immediately returns without calling engine
+        engine._error_type = None  # would succeed if called
+        result2 = actor.run_cycle()
+        assert result2.success is False
+        assert "actor_halted" in (result2.error or "")
+        assert result2.fault_category == "unknown"  # no exception was raised
+
+    def test_fault_category_in_fault_reason(self):
+        """The fault_reason stored on the actor should include the fault category."""
+        engine = _MockEngine("TEST", error_type=KeyError("missing"))
+        actor = self._make_actor(engine)
+        actor.run_cycle()
+        assert "[logic]" in actor._fault_reason
 
 
 # ── Test 2: Fault Isolation ──────────────────────────────────────────────────

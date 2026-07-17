@@ -65,7 +65,7 @@ export default function HealthScores() {
 
       <div className={`${gridMetric6()} ${GRID_GAP}`}>
         {names.map(name => {
-          const h = data.assets[name]
+          const h = data.assets![name]
           const pct = (h.health_score * 100).toFixed(0)
           return (
             <div key={name} className={`border border-default rounded-lg px-3 py-2.5 ${healthBg(h.health_score)}`}>

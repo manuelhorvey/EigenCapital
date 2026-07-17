@@ -9,7 +9,7 @@ import PerformancePanel from './monitor/PerformancePanel'
 import { Skeleton } from './ui/Skeleton'
 import Modal from './ui/Modal'
 
-function avgHealth(health: { assets: Record<string, { health_score: number }> } | undefined): number | null {
+function avgHealth(health: { assets?: Record<string, { health_score: number }> } | undefined): number | null {
   if (!health?.assets) return null
   const scores = Object.values(health.assets).map(a => a.health_score)
   return scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null

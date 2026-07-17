@@ -1,11 +1,9 @@
-import { Suspense, lazy, useCallback, useEffect, useRef } from 'react'
+import { Suspense, lazy, useCallback, useEffect } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import { ThemeProvider } from './hooks/useTheme'
-import { ToastProvider, useToast } from './hooks/useToast'
-import { NotificationProvider, useNotificationCenter } from './hooks/useNotificationCenter'
-import { useMonitorAlerts } from './hooks/useMonitorAlerts'
-import { useEngineHealth } from './hooks/useEngineHealth'
+import { ToastProvider } from './hooks/useToast'
+import { NotificationProvider } from './hooks/useNotificationCenter'
 import { ToastContainer } from './components/ui/ToastContainer'
 import AppShell from './components/layout/AppShell'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -54,102 +52,7 @@ import { useSystemSnapshot } from './hooks/useSystemSnapshot'
 import { systemSelectors } from './selectors/system'
 import { useSelectedAsset } from './hooks/useSelectedAsset'
 
-// ── Toast alert bridge ───────────────────────────────────────────
-// Connects the existing useMonitorAlerts system (passive alert panel)
-// to the real-time toast notification system. When a new critical
-// alert appears, it fires a toast. This runs inside AppContent so it
-// has access to both the toast dispatcher and the alert stream.
-// Also pushes all events into the notification center for the history panel.
-function useToastAlertBridge() {
-  const { add: addNotification } = useNotificationCenter()
-  const alerts = useMonitorAlerts()
-  const { toast } = useToast()
-  const previousAlertIds = useRef<Set<string>>(new Set())
-
-  useEffect(() => {
-    const currentIds = new Set(alerts.map(a => a.id))
-    for (const alert of alerts) {
-      if (!previousAlertIds.current.has(alert.id)) {
-        // New alert — fire a toast
-        const nType = alert.severity === 'critical' ? 'error' : 'warning'
-        toast({
-          type: nType,
-          title: alert.message,
-          message: alert.detail ?? undefined,
-          duration: alert.severity === 'critical' ? 6000 : 4000,
-        })
-        // Also record in notification history
-        addNotification({
-          type: nType,
-          title: alert.message,
-          message: alert.detail ?? undefined,
-        })
-      }
-    }
-    previousAlertIds.current = currentIds
-  }, [alerts, toast, addNotification])
-
-  // Also monitor engine health
-  const health = useEngineHealth()
-  const previousEngineDead = useRef(false)
-
-  useEffect(() => {
-    const isDead = !!(health.isError || (health.data && !health.data.engine_alive))
-    if (isDead && !previousEngineDead.current) {
-      toast({
-        type: 'error',
-        title: 'Engine connection lost',
-        message: 'Dashboard data may be stale',
-        duration: 0, // persistent until dismissed
-      })
-      addNotification({
-        type: 'error',
-        title: 'Engine connection lost',
-        message: 'Dashboard data may be stale',
-      })
-    } else if (!isDead && previousEngineDead.current) {
-      toast({
-        type: 'success',
-        title: 'Engine reconnected',
-        duration: 3000,
-      })
-      addNotification({
-        type: 'success',
-        title: 'Engine reconnected',
-      })
-    }
-    previousEngineDead.current = isDead
-  }, [health, toast, addNotification])
-
-  // Monitor PEK admission rejections — toast each newly rejected signal
-  const { data: bundlem } = useSystemSnapshot(systemSelectors.portfolio)
-  const admission = bundlem?.admission
-  const prevRejectedAssets = useRef<string[]>([])
-
-  useEffect(() => {
-    if (!admission) return
-    const currentRejected = admission.rejected ?? []
-    // Find assets newly rejected since last cycle
-    const prevSet = new Set(prevRejectedAssets.current)
-    const newRejections = currentRejected.filter(a => !prevSet.has(a))
-    for (const asset of newRejections) {
-      const reason = admission.rejection_reasons?.[asset] ?? 'PEK budget/rank limit'
-      toast({
-        type: 'warning',
-        title: `${asset} signal rejected`,
-        message: reason,
-        duration: 5000,
-      })
-      // Also record in notification history
-      addNotification({
-        type: 'warning',
-        title: `${asset} signal rejected`,
-        message: reason,
-      })
-    }
-    prevRejectedAssets.current = currentRejected
-  }, [admission, toast, addNotification])
-}
+import { useToastAlertBridge } from './hooks/useToastAlertBridge'
 
 function AppContent() {
   useRoutePreloader()

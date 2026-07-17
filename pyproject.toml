@@ -175,7 +175,6 @@ exclude = [
 
 [tool.mypy.per-file-ignores]
 # shared/ modules
-"shared/portfolio_weights.py" = ["no-any-return", "union-attr"]
 "shared/factor_model.py" = ["no-any-return"]
 
 "shared/sizing.py" = ["no-any-return"]

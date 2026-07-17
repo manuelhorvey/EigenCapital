@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+
+
 import TradeExecutionTable from '../TradeExecutionTable'
 
 const mockUseAttributionTrades = vi.fn()
@@ -10,8 +12,19 @@ vi.mock('../../../hooks/useAttributionTrades', () => ({
   useAttributionTrades: (...args: unknown[]) => mockUseAttributionTrades(...args),
 }))
 
-// Mock Select to make it testable
-vi.mock('../../ui/Select', () => ({
+// Mock react-window List for jsdom (no DOM measurements available)
+vi.mock('react-window', () => ({
+  List: ({ rowComponent, rowCount, ...props }: any) => {
+    const items: ReactNode[] = []
+    for (let i = 0; i < (rowCount ?? 0); i++) {
+      items.push(rowComponent({ index: i, style: {} }))
+    }
+    return <div {...props}>{items}</div>
+  },
+}))
+
+// Mock SearchableSelect to make it testable
+vi.mock('../../ui/SearchableSelect', () => ({
   default: ({ options, value, onChange, placeholder }: any) => (
     <select
       data-testid="archetype-select"

@@ -348,6 +348,7 @@ function SignalsTable() {
           storageKey="signals"
           onRowClick={r => setSelectedAsset(r.name)}
           rowClassName={r => `group border-l-2 ${stateAccent[rowState(r)]}`}
+          virtualize
         />
       )}
     </Panel>

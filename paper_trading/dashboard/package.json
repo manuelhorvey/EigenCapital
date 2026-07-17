@@ -23,6 +23,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.18.0",
+    "react-virtualized-auto-sizer": "^2.0.3",
+    "react-window": "^2.2.7",
     "recharts": "^2.12.0",
     "zod": "^4.4.3"
   },
@@ -35,6 +37,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "jsdom": "^29.1.1",

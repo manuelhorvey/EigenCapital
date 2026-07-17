@@ -550,6 +550,16 @@ class EngineStateService:
         except (OSError, TypeError, ValueError, AttributeError):
             logger.exception("MT5 status capture failed")
         state["mt5"] = mt5_status
+
+        # Cross-asset data fetch circuit breaker stats (MT5 → yfinance fallback
+        # cascade prevention). Module-level singleton in features/data_fetch.py.
+        try:
+            from features.data_fetch import _data_fetch_cb
+
+            state["mt5"]["data_fetch_circuit_breaker"] = _data_fetch_cb.stats()
+        except (ImportError, AttributeError, OSError):
+            state["mt5"]["data_fetch_circuit_breaker"] = {"available": False}
+
         # Publish-time contract: mark each per-asset dict as read-only for
         # the publish window. ARCHITECTURE.md Key Contract §4 documents
         # the structural-sharing invariant; the marker is the lightweight

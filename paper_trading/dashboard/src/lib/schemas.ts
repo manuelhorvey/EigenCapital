@@ -375,6 +375,7 @@ export const PortfolioSummarySchema = z.object({
   position_concentration: PositionConcentrationSchema.optional(),
   factor_exposures: FactorExposuresSchema.optional(),
   live_sharpe: LiveSharpeSchema.optional(),
+  pek_budget_utilization: z.number().optional(),
   admission: PortfolioAdmissionSchema.optional(),
   pek: PekDataSchema.optional(),
   active_risk_tier: z.object({

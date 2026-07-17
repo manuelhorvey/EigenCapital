@@ -1,5 +1,6 @@
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
+import BudgetGauge from './BudgetGauge'
 import Panel from './ui/Panel'
 import { Skeleton } from './ui/Skeleton'
 
@@ -39,8 +40,11 @@ export default function AdmissionPanel() {
           </div>
         </dl>
 
-        <div className="text-2xs text-tertiary font-mono pt-2 border-t border-default">
-          Budget notional: ${(adm.budget_notional ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+        <div className="pt-2 border-t border-default space-y-2">
+          <div className="text-2xs text-tertiary font-mono">
+            Budget notional: ${(adm.budget_notional ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </div>
+          <BudgetGauge utilization={portfolio?.pek_budget_utilization} />
         </div>
 
         {adm.admitted && adm.admitted.length > 0 && (

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import threading
 from dataclasses import dataclass, field
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -102,6 +103,7 @@ def _make_mock_actor(name: str, **engine_kwargs) -> AssetActor:
     actor._max_failures = 10
     actor._recovery_cooldown = 60.0
     actor._last_recovery_probe = 0.0
+    actor._cycle_context_lock = threading.Lock()
     return actor
 
 

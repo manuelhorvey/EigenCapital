@@ -3,6 +3,8 @@ import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
 import { SystemBundleSchema } from '../lib/schemas'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
+import { useToast } from './useToast'
+import { useEffect, useRef, useState } from 'react'
 import type { z } from 'zod'
 type SystemBundle = z.infer<typeof SystemBundleSchema>
 
@@ -40,13 +42,33 @@ function loadFromLocalStorage(): Partial<SystemBundle> | null {
 }
 
 /** Fetches the full system bundle snapshot with optional data selector.
- *  Falls back to localStorage cache on fetch failure (offline/stale mode). */
+ *  Falls back to localStorage cache on fetch failure (offline/stale mode).
+ *  Fires a persistent toast on schema validation failure. */
 export function useSystemSnapshot<T = SystemBundle>(
   select?: (data: SystemBundle) => T
 ) {
+  const { toast } = useToast()
+  const [schemaFailureMsg, setSchemaFailureMsg] = useState<string | null>(null)
+  const prevFailureMsg = useRef<string | null>(null)
+
+  // Fire a persistent toast when schema validation fails
+  useEffect(() => {
+    if (schemaFailureMsg && schemaFailureMsg !== prevFailureMsg.current) {
+      toast({
+        type: 'error',
+        title: 'Schema drift detected',
+        message: `${schemaFailureMsg}. Dashboard may show degraded data.`,
+        duration: 0,
+      })
+      prevFailureMsg.current = schemaFailureMsg
+    }
+  }, [schemaFailureMsg, toast])
+
   return useQuery({
     queryKey: QUERY_KEYS.system,
     queryFn: async () => {
+      // Reset stale schema failure state so a recovery→relapse cycle re-fires the toast
+      setSchemaFailureMsg(null)
       try {
         const json = await fetchApi<unknown>('/state-bundle.json')
         const parsed = SystemBundleSchema.passthrough().safeParse(json)
@@ -59,8 +81,10 @@ export function useSystemSnapshot<T = SystemBundle>(
           saveToLocalStorage(parsed.data as unknown as SystemBundle)
           return parsed.data as unknown as SystemBundle
         }
-        console.error('[SNAPSHOT] Bundle validation failed — schema drift detected:', parsed.error.issues)
-        addErrorBreadcrumb('SNAPSHOT', 'Bundle validation failed — schema drift detected')
+        const driftMsg = 'Bundle validation failed — schema drift detected'
+        console.error('[SNAPSHOT]', driftMsg, parsed.error.issues)
+        addErrorBreadcrumb('SNAPSHOT', driftMsg)
+        setSchemaFailureMsg(driftMsg)
         // Try localStorage fallback before returning empty bundle
         const cached = loadFromLocalStorage()
         if (cached?.snapshot) {

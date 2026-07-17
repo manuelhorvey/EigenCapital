@@ -1,12 +1,13 @@
 import { memo, useCallback, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { LayoutDashboard, Zap, BarChart3, Shield, RefreshCw, Menu } from 'lucide-react'
+import { LayoutDashboard, Zap, BarChart3, Shield, RefreshCw, Menu, Bell } from 'lucide-react'
 import { useSidebarBadges } from '../../hooks/useSidebarBadges'
 import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../../hooks/useEngineHealth'
 import { systemSelectors } from '../../selectors/system'
 import ThemeToggle from '../ThemeToggle'
+import { useNotificationCenter } from '../../hooks/useNotificationCenter'
 
 // ── Tab Definitions ─────────────────────────────────────────────
 
@@ -71,9 +72,10 @@ function getHaltedAssets(assets: Record<string, { halt?: { halted?: boolean } }>
 
 interface TopBarProps {
   onToggleSidebar?: () => void
+  onToggleNotifications?: () => void
 }
 
-function TopBarInner({ onToggleSidebar }: TopBarProps) {
+function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
   const badges = useSidebarBadges()
   const health = useEngineHealth()
   const queryClient = useQueryClient()
@@ -150,6 +152,9 @@ function TopBarInner({ onToggleSidebar }: TopBarProps) {
   // Detect halted assets for pinned alert badges
   const haltedAssets = useMemo(() => getHaltedAssets(assets), [assets])
 
+  // Notification center state
+  const { unreadCount } = useNotificationCenter()
+
   return (
     <div
       aria-live={parts.halted ? 'assertive' : 'polite'}
@@ -222,6 +227,19 @@ function TopBarInner({ onToggleSidebar }: TopBarProps) {
 
         <div className="flex items-center gap-0.5 ml-1 shrink-0">
           <ThemeToggle />
+          <button
+            type="button"
+            onClick={onToggleNotifications}
+            className="relative min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+          >
+            <Bell className="w-3 h-3" strokeWidth={2} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-1 rounded-full text-[7px] font-bold leading-none bg-gov-red text-white flex items-center justify-center shadow-sm">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={handleRefresh}

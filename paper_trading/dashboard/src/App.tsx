@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import { ThemeProvider } from './hooks/useTheme'
 import { ToastProvider, useToast } from './hooks/useToast'
+import { NotificationProvider, useNotificationCenter } from './hooks/useNotificationCenter'
 import { useMonitorAlerts } from './hooks/useMonitorAlerts'
 import { useEngineHealth } from './hooks/useEngineHealth'
 import { ToastContainer } from './components/ui/ToastContainer'
@@ -58,7 +59,9 @@ import { useSelectedAsset } from './hooks/useSelectedAsset'
 // to the real-time toast notification system. When a new critical
 // alert appears, it fires a toast. This runs inside AppContent so it
 // has access to both the toast dispatcher and the alert stream.
+// Also pushes all events into the notification center for the history panel.
 function useToastAlertBridge() {
+  const { add: addNotification } = useNotificationCenter()
   const alerts = useMonitorAlerts()
   const { toast } = useToast()
   const previousAlertIds = useRef<Set<string>>(new Set())
@@ -68,16 +71,23 @@ function useToastAlertBridge() {
     for (const alert of alerts) {
       if (!previousAlertIds.current.has(alert.id)) {
         // New alert — fire a toast
+        const nType = alert.severity === 'critical' ? 'error' : 'warning'
         toast({
-          type: alert.severity === 'critical' ? 'error' : 'warning',
+          type: nType,
           title: alert.message,
           message: alert.detail ?? undefined,
           duration: alert.severity === 'critical' ? 6000 : 4000,
         })
+        // Also record in notification history
+        addNotification({
+          type: nType,
+          title: alert.message,
+          message: alert.detail ?? undefined,
+        })
       }
     }
     previousAlertIds.current = currentIds
-  }, [alerts, toast])
+  }, [alerts, toast, addNotification])
 
   // Also monitor engine health
   const health = useEngineHealth()
@@ -92,15 +102,53 @@ function useToastAlertBridge() {
         message: 'Dashboard data may be stale',
         duration: 0, // persistent until dismissed
       })
+      addNotification({
+        type: 'error',
+        title: 'Engine connection lost',
+        message: 'Dashboard data may be stale',
+      })
     } else if (!isDead && previousEngineDead.current) {
       toast({
         type: 'success',
         title: 'Engine reconnected',
         duration: 3000,
       })
+      addNotification({
+        type: 'success',
+        title: 'Engine reconnected',
+      })
     }
     previousEngineDead.current = isDead
-  }, [health, toast])
+  }, [health, toast, addNotification])
+
+  // Monitor PEK admission rejections — toast each newly rejected signal
+  const { data: bundlem } = useSystemSnapshot(systemSelectors.portfolio)
+  const admission = bundlem?.admission
+  const prevRejectedAssets = useRef<string[]>([])
+
+  useEffect(() => {
+    if (!admission) return
+    const currentRejected = admission.rejected ?? []
+    // Find assets newly rejected since last cycle
+    const prevSet = new Set(prevRejectedAssets.current)
+    const newRejections = currentRejected.filter(a => !prevSet.has(a))
+    for (const asset of newRejections) {
+      const reason = admission.rejection_reasons?.[asset] ?? 'PEK budget/rank limit'
+      toast({
+        type: 'warning',
+        title: `${asset} signal rejected`,
+        message: reason,
+        duration: 5000,
+      })
+      // Also record in notification history
+      addNotification({
+        type: 'warning',
+        title: `${asset} signal rejected`,
+        message: reason,
+      })
+    }
+    prevRejectedAssets.current = currentRejected
+  }, [admission, toast, addNotification])
 }
 
 function AppContent() {
@@ -175,6 +223,7 @@ export default function App() {
     <ErrorBoundary title="Application">
       <ThemeProvider>
       <ToastProvider>
+      <NotificationProvider>
       <HashRouter>
         <SelectedAssetProvider>
           <SystemHealthModalProvider>
@@ -184,6 +233,7 @@ export default function App() {
           </SystemHealthModalProvider>
         </SelectedAssetProvider>
       </HashRouter>
+      </NotificationProvider>
       </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>

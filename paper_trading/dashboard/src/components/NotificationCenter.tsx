@@ -8,8 +8,11 @@ import {
   Info,
   CheckCircle,
   AlertCircle,
+  BellOff,
+  BellRing,
 } from 'lucide-react'
 import { useNotificationCenter, type NotificationType } from '../hooks/useNotificationCenter'
+import { useBrowserNotifications } from '../hooks/useBrowserNotifications'
 import useFocusTrap from '../hooks/useFocusTrap'
 
 // ── Filter options ────────────────────────────────────────────────
@@ -50,6 +53,95 @@ function relativeTime(ts: number): string {
   if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`
   if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`
   return `${Math.round(diff / 86_400_000)}d ago`
+}
+
+// ── Desktop notification controls ───────────────────────────────
+
+/**
+ * Inline controls for browser desktop notification permission + opt-out toggle.
+ * Rendered inside the notification center panel footer.
+ */
+function DesktopNotificationControls() {
+  const { supported, permission, enabled, setEnabled, requestPermission } =
+    useBrowserNotifications()
+
+  if (!supported) return null
+
+  const handleToggle = useCallback(() => {
+    setEnabled(!enabled)
+  }, [enabled, setEnabled])
+
+  const handleRequestPermission = useCallback(async () => {
+    await requestPermission()
+  }, [requestPermission])
+
+  const isBlocked = permission === 'denied'
+  const needsRequest = permission === 'default'
+
+  return (
+    <div className="px-4 py-2.5 border-t border-default/60 shrink-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            {enabled && permission === 'granted' ? (
+              <BellRing className="w-3 h-3 text-accent-emerald" strokeWidth={1.5} />
+            ) : (
+              <BellOff className="w-3 h-3 text-muted" strokeWidth={1.5} />
+            )}
+            <span className="text-2xs font-medium text-primary">Desktop notifications</span>
+            <span className="text-[9px] text-muted font-mono">
+              {isBlocked
+                ? 'blocked'
+                : needsRequest
+                  ? 'off'
+                  : enabled
+                    ? 'on'
+                    : 'off'}
+            </span>
+          </div>
+          <p className="text-[9px] text-muted mt-0.5 leading-tight">
+            {isBlocked
+              ? 'Permission denied — update your browser site settings to enable'
+              : needsRequest
+                ? 'Receive critical alerts even when this tab is not focused'
+                : enabled
+                  ? 'Critical alerts and engine status changes will fire desktop notifications'
+                  : 'Desktop notifications are turned off'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {needsRequest && (
+            <button
+              type="button"
+              onClick={handleRequestPermission}
+              className="px-2 py-1 rounded-md text-2xs font-medium bg-accent-emerald/10 text-accent-emerald border border-accent-emerald/20 hover:bg-accent-emerald/20 transition-colors focus-ring"
+            >
+              Enable
+            </button>
+          )}
+          {!isBlocked && !needsRequest && (
+            <button
+              type="button"
+              onClick={handleToggle}
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 focus-ring ${
+                enabled ? 'bg-accent-emerald' : 'bg-default'
+              }`}
+              role="switch"
+              aria-checked={enabled}
+              aria-label={enabled ? 'Disable desktop notifications' : 'Enable desktop notifications'}
+            >
+              <span
+                className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transform transition-transform ${
+                  enabled ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                }`}
+              />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Props ─────────────────────────────────────────────────────────
@@ -237,6 +329,9 @@ export default function NotificationCenter({ open, onClose }: NotificationCenter
             </div>
           )}
         </div>
+
+        {/* Desktop notification controls */}
+        <DesktopNotificationControls />
 
         {/* Footer summary */}
         {notifications.length > 0 && (

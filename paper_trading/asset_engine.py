@@ -4,6 +4,7 @@ import os
 import time
 from dataclasses import fields as dataclass_fields
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 import pytz
@@ -18,7 +19,7 @@ from monitoring.psi_monitor import PSIMonitor
 from monitoring.validity_state_machine import ValidityStateMachine as _ValidityStateMachine
 from paper_trading.asset_pnl_controller import AssetPnlController
 from paper_trading.attribution.collector import AttributionCollector
-from paper_trading.config_manager import get_config  # noqa: F401  (patched by tests)
+from paper_trading.config_manager import EngineConfig, get_config  # noqa: F401  (patched by tests)
 from paper_trading.context import WorkingState
 from paper_trading.entry.decision import TradeDecision
 from paper_trading.entry.optimizer import EntryOptimizer
@@ -110,7 +111,9 @@ class AssetEngine:
 
     # ── ARCH-02: extracted initialization helpers ──────────────────
 
-    def _init_capital_state(self, engine_cfg, initial_capital, position_size) -> None:
+    def _init_capital_state(
+        self, engine_cfg: EngineConfig, initial_capital: float | None, position_size: float | None
+    ) -> None:
         """Initialise capital base, peak tracking, and position manager."""
         self.initial_capital = initial_capital if initial_capital is not None else engine_cfg.capital * self.allocation
         self.capital_base = self.initial_capital
@@ -121,7 +124,9 @@ class AssetEngine:
             position_size if position_size is not None else engine_cfg.position_size,
         )
 
-    def _init_runtime_state(self, engine_cfg, retrain_window, wal_writer) -> None:
+    def _init_runtime_state(
+        self, engine_cfg: EngineConfig, retrain_window: int | None, wal_writer: WalWriter | None
+    ) -> None:
         """Initialise all runtime state variables (model, prices, counters)."""
         self.start_time = datetime.now(tz=ET)
         self.model = None
@@ -191,7 +196,9 @@ class AssetEngine:
             setattr(self, f.name, getattr(w, f.name))
         self._ws = w
 
-    def _init_infrastructure(self, ctx, journal_path, registry) -> None:
+    def _init_infrastructure(
+        self, ctx: ExecutionContext, journal_path: str | None, registry: StrategyRegistry | None
+    ) -> None:
         """Initialise execution bridge, state store, market data, strategy registry."""
         self.execution_bridge = ctx.get_execution_bridge()
         self.state_store = ctx.get_state_store()
@@ -344,10 +351,10 @@ class AssetEngine:
             experiment_id=self._experiment_id,
         )
 
-    def set_narrative_state(self, narr) -> None:
+    def set_narrative_state(self, narr: Any) -> None:
         self.governance.set_narrative_state(narr)
 
-    def _refresh_liquidity(self, df) -> None:
+    def _refresh_liquidity(self, df: pd.DataFrame) -> None:
         self.governance.refresh_liquidity(df)
 
     def _effective_capital(self) -> float:
@@ -419,10 +426,19 @@ class AssetEngine:
     def _load_meta_label_model(self) -> None:
         self._meta_label_model = SignalService.load_meta_label_model(self.config, self.name)
 
-    def _tb_vol(self, close_series):
+    def _tb_vol(self, close_series: pd.Series) -> float:
         return self._entry.tb_vol(close_series)
 
-    def _open_position(self, side, entry_price, entry_date, df=None, tp_geo=None, order_type=None, stack_cmd=None):
+    def _open_position(
+        self,
+        side: str,
+        entry_price: float,
+        entry_date: str,
+        df: pd.DataFrame | None = None,
+        tp_geo: Any | None = None,
+        order_type: OrderType | None = None,
+        stack_cmd: Any | None = None,
+    ) -> None:
         self._is_reentry = bool(self.pos_mgr.has_position())
         self._entry.open_position(
             side,
@@ -435,7 +451,7 @@ class AssetEngine:
             stack_cmd=stack_cmd,
         )
 
-    def _close_position(self, exit_price, exit_date, reason, trade_id: str | None = None) -> bool:
+    def _close_position(self, exit_price: float, exit_date: str, reason: str, trade_id: str | None = None) -> bool:
         """Close a position by trade_id. Looks up the position dict from batches."""
         # Capture peak MFE before position is cleared
         peak_mfe_r = self._capture_peak_mfe_r(trade_id)
@@ -682,14 +698,14 @@ class AssetEngine:
             return None
         return self._inference.generate_signal(threshold, shared_macro=shared_macro)
 
-    def _apply_decision(self, decision: TradeDecision, df):
+    def _apply_decision(self, decision: TradeDecision, df: pd.DataFrame) -> None:
         self._cycle_counter += 1
         self._last_final_signal = run_decision_pipeline(self, decision, df)
 
     def _poll_pending_entries(self, df: pd.DataFrame) -> None:
         self._entry.poll_pending_entries(df, self)
 
-    def _decision_to_dict(self, decision: TradeDecision, final_signal: str | None = None):
+    def _decision_to_dict(self, decision: TradeDecision, final_signal: str | None = None) -> dict:
         return MetricsService.decision_to_dict(
             decision,
             pos_mgr=self.pos_mgr,
@@ -698,7 +714,7 @@ class AssetEngine:
             final_signal=final_signal,
         )
 
-    def _ensure_position_synced(self):
+    def _ensure_position_synced(self) -> None:
         self._position.ensure_position_synced(
             position=self.position,
             pos_mgr=self.pos_mgr,
@@ -714,14 +730,14 @@ class AssetEngine:
     def get_metrics(self) -> MetricsSnapshot:
         return MetricsSnapshot.build(self)
 
-    def _log_confidence_buckets(self):
+    def _log_confidence_buckets(self) -> None:
         MetricsService.log_confidence_buckets(
             name=self.name,
             prob_history=self.prob_history,
             state_store=self.state_store,
         )
 
-    def update_validity(self, halt: dict | None = None):
+    def update_validity(self, halt: dict | None = None) -> dict:
         return GovernanceService.update_validity(
             name=self.name,
             halt=halt,

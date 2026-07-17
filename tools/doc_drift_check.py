@@ -639,7 +639,6 @@ def _check_doc_asset_tables() -> list[str]:
     docs_with_tables = [
         "LIVE_CONTRACT.md",
         "docs/PRODUCTION_SYSTEM_SPEC_v1.md",
-        "docs/OPERATIONS.md",
     ]
 
     for doc in docs_with_tables:

@@ -234,12 +234,7 @@ class AssetActor:
         # These are EXPECTED in production. Log once at WARNING, not ERROR.
         except (OSError, ValueError, TypeError) as exc:
             _exc_type = type(exc).__name__
-            logger.warning(
-                "%s actor transient failure [%s]: %s",
-                self.name,
-                _exc_type,
-                exc,
-            )
+            # Single log line emitted by _handle_failure below (richer context)
             self._handle_failure(t0, f"transient:{_exc_type}:{exc}", fault_category=FaultCategory.NETWORK.value)
             return AssetResult.failed(
                 self.name,
@@ -260,13 +255,11 @@ class AssetActor:
 
             _tb = traceback.format_exc()
             _exc_type = type(exc).__name__
-            logger.error(
-                "%s actor LOGIC BUG [%s]:\n%s",
-                self.name,
-                _exc_type,
-                _tb,
-            )
-            self._handle_failure(t0, f"logic:{_exc_type}:{exc}", fault_category=FaultCategory.LOGIC.value)
+            # Single log line emitted by _handle_failure below (includes traceback
+            # at ERROR level for logic bugs). The traceback is attached to the
+            # error message so _handle_failure's HALTED/DEGRADED/GREEN log lines
+            # include it for actionable diagnostics.
+            self._handle_failure(t0, f"logic:{_exc_type}:{_tb}", fault_category=FaultCategory.LOGIC.value)
             return AssetResult.failed(
                 self.name,
                 f"actor_exception:logic:{_exc_type}",
@@ -331,7 +324,17 @@ class AssetActor:
         self._outcome_window.append(False)
         self._update_health()
 
-        if self.health == ActorHealth.HALTED:
+        if fault_category == FaultCategory.LOGIC.value:
+            # Logic bugs (KeyError, AttributeError, etc.) are code defects
+            # and must be visible at ERROR level regardless of health state.
+            # The full traceback is embedded in `error`.
+            logger.error(
+                "%s actor LOGIC BUG [%s]:\n%s",
+                self.name,
+                fault_category,
+                error,
+            )
+        elif self.health == ActorHealth.HALTED:
             logger.error(
                 "%s actor HALTED [%s] after %d consecutive failures (max=%d). Last error: %s",
                 self.name,

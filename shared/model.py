@@ -1,3 +1,4 @@
+import typing
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -11,4 +12,4 @@ class ModelInterface(ABC):
 
 class XGBoostModel(ModelInterface):
     def predict(self, model, X: pd.DataFrame) -> np.ndarray:
-        return model.predict_proba(X)
+        return typing.cast(np.ndarray, model.predict_proba(X))

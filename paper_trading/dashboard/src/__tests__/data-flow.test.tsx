@@ -22,6 +22,11 @@ vi.mock('../lib/api', () => ({
   fetchApi: (...args: unknown[]) => mockFetch(...args),
 }))
 
+vi.mock('../hooks/useToast', () => ({
+  useToast: () => ({ toast: vi.fn(), toasts: [], dismiss: vi.fn(), clear: vi.fn() }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
 // ── Mock useSelectedAsset ─────────────────────────────────────────
 
 vi.mock('../hooks/useSelectedAsset', () => ({

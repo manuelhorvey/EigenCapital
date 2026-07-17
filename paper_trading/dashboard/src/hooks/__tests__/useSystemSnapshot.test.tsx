@@ -10,6 +10,11 @@ vi.mock('../../lib/api', () => ({
   fetchApi: (...args: unknown[]) => mockFetch(...args),
 }))
 
+vi.mock('../../hooks/useToast', () => ({
+  useToast: () => ({ toast: vi.fn(), toasts: [], dismiss: vi.fn(), clear: vi.fn() }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
 function makeValidBundle(overrides: Record<string, unknown> = {}) {
   return {
     meta: {
@@ -87,7 +92,8 @@ describe('useSystemSnapshot', () => {
     const { result } = renderHook(() => useSystemSnapshot(), { wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[SNAPSHOT] Bundle validation failed — schema drift detected:',
+      '[SNAPSHOT]',
+      'Bundle validation failed — schema drift detected',
       expect.any(Array),
     )
     consoleSpy.mockRestore()

@@ -152,12 +152,14 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 files = [
+    # Existing coverage
     "paper_trading/governance/",
     "paper_trading/pek/contracts/",
     "paper_trading/orchestrator/admission/",
-    "shared/portfolio_weights.py",
-    "shared/kelly.py",
-    "shared/factor_model.py",
+    # Expanded coverage: shared/ modules
+    "shared/",
+    "risk/",
+    "portfolio/",
 ]
 exclude = [
     "tests/",
@@ -165,3 +167,29 @@ exclude = [
     "backtests/",
     "paper_trading/dashboard/",
 ]
+
+# ── mypy per-file-ignores: suppress existing errors while catching new ones ─
+# These are acknowledged technical debt. Each error code can be removed
+# incrementally as the associated file is type-annotated.
+# Format: "pattern" = ["error-code1", "error-code2"]
+
+[tool.mypy.per-file-ignores]
+# shared/ modules
+"shared/model.py" = ["no-any-return"]
+"shared/portfolio_weights.py" = ["no-any-return", "union-attr"]
+"shared/factor_model.py" = ["no-any-return"]
+"shared/metrics_snapshot.py" = ["assignment"]
+"shared/sizing.py" = ["no-any-return"]
+"shared/volatility.py" = ["no-any-return"]
+"shared/calibration/calibrator.py" = ["no-any-return", "return-value", "arg-type", "assignment"]
+"shared/calibration/registry.py" = ["no-any-return"]
+"shared/meta_labeling.py" = ["annotation-unchecked"]
+"shared/vault_secrets.py" = ["no-any-return"]
+# portfolio/ modules
+"portfolio/hrp_allocator.py" = ["no-any-return"]
+# paper_trading/governance/ modules (preexisting)
+"paper_trading/governance/drift.py" = ["var-annotated", "attr-defined", "operator"]
+"paper_trading/governance/asset.py" = ["no-any-return"]
+"paper_trading/governance/risk_registry.py" = ["no-any-return"]
+"paper_trading/governance/health.py" = ["no-any-return"]
+"paper_trading/orchestrator/admission/controller.py" = ["attr-defined"]

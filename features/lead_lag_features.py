@@ -7,7 +7,7 @@ import os
 
 import pandas as pd
 
-from features.pair_specific import build_lead_lag_features
+from archive.deprecated._pair_specific import build_lead_lag_features
 
 logger = logging.getLogger("eigencapital.lead_lag_features")
 

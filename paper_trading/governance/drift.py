@@ -1,3 +1,4 @@
+import typing
 from collections import Counter
 
 import numpy as np
@@ -43,7 +44,7 @@ def _extract_pnl_diffs(events: list) -> list:
 
 
 def _extract_regime_counts(events: list) -> dict:
-    counts = Counter()
+    counts: Counter = Counter()
     for e in events:
         rc = e.get("regime_context", {})
         r = rc.get("volatility_regime")
@@ -61,24 +62,24 @@ def _extract_feature_drivers(events: list) -> list:
 
 
 def _kl_divergence(p: list, q: list) -> float:
-    p = np.array(p, dtype=np.float64)
-    q = np.array(q, dtype=np.float64)
-    if p.sum() == 0 or q.sum() == 0:
+    p_arr = np.array(p, dtype=np.float64)
+    q_arr = np.array(q, dtype=np.float64)
+    if p_arr.sum() == 0 or q_arr.sum() == 0:
         return 0.0
-    p = p / p.sum()
-    q = q / q.sum()
+    p_arr = p_arr / p_arr.sum()
+    q_arr = q_arr / q_arr.sum()
     # Avoid NaN from log(0/0) when both are zero; KL only sums over
     # bins where p > 0 (convention: 0 * log(0/q) = 0).
-    mask = p > 0
-    q_safe = np.maximum(q, 1e-10)
-    return float(np.sum(p[mask] * np.log(p[mask] / q_safe[mask])))
+    mask = p_arr > 0
+    q_safe = np.maximum(q_arr, 1e-10)
+    return float(np.sum(p_arr[mask] * np.log(p_arr[mask] / q_safe[mask])))
 
 
 def _histogram(values: list, bins: int = 10, low: float = 0.0, high: float = 1.0) -> list:
     if not values:
         return [0.0] * bins
     hist, _ = np.histogram(values, bins=bins, range=(low, high))
-    return hist.astype(np.float64).tolist()
+    return typing.cast(list, hist.astype(np.float64).tolist())
 
 
 def _jaccard_similarity(a: set, b: set) -> float:
@@ -240,7 +241,7 @@ def compute_feature_stability(
     mean_sim = float(np.mean(similarities)) if similarities else 1.0
     score = round(1.0 - mean_sim, 4)
 
-    top_features = Counter()
+    top_features: Counter = Counter()
     for driver_set in drivers:
         for f in driver_set:
             top_features[f] += 1
@@ -279,8 +280,8 @@ def compute_regime_consistency(
 
     consistency_score = round(diff_sum / 2.0, 4)
 
-    mode_current = max(current_counts, key=current_counts.get) if current_counts else "unknown"
-    mode_baseline = max(baseline_counts, key=baseline_counts.get) if baseline_counts else "unknown"
+    mode_current = max(current_counts, key=lambda k: current_counts[k]) if current_counts else "unknown"
+    mode_baseline = max(baseline_counts, key=lambda k: baseline_counts[k]) if baseline_counts else "unknown"
     mode_match = mode_current == mode_baseline
 
     return {

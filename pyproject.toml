@@ -184,7 +184,7 @@ exclude = [
 # portfolio/ modules
 "portfolio/hrp_allocator.py" = ["no-any-return"]
 # paper_trading/governance/ modules (preexisting)
-"paper_trading/governance/drift.py" = ["var-annotated", "attr-defined", "operator"]
+
 "paper_trading/governance/asset.py" = ["no-any-return"]
 "paper_trading/governance/risk_registry.py" = ["no-any-return"]
 "paper_trading/governance/health.py" = ["no-any-return"]

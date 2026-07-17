@@ -508,23 +508,12 @@ class EngineOrchestrator:
             )
             intents.append(intent)
 
-        # Run PEK admission
-        result = self._pek.run_admission(
-            candidates=intents,
-            snapshot=self._portfolio_snapshot,
-            risk_budget=self._risk_budget,
-        )
-        admitted = result.admitted if result else []
-        rejected_list = result.rejected if result else []
-
-        # Build rejection reason dict: merge pre-PEK rejections (side errors) with PEK rejections
-        for sig, reason in rejected_list:
-            rejection_reasons[sig.asset] = reason
-        rejected_assets = list(rejection_reasons.keys())
-
-        # Budget enforcement: if actual notional > budget × tolerance, close
-        # lowest-ranked admitted positions until within budget.
-        if self._risk_budget is not None and budget_ref:
+        # ── Compute current and max notional for proactive budget cap ──
+        # These are passed to the admission controller so it can reject
+        # intents that would exceed the portfolio-level notional limit
+        # BEFORE positions are entered (proactive) rather than closing
+        # them after entry (reactive).
+        if budget_ref:
             max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
 
             def _entry_notionals(actor) -> float:
@@ -537,62 +526,35 @@ class EngineOrchestrator:
                 return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
 
             current_notional = sum(_entry_notionals(actor) for actor in self._actors.values())
-            # Store budget utilization for next cycle's sizing backfeed
-            self._pek_budget_utilization = current_notional / max(max_notional, 1.0)
-            if current_notional > max_notional:
-                logger.warning(
-                    "PEK_BUDGET_OVERRUN: notional=%.2f max=%.2f over=%.2f%% — reviewing %d admitted",
-                    current_notional,
-                    max_notional,
-                    (current_notional / max_notional - 1) * 100,
-                    len(admitted),
-                )
-                # Sort admitted by score ascending (worst first) and close until within budget
-                closed_names: list[str] = []
-                for sig in sorted(admitted, key=lambda s: s.peking_score or 0.0):
-                    if current_notional <= max_notional:
-                        break
-                    actor = self._actors.get(sig.asset)
-                    if actor is None:
-                        continue
-                    engine = getattr(actor, "_engine", None)
-                    if engine is None:
-                        continue
-                    pos_mgr = getattr(engine, "pos_mgr", None)
-                    if pos_mgr is None or not pos_mgr.has_position():
-                        continue
-                    entry_notional_raw = getattr(pos_mgr, "_entry_notional", None)
-                    entry_notional = (
-                        float(entry_notional_raw)
-                        if isinstance(entry_notional_raw, (int, float)) and entry_notional_raw > 0
-                        else getattr(engine, "_last_entry_notional", 0.0) or 0.0
-                    )
-                    try:
-                        exit_price = getattr(engine, "current_price", None)
-                        if exit_price is not None and exit_price > 0:
-                            engine._close_position(exit_price, utc_now(), "PEK_BUDGET_OVERRUN")
-                            current_notional -= entry_notional
-                            closed_names.append(sig.asset)
-                            logger.warning(
-                                "PEK_BUDGET_CLOSE: %s closed (score=%.4f) — freed %.2f notional",
-                                sig.asset,
-                                sig.peking_score or 0.0,
-                                entry_notional,
-                            )
-                    except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
-                        logger.error("PEK_BUDGET_CLOSE failed for %s: %s", sig.asset, exc)
+        else:
+            max_notional = 0.0
+            current_notional = 0.0
 
-                if closed_names:
-                    with contextlib.suppress((OSError, RuntimeError, KeyError)):
-                        global_alert_manager().warning(
-                            "PEK budget overrun — positions closed",
-                            f"Closed {len(closed_names)} lowest-ranked positions: {closed_names}",
-                            details={
-                                "current_notional": round(current_notional, 2),
-                                "max_notional": round(max_notional, 2),
-                                "closed": closed_names,
-                            },
-                        )
+        # Run PEK admission (proactive budget cap check inside)
+        result = self._pek.run_admission(
+            candidates=intents,
+            snapshot=self._portfolio_snapshot,
+            risk_budget=self._risk_budget,
+            current_total_notional=current_notional,
+            max_total_notional=max_notional,
+        )
+        admitted = result.admitted if result else []
+        rejected_list = result.rejected if result else []
+
+        # Build rejection reason dict: merge pre-PEK rejections (side errors) with PEK rejections
+        for sig, reason in rejected_list:
+            rejection_reasons[sig.asset] = reason
+        rejected_assets = list(rejection_reasons.keys())
+
+        # Store budget utilization for next cycle's sizing backfeed
+        # The admission controller computes this proactively — no more
+        # reactive post-hoc position closing needed.
+        if result and hasattr(result.budget_delta, "pek_utilization"):
+            self._pek_budget_utilization = result.budget_delta.pek_utilization
+        elif max_notional > 0:
+            self._pek_budget_utilization = current_notional / max(max_notional, 1.0)
+        else:
+            self._pek_budget_utilization = 1.0
 
         adm = {
             "n_intents": len(intents),

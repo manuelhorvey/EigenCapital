@@ -41,6 +41,7 @@ class BudgetDelta:
     daily_loss_consumed: float = 0.0
     positions_added: int = 0
     positions_closed: dict[str, float] = field(default_factory=dict)  # asset -> notional freed
+    pek_utilization: float = 0.0  # ratio for next cycle's sizing backfeed (1.0 = at budget)
 
 
 @dataclass
@@ -139,8 +140,21 @@ class PortfolioAdmissionController:
         candidates: list[AdmissionSignal],
         snapshot: PortfolioStateSnapshot,
         risk_budget: RiskBudget,
+        *,
+        current_total_notional: float = 0.0,
+        max_total_notional: float = 0.0,
     ) -> AdmissionResult:
         """Rank eligible signals and allocate budget.
+
+        When *max_total_notional* > 0, the controller proactively rejects
+        intents whose cumulative notional (existing + new) would exceed the
+        cap.  The cap is enforced here — during admission — rather than by
+        closing positions after entry (reactive).
+
+        ``current_total_notional`` is the sum of all existing position
+        entry notionals before this cycle's intents.  The controller tracks
+        a running tally of admitted notional and rejects lower-ranked
+        intents once the cap is reached.
 
         Only called after fast_filter has been applied to all candidates.
         """
@@ -165,9 +179,15 @@ class PortfolioAdmissionController:
         remaining_leverage = snapshot.leverage_remaining
         remaining_daily_loss = snapshot.daily_loss_remaining
         remaining_concurrent = snapshot.concurrent_remaining
+        running_notional = current_total_notional  # running tally for budget cap
 
         for score, sig in scored:
-            # Check budget (re-check after previous allocations consumed some)
+            # Proactive budget cap: reject if adding this intent would exceed
+            # the portfolio-level notional limit.  This is the key proactive
+            # check — it happens BEFORE entry, not after.
+            if max_total_notional > 0 and (running_notional + sig.notional_requested) > max_total_notional:
+                rejected.append((sig, "portfolio_notional_cap_exceeded"))
+                continue
             if sig.notional_requested > remaining_leverage:
                 rejected.append((sig, "leverage_budget_exhausted"))
                 continue
@@ -193,6 +213,7 @@ class PortfolioAdmissionController:
 
             # Admit
             admitted.append(sig)
+            running_notional += sig.notional_requested
             remaining_leverage -= sig.notional_requested
             remaining_daily_loss -= sig.risk_usd
             remaining_concurrent -= 1
@@ -205,11 +226,19 @@ class PortfolioAdmissionController:
         )
 
         # Build budget delta from admitted signals
+        leverage_consumed = sum(sig.notional_requested for sig in admitted)
         result.budget_delta = BudgetDelta(
-            leverage_consumed=sum(sig.notional_requested for sig in admitted),
+            leverage_consumed=leverage_consumed,
             daily_loss_consumed=sum(sig.risk_usd for sig in admitted),
             positions_added=len(admitted),
         )
+
+        # Expose utilization ratio for orchestrator's sizing backfeed
+        if max_total_notional > 0:
+            result.budget_delta.pek_utilization = self._remaining_budget_ratio(
+                current_total_notional + leverage_consumed,
+                max_total_notional,
+            )
 
         return result
 
@@ -249,12 +278,22 @@ class PortfolioAdmissionController:
         candidates: list[AdmissionSignal],
         snapshot: PortfolioStateSnapshot,
         risk_budget: RiskBudget,
+        *,
+        current_total_notional: float = 0.0,
+        max_total_notional: float = 0.0,
     ) -> AdmissionResult:
         """Complete admission pipeline.
 
         1. Stage A: fast_filter each candidate
         2. Stage B: rank_and_allocate passed signals
         3. Return AdmissionResult with admitted, rejected, deferred, budget_delta
+
+        When *max_total_notional* > 0, the controller proactively rejects
+        intents whose cumulative notional would exceed that cap, eliminating
+        the need for a reactive post-hoc position closing loop.
+
+        The budget utilization ratio (``current / max``) is exposed via
+        ``result.budget_delta`` for the next cycle's sizing backfeed.
         """
         # Stage A: fast filter
         passed: list[AdmissionSignal] = []
@@ -270,18 +309,33 @@ class PortfolioAdmissionController:
         if not passed:
             return AdmissionResult(rejected=rejected)
 
-        # Stage B: rank and allocate
-        result = self.rank_and_allocate(passed, snapshot, risk_budget)
+        # Stage B: rank and allocate (includes proactive budget cap check)
+        result = self.rank_and_allocate(
+            passed,
+            snapshot,
+            risk_budget,
+            current_total_notional=current_total_notional,
+            max_total_notional=max_total_notional,
+        )
         result.rejected.extend(rejected)
 
         logger.info(
-            "ADMISSION: %d admitted, %d rejected, %d deferred (%.2f%% budget used)",
+            "ADMISSION: %d admitted, %d rejected, %d deferred (%.2f%% budget used, "
+            "current_notional=%.2f max_notional=%.2f)",
             len(result.admitted),
             len(result.rejected),
             len(result.deferred),
             result.budget_delta.leverage_consumed
             / max(snapshot.leverage_remaining + result.budget_delta.leverage_consumed, 1.0)
             * 100,
+            current_total_notional,
+            max_total_notional,
         )
 
         return result
+
+    def _remaining_budget_ratio(self, current: float, max_val: float) -> float:
+        """Return utilization ratio (1.0 = at budget, >1.0 = over)."""
+        if max_val <= 0:
+            return 0.0
+        return current / max_val

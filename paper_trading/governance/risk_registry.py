@@ -391,3 +391,5 @@ get_sell_win_rate = _default_registry.get_sell_win_rate
 get_sell_tripwire_state = _default_registry.get_sell_tripwire_state
 evaluate = _default_registry.evaluate
 get_latest = _default_registry.get_latest
+snapshot_state = _default_registry.snapshot_state
+restore_state = _default_registry.restore_state

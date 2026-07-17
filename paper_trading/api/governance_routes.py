@@ -13,7 +13,7 @@ from paper_trading.api.common import (
 from paper_trading.governance.health import compute_all as _compute_health_all
 from paper_trading.governance.health import get_latest as _get_health_latest
 from paper_trading.governance.multipliers import compute_governance_multipliers
-from paper_trading.governance.risk import get_latest as _get_risk_latest
+from paper_trading.governance.risk_registry import get_latest as _get_risk_latest
 from paper_trading.ops.weekly_review import compute_weekly_review
 
 ET = pytz.timezone("US/Eastern")

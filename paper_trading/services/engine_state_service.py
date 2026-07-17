@@ -8,7 +8,7 @@ import pandas as pd
 import pytz
 
 from paper_trading.execution.gate_constants import get_sell_only_assets
-from paper_trading.governance.risk import get_sell_tripwire_state
+from paper_trading.governance.risk_registry import get_sell_tripwire_state
 from paper_trading.metrics.engine_metrics import update_engine_metrics
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.simulation_snapshot import build_asset_snapshot
@@ -653,7 +653,7 @@ class EngineStateService:
         # Persist risk governance state (sell tripwire deques) so they survive
         # restarts and don't lose the 20-trade rolling window on every restart.
         try:
-            from paper_trading.governance.risk import get_risk_state
+            from paper_trading.governance.risk_registry import snapshot_state as get_risk_state
 
             risk_state = get_risk_state()
             if risk_state.get("sell_win_rates") or risk_state.get("tripwire_last_state"):

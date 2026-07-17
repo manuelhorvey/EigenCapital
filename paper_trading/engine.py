@@ -18,7 +18,7 @@ from paper_trading.execution.bridge import ExecutionBridge
 from paper_trading.execution.mt5_broker import MT5Broker
 from paper_trading.execution.paper_broker import PaperBroker
 from paper_trading.execution_context import ExecutionContext
-from paper_trading.governance.risk import reset as _reset_risk_governance
+from paper_trading.governance.risk_registry import reset as _reset_risk_governance
 from paper_trading.logging.correlation import CorrelationIdFilter
 from paper_trading.logging.json_formatter import install_json_logging
 from paper_trading.ops.data_fetcher import (  # noqa: F401
@@ -146,7 +146,7 @@ class PaperTradingEngine:
         # Reset global risk governance state, then restore persisted state
         # (sell tripwire deques) from snapshot so the 20-trade rolling window
         # survives restarts.
-        from paper_trading.governance.risk import set_risk_state
+        from paper_trading.governance.risk_registry import restore_state as set_risk_state
 
         _reset_risk_governance()
         if snapshot is not None and snapshot.risk_state:

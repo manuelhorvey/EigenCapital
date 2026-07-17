@@ -46,7 +46,7 @@ class DiagnosticsQueue:
         import pandas as pd
 
         from paper_trading.governance.drift import get_shadow_intelligence as _get_drift
-        from paper_trading.governance.risk import evaluate as _risk_evaluate
+        from paper_trading.governance.risk_registry import evaluate as _risk_evaluate
         from paper_trading.ops import diagnostics as diag
         from paper_trading.ops.tracer import trace_diagnostic_report
         from paper_trading.shadow.actions import compute_shadow_actions as _compute_shadow

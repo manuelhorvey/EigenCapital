@@ -422,7 +422,7 @@ class AssetActor:
                         "time": utc_now().isoformat(),
                     },
                 )
-            except Exception:
+            except (OSError, RuntimeError, KeyError):
                 logger.exception("WAL write failed for price_update on %s", self.name)
             self._last_price = float(price)
 
@@ -445,7 +445,7 @@ class AssetActor:
                             "exit_date": trade.get("exit_date", ""),
                         },
                     )
-                except Exception:
+                except (OSError, RuntimeError, KeyError):
                     logger.exception("WAL write failed for position_closed on %s", self.name)
         self._last_trade_count = current_count
 
@@ -464,7 +464,7 @@ class AssetActor:
                         "time": utc_now().isoformat(),
                     },
                 )
-            except Exception:
+            except (OSError, RuntimeError, KeyError):
                 logger.exception("WAL write failed for signal_generated on %s", self.name)
 
 

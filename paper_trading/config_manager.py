@@ -106,7 +106,6 @@ def _validate_engine_config_hand_rolled(
         raise ValueError("EngineConfig validation failed:\n  " + "\n  ".join(errors))
 
 
-
 def _default_halt() -> dict:
     return {
         "drawdown": -0.08,

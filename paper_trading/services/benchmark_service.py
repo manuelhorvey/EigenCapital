@@ -13,7 +13,7 @@ class BenchmarkService:
         elapsed = time.perf_counter() - t0
         self.engine._cycle_times.append(elapsed)
         if len(self.engine._cycle_times) > self.engine._cycle_times_maxlen:
-            self.engine._cycle_times = self.engine._cycle_times[-self.engine._cycle_times_maxlen:]
+            self.engine._cycle_times = self.engine._cycle_times[-self.engine._cycle_times_maxlen :]
 
         if len(self.engine._cycle_times) % 20 == 0:
             recent = self.engine._cycle_times[-100:]

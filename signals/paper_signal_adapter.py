@@ -63,11 +63,9 @@ class PaperSignalAdapter:
             prob_short=probs_short[idx],
             prob_neutral=probs_neutral[idx],
             close_price=(
-                float(close_prices.iloc[idx])
-                if isinstance(close_prices, pd.Series)
-                else float(close_prices[idx])
+                float(close_prices.iloc[idx]) if isinstance(close_prices, pd.Series) else float(close_prices[idx])
             ),
-            timestamp=str(timestamps[idx].date()) if hasattr(timestamps[idx], 'date') else str(timestamps[idx]),
+            timestamp=str(timestamps[idx].date()) if hasattr(timestamps[idx], "date") else str(timestamps[idx]),
             threshold=threshold,
             position_size=position_size,
             archetype=archetype,

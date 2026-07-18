@@ -30,8 +30,8 @@ from paper_trading.ops.data_fetcher import (  # noqa: F401
 from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.ops.simulation_snapshot import SimulationStore
-from paper_trading.orchestrator.actor import AssetActor
 from paper_trading.orchestrator._engine import EngineOrchestrator
+from paper_trading.orchestrator.actor import AssetActor
 from paper_trading.replay.wal import WalWriter
 from paper_trading.services.asset_registry_service import AssetRegistryService
 from paper_trading.services.benchmark_service import BenchmarkService
@@ -47,6 +47,7 @@ from paper_trading.services.snapshot_restorer import SnapshotRestorer
 from paper_trading.state_store import _SKIP_JOURNAL, StateStore, sanitize  # noqa: F401
 from paper_trading.writer import BackgroundWriter
 from shared.execution_config import build_execution_configs
+
 load_dotenv()
 
 

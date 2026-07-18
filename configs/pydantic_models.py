@@ -104,9 +104,7 @@ class EngineConfigValidation(BaseModel, frozen=True):
             return _RebalanceOption(v).value
         except ValueError:
             allowed = [e.value for e in _RebalanceOption]
-            raise ValueError(
-                f"rebalance must be one of {allowed}, got '{v}'"
-            ) from None
+            raise ValueError(f"rebalance must be one of {allowed}, got '{v}'") from None
 
     @field_validator("data_source")
     @classmethod
@@ -115,9 +113,7 @@ class EngineConfigValidation(BaseModel, frozen=True):
             return _DataSourceOption(v).value
         except ValueError:
             allowed = [e.value for e in _DataSourceOption]
-            raise ValueError(
-                f"data_source must be one of {allowed}, got '{v}'"
-            ) from None
+            raise ValueError(f"data_source must be one of {allowed}, got '{v}'") from None
 
     @field_validator("mt5_bridge_port")
     @classmethod

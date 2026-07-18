@@ -133,10 +133,11 @@ def call_llm(text: str, api_key: str, model: str = "deepseek-v4-flash-free", ret
             if json_match:
                 return json.loads(json_match.group())
             logger.warning("LLM attempt %d: no JSON in response (len=%d)", attempt + 1, len(content))
+            return None  # content error — retrying same input produces same output
         except (requests.exceptions.RequestException, OSError, ValueError, KeyError) as e:
             logger.warning("LLM attempt %d failed: %s", attempt + 1, e)
-        if attempt < retries:
-            time.sleep(2**attempt)
+            if attempt < retries:
+                time.sleep(2**attempt)
     logger.error("LLM call failed after %d attempts", retries + 1)
     return None
 

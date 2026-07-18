@@ -119,10 +119,13 @@ class TestAssetTrainingPipeline:
                         with patch(
                             "paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()
                         ):
-                            with patch("os.path.exists", return_value=False):
-                                pipeline = AssetTrainingPipeline(mock_asset)
-                                pipeline.train()
-                                assert mock_asset._trained is False
+                            with patch(
+                                "paper_trading.inference.training._fetch_macro_batch", return_value={}
+                            ):
+                                with patch("os.path.exists", return_value=False):
+                                    pipeline = AssetTrainingPipeline(mock_asset)
+                                    pipeline.train()
+                                    assert mock_asset._trained is False
 
     def test_sufficient_data_trains_model(self, mock_asset):
         np.random.seed(42)
@@ -166,13 +169,16 @@ class TestAssetTrainingPipeline:
                         with patch(
                             "paper_trading.inference.training.generate_regime_features", return_value=pd.DataFrame()
                         ):
-                            with patch("os.path.exists", return_value=False):
-                                with patch(
-                                    "paper_trading.inference.training.RegimeConditionalModel.load", return_value=False
-                                ):
-                                    pipeline = AssetTrainingPipeline(mock_asset)
-                                    pipeline.train()
-                                    assert mock_asset.model is not None
+                            with patch(
+                                "paper_trading.inference.training._fetch_macro_batch", return_value={}
+                            ):
+                                with patch("os.path.exists", return_value=False):
+                                    with patch(
+                                        "paper_trading.inference.training.RegimeConditionalModel.load", return_value=False
+                                    ):
+                                        pipeline = AssetTrainingPipeline(mock_asset)
+                                        pipeline.train()
+                                        assert mock_asset.model is not None
 
     def test_regime_model_skipped_when_base_weight_full(self, mock_asset):
         mock_asset.config = {"ensemble": {"base_weight": 1.0}}

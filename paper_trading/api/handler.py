@@ -232,6 +232,13 @@ class Handler:
         if not self._requires_auth():
             return
 
+        content_type = self.headers.get("Content-Type", "")
+        if "application/json" not in content_type.lower():
+            self._send_json(
+                {"error": "unsupported media type", "message": "Content-Type must be application/json"},
+                415,
+            )
+            return
         length = int(self.headers.get("Content-Length", 0))
         if length > 4 * 1024 * 1024:  # 4 MiB max payload
             self._send_json({"error": "payload too large"}, 413)

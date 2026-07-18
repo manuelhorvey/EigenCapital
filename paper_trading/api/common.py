@@ -230,6 +230,9 @@ def get_vol_baselines() -> dict:
 
 
 # ── Rate Limiting ───────────────────────────────────────────────────────────
+# Configurable via EIGENCAPITAL_RATE_LIMIT (max requests) env var.
+# Window duration (60s) could also be made configurable via env var
+# (e.g. EIGENCAPITAL_RATE_LIMIT_WINDOW) if needed.
 
 _RATE_LIMIT_MAX: int = int(os.environ.get("EIGENCAPITAL_RATE_LIMIT", "100"))
 _RATE_LIMIT_WINDOW: float = 60.0
@@ -300,7 +303,8 @@ def _load_auth_token() -> str:
         else:
             logging.getLogger("eigencapital.auth").warning(
                 "No API auth token configured. Set EIGENCAPITAL_API_TOKEN env var or api_token in config. "
-                "All API endpoints are accessible without authentication."
+                "Authentication is REQUIRED by default. To disable auth in development, "
+                "set EIGENCAPITAL_DISABLE_AUTH=1."
             )
     return _AUTH_TOKEN
 
@@ -308,12 +312,18 @@ def _load_auth_token() -> str:
 def require_auth(headers: dict) -> bool:
     """Check Authorization header against configured token.
 
-    Returns True if no auth is configured (open access) or token is valid.
-    Returns False if auth is configured but token is missing or invalid.
+    Returns True if auth token is valid.
+    Returns False if token is missing, invalid, or no token is configured
+    (unless EIGENCAPITAL_DISABLE_AUTH=1 is set for development).
     """
     token = _load_auth_token()
     if not token:
-        return True  # no auth configured — open access
+        # Secure by default: reject when no token is configured unless
+        # the operator explicitly opts out via env var.
+        if os.environ.get("EIGENCAPITAL_DISABLE_AUTH") == "1":
+            logging.getLogger("eigencapital.auth").warning("Auth explicitly disabled via EIGENCAPITAL_DISABLE_AUTH=1")
+            return True
+        return False
     provided = headers.get("Authorization", "")
     if provided.startswith("Bearer "):
         return hmac.compare_digest(provided[7:], token)

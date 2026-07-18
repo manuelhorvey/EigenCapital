@@ -120,9 +120,10 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
 "scripts/*.py" = ["N806", "N803"]
 "tests/**/*.py" = ["N806", "N803"]
 "shared/*.py" = ["N806", "N803"]
-# BLE001: all violations remediated and removed from per-file-ignores as of 2026-07-12.
-# E501: all grandfathered files (decision.py, drift_scoring.py, risk_governance.py,
-#       shadow_learning.py, simulation_snapshot.py) removed from codebase as of 2026-07.
+# BLE001: fault-isolated actor orchestrator intentionally catches Exception
+# to prevent any single actor crash from taking down the full engine.
+"paper_trading/orchestrator/_engine.py" = ["BLE001"]
+# E501: all grandfathered files removed from codebase as of 2026-07.
 #       No remaining E501 per-file-ignores.
 
 

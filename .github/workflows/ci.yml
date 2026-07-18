@@ -97,6 +97,10 @@ jobs:
           PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ \
             --cov=. --cov-report=xml --cov-report=term-missing \
             --cov-fail-under=70 -v --tb=short -x
+      - name: Mutation tests
+        run: python -m pytest tests/mutation/ -v --tb=short -q
+      - name: Chaos tests
+        run: python -m pytest tests/chaos/ -v --tb=short -q
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:

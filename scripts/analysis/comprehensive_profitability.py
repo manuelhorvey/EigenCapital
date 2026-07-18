@@ -342,6 +342,16 @@ def load_and_augment() -> tuple[dict[str, list[dict]], list[dict]]:
             else:
                 t["_holding_hours"] = t.get("barrier_candles", 0) * 24 if t.get("barrier_candles", 0) > 0 else 0
             all_trades.append(t)
+    # Detect daily-resolution data: all hours are 0 (midnight UTC normalized)
+    hours = [t["_hour"] for t in all_trades if t.get("_entry_dt") is not None]
+    if hours and all(h == 0 for h in hours):
+        logging.getLogger("eigencapital.audit").warning(
+            "All trades have _hour=0 — data is daily-resolution. Overriding session labels to 'daily_resolution'."
+        )
+        for t in all_trades:
+            if t.get("_entry_dt") is not None:
+                t["_session"] = "daily_resolution"
+
     return raw, all_trades
 
 

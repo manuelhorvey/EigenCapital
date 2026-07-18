@@ -101,6 +101,9 @@ def get_session(hour: int) -> str:
 
     Priority: overlap > single session. Closest closed market wins.
     """
+    for s, (hours, _) in SESSION_OVERLAP_DEFS.items():
+        if hour in hours:
+            return s
     for s, (hours, _) in SESSION_DEFS.items():
         if hour in hours:
             return s
@@ -148,6 +151,25 @@ class TradeAugmenter:
         for asset, trades in self._trades_map.items():
             result[asset] = [self._augment_single(t) for t in trades]
         self._augmented = result
+
+        # Detect daily-resolution data: all hours are 0 (midnight UTC normalized)
+        all_hours = [
+            t["entry_hour_utc"]
+            for trades in result.values()
+            for t in trades
+            if t.get("entry_hour_utc", -1) >= 0
+        ]
+        if all_hours and all(h == 0 for h in all_hours):
+            logger.warning(
+                "All trades have entry_hour_utc=0 — data is daily-resolution. "
+                "Overriding session labels to 'daily_resolution'."
+            )
+            for trades in result.values():
+                for t in trades:
+                    if t.get("entry_hour_utc", -1) >= 0:
+                        t["entry_session"] = "daily_resolution"
+                        t["entry_session_overlap"] = "daily_resolution"
+
         return result
 
     def _augment_single(self, t: dict[str, Any]) -> dict[str, Any]:

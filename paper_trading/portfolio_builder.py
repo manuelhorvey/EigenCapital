@@ -30,7 +30,7 @@ def cluster_risk_report(portfolio: dict) -> list[str]:
         warnings.append(
             f"JPY-carry cluster {jpy_total * 100:.0f}% exceeds limit "
             f"{JPY_CARRY_MAX_ALLOC * 100:.0f}% ({len(jpy_assets)} assets). "
-            f"Consider reducing positions in: {', '.join(a for a, _ in jpy_assets)}"
+            f"Consider reducing positions in: {', '.join(a for a, _ in jpy_assets)}",
         )
 
     return warnings
@@ -84,7 +84,7 @@ def build_paper_portfolio(halt_defaults: dict) -> dict:
             # then global defaults, then SizingConfig default (2).
             if "max_positions_per_asset" not in config:
                 config["max_positions_per_asset"] = int(
-                    spec.get("max_positions_per_asset") or defaults.get("max_positions_per_asset", 2)
+                    spec.get("max_positions_per_asset") or defaults.get("max_positions_per_asset", 2),
                 )
             if "stacking" not in config:
                 config["stacking"] = dict(defaults.get("stacking", {}))

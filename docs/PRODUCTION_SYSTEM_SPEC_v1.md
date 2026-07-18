@@ -228,11 +228,11 @@ Rate_diffs are simulated from TNX yield with noise. All indices normalized to TZ
 
 **Trend-exhaustion features** (added 2026-06-26): `macd_hist`, `stoch_k`, `stoch_d`, `bb_pct_b`, `adx_slope`, `rsi_divergence`. All computed via the `ta` library from OHLCV.
 
-Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`) defined in `features/registry.py`. Lead-lag features (`features/lead_lag_features.py`) are NOT in production — `features/builder.py` is not imported by any code in the `paper_trading/` package and is unused in the live pipeline.
+Some assets additionally use per-asset feature variants (`yield_slope`, `mom126`) defined in `features/registry.py`. Lead-lag features (`features/lead_lag_features.py`) are NOT in production — `archive/deprecated/_builder.py` is not imported by any code in the `paper_trading/` package and is unused in the live pipeline.
 
 ### 4.3 Labeling
 
-**Function**: `labels/triple_barrier.py:apply_triple_barrier()` (deprecated shim `features/labels.py` re-exports from `labels.compat`)
+**Function**: `labels/triple_barrier.py:apply_triple_barrier()` (deprecated shim `labels/compat.py`) 
 
 1. Compute ATR-based barrier distances from `pt_sl = (tp_mult, sl_mult)`
 2. Triple-barrier touch → {-1 (SELL), 0 (HOLD), 1 (BUY)}
@@ -510,7 +510,7 @@ In-memory TTL cache per download type:
 | `configs/domains/` | Domain configuration tree — assets, risk, modes, governance, ML, broker, execution |
 | `features/alpha_features.py` | Alpha feature factory |
 | `features/data_fetch.py` | YFinance data ingestion |
-| `features/labels.py` | Triple-barrier labeling |
+| `labels/compat.py` | Triple-barrier labeling |
 | `features/archetypes.py` | Archetype classifier |
 | `features/regime_features.py` | Regime detection features |
 | `paper_trading/engine.py` | Engine orchestrator |

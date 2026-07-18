@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 from data.loaders.cot_loader import load_cot_weekly, get_contract_series, align_cot_to_daily
-from features.cot_features import build_cot_features
+from archive.deprecated._cot_features import build_cot_features
 from labels.compat import PurgedWalkForwardFolds, triple_barrier_labels
 from labels.triple_barrier import apply_triple_barrier
 

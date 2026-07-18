@@ -79,18 +79,22 @@ class EngineStateService:
         self.engine = engine
         self._edge_monitor = edge_monitor
 
+    _SENTINEL = object()
+
     def compute_mtm_total(self) -> float:
         engine = self.engine
         with self._mtm_lock:
-            if not hasattr(engine, "_cycle_count"):
+            if getattr(engine, "_cycle_count", self._SENTINEL) is self._SENTINEL:
                 engine._cycle_count = 0
                 engine._mtm_cache_value = None
                 engine._mtm_cache_cycle = -1
-            elif not hasattr(engine, "_mtm_cache_value"):
+            elif getattr(engine, "_mtm_cache_value", self._SENTINEL) is self._SENTINEL:
                 engine._mtm_cache_value = None
                 engine._mtm_cache_cycle = -1
-            if engine._mtm_cache_value is not None and engine._mtm_cache_cycle == engine._cycle_count:
-                return engine._mtm_cache_value
+            _cv = getattr(engine, "_mtm_cache_value", None)
+            _cc = getattr(engine, "_mtm_cache_cycle", -1)
+            if _cv is not None and _cc == engine._cycle_count:
+                return _cv
             mtm = sum(a.mtm_value for a in engine.assets.values())
             engine._mtm_cache_value = mtm
             engine._mtm_cache_cycle = engine._cycle_count

@@ -243,7 +243,7 @@ All gates are in `decision_pipeline.py` or `entry_service.py`:
 | `features/alpha_features.py` | Alpha feature builder |
 | `features/regime_features.py` | Regime feature builder |
 | `features/data_fetch.py` | Data fetching (MT5 / yfinance) |
-| `features/labels.py` | Triple-barrier labeling |
+| `labels/compat.py` | Triple-barrier labeling |
 | `shared/vault_secrets.py` | VaultSecretsProvider (optional) |
 
 ---

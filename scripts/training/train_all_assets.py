@@ -17,7 +17,7 @@ warnings.warn(
 )
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
-from features.builder import compute_macro_derived, compute_training_data, model_path  # noqa: E402
+from archive.deprecated._builder import compute_macro_derived, compute_training_data, model_path  # noqa: E402
 from features.registry import FEATURE_REGISTRY  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

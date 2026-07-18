@@ -15,5 +15,5 @@ The triple-barrier file is the canonical source for label parameters, used by
 `features/registry.py` and the training pipeline. It also archives REMOVED
 assets (with `note:` annotations) for historical backtest reproducibility.
 
-See `features/registry.py` and `features/labels.py` for the pipeline that
+See `features/registry.py` and `labels/compat.py` for the pipeline that
 consumes these parameters.

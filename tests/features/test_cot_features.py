@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from features.cot_features import (
+from archive.deprecated._cot_features import (
     cot_index,
     compute_net_positions,
     build_cot_features,

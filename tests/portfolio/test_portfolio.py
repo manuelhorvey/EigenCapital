@@ -12,7 +12,7 @@ from portfolio.hrp_allocator import (
     _get_cluster_variance,
     _get_quasi_diag,
 )
-from portfolio.risk_parity import compute_risk_parity_portfolio
+from shared.portfolio_weights import compute_weights
 
 # ── Shared fixtures ──────────────────────────────────────────────────────────
 
@@ -55,26 +55,18 @@ def correlated_returns():
 
 
 class TestRiskParity:
-    def test_compute_risk_parity_portfolio_returns_dict(self, asset_returns):
-        result = compute_risk_parity_portfolio(asset_returns)
-        assert isinstance(result, dict)
-        assert set(result.keys()) == set(asset_returns.columns)
+    def test_compute_risk_parity_returns_weight_vector(self, asset_returns):
+        result = compute_weights("risk_parity_v1", asset_returns)
+        assert result.weights.keys() == set(asset_returns.columns)
 
-    def test_weights_sum_to_target_leverage(self, asset_returns):
-        result = compute_risk_parity_portfolio(asset_returns, target_vol=0.15, max_leverage=1.0)
-        total = sum(result.values())
-        assert total <= 1.0 + 1e-6
+    def test_weights_sum_to_one(self, asset_returns):
+        result = compute_weights("risk_parity_v1", asset_returns)
+        total = sum(result.weights.values())
+        assert abs(total - 1.0) < 1e-6
 
     def test_weights_are_positive(self, asset_returns):
-        result = compute_risk_parity_portfolio(asset_returns)
-        assert all(v >= 0 for v in result.values())
-
-    def test_custom_target_vol(self, asset_returns):
-        result_low = compute_risk_parity_portfolio(asset_returns, target_vol=0.10)
-        result_high = compute_risk_parity_portfolio(asset_returns, target_vol=0.20)
-        total_low = sum(result_low.values())
-        total_high = sum(result_high.values())
-        assert total_low <= total_high + 1e-6
+        result = compute_weights("risk_parity_v1", asset_returns)
+        assert all(v >= 0 for v in result.weights.values())
 
 
 # ── correlation_clusters ─────────────────────────────────────────────────────

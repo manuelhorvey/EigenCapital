@@ -1,5 +1,5 @@
 import pandas as pd
-from risk.position_sizing import calculate_position_size
+from archive.deprecated._position_sizing import calculate_position_size
 
 
 class TestCalculatePositionSize:

@@ -22,6 +22,7 @@ class _SnapshotManager:
     """
 
     _sequence_counter: int = 0
+    _sequence_counter_lock = threading.Lock()
 
     def __init__(self, state_path: str, cache_ttl: float = 1.0):
         self._state_path = state_path
@@ -30,8 +31,9 @@ class _SnapshotManager:
         self._lock = threading.Lock()
 
     def save(self, snapshot: EngineSnapshot) -> None:
-        _SnapshotManager._sequence_counter += 1
-        snapshot.sequence_id = _SnapshotManager._sequence_counter
+        with _SnapshotManager._sequence_counter_lock:
+            _SnapshotManager._sequence_counter += 1
+            snapshot.sequence_id = _SnapshotManager._sequence_counter
         snapshot.contract_version = CONTRACT_VERSION
         os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
         data = sanitize(asdict(snapshot))

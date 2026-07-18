@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from signals.simple_threshold import THRESHOLD, generate_signals
+from archive.deprecated._simple_threshold import THRESHOLD, generate_signals
 
 
 class TestThreshold:

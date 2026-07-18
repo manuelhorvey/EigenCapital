@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from features.divergence import rsi_divergence
+from archive.deprecated._divergence import rsi_divergence
 
 
 class TestRSIDivergence:

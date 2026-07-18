@@ -170,6 +170,9 @@ class BackgroundWriter:
 
     def _execute(self, cmd: WriteCommand) -> None:
         if cmd.op == WriteOp.WAL_EVENT:
+            if self._wal is None:
+                logger.warning("WAL writer is None, dropping WAL_EVENT from %s", cmd.source)
+                return
             event_type = cmd.payload.pop("event_type", "unknown")
             self._wal.write(event_type, cmd.payload)
         elif cmd.op == WriteOp.DB_TRADE:

@@ -19,7 +19,7 @@ import pandas as pd
 import xgboost as xgb
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
-from features.builder import build_features, compute_macro_derived
+from archive.deprecated._builder import build_features, compute_macro_derived
 from features.registry import FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
 from scripts.training.train_all_assets import fetch_history

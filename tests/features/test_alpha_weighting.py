@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from signals.alpha_weighting import (
+from archive.deprecated._alpha_weighting import (
     normalize_to_unit,
     compute_asset_signals,
     compute_cross_asset_overlay,

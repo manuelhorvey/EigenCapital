@@ -17,7 +17,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import xgboost as xgb  # noqa: E402
 
-from features.builder import build_features, compute_macro_derived  # noqa: E402
+from archive.deprecated._builder import build_features, compute_macro_derived  # noqa: E402
 from features.registry import FEATURE_REGISTRY  # noqa: E402
 from labels.triple_barrier import apply_triple_barrier  # noqa: E402
 from scripts.training.train_all_assets import fetch_history  # noqa: E402

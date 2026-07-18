@@ -73,7 +73,7 @@ During training via `AssetTrainingPipeline.train()`, four additional feature gro
 
 #### Per-Asset Trend-Exhaustion Features (6 cols, added 2026-06-26)
 
-Require OHLCV data passed to `build_alpha_features()`. Computed via the `ta` library. See `features/divergence.py` for RSI divergence detection logic.
+Require OHLCV data passed to `build_alpha_features()`. Computed via the `ta` library. See `archive/deprecated/_divergence.py` for RSI divergence detection logic.
 
 | Feature | Description |
 |---|---|
@@ -162,7 +162,7 @@ These are inference-only — used by `ArchetypeClassifier` but never passed to X
 
 ## Labeling
 
-`features/labels.py:triple_barrier_labels()` (uses Per-barrier ATR method):
+`labels/compat.py:triple_barrier_labels()` (uses Per-barrier ATR method):
 
 
 1. Compute ATR-based barrier distances from `pt_sl = (tp_mult, sl_mult)` per asset
@@ -181,7 +181,7 @@ Per-asset `pt_sl` from per-asset YAML files in `configs/domains/assets/` (e.g., 
 
 ## Pair-Specific Features
 
-`features/pair_specific.py` — not used in production. Historical per-pair feature builders.
+`archive/deprecated/_pair_specific.py` — not used in production. Historical per-pair feature builders.
 
 ## Architecture Note
 

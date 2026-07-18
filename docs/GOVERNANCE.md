@@ -177,7 +177,7 @@ The SL layers stack multiplicatively on the existing SL chain:
 
 ```
 final_sl_mult = base_sl_mult × regime_geom_sl × narrative_sl_mult × liquidity_sl_mult
-final_size_scalar = max(narrative_size_scalar × liquidity_size_scalar, 0.30)
+final_size_scalar = max(narrative_size_scalar × liquidity_size_scalar, min_size_floor)
 ```
 
 This is a **floor**, not a cap — the size scalar can never drop below 0.30× when governance is active. In practice the floor rarely binds: the minimum possible product (`risk_off` narrative × STRESSED liquidity = 0.80 × 0.70 = 0.56) exceeds the threshold. The floor acts as a safety net against hypothetical extreme scalar combinations (e.g., future governance layers with steeper reductions).
@@ -186,7 +186,7 @@ Validity penalties (feature stability + PSI drift) are additive and feed into th
 
 ---
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-18
 
 ```
 validity_score = 0.80 − drawdown_penalty − pf_penalty − drought_penalty − drift_penalty − narrative_penalty − liquidity_penalty + stability_penalty + psi_penalty

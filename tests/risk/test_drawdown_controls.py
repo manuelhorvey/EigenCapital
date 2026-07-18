@@ -2,7 +2,7 @@
 
 import pytest
 
-from risk.drawdown_controls import (
+from archive.deprecated._drawdown_controls import (
     compute_drawdown,
     compute_exposure_multiplier,
     check_drawdown_circuit_breaker,

@@ -582,9 +582,9 @@ The `hrp_v1` method was broken due to two issues:
 | `{asset}_stoch_d` | Stochastic %D (signal line) | `features/alpha_features.py` |
 | `{asset}_bb_pct_b` | Bollinger Band %B: (close - lower) / (upper - lower) | `features/alpha_features.py` |
 | `{asset}_adx_slope` | ADX rate of change over 5 days | `features/alpha_features.py` |
-| `{asset}_rsi_divergence` | RSI divergence (-1 bearish / 0 none / +1 bullish) | `features/divergence.py` (NEW) |
+| `{asset}_rsi_divergence` | RSI divergence (-1 bearish / 0 none / +1 bullish) | `archive/deprecated/_divergence.py` |
 
-**New file:** `features/divergence.py` — detects bullish (+1) and bearish (-1) divergences between price and RSI using local extrema within a 20-bar lookback window.
+**Moved to:** `archive/deprecated/_divergence.py` — detects bullish (+1) and bearish (-1) divergences between price and RSI using local extrema within a 20-bar lookback window.
 
 **Key design decisions:**
 - MACD histogram normalized by close price (not raw price units) so it's scale-invariant across assets (USDJPY at 150 vs EURUSD at 1.0)

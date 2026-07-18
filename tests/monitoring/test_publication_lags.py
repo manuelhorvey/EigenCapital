@@ -113,7 +113,7 @@ def test_audit_lookahead_runs():
 
 def test_end_to_end_no_lookahead():
     """Simulate the full compute_macro_derived → build_features path."""
-    from features.builder import compute_macro_derived
+    from archive.deprecated._builder import compute_macro_derived
 
     dates = pd.date_range("2020-01-01", periods=200, freq="D")
     macro_raw = pd.DataFrame(

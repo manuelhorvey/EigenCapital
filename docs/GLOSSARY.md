@@ -627,7 +627,7 @@ close price. Clipped to ±5% for scale invariance across assets.
 ### RSI Divergence
 Binary trend-exhaustion feature: detects bullish (+1) or bearish (−1)
 divergence between price and RSI using local extrema within a 20-bar
-lookback window. From `features/divergence.py`.
+lookback window. From `archive/deprecated/_divergence.py`.
 
 ### Bollinger Band %B
 Trend-exhaustion feature: `(close - lower_band) / (upper_band - lower_band)`.

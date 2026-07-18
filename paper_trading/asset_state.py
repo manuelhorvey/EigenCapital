@@ -76,7 +76,7 @@ class _AssetRuntimeState:
     last_stop_out_side: str | None = None
     last_stop_out_cycle: int = -999
     last_stop_out_price: float | None = None
-    last_signal_flip_cycle: int = -6  # -min_flip_interval_bars * 2
+    last_signal_flip_cycle: int = -999  # sentinel; runtime computes effective value
     min_flip_interval_bars: int = 3
     churn_ratio_threshold: float = 0.50
     initial_settlement_done: bool = False

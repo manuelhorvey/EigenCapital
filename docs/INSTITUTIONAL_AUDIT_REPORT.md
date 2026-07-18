@@ -61,7 +61,7 @@ All features in `features/alpha_features.py` and `features/regime_features.py`:
 | ADX slope | `adx_slope()` | ta.trend.ADXIndicator | ✅ None | N/A |
 | Day-of-week | `day_of_week_signal()` | Rolling 252-day mean, shift(1) | ✅ None | N/A |
 | Narrative | `_compute_narrative_features()` | Loads from `data/live/narrative_active.json` | ⚠️ See 1.2.1 | **LOW** |
-| Macro derived | `features/builder.py` | `apply_publication_lags()` | ✅ None | N/A |
+| Macro derived | `archive/deprecated/_builder.py` | `apply_publication_lags()` | ✅ None | N/A |
 | Regime (Hurst) | `compute_hurst()` | Rolling 63-day, lag variables | ✅ None | N/A |
 | Regime (Kaufman ER) | `compute_kaufman_er()` | Rolling window | ✅ None | N/A |
 | Regime (ADX) | ta.trend.adx | Rolling window | ✅ None | N/A |

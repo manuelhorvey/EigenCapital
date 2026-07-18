@@ -36,6 +36,7 @@ from paper_trading.replay.wal import WalWriter
 from paper_trading.services.asset_registry_service import AssetRegistryService
 from paper_trading.services.benchmark_service import BenchmarkService
 from paper_trading.services.data_retention_service import DataRetentionService
+from paper_trading.services.engine_initialize_service import EngineInitializeService
 from paper_trading.services.engine_narrative_service import EngineNarrativeService
 from paper_trading.services.engine_rebalance_service import EngineRebalanceService
 from paper_trading.services.engine_recovery_service import EngineRecoveryService
@@ -185,6 +186,7 @@ class PaperTradingEngine:
         self._data_retention = DataRetentionService(self)
         self._model_integrity = ModelIntegrityService(self)
         self._benchmark = BenchmarkService(self)
+        self._initializer = EngineInitializeService(self)
 
         self._execution_context = ExecutionContext(
             state_store=self.state_store,
@@ -296,29 +298,9 @@ class PaperTradingEngine:
             svc.prune()
 
     def initialize(self):
-        from features.registry import ASSET_LABEL_PARAMS
-
-        for name, asset in self.assets.items():
-            registry_params = ASSET_LABEL_PARAMS.get(name)
-            if registry_params is not None and (
-                asset.sl_mult != registry_params["sl"] or asset.tp_mult != registry_params["pt"]
-            ):
-                logger.warning(
-                    "%s: runtime exit (sl=%.2f,tp=%.2f) != "
-                    "training label params (sl=%.2f,pt=%.2f) — "
-                    "asymmetric exits OK, but monitor ΔSharpe impact",
-                    name,
-                    asset.sl_mult,
-                    asset.tp_mult,
-                    registry_params["sl"],
-                    registry_params["pt"],
-                )
-            try:
-                _full_panel = self._build_full_panel()
-                asset.train(force=True, full_panel=_full_panel)
-                logger.info("%s: training done", name)
-            except (OSError, ValueError, TypeError, RuntimeError, ImportError) as e:
-                logger.error("%s: training FAILED - %s", name, e)
+        svc = getattr(self, "_initializer", None)
+        if svc is not None:
+            svc.initialize()
 
     def _get_weekend_eligible_assets(self) -> set[str]:
         """Return set of asset names with weekend_eligible: true in their config."""

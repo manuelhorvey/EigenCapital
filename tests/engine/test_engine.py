@@ -459,6 +459,13 @@ class TestPaperTradingEngine:
         eng._benchmark = SimpleNamespace(
             record_cycle=lambda t0, t1, t2, t3: None,
         )
+        def _mock_initialize():
+            for _a in eng.assets.values():
+                try:
+                    _a.train(force=True, full_panel=None)
+                except (OSError, ValueError, TypeError, RuntimeError, ImportError):
+                    pass
+        eng._initializer = SimpleNamespace(initialize=_mock_initialize)
         return eng
 
     def test_shutdown_calls_orchestrator_and_background_writer(self, engine):

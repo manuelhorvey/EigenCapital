@@ -591,6 +591,7 @@ class MT5Broker(BrokerInterface):
         return normalized
 
     def _quantity_to_lots(self, asset: str, quantity: float) -> float:
+        """Convert quantity to lots using floor rounding — consistent with normalize_volume."""
         info = self._client.symbol_info(asset)
         if info:
             contract_size = info.get("contract_size", 100000.0)
@@ -598,7 +599,7 @@ class MT5Broker(BrokerInterface):
             broker_min = info.get("min_volume", 0.01)
             max_vol = info.get("max_volume", 100.0)
             lots = quantity / contract_size
-            lots = round(lots / step) * step
+            lots = int(lots / step) * step
             if lots < broker_min or lots <= 0:
                 return 0.0
             return min(lots, max_vol)

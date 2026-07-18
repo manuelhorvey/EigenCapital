@@ -148,7 +148,7 @@ def test_all_phase0_through_phase9_artifacts_present():
     """Spot-check the artifacts that should exist after the 10-phase plan."""
     expected = [
         # Phase 0
-        "BASELINE.md",
+        "docs/archive/BASELINE.md",
         "configs/README.md",
         "configs/schema_version.json",
         "tools/config_lint.py",

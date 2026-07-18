@@ -436,7 +436,7 @@ class EngineOrchestrator:
             name = futures[future]
             try:
                 asset_results[name] = future.result()
-            except (RuntimeError, ValueError, TypeError, KeyError) as e:
+            except Exception as e:
                 logger.critical("%s actor threw uncaught exception: %s", name, e)
                 asset_results[name] = AssetResult.failed(name, f"uncaught: {e}")
 
@@ -592,7 +592,7 @@ class EngineOrchestrator:
             try:
                 actor._engine.update_validity()
                 return None
-            except (RuntimeError, ValueError, TypeError, AttributeError) as e:
+            except Exception as e:
                 return f"{name}: {e}"
 
         validity_futures = {self._pool.submit(_run_validity, n, a): n for n, a in self._actors.items()}

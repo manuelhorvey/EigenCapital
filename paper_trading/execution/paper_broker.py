@@ -111,6 +111,11 @@ class PaperBroker(BrokerInterface):
                 cover_qty = min(fill_qty, abs(pos.quantity))
                 realized = (pos.avg_entry_price - fill_price) * cover_qty - fee
                 pos.realized_pnl += realized
+                # Covering shorts = buying back shares → cash leaves the account.
+                # Short sale deposited proceeds (cash += entry × qty) in _open_short.
+                # This buy-back withdraws the cost. Net cash from both legs:
+                # (entry_price − exit_price) × cover_qty = realized PnL on closed portion.
+                # Remaining short proceeds stay in cash as collateral.
                 pos.quantity += cover_qty
                 self.cash -= fill_price * cover_qty + fee
                 if pos.quantity == 0:

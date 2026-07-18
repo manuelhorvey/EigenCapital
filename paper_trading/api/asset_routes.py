@@ -21,8 +21,10 @@ def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, 
 
     _model_name = asset_name.lstrip("^")
     model_path = f"paper_trading/models/{_model_name}_model.json"
+    resolved_model = os.path.realpath(model_path)
+    models_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "models"))
     feature_importance: list[dict] = []
-    if os.path.exists(model_path):
+    if os.path.exists(model_path) and resolved_model.startswith(models_dir + os.sep):
         try:
             with open(model_path) as f:
                 model_data = json.load(f)

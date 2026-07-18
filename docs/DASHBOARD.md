@@ -1,6 +1,6 @@
 # EigenCapital — Dashboard Architecture
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-18
 
 > Frontend architecture for the EigenCapital React SPA. Served by the engine's
 > HTTP server on port 5000. State is fetched as JSON from the backend and
@@ -15,7 +15,7 @@
 | Framework | React 18 | UI components |
 | Build | Vite | Development server + production builds |
 | Language | TypeScript | Type safety |
-| Routing | React Router | Client-side SPA routing |
+| Routing | React Router (HashRouter) | Client-side SPA routing |
 | State | React Query | Server-state caching + polling |
 | Validation | Zod | API response schema validation |
 | Styling | Tailwind CSS | Utility-first styling |
@@ -26,7 +26,7 @@
 
 | Route | Page Component | Primary Job |
 |-------|---------------|-------------|
-| `/` | `CommandCenter` | Glance surface: status row, ticker rail, equity curve sparkline, open positions grid, sortable asset list |
+| `/` | `CommandCenter` | Glance surface: status row, equity curve sparkline, open positions grid, sortable asset list |
 | `/trading` | `TradingWorkspace` | Operate surface: signal queue, admission/rejected, recent trades, execution feed |
 | `/execution` | `ExecutionWorkspace` | Quality surface: equity chart, execution quality KPIs, trade attribution |
 | `/risk` | `RiskWorkspace` | Governance surface: PEK telemetry, portfolio risk, governance state, health scores |
@@ -38,9 +38,9 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 ```
 <App>
   <QueryClientProvider>
-    <BrowserRouter>
+    <HashRouter>
       <AppShell>                          ← Persistent shell, mounts on every route
-        <TickerRail />                    ← 32px mono breadcrumb: EC · seq N · engine state · assets N
+        <TopBar />                        ← Status + nav: engine state, tick interval, halt status
         <Sidebar />                       ← Navigation: Dashboard / Trading / Execution / Risk
         <main>
           <Routes>
@@ -52,7 +52,7 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
         </main>
         <EmergencyHaltBanner />           ← Mounted globally in AppShell
       </AppShell>
-    </BrowserRouter>
+    </HashRouter>
   </QueryClientProvider>
 </App>
 ```
@@ -61,12 +61,10 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `TickerRail` | `layout/TickerRail.tsx` | Persistent status bar: sequence ID, engine state (alive/stale/dead), tick interval, PEK intents/admitted, halt status, asset count |
+| `TopBar` | `layout/TopBar.tsx` | Status bar + theme toggle: engine state, sequence ID, halt status, asset count |
 | `Sidebar` | `layout/Sidebar.tsx` | Navigation rail with route links and engine status chip |
 | `TabBar` | `layout/TabBar.tsx` | Responsive bottom tab navigation (mobile viewports) |
-| `HealthBadge` | `HealthBadge.tsx` | Header engine health indicator (icon-only click target) |
 | `EmergencyHaltBanner` | `EmergencyHaltBanner.tsx` | Red banner shown during emergency halt states |
-| `ConnectionStatus` | `ConnectionStatus.tsx` | Multi-endpoint liveness monitor (Live/Degraded/Offline) |
 | `AlertFeed` | `monitor/AlertFeed.tsx` | Real-time governance event capture tray |
 | `SystemDegradedBanner` | `ui/SystemDegradedBanner.tsx` | Yellow banner when engine is in degraded state |
 | `ErrorScreen` | `ui/ErrorScreen.tsx` | Full-screen error display with retry |
@@ -77,18 +75,15 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | `EquityCurveSparkline` | `EquityCurveSparkline.tsx` | 80px SVG equity curve from `/equity_history.json` |
-| `StatCard` | `ui/StatCard.tsx` | KPI/metric display card (merged from old KpiCard + MetricCard) |
-| `AssetCard` | `AssetCard.tsx` | Per-asset summary card with layers badge, sell-only badge, adaptive exit state |
+| `EquityCurveSparkline` | `EquityCurveSparkline.tsx` | 80px SVG equity curve from `/equity_history.json` |
 | `AssetMiniGrid` | `AssetMiniGrid.tsx` | Compact grid of AssetCards for open positions |
 | `AssetListPanel` | `AssetListPanel.tsx` | Sortable full-width asset table with search |
-| `TradingAssetRow` | `TradingAssetRow.tsx` | Dense per-asset sortable table row |
 | `QuickStatsGrid` | `QuickStatsGrid.tsx` | Hairline-rule quick-stats dl/div row (terminal-precision) |
-| `SectionHeader` | `ui/SectionHeader.tsx` | Section title with static 1px accent dot |
 | `LiveSharpeCard` | `LiveSharpeCard.tsx` | Live Sharpe ratio display |
 | `OptimizerRecommendations` | `OptimizerRecommendations.tsx` | TP/SL drift detector recommendations |
-| `WalTimeline` | `WalTimeline.tsx` | WAL causal-boundary event timeline per asset |
 | `HaltConditions` | `HaltConditions.tsx` | Halt condition status summary |
-| `AssetDeepDive` | `AssetDeepDive.tsx` | Per-asset deep dive panel |
+| `SystemHealthSummary` | `SystemHealthSummary.tsx` | Engine health summary with status badges |
+| `EdgeHealthAlert` | `EdgeHealthAlert.tsx` | Edge health degradation alert banner |
 
 ### TradingWorkspace Components
 
@@ -125,21 +120,16 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 |-----------|----------|---------|
 | `GovernanceRadar` | `governance/GovernanceRadar.tsx` | Per-asset governance summary with halt state |
 | `GovernanceStateCards` | `GovernanceStateCards.tsx` | Per-asset halted status, validity state, tooltips |
-| `GateAggregationPanel` | `GateAggregationPanel.tsx` | Decision pipeline gate pass/fail per asset |
-| `RiskParityPanel` | `RiskParityPanel.tsx` | Bar chart of target allocations colored by governance state |
-| `PSIDriftCard` | `PSIDriftCard.tsx` | Per-asset PSI drift table with feature rows |
+| `GovernanceRadar` | `governance/GovernanceRadar.tsx` | Per-asset governance summary with halt state |
 | `PekScalarPanel` | `PekScalarPanel.tsx` | PEK scalar values (risk budget, velocity) |
 | `PerformanceStateVelocityChart` | `PerformanceStateVelocityChart.tsx` | Performance velocity over time |
 | `RiskBudgetChart` | `RiskBudgetChart.tsx` | Risk budget allocation chart |
 | `PositionConcentrationPanel` | `PositionConcentrationPanel.tsx` | Net-short skew visualization |
 | `FactorExposureBreakdown` | `FactorExposureBreakdown.tsx` | 10 factor group exposure bars |
-| `EdgeHealthAlert` | `EdgeHealthAlert.tsx` | Edge health degradation alert banner |
-| `CalibrationCurve` | `CalibrationCurve.tsx` | Calibration reliability diagram |
 | `HealthScores` | `HealthScores.tsx` | Statistical metrics: PSR, DSR, MinTRL |
 | `HealthMonitorPanel` | `monitor/HealthMonitorPanel.tsx` | Health monitoring summary panel |
-| `HealthSnapshotCard` | `monitor/HealthSnapshotCard.tsx` | Per-asset health snapshot card |
-| `GovernanceStatusGrid` | `monitor/GovernanceStatusGrid.tsx` | Governance state grid overview |
-| `PerformancePanel` | `monitor/PerformancePanel.tsx` | Performance metrics aggregation |
+| `DrawdownChart` | `DrawdownChart.tsx` | Portfolio drawdown visualization |
+| `CorrelationHeatmap` | `CorrelationHeatmap.tsx` | Asset correlation heatmap |
 
 ### Shared UI Components
 
@@ -160,8 +150,7 @@ All routes are lazy-loaded via `React.lazy()` + dynamic `import()`.
 | `DataTable` | `ui/DataTable.tsx` | Sortable data table with sticky header |
 | `TablePagination` | `ui/TablePagination.tsx` | Table pagination controls |
 | `ProgressBar` | `ui/ProgressBar.tsx` | Horizontal progress bar with BarRow extraction |
-| `ScoreBar` | `ui/ScoreBar.tsx` | Score display bar |
-| `SltpGauge` | `ui/SltpGauge.tsx` | SL/TP hit rate gauge (3 stacked BarRows) |
+| `SltpGauge` | `trades/SltpGauge.tsx` | SL/TP hit rate gauge (3 stacked BarRows) |
 | `Gauge` | `ui/Gauge.tsx` | SVG arc gauge |
 | `ChartContainer` | `ui/ChartContainer.tsx` | Chart wrapper with responsive sizing |
 | `EntranceAnimator` | `ui/EntranceAnimator.tsx` | Entrance animation wrapper for sections |
@@ -209,7 +198,7 @@ Backend (port 5000)                    Frontend (browser)
 | Hook | Source Endpoint | Refresh | Purpose |
 |------|----------------|---------|---------|
 | `useSystemSnapshot()` | `/state.json` | 5s / 30s | Primary state bundle for all components |
-| `useEngineHealth()` | `/health` | 5s | Liveness indicator + sequence ID |
+| `useEngineHealth()` | `/health` | 30s | Liveness indicator + sequence ID |
 | `useAttributionBundle()` | Multiple `/attribution/*` | 30s | Trade attribution data |
 | `useTrades()` | `/trades.json` | 30s | Trade history with pagination |
 | `useMonitorAlerts()` | Multiple | 30s | Governance alert feed |
@@ -236,7 +225,7 @@ backend snapshot — they do NOT re-derive scores independently.
 | State Type | `staleTime` | `refetchInterval` | Notes |
 |------------|-------------|-------------------|-------|
 | State bundle | 4s / 25s | 5s / 30s | Market open / closed |
-| Health | 2s | 5s | Fast liveness check |
+| Health | 15s | 30s | Liveness check |
 | Attribution | 25s | 30s | Lower priority |
 | Trades | 25s | 30s | Paginated, slower refresh |
 | Narrative | 5min | 5min | Weekly data |

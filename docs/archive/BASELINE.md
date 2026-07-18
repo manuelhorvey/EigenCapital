@@ -1,3 +1,5 @@
+> **🪦 ARCHIVED** — Historical snapshot of the pre-config-refactor state. Retained for reference only. See current config at `configs/domains/` and `configs/paper_config_registry.py`.
+
 # Configuration Architecture Refactor — Baseline Snapshot
 
 This snapshot pins the pre-refactor state of the configuration system and

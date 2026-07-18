@@ -5,7 +5,7 @@
 > **OBSOLETE 2026-07-11** — The LogisticRegression meta-label implementation described here was superseded by an XGBoost-based MetaLabelModel (labels/meta_labels.py) after AUC 0.49-0.55 validation proved the LR approach effectively random. The XGBoost replacement uses richer features and continuous sizing. The legacy shared/meta_labeling.py file remains on disk but is not used in production.
 
 **Date:** 2026-05-18
-**Status:** Accepted
+**Status:** Superseded (by XGBoost meta-label model)
 
 ## Context
 

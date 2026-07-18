@@ -8,39 +8,22 @@ and to be runnable locally:
 
     PYTHONPATH=$PYTHONPATH:. python tools/doc_drift_check.py
 
-Checks performed:
+Checks performed (14 total):
 
-1. **Asset-list consistency** — number of assets in
-   the domain tree (``configs/domains/`` ``assets:`` mapping) equals the
-   number of tracked model artifacts (``*_model_hash.txt`` sidecars,
-   falling back to ``*_model.json`` files for local runs) outside
-   of ``paper_trading/models/orphaned/`` and ``paper_trading/models/research/``.
-
-2. **SELL_ONLY list consistency** — the hardcoded fallback
-   in ``paper_trading/config_manager.py`` (``EngineConfig.from_dict()``)
-   matches the domain model (``configs/domain_models/risk.py``)
-   ``SellOnlyConfig.assets`` list AND the YAML version (if any) is a subset of the active 22-asset list.
-
-3. **Phase-count consistency** — counts ``_phase_X_*`` methods in
-   ``paper_trading/orchestrator/_engine.py`` and asserts that the
-   Mermaid diagram in ``README.md`` includes a PRE node.
-
-4. **Key-files path resolution** — every path cited in the
-   ``## Key Files`` table of ``AGENTS.md`` must resolve on disk
-
-5. **Component-name identity** — confirms ``ReplayRunner`` (in
-   ``paper_trading/replay/runner.py``) is referenced as ``ReplayRunner``
-   wherever the orchestrator's WAL replay is mentioned in any of
-   ``AGENTS.md``, ``docs/SYSTEM_OVERVIEW.md`` (no ``WALRunner`` stragglers).
-
-6. **Mode selector presence** — the domain tree (``configs/domains/``) has a
-   top-level ``mode:`` key plus a ``modes:`` block.
-
-7. **Trend-exhaustion feature count** — when the live ``alpha_features.py``
-   emitter is OHLCV-gated, total columns = 9 base + 6 trend-exhaustion per
-   asset, plus 4 cross-asset. The body of AGENTS.md, LIVE_CONTRACT.md, and
-   SYSTEM_OVERVIEW.md must all say "9 base" per-asset OR explicitly call
-   out the 9+6=15 per-asset formula.
+ 1. **Asset-list consistency** — domain tree assets match model artifacts.
+ 2. **SELL_ONLY list consistency** — gate_constants.py matches domain config.
+ 3. **Phase-count consistency** — orchestrator phase methods vs README diagram.
+ 4. **Key-files path resolution** — every path in AGENTS.md Key Files exists on disk.
+ 5. **WALRunner stragglers** — no stale WALRunner references in docs.
+ 6. **Mode selector presence** — domain tree has mode: selector + modes: block.
+ 7. **README PRE step presence** — 5-phase cycle wording includes PRE node.
+ 8. **Feature-count claims** — per-asset feature counts match alpha_features.py.
+ 9. **ARCH risk/ paths** — AGENTS.md Key Files uses paper_trading/pek/ not risk/.
+10. **Markdown path validity** — every cross-doc link resolves.
+11. **Last-updated dates** — every doc has a last-updated line within 90 days.
+12. **_index.yaml authority** — doc asset table row counts match _index.yaml.
+13. **Doc asset table rows** — LIVE_CONTRACT, PRODUCTION_SPEC, OPERATIONS row counts correct.
+14. **Cross-reference metric consistency** — numeric claims in docs match code defaults.
 
 Exits 0 if everything passes; exits 1 with a Markdown-formatted report
 otherwise.
@@ -257,9 +240,9 @@ def _check_pre_phase_in_readme() -> tuple[bool, int]:
         return True, 0
     text = _read(path)
     lines = text.splitlines()
-    has_5phase_word = "5-phase orchestrator cycle" in text
+    has_phase_word = "5-phase orchestrator cycle" in text or "6-phase orchestrator cycle" in text
     has_pre_node = any("PRE[" in line or "PRE:" in line for line in lines)
-    return has_5phase_word and has_pre_node, sum(1 for _ in lines)
+    return has_phase_word and has_pre_node, sum(1 for _ in lines)
 
 
 def _check_feature_count_claims() -> list[str]:

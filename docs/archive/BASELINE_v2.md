@@ -1,3 +1,5 @@
+> **🪦 ARCHIVED** — Historical snapshot of the post-Phase-10 state. Retained for reference only. See current config at `configs/domains/` and `configs/paper_config_registry.py`.
+
 # Configuration Architecture Phase 11 — Baseline v2
 
 Captured at the start of Phase 11 (write-mode split). Reference for

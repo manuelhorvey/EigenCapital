@@ -24,21 +24,42 @@ PYTHONPATH=$PYTHONPATH:. python -m pytest tests/chaos/ -v --tb=short
 
 ## Test Structure
 
-| Directory | Scope | Count |
+| Directory | Scope | Tests |
 |-----------|-------|-------|
-| `tests/engine/` | Engine lifecycle, weekend, PEK | ~200 |
-| `tests/inference/` | Inference pipeline, ensemble, calibration | ~80 |
-| `tests/features/` | Feature building, labels, regime | ~60 |
-| `tests/domain/` | Domain entities, events, metrics | ~120 |
-| `tests/shared/` | Portfolio weights, sizing, kelly | ~50 |
-| `tests/backtests/` | Walk-forward, backtest pnl, adversarial | ~200 |
-| `tests/orchestrator/` | Orchestrator phases, admission | ~150 |
-| `tests/position/` | Position manager, adaptive exit | ~100 |
-| `tests/governance/` | Risk, health, halt conditions | ~80 |
-| `tests/chaos/` | Fault injection framework | 13 |
-| `tests/temporal/` | Differential leakage detection | ~30 |
-| `tests/mutation/` | Mutation detection | ~20 |
-| `paper_trading/dashboard/` | Vitest frontend tests | 135 |
+| `tests/engine/` | Engine lifecycle, weekend, PEK | 213 |
+| `tests/inference/` | Inference pipeline, calibration | 71 |
+| `tests/features/` | Feature building, labels, regime | 285 |
+| `tests/domain/` | Domain entities, events, metrics | 192 |
+| `tests/shared/` | Portfolio weights, sizing, kelly | 359 |
+| `tests/backtests/` | Walk-forward, backtest pnl, adversarial | 208 |
+| `tests/orchestrator/` | Orchestrator phases, admission | 293 |
+| `tests/execution/` | Decision pipeline, entry gates, gates | 324 |
+| `tests/position/` | Position manager, adaptive exit | 304 |
+| `tests/ops/` | Monitor, MT5 client, serve, replay | 322 |
+| `tests/services/` | Entry service, engine state, metrics | 169 |
+| `tests/governance/` | Risk, health, halt conditions | 148 |
+| `tests/monitoring/` | PSI drift, importance tracking, alerts | 156 |
+| `tests/tools/` | Config docs, drift check, schema check | 162 |
+| `tests/config/` | Registry, modes, domains | 141 |
+| `tests/shadow/` | Shadow trades, WAL replay | 105 |
+| `tests/labels/` | Triple-barrier, meta labels | 109 |
+| `tests/state/` | State store, WAL persistence | 43 |
+| `tests/pek/` | PEK contracts, admission engine | 31 |
+| `tests/entry/` | Deferred entry, entry service | 34 |
+| `tests/performance/` | Edge health, metrics | 18 |
+| `tests/attribution/` | Attribution pipelines | 17 |
+| `tests/chaos/` | Fault injection framework | 14 |
+| `tests/temporal/` | Differential leakage detection | 18 |
+| `tests/mutation/` | Mutation detection | 14 |
+| `tests/signals/` | Signal contracts | 19 |
+| `tests/alerting/` | PagerDuty, webhook channels | 18 |
+| `tests/risk/` | Risk registry | 28 |
+| `tests/logging/` | Logging configuration | 20 |
+| `tests/benchmarks/` | Performance benchmarks | 21 |
+| `tests/portfolio/` | HRP allocator | 17 |
+| `tests/paper_trading/` | Top-level routing | 17 |
+| `tests/integration/` | Cross-component integration | 21 |
+| `paper_trading/dashboard/` | Vitest frontend tests | 236 |
 
 ## Key Test Patterns
 
@@ -48,12 +69,12 @@ The WAL replay determinism tests verify that replaying the same event sequence
 produces identical state. Run as part of CI:
 
 ```bash
-PYTHONPATH=$PYTHONPATH:. python -m pytest tests/test_replay_determinism.py -v
+PYTHONPATH=$PYTHONPATH:. python -m pytest tests/orchestrator/test_wal_replay.py -v
 ```
 
 ### Circuit Breaker Tests
 
-33 tests cover breaker scenarios: cascade, concentration, single-asset drop,
+30 tests cover breaker scenarios in `tests/orchestrator/test_circuit_breaker_flatten.py`: cascade, concentration, single-asset drop,
 synthetic AUD crash, sequential losses.
 
 ### Config Schema Validation
@@ -111,4 +132,4 @@ Coverage is measured with `pytest-cov` and reported to Codecov.
 
 ---
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-18

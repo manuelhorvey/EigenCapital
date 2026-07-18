@@ -206,9 +206,9 @@ PYTHONPATH=$PYTHONPATH:. python -m pytest tests/chaos/ -v --tb=short
 
 ### How do I run the dashboard without the engine?
 
-Start just the dashboard server:
+`paper_trading/ops/monitor.py` starts both the engine and dashboard together. There is no separate dashboard-only script. To serve the dashboard independently, call the `serve()` function directly:
 ```bash
-PYTHONPATH=$PYTHONPATH:. python paper_trading/ops/monitor.py
+PYTHONPATH=$PYTHONPATH:. python -c "from paper_trading.serve import serve; serve()"
 ```
 
 ### What linters and checks run in CI?

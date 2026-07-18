@@ -132,14 +132,16 @@ use a 0.5× allocation multiplier.
 
 ### Weekend Allocation Multiplier
 A scalar (default 0.5) applied to position sizes for weekend-eligible
-assets. Reduces exposure during lower-liquidity weekend conditions.### Adaptive Exit Engine
+assets. Reduces exposure during lower-liquidity weekend conditions.
 
-A state-machine exit management system with three active phases:
+### Adaptive Exit Engine
+
+A state-machine exit management system with three active phases (plus STATIC initial state):
 1. **Breakeven lock** (at `be_lock_r` MFE, default 0.5R): move SL to entry
 2. **Retracement trail** (at `trail_activation_r` MFE, default 0.8R): trail remainder at `trail_retrace_pct` (default 0.33) from peak
 3. **Time decay** (after `time_decay_start` candles): gradually tighten retracement tolerance as max-hold approaches
 
-Scale-out (R-based partial profit-taking at `scale_out_r` MFE) is handled by a **separate** component (`ScaleOutEngine`), not as a stage of the adaptive exit state machine. The engine state machine transitions through `STATIC → BE_LOCK → TRAILING → TIME_DECAY`.Validated as part of the original 16-asset portfolio (walk-forward simulation) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +732.73 R (Sharpe 56.45) with direction-conditional thresholds, bringing every asset into profitable territory.
+Scale-out (R-based partial profit-taking at `scale_out_r` MFE) is handled by a **separate** component (`ScaleOutEngine`), not as a stage of the adaptive exit state machine. The engine state machine transitions through `STATIC → BE_LOCK → TRAILING → TIME_DECAY`. Validated as part of the original 16-asset research portfolio (walk-forward simulation; now expanded to 22) to improve total_R from +519.5R to +3,209R (6.2×). The current calibrated system across all 22 assets achieves +732.73 R (Sharpe 56.45) with direction-conditional thresholds, bringing every asset into profitable territory.
 
 ### Scale-Out (Pyramiding Tiers)
 Partial profit-taking at configurable levels. Tier profiles are generated
@@ -165,7 +167,7 @@ to prevent unrealistically large TP distances.
 ### EigenCapital
 The project name (renamed from Quorrin to EigenCapital on 2026-07-02). Cross-sectional
 multi-asset research and paper trading platform with per-asset XGBoost
-models, 15-layer governance, adaptive exits, and MT5 bridge execution.
+models, 17-layer governance (core) + 3 adaptive budget layers, adaptive exits, and MT5 bridge execution.
 
 ### Paper Trading Engine
 The top-level runtime orchestrator (`PaperTradingEngine`) that manages

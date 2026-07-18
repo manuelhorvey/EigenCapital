@@ -55,7 +55,7 @@ Includes:
 
 ### Project Identity
 
-Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commodities, indices + BTCUSD) with per-asset XGBoost models, 17-layer governance + 3 adaptive budget layers, PEK admission control, and MT5 bridge execution.
+Cross-sectional multi-asset paper trading engine. 22-asset portfolio (FX, commodities, indices + BTCUSD) with per-asset XGBoost models, 17-layer governance + 3 adaptive budget layers, PEK admission control, and MT5 bridge execution.
 
 ### Key Commands
 
@@ -80,7 +80,7 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 - **Adaptive exit engine** — 4-stage retracement trailing. Config per asset.
 - **Factor constraints** — `factor_constrained_v2` with hard linear inequality constraints, pinning CHF at 20%.
 - **Drift detector** — live win-rate drift against breakeven WR; dashboard at `/optimization.json`.
-- **Doc-drift CI check** — `tools/doc_drift_check.py` runs 12 cross-reference checks in CI.
+- **Doc-drift CI check** — `tools/doc_drift_check.py` runs 14 cross-reference checks in CI.
 
 ### Related Documentation
 
@@ -96,4 +96,4 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 
 ---
 
-*Last updated: 2026-07-17. Kept intentionally concise — see linked documents above for depth.*
+*Last updated: 2026-07-18. Kept intentionally concise — see linked documents above for depth.*

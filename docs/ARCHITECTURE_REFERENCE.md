@@ -2,13 +2,13 @@
 
 System architecture, component descriptions, and design decisions for developers.
 
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-18
 
 ---
 
 ## Project Identity
 
-Cross-sectional multi-asset paper trading engine. 21-asset portfolio (FX, commodities, indices + BTCUSD) with per-asset XGBoost models, regime-conditional ensemble (disabled 2026-06-20), 17-layer governance (core) + 3 adaptive budget layers + decision pipeline + position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).
+Cross-sectional multi-asset paper trading engine. 22-asset portfolio (FX, commodities, indices + BTCUSD) with per-asset XGBoost models, 17-layer governance (core) + 3 adaptive budget layers + decision pipeline + position sizing guardrails, adaptive exit engine, and MT5 bridge execution (Exness demo via Wine).
 
 ---
 
@@ -94,7 +94,7 @@ paper_trading/inference/pipeline.py
 
 ---
 
-## Orchestrator: 5-Phase Cycle
+## Orchestrator: 6-Phase Cycle (PRE + 5 Numbered Phases)
 
 The `EngineOrchestrator` (`paper_trading/orchestrator/engine.py`) runs a fault-isolated, phased execution loop using actor-based isolation (ThreadPoolExecutor, 8 workers):
 

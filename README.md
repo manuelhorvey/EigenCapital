@@ -37,7 +37,7 @@ Dashboard: [http://localhost:5000](http://localhost:5000)
 
 ## System Overview
 
-The engine runs a continuous 5-phase orchestrator cycle (every 60s) across 22 assets:
+The engine runs a continuous 6-phase orchestrator cycle (PRE + 5 numbered phases, every 60s) across 22 assets:
 
 ```text
 PRE: state snapshot → REFRESH: parallel inference → ADMIT: PEK gate →
@@ -52,7 +52,7 @@ Each asset runs an independent `binary:logistic` XGBoost model. Raw probabilitie
 
 ## Current Portfolio
 
-22 assets promoted from a 36-asset research universe via walk-forward. Weights use `factor_constrained_v2` (hard-linear factor constraints). Exits use trail_33pct retracement trailing (3-stage: breakeven lock → retracement trail → time decay).
+22 assets promoted from a 36-asset research universe via walk-forward. Weights use `factor_constrained_v2` (hard-linear factor constraints). Exits use trail_33pct retracement trailing (4-state: STATIC → breakeven lock → retracement trail → time decay).
 
 **Portfolio timeline:**
 

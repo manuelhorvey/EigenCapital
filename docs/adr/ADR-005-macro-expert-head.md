@@ -4,7 +4,7 @@
 >
 > **OBSOLETE 2026-06-20** — Ensemble disabled per ADR-026. The Macro Expert Head no longer participates in signal generation.
 
-**Status:** Accepted
+**Status:** Superseded (by ADR-026)
 
 ## Context
 

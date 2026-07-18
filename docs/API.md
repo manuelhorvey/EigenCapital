@@ -89,6 +89,7 @@ Position concentration data is available inside `/state.json` under `portfolio.p
 | `/analytics/snapshot.json` | `dict` | Precomputed aggregate analytics (5-cycle gate) |
 | `/mt5/status.json` | `dict` | MT5 bridge connection status (cached in-memory) |
 | `/weekly-review.json` | `dict` | Weekly review data |
+| `/healthcheck.json` | `dict` | Model health monitor snapshot (30s cache) from `data/logs/healthcheck/latest.json` |
 
 ## POST Endpoints
 

@@ -4,7 +4,7 @@
 >
 > **OBSOLETE 2026-06-20** — Ensemble disabled per ADR-026. The regime classifier is no longer used as a model router. Regime features remain in the alpha pipeline for trace logging only.
 
-**Status:** Accepted
+**Status:** Superseded (by ADR-026)
 
 ## Context
 

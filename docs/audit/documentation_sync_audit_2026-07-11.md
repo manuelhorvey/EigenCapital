@@ -178,8 +178,8 @@ tests/                                 # 2,822+ Python tests + frontend tests
 | 5 | `CRONTAB.md` | Scheduled tasks | ~60 | 2026-07-08 | Operations |
 | 6 | `LIVE_CONTRACT.md` | System contract | ~600 | 2026-07-05 | Architecture |
 | 7 | `PHASE12_PLAN.md` | Plan | ~100 | 2026-07-05 | Planning |
-| 8 | `BASELINE.md` | Baseline | ~50 | 2026-06-xx | Historical |
-| 9 | `BASELINE_v2.md` | Baseline v2 | ~50 | 2026-07-05 | Historical |
+| 8 | `docs/archive/BASELINE.md` | Baseline (archived) | ~50 | 2026-06-xx | Historical |
+| 9 | `docs/archive/BASELINE_v2.md` | Baseline v2 (archived) | ~50 | 2026-07-05 | Historical |
 | 10 | `docs/README.md` | Doc index | ~50 | 2026-07-05 | Navigation |
 | 11 | `docs/ARCHITECTURE.md` | Architecture | ~200 | 2026-07-05 | Architecture |
 | 12 | `docs/SYSTEM_OVERVIEW.md` | System overview | ~450 | 2026-07-05 | Architecture |
@@ -351,8 +351,8 @@ tests/                                 # 2,822+ Python tests + frontend tests
 |----------|-------|
 | `RISK_ITEMS.md` | Correctly marked as "ARCHIVED" at top. Preserved for historical reference. |
 | `docs/archive/` | Correctly archived historical documents. |
-| `BASELINE.md` | Pre-config-refactor baseline. Historical. |
-| `BASELINE_v2.md` | Pre-Phase-11 baseline. Historical. |
+| `docs/archive/BASELINE.md` | Pre-config-refactor baseline. Historical. |
+| `docs/archive/BASELINE_v2.md` | Pre-Phase-11 baseline. Historical. |
 | `PHASE12_PLAN.md` | Phase 12 implementation plan. The work is partially completed per CHANGELOG.md. |
 
 ### Duplicate (🔴)

@@ -34,7 +34,7 @@ The repository intentionally treats trading infrastructure as a distributed stat
 
 # High-Level Architecture
 
-The engine runs a continuous 5-phase orchestrator cycle. Each tick (every ~60s) executes the following loop:
+The engine runs a continuous 6-phase orchestrator cycle (PRE + 5 numbered phases). Each tick (every ~60s) executes the following loop:
 
 ```
              ┌───────────────────────────────────────────┐

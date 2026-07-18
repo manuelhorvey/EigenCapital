@@ -1,5 +1,7 @@
 # EigenCapital Architecture Diagram
 
+**Last updated:** 2026-07-17
+
 ```mermaid
 ---
 title: EigenCapital Paper-Trading System Architecture

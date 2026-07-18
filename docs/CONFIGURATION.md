@@ -150,4 +150,4 @@ The following environment variables override hardcoded defaults at runtime. They
 
 
 
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-18

@@ -100,10 +100,10 @@ def test_features_registry_loaded_pt_values_match_yaml():
 
 
 def test_engine_runtime_drift_check_still_warns():
-    """Confirm engine.initialize still has the runtime drift check
+    """Confirm EngineInitializeService.initialize still has the runtime drift check
     for sl_mult/tp_mult != ASSET_LABEL_PARAMS["sl"]/["pt"].
     """
-    src = (REPO_ROOT / "paper_trading" / "engine.py").read_text()
+    src = (REPO_ROOT / "paper_trading" / "services" / "engine_initialize_service.py").read_text()
     assert "ASSET_LABEL_PARAMS.get(name)" in src
     assert 'registry_params["sl"]' in src
     assert 'registry_params["pt"]' in src

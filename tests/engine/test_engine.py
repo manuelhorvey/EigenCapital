@@ -691,9 +691,8 @@ class TestPaperTradingEngine:
     def test_create_mt5_broker_uses_config(self):
         from types import SimpleNamespace
 
-        from paper_trading.engine import PaperTradingEngine
+        from paper_trading.factories.broker_factory import BrokerFactory
 
-        eng = PaperTradingEngine.__new__(PaperTradingEngine)
         cfg = SimpleNamespace(
             mt5=SimpleNamespace(
                 account=12345,
@@ -705,17 +704,22 @@ class TestPaperTradingEngine:
                 enabled=False,
             ),
         )
-        with patch("paper_trading.engine.MT5Broker") as MockMT5B:
-            eng._create_mt5_broker(cfg)
-            MockMT5B.assert_called_once()
-            args, kwargs = MockMT5B.call_args
-            assert kwargs.get("account") == 12345
-            assert kwargs.get("password") == "pwd"
-            assert kwargs.get("server") == "srv"
+        with patch("paper_trading.factories.broker_factory.MT5Broker") as MockMT5B:
+            with patch.object(BrokerFactory, "_load_symbol_map", return_value={"EURUSD": "EURUSD.c"}):
+                BrokerFactory.create_mt5_broker(cfg)
+                MockMT5B.assert_called_once()
+                args, kwargs = MockMT5B.call_args
+                assert kwargs.get("account") == 12345
+                assert kwargs.get("password") == "pwd"
+                assert kwargs.get("server") == "srv"
+                assert kwargs.get("symbol_map") == {"EURUSD": "EURUSD.c"}
 
     def test_install_mt5_data_provider(self):
-        eng = PaperTradingEngine.__new__(PaperTradingEngine)
-        eng._engine_cfg = SimpleNamespace(
+        from types import SimpleNamespace
+
+        from paper_trading.factories.broker_factory import BrokerFactory
+
+        cfg = SimpleNamespace(
             mt5=SimpleNamespace(
                 account=12345,
                 password="pwd",
@@ -726,11 +730,11 @@ class TestPaperTradingEngine:
             )
         )
         with (
-            patch("paper_trading.engine.MT5Client") as MockClient,
+            patch("paper_trading.factories.broker_factory.MT5Client") as MockClient,
             patch("paper_trading.ops.data_fetcher.set_mt5_client") as mock_set,
         ):
             MockClient.return_value.connect.return_value = True
-            eng._install_mt5_data_provider(eng._engine_cfg)
+            BrokerFactory.install_mt5_data_provider(cfg)
             MockClient.assert_called_once()
             mock_set.assert_called_once()
 

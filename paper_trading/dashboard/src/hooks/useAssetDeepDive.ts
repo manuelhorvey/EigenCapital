@@ -18,7 +18,7 @@ export function useAssetDeepDive(name: string) {
       if (!parsed.success) {
         console.error('[DeepDive] validation failed:', parsed.error.issues)
         addErrorBreadcrumb('DeepDive', `Validation failed for ${name}`)
-        throw new Error(`Invalid deep dive data for ${name}`)
+        return { asset: name, feature_importance: [], trades: [], final_signal: null, sell_only: false, tripwire_active: false, last_signal: null, metrics: null }
       }
       return parsed.data
     },

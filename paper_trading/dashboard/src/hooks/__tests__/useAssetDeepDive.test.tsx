@@ -85,12 +85,16 @@ describe('useAssetDeepDive', () => {
     expect(result.current.data?.asset).toBe('EURUSD') // from mock, not query key
   })
 
-  it('throws on schema validation failure (uses .parse() not .safeParse())', async () => {
+  it('gracefully degrades on schema validation failure (safeParse fallback)', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFetch.mockResolvedValue({ asset: 123, feature_importance: 'invalid', trades: null })
     const { wrapper } = withQueryClient()
     const { result } = renderHook(() => useAssetDeepDive('EURUSD'), { wrapper })
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.asset).toBe('EURUSD')
+    expect(result.current.data?.feature_importance).toEqual([])
+    expect(result.current.data?.trades).toEqual([])
+    expect(result.current.data?.final_signal).toBeNull()
     consoleSpy.mockRestore()
   })
 

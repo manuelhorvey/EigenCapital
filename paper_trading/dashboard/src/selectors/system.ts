@@ -6,6 +6,7 @@ type SystemBundle = z.infer<typeof SystemBundleSchema>
 export const systemSelectors = {
   snapshot: (b: SystemBundle) => b.snapshot,
   assets: (b: SystemBundle) => b.snapshot.assets,
+  asset: (name: string) => (b: SystemBundle) => b.snapshot.assets?.[name] ?? null,
   portfolio: (b: SystemBundle) => b.snapshot.portfolio,
   engineStatus: (b: SystemBundle) => b.snapshot.engine_status,
   health: (b: SystemBundle) => b.live.health,

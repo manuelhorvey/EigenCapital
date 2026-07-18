@@ -17,7 +17,7 @@ from paper_trading.orchestrator.actor import (
     AssetActor,
     FaultCategory,
 )
-from paper_trading.orchestrator.engine import EngineOrchestrator, EnginePhase
+from paper_trading.orchestrator._engine import EngineOrchestrator, EnginePhase
 from paper_trading.orchestrator.health import (
     CircuitBreaker,
     HealthMonitor,

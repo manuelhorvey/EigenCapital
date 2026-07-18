@@ -35,7 +35,7 @@ from paper_trading.ops.experiment_context import ExperimentContext
 from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.ops.simulation_snapshot import SimulationStore
 from paper_trading.orchestrator.actor import AssetActor
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 from paper_trading.portfolio_builder import build_paper_portfolio
 from paper_trading.replay.wal import WalWriter
 from paper_trading.services.engine_narrative_service import EngineNarrativeService

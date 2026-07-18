@@ -27,7 +27,7 @@ import pytest
 from collections import deque
 
 from paper_trading.orchestrator.actor import AssetActor, AssetResult, ActorHealth, ActorMetrics
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────────

@@ -19,7 +19,7 @@ from paper_trading.governance.drawdown_controls import (
     compute_exposure_multiplier,
 )
 from paper_trading.orchestrator.actor import AssetActor
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 
 # ── Mock helpers ────────────────────────────────────────────────────────────────
 

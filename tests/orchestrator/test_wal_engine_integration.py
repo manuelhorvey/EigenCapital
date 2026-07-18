@@ -22,7 +22,7 @@ import xgboost as xgb
 from shared.model import XGBoostModel
 from paper_trading.inference.pipeline import AssetInferencePipeline
 from paper_trading.orchestrator.actor import AssetActor
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 from paper_trading.replay.runner import ReplayRunner
 from paper_trading.replay.wal import WalReader, WalWriter
 

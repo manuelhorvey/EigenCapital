@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────────

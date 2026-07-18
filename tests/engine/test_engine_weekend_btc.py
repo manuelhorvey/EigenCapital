@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from paper_trading.orchestrator.actor import AssetActor
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 
 # ── Mock helpers ─────────────────────────────────────────────────────────
 

@@ -17,7 +17,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from paper_trading.execution.mt5_broker import MT5Broker
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 from paper_trading.services.entry_service import EntryService
 from tests.mock_mt5_client import MockMT5Client
 

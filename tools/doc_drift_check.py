@@ -22,7 +22,7 @@ Checks performed:
    ``SellOnlyConfig.assets`` list AND the YAML version (if any) is a subset of the active 22-asset list.
 
 3. **Phase-count consistency** — counts ``_phase_X_*`` methods in
-   ``paper_trading/orchestrator/engine.py`` and asserts that the
+   ``paper_trading/orchestrator/_engine.py`` and asserts that the
    Mermaid diagram in ``README.md`` includes a PRE node.
 
 4. **Key-files path resolution** — every path cited in the
@@ -189,7 +189,7 @@ def _phase_methods() -> list[str]:
     """Return all `_phase_X_*` method names declared in the orchestrator."""
     import ast
 
-    text = _read(REPO_ROOT / "paper_trading" / "orchestrator" / "engine.py")
+    text = _read(REPO_ROOT / "paper_trading" / "orchestrator" / "_engine.py")
     tree = ast.parse(text)
     names: list[str] = []
     for node in ast.walk(tree):

@@ -214,7 +214,7 @@ class TestWeekendSizing:
 
 class TestOrchestratorFilteredActors:
     def test_filtered_actors_returns_subset(self):
-        engine_module = pytest.importorskip("paper_trading.orchestrator.engine")
+        engine_module = pytest.importorskip("paper_trading.orchestrator._engine")
 
         mock_actors = {
             "BTCUSD": MagicMock(),
@@ -248,7 +248,7 @@ class TestPrePhasePekFullPortfolioDrawdown:
         _pre_phase_pek must sum the FULL portfolio (~$75K baseline) so the
         drawdown is 0% (no drawdown), not -97.3% from seeing only BTCUSD's $2K."""
 
-        from paper_trading.orchestrator.engine import EngineOrchestrator
+        from paper_trading.orchestrator._engine import EngineOrchestrator
 
         orch_instance = MagicMock(spec=EngineOrchestrator)
         # Stub the methods _pre_phase_pek depends on
@@ -290,12 +290,12 @@ def _compute_aggregate(orch, aggregate_actors):
 class TestPrePhasePekSourceCodeContract:
     """Source-level invariant: the production code in _pre_phase_pek must read
     from _saved_full_actors when available — same pattern as the existing
-    Phase 3c fix at orchestrator/engine.py line 627."""
+    Phase 3c fix at orchestrator/_engine.py line 627."""
 
     def test_pre_phase_pek_uses_saved_full_actors_fallback(self):
         import inspect
 
-        from paper_trading.orchestrator.engine import EngineOrchestrator
+        from paper_trading.orchestrator._engine import EngineOrchestrator
 
         src = inspect.getsource(EngineOrchestrator._pre_phase_pek)
         assert "_saved_full_actors" in src, (

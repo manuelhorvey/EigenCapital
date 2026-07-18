@@ -18,7 +18,7 @@ import threading
 from unittest.mock import MagicMock
 
 from paper_trading.orchestrator.actor import AssetActor
-from paper_trading.orchestrator.engine import EngineOrchestrator
+from paper_trading.orchestrator._engine import EngineOrchestrator
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

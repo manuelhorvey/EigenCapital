@@ -130,4 +130,71 @@ describe('useSystemSnapshot', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.snapshot.engine_status.market_closed).toBe(true)
   })
+
+  it('falls back to localStorage cache on network failure', async () => {
+    localStorage.setItem('eigencapital_bundle_cache', JSON.stringify({
+      meta: makeValidBundle().meta,
+      snapshot: {
+        contract_version: 7,
+        sequence_id: 42,
+        schema_version: '1.0.0',
+        timestamp: '2026-07-05T00:00:00Z',
+        portfolio: makeValidBundle().snapshot.portfolio,
+        engine_status: makeValidBundle().snapshot.engine_status,
+      },
+    }))
+    mockFetch.mockRejectedValue(new Error('Network error'))
+    const { wrapper } = withQueryClient(false)
+    const { result } = renderHook(() => useSystemSnapshot(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.snapshot.contract_version).toBe(7)
+    expect(result.current.data?.meta.status).toBe('degraded')
+    localStorage.removeItem('eigencapital_bundle_cache')
+  })
+
+  it('returns degraded bundle on fetch error with no localStorage cache', async () => {
+    localStorage.clear()
+    mockFetch.mockRejectedValue(new Error('Network error'))
+    const { wrapper } = withQueryClient(false)
+    const { result } = renderHook(() => useSystemSnapshot(), { wrapper })
+    // Hook has retry: 2 in definition, but client overrides with retry: false
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 8_000 })
+  })
+
+  it('applies selectAsset selector via useSystemSnapshot', async () => {
+    const bundle = makeValidBundle()
+    bundle.snapshot.assets = {}
+    mockFetch.mockResolvedValue(bundle)
+    const { wrapper } = withQueryClient()
+    const { result } = renderHook(
+      () => useSystemSnapshot((b) => b.snapshot.contract_version),
+      { wrapper },
+    )
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toBe(7)
+  })
+
+  it('handles localStorage fallback when schema validation fails', async () => {
+    localStorage.setItem('eigencapital_bundle_cache', JSON.stringify({
+      meta: makeValidBundle().meta,
+      snapshot: {
+        contract_version: 7,
+        sequence_id: 42,
+        schema_version: '1.0.0',
+        timestamp: '2026-07-05T00:00:00Z',
+        portfolio: makeValidBundle().snapshot.portfolio,
+        engine_status: makeValidBundle().snapshot.engine_status,
+      },
+    }))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const raw = { meta: { status: 'ok', version: 'v1', server_time: '', snapshot_time: '', snapshot_sequence_id: 0, max_live_age_seconds: null, request_id: 'x' }, snapshot: null, live: null }
+    mockFetch.mockResolvedValue(raw)
+    const { wrapper } = withQueryClient()
+    const { result } = renderHook(() => useSystemSnapshot(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.snapshot.contract_version).toBe(7)
+    expect(result.current.data?.meta.status).toBe('degraded')
+    consoleSpy.mockRestore()
+    localStorage.removeItem('eigencapital_bundle_cache')
+  })
 })

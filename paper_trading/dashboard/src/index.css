@@ -185,4 +185,37 @@
     border-color: var(--color-border-strong);
     box-shadow: 0 0 0 1px rgba(61, 217, 174, 0.2);
   }
+
+  .skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .skip-link:focus {
+    position: fixed;
+    width: auto;
+    height: auto;
+    padding: 8px 12px;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    top: 8px;
+    left: 8px;
+    z-index: 100;
+    background-color: var(--color-panel);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 6px;
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  }
 }

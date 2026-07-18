@@ -61,9 +61,9 @@ const stateLabelClass: Record<ReturnType<typeof rowState>, string> = {
 }
 
 function DirectionGlyph({ signal }: { signal: string }) {
-  if (signal === 'BUY') return <TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} aria-label="Buy signal" />
-  if (signal === 'SELL') return <TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} aria-label="Sell signal" />
-  return <Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} aria-label="Flat signal" />
+  if (signal === 'BUY') return <><TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Buy signal</span></>
+  if (signal === 'SELL') return <><TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Sell signal</span></>
+  return <><Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} aria-hidden="true" /><span className="sr-only">Flat signal</span></>
 }
 
 // Single horizontal bar, used for confidence and exit mix alike so the table

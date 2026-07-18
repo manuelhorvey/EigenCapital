@@ -62,6 +62,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-app text-secondary flex flex-col">
+      <a href={`#${mainId}`} className="skip-link">Skip to main content</a>
       <TopBar onToggleSidebar={toggleSidebar} onToggleNotifications={toggleNotifications} />
       <TabBar />
       <SystemDegradedBanner integrity={integrity} />
@@ -72,13 +73,6 @@ export default function AppShell({ children }: AppShellProps) {
 
         <div className="flex-1 flex flex-col min-w-0">
 
-          {/* Skip-to-content link — visible only when focused via keyboard (WCAG 2.4.1). */}
-          <a
-            href={`#${mainId}`}
-            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-3 focus:py-2 focus:rounded-md focus:bg-panel focus:border focus:border-strong focus:text-primary focus:text-xs focus:font-medium focus:shadow-card"
-          >
-            Skip to main content
-          </a>
           <main id={mainId} ref={mainRef} tabIndex={-1} className="flex-1 min-w-0 px-4 sm:px-7 py-5 sm:py-7 outline-none" role="main" aria-label="Dashboard content">
             <PageTransition locationKey={location.pathname} onVisible={focusMain}>
               {children}

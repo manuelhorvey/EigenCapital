@@ -4,6 +4,7 @@ import hmac
 import json
 import logging
 import os
+import secrets
 import threading
 import time
 from urllib.parse import unquote
@@ -295,16 +296,21 @@ def _load_auth_token() -> str:
 
         cfg = get_config()
         _AUTH_TOKEN = cfg.api_token or ""
-        if _AUTH_TOKEN:
+        if not _AUTH_TOKEN and os.environ.get("EIGENCAPITAL_DISABLE_AUTH") != "1":
+            _AUTH_TOKEN = secrets.token_hex(32)
             logging.getLogger("eigencapital.auth").info(
-                "API auth enabled (token from %s)",
-                "env EIGENCAPITAL_API_TOKEN" if os.environ.get("EIGENCAPITAL_API_TOKEN") else "config file",
+                "Auto-generated API token for dashboard (dev mode on 127.0.0.1)"
             )
-        else:
+        elif not _AUTH_TOKEN:
             logging.getLogger("eigencapital.auth").warning(
                 "No API auth token configured. Set EIGENCAPITAL_API_TOKEN env var or api_token in config. "
                 "Authentication is REQUIRED by default. To disable auth in development, "
                 "set EIGENCAPITAL_DISABLE_AUTH=1."
+            )
+        else:
+            logging.getLogger("eigencapital.auth").info(
+                "API auth enabled (token from %s)",
+                "env EIGENCAPITAL_API_TOKEN" if os.environ.get("EIGENCAPITAL_API_TOKEN") else "config file",
             )
     return _AUTH_TOKEN
 

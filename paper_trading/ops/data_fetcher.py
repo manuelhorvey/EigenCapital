@@ -53,7 +53,7 @@ _rate_limit_lock = threading.Lock()
 
 _IN_MEMORY_CACHE: dict[str, tuple[pd.DataFrame | float | None, float]] = {}
 _IN_MEMORY_TTL: dict[str, float] = {
-    "download": 60.0,
+    "download": 300.0,
     "realtime": 5.0,
 }
 

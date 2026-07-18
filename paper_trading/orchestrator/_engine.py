@@ -102,7 +102,7 @@ class EngineOrchestrator:
         actors: dict[str, AssetActor],
         max_halt_ratio: float = 0.5,
         wal_writer: WalWriter | None = None,
-        max_workers: int = 8,
+        max_workers: int = 16,
         snapshot: EngineSnapshot | None = None,
         config: EngineConfig | None = None,
     ):

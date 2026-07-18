@@ -377,7 +377,8 @@ class EngineOrchestrator:
             )
 
         # Compute base exposure multiplier from drawdown
-        exp_mult, _ = compute_exposure_multiplier(current_dd)
+        dd_limit = self._config.portfolio_drawdown_limit if self._config is not None else -0.15
+        exp_mult, _ = compute_exposure_multiplier(current_dd, drawdown_limit=dd_limit)
 
         # PEK budget backfeed: if the previous cycle overran its budget,
         # reduce the exposure multiplier BEFORE distributing to actors so
@@ -634,8 +635,9 @@ class EngineOrchestrator:
 
         # ── 3a: Drawdown circuit breaker ─────────────────────────────────
         self._halt_state.update_peak(total_value)
+        dd_limit = self._config.portfolio_drawdown_limit if self._config is not None else -0.15
         dd_result = check_drawdown_circuit_breaker(
-            total_value, self._halt_state.peak_portfolio_value, drawdown_limit=-0.15
+            total_value, self._halt_state.peak_portfolio_value, drawdown_limit=dd_limit
         )
         results["drawdown"] = dd_result
         if dd_result["halted"]:

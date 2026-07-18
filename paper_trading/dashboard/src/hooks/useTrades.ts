@@ -20,6 +20,10 @@ async function fetchTrades(limit: number, offset: number): Promise<TradeEntry[]>
   return parsed.data
 }
 
+// createApiQuery not used here because query params (limit, offset) are dynamic
+// and the factory hardcodes a single queryKey — pagination requires
+// ['trades', limit, offset] to cache each page independently.
+
 /** Fetches paginated trade entries. @returns {object} - React Query result with TradeEntry array */
 export function useTrades(limit = 10, offset = 0) {
   return useQuery({

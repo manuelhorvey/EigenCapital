@@ -7,6 +7,8 @@ import type { z } from 'zod'
 export type WalEvent = z.infer<typeof WalResponseSchema>['events'][number]
 
 /** Fetches WAL (Write-Ahead Log) event timeline for a given asset. @returns {object} - React Query result with WalResponse containing events */
+// createApiQuery not used here because the dynamic endpoint (wal/${assetName}.json) and
+// graceful fallback on validation failure don't match the factory's contract.
 export function useWalTimeline(assetName: string) {
   return useQuery({
     queryKey: ['walTimeline', assetName],

@@ -27,6 +27,10 @@ async function fetchAttributionTrades(
   return parsed.data
 }
 
+// createApiQuery not used here — parametric query (limit, offset, filters) with
+// composite queryKey ['attributionTrades', limit, offset, filters] doesn't match
+// the factory's single-queryKey contract.
+
 /** Fetches paginated attribution trades with optional archetype/regime/asset filters. */
 export function useAttributionTrades(
   limit = 50,

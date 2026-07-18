@@ -1,6 +1,7 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react'
 import PanelFallback from './ui/PanelFallback'
 import { captureError, sanitise } from '../lib/errorReporting'
+import { authHeaders } from '../lib/auth'
 
 interface Props {
   children: ReactNode
@@ -32,6 +33,17 @@ export default class ErrorBoundary extends Component<Props, State> {
     // Sanitisation (JWT tokens, API keys, file paths) is handled inside captureError
     // and also applied to the component stack before passing as context.
     captureError(error, { componentStack: sanitise(info.componentStack ?? '') })
+    // Also POST to backend with auth headers so the operator can correlate
+    // front-end errors with back-end logs in a single view.
+    fetch('/api/log-error', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: sanitise(error.message),
+        name: error.name,
+        stack: sanitise(info.componentStack ?? ''),
+      }),
+    }).catch(() => {})
   }
 
   render() {

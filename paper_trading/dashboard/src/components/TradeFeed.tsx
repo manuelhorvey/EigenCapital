@@ -1,6 +1,7 @@
 import { memo, useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { useTrades } from '../hooks/useTrades'
+import { fetchApi } from '../lib/api'
 import { formatAssetPrice, formatHeldDuration, safeToFixed } from '../utils/format'
 import DataTable, { type ColumnDef } from './ui/DataTable'
 import TablePagination from './ui/TablePagination'
@@ -50,6 +51,20 @@ function TradeFeed() {
       prevClosedTradesRef.current = current
     }
   }, [portfolio?.closed_trades, queryClient])
+
+  // Fast-path polling: 5s poll to /api/recent-trades.json for recent fills.
+  // Invalidates the main trades query when a new fill is detected,
+  // providing ~5s latency from fill to display instead of 60s.
+  useQuery({
+    queryKey: ['recentTrades'],
+    queryFn: async () => {
+      const json = await fetchApi<unknown[]>('/api/recent-trades.json')
+      return json as TradeEntry[]
+    },
+    refetchInterval: 5_000,
+    staleTime: 0,
+    meta: { skipErrorHandler: true },
+  })
   const rows = useMemo(() => (trades ?? []).slice(0, PAGE_SIZE), [trades])
   const hasMore = (trades?.length ?? 0) > PAGE_SIZE
 

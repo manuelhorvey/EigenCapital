@@ -59,8 +59,17 @@ function Stat({
 }
 
 function QuickStatsGridInner() {
-  const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
+  const { data: snapshot, error } = useSystemSnapshot(systemSelectors.snapshot)
   const p = snapshot?.portfolio
+  if (error) {
+    return (
+      <div className={`${gridMetric7()} ${GRID_GAP}`}>
+        <div className="col-span-full flex items-center justify-center h-20 rounded-lg bg-surface/50 border border-gov-red/20">
+          <p className="text-gov-red text-xs font-semibold">Snapshot unavailable — {error instanceof Error ? error.message : 'Connection failed'}</p>
+        </div>
+      </div>
+    )
+  }
   const { data: mt5Live } = useSystemSnapshot(systemSelectors.mt5)
   const mt5Equity = mt5Live?.account?.portfolio_value ?? null
   const lastUpdate =

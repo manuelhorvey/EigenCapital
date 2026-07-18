@@ -310,6 +310,27 @@ def handle_log_error(body: bytes, state_store=None) -> tuple[str, int]:
         return json_dumps({"status": "error"}), 500
 
 
+def handle_recent_trades(path: str, query: dict, state_store=None) -> str:
+    """Return the last 20 trades with no caching — fast-path for frontend polling."""
+    store = state_store or get_server_store()
+    trades = store.read_trades(20)
+    seen: set[tuple] = set()
+    deduped: list[dict] = []
+    for t in trades:
+        key = (
+            t.get("asset"),
+            t.get("entry_date"),
+            t.get("exit_date"),
+            t.get("reason"),
+            round(t.get("entry", 0), 4),
+            round(t.get("exit", 0), 4),
+        )
+        if key not in seen:
+            seen.add(key)
+            deduped.append(t)
+    return json_dumps(deduped[:20])
+
+
 def handle_clear_cache(path: str, query: dict, state_store=None) -> str:
     """Clear all in-memory caches after a reset.
 

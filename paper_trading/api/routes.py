@@ -49,6 +49,7 @@ from paper_trading.api.state_routes import (
     handle_metrics,
     handle_optimization,
     handle_ping,
+    handle_recent_trades,
     handle_state,
     handle_trades,
     handle_volatility,
@@ -89,6 +90,7 @@ GET_ROUTES: dict[str, tuple] = {
     "/ping": (handle_ping, False),
     "/health": (handle_engine_health, False),
     "/metrics": (handle_metrics, True),
+    "/api/recent-trades.json": (handle_recent_trades, False),
 }
 
 GET_ROUTES_PREFIX: list[tuple[str, object, bool]] = [

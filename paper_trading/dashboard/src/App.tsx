@@ -1,6 +1,7 @@
-import { Suspense, lazy, useCallback, useEffect } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
+import { ModalStackProvider, useModalStack } from './hooks/useModalStack'
 import { ThemeProvider } from './hooks/useTheme'
 import { ToastProvider } from './hooks/useToast'
 import { NotificationProvider } from './hooks/useNotificationCenter'
@@ -17,28 +18,31 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 const ServerErrorPage = lazy(() => import('./pages/ServerErrorPage'))
 const OfflinePage = lazy(() => import('./pages/OfflinePage'))
 
-// Preload all page bundles when the browser is idle — ensures instant
-// navigation when the operator switches tabs without adding to the
-// initial page load. Uses requestIdleCallback with a setTimeout fallback.
-function preloadOnIdle(importFn: () => Promise<unknown>) {
-  const fn = () => { importFn().catch(() => {}) }
-  if ('requestIdleCallback' in window) {
-    (window as Window & typeof globalThis).requestIdleCallback(fn, { timeout: 2000 })
-  } else {
-    setTimeout(fn, 1000)
-  }
-}
-
+// Preload all page bundles after mount via <link rel="modulepreload"> so
+// chunk fetches happen in the background and navigation is instant. Uses
+// import.meta.url to resolve relative paths to absolute module URLs that
+// the browser's module loader can fetch and cache without executing.
 function useRoutePreloader() {
   useEffect(() => {
-    preloadOnIdle(() => import('./pages/TradingWorkspace'))
-    preloadOnIdle(() => import('./pages/ExecutionWorkspace'))
-    preloadOnIdle(() => import('./pages/RiskWorkspace'))
-    // Preload heavy overlay components when browser is idle
-    preloadOnIdle(() => import('./components/AssetDetailPanel'))
-    preloadOnIdle(() => import('./components/AssetDeepDive'))
-    preloadOnIdle(() => import('./components/SystemHealthModal'))
-    preloadOnIdle(() => import('./components/WeeklyReviewModal'))
+    const routes = [
+      './pages/CommandCenter',
+      './pages/TradingWorkspace',
+      './pages/ExecutionWorkspace',
+      './pages/RiskWorkspace',
+    ]
+    for (const route of routes) {
+      const link = document.createElement('link')
+      link.rel = 'modulepreload'
+      link.href = new URL(route, import.meta.url).href
+      document.head.appendChild(link)
+    }
+    // Preload heavy overlay components when browser is idle (no modulepreload
+    // equivalent for these — they're imported directly in the render tree so
+    // they'd be double-fetched; idle-load them as fallback).
+    import('./components/AssetDetailPanel').catch(() => {})
+    import('./components/AssetDeepDive').catch(() => {})
+    import('./components/SystemHealthModal').catch(() => {})
+    import('./components/WeeklyReviewModal').catch(() => {})
   }, [])
 }
 
@@ -59,8 +63,7 @@ function AppContent() {
   useToastAlertBridge()
   const { data: state } = useSystemSnapshot(systemSelectors.snapshot)
   const { selectedAsset, deepDiveAsset, setSelectedAsset, setDeepDiveAsset } = useSelectedAsset()
-
-  const detailAsset = selectedAsset && state?.assets?.[selectedAsset]
+  const { push, pop } = useModalStack()
 
   // Stable callback identities (`useCallback`) preserve `React.memo` on
   // memo-wrapped children (CommandCenter page, AssetDetailPanel,
@@ -71,13 +74,61 @@ function AppContent() {
     [setSelectedAsset]
   )
   const handleCloseDetail = useCallback(
-    () => setSelectedAsset(null),
-    [setSelectedAsset]
+    () => {
+      setSelectedAsset(null)
+      pop('asset-detail')
+    },
+    [setSelectedAsset, pop]
   )
   const handleCloseDeepDive = useCallback(
-    () => setDeepDiveAsset(null),
-    [setDeepDiveAsset]
+    () => {
+      setDeepDiveAsset(null)
+      pop('asset-deep-dive')
+    },
+    [setDeepDiveAsset, pop]
   )
+
+  // Sync URL-based selection state to modal stack. The stack ensures
+  // ordered overlay rendering with a single backdrop (F9 fix).
+  const prevDetailRef = useRef(selectedAsset)
+  const prevDeepDiveRef = useRef(deepDiveAsset)
+
+  useEffect(() => {
+    if (selectedAsset && !deepDiveAsset) {
+      push({
+        id: 'asset-detail',
+        component: AssetDetailPanel,
+        props: { asset: state?.assets?.[selectedAsset], name: selectedAsset, onClose: handleCloseDetail },
+      })
+    } else if (!selectedAsset && prevDetailRef.current) {
+      pop('asset-detail')
+    }
+    prevDetailRef.current = selectedAsset
+  }, [selectedAsset, deepDiveAsset, state?.assets, handleCloseDetail, push, pop])
+
+  useEffect(() => {
+    if (deepDiveAsset) {
+      push({
+        id: 'asset-deep-dive',
+        component: AssetDeepDive,
+        props: { name: deepDiveAsset, onClose: handleCloseDeepDive },
+      })
+    } else if (!deepDiveAsset && prevDeepDiveRef.current) {
+      pop('asset-deep-dive')
+    }
+    prevDeepDiveRef.current = deepDiveAsset
+  }, [deepDiveAsset, handleCloseDeepDive, push, pop])
+
+  // Re-push detail entry when asset data updates to keep props fresh
+  useEffect(() => {
+    if (selectedAsset && !deepDiveAsset && state?.assets?.[selectedAsset]) {
+      push({
+        id: 'asset-detail',
+        component: AssetDetailPanel,
+        props: { asset: state.assets[selectedAsset], name: selectedAsset, onClose: handleCloseDetail },
+      })
+    }
+  }, [state?.assets, selectedAsset, deepDiveAsset, handleCloseDetail, push])
 
   return (
     <>
@@ -93,27 +144,6 @@ function AppContent() {
         </Routes>
       </Suspense>
 
-      {/* Modal stacking fix (F9): When the deep dive is open, the detail
-          panel closes — they are managed as a stack, not two independent
-          overlays. The deep dive replaces the detail panel, preventing
-          z-index conflicts and escape-key desync. */}
-      {!deepDiveAsset && detailAsset && (
-        <Suspense fallback={null}>
-          <AssetDetailPanel
-            asset={detailAsset}
-            name={selectedAsset!}
-            onClose={handleCloseDetail}
-          />
-        </Suspense>
-      )}
-      {deepDiveAsset && (
-        <Suspense fallback={null}>
-          <AssetDeepDive
-            name={deepDiveAsset}
-            onClose={handleCloseDeepDive}
-          />
-        </Suspense>
-      )}
       <Suspense fallback={null}><WeeklyReviewModal /></Suspense>
       <Suspense fallback={null}><SystemHealthModal /></Suspense>
       <ToastContainer />
@@ -130,9 +160,11 @@ export default function App() {
       <HashRouter>
         <SelectedAssetProvider>
           <SystemHealthModalProvider>
+          <ModalStackProvider>
           <AppShell>
             <AppContent />
           </AppShell>
+          </ModalStackProvider>
           </SystemHealthModalProvider>
         </SelectedAssetProvider>
       </HashRouter>

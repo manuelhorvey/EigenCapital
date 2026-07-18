@@ -75,7 +75,7 @@ describe('useWeeklyReview', () => {
   })
 
   it('returns null data on initial pending state', async () => {
-    mockFetch.mockImplementation(() => new Promise(() => {})) // never resolves
+    mockFetch.mockImplementation(() => new Promise(() => {}))
     const { wrapper } = withQueryClient()
     const { result } = renderHook(() => useWeeklyReview(), { wrapper })
     expect(result.current.data).toBeNull()
@@ -83,7 +83,7 @@ describe('useWeeklyReview', () => {
 
   it('handles schema validation failure gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockFetch.mockResolvedValue({ week_label: 123 }) // wrong type
+    mockFetch.mockResolvedValue({ week_label: 123 })
     const { wrapper } = withQueryClient()
     const { result } = renderHook(() => useWeeklyReview(), { wrapper })
     await waitFor(() => expect(result.current.isError).toBe(true))
@@ -144,7 +144,6 @@ describe('useWeeklyReview', () => {
     const { result } = renderHook(() => useWeeklyReview(), { wrapper })
     await waitFor(() => expect(result.current.isPending).toBe(false))
 
-    // Reset fetch call count after initial load
     mockFetch.mockReset()
     mockFetch.mockResolvedValue({})
 
@@ -152,14 +151,13 @@ describe('useWeeklyReview', () => {
       result.current.acknowledge()
     })
 
-    // Should have called the acknowledge endpoint
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/weekly-review/acknowledge', { method: 'POST' })
     })
   })
 
   it('does not error when acknowledge is called before data loads', async () => {
-    mockFetch.mockImplementation(() => new Promise(() => {})) // never resolves
+    mockFetch.mockImplementation(() => new Promise(() => {}))
     const { wrapper } = withQueryClient()
     const { result } = renderHook(() => useWeeklyReview(), { wrapper })
 
@@ -171,7 +169,7 @@ describe('useWeeklyReview', () => {
   })
 
   it('does not error when dismiss is called before data loads', async () => {
-    mockFetch.mockImplementation(() => new Promise(() => {})) // never resolves
+    mockFetch.mockImplementation(() => new Promise(() => {}))
     const { wrapper } = withQueryClient()
     const { result } = renderHook(() => useWeeklyReview(), { wrapper })
 
@@ -180,7 +178,6 @@ describe('useWeeklyReview', () => {
         result.current.dismiss()
       })
     }).not.toThrow()
-    // Should not set localStorage when no data
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 

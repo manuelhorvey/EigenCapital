@@ -12,14 +12,12 @@ from dotenv import load_dotenv
 # Re-exported from child modules for backward compatibility
 from paper_trading.alerting.manager import setup_alerting_from_config
 from paper_trading.asset_engine import AssetEngine  # noqa: F401
-from paper_trading.asset_engine_factory import build_asset_engine
 from paper_trading.config_manager import get_config
 from paper_trading.execution.bridge import ExecutionBridge
 from paper_trading.execution.mt5_broker import MT5Broker  # noqa: F401  (re-exported for backward compat)
 from paper_trading.execution.paper_broker import PaperBroker
 from paper_trading.execution_context import ExecutionContext
 from paper_trading.factories.broker_factory import BrokerFactory
-from paper_trading.governance.risk_registry import reset as _reset_risk_governance
 from paper_trading.logging.correlation import CorrelationIdFilter
 from paper_trading.logging.json_formatter import install_json_logging
 from paper_trading.ops.data_fetcher import (  # noqa: F401
@@ -36,17 +34,18 @@ from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.ops.simulation_snapshot import SimulationStore
 from paper_trading.orchestrator.actor import AssetActor
 from paper_trading.orchestrator._engine import EngineOrchestrator
-from paper_trading.portfolio_builder import build_paper_portfolio
 from paper_trading.replay.wal import WalWriter
+from paper_trading.services.asset_registry_service import AssetRegistryService
+from paper_trading.services.data_retention_service import DataRetentionService
 from paper_trading.services.engine_narrative_service import EngineNarrativeService
 from paper_trading.services.engine_rebalance_service import EngineRebalanceService
 from paper_trading.services.engine_recovery_service import EngineRecoveryService
 from paper_trading.services.engine_state_service import EngineStateService
+from paper_trading.services.full_panel_service import FullPanelService
+from paper_trading.services.snapshot_restorer import SnapshotRestorer
 from paper_trading.state_store import _SKIP_JOURNAL, StateStore, sanitize  # noqa: F401
 from paper_trading.writer import BackgroundWriter
 from shared.execution_config import build_execution_configs
-from shared.registry import StrategyRegistry
-
 load_dotenv()
 
 
@@ -143,28 +142,8 @@ class PaperTradingEngine:
 
         snapshot = self.state_store.load_snapshot()
 
-        # Reset global risk governance state, then restore persisted state
-        # (sell tripwire deques) from snapshot so the 20-trade rolling window
-        # survives restarts.
-        from paper_trading.governance.risk_registry import restore_state as set_risk_state
-
-        _reset_risk_governance()
-        if snapshot is not None and snapshot.risk_state:
-            try:
-                set_risk_state(snapshot.risk_state)
-                n_assets = len(snapshot.risk_state.get("sell_win_rates", {}))
-                if n_assets:
-                    logger.info(
-                        "Restored risk governance state for %d asset(s) from snapshot",
-                        n_assets,
-                    )
-            except (OSError, ValueError, TypeError, KeyError):
-                logger.exception("Failed to restore risk state from snapshot")
-        if snapshot is not None and snapshot.engine_status:
-            self.start_date = datetime.fromisoformat(
-                snapshot.engine_status.get("start_time", self.start_date.isoformat())
-            )
-        saved_positions = (snapshot.open_positions or {}) if snapshot else {}
+        self._snapshot_restorer = SnapshotRestorer(self)
+        saved_positions = self._snapshot_restorer.restore(snapshot)
 
         cfg = config or get_config()
         self._engine_cfg = cfg
@@ -202,13 +181,16 @@ class PaperTradingEngine:
         self._rebalance = EngineRebalanceService(self)
         self._recovery = EngineRecoveryService(self)
         self._state = EngineStateService(self)
+        self._full_panel = FullPanelService(self)
+        self._data_retention = DataRetentionService(self)
 
         self._execution_context = ExecutionContext(
             state_store=self.state_store,
             execution_bridge=self.execution_bridge,
             engine_config=self._engine_cfg,
         )
-        self._build_asset_registry()
+        self._asset_registry = AssetRegistryService(self)
+        self.assets = self._asset_registry.build()
         # Filter broker symbol map to only dashboard assets so MT5
         # client doesn't fetch/subscribe to non-portfolio symbols.
         if cfg.mt5.enabled and hasattr(self.broker, "_symbol_map"):
@@ -221,23 +203,7 @@ class PaperTradingEngine:
         self._init_experiment_context()
         self._narrative.init_narrative()
 
-        # Restore current_value for ALL assets from the snapshot so the equity curve
-        # starts at the correct baseline.  Previously, only assets with open positions
-        # had their current_value restored — flat assets reset to initial_capital,
-        # causing the "equity reset to baseline" symptom on restart.
-        if snapshot is not None and snapshot.asset_values:
-            for name, cv in snapshot.asset_values.items():
-                if name in self.assets:
-                    asset = self.assets[name]
-                    asset.current_value = cv
-                    asset.pos_mgr.current_value = cv
-                    if cv > asset.peak_value:
-                        asset.peak_value = cv
-                        asset.pos_mgr.peak_value = cv
-            logger.info(
-                "Restored current_value for %d assets from snapshot",
-                len(snapshot.asset_values),
-            )
+        self._snapshot_restorer.restore_asset_values(snapshot)
 
         # Restore open positions (may overwrite current_value for assets with positions)
         self._recovery.restore_positions(saved_positions)
@@ -286,23 +252,9 @@ class PaperTradingEngine:
         self.save_state()
 
     def _build_asset_registry(self) -> None:
-        portfolio = build_paper_portfolio(self._engine_cfg.halt)
-        _reg = StrategyRegistry.get_instance()
-        _reg.register_defaults(list(portfolio.keys()))
-        for name, spec in portfolio.items():
-            self.assets[name] = build_asset_engine(
-                ticker=spec["ticker"],
-                name=name,
-                contract=spec["contract"],
-                allocation=spec["alloc"],
-                halt_config=spec["halt"],
-                config=spec["config"],
-                sl_mult=spec.get("sl_mult", 1.0),
-                tp_mult=spec.get("tp_mult", 2.5),
-                max_depth=spec.get("max_depth", 2),
-                regime_geometry=spec.get("regime_geometry", {}),
-                context=self._execution_context,
-            )
+        svc = getattr(self, "_asset_registry", None)
+        if svc is not None:
+            self.assets = svc.build()
 
     def _init_experiment_context(self) -> None:
         """Initialize pipeline freeze and stamp attribution context on all assets."""
@@ -337,54 +289,9 @@ class PaperTradingEngine:
         return self._state.save_state()
 
     def _prune_old_data(self) -> None:
-        """Prune data files and SQLite tables older than their per-type retention period.
-
-        Runs at most once per calendar day to keep disk usage bounded
-        without slowing down every cycle. Retention periods are read from
-        the engine config (``self._engine_cfg.retention``), falling back
-        to module-level defaults in ``prune_data.RETENTION``.
-        """
-        today = datetime.now(tz=ET).strftime("%Y-%m-%d")
-        if self._last_prune_date == today:
-            return
-        self._last_prune_date = today
-
-        try:
-            from paper_trading.ops.prune_data import RETENTION, prune_all
-
-            retention = dict(RETENTION)
-            cfg_retention = getattr(self._engine_cfg, "retention", {})
-            # Map config keys to prune_data keys
-            key_map = {
-                "trades_days": "trades",
-                "attribution_days": "attribution",
-                "equity_history_days": "equity_history",
-                "trace_days": "trace.jsonl",
-                "wal_days": "wal/engine.jsonl",
-                "log_days": "engine.log",
-                "shadow_feedback_days": "shadow_feedback",
-                "shadow_memory_days": "shadow_memory",
-            }
-            for cfg_key, ret_key in key_map.items():
-                val = cfg_retention.get(cfg_key)
-                if val is not None and isinstance(val, (int, float)) and val > 0:
-                    retention[ret_key] = int(val)
-
-            logger.info(
-                "Pruning data older than retention limits: trades=%dd, attr=%dd, eq=%dd, log=%dd",
-                retention.get("trades", 365),
-                retention.get("attribution", 365),
-                retention.get("equity_history", 90),
-                retention.get("engine.log", 14),
-            )
-            stats = prune_all(apply=True, retention=retention)
-            total = sum(s.get("pruned", 0) + s.get("pruned_files", 0) for s in stats.values() if isinstance(s, dict))
-            if total > 0:
-                logger.info("Pruned %d items across %d data types", total, len(stats))
-            else:
-                logger.debug("No data needed pruning today")
-        except (OSError, ValueError, TypeError, KeyError) as e:
-            logger.warning("Auto-prune failed: %s", e)
+        svc = getattr(self, "_data_retention", None)
+        if svc is not None:
+            svc.prune()
 
     def initialize(self):
         from features.registry import ASSET_LABEL_PARAMS
@@ -418,50 +325,13 @@ class PaperTradingEngine:
         }
 
     def _build_full_panel(self):
-        """Pre-fetch all per-asset price series for cross-sectional (Group 1) features.
-
-        Returns a DataFrame of close prices (one column per asset), ffill-cleaned,
-        or None on failure. Used by train() so it includes the same Group 1
-        cross-sectional feature set that the live inference pipeline produces —
-        without this, retrained models get 74 features while inference expects
-        84, breaking inference for the freshly-trained model.
-
-        Cycle-cached: callers should hold the returned frame and pass it to
-        train(force=..., full_panel=full_panel).
-        """
-        import pandas as pd
-
-        from features.data_fetch import fetch_asset_data
-
-        # If we already built it this engine instance, reuse (rare — process restart
-        # usually degrades the cache). Otherwise construct fresh.
-        cached = getattr(self, "_full_panel_cache", None)
-        if cached is not None and not cached.empty and len(cached.columns) == len(self.assets):
-            return cached
-
-        panel_dict: dict[str, pd.Series] = {}
-        for aname, aengine in self.assets.items():
-            try:
-                ticker = getattr(aengine, "ticker", None) or getattr(getattr(aengine, "asset", None), "ticker", None)
-                if ticker is None:
-                    continue
-                aprices, _, _, _, _, _ = fetch_asset_data(aname, ticker)
-                if aprices is not None and not aprices.empty:
-                    panel_dict[aname] = aprices.iloc[:, 0]
-            except (OSError, ValueError, KeyError, RuntimeError, AttributeError):
-                continue
-
-        if not panel_dict:
-            self._full_panel_cache = None
-            return None
-
-        full_panel = pd.DataFrame(panel_dict).ffill().dropna(how="all")
-        self._full_panel_cache = full_panel
-        return full_panel
+        svc = getattr(self, "_full_panel", None)
+        return svc.build() if svc is not None else None
 
     def _invalidate_full_panel(self) -> None:
-        """Clear the cached full panel (call after adding/removing an asset)."""
-        self._full_panel_cache = None
+        svc = getattr(self, "_full_panel", None)
+        if svc is not None:
+            svc.invalidate()
 
     def _collect_results(self, results: dict, orch_results: dict) -> None:
         """Propagate orchestrator results into the engine-level results dict."""

@@ -444,6 +444,13 @@ class TestPaperTradingEngine:
         )
         eng._engine_cfg = SimpleNamespace(execution_defaults={})
         eng._cycle_weekend = False
+        eng._data_retention = SimpleNamespace(
+            prune=lambda: setattr(eng, "_last_prune_date", "2026-01-01"),
+        )
+        eng._full_panel = SimpleNamespace(
+            build=lambda: None,
+            invalidate=lambda: None,
+        )
         return eng
 
     def test_shutdown_calls_orchestrator_and_background_writer(self, engine):

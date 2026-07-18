@@ -437,6 +437,7 @@ class TestPaperTradingEngine:
         eng._rebalance = SimpleNamespace(
             should_rebalance=lambda: False,
             rebalance_portfolio=lambda: None,
+            write_weights_to_wal=lambda: None,
         )
         eng._state = SimpleNamespace(
             get_state=lambda: {"portfolio": {}, "assets": {}},
@@ -450,6 +451,13 @@ class TestPaperTradingEngine:
         eng._full_panel = SimpleNamespace(
             build=lambda: None,
             invalidate=lambda: None,
+        )
+        eng._model_integrity = SimpleNamespace(
+            check_integrity=lambda: None,
+            auto_retrain=lambda: None,
+        )
+        eng._benchmark = SimpleNamespace(
+            record_cycle=lambda t0, t1, t2, t3: None,
         )
         return eng
 
@@ -653,6 +661,7 @@ class TestPaperTradingEngine:
         engine._rebalance = SimpleNamespace(
             should_rebalance=lambda: True,
             rebalance_portfolio=lambda: None,
+            write_weights_to_wal=lambda: wal_events.append(("portfolio_weights", {})),
         )
         with patch("paper_trading.engine.is_market_closed", return_value=False):
             engine.run_once()

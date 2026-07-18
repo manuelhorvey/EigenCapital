@@ -103,3 +103,22 @@ class EngineRebalanceService:
             len(engine.assets),
             {n: f"{w:.3f}" for n, w in pw.weights.items() if w > 0.01},
         )
+
+    def write_weights_to_wal(self) -> None:
+        engine = self.engine
+        if not engine._rebalance_weights or engine._wal is None:
+            return
+        try:
+            weight_method = get_config().defaults.get("weight_method", "risk_parity_v1") or "risk_parity_v1"
+            engine._wal.write(
+                "portfolio_weights",
+                {
+                    "timestamp": datetime.now(tz=ET).isoformat(),
+                    "cycle": engine._cycle_count,
+                    "method": weight_method,
+                    "weights": {n: round(w, 4) for n, w in engine._rebalance_weights.items()},
+                    "n_assets": len(engine._rebalance_weights),
+                },
+            )
+        except (OSError, RuntimeError, KeyError):
+            logger.exception("WAL write failed for portfolio_weights")

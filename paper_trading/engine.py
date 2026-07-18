@@ -1,7 +1,5 @@
-import hashlib
 import logging
 import os
-import statistics
 import time
 from datetime import datetime
 from enum import Enum
@@ -36,12 +34,14 @@ from paper_trading.orchestrator.actor import AssetActor
 from paper_trading.orchestrator._engine import EngineOrchestrator
 from paper_trading.replay.wal import WalWriter
 from paper_trading.services.asset_registry_service import AssetRegistryService
+from paper_trading.services.benchmark_service import BenchmarkService
 from paper_trading.services.data_retention_service import DataRetentionService
 from paper_trading.services.engine_narrative_service import EngineNarrativeService
 from paper_trading.services.engine_rebalance_service import EngineRebalanceService
 from paper_trading.services.engine_recovery_service import EngineRecoveryService
 from paper_trading.services.engine_state_service import EngineStateService
 from paper_trading.services.full_panel_service import FullPanelService
+from paper_trading.services.model_integrity_service import ModelIntegrityService
 from paper_trading.services.snapshot_restorer import SnapshotRestorer
 from paper_trading.state_store import _SKIP_JOURNAL, StateStore, sanitize  # noqa: F401
 from paper_trading.writer import BackgroundWriter
@@ -183,6 +183,8 @@ class PaperTradingEngine:
         self._state = EngineStateService(self)
         self._full_panel = FullPanelService(self)
         self._data_retention = DataRetentionService(self)
+        self._model_integrity = ModelIntegrityService(self)
+        self._benchmark = BenchmarkService(self)
 
         self._execution_context = ExecutionContext(
             state_store=self.state_store,
@@ -397,56 +399,10 @@ class PaperTradingEngine:
                     ctx.freeze.experiment_id,
                 )
 
-        # Per-asset model file integrity: detect file changes mid-run and reload.
-        # This catches e.g. parallel retrain jobs that update the model JSON on disk
-        # while the engine is still using a stale in-memory copy.
-        for _asset_name, asset in list(self.assets.items()):
-            if not hasattr(asset, "_model_hash") or not hasattr(asset, "model_path"):
-                continue
-            model_path = asset.model_path
-            if not os.path.exists(model_path):
-                continue
-            try:
-                with open(model_path, "rb") as _fm:
-                    current_hash = hashlib.sha256(_fm.read()).hexdigest()[:16]
-                if current_hash != asset._model_hash and current_hash != "unknown":
-                    logger.info(
-                        "experiment: model hash changed for %s (%s… → %s…) — reloading",
-                        _asset_name,
-                        asset._model_hash[:8],
-                        current_hash[:8],
-                    )
-                    asset.train(force=False)
-            except (OSError, ValueError, TypeError, AttributeError):
-                logger.debug(
-                    "experiment: model integrity check skipped for %s",
-                    _asset_name,
-                    exc_info=True,
-                )
-
-        # ── Automatic retraining trigger (every 100 cycles ≈ 100min at 60s interval) ─────
-        if not hasattr(self, "_retrain_cycle_counter"):
-            self._retrain_cycle_counter = 0
-        self._retrain_cycle_counter += 1
-        if self._retrain_cycle_counter % 100 == 0:
-            _rt_min_stale_days = 90
-            for _rt_name, _rt_asset in list(self.assets.items()):
-                _rt_mp = getattr(_rt_asset, "model_path", None)
-                if _rt_mp and os.path.exists(_rt_mp):
-                    try:
-                        _rt_mtime = os.path.getmtime(_rt_mp)
-                        _rt_age_days = (time.time() - _rt_mtime) / 86400
-                        if _rt_age_days > _rt_min_stale_days:
-                            logger.info(
-                                "retrain: %s model is %.0f days old (threshold=%d) — retraining",
-                                _rt_name,
-                                _rt_age_days,
-                                _rt_min_stale_days,
-                            )
-                            _rt_full_panel = self._build_full_panel()
-                            _rt_asset.train(force=True, full_panel=_rt_full_panel)
-                    except OSError:
-                        pass
+        svc = getattr(self, "_model_integrity", None)
+        if svc is not None:
+            svc.check_integrity()
+            svc.auto_retrain()
 
         # ── Fault-isolated asset execution via orchestrator ──────────
         # The orchestrator owns Phases 1-4 (refresh, signal, validity,
@@ -499,22 +455,8 @@ class PaperTradingEngine:
         if self._should_rebalance():
             self._rebalance_portfolio()
 
-        # ── WAL: persist current portfolio weights ────────────────────
-        if self._rebalance_weights and self._wal is not None:
-            try:
-                _weight_method = get_config().defaults.get("weight_method", "risk_parity_v1") or "risk_parity_v1"
-                self._wal.write(
-                    "portfolio_weights",
-                    {
-                        "timestamp": datetime.now(tz=ET).isoformat(),
-                        "cycle": self._cycle_count,
-                        "method": _weight_method,
-                        "weights": {n: round(w, 4) for n, w in self._rebalance_weights.items()},
-                        "n_assets": len(self._rebalance_weights),
-                    },
-                )
-            except (OSError, RuntimeError, KeyError):
-                logger.exception("WAL write failed for portfolio_weights")
+        if hasattr(self._rebalance, "write_weights_to_wal"):
+            self._rebalance.write_weights_to_wal()
 
         _t3 = time.perf_counter()
 
@@ -531,27 +473,8 @@ class PaperTradingEngine:
             except (OSError, RuntimeError, AttributeError):
                 logger.exception("WAL flush failed at cycle boundary")
 
-        # ── Cycle benchmark ───────────────────────────────────────────
-        _elapsed = time.perf_counter() - _t0
-        self._cycle_times.append(_elapsed)
-        if len(self._cycle_times) > self._cycle_times_maxlen:
-            self._cycle_times = self._cycle_times[-self._cycle_times_maxlen :]
-        _orch_time = _t1 - _t0
-        _narr_time = _t2 - _t1
-        _rebal_time = _t3 - _t2
-        if len(self._cycle_times) % 20 == 0:
-            recent = self._cycle_times[-100:]
-            p50 = statistics.median(recent)
-            p95 = sorted(recent)[int(len(recent) * 0.95)]
-            logger.info(
-                "BENCHMARK: cycle=%.3fs  orch=%.3fs  narr=%.3fs  rebal=%.3fs  p50=%.3fs  p95=%.3fs  n=%d",
-                _elapsed,
-                _orch_time,
-                _narr_time,
-                _rebal_time,
-                p50,
-                p95,
-                len(recent),
-            )
+        svc_bm = getattr(self, "_benchmark", None)
+        if svc_bm is not None:
+            svc_bm.record_cycle(_t0, _t1, _t2, _t3)
 
         return results

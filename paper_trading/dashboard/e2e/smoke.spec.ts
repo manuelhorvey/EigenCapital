@@ -25,7 +25,7 @@ test.describe('Dashboard smoke tests', () => {
     await expect(tabBar).toBeAttached({ timeout: 10_000 })
     await expect(tabBar).toContainText('Dashboard')
     await expect(tabBar).toContainText('Trading')
-    await expect(tabBar).toContainText('Execution')
+    await expect(tabBar).toContainText('Analytics')
     await expect(tabBar).toContainText('Risk')
   })
 
@@ -48,12 +48,12 @@ test.describe('Dashboard smoke tests', () => {
     await expect(page.locator('#root')).toBeAttached({ timeout: 5_000 })
   })
 
-  test('navigates to Execution workspace via tab bar', async ({ page }) => {
+  test('navigates to Analytics workspace via tab bar', async ({ page }) => {
     await page.goto('/')
-    const execTab = page.locator('nav[aria-label="Main tabs"] a[href="/execution"]')
+    const execTab = page.locator('nav[aria-label="Main tabs"] a[href="/analytics"]')
     await expect(execTab).toBeVisible({ timeout: 10_000 })
     await execTab.click()
-    await page.waitForURL('**/execution')
+    await page.waitForURL('**/analytics')
     await expect(page.locator('#root')).toBeAttached({ timeout: 5_000 })
   })
 

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from signals.paper_signal_adapter import PaperSignalAdapter
+from paper_trading.signals.paper_signal_adapter import PaperSignalAdapter
 
 
 class TestFromProbabilities:

@@ -20,12 +20,14 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import signal
+from pathlib import Path
 import socket
 import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from eigencapital.platform.signals import ShutdownManager
 
 logger = logging.getLogger("eigencapital.mt5_supervisor")
 
@@ -163,6 +165,7 @@ class BridgeSupervisor:
         HealthHandler.state = self.state
 
         self._stop = threading.Event()
+        self._shutdown = ShutdownManager()
         self._proc: os.Popen[bytes] | None = None  # type: ignore[name-defined]
         self._health_server: ThreadingHTTPServer | None = None
         self._health_thread: threading.Thread | None = None
@@ -264,13 +267,9 @@ class BridgeSupervisor:
         )
         watchdog.start()
 
-        # Install signal handlers for graceful shutdown
-        def _sig_handler(sig, frame):  # type: ignore[no-untyped-def]
-            self._log(logging.INFO, "Received signal %d — shutting down", sig)
-            self._stop.set()
-
-        signal.signal(signal.SIGINT, _sig_handler)
-        signal.signal(signal.SIGTERM, _sig_handler)
+        # Install cross-platform signal handlers for graceful shutdown
+        self._shutdown.install_handlers()
+        self._shutdown.on_shutdown(lambda: self._stop.set())
 
         try:
             while not self._stop.is_set():

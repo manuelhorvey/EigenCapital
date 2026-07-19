@@ -39,7 +39,7 @@ export default function TradingWorkspace() {
   const { data, isPending, isError, error } = useSystemSnapshot()
 
   return (
-    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<TradingWorkspaceSkeleton />}>
+    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<TradingWorkspaceSkeleton />} serverTime={data?.meta?.server_time}>
       <div className={SECTION_SPACING}>
       <Stagger staggerMs={35}>
         <Section id="signals" errorTitle="Signals">

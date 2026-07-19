@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import Panel from './Panel'
 
 interface PageShellProps {
@@ -8,12 +8,28 @@ interface PageShellProps {
   hasData: boolean
   skeleton: ReactNode
   children: ReactNode
+  /** ISO timestamp from the last successful server response, for stale-data indicator. */
+  serverTime?: string
+}
+
+function formatAge(now: number, ts: number): string {
+  const s = Math.floor((now - ts) / 1000)
+  if (s < 5) return 'just now'
+  return `${s}s ago`
 }
 
 /** Gating wrapper that shows an error panel or a skeleton while the initial
  *  page data is loading. After first successful load, passes through to
  *  children (background refetches are masked by keepPreviousData). */
-export default function PageShell({ isPending, isError, error, hasData, skeleton, children }: PageShellProps) {
+export default function PageShell({ isPending, isError, error, hasData, skeleton, children, serverTime }: PageShellProps) {
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    if (!serverTime) return
+    const id = setInterval(() => setNow(Date.now()), 5_000)
+    return () => clearInterval(id)
+  }, [serverTime])
+
   if (isError && !hasData) {
     return (
       <Panel padding="md">
@@ -31,5 +47,20 @@ export default function PageShell({ isPending, isError, error, hasData, skeleton
     return <div aria-busy="true">{skeleton}</div>
   }
 
-  return <>{children}</>
+  return (
+    <>
+      {serverTime && (
+        <div className="flex justify-end mb-1">
+          <span className="text-[10px] text-muted font-mono tabular-nums">
+            Updated{' '}
+            {(() => {
+              const ts = new Date(serverTime).getTime()
+              return isNaN(ts) ? serverTime : formatAge(now, ts)
+            })()}
+          </span>
+        </div>
+      )}
+      {children}
+    </>
+  )
 }

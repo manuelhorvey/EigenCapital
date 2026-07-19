@@ -18,6 +18,7 @@ from paper_trading.execution_context import ExecutionContext
 from paper_trading.factories.broker_factory import BrokerFactory
 from paper_trading.logging.correlation import CorrelationIdFilter
 from paper_trading.logging.json_formatter import install_json_logging
+from paper_trading.observability.resource_monitor import get_resource_monitor
 from paper_trading.ops.data_fetcher import (  # noqa: F401
     _cache_path,
     fetch_history,
@@ -236,6 +237,9 @@ class PaperTradingEngine:
             db_store=self.state_store.db if hasattr(self.state_store, "db") else None,
         )
 
+        # Resource monitor (samples every cycle, warns on threshold breach)
+        self._resource_monitor = get_resource_monitor()
+
         # Fault-isolated actor orchestrator (Phase 5)
         # Pass snapshot so emergency halt state survives a restart.
         self._orchestrator = EngineOrchestrator(
@@ -279,19 +283,28 @@ class PaperTradingEngine:
         )
 
     def _refresh_narrative(self) -> bool:
-        return self._narrative._refresh_narrative()
+        """Check if narrative needs refresh and apply latest from disk.
+
+        Applies the latest confirmed narrative from disk synchronously
+        (fast — reads a small JSON file).  If a new week's narrative
+        is needed, kicks off the LLM pipeline on a background daemon
+        thread so the engine cycle is not blocked.
+        """
+        if hasattr(self._narrative, "apply_active_narrative"):
+            self._narrative.apply_active_narrative()
+        return bool(self._narrative._refresh_narrative())
 
     def _should_rebalance(self) -> bool:
-        return self._rebalance.should_rebalance()
+        return bool(self._rebalance.should_rebalance())
 
     def _rebalance_portfolio(self) -> None:
         self._rebalance.rebalance_portfolio()
 
     def get_state(self) -> dict:
-        return self._state.get_state()
+        return dict(self._state.get_state())
 
-    def save_state(self):
-        return self._state.save_state()
+    def save_state(self) -> dict[str, object]:
+        return dict(self._state.save_state() or {})
 
     def _prune_old_data(self) -> None:
         svc = getattr(self, "_data_retention", None)
@@ -327,6 +340,83 @@ class PaperTradingEngine:
             if isinstance(sig, dict):
                 results[name] = sig
 
+    def _run_weekend_cycle(self, results: dict) -> dict:
+        """Execute a weekend cycle for weekend-eligible assets only.
+
+        Runs the orchestrator with a filtered asset set, persists WAL,
+        and returns the results dict.  Returns an empty dict if no
+        weekend-eligible assets exist.
+        """
+        weekend_eligible = self._get_weekend_eligible_assets()
+        if not weekend_eligible:
+            logger.debug("Market closed — core assets skipped")
+            return {}
+        logger.info(
+            "Weekend cycle: processing %d weekend-eligible asset(s): %s",
+            len(weekend_eligible),
+            ", ".join(sorted(weekend_eligible)),
+        )
+        results["weekend_cycle"] = True
+        self._cycle_weekend = True
+        orch_results = self._orchestrator.run_once(allowed_assets=weekend_eligible)
+        self._collect_results(results, orch_results)
+        if orch_results.get("circuit_breaker"):
+            logger.error("Weekend circuit breaker triggered — reason=%s", orch_results["circuit_breaker"])
+            results["orchestrator_circuit_breaker"] = orch_results["circuit_breaker"]
+            self.last_update = datetime.now(tz=ET)
+            return results
+        # Don't skip post-cycle bookkeeping — still persist WAL
+        persist_commands = self._orchestrator.drain_persist_buffer()
+        for cmd in persist_commands:
+            pass
+        self._background_writer.flush()
+        if self._wal is not None:
+            try:
+                self._wal.flush()
+            except (OSError, RuntimeError, AttributeError):
+                logger.exception("WAL flush failed at weekend cycle boundary")
+        self._cycle_weekend = False
+        self.last_update = datetime.now(tz=ET)
+        return results
+
+    def _run_post_cycle_bookkeeping(
+        self,
+        results: dict,
+        _t0: float,
+        _t1: float,
+        _t2: float,
+        _t3: float,
+    ) -> None:
+        """Run post-cycle bookkeeping: narrative, rebalance, prune, flush, benchmarks.
+
+        Called after every normal (non-weekend) cycle.  Updates
+        last_update, prunes old data, flushes the background writer
+        and WAL, records benchmark timing, and samples resource usage.
+        """
+        self.last_update = datetime.now(tz=ET)
+
+        # ── Auto-prune old data (once per day) ───────────────────────
+        self._prune_old_data()
+
+        # ── Flush background writer and WAL ──────────────────────────
+        self._background_writer.flush()
+        if self._wal is not None:
+            try:
+                self._wal.flush()
+            except (OSError, RuntimeError, AttributeError):
+                logger.exception("WAL flush failed at cycle boundary")
+
+        svc_bm = getattr(self, "_benchmark", None)
+        if svc_bm is not None:
+            svc_bm.record_cycle(_t0, _t1, _t2, _t3)
+
+        # ── Resource monitoring (every 10th cycle) ─────────────────
+        if self._cycle_count % 10 == 0:
+            try:
+                self._resource_monitor.sample()
+            except (OSError, RuntimeError, ValueError):
+                logger.debug("Resource monitor sample failed (expected on non-Linux)", exc_info=True)
+
     def run_once(self):
         _t0 = time.perf_counter()
         self._cycle_count += 1
@@ -337,37 +427,7 @@ class PaperTradingEngine:
         results: dict[str, object] = {}
 
         if is_market_closed():
-            weekend_eligible = self._get_weekend_eligible_assets()
-            if not weekend_eligible:
-                logger.debug("Market closed — core assets skipped")
-                return {}
-            logger.info(
-                "Weekend cycle: processing %d weekend-eligible asset(s): %s",
-                len(weekend_eligible),
-                ", ".join(sorted(weekend_eligible)),
-            )
-            results["weekend_cycle"] = True
-            self._cycle_weekend = True
-            orch_results = self._orchestrator.run_once(allowed_assets=weekend_eligible)
-            self._collect_results(results, orch_results)
-            if orch_results.get("circuit_breaker"):
-                logger.error("Weekend circuit breaker triggered — reason=%s", orch_results["circuit_breaker"])
-                results["orchestrator_circuit_breaker"] = orch_results["circuit_breaker"]
-                self.last_update = datetime.now(tz=ET)
-                return results
-            # Don't skip post-cycle bookkeeping — still persist WAL
-            persist_commands = self._orchestrator.drain_persist_buffer()
-            for cmd in persist_commands:
-                pass
-            self._background_writer.flush()
-            if self._wal is not None:
-                try:
-                    self._wal.flush()
-                except (OSError, RuntimeError, AttributeError):
-                    logger.exception("WAL flush failed at weekend cycle boundary")
-            self._cycle_weekend = False
-            self.last_update = datetime.now(tz=ET)
-            return results
+            return self._run_weekend_cycle(results)
 
         self._cycle_weekend = False
 
@@ -443,21 +503,6 @@ class PaperTradingEngine:
 
         _t3 = time.perf_counter()
 
-        self.last_update = datetime.now(tz=ET)
-
-        # ── Auto-prune old data (once per day) ───────────────────────
-        self._prune_old_data()
-
-        # ── Flush background writer and WAL ──────────────────────────
-        self._background_writer.flush()
-        if self._wal is not None:
-            try:
-                self._wal.flush()
-            except (OSError, RuntimeError, AttributeError):
-                logger.exception("WAL flush failed at cycle boundary")
-
-        svc_bm = getattr(self, "_benchmark", None)
-        if svc_bm is not None:
-            svc_bm.record_cycle(_t0, _t1, _t2, _t3)
+        self._run_post_cycle_bookkeeping(results, _t0, _t1, _t2, _t3)
 
         return results

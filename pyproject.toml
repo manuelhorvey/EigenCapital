@@ -9,15 +9,17 @@ include = [
     "data*",
     "features*",
     "labels*",
-    "models*",
     "monitoring*",
     "paper_trading*",
     "portfolio*",
     "eigencapital*",
-    "risk*",
     "shared*",
-    "signals*",
 ]
+# NOTE: Two package roots (eigencapital.* and paper_trading.*) is intentional.
+# eigencapital/ is the domain layer (hexagonal core), paper_trading/ is the
+# infrastructure layer (engine, MT5 bridge). Consolidating them would require
+# moving paper_trading/ under eigencapital/ — a significant refactor tracked
+# as future work. For now, the dual namespace is a known architectural trade-off.
 exclude = ["tests*", "archive*", "notebooks*"]
 
 [tool.setuptools.package-data]
@@ -123,6 +125,11 @@ select = ["I", "E", "F", "W", "UP", "N", "SIM", "BLE"]
 # BLE001: fault-isolated actor orchestrator intentionally catches Exception
 # to prevent any single actor crash from taking down the full engine.
 "paper_trading/orchestrator/_engine.py" = ["BLE001"]
+# BLE001: json_formatter._safe_get_message() catches BaseException as a logging safety
+# net — logging must never crash the caller, even if the format string is malformed or
+# the record.message attribute is unrepresentable. This is a deliberate architectural
+# choice: resilient logging is more important than strict exception hygiene here.
+"paper_trading/logging/json_formatter.py" = ["BLE001"]
 # E501: all grandfathered files removed from codebase as of 2026-07.
 #       No remaining E501 per-file-ignores.
 
@@ -138,7 +145,7 @@ python_files = ["test_*.py"]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = ["backtests", "diagnostics", "eigencapital", "features", "labels", "models", "monitoring", "paper_trading", "portfolio", "risk", "shared", "signals"]
+source = ["backtests", "diagnostics", "eigencapital", "features", "labels", "monitoring", "paper_trading", "portfolio", "shared"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -158,7 +165,6 @@ files = [
     "paper_trading/orchestrator/admission/",
     # Expanded coverage: shared/ modules
     "shared/",
-    "risk/",
     "portfolio/",
 ]
 exclude = [
@@ -167,4 +173,136 @@ exclude = [
     "backtests/",
     "paper_trading/dashboard/",
 ]
+
+# Per-module mypy overrides for gradual typing migration.
+# These files have accumulated type-annotation debt that is tracked
+# in the engineering backlog. Each override should be removed as the
+# module is brought to full compliance.
+#
+# Targeted suppressions used:
+#   - disallow_untyped_defs = false: allow untyped function definitions
+#   - warn_return_any = false: allow returning Any from typed functions
+#
+# CRITICAL: These still catch union-attr, arg-type, assignment, attr-defined,
+# and other structural type errors — only annotation completeness is relaxed.
+[[tool.mypy.overrides]]
+module = "paper_trading.api.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.shadow.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.alerting.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.metrics.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.ops.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.inference.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.pek.perf.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.position.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.replay.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.observability.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.services.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.attribution.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.entry.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.execution.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+# Per-file overrides for remaining top-level files not covered by module overrides.
+[[tool.mypy.overrides]]
+module = "paper_trading.asset_engine"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.asset_pnl_controller"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.asset_engine_factory"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.state.database_store"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.serve"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.state"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.orchestrator"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.execution_context"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.monitoring"
+disallow_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "paper_trading.governance"
+disallow_untyped_defs = false
+warn_return_any = false
 

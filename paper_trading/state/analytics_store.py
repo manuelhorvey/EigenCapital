@@ -206,7 +206,7 @@ class _AnalyticsStore:
             return None
         try:
             with open(self._analytics_path) as f:
-                return json.load(f)
+                return json.load(f)  # type: ignore[no-any-return]
         except (OSError, json.JSONDecodeError):
             logger.exception("Failed to read analytics snapshot")
             return None

@@ -40,7 +40,7 @@ def build_asset_learning_profile(asset: str, months: int = 3) -> dict | None:
         agreement_scores = []
         instability_scores = []
         risk_alignment_scores = []
-        action_counter = Counter()
+        action_counter: Counter = Counter()
         drift_sensitivities = []
 
         for e in events:
@@ -82,7 +82,7 @@ def build_asset_learning_profile(asset: str, months: int = 3) -> dict | None:
         return None
 
 
-def compare_assets(months: int = 3) -> list:
+def compare_assets(months: int = 3) -> dict:
     try:
         profiles = []
         for asset in PAPER_PORTFOLIO:
@@ -139,7 +139,7 @@ def compare_learning_profiles() -> dict:
 
 def detect_systemic_patterns() -> dict:
     try:
-        all_patterns = Counter()
+        all_patterns: Counter = Counter()
         fragility_scores = []
         risk_signatures = []
 

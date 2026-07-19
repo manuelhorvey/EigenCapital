@@ -119,7 +119,7 @@ class ExecutionBridge:
         config = self.broker._get_config(asset)
         if self.simulator is not None:
             market = self._build_market_snapshot(asset, mid_price, ohlcv)
-            result = self.simulator.simulate("entry", side, mid_price, quantity, market, config)
+            result = self.simulator.simulate("entry", side, mid_price, quantity, market, config)  # type: ignore[arg-type]
             fill = result.fill_price
             slippage_bps = result.slippage_bps
             impact_bps = 0.0

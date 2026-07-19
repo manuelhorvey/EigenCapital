@@ -84,7 +84,9 @@ class AssetEngine:
         registry: StrategyRegistry | None = None,
     ) -> None:
         ctx = context or ExecutionContext()
-        engine_cfg = ctx.get_engine_config()
+        engine_cfg_raw = ctx.get_engine_config()
+        # Cast from object to EngineConfig (actual runtime type)
+        engine_cfg: EngineConfig = engine_cfg_raw  # type: ignore[assignment]
         self._engine_cfg = engine_cfg
 
         # ── Core identity ────────────────────────────────────────────
@@ -99,6 +101,35 @@ class AssetEngine:
         self.tp_mult = tp_mult
         self.max_depth = max_depth
         self.regime_geometry = regime_geometry or {}
+
+        # Type annotations for dynamically-set attributes (mypy compat)
+        self.trades: list = []
+        self.trade_log: list = []
+        self.prob_history: list = []
+        self.regime_feature_names: list[str] = []
+        self._signal_chain: list = []
+        self._attribution_export_dir: str | None = None
+        self._attribution_buffer: list = []
+        self._current_trade_id: str | None = None
+        self._cycle_counter: int = 0
+        self._entry_signal_dir: Any = None
+        self._last_macro_dir: Any = None
+        self._last_blend_dir: Any = None
+        self._regime_adjusted_entry: float = 0.0
+        self._entry_price: float = 0.0
+        self._churn_ratio_threshold: float = 0.50
+        self._pending_entries: list = []
+        self._experiment_id: str = ""
+        self._cooldown_score: float = 0.0
+        self._last_cooldown_update_cycle: int = 0
+        self._min_flip_interval_bars: int = 3
+        self._regime_bar_counter: int = 0
+        self._last_confidence: float = 0.0
+        self._last_spread_bps: float = 0.0
+        self._last_spread_time: float = 0.0
+        self._last_price_refresh: datetime | None = None
+        self.current_price: float | None = None
+        self._market_data: Any = None
 
         # ── Delegated initialization (ARCH-02) ───────────────────────
         self._init_capital_state(engine_cfg, initial_capital, position_size)
@@ -176,7 +207,7 @@ class AssetEngine:
         self._last_regime_raw_probas = None
         self._last_regime_long_prob = None
         self._last_regime_features = None
-        self._last_final_signal = None
+        self._last_final_signal: str | None = None
         self._scale_out_plan = None
         self._last_stability = None
         self._last_psi_drift = None
@@ -358,10 +389,12 @@ class AssetEngine:
         self.governance.refresh_liquidity(df)
 
     def _effective_capital(self) -> float:
-        return self._entry.effective_capital(
-            initial_capital=self.initial_capital,
-            capital_base=self.capital_base,
-            current_value=self.current_value,
+        return float(
+            self._entry.effective_capital(
+                initial_capital=self.initial_capital,
+                capital_base=self.capital_base,
+                current_value=self.current_value,
+            )
         )
 
     def _meta_size_multiplier(self) -> float:
@@ -498,7 +531,9 @@ class AssetEngine:
             self._sl_exits += 1
 
         # Clean up batch tracking
-        self.batches.pop(trade_id, None) if trade_id else self.batches.pop(self._current_trade_id, None)
+        tid = trade_id if trade_id is not None else self._current_trade_id
+        if tid is not None:
+            self.batches.pop(tid, None)
         # Backward compat: clear the legacy position dict if it was set directly
         if self.position is not None and not self.batches:
             self.position = None
@@ -518,9 +553,7 @@ class AssetEngine:
             regime_short_prob=(
                 round(float(self._last_regime_raw_probas[0]), 6) if self._last_regime_raw_probas is not None else None
             ),
-            regime_label=(
-                self._last_regime_row.regime_label if getattr(self, "_last_regime_row", None) is not None else None
-            ),
+            regime_label=(self._last_regime_row.regime_label if self._last_regime_row is not None else None),
             regime_features=self._last_regime_features,
         )
         trade = mutations.get("trade", {})
@@ -545,16 +578,16 @@ class AssetEngine:
         pos = self.pos_mgr.position
         if pos is None:
             return None
-        if trade_id is not None and trade_id != getattr(self, "_current_trade_id", None):
+        if trade_id is not None and trade_id != self._current_trade_id:
             return None
         vol = getattr(self, "_entry_vol", None)
         if vol is None or vol <= 0:
             return None
         try:
             if pos.is_long:
-                return (ae._best_price - pos.entry_price) / (pos.entry_price * vol)
+                return float((ae._best_price - pos.entry_price) / (pos.entry_price * vol))
             else:
-                return (pos.entry_price - ae._best_price) / (pos.entry_price * vol)
+                return float((pos.entry_price - ae._best_price) / (pos.entry_price * vol))
         except (ZeroDivisionError, TypeError):
             return None
 

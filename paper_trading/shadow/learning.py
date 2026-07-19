@@ -105,7 +105,7 @@ def _compute_learning_profile(events: list) -> dict:
 
 
 def _mine_latent_patterns(events: list) -> list:
-    patterns = []
+    patterns: list = []
     n = len(events)
     if n < 5:
         return patterns
@@ -114,7 +114,7 @@ def _mine_latent_patterns(events: list) -> list:
     flip_rates = []
     instability_scores = []
     risk_levels = []
-    regime_counts = Counter()
+    regime_counts: Counter = Counter()
 
     for e in events:
         inp = e.get("inputs", {})
@@ -227,8 +227,8 @@ def _compute_shadow_insights(events: list) -> dict:
     if n == 0:
         return {"top_instability_drivers": [], "dominant_failure_mode": "unknown", "execution_fragility_score": 0.0}
 
-    drift_dims = {"model": [], "signal": [], "pnl": [], "feature": [], "regime": []}
-    flag_counter = Counter()
+    drift_dims: dict = {"model": [], "signal": [], "pnl": [], "feature": [], "regime": []}
+    flag_counter: Counter = Counter()
 
     for e in events:
         inp = e.get("inputs", {})

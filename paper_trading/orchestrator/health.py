@@ -331,7 +331,7 @@ class RecoveryScheduler:
         now = time.monotonic()
         last = self._last_probe.get(asset, 0.0)
         delay = min(self._base * (2 ** self._attempts.get(asset, 0)), self._max)
-        return (now - last) >= delay
+        return (now - last) >= delay  # type: ignore[no-any-return]
 
     def record_result(self, asset: str, success: bool, error: str = "") -> None:
         self._history.append(

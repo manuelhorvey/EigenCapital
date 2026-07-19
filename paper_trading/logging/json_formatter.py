@@ -91,7 +91,7 @@ class JsonFormatter(logging.Formatter):
         }
 
         if getattr(record, "correlation_id", None):
-            base["correlation_id"] = record.correlation_id
+            base["correlation_id"] = record.correlation_id  # type: ignore[attr-defined]
 
         if record.exc_info:
             base["exc"] = self.formatException(record.exc_info)
@@ -115,20 +115,21 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(base, ensure_ascii=self._ensure_ascii, indent=self._indent)
 
     @staticmethod
-    def _safe_get_message(record: logging.LogRecord) -> str:  # noqa: BLE001
+    def _safe_get_message(record: logging.LogRecord) -> str:
         """Return the formatted message, falling back to ``str(record.msg)`` on error.
 
         ``record.getMessage()`` can raise when the format string + args are
         malformed (e.g. unbalanced ``{`` / ``}`` placeholders for non-format
         messages, or ``args`` of an unexpected type). We never want logging
-        itself to crash the caller.
+        itself to crash the caller — see per-file-ignore for this module in
+        ``pyproject.toml`` ([tool.ruff.lint.per-file-ignores]).
         """
         try:
             return record.getMessage()
-        except BaseException:  # noqa: BLE001 — safety net; logging must never crash
+        except BaseException:
             try:
                 return str(record.msg)
-            except BaseException:  # noqa: BLE001
+            except BaseException:
                 return "<unrepresentable log message>"
 
 

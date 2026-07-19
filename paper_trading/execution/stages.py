@@ -135,7 +135,7 @@ def apply_confidence_gate(ctx: DecisionContext) -> None:
             cfg_defaults.get("min_confidence"),
             0.55,
         )
-    if ctx.decision.confidence < min_conf:
+    if ctx.decision.confidence < min_conf:  # type: ignore[operator]
         logger.debug(
             "%s: skipping %s, confidence %.1f%% < min_confidence_%s=%.1f%%",
             engine.name,
@@ -925,7 +925,7 @@ def apply_regime_transition_gate(ctx: DecisionContext) -> None:
                     float(REGIME_TRANSITION_SUPPRESS_DAYS),
                 )
                 ctx.new_side = None
-    except Exception:  # noqa: BLE001
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError, IndexError):
         logger.debug("%s: regime transition check failed", engine.name, exc_info=True)
 
 
@@ -1079,7 +1079,7 @@ def apply_weekend_gate(ctx: DecisionContext) -> None:
         now.strftime("%a %Y-%m-%d %H:%M UTC"),
     )
     ctx.new_side = None
-    ctx.reason = "weekend_gate"
+    ctx.reason = "weekend_gate"  # type: ignore[attr-defined]
     ctx.abort = True
 
 

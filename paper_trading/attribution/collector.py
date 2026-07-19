@@ -22,6 +22,8 @@ import logging
 from dataclasses import dataclass, fields
 from datetime import datetime
 
+import pandas as pd
+
 from paper_trading.entry.decision import PositionSide
 
 logger = logging.getLogger("eigencapital.trade_attribution")
@@ -222,9 +224,8 @@ class TradeAttributionRecord:
         return d
 
     @classmethod
-    def to_frame(cls, records: list[TradeAttributionRecord], experiment_id: str = "") -> pd.DataFrame:  # noqa: F821
+    def to_frame(cls, records: list[TradeAttributionRecord], experiment_id: str = "") -> pd.DataFrame:
         """Build a DataFrame from a list of records."""
-        import pandas as pd  # noqa: F401  # defer import
 
         rows = [r.to_dict() for r in records]
         for row in rows:
@@ -429,10 +430,10 @@ class AttributionCollector:
             logger.warning("trade_attribution: no scratch for trade_id=%s", trade_id)
             return None
 
-        pred: PredictionAttribution = scratch.get("prediction")
-        exec_attr: ExecutionAttribution = scratch.get("execution")
-        friction: FrictionAttribution = scratch.get("friction")
-        dq: DecisionQuality = scratch.get("decision_quality")
+        pred: PredictionAttribution | None = scratch.get("prediction")
+        exec_attr: ExecutionAttribution | None = scratch.get("execution")
+        friction: FrictionAttribution | None = scratch.get("friction")
+        dq: DecisionQuality | None = scratch.get("decision_quality")
 
         if pred is None:
             logger.warning("trade_attribution: no prediction for trade_id=%s", trade_id)
@@ -503,8 +504,8 @@ class AttributionCollector:
 
         # Build friction counterfactual
         if counterfactual_ideal_fill_r is not None and counterfactual_real_fill_r is not None:
-            friction.counterfactual_ideal_fill_r = counterfactual_ideal_fill_r
-            friction.counterfactual_real_fill_r = counterfactual_real_fill_r
+            friction.counterfactual_ideal_fill_r = counterfactual_ideal_fill_r  # type: ignore[union-attr]
+            friction.counterfactual_real_fill_r = counterfactual_real_fill_r  # type: ignore[union-attr]
 
         if exec_attr is None:
             exec_attr = ExecutionAttribution(

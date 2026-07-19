@@ -115,7 +115,7 @@ class ShadowModelRunner:
         t0 = time.perf_counter()
         try:
             feature_array = np.array([list(feature_vector.values())]).astype(np.float32)
-            proba = self._model.predict_proba(feature_array)[0]
+            proba = self._model.predict_proba(feature_array)[0]  # type: ignore[union-attr]
         except (ValueError, RuntimeError) as exc:
             logger.warning("Shadow model %s inference failed: %s", self.shadow_id, exc)
             return None

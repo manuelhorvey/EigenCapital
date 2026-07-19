@@ -4,15 +4,22 @@ confidence buckets, and equity history.
 Uses a thread-local connection pool to avoid creating a fresh connection
 on every operation. Foreign keys are enforced. Schema migrations are
 version-tracked via the ``strategy_metadata`` table.
+
+On startup, runs an integrity check on the database file and WAL journal
+(see ``integrity_check.py``). A corrupt database raises immediately rather
+than silently degrading over time.
 """
 
 import atexit
 import contextlib
 import logging
+import os
 import sqlite3
 import threading
 
 import pandas as pd
+
+from paper_trading.state.integrity_check import check_database_integrity
 
 logger = logging.getLogger("eigencapital.state_store")
 
@@ -40,6 +47,25 @@ class _DatabaseStore:
         self._db_path = db_path
         self._write_count = 0
         self._checkpoint_interval = checkpoint_interval
+
+        # ── Startup integrity check ──────────────────────────────────
+        # Validate the database file and WAL journal before proceeding.
+        # A corrupt database raises DatabaseIntegrityError immediately
+        # rather than silently degrading write operations.
+        _db_dir = os.path.dirname(db_path)
+        if os.path.isdir(_db_dir) and os.path.isfile(db_path):
+            try:
+                result = check_database_integrity(db_path, repair_on_failure=False)
+                if result["status"] != "OK":
+                    logger.warning(
+                        "Database integrity issue on startup: %s",
+                        result.get("errors", []),
+                    )
+            except Exception as exc:  # noqa: BLE001 — startup must not crash on integrity check
+                logger.warning("Database integrity check skipped (first run?): %s", exc)
+        else:
+            logger.debug("No existing database at %s — will create on first write", db_path)
+
         try:
             self._init_db()
         except (RuntimeError, sqlite3.DatabaseError, OSError):
@@ -469,7 +495,7 @@ class _DatabaseStore:
                     clause_strings.append("AND asset = ?")
                     clause_params.append(asset)
                 query += " " + " ".join(clause_strings)
-                clause_params.extend([limit, offset])
+                clause_params.extend([limit, offset])  # type: ignore[list-item]
                 rows = conn.execute(
                     query + " ORDER BY exit_date DESC LIMIT ? OFFSET ?",
                     tuple(clause_params),

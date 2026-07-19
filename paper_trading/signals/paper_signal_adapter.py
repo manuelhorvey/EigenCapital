@@ -28,7 +28,7 @@ class PaperSignalAdapter:
 
         return TradeDecision(
             asset=asset,
-            signal=signal,
+            signal=signal,  # type: ignore[arg-type]
             label=label,
             confidence=round(float(confidence * 100), 2),
             prob_long=round(float(prob_long), 4),

@@ -605,7 +605,7 @@ class MT5Client:
             params["idempotency_key"] = idempotency_key
         return self._proto.send_request("place_order", params)
 
-    def get_positions(self) -> list[dict]:
+    def get_positions(self) -> dict | list[dict]:
         return self._proto.send_request("get_positions")
 
     def get_account(self) -> dict | None:

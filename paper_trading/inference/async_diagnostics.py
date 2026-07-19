@@ -68,7 +68,7 @@ class DiagnosticsQueue:
                 )
                 mod_div = diag.analyze_model_distribution(snap.asset_name, proba_list)
                 x_row = pd.DataFrame([snap.feature_row])
-                proba_arr = snap.model.predict_proba(x_row)
+                proba_arr = snap.model.predict_proba(x_row)  # type: ignore[attr-defined]
                 feat_drivers = diag.analyze_feature_impact(
                     snap.model,
                     x_row,

@@ -39,7 +39,7 @@ def store_event(asset: str, event: dict) -> None:
 def read_events(asset: str, days: int = 90) -> list:
     try:
         cutoff = utc_now_naive() - timedelta(days=days)
-        events = []
+        events: list = []
         asset_dir = os.path.join(MEMORY_DIR, asset)
         if not os.path.isdir(asset_dir):
             return events
@@ -95,7 +95,7 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
     signal_match_count = 0
     signal_total = 0
     pnl_diffs = []
-    regime_counts = Counter()
+    regime_counts: Counter = Counter()
     sl_deltas, tp_deltas = [], []
 
     for e in events:

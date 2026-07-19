@@ -255,7 +255,7 @@ def prune_sqlite_table(
             result = method(cutoff_date, apply=apply)
             dry_run_stats[table_name] = result
             return
-    except Exception as e:  # noqa: BLE001
+    except (ImportError, AttributeError, OSError, RuntimeError, KeyError) as e:
         logger.warning("Store-based prune for %s failed (%s); falling back to direct", table_name, e)
 
     # Fallback: direct SQLite
@@ -275,7 +275,7 @@ def prune_sqlite_table(
         kept = total - pruned
         dry_run_stats[table_name] = {"total": total, "kept": kept, "pruned": pruned}
         conn.close()
-    except Exception as e:  # noqa: BLE001
+    except (sqlite3.DatabaseError, OSError, RuntimeError, ValueError) as e:
         logger.error("Direct SQLite prune for %s failed: %s", table_name, e)
         dry_run_stats[table_name] = {"error": str(e)}
 
@@ -374,11 +374,11 @@ def prune_all(
         ("equity_history", "timestamp", retention.get("equity_history", 90)),
     ]
     for table_name, date_col, days in sqlite_tables:
-        cutoff_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+        cutoff_date_str = (now - timedelta(days=days)).strftime("%Y-%m-%d")
         prune_sqlite_table(
             table_name,
             date_col,
-            cutoff_date,
+            cutoff_date_str,
             apply=apply,
             dry_run_stats=stats,
         )

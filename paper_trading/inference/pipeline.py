@@ -403,9 +403,9 @@ class AssetInferencePipeline:
             # calibration flips the prediction to BUY (cal_p_long > 0.5),
             # the confidence should be cal_p_long, not 1 - cal_p_long.
             asset._calibrated_confidence = (
-                float(cal_p_long[-1])  # BUY:  P(win|BUY)
-                if cal_p_long[-1] > 0.5
-                else float(1.0 - cal_p_long[-1])  # SELL: P(win|SELL)
+                float(cal_p_long[-1])  # type: ignore[index]  # BUY:  P(win|BUY)
+                if cal_p_long[-1] > 0.5  # type: ignore[index]
+                else float(1.0 - cal_p_long[-1])  # type: ignore[index]  # SELL: P(win|SELL)
             )
 
             _row_sum = proba.sum(axis=1, keepdims=True)

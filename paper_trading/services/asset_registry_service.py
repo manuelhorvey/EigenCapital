@@ -30,4 +30,4 @@ class AssetRegistryService:
                 regime_geometry=spec.get("regime_geometry", {}),
                 context=self.engine._execution_context,
             )
-        return assets
+        return assets  # type: ignore[return-value]

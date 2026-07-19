@@ -117,24 +117,28 @@ def _mt5_get_client() -> object | None:
 
 def _mt5_ensure_connected() -> bool:
     """Ensure the global MT5 client is connected, reconnecting if needed."""
+    import typing
+
     client = _mt5_get_client()
     if client is None:
         return False
     try:
-        return client.ensure_connected()
+        return typing.cast(bool, client.ensure_connected())  # type: ignore[attr-defined]
     except (OSError, AttributeError, TypeError):
         return False
 
 
 def _mt5_fetch_ohlcv(ticker: str, years: int = 2) -> pd.DataFrame:
     """Fetch OHLCV via MT5 client if installed."""
+    import typing
+
     client = _mt5_get_client()
     if client is None:
         return pd.DataFrame()
     if not _mt5_ensure_connected():
         return pd.DataFrame()
     try:
-        return client.fetch_ohlcv(ticker, years=years)
+        return typing.cast(pd.DataFrame, client.fetch_ohlcv(ticker, years=years))  # type: ignore[attr-defined]
     except (OSError, AttributeError, TypeError, ValueError) as e:
         logger.warning("MT5 fetch_ohlcv failed for %s: %s", ticker, e)
         return pd.DataFrame()
@@ -142,13 +146,15 @@ def _mt5_fetch_ohlcv(ticker: str, years: int = 2) -> pd.DataFrame:
 
 def _mt5_realtime_price(ticker: str) -> float | None:
     """Fetch realtime price via MT5 client if installed."""
+    import typing
+
     client = _mt5_get_client()
     if client is None:
         return None
     if not _mt5_ensure_connected():
         return None
     try:
-        return client.realtime_mid_price(ticker)
+        return typing.cast(float | None, client.realtime_mid_price(ticker))  # type: ignore[attr-defined]
     except (OSError, AttributeError, TypeError, ValueError) as e:
         logger.warning("MT5 realtime_price failed for %s: %s", ticker, e)
         return None
@@ -238,7 +244,7 @@ def safe_download(ticker: str, **kwargs) -> pd.DataFrame:
         if "start" in kwargs:
             try:
                 start = datetime.strptime(kwargs["start"], "%Y-%m-%d")
-                years = max((datetime.now() - start).days / 365, 1)
+                years = max(int((datetime.now() - start).days / 365), 1)
             except (ValueError, TypeError):
                 pass
         df = _mt5_fetch_ohlcv(ticker, years=int(years) + 1)

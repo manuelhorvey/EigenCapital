@@ -7,11 +7,12 @@ from paper_trading.api.common import (
     get_server_store,
     json_dumps,
 )
+from paper_trading.state_store import StateStore
 
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_attribution_trades(path: str, query: dict, state_store=None) -> str:
+def handle_attribution_trades(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 50)), 500))
     offset = max(0, int(query.get("offset", 0)))
@@ -30,7 +31,7 @@ def handle_attribution_trades(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_attribution_summary(path: str, query: dict, state_store=None) -> str:
+def handle_attribution_summary(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     all_records = store.read_attribution(limit=limit)
@@ -64,7 +65,7 @@ def handle_attribution_summary(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_attribution_waterfall(path: str, query: dict, state_store=None) -> str:
+def handle_attribution_waterfall(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
@@ -84,13 +85,13 @@ def handle_attribution_waterfall(path: str, query: dict, state_store=None) -> st
     from shared.metrics.attribution import compute_waterfall
 
     result = compute_waterfall(records)
-    result["updated_at"] = datetime.now(tz=ET).isoformat()
+    result = {**result, "updated_at": datetime.now(tz=ET).isoformat()}  # type: ignore[dict-item]
     data = json_dumps(result, indent=2)
     cache_set("/attribution/waterfall.json", data)
     return data
 
 
-def handle_analytics_snapshot(path: str, query: dict, state_store=None) -> str:
+def handle_analytics_snapshot(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.read_analytics_snapshot()
     if snapshot is not None:
@@ -98,29 +99,30 @@ def handle_analytics_snapshot(path: str, query: dict, state_store=None) -> str:
     return json_dumps({"overall": {}, "by_archetype": {}, "by_regime": {}, "shadow": {}}, indent=2)
 
 
-def handle_live_attribution(path: str, query: dict, state_store=None) -> str:
+def handle_live_attribution(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     open_positions = snapshot.open_positions if snapshot else {}
-    live = []
-    for name, data in open_positions.items():
-        pos = data.get("position", {})
-        live.append(
-            {
-                "asset": name,
-                "side": pos.get("side"),
-                "entry_price": pos.get("entry"),
-                "current_value": data.get("current_value"),
-                "running_mae": data.get("running_mae"),
-                "running_mfe": data.get("running_mfe"),
-            }
-        )
+    live: list = []
+    if open_positions:
+        for name, data in open_positions.items():
+            pos = data.get("position", {})
+            live.append(
+                {
+                    "asset": name,
+                    "side": pos.get("side"),
+                    "entry_price": pos.get("entry"),
+                    "current_value": data.get("current_value"),
+                    "running_mae": data.get("running_mae"),
+                    "running_mfe": data.get("running_mfe"),
+                }
+            )
     result = json_dumps(live, indent=2)
     cache_set("/attribution/live.json", result)
     return result
 
 
-def handle_archetype_stats(path: str, query: dict, state_store=None) -> str:
+def handle_archetype_stats(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
@@ -152,7 +154,7 @@ def handle_archetype_stats(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_execution_quality(path: str, query: dict, state_store=None) -> str:
+def handle_execution_quality(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)
@@ -201,7 +203,7 @@ def handle_execution_quality(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_execution_slippage(path: str, query: dict, state_store=None) -> str:
+def handle_execution_slippage(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 500)), 2000))
     records = store.read_attribution(limit=limit)

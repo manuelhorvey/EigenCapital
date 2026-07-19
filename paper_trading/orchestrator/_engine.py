@@ -37,7 +37,7 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import date
 from typing import Any
 
 from eigencapital.domain.time import utc_now, utc_now_iso
@@ -113,7 +113,7 @@ class EngineOrchestrator:
         self._persist_buffer: list[dict] = []
         self._halt_state = HaltState()
         self._equity_tracker = EquityTracker()
-        self._last_pnl_date: datetime.date | None = None
+        self._last_pnl_date: date | None = None
         self._cycles_elapsed: int = 0
         self._wal = wal_writer
         self._last_health: dict | None = None
@@ -183,6 +183,9 @@ class EngineOrchestrator:
         # MT5 orphan reconciler (stateful — owns stale ticket counters, etc.)
         self._orphan_reconciler = OrphanReconciler()
 
+        # Full actor set saved during filtered/weekend cycles
+        self._saved_full_actors: dict[str, AssetActor] | None = None
+
         # PEK budget utilization from previous cycle (for sizing backfeed)
         # Not set here; _pre_phase_pek uses getattr with default 1.0 ("no throttling")
 
@@ -233,7 +236,7 @@ class EngineOrchestrator:
         # so they see real portfolio equity, not the weekend-filtered total.
         _saved_actors = self._actors
         self._actors = self._filtered_actors(allowed_assets)
-        self._saved_full_actors = _saved_actors
+        self._saved_full_actors = dict(_saved_actors)
         try:
             return self._run_phases(market_data)
         finally:
@@ -456,113 +459,143 @@ class EngineOrchestrator:
         if self._pek is None or self._portfolio_snapshot is None:
             return
 
-        # Collect trade intents from actor results
+        intents, rejection_reasons = self._build_admission_intents(results)
+        current_notional, max_notional = self._compute_notional_bounds(defaults, budget_ref)
+        self._run_admission_control(intents, rejection_reasons, results, current_notional, max_notional, budget_ref)
+
+    def _build_admission_intents(self, results: dict) -> tuple[list[AdmissionSignal], dict[str, str]]:
+        """Extract trade intents from Phase 1a actor results.
+
+        Returns (intents, rejection_reasons) where rejection_reasons maps
+        asset names to reason strings for signals that could not form an intent.
+        """
         intents: list[AdmissionSignal] = []
         rejection_reasons: dict[str, str] = {}
         for name, actor in self._actors.items():
             signal = results.get("assets", {}).get(name)
             if signal is None or not isinstance(signal, dict) or "error" in signal:
                 continue
-
-            side_str = signal.get("side")
-            if side_str is None or side_str == "none":
-                continue
-
-            try:
-                pos_side = PositionSide(side_str)
-            except ValueError:
+            intent = self._signal_to_admission_intent(name, actor, signal)
+            if intent is not None:
+                intents.append(intent)
+            else:
+                side_str = signal.get("side", "none")
                 rejection_reasons[name] = f"unknown_side:{side_str}"
-                continue
+        return intents, rejection_reasons
 
-            prob_long = signal.get("prob_long", 0.5)
-            prob_short = signal.get("prob_short", 0.5)
-            calibrated_prob = signal.get("calibrated_prob", max(prob_long, prob_short))
-            entry_price = signal.get("close_price", 0.0)
-            position_size = signal.get("position_size", 0.0)
+    def _signal_to_admission_intent(self, name: str, actor: AssetActor, signal: dict) -> AdmissionSignal | None:
+        """Convert a single actor signal dict into an AdmissionSignal.
 
-            # Compute stop-loss and take-profit from existing position if available
-            engine = getattr(actor, "_engine", None)
-            pos_mgr = getattr(engine, "pos_mgr", None) if engine else None
-            stop_loss = 0.0
-            take_profit = 0.0
-            if pos_mgr and pos_mgr.has_position():
-                pos = getattr(pos_mgr, "position", None)
-                if pos:
-                    stop_loss = getattr(pos, "stop_loss", 0.0) or 0.0
-                    take_profit = getattr(pos, "take_profit", 0.0) or 0.0
+        Returns None if the signal has no actionable side (flat / error).
+        """
+        side_str = signal.get("side")
+        if side_str is None or side_str == "none":
+            return None
+        try:
+            pos_side = PositionSide(side_str)
+        except ValueError:
+            return None
 
-            sl_distance_pct = abs(entry_price - stop_loss) / max(entry_price, 0.0001) if stop_loss > 0 else 0.0
-            tp_distance_pct = abs(take_profit - entry_price) / max(entry_price, 0.0001) if take_profit > 0 else 0.0
-            notional_requested = position_size * entry_price if entry_price > 0 else 0.0
-            risk_usd = notional_requested * sl_distance_pct
-            tp_sl_ratio = tp_distance_pct / max(sl_distance_pct, 0.0001) if sl_distance_pct > 0 else 0.0
+        prob_long = signal.get("prob_long", 0.5)
+        prob_short = signal.get("prob_short", 0.5)
+        calibrated_prob = signal.get("calibrated_prob", max(prob_long, prob_short))
+        entry_price = signal.get("close_price", 0.0)
+        position_size = signal.get("position_size", 0.0)
 
-            # Regime confidence from asset's last regime row
-            regime_confidence = 0.5
-            if engine:
-                last_regime = getattr(engine, "_last_regime_row", None)
-                if last_regime:
-                    regime_confidence = getattr(last_regime, "P_trend", 0.5)
+        engine = getattr(actor, "_engine", None)
+        pos_mgr = getattr(engine, "pos_mgr", None) if engine else None
+        stop_loss, take_profit = self._extract_sltp_from_position(pos_mgr)
 
-            intent = AdmissionSignal(
-                asset=name,
-                side=pos_side,
-                entry_price=entry_price,
-                stop_loss=stop_loss,
-                take_profit=take_profit,
-                sl_distance_pct=sl_distance_pct,
-                tp_distance_pct=tp_distance_pct,
-                notional_requested=notional_requested,
-                risk_usd=risk_usd,
-                calibrated_prob=calibrated_prob,
-                expected_value_r=0.0,
-                tp_sl_ratio=tp_sl_ratio,
-                regime_confidence=regime_confidence,
-                feature_hash=signal.get("feature_hash", ""),
-            )
-            intents.append(intent)
+        sl_distance_pct = abs(entry_price - stop_loss) / max(entry_price, 0.0001) if stop_loss > 0 else 0.0
+        tp_distance_pct = abs(take_profit - entry_price) / max(entry_price, 0.0001) if take_profit > 0 else 0.0
+        notional_requested = position_size * entry_price if entry_price > 0 else 0.0
+        risk_usd = notional_requested * sl_distance_pct
+        tp_sl_ratio = tp_distance_pct / max(sl_distance_pct, 0.0001) if sl_distance_pct > 0 else 0.0
 
-        # ── Compute current and max notional for proactive budget cap ──
-        # These are passed to the admission controller so it can reject
-        # intents that would exceed the portfolio-level notional limit
-        # BEFORE positions are entered (proactive) rather than closing
-        # them after entry (reactive).
-        if budget_ref:
-            max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
+        regime_confidence = 0.5
+        if engine:
+            last_regime = getattr(engine, "_last_regime_row", None)
+            if last_regime:
+                regime_confidence = getattr(last_regime, "P_trend", 0.5)
 
-            def _entry_notionals(actor) -> float:
-                pos_mgr = getattr(actor._engine, "pos_mgr", None)
-                if pos_mgr is None:
-                    return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
-                entry_notional = getattr(pos_mgr, "_entry_notional", None)
-                if isinstance(entry_notional, (int, float)) and entry_notional > 0:
-                    return float(entry_notional)
-                return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
+        return AdmissionSignal(
+            asset=name,
+            side=pos_side,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            sl_distance_pct=sl_distance_pct,
+            tp_distance_pct=tp_distance_pct,
+            notional_requested=notional_requested,
+            risk_usd=risk_usd,
+            calibrated_prob=calibrated_prob,
+            expected_value_r=0.0,
+            tp_sl_ratio=tp_sl_ratio,
+            regime_confidence=regime_confidence,
+            feature_hash=signal.get("feature_hash", ""),
+        )
 
-            current_notional = sum(_entry_notionals(actor) for actor in self._actors.values())
-        else:
-            max_notional = 0.0
-            current_notional = 0.0
+    @staticmethod
+    def _extract_sltp_from_position(pos_mgr) -> tuple[float, float]:
+        """Extract stop-loss and take-profit from an actor's position manager."""
+        stop_loss = 0.0
+        take_profit = 0.0
+        if pos_mgr and pos_mgr.has_position():
+            pos = getattr(pos_mgr, "position", None)
+            if pos:
+                stop_loss = getattr(pos, "stop_loss", 0.0) or 0.0
+                take_profit = getattr(pos, "take_profit", 0.0) or 0.0
+        return stop_loss, take_profit
 
-        # Run PEK admission (proactive budget cap check inside)
+    @staticmethod
+    def _compute_entry_notional(actor) -> float:
+        """Compute the current entry notional for a single actor."""
+        pos_mgr = getattr(actor._engine, "pos_mgr", None)
+        if pos_mgr is None:
+            return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
+        entry_notional = getattr(pos_mgr, "_entry_notional", None)
+        if isinstance(entry_notional, (int, float)) and entry_notional > 0:
+            return float(entry_notional)
+        return getattr(actor._engine, "_last_entry_notional", 0.0) or 0.0
+
+    def _compute_notional_bounds(self, defaults: dict, budget_ref: list) -> tuple[float, float]:
+        """Compute current total notional and max allowed notional.
+
+        Returns (current_notional, max_notional).
+        """
+        if not budget_ref:
+            return 0.0, 0.0
+        max_notional = budget_ref[0] * (1.0 + defaults.get("portfolio_leverage_tolerance", 0.001))
+        current_notional = sum(self._compute_entry_notional(actor) for actor in self._actors.values())
+        return current_notional, max_notional
+
+    def _run_admission_control(
+        self,
+        intents: list[AdmissionSignal],
+        rejection_reasons: dict[str, str],
+        results: dict,
+        current_notional: float,
+        max_notional: float,
+        budget_ref: list,
+    ) -> None:
+        """Run PEK admission control and store results."""
+        if self._pek is None or self._portfolio_snapshot is None:
+            logger.warning("PEK admission skipped: _pek or _portfolio_snapshot is None")
+            return
         result = self._pek.run_admission(
             candidates=intents,
             snapshot=self._portfolio_snapshot,
-            risk_budget=self._risk_budget,
+            risk_budget=self._risk_budget,  # type: ignore[arg-type]
             current_total_notional=current_notional,
             max_total_notional=max_notional,
         )
         admitted = result.admitted if result else []
         rejected_list = result.rejected if result else []
 
-        # Build rejection reason dict: merge pre-PEK rejections (side errors) with PEK rejections
         for sig, reason in rejected_list:
             rejection_reasons[sig.asset] = reason
         rejected_assets = list(rejection_reasons.keys())
 
-        # Store budget utilization for next cycle's sizing backfeed
-        # The admission controller computes this proactively — no more
-        # reactive post-hoc position closing needed.
         if result and hasattr(result.budget_delta, "pek_utilization"):
             self._pek_budget_utilization = result.budget_delta.pek_utilization
         elif max_notional > 0:
@@ -611,7 +644,45 @@ class EngineOrchestrator:
         """
         results["phasetimestamps"][EnginePhase.PORTFOLIO] = utc_now_iso()
         health = compute_health_snapshot(self._actors)
-        results["health"] = {
+        results["health"] = self._build_health_result(health)
+        self._write_health_events(health)
+
+        total_value = self._compute_aggregate_portfolio_value()
+
+        if self._phase_3a_drawdown_check(results, total_value):
+            return True
+        if self._phase_3b_halt_ratio_check(results, health):
+            return True
+        if self._phase_3c_vol_breaker(results, total_value):
+            return True
+
+        self._phase_3d_leverage_anomaly(results, defaults, max_leverage)
+        self._phase_3e_position_concentration(results)
+        self._phase_3f_correlation(results)
+        self._phase_3g_orphan_reconciliation()
+        self._phase_3h_health_var_recovery(results)
+
+        return False
+
+    def _compute_aggregate_portfolio_value(self) -> float:
+        """Sum portfolio value across the full actor set.
+
+        During weekend/filtered cycles, uses the full actor set so drawdown
+        and peak tracking reflect real portfolio equity, not the subset.
+        """
+        _aggregate_actors = self._saved_full_actors or self._actors
+        return float(
+            sum(
+                actor._engine.current_value
+                for actor in _aggregate_actors.values()
+                if hasattr(actor._engine, "current_value")
+            )
+        )
+
+    @staticmethod
+    def _build_health_result(health) -> dict:
+        """Build the health results dict from an actor health snapshot."""
+        return {
             "green": health.green,
             "degraded": health.degraded,
             "halted": health.halted,
@@ -620,79 +691,77 @@ class EngineOrchestrator:
             "total_cycles": health.total_cycles,
             "system_healthy": health.is_system_healthy,
         }
-        self._write_health_events(health)
 
-        # ── Compute total value (shared by several sub-phases) ───────────
-        # Drawdown is a portfolio-aggregate metric.  When running a filtered
-        # weekend cycle, sum over the FULL actor set, not the filtered subset,
-        # so peak tracking reflects real portfolio equity.
-        _aggregate_actors = getattr(self, "_saved_full_actors", None) or self._actors
-        total_value = sum(
-            actor._engine.current_value
-            for actor in _aggregate_actors.values()
-            if hasattr(actor._engine, "current_value")
-        )
-
-        # ── 3a: Drawdown circuit breaker ─────────────────────────────────
+    def _phase_3a_drawdown_check(self, results: dict, total_value: float) -> bool:
+        """Drawdown circuit breaker (Phase 3a). Returns True if halted."""
         self._halt_state.update_peak(total_value)
         dd_limit = self._config.portfolio_drawdown_limit if self._config is not None else -0.15
-        dd_result = check_drawdown_circuit_breaker(
-            total_value, self._halt_state.peak_portfolio_value, drawdown_limit=dd_limit
-        )
+        peak_val = self._halt_state.peak_portfolio_value or total_value
+        dd_result = check_drawdown_circuit_breaker(total_value, peak_val, drawdown_limit=dd_limit)
         results["drawdown"] = dd_result
-        if dd_result["halted"]:
-            logger.error(
-                "DRAWDOWN CIRCUIT BREAKER TRIGGERED: dd=%.2f%% \u2014 flattening and halting all actors",
-                dd_result["drawdown"] * 100,
-            )
-            flattened_assets = self.flatten_positions(reason="drawdown_circuit_breaker")
-            for actor in self._actors.values():
-                if hasattr(actor._engine, "pos_mgr"):
-                    actor._engine.pos_mgr.exposure_multiplier = 0.0
-            self._halt_state.set_halt(HaltReason.DRAWDOWN.value, f"dd={dd_result['drawdown']:.4f}")
-            _peak_val = self._halt_state.peak_portfolio_value
-            with contextlib.suppress((OSError, RuntimeError, KeyError)):
-                global_alert_manager().critical(
-                    "Portfolio halted — drawdown circuit breaker",
-                    (
-                        f"Drawdown {dd_result['drawdown'] * 100:.2f}% exceeded "
-                        f"-15% limit. {len(flattened_assets)} position(s) flattened."
-                    ),
-                    details={
-                        "drawdown_pct": round(dd_result["drawdown"] * 100, 2),
-                        "limit_pct": 15.0,
-                        "peak": round(_peak_val, 2) if _peak_val else None,
-                        "total_value": round(total_value, 2),
-                        "n_positions_flattened": len(flattened_assets),
-                        "flattened_assets": flattened_assets,
-                        "halt_reason": "DRAWDOWN",
-                    },
-                )
-            results["circuit_breaker"] = {"triggered": True, "reason": f"drawdown_{dd_result['drawdown']:.4f}"}
-            return True
+        if not dd_result["halted"]:
+            return False
 
-        # ── 3b: Halt ratio circuit breaker ────────────────────────────────
-        if not health.is_system_healthy:
-            logger.error(
-                "PORTFOLIO CIRCUIT BREAKER: halt_ratio=%.2f exceeds max=%.2f \u2014 initiating emergency shutdown",
-                health.halt_ratio,
-                self._max_halt_ratio,
-            )
-            self._halt_state.set_halt(HaltReason.HALT_RATIO.value, f"halt_ratio={health.halt_ratio:.4f}")
-            with contextlib.suppress((OSError, RuntimeError, KeyError)):
-                global_alert_manager().critical(
-                    "Portfolio halted — halt ratio exceeded",
-                    f"halt_ratio={health.halt_ratio:.4f}/{self._max_halt_ratio:.4f}",
-                    details={"halt_ratio": health.halt_ratio, "threshold": self._max_halt_ratio},
-                )
-            results["circuit_breaker"] = {
-                "triggered": True,
-                "halt_ratio": health.halt_ratio,
-                "threshold": self._max_halt_ratio,
-            }
-            return True
+        logger.error(
+            "DRAWDOWN CIRCUIT BREAKER TRIGGERED: dd=%.2f%% \u2014 flattening and halting all actors",
+            dd_result["drawdown"] * 100,
+        )
+        flattened_assets = self.flatten_positions(reason="drawdown_circuit_breaker")
+        for actor in self._actors.values():
+            if hasattr(actor._engine, "pos_mgr"):
+                actor._engine.pos_mgr.exposure_multiplier = 0.0
+        self._halt_state.set_halt(HaltReason.DRAWDOWN.value, f"dd={dd_result['drawdown']:.4f}")
+        self._alert_drawdown_breaker(dd_result, flattened_assets, total_value)
+        results["circuit_breaker"] = {"triggered": True, "reason": f"drawdown_{dd_result['drawdown']:.4f}"}
+        return True
 
-        # ── 3c: Vol spike + consecutive losses breaker ────────────────────
+    def _alert_drawdown_breaker(self, dd_result: dict, flattened_assets: list, total_value: float) -> None:
+        """Send alert for drawdown circuit breaker trigger."""
+        _peak_val = self._halt_state.peak_portfolio_value
+        with contextlib.suppress(OSError, RuntimeError, KeyError):
+            global_alert_manager().critical(
+                "Portfolio halted — drawdown circuit breaker",
+                (
+                    f"Drawdown {dd_result['drawdown'] * 100:.2f}% exceeded "
+                    f"-15% limit. {len(flattened_assets)} position(s) flattened."
+                ),
+                details={
+                    "drawdown_pct": round(dd_result["drawdown"] * 100, 2),
+                    "limit_pct": 15.0,
+                    "peak": round(_peak_val, 2) if _peak_val else None,
+                    "total_value": round(total_value, 2),
+                    "n_positions_flattened": len(flattened_assets),
+                    "flattened_assets": flattened_assets,
+                    "halt_reason": "DRAWDOWN",
+                },
+            )
+
+    def _phase_3b_halt_ratio_check(self, results: dict, health) -> bool:
+        """Halt ratio circuit breaker (Phase 3b). Returns True if halted."""
+        if health.is_system_healthy:
+            return False
+
+        logger.error(
+            "PORTFOLIO CIRCUIT BREAKER: halt_ratio=%.2f exceeds max=%.2f \u2014 initiating emergency shutdown",
+            health.halt_ratio,
+            self._max_halt_ratio,
+        )
+        self._halt_state.set_halt(HaltReason.HALT_RATIO.value, f"halt_ratio={health.halt_ratio:.4f}")
+        with contextlib.suppress(OSError, RuntimeError, KeyError):
+            global_alert_manager().critical(
+                "Portfolio halted — halt ratio exceeded",
+                f"halt_ratio={health.halt_ratio:.4f}/{self._max_halt_ratio:.4f}",
+                details={"halt_ratio": health.halt_ratio, "threshold": self._max_halt_ratio},
+            )
+        results["circuit_breaker"] = {
+            "triggered": True,
+            "halt_ratio": health.halt_ratio,
+            "threshold": self._max_halt_ratio,
+        }
+        return True
+
+    def _phase_3c_vol_breaker(self, results: dict, total_value: float) -> bool:
+        """Volatility spike + consecutive losses breaker (Phase 3c). Returns True if halted."""
         prev_value = getattr(self, "_prev_portfolio_value", None)
         if prev_value is None:
             prev_value = total_value
@@ -712,31 +781,29 @@ class EngineOrchestrator:
             "reason": breaker_result.reason,
             "severity": breaker_result.severity,
         }
-        if breaker_result.trip:
-            halt_reason_str = (
-                HaltReason.VOL_SPIKE.value
-                if "vol_spike" in breaker_result.reason
-                else HaltReason.CONSECUTIVE_LOSSES.value
-            )
-            self._halt_state.set_halt(halt_reason_str, breaker_result.reason)
-            logger.error(
-                "VOLATILITY CIRCUIT BREAKER TRIGGERED: %s \u2014 flattening and halting",
-                breaker_result.reason,
-            )
-            with contextlib.suppress((OSError, RuntimeError, KeyError)):
-                global_alert_manager().critical(
-                    f"Portfolio halted — {breaker_result.reason}",
-                    "Volatility circuit breaker triggered — flattening all positions",
-                    details={"reason": breaker_result.reason, "severity": breaker_result.severity},
-                )
-            self.flatten_positions(reason=f"circuit_breaker_{breaker_result.reason}")
-            results["circuit_breaker"] = {"triggered": True, "reason": breaker_result.reason}
-            return True
+        if not breaker_result.trip:
+            return False
 
-        # ── 3d: Leverage anomaly detector (observability only) ────────────
-        # Backstop no longer takes corrective action — that is handled by
-        # the PEK in Phase 1b. This sub-phase only logs anomalies for
-        # post-hoc analysis and dashboard observability.
+        halt_reason_str = (
+            HaltReason.VOL_SPIKE.value if "vol_spike" in breaker_result.reason else HaltReason.CONSECUTIVE_LOSSES.value
+        )
+        self._halt_state.set_halt(halt_reason_str, breaker_result.reason)
+        logger.error(
+            "VOLATILITY CIRCUIT BREAKER TRIGGERED: %s \u2014 flattening and halting",
+            breaker_result.reason,
+        )
+        with contextlib.suppress(OSError, RuntimeError, KeyError):
+            global_alert_manager().critical(
+                f"Portfolio halted — {breaker_result.reason}",
+                "Volatility circuit breaker triggered — flattening all positions",
+                details={"reason": breaker_result.reason, "severity": breaker_result.severity},
+            )
+        self.flatten_positions(reason=f"circuit_breaker_{breaker_result.reason}")
+        results["circuit_breaker"] = {"triggered": True, "reason": breaker_result.reason}
+        return True
+
+    def _phase_3d_leverage_anomaly(self, results: dict, defaults: dict, max_leverage: float) -> None:
+        """Leverage anomaly detector (Phase 3d, observability only)."""
         total_entered = sum(getattr(actor._engine, "_last_entry_notional", 0.0) for actor in self._actors.values())
         tolerance = defaults.get("portfolio_leverage_tolerance", 0.001)
         fair_budget = max_leverage * self._cycle_total_equity
@@ -754,7 +821,8 @@ class EngineOrchestrator:
             "anomaly": anomaly_detected,
         }
 
-        # ── 3e: Position concentration check ─────────────────────────────
+    def _phase_3e_position_concentration(self, results: dict) -> None:
+        """Position concentration check (Phase 3e)."""
         conc = compute_position_concentration(self._actors)
         results["position_concentration"] = conc
         self._position_concentration = conc
@@ -764,17 +832,14 @@ class EngineOrchestrator:
             except (RuntimeError, OSError, KeyError):
                 logger.exception("WAL write failed for position_concentration")
 
-        # ── 3f: Cross-asset correlation ───────────────────────────────────
+    def _phase_3f_correlation(self, results: dict) -> None:
+        """Cross-asset correlation (Phase 3f)."""
         corr = self._correlation_monitor.compute_portfolio_correlation(self._actors)
         results["correlation"] = corr
 
-        # ── 3g: MT5 orphan reconciliation ────────────────────────────────
+    def _phase_3g_orphan_reconciliation(self) -> None:
+        """MT5 orphan reconciliation (Phase 3g)."""
         self._reconcile_mt5_orphans()
-
-        # ── 3h: HealthMonitor + VaR + RecoveryScheduler ──────────────────
-        self._phase_3h_health_var_recovery(results)
-
-        return False
 
     def _phase_3h_health_var_recovery(self, results: dict) -> None:
         """HealthMonitor observation, VaR/CVaR computation, and RecoveryScheduler."""
@@ -856,10 +921,10 @@ class EngineOrchestrator:
                         )
                 persist_count += 1
         results["persist_count"] = persist_count
+        outcome_tracker = getattr(self._perf_builder, "_outcome_tracker", None)
         n_trades = (
-            len(getattr(self._perf_builder, "_outcome_tracker", None)._outcomes or [])
-            if hasattr(self._perf_builder, "_outcome_tracker")
-            and hasattr(self._perf_builder._outcome_tracker, "_outcomes")
+            len(outcome_tracker._outcomes or [])
+            if outcome_tracker is not None and hasattr(outcome_tracker, "_outcomes")
             else 0
         )
         results["performance"] = {"n_trades": n_trades}

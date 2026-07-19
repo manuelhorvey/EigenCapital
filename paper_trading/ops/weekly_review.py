@@ -164,7 +164,7 @@ def _governance_summary(state: dict) -> dict:
             halted.append(name)
         v = adata.get("validity_state", "YELLOW")
         validity_counts[v] = validity_counts.get(v, 0) + 1
-    most_common = max(validity_counts, key=validity_counts.get) if validity_counts else "YELLOW"
+    most_common = max(validity_counts, key=validity_counts.get) if validity_counts else "YELLOW"  # type: ignore[arg-type]
     return {
         "halted_assets": halted,
         "most_common_validity": most_common,

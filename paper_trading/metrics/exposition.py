@@ -153,8 +153,8 @@ class Histogram(_Metric):
         if buckets is None:
             buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
         self._buckets = sorted(buckets)
-        self._counts: dict[tuple, list[int]] = defaultdict(lambda: [0] * (len(self._buckets) + 1))
-        self._sums: dict[tuple, float] = defaultdict(float)
+        self._counts: defaultdict[tuple, list[int]] = defaultdict(lambda: [0] * (len(self._buckets) + 1))
+        self._sums: defaultdict[tuple, float] = defaultdict(float)
 
     def observe(self, value: float, **labels: str) -> None:
         self._validate_labels(labels)
@@ -219,11 +219,11 @@ class MetricsRegistry:
         with self._lock:
             for metric in self._counters.values():
                 metric._values.clear()
-            for metric in self._gauges.values():
+            for metric in self._gauges.values():  # type: ignore[assignment]
                 metric._values.clear()
-            for metric in self._histograms.values():
-                metric._counts.clear()
-                metric._sums.clear()
+            for metric in self._histograms.values():  # type: ignore[assignment]
+                metric._counts.clear()  # type: ignore[attr-defined]
+                metric._sums.clear()  # type: ignore[attr-defined]
 
     def _set(self, metric_name: str, value: float, **labels: str) -> None:
         """Set a gauge value by name."""

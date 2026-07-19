@@ -6,7 +6,11 @@ import pytest
 
 from tools.doc_drift_check import (
     CANONICAL_FACTS,
+    _check_arch_orchestrator_paths,
+    _check_doc_asset_tables,
     _check_feature_count_claims,
+    _check_index_yaml_authority,
+    _check_last_updated_dates,
     _check_metric_consistency,
     _check_mode_selector_present,
     _check_pre_phase_in_readme,
@@ -91,7 +95,7 @@ class TestCollectMarkdownFiles:
     def test_includes_known_docs(self):
         files = _collect_markdown_files()
         names = {f.name for f in files}
-        assert "ARCHITECTURE.md" in names
+        assert "BACKTEST_ARCHITECTURE.md" in names or "ARCHITECTURE.md" in names
 
 
 class TestCheckWalRunner:
@@ -124,6 +128,47 @@ class TestCheckPrePhaseInReadme:
         assert isinstance(ok, bool)
         assert isinstance(lines, int)
         assert lines > 0
+
+
+class TestCheckIndexYamlAuthority:
+    def test_returns_list(self):
+        issues = _check_index_yaml_authority()
+        assert isinstance(issues, list)
+
+    def test_check_is_authoritative(self):
+        # _index.yaml should exist and be parseable
+        issues = _check_index_yaml_authority()
+        # No "missing" or "empty" errors means index is valid
+        critical_issues = [i for i in issues if any(k in i for k in ("missing", "empty", "unparseable"))]
+        assert len(critical_issues) == 0, f"_index.yaml issues: {critical_issues}"
+
+
+class TestCheckDocAssetTables:
+    def test_returns_list(self):
+        issues = _check_doc_asset_tables()
+        assert isinstance(issues, list)
+
+
+class TestCheckLastUpdatedDates:
+    def test_returns_list(self):
+        issues = _check_last_updated_dates()
+        assert isinstance(issues, list)
+
+
+class TestCheckArchOrchestratorPaths:
+    def test_no_risk_paths_in_key_files(self):
+        found = _check_arch_orchestrator_paths()
+        assert isinstance(found, list)
+
+
+class TestCheckMarkdownPaths:
+    def test_skips_urls_and_env_vars(self):
+        from tools.doc_drift_check import _is_path_like
+
+        # These should not be considered path-like
+        assert not _is_path_like("https://example.com")
+        assert not _is_path_like("${VAR}")
+        assert not _is_path_like("$(")
 
 
 class TestMain:

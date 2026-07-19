@@ -61,7 +61,7 @@ def build_asset_engine(
 
     ctx = context or ExecutionContext()
     engine_cfg = ctx.get_engine_config()
-    resolved_initial_cap = initial_capital if initial_capital is not None else engine_cfg.capital * allocation
+    resolved_initial_cap = initial_capital if initial_capital is not None else engine_cfg.capital * allocation  # type: ignore[union-attr]
 
     engine = AssetEngine(
         ticker=ticker,
@@ -86,7 +86,7 @@ def build_asset_engine(
     engine.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
     engine.pos_mgr = PositionManager(
         resolved_initial_cap,
-        position_size if position_size is not None else engine_cfg.position_size,
+        position_size if position_size is not None else engine_cfg.position_size,  # type: ignore[union-attr]
     )
     engine.validity_sm = _ValidityStateMachine()
     reg = getattr(engine, "_reg", None) or StrategyRegistry.get_instance()

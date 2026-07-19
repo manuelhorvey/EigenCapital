@@ -21,7 +21,7 @@ FORBIDDEN_MODULES = frozenset(
         "shared.features",
         "shared.meta_labeling",
         "signals.signal_generator",
-        "signals.paper_signal_adapter",
+        # "signals.paper_signal_adapter" moved to paper_trading/signals/ 2026-07-18
         "signals.signal_filters",
         "signals.thresholding",
         "signals.alpha_weighting",

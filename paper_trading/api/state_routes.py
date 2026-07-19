@@ -21,12 +21,12 @@ from paper_trading.config_manager import get_config
 from paper_trading.metrics.exposition import global_registry
 from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.portfolio_builder import build_paper_portfolio
-from paper_trading.state_store import CONTRACT_VERSION
+from paper_trading.state_store import CONTRACT_VERSION, StateStore
 
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_state(path: str, query: dict, state_store=None) -> str:
+def handle_state(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     cached = cache_get(path)
     if cached is not None:
@@ -88,7 +88,7 @@ def handle_state(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_trades(path: str, query: dict, state_store=None) -> str:
+def handle_trades(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     limit = max(1, min(int(query.get("limit", 10)), 200))
     offset = max(0, int(query.get("offset", 0)))
@@ -136,7 +136,7 @@ def handle_trades(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_equity_history(path: str, query: dict, state_store=None) -> str:
+def handle_equity_history(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     history = store.read_equity_history()
     data = json_dumps(history)
@@ -144,14 +144,14 @@ def handle_equity_history(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_confidence(path: str, query: dict, state_store=None) -> str:
+def handle_confidence(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     cached = cache_get(path)
     if cached is not None:
         return cached
     snapshot = store.load_snapshot()
     if snapshot and snapshot.assets:
-        live = {}
+        live: dict = {}
         for name, asset in snapshot.assets.items():
             sig = asset.get("last_signal") or {}
             conf = sig.get("confidence", 0)
@@ -177,7 +177,7 @@ def handle_confidence(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_volatility(path: str, query: dict, state_store=None) -> str:
+def handle_volatility(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     regimes = []
@@ -210,7 +210,7 @@ def handle_volatility(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_logs(path: str, query: dict, state_store=None) -> str:
+def handle_logs(path: str, query: dict, state_store: StateStore | None = None) -> str:
     try:
         with open(LOG_PATH) as f:
             lines = f.readlines()
@@ -225,11 +225,11 @@ def handle_logs(path: str, query: dict, state_store=None) -> str:
         return "[no log file yet]"
 
 
-def handle_ping(path: str, query: dict, state_store=None) -> str:
+def handle_ping(path: str, query: dict, state_store: StateStore | None = None) -> str:
     return json_dumps({"status": "ok"}, indent=2)
 
 
-def handle_engine_health(path: str, query: dict, state_store=None) -> str:
+def handle_engine_health(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     import time
     from pathlib import Path
@@ -241,7 +241,7 @@ def handle_engine_health(path: str, query: dict, state_store=None) -> str:
 
     if state_path and state_path.exists():
         state_exists = True
-        state_file_age = time.time() - state_path.stat().st_mtime
+        state_file_age = time.time() - float(state_path.stat().st_mtime)  # type: ignore[assignment]
         if state_file_age > 120:
             status = "stale"
     else:
@@ -263,7 +263,7 @@ def handle_engine_health(path: str, query: dict, state_store=None) -> str:
     )
 
 
-def handle_optimization(path: str, query: dict, state_store=None) -> str:
+def handle_optimization(path: str, query: dict, state_store: StateStore | None = None) -> str:
     """Serve drift detector optimization output from data/live/optimization.json."""
     try:
         with open(OPTIMIZATION_PATH) as f:
@@ -276,7 +276,7 @@ def handle_optimization(path: str, query: dict, state_store=None) -> str:
         return json_dumps({"error": "invalid_json", "message": "optimization.json is corrupt"}, indent=2)
 
 
-def handle_healthcheck(path: str, query: dict, state_store=None) -> str:
+def handle_healthcheck(path: str, query: dict, state_store: StateStore | None = None) -> str:
     """Serve model health monitor report from data/logs/healthcheck/latest.json."""
     try:
         with open(HEALTHCHECK_PATH) as f:
@@ -289,11 +289,11 @@ def handle_healthcheck(path: str, query: dict, state_store=None) -> str:
         return json_dumps({"error": "invalid_json", "message": "healthcheck/latest.json is corrupt"}, indent=2)
 
 
-def handle_metrics(path: str, query: dict, state_store=None) -> str:
+def handle_metrics(path: str, query: dict, state_store: StateStore | None = None) -> str:
     return global_registry().render()
 
 
-def handle_log_error(body: bytes, state_store=None) -> tuple[str, int]:
+def handle_log_error(body: bytes, state_store: StateStore | None = None) -> tuple[str, int]:
     """POST handler — logs client-side errors sent from the dashboard."""
     try:
         import json as _json
@@ -310,7 +310,7 @@ def handle_log_error(body: bytes, state_store=None) -> tuple[str, int]:
         return json_dumps({"status": "error"}), 500
 
 
-def handle_recent_trades(path: str, query: dict, state_store=None) -> str:
+def handle_recent_trades(path: str, query: dict, state_store: StateStore | None = None) -> str:
     """Return the last 20 trades with no caching — fast-path for frontend polling."""
     store = state_store or get_server_store()
     trades = store.read_trades(20)
@@ -331,7 +331,7 @@ def handle_recent_trades(path: str, query: dict, state_store=None) -> str:
     return json_dumps(deduped[:20])
 
 
-def handle_clear_cache(path: str, query: dict, state_store=None) -> str:
+def handle_clear_cache(path: str, query: dict, state_store: StateStore | None = None) -> str:
     """Clear all in-memory caches after a reset.
 
     POST handler: clears the API response cache (common.clear_cache)

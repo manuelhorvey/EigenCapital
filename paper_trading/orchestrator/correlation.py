@@ -202,7 +202,7 @@ class CorrelationMonitor:
             pos = getattr(engine, "pos_mgr", None)
             if pos is not None and pos.has_position():
                 side = pos.position.side if hasattr(pos.position, "side") else None
-                positions[name] = {"side": side.value if hasattr(side, "value") else side}
+                positions[name] = {"side": side.value if hasattr(side, "value") else side}  # type: ignore[union-attr]
         today_str = utc_now().strftime("%Y-%m-%d")
         corr_report = self.update(prices, positions, today_str)
         if any("cluster" in a for a in corr_report["cluster_alerts"]):

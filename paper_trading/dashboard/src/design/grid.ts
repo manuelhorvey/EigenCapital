@@ -88,9 +88,9 @@ export function gridMetric7(): string {
   return 'grid-cols-2 lg:grid-cols-7'
 }
 
-/** Asset card grid — 2-col mobile, 3-col tablet, 4-col laptop. */
+/** Asset card grid — 1-col mobile, 2-col tablet, 3-col laptop+. */
 export function gridCards(): string {
-  return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
 }
 
 /** Page content container — responsive width with max constraints. */

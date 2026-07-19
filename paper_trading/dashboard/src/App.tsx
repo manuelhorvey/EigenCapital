@@ -12,36 +12,27 @@ import { Skeleton } from './components/ui/Skeleton'
 
 const CommandCenter = lazy(() => import('./pages/CommandCenter'))
 const TradingWorkspace = lazy(() => import('./pages/TradingWorkspace'))
-const ExecutionWorkspace = lazy(() => import('./pages/ExecutionWorkspace'))
+const AnalyticsWorkspace = lazy(() => import('./pages/ExecutionWorkspace'))
 const RiskWorkspace = lazy(() => import('./pages/RiskWorkspace'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 const ServerErrorPage = lazy(() => import('./pages/ServerErrorPage'))
 const OfflinePage = lazy(() => import('./pages/OfflinePage'))
 
-// Preload all page bundles after mount via <link rel="modulepreload"> so
-// chunk fetches happen in the background and navigation is instant. Uses
-// import.meta.url to resolve relative paths to absolute module URLs that
-// the browser's module loader can fetch and cache without executing.
+// Preload all page bundles after mount so chunk fetches happen in the
+// background and navigation is instant. Uses dynamic import() which Vite
+// resolves to the correct hashed chunk URL at build time.
 function useRoutePreloader() {
   useEffect(() => {
-    const routes = [
-      './pages/CommandCenter',
-      './pages/TradingWorkspace',
-      './pages/ExecutionWorkspace',
-      './pages/RiskWorkspace',
-    ]
-    for (const route of routes) {
-      const link = document.createElement('link')
-      link.rel = 'modulepreload'
-      link.href = new URL(route, import.meta.url).href
-      document.head.appendChild(link)
-    }
-    // Preload heavy overlay components when browser is idle (no modulepreload
-    // equivalent for these — they're imported directly in the render tree so
-    // they'd be double-fetched; idle-load them as fallback).
+    import('./pages/CommandCenter').catch(() => {})
+    import('./pages/TradingWorkspace').catch(() => {})
+    import('./pages/ExecutionWorkspace').catch(() => {})
+    import('./pages/RiskWorkspace').catch(() => {})
+    import('./pages/SettingsPage').catch(() => {})
+    import('./pages/ReportsPage').catch(() => {})
     import('./components/AssetDetailPanel').catch(() => {})
     import('./components/AssetDeepDive').catch(() => {})
-    import('./components/SystemHealthModal').catch(() => {})
     import('./components/WeeklyReviewModal').catch(() => {})
   }, [])
 }
@@ -50,13 +41,12 @@ const AssetDetailPanel = lazy(() => import('./components/AssetDetailPanel'))
 const AssetDeepDive = lazy(() => import('./components/AssetDeepDive'))
 const WeeklyReviewModal = lazy(() => import('./components/WeeklyReviewModal'))
 
-import { SystemHealthModalProvider } from './hooks/useSystemHealthModal'
-const SystemHealthModal = lazy(() => import('./components/SystemHealthModal'))
 import { useSystemSnapshot } from './hooks/useSystemSnapshot'
 import { systemSelectors } from './selectors/system'
 import { useSelectedAsset } from './hooks/useSelectedAsset'
 
 import { useToastAlertBridge } from './hooks/useToastAlertBridge'
+import { useWeeklyReview } from './hooks/useWeeklyReview'
 
 function AppContent() {
   useRoutePreloader()
@@ -130,22 +120,57 @@ function AppContent() {
     }
   }, [state?.assets, selectedAsset, deepDiveAsset, handleCloseDetail, push])
 
+  // Weekly review auto-open via modal stack
+  const weeklyReview = useWeeklyReview()
+  const prevReviewRef = useRef(weeklyReview.data)
+  const dismissedRef = useRef(false)
+
+  const handleCloseReview = useCallback(() => {
+    dismissedRef.current = true
+    pop('weekly-review')
+  }, [pop])
+
+  useEffect(() => {
+    // Reset dismissed when show resets (new review or acknowledged elsewhere)
+    if (!weeklyReview.show) {
+      dismissedRef.current = false
+    }
+
+    if (weeklyReview.show && weeklyReview.data && !dismissedRef.current) {
+      push({
+        id: 'weekly-review',
+        component: WeeklyReviewModal,
+        props: {
+          open: true,
+          data: weeklyReview.data,
+          onClose: handleCloseReview,
+          onAcknowledge: () => weeklyReview.acknowledge(),
+        },
+      })
+    } else if (!weeklyReview.show && prevReviewRef.current) {
+      pop('weekly-review')
+      dismissedRef.current = false
+    }
+    prevReviewRef.current = weeklyReview.data
+  }, [weeklyReview.show, weeklyReview.data, weeklyReview.acknowledge, handleCloseReview, push, pop])
+
   return (
     <>
       <Suspense fallback={<div className="p-8"><Skeleton className="h-64 rounded-lg" shimmer /></div>}>
         <Routes>
           <Route path="/" element={<CommandCenter onSelectAsset={handleSelectAsset} />} />
           <Route path="/trading" element={<TradingWorkspace />} />
-          <Route path="/execution" element={<ExecutionWorkspace />} />
+          <Route path="/execution" element={<AnalyticsWorkspace />} />
+          <Route path="/analytics" element={<AnalyticsWorkspace />} />
           <Route path="/risk" element={<RiskWorkspace />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/error" element={<ServerErrorPage />} />
           <Route path="/offline" element={<OfflinePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
 
-      <Suspense fallback={null}><WeeklyReviewModal /></Suspense>
-      <Suspense fallback={null}><SystemHealthModal /></Suspense>
       <ToastContainer />
     </>
   )
@@ -159,13 +184,11 @@ export default function App() {
       <NotificationProvider>
       <HashRouter>
         <SelectedAssetProvider>
-          <SystemHealthModalProvider>
           <ModalStackProvider>
           <AppShell>
             <AppContent />
           </AppShell>
           </ModalStackProvider>
-          </SystemHealthModalProvider>
         </SelectedAssetProvider>
       </HashRouter>
       </NotificationProvider>

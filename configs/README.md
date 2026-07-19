@@ -60,6 +60,8 @@ configs/
     └── assets.py                   — AssetConfig
 ```
 
+> **Note**: `configs/domains/` holds **runtime YAML configuration**. `configs/domain_models/` holds **Pydantic-style Python dataclasses** that define the schema/validation rules for those YAML files. They serve different purposes — operator edits go in `domains/`, type definitions in `domain_models/`.
+
 ## Composition order
 
 The runtime loader (`PaperConfigRegistry.load()`) merges configuration

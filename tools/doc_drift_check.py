@@ -169,14 +169,16 @@ def _gate_constants_sell_only() -> list[str]:
 
 
 def _phase_methods() -> list[str]:
-    """Return all `_phase_X_*` method names declared in the orchestrator."""
+    """Return all `_phase_X_*` or `_pre_phase_*` method names from the orchestrator."""
     import ast
 
     text = _read(REPO_ROOT / "paper_trading" / "orchestrator" / "_engine.py")
     tree = ast.parse(text)
     names: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("_phase_"):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+            node.name.startswith("_phase_") or node.name.startswith("_pre_phase_")
+        ):
             names.append(node.name)
     return names
 
@@ -185,8 +187,12 @@ def _decide_phase_count() -> int:
     """Number of distinct orchestrator phases derived from method names.
 
     Methods like ``_phase_1_refresh_signal`` and ``_phase_1b_admission_review``
-    both belong to ``1`` and ``1b`` respectively. Pre-phase is ``_pre_phase_pek``.
-    So we count ``_pre_phase_*`` + every distinct leading number after ``_phase_``.
+    both belong to ``1`` and ``1b`` respectively. Sub-phase helpers like
+    ``_phase_3a_drawdown_check`` are grouped under ``3``. Pre-phase is
+    ``_pre_phase_pek``.
+    So we count ``_pre_phase_*`` + every distinct leading number after ``_phase_``,
+    ignoring sub-phase letter suffixes so that extracted sub-phases don't
+    inflate the count.
     """
     methods = _phase_methods()
     keys = set()
@@ -194,9 +200,9 @@ def _decide_phase_count() -> int:
         if name.startswith("_pre_phase"):
             keys.add("PRE")
             continue
-        m = re.match(r"_phase_(\d+)([a-z]?)_", name)
+        m = re.match(r"_phase_(\d+)(?:[a-z])?_", name)
         if m:
-            keys.add(f"{m.group(1)}{m.group(2)}")
+            keys.add(m.group(1))  # Only the number — ignore sub-phase letter
     return len(keys)
 
 

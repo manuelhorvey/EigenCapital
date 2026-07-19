@@ -44,6 +44,14 @@ class SignalType(str, Enum):
         mapping = {"BUY": cls.BUY, "SELL": cls.SELL, "FLAT": cls.FLAT, "LONG": cls.BUY, "SHORT": cls.SELL}
         return mapping.get(value.upper(), cls.FLAT)
 
+    @property
+    def direction(self) -> int:
+        if self == SignalType.BUY:
+            return 1
+        if self == SignalType.SELL:
+            return -1
+        return 0
+
 
 @dataclass
 class SignalResult:

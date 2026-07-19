@@ -5,12 +5,12 @@ type AssetState = z.infer<typeof AssetStateSchema>
 import { governanceText } from '../ui/governance'
 import { MetricRow, Section } from './helpers'
 
-interface Props {
+interface OverviewTabProps {
   asset: AssetState
 }
 
 /** Overview metrics tab — final signal, confidence, price, performance, and current position. @param {{ asset: AssetState }} props */
-export default function OverviewTab({ asset }: Props) {
+export default function OverviewTab({ asset }: OverviewTabProps) {
   const m = asset.metrics
   const sd = m.signal_distribution
   const pos = m.position

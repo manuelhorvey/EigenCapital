@@ -39,8 +39,9 @@ export default function PositionSparkline({
 
     const min = Math.min(...bounds)
     const max = Math.max(...bounds)
-    const range = max - min || 1
-    const pad = range * 0.08
+    const rawRange = max - min
+    const range = rawRange || 1
+    const pad = Math.max(range * 0.15, range < 0.01 ? 0.005 : range * 0.08)
     const yMin = min - pad
     const yMax = max + pad
     const yRange = yMax - yMin
@@ -111,14 +112,14 @@ export default function PositionSparkline({
 
   return (
     <div
-      className="relative w-full"
+      className="relative w-full overflow-hidden rounded"
       style={{ height: heightPx }}
       aria-label="Position price trajectory"
     >
       <svg
         viewBox={`0 0 ${width} ${heightPx}`}
         preserveAspectRatio="none"
-        className="w-full h-full overflow-visible"
+        className="w-full h-full"
       >
         {slZone}
         {tpZone}

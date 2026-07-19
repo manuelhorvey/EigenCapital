@@ -1,13 +1,17 @@
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
-import { useSystemHealthModal } from '../hooks/useSystemHealthModal'
 import HealthSnapshotCard from './monitor/HealthSnapshotCard'
 import AlertFeed from './monitor/AlertFeed'
 import GovernanceStatusGrid from './monitor/GovernanceStatusGrid'
 import PerformancePanel from './monitor/PerformancePanel'
 import { Skeleton } from './ui/Skeleton'
 import Modal from './ui/Modal'
+
+interface SystemHealthModalProps {
+  open: boolean
+  onClose: () => void
+}
 
 function avgHealth(health: { assets?: Record<string, { health_score: number }> } | undefined): number | null {
   if (!health?.assets) return null
@@ -16,8 +20,7 @@ function avgHealth(health: { assets?: Record<string, { health_score: number }> }
 }
 
 /** Full-system health modal with snapshot cards, alert feed, governance grid, and performance panel. */
-export default function SystemHealthModal() {
-  const { isOpen, close } = useSystemHealthModal()
+export default function SystemHealthModal({ open, onClose }: SystemHealthModalProps) {
   const { data: state } = useSystemSnapshot(systemSelectors.snapshot)
   const { data: health } = useSystemSnapshot(systemSelectors.health)
   const alerts = useMonitorAlerts()
@@ -96,8 +99,8 @@ export default function SystemHealthModal() {
   // aria-labelledby / aria-describedby automatically.
   return (
     <Modal
-      open={isOpen}
-      onClose={close}
+      open={open}
+      onClose={onClose}
       title="System Health"
       description="Engine monitoring & governance overview"
       size="lg"

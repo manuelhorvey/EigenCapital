@@ -4,12 +4,12 @@ import { AssetStateSchema } from '../../lib/schemas'
 type AssetState = z.infer<typeof AssetStateSchema>
 import { MetricRow, Section } from './helpers'
 
-interface Props {
+interface DiagnosticsTabProps {
   asset: AssetState
 }
 
 /** Diagnostics tab — feature stability, regime model output, archetype stats, and statistical metrics. @param {{ asset: AssetState }} props */
-export default function DiagnosticsTab({ asset }: Props) {
+export default function DiagnosticsTab({ asset }: DiagnosticsTabProps) {
   const m = asset.metrics
   const fs = m.feature_stability
 

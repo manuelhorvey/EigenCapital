@@ -6,12 +6,12 @@ import {
 } from '../ui/governance'
 import type { AssetCardInfo } from './types'
 
-interface Props {
+interface AssetCardMetricsProps {
   info: AssetCardInfo
 }
 
 /** Performance metrics row for an asset card — return, drawdown, confidence, SL/TP multipliers, and signal mix. @param {{ info: AssetCardInfo }} props */
-const AssetCardMetrics = React.memo(({ info }: Props) => {
+const AssetCardMetrics = React.memo(({ info }: AssetCardMetricsProps) => {
   const returnState: GovernanceState = info.totalReturn >= 0 ? 'GREEN' : 'RED'
   const drawdownState: GovernanceState = ddToState(info.drawdown)
 

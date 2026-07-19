@@ -28,4 +28,6 @@ function EmergencyHaltBannerInner() {
   )
 }
 
-export default memo(EmergencyHaltBannerInner)
+const EmergencyHaltBannerMemo = memo(EmergencyHaltBannerInner)
+EmergencyHaltBannerMemo.displayName = 'EmergencyHaltBanner'
+export default EmergencyHaltBannerMemo

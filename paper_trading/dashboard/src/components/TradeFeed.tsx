@@ -203,4 +203,6 @@ function TradeFeed() {
   )
 }
 
-export default memo(TradeFeed)
+const TradeFeedMemo = memo(TradeFeed)
+TradeFeedMemo.displayName = 'TradeFeed'
+export default TradeFeedMemo

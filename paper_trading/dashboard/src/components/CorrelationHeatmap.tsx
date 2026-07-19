@@ -193,5 +193,6 @@ const CorrelationHeatmap = memo(function CorrelationHeatmap() {
     </Panel>
   )
 })
+CorrelationHeatmap.displayName = 'CorrelationHeatmap'
 
 export default CorrelationHeatmap

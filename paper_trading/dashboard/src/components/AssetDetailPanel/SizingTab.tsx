@@ -4,12 +4,12 @@ import { AssetStateSchema } from '../../lib/schemas'
 type AssetState = z.infer<typeof AssetStateSchema>
 import { MetricRow, Section } from './helpers'
 
-interface Props {
+interface SizingTabProps {
   asset: AssetState
 }
 
 /** Sizing configuration tab — SL/TP multipliers, regime geometry, sizing chain break-down, and scale-out tiers. @param {{ asset: AssetState }} props */
-export default function SizingTab({ asset }: Props) {
+export default function SizingTab({ asset }: SizingTabProps) {
   const m = asset.metrics
   const narrativeScalar = asset.narrative_size_scalar ?? 1
   const liquidityScalar = asset.liquidity_size_scalar ?? 1

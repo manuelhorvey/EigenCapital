@@ -5,12 +5,12 @@ type AssetState = z.infer<typeof AssetStateSchema>
 import { governanceText } from '../ui/governance'
 import { MetricRow, Section, CollapsibleSection } from './helpers'
 
-interface Props {
+interface GovernanceTabProps {
   asset: AssetState
 }
 
 /** Governance metrics tab — validity, regime, halt checks, PSI drift, and meta-labeling. @param {{ asset: AssetState }} props */
-export default function GovernanceTab({ asset }: Props) {
+export default function GovernanceTab({ asset }: GovernanceTabProps) {
   const m = asset.metrics
   const h = asset.halt
   const psi = m.psi_drift

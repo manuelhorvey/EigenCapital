@@ -203,4 +203,5 @@ interface AssetListPanelProps {
 }
 
 const AssetListPanel = memo(AssetListPanelInner)
+AssetListPanel.displayName = 'AssetListPanel'
 export default AssetListPanel

@@ -1,6 +1,7 @@
 import { memo, useCallback } from 'react'
 import type { AssetTradingState } from '../lib/trading-state/types'
 import { Info, CheckCircle2, FileDown } from 'lucide-react'
+import { useDataExport } from '../hooks/useDataExport'
 
 interface TradingAssetRowProps {
   asset: AssetTradingState
@@ -46,17 +47,23 @@ const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: Tradi
     if (action === 'detail') onSelect?.(asset.identity)
   }, [asset.identity, onSelect])
 
+  const { exportTable } = useDataExport()
+
   const handleExport = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    const csv = `Asset,Direction,PnL,Phase,Risk,Flags\n${asset.identity},${dir ?? 'N/A'},${pnl.toFixed(2)},${exit.phase},${risk.level},"${asset.flags.join(';')}"`
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${asset.identity}_trade.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }, [asset, dir, pnl, exit, risk])
+    exportTable(
+      [{
+        Asset: asset.identity,
+        Direction: dir ?? 'N/A',
+        PnL: pnl.toFixed(2),
+        Phase: exit.phase,
+        Risk: risk.level,
+        Flags: asset.flags.join(';'),
+      }],
+      `${asset.identity}_trade`,
+      ['Asset', 'Direction', 'PnL', 'Phase', 'Risk', 'Flags'],
+    )
+  }, [asset.identity, dir, pnl, exit.phase, risk.level, asset.flags, exportTable])
 
   return (
     <div

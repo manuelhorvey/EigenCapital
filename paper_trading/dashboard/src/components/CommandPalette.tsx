@@ -5,6 +5,7 @@ import {
   RefreshCw, Eye, Download, AlertTriangle, Settings, FileText,
   Ban, CheckCircle, Terminal,
 } from 'lucide-react'
+import { useDataExport } from '../hooks/useDataExport'
 
 interface CommandItem {
   id: string
@@ -38,6 +39,7 @@ export default function CommandPalette({ assetNames = [], onSelectAsset, assets 
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const { exportJson } = useDataExport()
 
   // Toggle on Cmd+K / Ctrl+K
   useEffect(() => {
@@ -137,18 +139,7 @@ export default function CommandPalette({ assetNames = [], onSelectAsset, assets 
         label: 'Export Data',
         description: 'Download portfolio state as JSON',
         icon: <Download className="w-3.5 h-3.5" strokeWidth={1.5} />,
-        action: async () => {
-          try {
-            const resp = await fetch('/state-bundle.json')
-            const blob = await resp.blob()
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `eigencapital-snapshot-${Date.now()}.json`
-            a.click()
-            URL.revokeObjectURL(url)
-          } catch { /* silent */ }
-        },
+        action: () => exportJson('/state-bundle.json', { filename: `eigencapital-snapshot-${Date.now()}` }),
         keywords: ['export', 'download', 'json', 'backup', 'save'],
       },
       {
@@ -225,7 +216,7 @@ export default function CommandPalette({ assetNames = [], onSelectAsset, assets 
     }
 
     return items
-  }, [navigate, assetNames, onSelectAsset, assets])
+  }, [navigate, assetNames, onSelectAsset, assets, exportJson])
 
   const filtered = useMemo(() => {
     if (!query) return commands

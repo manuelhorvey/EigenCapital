@@ -49,11 +49,21 @@ function resolveTheme(mode: ThemeMode): 'dark' | 'light' {
 
 function applyClass(theme: 'dark' | 'light') {
   const root = document.documentElement
-  if (theme === 'light') {
+  const wasLight = root.classList.contains('light')
+  const nowLight = theme === 'light'
+  if (wasLight === nowLight) return
+
+  root.classList.add('theme-transitioning')
+  if (nowLight) {
     root.classList.add('light')
   } else {
     root.classList.remove('light')
   }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      root.classList.remove('theme-transitioning')
+    })
+  })
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

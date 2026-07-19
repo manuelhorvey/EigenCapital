@@ -15,17 +15,18 @@ from paper_trading.governance.health import get_latest as _get_health_latest
 from paper_trading.governance.multipliers import compute_governance_multipliers
 from paper_trading.governance.risk_registry import get_latest as _get_risk_latest
 from paper_trading.ops.weekly_review import compute_weekly_review
+from paper_trading.state_store import StateStore
 
 ET = pytz.timezone("US/Eastern")
 
 
-def handle_risk(path: str, query: dict, state_store=None) -> str:
+def handle_risk(path: str, query: dict, state_store: StateStore | None = None) -> str:
     data = json_dumps(_get_risk_latest(), indent=2)
     cache_set("/risk.json", data)
     return data
 
 
-def handle_risk_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
+def handle_risk_asset(path: str, query: dict, state_store: StateStore | None = None) -> tuple[str, int]:
     asset = path[len("/risk/") : -len(".json")]
     signal = _get_risk_latest(asset)
     if signal is not None:
@@ -33,13 +34,13 @@ def handle_risk_asset(path: str, query: dict, state_store=None) -> tuple[str, in
     return json_dumps({"error": "Not found", "code": 404}), 404
 
 
-def handle_health(path: str, query: dict, state_store=None) -> str:
+def handle_health(path: str, query: dict, state_store: StateStore | None = None) -> str:
     data = json_dumps(_compute_health_all(), indent=2)
     cache_set("/health.json", data)
     return data
 
 
-def handle_health_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
+def handle_health_asset(path: str, query: dict, state_store: StateStore | None = None) -> tuple[str, int]:
     asset = path[len("/health/") : -len(".json")]
     signal = _get_health_latest(asset)
     if signal is not None:
@@ -47,7 +48,7 @@ def handle_health_asset(path: str, query: dict, state_store=None) -> tuple[str, 
     return json_dumps({"error": f"No health score for {asset}", "asset": asset}), 404
 
 
-def handle_governance(path: str, query: dict, state_store=None) -> str:
+def handle_governance(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     governance = {}
@@ -86,7 +87,7 @@ def handle_governance(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_statistical_metrics(path: str, query: dict, state_store=None) -> str:
+def handle_statistical_metrics(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     result: dict[str, dict] = {}
@@ -106,7 +107,7 @@ def handle_statistical_metrics(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_risk_parity(path: str, query: dict, state_store=None) -> str:
+def handle_risk_parity(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     rp = getattr(snapshot, "risk_parity", None) if snapshot else None
@@ -115,7 +116,7 @@ def handle_risk_parity(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_psi(path: str, query: dict, state_store=None) -> str:
+def handle_psi(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     psi_data = {}
@@ -137,7 +138,7 @@ def handle_psi(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_trade_outcomes(path: str, query: dict, state_store=None) -> str:
+def handle_trade_outcomes(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     outcomes = store.read_trade_outcomes()
     if outcomes is None:
@@ -158,14 +159,14 @@ def handle_trade_outcomes(path: str, query: dict, state_store=None) -> str:
     return data
 
 
-def handle_narrative(path: str, query: dict, state_store=None) -> str:
+def handle_narrative(path: str, query: dict, state_store: StateStore | None = None) -> str:
     status = get_narrative_status()
     data = json_dumps(status, indent=2)
     cache_set("/narrative.json", data)
     return data
 
 
-def handle_liquidity(path: str, query: dict, state_store=None) -> str:
+def handle_liquidity(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     snapshot = store.load_snapshot()
     regimes = {}
@@ -191,14 +192,14 @@ def handle_narrative_confirm(body: bytes) -> tuple[str, int]:
     )
 
 
-def handle_weekly_review(path: str, query: dict, state_store=None) -> str:
+def handle_weekly_review(path: str, query: dict, state_store: StateStore | None = None) -> str:
     store = state_store or get_server_store()
     data = json_dumps(compute_weekly_review(store), indent=2)
     cache_set("/weekly-review.json", data)
     return data
 
 
-def handle_weekly_review_acknowledge(body: bytes, state_store=None) -> tuple[str, int]:
+def handle_weekly_review_acknowledge(body: bytes, state_store: StateStore | None = None) -> tuple[str, int]:
     store = state_store or get_server_store()
     now = datetime.now(tz=ET).isoformat()
     entry = {"acknowledged_at": now}

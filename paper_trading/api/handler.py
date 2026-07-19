@@ -1,3 +1,7 @@
+# mypy: disable-error-code="attr-defined"
+# Handler is a mixin combined with http.server.BaseHTTPRequestHandler at runtime
+# (see serve.py:ServingHandler). mypy cannot see the inherited methods.
+
 import errno
 import gzip
 import json
@@ -110,15 +114,36 @@ class Handler:
             return False
         return True
 
+    _auth_attempts_logged: set = set()
+
     def _requires_auth(self) -> bool:
-        """Check auth for the current request. Returns True if authorized."""
+        """Check auth for the current request. Returns True if authorized.
+
+        Audit logging:
+          - Failed auth attempts are logged at WARNING level with client IP,
+            path, and a correlation ID (if available).
+          - Successful auth is logged at DEBUG level (first request per client).
+          - Auth headers are NEVER included in log output.
+        """
         # Static files are always accessible
         if self._is_static_path(self.path.split("?", 1)[0]):
             return True
         if not require_auth(dict(self.headers)):
-            logger.warning("Unauthorized request to %s from %s", self.path, self.client_address[0])
+            client_ip = self.client_address[0]
+            cid = getattr(self, "correlation_id", "")
+            logger.warning(
+                "AUTH_FAIL: ip=%s path=%s correlation_id=%s",
+                client_ip,
+                self.path,
+                cid or "-",
+            )
             self._send_unauthorized()
             return False
+        # Successful auth — log first request per client at DEBUG
+        client_ip = self.client_address[0]
+        if client_ip not in self._auth_attempts_logged:
+            self._auth_attempts_logged.add(client_ip)
+            logger.debug("AUTH_OK: ip=%s path=%s", client_ip, self.path)
         return True
 
     @staticmethod

@@ -7,6 +7,7 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
+from eigencapital.domain.entities import PortfolioSummary, PositionSide, SignalType
 from paper_trading.execution.gate_constants import get_sell_only_assets
 from paper_trading.governance.risk_registry import get_sell_tripwire_state
 from paper_trading.metrics.engine_metrics import update_engine_metrics
@@ -128,8 +129,9 @@ class EngineStateService:
             feat_stab = metrics.get("feature_stability") or {}
             sig_flip = False
             if signal and asset.pos_mgr.has_position():
-                sig_dir = 1 if signal.get("signal") == "BUY" else (-1 if signal.get("signal") == "SELL" else 0)
-                pos_dir = 1 if asset.pos_mgr.position.side == "long" else -1
+                sig_type = SignalType.from_string(signal.get("signal", ""))
+                sig_dir = sig_type.direction if hasattr(sig_type, "direction") else 0
+                pos_dir = 1 if asset.pos_mgr.position.side == PositionSide.LONG.value else -1
                 sig_flip = sig_dir != 0 and pos_dir != 0 and sig_dir != pos_dir
 
             ad[name] = {
@@ -250,29 +252,44 @@ class EngineStateService:
         peak = engine.portfolio_peak_value
         portfolio_dd = (mtm_total - peak) / peak if peak else 0.0
 
+        summary = PortfolioSummary(
+            total_value=round(mtm_total, 2),
+            mtm_value=round(mtm_total, 2),
+            total_return_pct=round(mtm_return, 2),
+            realized_return_pct=round(realized_return, 2),
+            unrealized_pnl=round(unrealized_dollars, 2),
+            days_running=delta.days,
+            open_positions=sum(
+                a.pos_mgr.has_position() or len(getattr(a, "reentry_positions", [])) for a in engine.assets.values()
+            ),
+            closed_trades=sum(len(a.trade_log) for a in engine.assets.values()),
+            execution_state=exec_state.value,
+            average_validity_exposure=round(overall_validity / n, 4),
+            portfolio_drawdown_pct=round(portfolio_dd, 6),
+            capital=self.engine._engine_cfg.capital,
+            allocations={n: a.allocation for n, a in engine.assets.items()},
+        )
         return {
-            "total_value": round(mtm_total, 2),
-            "mtm_value": round(mtm_total, 2),
-            "total_return": round(mtm_return, 2),
+            "total_value": summary.total_value,
+            "mtm_value": summary.mtm_value,
+            "total_return": summary.total_return_pct,
             "realized_value": round(realized_total, 2),
-            "realized_return": round(realized_return, 2),
-            "unrealized_pnl": round(unrealized_dollars, 2),
-            "days_running": delta.days,
+            "realized_return": summary.realized_return_pct,
+            "unrealized_pnl": summary.unrealized_pnl,
+            "days_running": summary.days_running,
             "runtime_hours": round(delta.total_seconds() / 3600, 1),
             "start_date": engine.start_date.strftime("%Y-%m-%d"),
             "start_datetime": engine.start_date.isoformat(),
             "last_update": engine.last_update.isoformat() if engine.last_update else None,
-            "capital": self.engine._engine_cfg.capital,
-            "allocations": {n: a.allocation for n, a in engine.assets.items()},
+            "capital": summary.capital,
+            "allocations": summary.allocations,
             "deployment_cleared": True,
-            "open_positions": sum(
-                a.pos_mgr.has_position() or len(getattr(a, "reentry_positions", [])) for a in engine.assets.values()
-            ),
-            "closed_trades": sum(len(a.trade_log) for a in engine.assets.values()),
-            "execution_state": exec_state.value,
+            "open_positions": summary.open_positions,
+            "closed_trades": summary.closed_trades,
+            "execution_state": summary.execution_state,
             "weekend_cycle": bool(getattr(engine, "_cycle_weekend", False)),
-            "average_validity_exposure": round(overall_validity / n, 4),
-            "portfolio_drawdown": round(portfolio_dd, 6),  # fraction (-1 to 0 range, negative = below peak)
+            "average_validity_exposure": summary.average_validity_exposure,
+            "portfolio_drawdown": summary.portfolio_drawdown_pct,
             "portfolio_peak_value": round(engine.portfolio_peak_value, 2) if engine.portfolio_peak_value else None,
             "position_concentration": getattr(
                 getattr(engine, "_orchestrator", None),
@@ -386,7 +403,7 @@ class EngineStateService:
                 if pm.has_position() and pm.position:
                     pos = pm.position
                     weight = pos.entry_notional / total_equity
-                    if pos.side == "short":
+                    if pos.side == PositionSide.SHORT.value:
                         weight = -weight
                     position_weights[name] = round(weight, 6)
 
@@ -751,12 +768,12 @@ class EngineStateService:
         total_long = sum(
             a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
             for a in state.get("assets", {}).values()
-            if (a.get("metrics", {}).get("position") or {}).get("side") == "long"
+            if (a.get("metrics", {}).get("position") or {}).get("side") == PositionSide.LONG.value
         )
         total_short = sum(
             a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
             for a in state.get("assets", {}).values()
-            if (a.get("metrics", {}).get("position") or {}).get("side") == "short"
+            if (a.get("metrics", {}).get("position") or {}).get("side") == PositionSide.SHORT.value
         )
         gross_notional = total_long + total_short
         net = (total_long - total_short) / gross_notional if gross_notional > 0 else 0.0

@@ -13,7 +13,7 @@ class EntryOptimizer:
     it consumes policy rules defined in Phase 4.
     """
 
-    def __init__(self, policy_map: dict = None):
+    def __init__(self, policy_map: dict | None = None):
         # Default policy map (to be fully populated in Phase 4)
         self.policy_map = policy_map or {
             "MOMENTUM_IGNITION": self._momentum_ignition_policy,
@@ -23,7 +23,7 @@ class EntryOptimizer:
         }
 
     def evaluate(
-        self, signal: SignalType, archetype: str, structure: MarketStructureState, config: dict = None
+        self, signal: SignalType, archetype: str, structure: MarketStructureState, config: dict | None = None
     ) -> EntryAction:
         """
         Routes the signal to the correct policy based on its archetype.

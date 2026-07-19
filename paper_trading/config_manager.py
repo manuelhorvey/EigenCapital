@@ -436,7 +436,7 @@ def load_config(path: str | None = None) -> EngineConfig:
                 len(reg.legacy_extras),
             )
             return EngineConfig.from_dict(typed)
-        except Exception as e:  # noqa: BLE001 — fall back below
+        except (ImportError, AttributeError, KeyError, ValueError, OSError, RuntimeError) as e:
             logger.warning("PaperConfigRegistry failed (%s); using defaults", e)
             return EngineConfig()
 
@@ -458,7 +458,7 @@ def load_config(path: str | None = None) -> EngineConfig:
             len(reg.legacy_extras),
         )
         return EngineConfig.from_dict(typed)
-    except Exception as e:  # noqa: BLE001 — fall back to direct YAML
+    except (ImportError, AttributeError, KeyError, ValueError, OSError, RuntimeError) as e:
         logger.warning(
             "PaperConfigRegistry failed (%s); falling back to direct YAML loader for %s",
             e,

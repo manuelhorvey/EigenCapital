@@ -43,3 +43,4 @@ scripts/paper_trading/
 .agents/
 skills-lock.json
 .vscode/
+labels/models/

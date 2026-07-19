@@ -188,8 +188,9 @@ python3 tools/reset_halt.py --check
 # Clear halt (after investigation)
 python3 tools/reset_halt.py --clear
 
-# Restart MT5 bridge
+# Restart MT5 bridge (Linux with systemd)
 systemctl --user restart eigencapital-mt5-supervisor
+# On Windows, restart via NSSM: nssm restart EigenCapital-MT5-Supervisor
 
 # Full system restart (keeps positions open)
 pkill -f monitor.py

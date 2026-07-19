@@ -2,7 +2,7 @@
 
 System architecture, component descriptions, and design decisions for developers.
 
-**Last updated:** 2026-07-18
+**Last updated:** 2026-07-19
 
 ---
 
@@ -234,6 +234,12 @@ All gates are in `decision_pipeline.py` or `entry_service.py`:
 | `paper_trading/execution/decision_pipeline.py` | Decision pipeline stages |
 | `paper_trading/execution/mt5_broker.py` | MT5 execution broker |
 | `paper_trading/ops/mt5_client.py` | TCP frame protocol to Wine-hosted MT5 |
+| `eigencapital/platform/detector.py` | OS/Wine/deployment mode detection (sys.platform abstraction) |
+| `eigencapital/platform/paths.py` | Platform-independent path resolution (replaces hardcoded paths) |
+| `eigencapital/platform/process.py` | Cross-platform process discovery, kill, health check |
+| `eigencapital/platform/signals.py` | Cross-platform graceful shutdown (threading.Event-based) |
+| `eigencapital/platform/mt5_strategies.py` | Strategy pattern: WineMT5Strategy / NativeWindowsMT5Strategy / NoopMT5Strategy |
+| `eigencapital/platform/mt5_bridge_manager.py` | MT5 terminal+bridge lifecycle, watchdog, auto-restart |
 | `paper_trading/ops/monitor.py` | Main entry point |
 | `paper_trading/services/entry_service.py` | Entry validation + sizing chain |
 | `paper_trading/services/engine_state_service.py` | Portfolio summary |

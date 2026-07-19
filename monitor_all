@@ -1,6 +1,13 @@
 #!/usr/bin/env zsh
-# EigenCapital Paper Trading Monitor
+# EigenCapital Paper Trading Monitor (LEGACY — use Python equivalent for cross-platform)
 # Starts MT5 terminal, bridge, and dashboard/engine in one pass.
+#
+# CROSS-PLATFORM REPLACEMENT:
+#   python -m scripts.eigencapital.launch
+#
+# The Python equivalent works identically on Linux, Windows, and Windows VPS
+# using the platform abstraction in eigencapital/platform/.
+#
 # Usage: ./monitor_all  |  Ctrl+C to stop.
 
 cd "$(dirname "$0")"

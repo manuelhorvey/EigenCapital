@@ -900,7 +900,7 @@ consistency: that the asset list in documentation matches the actual
 config, SELL_ONLY sets match, and other cross-referenced invariants.
 
 ### Bridge Supervisor
-`scripts/ops/mt5_bridge_supervisor.py:BridgeSupervisor` — systemd-level
+`scripts/ops/mt5_bridge_supervisor.py:BridgeSupervisor` — systemd-level (Linux) / NSSM (Windows)
 watchdog for the MT5 bridge. Monitors via JSON-RPC heartbeat, restarts
 on consecutive failures, capped restart count. Exposes `/health` and
 `/ready` endpoints.

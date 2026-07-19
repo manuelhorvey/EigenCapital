@@ -44,6 +44,7 @@ Architecture Decision Records for the EigenCapital quantitative trading framewor
 | 025 | [Liquidity Regime Model — Volume/Amihud Proxy Governance](ADR-025-liquidity-regime-model.md) | Accepted | 2026-05 |
 | 026 | [Regime-Conditional Ensemble Disabled](ADR-026-ensemble-disabled.md) | Accepted | 2026-06 |
 | 027 | [Portfolio Execution Kernel — Centralized Admission Control](ADR-027-portfolio-execution-kernel.md) | Accepted | 2026-06 |
+| 028 | [Cross-Platform Architecture — Centralized Platform Abstraction](ADR-028-cross-platform-architecture.md) | Accepted | 2026-07 |
 ## By Topic
 
 ### Labeling & Signal
@@ -85,6 +86,7 @@ Architecture Decision Records for the EigenCapital quantitative trading framewor
 
 ### Infrastructure
 - ADR-021: Simulation snapshot system
+- ADR-028: Cross-platform abstraction layer (detector, paths, process, signals, MT5 strategies)
 
 ### Operations
 - ADR-014: Zero manual overrides

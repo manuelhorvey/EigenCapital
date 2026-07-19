@@ -71,6 +71,12 @@ PYTHONPATH=$PYTHONPATH:. python scripts/backtest/backtest_pnl.py
 
 # Check state
 curl http://127.0.0.1:5000/state.json | python3 -m json.tool
+
+# Run platform tests
+python -m pytest tests/test_platform_*
+
+# Check platform detection
+python -c "from eigencapital.platform.detector import detect; d=detect(); print(d)"
 ```
 
 ### Key Conclusions
@@ -82,12 +88,33 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 - **Drift detector** — live win-rate drift against breakeven WR; dashboard at `/optimization.json`.
 - **Doc-drift CI check** — `tools/doc_drift_check.py` runs 14 cross-reference checks in CI.
 
+### Cross-Platform Architecture
+
+The platform abstraction layer lives in `eigencapital/platform/` and encapsulates all OS-specific behavior:
+
+| Module | Purpose | Test File |
+|--------|---------|-----------|
+| `detector.py` | OS, architecture, Wine, and deployment mode detection | `tests/test_platform_detector.py` |
+| `paths.py` | Platform-independent home/config/data directory resolution | `tests/test_platform_paths.py` |
+| `signals.py` | Cross-platform signal handling (SIGTERM/SIGINT on Linux, SetConsoleCtrlHandler on Windows) | `tests/test_platform_signals.py` |
+| `process.py` | Process discovery, health checks, and termination (procfs, psutil, tasklist) | `tests/test_platform_process.py` |
+| `mt5_strategies.py` | MT5 launch strategies: Wine on Linux, native on Windows, no-op fallback | `tests/test_platform_mt5_strategies.py` |
+| `mt5_bridge_manager.py` | TCP connection pool manager for MT5 bridge with heartbeat monitoring | `tests/test_platform_mt5_bridge_manager.py` |
+
+**Design principles:**
+- All `os.path` calls replaced with `pathlib.Path` throughout the codebase (~313 files scanned, 0 remaining)
+- Platform differences are centralized behind the platform module — business logic never references `os.name`, `sys.platform`, or hardcoded paths
+- MT5 integration uses a strategy pattern: `WineMT5Strategy` (Linux) / `NativeWindowsMT5Strategy` (Windows) / `NoopMT5Strategy` (testing)
+- Automatic detection with ``EIGENCAPITAL_DEPLOYMENT`` env var override
+- Filesystem constants (config dirs, data dirs, log paths) resolved via platform service, not hardcoded
+
 ### Related Documentation
 
 | Document | Purpose |
 |----------|---------|
 | `docs/OPERATIONS.md` | Day-to-day operations |
 | `docs/ARCHITECTURE_REFERENCE.md` | System design and components |
+| `docs/CROSS_PLATFORM.md` | Cross-platform architecture deep-dive |
 | `docs/RESEARCH_HISTORY.md` | Past investigations and decisions |
 | `docs/FEATURES.md` | Feature taxonomy |
 | `docs/SYSTEM_OVERVIEW.md` | System overview |
@@ -96,4 +123,4 @@ curl http://127.0.0.1:5000/state.json | python3 -m json.tool
 
 ---
 
-*Last updated: 2026-07-18. Kept intentionally concise — see linked documents above for depth.*
+*Last updated: 2026-07-19. Kept intentionally concise — see linked documents above for depth.*

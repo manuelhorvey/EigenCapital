@@ -45,7 +45,7 @@
 ```bash
 # 1. Check what happened
 tail -100 data/live/state.json  # Last persisted state
-journalctl -u eigencapital-* -n 50  # If running as systemd service
+journalctl -u eigencapital-* -n 50  # If running as systemd service (Linux only)
 
 # 2. Verify state integrity
 python -c "
@@ -143,7 +143,7 @@ curl http://127.0.0.1:9879/health
 
 # 2. If bridge is down, restart it
 # The BridgeSupervisor should auto-restart. Check systemd:
-systemctl status eigencapital-mt5-bridge
+systemctl status eigencapital-mt5-bridge  # Linux only; on Windows check Task Manager or NSSM
 
 # 3. Manual restart
 cd /home/manuelhorveydaniel/Projects/EigenCapital
@@ -367,7 +367,7 @@ Changes to prevent recurrence:
 | Config schema validation | Every commit | `tools/check_config_schema.py` |
 | Doc-drift consistency check | Every PR | `tools/doc_drift_check.py` |
 | Model health check | Daily | `scripts/ops/model_health_monitor.py` |
-| MT5 bridge supervision | Continuous | `BridgeSupervisor` (systemd) |
+| MT5 bridge supervision | Continuous | `BridgeSupervisor` (systemd / NSSM) |
 | Engine liveness check | Every 5s | Dashboard `/health` endpoint |
 | WAL fsync | Every cycle | `WalWriter.flush()` with `os.fsync` |
 | Emergency halt auto-clear | On restart | `orchestrator/engine.py` |

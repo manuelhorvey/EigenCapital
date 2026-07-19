@@ -32,12 +32,16 @@ retrain-fast:
 	PYTHONPATH=$$PYTHONPATH:. python scripts/training/pipeline.py --retrain-only
 
 retrain-schedule:
-	./scripts/ops/retrain_scheduler.sh
+	PYTHONPATH=$$PYTHONPATH:. python scripts/eigencapital/retrain.py
 
 retrain-schedule-dry:
-	./scripts/ops/retrain_scheduler.sh --dry-run
+	PYTHONPATH=$$PYTHONPATH:. python scripts/eigencapital/retrain.py --dry-run
 
-# ── Systemd retrain timer (user-level) ──────────────────────────────────────
+# ── Systemd retrain timer (user-level; Linux only) ──────────────────────────
+# On Windows, use Task Scheduler instead:
+#   schtasks /create /tn "EigenCapital Retrain" /tr "python scripts/eigencapital/retrain.py" /sc weekly /d SUN /st 03:00
+# Or use NSSM to create a Windows Service:
+#   nssm install EigenCapital-Retrain "$(which python)" "$(pwd)/scripts/eigencapital/retrain.py"
 
 retrain-install:
 	@echo "Installing systemd retrain timer..."
@@ -76,6 +80,10 @@ health-check-json:
 
 health-check-trigger:
 	PYTHONPATH=$$PYTHONPATH:. python scripts/ops/model_health_monitor.py --trigger
+
+# ── Systemd health check timer (user-level; Linux only) ───────────────────────
+# On Windows, use Task Scheduler instead:
+#   schtasks /create /tn "EigenCapital HealthCheck" /tr "python scripts/ops/model_health_monitor.py --trigger" /sc daily /st 04:00
 
 health-check-install:
 	@echo "Installing systemd health-check timer..."
@@ -141,6 +149,8 @@ backup-status:
 	@ls -lt data/backups/sqlite/ 2>/dev/null | head -5 || echo "  (none)"
 
 # ── Combined install ─────────────────────────────────────────────────────────
+# Linux: Installs systemd timers for all scheduled tasks.
+# Windows: Use Task Scheduler (see individual target comments) or NSSM.
 
 all-timers-install: retrain-install health-check-install backup-install
 	@echo ""

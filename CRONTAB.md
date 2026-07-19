@@ -1,7 +1,8 @@
 # EigenCapital — Scheduled Tasks via Crontab
 >
 > If systemd timers are unavailable or undesired, use the crontab entries below.
-> For systemd timers, run: `make all-timers-install`
+> For systemd timers (Linux), run: `make all-timers-install`
+> For Windows Task Scheduler, see comments in the Makefile targets.
 
 ## Weekly retrain (Sundays 03:00 UTC)
 
@@ -9,7 +10,7 @@
 # EigenCapital weekly model retrain (Sundays 03:00 UTC)
 # Logs to data/logs/retrain/retrain_cron_YYYYMMDD.log
 CRON_TZ=UTC
-0 3 * * 0 cd /home/manuelhorveydaniel/Projects/EigenCapital && ./scripts/ops/retrain_scheduler.sh >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
+0 3 * * 0 cd /home/manuelhorveydaniel/Projects/EigenCapital && PYTHONPATH=$PYTHONPATH:. python scripts/eigencapital/retrain.py >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
 ```
 
 ## Daily health check + auto-trigger (04:00 UTC)
@@ -25,15 +26,15 @@ CRON_TZ=UTC
 
 ```cron
 CRON_TZ=UTC
-0 3 1 * * cd /home/manuelhorveydaniel/Projects/EigenCapital && ./scripts/ops/retrain_scheduler.sh >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
+0 3 1 * * cd /home/manuelhorveydaniel/Projects/EigenCapital && PYTHONPATH=$PYTHONPATH:. python scripts/eigencapital/retrain.py >> data/logs/retrain/retrain_cron_$(date +\%Y\%m\%d).log 2>&1
 ```
 
 ## Quick manual run
 
 ```bash
 cd /home/manuelhorveydaniel/Projects/EigenCapital
-./scripts/ops/retrain_scheduler.sh              # full pipeline
-./scripts/ops/retrain_scheduler.sh --dry-run     # dry run
+PYTHONPATH=$PYTHONPATH:. python scripts/eigencapital/retrain.py   # full pipeline (cross-platform)
+PYTHONPATH=$PYTHONPATH:. python scripts/eigencapital/retrain.py --dry-run  # dry run
 make retrain                                     # full pipeline
 make retrain-fast                                # retrain only (skip validation)
 make health-check                                # manual health check

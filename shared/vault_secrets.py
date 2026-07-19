@@ -122,7 +122,7 @@ class VaultSecretsProvider:
                     self._config.path,
                 )
                 return client
-            except Exception as exc:  # noqa: BLE001 — graceful degradation for external dependency
+            except (ConnectionError, TimeoutError, OSError) as exc:
                 logger.warning(
                     "Vault connection failed (%s) — falling back to env vars",
                     exc,
@@ -168,7 +168,7 @@ class VaultSecretsProvider:
             with self._cache_lock:
                 self._cache[ck] = (data, now)
             return data
-        except Exception as exc:  # noqa: BLE001 — graceful degradation for external dependency
+        except (KeyError, ConnectionError, TimeoutError, OSError) as exc:
             logger.warning("Vault read failed for %s/%s: %s", mp, p, exc)
             return None
 
@@ -268,7 +268,7 @@ class VaultSecretsProvider:
             return False
         try:
             return bool(client.is_authenticated())
-        except Exception:  # noqa: BLE001 — graceful degradation
+        except (ConnectionError, TimeoutError, OSError, KeyError):
             return False
 
 

@@ -96,7 +96,7 @@ class AdaptiveExitEngine:
             self._best_price = min(self._best_price or entry_price, current_price)
         best = self._best_price
 
-        if best == entry_price:
+        if best is None or best == entry_price:
             return AdaptiveExitResult()
 
         vol = max(vol_at_entry, 1e-9)
@@ -134,13 +134,13 @@ class AdaptiveExitEngine:
         if should_scale:
             self._scale_out_fired = True
             if side == "long":
-                so_price = entry_price + scale_out_r * vol * entry_price
+                so_price = entry_price + scale_out_r * vol * entry_price  # type: ignore[operator]
             else:
-                so_price = entry_price - scale_out_r * vol * entry_price
+                so_price = entry_price - scale_out_r * vol * entry_price  # type: ignore[operator]
             result.scale_out_fraction = scale_out_fraction
             result.scale_out_price = so_price
             result.action = "scale_out"
-            result.description = f"scale_out {scale_out_fraction * 100:.0f}% at {scale_out_r}R (price={so_price:.4f})"
+            result.description = f"scale_out {scale_out_fraction * 100:.0f}% at {scale_out_r}R (price={so_price:.4f})"  # type: ignore[operator]
             self._sl_update_count += 1
             self._current_phase = "SCALE_OUT"
             return result

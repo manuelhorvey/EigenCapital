@@ -188,7 +188,7 @@ class ExecutionSimulator:
             side = "buy"
             qty = 1.0
 
-        return self.simulate("entry", side, mid_price, qty, market, config)
+        return self.simulate("entry", side, mid_price, qty, market, config)  # type: ignore[arg-type]
 
     def simulate_stop_loss(
         self,
@@ -202,7 +202,7 @@ class ExecutionSimulator:
             return FillResult(current_price, 0.0, 0.0, 0, False, False)
 
         side = "sell" if position.side == "long" else "buy"
-        return self.simulate("stop_loss", side, position.stop_loss, position.vol * 1000, market, config)
+        return self.simulate("stop_loss", side, position.stop_loss, position.vol * 1000, market, config)  # type: ignore[arg-type]
 
     def simulate_take_profit(
         self,
@@ -216,7 +216,7 @@ class ExecutionSimulator:
             return FillResult(current_price, 0.0, 0.0, 0, False, False)
 
         side = "sell" if position.side == "long" else "buy"
-        return self.simulate("take_profit", side, position.take_profit, position.vol * 1000, market, config)
+        return self.simulate("take_profit", side, position.take_profit, position.vol * 1000, market, config)  # type: ignore[arg-type]
 
     def seed_hash(self) -> str:
         raw = f"{self.slippage.seed_hash()}:{self.fill.seed_hash()}:{self.latency.seed_hash()}"

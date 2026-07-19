@@ -198,7 +198,7 @@ class VelocityProcessor:
         vol_velocity: float,
         degradation_velocity: float,
         execution_velocity: float,
-    ) -> RegimeVelocity:
+    ) -> tuple[RegimeVelocity, float]:
         pnl_acc = self._compute_acceleration(self._pnl_history)
         # Trend factor: positive PnL velocity = recovery, negative = deterioration
         if pnl_velocity < -0.02 and vol_velocity > 0.1:
@@ -369,7 +369,7 @@ class PerformanceStateBuilder:
             slippage_p90=self.execution.slippage_p90(),
         )
 
-    def _ece_value(self) -> float:
+    def _ece_value(self) -> float:  # _registry_intrinsic_ece returns float
         """Return calibration ECE.
 
         When a ``CalibrationRegistry`` has been wired via

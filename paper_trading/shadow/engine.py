@@ -201,7 +201,7 @@ class ShadowSLTPEngine:
     def close_shadow(self, exit_price: float, date: str, reason: str) -> None:
         """Force-close the shadow position (e.g. when live engine closes)."""
         if self._shadow_active:
-            self._close_shadow(exit_price, date, reason)
+            self._close_shadow(exit_price, date, reason)  # type: ignore[arg-type]
 
     # ── Internal ────────────────────────────────────────────────────
 

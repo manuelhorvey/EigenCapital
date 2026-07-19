@@ -62,7 +62,7 @@ class ServingHandler(Handler, http.server.SimpleHTTPRequestHandler):
         )
         super().end_headers()
 
-    def log_request(self, code: int | str = ..., size: int | str = ...) -> None:
+    def log_request(self, code: int | str = 0, size: int | str = 0) -> None:
         """Override log_request to record Prometheus metrics."""
         path = self.path.split("?", 1)[0]
         method = self.command

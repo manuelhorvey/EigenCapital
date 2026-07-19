@@ -157,7 +157,7 @@ def setup_alerting_from_config(config: dict | None = None) -> AlertManager:
         try:
             from paper_trading.config_manager import get_config
 
-            config = get_config()
+            config = get_config()  # type: ignore[assignment]
         except (OSError, ValueError, ImportError):
             config = {}
     alerting_cfg = config.get("alerting", {}) if isinstance(config, dict) else getattr(config, "alerting", None) or {}
@@ -184,5 +184,13 @@ def setup_alerting_from_config(config: dict | None = None) -> AlertManager:
             ),
         )
         logger.info("Alerting: Webhook channel enabled")
+
+    # Email fallback channel
+    from paper_trading.alerting.channels.email import create_email_channel_from_config
+
+    email_channel = create_email_channel_from_config(alerting_cfg)
+    if email_channel is not None:
+        mgr.add_channel(email_channel, min_severity=Severity.WARNING)
+        logger.info("Alerting: Email channel enabled (%d recipient(s))", len(email_channel._config.to_addrs))
 
     return mgr

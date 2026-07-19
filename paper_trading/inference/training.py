@@ -143,7 +143,7 @@ class AssetTrainingPipeline:
                 and asset_upper not in _ZERO_RATE_ASSETS
                 and asset_upper != "BTCUSD"
             ):
-                from features.rates_features import fetch_yield_curve
+                from features.rates_features import fetch_yield_curve  # type: ignore[attr-defined]
 
                 base_yc = pd.Series(dtype=float)
                 quote_yc = pd.Series(dtype=float)

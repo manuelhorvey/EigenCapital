@@ -40,7 +40,7 @@ class FeatureBuilder:
 
     def __init__(self) -> None:
         self._regime_features_cache: pd.DataFrame | None = None
-        self._regime_cache_cycle: int = -1
+        self._regime_cache_cycle: tuple = (-1,)
         self._truncate_inference: bool = True
 
     def build(
@@ -233,7 +233,7 @@ class FeatureBuilder:
         if not ohlcv.empty:
             cache_key = (_cycle_id, asset.name)
             if self._regime_cache_cycle != cache_key:
-                raw_regime = generate_regime_features(ohlcv)
+                raw_regime = generate_regime_features(ohlcv)[0]
                 self._regime_features_cache = raw_regime
                 self._regime_cache_cycle = cache_key
             else:
@@ -335,4 +335,4 @@ class FeatureBuilder:
     def reset(self) -> None:
         """Clear regime feature cache.  Call in test fixtures."""
         self._regime_features_cache = None
-        self._regime_cache_cycle = -1
+        self._regime_cache_cycle = (-1,)

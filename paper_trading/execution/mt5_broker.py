@@ -477,7 +477,7 @@ class MT5Broker(BrokerInterface):
             with self._cache_lock:
                 return list(self._position_cache) if self._position_cache else []
 
-        positions = []
+        positions: list[Position] = []
         for p in raw:
             side = "buy" if p.get("type") == "buy" else "sell"
             quantity = self._lots_to_quantity(p.get("symbol", ""), p.get("volume", 0))

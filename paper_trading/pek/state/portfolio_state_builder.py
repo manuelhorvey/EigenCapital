@@ -84,7 +84,7 @@ class PortfolioStateBuilder:
             entry_price = getattr(pos, "entry_price", 0.0) or 0.0
             current_price = getattr(eng, "current_price", entry_price) or entry_price
             pnl_pct = (
-                getattr(pos_mgr, "position_pnl", None)(current_price)
+                getattr(pos_mgr, "position_pnl", None)(current_price)  # type: ignore[misc]
                 if entry_price > 0 and hasattr(pos_mgr, "position_pnl")
                 else 0.0
             )

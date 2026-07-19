@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import errno
 import gzip
 import hmac
@@ -7,7 +9,11 @@ import os
 import secrets
 import threading
 import time
+from typing import TYPE_CHECKING
 from urllib.parse import unquote
+
+if TYPE_CHECKING:
+    from paper_trading.state_store import StateStore
 
 
 class _StrictJSONEncoder(json.JSONEncoder):
@@ -20,7 +26,7 @@ class _StrictJSONEncoder(json.JSONEncoder):
         )
 
 
-def json_dumps(obj, **kwargs):
+def json_dumps(obj, **kwargs) -> str:
     kwargs.setdefault("indent", 2)
     kwargs.setdefault("ensure_ascii", False)
     return json.dumps(obj, cls=_StrictJSONEncoder, **kwargs)
@@ -94,10 +100,10 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 # the handler dispatch (handler.py passes self.server._state_store).
 # This module-level variable is only for scripts and tests that call
 # handlers directly; prefer injecting state_store explicitly.
-_SERVER_STORE: object | None = None
+_SERVER_STORE: StateStore | None = None
 
 
-def init_server_store(store: object | None = None, base_dir: str | None = None) -> None:
+def init_server_store(store: StateStore | None = None, base_dir: str | None = None) -> None:
     """Initialize the server-context StateStore.
 
     Called once at server startup by ``serve.py``. Accepts an optional
@@ -112,8 +118,15 @@ def init_server_store(store: object | None = None, base_dir: str | None = None) 
     _SERVER_STORE = StateStore(base_dir or _PROJECT_ROOT)
 
 
-def get_server_store() -> object | None:
-    """Return the server-context StateStore, or None if not initialized."""
+def get_server_store() -> StateStore:
+    """Return the server-context StateStore.
+
+    Raises RuntimeError if the store has not been initialized via
+    :func:`init_server_store`.  By the time API routes are called
+    (after server startup), the store is guaranteed to be initialized.
+    """
+    if _SERVER_STORE is None:
+        raise RuntimeError("StateStore not initialized. Call init_server_store() before serving requests.")
     return _SERVER_STORE
 
 

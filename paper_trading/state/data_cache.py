@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -10,21 +12,21 @@ class _DataCache:
     """Parquet file cache for downloaded OHLCV data."""
 
     def __init__(self, cache_dir: str):
-        self._cache_dir = cache_dir
-        os.makedirs(self._cache_dir, exist_ok=True)
+        self._cache_dir = Path(cache_dir)
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def path_for(self, ticker: str) -> str:
+    def path_for(self, ticker: str) -> Path:
         safe_name = ticker.replace("=", "_").replace("-", "_")
-        return os.path.join(self._cache_dir, f"{safe_name}.parquet")
+        return self._cache_dir / f"{safe_name}.parquet"
 
     def save(self, ticker: str, df: pd.DataFrame) -> None:
         path = self.path_for(ticker)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(path)
 
     def load(self, ticker: str) -> pd.DataFrame | None:
         path = self.path_for(ticker)
-        if os.path.exists(path):
+        if path.exists():
             try:
                 df = pd.read_parquet(path)
                 if not df.empty:

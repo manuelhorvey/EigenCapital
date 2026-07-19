@@ -12,7 +12,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-import os
+from pathlib import Path
 import sqlite3
 
 logger = logging.getLogger("eigencapital.state.integrity_check")
@@ -52,13 +52,13 @@ def check_database_integrity(db_path: str, repair_on_failure: bool = False) -> d
     errors: list[str] = []
 
     # 1. File existence
-    if not os.path.isfile(db_path):
+    if not Path(db_path).is_file():
         errors.append(f"Database file not found: {db_path}")
         if repair_on_failure:
             return {"status": "CORRUPT", "errors": errors}
         raise DatabaseIntegrityError("; ".join(errors))
 
-    file_size = os.path.getsize(db_path)
+    file_size = Path(db_path).stat().st_size
     if file_size == 0:
         errors.append(f"Database file is empty (0 bytes): {db_path}")
         if repair_on_failure:

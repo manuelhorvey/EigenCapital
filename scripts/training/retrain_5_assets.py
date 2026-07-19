@@ -2,12 +2,12 @@
 """Retrain 5 underperforming assets with fresh OHLCV cache."""
 
 import logging
-import os
+from pathlib import Path
 import sys
 import time
 from datetime import datetime
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, Path(__file__).resolve().parent.parent)
 
 logging.basicConfig(
     level=logging.INFO,

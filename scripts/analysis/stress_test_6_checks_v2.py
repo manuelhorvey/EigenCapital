@@ -4,7 +4,6 @@ Outputs final structured report for the deliverable.
 """
 
 import json
-import os
 import warnings
 from pathlib import Path
 

@@ -12,23 +12,24 @@ Usage::
 
 import json
 import os
+from pathlib import Path
 import sqlite3
 
 import pandas as pd
 import pytz
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LIVE_DIR = os.path.join(BASE_DIR, "data", "live")
-DB_PATH = os.path.join(LIVE_DIR, "state.db")
-ATTRIBUTION_PATH = os.path.join(LIVE_DIR, "attribution.parquet")
-JOURNAL_PATH = os.path.join(LIVE_DIR, "trade_journal.parquet")
-EQUITY_PATH = os.path.join(LIVE_DIR, "equity_history.json")
+BASE_DIR = Path(__file__).resolve().parent.parent
+LIVE_DIR = str(Path(BASE_DIR) / "data" / "live")
+DB_PATH = str(Path(LIVE_DIR) / "state.db")
+ATTRIBUTION_PATH = str(Path(LIVE_DIR) / "attribution.parquet")
+JOURNAL_PATH = str(Path(LIVE_DIR) / "trade_journal.parquet")
+EQUITY_PATH = str(Path(LIVE_DIR) / "equity_history.json")
 
 ET = pytz.timezone("US/Eastern")
 
 
 def migrate():
-    if not os.path.exists(DB_PATH):
+    if not Path(DB_PATH).exists():
         print(f"Error: Database not found at {DB_PATH}")
         return
 
@@ -36,7 +37,7 @@ def migrate():
     conn.row_factory = sqlite3.Row
 
     # 1. Migrate Attribution
-    if os.path.exists(ATTRIBUTION_PATH):
+    if Path(ATTRIBUTION_PATH).exists():
         print(f"Migrating attribution from {ATTRIBUTION_PATH}...")
         df_attr = pd.read_parquet(ATTRIBUTION_PATH)
         for _, row in df_attr.iterrows():
@@ -105,7 +106,7 @@ def migrate():
         print("  Done migrating attribution.")
 
     # 2. Migrate Trade Journal
-    if os.path.exists(JOURNAL_PATH):
+    if Path(JOURNAL_PATH).exists():
         print(f"Migrating trades from {JOURNAL_PATH}...")
         df_journal = pd.read_parquet(JOURNAL_PATH)
         for _, row in df_journal.iterrows():
@@ -159,7 +160,7 @@ def migrate():
         print("  Done migrating trades.")
 
     # 3. Migrate Equity History
-    if os.path.exists(EQUITY_PATH):
+    if Path(EQUITY_PATH).exists():
         print(f"Migrating equity history from {EQUITY_PATH}...")
         try:
             with open(EQUITY_PATH) as f:

@@ -3,10 +3,14 @@ import logging
 import os
 import socketserver
 import time
+from pathlib import Path
 from socketserver import ThreadingMixIn
 
 from paper_trading.api.handler import Handler
 from paper_trading.metrics.exposition import global_registry
+
+# Import the cross-platform ShutdownManager
+from eigencapital.platform.signals import ShutdownManager
 
 logger = logging.getLogger("eigencapital.serve")
 
@@ -118,7 +122,7 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
     from paper_trading.api.common import init_server_store
     from paper_trading.state_store import StateStore
 
-    _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _base_dir = str(Path(__file__).resolve().parent.parent)
     _state_store = StateStore(_base_dir)
     init_server_store(store=_state_store)  # server-context backstop
 
@@ -128,8 +132,13 @@ def serve(port=DEFAULT_PORT, shutdown_event=None):
 
     url = f"http://{'127.0.0.1' if bind == '0.0.0.0' else bind}:{port}"
     logger.info("Dashboard: %s", url)
+
+    # Use cross-platform ShutdownManager for signal handling
+    shutdown = ShutdownManager()
+    shutdown.install_handlers()
+
     try:
-        while not (shutdown_event and shutdown_event.is_set()):
+        while not (shutdown_event and shutdown_event.is_set()) and not shutdown.is_set():
             httpd.handle_request()
     except KeyboardInterrupt:
         logger.info("Dashboard server shutting down (SIGINT)")

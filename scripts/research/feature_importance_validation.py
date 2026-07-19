@@ -14,6 +14,7 @@ import glob
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from collections import defaultdict
 from itertools import combinations
@@ -21,15 +22,15 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, Path(__file__).resolve().parent.parent)
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("feature_validation")
 
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-WF_DIR = os.path.join(BASE, "scripts", "walkforward")
-MODELS_DIR = os.path.join(BASE, "paper_trading", "models")
-REPORT_PATH = os.path.join(BASE, "data", "processed", "feature_importance_report.md")
+BASE = Path(__file__).resolve().parent.parent.parent
+WF_DIR = str(Path(BASE) / "scripts" / "walkforward")
+MODELS_DIR = str(Path(BASE) / "paper_trading" / "models")
+REPORT_PATH = str(Path(BASE) / "data" / "processed" / "feature_importance_report.md")
 
 # Topological feature groups (from alpha_features.py + regime_features.py)
 CORE_FEATURES = {
@@ -77,11 +78,11 @@ def load_model_importances() -> dict[str, dict]:
     import xgboost as xgb
 
     results = {}
-    model_paths = glob.glob(os.path.join(MODELS_DIR, "*_model.json"))
+    model_paths = glob.glob(str(Path(MODELS_DIR) / "*_model.json"))
     model_paths.sort()
 
     for path in model_paths:
-        basename = os.path.basename(path)
+        basename = Path(path).name
         asset = basename.replace("_model.json", "")
         try:
             model = xgb.XGBClassifier()
@@ -247,20 +248,20 @@ def analyze_cot_ablation(wf_dir: str) -> dict:
     results = defaultdict(dict)
 
     for variant in ["baseline", "cot_only", "carry_only", "both", "true_baseline"]:
-        summary_csv = os.path.join(wf_dir, f"all_assets_wf_summary_{variant}.csv")
-        if os.path.exists(summary_csv):
+        summary_csv = str(Path(wf_dir) / "all_assets_wf_summary_{variant}.csv")
+        if Path(summary_csv).exists():
             df = pd.read_csv(summary_csv)
             results[variant] = df
 
     if not results:
         # Try per-asset aggregation
         for variant in ["baseline", "cot_only", "carry_only"]:
-            summaries = glob.glob(os.path.join(wf_dir, f"*wf_summary_{variant}.csv"))
+            summaries = glob.glob(str(Path(wf_dir) / f"*wf_summary_{variant}.csv"))
             if not summaries:
-                summaries = glob.glob(os.path.join(wf_dir, f"*wf_summary.csv"))
+                summaries = glob.glob(str(Path(wf_dir) / "*wf_summary.csv"))
             dfs = []
             for s in summaries:
-                asset_name = os.path.basename(s).split("_wf_summary")[0]
+                asset_name = Path(s).name.split("_wf_summary")[0]
                 try:
                     pdf = pd.read_csv(s)
                     pdf["asset"] = asset_name
@@ -283,8 +284,8 @@ def analyze_cot_nan_rate() -> dict:
 def load_walkforward_signals(wf_dir: str) -> dict[str, pd.DataFrame]:
     """Load all baseline walkforward signal parquets."""
     signals = {}
-    for path in glob.glob(os.path.join(wf_dir, "*_wf_signals_baseline.parquet")):
-        asset = os.path.basename(path).split("_wf_signals")[0]
+    for path in glob.glob(str(Path(wf_dir) / "*_wf_signals_baseline.parquet")):
+        asset = Path(path).name.split("_wf_signals")[0]
         try:
             df = pd.read_parquet(path)
             if "signal" in df.columns and "label" in df.columns:
@@ -676,7 +677,7 @@ def generate_report(
 
 def main():
     wf_dir = WF_DIR
-    os.makedirs(os.path.dirname(REPORT_PATH), exist_ok=True)
+    Path(REPORT_PATH).parent.mkdir(parents=True, exist_ok=True)
 
     # Step 1: Load model importances
     logger.info("=" * 60)

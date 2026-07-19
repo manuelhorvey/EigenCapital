@@ -17,13 +17,13 @@ Results surface in assets[].feature_stability_jaccard/spearman fields.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.importance_tracker")
 
@@ -107,8 +107,8 @@ def compute_stability_penalty(jaccard: float, spearman: float) -> float:
 class ImportanceStore:
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
-        self.path = os.path.join(base_dir, "data", "live", "importance_history.parquet")
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        self.path = Path(base_dir) / "data" / "live" / "importance_history.parquet"
+        Path(Path(self.path).parent).mkdir(parents=True, exist_ok=True)
 
     def log_snapshot(
         self,
@@ -145,7 +145,7 @@ class ImportanceStore:
                 )
             )
         df = pd.DataFrame([asdict(r) for r in records])
-        if os.path.exists(self.path) and os.path.getsize(self.path) > 0:
+        if Path(self.path).exists() and Path(self.path).stat().st_size > 0:
             try:
                 existing = pd.read_parquet(self.path)
                 df = pd.concat([existing, df], ignore_index=True)
@@ -155,7 +155,7 @@ class ImportanceStore:
         logger.info("logged %d feature importances for %s (window=%s)", len(records), asset, window_id)
 
     def load_history(self, asset: str | None = None) -> pd.DataFrame:
-        if not os.path.exists(self.path):
+        if not Path(self.path).exists():
             return pd.DataFrame()
         try:
             df = pd.read_parquet(self.path)

@@ -16,6 +16,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.audit.phase8_entry")
 

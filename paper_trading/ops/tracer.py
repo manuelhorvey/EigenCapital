@@ -1,14 +1,12 @@
 import json
 import logging
-import os
 import threading
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now_iso
+from pathlib import Path
 
-TRACE_LOG_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "live", "trace.jsonl"
-)
+TRACE_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "live" / "trace.jsonl"
 
 _lock = threading.Lock()
 _logger = logging.getLogger("eigencapital.tracer")
@@ -16,7 +14,7 @@ _logger = logging.getLogger("eigencapital.tracer")
 
 def _append(line: dict) -> None:
     try:
-        os.makedirs(os.path.dirname(TRACE_LOG_PATH), exist_ok=True)
+        Path(Path(TRACE_LOG_PATH).parent).mkdir(parents=True, exist_ok=True)
         with _lock, open(TRACE_LOG_PATH, "a") as f:
             f.write(json.dumps(line, cls=EigenCapitalJSONEncoder) + "\n")
     except OSError as e:

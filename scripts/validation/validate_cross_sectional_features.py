@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 import sys
 import warnings
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 
 from features.alpha_features import _compute_shared_features, build_alpha_features
 from features.cross_sectional import compute_all as compute_xs

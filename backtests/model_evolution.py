@@ -1,12 +1,12 @@
 """Model evolution tracking — trajectory management for model assessment scoring."""
 
 import json
-import os
 from datetime import datetime, timezone
 
 import numpy as np
+from pathlib import Path
 
-EVOLUTION_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "sandbox", "evolution")
+EVOLUTION_DIR = Path(__file__).resolve().parent.parent / "data" / "sandbox" / "evolution"
 
 
 def compute_mas_velocity(trajectory, window=None):
@@ -197,7 +197,7 @@ def append_trajectory(asset, mas, delta_mas, decision, sub_scores, forward_resul
     """Append a new entry to the asset's trajectory file."""
 
     evo_dir = EVOLUTION_DIR
-    os.makedirs(evo_dir, exist_ok=True)
+    Path(evo_dir).mkdir(parents=True, exist_ok=True)
 
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -208,9 +208,9 @@ def append_trajectory(asset, mas, delta_mas, decision, sub_scores, forward_resul
         "forward_result": forward_result,
     }
 
-    fpath = os.path.join(evo_dir, f"{asset}.json")
+    fpath = Path(evo_dir) / f"{asset}.json"
     try:
-        if os.path.exists(fpath):
+        if Path(fpath).exists():
             with open(fpath) as f:
                 data = json.load(f)
         else:
@@ -227,8 +227,8 @@ def append_trajectory(asset, mas, delta_mas, decision, sub_scores, forward_resul
 
 def load_trajectory(asset, max_entries=None):
     """Load trajectory entries for an asset."""
-    fpath = os.path.join(EVOLUTION_DIR, f"{asset}.json")
-    if not os.path.exists(fpath):
+    fpath = Path(EVOLUTION_DIR) / f"{asset}.json"
+    if not Path(fpath).exists():
         return []
 
     try:
@@ -244,13 +244,13 @@ def load_trajectory(asset, max_entries=None):
 
 def load_all_trajectories():
     """Load all asset trajectories from the evolution directory."""
-    if not os.path.isdir(EVOLUTION_DIR):
+    if not Path(EVOLUTION_DIR).is_dir():
         return {}
 
     trajectories = {}
-    for fname in sorted(os.listdir(EVOLUTION_DIR)):
-        if fname.endswith(".json"):
-            asset = fname[:-5]  # remove .json
+    for fname in sorted(sorted(Path(EVOLUTION_DIR).iterdir())):
+        if fname.suffix == ".json":
+            asset = str(fname.stem)  # remove .json
             trajectories[asset] = load_trajectory(asset)
     return trajectories
 

@@ -15,7 +15,6 @@ import argparse
 import glob
 import json
 import logging
-import os
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
@@ -176,10 +175,10 @@ def load_all_signals(tag: str | None = None) -> dict[str, pd.DataFrame]:
     values vectorized at load time."""
     assets: dict[str, pd.DataFrame] = {}
     suffix = f"_wf_signals{'_' + tag if tag else ''}.parquet"
-    pattern = os.path.join(WALKDIR, f"*{suffix}")
+    pattern = Path(WALKDIR) / f"*{suffix}"
     pt_sl_map = load_pt_sl()
     for fpath in glob.glob(pattern):
-        name = os.path.basename(fpath).replace(suffix, "")
+        name = Path(fpath).name.replace(suffix, "")
         df = pd.read_parquet(fpath)
         tp, sl = pt_sl_map.get(name, (2.0, 2.0))
         df["r"] = _vectorized_compute_r(df["signal"], df["label"], tp, sl)

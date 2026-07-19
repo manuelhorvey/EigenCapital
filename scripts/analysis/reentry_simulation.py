@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
@@ -37,7 +36,7 @@ import pandas as pd
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from paper_trading.position.adaptive_exit import AdaptiveExitEngine, AdaptiveExitResult
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, Path(__file__).resolve().parent.parent.parent)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("reentry_simulation")

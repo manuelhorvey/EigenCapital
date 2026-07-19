@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,12 +9,8 @@ import xgboost as xgb
 
 logger = logging.getLogger("eigencapital.regime_model")
 
-REGIME_MODEL_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "models",
-    "regime",
-)
-os.makedirs(REGIME_MODEL_DIR, exist_ok=True)
+REGIME_MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "regime"
+REGIME_MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 _MIN_TRAIN_ROWS = 100
 
@@ -52,11 +50,11 @@ class RegimeConditionalModel:
         self._val_score: float | None = None
         self._best_iteration: int | None = None
 
-    def _base_path(self, asset_name: str = "") -> str:
+    def _base_path(self, asset_name: str = "") -> Path:
         stem = "regime_conditional"
         if asset_name:
             stem = f"{asset_name}_regime"
-        return os.path.join(REGIME_MODEL_DIR, stem)
+        return REGIME_MODEL_DIR / stem
 
     def train(
         self,
@@ -177,7 +175,7 @@ class RegimeConditionalModel:
         base = self._base_path(asset_name)
         json_path = f"{base}.json"
         feat_path = f"{base}_features.txt"
-        if os.path.exists(json_path):
+        if Path(json_path).exists():
             self._model = xgb.XGBClassifier()
             # sklearn 1.9 removed _estimator_type from ClassifierMixin, but
             # xgboost.load_model() still checks it via _get_type().
@@ -185,7 +183,7 @@ class RegimeConditionalModel:
             self._model.load_model(json_path)
             self._trained = True
             # Restore feature names
-            if os.path.exists(feat_path):
+            if Path(feat_path).exists():
                 with open(feat_path) as f:
                     self._feature_names = [line.strip() for line in f if line.strip()]
             logger.info("regime model loaded from %s.json (%d features)", base, len(self._feature_names))

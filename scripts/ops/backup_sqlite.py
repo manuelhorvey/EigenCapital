@@ -26,6 +26,7 @@ import glob
 import gzip
 import logging
 import os
+from pathlib import Path
 import shutil
 import sqlite3
 import subprocess
@@ -40,10 +41,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("eigencapital.backup")
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEFAULT_DB_PATH = os.path.join(PROJECT_ROOT, "data", "live", "state.db")
-DEFAULT_BACKUP_DIR = os.path.join(PROJECT_ROOT, "data", "backups", "sqlite")
-DEFAULT_LOG_DIR = os.path.join(PROJECT_ROOT, "data", "logs")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DB_PATH = str(Path(PROJECT_ROOT) / "data" / "live" / "state.db")
+DEFAULT_BACKUP_DIR = str(Path(PROJECT_ROOT) / "data" / "backups" / "sqlite")
+DEFAULT_LOG_DIR = str(Path(PROJECT_ROOT) / "data" / "logs")
 
 
 def create_backup(
@@ -59,15 +60,15 @@ def create_backup(
 
     Returns the path to the backup file, or None on failure.
     """
-    if not os.path.exists(db_path):
+    if not Path(db_path).exists():
         logger.error("Database not found at %s", db_path)
         return None
 
     os.makedirs(backup_dir, exist_ok=True)
     timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
-    db_name = os.path.basename(db_path)
+    db_name = Path(db_path).name
     backup_name = f"{db_name}.{timestamp}"
-    backup_path = os.path.join(backup_dir, backup_name)
+    backup_path = str(Path(backup_dir) / backup_name)
 
     try:
         src = sqlite3.connect(db_path, timeout=10.0)
@@ -89,14 +90,14 @@ def create_backup(
         finally:
             verify.close()
 
-        logger.info("Backup created: %s (%.1f MB)", backup_path, os.path.getsize(backup_path) / 1e6)
+        logger.info("Backup created: %s (%.1f MB)", backup_path, Path(backup_path).stat().st_size / 1e6)
 
         if compress:
             compressed_path = backup_path + ".gz"
             with open(backup_path, "rb") as f_in, gzip.open(compressed_path, "wb", compresslevel=6) as f_out:
                 shutil.copyfileobj(f_in, f_out)
             os.unlink(backup_path)
-            logger.info("Compressed: %s (%.1f MB)", compressed_path, os.path.getsize(compressed_path) / 1e6)
+            logger.info("Compressed: %s (%.1f MB)", compressed_path, Path(compressed_path).stat().st_size / 1e6)
             return compressed_path
 
         return backup_path
@@ -105,7 +106,7 @@ def create_backup(
         logger.exception("Backup failed: %s", e)
         # Clean up partial backup
         for path in (backup_path, backup_path + ".gz"):
-            if os.path.exists(path):
+            if Path(path).exists():
                 os.unlink(path)
         return None
 
@@ -120,14 +121,14 @@ def prune_old_backups(
     """
     cutoff = time.time() - retention_days * 86400
     pruned = 0
-    if not os.path.exists(backup_dir):
+    if not Path(backup_dir).exists():
         return 0
 
     for fname in os.listdir(backup_dir):
-        fpath = os.path.join(backup_dir, fname)
-        if not os.path.isfile(fpath):
+        fpath = str(Path(backup_dir) / fname)
+        if not Path(fpath).is_file():
             continue
-        if os.path.getmtime(fpath) < cutoff:
+        if Path(fpath).stat().st_mtime < cutoff:
             try:
                 os.unlink(fpath)
                 pruned += 1
@@ -144,18 +145,18 @@ def upload_to_s3(backup_path: str, bucket: str, prefix: str = "backups/sqlite") 
 
     Falls back to ``aws s3 cp`` CLI if boto3 is not available.
     """
-    if not os.path.exists(backup_path):
+    if not Path(backup_path).exists():
         logger.error("Backup file not found: %s", backup_path)
         return False
 
-    s3_key = f"{prefix}/{os.path.basename(backup_path)}"
+    s3_key = f"{prefix}/{Path(backup_path).name}"
 
     try:
         import boto3
 
         s3 = boto3.client("s3")
         s3.upload_file(backup_path, bucket, s3_key)
-        logger.info("Uploaded to s3://%s/%s (%.1f MB)", bucket, s3_key, os.path.getsize(backup_path) / 1e6)
+        logger.info("Uploaded to s3://%s/%s (%.1f MB)", bucket, s3_key, Path(backup_path).stat().st_size / 1e6)
         return True
 
     except ImportError:
@@ -217,7 +218,7 @@ def verify_backup(backup_path: str) -> bool:
             os.unlink(decompressed_path)
     except (sqlite3.Error, OSError, ValueError) as e:
         logger.exception("Backup verification failed: %s", e)
-        if decompressed_path != backup_path and os.path.exists(decompressed_path):
+        if decompressed_path != backup_path and Path(decompressed_path).exists():
             os.unlink(decompressed_path)
         return False
     return False
@@ -236,7 +237,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.verify:
-        backups = sorted(glob.glob(os.path.join(args.backup_dir, "state.db.*")))
+        backups = sorted(glob.glob(str(Path(args.backup_dir) / "state.db.*")))
         if not backups:
             logger.error("No backups found in %s", args.backup_dir)
             return 1

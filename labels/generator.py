@@ -1,5 +1,5 @@
 import logging
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -17,10 +17,10 @@ class LabelGenerator:
     """
 
     def __init__(self, data_dir: str = "data"):
-        self.data_dir = data_dir
-        self.raw_dir = os.path.join(data_dir, "raw")
-        self.processed_dir = os.path.join(data_dir, "processed")
-        os.makedirs(self.processed_dir, exist_ok=True)
+        self.data_dir = Path(data_dir)
+        self.raw_dir = self.data_dir / "raw"
+        self.processed_dir = self.data_dir / "processed"
+        self.processed_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_all(self, force: bool = False):
         """Generate labels for all assets in registry."""
@@ -38,23 +38,23 @@ class LabelGenerator:
         """
         v_hash = contract.label_version
         filename = f"{contract.name}_labels_{v_hash}.parquet"
-        out_path = os.path.join(self.processed_dir, filename)
+        out_path = self.processed_dir / filename
 
-        if os.path.exists(out_path) and not force:
+        if out_path.exists() and not force:
             logger.info("Skipping %s: version %s already exists.", contract.name, v_hash)
-            return out_path
+            return str(out_path)
 
         # Load raw daily data
-        raw_path = os.path.join(self.raw_dir, f"{contract.name}_1d.parquet")
-        if not os.path.exists(raw_path):
+        raw_path = self.raw_dir / f"{contract.name}_1d.parquet"
+        if not raw_path.exists():
             # Try alternate naming: Ticker
-            raw_path = os.path.join(self.raw_dir, f"{contract.ticker}_1d.parquet")
+            raw_path = self.raw_dir / f"{contract.ticker}_1d.parquet"
 
-        if not os.path.exists(raw_path):
+        if not raw_path.exists():
             # Try alternate naming: Ticker without suffix
-            raw_path = os.path.join(self.raw_dir, f"{contract.ticker.replace('=X', '').replace('=F', '')}_1d.parquet")
+            raw_path = self.raw_dir / f"{contract.ticker.replace('=X', '').replace('=F', '')}_1d.parquet"
 
-        if not os.path.exists(raw_path):
+        if not raw_path.exists():
             raise FileNotFoundError(f"Raw data not found for {contract.name} at {raw_path}")
 
         df = pd.read_parquet(raw_path)
@@ -90,7 +90,7 @@ class LabelGenerator:
         final_df.to_parquet(out_path)
         logger.info("Saved %s labels to %s", contract.name, out_path)
 
-        return out_path
+        return str(out_path)
 
 
 if __name__ == "__main__":

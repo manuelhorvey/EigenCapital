@@ -233,7 +233,7 @@ class FeatureBuilder:
         if not ohlcv.empty:
             cache_key = (_cycle_id, asset.name)
             if self._regime_cache_cycle != cache_key:
-                raw_regime = generate_regime_features(ohlcv)[0]
+                raw_regime = generate_regime_features(ohlcv)
                 self._regime_features_cache = raw_regime
                 self._regime_cache_cycle = cache_key
             else:

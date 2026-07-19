@@ -42,7 +42,6 @@ import argparse
 import glob
 import json
 import logging
-import os
 import time
 from pathlib import Path
 
@@ -79,12 +78,12 @@ def compute_trade_pnl(signal: int, label: int, tp: float, sl: float) -> float:
 def _resolve_ohlcv_path(asset_name: str) -> str | None:
     base = asset_name.replace("^", "").replace("=X", "").replace("=F", "")
     candidates = [
-        os.path.join(RAWDIR, f"{asset_name}_X_1d.parquet"),
-        os.path.join(RAWDIR, f"{base}_1d.parquet"),
-        os.path.join(RAWDIR, f"{base}_F_1d.parquet"),
+        Path(RAWDIR) / f"{asset_name}_X_1d.parquet",
+        Path(RAWDIR) / f"{base}_1d.parquet",
+        Path(RAWDIR) / f"{base}_F_1d.parquet",
     ]
     for path in candidates:
-        if os.path.exists(path):
+        if Path(path).exists():
             return path
     return None
 
@@ -135,9 +134,9 @@ def load_daily_portfolio_returns(
     tag: str = "",
 ) -> tuple[pd.Series, pd.Series]:
     if tag:
-        pattern = os.path.join(WALKDIR, f"*_wf_signals_{tag}.parquet")
+        pattern = Path(WALKDIR) / f"*_wf_signals_{tag}.parquet"
     else:
-        pattern = os.path.join(WALKDIR, "*_wf_signals.parquet")
+        pattern = Path(WALKDIR) / "*_wf_signals.parquet"
     files = sorted(glob.glob(pattern))
     if not files:
         raise FileNotFoundError(f"No signal parquets found in {WALKDIR}")
@@ -148,7 +147,7 @@ def load_daily_portfolio_returns(
     asset_signals: dict[str, pd.DataFrame] = {}
     asset_atr: dict[str, pd.Series] = {}
     for fpath in files:
-        stem = os.path.basename(fpath)
+        stem = Path(fpath).name
         suffix = f"_wf_signals_{tag}.parquet" if tag else "_wf_signals.parquet"
         name = stem.replace(suffix, "")
         if name not in pt_sl:

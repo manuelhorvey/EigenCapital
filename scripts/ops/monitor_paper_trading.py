@@ -12,15 +12,15 @@ Usage:
 import argparse
 import csv
 import json
-import os
 import time
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 
 DASHBOARD_URL = "http://127.0.0.1:5000/state.json"
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "monitoring")
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_PATH = os.path.join(LOG_DIR, "paper_trade_monitor.csv")
+LOG_DIR = Path(Path(__file__).resolve().parent.parent, "data", "monitoring")
+Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
+LOG_PATH = Path(LOG_DIR) / "paper_trade_monitor.csv"
 
 # Assets under confidence calibration watch.
 # Both show 92-96% confidence every cycle with insufficient trade history to
@@ -39,7 +39,7 @@ def poll() -> dict:
 
 def append_row(row: dict):
     fieldnames = list(row.keys())
-    exists = os.path.exists(LOG_PATH)
+    exists = Path(LOG_PATH).exists()
     with open(LOG_PATH, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         if not exists:

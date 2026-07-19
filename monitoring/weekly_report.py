@@ -1,22 +1,22 @@
 import json
 import logging
-import os
 import sys
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, Path(__file__).resolve().parent.parent)
 
 logger = logging.getLogger("eigencapital.weekly_report")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATE_PATH = os.path.join(BASE, "data", "live", "state.json")
-HISTORY_PATH = os.path.join(BASE, "data", "live", "history.parquet")
-LOG_PATH = os.path.join(BASE, "data", "live", "weekly_log.csv")
-TRADE_LOG_PATH = os.path.join(BASE, "data", "live", "paper_trade_log.md")
+BASE = Path(__file__).resolve().parent.parent
+STATE_PATH = Path(BASE) / "data" / "live" / "state.json"
+HISTORY_PATH = Path(BASE) / "data" / "live" / "history.parquet"
+LOG_PATH = Path(BASE) / "data" / "live" / "weekly_log.csv"
+TRADE_LOG_PATH = Path(BASE) / "data" / "live" / "paper_trade_log.md"
 
 # Backtest baselines for signal distribution comparison
 BACKTEST_BASELINES = {
@@ -129,14 +129,14 @@ def log_vol_baseline():
     )
 
     # Append to log
-    if os.path.exists(TRADE_LOG_PATH):
+    if Path(TRADE_LOG_PATH).exists():
         with open(TRADE_LOG_PATH) as f:
             existing = f.read()
         if today not in existing:
             with open(TRADE_LOG_PATH, "a") as f:
                 f.write("\n\n" + md)
     else:
-        os.makedirs(os.path.dirname(TRADE_LOG_PATH), exist_ok=True)
+        Path(Path(TRADE_LOG_PATH).parent).mkdir(parents=True, exist_ok=True)
         with open(TRADE_LOG_PATH, "w") as f:
             f.write(md)
     logger.info("\nVol baseline logged to %s", TRADE_LOG_PATH)
@@ -254,7 +254,7 @@ def run():
         if live_vol is not None:
             log_entry[f"{name}_vol_ratio"] = round(live_vol / TRAIN_VOLS[name], 2)
     log_df = pd.DataFrame([log_entry])
-    if os.path.exists(LOG_PATH):
+    if Path(LOG_PATH).exists():
         existing = pd.read_csv(LOG_PATH)
         log_df = pd.concat([existing, log_df], ignore_index=True)
     log_df.to_csv(LOG_PATH, index=False)
@@ -262,14 +262,14 @@ def run():
 
 
 def load_state():
-    if os.path.exists(STATE_PATH):
+    if Path(STATE_PATH).exists():
         with open(STATE_PATH) as f:
             return json.load(f)
     return None
 
 
 def load_history():
-    if os.path.exists(HISTORY_PATH):
+    if Path(HISTORY_PATH).exists():
         return pd.read_parquet(HISTORY_PATH)
     return pd.DataFrame()
 

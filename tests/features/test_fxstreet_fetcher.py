@@ -229,7 +229,7 @@ def test_call_llm_handles_invalid_json(mock_post):
 @patch("features.fxstreet_fetcher.save_narrative_json")
 def test_pipeline_no_article_returns_false(mock_save, mock_fetch, tmp_path):
     mock_fetch.return_value = None
-    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "narrative_error.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", tmp_path / "narrative_error.json"):
         result = run_weekly_narrative_pipeline()
         assert result is False
 
@@ -240,7 +240,7 @@ def test_pipeline_no_article_returns_false(mock_save, mock_fetch, tmp_path):
 def test_pipeline_with_api_key(mock_save, mock_llm, mock_fetch, sample_llm_json, tmp_path):
     mock_fetch.return_value = "Some article text"
     mock_llm.return_value = sample_llm_json
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "narrative_pending.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", tmp_path / "narrative_pending.json"):
         result = run_weekly_narrative_pipeline(api_key="fake-key")
         assert result is True
         mock_save.assert_called_once()
@@ -251,7 +251,7 @@ def test_pipeline_with_api_key(mock_save, mock_llm, mock_fetch, sample_llm_json,
 def test_pipeline_llm_failure(mock_llm, mock_fetch, tmp_path):
     mock_fetch.return_value = "Some article text"
     mock_llm.return_value = None
-    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "narrative_error.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", tmp_path / "narrative_error.json"):
         result = run_weekly_narrative_pipeline(api_key="fake-key")
         # Falls back to neutral narrative (does not propagate the failure)
         assert result is True
@@ -264,7 +264,7 @@ def test_pipeline_llm_failure(mock_llm, mock_fetch, tmp_path):
 def test_pipeline_no_api_key_uses_neutral(mock_save, mock_neutral, mock_fetch, sample_narrative, tmp_path):
     mock_fetch.return_value = "Some article text"
     mock_neutral.return_value = sample_narrative
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "narrative_pending.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", tmp_path / "narrative_pending.json"):
         result = run_weekly_narrative_pipeline()
         assert result is True
         mock_save.assert_called_once()
@@ -275,8 +275,8 @@ def test_pipeline_no_api_key_uses_neutral(mock_save, mock_neutral, mock_fetch, s
 
 def test_confirm_pending_no_file(tmp_path):
     with (
-        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")),
-        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "active.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", tmp_path / "nonexistent.json"),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", tmp_path / "active.json"),
     ):
         result = confirm_pending_narrative()
         assert result is False
@@ -290,9 +290,9 @@ def test_confirm_pending_success(tmp_path):
     error_file.write_text('{"reason": "old_error"}')
 
     with (
-        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending)),
-        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active)),
-        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(error_file)),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", pending),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", active),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", error_file),
     ):
         result = confirm_pending_narrative()
         assert result is True
@@ -305,8 +305,8 @@ def test_confirm_pending_copy_failure(tmp_path):
     active = tmp_path / "narrative_active.json"
     pending.write_text("{}")
     with (
-        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending)),
-        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active)),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", pending),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", active),
     ):
         import shutil
 
@@ -323,7 +323,7 @@ def test_confirm_pending_copy_failure(tmp_path):
 
 
 def test_get_active_narrative_no_file(tmp_path):
-    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "nonexistent.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", tmp_path / "nonexistent.json"):
         result = get_active_narrative()
         assert result is None
 
@@ -331,7 +331,7 @@ def test_get_active_narrative_no_file(tmp_path):
 def test_get_active_narrative_success(tmp_path, sample_narrative):
     path = tmp_path / "narrative_active.json"
     path.write_text(json.dumps(sample_narrative.to_dict()))
-    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", path):
         result = get_active_narrative()
         assert result is not None
         assert result.week_start == "2026-05-25"
@@ -340,13 +340,13 @@ def test_get_active_narrative_success(tmp_path, sample_narrative):
 def test_get_active_narrative_corrupt_file(tmp_path):
     path = tmp_path / "narrative_active.json"
     path.write_text("{invalid")
-    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", path):
         result = get_active_narrative()
         assert result is None
 
 
 def test_get_pending_narrative_no_file(tmp_path):
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", tmp_path / "nonexistent.json"):
         result = get_pending_narrative()
         assert result is None
 
@@ -354,7 +354,7 @@ def test_get_pending_narrative_no_file(tmp_path):
 def test_get_pending_narrative_success(tmp_path, sample_narrative):
     path = tmp_path / "narrative_pending.json"
     path.write_text(json.dumps(sample_narrative.to_dict()))
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", path):
         result = get_pending_narrative()
         assert result is not None
         assert result.week_start == "2026-05-25"
@@ -363,7 +363,7 @@ def test_get_pending_narrative_success(tmp_path, sample_narrative):
 def test_get_pending_narrative_corrupt_file(tmp_path):
     path = tmp_path / "narrative_pending.json"
     path.write_text("{bad")
-    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_PENDING", path):
         result = get_pending_narrative()
         assert result is None
 
@@ -399,7 +399,7 @@ def test_narrative_stale_empty_string():
 
 def test_write_error_creates_file(tmp_path):
     error_path = tmp_path / "narrative_error.json"
-    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(error_path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", error_path):
         _write_error("test_reason", "test_detail")
         assert error_path.exists()
         data = json.loads(error_path.read_text())
@@ -416,7 +416,7 @@ def test_write_error_handles_exception(tmp_path):
 
 
 def test_get_fetch_error_no_file(tmp_path):
-    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", tmp_path / "nonexistent.json"):
         result = get_fetch_error()
         assert result is None
 
@@ -425,7 +425,7 @@ def test_get_fetch_error_success(tmp_path):
     path = tmp_path / "narrative_error.json"
     data = {"reason": "scrape_failed", "detail": "connection error"}
     path.write_text(json.dumps(data))
-    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", path):
         result = get_fetch_error()
         assert result == data
 
@@ -433,7 +433,7 @@ def test_get_fetch_error_success(tmp_path):
 def test_get_fetch_error_corrupt(tmp_path):
     path = tmp_path / "narrative_error.json"
     path.write_text("{bad")
-    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(path)):
+    with patch("features.fxstreet_fetcher.NARRATIVE_ERROR", path):
         result = get_fetch_error()
         assert result is None
 
@@ -443,9 +443,9 @@ def test_get_fetch_error_corrupt(tmp_path):
 
 def test_narrative_status_no_files(tmp_path):
     with (
-        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(tmp_path / "nonexistent_active.json")),
-        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent_pending.json")),
-        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent_error.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", tmp_path / "nonexistent_active.json"),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", tmp_path / "nonexistent_pending.json"),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", tmp_path / "nonexistent_error.json"),
     ):
         status = get_narrative_status()
         assert status["active"] is None
@@ -460,9 +460,9 @@ def test_narrative_status_with_active(tmp_path, sample_narrative):
     active_path = tmp_path / "narrative_active.json"
     active_path.write_text(json.dumps(sample_narrative.to_dict()))
     with (
-        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active_path)),
-        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(tmp_path / "nonexistent.json")),
-        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", active_path),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", tmp_path / "nonexistent.json"),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", tmp_path / "nonexistent.json"),
     ):
         status = get_narrative_status()
         assert status["active"] is not None
@@ -477,9 +477,9 @@ def test_narrative_status_needs_confirmation(tmp_path, sample_narrative):
     pending_features["week_start"] = "2026-06-01"
     pending_path.write_text(json.dumps(pending_features))
     with (
-        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", str(active_path)),
-        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", str(pending_path)),
-        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", str(tmp_path / "nonexistent.json")),
+        patch("features.fxstreet_fetcher.NARRATIVE_ACTIVE", active_path),
+        patch("features.fxstreet_fetcher.NARRATIVE_PENDING", pending_path),
+        patch("features.fxstreet_fetcher.NARRATIVE_ERROR", tmp_path / "nonexistent.json"),
     ):
         status = get_narrative_status()
         assert status["has_pending"] is True

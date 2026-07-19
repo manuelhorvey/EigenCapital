@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import threading
 import time
 from datetime import datetime
@@ -12,7 +13,7 @@ logger = logging.getLogger("eigencapital.data_fetcher")
 
 ET = pytz.timezone("US/Eastern")
 
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE = str(Path(__file__).resolve().parent.parent.parent)
 
 _STORE: object | None = None
 _STORE_LOCK = threading.Lock()
@@ -227,9 +228,9 @@ def _cache_path(ticker: str) -> str:
     store = _get_store()
     if store is not None:
         return store.cache_path(ticker)
-    cache_dir = os.path.join(BASE, "data", "live", "cache")
+    cache_dir = str(Path(BASE) / "data" / "live" / "cache")
     safe = ticker.replace("-", "_").replace("^", "")
-    return os.path.join(cache_dir, f"{safe}.parquet")
+    return str(Path(cache_dir) / f"{safe}.parquet")
 
 
 def safe_download(ticker: str, **kwargs) -> pd.DataFrame:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -11,8 +11,8 @@ from archive.deprecated._pair_specific import build_lead_lag_features
 
 logger = logging.getLogger("eigencapital.lead_lag_features")
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_EDGES_PATH = os.path.join(PROJECT_ROOT, "data", "research", "lead_lag_edges.yaml")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_EDGES_PATH = PROJECT_ROOT / "data" / "research" / "lead_lag_edges.yaml"
 
 # Curated edges (target_ticker, leader_ticker, lag_days, column_name)
 # Populated from research; extend after running run_lead_lag.py
@@ -134,9 +134,9 @@ DEFAULT_LEAD_LAG_EDGES: list[dict] = [
 ]
 
 
-def load_lead_lag_edges(path: str | None = None) -> list[dict]:
-    path = path or DEFAULT_EDGES_PATH
-    if not os.path.exists(path):
+def load_lead_lag_edges(path: str | Path | None = None) -> list[dict]:
+    path = Path(path) if path else DEFAULT_EDGES_PATH
+    if not path.exists():
         return list(DEFAULT_LEAD_LAG_EDGES)
     import yaml
 

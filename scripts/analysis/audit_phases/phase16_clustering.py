@@ -20,6 +20,7 @@ from collections import defaultdict
 from typing import Any
 
 import numpy as np
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.audit.phase16_clustering")
 

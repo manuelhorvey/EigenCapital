@@ -1,6 +1,6 @@
 import json
 import logging
-import os
+from pathlib import Path
 import sqlite3
 import threading
 import time
@@ -202,7 +202,7 @@ class _AnalyticsStore:
             logger.error("Failed to write analytics snapshot: %s", e)
 
     def read_snapshot(self) -> dict | None:
-        if not os.path.exists(self._analytics_path):
+        if not Path(self._analytics_path).exists():
             return None
         try:
             with open(self._analytics_path) as f:

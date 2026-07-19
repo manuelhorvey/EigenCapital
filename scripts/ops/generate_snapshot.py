@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Generate BASELINE_SNAPSHOT.md from configs + LIVE_CONTRACT.md + git state."""
 
-import os
 import subprocess
 from datetime import datetime
 
 from configs.paper_config_registry import PaperConfigRegistry
+from pathlib import Path
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = Path(__file__).resolve().parent.parent
 
 
 def _git(args: list[str]) -> str:
@@ -33,12 +33,12 @@ def _fmt_asset_table(assets: dict) -> str:
 def main():
     reg = PaperConfigRegistry.load()
     cfg = reg.as_legacy_dict()
-    models_dir = os.path.join(BASE, "paper_trading", "models")
+    models_dir = Path(BASE) / "paper_trading" / "models"
 
     commit_hash = _git(["rev-parse", "--short", "HEAD"])
     commit_date = _git(["log", "-1", "--format=%cd", "--date=short"])
 
-    model_files = sorted(f for f in os.listdir(models_dir) if f.endswith(".json")) if os.path.isdir(models_dir) else []
+    model_files = sorted(f for f in sorted(Path(models_dir).iterdir()) if f.endswith(".json")) if Path(models_dir).is_dir() else []
 
     lines = [
         "# BASELINE SNAPSHOT — AUTO-GENERATED",
@@ -134,7 +134,7 @@ def main():
         "",
     ]
 
-    out_path = os.path.join(BASE, "docs/BASELINE_SNAPSHOT.md")
+    out_path = Path(BASE) / "docs/BASELINE_SNAPSHOT.md"
     with open(out_path, "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"docs/BASELINE_SNAPSHOT.md written ({len(model_files)} models, {len(cfg.get('assets', {}))} assets)")

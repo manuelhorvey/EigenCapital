@@ -27,20 +27,21 @@ import argparse
 import json
 import logging
 import os
+from pathlib import Path
 import re
 import sys
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger("prune_data")
 
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE = str(Path(__file__).resolve().parent.parent.parent)
 
 # Paths
-LIVE_DIR = os.path.join(BASE, "data", "live")
-WAL_DIR = os.path.join(LIVE_DIR, "wal")
-SHADOW_FEEDBACK_DIR = os.path.join(BASE, "data", "shadow_feedback")
-SHADOW_MEMORY_DIR = os.path.join(BASE, "data", "shadow_memory")
-STATE_DB = os.path.join(LIVE_DIR, "state.db")
+LIVE_DIR = str(Path(BASE) / "data" / "live")
+WAL_DIR = str(Path(LIVE_DIR) / "wal")
+SHADOW_FEEDBACK_DIR = str(Path(BASE) / "data" / "shadow_feedback")
+SHADOW_MEMORY_DIR = str(Path(BASE) / "data" / "shadow_memory")
+STATE_DB = str(Path(LIVE_DIR) / "state.db")
 
 # Per-type retention in days
 # Config-driven: engine sets these via ``retention`` section in EngineConfig.
@@ -90,7 +91,7 @@ def prune_jsonl(
     label: str,
 ) -> None:
     """Prune lines in a JSONL file where the timestamp is older than cutoff."""
-    if not os.path.isfile(path):
+    if not Path(path).is_file():
         return
 
     total = 0
@@ -118,7 +119,7 @@ def prune_jsonl(
                 kept += 1
     except OSError as e:
         logger.error("Failed to read %s: %s", path, e)
-        if os.path.exists(temp_path):
+        if Path(temp_path).exists():
             os.remove(temp_path)
         return
 
@@ -132,7 +133,7 @@ def prune_jsonl(
 
 def prune_log(path: str, cutoff: datetime, *, apply: bool, dry_run_stats: dict) -> None:
     """Prune lines in a log file where the date prefix is older than cutoff."""
-    if not os.path.isfile(path):
+    if not Path(path).is_file():
         return
 
     total = 0
@@ -157,7 +158,7 @@ def prune_log(path: str, cutoff: datetime, *, apply: bool, dry_run_stats: dict) 
                 kept += 1
     except OSError as e:
         logger.error("Failed to read %s: %s", path, e)
-        if os.path.exists(temp_path):
+        if Path(temp_path).exists():
             os.remove(temp_path)
         return
 
@@ -179,7 +180,7 @@ def prune_date_files(
     label: str,
 ) -> None:
     """Prune files in subdirectories where the filename encodes a date."""
-    if not os.path.isdir(root_dir):
+    if not Path(root_dir).is_dir():
         return
 
     total_files = 0
@@ -188,8 +189,8 @@ def prune_date_files(
     pruned_size = 0
 
     for asset_name in sorted(os.listdir(root_dir)):
-        asset_dir = os.path.join(root_dir, asset_name)
-        if not os.path.isdir(asset_dir):
+        asset_dir = str(Path(root_dir) / asset_name)
+        if not Path(asset_dir).is_dir():
             continue
         for fname in sorted(os.listdir(asset_dir)):
             if not fname.endswith(".jsonl"):
@@ -201,9 +202,9 @@ def prune_date_files(
                 continue
 
             total_files += 1
-            fpath = os.path.join(asset_dir, fname)
+            fpath = str(Path(asset_dir) / fname)
             try:
-                fsize = os.path.getsize(fpath)
+                fsize = Path(fpath).stat().st_size
                 total_size += fsize
             except OSError:
                 fsize = 0
@@ -243,7 +244,7 @@ def prune_sqlite_table(
     Uses the canonical ``_DatabaseStore`` path when available (thread-local
     pool, FK enforcement). Falls back to direct SQLite for CLI usage.
     """
-    if not os.path.isfile(STATE_DB):
+    if not Path(STATE_DB).is_file():
         return
 
     try:
@@ -315,7 +316,7 @@ def prune_all(
     trace_days = retention.get("trace.jsonl", 30)
     cutoff = now - timedelta(days=trace_days)
     prune_jsonl(
-        os.path.join(LIVE_DIR, "trace.jsonl"),
+        str(Path(LIVE_DIR) / "trace.jsonl"),
         cutoff,
         apply=apply,
         dry_run_stats=stats,
@@ -326,7 +327,7 @@ def prune_all(
     wal_days = retention.get("wal/engine.jsonl", 90)
     cutoff = now - timedelta(days=wal_days)
     prune_jsonl(
-        os.path.join(WAL_DIR, "engine.jsonl"),
+        str(Path(WAL_DIR) / "engine.jsonl"),
         cutoff,
         apply=apply,
         dry_run_stats=stats,
@@ -337,7 +338,7 @@ def prune_all(
     log_days = retention.get("engine.log", 14)
     cutoff = now - timedelta(days=log_days)
     prune_log(
-        os.path.join(LIVE_DIR, "engine.log"),
+        str(Path(LIVE_DIR) / "engine.log"),
         cutoff,
         apply=apply,
         dry_run_stats=stats,

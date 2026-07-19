@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
 from unittest.mock import patch
 
 import pytest
@@ -40,6 +39,7 @@ from paper_trading.api.routes import (
     handle_weekly_review_acknowledge,
 )
 from paper_trading.state_store import EngineSnapshot, StateStore
+from pathlib import Path
 
 
 @pytest.fixture(autouse=True)
@@ -385,8 +385,8 @@ class TestWeeklyReviewAcknowledge:
         assert parsed["status"] == "ok"
 
     def test_acknowledge_appends(self, tmp_store, tmp_path):
-        rlp = os.path.join(str(tmp_path), "data", "live", "review_log.json")
-        os.makedirs(os.path.dirname(rlp), exist_ok=True)
+        rlp = Path(str(tmp_path), "data", "live", "review_log.json")
+        Path(Path(rlp).parent).mkdir(parents=True, exist_ok=True)
         with open(rlp, "w") as f:
             json.dump([], f)
         tmp_store.review_log_path = rlp
@@ -404,8 +404,8 @@ class TestAnalyticsSnapshot:
 
     def test_with_snapshot(self, tmp_store, tmp_path):
         snap = {"overall": {"win_rate": 0.6}, "by_archetype": {}, "by_regime": {}, "shadow": {}}
-        snap_path = os.path.join(str(tmp_path), "data", "live", "analytics_snapshot.json")
-        os.makedirs(os.path.dirname(snap_path), exist_ok=True)
+        snap_path = Path(str(tmp_path), "data", "live", "analytics_snapshot.json")
+        Path(Path(snap_path).parent).mkdir(parents=True, exist_ok=True)
         with open(snap_path, "w") as f:
             json.dump(snap, f)
         result = handle_analytics_snapshot("/analytics/snapshot.json", {})

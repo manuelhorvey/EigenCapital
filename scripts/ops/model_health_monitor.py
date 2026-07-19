@@ -378,14 +378,23 @@ def trigger_retrain(urgency_results: list[dict]) -> bool:
         max(r["urgency_score"] for r in needs_retrain),
     )
 
-    scheduler = PROJECT_ROOT / "scripts" / "ops" / "retrain_scheduler.sh"
-    if not scheduler.exists():
-        logger.error("Retrain scheduler not found at %s", scheduler)
-        return False
+    python_scheduler = PROJECT_ROOT / "scripts" / "eigencapital" / "retrain.py"
+    if python_scheduler.exists():
+        cmd: list[str] = [sys.executable, str(python_scheduler)]
+    else:
+        logger.warning(
+            "Retrain Python script not found at %s — falling back to shell scheduler",
+            python_scheduler,
+        )
+        fallback = PROJECT_ROOT / "scripts" / "ops" / "retrain_scheduler.sh"
+        if not fallback.exists():
+            logger.error("Retrain scheduler not found (tried %s and %s)", python_scheduler, fallback)
+            return False
+        cmd = [str(fallback)]
 
     try:
         result = subprocess.run(
-            [str(scheduler)],
+            cmd,
             capture_output=True,
             text=True,
             timeout=21600,  # 6 hours

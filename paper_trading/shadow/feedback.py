@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
-import os
 import threading
+from pathlib import Path
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from eigencapital.domain.time import utc_now_iso, utc_now_naive
@@ -10,9 +12,7 @@ logger = logging.getLogger("eigencapital.shadow.feedback")
 
 _lock = threading.Lock()
 
-FEEDBACK_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "shadow_feedback"
-)
+FEEDBACK_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "shadow_feedback"
 
 
 def record_shadow_feedback(
@@ -138,8 +138,8 @@ def _store_event(asset: str, event: dict) -> None:
     try:
         now = utc_now_naive()
         month_key = now.strftime("%Y-%m")
-        path = os.path.join(FEEDBACK_DIR, asset, f"{month_key}.jsonl")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        path = FEEDBACK_DIR / asset / f"{month_key}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
         with _lock, open(path, "a") as f:
             f.write(json.dumps(event, cls=EigenCapitalJSONEncoder) + "\n")
     except OSError as e:
@@ -157,8 +157,8 @@ def read_feedback(asset: str, months: int = 3) -> list:
         for i in range(months):
             dt = now - timedelta(days=30 * i)
             month_key = dt.strftime("%Y-%m")
-            path = os.path.join(FEEDBACK_DIR, asset, f"{month_key}.jsonl")
-            if not os.path.exists(path):
+            path = FEEDBACK_DIR / asset / f"{month_key}.jsonl"
+            if not path.exists():
                 continue
             with open(path) as f:
                 for line in f:

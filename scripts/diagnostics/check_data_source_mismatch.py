@@ -19,13 +19,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
 from features.regime_features import generate_regime_features
@@ -189,7 +190,7 @@ def main() -> None:
 
     out_dir = os.path.join("data", "live", "audit")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "data_source_mismatch_results.json")
+    out_path = str(Path(out_dir) / "data_source_mismatch_results.json")
     with open(out_path, "w") as f:
         json.dump({
             "timestamp": datetime.now().isoformat(),

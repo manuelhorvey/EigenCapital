@@ -20,6 +20,7 @@ import argparse
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from dataclasses import dataclass, field, asdict
 from typing import Any
@@ -27,7 +28,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
@@ -456,7 +457,7 @@ def main():
         "any_cot_gain": any_cot_gain,
         "results": [asdict(r) for r in results],
     }
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w") as f:
         json.dump(output_data, f, indent=2, default=str)
     logger.info("Results saved to %s", args.output)

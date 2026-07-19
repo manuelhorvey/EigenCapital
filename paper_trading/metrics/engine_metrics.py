@@ -1,5 +1,6 @@
 """Engine-level Prometheus metrics — called every state save cycle."""
 
+from pathlib import Path
 from paper_trading.metrics.exposition import global_registry
 
 _registry = global_registry()
@@ -74,7 +75,7 @@ def update_engine_metrics(engine):
 
         from paper_trading.performance.live_sharpe import LiveSharpeTracker
 
-        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base = str(Path(__file__).resolve().parent.parent.parent)
         tracker = LiveSharpeTracker(base_dir=base)
         data = tracker.compute()
         if data.get("available"):

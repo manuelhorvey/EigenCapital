@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,7 +26,7 @@ import pandas as pd
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, Path(__file__).resolve().parent.parent.parent)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("trade_lifecycle")
@@ -84,7 +83,7 @@ TP_SL: dict[str, tuple[float, float]] = {
 }
 
 SELL_ONLY: frozenset[str] = frozenset({"CADCHF", "NZDCHF", "EURAUD"})
-WALKDIR = Path(os.path.dirname(os.path.abspath(__file__))).parent / "walkforward"
+WALKDIR = Path(Path(__file__).resolve().parent).parent / "walkforward"
 
 
 @dataclass

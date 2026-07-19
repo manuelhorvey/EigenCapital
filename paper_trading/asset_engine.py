@@ -52,12 +52,13 @@ from paper_trading.state_store import _SKIP_JOURNAL
 from shared.calibration.registry import CalibrationRegistry
 from shared.metrics_snapshot import MetricsSnapshot
 from shared.registry import StrategyRegistry
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.asset_engine")
 
 ET = pytz.timezone("US/Eastern")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = Path(__file__).resolve().parent.parent
 
 
 class AssetEngine:
@@ -184,7 +185,7 @@ class AssetEngine:
         _default_window_bars = self._retrain_window * 252
         self._rolling_window = engine_cfg.defaults.get("rolling_window_bars", _default_window_bars)
         self._rolling_window_bars = self.config.get("rolling_window_bars", _default_window_bars)
-        self.model_path = os.path.join(BASE, "paper_trading", "models", f"{self.contract.name}_model.json")
+        self.model_path = Path(BASE) / "paper_trading" / "models" / f"{self.contract.name}_model.json"
         self._wal_writer = wal_writer
         self._model_hash = self._load_model_hash()
         self._calibration_registry: CalibrationRegistry | None = None
@@ -242,7 +243,7 @@ class AssetEngine:
 
     def _init_monitoring_governance(self) -> None:
         """Initialise monitoring, governance, regime classification, validity state."""
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_dir = Path(__file__).resolve().parent.parent
         self._importance_store = ImportanceStore(base_dir)
         self._psi_monitor = PSIMonitor(base_dir)
         self.regime_classifier = RegimeClassifier()
@@ -330,14 +331,14 @@ class AssetEngine:
         to allow the model to load, but downstream monitoring can react.
         """
         self._model_hash_verified = True
-        hash_path = self.model_path.replace(".json", "_hash.txt")
+        hash_path = str(self.model_path).replace(".json", "_hash.txt")
         stored_hash: str | None = None
-        if os.path.exists(hash_path):
+        if Path(hash_path).exists():
             with open(hash_path) as f:
                 stored_hash = f.read().strip()
         # Compute actual hash from the model file on disk
         current_hash: str | None = None
-        if os.path.exists(self.model_path):
+        if Path(self.model_path).exists():
             with open(self.model_path, "rb") as f:
                 current_hash = hashlib.sha256(f.read()).hexdigest()[:16]
         # Integrity check
@@ -357,7 +358,7 @@ class AssetEngine:
         return "unknown"
 
     def _load_calibration_registry(self) -> None:
-        cal_dir = os.path.join(os.path.dirname(self.model_path), "calibration")
+        cal_dir = Path(Path(self.model_path).parent, "calibration")
         registry = CalibrationRegistry.get_or_load(cal_dir)
         if registry.available_assets():
             self._calibration_registry = registry
@@ -714,11 +715,11 @@ class AssetEngine:
         #   2. data/yfinance_10yr/ under the project root
         _expanded_dir: str | None = None
         _env_dir = os.environ.get("EIGENCAPITAL_EXPANDED_DATA_DIR")
-        if _env_dir and os.path.isdir(_env_dir):
+        if _env_dir and Path(_env_dir).is_dir():
             _expanded_dir = _env_dir
         else:
-            _data_dir = os.path.join(BASE, "data", "yfinance_10yr")
-            if os.path.isdir(_data_dir):
+            _data_dir = Path(BASE) / "data" / "yfinance_10yr"
+            if Path(_data_dir).is_dir():
                 _expanded_dir = _data_dir
 
         self._training.train(force=force, full_panel=full_panel, expanded_data_dir=_expanded_dir)

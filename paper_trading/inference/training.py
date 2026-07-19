@@ -165,7 +165,7 @@ class AssetTrainingPipeline:
         asset = self.asset
         model_path = f"{asset.model_path.rsplit('.', 1)[0]}.json"
 
-        if os.path.exists(model_path) and not force:
+        if Path(model_path).exists() and not force:
             asset.model = xgb.XGBClassifier()
             # sklearn 1.9 removed _estimator_type from ClassifierMixin, but
             # xgboost.load_model() still checks it via _get_type().
@@ -179,7 +179,7 @@ class AssetTrainingPipeline:
             # on every cycle and trigger an unnecessary reload.
             try:
                 hash_path = model_path.replace(".json", "_hash.txt")
-                if os.path.exists(hash_path):
+                if Path(hash_path).exists():
                     with open(hash_path) as _fh:
                         asset._model_hash = _fh.read().strip()
             except OSError:

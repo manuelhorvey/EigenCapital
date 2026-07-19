@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import Path
 import sys
 import warnings
 
@@ -16,15 +17,15 @@ warnings.warn(
     stacklevel=2,
 )
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 from archive.deprecated._builder import compute_macro_derived, compute_training_data, model_path  # noqa: E402
 from features.registry import FEATURE_REGISTRY  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("train_all")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = os.path.join(BASE, "paper_trading", "models")
+BASE = Path(__file__).resolve().parent.parent
+MODEL_DIR = str(Path(BASE) / "paper_trading" / "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 TICKERS = list(FEATURE_REGISTRY.keys())
@@ -70,7 +71,7 @@ def evaluate_model(model, X_test, y_test):
 def train_one(ticker, macro, ref, force=False):
     contract = FEATURE_REGISTRY[ticker]
     mp = model_path(ticker)
-    if os.path.exists(mp) and not force:
+    if Path(mp).exists() and not force:
         model = xgb.XGBClassifier()
         model.load_model(mp)
         logger.info("  %s: loaded cached model", ticker)
@@ -159,14 +160,14 @@ def main():
         print(f"\nAverage accuracy: {df['accuracy'].mean():.4f}")
         print(f"Average logloss: {df['logloss'].mean():.4f}")
         print(f"Trained {len(df)}/{len(TICKERS)} assets")
-        df.to_csv(os.path.join(BASE, "data", "processed", "training_results.csv"), index=False)
+        df.to_csv(str(Path(BASE) / "data" / "processed" / "training_results.csv"), index=False)
         logger.info("Results saved to data/processed/training_results.csv")
     else:
         print("No models trained.")
 
 
 def load_macro_data():
-    m = pd.read_parquet(os.path.join(BASE, "data/processed/trade_data/macro_factors.parquet"))
+    m = pd.read_parquet(str(Path(BASE) / "data/processed/trade_data/macro_factors.parquet"))
     return compute_macro_derived(m)
 
 

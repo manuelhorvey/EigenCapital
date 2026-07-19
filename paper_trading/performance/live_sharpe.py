@@ -25,6 +25,7 @@ Financial Analysts Journal, 58(4), 36-52.
 
 from __future__ import annotations
 
+from pathlib import Path
 import logging
 import math
 from typing import Any
@@ -200,10 +201,11 @@ class LiveSharpeTracker:
         """
         import json
         import os
+        from pathlib import Path
 
-        live_dir = os.path.join(self._base_dir, "data", "live") if self._base_dir else "data/live"
-        trace_path = os.path.join(live_dir, "trace.jsonl")
-        if not os.path.exists(trace_path):
+        live_dir = str(Path(self._base_dir) / "data" / "live") if self._base_dir else "data/live"
+        trace_path = str(Path(live_dir) / "trace.jsonl")
+        if not Path(trace_path).exists():
             return {"available": False, "reason": "no trace file"}
 
         n_read = 0

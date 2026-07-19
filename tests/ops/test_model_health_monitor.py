@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -552,6 +553,22 @@ class TestCheckInferenceVolume:
 # ── trigger_retrain ────────────────────────────────────────────────────────
 
 
+_WINDOWS_SKIP = pytest.mark.skipif(sys.platform == "win32", reason="shell script scheduler tests not applicable on Windows")
+
+
+def _make_fake_retrain_py(tmpdir: Path, exit_code: int = 0) -> Path:
+    """Create a fake retrain.py at scripts/eigencapital/ in tmpdir.
+
+    This is the Python-based retrain entry point, so no chmod is needed —
+    it's invoked via ``sys.executable``.
+    """
+    scheduler_dir = tmpdir / "scripts" / "eigencapital"
+    scheduler_dir.mkdir(parents=True, exist_ok=True)
+    scheduler = scheduler_dir / "retrain.py"
+    scheduler.write_text(f"import sys\nprint('done')\nsys.exit({exit_code})\n")
+    return scheduler
+
+
 def _make_fake_scheduler(tmpdir: Path) -> Path:
     """Create a fake retrain_scheduler.sh at scripts/ops/ in tmpdir."""
     scheduler_dir = tmpdir / "scripts" / "ops"
@@ -587,7 +604,7 @@ class TestTriggerRetrain:
         assert result is False
 
     def test_scheduler_not_found(self) -> None:
-        """When scheduler script is missing, trigger_retrain logs error and returns False."""
+        """When both schedulers are missing, trigger_retrain logs error and returns False."""
         import scripts.ops.model_health_monitor as mhm
 
         original_root = mhm.PROJECT_ROOT
@@ -601,27 +618,11 @@ class TestTriggerRetrain:
         finally:
             mhm.PROJECT_ROOT = original_root
 
-    def test_scheduler_subprocess_failure(self, tmp_path: Path) -> None:
-        """When subprocess fails (exit code != 0), trigger_retrain returns False."""
+    def test_retrain_py_subprocess_success(self, tmp_path: Path) -> None:
+        """The Python retrain.py script succeeds (exit code 0)."""
         import scripts.ops.model_health_monitor as mhm
 
-        _make_fake_scheduler_failing(tmp_path)
-        original_root = mhm.PROJECT_ROOT
-        try:
-            mhm.PROJECT_ROOT = tmp_path
-            urgency_results = [
-                {"asset": "A", "urgency_score": 0.9, "needs_retrain": True},
-            ]
-            result = mhm.trigger_retrain(urgency_results)
-            assert result is False
-        finally:
-            mhm.PROJECT_ROOT = original_root
-
-    def test_scheduler_subprocess_success(self, tmp_path: Path) -> None:
-        """When subprocess succeeds (exit code 0), trigger_retrain returns True."""
-        import scripts.ops.model_health_monitor as mhm
-
-        _make_fake_scheduler(tmp_path)
+        _make_fake_retrain_py(tmp_path, exit_code=0)
         original_root = mhm.PROJECT_ROOT
         try:
             mhm.PROJECT_ROOT = tmp_path
@@ -633,8 +634,42 @@ class TestTriggerRetrain:
         finally:
             mhm.PROJECT_ROOT = original_root
 
+    def test_retrain_py_subprocess_failure(self, tmp_path: Path) -> None:
+        """The Python retrain.py script fails (exit code != 0)."""
+        import scripts.ops.model_health_monitor as mhm
+
+        _make_fake_retrain_py(tmp_path, exit_code=1)
+        original_root = mhm.PROJECT_ROOT
+        try:
+            mhm.PROJECT_ROOT = tmp_path
+            urgency_results = [
+                {"asset": "A", "urgency_score": 0.9, "needs_retrain": True},
+            ]
+            result = mhm.trigger_retrain(urgency_results)
+            assert result is False
+        finally:
+            mhm.PROJECT_ROOT = original_root
+
     def test_only_some_assets_need_retrain(self, tmp_path: Path) -> None:
         """Mixed urgency — only assets with needs_retrain=True trigger the pipeline."""
+        import scripts.ops.model_health_monitor as mhm
+
+        _make_fake_retrain_py(tmp_path)
+        original_root = mhm.PROJECT_ROOT
+        try:
+            mhm.PROJECT_ROOT = tmp_path
+            urgency_results = [
+                {"asset": "A", "urgency_score": 0.9, "needs_retrain": True},
+                {"asset": "B", "urgency_score": 0.1, "needs_retrain": False},
+            ]
+            result = mhm.trigger_retrain(urgency_results)
+            assert result is True
+        finally:
+            mhm.PROJECT_ROOT = original_root
+
+    @_WINDOWS_SKIP
+    def test_scheduler_shell_fallback_found(self, tmp_path: Path) -> None:
+        """When retrain.py is missing but retrain_scheduler.sh exists, use fallback."""
         import scripts.ops.model_health_monitor as mhm
 
         _make_fake_scheduler(tmp_path)
@@ -643,7 +678,6 @@ class TestTriggerRetrain:
             mhm.PROJECT_ROOT = tmp_path
             urgency_results = [
                 {"asset": "A", "urgency_score": 0.9, "needs_retrain": True},
-                {"asset": "B", "urgency_score": 0.1, "needs_retrain": False},
             ]
             result = mhm.trigger_retrain(urgency_results)
             assert result is True

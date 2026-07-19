@@ -2,11 +2,10 @@
 """Run walk-forward backtest on expanded 10+ year data with proper multi-regime coverage."""
 
 import logging
-import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."))
+sys.path.insert(0, Path(__file__).resolve().parent.parent.parent)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("expanded_wf")
@@ -46,7 +45,7 @@ def main():
             _asset_pt_sl[name] = (_tp, _sl)
     
     btc_pt_sl = (2.5, 3.0)
-    OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "walkforward")
+    OUTPUT_DIR = Path(Path(__file__).resolve().parent.parent, "walkforward")
     
     all_summaries = []
     
@@ -95,7 +94,7 @@ def main():
     if all_summaries:
         import pandas as pd
         combined = pd.concat(all_summaries)
-        combined_path = os.path.join(OUTPUT_DIR, _tag_path("all_assets_wf_summary.csv", "expanded_10yr"))
+        combined_path = Path(OUTPUT_DIR) / _tag_path("all_assets_wf_summary.csv", "expanded_10yr")
         combined.to_csv(combined_path, index=False)
         logger.info(f"\nCombined summary -> {combined_path}")
         

@@ -17,14 +17,13 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 import time
 from pathlib import Path
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime).is_absolute()s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eigencapital.audit")
 
 # Add project root
@@ -208,7 +207,7 @@ def main():
         print_verdict(verdict)
 
     if args.output:
-        output_path = args.output if os.path.isabs(args.output) else str(ROOT / args.output)
+        output_path = args.output if Path(args.output) else str(ROOT / args.output)
         with open(output_path, "w") as f:
             json.dump(all_results, f, indent=2, cls=EigenCapitalJSONEncoder)
         logger.info("Results saved to %s", output_path)

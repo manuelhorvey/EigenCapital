@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 
 from paper_trading.config_manager import EngineConfig
 from paper_trading.execution.mt5_broker import MT5Broker
@@ -17,7 +18,7 @@ from paper_trading.ops.mt5_client import MT5Client
 logger = logging.getLogger("eigencapital.broker_factory")
 
 # __file__ is paper_trading/factories/broker_factory.py → 3 dirname up to project root
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE = str(Path(__file__).resolve().parent.parent.parent)
 
 
 class BrokerFactory:
@@ -44,8 +45,8 @@ class BrokerFactory:
 
         if not symbol_map_path:
             return {}
-        map_path = os.path.join(BASE, symbol_map_path)
-        if not os.path.exists(map_path):
+        map_path = str(Path(BASE) / symbol_map_path)
+        if not Path(map_path).exists():
             logger.warning("MT5 symbol map not found at %s", map_path)
             return {}
         with open(map_path) as f:

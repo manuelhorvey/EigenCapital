@@ -17,13 +17,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
@@ -38,11 +39,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ensemble_pilot")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUT_DIR = os.path.join(BASE, "ensemble_pilot")
+BASE = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = str(Path(BASE) / "ensemble_pilot")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-MODEL_DIR = os.path.join(BASE, "paper_trading", "models")
+MODEL_DIR = str(Path(BASE) / "paper_trading" / "models")
 
 PILOT_ASSETS: dict[str, str] = {
     "AUDNZD": "AUDNZD=X",
@@ -255,8 +256,8 @@ def run_ensemble_pilot(
     }
 
     # Save per-window detail
-    base_summary.to_csv(os.path.join(OUTPUT_DIR, f"{asset_name}_base_windows.csv"), index=False)
-    ens_summary.to_csv(os.path.join(OUTPUT_DIR, f"{asset_name}_ens_windows.csv"), index=False)
+    base_summary.to_csv(str(Path(OUTPUT_DIR) / f"{asset_name}_base_windows.csv"), index=False)
+    ens_summary.to_csv(str(Path(OUTPUT_DIR) / f"{asset_name}_ens_windows.csv"), index=False)
 
     logger.info(
         "%s: base=(hit=%.3f ic=%.3f long_prec=%.3f short_prec=%.3f) "
@@ -326,7 +327,7 @@ def main():
     print(f"  Assets where IC + both precisions improved: {improved}/{len(results)}")
     print("  Threshold: >= 2/3 required")
 
-    summary_path = os.path.join(OUTPUT_DIR, "summary.json")
+    summary_path = str(Path(OUTPUT_DIR) / "summary.json")
     with open(summary_path, "w") as f:
         json.dump(
             {

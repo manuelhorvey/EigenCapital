@@ -1,12 +1,12 @@
 """Model promotion engine — evaluates whether a model is ready for live deployment."""
 
 import json
-import os
 from datetime import datetime, timezone
 
 import numpy as np
+from pathlib import Path
 
-PROMOTION_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "sandbox")
+PROMOTION_DIR = Path(Path(__file__).resolve().parent, "..", "data", "sandbox")
 
 
 def _check_performance(forward_result):
@@ -211,8 +211,8 @@ def evaluate_promotion(
     }
 
     # Write to file
-    os.makedirs(PROMOTION_DIR, exist_ok=True)
-    fpath = os.path.join(PROMOTION_DIR, f"{asset}_promotion.json")
+    Path(PROMOTION_DIR).mkdir(parents=True, exist_ok=True)
+    fpath = Path(PROMOTION_DIR) / f"{asset}_promotion.json"
     with open(fpath, "w") as f:
         json.dump(result, f, indent=2)
 

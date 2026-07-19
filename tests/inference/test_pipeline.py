@@ -94,7 +94,7 @@ class TestInit:
         assert p._truncation_validated is False
         assert p._validated_model_id == -1
         assert p._truncate_inference is False
-        assert p._feature_builder._regime_cache_cycle == -1
+        assert p._feature_builder._regime_cache_cycle == (-1,)
         assert p._feature_builder._regime_features_cache is None
 
 

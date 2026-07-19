@@ -10,6 +10,7 @@ Usage:
 """
 
 from paper_trading.ops.prune_data import main
+from pathlib import Path
 
 if __name__ == "__main__":
     main()

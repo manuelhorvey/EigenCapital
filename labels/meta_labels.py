@@ -26,12 +26,13 @@ import os
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.meta_labels")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-META_MODEL_DIR = os.path.join(BASE, "models", "meta")
-os.makedirs(META_MODEL_DIR, exist_ok=True)
+BASE = Path(__file__).resolve().parent
+META_MODEL_DIR = BASE / "models" / "meta"
+Path(META_MODEL_DIR).mkdir(parents=True, exist_ok=True)
 
 
 class MetaLabelModel:
@@ -96,7 +97,7 @@ class MetaLabelModel:
             Force retrain even if cached model exists.
         """
         model_path = self._model_path(asset)
-        if os.path.exists(model_path) and not force:
+        if Path(model_path).exists() and not force:
             self._load(model_path)
             return
 
@@ -218,7 +219,7 @@ class MetaLabelModel:
         return base
 
     def _model_path(self, asset: str) -> str:
-        return os.path.join(META_MODEL_DIR, f"{asset}_meta.json")
+        return Path(META_MODEL_DIR) / f"{asset}_meta.json"
 
     def _save_json(self, path: str) -> None:
         """Persist model as JSON with embedded SHA-256 checksum.
@@ -246,7 +247,7 @@ class MetaLabelModel:
         payload_str = json.dumps(payload, sort_keys=True)
         checksum = hashlib.sha256(payload_str.encode()).hexdigest()
         payload["_checksum"] = checksum
-        tmp_path = path + ".tmp"
+        tmp_path = str(path) + ".tmp"
         try:
             with open(tmp_path, "w") as f:
                 json.dump(payload, f, indent=2)
@@ -254,7 +255,7 @@ class MetaLabelModel:
                 os.fsync(f.fileno())
             os.replace(tmp_path, path)
         except Exception:
-            if os.path.exists(tmp_path):
+            if Path(tmp_path).exists():
                 os.unlink(tmp_path)
             raise
 
@@ -265,7 +266,7 @@ class MetaLabelModel:
         and ``model_bytes_b64`` (base64-encoded XGBoost booster raw bytes).
         """
         try:
-            if not os.path.exists(path):
+            if not Path(path).exists():
                 logger.warning("No meta model found at %s", path)
                 return
 

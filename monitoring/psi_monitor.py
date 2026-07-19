@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.psi_monitor")
 
@@ -37,7 +37,7 @@ class PSISnapshot:
 class PSIMonitor:
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
-        self.baseline_dir = os.path.join(base_dir, "data", "live", "psi_baseline")
+        self.baseline_dir = Path(base_dir) / "data" / "live" / "psi_baseline"
         self._prev_snapshots: dict[str, PSISnapshot] = {}
 
     def persist_baseline(
@@ -48,14 +48,14 @@ class PSIMonitor:
         if features.empty:
             logger.warning("%s: empty training data, skipping PSI baseline", asset)
             return
-        os.makedirs(self.baseline_dir, exist_ok=True)
-        path = os.path.join(self.baseline_dir, f"{asset}.parquet")
+        Path(self.baseline_dir).mkdir(parents=True, exist_ok=True)
+        path = Path(self.baseline_dir) / f"{asset}.parquet"
         features.to_parquet(path)
         logger.info("%s: PSI baseline persisted (%d rows, %d cols)", asset, len(features), len(features.columns))
 
     def load_baseline(self, asset: str) -> pd.DataFrame | None:
-        path = os.path.join(self.baseline_dir, f"{asset}.parquet")
-        if not os.path.exists(path):
+        path = Path(self.baseline_dir) / f"{asset}.parquet"
+        if not Path(path).exists():
             return None
         try:
             return pd.read_parquet(path)

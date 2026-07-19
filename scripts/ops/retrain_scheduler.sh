@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# EigenCapital Retrain Scheduler
+# EigenCapital Retrain Scheduler (LEGACY — use Python equivalent for cross-platform)
+#
+# CROSS-PLATFORM REPLACEMENT:
+#   python -m scripts.eigencapital.retrain [--dry-run]
+#
+# The Python equivalent works identically on Linux, Windows, and Windows VPS.
 #
 # Wrapper that runs the model retrain pipeline and alerts on failure.
 # Designed for cron/systemd timer usage — logs to a dedicated file,

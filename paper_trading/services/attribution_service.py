@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -13,7 +15,7 @@ class AttributionService:
     def set_experiment_context(*, attribution_export_dir, experiment_id: str, export_dir: str | None = None):
         if export_dir is not None:
             attribution_export_dir = export_dir
-            os.makedirs(export_dir, exist_ok=True)
+            Path(export_dir).mkdir(parents=True, exist_ok=True)
         return attribution_export_dir
 
     @staticmethod
@@ -21,10 +23,10 @@ class AttributionService:
         if not attribution_buffer or not attribution_export_dir:
             return
         try:
-            path = os.path.join(attribution_export_dir, f"{name}_attribution.parquet")
+            path = Path(attribution_export_dir) / f"{name}_attribution.parquet"
             records = list(attribution_buffer)
             frame = TradeAttributionRecord.to_frame(records, experiment_id=experiment_id)
-            if os.path.exists(path):
+            if path.exists():
                 existing = pd.read_parquet(path)
                 frame = pd.concat([existing, frame], ignore_index=True)
             frame.to_parquet(path, index=False)

@@ -177,7 +177,7 @@ class MockMT5Client:
         self._record("place_order", ticker, side, volume, sl, tp, comment, deviation, idempotency_key)
         return self._order_result
 
-    def get_positions(self) -> list[dict]:
+    def get_positions(self) -> dict | list[dict]:
         self._record("get_positions")
         return self._positions
 

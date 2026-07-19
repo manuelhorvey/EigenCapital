@@ -13,9 +13,11 @@ Usage:
 
 from __future__ import annotations
 
+from __future__ import annotations
+
 import logging
-import os
 import threading
+from pathlib import Path
 from typing import Any
 
 from paper_trading.shadow.model import ShadowModelRunner
@@ -25,7 +27,7 @@ logger = logging.getLogger("eigencapital.shadow_registry")
 
 _ShadowRegistryT = dict[tuple[str, str], ShadowModelRunner]  # (shadow_id, asset_name) -> runner
 
-_SHADOW_BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_SHADOW_BASE = Path(__file__).resolve().parent.parent.parent
 
 
 class ShadowModelRegistry:
@@ -57,8 +59,8 @@ class ShadowModelRegistry:
         """
         import yaml
 
-        config_path = os.path.join(_SHADOW_BASE, "configs", "domains", "ml", "shadow_models.yaml")
-        if not os.path.exists(config_path):
+        config_path = _SHADOW_BASE / "configs" / "domains" / "ml" / "shadow_models.yaml"
+        if not config_path.exists():
             self._configs.clear()
             return self._configs
         try:
@@ -83,7 +85,7 @@ class ShadowModelRegistry:
     def get_storage(self) -> ShadowStorage:
         """Get or create the shared ShadowStorage instance (lazy init)."""
         if self._storage is None:
-            base = os.path.join(_SHADOW_BASE, "data", "live", "shadow")
+            base = str(_SHADOW_BASE / "data" / "live" / "shadow")
             self._storage = ShadowStorage(base_dir=base)
         return self._storage
 
@@ -103,7 +105,7 @@ class ShadowModelRegistry:
             if key not in self._registry:
                 raw_path = config.get("model_path", "")
                 resolved = raw_path.replace("{asset}", asset_name)
-                model_path = os.path.join(_SHADOW_BASE, resolved)
+                model_path = str(_SHADOW_BASE / resolved)
                 self._registry[key] = ShadowModelRunner(
                     shadow_id=shadow_id,
                     model_path=model_path,

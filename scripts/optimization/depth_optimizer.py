@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -29,7 +28,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, Path(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -219,8 +218,8 @@ def run_single(asset_name: str, ticker: str, pt_sl: tuple[float, float],
 
     # Load signal parquet (written by run_walk_forward to walkforward dir)
     from scripts.backtest.walk_forward_backtest import OUTPUT_DIR as WF_DIR
-    signal_path = os.path.join(WF_DIR, f"{asset_name}_wf_signals_{output_tag}.parquet")
-    if not os.path.exists(signal_path):
+    signal_path = Path(WF_DIR) / f"{asset_name}_wf_signals_{output_tag}.parquet"
+    if not Path(signal_path).exists():
         logger.warning("%s depth=%d: no signal parquet at %s", asset_name, depth, signal_path)
         return None
 

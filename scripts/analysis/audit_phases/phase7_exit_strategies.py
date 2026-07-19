@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import numpy as np
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.audit.phase7_exit")
 

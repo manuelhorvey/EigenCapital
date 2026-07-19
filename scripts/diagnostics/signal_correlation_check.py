@@ -2,12 +2,13 @@
 
 import logging
 import os
+from pathlib import Path
 import sys
 
 import pandas as pd
 import xgboost as xgb
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 from scripts.training.train_all_assets import (
     _slug,
     compute_features,
@@ -18,8 +19,8 @@ from scripts.training.train_all_assets import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("corr_check")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = os.path.join(BASE, "paper_trading", "models")
+BASE = Path(__file__).resolve().parent.parent
+MODEL_DIR = str(Path(BASE) / "paper_trading" / "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 TICKER_MAP = {
@@ -33,8 +34,8 @@ NAMES = ["CADJPY", "NZDJPY", "USDCAD", "XLF", "BTC"]
 
 
 def train_cadjpy_fwd60(macro, force=True):
-    model_path = os.path.join(MODEL_DIR, "cadjpy_fwd60_model.json")
-    if os.path.exists(model_path) and not force:
+    model_path = str(Path(MODEL_DIR) / "cadjpy_fwd60_model.json")
+    if Path(model_path).exists() and not force:
         model = xgb.XGBClassifier()
         model.load_model(model_path)
         return model
@@ -62,8 +63,8 @@ def train_cadjpy_fwd60(macro, force=True):
 
 def train_tb20_model(ticker, macro, ref, force=True):
     slug_name = _slug(ticker)
-    model_path = os.path.join(MODEL_DIR, f"{slug_name}_model.json")
-    if os.path.exists(model_path) and not force:
+    model_path = str(Path(MODEL_DIR) / f"{slug_name}_model.json")
+    if Path(model_path).exists() and not force:
         model = xgb.XGBClassifier()
         model.load_model(model_path)
         return model

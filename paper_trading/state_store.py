@@ -4,8 +4,10 @@ Kept as a re-export layer for backward compatibility.  New code should import
 directly from ``paper_trading.state`` (the sub-package) or one of its modules.
 """
 
+from __future__ import annotations
+
 import logging
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -29,21 +31,22 @@ class StateStore:
 
     def __init__(self, base_dir: str, snapshot_cache_ttl: float = 1.0):
         self.base_dir = base_dir
-        self.live_dir = os.path.join(base_dir, "data", "live")
-        self.state_path = os.path.join(self.live_dir, "state.json")
-        self.equity_history_path = os.path.join(self.live_dir, "equity_history.json")
-        self.review_log_path = os.path.join(self.live_dir, "review_log.json")
-        self.trade_outcomes_path = os.path.join(self.live_dir, "trade_outcomes.json")
-        self.cache_dir = os.path.join(self.live_dir, "cache")
+        base = Path(base_dir)
+        self.live_dir = str(base / "data" / "live")
+        self.state_path = str(base / "data" / "live" / "state.json")
+        self.equity_history_path = str(base / "data" / "live" / "equity_history.json")
+        self.review_log_path = str(base / "data" / "live" / "review_log.json")
+        self.trade_outcomes_path = str(base / "data" / "live" / "trade_outcomes.json")
+        self.cache_dir = str(base / "data" / "live" / "cache")
 
-        db_path = os.path.join(self.live_dir, "state.db")
-        os.makedirs(self.live_dir, exist_ok=True)
+        db_path = str(base / "data" / "live" / "state.db")
+        Path(self.live_dir).mkdir(parents=True, exist_ok=True)
 
         self.db = _DatabaseStore(db_path)
         self.snapshot = _SnapshotManager(self.state_path, cache_ttl=snapshot_cache_ttl)
         self.analytics = _AnalyticsStore(
             self.db,
-            os.path.join(self.live_dir, "analytics_snapshot.json"),
+            str(base / "data" / "live" / "analytics_snapshot.json"),
             self.trade_outcomes_path,
         )
         self.cache = _DataCache(self.cache_dir)
@@ -126,7 +129,7 @@ class StateStore:
 
     # ── Data cache ─────────────────────────────────────────────────
 
-    def cache_path(self, ticker: str) -> str:
+    def cache_path(self, ticker: str) -> Path:
         return self.cache.path_for(ticker)
 
     def save_cache(self, ticker: str, df: pd.DataFrame) -> None:

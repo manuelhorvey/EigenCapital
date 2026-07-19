@@ -1,5 +1,5 @@
 import logging
-import os
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
@@ -9,12 +9,12 @@ from features.registry import FEATURE_REGISTRY
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backfill_to_2000")
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT_DIR = os.path.join(PROJECT_ROOT, "data", "raw", "historical_extended")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+OUT_DIR = PROJECT_ROOT / "data" / "raw" / "historical_extended"
 
 
 def backfill():
-    os.makedirs(OUT_DIR, exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     tickers = list(FEATURE_REGISTRY.keys())
     # Add SPY for vs_spy features
@@ -37,7 +37,7 @@ def backfill():
 
             df.columns = [c.lower() for c in df.columns]
 
-            out_path = os.path.join(OUT_DIR, f"{ticker.replace('^', '').replace('=', '')}_2000.parquet")
+            out_path = OUT_DIR / f"{ticker.replace('^', '').replace('=', '')}_2000.parquet"
             df.to_parquet(out_path)
             logger.info("Saved %d rows to %s", len(df), out_path)
 

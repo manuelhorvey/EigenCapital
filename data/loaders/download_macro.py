@@ -2,8 +2,8 @@ import pandas as pd
 import pandas_datareader.data as web
 from datetime import datetime
 import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from data.loaders.macro_loader import FRED_SERIES
 

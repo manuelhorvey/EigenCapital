@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, Path(Path(__file__).resolve().parent.parent))
 
 from features.alpha_features import build_alpha_features
 from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, _fetch_macro_batch
@@ -44,11 +43,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("walkforward")
 
-OUTPUT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+OUTPUT_DIR = Path(Path(__file__).resolve().parent.parent,
     "walkforward",
 )
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
 ASSETS = {
     # Research / screening candidates
@@ -543,7 +541,7 @@ def run_walk_forward(
         return None
 
     summary = pd.DataFrame(windows)
-    summary_path = os.path.join(OUTPUT_DIR, _tag_path(f"{asset_name}_wf_summary.csv", tag))
+    summary_path = Path(OUTPUT_DIR) / _tag_path(f"{asset_name}_wf_summary.csv", tag)
     summary.to_csv(summary_path, index=False)
     logger.info("%s: summary -> %s", asset_name, summary_path)
 
@@ -570,14 +568,14 @@ def run_walk_forward(
     }
     import json
 
-    fold_ic_path = os.path.join(OUTPUT_DIR, _tag_path(f"{asset_name}_fold_ic.json", tag))
+    fold_ic_path = Path(OUTPUT_DIR) / _tag_path(f"{asset_name}_fold_ic.json", tag)
     with open(fold_ic_path, "w") as f:
         json.dump(ic_record, f, indent=2)
     logger.info("%s: fold IC -> %s", asset_name, fold_ic_path)
 
     if all_oos_signals:
         signals_df = pd.concat(all_oos_signals)
-        signals_path = os.path.join(OUTPUT_DIR, _tag_path(f"{asset_name}_wf_signals.parquet", tag))
+        signals_path = Path(OUTPUT_DIR) / _tag_path(f"{asset_name}_wf_signals.parquet", tag)
         signals_df.to_parquet(signals_path)
         logger.info("%s: signals -> %s", asset_name, signals_path)
 
@@ -738,7 +736,7 @@ def main():
     # Save ticker map for report generation
     import json as _json
 
-    ticker_map_path = os.path.join(OUTPUT_DIR, _tag_path("ticker_map.json", args.tag))
+    ticker_map_path = Path(OUTPUT_DIR) / _tag_path("ticker_map.json", args.tag)
     with open(ticker_map_path, "w") as _f:
         _json.dump(assets_to_run, _f, indent=2)
     logger.info("ticker map -> %s", ticker_map_path)
@@ -780,7 +778,7 @@ def main():
 
     if all_summaries:
         combined = pd.concat(all_summaries)
-        combined_path = os.path.join(OUTPUT_DIR, _tag_path("all_assets_wf_summary.csv", args.tag))
+        combined_path = Path(OUTPUT_DIR) / _tag_path("all_assets_wf_summary.csv", args.tag)
         combined.to_csv(combined_path, index=False)
         logger.info("combined summary -> %s", combined_path)
 

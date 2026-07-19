@@ -604,14 +604,14 @@ class TestDataCache:
     def test_path_normalizes_ticker(self, tmp_path):
         cache = _DataCache(str(tmp_path))
         path = cache.path_for("BTC-USD")
-        assert "BTC_USD" in path
-        assert path.endswith(".parquet")
+        assert "BTC_USD" in str(path)
+        assert str(path).endswith(".parquet")
 
     def test_path_handles_equals_sign(self, tmp_path):
         cache = _DataCache(str(tmp_path))
         path = cache.path_for("BTC=USD")
-        assert "BTC_USD" in path
-        assert path.endswith(".parquet")
+        assert "BTC_USD" in str(path)
+        assert str(path).endswith(".parquet")
 
     def test_load_empty_dataframe(self, tmp_path):
         cache = _DataCache(str(tmp_path))

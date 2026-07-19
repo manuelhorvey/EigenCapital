@@ -2,25 +2,25 @@
 
 import hashlib
 import json
-import os
 import tempfile
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 from paper_trading.state import atomic_write_json
+from pathlib import Path
 
 
 def test_atomic_write_json_creates_file():
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, "state.json")
+        path = Path(tmpdir) / "state.json"
         data = {"key": "value", "num": 42}
         atomic_write_json(path, data)
-        assert os.path.exists(path)
-        assert not os.path.exists(path + ".tmp")
+        assert Path(path).exists()
+        assert not Path(str(path) + ".tmp").exists()
 
 
 def test_atomic_write_json_embeds_checksum():
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, "state.json")
+        path = Path(tmpdir) / "state.json"
         data = {"key": "value"}
         atomic_write_json(path, data)
         with open(path) as f:
@@ -31,7 +31,7 @@ def test_atomic_write_json_embeds_checksum():
 
 def test_checksum_verifies_on_read():
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, "state.json")
+        path = Path(tmpdir) / "state.json"
         data = {"key": "value"}
         atomic_write_json(path, data)
         with open(path) as f:
@@ -44,7 +44,7 @@ def test_checksum_verifies_on_read():
 
 def test_checksum_detects_tamper():
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, "state.json")
+        path = Path(tmpdir) / "state.json"
         data = {"key": "value"}
         atomic_write_json(path, data)
 

@@ -167,8 +167,8 @@ class TestConstructor:
     def test_model_path(self):
         model = MetaLabelModel()
         path = model._model_path("EURUSD")
-        assert "EURUSD_meta.json" in path
-        assert path.endswith(".json")
+        assert "EURUSD_meta.json" in str(path)
+        assert str(path).endswith(".json")
 
 
 class TestMetaLabelFeatureSuggestions:

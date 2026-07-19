@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -59,7 +58,7 @@ class DriftReport:
 
 def load_trades_from_sqlite(db_path: str | Path = DEFAULT_DB_PATH) -> pd.DataFrame:
     """Load all trade exits from the SQLite trade database."""
-    if not os.path.exists(db_path):
+    if not Path(db_path).exists():
         logger.warning("Trade database not found at %s", db_path)
         return pd.DataFrame()
 

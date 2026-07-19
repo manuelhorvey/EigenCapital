@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 import threading
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 
@@ -14,9 +17,7 @@ logger = logging.getLogger("eigencapital.shadow.learning")
 
 _lock = threading.Lock()
 
-LEARNING_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "shadow_learning"
-)
+LEARNING_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "shadow_learning"
 
 
 def compile_shadow_learning(
@@ -260,11 +261,11 @@ def _compute_shadow_insights(events: list) -> dict:
 
 def _save_compiled(asset: str, report: dict) -> None:
     try:
-        path = os.path.join(LEARNING_DIR, asset, "compiled.json")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        path = LEARNING_DIR / asset / "compiled.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
         with _lock:
             existing = {}
-            if os.path.exists(path):
+            if path.exists():
                 with open(path) as f:
                     existing = json.load(f)
             for key in ["learning_profile", "latent_patterns", "shadow_insights"]:
@@ -282,7 +283,7 @@ def _save_compiled(asset: str, report: dict) -> None:
             existing["history"] = history
             existing["last_updated"] = report["timestamp"]
             existing["asset"] = asset
-            tmp = path + ".tmp"
+            tmp = str(path) + ".tmp"
             with open(tmp, "w") as f:
                 json.dump(existing, f, indent=2, cls=EigenCapitalJSONEncoder)
             os.replace(tmp, path)
@@ -294,8 +295,8 @@ def _save_compiled(asset: str, report: dict) -> None:
 
 def load_compiled(asset: str) -> dict | None:
     try:
-        path = os.path.join(LEARNING_DIR, asset, "compiled.json")
-        if not os.path.exists(path):
+        path = LEARNING_DIR / asset / "compiled.json"
+        if not path.exists():
             return None
         with open(path) as f:
             return json.load(f)

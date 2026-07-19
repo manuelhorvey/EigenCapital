@@ -1,32 +1,39 @@
 #!/usr/bin/env python3
+"""EigenCapital Paper Trading Monitor — main entry point.
+
+Starts the trading engine, dashboard server, and optional Slack alerter.
+Uses cross-platform signal handling that works identically on Linux and Windows.
+
+Usage:
+    python -m paper_trading.ops.monitor
+"""
+
+from __future__ import annotations
+
 import logging
 import os
-import signal as sigmod
+from pathlib import Path
 import threading
 import time
 import warnings
 
 from eigencapital import setup_logging  # noqa: E402
+from eigencapital.platform.signals import ShutdownManager  # noqa: E402
 from paper_trading.engine import LOG_PATH, PaperTradingEngine  # noqa: E402
 from paper_trading.governance.health import register_engine  # noqa: E402
 from paper_trading.serve import serve  # noqa: E402
 
 warnings.filterwarnings("ignore")
 
-os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+Path(LOG_PATH).parent.mkdir(parents=True, exist_ok=True)
 logger = setup_logging(logging.INFO, log_file=LOG_PATH)
 
 REFRESH_INTERVAL = int(os.environ.get("EIGENCAPITAL_REFRESH_INTERVAL") or 60)
-_shutdown = threading.Event()
-
-
-def _signal_handler(signum, frame):
-    _shutdown.set()
+_shutdown = ShutdownManager()
 
 
 def main():
-    sigmod.signal(sigmod.SIGTERM, _signal_handler)
-    sigmod.signal(sigmod.SIGINT, _signal_handler)
+    _shutdown.install_handlers()
 
     engine = PaperTradingEngine()
     register_engine(engine)

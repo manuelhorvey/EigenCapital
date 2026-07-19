@@ -20,11 +20,11 @@ from __future__ import annotations
 
 import glob
 import logging
-import os
 import sys
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,8 +32,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("detection_guard")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUT_DIR = os.path.join(BASE, "walkforward")
+BASE = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = Path(BASE) / "walkforward"
 
 DESIGN_FOLDS = {
     "AUDNZD": [2, 3],
@@ -52,7 +52,7 @@ def ema(series: pd.Series, span: int) -> pd.Series:
 
 def load_assets() -> dict[str, pd.DataFrame]:
     """Load all signal parquets + summary CSVs, return {asset: signals_df}."""
-    qry = os.path.join(OUTPUT_DIR, "*_wf_signals_base.parquet")
+    qry = Path(OUTPUT_DIR) / "*_wf_signals_base.parquet"
     paths = sorted(glob.glob(qry))
     if not paths:
         logger.warning("No signal parquets found at %s", qry)
@@ -60,9 +60,9 @@ def load_assets() -> dict[str, pd.DataFrame]:
 
     # Build fold-range lookup from summary CSVs
     fold_ranges: dict[str, list[dict]] = {}
-    summary_qry = os.path.join(OUTPUT_DIR, "*_wf_summary_base.csv")
+    summary_qry = Path(OUTPUT_DIR) / "*_wf_summary_base.csv"
     for sp in sorted(glob.glob(summary_qry)):
-        asset = os.path.basename(sp).replace("_wf_summary_base.csv", "")
+        asset = Path(sp).name.replace("_wf_summary_base.csv", "")
         df = pd.read_csv(sp)
         for _, row in df.iterrows():
             fold_ranges.setdefault(asset, []).append(
@@ -75,7 +75,7 @@ def load_assets() -> dict[str, pd.DataFrame]:
 
     assets: dict[str, pd.DataFrame] = {}
     for p in paths:
-        name = os.path.basename(p).replace("_wf_signals_base.parquet", "")
+        name = Path(p).name.replace("_wf_signals_base.parquet", "")
         sig = pd.read_parquet(p)
         sig.index = pd.to_datetime(sig.index)
         sig.index.name = "date"
@@ -281,7 +281,7 @@ def main():
     if not assets:
         sys.exit(1)
     results = eval_rules(assets)
-    results.to_csv(os.path.join(OUTPUT_DIR, "detection_guard_results.csv"), index=False)
+    results.to_csv(Path(OUTPUT_DIR) / "detection_guard_results.csv", index=False)
     print_results(results)
 
 

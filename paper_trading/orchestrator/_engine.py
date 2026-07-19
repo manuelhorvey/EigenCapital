@@ -35,6 +35,7 @@ import atexit
 import contextlib
 import logging
 import os
+from pathlib import Path
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
@@ -133,7 +134,7 @@ class EngineOrchestrator:
         # Wire CalibrationRegistry so calibration_ece reflects portfolio fit
         # quality rather than the legacy silent-zero path. get_or_load is
         # idempotent — every AssetEngine already populates this same singleton.
-        _cal_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "calibration")
+        _cal_dir = str(Path(__file__).resolve().parent.parent / "models" / "calibration")
         self._perf_builder.set_calibration_registry(CalibrationRegistry.get_or_load(_cal_dir))
         # Restore trade outcomes from snapshot so win rate, consecutive losses,
         # and R-cumulative survive restarts.

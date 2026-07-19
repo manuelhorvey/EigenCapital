@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.optimization.trade_outcome_repository import TradeOutcomeRepository
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.optimization.per_asset_quality")
 

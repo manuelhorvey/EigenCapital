@@ -31,6 +31,7 @@ import argparse
 import json
 import logging
 import os
+from pathlib import Path
 import shutil
 import sqlite3
 import sys
@@ -44,10 +45,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("dr_drill")
 
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEFAULT_DB_PATH = os.path.join(BASE, "data", "live", "state.db")
-BACKUP_DIR = os.path.join(BASE, "data", "backups", "sqlite")
-DRILL_LOG_PATH = os.path.join(BASE, "data", "logs", "dr_drill_results.json")
+BASE = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DB_PATH = str(Path(BASE) / "data" / "live" / "state.db")
+BACKUP_DIR = str(Path(BASE) / "data" / "backups" / "sqlite")
+DRILL_LOG_PATH = str(Path(BASE) / "data" / "logs" / "dr_drill_results.json")
 
 REQUIRED_TABLES = ["trades", "attribution", "equity_history", "shadow_trades", "confidence_buckets"]
 
@@ -61,17 +62,17 @@ def step_backup(db_path: str) -> str | None:
 
     Returns the backup path, or None on failure.
     """
-    if not os.path.isfile(db_path):
+    if not Path(db_path).is_file():
         logger.error("Source database not found: %s", db_path)
         return None
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(BACKUP_DIR, f"state_drill_{timestamp}.db")
+    backup_path = str(Path(BACKUP_DIR) / "state_drill_{timestamp}.db")
     _ensure_dir(BACKUP_DIR)
 
     try:
         shutil.copy2(db_path, backup_path)
-        logger.info("Backup created: %s (%d bytes)", backup_path, os.path.getsize(backup_path))
+        logger.info("Backup created: %s (%d bytes)", backup_path, Path(backup_path).stat().st_size)
         return backup_path
     except (OSError, shutil.Error) as e:
         logger.error("Backup failed: %s", e)
@@ -90,7 +91,7 @@ def step_restore_and_verify(backup_path: str) -> dict:
         "errors": [],
     }
 
-    if not os.path.isfile(backup_path):
+    if not Path(backup_path).is_file():
         result["errors"].append(f"Backup not found: {backup_path}")
         return result
 
@@ -164,7 +165,7 @@ def step_restore_and_verify(backup_path: str) -> dict:
 def _cleanup_temp(temp_path: str) -> None:
     """Remove temp file if it exists."""
     try:
-        if os.path.isfile(temp_path):
+        if Path(temp_path).is_file():
             os.remove(temp_path)
             logger.debug("Cleaned up temp: %s", temp_path)
     except OSError:
@@ -173,7 +174,7 @@ def _cleanup_temp(temp_path: str) -> None:
 
 def _write_results(results: dict) -> None:
     """Write drill results to log file."""
-    _ensure_dir(os.path.dirname(DRILL_LOG_PATH))
+    _ensure_dir(str(Path(DRILL_LOG_PATH).parent))
     try:
         with open(DRILL_LOG_PATH, "w") as f:
             json.dump(results, f, indent=2, default=str)
@@ -184,7 +185,7 @@ def _write_results(results: dict) -> None:
 
 def _read_latest_results() -> dict | None:
     """Read the latest drill results from log file."""
-    if not os.path.isfile(DRILL_LOG_PATH):
+    if not Path(DRILL_LOG_PATH).is_file():
         return None
     try:
         with open(DRILL_LOG_PATH) as f:
@@ -225,7 +226,7 @@ def run_drill(db_path: str | None = None) -> dict:
     logger.info("=" * 60)
     logger.info("Database: %s", db_path)
 
-    if not os.path.isfile(db_path):
+    if not Path(db_path).is_file():
         logger.error("Database not found at %s — skipping drill", db_path)
         result = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -271,7 +272,7 @@ def run_drill(db_path: str | None = None) -> dict:
         "status": "PASSED",
         "db_path": db_path,
         "backup_path": backup_path,
-        "backup_size_bytes": os.path.getsize(backup_path) if os.path.isfile(backup_path) else 0,
+        "backup_size_bytes": Path(backup_path).stat().st_size if Path(backup_path).is_file() else 0,
         "verify_result": verify_result,
         "row_counts": verify_result.get("row_counts", {}),
     }
@@ -284,10 +285,10 @@ def run_drill(db_path: str | None = None) -> dict:
 
 def _cleanup_old_backups(keep: int = 5) -> None:
     """Remove old drill backups, keeping the *keep* most recent."""
-    if not os.path.isdir(BACKUP_DIR):
+    if not Path(BACKUP_DIR).is_dir():
         return
     backups = sorted(
-        [os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR) if f.startswith("state_drill_")],
+        [str(Path(BACKUP_DIR) / "state_drill_")],
         key=os.path.getmtime,
     )
     while len(backups) > keep:

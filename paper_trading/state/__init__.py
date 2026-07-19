@@ -6,6 +6,7 @@ import logging
 import math
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -90,7 +91,7 @@ def atomic_write_json(path: str, data: dict) -> None:
     """Atomic JSON write with embedded SHA256 checksum."""
     checksum = hashlib.sha256(json.dumps(data, sort_keys=True, cls=EigenCapitalJSONEncoder).encode()).hexdigest()
     write_data = {**data, "_checksum": checksum}
-    tmp_path = path + ".tmp"
+    tmp_path = str(path) + ".tmp"
     try:
         with open(tmp_path, "w") as f:
             json.dump(write_data, f, indent=2, cls=EigenCapitalJSONEncoder)
@@ -99,8 +100,8 @@ def atomic_write_json(path: str, data: dict) -> None:
         os.replace(tmp_path, path)
     except (OSError, TypeError, ValueError) as _ae:
         logger.error("atomic_write_json failed: %s", _ae, exc_info=True)
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        if Path(tmp_path).exists():
+            Path(tmp_path).unlink()
         raise
 
 

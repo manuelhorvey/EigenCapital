@@ -1,6 +1,6 @@
 import hashlib
 import logging
-import os
+from pathlib import Path
 import time
 
 logger = logging.getLogger("eigencapital.model_integrity_service")
@@ -15,7 +15,7 @@ class ModelIntegrityService:
             if not hasattr(asset, "_model_hash") or not hasattr(asset, "model_path"):
                 continue
             model_path = asset.model_path
-            if not os.path.exists(model_path):
+            if not Path(model_path).exists():
                 continue
             try:
                 with open(model_path, "rb") as fm:
@@ -43,10 +43,10 @@ class ModelIntegrityService:
         min_stale_days = 90
         for rt_name, rt_asset in list(self.engine.assets.items()):
             rt_mp = getattr(rt_asset, "model_path", None)
-            if not rt_mp or not os.path.exists(rt_mp):
+            if not rt_mp or not Path(rt_mp).exists():
                 continue
             try:
-                rt_mtime = os.path.getmtime(rt_mp)
+                rt_mtime = Path(rt_mp).stat().st_mtime
                 rt_age_days = (time.time() - rt_mtime) / 86400
                 if rt_age_days > min_stale_days:
                     logger.info(

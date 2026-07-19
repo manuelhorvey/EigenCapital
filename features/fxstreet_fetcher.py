@@ -1,10 +1,10 @@
 import hashlib
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,14 +19,10 @@ from features.macro_narrative import (
 logger = logging.getLogger("eigencapital.fxstreet_fetcher")
 
 FXSTREET_URL = "https://www.fxstreet.com/analysis"
-NARRATIVE_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data",
-    "live",
-)
-NARRATIVE_PENDING = os.path.join(NARRATIVE_DIR, "narrative_pending.json")
-NARRATIVE_ACTIVE = os.path.join(NARRATIVE_DIR, "narrative_active.json")
-NARRATIVE_ERROR = os.path.join(NARRATIVE_DIR, "narrative_error.json")
+NARRATIVE_DIR = Path(__file__).resolve().parent.parent / "data" / "live"
+NARRATIVE_PENDING = NARRATIVE_DIR / "narrative_pending.json"
+NARRATIVE_ACTIVE = NARRATIVE_DIR / "narrative_active.json"
+NARRATIVE_ERROR = NARRATIVE_DIR / "narrative_error.json"
 LLM_SYSTEM_PROMPT = (
     "You are a macro analyst. Extract structured data from this FX market commentary. "
     "Return ONLY valid JSON matching this exact schema:\n"
@@ -143,7 +139,7 @@ def call_llm(text: str, api_key: str, model: str = "deepseek-v4-flash-free", ret
 
 
 def run_weekly_narrative_pipeline(api_key: str | None = None) -> bool:
-    os.makedirs(NARRATIVE_DIR, exist_ok=True)
+    NARRATIVE_DIR.mkdir(parents=True, exist_ok=True)
     text = fetch_fxstreet_article()
     if not text:
         _write_error("scrape_failed", "No FXStreet article found or fetch returned empty")
@@ -177,16 +173,16 @@ def run_weekly_narrative_pipeline(api_key: str | None = None) -> bool:
 
 
 def confirm_pending_narrative() -> bool:
-    if not os.path.exists(NARRATIVE_PENDING):
+    if not NARRATIVE_PENDING.exists():
         logger.warning("No pending narrative to confirm")
         return False
     try:
         import shutil
 
-        shutil.copy2(NARRATIVE_PENDING, NARRATIVE_ACTIVE)
+        shutil.copy2(str(NARRATIVE_PENDING), str(NARRATIVE_ACTIVE))
         logger.info("Narrative confirmed: %s → %s", NARRATIVE_PENDING, NARRATIVE_ACTIVE)
-        if os.path.exists(NARRATIVE_ERROR):
-            os.remove(NARRATIVE_ERROR)
+        if NARRATIVE_ERROR.exists():
+            NARRATIVE_ERROR.unlink()
         return True
     except (OSError, shutil.Error) as e:
         logger.error("Failed to confirm narrative: %s", e)
@@ -194,20 +190,20 @@ def confirm_pending_narrative() -> bool:
 
 
 def get_active_narrative() -> MacroNarrativeFeatures | None:
-    if not os.path.exists(NARRATIVE_ACTIVE):
+    if not NARRATIVE_ACTIVE.exists():
         return None
     try:
-        return load_narrative_json(NARRATIVE_ACTIVE)
+        return load_narrative_json(str(NARRATIVE_ACTIVE))
     except (OSError, ValueError) as e:
         logger.error("Failed to load active narrative: %s", e)
         return None
 
 
 def get_pending_narrative() -> MacroNarrativeFeatures | None:
-    if not os.path.exists(NARRATIVE_PENDING):
+    if not NARRATIVE_PENDING.exists():
         return None
     try:
-        return load_narrative_json(NARRATIVE_PENDING)
+        return load_narrative_json(str(NARRATIVE_PENDING))
     except (OSError, ValueError) as e:
         logger.warning("Failed to load pending narrative: %s", e)
         return None
@@ -232,7 +228,7 @@ def _write_error(reason: str, detail: str) -> None:
 
 
 def get_fetch_error() -> dict | None:
-    if not os.path.exists(NARRATIVE_ERROR):
+    if not NARRATIVE_ERROR.exists():
         return None
     try:
         with open(NARRATIVE_ERROR) as f:

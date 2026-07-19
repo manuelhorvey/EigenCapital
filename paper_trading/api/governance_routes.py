@@ -1,6 +1,6 @@
 import json
-import os
 from datetime import datetime
+from pathlib import Path
 
 import pytz
 
@@ -205,7 +205,7 @@ def handle_weekly_review_acknowledge(body: bytes, state_store: StateStore | None
     entry = {"acknowledged_at": now}
     rlp = store.review_log_path
     existing = []
-    if os.path.exists(rlp):
+    if Path(rlp).exists():
         try:
             with open(rlp) as f:
                 existing = json.load(f)

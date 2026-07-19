@@ -18,6 +18,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from pathlib import Path
+
 from scripts.backtest.monte_carlo_drawdown import (
     SELL_ONLY_ACTIVE,
     load_daily_portfolio_returns,

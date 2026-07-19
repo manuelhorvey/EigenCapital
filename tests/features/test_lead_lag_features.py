@@ -86,4 +86,4 @@ def test_default_edges_lag_is_positive():
 
 
 def test_default_edges_path_constant():
-    assert DEFAULT_EDGES_PATH.endswith("lead_lag_edges.yaml")
+    assert str(DEFAULT_EDGES_PATH).endswith("lead_lag_edges.yaml")

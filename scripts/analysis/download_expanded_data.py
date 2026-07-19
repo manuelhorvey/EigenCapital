@@ -2,7 +2,6 @@
 """Download 10+ years of OHLCV data for all assets and save locally, then re-run walk-forward backtest with expanded data."""
 
 import logging
-import os
 import sys
 import json
 from pathlib import Path
@@ -10,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."))
+sys.path.insert(0, Path(__file__).resolve().parent.parent.parent)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("download_expanded")

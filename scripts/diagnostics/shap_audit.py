@@ -11,7 +11,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import os
 
 import numpy as np
 import pandas as pd
@@ -25,8 +24,8 @@ from labels.compat import triple_barrier_labels
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("shap_audit")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = os.path.join(BASE, "paper_trading", "models")
+BASE = Path(__file__).resolve().parent.parent
+MODEL_DIR = Path(BASE) / "paper_trading" / "models"
 
 # 9 flagged assets
 AUX = frozenset({"^DJI", "ES", "NQ"})
@@ -35,6 +34,7 @@ ALL_FLAGGED = AUX | CHF_CLUSTER
 
 # Load per-asset config
 from paper_trading.config_manager import get_config as _get_cfg
+from pathlib import Path
 
 _cfg = _get_cfg()
 ASSET_TICKER: dict[str, str] = {}
@@ -62,7 +62,7 @@ def _model_path(asset_name: str) -> str:
     # ^DJI is stored as DJI_model.json (caret stripped)
     if asset_name == "^DJI":
         filename = "DJI_model.json"
-    return os.path.join(MODEL_DIR, filename)
+    return Path(MODEL_DIR) / filename
 
 
 def fetch_features(
@@ -123,7 +123,7 @@ def run_shap_audit(asset_name: str, ticker: str, pt_sl: tuple[float, float], max
 
     # Load model
     mpath = _model_path(asset_name)
-    if not os.path.exists(mpath):
+    if not Path(mpath).exists():
         raise FileNotFoundError(f"Model not found: {mpath}")
     model = xgb.XGBClassifier()
     model.load_model(mpath)

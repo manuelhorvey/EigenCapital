@@ -1,3 +1,4 @@
+from pathlib import Path
 """TP/SL Optimizer Package.
 
 Tools for grid-search, validation, and live monitoring of per-asset TP/SL

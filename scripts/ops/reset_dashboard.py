@@ -16,8 +16,9 @@ import shutil
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def _flush_server_cache() -> None:
@@ -38,22 +39,22 @@ def _flush_server_cache() -> None:
             print(f"  No server on port {port} (expected if engine is stopped)")
 
 
-LIVE_DIR = os.path.join(BASE_DIR, "data", "live")
-SHADOW_FEEDBACK_DIR = os.path.join(BASE_DIR, "data", "shadow_feedback")
-SHADOW_MEMORY_DIR = os.path.join(BASE_DIR, "data", "shadow_memory")
-SHADOW_LEARNING_DIR = os.path.join(BASE_DIR, "data", "shadow_learning")
+LIVE_DIR = Path(BASE_DIR) / "data" / "live"
+SHADOW_FEEDBACK_DIR = Path(BASE_DIR) / "data" / "shadow_feedback"
+SHADOW_MEMORY_DIR = Path(BASE_DIR) / "data" / "shadow_memory"
+SHADOW_LEARNING_DIR = Path(BASE_DIR) / "data" / "shadow_learning"
 
 
 def clean_directory_contents(dir_path):
-    if not os.path.exists(dir_path):
+    if not Path(dir_path).exists():
         print(f"Directory {dir_path} does not exist, skipping.")
         return
 
     print(f"Cleaning contents of {dir_path}...")
-    for item in os.listdir(dir_path):
-        item_path = os.path.join(dir_path, item)
+    for item in sorted(Path(dir_path).iterdir()):
+        item_path = Path(dir_path) / item
         try:
-            if os.path.isdir(item_path):
+            if Path(item_path).is_dir():
                 shutil.rmtree(item_path)
                 print(f"  Removed directory: {item}")
             else:
@@ -87,7 +88,7 @@ def main():
 
     # Re-create cache, snapshots, logs directories inside live to ensure they exist
     for sub in ["cache", "snapshots", "logs"]:
-        os.makedirs(os.path.join(LIVE_DIR, sub), exist_ok=True)
+        Path(Path(LIVE_DIR) / sub).mkdir(parents=True, exist_ok=True)
         print(f"  Created empty folder: data/live/{sub}")
 
     # 2. Clean shadow learning, feedback, and memory

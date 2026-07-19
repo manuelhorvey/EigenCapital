@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 import threading
 from collections import Counter
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 
@@ -14,11 +17,9 @@ logger = logging.getLogger("eigencapital.shadow.memory")
 
 _lock = threading.Lock()
 
-MEMORY_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "shadow_memory"
-)
+MEMORY_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "shadow_memory"
 
-BASELINE_DIR = os.path.join(MEMORY_DIR, "baseline")
+BASELINE_DIR = MEMORY_DIR / "baseline"
 
 
 def store_event(asset: str, event: dict) -> None:
@@ -26,8 +27,8 @@ def store_event(asset: str, event: dict) -> None:
         now_utc = utc_now_naive()
         ts = event.get("timestamp", now_utc.isoformat())
         date_str = ts[:10] if isinstance(ts, str) else now_utc.strftime("%Y-%m-%d")
-        path = os.path.join(MEMORY_DIR, asset, f"{date_str}.jsonl")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        path = MEMORY_DIR / asset / f"{date_str}.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
         with _lock, open(path, "a") as f:
             f.write(json.dumps(event, cls=EigenCapitalJSONEncoder) + "\n")
     except OSError as e:
@@ -40,20 +41,19 @@ def read_events(asset: str, days: int = 90) -> list:
     try:
         cutoff = utc_now_naive() - timedelta(days=days)
         events: list = []
-        asset_dir = os.path.join(MEMORY_DIR, asset)
-        if not os.path.isdir(asset_dir):
+        asset_dir = MEMORY_DIR / asset
+        if not asset_dir.is_dir():
             return events
-        for fname in sorted(os.listdir(asset_dir)):
-            if not fname.endswith(".jsonl"):
+        for fpath in sorted(asset_dir.iterdir()):
+            if not fpath.suffix == ".jsonl":
                 continue
-            date_str = fname.replace(".jsonl", "")
+            date_str = fpath.stem
             try:
                 fdate = datetime.strptime(date_str, "%Y-%m-%d")
                 if fdate < cutoff:
                     continue
             except ValueError:
                 continue
-            fpath = os.path.join(asset_dir, fname)
             try:
                 with open(fpath) as f:
                     for line in f:
@@ -163,9 +163,9 @@ def build_baseline(asset: str, events: list | None = None) -> dict:
 
 def save_baseline(asset: str, baseline: dict) -> None:
     try:
-        os.makedirs(BASELINE_DIR, exist_ok=True)
-        path = os.path.join(BASELINE_DIR, f"{asset}.json")
-        tmp = path + ".tmp"
+        BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+        path = BASELINE_DIR / f"{asset}.json"
+        tmp = str(path) + ".tmp"
         with open(tmp, "w") as f:
             json.dump(baseline, f, indent=2, cls=EigenCapitalJSONEncoder)
         os.replace(tmp, path)
@@ -177,8 +177,8 @@ def save_baseline(asset: str, baseline: dict) -> None:
 
 def load_baseline(asset: str) -> dict | None:
     try:
-        path = os.path.join(BASELINE_DIR, f"{asset}.json")
-        if not os.path.exists(path):
+        path = BASELINE_DIR / f"{asset}.json"
+        if not path.exists():
             return None
         with open(path) as f:
             return json.load(f)

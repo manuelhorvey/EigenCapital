@@ -7,10 +7,9 @@ Usage: PYTHONPATH=$PYTHONPATH:. python scripts/analysis/threshold_validation.py
 
 import csv
 import logging
-import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, Path(Path(__file__).resolve().parent.parent))
 logging.basicConfig(level=logging.WARNING)
 
 import numpy as np  # noqa: E402
@@ -21,8 +20,9 @@ from archive.deprecated._builder import build_features, compute_macro_derived  #
 from features.registry import FEATURE_REGISTRY  # noqa: E402
 from labels.triple_barrier import apply_triple_barrier  # noqa: E402
 from scripts.training.train_all_assets import fetch_history  # noqa: E402
+from pathlib import Path
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DASHBOARD_TICKERS = [
     "GC=F",
@@ -168,7 +168,7 @@ def sharp(ret):
 
 
 print("Loading macro and reference...")
-macro = compute_macro_derived(pd.read_parquet(os.path.join(PROJECT_ROOT, "data", "processed", "macro_factors.parquet")))
+macro = compute_macro_derived(pd.read_parquet(Path(PROJECT_ROOT) / "data" / "processed" / "macro_factors.parquet"))
 ref = fetch_history("SPY", years=10)
 
 all_comparisons = []
@@ -274,8 +274,8 @@ print(f"  KEEP 0.45:  {len(keep)} — {[c['ticker'] for c in keep]}")
 print(f"  MIXED:      {len(mix)} — {[c['ticker'] for c in mix]}")
 
 # Save
-out = os.path.join(PROJECT_ROOT, "scripts", "data", "processed", "threshold_comparison.csv")
-os.makedirs(os.path.dirname(out), exist_ok=True)
+out = Path(PROJECT_ROOT) / "scripts" / "data" / "processed" / "threshold_comparison.csv"
+Path(Path(out).parent).mkdir(parents=True, exist_ok=True)
 if all_comparisons:
     with open(out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(all_comparisons[0].keys()))

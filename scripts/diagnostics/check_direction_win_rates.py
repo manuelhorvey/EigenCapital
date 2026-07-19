@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -105,7 +104,7 @@ def load_live_trades(db_path: str) -> dict[str, dict]:
     Returns same structure as compute_dir_wr_from_parquets, or empty dict
     if db is missing or empty.
     """
-    if not os.path.isfile(db_path):
+    if not Path(db_path).is_file():
         logger.warning("Live DB not found at %s — skipping live comparison", db_path)
         return {}
 

@@ -3,9 +3,9 @@ import requests
 import zipfile
 import io
 import sys
-import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from data.loaders.cot_loader import FX_COT_CONTRACTS
 

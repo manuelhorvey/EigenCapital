@@ -7,8 +7,10 @@ with explicit defaults and injected dependencies.
 
 from __future__ import annotations
 
+from __future__ import annotations
+
 import logging
-import os
+from pathlib import Path
 
 import pytz
 
@@ -37,7 +39,7 @@ from shared.registry import StrategyRegistry
 logger = logging.getLogger("eigencapital.asset_engine_factory")
 
 ET = pytz.timezone("US/Eastern")
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = Path(__file__).resolve().parent.parent
 
 
 def build_asset_engine(
@@ -83,7 +85,7 @@ def build_asset_engine(
 
     # ── Post-init wiring (moved from __init__) ──────────────────────────
 
-    engine.model_path = os.path.join(BASE, "paper_trading", "models", f"{contract.name}_model.json")
+    engine.model_path = str(BASE / "paper_trading" / "models" / f"{contract.name}_model.json")
     engine.pos_mgr = PositionManager(
         resolved_initial_cap,
         position_size if position_size is not None else engine_cfg.position_size,  # type: ignore[union-attr]

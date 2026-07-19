@@ -8,7 +8,6 @@ Output: data/processed/audits/stress_test_6_checks.json + printed summary
 """
 
 import json
-import os
 import warnings
 from pathlib import Path
 

@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import time
 from datetime import datetime
 from enum import Enum
@@ -73,9 +74,9 @@ def _setup_logging() -> logging.Logger:
     root = logging.getLogger("eigencapital")
     root.setLevel(logging.INFO)
 
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "live")
-    log_path = os.path.join(log_dir, "engine.log")
-    os.makedirs(log_dir, exist_ok=True)
+    log_dir = str(Path(__file__).resolve().parent.parent / "data" / "live")
+    log_path = str(Path(log_dir) / "engine.log")
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
 
     # File handler with rotation (10 MB per file, keep 5 backups)
     from logging.handlers import RotatingFileHandler
@@ -99,14 +100,14 @@ def _setup_logging() -> logging.Logger:
 
 logger = _setup_logging()
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_LIVE_DIR = os.path.join(BASE, "data", "live")
-STATE_PATH = os.path.join(_LIVE_DIR, "state.json")
-CACHE_DIR = os.path.join(_LIVE_DIR, "cache")
-LOG_PATH = os.path.join(_LIVE_DIR, "engine.log")  # backward compat
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+BASE = str(Path(__file__).resolve().parent.parent)
+_LIVE_DIR = str(Path(BASE) / "data" / "live")
+STATE_PATH = str(Path(_LIVE_DIR) / "state.json")
+CACHE_DIR = str(Path(_LIVE_DIR) / "cache")
+LOG_PATH = str(Path(_LIVE_DIR) / "engine.log")  # backward compat
+MODEL_DIR = str(Path(__file__).resolve().parent / "models")
 
-os.makedirs(MODEL_DIR, exist_ok=True)
+Path(MODEL_DIR).mkdir(parents=True, exist_ok=True)
 
 # Backward-compat: _STORE was eagerly created here; now None unless explicitly set.
 _STORE: StateStore | None = None
@@ -272,7 +273,7 @@ class PaperTradingEngine:
             asset_universe=universe,
             execution_config=self._engine_cfg.execution_defaults,
         )
-        export_dir = os.path.join(BASE, "data", "research", "attribution")
+        export_dir = str(Path(BASE) / "data" / "research" / "attribution")
         for name, asset in self.assets.items():
             asset.set_experiment_context(ctx.freeze.experiment_id, export_dir=export_dir)
         logger.info(

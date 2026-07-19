@@ -10,13 +10,13 @@ Usage::
     PYTHONPATH=$PYTHONPATH:. python scripts/diagnostics/debug_attribution.py
 """
 
-import os
+from pathlib import Path
 import json
 from paper_trading.state_store import StateStore
 from shared.metrics.attribution import compute_aggregate_domain_scores
 from shared.metrics.mae_mfe import compute_mae_mfe_stats
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 _STORE = StateStore(BASE_DIR)
 
 def test():

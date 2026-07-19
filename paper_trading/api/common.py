@@ -6,6 +6,7 @@ import hmac
 import json
 import logging
 import os
+from pathlib import Path
 import secrets
 import threading
 import time
@@ -90,9 +91,9 @@ def _with_state_meta(data, state_store=None) -> dict:
     }
 
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = str(Path(__file__).resolve().parent.parent)
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
 
 
 # Server-context StateStore — initialized explicitly at server startup
@@ -136,18 +137,13 @@ def reset_server_store() -> None:
     _SERVER_STORE = None
 
 
-DASHBOARD_DIST = os.path.join(BASE, "dashboard", "dist")
-FRONTEND_DIR = os.path.join(BASE, "frontend")
-LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "engine.log")
-CONFIDENCE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "confidence_buckets.parquet"
-)
-OPTIMIZATION_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "live", "optimization.json"
-)
-HEALTHCHECK_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "logs", "healthcheck", "latest.json"
-)
+DASHBOARD_DIST = str(Path(BASE) / "dashboard" / "dist")
+FRONTEND_DIR = str(Path(BASE) / "frontend")
+_PROJECT_ROOT_PATH = Path(__file__).resolve().parent.parent.parent
+LOG_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "engine.log")
+CONFIDENCE_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "confidence_buckets.parquet")
+OPTIMIZATION_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "optimization.json")
+HEALTHCHECK_PATH = str(_PROJECT_ROOT_PATH / "data" / "logs" / "healthcheck" / "latest.json")
 
 MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -368,10 +364,10 @@ STATIC_ROUTES_VANILLA = {
 
 
 def get_index_html():
-    dist = os.path.join(DASHBOARD_DIST, "index.html")
-    if os.path.exists(dist):
-        return os.path.join(DASHBOARD_DIST, "index.html")
-    return os.path.join(FRONTEND_DIR, "index.html")
+    dist = str(Path(DASHBOARD_DIST) / "index.html")
+    if Path(dist).exists():
+        return str(Path(DASHBOARD_DIST) / "index.html")
+    return str(Path(FRONTEND_DIR) / "index.html")
 
 
 def try_serve_file(path, resp):
@@ -381,14 +377,14 @@ def try_serve_file(path, resp):
     for root in (DASHBOARD_DIST, FRONTEND_DIR):
         if not root:
             continue
-        root_real = os.path.realpath(root)
-        fp = os.path.realpath(os.path.join(root_real, clean))
-        if os.path.commonpath([root_real, fp]) != root_real:
+        root_real = str(Path(root).resolve())
+        fp = str(Path(root_real) / clean)
+        if Path(root_real) not in Path(fp).parents:
             continue
         candidates.append(fp)
     for fp in candidates:
-        if os.path.exists(fp) and os.path.isfile(fp):
-            ext = os.path.splitext(fp)[1]
+        if Path(fp).exists() and Path(fp).is_file():
+            ext = Path(fp).suffix
             ct = MIME_TYPES.get(ext, "application/octet-stream")
             try:
                 with open(fp, "rb") as f:

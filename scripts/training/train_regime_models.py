@@ -12,13 +12,14 @@ Usage:
 
 import logging
 import os
+from pathlib import Path
 import sys
 import time
 from datetime import datetime
 
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("train_regime")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = Path(__file__).resolve().parent.parent
 
 
 def main():
@@ -151,7 +152,7 @@ def main():
 
     # Save report
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = os.path.join(BASE, "data", "processed", f"regime_training_report_{ts}.csv")
+    report_path = str(Path(BASE) / "data" / "processed" / "regime_training_report_{ts}.csv")
     pd.DataFrame(results).to_csv(report_path, index=False)
     print(f"\nReport: {report_path}")
 

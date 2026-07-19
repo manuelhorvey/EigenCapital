@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 import sqlite3
 from typing import Any
 
@@ -11,8 +12,8 @@ import pandas as pd
 
 logger = logging.getLogger("eigencapital.optimization.trade_outcome_repository")
 
-LIVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "live")
-DEFAULT_DB_PATH = os.path.join(LIVE_DIR, "state.db")
+LIVE_DIR = os.path.join(Path(__file__).resolve().parent.parent.parent, "data", "live")
+DEFAULT_DB_PATH = str(Path(LIVE_DIR) / "state.db")
 
 
 class TradeOutcomeRepository:
@@ -38,7 +39,7 @@ class TradeOutcomeRepository:
             }
 
     def _connect(self) -> sqlite3.Connection:
-        if not os.path.isfile(self._db_path):
+        if not Path(self._db_path).is_file():
             raise FileNotFoundError(f"Trade database not found: {self._db_path}")
         return sqlite3.connect(self._db_path, timeout=5.0)
 

@@ -7,19 +7,19 @@ Usage: PYTHONPATH=$PYTHONPATH:. python scripts/analysis/run_threshold_040.py
 """
 
 import logging
-import os
 import re
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, Path(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 import pandas as pd
 
 from scripts.backtest.walk_forward_all import load_macro, walk_forward_one
 from scripts.training.train_all_assets import fetch_history
+from pathlib import Path
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DASHBOARD_TICKERS = [
     "GC=F",
@@ -279,7 +279,7 @@ def run():
         for t, reason in failed:
             print(f"    {t}: {reason}")
 
-    out_path = os.path.join(PROJECT_ROOT, "data", "processed", "threshold_040_comparison.csv")
+    out_path = Path(PROJECT_ROOT) / "data" / "processed" / "threshold_040_comparison.csv"
     pd.DataFrame(results_list).to_csv(out_path, index=False)
     print(f"\nResults saved to {out_path}")
 

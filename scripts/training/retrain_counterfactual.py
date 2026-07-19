@@ -30,13 +30,14 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+from pathlib import Path
 import sys
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 
 from eigencapital.domain.value_objects.statistical_metrics import (
     _moments,
@@ -51,8 +52,8 @@ from labels.triple_barrier import apply_triple_barrier
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("counterfactual")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUT_DIR = os.path.join(BASE, "walkforward", "counterfactual")
+BASE = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = str(Path(BASE) / "walkforward" / "counterfactual")
 
 CONFIG_ASSETS = {
     "GC": "GC=F",
@@ -360,9 +361,9 @@ def main():
     tags = build_tags_from_args(args)
     tag = args.tag or "_".join(t[3:] for t in tags if t != "baseline") or "all_features"
 
-    exp_dir = os.path.join(OUTPUT_DIR, f"{tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    exp_dir = str(Path(OUTPUT_DIR) / f"{tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     os.makedirs(exp_dir, exist_ok=True)
-    details_dir = os.path.join(exp_dir, "details")
+    details_dir = str(Path(exp_dir) / "details")
     os.makedirs(details_dir, exist_ok=True)
 
     all_rows = []
@@ -417,11 +418,11 @@ def main():
                 detail_rows.append({"asset": asset_name, "fold": i, "variant": "baseline", **fold_m})
             for i, fold_m in enumerate(cf_folds):
                 detail_rows.append({"asset": asset_name, "fold": i, "variant": tag, **fold_m})
-            pd.DataFrame(detail_rows).to_csv(os.path.join(details_dir, f"{asset_name}.csv"), index=False)
+            pd.DataFrame(detail_rows).to_csv(str(Path(details_dir) / f"{asset_name}.csv"), index=False)
 
     if all_rows:
         per_asset_df = pd.DataFrame(all_rows)
-        per_asset_path = os.path.join(exp_dir, "per_asset.csv")
+        per_asset_path = str(Path(exp_dir) / "per_asset.csv")
         per_asset_df.to_csv(per_asset_path, index=False)
         logger.info("Saved per-asset results to %s", per_asset_path)
 
@@ -438,7 +439,7 @@ def main():
             "assets_with_degraded_buy_wr": sum(1 for r in all_rows if r["delta_buy_wr"] < -0.02),
             "assets_with_cf_buy_wr_above_50": sum(1 for r in all_rows if r["cf_buy_wr"] > 0.50),
         }
-        portfolio_path = os.path.join(exp_dir, "portfolio.csv")
+        portfolio_path = str(Path(exp_dir) / "portfolio.csv")
         pd.DataFrame([portfolio]).to_csv(portfolio_path, index=False)
         logger.info("Saved portfolio summary to %s", portfolio_path)
 

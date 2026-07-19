@@ -2,6 +2,7 @@ import contextlib
 import logging
 import os
 import stat
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,8 +29,15 @@ _DOTENV_PATH = Path(".env").absolute()
 
 
 def _warn_on_insecure_dotenv() -> None:
-    """Log a warning if .env exists with world-readable permissions."""
+    """Log a warning if .env exists with world-readable permissions.
+
+    Uses ``os.chmod`` which is a no-op on Windows (acceptable — Windows
+    handles file permissions differently via ACLs).
+    """
     if not _DOTENV_PATH.exists():
+        return
+    # chmod / permission checks are Linux-only; skip on Windows
+    if sys.platform == "win32":
         return
     try:
         mode = _DOTENV_PATH.stat().st_mode
@@ -61,8 +69,7 @@ ENABLE_LEGACY_EDITS = "ENABLE_LEGACY_EDITS"
 # and PaperConfigRegistry reads exclusively from configs/domains/.
 # Callers that pass an explicit path still get the legacy-mirror overlay
 # (test fixtures, ad-hoc YAML overlays).
-_LEGACY_FALLBACK_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+_LEGACY_FALLBACK_PATH = Path(Path(__file__).resolve().parent.parent,
     "configs",
     "paper_trading.yaml",
 )

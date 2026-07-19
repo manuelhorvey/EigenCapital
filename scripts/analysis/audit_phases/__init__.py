@@ -4,6 +4,8 @@ Phase modules for the Production Trade Lifecycle Audit (scripts/analysis/product
 Each module exports a `run(trades_map, **kwargs) -> dict` function.
 """
 
+from pathlib import Path
+
 from scripts.analysis.audit_phases import (
     phase_data,
     phase1_lifecycle,

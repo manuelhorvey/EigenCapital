@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 from paper_trading.api.common import (
     cache_set,
@@ -21,10 +22,10 @@ def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, 
 
     _model_name = asset_name.lstrip("^")
     model_path = f"paper_trading/models/{_model_name}_model.json"
-    resolved_model = os.path.realpath(model_path)
-    models_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "models"))
+    resolved_model = str(Path(model_path).resolve())
+    models_dir = str(Path(__file__).resolve().parent.parent / "models")
     feature_importance: list[dict] = []
-    if os.path.exists(model_path) and resolved_model.startswith(models_dir + os.sep):
+    if Path(model_path).exists() and resolved_model.startswith(models_dir + "/"):
         try:
             with open(model_path) as f:
                 model_data = json.load(f)
@@ -102,8 +103,8 @@ def handle_asset_detail(path: str, query: dict, state_store=None) -> tuple[str, 
 
 def handle_wal_asset(path: str, query: dict, state_store=None) -> tuple[str, int]:
     asset_name = path[len("/wal/") : -len(".json")]
-    wal_path = os.path.join("data", "live", "wal", "engine.jsonl")
-    if not os.path.exists(wal_path):
+    wal_path = str(Path("data") / "live" / "wal" / "engine.jsonl")
+    if not Path(wal_path).exists():
         return json_dumps({"error": "No WAL file found"}), 404
 
     max_events = int(query.get("max", "100"))

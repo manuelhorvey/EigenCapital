@@ -2,16 +2,16 @@
 """Clean forced signal_flip trades from NQ and ^DJI from all persisted state."""
 
 import json
-import os
 import sqlite3
+from pathlib import Path
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LIVE = os.path.join(BASE, "data", "live")
+BASE = Path(__file__).resolve().parent.parent
+LIVE = Path(BASE) / "data" / "live"
 
 TARGET_ASSETS = {"NQ", "^DJI"}
 
 # ── 1. Clean state.json ────────────────────────────────────────────────
-state_path = os.path.join(LIVE, "state.json")
+state_path = Path(LIVE) / "state.json"
 with open(state_path) as f:
     state = json.load(f)
 
@@ -64,7 +64,7 @@ with open(state_path, "w") as f:
 print("✅ state.json cleaned")
 
 # ── 2. Clean state.db (trades table) ───────────────────────────────────
-db_path = os.path.join(LIVE, "state.db")
+db_path = Path(LIVE) / "state.db"
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
@@ -85,8 +85,8 @@ conn.close()
 print(f"✅ state.db: deleted {deleted} signal_flip trade rows, {remaining} remaining")
 
 # ── 3. Clean trade_outcomes.json ───────────────────────────────────────
-outcomes_path = os.path.join(LIVE, "trade_outcomes.json")
-if os.path.exists(outcomes_path):
+outcomes_path = Path(LIVE) / "trade_outcomes.json"
+if Path(outcomes_path).exists():
     # Re-read the cleaned state to compute fresh outcomes
     with open(state_path) as f:
         state = json.load(f)

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import json
 import logging
-import os
 import threading
 import typing
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import numpy as np
 
@@ -31,10 +33,7 @@ COMPONENT_SOURCES = {
     "stress_robustness": "adversarial_manifold",
 }
 
-BASE_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data",
-)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 _STATE_STORE: StateStore | None = None
 _ENGINE: object | None = None
@@ -89,9 +88,9 @@ def _load_state_assets() -> dict:
 
 
 def _load_cmss(asset: str) -> float | None:
-    path = os.path.join(BASE_DIR, "sandbox", asset, "manifold_adversarial.json")
+    path = BASE_DIR / "sandbox" / asset / "manifold_adversarial.json"
     try:
-        if os.path.exists(path):
+        if path.exists():
             with open(path) as f:
                 data = json.load(f)
             return typing.cast(float | None, data.get("cmss"))

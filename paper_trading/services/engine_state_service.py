@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -32,7 +33,7 @@ _PC_FALLBACK = {
     "alert": False,
 }
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = str(Path(__file__).resolve().parent.parent)
 
 # Marker set on every asset_dict published by save_state. The bounded audit
 # recorder asserts the marker is present on reads; production code never
@@ -485,7 +486,7 @@ class EngineStateService:
 
         # Live Sharpe from equity history
         try:
-            base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            base = str(Path(__file__).resolve().parent.parent.parent)
             tracker = LiveSharpeTracker(base_dir=base)
             sharpe_data = tracker.compute()
             state["portfolio"]["live_sharpe"] = sharpe_data
@@ -801,10 +802,10 @@ class EngineStateService:
 
         ctx = ExperimentContext.get()
         if ctx is not None:
-            export_dir = os.path.join(BASE, "data", "research", "attribution")
+            export_dir = str(Path(BASE) / "data" / "research" / "attribution")
             os.makedirs(export_dir, exist_ok=True)
-            metadata_path = os.path.join(export_dir, f"experiment_{ctx.freeze.experiment_id}.json")
-            if not os.path.exists(metadata_path):
+            metadata_path = str(Path(export_dir) / f"experiment_{ctx.freeze.experiment_id}.json")
+            if not Path(metadata_path).exists():
                 import json
 
                 from eigencapital.domain.encoding import EigenCapitalJSONEncoder

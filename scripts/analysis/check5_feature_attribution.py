@@ -6,7 +6,6 @@ permutation importance, flags features linked to label construction.
 
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 import warnings
@@ -14,7 +13,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."))
+sys.path.insert(0, Path(__file__).resolve().parent.parent.parent)
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("check5_features")

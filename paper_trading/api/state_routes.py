@@ -163,7 +163,7 @@ def handle_confidence(path: str, query: dict, state_store: StateStore | None = N
             live[name][bucket] = live[name].get(bucket, 0) + 1
         historical = []
         try:
-            if os.path.exists(CONFIDENCE_PATH):
+            if Path(CONFIDENCE_PATH).exists():
                 import pandas as pd
 
                 df = pd.read_parquet(CONFIDENCE_PATH)

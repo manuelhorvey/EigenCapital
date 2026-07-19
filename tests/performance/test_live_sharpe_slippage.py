@@ -10,13 +10,14 @@ import os
 import tempfile
 
 from paper_trading.performance.live_sharpe import LiveSharpeTracker
+from pathlib import Path
 
 
 def _trace_dir(td: str) -> str:
     """Mirror the production layout — implementation looks for trace.jsonl
     under <base_dir>/data/live/."""
-    trace_dir = os.path.join(td, "data", "live")
-    os.makedirs(trace_dir, exist_ok=True)
+    trace_dir = Path(td) / "data" / "live"
+    Path(trace_dir).mkdir(parents=True, exist_ok=True)
     return trace_dir
 
 
@@ -33,7 +34,7 @@ def _entry(close, current):
 def test_first_call_reads_from_zero_and_persists_pos():
     with tempfile.TemporaryDirectory() as td:
         trace_dir = _trace_dir(td)
-        trace = os.path.join(trace_dir, "trace.jsonl")
+        trace = Path(trace_dir) / "trace.jsonl"
         _write_trace(trace, [_entry(100.0, 101.0)] * 5)
         t = LiveSharpeTracker(base_dir=td)
         result = t.compute_slippage_estimate()
@@ -47,7 +48,7 @@ def test_first_call_reads_from_zero_and_persists_pos():
 
 def test_second_call_no_new_samples_when_no_new_lines():
     with tempfile.TemporaryDirectory() as td:
-        trace = os.path.join(_trace_dir(td), "trace.jsonl")
+        trace = Path(_trace_dir(td), "trace.jsonl")
         _write_trace(trace, [_entry(100.0, 101.0)] * 3)
         t = LiveSharpeTracker(base_dir=td)
         r1 = t.compute_slippage_estimate()
@@ -61,7 +62,7 @@ def test_second_call_no_new_samples_when_no_new_lines():
 
 def test_third_call_reads_only_new_lines():
     with tempfile.TemporaryDirectory() as td:
-        trace = os.path.join(_trace_dir(td), "trace.jsonl")
+        trace = Path(_trace_dir(td), "trace.jsonl")
         _write_trace(trace, [_entry(100.0, 101.0)] * 3)
         t = LiveSharpeTracker(base_dir=td)
         t.compute_slippage_estimate()  # baseline
@@ -75,7 +76,7 @@ def test_third_call_reads_only_new_lines():
 
 def test_truncation_resets_and_clears():
     with tempfile.TemporaryDirectory() as td:
-        trace = os.path.join(_trace_dir(td), "trace.jsonl")
+        trace = Path(_trace_dir(td), "trace.jsonl")
         _write_trace(trace, [_entry(100.0, 101.0)] * 100)
         t = LiveSharpeTracker(base_dir=td)
         t.compute_slippage_estimate()
@@ -92,7 +93,7 @@ def test_2000_line_cap_preserves_progress():
     the remaining samples — n_samples is the cumulative count across calls.
     The read position persists so we never re-read lines."""
     with tempfile.TemporaryDirectory() as td:
-        trace = os.path.join(_trace_dir(td), "trace.jsonl")
+        trace = Path(_trace_dir(td), "trace.jsonl")
         # 3000 lines — more than the 2000 per-call cap
         _write_trace(trace, [_entry(100.0, 101.0)] * 3000)
         t = LiveSharpeTracker(base_dir=td)
@@ -112,7 +113,7 @@ def test_no_tell_on_text_iter_file():
     """Direct regression: ensure f.tell() is called only on a binary-mode readline,
     not a text-mode for-loop iterator (which disables tell)."""
     with tempfile.TemporaryDirectory() as td:
-        trace = os.path.join(_trace_dir(td), "trace.jsonl")
+        trace = Path(_trace_dir(td), "trace.jsonl")
         _write_trace(trace, [_entry(1.0, 1.0)] * 10)
         t = LiveSharpeTracker(base_dir=td)
         # This call would have raised OSError before the fix.

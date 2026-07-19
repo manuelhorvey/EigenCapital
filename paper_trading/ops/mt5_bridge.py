@@ -1,13 +1,10 @@
-"""MT5 Bridge Server — runs under Wine Python.
+"""MT5 Bridge Server — runs under Python (Wine on Linux, native on Windows).
 
 Connects to the MT5 terminal, listens on a local TCP socket, and
 executes MetaTrader5 operations on behalf of the host EigenCapital process.
 
 Protocol: JSON-RPC over TCP with 4-byte length-prefixed frames.
 Each frame: [4-byte big-endian payload length][UTF-8 JSON payload].
-
-Request:  {"id": 1, "method": "...", "params": {}}
-Response: {"id": 1, "result": ...}  or  {"id": 1, "error": "..."}
 
 Request:  {"id": 1, "method": "...", "params": {}}
 Response: {"id": 1, "result": ...}  or  {"id": 1, "error": "..."}

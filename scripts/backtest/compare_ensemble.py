@@ -18,6 +18,7 @@ import sys
 
 import pandas as pd
 from scipy.stats import binomtest, ttest_rel
+from pathlib import Path
 
 
 def load_and_validate(ens_path: str, base_path: str) -> pd.DataFrame:

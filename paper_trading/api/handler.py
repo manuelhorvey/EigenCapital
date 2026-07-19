@@ -6,7 +6,7 @@ import errno
 import gzip
 import json
 import logging
-import os
+from pathlib import Path
 
 from paper_trading.api.common import (
     MIME_TYPES,
@@ -190,7 +190,7 @@ class Handler:
                 if token:
                     meta = f'<meta name="api-token" content="{token}">'
                     data = data.replace(b"</head>", meta.encode() + b"</head>")
-                ext = os.path.splitext(idx_path)[1]
+                ext = Path(idx_path).suffix
                 ct = MIME_TYPES.get(ext, "text/html; charset=utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", ct)
@@ -240,7 +240,7 @@ class Handler:
         try:
             with open(idx_path, "rb") as f:
                 data = f.read()
-            ext = os.path.splitext(idx_path)[1]
+            ext = Path(idx_path).suffix
             ct = MIME_TYPES.get(ext, "text/html; charset=utf-8")
             self.send_response(200)
             self.send_header("Content-Type", ct)

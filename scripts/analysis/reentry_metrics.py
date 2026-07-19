@@ -16,6 +16,7 @@ import argparse
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from collections import OrderedDict
 from typing import Any
@@ -25,7 +26,7 @@ import pandas as pd
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent, "..", ".."))
 
 from eigencapital.domain.value_objects.statistical_metrics import (
     deflated_sharpe_ratio,

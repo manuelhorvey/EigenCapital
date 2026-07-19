@@ -21,20 +21,20 @@ Output: prints summary to terminal.
 from __future__ import annotations
 
 import logging
-import os
 import sys
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, Path(Path(__file__).resolve().parent.parent))
 
 from features.data_fetch import fetch_asset_data
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("chf_corr")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = Path(__file__).resolve().parent.parent
 
 CHF_CLUSTER = [
     ("CADCHF", "CADCHF=X"),

@@ -14,6 +14,7 @@ import atexit
 import contextlib
 import logging
 import os
+from pathlib import Path
 import sqlite3
 import threading
 
@@ -52,8 +53,8 @@ class _DatabaseStore:
         # Validate the database file and WAL journal before proceeding.
         # A corrupt database raises DatabaseIntegrityError immediately
         # rather than silently degrading write operations.
-        _db_dir = os.path.dirname(db_path)
-        if os.path.isdir(_db_dir) and os.path.isfile(db_path):
+        _db_dir = str(Path(db_path).parent)
+        if Path(_db_dir).is_dir() and Path(db_path).is_file():
             try:
                 result = check_database_integrity(db_path, repair_on_failure=False)
                 if result["status"] != "OK":

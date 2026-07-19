@@ -23,6 +23,7 @@ Output: paper_trading/models/{name}_model.json per asset
 import argparse
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 import time
@@ -31,7 +32,7 @@ from datetime import datetime
 import pandas as pd
 import pytz
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, PROJECT_ROOT)
 
 logging.basicConfig(
@@ -41,7 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger("retrain_all")
 
 BASE = PROJECT_ROOT
-MODEL_DIR = os.path.join(BASE, "paper_trading", "models")
+MODEL_DIR = str(Path(BASE) / "paper_trading" / "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 ET = pytz.timezone("US/Eastern")
@@ -97,7 +98,7 @@ def main(skip_canary: bool = False, canary_only: bool = False):
     # instead of live yfinance — broader history, monotonically noisier
     # data path, no live fetch delays.
     import sys as _sys
-    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    _sys.path.insert(0, Path(__file__).resolve().parent)
     from _data_sources import build_expanded_full_panel, resolve_expanded_dir
 
     _expanded_dir = resolve_expanded_dir()
@@ -213,7 +214,7 @@ def main(skip_canary: bool = False, canary_only: bool = False):
 
     # Save report
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = os.path.join(BASE, "data", "processed", f"training_report_{ts}.csv")
+    report_path = str(Path(BASE) / "data" / "processed" / "training_report_{ts}.csv")
     report_df = pd.DataFrame(results)
     report_df.to_csv(report_path, index=False)
 
@@ -245,7 +246,7 @@ def main(skip_canary: bool = False, canary_only: bool = False):
 def _run_canary_after_retrain() -> None:
     """Subprocess train_canary.py to regenerate shadow-comparison models."""
     # train_canary.py lives in the same directory as retrain_all_fixed.py
-    canary_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "train_canary.py")
+    canary_script = os.path.join(Path(__file__).resolve().parent, "train_canary.py")
     logger.info("=" * 60)
     logger.info("Regenerating canary shadow models...")
     logger.info("=" * 60)
@@ -254,7 +255,7 @@ def _run_canary_after_retrain() -> None:
         [sys.executable, canary_script],
         capture_output=True,
         text=True,
-        cwd=os.path.dirname(BASE),
+        cwd=str(Path(BASE).parent),
     )
     elapsed = time.perf_counter() - t0
     for line in result.stdout.splitlines():

@@ -1,6 +1,6 @@
 import json
 import logging
-import os
+from pathlib import Path
 import threading
 import time
 from dataclasses import asdict
@@ -35,7 +35,7 @@ class _SnapshotManager:
             _SnapshotManager._sequence_counter += 1
             snapshot.sequence_id = _SnapshotManager._sequence_counter
         snapshot.contract_version = CONTRACT_VERSION
-        os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
+        Path(self._state_path).parent.mkdir(parents=True, exist_ok=True)
         data = sanitize(asdict(snapshot))
         atomic_write_json(self._state_path, data)
         with self._lock:
@@ -48,7 +48,7 @@ class _SnapshotManager:
                 if time.monotonic() < expiry:
                     return cached
                 self._cache = None
-        if not os.path.exists(self._state_path):
+        if not Path(self._state_path).exists():
             return None
         try:
             with open(self._state_path) as f:

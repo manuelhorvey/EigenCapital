@@ -10,12 +10,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 from dataclasses import asdict, dataclass, field
 
 import pandas as pd
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
+from pathlib import Path
 
 logger = logging.getLogger("eigencapital.simulation_snapshot")
 
@@ -33,7 +33,7 @@ def _write_checksum(path: str) -> None:
             if not block:
                 break
             sha.update(block)
-    checksum_path = path + CHECKSUM_EXT
+    checksum_path = str(path) + CHECKSUM_EXT
     with open(checksum_path, "w") as f:
         f.write(sha.hexdigest())
 
@@ -61,8 +61,8 @@ def _coerce_json_list(value) -> list:
 
 
 def _verify_checksum(path: str) -> bool:
-    checksum_path = path + CHECKSUM_EXT
-    if not os.path.exists(checksum_path):
+    checksum_path = str(path) + CHECKSUM_EXT
+    if not Path(checksum_path).exists():
         logger.warning("no checksum sidecar at %s — tamper detection unavailable", checksum_path)
         return True
     sha = hashlib.sha256()
@@ -124,10 +124,10 @@ class SimulationStore:
 
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
-        self.snapshot_dir = os.path.join(base_dir, SNAPSHOT_DIR)
-        self.snapshot_path = os.path.join(self.snapshot_dir, SNAPSHOT_FILE)
-        self.cold_state_path = os.path.join(self.snapshot_dir, COLD_STATE_FILE)
-        os.makedirs(self.snapshot_dir, exist_ok=True)
+        self.snapshot_dir = Path(base_dir) / SNAPSHOT_DIR
+        self.snapshot_path = Path(self.snapshot_dir) / SNAPSHOT_FILE
+        self.cold_state_path = Path(self.snapshot_dir) / COLD_STATE_FILE
+        Path(self.snapshot_dir).mkdir(parents=True, exist_ok=True)
 
     def capture(
         self,
@@ -187,7 +187,7 @@ class SimulationStore:
                 return json.dumps(v, cls=EigenCapitalJSONEncoder)
 
             df[col] = df[col].apply(lambda v: _encode(v) if not isinstance(v, str) else v)
-        if os.path.exists(self.snapshot_path) and os.path.getsize(self.snapshot_path) > 0:
+        if Path(self.snapshot_path).exists() and Path(self.snapshot_path).stat().st_size > 0:
             try:
                 existing = pd.read_parquet(self.snapshot_path)
                 # Deduplicate: remove any existing row for same timestamp + asset
@@ -212,7 +212,7 @@ class SimulationStore:
                 logger.warning("failed to persist cold state: %s", e)
 
     def load_cold_state(self) -> dict | None:
-        if not os.path.exists(self.cold_state_path):
+        if not Path(self.cold_state_path).exists():
             return None
         _verify_checksum(self.cold_state_path)
         try:
@@ -224,7 +224,7 @@ class SimulationStore:
 
     def load_snapshot(self, timestamp: str) -> PortfolioSnapshot | None:
         """Load a complete portfolio snapshot for a given date."""
-        if not os.path.exists(self.snapshot_path):
+        if not Path(self.snapshot_path).exists():
             return None
         try:
             df = pd.read_parquet(self.snapshot_path)
@@ -287,7 +287,7 @@ class SimulationStore:
 
     def load_snapshot_by_date(self, date_str: str) -> PortfolioSnapshot | None:
         """Load the latest snapshot for a given date (YYYY-MM-DD)."""
-        if not os.path.exists(self.snapshot_path):
+        if not Path(self.snapshot_path).exists():
             return None
         try:
             df = pd.read_parquet(self.snapshot_path)
@@ -303,7 +303,7 @@ class SimulationStore:
 
     def list_snapshot_dates(self) -> list[str]:
         """Return all unique snapshot dates, sorted."""
-        if not os.path.exists(self.snapshot_path):
+        if not Path(self.snapshot_path).exists():
             return []
         try:
             df = pd.read_parquet(self.snapshot_path)

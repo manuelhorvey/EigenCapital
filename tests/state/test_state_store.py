@@ -176,8 +176,8 @@ class TestStateStore:
 
     def test_cache_path(self, tmp_store):
         path = tmp_store.cache_path("BTC-USD")
-        assert "BTC_USD" in path
-        assert path.endswith(".parquet")
+        assert "BTC_USD" in str(path)
+        assert str(path).endswith(".parquet")
 
     def test_cache_save_and_load(self, tmp_store):
         df = pd.DataFrame({"close": [100, 101]})

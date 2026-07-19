@@ -16,17 +16,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 import xgboost
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WAL_PATH = os.path.join(BASE_DIR, "data", "live", "wal", "engine.jsonl")
-MODELS_DIR = os.path.join(BASE_DIR, "paper_trading", "models")
+BASE_DIR = Path(__file__).resolve().parent.parent
+WAL_PATH = Path(BASE_DIR) / "data" / "live" / "wal" / "engine.jsonl"
+MODELS_DIR = Path(BASE_DIR) / "paper_trading" / "models"
 
 ASSET_MODEL_MAP: dict[str, str] = {
     "^DJI": "DJI",
@@ -39,12 +39,12 @@ HASH_TIER_HISTORICAL = {"GBPUSD"}
 
 def _model_path(asset: str) -> str:
     mapped = ASSET_MODEL_MAP.get(asset, asset)
-    return os.path.join(MODELS_DIR, f"{mapped}_model.json")
+    return Path(MODELS_DIR) / f"{mapped}_model.json"
 
 
 def _sidecar_path(asset: str) -> str:
     mapped = ASSET_MODEL_MAP.get(asset, asset)
-    return os.path.join(MODELS_DIR, f"{mapped}_model_hash.txt")
+    return Path(MODELS_DIR) / f"{mapped}_model_hash.txt"
 
 
 def _load_wal_pairs() -> dict[str, list[dict]]:
@@ -105,14 +105,14 @@ def _verify_model_hash(asset: str, wal_hash: str) -> tuple[str, str, str]:
     status: 'pass' | 'mismatch' | 'missing'
     """
     path = _model_path(asset)
-    if not os.path.exists(path):
+    if not Path(path).exists():
         return ("test-time", "missing", f"model file not found: {path}")
 
     with open(path, "rb") as f:
         disk_hash = hashlib.sha256(f.read()).hexdigest()[:16]
 
     sidecar_path = _sidecar_path(asset)
-    if os.path.exists(sidecar_path):
+    if Path(sidecar_path).exists():
         with open(sidecar_path) as f:
             sidecar_hash = f.read().strip()
         if sidecar_hash != disk_hash:
@@ -175,7 +175,7 @@ def _run() -> int:
 
     # ── Step 1: Load WAL pairs ──
     print("Loading WAL events...")
-    if not os.path.exists(WAL_PATH):
+    if not Path(WAL_PATH).exists():
         print(f"  ERROR: WAL not found at {WAL_PATH}")
         return 1
     pairs = _load_wal_pairs()

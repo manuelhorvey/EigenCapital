@@ -1,32 +1,33 @@
 import json
 import logging
-import os
 import sys
 from datetime import datetime
 
 import pandas as pd
 
+from pathlib import Path
+
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logger = logging.getLogger("eigencapital.paper_dashboard")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATE_PATH = os.path.join(BASE, "data", "live", "state.json")
-HISTORY_PATH = os.path.join(BASE, "data", "live", "history.parquet")
-REPORT_PATH = os.path.join(BASE, "data", "live", "dashboard.json")
+BASE = Path(__file__).resolve().parent
+STATE_PATH = Path(BASE) / "data" / "live" / "state.json"
+HISTORY_PATH = Path(BASE) / "data" / "live" / "history.parquet"
+REPORT_PATH = Path(BASE) / "data" / "live" / "dashboard.json"
 
 
 def load_state():
-    if os.path.exists(STATE_PATH):
+    if Path(STATE_PATH).exists():
         with open(STATE_PATH) as f:
             return json.load(f)
     return None
 
 
 def load_history():
-    if os.path.exists(HISTORY_PATH):
+    if Path(HISTORY_PATH).exists():
         return pd.read_parquet(HISTORY_PATH)
     return pd.DataFrame()
 

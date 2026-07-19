@@ -16,13 +16,14 @@ Output:
 
 import logging
 import os
+from pathlib import Path
 import sys
 import time
 from datetime import datetime
 
 import pandas as pd
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,8 +32,8 @@ logging.basicConfig(
 logger = logging.getLogger("train_canary")
 
 # Go up three levels: scripts/training/ -> scripts/ -> project root
-BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CANARY_DIR = os.path.join(BASE, "paper_trading", "models", "canary")
+BASE = Path(__file__).resolve().parent.parent.parent
+CANARY_DIR = str(Path(BASE) / "paper_trading" / "models" / "canary")
 os.makedirs(CANARY_DIR, exist_ok=True)
 
 
@@ -86,7 +87,7 @@ def main() -> None:
     # at scripts/training/_data_sources.py.
     import sys as _sys
 
-    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    _sys.path.insert(0, Path(__file__).resolve().parent)
     from _data_sources import build_expanded_full_panel, resolve_expanded_dir
 
     _expanded_dir = resolve_expanded_dir()
@@ -120,7 +121,7 @@ def main() -> None:
             )
 
             # Override model_path to canary directory
-            canary_path = os.path.join(CANARY_DIR, f"{name}.json")
+            canary_path = str(Path(CANARY_DIR) / f"{name}.json")
             engine.model_path = canary_path
             engine._trained = True  # force retrain
 
@@ -134,7 +135,7 @@ def main() -> None:
 
             if engine._trained and engine.model is not None:
                 # Verify the file exists
-                file_size = os.path.getsize(canary_path) if os.path.exists(canary_path) else 0
+                file_size = Path(canary_path).stat().st_size if Path(canary_path).exists() else 0
                 results.append(
                     {
                         "asset": name,
@@ -178,7 +179,7 @@ def main() -> None:
 
     # Save report
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_path = os.path.join(BASE, "data", "processed", f"canary_report_{ts}.csv")
+    report_path = str(Path(BASE) / "data" / "processed" / "canary_report_{ts}.csv")
     report_df = pd.DataFrame(results)
     report_df.to_csv(report_path, index=False)
 

@@ -22,19 +22,19 @@ Without --apply the script prints the current halt state and exits.
 import argparse
 import json
 import logging
-import os
 import sys
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger("tools.reset_halt")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATE_PATH = os.path.join(BASE, "data", "live", "state.json")
+BASE = str(Path(__file__).resolve().parent.parent)
+STATE_PATH = str(Path(BASE) / "data" / "live" / "state.json")
 
 
 def read_halt_state() -> dict | None:
     """Return the halt-related fields from state.json, or None."""
-    if not os.path.exists(STATE_PATH):
+    if not Path(STATE_PATH).exists():
         logger.error("state.json not found at %s", STATE_PATH)
         return None
     with open(STATE_PATH) as f:

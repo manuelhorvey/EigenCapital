@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from paper_trading.config_manager import get_config
 from paper_trading.ops.market_data_service import get_market_data_service
@@ -29,7 +29,7 @@ class ExecutionContext:
     def get_state_store(self) -> object:
         if self.state_store is not None:
             return self.state_store
-        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base = str(Path(__file__).resolve().parent.parent)
         self.state_store = StateStore(base)
         return self.state_store
 

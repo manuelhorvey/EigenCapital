@@ -12,13 +12,14 @@ Usage::
 
 import logging
 import os
+from pathlib import Path
 import sys
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent.parent))
 from archive.deprecated._builder import build_features, compute_macro_derived
 from features.registry import FEATURE_REGISTRY
 from labels.triple_barrier import apply_triple_barrier
@@ -43,7 +44,7 @@ def compute_features(df, ref, macro, ticker):
 
 
 def load_macro():
-    path = os.path.join(BASE, "data", "processed", "macro_factors.parquet")
+    path = str(Path(BASE) / "data" / "processed" / "macro_factors.parquet")
     m = pd.read_parquet(path)
     return compute_macro_derived(m)
 
@@ -51,7 +52,7 @@ def load_macro():
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("walkforward")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = Path(__file__).resolve().parent.parent
 
 
 def walk_forward_one(ticker, macro, ref, window_years=3, step_years=1, conf_threshold=0.45):
@@ -297,9 +298,9 @@ def main():
     print(f"\n  Assets with positive avg expectancy: {n_pass}/{len(summary_df)}")
     print(f"  Assets with median PF > 1.0:         {n_pf}/{len(summary_df)}")
 
-    os.makedirs(os.path.join(BASE, "data", "processed"), exist_ok=True)
-    summary_df.to_csv(os.path.join(BASE, "data", "processed", "walkforward_summary.csv"), index=False)
-    windows_df.to_csv(os.path.join(BASE, "data", "processed", "walkforward_windows.csv"), index=False)
+    Path(BASE / "data" / "processed").mkdir(parents=True, exist_ok=True)
+    summary_df.to_csv(str(Path(BASE) / "data" / "processed" / "walkforward_summary.csv"), index=False)
+    windows_df.to_csv(str(Path(BASE) / "data" / "processed" / "walkforward_windows.csv"), index=False)
     logger.info("Results saved to data/processed/trade_data/walkforward_summary.csv")
 
 

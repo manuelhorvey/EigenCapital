@@ -12,6 +12,7 @@ Usage:
 import json
 import logging
 import os
+from pathlib import Path
 import sys
 from datetime import datetime
 from typing import Any
@@ -21,7 +22,7 @@ import pandas as pd
 
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+sys.path.insert(0, os.path.join(Path(__file__).resolve().parent, "..", ".."))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("reentry_statistics")

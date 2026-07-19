@@ -37,6 +37,8 @@ from scripts.backtest.monte_carlo_drawdown import (
     SELL_ONLY_ASSETS,
     load_pt_sl,
 )
+from pathlib import Path
+
 from scripts.optimization.portfolio_sltp_optimizer import (
     WALKDIR,
     compute_asset_r_series,

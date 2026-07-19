@@ -2,6 +2,8 @@ import Panel from '../components/ui/Panel'
 import { EntranceAnimator } from '../components/ui'
 import { SECTION_SPACING } from '../design/grid'
 import { useWidgetVisibility, type WidgetId, getWidgetLabel } from '../hooks/useWidgetVisibility'
+import { useSoundAlerts } from '../hooks/useSoundAlerts'
+import { useBrowserNotifications } from '../hooks/useBrowserNotifications'
 
 const ALL_WIDGETS: WidgetId[] = [
   'system-status',
@@ -16,6 +18,8 @@ const ALL_WIDGETS: WidgetId[] = [
 
 export default function SettingsPage() {
   const { visible, toggle, reset } = useWidgetVisibility()
+  const { enabled: soundEnabled, toggle: toggleSound } = useSoundAlerts()
+  const { enabled: desktopEnabled, setEnabled: setDesktopEnabled } = useBrowserNotifications()
 
   return (
     <div className={SECTION_SPACING}>
@@ -71,14 +75,14 @@ export default function SettingsPage() {
                     <span className="text-xs text-primary font-medium">Desktop Notifications</span>
                     <p className="text-[10px] text-tertiary mt-0.5">Receive alerts via OS notification</p>
                   </div>
-                  <input type="checkbox" className="toggle" />
+                  <input type="checkbox" className="toggle" checked={desktopEnabled} onChange={e => setDesktopEnabled(e.target.checked)} />
                 </label>
                 <label className="flex items-center justify-between py-2 px-3 rounded-lg bg-surface/50 border border-default">
                   <div>
                     <span className="text-xs text-primary font-medium">Sound Alerts</span>
                     <p className="text-[10px] text-tertiary mt-0.5">Play sound on critical alerts</p>
                   </div>
-                  <input type="checkbox" className="toggle" />
+                  <input type="checkbox" className="toggle" checked={soundEnabled} onChange={toggleSound} />
                 </label>
               </div>
             </div>

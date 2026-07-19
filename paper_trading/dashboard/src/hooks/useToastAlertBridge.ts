@@ -6,6 +6,7 @@ import { useNotificationCenter } from './useNotificationCenter'
 import { useBrowserNotifications, notifTag } from './useBrowserNotifications'
 import { useSystemSnapshot } from './useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
+import { playAlertSound } from './useSoundAlerts'
 
 /**
  * Connects the passive alert/monitoring systems to the real-time
@@ -45,6 +46,7 @@ export function useToastAlertBridge() {
             tag: notifTag(`alert-${alert.id}`),
             force: true,
           })
+          playAlertSound()
         }
       }
     }
@@ -75,6 +77,7 @@ export function useToastAlertBridge() {
         tag: notifTag('engine-lost'),
         force: true,
       })
+      playAlertSound()
     } else if (!isDead && previousEngineDead.current) {
       toast({
         type: 'success',

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Command, X } from 'lucide-react'
 
 interface Shortcut {
@@ -6,30 +7,44 @@ interface Shortcut {
   description: string
 }
 
+const PAGE_SHORTCUTS: { key: string; path: string; label: string }[] = [
+  { key: '1', path: '/', label: 'Dashboard' },
+  { key: '2', path: '/trading', label: 'Trading' },
+  { key: '3', path: '/analytics', label: 'Analytics' },
+  { key: '4', path: '/risk', label: 'Risk' },
+  { key: '5', path: '/reports', label: 'Reports' },
+  { key: '6', path: '/settings', label: 'Settings' },
+]
+
 const SHORTCUTS: Shortcut[] = [
   { keys: ['?'], description: 'Toggle this shortcuts panel' },
+  { keys: ['1–6'], description: 'Navigate to page' },
   { keys: ['Tab'], description: 'Navigate between interactive elements' },
   { keys: ['Enter'], description: 'Activate focused button or link' },
   { keys: ['Esc'], description: 'Close modal, panel, or dropdown' },
   { keys: ['Ctrl', 'R'], description: 'Refresh dashboard data' },
 ]
 
+function isInputFocused(): boolean {
+  const tag = (document.activeElement?.tagName ?? '').toUpperCase()
+  const role = document.activeElement?.getAttribute('role') ?? ''
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || role === 'textbox'
+}
+
 /**
  * Keyboard shortcuts overlay. Press `?` to toggle.
- * Shows common navigation and interaction shortcuts for the dashboard.
- * Accessible: focus-traps within the panel, Escape to close.
+ * Also registers global page-navigation shortcuts (1–6) via a dedicated listener.
  */
 export default function KeyboardShortcuts() {
   const [open, setOpen] = useState(false)
   const openRef = useRef(open)
   openRef.current = open
+  const navigate = useNavigate()
 
   // Toggle on `?` keypress — stable listener, never re-registers
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      // Only toggle when not typing in an input
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (isInputFocused()) return
       e.preventDefault()
       setOpen(prev => !prev)
     }
@@ -37,12 +52,29 @@ export default function KeyboardShortcuts() {
     if (e.key === 'Escape' && openRef.current) {
       setOpen(false)
     }
-  }, [])  // stable — never re-registers
+  }, [])
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  // Per-page navigation via 1–6 — separate listener for clarity
+  const handlePageNav = useCallback((e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (isInputFocused()) return
+
+    const match = PAGE_SHORTCUTS.find(s => e.key === s.key)
+    if (match) {
+      e.preventDefault()
+      navigate(match.path)
+    }
+  }, [navigate])
+
+  useEffect(() => {
+    document.addEventListener('keydown', handlePageNav)
+    return () => document.removeEventListener('keydown', handlePageNav)
+  }, [handlePageNav])
 
   if (!open) return null
 
@@ -98,6 +130,21 @@ export default function KeyboardShortcuts() {
               </span>
             </div>
           ))}
+
+          {/* Page navigation sub-list */}
+          <div className="pt-2">
+            <p className="text-2xs text-tertiary font-medium uppercase tracking-wider mb-2">Page Navigation</p>
+            <div className="grid grid-cols-2 gap-1">
+              {PAGE_SHORTCUTS.map(s => (
+                <div key={s.key} className="flex items-center justify-between py-1 px-1.5 rounded bg-panel/40">
+                  <span className="text-2xs text-secondary">{s.label}</span>
+                  <kbd className="inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded border border-default bg-surface text-2xs font-mono font-semibold text-tertiary shadow-sm">
+                    {s.key}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}

@@ -349,4 +349,6 @@ function SignalsTable() {
   )
 }
 
-export default memo(SignalsTable)
+const SignalsTableMemo = memo(SignalsTable)
+SignalsTableMemo.displayName = 'SignalsTable'
+export default SignalsTableMemo

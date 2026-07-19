@@ -1,7 +1,8 @@
 import React from 'react'
 import type { AssetCardInfo } from './types'
+import PositionSparkline from './PositionSparkline'
 
-interface Props {
+interface AssetCardCompactProps {
   name: string
   info: AssetCardInfo
   recentlyClosed?: boolean
@@ -39,11 +40,11 @@ function returnColor(v: number): string {
 }
 
 /** Compact mini card for grid view — signal, confidence, price, return, drawdown, and SL/TP. @param {{ name: string, info: AssetCardInfo, recentlyClosed?: boolean, onSelect: () => void }} props */
-const AssetCardCompact: React.FC<Props> = ({ name, info, recentlyClosed, onSelect }) => (
+const AssetCardCompact: React.FC<AssetCardCompactProps> = ({ name, info, recentlyClosed, onSelect }) => (
   <button
     type="button"
     onClick={onSelect}
-    className={`w-full text-left p-4 rounded-lg border ${recentlyClosed ? 'border-gov-gray/25 bg-surface/50' : 'border-default bg-surface'}
+    className={`w-full text-left p-4 rounded-lg border min-h-[112px] ${recentlyClosed ? 'border-gov-gray/25 bg-surface/50' : 'border-default bg-surface'}
       hover:border-strong hover:bg-panel transition-all duration-200
       border-l-4 ${recentlyClosed ? 'border-l-gov-gray/40' : borderColor(info.signal)}
       focus-ring active:scale-[0.98] ${recentlyClosed ? 'opacity-60' : ''}`}
@@ -101,6 +102,18 @@ const AssetCardCompact: React.FC<Props> = ({ name, info, recentlyClosed, onSelec
       <div className="flex items-center gap-3 mt-1 text-[9px] font-mono tabular-nums text-tertiary">
         <span>SL <span className="text-gov-red">{info.position.sl.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
         <span>TP <span className="text-gov-green">{info.position.tp.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
+      </div>
+    )}
+    {info.positionSide && info.priceHistory && info.priceHistory.length >= 4 && (
+      <div className="mt-1.5">
+        <PositionSparkline
+          prices={info.priceHistory}
+          entry={info.positionEntry!}
+          tp={info.positionTp}
+          sl={info.positionSl}
+          side={info.positionSide}
+          height={24}
+        />
       </div>
     )}
   </button>

@@ -8,6 +8,7 @@ import SectionHeader from './ui/SectionHeader'
 import Badge, { signalToBadge } from './ui/Badge'
 import EmptyState from './ui/EmptyState'
 import { Skeleton } from './ui/Skeleton'
+import MobileCardList from './ui/MobileCardList'
 import { formatTimeAgo } from '../utils/format'
 
 interface CycleEvent {
@@ -87,7 +88,7 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
           </div>
         }
       />
-      <div className="overflow-x-auto" role="log" aria-live="polite">
+      <div className="overflow-x-auto hidden sm:block" role="log" aria-live="polite">
         <table className="w-full text-xs min-w-[500px]">
           <thead>
             <tr className="border-b border-default">
@@ -148,6 +149,35 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
           </tbody>
         </table>
       </div>
+
+      <MobileCardList
+        items={displayed.map(c => ({
+          id: c.asset,
+          onClick: () => setSelectedAsset(c.asset),
+          accent: c.gatesResult === 'PASS' ? 'var(--color-gov-green)' : c.halted ? 'var(--color-gov-red)' : 'var(--color-gov-yellow)',
+          content: (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-semibold text-primary">{c.asset}</span>
+                <Badge variant={signalToBadge(c.signal).variant} size="sm">
+                  {c.signal === 'BUY' ? 'LONG' : c.signal === 'SELL' ? 'SHORT' : 'FLAT'}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-3 text-2xs">
+                <span className="text-tertiary">Conf {c.confidence.toFixed(0)}</span>
+                <span className="text-primary">{c.size ?? '—'}</span>
+                <span className={c.halted ? 'text-gov-red' : c.gatesResult === 'PASS' ? 'text-gov-green' : 'text-gov-yellow'}>
+                  {c.halted ? 'HALTED' : c.gatesResult}
+                </span>
+              </div>
+              {c.abortedGate && (
+                <div className="text-[10px] text-tertiary truncate">{c.abortedGate}</div>
+              )}
+            </div>
+          ),
+        }))}
+        className="mt-3"
+      />
       {cycles.length > 18 && (
         <button
           type="button"
@@ -160,5 +190,6 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
     </Panel>
   )
 })
+ExecutionFeed.displayName = 'ExecutionFeed'
 
 export default ExecutionFeed

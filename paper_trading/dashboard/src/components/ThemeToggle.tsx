@@ -36,7 +36,7 @@ function ThemeToggleInner() {
     <button
       type="button"
       onClick={cycle}
-      className="min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
       title={MODE_LABELS[mode]}
       aria-label={`Theme: ${MODE_LABELS[mode]}. Click to cycle.`}
     >
@@ -46,4 +46,5 @@ function ThemeToggleInner() {
 }
 
 const ThemeToggle = memo(ThemeToggleInner)
+ThemeToggle.displayName = 'ThemeToggle'
 export default ThemeToggle

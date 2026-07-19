@@ -5,7 +5,7 @@ interface PageTransitionProps {
   /** Transition key — typically a route path or page identifier.
    *  When this changes, the page fades out and back in. */
   locationKey: string
-  /** Duration of the exit/enter transition in ms. Default 200. */
+  /** Duration of the exit/enter transition in ms. Default 150. */
   durationMs?: number
   className?: string
   /** Callback fired when the transition reaches the 'visible' phase.
@@ -28,7 +28,7 @@ type TransitionPhase = 'enter' | 'visible' | 'exit'
 export default function PageTransition({
   children,
   locationKey,
-  durationMs = 200,
+  durationMs = 150,
   className = '',
   onVisible,
 }: PageTransitionProps) {

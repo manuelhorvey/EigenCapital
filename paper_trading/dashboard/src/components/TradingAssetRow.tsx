@@ -1,15 +1,21 @@
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 import type { AssetTradingState } from '../lib/trading-state/types'
+import { Info, CheckCircle2, FileDown } from 'lucide-react'
 
 interface TradingAssetRowProps {
   asset: AssetTradingState
   onSelect?: (name: string) => void
 }
 
-/** Compact terminal-precision asset row with direction, PnL, exit phase, risk, and flags.
- * @param {object} props
- * @param {AssetTradingState} props.asset - Current asset trading state
- * @param {(name: string) => void} [props.onSelect] - Selection callback */
+function rowActionCls(visible: boolean) {
+  return `p-1 rounded transition-all duration-100 ease-out ${
+    visible
+      ? 'opacity-100 pointer-events-auto'
+      : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+  }`
+}
+
+/** Compact terminal-precision asset row with direction, PnL, exit phase, risk, flags, and row-level actions. */
 const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: TradingAssetRowProps) {
   const dir = asset.direction
   const dirCls = dir === 'LONG' ? 'text-gov-green' : dir === 'SHORT' ? 'text-gov-red' : 'text-tertiary'
@@ -35,10 +41,26 @@ const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: Tradi
     : 'text-gov-green'
   const driver = risk.drivers[0]
 
+  const handleAction = useCallback((e: React.MouseEvent, action: string) => {
+    e.stopPropagation()
+    if (action === 'detail') onSelect?.(asset.identity)
+  }, [asset.identity, onSelect])
+
+  const handleExport = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const csv = `Asset,Direction,PnL,Phase,Risk,Flags\n${asset.identity},${dir ?? 'N/A'},${pnl.toFixed(2)},${exit.phase},${risk.level},"${asset.flags.join(';')}"`
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${asset.identity}_trade.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [asset, dir, pnl, exit, risk])
+
   return (
     <div
-      onClick={() => onSelect?.(asset.identity)}
-      className="w-full flex items-center gap-2 py-1.5 px-2 border-b border-default/40 hover:bg-panel/40 transition-colors cursor-pointer text-xs"
+      className="w-full flex items-center gap-2 py-1.5 px-2 border-b border-default/40 hover:bg-panel/40 transition-colors text-xs group"
     >
       {/* Asset — name + direction char */}
       <div className="w-24 shrink-0 flex items-center gap-1 font-mono min-w-0">
@@ -75,8 +97,37 @@ const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: Tradi
           </span>
         ))}
       </div>
+
+      {/* Row-level actions — appear on hover */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <button
+          onClick={(e) => handleAction(e, 'detail')}
+          className={`${rowActionCls(false)} text-tertiary hover:text-primary`}
+          title="Quick detail"
+          aria-label={`Detail ${asset.identity}`}
+        >
+          <Info className="w-3 h-3" strokeWidth={1.5} />
+        </button>
+        <button
+          onClick={(e) => handleAction(e, 'acknowledge')}
+          className={`${rowActionCls(false)} text-tertiary hover:text-gov-green`}
+          title="Acknowledge"
+          aria-label={`Acknowledge ${asset.identity}`}
+        >
+          <CheckCircle2 className="w-3 h-3" strokeWidth={1.5} />
+        </button>
+        <button
+          onClick={handleExport}
+          className={`${rowActionCls(false)} text-tertiary hover:text-accent-blue`}
+          title="Export trade"
+          aria-label={`Export ${asset.identity} trade data`}
+        >
+          <FileDown className="w-3 h-3" strokeWidth={1.5} />
+        </button>
+      </div>
     </div>
   )
 })
+TradingAssetRow.displayName = 'TradingAssetRow'
 
 export default TradingAssetRow

@@ -3,13 +3,13 @@ import PanelFallback from './ui/PanelFallback'
 import { captureError, sanitise } from '../lib/errorReporting'
 import { authHeaders } from '../lib/auth'
 
-interface Props {
+interface ErrorBoundaryProps {
   children: ReactNode
   fallback?: ReactNode | ((error: Error) => ReactNode)
   title?: string
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean
   error: Error | null
 }
@@ -18,13 +18,13 @@ interface State {
  * @param {ReactNode} props.children - Child components to wrap
  * @param {ReactNode|Function} [props.fallback] - Custom fallback UI or error-to-node function
  * @param {string} [props.title] - Section title for default fallback */
-export default class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false, error: null }
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error }
   }
 
@@ -54,7 +54,13 @@ export default class ErrorBoundary extends Component<Props, State> {
         }
         return this.props.fallback
       }
-      return <PanelFallback title={this.props.title ?? 'Section'} error={this.state.error ?? undefined} />
+      return (
+        <PanelFallback
+          title={this.props.title ?? 'Section'}
+          error={this.state.error ?? undefined}
+          onRetry={() => this.setState({ hasError: false, error: null })}
+        />
+      )
     }
     return this.props.children
   }

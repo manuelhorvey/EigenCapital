@@ -15,7 +15,7 @@ import AssetCardHeader from './asset-card/AssetCardHeader'
 import AssetCardMetrics from './asset-card/AssetCardMetrics'
 import AssetCardPosition from './asset-card/AssetCardPosition'
 
-interface Props {
+interface AssetCardProps {
   name: string
   /** 'comfortable' = full detailed card; 'compact' = mini grid card */
   density?: 'comfortable' | 'compact'
@@ -65,7 +65,7 @@ function getRiskGeometry(pos: PositionLeg, currentPrice: number): {
  * Supports comfortable (full detail) and compact (mini grid) densities.
  * @param {{ name: string, density?: 'comfortable' | 'compact' }} props
  */
-const AssetCard: React.FC<Props> = React.memo(({ name, density = 'comfortable' }) => {
+const AssetCard: React.FC<AssetCardProps> = React.memo(({ name, density = 'comfortable' }) => {
   // Consolidated selector returns all AssetCard data in one pass, preventing
   // 4 separate re-renders per poll cycle (audit finding: selector consolidation).
   const { data: bundle } = useSystemSnapshot(selectAssetCardBundle(name))

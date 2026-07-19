@@ -80,7 +80,13 @@ export default function AppShell({ children }: AppShellProps) {
           </main>
 
           <KeyboardShortcuts />
-          <CommandPalette assetNames={assetNames} onSelectAsset={setSelectedAsset} />
+          <CommandPalette
+            assetNames={assetNames}
+            onSelectAsset={setSelectedAsset}
+            assets={
+              bundle?.snapshot?.assets as Record<string, { signal?: string; confidence?: number; price?: number }> | undefined
+            }
+          />
           <NotificationCenter open={notifCenterOpen} onClose={closeNotifications} />
         </div>
       </div>

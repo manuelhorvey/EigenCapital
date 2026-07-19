@@ -1,10 +1,10 @@
 import { memo, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
-import { X, LayoutDashboard, Zap, BarChart3, Shield } from 'lucide-react'
+import { X, LayoutDashboard, Zap, BarChart3, Shield, Settings, FileText } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useSidebarBadges, type EngineState } from '../../hooks/useSidebarBadges'
 
-type TabId = 'dashboard' | 'engine' | 'trading' | 'execution' | 'risk'
+type TabId = 'dashboard' | 'engine' | 'trading' | 'analytics' | 'risk' | 'settings' | 'reports'
 
 interface NavItemDef {
   id: TabId
@@ -15,14 +15,19 @@ interface NavItemDef {
   badgeKey?: 'trading' | 'risk'
 }
 
-const NAV_ITEMS: NavItemDef[] = [
-  { id: 'dashboard', to: '/', label: 'Dashboard', icon: LayoutDashboard, desc: 'Status, equity, positions' },
+const PRIMARY_ITEMS: NavItemDef[] = [
+  { id: 'dashboard', to: '/', label: 'Command Center', icon: LayoutDashboard, desc: 'Status, equity, positions' },
   { id: 'trading', to: '/trading', label: 'Trading', icon: Zap, desc: 'Signals, fills, open trades', badgeKey: 'trading' },
-  { id: 'execution', to: '/execution', label: 'Execution', icon: BarChart3, desc: 'Slippage, quality, attribution' },
-  { id: 'risk', to: '/risk', label: 'Risk', icon: Shield, desc: 'Health scores, governance, constraints', badgeKey: 'risk' },
+  { id: 'analytics', to: '/analytics', label: 'Analytics', icon: BarChart3, desc: 'Performance, attribution, quality' },
+  { id: 'risk', to: '/risk', label: 'Governance & Risk', icon: Shield, desc: 'Health, governance, constraints', badgeKey: 'risk' },
 ]
 
-const allItems = NAV_ITEMS
+const SECONDARY_ITEMS: NavItemDef[] = [
+  { id: 'reports', to: '/reports', label: 'Reports', icon: FileText, desc: 'Downloads, audit log' },
+  { id: 'settings', to: '/settings', label: 'Settings', icon: Settings, desc: 'Preferences, theme, API' },
+]
+
+const allItems = [...PRIMARY_ITEMS, ...SECONDARY_ITEMS]
 
 interface SidebarProps {
   open: boolean
@@ -95,6 +100,7 @@ const NavItem = memo(function NavItem({ item, badge, engine, onClose, onKeyDown 
     </NavLink>
   )
 })
+NavItem.displayName = 'NavItem'
 
 function Sidebar({ open, onClose }: SidebarProps) {
   const badges = useSidebarBadges()
@@ -149,7 +155,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
         className={`
           fixed inset-y-0 left-0 z-50 bg-surface border-r border-default
           shadow-[inset_-1px_0_0_rgba(255,255,255,0.02)]
-          transform transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+          transform transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]
           lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 lg:sticky lg:top-[44px]
           lg:h-[calc(100vh-44px)] lg:overflow-y-auto
           flex flex-col
@@ -188,12 +194,23 @@ function Sidebar({ open, onClose }: SidebarProps) {
             </span>
           </div>
 
-          {NAV_ITEMS.map(item => (
+          {PRIMARY_ITEMS.map(item => (
             <NavItem
               key={item.id}
               item={item}
               badge={item.badgeKey ? badges[item.badgeKey] : undefined}
               engine={item.id === 'dashboard' ? badges.engine : undefined}
+              onClose={onClose}
+              onKeyDown={handleKeyDown}
+            />
+          ))}
+          <div className="border-t border-default/40 my-2" role="separator" />
+          {SECONDARY_ITEMS.map(item => (
+            <NavItem
+              key={item.id}
+              item={item}
+              badge={item.badgeKey ? badges[item.badgeKey] : undefined}
+              engine={undefined}
               onClose={onClose}
               onKeyDown={handleKeyDown}
             />
@@ -209,4 +226,6 @@ function Sidebar({ open, onClose }: SidebarProps) {
  * Renders as an off-canvas overlay on mobile and a persistent sidebar on desktop.
  * @param {{ open: boolean, onClose: () => void }} props
  */
-export default memo(Sidebar)
+const SidebarMemo = memo(Sidebar)
+SidebarMemo.displayName = 'Sidebar'
+export default SidebarMemo

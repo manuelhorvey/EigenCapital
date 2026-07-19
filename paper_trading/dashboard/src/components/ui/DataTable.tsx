@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef, useCallback, type ReactNode, type CSSProperties } from 'react'
+import { useState, useMemo, useRef, useCallback, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
-import { List } from 'react-window'
+import VirtualizedTable from './VirtualizedTable'
 
 export interface ColumnDef<T> {
   key: string
@@ -156,100 +156,24 @@ export default function DataTable<T>({
         onScroll={!virtualize ? handleScroll : undefined}
         className={`hidden sm:block overflow-x-auto ${virtualize ? '' : 'overflow-y-auto'} -mx-1 ${className}`}
       >
-        {virtualize && sorted.length > 0 ? (
-          <div role="table" className="w-full text-[11px] min-w-[500px]">
-            {/* Virtualized header — flex layout matching body column widths */}
-            <div role="row" className={`flex items-center ${scrolled && stickyHeader ? 'shadow-[0_2px_8px_rgba(0,0,0,0.25)]' : ''}`}>
-              {columns.map(col => {
-                const colFlex = col.width ? { flex: 'none', width: col.width } : { flex: 1 }
-                return (
-                  <div
-                    key={col.key}
-                    role="columnheader"
-                    tabIndex={sortable && col.sortable ? 0 : undefined}
-                    aria-sort={sortable && col.sortable ? sortAria(col.key) : undefined}
-                    aria-label={sortable && col.sortable ? `${col.label}: activate to sort` : undefined}
-                    className={[
-                      'table-header py-2 pr-3 last:pr-0',
-                      alignClass[col.align ?? 'left'],
-                      sortable && col.sortable ? 'sort-header' : '',
-                      stickyHeader ? 'sticky top-0 bg-app z-10' : '',
-                    ].join(' ')}
-                    onClick={() => col.sortable && toggleSort(col.key)}
-                    onKeyDown={event => {
-                      if (!col.sortable) return
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        toggleSort(col.key)
-                      }
-                    }}
-                    style={{
-                      minWidth: col.minWidth,
-                      ...colFlex,
-                      ...(stickyHeader ? { backgroundAttachment: 'scroll' } : {}),
-                    }}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {col.label}
-                      {sortable && col.sortable && (
-                        sortCol === col.key
-                          ? (sortDir === 'asc'
-                              ? <ChevronUp className="w-3 h-3 text-secondary" strokeWidth={2} />
-                              : <ChevronDown className="w-3 h-3 text-secondary" strokeWidth={2} />)
-                          : <ChevronsUpDown className="w-3 h-3 text-muted/30" strokeWidth={1.5} />
-                      )}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-            <div style={{ height: Math.min(sorted.length * rowHeight, maxHeight), overflow: 'hidden' }}>
-              <List<{}>
-                rowCount={sorted.length}
-                rowHeight={rowHeight}
-                defaultHeight={Math.min(sorted.length * rowHeight, maxHeight)}
-                overscanCount={overscanCount}
-                rowProps={{}}
-                style={{ height: Math.min(sorted.length * rowHeight, maxHeight) }}
-                rowComponent={({ index, style }: { index: number; style: CSSProperties }) => {
-                  const row = sorted[index]
-                  return (
-                    <div
-                      role="row"
-                      onClick={() => onRowClick?.(row)}
-                      style={style}
-                      className={[
-                        'flex items-center border-b border-default/30 table-row-hover',
-                        onRowClick ? 'cursor-pointer' : '',
-                        index % 2 === 1 ? 'bg-panel/30' : '',
-                        rowClassName?.(row) ?? '',
-                      ].join(' ')}
-                    >
-                      {columns.map(col => {
-                        const colFlex = col.width ? { flex: 'none', width: col.width } : { flex: 1 }
-                        return (
-                          <div
-                            key={col.key}
-                            role="cell"
-                            className={[
-                              `${compact ? 'py-1.5' : 'py-2'} pr-3 last:pr-0`,
-                              alignClass[col.align ?? 'left'],
-                            ].join(' ')}
-                            style={{
-                              minWidth: col.minWidth,
-                              ...colFlex,
-                            }}
-                          >
-                            {col.render(row)}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                }}
-              />
-            </div>
-          </div>
+        {virtualize ? (
+          <VirtualizedTable
+            columns={columns}
+            data={sorted}
+            keyExtractor={keyExtractor}
+            sortable={sortable}
+            defaultSortKey={defaultSortKey}
+            defaultSortDir={defaultSortDir}
+            compact={compact}
+            emptyMessage={emptyMessage}
+            onRowClick={onRowClick}
+            storageKey={storageKey}
+            onSortChange={onSortChange}
+            rowClassName={rowClassName}
+            rowHeight={rowHeight}
+            overscanCount={overscanCount}
+            maxHeight={maxHeight}
+          />
         ) : (
           <table className={`w-full text-[11px] min-w-[500px] ${compact ? 'text-[10px]' : ''}`}>
           <thead>

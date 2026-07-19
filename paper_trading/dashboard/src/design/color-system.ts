@@ -136,6 +136,9 @@ export const rawTokens = {
   'color-interactive-hover': 'rgba(255, 255, 255, 0.04)',
   'color-interactive-active': 'rgba(255, 255, 255, 0.08)',
   'color-interactive-selected': 'rgba(61, 217, 174, 0.08)',
+  'color-interactive-pressed': 'scale(0.97)',
+  'color-focus-ring-visible': 'rgba(61, 217, 174, 0.6)',
+  'color-surface-elevated': '#1a1d28',
 
   // ── Governance (semantic) ─────────────────────────
   'color-gov-green': '#25d065',
@@ -175,6 +178,7 @@ export const rawTokens = {
   'color-accent-amber': '#fbbf24',
   'color-accent-indigo': '#818cf8',
   'color-accent-pink': '#f472b6',
+  'color-accent-rose': '#f43f5e',
 
   // ── Chart palette (10-color sequence) ─────────────
   'color-chart-0': '#14b8a6',
@@ -227,20 +231,20 @@ export const rawTokens = {
   // ── Typography: Font sizes & line heights ──────────
   'font-size-hero': '48px',
   'line-height-hero': '1.1',
-  'font-size-display': '36px',
-  'line-height-display': '1.15',
+  'font-size-display': '32px',
+  'line-height-display': '1.1',
   'font-size-2xs': '10px',
   'line-height-2xs': '1.4',
-  'font-size-xs': '12px',
+  'font-size-xs': '11px',
   'line-height-xs': '1.3333',
-  'font-size-sm': '14px',
-  'line-height-sm': '1.4286',
+  'font-size-sm': '13px',
+  'line-height-sm': '1.4',
   'font-size-base': '16px',
   'line-height-base': '1.5',
   'font-size-lg': '18px',
   'line-height-lg': '1.3333',
-  'font-size-xl': '20px',
-  'line-height-xl': '1.4',
+  'font-size-xl': '18px',
+  'line-height-xl': '1.3',
   'font-size-2xl': '24px',
   'line-height-2xl': '1.3333',
   'font-size-3xl': '30px',
@@ -269,6 +273,12 @@ export const rawTokens = {
   'animation-scale-in': 'scale-in 0.2s ease-out',
   'animation-slide-up': 'slide-up 0.35s ease-out',
   'animation-fade-in': 'fade-in 0.4s ease-out',
+  'animation-hover': 'hover 100ms ease-out',
+  'animation-panel-enter': 'panel-enter 200ms cubic-bezier(0.16,1,0.3,1)',
+  'animation-sidebar-slide': 'sidebar-slide 250ms cubic-bezier(0.32,0.72,0,1)',
+  'animation-modal-open': 'modal-open 200ms cubic-bezier(0.16,1,0.3,1)',
+  'animation-data-update': 'data-update 400ms ease-out',
+  'animation-page-transition': 'page-transition 150ms ease-out',
 } as const
 
 // ── Light Mode Overrides ──────────────────────────────────────────
@@ -312,6 +322,9 @@ export const rawTokensLight: Partial<Record<keyof typeof rawTokens, string>> = {
   'color-interactive-hover': 'rgba(0, 0, 0, 0.04)',
   'color-interactive-active': 'rgba(0, 0, 0, 0.08)',
   'color-interactive-selected': 'rgba(20, 184, 166, 0.1)',
+  'color-interactive-pressed': 'scale(0.97)',
+  'color-focus-ring-visible': 'rgba(20, 184, 166, 0.5)',
+  'color-surface-elevated': '#f0f2f6',
 
   // ── Governance muted backgrounds (higher opacity for light bg) ─
   'color-gov-green-muted': 'rgba(37, 208, 101, 0.15)',
@@ -361,6 +374,30 @@ export const tailwindOnly = {
     'state-pulse-red': {
       '0%, 100%': { opacity: '0.4', boxShadow: '0 0 0 rgba(240, 68, 68, 0)' },
       '50%': { opacity: '1', boxShadow: '0 0 8px rgba(240, 68, 68, 0.3)' },
+    },
+    'hover': {
+      '0%': { transform: 'scale(1)' },
+      '100%': { transform: 'var(--transform-interactive-pressed, scale(0.97))' },
+    },
+    'panel-enter': {
+      '0%': { opacity: '0', transform: 'translateY(4px)' },
+      '100%': { opacity: '1', transform: 'translateY(0)' },
+    },
+    'sidebar-slide': {
+      '0%': { transform: 'translateX(-100%)' },
+      '100%': { transform: 'translateX(0)' },
+    },
+    'modal-open': {
+      '0%': { opacity: '0', transform: 'scale(0.97)' },
+      '100%': { opacity: '1', transform: 'scale(1)' },
+    },
+    'data-update': {
+      '0%': { opacity: '0.6' },
+      '100%': { opacity: '1' },
+    },
+    'page-transition': {
+      '0%': { opacity: '0' },
+      '100%': { opacity: '1' },
     },
   },
 } as const
@@ -457,6 +494,7 @@ export const accents = {
   amber: _['color-accent-amber'],
   indigo: _['color-accent-indigo'],
   pink: _['color-accent-pink'],
+  rose: _['color-accent-rose'],
 } as const
 
 export const chart = [
@@ -495,10 +533,10 @@ export const usage = {
   activeBorder: teal[400],
   activeGlow: 'rgba(61, 217, 174, 0.3)',
   signalLong: success.DEFAULT,
-  signalShort: error.DEFAULT,
+  signalShort: accents.rose,
   signalFlat: warning.DEFAULT,
   positive: teal[500],
-  negative: error.DEFAULT,
+  negative: accents.rose,
   areaGradient: {
     from: 'rgba(45, 212, 191, 0.15)',
     to: 'rgba(45, 212, 191, 0.01)',
@@ -588,10 +626,10 @@ export const shadows = {
 // ── Semantic type roles ──────────────────────────────
 // Maps design context → font-size token key
 export const typeRoles = {
-  display: '3xl',
+  display: 'display',
   heading: 'xl',
   subheading: 'sm',
-  body: 'xs',
+  body: 'sm',
   caption: '2xs',
   mono: 'xs',
 } as const
@@ -649,6 +687,10 @@ export const tokens = {
     'accent-amber': accents.amber,
     'accent-indigo': accents.indigo,
     'accent-pink': accents.pink,
+    'accent-rose': accents.rose,
+    'interactive-pressed': _['color-interactive-pressed'],
+    'focus-ring-visible': _['color-focus-ring-visible'],
+    'surface-elevated': _['color-surface-elevated'],
     'chart-rose': _['color-chart-rose'],
     'chart-teal': _['color-chart-teal'],
   },

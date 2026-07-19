@@ -156,4 +156,5 @@ function QuickStatsGridInner() {
 }
 
 const QuickStatsGrid = memo(QuickStatsGridInner)
+QuickStatsGrid.displayName = 'QuickStatsGrid'
 export default QuickStatsGrid

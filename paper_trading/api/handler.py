@@ -16,11 +16,13 @@ from paper_trading.api.common import (
     cache_get,
     get_index_html,
     get_rate_limiter,
+    get_server_store,
     json_dumps,
     require_auth,
     try_serve_file,
 )
 from paper_trading.api.routes import GET_ROUTES, GET_ROUTES_PREFIX, POST_ROUTES
+from paper_trading.api.sse import sse_stream
 
 logger = logging.getLogger("eigencapital.auth")
 
@@ -171,14 +173,27 @@ class Handler:
         return getattr(self.server, "_state_store", None)
 
     def do_GET(self):  # noqa: N802
+        qs = self.path.split("?", 1)
+        path = qs[0]
+        query = self._parse_query(qs[1] if len(qs) > 1 else "")
+
+        # SSE endpoint — handle auth via query param since EventSource can't set headers
+        if path == "/events":
+            if "token" in query:
+                self.headers["Authorization"] = f"Bearer {query['token']}"
+            if not self._check_rate_limit():
+                return
+            if not self._requires_auth():
+                return
+            state_store = self._get_state_store() or get_server_store()
+            sse_stream(self, state_store=state_store)
+            return
+
         if not self._check_rate_limit():
             return
         if not self._requires_auth():
             return
 
-        qs = self.path.split("?", 1)
-        path = qs[0]
-        query = self._parse_query(qs[1] if len(qs) > 1 else "")
         state_store = self._get_state_store()
 
         if path in ("/", "/index.html"):
@@ -206,6 +221,7 @@ class Handler:
             if try_serve_file(path, self):
                 return
             self.send_response(404)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.end_headers()
             return
 

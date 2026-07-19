@@ -11,7 +11,7 @@ import SizingTab from './AssetDetailPanel/SizingTab'
 import DiagnosticsTab from './AssetDetailPanel/DiagnosticsTab'
 import Tabs, { TabPanel } from './ui/Tabs'
 
-interface Props {
+interface AssetDetailPanelProps {
   asset: AssetState
   name: string
   onClose: () => void
@@ -30,7 +30,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 /**
  * Slide-over detail panel for a single asset. Contains tabs for Overview, Governance, Sizing, Diagnostics, and WAL timeline.
  */
-export default function AssetDetailPanel({ asset, name, onClose }: Props) {
+export default function AssetDetailPanel({ asset, name, onClose }: AssetDetailPanelProps) {
   const [tab, setTab] = useState<TabId>('overview')
 
   // Determine model freshness from asset metrics

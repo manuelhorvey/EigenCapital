@@ -4,7 +4,7 @@ import { useWalTimeline, groupWalEvents } from '../hooks/useWalTimeline'
 import type { WalEvent } from '../hooks/useWalTimeline'
 import { formatTimeAgo } from '../utils/format'
 
-interface Props {
+interface WalTimelineProps {
   assetName: string
 }
 
@@ -115,7 +115,7 @@ function WalCard({ group }: { group: ReturnType<typeof groupWalEvents>[number] }
 /** Write-Ahead Log timeline for a single asset, showing inference and decision events grouped by cycle.
  * @param {object} props
  * @param {string} props.assetName - Asset symbol to load WAL events for */
-export default function WalTimeline({ assetName }: Props) {
+export default function WalTimeline({ assetName }: WalTimelineProps) {
   const { data, isLoading, isError } = useWalTimeline(assetName)
 
   const groups = useMemo(() => {

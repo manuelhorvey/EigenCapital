@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LayoutDashboard, Zap, BarChart3, Shield, Activity } from 'lucide-react'
+import {
+  Search, LayoutDashboard, Zap, BarChart3, Shield, Activity,
+  RefreshCw, Eye, Download, AlertTriangle, Settings, FileText,
+  Ban, CheckCircle, Terminal,
+} from 'lucide-react'
 
 interface CommandItem {
   id: string
@@ -11,15 +15,24 @@ interface CommandItem {
   keywords: string[]
 }
 
+interface AssetSignal {
+  signal?: string
+  confidence?: number
+  price?: number
+  position?: { side?: string; entry?: number }
+}
+
 interface CommandPaletteProps {
   /** List of asset names to include in search results. */
   assetNames?: string[]
   /** Called when an asset is selected from search — opens detail panel. */
   onSelectAsset?: (name: string) => void
+  /** Optional snapshot asset map for signal search. */
+  assets?: Record<string, AssetSignal>
 }
 
 /** Cmd+K command palette for navigation, asset search, and shortcut discovery. */
-export default function CommandPalette({ assetNames = [], onSelectAsset }: CommandPaletteProps) {
+export default function CommandPalette({ assetNames = [], onSelectAsset, assets = {} }: CommandPaletteProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -52,6 +65,7 @@ export default function CommandPalette({ assetNames = [], onSelectAsset }: Comma
 
   const commands = useMemo<CommandItem[]>(() => {
     const items: CommandItem[] = [
+      // ── Navigation ────────────────────────────
       {
         id: 'nav-dashboard',
         label: 'Dashboard',
@@ -69,20 +83,113 @@ export default function CommandPalette({ assetNames = [], onSelectAsset }: Comma
         keywords: ['trading', 'signals', 'trades', 'orders'],
       },
       {
-        id: 'nav-execution',
-        label: 'Execution',
-        description: 'Slippage, quality, attribution',
+        id: 'nav-analytics',
+        label: 'Analytics',
+        description: 'Performance attribution, execution quality',
         icon: <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} />,
-        action: () => navigate('/execution'),
-        keywords: ['execution', 'slippage', 'quality', 'attribution'],
+        action: () => navigate('/analytics'),
+        keywords: ['analytics', 'attribution', 'execution', 'quality', 'slippage'],
       },
       {
         id: 'nav-risk',
-        label: 'Risk',
+        label: 'Governance & Risk',
         description: 'Health scores, governance, constraints',
         icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />,
         action: () => navigate('/risk'),
-        keywords: ['risk', 'health', 'governance', 'constraints'],
+        keywords: ['risk', 'governance', 'health', 'constraints'],
+      },
+      {
+        id: 'nav-reports',
+        label: 'Reports',
+        description: 'Download reports, audit log',
+        icon: <FileText className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => navigate('/reports'),
+        keywords: ['reports', 'audit', 'download', 'export', 'weekly'],
+      },
+      {
+        id: 'nav-settings',
+        label: 'Settings',
+        description: 'Preferences, theme, API keys',
+        icon: <Settings className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => navigate('/settings'),
+        keywords: ['settings', 'preferences', 'theme', 'api', 'config'],
+      },
+
+      // ── Actions ───────────────────────────────
+      {
+        id: 'action-refresh',
+        label: 'Refresh Dashboard',
+        description: 'Force refresh all dashboard data',
+        icon: <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => { window.location.reload() },
+        keywords: ['refresh', 'reload', 'update', 'sync'],
+      },
+      {
+        id: 'action-toggle-halts',
+        label: 'Toggle Halted Assets',
+        description: 'Show or hide halted assets in the list',
+        icon: <Eye className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => navigate('/risk'),
+        keywords: ['halt', 'toggle', 'show', 'hide', 'halted'],
+      },
+      {
+        id: 'action-export',
+        label: 'Export Data',
+        description: 'Download portfolio state as JSON',
+        icon: <Download className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: async () => {
+          try {
+            const resp = await fetch('/state-bundle.json')
+            const blob = await resp.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `eigencapital-snapshot-${Date.now()}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+          } catch { /* silent */ }
+        },
+        keywords: ['export', 'download', 'json', 'backup', 'save'],
+      },
+      {
+        id: 'action-alerts',
+        label: 'Critical Alerts',
+        description: 'View all active system alerts',
+        icon: <AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => navigate('/risk'),
+        keywords: ['alert', 'critical', 'error', 'warning', 'notification'],
+      },
+      {
+        id: 'action-halt-engine',
+        label: 'Halt Engine',
+        description: 'Emergency halt all trading activity',
+        icon: <Ban className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => {
+          if (window.confirm('Are you sure you want to halt the engine?')) {
+            fetch('/api/engine/halt', { method: 'POST' }).catch(() => {})
+          }
+        },
+        keywords: ['halt', 'emergency', 'stop', 'engine', 'kill', 'panic'],
+      },
+      {
+        id: 'action-acknowledge-weekly',
+        label: 'Acknowledge Weekly Review',
+        description: 'Acknowledge the current weekly performance review',
+        icon: <CheckCircle className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => {
+          fetch('/weekly-review/acknowledge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {})
+        },
+        keywords: ['acknowledge', 'weekly', 'review', 'confirm'],
+      },
+      {
+        id: 'action-clear-cache',
+        label: 'Clear API Cache',
+        description: 'Clear server-side API response cache',
+        icon: <Terminal className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => {
+          fetch('/api/clear-cache', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {})
+        },
+        keywords: ['cache', 'clear', 'refresh', 'api'],
       },
     ]
 
@@ -98,8 +205,27 @@ export default function CommandPalette({ assetNames = [], onSelectAsset }: Comma
       })
     }
 
+    // Add signal search items from snapshot
+    for (const [name, asset] of Object.entries(assets)) {
+      const sig = asset.signal ?? ''
+      const conf = asset.confidence
+      if (!sig || sig === 'FLAT') continue
+      const dir = sig === 'BUY' ? 'LONG' : 'SHORT'
+      const confStr = conf != null ? `${conf}%` : ''
+      items.push({
+        id: `signal-${name}`,
+        label: `${name} · ${dir}`,
+        description: confStr
+          ? `Signal: ${sig} · ${confStr} · Price: ${asset.price?.toFixed?.(5) ?? '—'}`
+          : `Signal: ${sig} · Price: ${asset.price?.toFixed?.(5) ?? '—'}`,
+        icon: <Activity className="w-3.5 h-3.5" strokeWidth={1.5} />,
+        action: () => onSelectAsset?.(name),
+        keywords: [name.toLowerCase(), sig.toLowerCase(), dir.toLowerCase(), 'signal', 'active'],
+      })
+    }
+
     return items
-  }, [navigate, assetNames, onSelectAsset])
+  }, [navigate, assetNames, onSelectAsset, assets])
 
   const filtered = useMemo(() => {
     if (!query) return commands
@@ -153,7 +279,7 @@ export default function CommandPalette({ assetNames = [], onSelectAsset }: Comma
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search pages, assets…"
+            placeholder="Search pages, assets, or run commands…"
             className="flex-1 bg-transparent text-sm text-primary placeholder:text-muted outline-none"
           />
           <kbd className="text-[10px] font-mono text-tertiary bg-panel px-1.5 py-0.5 rounded border border-default">

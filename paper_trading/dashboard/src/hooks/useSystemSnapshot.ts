@@ -1,8 +1,9 @@
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, keepPreviousData, useQueryClient } from '@tanstack/react-query'
 import { fetchApi } from '../lib/api'
 import { QUERY_KEYS } from '../lib/queryKeys'
 import { SystemBundleSchema } from '../lib/schemas'
 import { addErrorBreadcrumb } from '../lib/errorReporting'
+import { getToken } from '../lib/auth'
 import { useToast } from './useToast'
 import { useEffect, useRef, useState } from 'react'
 import type { z } from 'zod'
@@ -41,13 +42,93 @@ function loadFromLocalStorage(): Partial<SystemBundle> | null {
   }
 }
 
+// ── SSE (Server-Sent Events) real-time support ──────────────────
+//
+// When the backend supports /events (SSE), the hook subscribes to
+// real-time bundle pushes, reducing latency from 5s polling to
+// sub-second updates. Falls back to polling when SSE is unavailable.
+//
+// The SSE connection is established on first mount and torn down on
+// unmount. Reconnection uses exponential backoff (1s, 2s, 4s, max 30s).
+
+let _sseReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let _sseBackoff = 1_000
+let _sseCleanup: (() => void) | null = null
+const SSE_MAX_BACKOFF = 30_000
+
+function sseEndpoint(): string {
+  const token = getToken()
+  return token ? `/events?token=${encodeURIComponent(token)}` : '/events'
+}
+
+interface UseSSEConfig {
+  onMessage: (data: SystemBundle) => void
+  onError: (error: Event) => void
+}
+
+function cleanupSSE(): void {
+  if (_sseReconnectTimer !== null) {
+    clearTimeout(_sseReconnectTimer)
+    _sseReconnectTimer = null
+  }
+  if (_sseCleanup !== null) {
+    _sseCleanup()
+    _sseCleanup = null
+  }
+}
+
+function startSSE(config: UseSSEConfig): () => void {
+  // Clean up any existing connection first
+  cleanupSSE()
+
+  const eventSource = new EventSource(sseEndpoint())
+
+  // Store the cleanup function so reconnect & unmount always close the
+  // active connection — never a stale one from a previous reconnect cycle.
+  _sseCleanup = () => {
+    eventSource.close()
+  }
+
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data) as SystemBundle
+      config.onMessage(data)
+      // Reset backoff on successful message (after processing)
+      _sseBackoff = 1_000
+    } catch {
+      // Parse error — ignore malformed messages
+    }
+  }
+
+  eventSource.onerror = (error) => {
+    eventSource.close()
+    config.onError(error)
+    // Schedule reconnect with exponential backoff
+    _sseReconnectTimer = setTimeout(() => {
+      _sseCleanup = null // Reset so the new startSSE stores fresh cleanup
+      startSSE(config)
+    }, _sseBackoff)
+    _sseBackoff = Math.min(_sseBackoff * 2, SSE_MAX_BACKOFF)
+  }
+
+  return () => {
+    cleanupSSE()
+  }
+}
+
+// ── useSystemSnapshot ───────────────────────────────────────────
+
 /** Fetches the full system bundle snapshot with optional data selector.
  *  Falls back to localStorage cache on fetch failure (offline/stale mode).
- *  Fires a persistent toast on schema validation failure. */
+ *  Fires a persistent toast on schema validation failure.
+ *
+ *  Uses SSE (Server-Sent Events) for real-time updates when the backend
+ *  exposes /events, with automatic fallback to 5s polling. */
 export function useSystemSnapshot<T = SystemBundle>(
   select?: (data: SystemBundle) => T
 ) {
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [schemaFailureMsg, setSchemaFailureMsg] = useState<string | null>(null)
   const prevFailureMsg = useRef<string | null>(null)
 
@@ -63,6 +144,40 @@ export function useSystemSnapshot<T = SystemBundle>(
       prevFailureMsg.current = schemaFailureMsg
     }
   }, [schemaFailureMsg, toast])
+
+  // SSE subscription — updates query cache on real-time events
+  useEffect(() => {
+    const cleanup = startSSE({
+      onMessage: (data) => {
+        // Validate SSE data before updating cache (schema drift guard)
+        const parsed = SystemBundleSchema.passthrough().safeParse(data)
+        if (!parsed.success) {
+          console.warn('[SSE] Received invalid bundle — falling back to polling', parsed.error.issues)
+          addErrorBreadcrumb('SSE', 'Invalid bundle received — falling back to polling')
+          return
+        }
+        const validated = parsed.data as unknown as SystemBundle
+        // Check contract version
+        const cv = validated.snapshot.contract_version
+        if (_lastContractVersion !== null && _lastContractVersion !== cv) {
+          console.warn(`[SSE] Contract version mismatch: was ${_lastContractVersion}, now ${cv}`)
+        }
+        _lastContractVersion = cv
+        saveToLocalStorage(validated)
+        // Update query cache directly — provides sub-second updates
+        queryClient.setQueryData(QUERY_KEYS.system, validated)
+      },
+      onError: () => {
+        // SSE connection failed — polling fallback handles updates
+        console.info('[SSE] Connection failed, falling back to polling')
+      },
+    })
+
+    return () => {
+      cleanup()
+      cleanupSSE()
+    }
+  }, [queryClient])
 
   return useQuery({
     queryKey: QUERY_KEYS.system,
@@ -140,6 +255,7 @@ export function useSystemSnapshot<T = SystemBundle>(
       }
     },
     refetchInterval: (q) => {
+      // Polling acts as fallback when SSE is unavailable
       const closed = q.state.data?.snapshot?.engine_status?.market_closed
       return closed ? 30_000 : 5_000
     },
@@ -150,3 +266,5 @@ export function useSystemSnapshot<T = SystemBundle>(
     retryDelay: 1_000,
   })
 }
+
+export type { SystemBundle }

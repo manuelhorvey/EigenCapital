@@ -158,7 +158,7 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
   return (
     <div
       aria-live={parts.halted ? 'assertive' : 'polite'}
-      className={`relative min-h-[44px] w-full flex items-center gap-1 px-1 sm:px-3 border-b border-default text-xs font-mono tabular-nums overflow-hidden shrink-0 ${
+      className={`relative min-h-[52px] w-full flex items-center gap-1 px-2 sm:px-3 border-b border-default text-xs font-mono tabular-nums overflow-hidden shrink-0 ${
         parts.halted ? 'bg-gov-red/10 border-gov-red/20' : 'bg-app/95'
       }`}
       aria-label="Top bar"
@@ -230,7 +230,7 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
           <button
             type="button"
             onClick={onToggleNotifications}
-            className="relative min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+            className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
           >
             <Bell className="w-3 h-3" strokeWidth={2} />
@@ -244,7 +244,7 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             aria-label="Refresh dashboard data"
           >
             <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={2} />
@@ -252,7 +252,7 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="lg:hidden min-h-[22px] min-w-[22px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
+            className="lg:hidden min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             aria-label="Open navigation"
           >
             <Menu className="w-3 h-3" strokeWidth={2} />
@@ -267,4 +267,6 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
  * Single-row top bar merging navigation tabs + status ticker tokens + controls.
  * Replaces the separate TickerRail + TabBar pattern, saving ~24px vertical space.
  */
-export default memo(TopBarInner)
+const TopBar = memo(TopBarInner)
+TopBar.displayName = 'TopBar'
+export default TopBar

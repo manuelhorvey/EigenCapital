@@ -67,7 +67,7 @@ export default function TradeOutcomes() {
             <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="var(--color-text-secondary)" />
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto hidden sm:block">
             <table className="w-full text-xs min-w-[680px]">
               <thead>
                 <tr className="border-b border-default">

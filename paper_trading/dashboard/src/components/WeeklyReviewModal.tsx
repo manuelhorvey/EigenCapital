@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
 import { TrendingUp, TrendingDown, Activity, Shield, AlertTriangle, Check } from 'lucide-react'
-import { useWeeklyReview } from '../hooks/useWeeklyReview'
 import type { z } from 'zod'
 import { WeeklyReviewSchema } from '../lib/schemas'
 
@@ -8,6 +6,13 @@ type WeeklyReview = z.infer<typeof WeeklyReviewSchema>
 import Button from './ui/Button'
 import StatCard from './ui/StatCard'
 import Modal from './ui/Modal'
+
+interface WeeklyReviewModalProps {
+  open: boolean
+  onClose: () => void
+  data: WeeklyReview
+  onAcknowledge: () => void
+}
 
 function formatPnl(v: number): string {
   const prefix = v >= 0 ? '+' : ''
@@ -193,18 +198,7 @@ function EmptyState() {
 }
 
 /** Weekly performance review modal with summary grid, per-asset breakdown, exit reasons, and regime correlation. */
-export default function WeeklyReviewModal() {
-  const { data, show, isError, acknowledge } = useWeeklyReview()
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    if (show && data) setOpen(true)
-  }, [show, data])
-
-  if (isError) return null
-
-  const handleClose = () => setOpen(false)
-
+export default function WeeklyReviewModal({ open, onClose, data, onAcknowledge }: WeeklyReviewModalProps) {
   if (!open || !data) return null
 
   const hasTrades = data.summary.n_trades > 0
@@ -212,21 +206,21 @@ export default function WeeklyReviewModal() {
   return (
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       title="Weekly Review"
       description={data.week_label}
       size="lg"
       footer={
         <div className="flex items-center justify-end gap-2 w-full">
-          <Button variant="secondary" onClick={handleClose}>
+          <Button variant="secondary" onClick={onClose}>
             Close
           </Button>
           <Button
             variant="primary"
             icon={<Check className="w-3.5 h-3.5" strokeWidth={2} />}
             onClick={() => {
-              acknowledge()
-              handleClose()
+              onAcknowledge()
+              onClose()
             }}
           >
             Acknowledge

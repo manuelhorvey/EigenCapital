@@ -46,15 +46,15 @@ function saveToStorage(notifications: Notification[]) {
   try {
     // Keep only the most recent 200 to cap storage size
     const trimmed = notifications.slice(-200)
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed))
   } catch {
-    // sessionStorage full or unavailable
+    // localStorage full or unavailable
   }
 }
 
 function loadFromStorage(): Notification[] {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     return JSON.parse(raw) as Notification[]
   } catch {
@@ -121,7 +121,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(() => {
     setNotifications([])
-    sessionStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(STORAGE_KEY)
   }, [])
 
   const unreadCount = useMemo(

@@ -72,6 +72,15 @@ repos:
         files: '\.py$|\.yaml$|\.yml$|\.sh$|\.env$'
         pass_filenames: false
 
+      # ── import os guard ─────────────────────────────────────
+      - id: check-import-os
+        name: missing import os guard
+        entry: python tools/check_import_os.py
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        require_serial: true
+
       # ── Trailing whitespace ───────────────────────────────────
       - id: trailing-whitespace
         name: trailing whitespace

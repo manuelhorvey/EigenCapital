@@ -168,7 +168,7 @@ export default function Modal({
         className={
           'relative w-full ' +
           SIZE_TO_MAX[size] +
-          ' bg-surface border border-default rounded shadow-modal animate-fade-in max-h-[85vh] flex flex-col ' +
+          ' bg-surface border border-default rounded shadow-modal animate-modal-open max-h-[85vh] flex flex-col ' +
           className
         }
         role="dialog"
@@ -199,7 +199,7 @@ export default function Modal({
                 <button
                   onClick={onClose}
                   aria-label="Close modal"
-                  className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
+                  className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
                 >
                   <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
                 </button>

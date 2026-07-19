@@ -21,11 +21,12 @@
   .focus-ring {
     outline: 2px solid transparent;
     outline-offset: 2px;
-    transition: outline-color 150ms ease, box-shadow 150ms ease;
+    transition: outline-color 100ms ease-out, box-shadow 100ms ease-out;
   }
 
   .focus-ring:focus-visible {
-    outline-color: var(--color-focus-ring);
+    outline-color: var(--color-focus-ring-visible, var(--color-focus-ring));
+    outline-width: 3px;
     box-shadow: 0 0 0 4px var(--color-interactive-selected);
   }
 
@@ -141,7 +142,7 @@
   .sort-header {
     cursor: pointer;
     user-select: none;
-    transition: color 150ms ease;
+    transition: color 100ms ease-out;
   }
 
   .sort-header:hover {
@@ -155,7 +156,7 @@
   }
 
   .table-row-hover {
-    transition: background-color 150ms ease;
+    transition: background-color 100ms ease-out;
   }
 
   .table-row-hover:hover {
@@ -173,7 +174,7 @@
     padding: 3px 8px;
     font-size: 11px;
     color: var(--color-text-primary);
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition: border-color 100ms ease-out, box-shadow 100ms ease-out;
   }
 
   .input-terminal::placeholder {
@@ -217,5 +218,13 @@
     font-size: 12px;
     font-weight: 500;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Smooth dark/light theme transition — triggered by .theme-transitioning on :root */
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition: background-color 200ms ease-out, border-color 200ms ease-out, color 200ms ease-out, box-shadow 200ms ease-out !important;
   }
 }

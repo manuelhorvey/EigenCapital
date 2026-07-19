@@ -237,7 +237,13 @@ export default {
     "pulse-subtle": "var(--animation-pulse-subtle)",
     "scale-in": "var(--animation-scale-in)",
     "slide-up": "var(--animation-slide-up)",
-    "fade-in": "var(--animation-fade-in)"
+    "fade-in": "var(--animation-fade-in)",
+    "hover": "var(--animation-hover)",
+    "panel-enter": "var(--animation-panel-enter)",
+    "sidebar-slide": "var(--animation-sidebar-slide)",
+    "modal-open": "var(--animation-modal-open)",
+    "data-update": "var(--animation-data-update)",
+    "page-transition": "var(--animation-page-transition)"
   },
   "keyframes": {
     "pulse-subtle": {
@@ -284,6 +290,58 @@ export default {
       "50%": {
         "opacity": "1",
         "boxShadow": "0 0 8px rgba(240, 68, 68, 0.3)"
+      }
+    },
+    "hover": {
+      "0%": {
+        "transform": "scale(1)"
+      },
+      "100%": {
+        "transform": "var(--transform-interactive-pressed, scale(0.97))"
+      }
+    },
+    "panel-enter": {
+      "0%": {
+        "opacity": "0",
+        "transform": "translateY(4px)"
+      },
+      "100%": {
+        "opacity": "1",
+        "transform": "translateY(0)"
+      }
+    },
+    "sidebar-slide": {
+      "0%": {
+        "transform": "translateX(-100%)"
+      },
+      "100%": {
+        "transform": "translateX(0)"
+      }
+    },
+    "modal-open": {
+      "0%": {
+        "opacity": "0",
+        "transform": "scale(0.97)"
+      },
+      "100%": {
+        "opacity": "1",
+        "transform": "scale(1)"
+      }
+    },
+    "data-update": {
+      "0%": {
+        "opacity": "0.6"
+      },
+      "100%": {
+        "opacity": "1"
+      }
+    },
+    "page-transition": {
+      "0%": {
+        "opacity": "0"
+      },
+      "100%": {
+        "opacity": "1"
       }
     }
   }

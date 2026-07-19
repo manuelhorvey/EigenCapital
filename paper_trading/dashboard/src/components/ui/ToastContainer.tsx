@@ -114,6 +114,7 @@ const ToastItem = memo(function ToastItem({
     </div>
   )
 })
+ToastItem.displayName = 'ToastItem'
 
 // ── Toast Container ────────────────────────────────────────────────
 
@@ -149,4 +150,6 @@ function ToastContainerInner() {
   )
 }
 
-export const ToastContainer = memo(ToastContainerInner)
+const ToastContainerInnerMemo = memo(ToastContainerInner)
+ToastContainerInnerMemo.displayName = 'ToastContainer'
+export const ToastContainer = ToastContainerInnerMemo

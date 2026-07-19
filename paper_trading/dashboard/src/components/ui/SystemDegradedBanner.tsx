@@ -4,15 +4,16 @@ import type { SystemIntegrity } from '../../hooks/useSystemIntegrity'
 interface SystemDegradedBannerProps {
   integrity: SystemIntegrity
   onDismiss?: () => void
+  className?: string
 }
 
 /** Top-of-page banner alerting when system integrity is degraded or broken. Returns null when healthy. */
-export function SystemDegradedBanner({ integrity, onDismiss }: SystemDegradedBannerProps) {
+export function SystemDegradedBanner({ integrity, onDismiss, className = '' }: SystemDegradedBannerProps) {
   if (integrity.isHealthy) return null
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2 text-xs font-medium border-b ${
+      className={`flex items-center gap-3 px-4 py-2 text-xs font-medium border-b ${className} ${
         integrity.isBroken
           ? 'bg-gov-red-muted border-gov-red/20 text-gov-red'
           : 'bg-gov-yellow-muted border-gov-yellow/20 text-gov-yellow'

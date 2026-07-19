@@ -3,15 +3,17 @@ import { Activity } from 'lucide-react'
 interface LoadingScreenProps {
   title?: string
   subtitle?: string
+  className?: string
 }
 
 /** Full-screen loading state with animated pulse indicators and optional title/subtitle. */
 export default function LoadingScreen({
   title = 'Connecting to EigenCapital Engine',
   subtitle = 'Waiting for paper trading data…',
+  className = '',
 }: LoadingScreenProps) {
   return (
-    <div className="min-h-screen bg-app flex flex-col items-center justify-center gap-5 px-6 animate-fade-in">
+    <div className={`min-h-screen bg-app flex flex-col items-center justify-center gap-5 px-6 animate-fade-in ${className}`}>
       <div className="relative">
         <div className="absolute inset-0 rounded-full bg-accent-emerald/20 blur-xl animate-pulse-subtle" />
         <div className="relative w-12 h-12 rounded panel flex items-center justify-center border-strong">

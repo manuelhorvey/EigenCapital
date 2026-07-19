@@ -87,7 +87,7 @@ export default function EntranceAnimator({
   return (
     <Tag
       ref={ref}
-      className={`transition-all duration-500 ease-out will-change-transform ${
+      className={`transition-all duration-200 ease-out will-change-transform ${
         visible ? variantVisible[variant] : variantStyles[variant]
       } ${className}`}
       style={{

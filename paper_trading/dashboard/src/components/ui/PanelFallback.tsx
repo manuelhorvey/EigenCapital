@@ -4,15 +4,16 @@ import { governanceText } from './governance'
 interface PanelFallbackProps {
   title: string
   error?: Error
+  className?: string
   /** Callback for the retry button. Defaults to `window.location.reload()`. */
   onRetry?: () => void
 }
 
 /** Error fallback card shown when a panel's content fails to render. Displays error message and reload button. */
-export default function PanelFallback({ title, error, onRetry }: PanelFallbackProps) {
+export default function PanelFallback({ title, error, className = '', onRetry }: PanelFallbackProps) {
   const handleRetry = onRetry ?? (() => window.location.reload())
   return (
-    <div className="panel rounded-lg p-4">
+    <div className={`panel rounded-lg p-4 ${className}`}>
       <div className="flex flex-col items-center justify-center py-6 gap-2">
         <AlertTriangle className={`w-4 h-4 ${governanceText.YELLOW}`} strokeWidth={1.5} />
         <span className="text-xs text-tertiary font-medium">{title} — Error</span>

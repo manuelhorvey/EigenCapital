@@ -43,6 +43,22 @@ from typing import Any
 
 import MetaTrader5 as mt5  # noqa: N813
 
+# Thread-safety locks — protects MT5 terminal access from concurrent
+# connection-handler threads.
+#
+# _INIT_LOCK: Serialises mt5.initialize() + mt5.login().  Without this,
+#   concurrent calls cause race conditions producing "Terminal: Call failed",
+#   EBADF, and spurious "error (1, 'Success')" responses.
+# _MT5_LOCK: Serialises ALL MT5 API calls (copy_rates_range,
+#   symbol_info_tick, positions_get, order_send, etc.).  The MetaTrader5
+#   Python C extension is NOT thread-safe — concurrent calls from multiple
+#   handler threads can corrupt IPC state under Wine.
+# _PLACED_ORDERS_LOCK: Protects the _placed_orders dedup dict from TOCTOU
+#   races (two threads simultaneously checking and inserting the same key).
+_INIT_LOCK = threading.Lock()
+_MT5_LOCK = threading.Lock()
+_PLACED_ORDERS_LOCK = threading.Lock()
+
 from eigencapital.domain.encoding import EigenCapitalJSONEncoder
 
 logging.basicConfig(
@@ -64,7 +80,7 @@ _MAX_PAYLOAD = 4 * 1024 * 1024  # 4 MiB max request/response body
 
 _config: dict[str, Any] = {}
 _running = threading.Event()
-_placed_orders: dict[str, tuple[int, float]] = {}  # dedup_key -> (order_id, timestamp)
+_placed_orders: dict[str, tuple[int, float]] = {}  # dedup_key -> (order_id, timestamp), protected by _PLACED_ORDERS_LOCK
 _PLACED_ORDERS_TTL = 86400.0  # 1 day TTL for dedup cache entries
 
 
@@ -100,21 +116,24 @@ def _recv_frame(conn: socket.socket) -> dict | None:
 
 def _ensure_initialized() -> bool:
     global _config
-    if mt5.terminal_info() is not None:
-        return True
-    logger.info("Initializing MT5...")
-    if not mt5.initialize():
-        logger.error("initialize() failed: %s", mt5.last_error())
-        return False
-    account = _config.get("account")
-    password = _config.get("password")
-    server = _config.get("server")
-    if account and password and server:
-        if not mt5.login(account, password, server):
-            logger.error("login() failed: %s", mt5.last_error())
+    with _INIT_LOCK:
+        # Double-check inside the lock: another thread may have initialised
+        # while we were waiting.
+        if mt5.terminal_info() is not None:
+            return True
+        logger.info("Initializing MT5...")
+        if not mt5.initialize():
+            logger.error("initialize() failed: %s", mt5.last_error())
             return False
-        logger.info("Logged in to %s as account %d", server, account)
-    return True
+        account = _config.get("account")
+        password = _config.get("password")
+        server = _config.get("server")
+        if account and password and server:
+            if not mt5.login(account, password, server):
+                logger.error("login() failed: %s", mt5.last_error())
+                return False
+            logger.info("Logged in to %s as account %d", server, account)
+        return True
 
 
 # ── Frame handlers ────────────────────────────────────────────────────────────
@@ -213,14 +232,15 @@ def _handle_place_order(params: dict) -> dict:
     id_key = params.get("idempotency_key")
     if id_key:
         dedup_key = f"{symbol}_{side}_{id_key}"
-        entry = _placed_orders.get(dedup_key)
-        if entry is not None:
-            ticket, ts = entry
-            if time.monotonic() - ts < _PLACED_ORDERS_TTL:
-                logger.info("Dedup: order %s already placed (ticket=%s)", dedup_key, ticket)
-                return {"result": {"retcode": 10009, "ticket": ticket, "dedup": True}}
-            # expired — remove and allow re-placement
-            del _placed_orders[dedup_key]
+        with _PLACED_ORDERS_LOCK:
+            entry = _placed_orders.get(dedup_key)
+            if entry is not None:
+                ticket, ts = entry
+                if time.monotonic() - ts < _PLACED_ORDERS_TTL:
+                    logger.info("Dedup: order %s already placed (ticket=%s)", dedup_key, ticket)
+                    return {"result": {"retcode": 10009, "ticket": ticket, "dedup": True}}
+                # expired — remove and allow re-placement
+                del _placed_orders[dedup_key]
     volume = params["volume"]
     sl = params.get("sl", 0.0)
     tp = params.get("tp", 0.0)
@@ -261,7 +281,8 @@ def _handle_place_order(params: dict) -> dict:
         return {"error": f"order_send failed: {mt5.last_error()}"}
 
     if id_key:
-        _placed_orders[dedup_key] = (result.order, time.monotonic())
+        with _PLACED_ORDERS_LOCK:
+            _placed_orders[dedup_key] = (result.order, time.monotonic())
 
     return {
         "result": {
@@ -458,22 +479,26 @@ def _dispatch(method: str, params: dict, conn: socket.socket) -> dict:
     if not _ensure_initialized():
         return {"error": "MT5 not initialized"}
 
-    if "symbol" in params:
-        symbol = params["symbol"]
-        info = mt5.symbol_info(symbol)
-        if info is None:
-            return {"error": f"Symbol {symbol} not found on server"}
-        if not info.visible:
-            if not mt5.symbol_select(symbol, True):
-                logger.error("Failed to select symbol %s in Market Watch: %s", symbol, mt5.last_error())
-                return {"error": f"Failed to select symbol {symbol} in Market Watch"}
-            logger.info("Automatically selected/added symbol %s to Market Watch", symbol)
+    # All MT5 API calls after this point are protected by _MT5_LOCK.
+    # The MetaTrader5 C extension is NOT thread-safe — concurrent calls
+    # from multiple handler threads corrupt IPC state under Wine.
+    with _MT5_LOCK:
+        if "symbol" in params:
+            symbol = params["symbol"]
+            info = mt5.symbol_info(symbol)
+            if info is None:
+                return {"error": f"Symbol {symbol} not found on server"}
+            if not info.visible:
+                if not mt5.symbol_select(symbol, True):
+                    logger.error("Failed to select symbol %s in Market Watch: %s", symbol, mt5.last_error())
+                    return {"error": f"Failed to select symbol {symbol} in Market Watch"}
+                logger.info("Automatically selected/added symbol %s to Market Watch", symbol)
 
-    try:
-        return handler(params)
-    except (OSError, ValueError, TypeError, KeyError, ConnectionError) as e:
-        logger.exception("Handler error for %s", method)
-        return {"error": str(e)}
+        try:
+            return handler(params)
+        except (OSError, ValueError, TypeError, KeyError, ConnectionError) as e:
+            logger.exception("Handler error for %s", method)
+            return {"error": str(e)}
 
 
 def _handle_client(conn: socket.socket) -> None:

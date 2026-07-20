@@ -45,10 +45,12 @@ _HEADER_SIZE = struct.calcsize(_HEADER_FMT)
 _MAX_PAYLOAD = 4 * 1024 * 1024  # 4 MiB max response body
 _RECONNECT_DELAY = 2.0
 _MAX_RECONNECT_ATTEMPTS = 3
-_CIRCUIT_BREAKER_FAILURES = 0
-_CIRCUIT_BREAKER_LAST_FAILURE = 0.0
 _CIRCUIT_BREAKER_TIMEOUTS = [30.0, 60.0, 120.0, 300.0]
-_CIRCUIT_BREAKER_LOCK = threading.Lock()
+
+# Registry of all live circuit breaker instances, so the global
+# reset_circuit_breaker() helper (used by tests) can reset them all.
+_all_breakers: list["_CircuitBreaker"] = []
+_all_breakers_lock = threading.Lock()
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
@@ -62,12 +64,88 @@ def _is_loopback(host: str) -> bool:
     return host.startswith("127.")
 
 
+
+class _CircuitBreaker:
+    """Per-connection-pool circuit breaker with escalating backoff.
+
+    Prevents rapid reconnection loops when the bridge is down.  Each
+    ``_FrameProtocol`` has its own breaker so partial failures don't
+    block the entire system.
+
+    Timeouts escalate: 30s -> 60s -> 120s -> 300s.
+    """
+
+    __slots__ = ("_failures", "_last_failure", "_lock")
+
+    def __init__(self) -> None:
+        self._failures = 0
+        self._last_failure = 0.0
+        self._lock = threading.Lock()
+        # Register for global reset
+        with _all_breakers_lock:
+            _all_breakers.append(self)
+
+    def is_open(self) -> bool:
+        """Return True if the breaker is open (too many recent failures)."""
+        with self._lock:
+            if self._failures == 0:
+                return False
+            elapsed = time.monotonic() - self._last_failure
+            timeout_idx = min(self._failures - 1, len(_CIRCUIT_BREAKER_TIMEOUTS) - 1)
+            backoff = _CIRCUIT_BREAKER_TIMEOUTS[timeout_idx]
+            return elapsed < backoff
+
+    def remaining(self) -> float:
+        """Seconds remaining until the breaker closes (0 if closed)."""
+        with self._lock:
+            if self._failures == 0:
+                return 0.0
+            elapsed = time.monotonic() - self._last_failure
+            timeout_idx = min(self._failures - 1, len(_CIRCUIT_BREAKER_TIMEOUTS) - 1)
+            backoff = _CIRCUIT_BREAKER_TIMEOUTS[timeout_idx]
+            return max(0.0, backoff - elapsed)
+
+    def record_failure(self) -> None:
+        with self._lock:
+            self._failures += 1
+            self._last_failure = time.monotonic()
+
+    def record_success(self) -> None:
+        with self._lock:
+            self._failures = 0
+            self._last_failure = 0.0
+
+    def reset(self) -> None:
+        with self._lock:
+            self._failures = 0
+            self._last_failure = 0.0
+
+    @property
+    def failures(self) -> int:
+        with self._lock:
+            return self._failures
+
+    @failures.setter
+    def failures(self, value: int) -> None:
+        with self._lock:
+            self._failures = value
+
+    @property
+    def last_failure(self) -> float:
+        with self._lock:
+            return self._last_failure
+
+    @last_failure.setter
+    def last_failure(self, value: float) -> None:
+        with self._lock:
+            self._last_failure = value
+
+
 def _reset_circuit_breaker() -> None:
-    """Reset MT5 circuit breaker counters. Test-harness use only."""
-    global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
-    with _CIRCUIT_BREAKER_LOCK:
-        _CIRCUIT_BREAKER_FAILURES = 0
-        _CIRCUIT_BREAKER_LAST_FAILURE = 0.0
+    """Reset ALL MT5 circuit breaker counters. Test-harness use only."""
+    with _all_breakers_lock:
+        for brk in list(_all_breakers):
+            brk.reset()
 
 
 class MT5ConnectionError(Exception):
@@ -164,6 +242,9 @@ class _FrameProtocol:
     TCP connections (default 4).  The bridge server already creates
     one thread per client connection, so multiple sockets give true
     parallelism for batch operations.
+
+    Each pool has its own ``_CircuitBreaker`` — failures in one pool
+    don't block other pools.
     """
 
     _POOL_SIZE = 4
@@ -179,6 +260,11 @@ class _FrameProtocol:
             max_workers=self._POOL_SIZE,
             thread_name_prefix="qf-mt5",
         )
+        self._breaker = _CircuitBreaker()
+
+    @property
+    def breaker(self) -> _CircuitBreaker:
+        return self._breaker
 
     def connect(self) -> None:
         with self._lock:
@@ -323,10 +409,8 @@ class _FrameProtocol:
 
 
 def reset_circuit_breaker() -> None:
-    global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
-    with _CIRCUIT_BREAKER_LOCK:
-        _CIRCUIT_BREAKER_FAILURES = 0
-        _CIRCUIT_BREAKER_LAST_FAILURE = 0.0
+    """Reset ALL MT5 circuit breaker counters.  Test-harness use."""
+    _reset_circuit_breaker()
 
 
 class MT5Client:
@@ -396,7 +480,7 @@ class MT5Client:
         logger.info("MT5 client disconnected")
 
     def ensure_connected(self) -> bool:
-        global _CIRCUIT_BREAKER_FAILURES, _CIRCUIT_BREAKER_LAST_FAILURE
+        breaker = self._proto.breaker
 
         # Fast-path: if the bridge was never successfully connected since
         # process start, skip reconnection entirely.  Reconnection only makes
@@ -406,18 +490,13 @@ class MT5Client:
             return False
 
         # Circuit breaker: if too many recent failures, back off
-        with _CIRCUIT_BREAKER_LOCK:
-            if _CIRCUIT_BREAKER_FAILURES > 0:
-                elapsed = time.monotonic() - _CIRCUIT_BREAKER_LAST_FAILURE
-                timeout_idx = min(_CIRCUIT_BREAKER_FAILURES - 1, len(_CIRCUIT_BREAKER_TIMEOUTS) - 1)
-                backoff = _CIRCUIT_BREAKER_TIMEOUTS[timeout_idx]
-                if elapsed < backoff:
-                    logger.warning(
-                        "MT5 circuit breaker open: %.0fs remaining (failures=%d)",
-                        backoff - elapsed,
-                        _CIRCUIT_BREAKER_FAILURES,
-                    )
-                    return False
+        if breaker.is_open():
+            logger.warning(
+                "MT5 circuit breaker open: %.0fs remaining (failures=%d)",
+                breaker.remaining(),
+                breaker.failures,
+            )
+            return False
 
         if not self._proto.connected:
             logger.warning("MT5 bridge disconnected — reconnecting")
@@ -426,16 +505,13 @@ class MT5Client:
                     self._proto.connect()
                     self._configure()
                     self._last_heartbeat = time.monotonic()
-                    with _CIRCUIT_BREAKER_LOCK:
-                        _CIRCUIT_BREAKER_FAILURES = 0  # reset on success
+                    breaker.record_success()
                     return True
                 except MT5ConnectionError as e:
                     logger.warning("Reconnect attempt %d failed: %s", attempt + 1, e)
                     time.sleep(_RECONNECT_DELAY * (attempt + 1))
             logger.error("MT5 bridge reconnect failed after %d attempts", _MAX_RECONNECT_ATTEMPTS)
-            with _CIRCUIT_BREAKER_LOCK:
-                _CIRCUIT_BREAKER_FAILURES += 1
-                _CIRCUIT_BREAKER_LAST_FAILURE = time.monotonic()
+            breaker.record_failure()
             return False
 
         now = time.monotonic()

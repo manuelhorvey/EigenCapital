@@ -14,6 +14,7 @@ from paper_trading.ops.mt5_client import (
     MT5Client,
     MT5ConnectionError,
     MT5DataError,
+    _CircuitBreaker,
     _FrameConnection,
     _FrameProtocol,
     reset_circuit_breaker,
@@ -36,6 +37,10 @@ def mock_proto():
 
 @pytest.fixture
 def client(mock_proto):
+    # The mock protocol needs a mock breaker that appears closed
+    mock_proto.breaker.is_open.return_value = False
+    mock_proto.breaker.remaining.return_value = 0.0
+    mock_proto.breaker.failures = 0
     c = MT5Client(account=12345, password="pwd", server="srv")
     c._proto = mock_proto
     return c
@@ -46,19 +51,17 @@ def client(mock_proto):
 
 class TestCircuitBreaker:
     def test_reset_clears_failures(self):
-        import paper_trading.ops.mt5_client as mc
-
-        mc._CIRCUIT_BREAKER_FAILURES = 5
+        # Use a real _CircuitBreaker (not the mock proto) so it
+        # registers in _all_breakers and reset_circuit_breaker can find it.
+        breaker = _CircuitBreaker()
+        breaker.failures = 5
         reset_circuit_breaker()
-        assert mc._CIRCUIT_BREAKER_FAILURES == 0
+        assert breaker.failures == 0
 
     def test_ensure_connected_returns_false_when_breaker_open(self, client):
-        import time
-
-        import paper_trading.ops.mt5_client as mc
-
-        mc._CIRCUIT_BREAKER_FAILURES = 5
-        mc._CIRCUIT_BREAKER_LAST_FAILURE = time.monotonic()
+        # Make the breaker mock appear open — the fixture sets
+        # is_open() to False by default, override for this test.
+        client._proto.breaker.is_open.return_value = True
         assert not client.ensure_connected()
 
     def test_ensure_connected_reconnects_when_disconnected(self, client):

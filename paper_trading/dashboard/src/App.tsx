@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef } from 'react'
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { SelectedAssetProvider } from './hooks/useSelectedAsset'
 import { ModalStackProvider, useModalStack } from './hooks/useModalStack'
 import { ThemeProvider } from './hooks/useTheme'
@@ -160,7 +160,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<CommandCenter onSelectAsset={handleSelectAsset} />} />
           <Route path="/trading" element={<TradingWorkspace />} />
-          <Route path="/execution" element={<AnalyticsWorkspace />} />
+          <Route path="/execution" element={<Navigate to="/analytics" replace />} />
           <Route path="/analytics" element={<AnalyticsWorkspace />} />
           <Route path="/risk" element={<RiskWorkspace />} />
           <Route path="/settings" element={<SettingsPage />} />

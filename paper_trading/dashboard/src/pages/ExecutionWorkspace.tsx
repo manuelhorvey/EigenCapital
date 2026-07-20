@@ -47,7 +47,7 @@ export default function ExecutionWorkspace() {
   const { data, isPending, isError, error } = useSystemSnapshot((b) => b)
 
   return (
-    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<ExecutionWorkspaceSkeleton />}>
+    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<ExecutionWorkspaceSkeleton />} serverTime={data?.meta?.server_time}>
       <div className={SECTION_SPACING}>
       <Stagger staggerMs={30}>
         {/* Section 1 — Execution Quality

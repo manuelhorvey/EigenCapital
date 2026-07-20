@@ -12,7 +12,7 @@ interface TabItem {
 const TABS: TabItem[] = [
   { to: '/', label: 'Dashboard', icon: <LayoutDashboard className="w-3.5 h-3.5" strokeWidth={1.5} /> },
   { to: '/trading', label: 'Trading', icon: <Zap className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'trading' },
-  { to: '/execution', label: 'Execution', icon: <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+  { to: '/analytics', label: 'Analytics', icon: <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} /> },
   { to: '/risk', label: 'Risk', icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'risk' },
 ]
 

@@ -49,7 +49,7 @@ export default function RiskWorkspace() {
   const { data, isPending, isError, error } = useSystemSnapshot((b) => b)
 
   return (
-    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<RiskWorkspaceSkeleton />}>
+    <PageShell isPending={isPending} isError={isError} error={error} hasData={!!data} skeleton={<RiskWorkspaceSkeleton />} serverTime={data?.meta?.server_time}>
     <div className={SECTION_SPACING}>
       <Stagger staggerMs={30}>
         {/* Top: PEK scalars + governance radar — both are top-level governance summaries. */}

@@ -152,6 +152,6 @@ describe('PageTransition', () => {
     )
 
     const wrapper = screen.getByText('Content').parentElement
-    expect(wrapper?.style.transitionDuration).toBe('200ms')
+    expect(wrapper?.style.transitionDuration).toBe('150ms')
   })
 })

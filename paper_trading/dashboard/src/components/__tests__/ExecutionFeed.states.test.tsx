@@ -132,11 +132,11 @@ describe('ExecutionFeed — all-blocked state', () => {
 
     renderWithQuery(<ExecutionFeed />)
 
-    // Both assets should show BLOCKED status
+    // Both assets should show BLOCKED status (table + mobile card list)
     const blocked = screen.getAllByText('BLOCKED')
-    expect(blocked.length).toBe(2)
+    expect(blocked.length).toBe(4)
 
-    // No PASS rows
+    // No PASS rows (neither table nor mobile)
     expect(screen.queryByText('PASS')).toBeNull()
 
     // Blocked count shows 2 blocked
@@ -152,12 +152,13 @@ describe('ExecutionFeed — all-blocked state', () => {
 
     renderWithQuery(<ExecutionFeed />)
 
-    // Should have PASS rows
+    // Should have PASS rows (table + mobile card list = x2)
     const passElements = screen.getAllByText('PASS')
-    expect(passElements.length).toBe(2)
+    expect(passElements.length).toBe(4)
 
-    // Should have HALTED row
-    expect(screen.getByText('HALTED')).toBeInTheDocument()
+    // Should have HALTED row (table + mobile = x2)
+    const haltedElements = screen.getAllByText('HALTED')
+    expect(haltedElements.length).toBe(2)
 
     // Blocked count shows 1 blocked (both BLOCKED and HALTED count as non-PASS)
     expect(screen.getByText('1 blocked')).toBeInTheDocument()

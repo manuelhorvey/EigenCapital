@@ -63,12 +63,10 @@ function renderOutsideProvider() {
 describe('useNotificationCenter', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    sessionStorage.clear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    sessionStorage.clear()
   })
 
   // ── Add ─────────────────────────────────────────────────────────
@@ -322,14 +320,14 @@ describe('useNotificationCenter', () => {
 
   // ── Storage Persistence ─────────────────────────────────────────
 
-  it('persists to sessionStorage after adding', () => {
+  it('persists to localStorage after adding', () => {
     const { add } = setup()
 
     act(() => {
       add({ id: 'persist-me', title: 'Persist test', type: 'warning' })
     })
 
-    const raw = sessionStorage.getItem('eigencapital_notifications')
+    const raw = localStorage.getItem('eigencapital_notifications')
     expect(raw).not.toBeNull()
 
     const stored = JSON.parse(raw!)
@@ -338,12 +336,12 @@ describe('useNotificationCenter', () => {
     expect(stored[0].title).toBe('Persist test')
   })
 
-  it('restores notifications from sessionStorage on mount', () => {
+  it('restores notifications from localStorage on mount', () => {
     const seed = [
       { id: 'saved-1', type: 'info', title: 'Restored', message: '', timestamp: 100, read: false },
       { id: 'saved-2', type: 'warning', title: 'Also restored', message: '', timestamp: 200, read: true },
     ]
-    sessionStorage.setItem('eigencapital_notifications', JSON.stringify(seed))
+    localStorage.setItem('eigencapital_notifications', JSON.stringify(seed))
 
     const { getNotifications } = setup()
 
@@ -370,7 +368,7 @@ describe('useNotificationCenter', () => {
 
     unmount()
 
-    // Mount a fresh provider — should read from sessionStorage
+    // Mount a fresh provider — should read from localStorage
     function Reader() {
       const { notifications } = useNotificationCenter()
       return <div data-testid="count">{notifications.length}</div>
@@ -383,15 +381,15 @@ describe('useNotificationCenter', () => {
     expect(screen.getByTestId('count').textContent).toBe('1')
   })
 
-  it('handles corrupted sessionStorage gracefully', () => {
-    sessionStorage.setItem('eigencapital_notifications', 'not-valid-json{{{')
+  it('handles corrupted localStorage gracefully', () => {
+    localStorage.setItem('eigencapital_notifications', 'not-valid-json{{{')
 
     const { getNotifications } = setup()
     expect(getNotifications()).toEqual([])
   })
 
-  it('starts empty when sessionStorage is missing', () => {
-    sessionStorage.removeItem('eigencapital_notifications')
+  it('starts empty when localStorage is missing', () => {
+    localStorage.removeItem('eigencapital_notifications')
 
     const { getNotifications } = setup()
     expect(getNotifications()).toEqual([])

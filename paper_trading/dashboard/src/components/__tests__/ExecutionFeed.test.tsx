@@ -207,19 +207,19 @@ describe('ExecutionFeed', () => {
 
   it('renders asset names in table', () => {
     renderWithQuery(<ExecutionFeed />)
-    expect(screen.getByText('EURUSD')).toBeInTheDocument()
-    expect(screen.getByText('GBPUSD')).toBeInTheDocument()
+    expect(screen.getAllByText('EURUSD').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('GBPUSD').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders signal badges', () => {
     renderWithQuery(<ExecutionFeed />)
-    expect(screen.getByText('LONG')).toBeInTheDocument()
-    expect(screen.getByText('SHORT')).toBeInTheDocument()
+    expect(screen.getAllByText('LONG').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('SHORT').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows HALTED status for halted assets', () => {
     renderWithQuery(<ExecutionFeed />)
-    expect(screen.getByText('HALTED')).toBeInTheDocument()
+    expect(screen.getAllByText('HALTED').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows PASS status for non-halted assets', () => {
@@ -236,7 +236,7 @@ describe('ExecutionFeed', () => {
   it('shows size percentage when sizing_chain is available', () => {
     renderWithQuery(<ExecutionFeed />)
     // EURUSD has sizing_chain.final_pct = 0.05 → 5.0%
-    expect(screen.getByText('5.0%')).toBeInTheDocument()
+    expect(screen.getAllByText('5.0%').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows dash when size is not available', () => {
@@ -247,12 +247,12 @@ describe('ExecutionFeed', () => {
 
   it('shows abort gate detail for halted assets', () => {
     renderWithQuery(<ExecutionFeed />)
-    expect(screen.getByText('drawdown')).toBeInTheDocument()
+    expect(screen.getAllByText('drawdown').length).toBeGreaterThanOrEqual(1)
   })
 
   it('calls setSelectedAsset on row click', () => {
     renderWithQuery(<ExecutionFeed />)
-    fireEvent.click(screen.getByText('EURUSD'))
+    fireEvent.click(screen.getAllByText('EURUSD')[0])
     expect(mockSetSelectedAsset).toHaveBeenCalledWith('EURUSD')
   })
 

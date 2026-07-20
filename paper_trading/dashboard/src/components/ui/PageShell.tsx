@@ -14,7 +14,7 @@ interface PageShellProps {
 
 function formatAge(now: number, ts: number): string {
   const s = Math.floor((now - ts) / 1000)
-  if (s < 5) return 'just now'
+  if (s < 0 || s < 5) return 'just now'
   return `${s}s ago`
 }
 
@@ -47,16 +47,19 @@ export default function PageShell({ isPending, isError, error, hasData, skeleton
     return <div aria-busy="true">{skeleton}</div>
   }
 
+  const serverTimeDisplay = serverTime
+    ? (() => {
+        const ts = new Date(serverTime).getTime()
+        return isNaN(ts) ? serverTime : formatAge(now, ts)
+      })()
+    : null
+
   return (
     <>
-      {serverTime && (
-        <div className="flex justify-end mb-1">
-          <span className="text-[10px] text-muted font-mono tabular-nums">
-            Updated{' '}
-            {(() => {
-              const ts = new Date(serverTime).getTime()
-              return isNaN(ts) ? serverTime : formatAge(now, ts)
-            })()}
+      {serverTimeDisplay && (
+        <div className="flex justify-end mb-2.5">
+          <span className="text-[10px] text-tertiary font-mono tabular-nums">
+            updated {serverTimeDisplay}
           </span>
         </div>
       )}

@@ -32,6 +32,11 @@ export function playAlertSound() {
   if (isSoundEnabled()) playBeep()
 }
 
+/** Play a preview beep regardless of the sound-enabled toggle. */
+export function playTestSound() {
+  playBeep()
+}
+
 export function useSoundAlerts() {
   const [enabled, setEnabled] = useState(isSoundEnabled)
 

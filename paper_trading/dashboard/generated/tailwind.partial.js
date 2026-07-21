@@ -49,13 +49,25 @@ export default {
     "ink": "var(--color-ink)",
     "rule": "var(--color-rule)",
     "signal-long": {
-      "DEFAULT": "var(--color-signal-long)"
+      "DEFAULT": "var(--color-signal-long)",
+      "muted": "var(--color-signal-long-muted)",
+      "muted2": "var(--color-signal-long-muted2)",
+      "light": "var(--color-signal-long-light)",
+      "dark": "var(--color-signal-long-dark)"
     },
     "signal-warn": {
-      "DEFAULT": "var(--color-signal-warn)"
+      "DEFAULT": "var(--color-signal-warn)",
+      "muted": "var(--color-signal-warn-muted)",
+      "muted2": "var(--color-signal-warn-muted2)",
+      "light": "var(--color-signal-warn-light)",
+      "dark": "var(--color-signal-warn-dark)"
     },
     "signal-short": {
-      "DEFAULT": "var(--color-signal-short)"
+      "DEFAULT": "var(--color-signal-short)",
+      "muted": "var(--color-signal-short-muted)",
+      "muted2": "var(--color-signal-short-muted2)",
+      "light": "var(--color-signal-short-light)",
+      "dark": "var(--color-signal-short-dark)"
     },
     "tripwire": "var(--color-tripwire)",
     "accent-glow": "var(--color-accent-glow)",
@@ -69,30 +81,15 @@ export default {
     "interactive-hover": "var(--color-interactive-hover)",
     "interactive-active": "var(--color-interactive-active)",
     "interactive-selected": "var(--color-interactive-selected)",
-    "gov-green": {
-      "DEFAULT": "var(--color-gov-green)",
-      "muted": "var(--color-gov-green-muted)",
-      "muted2": "var(--color-gov-green-muted2)"
+    "signal-init": {
+      "DEFAULT": "var(--color-signal-init)",
+      "muted": "var(--color-signal-init-muted)",
+      "muted2": "var(--color-signal-init-muted2)"
     },
-    "gov-yellow": {
-      "DEFAULT": "var(--color-gov-yellow)",
-      "muted": "var(--color-gov-yellow-muted)",
-      "muted2": "var(--color-gov-yellow-muted2)"
-    },
-    "gov-red": {
-      "DEFAULT": "var(--color-gov-red)",
-      "muted": "var(--color-gov-red-muted)",
-      "muted2": "var(--color-gov-red-muted2)"
-    },
-    "gov-init": {
-      "DEFAULT": "var(--color-gov-init)",
-      "muted": "var(--color-gov-init-muted)",
-      "muted2": "var(--color-gov-init-muted2)"
-    },
-    "gov-gray": {
-      "DEFAULT": "var(--color-gov-gray)",
-      "muted": "var(--color-gov-gray-muted)",
-      "muted2": "var(--color-gov-gray-muted2)"
+    "signal-gray": {
+      "DEFAULT": "var(--color-signal-gray)",
+      "muted": "var(--color-signal-gray-muted)",
+      "muted2": "var(--color-signal-gray-muted2)"
     },
     "accent-emerald": "var(--color-accent-emerald)",
     "accent-blue": "var(--color-accent-blue)",
@@ -199,6 +196,10 @@ export default {
     "hero": "var(--tracking-hero)"
   },
   "boxShadow": {
+    "elevation-1": "var(--shadow-elevation-1)",
+    "elevation-2": "var(--shadow-elevation-2)",
+    "elevation-3": "var(--shadow-elevation-3)",
+    "elevation-4": "var(--shadow-elevation-4)",
     "panel": "var(--shadow-panel)",
     "card": "var(--shadow-card)",
     "modal": "var(--shadow-modal)",

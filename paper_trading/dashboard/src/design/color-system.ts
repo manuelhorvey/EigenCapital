@@ -48,12 +48,9 @@
 //                                       pages should *also* enter
 //                                       EmergencyHaltBanner.
 //
-// Existing CSS-variable names below (color-app, color-text-primary,
-// color-gov-green, etc.) are preserved verbatim so the Tailwind
-// utility surface is unchanged for every consumer. The new token
-// names below (ink / panel / rule / signal-long / etc.) are layered
-// alongside for new components; migration to the role-named surface
-// is a future phase.
+// Token names below signal their *role* (ink / panel / rule / signal-long / etc.).
+// All tokens use the canonical signal-* naming convention. The migration from
+// the legacy gov-* names is complete — no gov-* tokens remain.
 // ──────────────────────────────────────────────────────────────────
 
 export const rawTokens = {
@@ -106,13 +103,14 @@ export const rawTokens = {
   'color-panel-hover': '#161820',
 
   // ── Role-named tokens (canonical names) ───────────
-  // These shadow the existing gov-*/border-* tokens. New components
-  // should prefer these; migration of existing consumers is incremental.
-  'color-ink': '#07080b',                    // same as color-app
-  'color-rule': '#1e2233',                   // same as color-border
-  'color-signal-long': '#25d065',            // same as color-gov-green
-  'color-signal-warn': '#eab308',            // same as color-gov-yellow
-  'color-signal-short': '#f04444',           // same as color-gov-red
+  // Role-named tokens — canonical names for all semantic colors.
+  // These are the single source of truth; component files use
+  // signal-* Tailwind classes (bg-signal-long, text-signal-warn, etc.).
+  'color-ink': '#07080b',
+  'color-rule': '#1e2233',
+  'color-signal-long': '#25d065',
+  'color-signal-warn': '#eab308',
+  'color-signal-short': '#f04444',
   'color-tripwire': '#ff3864',               // distinct from signal-short — brighter, more urgent
   'color-accent-glow': 'rgba(61, 217, 174, 0.3)',
 
@@ -204,13 +202,9 @@ export const rawTokens = {
   'dense-font-size': '10px',
   'dense-line-height': '1.3',
 
-  // ── Signal-* complete token sets (matching gov-* completeness) ─
-  // These are the canonical signal tokens. The legacy gov-* tokens are
-  // kept for backward compatibility. New components should use signal-*.
-  //
-  // Note: signal-*-muted2 intentionally aliases gov-*-muted2 at the same
-  // opacity (0.06 dark / 0.08 light). This is not a bug — it creates a
-  // clean migration path where new signal-* consumers don't import gov-*.
+  // ── Signal-* complete token sets ─────────────────
+  // These are the canonical signal tokens with muted, muted2, light, and
+  // dark variants for each. Every component should use signal-* tokens.
   'color-signal-long-muted': 'rgba(37, 208, 101, 0.12)',
   'color-signal-long-muted2': 'rgba(37, 208, 101, 0.06)',
   'color-signal-warn-muted': 'rgba(234, 179, 8, 0.12)',

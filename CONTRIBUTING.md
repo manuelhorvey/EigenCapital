@@ -33,6 +33,7 @@ npm run build         # Must pass
 - **Types**: Avoid `any`. Use Zod schemas for API response validation.
 - **Data flow**: Only `AppShell` and derivation hooks may read the full state bundle. All components must use `useSystemSnapshot(selector)`.
 - **Components**: Prefer `memo()` + sliced selectors to avoid unnecessary re-renders.
+- **Chart accessibility**: Every visual chart component (Recharts, SVG, CSS-based) MUST include a `<ChartDataTable>` as an `sr-only` accessible data equivalent. This ensures screen reader users can navigate the underlying numbers in a structured table format. See `src/components/ui/ChartDataTable.tsx` for the component interface and examples in `EquityChart.tsx`, `DrawdownChart.tsx`, `GovernanceRadar.tsx`, `PnLDrillDown.tsx`, `MaeMfeScatter.tsx`, `PnLWaterfall.tsx`, `SlippageHistogram.tsx`, `FeatureImportanceChart.tsx`, `RiskBudgetChart.tsx`, `PerformanceStateVelocityChart.tsx`, `FactorExposureBreakdown.tsx`, and `EquityCurveWithRange.tsx`.
 
 ## Git Workflow
 

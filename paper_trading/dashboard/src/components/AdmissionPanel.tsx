@@ -5,9 +5,9 @@ import Panel from './ui/Panel'
 import { Skeleton } from './ui/Skeleton'
 
 function pctColor(ratio: number): string {
-  if (ratio > 0.8) return 'var(--color-gov-red)'
-  if (ratio > 0.5) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-green)'
+  if (ratio > 0.8) return 'var(--color-signal-short)'
+  if (ratio > 0.5) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-long)'
 }
 
 /** PEK admission summary showing intents, admitted, rejected, and budget notional. */
@@ -49,15 +49,15 @@ export default function AdmissionPanel() {
 
         {adm.admitted && adm.admitted.length > 0 && (
           <div className="text-2xs text-tertiary">
-            <span className="font-medium text-gov-green/80">Admitted: </span>
+            <span className="font-medium text-signal-long/80">Admitted: </span>
             <span className="font-mono">{adm.admitted.join(', ')}</span>
           </div>
         )}
 
         {adm.rejected && adm.rejected.length > 0 && (
           <div className="text-2xs text-tertiary">
-            <span className="font-medium text-gov-red/80">Rejected: </span>
-            <span className="font-mono text-gov-red/70">{adm.rejected.join(', ')}</span>
+            <span className="font-medium text-signal-short/80">Rejected: </span>
+            <span className="font-mono text-signal-short/70">{adm.rejected.join(', ')}</span>
           </div>
         )}
       </div>

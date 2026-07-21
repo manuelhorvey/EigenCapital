@@ -10,7 +10,7 @@ describe('OverviewTab', () => {
     const buyElements = screen.getAllByText('BUY')
     expect(buyElements.length).toBe(2)
     expect(screen.getByText('68.5')).toBeInTheDocument() // confidence
-    expect(screen.getByText('GREEN')).toBeInTheDocument() // validity state
+    expect(screen.getByText('LONG')).toBeInTheDocument() // validity state
     expect(screen.getByText('ACTIVE')).toBeInTheDocument() // execution state
   })
 

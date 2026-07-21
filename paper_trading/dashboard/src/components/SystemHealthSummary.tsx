@@ -27,8 +27,8 @@ export default function SystemHealthSummary() {
   }
 
   const cfg = toBadgeConfig(portfolio.system_status)
-  const pnlColor = (portfolio.pnl.total ?? 0) >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
-  const mt5Color = portfolio.execution.mt5_sync === 'HEALTHY' ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)'
+  const pnlColor = (portfolio.pnl.total ?? 0) >= 0 ? 'var(--color-signal-long)' : 'var(--color-signal-short)'
+  const mt5Color = portfolio.execution.mt5_sync === 'HEALTHY' ? 'var(--color-signal-long)' : 'var(--color-signal-warn)'
 
   return (
     <Panel padding="md" variant={portfolio.system_status === 'ALERT' ? 'elevated' : 'default'}>
@@ -64,7 +64,7 @@ export default function SystemHealthSummary() {
           label="Drawdown"
           value={`${(portfolio.risk.drawdown * 100).toFixed(1)}%`}
           sub={`Conc: ${portfolio.risk.concentration_risk.toLowerCase()}`}
-          accent={(portfolio.risk.drawdown ?? 0) > 0.05 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'}
+          accent={(portfolio.risk.drawdown ?? 0) > 0.05 ? 'var(--color-signal-warn)' : 'var(--color-signal-long)'}
           variant="compact"
         />
         <StatCard

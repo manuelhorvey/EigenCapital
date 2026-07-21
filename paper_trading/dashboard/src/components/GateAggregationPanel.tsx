@@ -68,7 +68,7 @@ export default function GateAggregationPanel() {
                 </span>
                 <div className="flex-1 h-4 bg-panel rounded overflow-hidden">
                   <div
-                    className="h-full rounded bg-gov-red/60 transition-all duration-300"
+                    className="h-full rounded bg-signal-short/60 transition-all duration-300"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

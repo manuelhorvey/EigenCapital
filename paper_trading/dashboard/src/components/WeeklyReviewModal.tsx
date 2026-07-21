@@ -20,11 +20,11 @@ function formatPnl(v: number): string {
 }
 
 function pnlColor(v: number): string {
-  return v > 0 ? 'var(--color-gov-green)' : v < 0 ? 'var(--color-gov-red)' : 'var(--color-text-secondary)'
+  return v > 0 ? 'var(--color-signal-long)' : v < 0 ? 'var(--color-signal-short)' : 'var(--color-text-secondary)'
 }
 
 function pctColor(v: number): string {
-  return v > 0 ? 'var(--color-gov-green)' : v < 0 ? 'var(--color-gov-red)' : 'var(--color-text-secondary)'
+  return v > 0 ? 'var(--color-signal-long)' : v < 0 ? 'var(--color-signal-short)' : 'var(--color-text-secondary)'
 }
 
 function textClassToVar(cls: string): string {
@@ -37,7 +37,7 @@ function DeltaArrow({ value }: { value: number }) {
   if (value === 0) return null
   const up = value > 0
   return (
-    <span className={`inline-flex items-center gap-0.5 text-2xs font-medium ${up ? 'text-gov-green' : 'text-gov-red'}`}>
+    <span className={`inline-flex items-center gap-0.5 text-2xs font-medium ${up ? 'text-signal-long' : 'text-signal-short'}`}>
       {up ? <TrendingUp className="w-2.5 h-2.5" strokeWidth={2} /> : <TrendingDown className="w-2.5 h-2.5" strokeWidth={2} />}
       {up ? '+' : ''}{value.toFixed(1)}pp
     </span>
@@ -50,12 +50,12 @@ function SummaryGrid({ summary, vsPrior }: { summary: WeeklyReview['summary']; v
       <StatCard label="Trades" value={String(summary.n_trades)} accent={textClassToVar(summary.n_trades > 0 ? 'text-primary' : 'text-tertiary')} variant="kpi" />
       <StatCard label="Win Rate" value={`${(summary.win_rate * 100).toFixed(0)}%`} accent={pctColor(summary.win_rate - 0.5)} variant="kpi" />
       <StatCard label="Avg R" value={summary.avg_r.toFixed(2)} accent={pnlColor(summary.avg_r)} variant="kpi" />
-      <StatCard label="Profit Factor" value={summary.profit_factor !== null ? summary.profit_factor.toFixed(2) : '—'} accent={textClassToVar(summary.profit_factor !== null && summary.profit_factor >= 1 ? 'text-gov-green' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="Profit Factor" value={summary.profit_factor !== null ? summary.profit_factor.toFixed(2) : '—'} accent={textClassToVar(summary.profit_factor !== null && summary.profit_factor >= 1 ? 'text-signal-long' : 'text-tertiary')} variant="kpi" />
       <StatCard label="Total PnL" value={formatPnl(summary.total_pnl)} accent={pnlColor(summary.total_pnl)} variant="kpi" />
-      <StatCard label="TP Rate" value={`${(summary.tp_rate * 100).toFixed(0)}%`} accent={textClassToVar(summary.tp_rate > summary.sl_rate ? 'text-gov-green' : 'text-tertiary')} variant="kpi" />
-      <StatCard label="SL Rate" value={`${(summary.sl_rate * 100).toFixed(0)}%`} accent={textClassToVar(summary.sl_rate > 0.3 ? 'text-gov-red' : 'text-tertiary')} variant="kpi" />
-      <StatCard label="Best R" value={summary.best_r_multiple.toFixed(2)} accent="var(--color-gov-green)" variant="kpi" />
-      <StatCard label="Worst R" value={summary.worst_r_multiple.toFixed(2)} accent="var(--color-gov-red)" variant="kpi" />
+      <StatCard label="TP Rate" value={`${(summary.tp_rate * 100).toFixed(0)}%`} accent={textClassToVar(summary.tp_rate > summary.sl_rate ? 'text-signal-long' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="SL Rate" value={`${(summary.sl_rate * 100).toFixed(0)}%`} accent={textClassToVar(summary.sl_rate > 0.3 ? 'text-signal-short' : 'text-tertiary')} variant="kpi" />
+      <StatCard label="Best R" value={summary.best_r_multiple.toFixed(2)} accent="var(--color-signal-long)" variant="kpi" />
+      <StatCard label="Worst R" value={summary.worst_r_multiple.toFixed(2)} accent="var(--color-signal-short)" variant="kpi" />
       {vsPrior && (
         <div className="col-span-full flex items-center gap-3 pt-1 border-t border-default">
           <span className="text-2xs text-tertiary font-medium uppercase tracking-wider">vs prior week</span>
@@ -92,7 +92,7 @@ function AssetBreakdown({ byAsset }: { byAsset: WeeklyReview['by_asset'] }) {
                 <td className="py-1.5 pr-3 text-primary font-medium">{a.asset}</td>
                 <td className="py-1.5 px-2 text-right text-secondary">{a.n_trades}</td>
                 <td className="py-1.5 px-2 text-right" style={{ color: pctColor(a.win_rate - 0.5) }}>{(a.win_rate * 100).toFixed(0)}%</td>
-                <td className="py-1.5 px-2 text-right" style={{ color: a.tp_rate > a.sl_rate ? 'var(--color-gov-green)' : 'var(--color-text-tertiary)' }}>{(a.tp_rate * 100).toFixed(0)}%</td>
+                <td className="py-1.5 px-2 text-right" style={{ color: a.tp_rate > a.sl_rate ? 'var(--color-signal-long)' : 'var(--color-text-tertiary)' }}>{(a.tp_rate * 100).toFixed(0)}%</td>
                 <td className="py-1.5 px-2 text-right" style={{ color: pnlColor(a.avg_r) }}>{a.avg_r.toFixed(2)}</td>
                 <td className="py-1.5 pl-2 text-right" style={{ color: pnlColor(a.pnl) }}>{formatPnl(a.pnl)}</td>
               </tr>
@@ -111,9 +111,9 @@ function ExitBreakdown({ breakdown }: { breakdown: WeeklyReview['exit_reason_bre
     <div>
       <h3 className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Exit Reasons</h3>
       <div className="flex items-center gap-3 text-2xs flex-wrap">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-green" /> TP {breakdown.TP}</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-red" /> SL {breakdown.SL}</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-yellow" /> Flip {breakdown.FLIP}</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-long" /> TP {breakdown.TP}</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-short" /> SL {breakdown.SL}</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-warn" /> Flip {breakdown.FLIP}</span>
         {breakdown.BREAKEVEN > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-tertiary/40" /> BE {breakdown.BREAKEVEN}</span>}
         {breakdown.other > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-tertiary" /> Other {breakdown.other}</span>}
       </div>
@@ -137,7 +137,7 @@ function TopTrades({ trades, label, up }: { trades: Record<string, unknown>[]; l
                 <span className="text-2xs font-medium text-primary truncate">{asset}</span>
                 <span className="text-[10px] text-tertiary">{reason}</span>
               </div>
-              <span className={`text-2xs font-mono font-medium shrink-0 ${up ? 'text-gov-green' : 'text-gov-red'}`}>
+              <span className={`text-2xs font-mono font-medium shrink-0 ${up ? 'text-signal-long' : 'text-signal-short'}`}>
                 {up ? '+' : ''}{ret.toFixed(2)}R
               </span>
             </div>
@@ -178,7 +178,7 @@ function GovernanceSummary({ gov }: { gov: WeeklyReview['governance_summary'] })
           Most common: {gov.most_common_validity}
         </span>
         {gov.halted_assets.length > 0 && (
-          <span className="flex items-center gap-1 text-gov-red">
+          <span className="flex items-center gap-1 text-signal-short">
             <AlertTriangle className="w-3 h-3" strokeWidth={1.5} />
             {gov.halted_assets.length} halted
           </span>

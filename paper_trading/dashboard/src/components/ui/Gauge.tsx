@@ -7,9 +7,9 @@ interface GaugeProps {
 }
 
 function valueColor(pct: number): string {
-  if (pct >= 0.8) return 'var(--color-gov-green)'
-  if (pct >= 0.5) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-red)'
+  if (pct >= 0.8) return 'var(--color-signal-long)'
+  if (pct >= 0.5) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-short)'
 }
 
 /** Circular SVG gauge with animated arc, auto-colored by value threshold (green/yellow/red). */

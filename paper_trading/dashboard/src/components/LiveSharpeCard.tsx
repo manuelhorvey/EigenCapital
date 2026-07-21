@@ -41,7 +41,7 @@ export default function LiveSharpeCard() {
         label: 'Cycle Sharpe (adj)',
         value: ls.cycle_level.sharpe_adj.toFixed(2),
         sub: `ρ=${ls.cycle_level.autocorrelation.toFixed(2)} · ${ls.cycle_level.n_cycles} cycles`,
-        accent: ls.cycle_level.sharpe_adj >= 1 ? 'var(--color-gov-green)' : ls.cycle_level.sharpe_adj >= 0 ? 'var(--color-gov-yellow)' : 'var(--color-gov-red)',
+        accent: ls.cycle_level.sharpe_adj >= 1 ? 'var(--color-signal-long)' : ls.cycle_level.sharpe_adj >= 0 ? 'var(--color-signal-warn)' : 'var(--color-signal-short)',
       })
     }
 
@@ -52,7 +52,7 @@ export default function LiveSharpeCard() {
           label: `${window} Sharpe`,
           value: d.sharpe_adj.toFixed(2),
           sub: `PSR ${(d.psr_gt_0 * 100).toFixed(0)}% · ${d.n_days}d`,
-          accent: d.sharpe_adj >= 1 ? 'var(--color-gov-green)' : d.sharpe_adj >= 0 ? 'var(--color-gov-yellow)' : 'var(--color-gov-red)',
+          accent: d.sharpe_adj >= 1 ? 'var(--color-signal-long)' : d.sharpe_adj >= 0 ? 'var(--color-signal-warn)' : 'var(--color-signal-short)',
         })
       }
     }
@@ -62,7 +62,7 @@ export default function LiveSharpeCard() {
         label: 'Total Return',
         value: `${(ls.portfolio.total_return_pct >= 0 ? '+' : '')}${ls.portfolio.total_return_pct.toFixed(2)}%`,
         sub: `DD ${(ls.portfolio.max_drawdown_pct ?? 0).toFixed(2)}%`,
-        accent: ls.portfolio.total_return_pct >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)',
+        accent: ls.portfolio.total_return_pct >= 0 ? 'var(--color-signal-long)' : 'var(--color-signal-short)',
       })
     }
 
@@ -71,7 +71,7 @@ export default function LiveSharpeCard() {
         label: 'Slippage RMS',
         value: `${ls.slippage.model_timing_gap_pct?.toFixed(2)}%`,
         sub: `p90 ${ls.slippage.p90_gap_pct?.toFixed(2)}% · ${ls.slippage.n_samples} samples`,
-        accent: (ls.slippage.model_timing_gap_pct ?? 0) < 0.5 ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)',
+        accent: (ls.slippage.model_timing_gap_pct ?? 0) < 0.5 ? 'var(--color-signal-long)' : 'var(--color-signal-warn)',
       })
     }
 

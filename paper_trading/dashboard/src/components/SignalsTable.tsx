@@ -9,7 +9,7 @@ import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import EmptyState from './ui/EmptyState'
 import { TableSkeleton } from './ui/Skeleton'
-import { confToState, ddToState, governanceText } from './ui/governance'
+import { confToState, ddToState, signalText } from './ui/governance'
 
 interface SignalRow {
   name: string
@@ -40,9 +40,9 @@ function rowState(r: SignalRow): 'halted' | 'tripwire' | 'sellOnly' | 'normal' {
 }
 
 const stateAccent: Record<ReturnType<typeof rowState>, string> = {
-  halted: 'border-l-gov-red',
-  tripwire: 'border-l-gov-red',
-  sellOnly: 'border-l-gov-yellow',
+  halted: 'border-l-signal-short',
+  tripwire: 'border-l-signal-short',
+  sellOnly: 'border-l-signal-warn',
   normal: 'border-l-transparent',
 }
 
@@ -54,15 +54,15 @@ const stateLabel: Record<ReturnType<typeof rowState>, string | null> = {
 }
 
 const stateLabelClass: Record<ReturnType<typeof rowState>, string> = {
-  halted: 'text-gov-red',
-  tripwire: 'text-gov-red',
-  sellOnly: 'text-gov-yellow',
+  halted: 'text-signal-short',
+  tripwire: 'text-signal-short',
+  sellOnly: 'text-signal-warn',
   normal: '',
 }
 
 function DirectionGlyph({ signal }: { signal: string }) {
-  if (signal === 'BUY') return <><TrendingUp className="w-3.5 h-3.5 text-gov-green" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Buy signal</span></>
-  if (signal === 'SELL') return <><TrendingDown className="w-3.5 h-3.5 text-gov-red" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Sell signal</span></>
+  if (signal === 'BUY') return <><TrendingUp className="w-3.5 h-3.5 text-signal-long" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Buy signal</span></>
+  if (signal === 'SELL') return <><TrendingDown className="w-3.5 h-3.5 text-signal-short" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">Sell signal</span></>
   return <><Minus className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} aria-hidden="true" /><span className="sr-only">Flat signal</span></>
 }
 
@@ -162,13 +162,13 @@ function SignalsTable() {
             label={`Confidence ${r.confidence.toFixed(0)}% for ${r.signal}`}
             color={
               r.confidence >= 60
-                ? 'var(--color-gov-green)'
+                ? 'var(--color-signal-long)'
                 : r.confidence >= 45
-                  ? 'var(--color-gov-yellow)'
-                  : 'var(--color-gov-red)'
+                  ? 'var(--color-signal-warn)'
+                  : 'var(--color-signal-short)'
             }
           />
-          <span className={`font-mono tabular-nums text-[10px] ${governanceText[confToState(r.confidence)]}`}>
+          <span className={`font-mono tabular-nums text-[10px] ${signalText[confToState(r.confidence)]}`}>
             {r.confidence.toFixed(0)}
           </span>
         </div>
@@ -191,7 +191,7 @@ function SignalsTable() {
         const good = r.sharpe >= 0.5
         return (
           <div className="text-right">
-            <span className={`font-mono tabular-nums text-xs font-semibold ${good ? 'text-gov-green' : 'text-gov-red'}`}>
+            <span className={`font-mono tabular-nums text-xs font-semibold ${good ? 'text-signal-long' : 'text-signal-short'}`}>
               {r.sharpe.toFixed(1)}
             </span>
             <div className="font-mono tabular-nums text-[10px] text-tertiary">
@@ -214,10 +214,10 @@ function SignalsTable() {
       sortKey: r => r.ret,
       render: r => (
         <div className="text-right">
-          <span className={`font-mono tabular-nums text-xs ${r.ret >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+          <span className={`font-mono tabular-nums text-xs ${r.ret >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
             {r.ret >= 0 ? '+' : ''}{r.ret.toFixed(2)}
           </span>
-          <div className={`font-mono tabular-nums text-[10px] ${governanceText[ddToState(r.dd)]}`}>
+          <div className={`font-mono tabular-nums text-[10px] ${signalText[ddToState(r.dd)]}`}>
             {r.dd.toFixed(1)} dd
           </div>
         </div>
@@ -243,8 +243,8 @@ function SignalsTable() {
         return (
           <div className="flex justify-end">
             <div className="w-12 h-1.5 rounded-full overflow-hidden flex bg-surface" role="img" aria-label={`Exit mix: ${tpShare.toFixed(0)}% TP, ${(100 - tpShare).toFixed(0)}% SL`}>
-              <div className="h-full bg-gov-green" style={{ width: `${tpShare}%` }} />
-              <div className="h-full bg-gov-red" style={{ width: `${100 - tpShare}%` }} />
+              <div className="h-full bg-signal-long" style={{ width: `${tpShare}%` }} />
+              <div className="h-full bg-signal-short" style={{ width: `${100 - tpShare}%` }} />
             </div>
           </div>
         )
@@ -264,7 +264,7 @@ function SignalsTable() {
         <div className="text-right">
           <span className="font-mono tabular-nums text-xs text-secondary">{(r.alloc * 100).toFixed(1)}%</span>
           {r.unrealizedPnl != null && (
-            <div className={`font-mono tabular-nums text-[10px] ${r.unrealizedPnl >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+            <div className={`font-mono tabular-nums text-[10px] ${r.unrealizedPnl >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
               {r.unrealizedPnl >= 0 ? '+' : ''}{r.unrealizedPnl.toFixed(0)} uPnL
             </div>
           )}

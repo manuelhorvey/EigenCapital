@@ -19,12 +19,12 @@ const HEALTHY_ASSETS: Record<string, unknown> = {
   EURUSD: {
     asset: 'EURUSD', health_score: 0.92, health_label: 'healthy', health_color: 'green',
     components: { validity: 0.9, drift: 0.85, pnl_stability: 0.95, shadow_agreement: 0.88, stress_robustness: 0.9 },
-    limiting_factors: [], validity_state: 'GREEN',
+    limiting_factors: [], validity_state: 'LONG',
   },
   GBPUSD: {
     asset: 'GBPUSD', health_score: 0.88, health_label: 'healthy', health_color: 'green',
     components: { validity: 0.85, drift: 0.8, pnl_stability: 0.9, shadow_agreement: 0.85, stress_robustness: 0.88 },
-    limiting_factors: [], validity_state: 'GREEN',
+    limiting_factors: [], validity_state: 'LONG',
   },
 }
 

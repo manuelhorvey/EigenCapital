@@ -13,9 +13,9 @@ interface CardDef {
 }
 
 function scalarColor(v: number, threshold = 0.7): string {
-  if (v >= threshold) return 'var(--color-gov-green)'
-  if (v >= threshold * 0.6) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-red)'
+  if (v >= threshold) return 'var(--color-signal-long)'
+  if (v >= threshold * 0.6) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-short)'
 }
 
 function CardSection({ title, cards, grid, variant = 'kpi' }: { title: string; cards: CardDef[]; grid: string; variant?: 'kpi' | 'compact' }) {

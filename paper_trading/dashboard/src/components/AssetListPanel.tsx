@@ -62,20 +62,20 @@ function AssetListPanelInner({ onSelectAsset }: AssetListPanelProps) {
           <div className="sm:hidden space-y-2">
             {assetList.map((asset) => {
               const pnl = asset.pnl_state.unrealized
-              const pnlCls = pnl >= 0 ? 'text-gov-green' : 'text-gov-red'
+              const pnlCls = pnl >= 0 ? 'text-signal-long' : 'text-signal-short'
               const eff = asset.pnl_state.efficiency
               const effCls =
                 eff === 'HIGH'
-                  ? 'text-gov-green'
+                  ? 'text-signal-long'
                   : eff === 'LOW'
-                  ? 'text-gov-red'
+                  ? 'text-signal-short'
                   : 'text-tertiary'
               const riskCls =
                 asset.risk_state.level === 'HIGH'
-                  ? 'text-gov-red'
+                  ? 'text-signal-short'
                   : asset.risk_state.level === 'MEDIUM'
-                  ? 'text-gov-yellow'
-                  : 'text-gov-green'
+                  ? 'text-signal-warn'
+                  : 'text-signal-long'
               const exit = asset.exit_state
               const phaseLabel =
                 exit.phase === 'BREAKEVEN'
@@ -87,9 +87,9 @@ function AssetListPanelInner({ onSelectAsset }: AssetListPanelProps) {
                   : 'Static'
               const exitCls =
                 exit.phase === 'TRAILING'
-                  ? 'text-gov-green'
+                  ? 'text-signal-long'
                   : exit.phase === 'BREAKEVEN' || exit.phase === 'DECAY'
-                  ? 'text-gov-yellow'
+                  ? 'text-signal-warn'
                   : 'text-tertiary'
               const driver = asset.risk_state.drivers[0]
               return (
@@ -110,8 +110,8 @@ function AssetListPanelInner({ onSelectAsset }: AssetListPanelProps) {
                           <span
                             className={`text-[10px] font-bold ${
                               asset.direction === 'LONG'
-                                ? 'text-gov-green'
-                                : 'text-gov-red'
+                                ? 'text-signal-long'
+                                : 'text-signal-short'
                             }`}
                             aria-label={
                               asset.direction === 'LONG'

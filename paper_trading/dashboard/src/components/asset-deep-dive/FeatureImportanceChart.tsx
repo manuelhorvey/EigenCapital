@@ -1,4 +1,5 @@
 import { BarChart3 } from 'lucide-react'
+import ChartDataTable from '../ui/ChartDataTable'
 
 interface FeatureItem {
   feature?: string | null
@@ -26,6 +27,16 @@ export default function FeatureImportanceChart({ features }: { features: Feature
         <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} />
         Feature Importance
       </h3>
+      <ChartDataTable
+        title="Feature Importance"
+        columns={[
+          { key: 'feature', label: 'Feature' },
+          { key: 'importance', label: 'Importance (%)', format: v => `${(Number(v) * 100).toFixed(1)}%` },
+          { key: 'type', label: 'Type' },
+        ]}
+        data={features.slice(0, 15) as unknown as Record<string, unknown>[]}
+        summary={`Feature importance for top ${Math.min(features.length, 15)} features`}
+      />
       <div className="space-y-1">
         {features.slice(0, 15).map((f, i) => {
           const imp = f.importance ?? 0

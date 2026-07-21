@@ -2,13 +2,14 @@ import { useMemo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
+import ChartDataTable from './ui/ChartDataTable'
 import { Skeleton } from './ui/Skeleton'
 
 function exposureColor(exposure: number, violation: string | null): string {
-  if (violation) return 'var(--color-gov-red)'
-  if (exposure > 0.15) return 'var(--color-gov-yellow)'
-  if (exposure < -0.15) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-green)'
+  if (violation) return 'var(--color-signal-short)'
+  if (exposure > 0.15) return 'var(--color-signal-warn)'
+  if (exposure < -0.15) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-long)'
 }
 
 /** Factor exposure bars with centered-zero visualization and violation highlights. */
@@ -34,11 +35,21 @@ export default function FactorExposureBreakdown() {
         <div className="flex items-center justify-between">
           <span className="text-2xs text-tertiary font-medium uppercase tracking-wider">Factor Exposures</span>
           {!fe.within_limits && (
-            <span className="text-[10px] font-bold text-gov-red bg-gov-red/10 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-signal-short bg-signal-short/10 px-2 py-0.5 rounded-full">
               {fe.n_violations} violation{fe.n_violations !== 1 ? 's' : ''}
             </span>
           )}
         </div>
+        <ChartDataTable
+          title="Factor Exposures"
+          columns={[
+            { key: 'factor', label: 'Factor' },
+            { key: 'exposure', label: 'Exposure (%)', format: v => `${(Number(v) * 100).toFixed(1)}%` },
+            { key: 'violation', label: 'Violation', format: (v: unknown): string => String(v ?? '') || '—' },
+          ]}
+          data={rows as unknown as Record<string, unknown>[]}
+          summary={`Factor exposures for ${rows?.length || 0} factors`}
+        />
         <div className="space-y-1.5">
           {rows?.map(({ factor, exposure, violation }) => {
             const pct = (exposure * 100).toFixed(1)

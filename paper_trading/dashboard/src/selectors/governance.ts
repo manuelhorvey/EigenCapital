@@ -84,7 +84,7 @@ export function selectGovernanceSummary(snapshot: EngineSnapshot): {
   return {
     total: states.length,
     halted: states.filter(s => s.halted).length,
-    healthy: states.filter(s => s.validityState === 'GREEN' || s.validityState === 'YELLOW').length,
+    healthy: states.filter(s => s.validityState === 'LONG' || s.validityState === 'WARN').length,
     floorActive: states.filter(s => s.floorActive).length,
   }
 }

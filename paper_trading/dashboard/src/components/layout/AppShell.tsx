@@ -14,6 +14,7 @@ import EmergencyHaltBanner from '../EmergencyHaltBanner'
 import KeyboardShortcuts from './KeyboardShortcuts'
 import CommandPalette from '../CommandPalette'
 import NotificationCenter from '../NotificationCenter'
+import { PAGE_CONTAINER } from '../../design/grid'
 
 interface AppShellProps {
   children: ReactNode
@@ -60,15 +61,20 @@ export default function AppShell({ children }: AppShellProps) {
     )
   }
 
+  // Context actions slot for per-page action buttons in the TopBar.
+  // Phase 3 will wire this to a context provider so pages can register
+  // custom actions (e.g. "Export CSV" on Reports, "Add Filter" on Trading).
+  const pageContextActions: React.ReactNode = null
+
   return (
     <div className="min-h-screen bg-app text-secondary flex flex-col">
       <a href={`#${mainId}`} className="skip-link">Skip to main content</a>
-      <TopBar onToggleSidebar={toggleSidebar} onToggleNotifications={toggleNotifications} />
+      <TopBar onToggleSidebar={toggleSidebar} onToggleNotifications={toggleNotifications} contextActions={pageContextActions} />
       <TabBar />
       <SystemDegradedBanner integrity={integrity} />
       <EmergencyHaltBanner />
 
-      <div className="flex-1 flex relative max-w-[90rem] 2xl:max-w-[120rem] mx-auto w-full">
+      <div className={`flex-1 flex relative ${PAGE_CONTAINER}`}>
         <Sidebar open={sidebarOpen} onClose={closeSidebar} />
 
         <div className="flex-1 flex flex-col min-w-0">

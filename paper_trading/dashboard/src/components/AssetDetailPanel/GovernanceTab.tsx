@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import { AssetStateSchema } from '../../lib/schemas'
 
 type AssetState = z.infer<typeof AssetStateSchema>
-import { governanceText } from '../ui/governance'
+import { signalText } from '../ui/governance'
 import { MetricRow, Section, CollapsibleSection } from './helpers'
 
 interface GovernanceTabProps {
@@ -25,7 +25,7 @@ export default function GovernanceTab({ asset }: GovernanceTabProps) {
               className="h-full rounded-full transition-all"
               style={{
                 width: `${((asset.validity_exposure ?? 0) * 100).toFixed(0)}%`,
-                backgroundColor: (asset.validity_exposure ?? 0) >= 0.7 ? 'var(--color-gov-green, #22c55e)' : (asset.validity_exposure ?? 0) >= 0.4 ? 'var(--color-gov-yellow, #eab308)' : 'var(--color-gov-red, #ef4444)',
+                backgroundColor: (asset.validity_exposure ?? 0) >= 0.7 ? 'var(--color-signal-long, #22c55e)' : (asset.validity_exposure ?? 0) >= 0.4 ? 'var(--color-signal-warn, #eab308)' : 'var(--color-signal-short, #ef4444)',
               }}
             />
           </div>
@@ -45,7 +45,7 @@ export default function GovernanceTab({ asset }: GovernanceTabProps) {
       </Section>
 
       <Section title="Halt Checks">
-        <MetricRow label="Halted" value={h?.halted ? 'Yes' : 'No'} valueClass={h?.halted ? governanceText.RED : governanceText.GREEN} />
+        <MetricRow label="Halted" value={h?.halted ? 'Yes' : 'No'} valueClass={h?.halted ? signalText.SHORT : signalText.LONG} />
         <MetricRow label="Drawdown OK" value={h?.drawdown_ok ? 'Yes' : 'No'} />
         <MetricRow label="Monthly PF OK" value={h?.monthly_pf_ok ? 'Yes' : 'No'} />
         <MetricRow label="Drought OK" value={h?.drought_ok ? 'Yes' : 'No'} />
@@ -54,13 +54,13 @@ export default function GovernanceTab({ asset }: GovernanceTabProps) {
         <MetricRow label="Liquidity OK" value={h?.liquidity_ok ? 'Yes' : 'No'} />
         <MetricRow label="PSI OK" value={h?.psi_ok ? 'Yes' : 'No'} />
         {h?.halted && (
-          <div className="text-xs text-gov-red font-medium mt-1">⛔ {h.reasons.join('; ')}</div>
+          <div className="text-xs text-signal-short font-medium mt-1">⛔ {h.reasons.join('; ')}</div>
         )}
       </Section>
 
       {psi && (
         <Section title="PSI Drift">
-          <MetricRow label="Worst" value={psi.worst_classification} valueClass={psi.worst_classification === 'severe' ? governanceText.RED : psi.worst_classification === 'moderate' ? governanceText.YELLOW : ''} />
+          <MetricRow label="Worst" value={psi.worst_classification} valueClass={psi.worst_classification === 'severe' ? signalText.SHORT : psi.worst_classification === 'moderate' ? signalText.WARN : ''} />
           <MetricRow label="Moderate" value={String(psi.moderate_count)} />
           <MetricRow label="Severe" value={String(psi.severe_count)} />
           {psi.per_feature && psi.per_feature.length > 0 && (
@@ -76,12 +76,12 @@ export default function GovernanceTab({ asset }: GovernanceTabProps) {
       {m.meta_inference && (
         <Section title="Meta-Labeling">
           <MetricRow label="Meta Confidence" value={m.meta_inference.meta_confidence?.toFixed(4) ?? '—'} />
-          <MetricRow label="Meta Decision" value={m.meta_inference.meta_decision ?? '—'} valueClass={m.meta_inference.meta_decision === 'BLOCK' ? governanceText.RED : governanceText.GREEN} />
+          <MetricRow label="Meta Decision" value={m.meta_inference.meta_decision ?? '—'} valueClass={m.meta_inference.meta_decision === 'BLOCK' ? signalText.SHORT : signalText.LONG} />
         </Section>
       )}
 
       {asset.soft_warnings?.length > 0 && (
-        <div className="text-xs text-gov-yellow font-medium">⚠ Warnings: {asset.soft_warnings.join(', ')}</div>
+        <div className="text-xs text-signal-warn font-medium">⚠ Warnings: {asset.soft_warnings.join(', ')}</div>
       )}
     </>
   )

@@ -6,7 +6,7 @@ interface BarRowProps {
   /** 0..1, displayed as 0..100% on the right cap */
   value: number
   /** Tailwind bg-* class or CSS color value controlling filled segment colour.
-   *  Accepts Tailwind classes like 'bg-gov-green' or CSS values like 'var(--color-accent-blue)'. */
+   *  Accepts Tailwind classes like 'bg-signal-long' or CSS values like 'var(--color-accent-blue)'. */
   color: string
   /** When true, 'color' is treated as a CSS value (via style.backgroundColor) rather than a Tailwind class. */
   cssColor?: boolean
@@ -48,9 +48,9 @@ interface ProgressBarProps {
 
 function resolveColor(v: number, max: number): string {
   const pct = (v / max) * 100
-  if (pct >= 80) return 'bg-gov-green'
-  if (pct >= 50) return 'bg-gov-yellow'
-  return 'bg-gov-red'
+  if (pct >= 80) return 'bg-signal-long'
+  if (pct >= 50) return 'bg-signal-warn'
+  return 'bg-signal-short'
 }
 
 /** Standalone progress bar with optional label and auto color (green/yellow/red by threshold). */

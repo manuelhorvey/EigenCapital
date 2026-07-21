@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { vi, beforeEach } from 'vitest'
+import { beforeEach } from 'vitest'
 
 // ── EventSource polyfill ─────────────────────────────────────────
 // JSDOM does not implement EventSource; provide a minimal mock so
@@ -9,9 +9,9 @@ class MockEventSource {
   static OPEN = 1
   static CLOSED = 2
   readyState: number = MockEventSource.CONNECTING
-  onopen: ((this: EventSource, ev: Event) => unknown) | null = null
-  onmessage: ((this: EventSource, ev: MessageEvent) => unknown) | null = null
-  onerror: ((this: EventSource, ev: Event) => unknown) | null = null
+  onopen: ((ev: Event) => void) | null = null
+  onmessage: ((ev: MessageEvent) => void) | null = null
+  onerror: ((ev: Event) => void) | null = null
   url: string
   withCredentials: boolean = false
   private _closed = false

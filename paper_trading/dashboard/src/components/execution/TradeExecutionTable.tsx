@@ -89,15 +89,15 @@ export default function TradeExecutionTable() {
                 <span className="w-[100px] shrink-0 py-1.5 pr-2">
                   <Badge variant={archVariant === 'success' ? 'success' : 'neutral'}>{t.pred_archetype_at_entry}</Badge>
                 </span>
-                <span className={`flex-1 text-right py-1.5 pr-2 font-mono tabular-nums ${t.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>{t.exit_realized_r.toFixed(2)}</span>
+                <span className={`flex-1 text-right py-1.5 pr-2 font-mono tabular-nums ${t.exit_realized_r >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>{t.exit_realized_r.toFixed(2)}</span>
                 <span className="flex-1 text-right py-1.5 pr-2 font-mono tabular-nums text-secondary">{t.friction_entry_slippage_bps.toFixed(1)}</span>
                 <span className="flex-1 text-right py-1.5 pr-2 font-mono tabular-nums text-secondary">{t.friction_exit_slippage_bps.toFixed(1)}</span>
                 <span className="w-[60px] shrink-0 text-right py-1.5 pr-2 font-mono tabular-nums text-secondary">
                   {t.friction_fill_qty_ratio != null ? `${(t.friction_fill_qty_ratio * 100).toFixed(0)}%` : '—'}
                 </span>
                 <span className="w-[48px] shrink-0 text-right py-1.5 pr-2 font-mono tabular-nums text-secondary">{t.friction_latency_bars ?? '—'}</span>
-                <span className="w-[64px] shrink-0 text-right py-1.5 pr-2 font-mono tabular-nums text-gov-red">{t.exit_mae.toFixed(2)}</span>
-                <span className="w-[64px] shrink-0 text-right py-1.5 pr-2 font-mono tabular-nums text-gov-green">{t.exit_mfe.toFixed(2)}</span>
+                <span className="w-[64px] shrink-0 text-right py-1.5 pr-2 font-mono tabular-nums text-signal-short">{t.exit_mae.toFixed(2)}</span>
+                <span className="w-[64px] shrink-0 text-right py-1.5 pr-2 font-mono tabular-nums text-signal-long">{t.exit_mfe.toFixed(2)}</span>
                 <span className="w-[64px] shrink-0 text-right py-1.5 font-mono tabular-nums pr-3">
                   <Badge variant={reasonToBadge(t.exit_exit_reason)}>{t.exit_exit_reason ?? '—'}</Badge>
                 </span>
@@ -122,7 +122,7 @@ export default function TradeExecutionTable() {
   // ── Mobile card list ───────────────────────────────────────────
   const mobileCardItems = filtered.map(t => {
     const key = rowKey(t)
-    const rColor = t.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'
+    const rColor = t.exit_realized_r >= 0 ? 'text-signal-long' : 'text-signal-short'
     return {
       id: key,
       onClick: () => toggleRow(key),
@@ -158,9 +158,9 @@ export default function TradeExecutionTable() {
             <div>
               <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary">MAE / MFE</dt>
               <dd className="text-xs font-mono tabular-nums mt-0.5">
-                <span className="text-gov-red">{t.exit_mae.toFixed(2)}</span>
+                <span className="text-signal-short">{t.exit_mae.toFixed(2)}</span>
                 <span className="text-tertiary mx-0.5">/</span>
-                <span className="text-gov-green">{t.exit_mfe.toFixed(2)}</span>
+                <span className="text-signal-long">{t.exit_mfe.toFixed(2)}</span>
               </dd>
             </div>
             <div className="text-right">

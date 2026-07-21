@@ -35,7 +35,7 @@ export default function MaeMfeScatter({ trades }: { trades: TradePoint[] }) {
             <svg viewBox="0 0 400 400" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
               <line x1="50" y1="350" x2="350" y2="350" stroke="var(--color-border)" strokeWidth="1" />
               <line x1="50" y1="50" x2="50" y2="350" stroke="var(--color-border)" strokeWidth="1" />
-              <line x1="50" y1="350" x2="350" y2="50" stroke="var(--color-gov-green)" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.3" />
+              <line x1="50" y1="350" x2="350" y2="50" stroke="var(--color-signal-long)" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.3" />
               {trades.map((t, i) => {
                 const mae = Math.abs(t.mae ?? 0)
                 const mfe = Math.abs(t.mfe ?? 0)
@@ -44,7 +44,7 @@ export default function MaeMfeScatter({ trades }: { trades: TradePoint[] }) {
                 const isWin = (t.return ?? 0) > 0
                 return (
                   <g key={i}>
-                    <circle cx={x} cy={y} r="5" fill={isWin ? 'var(--color-gov-green)' : 'var(--color-gov-red)'} opacity="0.7">
+                    <circle cx={x} cy={y} r="5" fill={isWin ? 'var(--color-signal-long)' : 'var(--color-signal-short)'} opacity="0.7">
                       <title>{`${t.side} ${t.entry_date}: MAE=${mae.toFixed(1)}% MFE=${mfe.toFixed(1)}% R=${t.return?.toFixed(2) ?? '?'}`}</title>
                     </circle>
                   </g>
@@ -55,8 +55,8 @@ export default function MaeMfeScatter({ trades }: { trades: TradePoint[] }) {
             </svg>
           </div>
           <div className="flex items-center gap-4 mt-2 text-2xs text-tertiary">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-green inline-block" /> Win</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gov-red inline-block" /> Loss</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-long inline-block" /> Win</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-signal-short inline-block" /> Loss</span>
             <span className="text-muted">|</span>
             <span>{trades.length} trades</span>
           </div>

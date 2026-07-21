@@ -80,7 +80,7 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
                           <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
                           <BarRow label="Prediction" value={scores.prediction_score} color="var(--color-accent-blue)" cssColor />
                           <BarRow label="Execution" value={scores.execution_score} color="var(--color-accent-purple)" cssColor />
-                          <BarRow label="Exit" value={scores.exit_score} color="var(--color-gov-green)" cssColor />
+                          <BarRow label="Exit" value={scores.exit_score} color="var(--color-signal-long)" cssColor />
                           <BarRow label="Friction" value={scores.friction_score} color="var(--color-accent-amber)" cssColor />
                         </div>
 
@@ -95,7 +95,7 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
                           </div>
                           <div className="space-y-1">
                             <p className="text-2xs text-tertiary">Realized R</p>
-                            <p className={`text-xs font-mono font-bold ${attribution.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+                            <p className={`text-xs font-mono font-bold ${attribution.exit_realized_r >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
                               {attribution.exit_realized_r.toFixed(2)}
                             </p>
                           </div>
@@ -123,7 +123,7 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
         {attribution && (
           <div className="flex items-center justify-between px-4 py-2 border-t border-default bg-surface/50 text-2xs text-tertiary shrink-0 rounded-b-xl">
             <span>Trade #{attribution.trade_id}</span>
-            <span>PnL: <span className={attribution.realized_pnl >= 0 ? 'text-gov-green' : 'text-gov-red'}>
+            <span>PnL: <span className={attribution.realized_pnl >= 0 ? 'text-signal-long' : 'text-signal-short'}>
               {attribution.realized_pnl >= 0 ? '+' : ''}{attribution.realized_pnl.toFixed(2)}
             </span></span>
           </div>

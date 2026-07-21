@@ -34,7 +34,7 @@ export default function GovernanceStatusGrid({ layers }: GovernanceStatusGridPro
 
           return (
             <div key={layer.name} className={`border border-default rounded-lg px-2.5 py-2 transition-all duration-200 hover:border-strong ${
-              layer.status === 'critical' ? 'bg-gov-red-muted2' : layer.status === 'warning' ? 'bg-gov-yellow-muted2' : 'bg-surface/30'
+              layer.status === 'critical' ? 'bg-signal-short-muted2' : layer.status === 'warning' ? 'bg-signal-warn-muted2' : 'bg-surface/30'
             }`} role="listitem">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="text-2xs font-semibold text-primary">{layer.name}</span>

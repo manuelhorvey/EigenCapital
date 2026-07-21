@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "validate": "tsc -b --noEmit && vitest run",
-    "check-bundle-size": "tsx scripts/check-bundle-size.ts"
+    "check-bundle-size": "tsx scripts/check-bundle-size.ts",
+    "check-a11y": "tsx scripts/check-a11y.ts",
+    "a11y:update-baseline": "tsx scripts/check-a11y.ts --update-baseline"
   },
   "dependencies": {
     "@sentry/browser": "^10.64.0",

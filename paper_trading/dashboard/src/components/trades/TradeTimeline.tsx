@@ -35,7 +35,7 @@ export default function TradeTimeline({ data }: TradeTimelineProps) {
       type: 'GOVERNANCE CHECK',
       color: 'text-accent-emerald',
       lines: [
-        { label: 'Direction Correct', value: data.pred_forecast_direction_correct === null ? '—' : data.pred_forecast_direction_correct ? 'Yes' : 'No', color: data.pred_forecast_direction_correct ? 'text-gov-green' : 'text-gov-red' },
+        { label: 'Direction Correct', value: data.pred_forecast_direction_correct === null ? '—' : data.pred_forecast_direction_correct ? 'Yes' : 'No', color: data.pred_forecast_direction_correct ? 'text-signal-long' : 'text-signal-short' },
       ],
     },
     {
@@ -46,7 +46,7 @@ export default function TradeTimeline({ data }: TradeTimelineProps) {
       lines: [
         { label: 'Price', value: `$${data.entry_price.toFixed(2)}` },
         { label: 'Type', value: data.exec_entry_type },
-        { label: 'Slippage', value: `${data.friction_entry_slippage_bps.toFixed(1)} bps`, color: data.friction_entry_slippage_bps > 5 ? 'text-gov-red' : 'text-gov-green' },
+        { label: 'Slippage', value: `${data.friction_entry_slippage_bps.toFixed(1)} bps`, color: data.friction_entry_slippage_bps > 5 ? 'text-signal-short' : 'text-signal-long' },
         { label: 'Fill', value: `${((data.friction_fill_qty_ratio ?? 1) * 100).toFixed(0)}%` },
       ],
     },
@@ -54,10 +54,10 @@ export default function TradeTimeline({ data }: TradeTimelineProps) {
       icon: Flag,
       time: data.exit_date,
       type: 'EXIT',
-      color: 'text-gov-yellow',
+      color: 'text-signal-warn',
       lines: [
         { label: 'Reason', value: data.exit_exit_reason ?? '' },
-        { label: 'Realized R', value: data.exit_realized_r.toFixed(2), color: data.exit_realized_r >= 0 ? 'text-gov-green' : 'text-gov-red' },
+        { label: 'Realized R', value: data.exit_realized_r.toFixed(2), color: data.exit_realized_r >= 0 ? 'text-signal-long' : 'text-signal-short' },
         { label: 'MAE / MFE', value: `${data.exit_mae.toFixed(1)} / ${data.exit_mfe.toFixed(1)}` },
         { label: 'Bars Held', value: String(data.exit_bars_held) },
       ],

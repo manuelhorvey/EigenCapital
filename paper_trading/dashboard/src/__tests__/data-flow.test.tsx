@@ -191,7 +191,7 @@ function makeValidBundle(opts: MakeBundleOpts = {}) {
             liquidity_ok: true,
             psi_ok: true,
           },
-          validity_state: 'GREEN',
+          validity_state: 'LONG',
           validity_exposure: 1,
           last_signal: finalSignal
             ? {
@@ -259,7 +259,7 @@ function makeValidBundle(opts: MakeBundleOpts = {}) {
               stress_robustness: 0.8,
             },
             limiting_factors: [],
-            validity_state: 'GREEN',
+            validity_state: 'LONG',
           },
         },
         system_health: {

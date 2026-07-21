@@ -4,9 +4,9 @@ import Badge from './ui/Badge'
 import StatCard from './ui/StatCard'
 
 const trendConfig = {
-  EXPANDING: { variant: 'success' as const, label: 'Expanding', color: 'var(--color-gov-green)' },
-  STABLE: { variant: 'default' as const, label: 'Stable', color: 'var(--color-gov-green)' },
-  DECAYING: { variant: 'warning' as const, label: 'Decaying', color: 'var(--color-gov-yellow)' },
+  EXPANDING: { variant: 'success' as const, label: 'Expanding', color: 'var(--color-signal-long)' },
+  STABLE: { variant: 'default' as const, label: 'Stable', color: 'var(--color-signal-long)' },
+  DECAYING: { variant: 'warning' as const, label: 'Decaying', color: 'var(--color-signal-warn)' },
 } as const
 
 /** Edge health panel showing trend direction (expanding/stable/decaying) and reversal rate. */

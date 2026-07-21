@@ -1,12 +1,13 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import ChartContainer from '../ui/ChartContainer'
+import ChartDataTable from '../ui/ChartDataTable'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
 const COLORS = {
-  prediction_pnl: 'var(--color-gov-green)',
-  execution_cost: 'var(--color-gov-red)',
-  exit_cost: 'var(--color-gov-yellow)',
+  prediction_pnl: 'var(--color-signal-long)',
+  execution_cost: 'var(--color-signal-short)',
+  exit_cost: 'var(--color-signal-warn)',
   friction_cost: 'var(--color-accent-purple)',
 }
 
@@ -20,7 +21,7 @@ export default function PnLWaterfall() {
     { name: 'Execution\nCost', value: -data.execution_cost, fill: COLORS.execution_cost },
     { name: 'Exit\nCost', value: -data.exit_cost, fill: COLORS.exit_cost },
     { name: 'Friction\nCost', value: -data.friction_cost, fill: COLORS.friction_cost },
-    { name: 'Net PnL', value: data.net_pnl, fill: data.net_pnl >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)' },
+    { name: 'Net PnL', value: data.net_pnl, fill: data.net_pnl >= 0 ? 'var(--color-signal-long)' : 'var(--color-signal-short)' },
   ] : []
   const netPnl = data?.net_pnl ?? 0
   const chartLabel = data
@@ -37,6 +38,15 @@ export default function PnLWaterfall() {
       chartLabel={chartLabel}
     >
       <p className="sr-only">{chartLabel}</p>
+      <ChartDataTable
+        title="PnL Decomposition"
+        columns={[
+          { key: 'name', label: 'Component', format: v => String(v).replace('\n', ' ') },
+          { key: 'value', label: 'Value ($)', format: v => `$${Number(v).toFixed(2)}` },
+        ]}
+        data={chartData as unknown as Record<string, unknown>[]}
+        summary={`PnL decomposition for ${data?.n || 0} closed trades. Net PnL: $${netPnl.toFixed(2)}`}
+      />
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />

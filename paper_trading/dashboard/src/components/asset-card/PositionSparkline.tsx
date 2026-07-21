@@ -77,8 +77,8 @@ export default function PositionSparkline({
   const toward = side === 'long'
     ? prices[prices.length - 1] >= entry
     : prices[prices.length - 1] <= entry
-  const lineColor = toward ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
-  const lineColorMuted = toward ? 'var(--color-gov-green-muted)' : 'var(--color-gov-red-muted)'
+  const lineColor = toward ? 'var(--color-signal-long)' : 'var(--color-signal-short)'
+  const lineColorMuted = toward ? 'var(--color-signal-long-muted)' : 'var(--color-signal-short-muted)'
 
   // Bands: TP zone shade (side), SL zone shade (opposite of TP), entry line.
   const tpY = tp != null ? yFor(tp) : null
@@ -94,7 +94,7 @@ export default function PositionSparkline({
       y={Math.min(entryY, tpY!)}
       width={width}
       height={Math.abs(entryY - tpY!)}
-      fill="var(--color-gov-green)"
+      fill="var(--color-signal-long)"
       fillOpacity={0.08}
     />
   ) : null
@@ -105,7 +105,7 @@ export default function PositionSparkline({
       y={Math.min(entryY, slY!)}
       width={width}
       height={Math.abs(entryY - slY!)}
-      fill="var(--color-gov-red)"
+      fill="var(--color-signal-short)"
       fillOpacity={0.08}
     />
   ) : null

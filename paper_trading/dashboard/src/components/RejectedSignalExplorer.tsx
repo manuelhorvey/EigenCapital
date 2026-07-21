@@ -30,7 +30,7 @@ export default function RejectedSignalExplorer() {
           {entries.map(([asset, reason]) => (
             <div key={asset} className="flex items-center justify-between py-1 px-2 rounded bg-red-500/5 text-xs">
               <span className="font-medium text-primary font-mono">{asset}</span>
-              <span className="text-gov-red/80 font-mono ml-2 truncate max-w-[200px]">{reason}</span>
+              <span className="text-signal-short/80 font-mono ml-2 truncate max-w-[200px]">{reason}</span>
             </div>
           ))}
         </div>

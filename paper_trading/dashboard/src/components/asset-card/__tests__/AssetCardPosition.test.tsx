@@ -57,7 +57,7 @@ describe('AssetCardPosition', () => {
     }
     const { container } = render(<AssetCardPosition info={info} />)
     expect(screen.getByText(/SHORT/)).toBeInTheDocument()
-    expect(container.innerHTML).toContain('gov-red')
+    expect(container.innerHTML).toContain('signal-short')
   })
 
   it('renders unrealized PnL when present', () => {
@@ -78,7 +78,7 @@ describe('AssetCardPosition', () => {
     }
     const { container } = render(<AssetCardPosition info={info} />)
     expect(screen.getByText(/-10\.00 uPnL/)).toBeInTheDocument()
-    expect(container.innerHTML).toContain('gov-red')
+    expect(container.innerHTML).toContain('signal-short')
   })
 
   it('renders TP and SL distances with percentages', () => {

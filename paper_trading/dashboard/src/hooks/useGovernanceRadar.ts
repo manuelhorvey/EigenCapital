@@ -80,7 +80,7 @@ export function useGovernanceRadar(): {
     // PSI drift penalty
     if (psiDrift > 0.2) {
       const affected = assets
-        .filter(a => a.validity_state === 'HALTED' || a.validity_state === 'RED')
+        .filter(a => a.validity_state === 'HALTED' || a.validity_state === 'SHORT')
         .map(a => a.metrics?.asset ?? '—')
       entries.push({
         layer: 'PSI Drift',

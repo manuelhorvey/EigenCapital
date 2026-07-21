@@ -15,9 +15,9 @@ function Stat({
   tone?: 'good' | 'warn' | 'bad'
 }) {
   const cls =
-    tone === 'good' ? 'text-gov-green'
-    : tone === 'warn' ? 'text-gov-yellow'
-    : tone === 'bad' ? 'text-gov-red'
+    tone === 'good' ? 'text-signal-long'
+    : tone === 'warn' ? 'text-signal-warn'
+    : tone === 'bad' ? 'text-signal-short'
     : 'text-primary'
   return (
     <div className="px-3 py-2 min-w-0">

@@ -17,7 +17,7 @@ const ICON_COLORS: Record<string, string> = {
   inbox: 'text-tertiary/40',
   search: 'text-tertiary/40',
   chart: 'text-accent-blue/50',
-  warning: 'text-gov-yellow/50',
+  warning: 'text-signal-warn/50',
   clock: 'text-accent-purple/50',
   activity: 'text-accent-emerald/50',
 }

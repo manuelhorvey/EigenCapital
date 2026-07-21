@@ -7,9 +7,9 @@ interface BudgetGaugeProps {
 
 function budgetColor(ratio: number): string {
   // >1.0 means over budget → red; >0.8 → yellow; otherwise green
-  if (ratio >= 1.0) return 'var(--color-gov-red)'
-  if (ratio >= 0.8) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-green)'
+  if (ratio >= 1.0) return 'var(--color-signal-short)'
+  if (ratio >= 0.8) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-long)'
 }
 
 /** Color-coded horizontal bar showing PEK budget utilization with backfeed status. */
@@ -28,8 +28,8 @@ export default function BudgetGauge({ utilization }: BudgetGaugeProps) {
           Budget Utilization
         </span>
         {overrun ? (
-          <span className="text-[10px] font-mono font-semibold text-gov-red tabular-nums">
-            {pct}% <span className="text-gov-red/70">(backfeed active)</span>
+          <span className="text-[10px] font-mono font-semibold text-signal-short tabular-nums">
+            {pct}% <span className="text-signal-short/70">(backfeed active)</span>
           </span>
         ) : (
           <span

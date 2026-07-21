@@ -50,7 +50,7 @@ export default function SizingTab({ asset }: SizingTabProps) {
             <MetricRow label="Leverage Budget" value={sc.leverage_budget != null ? `$${Number(sc.leverage_budget).toFixed(2)}` : '—'} />
             <MetricRow label="Final Notional" value={sc.final_notional != null ? `$${Number(sc.final_notional).toFixed(2)}` : '—'} />
             <MetricRow label="Quantity" value={sc.quantity != null ? Number(sc.quantity).toFixed(6) : '—'} />
-            {sc.reason && <MetricRow label="Skip Reason" value={String(sc.reason)} valueClass="text-gov-yellow" />}
+            {sc.reason && <MetricRow label="Skip Reason" value={String(sc.reason)} valueClass="text-signal-warn" />}
           </>
         ) : (
           <MetricRow label="Active Sizing" value="No entry attempted" />

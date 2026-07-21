@@ -72,7 +72,7 @@ const CommandCenter = memo(function CommandCenter({ onSelectAsset }: CommandCent
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-medium text-tertiary uppercase tracking-wider">Positions</span>
                 {showEdgeWarning && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gov-yellow/10 border border-gov-yellow/20 text-[10px] text-gov-yellow">
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-signal-warn/10 border border-signal-warn/20 text-[10px] text-signal-warn">
                     <AlertTriangle className="w-3 h-3" strokeWidth={2} />
                     Edge decaying — monitor reversals
                   </div>

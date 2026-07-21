@@ -24,8 +24,8 @@ export default function MetricsSummary({ metrics }: { metrics: Record<string, un
         Key Metrics
       </h3>
       <div className="grid grid-cols-2 gap-3">
-        <MetricBox label="Total Return" value={m.total_return != null ? `${(m.total_return as number) >= 0 ? '+' : ''}${(m.total_return as number).toFixed(1)}%` : '—'} color={(m.total_return as number) >= 0 ? 'text-gov-green' : 'text-gov-red'} />
-        <MetricBox label="Drawdown" value={m.drawdown != null ? `${(m.drawdown as number).toFixed(1)}%` : '—'} color={(m.drawdown as number) < -5 ? 'text-gov-red' : ''} />
+        <MetricBox label="Total Return" value={m.total_return != null ? `${(m.total_return as number) >= 0 ? '+' : ''}${(m.total_return as number).toFixed(1)}%` : '—'} color={(m.total_return as number) >= 0 ? 'text-signal-long' : 'text-signal-short'} />
+        <MetricBox label="Drawdown" value={m.drawdown != null ? `${(m.drawdown as number).toFixed(1)}%` : '—'} color={(m.drawdown as number) < -5 ? 'text-signal-short' : ''} />
         <MetricBox label="Win Rate" value={pct(m.win_rate as number | null)} />
         <MetricBox label="Profit Factor" value={m.profit_factor != null ? (m.profit_factor as number).toFixed(2) : '—'} />
         <MetricBox label="Sharpe" value={m.sharpe_ratio != null ? (m.sharpe_ratio as number).toFixed(2) : '—'} />

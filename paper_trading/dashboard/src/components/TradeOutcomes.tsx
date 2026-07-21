@@ -59,10 +59,10 @@ export default function TradeOutcomes() {
       ) : (
         <>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 mb-5">
-            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="var(--color-gov-green)" />
-            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="var(--color-gov-red)" />
-            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="var(--color-gov-yellow)" />
-            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'} />
+            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="var(--color-signal-long)" />
+            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="var(--color-signal-short)" />
+            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="var(--color-signal-warn)" />
+            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? 'var(--color-signal-long)' : 'var(--color-signal-short)'} />
             <StatCard variant="kpi" label="Win Rate" value={pct(overall.win_rate)} accent="var(--color-text-secondary)" />
             <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="var(--color-text-secondary)" />
           </div>
@@ -90,14 +90,14 @@ export default function TradeOutcomes() {
                     <td className="py-2 px-2">
                       <SltpGauge tpRate={a.tp_rate} slRate={a.sl_rate} flipRate={a.signal_flip_rate} />
                     </td>
-                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.tp_rate >= 0.2 ? 'text-gov-green' : 'text-gov-yellow'}`}>
+                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.tp_rate >= 0.2 ? 'text-signal-long' : 'text-signal-warn'}`}>
                       {pct(a.tp_rate)}
                     </td>
-                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.sl_rate <= 0.6 ? 'text-secondary' : 'text-gov-red'}`}>
+                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.sl_rate <= 0.6 ? 'text-secondary' : 'text-signal-short'}`}>
                       {pct(a.sl_rate)}
                     </td>
                     <td className="text-right py-2 px-2 text-tertiary font-mono tabular-nums">{pct(a.signal_flip_rate)}</td>
-                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+                    <td className={`text-right py-2 px-2 font-mono tabular-nums ${a.avg_r >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
                       {r2(a.avg_r)}
                     </td>
                     <td className="text-right py-2 px-2 text-secondary font-mono tabular-nums">{pct(a.win_rate)}</td>
@@ -121,16 +121,16 @@ export default function TradeOutcomes() {
                     <span className="text-2xs text-tertiary">{a.n_trades} trades</span>
                   </div>
                   <div className="flex items-center gap-2 text-2xs">
-                    <span className={a.tp_rate >= 0.2 ? 'text-gov-green' : 'text-gov-yellow'}>
+                    <span className={a.tp_rate >= 0.2 ? 'text-signal-long' : 'text-signal-warn'}>
                       TP {pct(a.tp_rate)}
                     </span>
-                    <span className={a.sl_rate <= 0.6 ? 'text-tertiary' : 'text-gov-red'}>
+                    <span className={a.sl_rate <= 0.6 ? 'text-tertiary' : 'text-signal-short'}>
                       SL {pct(a.sl_rate)}
                     </span>
                     <span className="text-tertiary">Flip {pct(a.signal_flip_rate)}</span>
                   </div>
                   <div className="flex items-center gap-3 text-2xs">
-                    <span className={a.avg_r >= 0 ? 'text-gov-green' : 'text-gov-red'}>
+                    <span className={a.avg_r >= 0 ? 'text-signal-long' : 'text-signal-short'}>
                       Avg R {r2(a.avg_r)}
                     </span>
                     <span className="text-secondary">Win {pct(a.win_rate)}</span>

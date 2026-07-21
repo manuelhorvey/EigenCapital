@@ -68,10 +68,10 @@ export function pearsonCorrelation(x: number[], y: number[]): number {
 
 function corrColor(value: number): string {
   const abs = Math.abs(value)
-  if (abs < 0.3) return 'var(--color-gov-green)'
-  if (abs < 0.5) return 'var(--color-gov-yellow)'
+  if (abs < 0.3) return 'var(--color-signal-long)'
+  if (abs < 0.5) return 'var(--color-signal-warn)'
   if (abs < 0.7) return 'var(--color-chart-7)'
-  return 'var(--color-gov-red)'
+  return 'var(--color-signal-short)'
 }
 
 function corrBg(value: number, max: number): string {
@@ -146,7 +146,7 @@ const CorrelationHeatmap = memo(function CorrelationHeatmap() {
                 <td className="py-1 pr-2 font-semibold text-primary font-mono sticky left-0 bg-app z-10">
                   {row.asset}
                   {row.maxCorr > 0.7 && (
-                    <span className="ml-1 text-gov-red text-[8px]">⚠</span>
+                    <span className="ml-1 text-signal-short text-[8px]">⚠</span>
                   )}
                 </td>
                 {assets.map(target => {

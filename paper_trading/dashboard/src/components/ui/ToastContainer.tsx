@@ -12,21 +12,21 @@ const SEVERITY_CONFIG: Record<ToastType, {
 }> = {
   success: {
     icon: CheckCircle,
-    containerClass: 'border-gov-green/30 bg-gov-green-muted2',
-    iconClass: 'text-gov-green',
-    borderClass: 'border-l-gov-green',
+    containerClass: 'border-signal-long/30 bg-signal-long-muted2',
+    iconClass: 'text-signal-long',
+    borderClass: 'border-l-signal-long',
   },
   error: {
     icon: AlertCircle,
-    containerClass: 'border-gov-red/30 bg-gov-red-muted2',
-    iconClass: 'text-gov-red',
-    borderClass: 'border-l-gov-red',
+    containerClass: 'border-signal-short/30 bg-signal-short-muted2',
+    iconClass: 'text-signal-short',
+    borderClass: 'border-l-signal-short',
   },
   warning: {
     icon: AlertTriangle,
-    containerClass: 'border-gov-yellow/30 bg-gov-yellow-muted2',
-    iconClass: 'text-gov-yellow',
-    borderClass: 'border-l-gov-yellow',
+    containerClass: 'border-signal-warn/30 bg-signal-warn-muted2',
+    iconClass: 'text-signal-warn',
+    borderClass: 'border-l-signal-warn',
   },
   info: {
     icon: Info,

@@ -15,9 +15,9 @@ interface PerformancePanelProps {
 
 function statusColor(status: Metric['status']): string {
   switch (status) {
-    case 'good': return 'text-gov-green'
-    case 'warning': return 'text-gov-yellow'
-    case 'critical': return 'text-gov-red'
+    case 'good': return 'text-signal-long'
+    case 'warning': return 'text-signal-warn'
+    case 'critical': return 'text-signal-short'
     default: return 'text-secondary'
   }
 }

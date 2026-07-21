@@ -276,7 +276,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText('alive')
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-green')
+      expect(el).toHaveClass('text-signal-long')
     })
 
     it('shows engine stale with yellow tone', () => {
@@ -285,7 +285,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText('stale')
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-yellow')
+      expect(el).toHaveClass('text-signal-warn')
     })
 
     it('shows engine dead with red tone when isError is true', () => {
@@ -294,7 +294,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText('dead')
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-red')
+      expect(el).toHaveClass('text-signal-short')
     })
 
     // ── Tick age ───────────────────────────────────────────────
@@ -306,7 +306,7 @@ describe('TopBar', () => {
       // tick age should be low (under 30s) with green tone
       const tickEl = screen.getByText(/\d+s/)
       expect(tickEl).toBeInTheDocument()
-      expect(tickEl).toHaveClass('text-gov-green')
+      expect(tickEl).toHaveClass('text-signal-long')
     })
 
     it('shows stale tick age with yellow tone', () => {
@@ -315,7 +315,7 @@ describe('TopBar', () => {
       renderTopBar()
       const tickEl = screen.getByText(/\d+s/)
       expect(tickEl).toBeInTheDocument()
-      expect(tickEl).toHaveClass('text-gov-yellow')
+      expect(tickEl).toHaveClass('text-signal-warn')
     })
 
     it('shows old tick age with red tone', () => {
@@ -324,7 +324,7 @@ describe('TopBar', () => {
       renderTopBar()
       const tickEl = screen.getByText(/\d+s/)
       expect(tickEl).toBeInTheDocument()
-      expect(tickEl).toHaveClass('text-gov-red')
+      expect(tickEl).toHaveClass('text-signal-short')
     })
 
     it('does not show tick age when last_update is null', () => {
@@ -346,7 +346,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText(/\$500/)
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-yellow')
+      expect(el).toHaveClass('text-signal-warn')
     })
 
     it('shows MT5 ERROR with red tone', () => {
@@ -354,7 +354,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText('ERROR')
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-red')
+      expect(el).toHaveClass('text-signal-short')
     })
 
     it('shows MT5 disconnected with warn tone', () => {
@@ -362,7 +362,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText('disc')
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-yellow')
+      expect(el).toHaveClass('text-signal-warn')
     })
 
     it('shows MT5 unknown with muted tone', () => {
@@ -380,7 +380,7 @@ describe('TopBar', () => {
       renderTopBar()
       const el = screen.getByText('YES')
       expect(el).toBeInTheDocument()
-      expect(el).toHaveClass('text-gov-red')
+      expect(el).toHaveClass('text-signal-short')
     })
 
     it('shows halt no with muted tone when not halted', () => {

@@ -54,8 +54,8 @@ export default function AssetDetailPanel({ asset, name, onClose }: AssetDetailPa
             {asset.sell_only && (
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                 asset.tripwire_active
-                  ? 'bg-gov-red-muted text-gov-red border-gov-red/20 animate-pulse'
-                  : 'bg-gov-yellow-muted text-gov-yellow border-gov-yellow/20'
+                  ? 'bg-signal-short-muted text-signal-short border-signal-short/20 animate-pulse'
+                  : 'bg-signal-warn-muted text-signal-warn border-signal-warn/20'
               }`}>
                 {asset.tripwire_active ? 'TRIPWIRE' : 'SELL-ONLY'}
               </span>
@@ -67,10 +67,10 @@ export default function AssetDetailPanel({ asset, name, onClose }: AssetDetailPa
               <span
                 className={`flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${
                   modelStale
-                    ? 'bg-gov-red-muted text-gov-red border-gov-red/20'
+                    ? 'bg-signal-short-muted text-signal-short border-signal-short/20'
                     : modelAgeDays > 60
-                    ? 'bg-gov-yellow-muted text-gov-yellow border-gov-yellow/20'
-                    : 'bg-gov-green-muted text-gov-green border-gov-green/20'
+                    ? 'bg-signal-warn-muted text-signal-warn border-signal-warn/20'
+                    : 'bg-signal-long-muted text-signal-long border-signal-long/20'
                 }`}
                 title={`Last signal ${modelAgeDays} days ago${nTrades > 0 ? ` · ${nTrades} trades` : ''} — signal freshness, not retrain age`}
               >

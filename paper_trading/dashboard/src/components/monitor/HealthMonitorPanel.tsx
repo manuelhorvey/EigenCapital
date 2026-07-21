@@ -55,8 +55,8 @@ interface HealthCheckReport {
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 function urgencyColor(score: number): string {
-  if (score >= 0.8) return 'var(--color-gov-red)'
-  if (score >= 0.5) return 'var(--color-gov-yellow)'
+  if (score >= 0.8) return 'var(--color-signal-short)'
+  if (score >= 0.5) return 'var(--color-signal-warn)'
   if (score >= 0.3) return 'var(--color-accent-emerald)'
   return 'var(--color-text-tertiary)'
 }
@@ -133,7 +133,7 @@ export default function HealthMonitorPanel() {
           label="Needs Retrain"
           value={u.n_needs_retrain.toString()}
           sub={`threshold >${(report.config.urgency_threshold * 100).toFixed(0)}%`}
-          accent={u.n_needs_retrain > 0 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'}
+          accent={u.n_needs_retrain > 0 ? 'var(--color-signal-warn)' : 'var(--color-signal-long)'}
           variant="compact"
         />
         <StatCard
@@ -149,9 +149,9 @@ export default function HealthMonitorPanel() {
       {needsRetrain.length > 0 && (
         <Panel padding="md" variant="elevated">
           <div className="flex items-start gap-3">
-            <span className="w-2 h-2 rounded-full mt-1 shrink-0 bg-gov-yellow" />
+            <span className="w-2 h-2 rounded-full mt-1 shrink-0 bg-signal-warn" />
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-gov-yellow uppercase tracking-wider">
+              <p className="text-xs font-semibold text-signal-warn uppercase tracking-wider">
                 Retrain Recommended
               </p>
               <p className="text-xs text-tertiary mt-1 break-words">
@@ -191,13 +191,13 @@ export default function HealthMonitorPanel() {
                   <tr
                     key={a.asset}
                     className={`border-b border-default/50 hover:bg-panel/40 transition-colors ${
-                      a.needs_retrain ? 'bg-gov-yellow-muted2/20' : ''
+                      a.needs_retrain ? 'bg-signal-warn-muted2/20' : ''
                     }`}
                   >
                     <td className="py-1.5 pr-3 font-medium">
                       <span className="flex items-center gap-1.5">
                         {a.needs_retrain && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-gov-yellow shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-signal-warn shrink-0" />
                         )}
                         {a.asset}
                       </span>

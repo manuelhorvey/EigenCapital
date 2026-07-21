@@ -344,7 +344,7 @@ function makeMinimalAssetState(overrides: Partial<AssetState> = {}): AssetState 
       psi_ok: true,
       ...overrides.halt as object,
     },
-    validity_state: 'GREEN',
+    validity_state: 'LONG',
     validity_exposure: 1,
     last_signal: null,
     gate_override: false,

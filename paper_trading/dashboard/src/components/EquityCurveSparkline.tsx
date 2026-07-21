@@ -62,8 +62,8 @@ function formatAxisLabel(value: number): string {
 export default function EquityCurveSparkline({
   height = 72,
   width,
-  positiveColor = 'var(--color-gov-green)',
-  negativeColor = 'var(--color-gov-red)',
+  positiveColor = 'var(--color-signal-long)',
+  negativeColor = 'var(--color-signal-short)',
   strokeWidth = 2,
   showLabels = false,
 }: EquityCurveSparklineProps) {

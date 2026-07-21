@@ -1,5 +1,5 @@
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import { governanceText } from './governance'
+import { signalText } from './governance'
 
 interface PanelFallbackProps {
   title: string
@@ -15,7 +15,7 @@ export default function PanelFallback({ title, error, className = '', onRetry }:
   return (
     <div className={`panel rounded-lg p-4 ${className}`}>
       <div className="flex flex-col items-center justify-center py-6 gap-2">
-        <AlertTriangle className={`w-4 h-4 ${governanceText.YELLOW}`} strokeWidth={1.5} />
+        <AlertTriangle className={`w-4 h-4 ${signalText.WARN}`} strokeWidth={1.5} />
         <span className="text-xs text-tertiary font-medium">{title} — Error</span>
         {error && <span className="text-2xs text-muted font-mono max-w-xs text-center">{error.message}</span>}
         <button

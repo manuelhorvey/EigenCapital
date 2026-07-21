@@ -38,6 +38,49 @@
     text-wrap: pretty;
   }
 
+  /* Elevation surface utilities */
+  .surface-elevation-1 {
+    background: var(--surface-elevation-1);
+    box-shadow: var(--shadow-elevation-1);
+  }
+  .surface-elevation-2 {
+    background: var(--surface-elevation-2);
+    box-shadow: var(--shadow-elevation-2);
+  }
+  .surface-elevation-3 {
+    background: var(--surface-elevation-3);
+    box-shadow: var(--shadow-elevation-3);
+  }
+  .surface-elevation-4 {
+    background: var(--surface-elevation-4);
+    box-shadow: var(--shadow-elevation-4);
+  }
+
+  /* Z-index scale utilities */
+  .z-sticky   { z-index: var(--z-sticky); }
+  .z-dropdown { z-index: var(--z-dropdown); }
+  .z-drawer   { z-index: var(--z-drawer); }
+  .z-modal-backdrop { z-index: var(--z-modal-backdrop); }
+  .z-modal    { z-index: var(--z-modal); }
+  .z-toast    { z-index: var(--z-toast); }
+  .z-tooltip  { z-index: var(--z-tooltip); }
+
+  /* Data-density mode: apply .dense-data to a container to compact
+     its children. Useful for terminal-style information density. */
+  .dense-data {
+    --dense-active: 1;
+    font-size: var(--dense-font-size);
+    line-height: var(--dense-line-height);
+  }
+  .dense-data .dense-gap-1 { gap: var(--dense-spacing-1); }
+  .dense-data .dense-gap-2 { gap: var(--dense-spacing-2); }
+  .dense-data .dense-gap-3 { gap: var(--dense-spacing-3); }
+  .dense-data .dense-gap-4 { gap: var(--dense-spacing-4); }
+  .dense-data .dense-p-1  { padding: var(--dense-spacing-1); }
+  .dense-data .dense-p-2  { padding: var(--dense-spacing-2); }
+  .dense-data .dense-p-3  { padding: var(--dense-spacing-3); }
+  .dense-data .dense-p-4  { padding: var(--dense-spacing-4); }
+
   .skeleton-shimmer {
     background: linear-gradient(
       90deg,

@@ -2,11 +2,12 @@ import { useMemo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
+import ChartDataTable from './ui/ChartDataTable'
 import EmptyState from './ui/EmptyState'
 
 function budgetBar(current: number, max: number, _label: string): { pct: number; color: string } {
   const pct = max > 0 ? (current / max) * 100 : 0
-  const color = pct > 80 ? 'var(--color-gov-red)' : pct > 50 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'
+  const color = pct > 80 ? 'var(--color-signal-short)' : pct > 50 ? 'var(--color-signal-warn)' : 'var(--color-signal-long)'
   return { pct, color }
 }
 
@@ -36,6 +37,16 @@ export default function RiskBudgetChart() {
     <Panel padding="md">
       <div className="space-y-3">
         <span className="text-2xs text-tertiary font-medium uppercase tracking-wider">Risk Budget Snapshot</span>
+        <ChartDataTable
+          title="Risk Budget"
+          columns={[
+            { key: 'label', label: 'Metric' },
+            { key: 'current', label: 'Used', format: v => Number(v).toFixed(Number(v) % 1 === 0 ? 0 : 2) },
+            { key: 'max', label: 'Max', format: v => Number(v).toFixed(Number(v) % 1 === 0 ? 0 : 2) },
+          ]}
+          data={bars as unknown as Record<string, unknown>[]}
+          summary={`Risk budget snapshot with ${bars.length} metrics`}
+        />
         {bars.map(b => {
           const { pct, color } = budgetBar(b.current, b.max, b.label)
           return (

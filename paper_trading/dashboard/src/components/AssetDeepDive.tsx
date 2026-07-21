@@ -1,5 +1,5 @@
 import { X, TrendingDown } from 'lucide-react'
-import { governanceText } from './ui/governance'
+import { signalText } from './ui/governance'
 import { useAssetDeepDive } from '../hooks/useAssetDeepDive'
 import FeatureImportanceChart from './asset-deep-dive/FeatureImportanceChart'
 import MetricsSummary from './asset-deep-dive/MetricsSummary'
@@ -19,7 +19,7 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
   if (isError || !data) {
     return (
       <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center">
-        <div className="text-sm text-gov-red">Failed to load data for {name}</div>
+        <div className="text-sm text-signal-short">Failed to load data for {name}</div>
         <button type="button" onClick={onClose} className="ml-3 text-xs text-tertiary hover:text-primary underline">Close</button>
       </div>
     )
@@ -35,14 +35,14 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
           {data.sell_only && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
               data.tripwire_active
-                ? 'bg-gov-red-muted text-gov-red border-gov-red/20 animate-pulse'
-                : 'bg-gov-yellow-muted text-gov-yellow border-gov-yellow/20'
+                ? 'bg-signal-short-muted text-signal-short border-signal-short/20 animate-pulse'
+                : 'bg-signal-warn-muted text-signal-warn border-signal-warn/20'
             }`}>
               {data.tripwire_active ? 'TRIPWIRE' : 'SELL-ONLY'}
             </span>
           )}
           <span className="text-xs font-mono text-tertiary">
-            Signal: <span className={data.final_signal === 'BUY' ? governanceText.GREEN : data.final_signal === 'SELL' ? governanceText.RED : ''}>
+            Signal: <span className={data.final_signal === 'BUY' ? signalText.LONG : data.final_signal === 'SELL' ? signalText.SHORT : ''}>
               {data.final_signal ?? 'NONE'}
             </span>
           </span>
@@ -87,17 +87,17 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
                       <tr key={i} className="border-b border-default/40">
                         <td className="py-2 pr-2 text-tertiary font-mono tabular-nums">{t.exit_date?.split('T')[0] ?? t.entry_date?.split('T')[0] ?? ''}</td>
                         <td className="py-2 px-2">
-                          <span className={t.side === 'long' ? governanceText.GREEN : governanceText.RED}>
+                          <span className={t.side === 'long' ? signalText.LONG : signalText.SHORT}>
                             {t.side?.toUpperCase() ?? '—'}
                           </span>
                         </td>
                         <td className="text-right py-2 px-2 font-mono tabular-nums text-secondary">{t.entry?.toFixed(4) ?? '—'}</td>
                         <td className="text-right py-2 px-2 font-mono tabular-nums text-secondary">{t.exit?.toFixed(4) ?? '—'}</td>
-                        <td className={`text-right py-2 px-2 font-mono tabular-nums ${(t.return ?? 0) >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+                        <td className={`text-right py-2 px-2 font-mono tabular-nums ${(t.return ?? 0) >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
                           {t.return != null ? `${t.return >= 0 ? '+' : ''}${t.return.toFixed(2)}R` : '—'}
                         </td>
-                        <td className="text-right py-2 px-2 font-mono tabular-nums text-gov-red">{t.mae != null ? `${t.mae.toFixed(1)}%` : '—'}</td>
-                        <td className="text-right py-2 px-2 font-mono tabular-nums text-gov-green">{t.mfe != null ? `${t.mfe.toFixed(1)}%` : '—'}</td>
+                        <td className="text-right py-2 px-2 font-mono tabular-nums text-signal-short">{t.mae != null ? `${t.mae.toFixed(1)}%` : '—'}</td>
+                        <td className="text-right py-2 px-2 font-mono tabular-nums text-signal-long">{t.mfe != null ? `${t.mfe.toFixed(1)}%` : '—'}</td>
                         <td className="py-2 pl-2 text-tertiary">{t.reason ?? '—'}</td>
                       </tr>
                     ))}

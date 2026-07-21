@@ -82,7 +82,7 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
         meta={
           <div className="flex items-center gap-2 text-[10px] text-tertiary font-mono">
             {blockedCount > 0 && (
-              <span className="text-gov-yellow font-semibold">{blockedCount} blocked</span>
+              <span className="text-signal-warn font-semibold">{blockedCount} blocked</span>
             )}
             <span>{data?.timestamp ? formatTimeAgo(data.timestamp) : ''}</span>
           </div>
@@ -121,17 +121,17 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
                   </td>
                   <td className="py-1.5 pr-2">
                     {c.halted ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gov-red">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-signal-short">
                         <Ban className="w-3 h-3" strokeWidth={2} />
                         HALTED
                       </span>
                     ) : isPass ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gov-green">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-signal-long">
                         <CheckCircle className="w-3 h-3" strokeWidth={2} />
                         PASS
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gov-yellow">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-signal-warn">
                         <XCircle className="w-3 h-3" strokeWidth={2} />
                         {c.gatesResult}
                       </span>
@@ -154,7 +154,7 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
         items={displayed.map(c => ({
           id: c.asset,
           onClick: () => setSelectedAsset(c.asset),
-          accent: c.gatesResult === 'PASS' ? 'var(--color-gov-green)' : c.halted ? 'var(--color-gov-red)' : 'var(--color-gov-yellow)',
+          accent: c.gatesResult === 'PASS' ? 'var(--color-signal-long)' : c.halted ? 'var(--color-signal-short)' : 'var(--color-signal-warn)',
           content: (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -166,7 +166,7 @@ const ExecutionFeed = /*#__PURE__*/ React.memo(function ExecutionFeed() {
               <div className="flex items-center gap-3 text-2xs">
                 <span className="text-tertiary">Conf {c.confidence.toFixed(0)}</span>
                 <span className="text-primary">{c.size ?? '—'}</span>
-                <span className={c.halted ? 'text-gov-red' : c.gatesResult === 'PASS' ? 'text-gov-green' : 'text-gov-yellow'}>
+                <span className={c.halted ? 'text-signal-short' : c.gatesResult === 'PASS' ? 'text-signal-long' : 'text-signal-warn'}>
                   {c.halted ? 'HALTED' : c.gatesResult}
                 </span>
               </div>

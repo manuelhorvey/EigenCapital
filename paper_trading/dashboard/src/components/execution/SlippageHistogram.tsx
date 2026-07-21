@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import ChartContainer from '../ui/ChartContainer'
+import ChartDataTable from '../ui/ChartDataTable'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
 function bucketize(values: number[], bins = 10): { range: string; count: number; fill: string }[] {
@@ -15,7 +16,7 @@ function bucketize(values: number[], bins = 10): { range: string; count: number;
   return counts.map((c, i) => ({
     range: `${(i * step).toFixed(1)}-${((i + 1) * step).toFixed(1)}`,
     count: c,
-    fill: i < bins / 2 ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)',
+    fill: i < bins / 2 ? 'var(--color-signal-long)' : 'var(--color-signal-warn)',
   }))
 }
 
@@ -45,6 +46,24 @@ export default function SlippageHistogram() {
       chartLabel={chartLabel}
     >
       <p className="sr-only">{chartLabel}</p>
+      <ChartDataTable
+        title="Entry Slippage Distribution"
+        columns={[
+          { key: 'range', label: 'Range (bps)' },
+          { key: 'count', label: 'Count', format: v => String(v) },
+        ]}
+        data={entryData as unknown as Record<string, unknown>[]}
+        summary={`Entry slippage: ${entryData.length} buckets, avg ${avgEntry.toFixed(1)} bps`}
+      />
+      <ChartDataTable
+        title="Exit Slippage Distribution"
+        columns={[
+          { key: 'range', label: 'Range (bps)' },
+          { key: 'count', label: 'Count', format: v => String(v) },
+        ]}
+        data={exitData as unknown as Record<string, unknown>[]}
+        summary={`Exit slippage: ${exitData.length} buckets, avg ${avgExit.toFixed(1)} bps`}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
         <div className="min-w-0">
           <p className="text-2xs text-tertiary mb-1 font-medium">Entry Slippage</p>

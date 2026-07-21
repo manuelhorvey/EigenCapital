@@ -1,8 +1,8 @@
 import React from 'react'
 import { formatAssetPrice } from '../../utils/format'
 import {
-  governanceDot,
-  governanceText,
+  signalDot,
+  signalText,
   rrToState,
 } from '../ui/governance'
 import type { AssetCardInfo } from './types'
@@ -30,7 +30,7 @@ const AssetCardPosition = React.memo(({ info }: AssetCardPositionProps) => {
         <span className="flex items-center gap-1.5">
           <span
             className={`w-2 h-2 rounded-full ${
-              position.side === 'long' ? governanceDot.GREEN : governanceDot.RED
+              position.side === 'long' ? signalDot.LONG : signalDot.SHORT
             }`}
           />
           {position.side.toUpperCase()} @ ${formatAssetPrice(position.entry)}
@@ -43,7 +43,7 @@ const AssetCardPosition = React.memo(({ info }: AssetCardPositionProps) => {
         {position.unrealized_pnl != null && (
           <span
             className={`font-mono ${
-              position.unrealized_pnl >= 0 ? governanceText.GREEN : governanceText.RED
+              position.unrealized_pnl >= 0 ? signalText.LONG : signalText.SHORT
             }`}
           >
             {position.unrealized_pnl >= 0 ? '+' : ''}
@@ -56,20 +56,20 @@ const AssetCardPosition = React.memo(({ info }: AssetCardPositionProps) => {
         <div className="flex items-center gap-x-3 text-xs">
           {position.tp != null && position.tp !== 0 && (
             <span className="flex items-center gap-1 text-tertiary">
-              <span className={`w-1.5 h-1.5 rounded-full ${governanceDot.GREEN}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${signalDot.LONG}`} />
               TP {formatAssetPrice(position.tp)}
-              <span className={`font-mono ${governanceText.GREEN}`}>↑{risk.tpDistPct.toFixed(2)}%</span>
+              <span className={`font-mono ${signalText.LONG}`}>↑{risk.tpDistPct.toFixed(2)}%</span>
             </span>
           )}
           {position.sl != null && position.sl !== 0 && (
             <span className="flex items-center gap-1 text-tertiary">
-              <span className={`w-1.5 h-1.5 rounded-full ${governanceDot.RED}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${signalDot.SHORT}`} />
               SL {formatAssetPrice(position.sl)}
-              <span className={`font-mono ${governanceText.RED}`}>↓{risk.slDistPct.toFixed(2)}%</span>
+              <span className={`font-mono ${signalText.SHORT}`}>↓{risk.slDistPct.toFixed(2)}%</span>
             </span>
           )}
           {risk.rr > 0 && (
-            <span className={`ml-auto font-mono font-semibold ${governanceText[rrToState(risk.rr)]}`}>
+            <span className={`ml-auto font-mono font-semibold ${signalText[rrToState(risk.rr)]}`}>
               {risk.rr.toFixed(1)}:1
             </span>
           )}
@@ -101,7 +101,7 @@ const AssetCardPosition = React.memo(({ info }: AssetCardPositionProps) => {
                 key={i}
                 className={`flex-1 h-6 rounded text-[9px] font-mono flex items-center justify-center border ${
                   tier.filled
-                    ? 'bg-gov-green/15 border-gov-green/40 text-gov-green'
+                    ? 'bg-signal-long/15 border-signal-long/40 text-signal-long'
                     : 'bg-panel border-default/50 text-tertiary'
                 }`}
                 title={`Tier ${i + 1}: ${(tier.fraction * 100).toFixed(0)}% @ $${tier.price}${

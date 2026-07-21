@@ -5,6 +5,7 @@ import FillQualityGauge from '../components/execution/FillQualityGauge'
 import TradeExecutionTable from '../components/execution/TradeExecutionTable'
 import AttributionBreakdownCard from '../components/attribution/AttributionBreakdownCard'
 import PnLWaterfall from '../components/attribution/PnLWaterfall'
+import PnLDrillDown from '../components/attribution/PnLDrillDown'
 import MaeMfeScatter from '../components/attribution/MaeMfeScatter'
 import ExecutionFeed from '../components/ExecutionFeed'
 import PageShell from '../components/ui/PageShell'
@@ -90,6 +91,15 @@ export default function ExecutionWorkspace() {
           </EntranceAnimator>
           <EntranceAnimator variant="fade-up">
             <MaeMfeScatter />
+          </EntranceAnimator>
+        </Section>
+
+        {/* Section 4 — P&L Drill-Down
+            Full P&L analysis with time aggregation, per-asset breakdown,
+            and trade-level detail with TradeInspectorModal integration. */}
+        <Section id="pnl-drill-down" errorTitle="P&L Drill-Down">
+          <EntranceAnimator variant="fade-up">
+            <PnLDrillDown />
           </EntranceAnimator>
         </Section>
       </Stagger>

@@ -59,7 +59,7 @@ function makeAssetState(overrides: Partial<AssetState> = {}): AssetState {
       liquidity_ok: true,
       psi_ok: true,
     },
-    validity_state: 'GREEN',
+    validity_state: 'LONG',
     validity_exposure: 1,
     last_signal: null,
     gate_override: false,

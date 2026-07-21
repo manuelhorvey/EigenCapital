@@ -76,7 +76,7 @@ function bundleWithOneAsset(assetName: string) {
         drawdown_ok: true, monthly_pf_ok: true, drought_ok: true, drift_ok: true,
         narrative_ok: true, liquidity_ok: true, psi_ok: true,
       },
-      validity_state: 'GREEN' as const, validity_exposure: 1, last_signal: null,
+      validity_state: 'LONG' as const, validity_exposure: 1, last_signal: null,
       gate_override: false, signal_flip: false, final_signal: null, execution_state: 'idle',
       sl_mult: 2, tp_mult: 2, meta_confidence: null, meta_decision: null,
       feature_stability_jaccard: null, feature_stability_spearman: null,

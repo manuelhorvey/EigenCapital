@@ -7,6 +7,7 @@ import { SystemBundleSchema } from '../lib/schemas'
 
 type SystemBundle = z.infer<typeof SystemBundleSchema>
 import ChartContainer from './ui/ChartContainer'
+import ChartDataTable from './ui/ChartDataTable'
 import {
   CHART_PALETTE,
   CHART_PRIMARY,
@@ -150,7 +151,7 @@ export default function EquityChart() {
       meta={
         <div className="flex items-center gap-2">
           {chartData.length > 0 && (
-            <span className={`text-2xs font-mono tabular-nums ${pctChange >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+            <span className={`text-2xs font-mono tabular-nums ${pctChange >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
               {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
             </span>
           )}
@@ -174,6 +175,29 @@ export default function EquityChart() {
           Equity chart showing {chartData.length} points. Portfolio changed {pctChange.toFixed(2)} percent over the visible range.
           {latestDrawdown != null ? ` Latest drawdown is ${latestDrawdown.toFixed(1)} percent.` : ''}
         </p>
+        <ChartDataTable
+          title="Equity curve data"
+          columns={[
+            { key: 't', label: 'Date' },
+            {
+              key: 'portfolio',
+              label: 'Portfolio Value',
+              format: v => `$${Number(v).toLocaleString()}`,
+            },
+            {
+              key: 'drawdown',
+              label: 'Drawdown %',
+              format: v => `${Number(v).toFixed(2)}%`,
+            },
+            ...assetNames.map(name => ({
+              key: name,
+              label: name,
+              format: (v: unknown) => `$${Number(v).toLocaleString()}`,
+            })),
+          ]}
+          data={chartData}
+          summary={`Equity curve data with ${chartData.length} data points showing portfolio value and drawdown over time`}
+        />
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={chartMargin}>
             <ChartGradientDefs />
@@ -219,13 +243,13 @@ export default function EquityChart() {
                 x={minPoint.date}
                 y={minPoint.value}
                 r={4}
-                fill="var(--color-gov-red)"
+                fill="var(--color-signal-short)"
                 stroke="var(--color-card)"
                 strokeWidth={2}
                 label={{
                   value: `Max DD ${maxDD.toFixed(1)}%`,
                   position: 'bottom',
-                  fill: 'var(--color-gov-red)',
+                  fill: 'var(--color-signal-short)',
                   fontSize: 9,
                   fontFamily: 'var(--font-mono)',
                 }}

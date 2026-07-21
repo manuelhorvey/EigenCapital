@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import { AssetStateSchema } from '../../lib/schemas'
 
 type AssetState = z.infer<typeof AssetStateSchema>
-import { governanceText } from '../ui/governance'
+import { signalText } from '../ui/governance'
 import { MetricRow, Section } from './helpers'
 
 interface OverviewTabProps {
@@ -18,16 +18,16 @@ export default function OverviewTab({ asset }: OverviewTabProps) {
 
   return (
     <>
-      <MetricRow label="Final Signal" value={finalSignal} valueClass={finalSignal === 'BUY' ? governanceText.GREEN : finalSignal === 'SELL' ? governanceText.RED : ''} />
+      <MetricRow label="Final Signal" value={finalSignal} valueClass={finalSignal === 'BUY' ? signalText.LONG : finalSignal === 'SELL' ? signalText.SHORT : ''} />
       <MetricRow label="Raw Signal" value={asset.last_signal?.signal ?? 'FLAT'} />
       <MetricRow label="Confidence" value={m.mean_confidence?.toFixed(1) ?? '—'} />
       <MetricRow label="Current Price" value={m.current_price?.toFixed(4) ?? '—'} />
       <MetricRow label="Validity State" value={asset.validity_state} />
       <MetricRow label="Execution State" value={asset.execution_state} />
-      {asset.signal_flip && <div className="text-xs text-gov-yellow font-medium">⚠ Signal flip detected</div>}
+      {asset.signal_flip && <div className="text-xs text-signal-warn font-medium">⚠ Signal flip detected</div>}
 
       <Section title="Performance">
-        <MetricRow label="Total Return" value={m.total_return != null ? `${m.total_return.toFixed(2)}%` : '—'} valueClass={m.total_return != null && m.total_return >= 0 ? governanceText.GREEN : governanceText.RED} />
+        <MetricRow label="Total Return" value={m.total_return != null ? `${m.total_return.toFixed(2)}%` : '—'} valueClass={m.total_return != null && m.total_return >= 0 ? signalText.LONG : signalText.SHORT} />
         <MetricRow label="Drawdown" value={m.drawdown != null ? `${m.drawdown.toFixed(2)}%` : '—'} />
         <MetricRow label="MTM Return" value={m.mtm_return != null ? `${m.mtm_return.toFixed(2)}%` : '—'} />
         <MetricRow label="Profit Factor" value={m.profit_factor?.toFixed(2) ?? '—'} />
@@ -43,11 +43,11 @@ export default function OverviewTab({ asset }: OverviewTabProps) {
 
       {pos && (
         <Section title="Position">
-          <MetricRow label="Side" value={pos.side.toUpperCase()} valueClass={pos.side === 'long' ? governanceText.GREEN : governanceText.RED} />
+          <MetricRow label="Side" value={pos.side.toUpperCase()} valueClass={pos.side === 'long' ? signalText.LONG : signalText.SHORT} />
           <MetricRow label="Entry" value={pos.entry?.toFixed(4) ?? '—'} />
           <MetricRow label="SL" value={pos.sl?.toFixed(4) ?? '—'} />
           <MetricRow label="TP" value={pos.tp?.toFixed(4) ?? '—'} />
-          <MetricRow label="Unrealized PnL" value={pos.unrealized_pnl != null ? `${pos.unrealized_pnl.toFixed(2)}%` : '—'} valueClass={pos.unrealized_pnl != null && pos.unrealized_pnl >= 0 ? governanceText.GREEN : governanceText.RED} />
+          <MetricRow label="Unrealized PnL" value={pos.unrealized_pnl != null ? `${pos.unrealized_pnl.toFixed(2)}%` : '—'} valueClass={pos.unrealized_pnl != null && pos.unrealized_pnl >= 0 ? signalText.LONG : signalText.SHORT} />
           <MetricRow label="Volume" value={pos.current_vol?.toFixed(2) ?? '—'} />
         </Section>
       )}

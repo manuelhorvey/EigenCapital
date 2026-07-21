@@ -6,21 +6,21 @@ import { Skeleton } from './ui/Skeleton'
 import { gridMetric6, GRID_GAP } from '../design/grid'
 
 function healthColor(score: number): string {
-  if (score >= 0.8) return 'bg-gov-green'
-  if (score >= 0.5) return 'bg-gov-yellow'
-  return 'bg-gov-red'
+  if (score >= 0.8) return 'bg-signal-long'
+  if (score >= 0.5) return 'bg-signal-warn'
+  return 'bg-signal-short'
 }
 
 function healthText(score: number): string {
-  if (score >= 0.8) return 'text-gov-green'
-  if (score >= 0.5) return 'text-gov-yellow'
-  return 'text-gov-red'
+  if (score >= 0.8) return 'text-signal-long'
+  if (score >= 0.5) return 'text-signal-warn'
+  return 'text-signal-short'
 }
 
 function healthBg(score: number): string {
-  if (score >= 0.8) return 'bg-gov-green-muted2'
-  if (score >= 0.5) return 'bg-gov-yellow-muted2'
-  return 'bg-gov-red-muted2'
+  if (score >= 0.8) return 'bg-signal-long-muted2'
+  if (score >= 0.5) return 'bg-signal-warn-muted2'
+  return 'bg-signal-short-muted2'
 }
 
 function healthLabel(score: number): string {

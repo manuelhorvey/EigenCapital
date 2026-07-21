@@ -15,8 +15,8 @@ export function SystemDegradedBanner({ integrity, onDismiss, className = '' }: S
     <div
       className={`flex items-center gap-3 px-4 py-2 text-xs font-medium border-b ${className} ${
         integrity.isBroken
-          ? 'bg-gov-red-muted border-gov-red/20 text-gov-red'
-          : 'bg-gov-yellow-muted border-gov-yellow/20 text-gov-yellow'
+          ? 'bg-signal-short-muted border-signal-short/20 text-signal-short'
+          : 'bg-signal-warn-muted border-signal-warn/20 text-signal-warn'
       }`}
       role="alert"
     >

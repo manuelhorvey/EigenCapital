@@ -9,11 +9,11 @@ import type { SystemBundleSchema } from '../lib/schemas'
 type Meta = z.infer<typeof SystemBundleSchema>['meta']
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; bg: string }> = {
-  ok: { dot: 'bg-gov-green', label: 'LIVE', bg: 'bg-gov-green/10 border-gov-green/20 text-gov-green' },
-  live: { dot: 'bg-gov-green', label: 'LIVE', bg: 'bg-gov-green/10 border-gov-green/20 text-gov-green' },
-  degraded: { dot: 'bg-gov-yellow', label: 'DEGRADED', bg: 'bg-gov-yellow/10 border-gov-yellow/20 text-gov-yellow' },
-  partial_failure: { dot: 'bg-gov-yellow', label: 'DEGRADED', bg: 'bg-gov-yellow/10 border-gov-yellow/20 text-gov-yellow' },
-  offline: { dot: 'bg-gov-red', label: 'OFFLINE', bg: 'bg-gov-red/10 border-gov-red/20 text-gov-red' },
+  ok: { dot: 'bg-signal-long', label: 'LIVE', bg: 'bg-signal-long/10 border-signal-long/20 text-signal-long' },
+  live: { dot: 'bg-signal-long', label: 'LIVE', bg: 'bg-signal-long/10 border-signal-long/20 text-signal-long' },
+  degraded: { dot: 'bg-signal-warn', label: 'DEGRADED', bg: 'bg-signal-warn/10 border-signal-warn/20 text-signal-warn' },
+  partial_failure: { dot: 'bg-signal-warn', label: 'DEGRADED', bg: 'bg-signal-warn/10 border-signal-warn/20 text-signal-warn' },
+  offline: { dot: 'bg-signal-short', label: 'OFFLINE', bg: 'bg-signal-short/10 border-signal-short/20 text-signal-short' },
 }
 
 function SystemStatusBarInner() {

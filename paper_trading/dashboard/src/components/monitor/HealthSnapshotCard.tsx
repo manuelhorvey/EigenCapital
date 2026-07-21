@@ -11,27 +11,27 @@ interface HealthSnapshotCardProps {
 
 function statusColor(status: HealthSnapshotCardProps['status']): string {
   switch (status) {
-    case 'healthy': return 'text-gov-green'
-    case 'degraded': return 'text-gov-yellow'
-    case 'critical': return 'text-gov-red'
+    case 'healthy': return 'text-signal-long'
+    case 'degraded': return 'text-signal-warn'
+    case 'critical': return 'text-signal-short'
     default: return 'text-tertiary'
   }
 }
 
 function statusBg(status: HealthSnapshotCardProps['status']): string {
   switch (status) {
-    case 'healthy': return 'bg-gov-green'
-    case 'degraded': return 'bg-gov-yellow'
-    case 'critical': return 'bg-gov-red'
+    case 'healthy': return 'bg-signal-long'
+    case 'degraded': return 'bg-signal-warn'
+    case 'critical': return 'bg-signal-short'
     default: return 'bg-tertiary'
   }
 }
 
 function statusBgMuted(status: HealthSnapshotCardProps['status']): string {
   switch (status) {
-    case 'healthy': return 'bg-gov-green-muted2'
-    case 'degraded': return 'bg-gov-yellow-muted2'
-    case 'critical': return 'bg-gov-red-muted2'
+    case 'healthy': return 'bg-signal-long-muted2'
+    case 'degraded': return 'bg-signal-warn-muted2'
+    case 'critical': return 'bg-signal-short-muted2'
     default: return ''
   }
 }
@@ -70,7 +70,7 @@ export default function HealthSnapshotCard({
         )}
         {trend && (
           <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${
-            trend === 'up' ? 'text-gov-green' : trend === 'down' ? 'text-gov-red' : 'text-tertiary'
+            trend === 'up' ? 'text-signal-long' : trend === 'down' ? 'text-signal-short' : 'text-tertiary'
           }`}>
             {trend === 'up' ? <TrendingUp className="w-2.5 h-2.5" strokeWidth={2.5} /> : null}
             {trend === 'down' ? <TrendingDown className="w-2.5 h-2.5" strokeWidth={2.5} /> : null}

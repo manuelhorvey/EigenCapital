@@ -1,0 +1,312 @@
+# Unified Full-Stack CI — Dashboard (Frontend) + EigenCapital (Backend)
+#
+# Tests both the TypeScript/React dashboard AND the Python quantitative
+# engine on every change to either frontend or backend code. This ensures
+# that a dashboard PR cannot land with broken backend tests and vice versa.
+#
+# Trigger paths:
+#   paper_trading/dashboard/**   → frontend + backend (backend in case of schema drift)
+#   .github/workflows/**         → workflow changes
+#
+# The root-level CI (.github/workflows/ci.yml) mirrors this on the backend
+# side — it runs Python tests and also builds the dashboard. The two workflows
+# overlap intentionally so that either direction catches regressions in the
+# other component.
+
+name: Full-Stack CI
+
+on:
+  push:
+    branches: [main, feat/**]
+    paths:
+      - 'paper_trading/dashboard/**'
+      - '.github/workflows/**'
+      - 'pyproject.toml'
+      - 'requirements*.in'
+      - 'requirements*.lock'
+      - 'paper_trading/**'
+      - 'eigencapital/**'
+      - 'features/**'
+      - 'shared/**'
+      - 'configs/**'
+      - 'labels/**'
+      - 'portfolio/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'paper_trading/dashboard/**'
+      - '.github/workflows/**'
+      - 'pyproject.toml'
+      - 'requirements*.in'
+      - 'requirements*.lock'
+      - 'paper_trading/**'
+      - 'eigencapital/**'
+      - 'features/**'
+      - 'shared/**'
+      - 'configs/**'
+      - 'labels/**'
+      - 'portfolio/**'
+
+concurrency:
+  group: fullstack-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: paper_trading/dashboard
+
+jobs:
+  # ── Backend: Python lint & typecheck ──────────────────────────────
+  backend-lint:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.in
+            requirements-dev.in
+            pyproject.toml
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.in -r requirements-dev.in
+
+      - name: Ruff lint check
+        run: ruff check . --output-format=github --force-exclude
+
+      - name: Ruff format check
+        run: ruff format . --check --force-exclude
+
+      - name: mypy type check (strict, continue on error)
+        run: mypy --strict
+        continue-on-error: true
+
+      - name: Bandit SAST (high severity)
+        run: |
+          pip install bandit
+          bandit -r paper_trading/ eigencapital/ features/ shared/ --quiet --severity-level high
+
+      - name: Config schema check
+        run: python tools/check_config_schema.py
+
+      - name: Config mirror drift check
+        run: PYTHONPATH=$PYTHONPATH:. python tools/config_mirror_legacy.py --check
+
+      - name: Documentation drift check
+        run: PYTHONPATH=$PYTHONPATH:. python tools/doc_drift_check.py
+
+  # ── Backend: Python tests (pytest + coverage) ─────────────────────
+  backend-test:
+    name: Python Tests
+    needs: [backend-lint]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.in
+            requirements-dev.in
+            pyproject.toml
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.in -r requirements-dev.in
+
+      - name: Run Python unit tests
+        run: |
+          PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ -v --tb=short -x \
+            --ignore=tests/mutation --ignore=tests/chaos \
+            -k "not benchmark"
+
+      - name: Run Python tests with coverage
+        run: |
+          PYTHONPATH=$PYTHONPATH:. python -m pytest tests/ \
+            --cov=. --cov-report=term-missing \
+            --cov-fail-under=70 -v --tb=short -x \
+            --ignore=tests/mutation --ignore=tests/chaos \
+            -k "not benchmark"
+
+      # Mutation and chaos tests: soft gates here (continue-on-error) because
+      # the main CI (root .github/workflows/ci.yml) runs them as hard gates
+      # for every Python-version matrix. This job is the single-version quick
+      # feedback loop — hard gates are deferred to the full matrix run.
+      - name: Run mutation tests (soft gate — hard gate in root CI)
+        continue-on-error: true
+        run: |
+          PYTHONPATH=$PYTHONPATH:. python -m pytest tests/mutation/ -v --tb=short -q --exitfirst
+
+      - name: Run chaos tests (soft gate — hard gate in root CI)
+        continue-on-error: true
+        run: |
+          PYTHONPATH=$PYTHONPATH:. python -m pytest tests/chaos/ -v --tb=short -q --exitfirst
+
+  # ── Frontend: TypeScript typecheck + bundle size ──────────────────
+  # Runs in parallel with backend-lint — no dependency. The full-stack
+  # summary job aggregates all results at the end.
+  frontend-validate:
+    name: TypeScript + Bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: paper_trading/dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        run: npm ci
+        working-directory: paper_trading/dashboard
+
+      - name: Generate design tokens
+        run: npm run build:tokens
+        working-directory: paper_trading/dashboard
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+        working-directory: paper_trading/dashboard
+
+      - name: Bundle size check
+        run: |
+          npm run build
+          npx tsx scripts/check-bundle-size.ts
+        working-directory: paper_trading/dashboard
+
+  # ── Frontend: Vitest unit tests ───────────────────────────────────
+  frontend-test:
+    name: Vitest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: paper_trading/dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        run: npm ci
+        working-directory: paper_trading/dashboard
+
+      - name: Generate design tokens
+        run: npm run build:tokens
+        working-directory: paper_trading/dashboard
+
+      - name: Run Vitest unit tests
+        run: npm run test -- --reporter=verbose
+        working-directory: paper_trading/dashboard
+
+  # ── Frontend: Playwright E2E + Accessibility ──────────────────────
+  frontend-a11y:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: paper_trading/dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        run: npm ci
+        working-directory: paper_trading/dashboard
+
+      - name: Generate design tokens
+        run: npm run build:tokens
+        working-directory: paper_trading/dashboard
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+        working-directory: paper_trading/dashboard
+
+      - name: Build dashboard for E2E
+        run: npm run build
+        working-directory: paper_trading/dashboard
+
+      - name: Run E2E tests (comprehensive smoke + a11y)
+        run: |
+          npx vite preview --port 4173 &
+          PREVIEW_PID=$!
+          for i in $(seq 1 15); do
+            curl -s http://localhost:4173 > /dev/null 2>&1 && break
+            sleep 1
+          done
+          # Run Playwright E2E tests first
+          PLAYWRIGHT_BASE_URL=http://localhost:4173 npm run test:e2e -- --project=chromium
+          E2E_EXIT=$?
+          # Then run the standalone WCAG AA audit script
+          npx tsx scripts/check-a11y.ts
+          A11Y_EXIT=$?
+          kill $PREVIEW_PID 2>/dev/null || true
+          # Fail if either check failed
+          [ $E2E_EXIT -ne 0 ] && exit $E2E_EXIT
+          [ $A11Y_EXIT -ne 0 ] && exit $A11Y_EXIT
+          exit 0
+        working-directory: paper_trading/dashboard
+        env:
+          CI: true
+
+  # ── Summary ───────────────────────────────────────────────────────
+  fullstack-summary:
+    name: Full-Stack Summary
+    if: always()
+    needs: [backend-lint, backend-test, frontend-validate, frontend-test, frontend-a11y]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "## Full-Stack CI Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          add_status() {
+            local name="$1"
+            local result="$2"
+            if [ "$result" = "success" ]; then
+              echo "| $name | ✅ Passed |" >> "$GITHUB_STEP_SUMMARY"
+            elif [ "$result" = "failure" ]; then
+              echo "| $name | ❌ Failed |" >> "$GITHUB_STEP_SUMMARY"
+            elif [ "$result" = "cancelled" ]; then
+              echo "| $name | ⏹️ Cancelled |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $name | ⏳ $result |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+
+          add_status "Python Lint" "${{ needs.backend-lint.result }}"
+          add_status "Python Tests" "${{ needs.backend-test.result }}"
+          add_status "TypeScript + Bundle" "${{ needs.frontend-validate.result }}"
+          add_status "Vitest" "${{ needs.frontend-test.result }}"
+          add_status "Playwright E2E" "${{ needs.frontend-a11y.result }}"
+
+

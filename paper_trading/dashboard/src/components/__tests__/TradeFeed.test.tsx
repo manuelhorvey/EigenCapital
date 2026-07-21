@@ -126,15 +126,15 @@ describe('TradeFeed', () => {
     // Wait for data to render
     await screen.findAllByText('EURUSD')
 
-    // Positive return: +0.27% — first .text-gov-green has the return
-    const greenElements = container.querySelectorAll('.text-gov-green')
+    // Positive return: +0.27% — first .text-signal-long has the return
+    const greenElements = container.querySelectorAll('.text-signal-long')
     const hasPositiveReturn = Array.from(greenElements).some(el =>
       el.textContent?.includes('+0.27')
     )
     expect(hasPositiveReturn).toBe(true)
 
-    // Negative return: -1.04% — first .text-gov-red has the return (not the SL badge)
-    const redElements = container.querySelectorAll('.text-gov-red')
+    // Negative return: -1.04% — first .text-signal-short has the return (not the SL badge)
+    const redElements = container.querySelectorAll('.text-signal-short')
     const hasNegativeReturn = Array.from(redElements).some(el =>
       el.textContent?.includes('-1.04')
     )

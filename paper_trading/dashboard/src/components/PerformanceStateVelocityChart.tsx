@@ -2,19 +2,20 @@ import { useMemo } from 'react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
+import ChartDataTable from './ui/ChartDataTable'
 import EmptyState from './ui/EmptyState'
 
 function velocityColor(v: number): string {
   const abs = Math.abs(v)
-  if (abs < 0.001) return 'var(--color-gov-green)'
-  if (abs < 0.005) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-red)'
+  if (abs < 0.001) return 'var(--color-signal-long)'
+  if (abs < 0.005) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-short)'
 }
 
 function degradationColor(v: number): string {
-  if (v < 0.3) return 'var(--color-gov-green)'
-  if (v < 0.6) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-red)'
+  if (v < 0.3) return 'var(--color-signal-long)'
+  if (v < 0.6) return 'var(--color-signal-warn)'
+  return 'var(--color-signal-short)'
 }
 
 /** Compact sparkline bar showing velocity direction and magnitude. */
@@ -77,6 +78,19 @@ export default function PerformanceStateVelocityChart() {
     <Panel padding="md">
       <div className="space-y-3">
         <span className="text-2xs text-tertiary font-medium uppercase tracking-wider block">Performance State Velocity</span>
+        <ChartDataTable
+          title="Performance state velocity metrics"
+          columns={[
+            { key: 'label', label: 'Metric' },
+            { key: 'value', label: 'Value', format: v => {
+                const n = Number(v);
+                return `${n >= 0 ? '+' : ''}${n.toFixed(4)}`;
+              },
+            },
+          ]}
+          data={cards as unknown as Record<string, unknown>[]}
+          summary={`Performance velocity with ${cards.length} metrics`}
+        />
         <div className="space-y-2">
           {cards.map(c => (
             <div key={c.label} className="flex items-center gap-2">

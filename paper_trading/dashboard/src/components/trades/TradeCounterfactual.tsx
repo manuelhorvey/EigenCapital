@@ -71,7 +71,7 @@ export default function TradeCounterfactual({ data }: TradeCounterfactualProps) 
             <p className="text-xs font-medium text-primary">Execution Improvement Potential</p>
             <p className="text-2xs text-tertiary">If ideal fill were achieved vs real conditions</p>
           </div>
-          <span className={`text-sm font-bold font-mono tabular-nums ${realizedImprovement >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+          <span className={`text-sm font-bold font-mono tabular-nums ${realizedImprovement >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
             {realizedImprovement >= 0 ? '+' : ''}{realizedImprovement.toFixed(2)} R
           </span>
         </div>

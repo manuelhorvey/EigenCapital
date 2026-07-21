@@ -85,7 +85,7 @@ function makeBundleWithAssets(assetEntries: Array<{
         drawdown_ok: true, monthly_pf_ok: true, drought_ok: true, drift_ok: true,
         narrative_ok: true, liquidity_ok: true, psi_ok: true,
       },
-      validity_state: 'GREEN' as const, validity_exposure: 1,
+      validity_state: 'LONG' as const, validity_exposure: 1,
       last_signal: {
         date: '2026-07-05T00:00:00Z', prob_long: 0.5, prob_short: 0.5,
         signal: entry.signal, confidence: 0.5, close_price: 1.0,

@@ -38,7 +38,7 @@ describe('AssetCardMetrics', () => {
     render(<AssetCardMetrics info={negInfo} />)
     const el = screen.getByText('-5.20%')
     expect(el).toBeInTheDocument()
-    expect(el.className).toContain('gov-red')
+    expect(el.className).toContain('signal-short')
   })
 
   it('renders drawdown', () => {

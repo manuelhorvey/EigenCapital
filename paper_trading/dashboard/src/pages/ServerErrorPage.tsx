@@ -15,8 +15,8 @@ export default function ServerErrorPage() {
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6 px-6 animate-fade-in">
-      <div className="w-16 h-16 rounded-xl panel border-gov-red/30 flex items-center justify-center">
-        <AlertTriangle className="w-8 h-8 text-gov-red/60" strokeWidth={1.25} />
+      <div className="w-16 h-16 rounded-xl panel border-signal-short/30 flex items-center justify-center">
+        <AlertTriangle className="w-8 h-8 text-signal-short/60" strokeWidth={1.25} />
       </div>
 
       <div className="text-center max-w-md">

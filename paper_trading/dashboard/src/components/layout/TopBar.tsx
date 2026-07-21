@@ -1,29 +1,22 @@
 import { memo, useCallback, useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { LayoutDashboard, Zap, BarChart3, Shield, RefreshCw, Menu, Bell } from 'lucide-react'
-import { useSidebarBadges } from '../../hooks/useSidebarBadges'
+import { RefreshCw, Menu, Bell, Command } from 'lucide-react'
 import { useSystemSnapshot } from '../../hooks/useSystemSnapshot'
 import { useEngineHealth } from '../../hooks/useEngineHealth'
 import { systemSelectors } from '../../selectors/system'
 import ThemeToggle from '../ThemeToggle'
 import { useNotificationCenter } from '../../hooks/useNotificationCenter'
 
-// ── Tab Definitions ─────────────────────────────────────────────
-
-interface TabItem {
-  to: string
-  label: string
-  icon: React.ReactNode
-  badgeKey?: 'trading' | 'risk'
+// ── Page title map for context-aware breadcrumb ────────────────
+const PAGE_TITLES: Record<string, { label: string; subtitle: string }> = {
+  '/': { label: 'Command Center', subtitle: 'System overview & positions' },
+  '/trading': { label: 'Trading', subtitle: 'Signals, fills, open trades' },
+  '/analytics': { label: 'Analytics', subtitle: 'Performance & attribution' },
+  '/risk': { label: 'Governance & Risk', subtitle: 'Health & constraints' },
+  '/reports': { label: 'Reports', subtitle: 'Downloads & audit log' },
+  '/settings': { label: 'Settings', subtitle: 'Preferences & API keys' },
 }
-
-const TABS: TabItem[] = [
-  { to: '/', label: 'Dashboard', icon: <LayoutDashboard className="w-3.5 h-3.5" strokeWidth={1.5} /> },
-  { to: '/trading', label: 'Trading', icon: <Zap className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'trading' },
-  { to: '/analytics', label: 'Analytics', icon: <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} /> },
-  { to: '/risk', label: 'Risk', icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'risk' },
-]
 
 // ── Ticker token helpers ────────────────────────────────────────
 
@@ -37,9 +30,9 @@ interface RailToken {
 
 function toneClass(tone?: TokenTone): string {
   switch (tone) {
-    case 'good': return 'text-gov-green'
-    case 'warn': return 'text-gov-yellow'
-    case 'bad':  return 'text-gov-red'
+    case 'good': return 'text-signal-long'
+    case 'warn': return 'text-signal-warn'
+    case 'bad':  return 'text-signal-short'
     default:     return 'text-tertiary'
   }
 }
@@ -73,10 +66,12 @@ function getHaltedAssets(assets: Record<string, { halt?: { halted?: boolean } }>
 interface TopBarProps {
   onToggleSidebar?: () => void
   onToggleNotifications?: () => void
+  /** Optional: set of renderable sections for context-aware actions */
+  contextActions?: React.ReactNode
 }
 
-function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
-  const badges = useSidebarBadges()
+function TopBarInner({ onToggleSidebar, onToggleNotifications, contextActions }: TopBarProps) {
+  const location = useLocation()
   const health = useEngineHealth()
   const queryClient = useQueryClient()
   const { data: engStatus } = useSystemSnapshot(systemSelectors.engineStatus)
@@ -95,6 +90,9 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
       setTimeout(() => setRefreshing(false), 600)
     }
   }, [queryClient, refreshing])
+
+  // Page context
+  const pageInfo = PAGE_TITLES[location.pathname] ?? { label: 'Dashboard', subtitle: '' }
 
   // Build ticker tokens
   const parts = useMemo(() => {
@@ -158,41 +156,27 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
   return (
     <div
       aria-live={parts.halted ? 'assertive' : 'polite'}
-      className={`relative min-h-[52px] w-full flex items-center gap-1 px-2 sm:px-3 border-b border-default text-xs font-mono tabular-nums overflow-hidden shrink-0 ${
-        parts.halted ? 'bg-gov-red/10 border-gov-red/20' : 'bg-app/95'
+      className={`relative min-h-[44px] w-full flex items-center gap-1 px-2 sm:px-3 border-b border-default text-xs font-mono tabular-nums overflow-hidden shrink-0 ${
+        parts.halted ? 'bg-signal-short/10 border-signal-short/20' : 'bg-app/95'
       }`}
       aria-label="Top bar"
     >
-      {/* Left: Navigation tabs — hidden on mobile (< lg), shown on desktop.
-          Mobile gets a separate TabBar row below the TopBar instead. */}
-      <nav className="hidden lg:flex items-center gap-0.5 shrink-0" aria-label="Main tabs">
-        {TABS.map((tab) => {
-          const badge = tab.badgeKey ? badges[tab.badgeKey] : undefined
-          return (
-            <NavLink
-              key={tab.to}
-              to={tab.to}
-              end
-              aria-label={tab.label}
-              className={({ isActive }) =>
-                `flex items-center gap-1 px-1.5 sm:px-2 py-1.5 text-2xs sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
-                  isActive
-                    ? 'bg-accent-emerald/8 text-accent-emerald'
-                    : 'text-tertiary hover:text-secondary hover:bg-panel/60'
-                } active:scale-95`
-              }
-            >
-              {tab.icon}
-              <span className="hidden sm:inline ml-0.5">{tab.label}</span>
-              {badge != null && badge > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold leading-none bg-gov-red-muted text-gov-red border border-gov-red/25">
-                  {badge}
-                </span>
-              )}
-            </NavLink>
-          )
-        })}
-      </nav>
+      {/* Left: Sidebar toggle (mobile) + Page context breadcrumb */}
+      <button
+        type="button"
+        onClick={onToggleSidebar}
+        className="lg:hidden min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors shrink-0"
+        aria-label="Open navigation"
+      >
+        <Menu className="w-3.5 h-3.5" strokeWidth={2} />
+      </button>
+
+      <div className="hidden lg:flex items-center gap-2 min-w-0 shrink-0">
+        <span className="text-sm font-semibold text-primary truncate">{pageInfo.label}</span>
+        {pageInfo.subtitle && (
+          <span className="text-2xs text-tertiary/60 hidden xl:inline truncate">{pageInfo.subtitle}</span>
+        )}
+      </div>
 
       {/* Center: Pinned halted asset badges */}
       {haltedAssets.length > 0 && (
@@ -200,12 +184,19 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
           {haltedAssets.map(name => (
             <span
               key={name}
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-gov-red/10 border border-gov-red/25 text-2xs font-semibold text-gov-red shrink-0"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-signal-short/10 border border-signal-short/25 text-2xs font-semibold text-signal-short shrink-0"
             >
-              <span className="w-1 h-1 rounded-full bg-gov-red" />
+              <span className="w-1 h-1 rounded-full bg-signal-short" />
               {name}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Context actions (page-specific controls) */}
+      {contextActions && (
+        <div className="flex items-center gap-1 overflow-hidden">
+          {contextActions}
         </div>
       )}
 
@@ -226,6 +217,19 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
         })}
 
         <div className="flex items-center gap-0.5 ml-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              // Dispatch custom event to open command palette
+              window.dispatchEvent(new KeyboardEvent('keydown', { metaKey: true, key: 'k', bubbles: true }))
+            }}
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md text-tertiary hover:text-secondary hover:bg-panel/60 border border-transparent hover:border-default transition-colors text-2xs"
+            aria-label="Open command palette"
+            title="Cmd+K"
+          >
+            <Command className="w-3 h-3" strokeWidth={1.5} />
+            <span className="hidden md:inline">Cmd+K</span>
+          </button>
           <ThemeToggle />
           <button
             type="button"
@@ -233,9 +237,9 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
             className="relative min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
           >
-            <Bell className="w-3 h-3" strokeWidth={2} />
+            <Bell className="w-3.5 h-3.5" strokeWidth={2} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-1 rounded-full text-[7px] font-bold leading-none bg-gov-red text-white flex items-center justify-center shadow-sm">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-1 rounded-full text-[7px] font-bold leading-none bg-signal-short text-white flex items-center justify-center shadow-sm">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -247,15 +251,7 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
             className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
             aria-label="Refresh dashboard data"
           >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            className="lg:hidden min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded text-tertiary hover:text-primary active:scale-[0.97] focus-ring transition-colors"
-            aria-label="Open navigation"
-          >
-            <Menu className="w-3 h-3" strokeWidth={2} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={2} />
           </button>
         </div>
       </div>
@@ -264,8 +260,9 @@ function TopBarInner({ onToggleSidebar, onToggleNotifications }: TopBarProps) {
 }
 
 /**
- * Single-row top bar merging navigation tabs + status ticker tokens + controls.
- * Replaces the separate TickerRail + TabBar pattern, saving ~24px vertical space.
+ * Context-aware top bar with page breadcrumb + ticker tokens + controls.
+ * Navigation tabs moved to Sidebar (desktop) and TabBar (mobile).
+ * Now takes an optional `contextActions` prop for per-page action buttons.
  */
 const TopBar = memo(TopBarInner)
 TopBar.displayName = 'TopBar'

@@ -82,7 +82,7 @@ describe('AssetCardHeader', () => {
     )
     const badge = screen.getByText('SELL_ONLY')
     expect(badge).toBeInTheDocument()
-    expect(badge.className).toContain('gov-yellow')
+    expect(badge.className).toContain('signal-warn')
   })
 
   it('renders red badge with pulse animation', () => {
@@ -97,7 +97,7 @@ describe('AssetCardHeader', () => {
     )
     const badge = screen.getByText('TRIPWIRE')
     expect(badge).toBeInTheDocument()
-    expect(badge.className).toContain('gov-red')
+    expect(badge.className).toContain('signal-short')
     expect(badge.className).toContain('animate-pulse')
   })
 
@@ -126,7 +126,7 @@ describe('AssetCardHeader', () => {
       />,
     )
     const signalSpan = screen.getByText('SELL')
-    expect(signalSpan.className).toContain('gov-red')
+    expect(signalSpan.className).toContain('signal-short')
   })
 
   it('shows FLAT signal as muted text', () => {

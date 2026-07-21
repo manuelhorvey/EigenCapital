@@ -46,7 +46,7 @@ export default function TabBar() {
             {tab.icon}
             <span className="ml-0.5">{tab.label}</span>
             {badge != null && badge > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold leading-none bg-gov-red-muted text-gov-red border border-gov-red/25">
+              <span className="inline-flex items-center justify-center min-w-[14px] h-3.5 px-1 rounded-full text-[8px] font-bold leading-none bg-signal-short-muted text-signal-short border border-signal-short/25">
                 {badge}
               </span>
             )}

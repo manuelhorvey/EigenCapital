@@ -19,27 +19,27 @@ function rowActionCls(visible: boolean) {
 /** Compact terminal-precision asset row with direction, PnL, exit phase, risk, flags, and row-level actions. */
 const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: TradingAssetRowProps) {
   const dir = asset.direction
-  const dirCls = dir === 'LONG' ? 'text-gov-green' : dir === 'SHORT' ? 'text-gov-red' : 'text-tertiary'
+  const dirCls = dir === 'LONG' ? 'text-signal-long' : dir === 'SHORT' ? 'text-signal-short' : 'text-tertiary'
 
   const pnl = asset.pnl_state.unrealized
-  const pnlCls = pnl >= 0 ? 'text-gov-green' : 'text-gov-red'
+  const pnlCls = pnl >= 0 ? 'text-signal-long' : 'text-signal-short'
   const eff = asset.pnl_state.efficiency
-  const effCls = eff === 'HIGH' ? 'text-gov-green' : eff === 'LOW' ? 'text-gov-red' : 'text-tertiary'
+  const effCls = eff === 'HIGH' ? 'text-signal-long' : eff === 'LOW' ? 'text-signal-short' : 'text-tertiary'
 
   const exit = asset.exit_state
   const phaseLabel = exit.phase === 'BREAKEVEN' ? 'BE'
     : exit.phase === 'TRAILING' ? 'Trail'
     : exit.phase === 'DECAY' ? 'Decay'
     : 'Static'
-  const exitCls = exit.phase === 'TRAILING' ? 'text-gov-green'
-    : exit.phase === 'BREAKEVEN' ? 'text-gov-yellow'
-    : exit.phase === 'DECAY' ? 'text-gov-yellow'
+  const exitCls = exit.phase === 'TRAILING' ? 'text-signal-long'
+    : exit.phase === 'BREAKEVEN' ? 'text-signal-warn'
+    : exit.phase === 'DECAY' ? 'text-signal-warn'
     : 'text-tertiary'
 
   const risk = asset.risk_state
-  const riskCls = risk.level === 'HIGH' ? 'text-gov-red'
-    : risk.level === 'MEDIUM' ? 'text-gov-yellow'
-    : 'text-gov-green'
+  const riskCls = risk.level === 'HIGH' ? 'text-signal-short'
+    : risk.level === 'MEDIUM' ? 'text-signal-warn'
+    : 'text-signal-long'
   const driver = risk.drivers[0]
 
   const handleAction = useCallback((e: React.MouseEvent, action: string) => {
@@ -117,7 +117,7 @@ const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: Tradi
         </button>
         <button
           onClick={(e) => handleAction(e, 'acknowledge')}
-          className={`${rowActionCls(false)} text-tertiary hover:text-gov-green`}
+          className={`${rowActionCls(false)} text-tertiary hover:text-signal-long`}
           title="Acknowledge"
           aria-label={`Acknowledge ${asset.identity}`}
         >

@@ -10,6 +10,7 @@ import { useGovernanceRadar } from '../../hooks/useGovernanceRadar'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import Badge from '../ui/Badge'
+import ChartDataTable from '../ui/ChartDataTable'
 
 /** Radar chart visualizing governance constraint scores across axes, with ranked bottleneck list and average validity impact. */
 export default function GovernanceRadar() {
@@ -47,6 +48,16 @@ export default function GovernanceRadar() {
         <div className="lg:col-span-2">
           <div className="h-[260px]" role="img" aria-label={chartLabel}>
             <p className="sr-only">{chartLabel}</p>
+            <ChartDataTable
+              title="Governance constraint scores"
+              columns={[
+                { key: 'axis', label: 'Constraint' },
+                { key: 'value', label: 'Score (%)', format: v => `${v}%` },
+                { key: 'description', label: 'Description' },
+              ]}
+              data={chartData as unknown as Record<string, unknown>[]}
+              summary={`Governance constraint radar with ${chartData.length} axes. Weakest: ${weakestAxis?.axis || 'N/A'} at ${weakestAxis?.value || 0}%.`}
+            />
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="80%">
                 <PolarGrid stroke="var(--color-border)" strokeWidth={0.75} />
@@ -115,7 +126,7 @@ export default function GovernanceRadar() {
 
               <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-accent-emerald/5 border border-accent-emerald/20 text-2xs">
                 <span className="text-tertiary">Avg validity impact</span>
-                <span className={`font-semibold font-mono ${avgValidityImpact >= -0.05 ? 'text-gov-green' : 'text-gov-red'}`}>
+                <span className={`font-semibold font-mono ${avgValidityImpact >= -0.05 ? 'text-signal-long' : 'text-signal-short'}`}>
                   {(avgValidityImpact * 100).toFixed(1)}%
                 </span>
               </div>

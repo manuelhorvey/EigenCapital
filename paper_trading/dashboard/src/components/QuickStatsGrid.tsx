@@ -12,11 +12,11 @@ function RiskTierBadge({ riskPct, matchedThreshold }: { riskPct: number; matched
   const isLow = riskPct <= 1.0
   const isMid = riskPct > 1.0 && riskPct <= 1.5
 
-  const bg = isLow ? 'bg-gov-green/10 border-gov-green/20 text-gov-green'
-    : isMid ? 'bg-gov-yellow/10 border-gov-yellow/20 text-gov-yellow'
-    : 'bg-gov-red/10 border-gov-red/20 text-gov-red'
+  const bg = isLow ? 'bg-signal-long/10 border-signal-long/20 text-signal-long'
+    : isMid ? 'bg-signal-warn/10 border-signal-warn/20 text-signal-warn'
+    : 'bg-signal-short/10 border-signal-short/20 text-signal-short'
 
-  const dotColor = isLow ? 'bg-gov-green' : isMid ? 'bg-gov-yellow' : 'bg-gov-red'
+  const dotColor = isLow ? 'bg-signal-long' : isMid ? 'bg-signal-warn' : 'bg-signal-short'
 
   const label = matchedThreshold != null && matchedThreshold > 0
     ? `Risk ${riskPct.toFixed(1)}% (≥ $${matchedThreshold.toLocaleString()})`
@@ -44,11 +44,11 @@ function Stat({
 }) {
   const cls =
     tone === 'good'
-      ? 'text-gov-green'
+      ? 'text-signal-long'
       : tone === 'warn'
-      ? 'text-gov-yellow'
+      ? 'text-signal-warn'
       : tone === 'bad'
-      ? 'text-gov-red'
+      ? 'text-signal-short'
       : 'text-primary'
   return (
     <div className="px-3 py-2 min-w-0">
@@ -64,8 +64,8 @@ function QuickStatsGridInner() {
   if (error) {
     return (
       <div className={`${gridMetric7()} ${GRID_GAP}`}>
-        <div className="col-span-full flex items-center justify-center h-20 rounded-lg bg-surface/50 border border-gov-red/20">
-          <p className="text-gov-red text-xs font-semibold">Snapshot unavailable — {error instanceof Error ? error.message : 'Connection failed'}</p>
+        <div className="col-span-full flex items-center justify-center h-20 rounded-lg bg-surface/50 border border-signal-short/20">
+          <p className="text-signal-short text-xs font-semibold">Snapshot unavailable — {error instanceof Error ? error.message : 'Connection failed'}</p>
         </div>
       </div>
     )
@@ -105,7 +105,7 @@ function QuickStatsGridInner() {
         </span>
         <span>{p.start_date ? `Since ${p.start_date}` : ''}</span>
         {criticalAlerts > 0 && (
-          <span role="status" className="text-gov-red font-semibold">
+          <span role="status" className="text-signal-short font-semibold">
             {criticalAlerts} critical alert{criticalAlerts > 1 ? 's' : ''}
           </span>
         )}

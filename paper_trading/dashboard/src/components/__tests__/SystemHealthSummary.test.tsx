@@ -149,11 +149,11 @@ describe('SystemHealthSummary', () => {
     const { container } = render(<SystemHealthSummary />)
     const html = container.innerHTML
 
-    // When PnL is positive (0.05 >= 0), accent should be var(--color-gov-green)
-    expect(html).toContain('var(--color-gov-green)')
+    // When PnL is positive (0.05 >= 0), accent should be var(--color-signal-long)
+    expect(html).toContain('var(--color-signal-long)')
 
-    // When MT5 sync is HEALTHY, accent should be var(--color-gov-green)
-    expect(html).toContain('var(--color-gov-green)')
+    // When MT5 sync is HEALTHY, accent should be var(--color-signal-long)
+    expect(html).toContain('var(--color-signal-long)')
   })
 
   it('uses CSS variable references for negative PnL', () => {
@@ -172,11 +172,11 @@ describe('SystemHealthSummary', () => {
     const { container } = render(<SystemHealthSummary />)
     const html = container.innerHTML
 
-    // When PnL is negative (-0.03 < 0), accent should be var(--color-gov-red)
-    expect(html).toContain('var(--color-gov-red)')
+    // When PnL is negative (-0.03 < 0), accent should be var(--color-signal-short)
+    expect(html).toContain('var(--color-signal-short)')
 
-    // When MT5 sync is DEGRADED, accent should be var(--color-gov-yellow)
-    expect(html).toContain('var(--color-gov-yellow)')
+    // When MT5 sync is DEGRADED, accent should be var(--color-signal-warn)
+    expect(html).toContain('var(--color-signal-warn)')
   })
 
   it('shows alert message when alerts exist', () => {

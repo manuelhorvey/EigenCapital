@@ -118,7 +118,7 @@ function TradeFeed() {
       render: t => {
         const ret = (t.return ?? 0) * 100
         return (
-          <span className={`font-mono tabular-nums font-semibold ${ret >= 0 ? 'text-gov-green' : 'text-gov-red'}`}>
+          <span className={`font-mono tabular-nums font-semibold ${ret >= 0 ? 'text-signal-long' : 'text-signal-short'}`}>
             {ret >= 0 ? '+' : ''}{safeToFixed(ret, 2)}%
           </span>
         )
@@ -132,7 +132,7 @@ function TradeFeed() {
       sortKey: t => t.bars ?? 0,
       render: t => (
         <span
-          className={`font-mono tabular-nums text-tertiary${t.bars != null && t.bars < 0 ? ' text-gov-red' : ''}`}
+          className={`font-mono tabular-nums text-tertiary${t.bars != null && t.bars < 0 ? ' text-signal-short' : ''}`}
           title={t.bars != null && t.bars < 0 ? 'Stale data — trade timestamp predates engine start' : undefined}
         >
           {formatHeldDuration(t.bars)}

@@ -86,7 +86,7 @@ export function buildAssetState(overrides?: Partial<AssetState>): AssetState {
       liquidity_ok: true,
       psi_ok: true,
     },
-    validity_state: 'GREEN',
+    validity_state: 'LONG',
     validity_exposure: 0.85,
     last_signal: {
       date: '2026-07-02T12:00:30',

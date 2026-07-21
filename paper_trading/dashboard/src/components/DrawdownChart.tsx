@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
 import { useEquityHistory } from '../hooks/useEquityHistory'
 import ChartContainer from './ui/ChartContainer'
+import ChartDataTable from './ui/ChartDataTable'
 import {
   axisTick,
   chartMargin,
@@ -60,22 +61,35 @@ export default function DrawdownChart() {
       chartLabel={chartLabel}
       meta={
         <div className="flex items-center gap-2">
-          <span className="text-2xs font-mono tabular-nums text-gov-red">
+          <span className="text-2xs font-mono tabular-nums text-signal-short">
             Max DD {formatPct(maxDD)}
           </span>
-          <span className="text-2xs font-mono tabular-nums" style={{ color: currentDD <= -5 ? 'var(--color-gov-red)' : currentDD <= -2 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)' }}>
+          <span className="text-2xs font-mono tabular-nums" style={{ color: currentDD <= -5 ? 'var(--color-signal-short)' : currentDD <= -2 ? 'var(--color-signal-warn)' : 'var(--color-signal-long)' }}>
             Now {formatPct(currentDD)}
           </span>
         </div>
       }
     >
       <p className="sr-only">{chartLabel}</p>
+      <ChartDataTable
+        title="Drawdown data"
+        columns={[
+          { key: 't', label: 'Date' },
+          {
+            key: 'dd',
+            label: 'Drawdown %',
+            format: v => `${Number(v).toFixed(2)}%`,
+          },
+        ]}
+        data={chartData}
+        summary={`Drawdown data with ${chartData.length} data points showing drawdown percentage over time`}
+      />
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={chartMargin}>
           <defs>
             <linearGradient id="drawdown-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-gov-red)" stopOpacity={0.15} />
-              <stop offset="100%" stopColor="var(--color-gov-red)" stopOpacity={0.01} />
+              <stop offset="0%" stopColor="var(--color-signal-short)" stopOpacity={0.15} />
+              <stop offset="100%" stopColor="var(--color-signal-short)" stopOpacity={0.01} />
             </linearGradient>
           </defs>
           <ReferenceLine y={0} stroke="var(--color-border-strong)" strokeWidth={0.5} />
@@ -103,7 +117,7 @@ export default function DrawdownChart() {
           <Area
             type="monotone"
             dataKey="dd"
-            stroke="var(--color-gov-red)"
+            stroke="var(--color-signal-short)"
             fill="url(#drawdown-fill)"
             fillOpacity={1}
             strokeWidth={1.5}

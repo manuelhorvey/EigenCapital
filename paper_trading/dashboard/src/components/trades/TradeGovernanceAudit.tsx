@@ -78,9 +78,9 @@ function computeAudit(data: TradeAttributionRecord): AuditEntry[] {
 }
 
 function impactColor(impact: number): string {
-  if (impact >= 0) return 'text-gov-green'
-  if (impact > -0.1) return 'text-gov-yellow'
-  return 'text-gov-red'
+  if (impact >= 0) return 'text-signal-long'
+  if (impact > -0.1) return 'text-signal-warn'
+  return 'text-signal-short'
 }
 
 /** Audit log of governance layer checks for a single trade, showing pass/warn/fail per layer with quantified impact.

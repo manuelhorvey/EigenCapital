@@ -2,13 +2,14 @@ import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ZAxi
 import { useAttributionTrades } from '../../hooks/useAttributionTrades'
 import { useLiveAttribution } from '../../hooks/useLiveAttribution'
 import ChartContainer from '../ui/ChartContainer'
+import ChartDataTable from '../ui/ChartDataTable'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
 const ARCHETYPE_COLORS: Record<string, string> = {
-  BREAKOUT: 'var(--color-gov-green)',
+  BREAKOUT: 'var(--color-signal-long)',
   MEAN_REVERSION: 'var(--color-accent-blue)',
   MOMENTUM: 'var(--color-accent-purple)',
-  VOL_EXPANSION: 'var(--color-gov-yellow)',
+  VOL_EXPANSION: 'var(--color-signal-warn)',
   UNKNOWN: 'var(--color-text-muted)',
 }
 
@@ -57,6 +58,18 @@ export default function MaeMfeScatter() {
       chartLabel={chartLabel}
     >
       <p className="sr-only">{chartLabel}</p>
+      <ChartDataTable
+        title="MAE / MFE by trade"
+        columns={[
+          { key: 'asset', label: 'Asset' },
+          { key: 'mae', label: 'MAE', format: v => Number(v).toFixed(2) },
+          { key: 'mfe', label: 'MFE', format: v => Number(v).toFixed(2) },
+          { key: 'r', label: 'R', format: v => Number(v).toFixed(2) },
+          { key: 'archetype', label: 'Archetype' },
+        ]}
+        data={allData as unknown as Record<string, unknown>[]}
+        summary={`MAE/MFE scatter with ${allData.length} trades`}
+      />
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis

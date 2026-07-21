@@ -5,8 +5,8 @@ import { selectAssetCardBundle } from '../selectors/system'
 import { confidenceToPercent } from '../utils/format'
 import {
   confToState,
-  governanceBorder,
-  governanceBgMuted,
+  signalBorder,
+  signalBgMuted,
   type GovernanceState,
 } from './ui/governance'
 import type { PositionLeg, ScaleOutTier, AssetCardInfo } from './asset-card/types'
@@ -172,7 +172,7 @@ const AssetCard: React.FC<AssetCardProps> = React.memo(({ name, density = 'comfo
 
   const confidenceState: GovernanceState = confToState(info.confidence)
   const cardState: GovernanceState =
-    info.signal === 'BUY' ? 'GREEN' : info.signal === 'SELL' ? 'RED' : 'INIT'
+    info.signal === 'BUY' ? 'LONG' : info.signal === 'SELL' ? 'SHORT' : 'INIT'
 
   if (density === 'compact') {
     return (
@@ -197,7 +197,7 @@ const AssetCard: React.FC<AssetCardProps> = React.memo(({ name, density = 'comfo
           setSelectedAsset(name)
         }
       }}
-      className={`relative bg-panel border border-default rounded-lg px-5 py-4 overflow-hidden shadow-panel transition-colors duration-150 hover:border-strong hover:shadow-card cursor-pointer border-l-2 active:scale-[0.98] sm:active:scale-100 ${governanceBorder[cardState]} ${governanceBgMuted[cardState]}`}
+      className={`relative bg-panel border border-default rounded-lg px-5 py-4 overflow-hidden shadow-panel transition-colors duration-150 hover:border-strong hover:shadow-card cursor-pointer border-l-2 active:scale-[0.98] sm:active:scale-100 ${signalBorder[cardState]} ${signalBgMuted[cardState]}`}
     >
       <AssetCardHeader
         name={name}

@@ -40,9 +40,9 @@ function typeIcon(type: NotificationType) {
 
 function typeColor(type: NotificationType): string {
   switch (type) {
-    case 'error':   return 'var(--color-gov-red)'
-    case 'warning': return 'var(--color-gov-yellow)'
-    case 'success': return 'var(--color-gov-green)'
+    case 'error':   return 'var(--color-signal-short)'
+    case 'warning': return 'var(--color-signal-warn)'
+    case 'success': return 'var(--color-signal-long)'
     case 'info':    return 'var(--color-accent-blue)'
   }
 }
@@ -224,7 +224,7 @@ export default function NotificationCenter({ open, onClose }: NotificationCenter
               <button
                 type="button"
                 onClick={clear}
-                className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-gov-red hover:bg-gov-red-muted/30 transition-colors focus-ring"
+                className="min-h-[28px] min-w-[28px] inline-flex items-center justify-center rounded text-tertiary hover:text-signal-short hover:bg-signal-short-muted/30 transition-colors focus-ring"
                 aria-label="Clear all notifications"
                 title="Clear all"
               >

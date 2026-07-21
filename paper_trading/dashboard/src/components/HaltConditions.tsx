@@ -3,7 +3,7 @@ import { Check, X, AlertTriangle } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { MetricCardSkeleton } from './ui/Skeleton'
-import { governanceDot, governanceText } from './ui/governance'
+import { signalDot, signalText } from './ui/governance'
 import { gridMetric4, GRID_GAP } from '../design/grid'
 
 /** Halt condition monitors: max drawdown, monthly PF, signal drought, and probability drift. */
@@ -90,32 +90,32 @@ export default function HaltConditions() {
     <div>
       <div className={`${gridMetric4()} ${GRID_GAP}`}>
         {cards.map(c => {
-          const state = c.pass ? 'GREEN' : 'RED'
+          const state = c.pass ? 'LONG' : 'SHORT'
           return (
             <div
               key={c.label}
               className={`rounded-lg px-3.5 py-3 border transition-colors duration-200 ${
                 c.pass
                   ? 'bg-panel border-default'
-                  : 'bg-gov-red/[0.04] border-gov-red/15'
+                  : 'bg-signal-short/[0.04] border-signal-short/15'
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="metric-label">{c.label}</span>
-                <div className={`p-0.5 rounded-full ${governanceDot[state]}/20`}>
+                <div className={`p-0.5 rounded-full ${signalDot[state]}/20`}>
                   {c.pass ? (
-                    <Check className={`w-3 h-3 ${governanceText.GREEN}`} strokeWidth={2.5} />
+                    <Check className={`w-3 h-3 ${signalText.LONG}`} strokeWidth={2.5} />
                   ) : (
-                    <X className={`w-3 h-3 ${governanceText.RED}`} strokeWidth={2.5} />
+                    <X className={`w-3 h-3 ${signalText.SHORT}`} strokeWidth={2.5} />
                   )}
                 </div>
               </div>
-              <div className={`text-lg font-semibold tracking-tight metric-value ${governanceText[state]}`}>
+              <div className={`text-lg font-semibold tracking-tight metric-value ${signalText[state]}`}>
                 {c.value}
               </div>
               <div className="flex items-center gap-1 mt-1">
                 <span className="text-2xs text-muted">Threshold</span>
-                <span className={`text-2xs font-mono tabular-nums ${c.pass ? 'text-secondary' : governanceText.RED + '/80'}`}>
+                <span className={`text-2xs font-mono tabular-nums ${c.pass ? 'text-secondary' : signalText.SHORT + '/80'}`}>
                   {c.threshold}
                 </span>
               </div>
@@ -124,7 +124,7 @@ export default function HaltConditions() {
         })}
       </div>
       {haltedAny && (
-        <div aria-live="polite" className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-gov-red-muted border border-gov-red/20 text-[11px] text-gov-red">
+        <div aria-live="polite" className="mt-2.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-signal-short-muted border border-signal-short/20 text-[11px] text-signal-short">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
           <span className="font-medium">
             {haltedCount} asset{haltedCount > 1 ? 's' : ''} halted

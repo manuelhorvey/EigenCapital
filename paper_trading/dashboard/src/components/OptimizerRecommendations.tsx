@@ -53,7 +53,7 @@ export default function OptimizerRecommendations() {
         label: flagged.asset,
         value: `${(flagged.wr_margin >= 0 ? '+' : '')}${(flagged.wr_margin * 100).toFixed(1)}%`,
         sub: `${flagged.trend} · ${flagged.n_trades} trades · ${flagged.flag_reason}`,
-        accent: 'var(--color-gov-red)',
+        accent: 'var(--color-signal-short)',
       })
     }
 

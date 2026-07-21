@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import Panel from './ui/Panel'
+import ChartDataTable from './ui/ChartDataTable'
 import { Skeleton } from './ui/Skeleton'
 import { useEquityHistory } from '../hooks/useEquityHistory'
 
@@ -65,7 +66,7 @@ export default function EquityCurveWithRange() {
   )
 
   const returnPct = firstVal != null && firstVal > 0 && lastVal != null ? ((lastVal - firstVal) / firstVal * 100).toFixed(2) : '0.00'
-  const color = isUp ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
+  const color = isUp ? 'var(--color-signal-long)' : 'var(--color-signal-short)'
 
   if (isPending) {
     return (
@@ -178,6 +179,15 @@ export default function EquityCurveWithRange() {
           </div>
         )}
       </div>
+      <ChartDataTable
+        title={`Equity curve — ${range}`}
+        columns={[
+          { key: 'timestamp', label: 'Time', format: v => new Date(v as string).toLocaleString() },
+          { key: 'portfolio_value', label: 'Portfolio Value ($)', format: v => `$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+        ]}
+        data={filtered.slice(0, 500) as unknown as Record<string, unknown>[]}
+        summary={`Equity curve with ${filtered.length} data points, return ${returnPct}%`}
+      />
       <div className="flex items-center justify-between mt-2 text-[10px] text-tertiary font-mono">
         <span>{filtered.length} points</span>
         <span>{range === 'ALL' ? 'Full history' : `Last ${range}`}</span>

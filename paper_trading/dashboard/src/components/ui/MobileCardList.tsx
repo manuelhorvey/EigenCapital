@@ -21,7 +21,7 @@ interface MobileCardListProps {
  *       id: item.id,
  *       content: <MyCardContent item={item} />,
  *       onClick: () => handleClick(item),
- *       accent: item.signal === 'BUY' ? 'var(--color-gov-green)' : undefined,
+ *       accent: item.signal === 'BUY' ? 'var(--color-signal-long)' : undefined,
  *     }))}
  *   />
  *

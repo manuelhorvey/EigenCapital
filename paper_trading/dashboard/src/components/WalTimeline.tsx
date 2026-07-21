@@ -16,9 +16,9 @@ function ProbaBar({ probLong, probShort, probNeutral }: { probLong: number; prob
   const n = (probNeutral / total) * 100
   return (
     <div className="w-full h-1.5 bg-panel rounded-full overflow-hidden flex">
-      <div className="h-full transition-all" style={{ width: `${l}%`, backgroundColor: 'var(--color-gov-green, #22c55e)' }} />
-      <div className="h-full transition-all" style={{ width: `${n}%`, backgroundColor: 'var(--color-gov-init, #64748b)' }} />
-      <div className="h-full transition-all" style={{ width: `${s}%`, backgroundColor: 'var(--color-gov-red, #ef4444)' }} />
+      <div className="h-full transition-all" style={{ width: `${l}%`, backgroundColor: 'var(--color-signal-long, #22c55e)' }} />
+      <div className="h-full transition-all" style={{ width: `${n}%`, backgroundColor: 'var(--color-signal-init, #64748b)' }} />
+      <div className="h-full transition-all" style={{ width: `${s}%`, backgroundColor: 'var(--color-signal-short, #ef4444)' }} />
     </div>
   )
 }
@@ -26,7 +26,7 @@ function ProbaBar({ probLong, probShort, probNeutral }: { probLong: number; prob
 function GateBadge({ name, passed }: { name: string; passed: boolean }) {
   return (
     <span className={`inline-flex text-[10px] font-mono font-medium px-1 py-[1px] rounded-sm ${
-      passed ? 'text-gov-green bg-gov-green-muted' : 'text-gov-red bg-gov-red-muted'
+      passed ? 'text-signal-long bg-signal-long-muted' : 'text-signal-short bg-signal-short-muted'
     }`}>
       {name}
     </span>
@@ -89,7 +89,7 @@ function WalCard({ group }: { group: ReturnType<typeof groupWalEvents>[number] }
           <span className="text-2xs text-tertiary">{formatTimeAgo(group.ts)}</span>
         </div>
         <span className={`text-xs font-bold font-mono ${
-          signal === 'BUY' ? 'text-gov-green' : signal === 'SELL' ? 'text-gov-red' : 'text-tertiary'
+          signal === 'BUY' ? 'text-signal-long' : signal === 'SELL' ? 'text-signal-short' : 'text-tertiary'
         }`}>
           {signal ?? '—'}
         </span>
@@ -106,7 +106,7 @@ function WalCard({ group }: { group: ReturnType<typeof groupWalEvents>[number] }
       )}
 
       {gates !== null && gates.gatesAborted && (
-        <div className="text-2xs font-medium text-gov-red">ABORTED</div>
+        <div className="text-2xs font-medium text-signal-short">ABORTED</div>
       )}
     </div>
   )
@@ -134,7 +134,7 @@ export default function WalTimeline({ assetName }: WalTimelineProps) {
 
   if (isError) {
     return (
-      <div className="text-xs text-gov-red py-4 text-center">Failed to load WAL timeline</div>
+      <div className="text-xs text-signal-short py-4 text-center">Failed to load WAL timeline</div>
     )
   }
 

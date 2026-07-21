@@ -119,8 +119,8 @@ export const rawTokens = {
   // ── Text hierarchy ────────────────────────────────
   'color-text-primary': '#f1f3f6',
   'color-text-secondary': '#94a3b8',
-  'color-text-tertiary': '#64748b',
-  'color-text-muted': '#475569',
+  'color-text-tertiary': '#7f94ad',
+  'color-text-muted': '#6e8198',
 
   // ── Borders ───────────────────────────────────────
   'color-border': '#1e2233',
@@ -140,32 +140,95 @@ export const rawTokens = {
   'color-focus-ring-visible': 'rgba(61, 217, 174, 0.6)',
   'color-surface-elevated': '#1a1d28',
 
-  // ── Governance (semantic) ─────────────────────────
-  'color-gov-green': '#25d065',
-  'color-gov-green-muted': 'rgba(37, 208, 101, 0.12)',
-  'color-gov-green-muted2': 'rgba(37, 208, 101, 0.06)',
-  'color-gov-green-light': '#16a34a',
-  'color-gov-green-dark': '#15803d',
+  // ── Surface elevation system (depth 1-4) ──────────
+  // Each level gets brighter (closer to light source) and gets a
+  // proportionally stronger shadow. Use elevation-1 for hover states,
+  // elevation-2 for dropdowns, elevation-3 for sidebars/drawers,
+  // elevation-4 for modals.
+  'surface-elevation-1': '#161a26',
+  'surface-elevation-2': '#1a1e2e',
+  'surface-elevation-3': '#1f2438',
+  'surface-elevation-4': '#242a3f',
 
-  'color-gov-yellow': '#eab308',
-  'color-gov-yellow-muted': 'rgba(234, 179, 8, 0.12)',
-  'color-gov-yellow-muted2': 'rgba(234, 179, 8, 0.06)',
-  'color-gov-yellow-light': '#d97706',
-  'color-gov-yellow-dark': '#b45309',
+  // ── Surface role tokens (semantic aliases) ─────────
+  // Maps component role → elevation surface
+  'surface-raised': 'var(--surface-elevation-1)',
+  'surface-overlay': 'var(--surface-elevation-3)',
+  'surface-modal': 'var(--surface-elevation-4)',
+  'surface-sunken': 'var(--color-app)',
 
-  'color-gov-red': '#f04444',
-  'color-gov-red-muted': 'rgba(240, 68, 68, 0.12)',
-  'color-gov-red-muted2': 'rgba(240, 68, 68, 0.06)',
-  'color-gov-red-light': '#dc2626',
-  'color-gov-red-dark': '#b91c1c',
+  // ── Elevation-specific shadow tokens ───────────────
+  'shadow-elevation-1': '0 1px 2px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.03) inset',
+  'shadow-elevation-2': '0 2px 8px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.03) inset',
+  'shadow-elevation-3': '0 4px 16px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.03) inset',
+  'shadow-elevation-4': '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset',
 
-  'color-gov-init': '#64748b',
-  'color-gov-init-muted': 'rgba(100, 116, 139, 0.12)',
-  'color-gov-init-muted2': 'rgba(100, 116, 139, 0.06)',
+  // ── Component-level tokens ─────────────────────────
+  // Table
+  'table-row-hover': 'rgba(255, 255, 255, 0.03)',
+  'table-header-bg': 'rgba(255, 255, 255, 0.02)',
+  'table-border': 'rgba(255, 255, 255, 0.06)',
 
-  'color-gov-gray': '#6b7280',
-  'color-gov-gray-muted': 'rgba(107, 114, 128, 0.12)',
-  'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.06)',
+  // Input
+  'input-bg': 'rgba(255, 255, 255, 0.03)',
+  'input-placeholder': 'rgba(255, 255, 255, 0.25)',
+
+  // Badge
+  'badge-bg': 'rgba(255, 255, 255, 0.06)',
+
+  // ── Z-index scale (systematic, no arbitrary values) ─
+  // z-base (z-index: 0) omitted — it's the browser default and
+  // no component should ever need to explicitly set z-index: 0.
+  'z-sticky': '10',
+  'z-dropdown': '20',
+  'z-drawer': '30',
+  'z-modal-backdrop': '40',
+  'z-modal': '50',
+  'z-toast': '60',
+  'z-tooltip': '70',
+
+  // ── Data-density spacing (compact mode) ────────────
+  // .dense-data class on a container triggers these overrides.
+  // The standard 4px grid is scaled by 0.75 in dense mode.
+  // Values use calc() relative to standard spacing to stay in sync.
+  // Note: --dense-active is reserved for future component-level
+  // dense-mode overrides. It is set by .dense-data and can be read
+  // by child components via var(--dense-active) once they opt in.
+  'dense-active': '0',
+  'dense-spacing-1': 'calc(var(--spacing-1) * 0.75)',
+  'dense-spacing-2': 'calc(var(--spacing-2) * 0.75)',
+  'dense-spacing-3': 'calc(var(--spacing-3) * 0.75)',
+  'dense-spacing-4': 'calc(var(--spacing-4) * 0.75)',
+  'dense-spacing-5': 'calc(var(--spacing-5) * 0.75)',
+  'dense-spacing-6': 'calc(var(--spacing-6) * 0.75)',
+  'dense-font-size': '10px',
+  'dense-line-height': '1.3',
+
+  // ── Signal-* complete token sets (matching gov-* completeness) ─
+  // These are the canonical signal tokens. The legacy gov-* tokens are
+  // kept for backward compatibility. New components should use signal-*.
+  //
+  // Note: signal-*-muted2 intentionally aliases gov-*-muted2 at the same
+  // opacity (0.06 dark / 0.08 light). This is not a bug — it creates a
+  // clean migration path where new signal-* consumers don't import gov-*.
+  'color-signal-long-muted': 'rgba(37, 208, 101, 0.12)',
+  'color-signal-long-muted2': 'rgba(37, 208, 101, 0.06)',
+  'color-signal-warn-muted': 'rgba(234, 179, 8, 0.12)',
+  'color-signal-warn-muted2': 'rgba(234, 179, 8, 0.06)',
+  'color-signal-short-muted': 'rgba(240, 68, 68, 0.12)',
+  'color-signal-short-muted2': 'rgba(240, 68, 68, 0.06)',
+  'color-signal-long-light': '#16a34a',
+  'color-signal-long-dark': '#15803d',
+  'color-signal-warn-light': '#d97706',
+  'color-signal-warn-dark': '#b45309',
+  'color-signal-short-light': '#dc2626',
+  'color-signal-short-dark': '#b91c1c',
+  'color-signal-init': '#64748b',
+  'color-signal-init-muted': 'rgba(100, 116, 139, 0.12)',
+  'color-signal-init-muted2': 'rgba(100, 116, 139, 0.06)',
+  'color-signal-gray': '#6b7280',
+  'color-signal-gray-muted': 'rgba(107, 114, 128, 0.12)',
+  'color-signal-gray-muted2': 'rgba(107, 114, 128, 0.06)',
 
   // ── Extended accent palette ───────────────────────
   // Emerald is the single accent for the operator-console identity: the
@@ -243,7 +306,8 @@ export const rawTokens = {
   'line-height-base': '1.5',
   'font-size-lg': '18px',
   'line-height-lg': '1.3333',
-  'font-size-xl': '18px',
+  // xl was incorrectly set to 18px (same as lg). Fixed to 20px.
+  'font-size-xl': '20px',
   'line-height-xl': '1.3',
   'font-size-2xl': '24px',
   'line-height-2xl': '1.3333',
@@ -302,11 +366,16 @@ export const rawTokensLight: Partial<Record<keyof typeof rawTokens, string>> = {
   'color-rule': '#e2e8f0',                      // lighter border
   'color-accent-glow': 'rgba(20, 184, 166, 0.15)',
 
+  // ── Signal colors (darker for light bg contrast) ─
+  'color-signal-long': '#198145',
+  'color-signal-warn': '#9e7400',
+  'color-signal-short': '#c23333',
+
   // ── Text hierarchy ────────────────────────────────
   'color-text-primary': '#0f172a',
   'color-text-secondary': '#475569',
-  'color-text-tertiary': '#64748b',
-  'color-text-muted': '#94a3b8',
+  'color-text-tertiary': '#55677d',
+  'color-text-muted': '#5a6c82',
 
   // ── Borders ───────────────────────────────────────
   'color-border': '#e2e8f0',
@@ -326,17 +395,43 @@ export const rawTokensLight: Partial<Record<keyof typeof rawTokens, string>> = {
   'color-focus-ring-visible': 'rgba(20, 184, 166, 0.5)',
   'color-surface-elevated': '#f0f2f6',
 
-  // ── Governance muted backgrounds (higher opacity for light bg) ─
-  'color-gov-green-muted': 'rgba(37, 208, 101, 0.15)',
-  'color-gov-green-muted2': 'rgba(37, 208, 101, 0.08)',
-  'color-gov-yellow-muted': 'rgba(234, 179, 8, 0.15)',
-  'color-gov-yellow-muted2': 'rgba(234, 179, 8, 0.08)',
-  'color-gov-red-muted': 'rgba(240, 68, 68, 0.15)',
-  'color-gov-red-muted2': 'rgba(240, 68, 68, 0.08)',
-  'color-gov-init-muted': 'rgba(100, 116, 139, 0.15)',
-  'color-gov-init-muted2': 'rgba(100, 116, 139, 0.08)',
-  'color-gov-gray-muted': 'rgba(107, 114, 128, 0.15)',
-  'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.08)',
+  // ── Surface elevation system (light mode) ─────────
+  'surface-elevation-1': '#f3f4f8',
+  'surface-elevation-2': '#ffffff',
+  'surface-elevation-3': '#ffffff',
+  'surface-elevation-4': '#ffffff',
+  'surface-raised': 'var(--surface-elevation-1)',
+  'surface-overlay': 'var(--surface-elevation-3)',
+  'surface-modal': 'var(--surface-elevation-4)',
+  'surface-sunken': 'var(--color-app)',
+
+  // ── Elevation shadow (light mode) ─────────────────
+  'shadow-elevation-1': '0 1px 2px rgba(0,0,0,0.06)',
+  'shadow-elevation-2': '0 2px 8px rgba(0,0,0,0.08)',
+  'shadow-elevation-3': '0 4px 16px rgba(0,0,0,0.1)',
+  'shadow-elevation-4': '0 0 0 1px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.12)',
+
+  // ── Component tokens (light mode) ─────────────────
+  'table-row-hover': 'rgba(0, 0, 0, 0.03)',
+  'table-header-bg': 'rgba(0, 0, 0, 0.02)',
+  'table-border': 'rgba(0, 0, 0, 0.08)',
+  'input-bg': 'rgba(0, 0, 0, 0.02)',
+  'input-placeholder': 'rgba(0, 0, 0, 0.25)',
+  'badge-bg': 'rgba(0, 0, 0, 0.06)',
+
+  // ── Signal-* muted backgrounds (light mode) ────────
+  'color-signal-long-muted': 'rgba(37, 208, 101, 0.15)',
+  'color-signal-long-muted2': 'rgba(37, 208, 101, 0.08)',
+  'color-signal-warn-muted': 'rgba(234, 179, 8, 0.15)',
+  'color-signal-warn-muted2': 'rgba(234, 179, 8, 0.08)',
+  'color-signal-short-muted': 'rgba(240, 68, 68, 0.15)',
+  'color-signal-short-muted2': 'rgba(240, 68, 68, 0.08)',
+  'color-signal-init': '#64748b',
+  'color-signal-init-muted': 'rgba(100, 116, 139, 0.15)',
+  'color-signal-init-muted2': 'rgba(100, 116, 139, 0.08)',
+  'color-signal-gray': '#6b7280',
+  'color-signal-gray-muted': 'rgba(107, 114, 128, 0.15)',
+  'color-signal-gray-muted2': 'rgba(107, 114, 128, 0.08)',
 
   // ── Shadows (lighter for light mode) ──────────────
   'shadow-panel': '0 1px 3px rgba(0,0,0,0.05)',
@@ -452,39 +547,39 @@ export const neutral = {
 } as const
 
 export const success = {
-  DEFAULT: _['color-gov-green'],
-  muted: _['color-gov-green-muted'],
-  muted2: _['color-gov-green-muted2'],
-  light: _['color-gov-green-light'],
-  dark: _['color-gov-green-dark'],
+  DEFAULT: _['color-signal-long'],
+  muted: _['color-signal-long-muted'],
+  muted2: _['color-signal-long-muted2'],
+  light: _['color-signal-long-light'],
+  dark: _['color-signal-long-dark'],
 }
 
 export const warning = {
-  DEFAULT: _['color-gov-yellow'],
-  muted: _['color-gov-yellow-muted'],
-  muted2: _['color-gov-yellow-muted2'],
-  light: _['color-gov-yellow-light'],
-  dark: _['color-gov-yellow-dark'],
+  DEFAULT: _['color-signal-warn'],
+  muted: _['color-signal-warn-muted'],
+  muted2: _['color-signal-warn-muted2'],
+  light: _['color-signal-warn-light'],
+  dark: _['color-signal-warn-dark'],
 }
 
 export const error = {
-  DEFAULT: _['color-gov-red'],
-  muted: _['color-gov-red-muted'],
-  muted2: _['color-gov-red-muted2'],
-  light: _['color-gov-red-light'],
-  dark: _['color-gov-red-dark'],
+  DEFAULT: _['color-signal-short'],
+  muted: _['color-signal-short-muted'],
+  muted2: _['color-signal-short-muted2'],
+  light: _['color-signal-short-light'],
+  dark: _['color-signal-short-dark'],
 }
 
 export const neutral_semantic = {
-  DEFAULT: _['color-gov-init'],
-  muted: _['color-gov-init-muted'],
-  muted2: _['color-gov-init-muted2'],
+  DEFAULT: _['color-signal-init'],
+  muted: _['color-signal-init-muted'],
+  muted2: _['color-signal-init-muted2'],
 }
 
 export const neutral_gray = {
-  DEFAULT: _['color-gov-gray'],
-  muted: _['color-gov-gray-muted'],
-  muted2: _['color-gov-gray-muted2'],
+  DEFAULT: _['color-signal-gray'],
+  muted: _['color-signal-gray-muted'],
+  muted2: _['color-signal-gray-muted2'],
 }
 
 export const accents = {
@@ -676,11 +771,11 @@ export const tokens = {
     'interactive-hover': _['color-interactive-hover'],
     'interactive-active': _['color-interactive-active'],
     'interactive-selected': _['color-interactive-selected'],
-    'gov-green': success.DEFAULT,
-    'gov-yellow': warning.DEFAULT,
-    'gov-red': error.DEFAULT,
-    'gov-init': neutral_semantic.DEFAULT,
-    'gov-gray': neutral_gray.DEFAULT,
+    'signal-long': success.DEFAULT,
+    'signal-warn': warning.DEFAULT,
+    'signal-short': error.DEFAULT,
+    'signal-init': neutral_semantic.DEFAULT,
+    'signal-gray': neutral_gray.DEFAULT,
     'accent-emerald': accents.emerald,
     'accent-blue': accents.blue,
     'accent-purple': accents.purple,

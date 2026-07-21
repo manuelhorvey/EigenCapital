@@ -17,7 +17,7 @@ const accentDot: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
   amber: 'bg-accent-amber',
   indigo: 'bg-accent-indigo',
   pink: 'bg-accent-pink',
-  neutral: 'bg-gov-init/60',
+  neutral: 'bg-signal-init/60',
 }
 
 /** Section heading with accent dot, optional subtitle, and meta slot for actions/buttons. */

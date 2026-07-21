@@ -13,9 +13,9 @@ interface AlertFeedProps {
 const DEFAULT_MAX = 10
 
 const severityConfig = {
-  critical: { icon: AlertCircle, color: 'text-gov-red', bg: 'bg-gov-red-muted', border: 'border-gov-red/35' },
-  warning: { icon: AlertTriangle, color: 'text-gov-yellow', bg: 'bg-gov-yellow-muted', border: 'border-gov-yellow/35' },
-  info: { icon: Info, color: 'text-gov-init', bg: 'bg-gov-init-muted', border: 'border-gov-init/35' },
+  critical: { icon: AlertCircle, color: 'text-signal-short', bg: 'bg-signal-short-muted', border: 'border-signal-short/35' },
+  warning: { icon: AlertTriangle, color: 'text-signal-warn', bg: 'bg-signal-warn-muted', border: 'border-signal-warn/35' },
+  info: { icon: Info, color: 'text-signal-init', bg: 'bg-signal-init-muted', border: 'border-signal-init/35' },
 }
 
 const typeIcon = {

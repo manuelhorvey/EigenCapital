@@ -71,21 +71,6 @@ const COLOR_MAP: Record<string, string> = {
   'color-interactive-hover': 'interactive-hover',
   'color-interactive-active': 'interactive-active',
   'color-interactive-selected': 'interactive-selected',
-  'color-gov-green': 'gov-green.DEFAULT',
-  'color-gov-green-muted': 'gov-green.muted',
-  'color-gov-green-muted2': 'gov-green.muted2',
-  'color-gov-yellow': 'gov-yellow.DEFAULT',
-  'color-gov-yellow-muted': 'gov-yellow.muted',
-  'color-gov-yellow-muted2': 'gov-yellow.muted2',
-  'color-gov-red': 'gov-red.DEFAULT',
-  'color-gov-red-muted': 'gov-red.muted',
-  'color-gov-red-muted2': 'gov-red.muted2',
-  'color-gov-init': 'gov-init.DEFAULT',
-  'color-gov-init-muted': 'gov-init.muted',
-  'color-gov-init-muted2': 'gov-init.muted2',
-  'color-gov-gray': 'gov-gray.DEFAULT',
-  'color-gov-gray-muted': 'gov-gray.muted',
-  'color-gov-gray-muted2': 'gov-gray.muted2',
   'color-accent-emerald': 'accent-emerald',
   'color-accent-blue': 'accent-blue',
   'color-accent-purple': 'accent-purple',
@@ -97,11 +82,37 @@ const COLOR_MAP: Record<string, string> = {
    'color-ink': 'ink',
    'color-rule': 'rule',
    'color-signal-long': 'signal-long.DEFAULT',
+   'color-signal-long-muted': 'signal-long.muted',
+   'color-signal-long-muted2': 'signal-long.muted2',
    'color-signal-warn': 'signal-warn.DEFAULT',
+   'color-signal-warn-muted': 'signal-warn.muted',
+   'color-signal-warn-muted2': 'signal-warn.muted2',
    'color-signal-short': 'signal-short.DEFAULT',
+   'color-signal-short-muted': 'signal-short.muted',
+   'color-signal-short-muted2': 'signal-short.muted2',
+   'color-signal-long-light': 'signal-long.light',
+   'color-signal-long-dark': 'signal-long.dark',
+   'color-signal-warn-light': 'signal-warn.light',
+   'color-signal-warn-dark': 'signal-warn.dark',
+   'color-signal-short-light': 'signal-short.light',
+   'color-signal-short-dark': 'signal-short.dark',
+   'color-signal-init': 'signal-init.DEFAULT',
+   'color-signal-init-muted': 'signal-init.muted',
+   'color-signal-init-muted2': 'signal-init.muted2',
+   'color-signal-gray': 'signal-gray.DEFAULT',
+   'color-signal-gray-muted': 'signal-gray.muted',
+   'color-signal-gray-muted2': 'signal-gray.muted2',
    'color-tripwire': 'tripwire',
    'color-accent-glow': 'accent-glow',
  }
+
+// Non-color tokens that are consumed directly via CSS custom properties
+// (not via Tailwind color utilities). These are defined in tokens.css
+// as CSS vars and accessed via var() in components.
+//
+// Note: table-*, input-*, badge-* tokens don't pass the `color-` prefix
+// filter in the colors loop above, so they're listed here for documentation.
+// They're consumed as CSS vars, not as Tailwind color utilities.
 
 const colors: Obj = {}
 

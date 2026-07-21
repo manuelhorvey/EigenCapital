@@ -15,10 +15,10 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: 'bg-accent-emerald/10 text-accent-emerald border-accent-emerald/25',
-  success: 'bg-gov-green-muted text-gov-green border-gov-green/35',
-  warning: 'bg-gov-yellow-muted text-gov-yellow border-gov-yellow/35',
-  error: 'bg-gov-red-muted text-gov-red border-gov-red/35',
-  neutral: 'bg-gov-init-muted text-gov-init border-gov-init/35',
+  success: 'bg-signal-long-muted text-signal-long border-signal-long/35',
+  warning: 'bg-signal-warn-muted text-signal-warn border-signal-warn/35',
+  error: 'bg-signal-short-muted text-signal-short border-signal-short/35',
+  neutral: 'bg-signal-init-muted text-signal-init border-signal-init/35',
 }
 
 const sizeStyles = {

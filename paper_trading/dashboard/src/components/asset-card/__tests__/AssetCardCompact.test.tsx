@@ -52,13 +52,13 @@ describe('AssetCardCompact', () => {
   it('shows SELL signal with correct styling class', () => {
     const sellInfo = { ...baseInfo, signal: 'SELL', confidence: 60 }
     const { container } = render(<AssetCardCompact name="GBPUSD" info={sellInfo} onSelect={onSelect} />)
-    expect(container.querySelector('.border-l-gov-red')).toBeTruthy()
+    expect(container.querySelector('.border-l-signal-short')).toBeTruthy()
   })
 
   it('shows FLAT signal with gray styling', () => {
     const flatInfo = { ...baseInfo, signal: 'FLAT', confidence: 50 }
     const { container } = render(<AssetCardCompact name="USDJPY" info={flatInfo} onSelect={onSelect} />)
-    expect(container.querySelector('.border-l-gov-gray')).toBeTruthy()
+    expect(container.querySelector('.border-l-signal-gray')).toBeTruthy()
   })
 
   it('shows tripwire badge when tripwireActive is true', () => {

@@ -44,9 +44,9 @@ interface NavItemProps {
 }
 
 function engineDotClass(state: EngineState | undefined): string | null {
-  if (state === 'alive') return 'bg-gov-green'
-  if (state === 'stale') return 'bg-gov-yellow'
-  if (state === 'dead') return 'bg-gov-red'
+  if (state === 'alive') return 'bg-signal-long'
+  if (state === 'stale') return 'bg-signal-warn'
+  if (state === 'dead') return 'bg-signal-short'
   return null
 }
 
@@ -57,7 +57,6 @@ const NavItem = memo(function NavItem({ item, badge, engine, onClose, onKeyDown 
       id={`nav-${item.id}`}
       to={item.to}
       end
-      role="listitem"
       onClick={onClose}
       onKeyDown={e => onKeyDown(e, item.id)}
       className={({ isActive }) =>
@@ -79,16 +78,16 @@ const NavItem = memo(function NavItem({ item, badge, engine, onClose, onKeyDown 
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="truncate">{item.label}</span>
-              {dot && (
+              <span className="truncate">{item.label}</span>                  {dot && (
                 <span
                   className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`}
+                  role="status"
                   aria-label={`Engine ${engine}`}
                   title={`Engine ${engine}`}
                 />
               )}
               {badge != null && badge > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-none bg-gov-red-muted text-gov-red border border-gov-red/25">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold leading-none bg-signal-short-muted text-signal-short border border-signal-short/25">
                   {badge}
                 </span>
               )}
@@ -154,7 +153,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
         aria-label="Navigation"
         className={`
           fixed inset-y-0 left-0 z-50 bg-surface border-r border-default
-          shadow-[inset_-1px_0_0_rgba(255,255,255,0.02)]
+          shadow-elevation-2
           transform transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]
           lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 lg:sticky lg:top-[44px]
           lg:h-[calc(100vh-44px)] lg:overflow-y-auto
@@ -177,7 +176,6 @@ function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Navigation shell — flat nav with roving tabindex (ArrowUp/Down, Home/End, Escape). */}
         <nav
-          role="list"
           aria-label="Dashboard sections"
           className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-thin"
         >
@@ -185,7 +183,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
           <div className="flex items-center justify-start gap-1.5 px-2 py-2 mb-1 border-b border-default/40" aria-label={`Engine status: ${badges.engine ?? 'unknown'}`}>
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                engineDotClass(badges.engine) ?? 'bg-gov-init/50'
+                engineDotClass(badges.engine) ?? 'bg-signal-init/50'
               }`}
               aria-hidden
             />

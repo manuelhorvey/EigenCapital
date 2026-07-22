@@ -42,7 +42,28 @@ from datetime import date
 from typing import Any
 
 from eigencapital.domain.time import utc_now, utc_now_iso
+from eigencapital.domain.provenance import (
+    DecisionID,
+    DecisionProvenance,
+    DecisionTrace,
+    ExecutionContext as ProvenanceExecutionContext,
+    FeatureContext,
+    MarketContext,
+    ModelContext,
+    PortfolioContext,
+    PositionSnapshot,
+)
+from eigencapital.domain.provenance.provenance_store import (
+    ProvenanceStore,
+    compute_config_hash,
+    compute_git_hash,
+)
 from paper_trading.alerting.manager import global_alert_manager
+from paper_trading.metrics.provenance_metrics import (
+    record_capture,
+    record_capture_error,
+    update_store_metrics,
+)
 from paper_trading.config_manager import EngineConfig, get_config
 from paper_trading.governance.drawdown_controls import check_drawdown_circuit_breaker, compute_exposure_multiplier
 from paper_trading.logging.correlation import set_correlation_id
@@ -106,6 +127,7 @@ class EngineOrchestrator:
         max_workers: int = 16,
         snapshot: EngineSnapshot | None = None,
         config: EngineConfig | None = None,
+        provenance_store: ProvenanceStore | None = None,
     ):
         self._actors = actors
         self._config = config
@@ -171,6 +193,15 @@ class EngineOrchestrator:
         if self._halt_state.auto_clear_stale_halt(_init_equity, alert_callback=_alert):
             for actor in self._actors.values():
                 actor.reset()
+
+        # Decision Provenance Layer — passive observer at the decision boundary
+        self._provenance_store = provenance_store
+        if self._provenance_store is not None:
+            try:
+                self._provenance_store.initialize()
+            except (OSError, RuntimeError) as e:
+                logger.warning("ProvenanceStore init failed (non-fatal): %s", e)
+                self._provenance_store = None
 
         # Cross-asset correlation monitor
         self._correlation_monitor = CorrelationMonitor()
@@ -288,11 +319,230 @@ class EngineOrchestrator:
         if halted:
             return results
 
+        # ── Decision Provenance Capture (M1B) ───────────────────────────
+        # Passive observer: captures the full system state AFTER Phase 3
+        # (portfolio/risk) and BEFORE Phase 4 (persist / position modification).
+        # The capture is the Decision Boundary — the canonical answer to
+        # "what did the system know and why did it act?"
+        if self._provenance_store is not None:
+            try:
+                self._capture_provenance(results)
+            except Exception:
+                logger.exception("Decision provenance capture failed (non-fatal)")
+
         # ── Phase 4 ──────────────────────────────────────────────────────
         self._phase_4_persist(results)
 
         results["cycle_duration_ms"] = round((time.monotonic() - t0) * 1000.0, 2)
         return results
+
+    # ── Decision Provenance Capture ─────────────────────────────────────────────
+
+    def _capture_provenance(self, results: dict) -> None:
+        """Assemble and persist DecisionProvenance records for each asset.
+
+        Called at the decision boundary (after Phase 3, before Phase 4).
+        Iterates over all actors, builds the six immutable contexts from
+        available data, and writes one record per asset per cycle.
+
+        If the store is not configured, this is a no-op.  All exceptions
+        are caught and logged so a provenance failure never crashes the
+        main trading loop.
+        """
+        store = self._provenance_store
+        if store is None:
+            return
+
+        config_hash = compute_config_hash()
+        git_hash = compute_git_hash()
+
+        # Pre-compute portfolio-level data once per cycle
+        ctx = self._cycle_context
+        pek_util = getattr(self, "_pek_budget_utilization", 1.0)
+        pf_snapshot = self._portfolio_snapshot
+        risk_budget = self._risk_budget
+        halt_state = self._halt_state
+
+        total_equity = ctx.total_equity if ctx else 0.0
+        drawdown_pct = ctx.drawdown_pct if ctx else 0.0
+        exp_mult = ctx.exp_mult if ctx else 1.0
+
+        # Build ExecutionContext once (shared across assets)
+        runtime_ctx = ProvenanceExecutionContext(
+            cycle_id=self._cycles_elapsed,
+            total_equity=total_equity,
+            drawdown_pct=drawdown_pct,
+            exposure_multiplier=exp_mult,
+            n_assets=len(self._actors),
+            n_healthy=(results.get("health") or {}).get("green", 0),
+            n_halted=(results.get("health") or {}).get("halted", 0),
+            halt_ratio=(results.get("health") or {}).get("halt_ratio", 0.0),
+            emergency_halt=halt_state.emergency_halt if halt_state else False,
+            halt_reason=halt_state.halt_reason or "",
+            peak_portfolio_value=halt_state.peak_portfolio_value if halt_state else None,
+            circuit_breaker_tripped=(results.get("circuit_breaker") or {}).get("triggered", False),
+            circuit_breaker_reason=(results.get("circuit_breaker") or {}).get("reason", ""),
+            pek_budget_utilization=pek_util,
+            position_concentration_skew=self._position_concentration.get("skew", 0.0),
+            position_concentration_dominant_side=self._position_concentration.get("dominant_side", ""),
+        )
+
+        # Build PortfolioContext once (shared across assets)
+        portfolio_positions: list[PositionSnapshot] = []
+        if pf_snapshot is not None:
+            for p in pf_snapshot.positions:
+                portfolio_positions.append(
+                    PositionSnapshot(
+                        asset=p.asset,
+                        side=p.side,
+                        notional=p.notional,
+                        entry_price=p.entry_price,
+                        current_price=p.current_price,
+                        unrealized_pnl_pct=p.current_pnl_pct,
+                        mtm_value=p.mtm_value,
+                    )
+                )
+        portfolio_ctx = PortfolioContext(
+            total_equity=pf_snapshot.total_equity if pf_snapshot else total_equity,
+            peak_value=pf_snapshot.peak_value if pf_snapshot else (halt_state.peak_portfolio_value if halt_state else 0.0),
+            drawdown_pct=pf_snapshot.drawdown_pct if pf_snapshot else drawdown_pct,
+            gross_exposure=pf_snapshot.gross_exposure if pf_snapshot else 0.0,
+            net_exposure=pf_snapshot.net_exposure if pf_snapshot else 0.0,
+            open_position_count=pf_snapshot.open_position_count if pf_snapshot else 0,
+            positions=tuple(portfolio_positions),
+            pek_budget_utilization=pek_util,
+            pek_max_risk_per_trade_pct=risk_budget.max_risk_per_trade_pct if risk_budget else None,
+            pek_max_portfolio_heat=risk_budget.max_portfolio_heat if risk_budget else None,
+            pek_max_concurrent=risk_budget.max_concurrent_positions if risk_budget else None,
+            daily_pnl=pf_snapshot.daily_pnl if pf_snapshot else 0.0,
+            leverage_remaining=pf_snapshot.leverage_remaining if pf_snapshot else None,
+            max_leverage=pf_snapshot.max_leverage if pf_snapshot else None,
+            portfolio_mode=pf_snapshot.mode if pf_snapshot else "",
+        )
+
+        admission = results.get("admission") or {}
+        corr = results.get("correlation") or {}
+
+        decision_timestamp = utc_now_iso()
+        for name, actor in self._actors.items():
+            signal = results.get("assets", {}).get(name)
+            if signal is None or not isinstance(signal, dict):
+                continue
+
+            engine = getattr(actor, "_engine", None)
+            if engine is None:
+                continue
+
+            # ── MarketContext ──────────────────────────────────────────
+            close_price = signal.get("close_price", 0.0) or getattr(engine, "current_price", 0.0) or 0.0
+            ticker = getattr(engine, "ticker", name)
+            spread_bps = getattr(engine, "_last_spread_bps", None)
+            spread_tier = getattr(getattr(engine, "_ws", None), "_spread_tier", "fx_cross")
+
+            market_ctx = MarketContext(
+                asset=name,
+                ticker=ticker,
+                close_price=float(close_price),
+                spread_bps=float(spread_bps) if spread_bps is not None else None,
+                spread_tier=spread_tier,
+            )
+
+            # ── FeatureContext ─────────────────────────────────────────
+            feature_vector = getattr(engine, "_last_feature_vector", None) or {}
+            feature_hash = signal.get("feature_hash", "") or getattr(engine, "_last_feature_hash", "")
+            feature_schema = getattr(engine, "_last_feature_schema", None)
+
+            feature_ctx = FeatureContext(
+                feature_hash=feature_hash,
+                feature_vector=feature_vector,
+                feature_names=feature_schema or sorted(feature_vector.keys()),
+                n_features=len(feature_vector),
+            )
+
+            # ── ModelContext ───────────────────────────────────────────
+            model_hash = getattr(engine, "_model_hash", "unknown")
+            prob_long = float(signal.get("prob_long", 0.0))
+            prob_short = float(signal.get("prob_short", 0.0))
+            prob_neutral = float(signal.get("prob_neutral", 0.0))
+            confidence = signal.get("confidence", 0.0)
+            archetype = signal.get("archetype", "")
+
+            cal_applied = getattr(engine, "_calibration_applied", False)
+            cal_registry = getattr(engine, "_calibration_registry", None)
+            cal_ece = None
+            if cal_registry is not None and hasattr(cal_registry, "get_calibration"):
+                cal = cal_registry.get_calibration(name)
+                if cal is not None:
+                    cal_ece = getattr(cal, "ece", None)
+
+            regime_label = getattr(engine, "_last_regime_label", "") or getattr(engine, "_current_regime", "")
+            regime_long_prob = getattr(engine, "_last_regime_long_prob", None)
+
+            model_ctx = ModelContext(
+                model_version=model_hash,
+                model_hash=model_hash,
+                prob_long=prob_long,
+                prob_short=prob_short,
+                prob_neutral=prob_neutral,
+                calibrated_prob_long=None,
+                calibrated_confidence=float(confidence) / 100.0 if confidence else None,
+                calibration_applied=bool(cal_applied),
+                calibration_ece=float(cal_ece) if cal_ece is not None else None,
+                regime_label=str(regime_label),
+                regime_long_prob=float(regime_long_prob) if regime_long_prob is not None else None,
+            )
+
+            # ── DecisionTrace ──────────────────────────────────────────
+            final_signal = signal.get("final_signal") or signal.get("signal", "UNKNOWN")
+            pos_size = signal.get("position_size", 0.0)
+            pos_data = signal.get("position")
+            sl_price = float(pos_data["sl"]) if pos_data and pos_data.get("sl") else None
+            tp_price = float(pos_data["tp"]) if pos_data and pos_data.get("tp") else None
+            entry_price = float(pos_data["entry"]) if pos_data and pos_data.get("entry") else None
+
+            # Extract per-asset admission info if available
+            is_admitted = name in admission.get("admitted", [])
+            reject_reason = admission.get("rejection_reasons", {}).get(name, "")
+            is_shadow = isinstance(reject_reason, str) and "SHADOW" in reject_reason
+
+            decision_trace = DecisionTrace(
+                final_signal=str(final_signal),
+                position_size=float(pos_size),
+                stop_loss_price=sl_price,
+                take_profit_price=tp_price,
+                entry_price=entry_price,
+                entry_action="ENTER" if is_admitted else ("BLOCKED" if reject_reason else "SKIP"),
+                n_gates_passed=1 if is_admitted else 0,
+                n_gates_blocked=1 if reject_reason else 0,
+                gates_trace={name: is_admitted},
+                gates_blocked=[reject_reason] if reject_reason else [],
+            )
+
+            # ── DecisionProvenance ─────────────────────────────────────
+            provenance = DecisionProvenance(
+                decision_id=DecisionID.generate(),
+                cycle_id=self._cycles_elapsed,
+                asset=name,
+                decision_timestamp=decision_timestamp,
+                decision_type="SHADOW" if is_shadow else "LIVE",
+                git_hash=git_hash,
+                config_hash=config_hash,
+                market=market_ctx,
+                features=feature_ctx,
+                model=model_ctx,
+                portfolio=portfolio_ctx,
+                runtime=runtime_ctx,
+                decision=decision_trace,
+            )
+
+            try:
+                self._provenance_store.store(provenance)
+                record_capture(asset=name, signal=str(final_signal))
+            except (OSError, RuntimeError) as e:
+                record_capture_error(asset=name)
+                logger.warning("Provenance store failed for %s cycle %d: %s", name, self._cycles_elapsed, e)
+
+        update_store_metrics(self._provenance_store)
 
     # ── Phase helpers ───────────────────────────────────────────────────────────
 

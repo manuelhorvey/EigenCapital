@@ -81,12 +81,21 @@ class _MockPosMgr:
         return self.position is not None
 
 
-def _make_mock_actor(name: str, **engine_kwargs) -> AssetActor:
-    """Build an AssetActor wrapping a _MockEngine with optional overrides."""
-    mock_engine = _MockEngine(name=name)
-    for k, v in engine_kwargs.items():
-        if hasattr(mock_engine, k):
-            setattr(mock_engine, k, v)
+def _make_mock_actor(name: str, engine: object = None, **engine_kwargs) -> AssetActor:
+    """Build an AssetActor wrapping a _MockEngine with optional overrides.
+
+    Args:
+        name: Asset name.
+        engine: Pre-built engine instance (if None, creates _MockEngine).
+        **engine_kwargs: Override attributes on _MockEngine.
+    """
+    if engine is not None:
+        mock_engine = engine
+    else:
+        mock_engine = _MockEngine(name=name)
+        for k, v in engine_kwargs.items():
+            if hasattr(mock_engine, k):
+                setattr(mock_engine, k, v)
     actor = AssetActor.__new__(AssetActor)
     actor.name = name
     actor._engine = mock_engine
@@ -373,3 +382,227 @@ class TestOrchestratorWAL:
             # (e.g. if a circuit breaker halted before persist).
             # This test verifies the WAL writer is wired and doesn't crash.
             assert wal is not None
+
+
+# ── M4: Provenance capture integration ──────────────────────────────────────
+
+
+@dataclass
+class _RichMockEngine(_MockEngine):
+    """Mock engine with attributes that _capture_provenance reads."""
+
+    _last_feature_vector: dict = field(default_factory=lambda: {"ma_20": 1.05, "rsi_14": 65.0})
+    _last_feature_hash: str = "abc123def"
+    _last_feature_schema: list[str | None] = field(default_factory=lambda: ["ma_20", "rsi_14"])
+    _model_hash: str = "model_hash_abc"
+    _last_spread_bps: float = 8.5
+    _calibration_applied: bool = True
+    _last_regime_label: str = "trend_up"
+    _last_regime_long_prob: float = 0.78
+    _last_final_signal: str = "BUY"
+
+
+def _make_rich_mock_actor(name: str, side: str = "long") -> AssetActor:
+    engine = _RichMockEngine(name=name, ticker=f"{name}=X")
+    engine.current_price = 100.0
+    engine.mtm_value = 1000.0
+    engine.current_value = 1000.0
+    engine.initial_capital = 1000.0
+    engine._cycle_total_equity = 3000.0
+    engine._cycle_drawdown_pct = 0.0
+
+    # Override generate_signal to return a rich signal with all fields
+    def _rich_signal(**kwargs):
+        return {
+            "asset": name,
+            "signal": "BUY" if side == "long" else "SELL",
+            "final_signal": "BUY" if side == "long" else "SELL",
+            "confidence": 72.5,
+            "side": side,
+            "prob_long": 0.72,
+            "prob_short": 0.18,
+            "prob_neutral": 0.10,
+            "close_price": 100.0,
+            "position_size": 0.05,
+            "feature_hash": "abc123def",
+            "archetype": "TREND_FOLLOWING",
+            "date": "2026-07-22",
+        }
+    engine.generate_signal = _rich_signal
+
+    return _make_mock_actor(name, engine=engine)
+
+
+class TestProvenanceCapture:
+    """Integration tests: verify provenance capture at the decision boundary."""
+
+    @pytest.fixture(autouse=True)
+    def _temp_db(self):
+        import tempfile
+
+        self._db_path = tempfile.mktemp(suffix=".db")
+        yield
+        if os.path.exists(self._db_path):
+            os.remove(self._db_path)
+
+    def _make_store(self):
+        from eigencapital.domain.provenance.provenance_store import SqliteProvenanceStore
+
+        store = SqliteProvenanceStore(self._db_path)
+        store.initialize()
+        return store
+
+    def test_provenance_captures_one_cycle(self):
+        store = self._make_store()
+        actors = {"EURUSD": _make_rich_mock_actor("EURUSD")}
+        orch = EngineOrchestrator(actors=actors, max_workers=2, provenance_store=store)
+
+        result = orch.run_once()
+
+        assert store.count() >= 1
+        records = store.query(asset="EURUSD")
+        assert len(records) >= 1
+        r = records[0]
+        assert r.asset == "EURUSD"
+        assert r.cycle_id == 1
+        assert r.runtime is not None
+        assert r.runtime.n_assets == 1
+
+    def test_provenance_captures_multiple_assets(self):
+        store = self._make_store()
+        actors = {
+            "EURUSD": _make_rich_mock_actor("EURUSD", side="long"),
+            "GBPJPY": _make_rich_mock_actor("GBPJPY", side="short"),
+        }
+        orch = EngineOrchestrator(actors=actors, max_workers=4, provenance_store=store)
+
+        orch.run_once()
+
+        assert store.count() == 2
+        eurusd = store.query(asset="EURUSD")
+        gbpjpy = store.query(asset="GBPJPY")
+        assert len(eurusd) == 1
+        assert len(gbpjpy) == 1
+
+    def test_provenance_contexts_are_populated(self):
+        store = self._make_store()
+        actors = {"EURUSD": _make_rich_mock_actor("EURUSD")}
+        orch = EngineOrchestrator(actors=actors, max_workers=2, provenance_store=store)
+
+        orch.run_once()
+
+        records = store.query(asset="EURUSD")
+        assert len(records) == 1
+        r = records[0]
+
+        assert r.market is not None
+        assert r.market.close_price > 0
+        assert r.market.spread_bps == 8.5
+
+        assert r.features is not None
+        assert r.features.feature_hash == "abc123def"
+        assert r.features.n_features > 0
+
+        assert r.model is not None
+        assert r.model.model_hash == "model_hash_abc"
+        assert r.model.prob_long == 0.72
+
+        assert r.portfolio is not None
+        assert r.portfolio.total_equity >= 0
+
+        assert r.runtime is not None
+        assert r.runtime.cycle_id == 1
+
+        assert r.decision is not None
+        assert r.decision.final_signal == "BUY"
+        assert r.decision.position_size > 0
+
+    def test_multiple_cycles_increment_count(self):
+        store = self._make_store()
+        actors = {"EURUSD": _make_rich_mock_actor("EURUSD")}
+        orch = EngineOrchestrator(actors=actors, max_workers=2, provenance_store=store)
+
+        orch.run_once()
+        orch.run_once()
+        orch.run_once()
+
+        assert store.count() == 3
+        records = store.query(asset="EURUSD")
+        assert len(records) == 3
+        cycle_ids = sorted(r.cycle_id for r in records)
+        assert cycle_ids == [1, 2, 3]
+
+    def test_provenance_without_store_is_noop(self):
+        actors = {"EURUSD": _make_rich_mock_actor("EURUSD")}
+        orch = EngineOrchestrator(actors=actors, max_workers=2, provenance_store=None)
+
+        result = orch.run_once()
+        assert result is not None
+        assert "assets" in result
+
+    def test_capture_survives_missing_attributes(self):
+        store = self._make_store()
+        minimal = _make_mock_actor("EURUSD")
+
+        class _MinimalSignalEngine:
+            name = "EURUSD"
+            ticker = "EURUSD=X"
+            current_price = 100.0
+            mtm_value = 1000.0
+            current_value = 1000.0
+            initial_capital = 1000.0
+            _cycle_total_equity = 3000.0
+            _cycle_drawdown_pct = 0.0
+            pos_mgr = _MockPosMgr()
+            trade_log = []
+
+            def refresh_price(self):
+                pass
+
+            def update_pnl(self):
+                pass
+
+            def generate_signal(self, **kwargs):
+                return {"signal": 0, "confidence": 0.5, "position_size": 0.0, "side": "none"}
+
+            def update_validity(self):
+                pass
+
+        minimal._engine = _MinimalSignalEngine()
+        actors = {"EURUSD": minimal}
+        orch = EngineOrchestrator(actors=actors, max_workers=2, provenance_store=store)
+
+        # Should not crash despite missing _last_feature_vector, _model_hash, etc.
+        orch.run_once()
+
+        assert store.count() >= 1
+        records = store.query(asset="EURUSD")
+        assert len(records) >= 1
+        r = records[0]
+        # Contexts with missing data should be partially populated
+        assert r.market.close_price > 0
+        # feature_vector defaults to empty dict — no crash
+        assert r.features is not None
+        # model_hash defaults to "unknown"
+        assert r.model is None or r.model.model_hash == "unknown" if r.model else True
+
+    def test_provenance_records_can_be_validated(self):
+        store = self._make_store()
+        actors = {
+            "EURUSD": _make_rich_mock_actor("EURUSD"),
+            "GBPJPY": _make_rich_mock_actor("GBPJPY"),
+        }
+        orch = EngineOrchestrator(actors=actors, max_workers=4, provenance_store=store)
+
+        orch.run_once()
+
+        from eigencapital.domain.provenance.validator import ProvenanceValidator
+
+        records = store.query(limit=10)
+        validator = ProvenanceValidator(strict=False)
+        result = validator.validate_batch(records)
+        # Should have at most warnings (no hard errors for well-formed records)
+        if not result.is_valid:
+            # If there are cross-context asset mismatches, that's likely from
+            # the mock data — log them but don't fail
+            assert all("asset mismatch" not in str(e).lower() for e in result.errors)

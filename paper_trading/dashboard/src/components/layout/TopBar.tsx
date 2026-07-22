@@ -16,6 +16,8 @@ const PAGE_TITLES: Record<string, { label: string; subtitle: string }> = {
   '/risk': { label: 'Governance & Risk', subtitle: 'Health & constraints' },
   '/reports': { label: 'Reports', subtitle: 'Downloads & audit log' },
   '/settings': { label: 'Settings', subtitle: 'Preferences & API keys' },
+  '/provenance': { label: 'Provenance', subtitle: 'Decision history & audit trail' },
+  '/counterfactual': { label: 'Counterfactual', subtitle: 'What-if scenario analysis' },
 }
 
 // ── Ticker token helpers ────────────────────────────────────────

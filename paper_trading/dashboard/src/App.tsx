@@ -19,6 +19,8 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 const ServerErrorPage = lazy(() => import('./pages/ServerErrorPage'))
 const OfflinePage = lazy(() => import('./pages/OfflinePage'))
+const ProvenancePage = lazy(() => import('./pages/ProvenancePage'))
+const CounterfactualPage = lazy(() => import('./pages/CounterfactualPage'))
 
 // Preload all page bundles after mount so chunk fetches happen in the
 // background and navigation is instant. Uses dynamic import() which Vite
@@ -34,6 +36,8 @@ function useRoutePreloader() {
     import('./components/AssetDetailPanel').catch(() => {})
     import('./components/AssetDeepDive').catch(() => {})
     import('./components/WeeklyReviewModal').catch(() => {})
+    import('./pages/ProvenancePage').catch(() => {})
+    import('./pages/CounterfactualPage').catch(() => {})
   }, [])
 }
 
@@ -167,6 +171,8 @@ function AppContent() {
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/error" element={<ServerErrorPage />} />
           <Route path="/offline" element={<OfflinePage />} />
+          <Route path="/provenance" element={<ProvenancePage />} />
+          <Route path="/counterfactual" element={<CounterfactualPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

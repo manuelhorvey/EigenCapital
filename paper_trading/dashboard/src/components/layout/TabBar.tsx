@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Zap, BarChart3, Shield } from 'lucide-react'
+import { LayoutDashboard, Zap, BarChart3, Shield, History } from 'lucide-react'
 import { useSidebarBadges } from '../../hooks/useSidebarBadges'
 
 interface TabItem {
@@ -14,6 +14,7 @@ const TABS: TabItem[] = [
   { to: '/trading', label: 'Trading', icon: <Zap className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'trading' },
   { to: '/analytics', label: 'Analytics', icon: <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} /> },
   { to: '/risk', label: 'Risk', icon: <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />, badgeKey: 'risk' },
+  { to: '/provenance', label: 'Provenance', icon: <History className="w-3.5 h-3.5" strokeWidth={1.5} /> },
 ]
 
 /** Tab navigation bar — shown on mobile (< lg) below the TopBar.

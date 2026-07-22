@@ -958,3 +958,68 @@ export const DeepDiveDataSchema = z.object({
   last_signal: z.record(z.string(), z.unknown()).nullable(),
   metrics: z.record(z.string(), z.unknown()).nullable(),
 })
+
+// ── Provenance (/provenance.json) ────────────────────────────────────
+
+export const ProvenanceRecordSchema = z.object({
+  decision_id: z.string(),
+  cycle_id: z.number(),
+  asset: z.string(),
+  decision_timestamp: z.string(),
+  decision_type: z.string(),
+  signal: z.string().nullable(),
+  position_size: z.number().nullable(),
+  confidence: z.number().nullable(),
+  prob_long: z.number().nullable(),
+  prob_short: z.number().nullable(),
+  total_equity: z.number().nullable(),
+  drawdown_pct: z.number().nullable(),
+  halt_ratio: z.number().nullable(),
+  config_hash: z.string().nullable(),
+  n_features: z.number(),
+  feature_hash: z.string().nullable(),
+  model_hash: z.string().nullable(),
+  portfolio_context: z.object({
+    gross_exposure: z.number().nullable(),
+    net_exposure: z.number().nullable(),
+    open_positions: z.number().nullable(),
+    pek_budget_utilization: z.number().nullable(),
+  }).nullable(),
+  execution_context: z.object({
+    emergency_halt: z.boolean(),
+    circuit_breaker_tripped: z.boolean(),
+    pek_budget_utilization: z.number(),
+    position_concentration_skew: z.number(),
+  }).nullable(),
+})
+
+export const ProvenanceResponseSchema = z.object({
+  records: z.array(ProvenanceRecordSchema),
+  count: z.number(),
+})
+
+export const ProvenanceStatsSchema = z.object({
+  total: z.number(),
+  unique_assets: z.number().optional(),
+  assets: z.array(z.string()).optional(),
+  signals: z.record(z.string(), z.number()).optional(),
+  latest_cycle_id: z.number().nullable().optional(),
+  latest_timestamp: z.string().nullable().optional(),
+})
+
+export type ProvenanceRecord = z.infer<typeof ProvenanceRecordSchema>
+export type ProvenanceStats = z.infer<typeof ProvenanceStatsSchema>
+
+// ── Counterfactual (/provenance/counterfactual — POST) ──────────────
+
+export const CounterfactualDeltaSchema = z.object({
+  modification_type: z.string(),
+  field: z.string(),
+  original_value: z.unknown(),
+  new_value: z.unknown(),
+  description: z.string(),
+})
+
+export const CounterfactualResponseSchema = z.object({
+  counterfactual: z.record(z.string(), z.unknown()),
+})

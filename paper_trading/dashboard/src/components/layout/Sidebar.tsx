@@ -1,10 +1,10 @@
 import { memo, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
-import { X, LayoutDashboard, Zap, BarChart3, Shield, Settings, FileText } from 'lucide-react'
+import { X, LayoutDashboard, Zap, BarChart3, Shield, Settings, FileText, History, FlaskConical } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useSidebarBadges, type EngineState } from '../../hooks/useSidebarBadges'
 
-type TabId = 'dashboard' | 'engine' | 'trading' | 'analytics' | 'risk' | 'settings' | 'reports'
+type TabId = 'dashboard' | 'engine' | 'trading' | 'analytics' | 'risk' | 'settings' | 'reports' | 'provenance' | 'counterfactual'
 
 interface NavItemDef {
   id: TabId
@@ -24,6 +24,8 @@ const PRIMARY_ITEMS: NavItemDef[] = [
 
 const SECONDARY_ITEMS: NavItemDef[] = [
   { id: 'reports', to: '/reports', label: 'Reports', icon: FileText, desc: 'Downloads, audit log' },
+  { id: 'provenance', to: '/provenance', label: 'Provenance', icon: History, desc: 'Decision history & audit' },
+  { id: 'counterfactual', to: '/counterfactual', label: 'Counterfactual', icon: FlaskConical, desc: 'What-if scenario analysis' },
   { id: 'settings', to: '/settings', label: 'Settings', icon: Settings, desc: 'Preferences, theme, API' },
 ]
 

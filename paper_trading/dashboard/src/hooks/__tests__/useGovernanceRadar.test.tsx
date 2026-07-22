@@ -74,17 +74,11 @@ describe('useGovernanceRadar', () => {
 
   it('detects drawdown bottleneck when drawdown usage > 75%', () => {
     mockSnapshot({
-      assets: {
-        EURUSD: {
-          metrics: {
-            asset: 'EURUSD', drawdown: -0.07, current_value: 100_000, settled_value: 100_000, mtm_value: 100_000,
-            total_return: 0, settled_return: 0, mtm_return: 0,
-          },
-        },
-      },
+      portfolio: { ...BASE_PORTFOLIO, portfolio_drawdown: -0.0007 },
       halt_conditions: { ...BASE_HALT, drawdown: -0.0008 },
     })
     const { result } = renderHook(() => useGovernanceRadar())
+    // drawdownUsage = | -0.0007 * 100 | / | -0.0008 * 100 | = 0.07 / 0.08 = 0.875 > 0.75
     expect(result.current.bottlenecks.some(b => b.layer === 'Drawdown')).toBe(true)
   })
 

@@ -17,6 +17,7 @@ vi.mock('../../hooks/useToast', () => ({
 
 function makeBundle(overrides: {
   drawdown?: number
+  portfolioDrawdown?: number
   monthlyPf?: number
   droughtHalted?: boolean
   driftHalted?: boolean
@@ -24,6 +25,7 @@ function makeBundle(overrides: {
 }) {
   const {
     drawdown = -0.02,
+    portfolioDrawdown = 0,
     monthlyPf = 1.2,
     droughtHalted = false,
     driftHalted = false,
@@ -91,6 +93,7 @@ function makeBundle(overrides: {
         start_datetime: '2026-06-07T00:00:00Z', last_update: null,
         deployment_cleared: false, allocations: { EURUSD: 0.05 },
         open_positions: 1, closed_trades: 15,
+        portfolio_drawdown: portfolioDrawdown,
       },
       assets,
       open_positions: {},
@@ -159,7 +162,7 @@ describe('HaltConditions — some-failing state', () => {
 
   it('shows red X icons and threshold warnings when drawdown and drought fail', async () => {
     mockFetch.mockResolvedValue(makeBundle({
-      drawdown: -0.15,
+      portfolioDrawdown: -0.0015,  // fraction → -0.15% after * 100
       droughtHalted: true,
     }))
     const { wrapper } = withQueryClient()
@@ -168,7 +171,7 @@ describe('HaltConditions — some-failing state', () => {
     // Wait for data
     await screen.findByText('Max Drawdown')
 
-    // Drawdown value shows -0.15% (component treats raw value as percentage)
+    // Drawdown value shows -0.15% (portfolio_drawdown fraction * 100)
     expect(screen.getByText(/-0\.15%/)).toBeInTheDocument()
 
     // Signal drought shows "Halted" (failing)

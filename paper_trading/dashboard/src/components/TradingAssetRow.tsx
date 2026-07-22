@@ -75,10 +75,15 @@ const TradingAssetRow = memo(function TradingAssetRow({ asset, onSelect }: Tradi
         {dir && <span className={`font-bold text-[10px] ${dirCls}`}>{dir === 'LONG' ? 'L' : 'S'}</span>}
       </div>
 
-      {/* PnL — value + efficiency suffix */}
-      <div className="w-20 shrink-0 text-right font-mono tabular-nums min-w-0">
-        <span className={`font-semibold ${pnlCls}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
-        <span className={`text-[9px] ml-1 ${effCls}`}>{eff === 'HIGH' ? 'H' : eff === 'LOW' ? 'L' : 'N'}</span>
+      {/* PnL — percent from entry + efficiency tier suffix (H/N/L) */}
+      <div className="w-24 shrink-0 text-right font-mono tabular-nums min-w-0">
+        <span className={`font-semibold ${pnlCls}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}%</span>
+        <span
+          className={`text-[9px] ml-2 ${effCls}`}
+          title={`Efficiency tier: ${eff} — fraction of peak MFE captured (HIGH ≥ 0.7, NORMAL ≥ 0.4, LOW otherwise)`}
+        >
+          {eff === 'HIGH' ? 'H' : eff === 'LOW' ? 'L' : 'N'}
+        </span>
       </div>
 
       {/* Exit — compact phase + MFE */}

@@ -107,7 +107,7 @@ class MetricsService:
             ensure_position_synced()
         mtm_val = mtm_value
         pv = peak_value if not pd.isna(peak_value) else mtm_val
-        dd = min(0, (mtm_val - pv) / pv) if pv > 0 else 0
+        dd = min(0, max(-1.0, (mtm_val - pv) / pv)) if pv > 0 else 0
 
         monthly_pfs = []
         if trade_log:

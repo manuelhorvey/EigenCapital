@@ -57,10 +57,8 @@ export function useGovernanceRadar(): {
     const psiDrift = state?.halt_conditions?.prob_drift ?? 0
     const psiScore = Math.max(0, 1 - psiDrift * 2)
 
-    // Drawdown control (0-1, higher is healthier) — asset drawdown is stored as negative percent.
-    const worstDrawdownPct = assets.length
-      ? Math.min(...assets.map(a => a.metrics?.drawdown ?? 0))
-      : 0
+    // Drawdown control (0-1, higher is healthier) — portfolio drawdown is stored as fraction upstream.
+    const worstDrawdownPct = (state?.portfolio?.portfolio_drawdown ?? 0) * 100
     const drawdownLimitPct = Math.abs((state?.halt_conditions?.drawdown ?? -0.08) * 100)
     const drawdownUsage = drawdownLimitPct > 0 ? Math.abs(worstDrawdownPct) / drawdownLimitPct : 0
     const ddScore = Math.max(0, 1 - Math.min(1, drawdownUsage))

@@ -85,7 +85,7 @@ class MetricsSnapshot:
         cv = engine.current_value if not pd.isna(engine.current_value) else engine.initial_capital
         mtm_val = engine.mtm_value
         pv = engine.peak_value if not pd.isna(engine.peak_value) else mtm_val
-        dd = min(0, (mtm_val - pv) / pv) if pv > 0 else 0
+        dd = min(0, max(-1.0, (mtm_val - pv) / pv)) if pv > 0 else 0
         total_return = (cv - engine.initial_capital) / engine.initial_capital if engine.initial_capital > 0 else 0
 
         monthly_pfs = []

@@ -12,13 +12,16 @@ export default function HaltConditions() {
 
   const status = useMemo(() => {
     const hc = data?.halt_conditions
+    const portfolio = data?.portfolio
     const assets = data?.assets ?? {}
-    let maxDD = 0
+    // Portfolio drawdown (stored as fraction upstream, convert to percent).
+    // This is the canonical metric — per-asset drawdown can exceed -100% on
+    // over-loss assets and would give a misleading "Max Drawdown" when min()-ed.
+    const portfolioDD = (portfolio?.portfolio_drawdown ?? 0) * 100
     let minPF = Infinity
     for (const name in assets) {
       const m = assets[name].metrics
       if (m) {
-        if (m.drawdown < maxDD) maxDD = m.drawdown
         if (m.monthly_pf != null && m.monthly_pf < minPF) minPF = m.monthly_pf
       }
     }
@@ -26,13 +29,13 @@ export default function HaltConditions() {
     const pfTrigger = hc?.monthly_pf ?? 0.7
     const hasMonthlyPf = minPF !== Infinity
     return {
-      maxDrawdown: maxDD,
+      maxDrawdown: portfolioDD,
       minMonthlyPf: hasMonthlyPf ? minPF : null,
       drawdownTrigger: ddTrigger,
       monthlyPfTrigger: pfTrigger,
-      drawdownPass: maxDD > ddTrigger,
+      drawdownPass: portfolioDD > ddTrigger,
       monthlyPfPass: hasMonthlyPf ? minPF >= pfTrigger : true,
-      anyTriggered: maxDD <= ddTrigger || (hasMonthlyPf && minPF < pfTrigger),
+      anyTriggered: portfolioDD <= ddTrigger || (hasMonthlyPf && minPF < pfTrigger),
     }
   }, [data])
 

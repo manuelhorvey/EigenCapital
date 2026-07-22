@@ -152,13 +152,14 @@ describe('useGovernanceRadar', () => {
   })
 
   it('creates Drawdown bottleneck when drawdown usage > 75%', () => {
-    // metrics.drawdown is in percentage points (e.g., -8 = -8%);
-    // the formula converts halt_conditions.drawdown * 100 for comparison.
+    // portfolio_drawdown is a fraction; the formula multiplies by 100 for comparison.
+    // | -0.08 * 100 | / | (-0.08 * 100) | = 8 / 8 = 1.0 (100%) > 0.75
     mockSnapshot = {
       ...makeDefaultSnapshot(),
+      portfolio: { average_validity_exposure: 0.9, portfolio_drawdown: -0.08 },
       assets: {
         EURUSD: {
-          metrics: { asset: 'EURUSD', drawdown: -8 },
+          metrics: { asset: 'EURUSD', drawdown: -0.05 },
           feature_stability_jaccard: 0.85,
           meta_confidence: 0.75,
           validity_state: 'LONG',
@@ -168,7 +169,6 @@ describe('useGovernanceRadar', () => {
     }
     const { result } = renderHook(() => useGovernanceRadar())
     const ddBottleneck = result.current.bottlenecks.find(b => b.layer === 'Drawdown')
-    // drawdownUsage = Math.abs(-8) / Math.abs(-0.08 * 100) = 8 / 8 = 1.0 (100%) > 0.75
     expect(ddBottleneck).toBeDefined()
   })
 

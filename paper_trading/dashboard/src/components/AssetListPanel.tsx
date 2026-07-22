@@ -132,8 +132,11 @@ function AssetListPanelInner({ onSelectAsset }: AssetListPanelProps) {
                         className={`text-xs font-mono tabular-nums mt-0.5 font-semibold ${pnlCls}`}
                       >
                         {pnl >= 0 ? '+' : ''}
-                        {pnl.toFixed(2)}
-                        <span className={`text-[9px] ml-0.5 ${effCls}`}>
+                        {pnl.toFixed(2)}%
+                        <span
+                          className={`text-[9px] ml-2 ${effCls}`}
+                          title={`Efficiency tier: ${eff} — fraction of peak MFE captured (HIGH ≥ 0.7, NORMAL ≥ 0.4, LOW otherwise)`}
+                        >
                           {eff === 'HIGH' ? 'H' : eff === 'LOW' ? 'L' : 'N'}
                         </span>
                       </dd>

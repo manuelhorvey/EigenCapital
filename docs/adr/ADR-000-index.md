@@ -45,6 +45,7 @@ Architecture Decision Records for the EigenCapital quantitative trading framewor
 | 026 | [Regime-Conditional Ensemble Disabled](ADR-026-ensemble-disabled.md) | Accepted | 2026-06 |
 | 027 | [Portfolio Execution Kernel — Centralized Admission Control](ADR-027-portfolio-execution-kernel.md) | Accepted | 2026-06 |
 | 028 | [Cross-Platform Architecture — Centralized Platform Abstraction](ADR-028-cross-platform-architecture.md) | Accepted | 2026-07 |
+| 029 | [Decision Provenance Layer — Immutable Audit Record](ADR-029-decision-provenance-layer.md) | Accepted | 2026-07 |
 ## By Topic
 
 ### Labeling & Signal
@@ -90,3 +91,6 @@ Architecture Decision Records for the EigenCapital quantitative trading framewor
 
 ### Operations
 - ADR-014: Zero manual overrides
+
+### Data & Audit
+- ADR-029: Decision Provenance Layer (immutable audit record)

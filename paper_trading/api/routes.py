@@ -15,6 +15,12 @@ from paper_trading.api.asset_routes import (
     handle_mt5_status,
     handle_wal_asset,
 )
+from paper_trading.api.provenance_routes import (
+    handle_counterfactual,
+    handle_provenance,
+    handle_provenance_detail,
+    handle_provenance_stats,
+)
 from paper_trading.api.bundle import handle_state_bundle
 from paper_trading.api.governance_routes import (
     handle_governance,
@@ -91,6 +97,8 @@ GET_ROUTES: dict[str, tuple] = {
     "/health": (handle_engine_health, False),
     "/metrics": (handle_metrics, True),
     "/api/recent-trades.json": (handle_recent_trades, False),
+    "/provenance.json": (handle_provenance, False),
+    "/provenance/stats.json": (handle_provenance_stats, False),
 }
 
 GET_ROUTES_PREFIX: list[tuple[str, object, bool]] = [
@@ -99,6 +107,7 @@ GET_ROUTES_PREFIX: list[tuple[str, object, bool]] = [
     ("/health/", handle_health_asset, False),
     ("/wal/", handle_wal_asset, False),
     ("/asset/", handle_asset_detail, False),
+    ("/provenance/", handle_provenance_detail, False),
 ]
 
 POST_ROUTES: dict[str, object] = {
@@ -106,4 +115,5 @@ POST_ROUTES: dict[str, object] = {
     "/weekly-review/acknowledge": handle_weekly_review_acknowledge,
     "/api/clear-cache": handle_clear_cache,
     "/api/log-error": handle_log_error,
+    "/provenance/counterfactual": handle_counterfactual,
 }

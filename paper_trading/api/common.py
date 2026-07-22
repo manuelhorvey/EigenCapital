@@ -137,6 +137,38 @@ def reset_server_store() -> None:
     _SERVER_STORE = None
 
 
+# Provenance store — lazily initialized from env var or explicitly
+_PP_STORE: object | None = None  # actually SqliteProvenanceStore, avoid import at module level
+
+
+def get_provenance_store():
+    """Return a SqliteProvenanceStore, lazily initialised from env var.
+
+    Database path comes from ``EIGENCAPITAL_PROVENANCE_DB`` env var, or
+    defaults to ``~/.eigencapital/data/provenance.db``.
+    """
+    global _PP_STORE
+    if _PP_STORE is not None:
+        return _PP_STORE
+    from pathlib import Path
+
+    from eigencapital.domain.provenance.provenance_store import SqliteProvenanceStore
+
+    db = os.environ.get(
+        "EIGENCAPITAL_PROVENANCE_DB",
+        str(Path.home() / ".eigencapital" / "data" / "provenance.db"),
+    )
+    if not Path(db).is_file():
+        return None
+    store = SqliteProvenanceStore(db)
+    try:
+        store.initialize()
+    except (OSError, RuntimeError):
+        return None
+    _PP_STORE = store
+    return _PP_STORE
+
+
 DASHBOARD_DIST = str(Path(BASE) / "dashboard" / "dist")
 FRONTEND_DIR = str(Path(BASE) / "frontend")
 _PROJECT_ROOT_PATH = Path(__file__).resolve().parent.parent.parent

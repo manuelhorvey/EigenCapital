@@ -8,6 +8,7 @@ from paper_trading.api.analytics_routes import (
     handle_attribution_waterfall,
     handle_execution_quality,
     handle_execution_slippage,
+    handle_latest_attribution,
     handle_live_attribution,
 )
 from paper_trading.api.asset_routes import (
@@ -54,6 +55,7 @@ from paper_trading.api.state_routes import (
     handle_logs,
     handle_metrics,
     handle_optimization,
+    handle_lifecycle,
     handle_ping,
     handle_recent_trades,
     handle_state,
@@ -88,10 +90,12 @@ GET_ROUTES: dict[str, tuple] = {
     "/shadow/summary.json": (handle_shadow_summary, False),
     "/archetype/stats.json": (handle_archetype_stats, False),
     "/attribution/live.json": (handle_live_attribution, False),
+    "/attribution/latest.json": (handle_latest_attribution, False),
     "/attribution/waterfall.json": (handle_attribution_waterfall, False),
     "/analytics/snapshot.json": (handle_analytics_snapshot, False),
     "/mt5/status.json": (handle_mt5_status, False),
     "/optimization.json": (handle_optimization, False),
+    "/lifecycle.json": (handle_lifecycle, False),
     "/healthcheck.json": (handle_healthcheck, False),
     "/ping": (handle_ping, False),
     "/health": (handle_engine_health, False),

@@ -83,6 +83,15 @@ class AssetInferencePipeline:
         _t_infer = time.perf_counter()
         proba, _infer_idx = self._run_inference(asset, x, features_df, feature_hash)
 
+        # ── Capture uncalibrated signal before calibration mutates proba ──
+        _raw = proba[-1]  # [prob_short, prob_neutral, prob_long]
+        if _raw[2] > _raw[0] and _raw[2] > _raw[1]:
+            asset._uncalibrated_signal = "BUY"
+        elif _raw[0] > _raw[2] and _raw[0] > _raw[1]:
+            asset._uncalibrated_signal = "SELL"
+        else:
+            asset._uncalibrated_signal = "HOLD"
+
         # ── Calibrate probabilities ──────────────────────────────────
         asset._calibration_applied = self._apply_calibration(asset, proba)
 

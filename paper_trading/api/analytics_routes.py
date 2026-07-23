@@ -6,6 +6,7 @@ from paper_trading.api.common import (
     cache_set,
     get_server_store,
     json_dumps,
+    LATEST_ATTRIBUTION_PATH,
 )
 from paper_trading.state_store import StateStore
 
@@ -120,6 +121,20 @@ def handle_live_attribution(path: str, query: dict, state_store: StateStore | No
     result = json_dumps(live, indent=2)
     cache_set("/attribution/live.json", result)
     return result
+
+
+def handle_latest_attribution(path: str, query: dict, state_store: StateStore | None = None) -> str:
+    """Serve the most-recent closed-trade attribution record."""
+    import os
+    if not os.path.exists(LATEST_ATTRIBUTION_PATH):
+        return json_dumps({"error": "no_attribution", "message": "No closed trade attribution has been recorded yet"}, indent=2)
+    try:
+        with open(LATEST_ATTRIBUTION_PATH, "r", encoding="utf-8") as f:
+            data = f.read()
+        cache_set("/attribution/latest.json", data)
+        return data
+    except (OSError, ValueError) as e:
+        return json_dumps({"error": "read_failed", "message": str(e)}, indent=2)
 
 
 def handle_archetype_stats(path: str, query: dict, state_store: StateStore | None = None) -> str:

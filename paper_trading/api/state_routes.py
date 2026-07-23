@@ -9,6 +9,7 @@ import pytz
 from paper_trading.api.common import (
     CONFIDENCE_PATH,
     HEALTHCHECK_PATH,
+    LIFECYCLE_PATH,
     LOG_PATH,
     OPTIMIZATION_PATH,
     cache_get,
@@ -274,6 +275,19 @@ def handle_optimization(path: str, query: dict, state_store: StateStore | None =
         return json_dumps({"error": "not_found", "message": "No optimization data available yet"}, indent=2)
     except json.JSONDecodeError:
         return json_dumps({"error": "invalid_json", "message": "optimization.json is corrupt"}, indent=2)
+
+
+def handle_lifecycle(path: str, query: dict, state_store: StateStore | None = None) -> str:
+    """Serve profit protection lifecycle telemetry from data/live/lifecycle.json."""
+    try:
+        with open(LIFECYCLE_PATH) as f:
+            data = f.read()
+        cache_set("/lifecycle.json", data)
+        return data
+    except FileNotFoundError:
+        return json_dumps({"error": "not_found", "message": "No lifecycle data available yet"}, indent=2)
+    except json.JSONDecodeError:
+        return json_dumps({"error": "invalid_json", "message": "lifecycle.json is corrupt"}, indent=2)
 
 
 def handle_healthcheck(path: str, query: dict, state_store: StateStore | None = None) -> str:

@@ -4,6 +4,7 @@ import SlippageHistogram from '../components/execution/SlippageHistogram'
 import FillQualityGauge from '../components/execution/FillQualityGauge'
 import TradeExecutionTable from '../components/execution/TradeExecutionTable'
 import AttributionBreakdownCard from '../components/attribution/AttributionBreakdownCard'
+import LatestAttributionPanel from '../components/attribution/LatestAttributionPanel'
 import PnLWaterfall from '../components/attribution/PnLWaterfall'
 import PnLDrillDown from '../components/attribution/PnLDrillDown'
 import MaeMfeScatter from '../components/attribution/MaeMfeScatter'
@@ -85,6 +86,9 @@ export default function ExecutionWorkspace() {
               <PnLWaterfall />
               <AttributionBreakdownCard />
             </div>
+          </EntranceAnimator>
+          <EntranceAnimator variant="fade-up">
+            <LatestAttributionPanel />
           </EntranceAnimator>
           <EntranceAnimator variant="fade-up">
             <TradeExecutionTable />

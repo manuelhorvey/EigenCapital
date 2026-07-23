@@ -140,6 +140,23 @@ class PositionService:
             realized_return = trade.get("return", 0.0)
             realized_pnl = trade.get("pnl", 0.0)
             theoretical_r = realized_r
+
+            # Static TP counterfactual: what R would be realized at the
+            # original fixed TP without any lifecycle management.
+            _static_tp_r: float | None = None
+            try:
+                _entry = trade.get("entry", 0.0)
+                _tp = trade.get("tp_price")
+                _sl = trade.get("sl_price")
+                _side = trade.get("side", "long")
+                if _entry > 0 and _tp is not None and _sl is not None and _sl != _entry:
+                    _risk = abs(_entry - _sl) / _entry
+                    if _risk > 0:
+                        _tp_ret = (_tp / _entry - 1) if _side == "long" else (_entry / _tp - 1)
+                        _static_tp_r = round(_tp_ret / _risk, 4)
+            except (TypeError, ValueError, ZeroDivisionError):
+                _static_tp_r = None
+
             self.attribution.record_friction(
                 trade_id=trade_id,
                 entry_slippage_bps=last_entry_slippage if last_entry_slippage else 0.0,
@@ -160,6 +177,7 @@ class PositionService:
                 policy_hash=last_policy_hash if last_policy_hash else "",
                 archetype_version="1.0",
                 exit_archetype=exit_archetype if exit_archetype else "",
+                counterfactual_fixed_tp_r=_static_tp_r,
             )
             if record is not None:
                 attribution_buffer.append(record)
@@ -183,6 +201,7 @@ class PositionService:
                     trade["realized_r"] = exit_info.realized_r
                     trade["bars"] = exit_info.bars_held
                     trade["exit_archetype"] = exit_info.exit_archetype
+                    trade["counterfactual_fixed_tp_r"] = exit_info.counterfactual_fixed_tp_r
                 exec_attr = record.execution
                 trade["entry_slippage_bps"] = exec_attr.entry_slippage_bps if exec_attr else 0.0
                 friction = record.friction

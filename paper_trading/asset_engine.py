@@ -131,6 +131,8 @@ class AssetEngine:
         self._last_price_refresh: datetime | None = None
         self.current_price: float | None = None
         self._market_data: Any = None
+        self._last_attribution: dict | None = None
+        self._uncalibrated_signal: str | None = None
 
         # ── Delegated initialization (ARCH-02) ───────────────────────
         self._init_capital_state(engine_cfg, initial_capital, position_size)
@@ -490,6 +492,15 @@ class AssetEngine:
         # Capture peak MFE before position is cleared
         peak_mfe_r = self._capture_peak_mfe_r(trade_id)
 
+        # Snapshot profit lock state before close_position clears the position
+        _was_protected = False
+        try:
+            if self.pos_mgr.has_position() and hasattr(self.pos_mgr.position, "profit_lock_state"):
+                pls = self.pos_mgr.position.profit_lock_state
+                _was_protected = bool(pls and pls.triggered)
+        except Exception:
+            _was_protected = False
+
         if trade_id is None:
             anchor = self.batches.get(self._anchor_trade_id) if self._anchor_trade_id else None
             pos_dict = anchor.position_dict if anchor else self.position
@@ -569,6 +580,86 @@ class AssetEngine:
                 realized_r=float(trade.get("realized_r", 0)),
                 peak_mfe_r=peak_mfe_r,
             )
+
+        # ── Layer attribution (post-trade compiler) ───────────────────
+        try:
+            from research.attribution.calculator import TradeAttributionCalculator
+
+            _uncal_sig = getattr(self, "_uncalibrated_signal", None)
+            _trade_side_str = "short" if str(pos_dict.get("side", "")).lower() == "short" else "long"
+            _calibrated = getattr(self, "_calibration_applied", False)
+            _uncalibrated_signal_r: float | None = None
+            if _uncal_sig is None:
+                _uncalibrated_signal_r = None
+            elif _uncal_sig == "HOLD":
+                _uncalibrated_signal_r = 0.0
+            elif (_uncal_sig == "BUY" and _trade_side_str == "long") or (_uncal_sig == "SELL" and _trade_side_str == "short"):
+                _uncalibrated_signal_r = float(trade.get("realized_r", 0))
+            else:
+                _uncalibrated_signal_r = 0.0
+
+            # Entry attribution: use MFE as first-intervention proxy
+            _entry_price = float(trade.get("entry", 0) or 0)
+            _mfe = float(trade.get("mfe", 0) or 0)
+            _sl_price = trade.get("sl_price")
+            _risk_price: float = 1.0
+            _first_intervention_price: float | None = None
+            if _entry_price > 0 and _mfe > 0 and _sl_price is not None and _sl_price != _entry_price:
+                _risk_price = abs(_entry_price - _sl_price)
+                if _risk_price > 0:
+                    if _trade_side_str == "long":
+                        _first_intervention_price = _entry_price + _mfe
+                    else:
+                        _first_intervention_price = _entry_price - _mfe
+
+            # Portfolio attribution: allocation fraction vs baseline
+            _actual_alloc_pct: float | None = getattr(self, "_kelly_multiplier", None)
+
+            # Risk attribution: drawdown / risk-off intervention
+            _risk_intervention = False
+            if self.current_value is not None and self.peak_value is not None and self.peak_value > 0:
+                _dd = (self.peak_value - self.current_value) / self.peak_value
+                _risk_intervention = _dd > 0.02  # active if drawdown > 2%
+            if getattr(self, "_cooldown_score", 0) > 0:
+                _risk_intervention = True
+
+            _attr = TradeAttributionCalculator().calculate(
+                trade_id=str(trade.get("attribution_trade_id", self._current_trade_id or "")),
+                decision_id=self._current_trade_id or "",
+                lifecycle_version="v2_profit_floor",
+                realized_r=float(trade.get("realized_r", 0)),
+                holding_period_candles=int(trade.get("bars", 0)),
+                exit_reason=reason,
+                asset=self.name,
+                entry_archetype=str(getattr(self, "_entry_archetype", "")),
+                # Entry attribution
+                entry_price=_entry_price,
+                first_intervention_price=_first_intervention_price,
+                side=_trade_side_str,
+                risk_pct=_risk_price,
+                # Exit attribution
+                was_protected=_was_protected,
+                static_exit_r=trade.get("counterfactual_fixed_tp_r"),
+                # Calibration attribution
+                calibrated=_calibrated,
+                uncalibrated_signal_r=_uncalibrated_signal_r,
+                # Portfolio attribution
+                actual_allocation_pct=_actual_alloc_pct,
+                # Risk attribution
+                risk_intervention_active=_risk_intervention,
+            )
+            self._last_attribution = _attr.to_dict()
+            # Persist latest attribution for API endpoint
+            try:
+                import json
+                from paper_trading.api.common import LATEST_ATTRIBUTION_PATH
+                with open(LATEST_ATTRIBUTION_PATH, "w", encoding="utf-8") as f:
+                    json.dump(_attr.to_dict(), f, indent=2)
+            except Exception:
+                logger.debug("%s: failed to write latest_attribution.json", self.name)
+        except Exception:
+            logger.exception("%s: attribution calculation failed", self.name)
+            self._last_attribution = None
         return True
 
     def _capture_peak_mfe_r(self, trade_id: str | None = None) -> float | None:

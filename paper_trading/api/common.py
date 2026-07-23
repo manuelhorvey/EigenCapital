@@ -175,6 +175,8 @@ _PROJECT_ROOT_PATH = Path(__file__).resolve().parent.parent.parent
 LOG_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "engine.log")
 CONFIDENCE_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "confidence_buckets.parquet")
 OPTIMIZATION_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "optimization.json")
+LIFECYCLE_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "lifecycle.json")
+LATEST_ATTRIBUTION_PATH = str(_PROJECT_ROOT_PATH / "data" / "live" / "latest_attribution.json")
 HEALTHCHECK_PATH = str(_PROJECT_ROOT_PATH / "data" / "logs" / "healthcheck" / "latest.json")
 
 MIME_TYPES = {

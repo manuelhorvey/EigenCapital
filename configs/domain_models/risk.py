@@ -185,7 +185,8 @@ class SellOnlyConfig:
                 "EURAUD",
                 "EURCHF",  # Calibrated signal is 100% SELL despite raw BUY bias
                 "GBPCHF",  # Calibrated signal is 100% SELL
-                "GBPJPY",  # Calibrated signal is >99% SELL
+                # GBPJPY — removed 2026-07-23: SELL_ONLY but SELL R=-15.99; removed from portfolio
+                "NZDCAD",  # Added 2026-07-23: SELL R=+57.63 vs BUY R=-67.14 (n=201)
             }
         )
     )
@@ -294,7 +295,8 @@ class RiskConfig:
             "EURAUD",
             "EURCHF",
             "GBPCHF",
-            "GBPJPY",
+            # GBPJPY — removed 2026-07-23: removed from portfolio
+            "NZDCAD",
         ]
         sell_only = SellOnlyConfig(assets=frozenset(sell_list))
 

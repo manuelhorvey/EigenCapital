@@ -1,21 +1,21 @@
 assets:
 - AUDJPY
 - AUDUSD
-- BTCUSD
+# BTCUSD — removed 2026-07-23: -11.96R across 208 trades; both sides negative
 - CADCHF
 - EURAUD
 - EURCAD
 - EURCHF
-- EURNZD
-- GBPAUD
+# EURNZD — removed 2026-07-23: -56.31R across 354 trades; both sides negative
+# GBPAUD — removed 2026-07-23: -55.89R across 384 trades; both sides negative
 - GBPCAD
 - GBPCHF
-- GBPJPY
+# GBPJPY — removed 2026-07-23: SELL_ONLY but SELL R=-15.99 across 378 trades; 19.8% WR
 - GBPUSD
 - GC
 - NZDCAD
 - NZDCHF
-- NZDJPY
+# NZDJPY — removed 2026-07-23: -3.72R across 380 trades; 21.8% WR
 - NZDUSD
 - USDCAD
 - USDCHF

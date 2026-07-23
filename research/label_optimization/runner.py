@@ -147,15 +147,27 @@ def _load_expanded_data(asset: str, ticker: str):
     expanded_dir = Path("data/yfinance_10yr")
     if expanded_dir.exists():
         try:
-            from scripts.training._data_sources import (
-                fetch_from_expanded_or_live, fetch_ohlcv_from_expanded_or_live,
-            )
-            prices, rate_diffs, dxy, vix, spx, commodities = fetch_from_expanded_or_live(
-                asset, ticker, expanded_dir=expanded_dir,
-            )
-            ohlcv = fetch_ohlcv_from_expanded_or_live(asset, ticker, expanded_dir=expanded_dir)
-            if prices is not None and not prices.empty and len(prices) > 500:
-                return prices, ohlcv, rate_diffs, dxy, vix, spx, commodities
+            from features.data_fetch import _normalize_index, _fetch_macro_batch
+            # Try asset name first, then ticker (for ^DJI etc.)
+            pq = expanded_dir / f"{asset}_ohlcv.parquet"
+            if not pq.exists():
+                pq = expanded_dir / f"{ticker}_ohlcv.parquet"
+            if pq.exists():
+                logger.info("  expanded: %s (%s rows)", pq.name, "?" if not pq.exists() else "?")
+                ohlcv = pd.read_parquet(pq)
+                ohlcv.index = _normalize_index(ohlcv.index)
+                macro = _fetch_macro_batch()
+                dxy = macro.get("DX-Y.NYB", pd.Series(dtype=float)).reindex(ohlcv.index).ffill()
+                vix = macro.get("^VIX", pd.Series(dtype=float)).reindex(ohlcv.index).ffill()
+                spx = macro.get("^GSPC", pd.Series(dtype=float)).reindex(ohlcv.index).ffill()
+                wti = macro.get("CL=F", pd.Series(dtype=float)).reindex(ohlcv.index).ffill()
+                prices = ohlcv["close"].to_frame(asset)
+                rate_diffs = pd.DataFrame(0.0, index=ohlcv.index, columns=[asset])
+                commodities = pd.DataFrame({"WTI": wti}, index=ohlcv.index)
+                if len(prices) > 500:
+                    logger.info("  expanded OK: %s rows (%s..%s)", len(prices),
+                                prices.index[0].date(), prices.index[-1].date())
+                    return prices, ohlcv, rate_diffs, dxy.fillna(0), vix.fillna(0), spx.fillna(0), commodities
         except Exception as e:
             logger.warning("Expanded load failed for %s: %s — falling back to yfinance", asset, e)
     from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv

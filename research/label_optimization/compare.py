@@ -8,6 +8,13 @@ import numpy as np
 from scipy.stats import ttest_rel, wilcoxon, t as t_dist, bootstrap
 
 
+# Metrics where lower is better (inverted direction check)
+_LOWER_IS_BETTER = {"ece", "ece_mean", "brier", "brier_mean", "cal_inversion_rate",
+                     "cal_inversion_rate_mean", "max_drawdown_pct", "max_drawdown_mean",
+                     "imbalance_ratio", "flat_rate",
+                     "reliability", "log_loss"}
+
+
 def paired_comparison(
     baseline_folds: list[dict[str, Any]],
     config_folds: list[dict[str, Any]],
@@ -67,9 +74,17 @@ def paired_comparison(
     pooled_std = np.sqrt((np.std(b_vals, ddof=1) ** 2 + np.std(c_vals, ddof=1) ** 2) / 2)
     cohens_d = float(diffs.mean() / max(pooled_std, 1e-10))
 
-    # Interpretation
+    # Direction-aware interpretation
+    lower_better = metric in _LOWER_IS_BETTER
+    diff_direction = diffs.mean()
+    # A positive diff means config > baseline. For "lower is better" metrics,
+    # a positive diff is degradation; for "higher is better", it's improvement.
+    if lower_better:
+        direction = "improvement" if diff_direction < 0 else "degradation"
+    else:
+        direction = "improvement" if diff_direction > 0 else "degradation"
+
     significant = t_p < alpha
-    direction = "improvement" if diffs.mean() > 0 else "degradation"
     if significant:
         verdict = f"Significant {direction} (t-test p={t_p:.4f}, d={cohens_d:.3f})"
     else:

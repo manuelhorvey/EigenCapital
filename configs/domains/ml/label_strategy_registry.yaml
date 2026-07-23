@@ -1,0 +1,293 @@
+# Label Strategy Registry — single source of truth for training labels.
+#
+# Decouples the learning objective (label_strategy) from the execution
+# PT/SL geometry (triple_barrier.yaml). Each asset selects a labeling
+# strategy with asset-specific parameters, lifecycle status, and validation
+# evidence linking back to the label optimization experiment.
+#
+# Lifecycle states:
+#   exploratory         — initial experiment, not yet validated
+#   validated           — passed promotion gates on sentinel assets
+#   production_candidate — passed all gates, pending portfolio simulation
+#   deployed            — active in live paper trading
+#   deprecated           — replaced by a newer strategy
+#
+# See research/label_optimization/ for experiment methodology.
+# See research/portfolio_validation/ for portfolio A/B simulation.
+
+version: "1.0"
+generated: "2026-07-23"
+generator: "label_optimization_study"
+
+default_strategy:
+  strategy: TB_v1
+  description: "Fallback to production asymmetric triple barrier"
+
+strategies:
+  TB_v1:
+    description: "Production asymmetric triple barrier (PT>SL)"
+    pt_sl_source: triple_barrier.yaml
+    params:
+      - pt
+      - sl
+      - vol_method
+      - atr_period
+
+  TB_sym:
+    description: "Symmetric directional labeling (PT=SL)"
+    params:
+      - pt
+      - sl
+    constraints:
+      pt_equals_sl: true
+
+assets:
+
+  # ── TB_sym: validated — strong calibration + Sharpe preservation ──
+
+  GC:
+    strategy: TB_sym
+    pt: 3.0
+    sl: 3.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "GC__triple_barrier__3.00x3.00x20"
+      sharpe_delta: "+0.602"
+      ece_delta: "-83%"
+      ece_p: "0.032"
+      cal_inv_delta: "0%"
+      confidence: "high"
+
+  NZDUSD:
+    strategy: TB_sym
+    pt: 2.0
+    sl: 2.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "NZDUSD__triple_barrier__2.00x2.00x20"
+      sharpe_delta: "+1.140"
+      ece_delta: "-71%"
+      ece_p: "0.041"
+      cal_inv_delta: "-16%"
+      confidence: "high"
+
+  GBPCAD:
+    strategy: TB_sym
+    pt: 1.0
+    sl: 1.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "GBPCAD__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "+0.502"
+      ece_delta: "-84%"
+      ece_p: "0.002"
+      cal_inv_delta: "-2%"
+      confidence: "high"
+
+  EURAUD:
+    strategy: TB_sym
+    pt: 4.0
+    sl: 4.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "EURAUD__triple_barrier__4.00x4.00x20"
+      sharpe_delta: "+0.175"
+      ece_delta: "-83%"
+      ece_p: "0.012"
+      cal_inv_delta: "0%"
+      confidence: "high"
+
+  NZDCAD:
+    strategy: TB_sym
+    pt: 3.0
+    sl: 3.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "NZDCAD__triple_barrier__3.00x3.00x20"
+      sharpe_delta: "+0.510"
+      ece_delta: "-84%"
+      ece_p: "0.010"
+      cal_inv_delta: "-10%"
+      confidence: "high"
+
+  AUDUSD:
+    strategy: TB_sym
+    pt: 2.0
+    sl: 2.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "AUDUSD__triple_barrier__2.00x2.00x20"
+      sharpe_delta: "+0.117"
+      ece_delta: "-85%"
+      ece_p: "0.008"
+      cal_inv_delta: "+43%"
+      confidence: "high"
+
+  USDJPY:
+    strategy: TB_sym
+    pt: 1.0
+    sl: 1.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "USDJPY__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "+0.055"
+      ece_delta: "-66%"
+      ece_p: "0.002"
+      cal_inv_delta: "-20%"
+      confidence: "high"
+
+  EURCHF:
+    strategy: TB_sym
+    pt: 1.0
+    sl: 1.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "EURCHF__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "-0.030"
+      ece_delta: "-66%"
+      ece_p: "0.005"
+      cal_inv_delta: "-10%"
+      confidence: "high"
+
+  USDCAD:
+    strategy: TB_sym
+    pt: 1.0
+    sl: 1.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "USDCAD__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "+0.351"
+      sharpe_p: "0.030"
+      ece_delta: "flat (already 0.085)"
+      confidence: "high"
+    notes: "Production ECE was already best-in-class (0.085). Sharpe improves significantly."
+
+  DJI:
+    strategy: TB_sym
+    pt: 4.0
+    sl: 4.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "DJI__triple_barrier__4.00x4.00x20"
+      sharpe_delta: "+0.076"
+      ece_delta: "-61%"
+      ece_p: "0.014"
+      cal_inv_delta: "-18%"
+      cal_inv_p: "0.014"
+      confidence: "high"
+
+  NZDCHF:
+    strategy: TB_sym
+    pt: 4.0
+    sl: 4.0
+    status: validated
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "NZDCHF__triple_barrier__4.00x4.00x20"
+      sharpe_delta: "-0.306"
+      ece_delta: "-73%"
+      confidence: "high"
+    notes: "ECE improves 73% but Sharpe drops from 0.306 to 0.000. SELL_ONLY — monitor economic alignment."
+
+  # ── TB_sym: production_candidate — pending significance test ──
+
+  AUDJPY:
+    strategy: TB_sym
+    pt: 1.0
+    sl: 1.0
+    status: production_candidate
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "AUDJPY__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "-0.288"
+      ece_delta: "-84%"
+      confidence: "medium"
+    notes: "ECE improves but Sharpe drops from 0.288 to 0.000. Pending significance test."
+
+  EURCAD:
+    strategy: TB_sym
+    pt: 4.0
+    sl: 4.0
+    status: production_candidate
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "EURCAD__triple_barrier__4.00x4.00x20"
+      sharpe_delta: "+0.781"
+      ece_delta: "-80%"
+      confidence: "medium"
+    notes: "Strong directional improvement. Pending significance test."
+
+  USDCHF:
+    strategy: TB_sym
+    pt: 3.0
+    sl: 3.0
+    status: production_candidate
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "USDCHF__triple_barrier__3.00x3.00x20"
+      sharpe_delta: "+0.185"
+      ece_delta: "-64%"
+      confidence: "medium"
+    notes: "ECE 0.094 (good). Pending significance test."
+
+  # ── TB_sym: production_candidate — flagged for investigation ──
+
+  GBPCHF:
+    strategy: TB_sym
+    pt: 2.0
+    sl: 2.0
+    status: production_candidate
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "GBPCHF__triple_barrier__2.00x2.00x20"
+      sharpe_delta: "+0.023"
+      ece_delta: "-91%"
+      cal_inv_delta: "+37%"
+      cal_inv_p: "0.003"
+      confidence: "low"
+    notes: |
+      ECE improves 91% but calibration inversion significantly degrades
+      (p=0.003). SELL_ONLY asset — need to verify economic alignment
+      before deploying. Do not include in Phase 2 canary.
+
+  # ── TB_v1: retained — asymmetric labeling preserves edge ──
+
+  GBPUSD:
+    strategy: TB_v1
+    status: retained
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "GBPUSD__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "-0.311"
+      ece_delta: "-97%"
+      confidence: "high"
+    notes: |
+      Symmetric achieves near-perfect calibration (ECE=0.006) but loses
+      all trading edge (Sharpe 0.311 → 0.000). Asymmetric production
+      PT/SL preserves economically useful directional information.
+      KEEP production labeling.
+
+  CADCHF:
+    strategy: TB_v1
+    status: retained
+    validated: "2026-07-23"
+    validation:
+      experiment_id: "CADCHF__triple_barrier__1.00x1.00x20"
+      sharpe_delta: "-0.483"
+      ece_delta: "-88%"
+      confidence: "high"
+    notes: |
+      Strongest evidence that asymmetric labels can carry useful
+      directional information. ECE improves 88% but Sharpe degrades
+      from ~0 to -0.483 (CI excludes zero). SELL_ONLY asset.
+      KEEP production labeling.

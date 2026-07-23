@@ -13,47 +13,33 @@ import pandas as pd
 
 from research.label_optimization.configs import LabelExperiment
 from research.label_optimization.metrics import (
-    behavioral_metrics,
-    calibration_curve,
+    edge_retention,
+    fold_metrics,
     label_distribution,
-    trading_metrics_from_signals,
+    production_cost_metrics,
 )
 from research.label_optimization.schema import (
+    compute_fold_aggregates,
     create_experiment,
     finalize_experiment,
+    get_baseline_sharpe,
+    save_baseline,
+    save_fold_result,
     save_metrics,
 )
 
 logger = logging.getLogger("label_opt.runner")
 
 TICKER_MAP = {
-    "EURCHF": "EURCHF=X",
-    "GC": "GC=F",
-    "DJI": "^DJI",
-    "USDCAD": "USDCAD=X",
-    "AUDUSD": "AUDUSD=X",
-    "EURUSD": "EURUSD=X",
-    "GBPUSD": "GBPUSD=X",
-    "USDJPY": "USDJPY=X",
-    "AUDJPY": "AUDJPY=X",
-    "NZDUSD": "NZDUSD=X",
-    "USDMXN": "USDMXN=X",
-    "XAGUSD": "XAGUSD=F",
-    "XAUUSD": "XAUUSD=X",
-    "BTCUSD": "BTC-USD",
-    "GBPAUD": "GBPAUD=X",
-    "EURNZD": "EURNZD=X",
-    "NZDJPY": "NZDJPY=X",
-    "GBPJPY": "GBPJPY=X",
-    "CADCHF": "CADCHF=X",
-    "EURAUD": "EURAUD=X",
-    "GBPCHF": "GBPCHF=X",
-    "NZDCHF": "NZDCHF=X",
-    "NZDCAD": "NZDCAD=X",
-    "AUDCAD": "AUDCAD=X",
-    "EURGBP": "EURGBP=X",
-    "GBPCAD": "GBPCAD=X",
-    "AUDNZD": "AUDNZD=X",
+    "EURCHF": "EURCHF=X", "GC": "GC=F", "DJI": "^DJI",
+    "USDCAD": "USDCAD=X", "AUDUSD": "AUDUSD=X", "EURUSD": "EURUSD=X",
+    "GBPUSD": "GBPUSD=X", "USDJPY": "USDJPY=X", "AUDJPY": "AUDJPY=X",
+    "NZDUSD": "NZDUSD=X", "USDMXN": "USDMXN=X", "XAGUSD": "XAGUSD=F",
+    "XAUUSD": "XAUUSD=X", "BTCUSD": "BTC-USD", "GBPAUD": "GBPAUD=X",
+    "EURNZD": "EURNZD=X", "NZDJPY": "NZDJPY=X", "GBPJPY": "GBPJPY=X",
+    "CADCHF": "CADCHF=X", "EURAUD": "EURAUD=X", "GBPCHF": "GBPCHF=X",
+    "NZDCHF": "NZDCHF=X", "NZDCAD": "NZDCAD=X", "AUDCAD": "AUDCAD=X",
+    "EURGBP": "EURGBP=X", "GBPCAD": "GBPCAD=X", "AUDNZD": "AUDNZD=X",
     "EURJPY": "EURJPY=X",
 }
 
@@ -75,42 +61,82 @@ def _to_binary(y):
 
 
 def run_experiment(exp: LabelExperiment, tag: str = "") -> dict[str, Any] | None:
+    version = exp.label_strategy_version or "TB_v1"
+    baseline_id = None
+
     eid = create_experiment(
-        asset=exp.asset,
-        method=exp.label_method,
-        pt=exp.pt,
-        sl=exp.sl,
-        vb=exp.vb,
-        vol_method=exp.vol_method,
-        atr_period=exp.atr_period,
+        asset=exp.asset, method=exp.label_method,
+        pt=exp.pt, sl=exp.sl, vb=exp.vb,
+        vol_method=exp.vol_method, atr_period=exp.atr_period,
         git_commit=_get_git_commit(),
+        label_strategy_version=version,
+        baseline_id=baseline_id,
     )
-    logger.info("Experiment %s starting...", eid)
+    logger.info("Experiment %s (%s)", eid, version)
     t0 = time.time()
     ticker = TICKER_MAP.get(exp.asset, f"{exp.asset}=X")
+    t_feature = t_train = 0.0
+
     try:
         result = _run_walk_forward_inprocess(
-            asset=exp.asset,
-            ticker=ticker,
-            pt_sl=(exp.pt, exp.sl),
-            vb=exp.vb,
-            vol_method=exp.vol_method,
-            atr_period=exp.atr_period,
+            asset=exp.asset, ticker=ticker,
+            pt_sl=(exp.pt, exp.sl), vb=exp.vb,
+            vol_method=exp.vol_method, atr_period=exp.atr_period,
         )
         if result is None:
-            logger.error("Experiment %s — walk-forward returned None", eid)
+            logger.error("%s — walk-forward returned None", eid)
             finalize_experiment(eid, "failed")
             return None
-        signals, summary = result
+
+        fold_data_list, signals, summary = result
         runtime = time.time() - t0
-        _store_experiment_metrics(eid, exp, signals, summary)
+
+        # Store per-fold results
+        for fd in fold_data_list:
+            save_fold_result(eid, fd["fold"], fd)
+
+        # Compute aggregates from folds
+        compute_fold_aggregates(eid)
+
+        # Compute edge retention
+        baseline_sharpe = get_baseline_sharpe(exp.asset)
+        avg_sharpe = np.mean([fd.get("sharpe", 0) for fd in fold_data_list])
+        er = edge_retention(avg_sharpe, baseline_sharpe or avg_sharpe)
+
+        # Store production cost metrics
+        avg_cal_inv = np.mean([fd.get("cal_inversion_rate", 0) for fd in fold_data_list])
+        avg_ece = np.mean([fd.get("ece", 0) for fd in fold_data_list])
+        pc = production_cost_metrics(
+            eid, avg_cal_inv, avg_ece, er, avg_sharpe, baseline_sharpe or avg_sharpe,
+        )
+        save_metrics("production_cost_metrics", eid, pc)
+
+        # Store as baseline if this is the production config
+        if baseline_sharpe is None and _is_production_config(exp):
+            save_baseline(eid, exp.asset, exp.pt, exp.sl,
+                          avg_sharpe, avg_ece, avg_cal_inv)
+            logger.info("  -> registered as production baseline for %s", exp.asset)
+
         finalize_experiment(eid, "done", runtime_sec=round(runtime, 2))
-        logger.info("Experiment %s done (%.1fs)", eid, runtime)
+        logger.info(
+            "%s done (%.1fs) Sharpe=%.3f ECE=%.4f EdgeRet=%.2f",
+            eid, runtime, avg_sharpe, avg_ece, er,
+        )
         return {"experiment_id": eid, "status": "done", "runtime": runtime}
+
     except Exception as e:
         logger.exception("Experiment %s failed: %s", eid, e)
         finalize_experiment(eid, "failed")
         return None
+
+
+def _is_production_config(exp: LabelExperiment) -> bool:
+    """Check if this config matches the production PT/SL for this asset."""
+    from features.registry import ASSET_LABEL_PARAMS
+    prod = ASSET_LABEL_PARAMS.get(exp.asset, {})
+    prod_pt = prod.get("pt", 2.0)
+    prod_sl = prod.get("sl", 2.0)
+    return abs(exp.pt - prod_pt) < 0.01 and abs(exp.sl - prod_sl) < 0.01
 
 
 def _run_walk_forward_inprocess(asset: str, ticker: str,
@@ -118,8 +144,7 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
                                  vb: int = 20,
                                  vol_method: str | None = None,
                                  atr_period: int | None = None,
-                                 ) -> tuple[pd.DataFrame, pd.DataFrame] | None:
-    """Call walk_forward_backtest internals directly within this process."""
+                                 ) -> tuple[list[dict], pd.DataFrame, pd.DataFrame] | None:
     sys.path.insert(0, str(Path.cwd()))
     from features.alpha_features import build_alpha_features
     from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, _fetch_macro_batch
@@ -142,10 +167,7 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
 
     if not ohlcv.empty:
         labeled = apply_triple_barrier(
-            ohlcv,
-            pt_sl=list(pt_sl),
-            vertical_barrier=vb,
-            vol_primitive=vol_primitive,
+            ohlcv, pt_sl=list(pt_sl), vertical_barrier=vb, vol_primitive=vol_primitive,
         )
         labels = labeled["label"].reindex(prices.index).fillna(0).astype(int)
     else:
@@ -162,11 +184,9 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
     alpha_df[f"{prefix}_oi_available"] = check_oi_availability(ticker)
 
     macro = _fetch_macro_batch()
-    rd_series = (
-        rate_diffs[asset]
-        if rate_diffs is not None and asset in rate_diffs.columns
-        else pd.Series(0.0, index=alpha_df.index)
-    )
+    rd_series = (rate_diffs[asset]
+                 if rate_diffs is not None and asset in rate_diffs.columns
+                 else pd.Series(0.0, index=alpha_df.index))
     rates_df = compute_rates(macro, rd_series, alpha_df.index)
     if rates_df is not None and not rates_df.empty:
         for col in rates_df.columns:
@@ -201,18 +221,23 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
 
     X_all = full_df[all_cols]
     y_all = _to_binary(full_df["label"])
+    close_all = full_df["close"].values if "close" in full_df.columns else None
     if len(y_all) < 100:
         logger.warning("%s: only %d binary samples", asset, len(y_all))
         return None
     X_all = X_all.loc[y_all.index]
 
     from labels.compat import PurgedWalkForwardFolds
-    cv = PurgedWalkForwardFolds(n_folds=3, gap=max(20, vb), min_train=100,
-                                 window_type="expanding", rolling_window_bars=3 * 252)
+    cv = PurgedWalkForwardFolds(
+        n_folds=3, gap=max(20, vb), min_train=100,
+        window_type="expanding", rolling_window_bars=3 * 252,
+    )
+
+    import xgboost as xgb
 
     windows = []
     all_oos_signals = []
-    import xgboost as xgb
+    fold_data_list = []
 
     for fold, (train_idx, test_idx) in enumerate(cv.split(X_all)):
         X_tr = X_all.iloc[train_idx]
@@ -223,8 +248,7 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
         if y_tr.nunique() < 2:
             continue
 
-        n0 = (y_tr == 0).sum()
-        n1 = (y_tr == 1).sum()
+        n0, n1 = (y_tr == 0).sum(), (y_tr == 1).sum()
         imbalance_ratio = n0 / max(n1, 1)
 
         n_tr = len(X_tr)
@@ -242,6 +266,7 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
             y_tr_fit = y_tr
             eval_set = None
 
+        t0_fold = time.time()
         model = xgb.XGBClassifier(
             n_estimators=300, max_depth=2, learning_rate=0.02,
             objective="binary:logistic", scale_pos_weight=imbalance_ratio,
@@ -252,98 +277,48 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
             model.fit(X_tr_fit[alpha_cols], y_tr_fit, eval_set=eval_set, verbose=False)
         else:
             model.fit(X_tr_fit[alpha_cols], y_tr_fit)
+        train_fold_sec = time.time() - t0_fold
 
         p_long = model.predict_proba(X_te[alpha_cols])[:, 1]
+        signals_fold = np.zeros(len(p_long), dtype=int)
+        signals_fold[p_long >= 0.55] = 1
+        signals_fold[p_long <= 0.45] = -1
 
-        signals = np.zeros(len(p_long), dtype=int)
-        signals[p_long >= 0.55] = 1
-        signals[p_long <= 0.45] = -1
+        # Per-fold metrics
+        fold_df = pd.DataFrame({
+            "signal": signals_fold, "label": y_te.values, "p_long": p_long,
+        }, index=X_te.index)
+        close_segment = close_all[X_all.index.get_indexer(X_te.index)] if close_all is not None else None
 
-        label_dir = y_te.values * 2 - 1
-        directional = (signals * label_dir).sum() / max((signals != 0).sum(), 1)
+        fm = fold_metrics(fold_df, close_segment)
+        fm["fold"] = fold
+        fm["n_train"] = len(X_tr)
+        fm["train_fold_sec"] = round(train_fold_sec, 3)
+        fold_data_list.append(fm)
 
+        # Store for aggregate signals
         from scipy.stats import spearmanr
         ic, ic_p = spearmanr(p_long, y_te.fillna(0))
         ic = ic if not np.isnan(ic) else 0.0
-
         windows.append({
             "asset": asset, "fold": fold,
             "train_samples": len(X_tr), "test_samples": len(X_te),
-            "hit_rate": round(float(directional), 4),
-            "directional": round(float(directional), 4),
+            "hit_rate": round(float((signals_fold != 0).mean()), 4),
+            "directional": round(float((signals_fold != 0).mean()), 4),
             "spearman_ic": round(float(ic), 6),
-            "long_rate": round((signals == 1).mean(), 4),
-            "short_rate": round((signals == -1).mean(), 4),
-            "flat_rate": round((signals == 0).mean(), 4),
+            "long_rate": round((signals_fold == 1).mean(), 4),
+            "short_rate": round((signals_fold == -1).mean(), 4),
+            "flat_rate": round((signals_fold == 0).mean(), 4),
         })
+        all_oos_signals.append(fold_df)
 
-        oos_df = pd.DataFrame({
-            "signal": signals, "label": y_te.values, "p_long": p_long,
-        }, index=X_te.index)
-        oos_df["asset"] = asset
-        all_oos_signals.append(oos_df)
-
-    if not windows:
+    if not fold_data_list:
         logger.warning("%s: no windows produced", asset)
         return None
 
     summary = pd.DataFrame(windows)
     signals_df = pd.concat(all_oos_signals) if all_oos_signals else pd.DataFrame()
-    return signals_df, summary
-
-
-def _store_experiment_metrics(eid: str, exp: LabelExperiment,
-                              signals: pd.DataFrame | None,
-                              summary: pd.DataFrame | None) -> None:
-    if signals is not None and "label" in signals.columns:
-        labels = signals["label"].values
-        label_metrics = label_distribution(pd.Series(labels))
-        save_metrics("label_metrics", eid, label_metrics)
-
-    if signals is not None and "p_long" in signals.columns and "label" in signals.columns:
-        probs = signals["p_long"].values.astype(float)
-        lbls = signals["label"].values.astype(int)
-        cal = calibration_curve(probs, lbls)
-        save_metrics("calibration_metrics", eid, cal)
-
-    if signals is not None and "p_long" in signals.columns and "signal" in signals.columns:
-        probs = signals["p_long"].values.astype(float)
-        sigs = signals["signal"].values.astype(int)
-        beh = behavioral_metrics(probs, sigs)
-        save_metrics("behavioral_metrics", eid, beh)
-
-    if signals is not None:
-        ohlcv_data = _load_ohlcv(exp.asset)
-        tm = trading_metrics_from_signals(signals, ohlcv_data)
-        save_metrics("trading_metrics", eid, tm)
-
-    if summary is not None and not summary.empty:
-        mm = {
-            "auc": 0.0, "log_loss": 0.0, "f1": 0.0, "mcc": 0.0,
-            "precision_buy": 0.0, "recall_buy": 0.0,
-            "precision_sell": 0.0, "recall_sell": 0.0,
-            "n_train": int(summary["train_samples"].mean()) if "train_samples" in summary.columns else 0,
-            "n_valid": 0, "feature_count": 0,
-        }
-        if "spearman_ic" in summary.columns:
-            mm["auc"] = round(float(summary["spearman_ic"].mean()), 6)
-        save_metrics("model_metrics", eid, mm)
-
-
-def _load_ohlcv(asset: str) -> pd.DataFrame | None:
-    import glob
-    base = Path("data/yfinance_10yr")
-    if not base.exists():
-        return None
-    patterns = [f"*{asset}*ohlcv.parquet", f"*{asset.upper()}*ohlcv.parquet", f"*{asset.lower()}*ohlcv.parquet"]
-    for p in patterns:
-        matches = list(base.glob(p))
-        if matches:
-            try:
-                return pd.read_parquet(matches[0])
-            except Exception:
-                return None
-    return None
+    return fold_data_list, signals_df, summary
 
 
 def run_grid(experiments: list[LabelExperiment], tag: str = "",

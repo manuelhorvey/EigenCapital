@@ -2,17 +2,30 @@
 """
 Label Optimization Framework — CLI.
 
-Runs Design of Experiments (DOE) sweeps over labeling parameters to
-find the optimal configuration that maximizes trading performance
-without injecting directional bias.
-
 Usage:
-    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --phase 1 --asset EURCHF
-    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --phase 1 --quick
-    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --phase 1 --all
-    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --report
-    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --pareto
-    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --exp EURCHF__triple_barrier__2.0x2.0x20
+    # Stage A: Sentinel assets (rapid iteration)
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --stage A --quick
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --stage A --asset EURCHF
+
+    # Stage B: All 17 assets
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --stage B --quick
+
+    # Stage C: Hold-out validation
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --stage C
+
+    # The specific experiment: symmetric labels + unchanged execution
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --symmetric-sentinel
+
+    # Register production baselines
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --baselines
+
+    # Report & Pareto
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py --report --pareto
+    PYTHONPATH=$PYTHONPATH:$PWD python scripts/research/label_optimization_cli.py --report --asset EURCHF
+
+    # Single experiment
+    PYTHONPATH=$PYTHONPATH:. python scripts/research/label_optimization_cli.py \
+        --exp EURCHF__triple_barrier__1.0x1.0x20
 """
 
 from __future__ import annotations
@@ -25,9 +38,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from research.label_optimization.configs import (
-    PHASE1_ASYMMETRIC_PT,
-    PHASE1_ASYMMETRIC_SL,
-    PHASE1_SYMMETRIC,
+    ALL_ASSETS,
+    HOLDOUT_ASSETS,
+    STAGE_A_ASYMMETRIC_PT,
+    STAGE_A_ASYMMETRIC_SL,
+    STAGE_A_QUICK,
+    STAGE_A_SYMMETRIC,
+    STAGE_B_QUICK,
+    STAGE_B_SYMMETRIC,
+    STAGE_C_VALIDATION,
+    SYMMETRIC_SENTINEL,
     DOEGrid,
     LabelExperiment,
 )
@@ -40,9 +60,9 @@ from research.label_optimization.reporting import (
     save_report,
 )
 from research.label_optimization.schema import (
-    get_all_experiments,
+    get_baseline_sharpe,
     get_experiment_results,
-    get_db,
+    delete_experiment,
 )
 
 logging.basicConfig(
@@ -52,44 +72,77 @@ logging.basicConfig(
 logger = logging.getLogger("label_opt.cli")
 
 
-def _run_phase1(asset: str | None, quick: bool, all_assets: bool):
-    if all_assets:
-        assets = PHASE1_SYMMETRIC.assets
-    elif asset:
-        assets = [asset]
-    else:
-        assets = PHASE1_SYMMETRIC.assets
-
-    if quick:
-        pts = [1.0, 2.0, 3.0, 4.0]
-        sls = [1.0, 2.0, 3.0, 4.0]
-    else:
-        pts = PHASE1_SYMMETRIC.pts
-        sls = PHASE1_SYMMETRIC.sls
-
-    grid = DOEGrid(assets=assets, pts=pts, sls=sls, vbs=[20])
+def _run_stage_a(asset: str | None, quick: bool):
+    grid = STAGE_A_QUICK if quick else STAGE_A_SYMMETRIC
+    assets = [asset] if asset else grid.assets
+    grid = DOEGrid(
+        assets=assets, pts=grid.pts, sls=grid.sls, vbs=grid.vbs,
+        strategy_version=grid.strategy_version,
+    )
     exps = list(grid.experiments())
-    logger.info("Starting Phase 1 (PT/SL sweep): %d experiments (%d assets, %d PT×SL combos)",
-                len(exps), len(assets), len(pts) * len(sls))
-    results = run_grid(exps, tag="phase1")
-    logger.info("Phase 1 complete: %d/%d succeeded", len(results), len(exps))
-    return results
+    logger.info("Stage A: %d experiments (%d assets, %d PT×SL combos)",
+                len(exps), len(assets), len(grid.pts) * len(grid.sls))
+    run_grid(exps, tag="stage_a")
+
+    # Also run asymmetric sweeps on sentinel assets
+    if not asset:
+        asym_grids = [STAGE_A_ASYMMETRIC_PT, STAGE_A_ASYMMETRIC_SL]
+        for g in asym_grids:
+            exps2 = list(g.experiments())
+            logger.info("  + %d asymmetric experiments", len(exps2))
+            run_grid(exps2, tag="stage_a_asym")
+
+
+def _run_stage_b(quick: bool):
+    grid = STAGE_B_QUICK if quick else STAGE_B_SYMMETRIC
+    exps = list(grid.experiments())
+    logger.info("Stage B: %d experiments across %d assets",
+                len(exps), len(grid.assets))
+    run_grid(exps, tag="stage_b")
+
+
+def _run_stage_c():
+    exps = list(STAGE_C_VALIDATION.experiments())
+    logger.info("Stage C (hold-out): %d experiments across %d assets",
+                len(exps), len(HOLDOUT_ASSETS))
+    run_grid(exps, tag="stage_c")
+
+
+def _run_symmetric_sentinel():
+    logger.info("Symmetric PT=SL sentinel: %d experiments", len(SYMMETRIC_SENTINEL))
+    for exp in SYMMETRIC_SENTINEL:
+        run_experiment(exp, tag="sym_sentinel")
+
+
+def _register_baselines():
+    """Run production PT/SL configs and register as baselines."""
+    from features.registry import ASSET_LABEL_PARAMS
+    baselines = []
+    for asset in ALL_ASSETS:
+        prod = ASSET_LABEL_PARAMS.get(asset, {})
+        pt = prod.get("pt", 2.0)
+        sl = prod.get("sl", 2.0)
+        exp = LabelExperiment(
+            asset=asset, pt=pt, sl=sl, vb=20,
+            label_strategy_version="TB_v1",
+        )
+        logger.info("Registering baseline: %s (PT=%.1f SL=%.1f)", asset, pt, sl)
+        run_experiment(exp, tag="baseline")
+        baselines.append(exp)
+    return baselines
 
 
 def _run_single_experiment(eid: str):
     parts = eid.split("__")
     if len(parts) != 3:
-        logger.error("Invalid experiment ID format: %s (expected asset__method__ptxslxvb)", eid)
+        logger.error("Invalid experiment ID: %s (expected asset__method__ptxslxvb)", eid)
         return
-    asset = parts[0]
-    method = parts[1]
+    asset, method = parts[0], parts[1]
     try:
         dims = parts[2].split("x")
-        pt = float(dims[0])
-        sl = float(dims[1])
-        vb = int(dims[2])
+        pt, sl, vb = float(dims[0]), float(dims[1]), int(dims[2])
     except (ValueError, IndexError):
-        logger.error("Invalid dimension format in %s (expected ptxslxvb)", eid)
+        logger.error("Invalid dimension in %s", eid)
         return
     exp = LabelExperiment(asset=asset, label_method=method, pt=pt, sl=sl, vb=vb)
     run_experiment(exp, tag="manual")
@@ -97,61 +150,62 @@ def _run_single_experiment(eid: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Label Optimization Framework CLI")
-    parser.add_argument("--phase", type=int, choices=[1, 2, 3, 4], default=None,
-                        help="Run a specific phase of the DOE")
-    parser.add_argument("--asset", type=str, default=None,
-                        help="Single asset to run (default: phase assets)")
-    parser.add_argument("--quick", action="store_true", default=False,
-                        help="Reduced grid for faster runs")
-    parser.add_argument("--all", dest="all_assets", action="store_true", default=False,
-                        help="Run across all phase assets")
+    parser.add_argument("--stage", type=str, choices=["A", "B", "C"], default=None,
+                        help="Research stage: A (sentinel), B (all 17), C (hold-out)")
+    parser.add_argument("--asset", type=str, default=None)
+    parser.add_argument("--quick", action="store_true", default=False)
+    parser.add_argument("--symmetric-sentinel", action="store_true", default=False,
+                        help="Run PT=SL symmetric labels on sentinel assets")
+    parser.add_argument("--baselines", action="store_true", default=False,
+                        help="Register production PT/SL configs as baselines")
     parser.add_argument("--exp", type=str, default=None,
-                        help="Run a single experiment by ID (asset__method__ptxslxvb)")
-    parser.add_argument("--report", action="store_true", default=False,
-                        help="Print comparison report from DB")
-    parser.add_argument("--pareto", action="store_true", default=False,
-                        help="Compute and print Pareto frontiers")
-    parser.add_argument("--save", type=str, default=None,
-                        help="Save report to CSV path")
-    parser.add_argument("--asset-filter", type=str, default=None,
-                        help="Filter report to single asset")
+                        help="Single experiment by ID (asset__method__ptxslxvb)")
+    parser.add_argument("--report", action="store_true", default=False)
+    parser.add_argument("--pareto", action="store_true", default=False)
+    parser.add_argument("--save", type=str, default=None)
+    parser.add_argument("--asset-filter", type=str, default=None)
+    parser.add_argument("--delete", type=str, default=None,
+                        help="Delete an experiment and its results")
     args = parser.parse_args()
+
+    if args.delete:
+        from research.label_optimization.schema import delete_experiment
+        delete_experiment(args.delete)
+        print(f"Deleted {args.delete}")
+        return
 
     if args.exp:
         _run_single_experiment(args.exp)
         return
 
-    if args.phase == 1:
-        _run_phase1(args.asset, args.quick, args.all_assets)
-    elif args.phase:
-        logger.info("Phase %d not yet implemented", args.phase)
+    if args.baselines:
+        _register_baselines()
+        return
+
+    if args.symmetric_sentinel:
+        _run_symmetric_sentinel()
+        return
+
+    if args.stage == "A":
+        _run_stage_a(args.asset, args.quick)
+    elif args.stage == "B":
+        _run_stage_b(args.quick)
+    elif args.stage == "C":
+        _run_stage_c()
+    elif not any([args.report, args.save, args.pareto]):
+        parser.print_help()
         return
 
     if args.report or args.save or args.pareto:
         results = get_experiment_results()
         if not results:
-            print("No completed experiments found in database.")
-            print("  DB: data/processed/label_optimization.db")
-            conn = get_db()
-            rows = conn.execute("SELECT experiment_id, status FROM experiments").fetchall()
-            conn.close()
-            if rows:
-                print(f"  Found {len(rows)} total entries:")
-                for r in rows:
-                    print(f"    {r['experiment_id']} — {r['status']}")
+            print("No completed experiments in DB.")
             return
-        df = results_dataframe(results)
         if args.report:
+            df = results_dataframe(results)
             print_comparison_table(df, asset=args.asset_filter)
         if args.pareto:
-            objectives = {
-                "sharpe": "maximize",
-                "profit_factor": "maximize",
-                "total_r": "maximize",
-                "ece": "minimize",
-                "cal_inversion_rate": "minimize",
-            }
-            ranked = compute_pareto_rankings(results, objectives)
+            ranked = compute_pareto_rankings(results)
             print_pareto_summary(ranked)
         if args.save:
             save_report(results, args.save)

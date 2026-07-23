@@ -2,27 +2,19 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 import numpy as np
 
 
 def pareto_frontier(points: list[tuple[float, ...]], maximize: list[bool]) -> list[int]:
-    """Find Pareto-optimal points.
-
-    Args:
-        points: List of n-dimensional tuples.
-        maximize: True if dimension should be maximized, False if minimized.
-
-    Returns:
-        Indices of Pareto-optimal points.
-    """
     n = len(points)
     if n == 0:
         return []
     is_dominated = np.zeros(n, dtype=bool)
     dirs = np.array([1 if m else -1 for m in maximize], dtype=float)
-    arr = np.array(points) * dirs  # Transform: maximize=higher_better, minimize=higher_better_after_negation
+    arr = np.array(points) * dirs
     for i in range(n):
         for j in range(n):
             if i == j or is_dominated[i]:
@@ -33,18 +25,31 @@ def pareto_frontier(points: list[tuple[float, ...]], maximize: list[bool]) -> li
     return [i for i in range(n) if not is_dominated[i]]
 
 
-def compute_pareto_rankings(experiments: list[dict[str, Any]],
-                             objectives: dict[str, str]) -> list[dict[str, Any]]:
-    """Rank experiments within each asset group by Pareto optimality.
+DEFAULT_OBJECTIVES = {
+    "sharpe_mean": "maximize",
+    "ece_mean": "minimize",
+    "imbalance_ratio": "minimize",           # class balance
+    "cal_inversion_rate_mean": "minimize",   # behavioral stability
+}
 
-    Args:
-        experiments: List of experiment result dicts (from get_experiment_results).
-        objectives: Mapping of metric_key -> direction ('maximize' or 'minimize').
 
-    Returns:
-        Experiments augmented with 'pareto_rank', 'pareto_front', 'composite_score'.
-    """
-    from collections import defaultdict
+def compute_pareto_rankings(
+    experiments: list[dict[str, Any]],
+    objectives: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    if objectives is None:
+        objectives = DEFAULT_OBJECTIVES
+
+    # Resolve key names: try _mean/CI variants, fall back to plain
+    def _resolve(exp: dict, key: str) -> float | None:
+        for variant in [key, key.replace("_mean", ""), key.replace("_std", "")]:
+            v = exp.get(variant)
+            if v is not None:
+                try:
+                    return float(v)
+                except (ValueError, TypeError):
+                    pass
+        return None
 
     grouped: dict[str, list[dict]] = defaultdict(list)
     for exp in experiments:
@@ -61,11 +66,11 @@ def compute_pareto_rankings(experiments: list[dict[str, Any]],
             vals = []
             ok = True
             for k in metric_keys:
-                v = exp.get(k)
-                if v is None or (isinstance(v, float) and np.isnan(v)):
+                v = _resolve(exp, k)
+                if v is None or np.isnan(v):
                     ok = False
                     break
-                vals.append(float(v))
+                vals.append(v)
             if ok:
                 valid.append(tuple(vals))
                 valid_indices.append(i)
@@ -76,26 +81,26 @@ def compute_pareto_rankings(experiments: list[dict[str, Any]],
         pareto_idx = pareto_frontier(valid, maximize)
         pareto_set = set(pareto_idx)
 
-        # Compute composite score (simple rank-sum normalization)
         scores = np.array(valid)
         for j, m in enumerate(maximize):
             col = scores[:, j]
-            if m:
-                col = (col - col.min()) / max(col.max() - col.min(), 1e-10)
+            rng = col.max() - col.min()
+            if rng > 1e-10:
+                if m:
+                    scores[:, j] = (col - col.min()) / rng
+                else:
+                    scores[:, j] = (col.max() - col) / rng
             else:
-                col = (col.max() - col) / max(col.max() - col.min(), 1e-10)
-            scores[:, j] = col
+                scores[:, j] = 0.5
         composite = scores.mean(axis=1)
 
         for local_i in range(len(group)):
-            if local_i in pareto_set and len(pareto_idx) > 0:
-                rank = 1
-            else:
-                rank = 2
+            rank = 1 if local_i in pareto_set and len(pareto_idx) > 0 else 2
             exp = group[local_i]
             exp["pareto_rank"] = rank
             exp["pareto_front"] = local_i in pareto_set
-            exp["composite_score"] = round(float(composite[valid_indices.index(local_i)]), 4) if local_i in valid_indices else 0.0
+            ci = valid_indices.index(local_i) if local_i in valid_indices else -1
+            exp["composite_score"] = round(float(composite[ci]), 4) if ci >= 0 else 0.0
             ranked.append(exp)
 
     return ranked

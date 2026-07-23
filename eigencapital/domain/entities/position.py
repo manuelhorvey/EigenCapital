@@ -4,10 +4,14 @@ Defines position data structures:
 
 - PositionSide: LONG/SHORT enum with inversion and signal-type mapping.
 - PositionState: PENDING/OPEN/CLOSED/CANCELLED lifecycle states.
+- ProfitLockState: Lifecycle state for profit floor protection — tracks
+  whether a trade has ever reached the trigger R threshold and enforces
+  a minimum exit floor once triggered.
 - PositionIntent: Core position dataclass holding entry price, stop
   loss, take profit, layers (for pyramiding), risk envelope fields
-  (breakeven_set, risk_floor, peak_price), and effective_sl computation.
-  Provides invariant enforcement for layer price averaging.
+  (breakeven_set, profit_lock_state, risk_floor, peak_price), and
+  effective_sl computation. Provides invariant enforcement for layer
+  price averaging.
 - StackLayer: Individual pyramid layer within a stacked position.
 - OrderType: ENTRY/STACK/REDUCE/EXIT order classification.
 - StackCommand: Execution instruction from stacking evaluation.
@@ -22,6 +26,7 @@ Key integration points:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, auto
 
 
@@ -76,6 +81,40 @@ class StackCommand:
 
 
 @dataclass
+class ProfitLockState:
+    """Lifecycle state for profit floor protection.
+
+    Tracks whether a trade has qualified for and activated the minimum
+    profit floor after a validated favorable excursion.
+
+    State machine::
+
+        ACTIVE (not triggered)
+           |
+           | highest_r_seen >= trigger_r
+           v
+        PROFIT_LOCKED (triggered = True)
+           |
+           | price <= floor (via risk_floor / effective_sl)
+           v
+        LOCK_EXIT
+
+    The critical invariant: once triggered, the floor persists even if
+    price recovers above the trigger. ``highest_r_seen`` records the
+    peak R for post-hoc attribution.
+    """
+
+    enabled: bool = True
+    triggered: bool = False
+    trigger_r: float = 2.5
+    floor_r: float = 2.0
+    trigger_timestamp: str | None = None
+    trigger_price: float | None = None
+    trigger_mfe: float = 0.0
+    highest_r_seen: float = 0.0
+
+
+@dataclass
 class PositionIntent:
     side: PositionSide
     entry_price: float
@@ -90,6 +129,7 @@ class PositionIntent:
     base_entry_size: float = 0.0
     # Risk envelope fields
     breakeven_set: bool = False
+    profit_lock_state: ProfitLockState | None = None
     risk_floor: float = 0.0  # position-level risk floor (most protective SL)
     peak_price: float = 0.0  # highest (long) / lowest (short) price reached
     last_stack_bar_id: int = 0  # bar index of last stack (IV-8)

@@ -69,5 +69,8 @@ stacking:
   stack_micro_threshold: 0.0
   # Position protection thresholds (used by PositionProtection)
   breakeven_threshold_r: 0.5
+  profit_lock_enabled: true
+  profit_lock_trigger_r: 2.5
+  profit_lock_floor_r: 2.0
   trail_activate_r: 1.0
   trail_distance_r: 0.5

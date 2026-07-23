@@ -12,7 +12,8 @@ from paper_trading.ops.tracer import (
     shadow_compare_sltp,
     trace_diagnostic_report,
 )
-from paper_trading.position.protection import PositionProtection
+from paper_trading.position.protection import PositionProtection, check_profit_floor_exit
+from paper_trading.lifecycle.telemetry import capture_exit, capture_trigger
 from paper_trading.shadow.memory import store_event as _shadow_store
 
 logger = logging.getLogger("eigencapital.pnl_controller")
@@ -120,15 +121,96 @@ class AssetPnlController:
         if current_price is not None and current_price > 0 and asset.pos_mgr.position is not None:
             protection_cfg = asset.config.get("stacking", {})
             pp_action = PositionProtection.update(asset.pos_mgr.position, current_price, protection_cfg)
+
             if pp_action.new_sl is not None and asset.batches:
                 anchor = next((b for b in asset.batches.values() if b.is_anchor), None)
                 if anchor is not None and abs(anchor.stop_loss - float(pp_action.new_sl)) > 1e-8:
-                    logger.debug(
-                        "%s: syncing PositionProtection SL %.5f to anchor batch (was %.5f)",
+                    logger.info(
+                        "%s: tightening anchor SL from %.5f to %.5f (%s)",
                         asset.name,
-                        pp_action.new_sl,
                         anchor.stop_loss,
+                        pp_action.new_sl,
+                        pp_action.action,
                     )
+                    anchor.update_stop_loss(float(pp_action.new_sl))
+                    _sync_broker_sltp(asset, trade_id=anchor.trade_id)
+
+            if pp_action.action == "profit_floor":
+                pls = asset.pos_mgr.position.profit_lock_state
+                trade_id = getattr(asset, "_current_trade_id", None) or str(id(asset.pos_mgr.position))
+                anchor_trade_id = None
+                if pp_action.new_sl is not None and asset.batches:
+                    a = next((b for b in asset.batches.values() if b.is_anchor), None)
+                    if a is not None:
+                        anchor_trade_id = a.trade_id
+                _write_wal_event(asset, "profit_floor_triggered", {
+                    "lifecycle_version": "v2_profit_floor",
+                    "trigger_r": pls.trigger_r if pls else None,
+                    "floor_r": pls.floor_r if pls else None,
+                    "trigger_price": current_price,
+                    "trigger_mfe_r": pls.trigger_mfe if pls else None,
+                    "risk_floor": pp_action.new_sl,
+                    "entry_price": asset.pos_mgr.position.avg_price,
+                    "broker_sl_updated": anchor_trade_id is not None,
+                    "broker_ticket": anchor_trade_id,
+                })
+                try:
+                    capture_trigger(
+                        trade_id=trade_id,
+                        asset=asset.name,
+                        trigger_mfe_r=pls.trigger_mfe if pls else 0.0,
+                        trigger_price=current_price,
+                        entry_price=asset.pos_mgr.position.avg_price,
+                        trigger_timestamp=str(datetime.now(tz=ET)),
+                    )
+                except Exception:
+                    logger.debug("%s: lifecycle telemetry trigger capture failed", asset.name)
+
+        # ── Profit floor exit check ──────────────────────────────────────
+        # Run BEFORE batch SL/TP checks to ensure profit floor exits are
+        # correctly attributed as PROFIT_LOCK rather than TRAILING_SL.
+        # Uses effective_sl (max of batch SL and risk_floor) from the
+        # position object, which reflects the profit floor set above.
+        if current_price is not None and current_price > 0 and asset.pos_mgr.position is not None:
+            should_exit, exit_price, exit_reason = check_profit_floor_exit(
+                asset.pos_mgr.position, current_price,
+            )
+            if should_exit:
+                _exit_reason = exit_reason or "PROFIT_LOCK"
+                last_bar = str(datetime.now(tz=ET).date())
+                logger.info(
+                    "%s: PROFIT FLOOR EXIT at %.4f (Current: %.4f, Entry: %.4f, Side: %s)",
+                    asset.name,
+                    exit_price,
+                    current_price,
+                    asset.pos_mgr.position.entry_price,
+                    asset.pos_mgr.position.side,
+                )
+                pls = asset.pos_mgr.position.profit_lock_state
+                _write_wal_event(asset, "profit_floor_exit", {
+                    "lifecycle_version": "v2_profit_floor",
+                    "exit_reason": _exit_reason,
+                    "exit_price": exit_price,
+                    "current_price": current_price,
+                    "trigger_price": pls.trigger_price if pls else None,
+                    "trigger_mfe_r": pls.trigger_mfe if pls else None,
+                    "highest_r_seen": pls.highest_r_seen if pls else None,
+                    "floor_r": pls.floor_r if pls else None,
+                })
+                trade_id = getattr(asset, "_current_trade_id", None) or str(id(asset.pos_mgr.position))
+                try:
+                    capture_exit(
+                        trade_id=trade_id,
+                        exit_r=pls.floor_r if pls else 0.0,
+                        exit_reason=_exit_reason,
+                        exit_timestamp=str(datetime.now(tz=ET)),
+                    )
+                except Exception:
+                    logger.debug("%s: lifecycle telemetry exit capture failed", asset.name)
+                asset._close_position(exit_price, last_bar, _exit_reason)
+                if asset.current_value > asset.peak_value:
+                    asset.peak_value = asset.current_value
+                return True
 
         self._reconcile_position_tp(asset)
         self._tick_shadow_sltp(asset)
@@ -683,6 +765,27 @@ class AssetPnlController:
         asset.pos_mgr.initial_capital = asset.pos_mgr.initial_capital + delta
         asset.pos_mgr.current_value = asset.pos_mgr.current_value + delta
         asset.pos_mgr.peak_value = asset.pos_mgr.peak_value + delta
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+_WAL_EVENT_TYPES = frozenset({
+    "profit_floor_triggered",
+    "profit_floor_exit",
+})
+
+
+def _write_wal_event(asset, event_type: str, payload: dict) -> None:
+    """Write a WAL provenance event if the asset has a WAL writer."""
+    if event_type not in _WAL_EVENT_TYPES:
+        logger.warning("Unknown WAL event type: %s", event_type)
+        return
+    wal = getattr(asset, "_wal_writer", None)
+    if wal is not None:
+        try:
+            wal.write(event_type, payload)
+        except (RuntimeError, OSError, KeyError):
+            logger.exception("WAL write failed for %s on %s", event_type, asset.name)
 
 
 def _compute_r(asset, exit_price: float) -> float:

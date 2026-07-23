@@ -6,7 +6,7 @@ from eigencapital.domain.entities.position import PositionIntent, PositionSide  
 from eigencapital.domain.entities.signal import SignalType, TradeDecision  # noqa: F401
 from features.types import MarketStructureState  # noqa: F401  — canonical home
 
-ExitReason = Literal["SL", "TP", "BREAKEVEN", "EXPIRY", "FLIP", "MANUAL", "TRAILING_SL"]
+ExitReason = Literal["SL", "TP", "BREAKEVEN", "EXPIRY", "FLIP", "MANUAL", "TRAILING_SL", "PROFIT_LOCK"]
 
 
 class ValidityState(str, Enum):

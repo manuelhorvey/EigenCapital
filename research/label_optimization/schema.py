@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS experiments (
     label_strategy_version TEXT DEFAULT 'TB_v1',
     git_commit      TEXT,
     dataset_hash    TEXT,
+    config_hash     TEXT,
     timestamp       TEXT NOT NULL,
     runtime_sec     REAL,
     baseline_id     TEXT,
@@ -245,11 +246,25 @@ def _store_dict(conn: sqlite3.Connection, table: str, experiment_id: str, data: 
     conn.commit()
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Idempotent schema migrations for columns added after initial creation."""
+    migrations = [
+        "ALTER TABLE experiments ADD COLUMN config_hash TEXT",
+    ]
+    for sql in migrations:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    conn.commit()
+
+
 def get_db() -> sqlite3.Connection:
     EXPERIMENT_DB.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(EXPERIMENT_DB))
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA_SQL)
+    _migrate(conn)
     return conn
 
 
@@ -262,6 +277,7 @@ def create_experiment(
     vol_method: str | None = None, atr_period: int | None = None,
     git_commit: str | None = None,
     label_strategy_version: str = "TB_v1",
+    config_hash: str | None = None,
     baseline_id: str | None = None,
 ) -> str:
     eid = experiment_id(asset, method, pt, sl, vb)
@@ -270,10 +286,11 @@ def create_experiment(
         conn.execute(
             """INSERT OR IGNORE INTO experiments
                (experiment_id, asset, label_method, pt, sl, vb, vol_method, atr_period,
-                label_strategy_version, git_commit, timestamp, status, baseline_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?)""",
+                label_strategy_version, git_commit, config_hash, timestamp, status, baseline_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?)""",
             (eid, asset, method, pt, sl, vb, vol_method, atr_period,
-             label_strategy_version, git_commit, datetime.utcnow().isoformat(), baseline_id)
+             label_strategy_version, git_commit, config_hash,
+             datetime.utcnow().isoformat(), baseline_id)
         )
         conn.commit()
     finally:

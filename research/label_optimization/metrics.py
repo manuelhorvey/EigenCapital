@@ -46,6 +46,54 @@ def compute_brier(probs: np.ndarray, labels: np.ndarray) -> float:
     return float(np.mean((probs - labels) ** 2))
 
 
+def brier_decomposition(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> dict:
+    """Decompose Brier score into reliability, resolution, and uncertainty.
+
+    Brier = Reliability - Resolution + Uncertainty
+
+    - Reliability: calibration error (how well predicted probabilities
+      match empirical frequencies). Lower is better.
+    - Resolution: how much the predictions separate events from
+      non-events. Higher is better.
+    - Uncertainty: inherent variance of the observations (depends on
+      base rate, not the model). Unchangeable by modeling.
+
+    Reference: Murphy (1973), "A New Vector Partition of the
+    Probability Score"
+    """
+    base_rate = labels.mean()
+    uncertainty = base_rate * (1 - base_rate)
+
+    bin_edges = np.linspace(0, 1, n_bins + 1)
+    bin_indices = np.clip(np.digitize(probs, bin_edges, right=False) - 1, 0, n_bins - 1)
+
+    reliability = 0.0
+    resolution = 0.0
+
+    for i in range(n_bins):
+        mask = bin_indices == i
+        n_k = mask.sum()
+        if n_k == 0:
+            continue
+        o_k = labels[mask].mean()
+        r_k = probs[mask].mean()
+        reliability += n_k * (r_k - o_k) ** 2
+        resolution += n_k * (o_k - base_rate) ** 2
+
+    n = len(probs)
+    reliability /= n
+    resolution /= n
+    brier = reliability - resolution + uncertainty
+
+    return {
+        "brier_score": round(float(brier), 6),
+        "reliability": round(float(reliability), 6),
+        "resolution": round(float(resolution), 6),
+        "uncertainty": round(float(uncertainty), 6),
+        "brier_skill_score": round(1.0 - brier / max(uncertainty, 1e-10), 6),
+    }
+
+
 def fold_metrics(fold_signals: pd.DataFrame, fold_close: np.ndarray | None = None) -> dict:
     """Compute all metrics for a single walk-forward fold."""
     m: dict[str, float | int] = {}

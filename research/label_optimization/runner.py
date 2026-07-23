@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from research.label_optimization.configs import LabelExperiment
+from research.label_optimization.fingerprint import fingerprint_for_asset
 from research.label_optimization.metrics import (
     edge_retention,
     fold_metrics,
@@ -63,6 +64,7 @@ def _to_binary(y):
 def run_experiment(exp: LabelExperiment, tag: str = "") -> dict[str, Any] | None:
     version = exp.label_strategy_version or "TB_v1"
     baseline_id = None
+    config_hash = fingerprint_for_asset(exp.asset)
 
     eid = create_experiment(
         asset=exp.asset, method=exp.label_method,
@@ -70,6 +72,7 @@ def run_experiment(exp: LabelExperiment, tag: str = "") -> dict[str, Any] | None
         vol_method=exp.vol_method, atr_period=exp.atr_period,
         git_commit=_get_git_commit(),
         label_strategy_version=version,
+        config_hash=config_hash,
         baseline_id=baseline_id,
     )
     logger.info("Experiment %s (%s)", eid, version)

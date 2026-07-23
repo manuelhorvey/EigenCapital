@@ -142,6 +142,28 @@ def _is_production_config(exp: LabelExperiment) -> bool:
     return abs(exp.pt - prod_pt) < 0.01 and abs(exp.sl - prod_sl) < 0.01
 
 
+def _load_expanded_data(asset: str, ticker: str):
+    """Load from expanded 10-year cache, falling back to live yfinance."""
+    expanded_dir = Path("data/yfinance_10yr")
+    if expanded_dir.exists():
+        try:
+            from scripts.training._data_sources import (
+                fetch_from_expanded_or_live, fetch_ohlcv_from_expanded_or_live,
+            )
+            prices, rate_diffs, dxy, vix, spx, commodities = fetch_from_expanded_or_live(
+                asset, ticker, expanded_dir=expanded_dir,
+            )
+            ohlcv = fetch_ohlcv_from_expanded_or_live(asset, ticker, expanded_dir=expanded_dir)
+            if prices is not None and not prices.empty and len(prices) > 500:
+                return prices, ohlcv, rate_diffs, dxy, vix, spx, commodities
+        except Exception as e:
+            logger.warning("Expanded load failed for %s: %s — falling back to yfinance", asset, e)
+    from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv
+    prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset, ticker)
+    ohlcv = fetch_asset_ohlcv(ticker)
+    return prices, ohlcv, rate_diffs, dxy, vix, spx, commodities
+
+
 def _run_walk_forward_inprocess(asset: str, ticker: str,
                                  pt_sl: tuple[float, float],
                                  vb: int = 20,
@@ -150,7 +172,7 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
                                  ) -> tuple[list[dict], pd.DataFrame, pd.DataFrame] | None:
     sys.path.insert(0, str(Path.cwd()))
     from features.alpha_features import build_alpha_features
-    from features.data_fetch import fetch_asset_data, fetch_asset_ohlcv, _fetch_macro_batch
+    from features.data_fetch import _fetch_macro_batch
     from features.event_features import compute_event_features
     from features.positioning_features import check_oi_availability, compute_volume_features
     from features.rates_features import compute_all as compute_rates
@@ -158,8 +180,7 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
     from labels.triple_barrier import apply_triple_barrier
     from shared.volatility import VolatilityPrimitive
 
-    prices, rate_diffs, dxy, vix, spx, commodities = fetch_asset_data(asset, ticker)
-    ohlcv = fetch_asset_ohlcv(ticker)
+    prices, ohlcv, rate_diffs, dxy, vix, spx, commodities = _load_expanded_data(asset, ticker)
     if prices is None or prices.empty or len(prices) < 100:
         logger.warning("SKIP %s: no data", asset)
         return None
@@ -203,6 +224,8 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
         for col in event_df.columns:
             alpha_df[f"{prefix}_{col}"] = event_df[col].reindex(alpha_df.index)
 
+    if not ohlcv.empty and "close" in ohlcv.columns:
+        alpha_df["close"] = ohlcv["close"].reindex(alpha_df.index)
     alpha_df["label"] = labels.reindex(alpha_df.index).fillna(0).astype(int)
     alpha_df = alpha_df.dropna()
 
@@ -224,11 +247,11 @@ def _run_walk_forward_inprocess(asset: str, ticker: str,
 
     X_all = full_df[all_cols]
     y_all = _to_binary(full_df["label"])
-    close_all = full_df["close"].values if "close" in full_df.columns else None
     if len(y_all) < 100:
         logger.warning("%s: only %d binary samples", asset, len(y_all))
         return None
     X_all = X_all.loc[y_all.index]
+    close_all = full_df.loc[X_all.index, "close"].values if "close" in full_df.columns else None
 
     from labels.compat import PurgedWalkForwardFolds
     cv = PurgedWalkForwardFolds(

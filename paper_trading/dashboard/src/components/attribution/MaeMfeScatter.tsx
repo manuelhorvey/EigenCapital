@@ -79,7 +79,7 @@ export default function MaeMfeScatter() {
           <ZAxis dataKey="r" range={[20, 80]} name="R" />
           <Tooltip
             contentStyle={tooltipStyle}
-            formatter={(value: number, name: string) => [value.toFixed(2), name]}
+            formatter={(value, name) => [typeof value === 'number' ? value.toFixed(2) : String(value), name]}
           />
           <Scatter data={allData}>
             {allData.map((point, i) => (

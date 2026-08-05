@@ -42,7 +42,7 @@ export default function PnLWaterfall() {
           <YAxis tick={axisTick} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={tooltipStyle}
-            formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+            formatter={(value) => [`$${typeof value === 'number' ? value.toFixed(2) : value}`, '']}
           />
           <Bar dataKey="value" radius={[2, 2, 0, 0]}>
             {chartData.map((entry, i) => (

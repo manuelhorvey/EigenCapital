@@ -36,6 +36,29 @@ def _write_checksum(path: str) -> None:
         f.write(sha.hexdigest())
 
 
+def _serialize_cell(value):
+    """Encode list/dict cells as JSON strings so pyarrow can store them in a parquet string column.
+
+    The existing snapshot history (and the portfolio meta-row) stores ``trade_log`` and
+    ``prob_history`` this way; raw lists of dicts cannot be written by ``df.to_parquet``.
+    """
+    if value is None or isinstance(value, str):
+        return value
+    return json.dumps(value)
+
+
+def _deserialize_cell(value):
+    """Restore JSON-string cells written by :func:`_serialize_cell` back to Python objects."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return value
+    return []
+
+
 def _verify_checksum(path: str) -> bool:
     checksum_path = path + CHECKSUM_EXT
     if not os.path.exists(checksum_path):
@@ -165,6 +188,10 @@ class SimulationStore:
                 df = pd.concat([existing, df], ignore_index=True)
             except Exception:
                 pass
+        # Serialize list-valued columns to JSON strings (pyarrow cannot store raw lists of dicts).
+        for col in ("trade_log", "prob_history"):
+            if col in df.columns:
+                df[col] = df[col].map(_serialize_cell)
         df.to_parquet(self.snapshot_path)
         logger.debug("snapshot captured: %s, %d assets", ts, len(asset_snapshots))
 
@@ -229,8 +256,8 @@ class SimulationStore:
                 position_vol=float(row["position_vol"]) if pd.notna(row.get("position_vol")) else None,
                 n_trades=int(row["n_trades"]),
                 n_signals=int(row["n_signals"]),
-                trade_log=list(row.get("trade_log")) if isinstance(row.get("trade_log"), list) else [],
-                prob_history=list(row.get("prob_history")) if isinstance(row.get("prob_history"), list) else [],
+                trade_log=_deserialize_cell(row.get("trade_log")),
+                prob_history=_deserialize_cell(row.get("prob_history")),
                 last_signal=str(row["last_signal"]) if pd.notna(row.get("last_signal")) else None,
                 last_confidence=float(row["last_confidence"]) if pd.notna(row.get("last_confidence")) else None,
                 last_close_price=float(row["last_close_price"]) if pd.notna(row.get("last_close_price")) else None,

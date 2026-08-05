@@ -26,7 +26,7 @@ const arrowStyles: Record<TooltipSide, string> = {
 
 export default function Tooltip({ content, side = 'top', delay = 300, children, className = '' }: TooltipProps) {
   const [visible, setVisible] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const show = () => {
     clearTimeout(timer.current)

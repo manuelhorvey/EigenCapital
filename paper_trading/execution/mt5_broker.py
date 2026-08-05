@@ -404,18 +404,42 @@ class MT5Broker(BrokerInterface):
     # ── Lot / Quantity conversion ──────────────────────────────────────
 
     def _quantity_to_lots(self, asset: str, quantity: float) -> float:
+        if quantity <= 0:
+            return 0.0
         info = self._client.symbol_info(asset)
-        if info:
-            contract_size = info.get("contract_size", 100000.0)
-            step = info.get("volume_step", 0.01)
-            broker_min = info.get("min_volume", 0.01)
-            max_vol = info.get("max_volume", 100.0)
-            lots = quantity / contract_size
+        if not info:
+            # Never pass raw base-currency units through as lots — a symbol that
+            # fails to resolve must reject the order, not send absurd volume.
+            logger.warning(
+                "No symbol info for %s — cannot convert quantity %.4f to lots, skipping order",
+                asset,
+                quantity,
+            )
+            return 0.0
+        contract_size = info.get("contract_size", 100000.0)
+        step = info.get("volume_step", 0.01)
+        broker_min = info.get("min_volume", 0.01)
+        max_vol = info.get("max_volume", 100.0)
+        lots = quantity / contract_size
+        if lots <= 0:
+            return 0.0
+        if lots < broker_min:
+            # Position is smaller than the smallest tradable lot.
+            # Round UP to the broker minimum so the order can go through
+            # (broker_min is a multiple of volume_step by definition).
+            logger.warning(
+                "Volume %.6f lots below broker minimum %.2f for %s — rounding up to minimum",
+                lots,
+                broker_min,
+                asset,
+            )
+            lots = broker_min
+        else:
             lots = round(lots / step) * step
-            if lots < broker_min or lots <= 0:
-                return 0.0
-            return min(lots, max_vol)
-        return quantity
+        lots = min(lots, max_vol)
+        if lots < broker_min:
+            lots = broker_min
+        return lots
 
     def _lots_to_quantity(self, mt5_symbol: str, lots: float) -> float:
         info = self._client.symbol_info(mt5_symbol)

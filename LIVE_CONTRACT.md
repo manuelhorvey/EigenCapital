@@ -434,7 +434,8 @@ MT5 positions are sized independently from paper, using the real broker account 
 3. notional = mt5_equity × max_position_pct_of_equity × drawdown_taper
 4. risk cap: similar to paper, capped at max_risk_per_trade_pct × mt5_equity
 5. min viable: skip if capped notional < min_viable_position_pct × mt5_equity
-6. min volume: _quantity_to_lots() validates against broker min_volume; skip if 0
+6. min volume: _quantity_to_lots() validates against broker min_volume; sub-minimum
+   lots are rounded UP to the broker minimum (with a warning) so the order can be placed
 ```
 
 MT5 does NOT share the paper leverage budget (deferred — 0.01 lot minimum makes

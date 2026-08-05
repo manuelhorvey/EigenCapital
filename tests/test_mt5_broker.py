@@ -257,12 +257,62 @@ class TestLotConversion:
         lots = broker._quantity_to_lots("EURUSD", 2000)
         assert lots == 0.02
 
-    def test_quantity_to_lots_returns_zero_below_broker_min_volume(self, mock_client):
+    def test_quantity_to_lots_rounds_up_below_broker_min_volume(self, mock_client):
         broker = MT5Broker(client=mock_client)
         broker.connect()
-        # 500 units → 0.005 lots → below min_volume (0.01) → return 0.0
+        # 500 units → 0.005 lots → below min_volume (0.01) → round UP to minimum
         lots = broker._quantity_to_lots("EURUSD", 500)
-        assert lots == 0.0
+        assert lots == 0.01
+
+    def test_quantity_to_lots_rounds_up_realistic_tiny_account(self, mock_client):
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        # $105.45 notional on USDCAD (contract 100k) → 0.001054 lots → bump to 0.01
+        lots = broker._quantity_to_lots("USDCAD", 105.4485)
+        assert lots == 0.01
+        # Indices CFD with contract_size=1 (NQ=F): 0.0036 contracts → bump to 0.01
+        mock_client._symbol_infos["NQ=F"] = {
+            "contract_size": 1.0,
+            "volume_step": 0.01,
+            "min_volume": 0.01,
+            "max_volume": 100.0,
+        }
+        lots = broker._quantity_to_lots("NQ=F", 0.003575590222376392)
+        assert lots == 0.01
+
+    def test_quantity_to_lots_returns_zero_for_non_positive(self, mock_client):
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        assert broker._quantity_to_lots("EURUSD", 0) == 0.0
+        assert broker._quantity_to_lots("EURUSD", -5) == 0.0
+
+    def test_quantity_to_lots_step_rounding_never_below_min(self, mock_client):
+        mock_client._symbol_infos["EURUSD"] = {
+            "contract_size": 100000.0,
+            "volume_step": 0.01,
+            "min_volume": 0.02,
+            "max_volume": 100.0,
+        }
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        # 1400 units → 0.014 lots → rounds down to 0.01 on the step, but must
+        # stay >= broker_min (0.02) — floor to minimum instead of rejecting.
+        lots = broker._quantity_to_lots("EURUSD", 1400)
+        assert lots == 0.02
+
+    def test_quantity_to_lots_caps_at_max_volume(self, mock_client):
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        # 15,000,000 units → 150 lots → capped at max_volume 100.0
+        lots = broker._quantity_to_lots("EURUSD", 15000000)
+        assert lots == 100.0
+
+    def test_quantity_to_lots_missing_symbol_info_rejects(self, mock_client):
+        mock_client._symbol_infos["EURUSD"] = None
+        broker = MT5Broker(client=mock_client)
+        broker.connect()
+        # No symbol info → cannot convert → reject rather than treat units as lots
+        assert broker._quantity_to_lots("EURUSD", 105.4485) == 0.0
 
     def test_lots_to_quantity(self, mock_client):
         broker = MT5Broker(client=mock_client)

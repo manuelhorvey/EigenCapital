@@ -95,8 +95,8 @@ export default function CalibrationCurve() {
                 borderRadius: '8px',
                 fontSize: '11px',
               }}
-              formatter={(value: number, name: string) => [`${value}%`, name === 'winRate' ? 'Win Rate' : 'Confidence']}
-              labelFormatter={(label: string) => label}
+              formatter={(value, name) => [`${value}%`, name === 'winRate' ? 'Win Rate' : 'Confidence']}
+              labelFormatter={(label) => label}
             />
             {/* Perfect calibration reference line */}
             <ReferenceLine

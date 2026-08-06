@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Direction C — Cascade Chart Platform · Quorrin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0f1c;
+    --bg-2: #0d1322;
+    --glass: rgba(19, 27, 46, 0.72);
+    --glass-2: rgba(23, 33, 56, 0.6);
+    --line: rgba(148, 163, 184, 0.14);
+    --line-strong: rgba(148, 163, 184, 0.28);
+    --cyan: #22d3ee;
+    --cyan-bright: #67e8f9;
+    --cyan-dim: rgba(34, 211, 238, 0.12);
+    --text: #e2e8f0;
+    --text-2: #94a3b8;
+    --text-3: #64748b;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --violet: #a78bfa;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+    --r: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(34,211,238,0.07), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(99,102,241,0.06), transparent 60%),
+      var(--bg);
+    color: var(--text); font-family: var(--sans); font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .muted { color: var(--text-3); }
+
+  .shell { min-height: 100vh; display: flex; }
+
+  /* ── Icon rail ─────────────────────── */
+  .rail {
+    width: 64px; flex-shrink: 0;
+    border-right: 1px solid var(--line);
+    background: rgba(10,15,28,0.6);
+    backdrop-filter: blur(16px);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 16px 0; gap: 4px;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .rail-mark {
+    width: 36px; height: 36px; border-radius: 11px;
+    background: linear-gradient(135deg, #22d3ee, #6366f1);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #04121a; font-size: 15px;
+    box-shadow: 0 4px 16px rgba(34,211,238,0.35);
+    margin-bottom: 14px;
+  }
+  .rail-item {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--text-3); cursor: pointer;
+    transition: all 140ms ease; position: relative;
+  }
+  .rail-item:hover { color: var(--text); background: var(--glass); }
+  .rail-item.active { color: var(--cyan-bright); background: var(--cyan-dim); box-shadow: inset 0 0 0 1px rgba(34,211,238,0.3); }
+  .rail-item .badge {
+    position: absolute; top: 4px; right: 4px;
+    min-width: 15px; height: 15px; padding: 0 4px;
+    border-radius: 8px; background: var(--red); color: #fff;
+    font-size: 9px; font-weight: 700; font-family: var(--mono);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .rail-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .rail-dot.green { background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,0.8); }
+
+  /* ── Main column ───────────────────── */
+  .main { flex: 1; min-width: 0; padding: 0 26px 40px; }
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    height: 64px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(10,15,28,0.75);
+    backdrop-filter: blur(18px) saturate(1.4);
+  }
+  .top-left { display: flex; align-items: center; gap: 10px; }
+  .tab-pill {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 13px; border-radius: 10px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-3);
+    cursor: pointer; transition: all 130ms ease;
+  }
+  .tab-pill:hover { color: var(--text); background: var(--glass); }
+  .tab-pill.active { color: var(--text); background: var(--glass-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .tab-pill .n { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+  .cmd {
+    margin-left: auto; display: flex; align-items: center; gap: 8px;
+    height: 36px; padding: 0 13px;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--glass-2); color: var(--text-3);
+    font-size: 12.5px; width: 240px;
+  }
+  .cmd kbd { margin-left: auto; font-family: var(--mono); font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #22d3ee, #a78bfa);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #04121a;
+  }
+
+  .content { padding-top: 24px; }
+  .page-title { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+  .page-sub { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+  .live-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 700; color: var(--green);
+    background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+    padding: 4px 12px; border-radius: 20px; font-family: var(--mono);
+  }
+
+  /* Hero grid: chart + side stats */
+  .hero { display: grid; grid-template-columns: 1fr 280px; gap: 16px; margin-top: 20px; }
+  .chart-card {
+    border: 1px solid var(--line); border-radius: var(--r);
+    background: var(--glass); backdrop-filter: blur(16px);
+    padding: 18px 18px 12px;
+    box-shadow: 0 20px 60px -30px rgba(0,0,0,0.7);
+  }
+  .chart-head { display: flex; align-items: center; gap: 14px; }
+  .chart-val { font-family: var(--mono); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .chart-meta { font-size: 11px; color: var(--text-3); }
+  .seg { margin-left: auto; display: flex; gap: 3px; background: var(--glass-2); border: 1px solid var(--line); padding: 3px; border-radius: 10px; }
+  .seg button {
+    font-size: 11px; font-weight: 600; padding: 4px 11px;
+    border-radius: 7px; border: none; background: transparent;
+    color: var(--text-3); cursor: pointer;
+  }
+  .seg button.active { background: var(--cyan-dim); color: var(--cyan-bright); }
+  .chart-body { margin-top: 12px; }
+  .gridline { stroke: rgba(148,163,184,0.1); stroke-width: 1; }
+  .line-cyan { stroke: var(--cyan); stroke-width: 2; fill: none; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(34,211,238,0.45)); }
+  .area-fill { fill: url(#acyan); }
+  .chart-foot { display: flex; gap: 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; color: var(--text-3); }
+
+  .side-col { display: flex; flex-direction: column; gap: 16px; }
+  .stat-card {
+    border: 1px solid var(--line); border-radius: var(--r);
+    background: var(--glass); backdrop-filter: blur(16px);
+    padding: 14px 16px;
+  }
+  .stat-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-3); }
+  .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 700; margin-top: 5px; }
+  .stat-sub { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .mono { font-weight: 600; }
+  .mini-bar { height: 5px; border-radius: 4px; background: rgba(148,163,184,0.15); overflow: hidden; margin-top: 8px; }
+  .mini-bar span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #22d3ee, #6366f1); }
+
+  /* Section + asset grid */
+  .section { display: flex; align-items: center; gap: 10px; margin: 26px 0 12px; }
+  .section h3 { font-size: 15px; font-weight: 700; }
+  .section .hint { font-size: 11.5px; color: var(--text-3); }
+  .sec-actions { margin-left: auto; display: flex; gap: 6px; }
+  .sec-btn { font-size: 11.5px; font-weight: 600; color: var(--text-3); padding: 5px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--glass-2); cursor: pointer; }
+  .sec-btn.active { color: var(--cyan-bright); border-color: rgba(34,211,238,0.35); background: var(--cyan-dim); }
+
+  .asset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .asset-card {
+    border: 1px solid var(--line); border-radius: 14px;
+    background: var(--glass); backdrop-filter: blur(14px);
+    padding: 13px 15px; cursor: pointer;
+    transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+  }
+  .asset-card:hover { transform: translateY(-2px); border-color: var(--line-strong); background: var(--glass-2); }
+  .asset-top { display: flex; align-items: center; gap: 9px; }
+  .asset-sym { font-weight: 700; font-size: 13.5px; }
+  .asset-tag { font-size: 9.5px; font-family: var(--mono); padding: 2px 7px; border-radius: 6px; }
+  .asset-tag.normal { color: var(--green); background: rgba(52,211,153,0.1); }
+  .asset-tag.thin { color: var(--amber); background: rgba(251,191,36,0.1); }
+  .asset-side { margin-left: auto; }
+  .sig {
+    display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.05em; padding: 3px 9px; border-radius: 7px;
+  }
+  .sig.buy { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+  .sig.sell { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .sig.flat { background: rgba(148,163,184,0.1); color: var(--text-3); border: 1px solid var(--line); }
+  .asset-price { font-family: var(--mono); font-size: 15px; font-weight: 600; margin-top: 8px; }
+  .asset-meta { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-3); margin-top: 6px; }
+  .spark { margin-top: 8px; height: 22px; }
+
+  .foot { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; gap: 18px; font-size: 11px; color: var(--text-3); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Icon rail -->
+  <aside class="rail">
+    <div class="rail-mark">Q</div>
+    <div class="rail-item active" title="Overview">◫</div>
+    <div class="rail-item" title="Trading">⚡<span class="badge">2</span></div>
+    <div class="rail-item" title="Trades">▤</div>
+    <div class="rail-item" title="Risk">◈</div>
+    <div class="rail-item" title="Monitor">♨</div>
+    <div class="rail-item" title="Execution">◉</div>
+    <div class="rail-item" title="Analytics">◍</div>
+    <div class="rail-foot">
+      <span class="rail-dot green"></span>
+      <span class="mono muted" style="font-size:9px">LIVE</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="top-left">
+        <span style="font-weight:800;font-size:15px;letter-spacing:-0.01em">Quorrin</span>
+        <span class="tab-pill active">Overview <span class="n">01</span></span>
+        <span class="tab-pill">Trading <span class="n">02</span></span>
+        <span class="tab-pill">Trades <span class="n">03</span></span>
+        <span class="tab-pill">Risk <span class="n">04</span></span>
+        <span class="tab-pill">Monitor <span class="n">05</span></span>
+        <span class="tab-pill">Execution <span class="n">06</span></span>
+        <span class="tab-pill">Analytics <span class="n">07</span></span>
+      </div>
+      <div class="cmd">⌕ Search… <kbd>⌘K</kbd></div>
+      <div class="avatar">Q</div>
+    </header>
+
+    <div class="content">
+      <div class="page-title">
+        Overview
+        <span class="live-chip"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span> ENGINE LIVE</span>
+      </div>
+      <p class="page-sub">Portfolio health, equity curve, and live signals across 21 instruments.</p>
+
+      <!-- Hero -->
+      <div class="hero">
+        <div class="chart-card">
+          <div class="chart-head">
+            <div>
+              <div class="chart-val">$100,253.14</div>
+              <div class="chart-meta mono">Portfolio MTM · SEQ 316 · updated 3s ago</div>
+            </div>
+            <div class="seg">
+              <button>1H</button><button>4H</button><button class="active">1D</button><button>ALL</button>
+            </div>
+          </div>
+          <div class="chart-body">
+            <svg width="100%" height="230" viewBox="0 0 1000 230" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="acyan" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.22"/>
+                  <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line class="gridline" x1="0" y1="30" x2="1000" y2="30"/>
+              <line class="gridline" x1="0" y1="85" x2="1000" y2="85"/>
+              <line class="gridline" x1="0" y1="140" x2="1000" y2="140"/>
+              <line class="gridline" x1="0" y1="195" x2="1000" y2="195"/>
+              <path class="area-fill" d="M0,184 L40,178 L80,182 L120,181 L160,180 L200,176 L240,179 L280,176 L320,175 L360,174 L400,175 L440,172 L480,171 L520,170 L560,166 L600,169 L640,164 L680,164 L720,160 L760,162 L800,157 L840,160 L880,156 L920,158 L960,153 L1000,150 L1000,230 L0,230 Z"/>
+              <path class="line-cyan" d="M0,184 L40,178 L80,182 L120,181 L160,180 L200,176 L240,179 L280,176 L320,175 L360,174 L400,175 L440,172 L480,171 L520,170 L560,166 L600,169 L640,164 L680,164 L720,160 L760,162 L800,157 L840,160 L880,156 L920,158 L960,153 L1000,150"/>
+            </svg>
+          </div>
+          <div class="chart-foot">
+            <span><span class="up mono">+0.27%</span> total return</span>
+            <span><span class="down mono">-0.03%</span> drawdown</span>
+            <span><span class="mono">17</span> open positions</span>
+            <span><span class="mono">0.90x</span> gross exposure</span>
+          </div>
+        </div>
+
+        <div class="side-col">
+          <div class="stat-card">
+            <div class="stat-label">Portfolio Value</div>
+            <div class="stat-value">$90,246</div>
+            <div class="mini-bar"><span style="width:72%"></span></div>
+            <div class="stat-sub mono">Capital $100,000 · FTMO</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Live Sharpe</div>
+            <div class="stat-value up">1.26</div>
+            <div class="stat-sub mono">ρ 0.13 · Lo-adjusted</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Governance</div>
+            <div class="stat-row"><span>Validity state</span><span class="mono up">GREEN</span></div>
+            <div class="stat-row"><span>Liquidity</span><span class="mono" style="color:var(--amber)">10 THIN</span></div>
+            <div class="stat-row"><span>Critical alerts</span><span class="mono down">0</span></div>
+            <div class="stat-row"><span>Sell-only</span><span class="mono">5 assets</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Asset grid -->
+      <div class="section">
+        <h3>Live Assets</h3>
+        <span class="hint">21 instruments · signal + liquidity</span>
+        <div class="sec-actions">
+          <button class="sec-btn active">All</button>
+          <button class="sec-btn">Signals</button>
+          <button class="sec-btn">Open</button>
+        </div>
+      </div>
+
+      <div class="asset-grid">
+        <div class="asset-card">
+          <div class="asset-top">
+            <span class="asset-sym">GC</span>
+            <span class="asset-tag normal">NORMAL</span>
+            <span class="asset-side"><span class="sig buy">BUY</span></span>
+          </div>
+          <div class="asset-price">2,481.2</div>
+          <svg class="spark" width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">
+            <path d="M0,16 L25,13 L50,15 L75,11 L100,13 L125,9 L150,11 L175,7 L200,9" stroke="#22d3ee" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="asset-meta"><span>Conf 78%</span><span>risk_on</span></div>
+        </div>
+        <div class="asset-card">
+          <div class="asset-top">
+            <span class="asset-sym">ES</span>
+            <span class="asset-tag normal">NORMAL</span>
+            <span class="asset-side"><span class="sig sell">SELL</span></span>
+          </div>
+          <div class="asset-price">5,612.0</div>
+          <svg class="spark" width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">
+            <path d="M0,8 L25,11 L50,9 L75,13 L100,11 L125,15 L150,13 L175,17 L200,15" stroke="#f87171" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="asset-meta"><span>Conf 64%</span><span>risk_on</span></div>
+        </div>
+        <div class="asset-card">
+          <div class="asset-top">
+            <span class="asset-sym">USDCHF</span>
+            <span class="asset-tag thin">THIN</span>
+            <span class="asset-side"><span class="sig flat">FLAT</span></span>
+          </div>
+          <div class="asset-price">0.8842</div>
+          <svg class="spark" width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">
+            <path d="M0,11 L40,12 L80,11 L120,12 L160,11 L200,12" stroke="#64748b" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="asset-meta"><span>Conf 31%</span><span>neutral</span></div>
+        </div>
+        <div class="asset-card">
+          <div class="asset-top">
+            <span class="asset-sym">USDCAD</span>
+            <span class="asset-tag thin">THIN</span>
+            <span class="asset-side"><span class="sig flat">FLAT</span></span>
+          </div>
+          <div class="asset-price">1.3721</div>
+          <svg class="spark" width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">
+            <path d="M0,12 L40,10 L80,12 L120,10 L160,12 L200,10" stroke="#64748b" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="asset-meta"><span>Conf 38%</span><span>neutral</span></div>
+        </div>
+        <div class="asset-card">
+          <div class="asset-top">
+            <span class="asset-sym">NQ</span>
+            <span class="asset-tag normal">NORMAL</span>
+            <span class="asset-side"><span class="sig flat">FLAT</span></span>
+          </div>
+          <div class="asset-price">20,184.5</div>
+          <svg class="spark" width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">
+            <path d="M0,13 L40,12 L80,11 L120,12 L160,10 L200,11" stroke="#60a5fa" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="asset-meta"><span>Conf 44%</span><span>risk_on</span></div>
+        </div>
+        <div class="asset-card">
+          <div class="asset-top">
+            <span class="asset-sym">^DJI</span>
+            <span class="asset-tag normal">NORMAL</span>
+            <span class="asset-side"><span class="sig flat">FLAT</span></span>
+          </div>
+          <div class="asset-price">43,201.9</div>
+          <svg class="spark" width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">
+            <path d="M0,14 L40,13 L80,12 L120,12 L160,11 L200,10" stroke="#60a5fa" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div class="asset-meta"><span>Conf 40%</span><span>risk_on</span></div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <span>Quorrin v2.0</span>
+        <span class="mono">SEQ 316</span>
+        <span>15-layer governance</span>
+        <span>Contract v2</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

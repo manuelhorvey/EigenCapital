@@ -45,6 +45,7 @@ paper_trading/dashboard/.agents/
 
 # Local agent/tooling config — excluded from VCS
 opencode.json
+skills-lock.json
 paper_trading/dashboard/skills-lock.json
 .claude/
 paper_trading/dashboard/.claude/

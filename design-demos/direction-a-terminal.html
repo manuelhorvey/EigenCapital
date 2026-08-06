@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Direction A — Aegis Terminal · Quorrin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #06080c;
+    --bg-2: #0a0d13;
+    --panel: #0d1119;
+    --panel-2: #111623;
+    --line: #1b2230;
+    --line-strong: #2a3448;
+    --gold: #e8b54a;
+    --gold-bright: #f5c85e;
+    --gold-dim: rgba(232, 181, 74, 0.14);
+    --text: #dde3ec;
+    --text-2: #8a94a8;
+    --text-3: #5c6679;
+    --green: #35d07f;
+    --red: #f0556e;
+    --blue: #5b9bff;
+    --amber: #e8b54a;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .muted { color: var(--text-3); }
+
+  /* ── Shell ─────────────────────────── */
+  .shell { display: grid; grid-template-rows: 44px 28px 1fr; height: 100vh; }
+
+  /* ── Top bar ───────────────────────── */
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 14px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand-mark {
+    width: 22px; height: 22px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--gold-bright), #c78f2e);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #0a0a0a; font-size: 12px;
+  }
+  .brand-name { font-weight: 700; letter-spacing: 0.01em; font-size: 13px; }
+  .brand-sub { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: 0.08em; }
+
+  .cmd {
+    margin-left: 8px; flex: 0 1 380px;
+    display: flex; align-items: center; gap: 8px;
+    height: 26px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--panel); color: var(--text-3);
+    font-family: var(--mono); font-size: 11px;
+  }
+  .cmd kbd {
+    margin-left: auto; font-family: var(--mono); font-size: 9px;
+    border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px;
+    color: var(--text-3); background: var(--bg-2);
+  }
+  .top-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .tbtn {
+    height: 24px; padding: 0 10px; border-radius: 4px;
+    border: 1px solid var(--line); background: var(--panel);
+    color: var(--text-2); font-size: 10.5px; font-weight: 500;
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+  }
+  .tbtn:hover { border-color: var(--line-strong); color: var(--text); }
+  .tbtn.primary { background: var(--gold); border-color: var(--gold); color: #151004; font-weight: 600; }
+  .status-chip {
+    display: flex; align-items: center; gap: 6px; height: 24px;
+    padding: 0 9px; border-radius: 4px; font-family: var(--mono); font-size: 10px;
+    border: 1px solid var(--line); color: var(--text-2);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.green { background: var(--green); box-shadow: 0 0 6px rgba(53,208,127,0.7); }
+  .dot.gold { background: var(--gold); }
+  .dot.red { background: var(--red); }
+  .dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+
+  /* ── Ticker tape ───────────────────── */
+  .tape {
+    display: flex; align-items: center; gap: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 10.5px;
+    overflow: hidden;
+  }
+  .tape-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 14px; height: 28px;
+    border-right: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .tape-sym { font-weight: 600; color: var(--text); }
+  .tape-price { color: var(--text-2); }
+  .tape-chg { font-weight: 600; }
+  .tape-label {
+    padding: 0 12px; font-size: 9px; letter-spacing: 0.14em;
+    color: var(--text-3); border-right: 1px solid var(--line);
+    display: flex; align-items: center; height: 100%;
+  }
+
+  /* ── Body ──────────────────────────── */
+  .body { display: grid; grid-template-columns: 196px 1fr; min-height: 0; }
+  .rail {
+    background: var(--bg-2);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column;
+    padding: 10px 8px; gap: 2px; overflow-y: auto;
+  }
+  .rail-group {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em;
+    color: var(--text-3); padding: 10px 8px 4px;
+  }
+  .rail-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 4px;
+    color: var(--text-2); font-size: 11.5px; font-weight: 500;
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .rail-item:hover { background: var(--panel); color: var(--text); }
+  .rail-item.active {
+    background: var(--gold-dim); color: var(--gold-bright);
+    border-color: rgba(232,181,74,0.28);
+  }
+  .rail-item .ic { font-size: 13px; width: 16px; text-align: center; }
+  .rail-badge {
+    margin-left: auto; font-family: var(--mono); font-size: 9px; font-weight: 600;
+    background: var(--red); color: #fff; border-radius: 7px; padding: 1px 6px;
+  }
+  .rail-foot {
+    margin-top: auto; border-top: 1px solid var(--line); padding-top: 8px;
+    font-family: var(--mono); font-size: 9.5px; color: var(--text-3);
+    display: flex; flex-direction: column; gap: 5px; padding-left: 8px;
+  }
+  .rail-foot .row { display: flex; justify-content: space-between; padding-right: 8px; }
+  .rail-foot .val { color: var(--text-2); }
+
+  /* ── Main ──────────────────────────── */
+  .main { overflow-y: auto; padding: 14px 16px 28px; }
+  .crumb {
+    font-family: var(--mono); font-size: 10px; color: var(--text-3);
+    display: flex; gap: 7px; align-items: center; margin-bottom: 8px;
+  }
+  .page-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .page-sub { font-size: 11.5px; color: var(--text-2); margin-top: 3px; }
+
+  /* KPI strip */
+  .kpis {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--line); border-radius: 6px;
+    background: var(--panel); margin-top: 14px; overflow: hidden;
+  }
+  .kpi { padding: 10px 12px; border-right: 1px solid var(--line); }
+  .kpi:last-child { border-right: none; }
+  .kpi-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    color: var(--text-3); text-transform: uppercase;
+  }
+  .kpi-value { font-family: var(--mono); font-size: 16px; font-weight: 600; margin-top: 5px; letter-spacing: -0.01em; }
+  .kpi-sub { font-family: var(--mono); font-size: 9px; color: var(--text-3); margin-top: 2px; }
+
+  /* Section headers */
+  .section {
+    display: flex; align-items: baseline; gap: 10px;
+    margin: 20px 0 8px;
+  }
+  .section h3 {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section h3::before {
+    content: ''; width: 3px; height: 12px; border-radius: 1px;
+    background: var(--gold);
+  }
+  .section .hint { font-family: var(--mono); font-size: 9.5px; color: var(--text-3); }
+
+  /* Equity chart */
+  .chart-panel {
+    border: 1px solid var(--line); border-radius: 6px;
+    background: var(--panel); padding: 12px 14px;
+  }
+  .chart-head { display: flex; align-items: center; gap: 10px; }
+  .chart-val { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+  .chart-tabs { margin-left: auto; display: flex; gap: 3px; }
+  .ctab {
+    font-family: var(--mono); font-size: 9.5px; padding: 3px 9px;
+    border-radius: 4px; border: 1px solid transparent; color: var(--text-3); cursor: pointer;
+  }
+  .ctab.active { color: var(--gold-bright); background: var(--gold-dim); border-color: rgba(232,181,74,0.3); }
+  .chart-body { margin-top: 8px; }
+  .gridline { stroke: var(--line); stroke-width: 1; }
+  .area-fill { fill: url(#agold); }
+  .line-gold { stroke: var(--gold); stroke-width: 1.6; fill: none; }
+
+  /* Asset matrix */
+  .matrix { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .matrix-head, .matrix-row {
+    display: grid;
+    grid-template-columns: 90px 70px 74px 58px 60px 90px 1fr;
+    align-items: center;
+  }
+  .matrix-head {
+    background: var(--bg-2); border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    color: var(--text-3); text-transform: uppercase;
+  }
+  .matrix-head div, .matrix-row div { padding: 7px 10px; }
+  .matrix-row { border-bottom: 1px solid var(--line); font-size: 11.5px; }
+  .matrix-row:last-child { border-bottom: none; }
+  .matrix-row:hover { background: var(--panel-2); }
+  .mx-sym { font-weight: 600; }
+  .mx-price { font-family: var(--mono); color: var(--text-2); }
+  .sig {
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 3px; display: inline-block; text-align: center;
+  }
+  .sig.buy { color: var(--green); background: rgba(53,208,127,0.12); border: 1px solid rgba(53,208,127,0.3); }
+  .sig.sell { color: var(--red); background: rgba(240,85,110,0.12); border: 1px solid rgba(240,85,110,0.3); }
+  .sig.flat { color: var(--text-3); background: rgba(138,148,168,0.08); border: 1px solid var(--line); }
+  .conf-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .conf-bar span { display: block; height: 100%; background: var(--gold); border-radius: 2px; }
+  .liq { font-family: var(--mono); font-size: 9px; }
+  .liq.normal { color: var(--green); }
+  .liq.thin { color: var(--amber); }
+  .liq.stressed { color: var(--red); }
+  .mx-dir { font-family: var(--mono); font-size: 9.5px; }
+
+  .foot { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 9.5px; color: var(--text-3);
+    display: flex; gap: 16px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">▲</div>
+      <div>
+        <div class="brand-name">Quorrin <span class="brand-sub">TERMINAL</span></div>
+      </div>
+    </div>
+    <div class="cmd">⌕  Search pages, assets, sections <kbd>⌘K</kbd></div>
+    <div class="top-actions">
+      <span class="status-chip"><span class="dot green pulse"></span>ENGINE · LIVE</span>
+      <span class="status-chip"><span class="dot gold"></span>SEQ 316</span>
+      <button class="tbtn">System Health</button>
+      <button class="tbtn primary">Refresh</button>
+    </div>
+  </header>
+
+  <!-- Ticker tape -->
+  <div class="tape">
+    <span class="tape-label">21 ASSETS</span>
+    <div class="tape-item"><span class="tape-sym">GC</span><span class="tape-price">2,481.2</span><span class="tape-chg up">▲ 0.41%</span></div>
+    <div class="tape-item"><span class="tape-sym">ES</span><span class="tape-price">5,612.0</span><span class="tape-chg up">▲ 0.23%</span></div>
+    <div class="tape-item"><span class="tape-sym">NQ</span><span class="tape-price">20,184.5</span><span class="tape-chg down">▼ 0.12%</span></div>
+    <div class="tape-item"><span class="tape-sym">^DJI</span><span class="tape-price">43,201.9</span><span class="tape-chg up">▲ 0.09%</span></div>
+    <div class="tape-item"><span class="tape-sym">USDJPY</span><span class="tape-price">152.41</span><span class="tape-chg up">▲ 0.31%</span></div>
+    <div class="tape-item"><span class="tape-sym">AUDUSD</span><span class="tape-price">0.6621</span><span class="tape-chg down">▼ 0.18%</span></div>
+    <div class="tape-item"><span class="tape-sym">GBPUSD</span><span class="tape-price">1.2843</span><span class="tape-chg up">▲ 0.05%</span></div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <nav class="rail">
+      <div class="rail-group">OVERVIEW</div>
+      <div class="rail-item active"><span class="ic">⌂</span> Overview</div>
+      <div class="rail-group">LIVE MARKET</div>
+      <div class="rail-item"><span class="ic">⚡</span> Trading <span class="rail-badge">2</span></div>
+      <div class="rail-item"><span class="ic">▤</span> Trades</div>
+      <div class="rail-group">RISK</div>
+      <div class="rail-item"><span class="ic">◈</span> Risk</div>
+      <div class="rail-item"><span class="ic">♨</span> Monitor</div>
+      <div class="rail-group">EXECUTION</div>
+      <div class="rail-item"><span class="ic">◉</span> Execution</div>
+      <div class="rail-group">RESEARCH</div>
+      <div class="rail-item"><span class="ic">◍</span> Analytics</div>
+      <div class="rail-foot">
+        <div class="row"><span>EXC</span><span class="val">9879</span></div>
+        <div class="row"><span>MARKET</span><span class="val" style="color:var(--green)">OPEN</span></div>
+        <div class="row"><span>SYNC</span><span class="val">3s ago</span></div>
+      </div>
+    </nav>
+
+    <main class="main">
+      <div class="crumb">⌂ / Overview</div>
+      <div class="page-title">Portfolio Command</div>
+      <div class="page-sub">System health, portfolio summary, and live asset signals at a glance.</div>
+
+      <!-- KPI strip -->
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Portfolio Value</div><div class="kpi-value">$90,246</div><div class="kpi-sub">▲ $246.32</div></div>
+        <div class="kpi"><div class="kpi-label">Total Return</div><div class="kpi-value up">+0.27%</div><div class="kpi-sub">vs $100K base</div></div>
+        <div class="kpi"><div class="kpi-label">Realized P&amp;L</div><div class="kpi-value up">+0.00%</div><div class="kpi-sub">0 closed</div></div>
+        <div class="kpi"><div class="kpi-label">Drawdown</div><div class="kpi-value down">-0.03%</div><div class="kpi-sub">peak $100,274</div></div>
+        <div class="kpi"><div class="kpi-label">Open / Closed</div><div class="kpi-value">17 / 0</div><div class="kpi-sub">gross 0.90x</div></div>
+        <div class="kpi"><div class="kpi-label">Live Sharpe</div><div class="kpi-value">1.26</div><div class="kpi-sub">ρ 0.13 adj</div></div>
+        <div class="kpi"><div class="kpi-label">Capital</div><div class="kpi-value">$100,000</div><div class="kpi-sub">FTMO mode</div></div>
+      </div>
+
+      <!-- Equity chart -->
+      <div class="section">
+        <h3>Equity Curve</h3>
+        <span class="hint">CYCLE-LEVEL · 30s BARS</span>
+        <div class="chart-tabs">
+          <span class="ctab">1H</span><span class="ctab">4H</span><span class="ctab active">1D</span><span class="ctab">ALL</span>
+        </div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-head">
+          <div>
+            <div class="chart-val">$100,253.14</div>
+            <div class="mono" style="font-size:10px;color:var(--text-3);margin-top:2px">LAST MTM · 2026-08-06 05:08 UTC-04</div>
+          </div>
+        </div>
+        <div class="chart-body">
+          <svg width="100%" height="190" viewBox="0 0 1000 190" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="agold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#e8b54a" stop-opacity="0.28"/>
+                <stop offset="100%" stop-color="#e8b54a" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line class="gridline" x1="0" y1="20" x2="1000" y2="20"/>
+            <line class="gridline" x1="0" y1="65" x2="1000" y2="65"/>
+            <line class="gridline" x1="0" y1="110" x2="1000" y2="110"/>
+            <line class="gridline" x1="0" y1="155" x2="1000" y2="155"/>
+            <path class="area-fill" d="M0,152 L40,148 L80,150 L120,149 L160,149 L200,147 L240,148 L280,147 L320,146 L360,145 L400,146 L440,145 L480,144 L520,144 L560,142 L600,143 L640,141 L680,141 L720,139 L760,140 L800,138 L840,139 L880,137 L920,138 L960,136 L1000,135 L1000,190 L0,190 Z"/>
+            <path class="line-gold" d="M0,152 L40,148 L80,150 L120,149 L160,149 L200,147 L240,148 L280,147 L320,146 L360,145 L400,146 L440,145 L480,144 L520,144 L560,142 L600,143 L640,141 L680,141 L720,139 L760,140 L800,138 L840,139 L880,137 L920,138 L960,136 L1000,135"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Asset matrix -->
+      <div class="section">
+        <h3>Asset Matrix</h3>
+        <span class="hint">21 INSTRUMENTS · SIGNALS + LIQUIDITY</span>
+      </div>
+      <div class="matrix">
+        <div class="matrix-head">
+          <div>Symbol</div><div>Price</div><div>Signal</div><div>Conf</div><div>Regime</div><div>Liquidity</div><div>Exposure</div>
+        </div>
+        <div class="matrix-row"><div class="mx-sym">GC</div><div class="mx-price">2,481.2</div><div><span class="sig buy">BUY</span></div><div><div class="conf-bar"><span style="width:78%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+        <div class="matrix-row"><div class="mx-sym">ES</div><div class="mx-price">5,612.0</div><div><span class="sig sell">SELL</span></div><div><div class="conf-bar"><span style="width:64%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+        <div class="matrix-row"><div class="mx-sym">USDCHF</div><div class="mx-price">0.8842</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:31%"></span></div></div><div class="mx-dir muted">neutral</div><div class="liq thin">THIN</div><div class="mono muted">0.75x</div></div>
+        <div class="matrix-row"><div class="mx-sym">USDCAD</div><div class="mx-price">1.3721</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:38%"></span></div></div><div class="mx-dir muted">neutral</div><div class="liq thin">THIN</div><div class="mono muted">0.75x</div></div>
+        <div class="matrix-row"><div class="mx-sym">NQ</div><div class="mx-price">20,184.5</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:44%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+        <div class="matrix-row"><div class="mx-sym">^DJI</div><div class="mx-price">43,201.9</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:40%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+        <div class="matrix-row"><div class="mx-sym">GBPCAD</div><div class="mx-price">1.7812</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:29%"></span></div></div><div class="mx-dir muted">neutral</div><div class="liq thin">THIN</div><div class="mono muted">0.75x</div></div>
+        <div class="matrix-row"><div class="mx-sym">NZDUSD</div><div class="mx-price">0.6114</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:35%"></span></div></div><div class="mx-dir muted">neutral</div><div class="liq thin">THIN</div><div class="mono muted">0.75x</div></div>
+        <div class="matrix-row"><div class="mx-sym">AUDUSD</div><div class="mx-price">0.6621</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:42%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+        <div class="matrix-row"><div class="mx-sym">USDJPY</div><div class="mx-price">152.41</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:37%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+        <div class="matrix-row"><div class="mx-sym">GBPJPY</div><div class="mx-price">195.83</div><div><span class="sig flat">FLAT</span></div><div><div class="conf-bar"><span style="width:41%"></span></div></div><div class="mx-dir muted">risk_on</div><div class="liq normal">NORMAL</div><div class="mono muted">1.00x</div></div>
+      </div>
+
+      <div class="foot">
+        <span>QUORRIN v2.0</span>
+        <span>MODE: PAPER / FTMO</span>
+        <span>GOVERNANCE: 15 LAYER</span>
+        <span>CONTRACT v2</span>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

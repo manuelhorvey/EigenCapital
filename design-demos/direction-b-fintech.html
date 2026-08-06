@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Direction B — Solstice Fintech · Quorrin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --line: #e6e9ee;
+    --line-strong: #d4dae3;
+    --ink: #0f172a;
+    --ink-2: #475569;
+    --ink-3: #94a3b8;
+    --brand: #166534;
+    --brand-strong: #14532d;
+    --brand-soft: #ecfdf3;
+    --green: #16a34a;
+    --red: #dc2626;
+    --amber: #d97706;
+    --blue: #2563eb;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+    --shadow-sm: 0 1px 2px rgba(15,23,42,0.05);
+    --shadow-md: 0 1px 3px rgba(15,23,42,0.06), 0 8px 24px -12px rgba(15,23,42,0.12);
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .muted { color: var(--ink-3); }
+
+  /* ── Shell ─────────────────────────── */
+  .shell { min-height: 100vh; display: flex; }
+
+  /* ── Sidebar ───────────────────────── */
+  .side {
+    width: 240px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column;
+    padding: 20px 14px 16px;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 18px; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: linear-gradient(135deg, #16a34a, #065f46);
+    color: #fff; font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(22,163,74,0.3);
+  }
+  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .brand-sub { font-size: 10px; color: var(--ink-3); margin-top: 1px; }
+
+  .nav-group { margin-top: 8px; }
+  .nav-label {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3);
+    padding: 12px 8px 5px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; color: var(--ink-2);
+    cursor: pointer; transition: background 120ms ease, color 120ms ease;
+  }
+  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-item.active { background: var(--brand-soft); color: var(--brand-strong); font-weight: 600; }
+  .nav-item .ic { width: 18px; text-align: center; font-size: 14px; }
+  .nav-badge {
+    margin-left: auto; font-size: 10px; font-weight: 700;
+    background: var(--red); color: #fff; border-radius: 10px;
+    padding: 1px 7px;
+  }
+
+  .side-foot {
+    margin-top: auto; border-top: 1px solid var(--line); padding: 14px 8px 0;
+  }
+  .eng-card {
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .eng-row { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; margin-top: 5px; }
+  .eng-row:first-child { margin-top: 0; }
+  .eng-label { color: var(--ink-3); }
+  .eng-val { font-weight: 600; color: var(--ink-2); }
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10.5px; font-weight: 700; color: var(--brand);
+    background: var(--brand-soft); border-radius: 20px; padding: 3px 10px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+
+  /* ── Main ──────────────────────────── */
+  .main { flex: 1; min-width: 0; padding: 0 36px 48px; }
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    height: 64px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: rgba(246,247,249,0.88);
+    backdrop-filter: blur(10px); z-index: 10;
+  }
+  .cmd {
+    display: flex; align-items: center; gap: 8px;
+    width: 320px; height: 36px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 9px;
+    background: var(--surface); color: var(--ink-3); font-size: 12.5px;
+    box-shadow: var(--shadow-sm);
+  }
+  .cmd kbd {
+    margin-left: auto; font-size: 10px; font-family: var(--mono);
+    border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;
+    background: var(--surface-2); color: var(--ink-3);
+  }
+  .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface);
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 36px; padding: 0 16px; border-radius: 9px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+    transition: all 120ms ease;
+  }
+  .btn:hover { border-color: var(--line-strong); }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,0.25); }
+  .btn.primary:hover { background: var(--brand-strong); }
+
+  .content { padding-top: 28px; }
+  .page-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .page-sub { color: var(--ink-2); font-size: 13.5px; margin-top: 4px; }
+  .crumb { display: flex; gap: 6px; font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+
+  /* KPI cards */
+  .kpis { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; margin-top: 24px; }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 16px 14px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 150ms ease, transform 150ms ease;
+  }
+  .kpi:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; }
+  .kpi-value { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; font-family: var(--mono); }
+  .kpi-sub { font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+  .kpi .trend { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; }
+
+  /* Section */
+  .section { display: flex; align-items: center; gap: 10px; margin: 30px 0 12px; }
+  .section h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .section .hint { font-size: 11.5px; color: var(--ink-3); }
+  .chart-tabs { margin-left: auto; display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .ctab { font-size: 11.5px; font-weight: 600; padding: 4px 12px; border-radius: 6px; color: var(--ink-3); cursor: pointer; }
+  .ctab.active { background: var(--brand-soft); color: var(--brand-strong); }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow-sm);
+    padding: 20px;
+  }
+  .chart-head { display: flex; align-items: baseline; gap: 12px; }
+  .chart-val { font-family: var(--mono); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .chart-meta { font-size: 11px; color: var(--ink-3); }
+  .chart-body { margin-top: 10px; }
+  .gridline { stroke: #eef1f5; stroke-width: 1; }
+  .line-brand { stroke: var(--brand); stroke-width: 2; fill: none; stroke-linecap: round; }
+  .area-fill { fill: url(#agreen); }
+
+  /* Asset table */
+  .tbl-wrap { overflow: hidden; }
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl th {
+    text-align: left; font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-3);
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .tbl td { padding: 11px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tbody tr { transition: background 100ms ease; cursor: pointer; }
+  .tbl tbody tr:hover { background: var(--surface-2); }
+  .sym { font-weight: 600; }
+  .price { font-family: var(--mono); color: var(--ink-2); }
+  .sig {
+    display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.05em; padding: 3px 9px; border-radius: 20px;
+  }
+  .sig.buy { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+  .sig.sell { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .sig.flat { background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line); }
+  .conf-cell { display: flex; align-items: center; gap: 8px; }
+  .conf-bar { flex: 1; max-width: 90px; height: 4px; border-radius: 4px; background: #eef1f5; overflow: hidden; }
+  .conf-bar span { display: block; height: 100%; border-radius: 4px; background: var(--brand); }
+  .conf-num { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 30px; text-align: right; }
+  .liq { font-size: 11px; font-weight: 600; }
+  .liq.normal { color: var(--brand); }
+  .liq.thin { color: var(--amber); }
+  .exp { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+  .pill-soft { font-size: 11px; font-weight: 500; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 20px; padding: 2px 10px; }
+
+  .foot { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; gap: 18px; font-size: 11px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">Q</div>
+      <div>
+        <div class="brand-name">Quorrin</div>
+        <div class="brand-sub">Paper Trading Platform</div>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-group">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active"><span class="ic">◫</span> Overview</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Live Market</div>
+        <div class="nav-item"><span class="ic">⚡</span> Trading <span class="nav-badge">2</span></div>
+        <div class="nav-item"><span class="ic">▤</span> Trades</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Risk</div>
+        <div class="nav-item"><span class="ic">◈</span> Risk</div>
+        <div class="nav-item"><span class="ic">♨</span> Monitor</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Execution</div>
+        <div class="nav-item"><span class="ic">◉</span> Execution</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Research</div>
+        <div class="nav-item"><span class="ic">◍</span> Analytics</div>
+      </div>
+    </nav>
+
+    <div class="side-foot">
+      <div class="eng-card">
+        <div class="eng-row"><span class="eng-label"><span class="live-pill"><span class="dot"></span>LIVE</span></span><span class="eng-val">Engine</span></div>
+        <div class="eng-row"><span class="eng-label">Market</span><span class="eng-val" style="color:var(--brand)">Open</span></div>
+        <div class="eng-row"><span class="eng-label">Sequence</span><span class="eng-val mono">316</span></div>
+        <div class="eng-row"><span class="eng-label">Updated</span><span class="eng-val mono">3s ago</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="cmd">⌕ Search pages, assets, sections <kbd>⌘K</kbd></div>
+      <div class="top-actions">
+        <span class="chip"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block"></span> Live</span>
+        <span class="chip mono" style="font-size:11px">SEQ 316</span>
+        <button class="btn">System Health</button>
+        <button class="btn primary">Refresh</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="crumb">Overview</div>
+      <h1 class="page-title">Overview</h1>
+      <p class="page-sub">System health, portfolio summary, and live asset signals at a glance.</p>
+
+      <!-- KPI cards -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Portfolio Value</div>
+          <div class="kpi-value">$90,246</div>
+          <div class="kpi-sub trend up">▲ +0.27% today</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Total Return</div>
+          <div class="kpi-value up">+0.27%</div>
+          <div class="kpi-sub">Since start · $100K base</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Realized P&amp;L</div>
+          <div class="kpi-value">+0.00%</div>
+          <div class="kpi-sub">0 trades closed</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Drawdown</div>
+          <div class="kpi-value down">-0.03%</div>
+          <div class="kpi-sub">From peak $100,274</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Open Positions</div>
+          <div class="kpi-value">17</div>
+          <div class="kpi-sub">Gross exposure 0.90x</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Live Sharpe</div>
+          <div class="kpi-value">1.26</div>
+          <div class="kpi-sub">Autocorr-adjusted</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Capital</div>
+          <div class="kpi-value">$100,000</div>
+          <div class="kpi-sub">FTMO paper mode</div>
+        </div>
+      </div>
+
+      <!-- Equity chart -->
+      <div class="section">
+        <h3>Equity Curve</h3>
+        <span class="hint">Portfolio MTM over time</span>
+        <div class="chart-tabs">
+          <span class="ctab">1H</span><span class="ctab">4H</span><span class="ctab active">1D</span><span class="ctab">ALL</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="chart-head">
+          <div class="chart-val">$100,253.14</div>
+          <span class="chart-meta">last MTM · Aug 06 05:08</span>
+          <span class="pill-soft" style="margin-left:auto">▼ -0.03% from peak</span>
+        </div>
+        <div class="chart-body">
+          <svg width="100%" height="210" viewBox="0 0 1000 210" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="agreen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#16a34a" stop-opacity="0.16"/>
+                <stop offset="100%" stop-color="#16a34a" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line class="gridline" x1="0" y1="25" x2="1000" y2="25"/>
+            <line class="gridline" x1="0" y1="75" x2="1000" y2="75"/>
+            <line class="gridline" x1="0" y1="125" x2="1000" y2="125"/>
+            <line class="gridline" x1="0" y1="175" x2="1000" y2="175"/>
+            <path class="area-fill" d="M0,168 L40,163 L80,166 L120,165 L160,164 L200,161 L240,163 L280,161 L320,160 L360,159 L400,160 L440,158 L480,157 L520,156 L560,153 L600,155 L640,151 L680,151 L720,148 L760,149 L800,146 L840,148 L880,145 L920,146 L960,143 L1000,140 L1000,210 L0,210 Z"/>
+            <path class="line-brand" d="M0,168 L40,163 L80,166 L120,165 L160,164 L200,161 L240,163 L280,161 L320,160 L360,159 L400,160 L440,158 L480,157 L520,156 L560,153 L600,155 L640,151 L680,151 L720,148 L760,149 L800,146 L840,148 L880,145 L920,146 L960,143 L1000,140"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Asset table -->
+      <div class="section">
+        <h3>Assets</h3>
+        <span class="hint">21 instruments · live signals</span>
+        <div class="chart-tabs" style="margin-left:auto">
+          <span class="ctab active">All</span><span class="ctab">Signals</span><span class="ctab">Open</span>
+        </div>
+      </div>
+      <div class="panel tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Symbol</th><th>Price</th><th>Signal</th><th>Confidence</th><th>Regime</th><th>Liquidity</th><th>Exposure</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="sym">GC</td><td class="price">2,481.2</td><td><span class="sig buy">BUY</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:78%"></span></div><span class="conf-num">78%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+            <tr><td class="sym">ES</td><td class="price">5,612.0</td><td><span class="sig sell">SELL</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:64%"></span></div><span class="conf-num">64%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+            <tr><td class="sym">USDCHF</td><td class="price">0.8842</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:31%"></span></div><span class="conf-num">31%</span></td><td><span class="pill-soft">neutral</span></td><td class="liq thin">THIN</td><td class="exp">0.75x</td></tr>
+            <tr><td class="sym">USDCAD</td><td class="price">1.3721</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:38%"></span></div><span class="conf-num">38%</span></td><td><span class="pill-soft">neutral</span></td><td class="liq thin">THIN</td><td class="exp">0.75x</td></tr>
+            <tr><td class="sym">NQ</td><td class="price">20,184.5</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:44%"></span></div><span class="conf-num">44%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+            <tr><td class="sym">^DJI</td><td class="price">43,201.9</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:40%"></span></div><span class="conf-num">40%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+            <tr><td class="sym">GBPCAD</td><td class="price">1.7812</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:29%"></span></div><span class="conf-num">29%</span></td><td><span class="pill-soft">neutral</span></td><td class="liq thin">THIN</td><td class="exp">0.75x</td></tr>
+            <tr><td class="sym">NZDUSD</td><td class="price">0.6114</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:35%"></span></div><span class="conf-num">35%</span></td><td><span class="pill-soft">neutral</span></td><td class="liq thin">THIN</td><td class="exp">0.75x</td></tr>
+            <tr><td class="sym">AUDUSD</td><td class="price">0.6621</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:42%"></span></div><span class="conf-num">42%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+            <tr><td class="sym">USDJPY</td><td class="price">152.41</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:37%"></span></div><span class="conf-num">37%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+            <tr><td class="sym">GBPJPY</td><td class="price">195.83</td><td><span class="sig flat">FLAT</span></td><td class="conf-cell"><div class="conf-bar"><span style="width:41%"></span></div><span class="conf-num">41%</span></td><td><span class="pill-soft">risk_on</span></td><td class="liq normal">NORMAL</td><td class="exp">1.00x</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="foot">
+        <span>Quorrin v2.0 · Paper / FTMO mode</span>
+        <span>15-layer governance active</span>
+        <span>Contract v2</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, TrendingUp, TrendingDown, Activity, BarChart3, Shield, AlertTriangle, Check } from 'lucide-react'
 import { useWeeklyReview } from '../hooks/useWeeklyReview'
 import type { WeeklyReview } from '../types/portfolio'
+import useFocusTrap from '../hooks/useFocusTrap'
+import { useToast } from './toast/Toast'
 import Button from './ui/Button'
-import KpiCard from './ui/KpiCard'
+import StatCard from './ui/StatCard'
 
 function formatPnl(v: number): string {
   const prefix = v >= 0 ? '+' : ''
@@ -32,15 +34,15 @@ function DeltaArrow({ value }: { value: number }) {
 function SummaryGrid({ summary, vsPrior }: { summary: WeeklyReview['summary']; vsPrior: WeeklyReview['vs_prior_week'] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      <KpiCard label="Trades" value={String(summary.n_trades)} color={summary.n_trades > 0 ? 'text-primary' : 'text-tertiary'} />
-      <KpiCard label="Win Rate" value={`${(summary.win_rate * 100).toFixed(0)}%`} color={pctColor(summary.win_rate - 0.5)} />
-      <KpiCard label="Avg R" value={summary.avg_r.toFixed(2)} color={pnlColor(summary.avg_r)} />
-      <KpiCard label="Profit Factor" value={summary.profit_factor !== null ? summary.profit_factor.toFixed(2) : '—'} color={summary.profit_factor !== null && summary.profit_factor >= 1 ? 'text-gov-green' : 'text-tertiary'} />
-      <KpiCard label="Total PnL" value={formatPnl(summary.total_pnl)} color={pnlColor(summary.total_pnl)} />
-      <KpiCard label="TP Rate" value={`${(summary.tp_rate * 100).toFixed(0)}%`} color={summary.tp_rate > summary.sl_rate ? 'text-gov-green' : 'text-tertiary'} />
-      <KpiCard label="SL Rate" value={`${(summary.sl_rate * 100).toFixed(0)}%`} color={summary.sl_rate > 0.3 ? 'text-gov-red' : 'text-tertiary'} />
-      <KpiCard label="Best R" value={summary.best_r_multiple.toFixed(2)} color="text-gov-green" />
-      <KpiCard label="Worst R" value={summary.worst_r_multiple.toFixed(2)} color="text-gov-red" />
+      <StatCard variant="kpi" label="Trades" value={String(summary.n_trades)} valueClassName={summary.n_trades > 0 ? 'text-primary' : 'text-tertiary'} />
+      <StatCard variant="kpi" label="Win Rate" value={`${(summary.win_rate * 100).toFixed(0)}%`} valueClassName={pctColor(summary.win_rate - 0.5)} />
+      <StatCard variant="kpi" label="Avg R" value={summary.avg_r.toFixed(2)} valueClassName={pnlColor(summary.avg_r)} />
+      <StatCard variant="kpi" label="Profit Factor" value={summary.profit_factor !== null ? summary.profit_factor.toFixed(2) : '—'} valueClassName={summary.profit_factor !== null && summary.profit_factor >= 1 ? 'text-gov-green' : 'text-tertiary'} />
+      <StatCard variant="kpi" label="Total PnL" value={formatPnl(summary.total_pnl)} valueClassName={pnlColor(summary.total_pnl)} />
+      <StatCard variant="kpi" label="TP Rate" value={`${(summary.tp_rate * 100).toFixed(0)}%`} valueClassName={summary.tp_rate > summary.sl_rate ? 'text-gov-green' : 'text-tertiary'} />
+      <StatCard variant="kpi" label="SL Rate" value={`${(summary.sl_rate * 100).toFixed(0)}%`} valueClassName={summary.sl_rate > 0.3 ? 'text-gov-red' : 'text-tertiary'} />
+      <StatCard variant="kpi" label="Best R" value={summary.best_r_multiple.toFixed(2)} valueClassName="text-gov-green" />
+      <StatCard variant="kpi" label="Worst R" value={summary.worst_r_multiple.toFixed(2)} valueClassName="text-gov-red" />
       {vsPrior && (
         <div className="col-span-full flex items-center gap-3 pt-1 border-t border-default">
           <span className="text-2xs text-tertiary font-medium uppercase tracking-wider">vs prior week</span>
@@ -185,7 +187,8 @@ function EmptyState() {
 
 export default function WeeklyReviewModal() {
   const { data, show, isPending, isError, acknowledge } = useWeeklyReview()
-  const modalRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast()
+  const modalRef = useFocusTrap()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -226,14 +229,15 @@ export default function WeeklyReviewModal() {
           </div>
           <button
             onClick={() => setOpen(false)}
-            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
+            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors focus-ring"
+            aria-label="Close weekly review"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
           {!hasTrades ? (
             <EmptyState />
           ) : (
@@ -268,6 +272,11 @@ export default function WeeklyReviewModal() {
             onClick={() => {
               acknowledge()
               setOpen(false)
+              toast({
+                title: 'Weekly review acknowledged',
+                description: `Marked as read for ${data.week_label}`,
+                variant: 'success',
+              })
             }}
           >
             Acknowledge

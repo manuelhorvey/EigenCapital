@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
-  Tooltip, ReferenceLine, ResponsiveContainer, Legend,
+  Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
@@ -9,6 +9,7 @@ import Panel from './ui/Panel'
 import SectionHeader from './ui/SectionHeader'
 import { Skeleton } from './ui/Skeleton'
 import EmptyState from './ui/EmptyState'
+import { axisTick, tooltipStyle, cartesianGridProps } from './ui/chartTheme'
 
 interface CalibrationPoint {
   asset: string
@@ -73,28 +74,23 @@ export default function CalibrationCurve() {
       <div className="h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" strokeWidth={0.5} />
+            <CartesianGrid strokeDasharray="3 3" {...cartesianGridProps} />
             <XAxis
               dataKey="confidence"
               name="Mean Confidence %"
               domain={[0, 100]}
-              tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }}
+              tick={axisTick}
               label={{ value: 'Predicted Confidence %', position: 'bottom', fontSize: 10, fill: 'var(--color-text-tertiary)' }}
             />
             <YAxis
               dataKey="winRate"
               name="Win Rate %"
               domain={[0, 100]}
-              tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }}
+              tick={axisTick}
               label={{ value: 'Actual Win Rate %', angle: -90, position: 'left', fontSize: 10, fill: 'var(--color-text-tertiary)', offset: 0 }}
             />
             <Tooltip
-              contentStyle={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                fontSize: '11px',
-              }}
+              contentStyle={tooltipStyle}
               formatter={(value, name) => [`${value}%`, name === 'winRate' ? 'Win Rate' : 'Confidence']}
               labelFormatter={(label) => label}
             />
@@ -105,13 +101,6 @@ export default function CalibrationCurve() {
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            <Legend
-              verticalAlign="top"
-              height={30}
-              formatter={(value: string) => (
-                <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>{value}</span>
-              )}
-            />
             {/* Normal assets */}
             <Scatter
               name="Normal assets"
@@ -120,6 +109,7 @@ export default function CalibrationCurve() {
               stroke="var(--color-accent-emerald)"
               strokeWidth={0.5}
               shape="circle"
+              isAnimationActive={false}
             />
             {/* SELL-only assets (potentially inverted BUY) */}
             <Scatter
@@ -129,6 +119,7 @@ export default function CalibrationCurve() {
               stroke="var(--color-gov-yellow)"
               strokeWidth={0.5}
               shape="diamond"
+              isAnimationActive={false}
             />
           </ScatterChart>
         </ResponsiveContainer>

@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import ChartContainer from '../ui/ChartContainer'
+import PanelFallback from '../ui/PanelFallback'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
 function bucketize(values: number[], bins = 10): { range: string; count: number; fill: string }[] {
@@ -12,16 +13,27 @@ function bucketize(values: number[], bins = 10): { range: string; count: number;
     const idx = Math.min(Math.floor(Math.abs(v) / step), bins - 1)
     counts[idx]++
   }
-  return counts.map((c, i) => ({
-    range: `${(i * step).toFixed(1)}-${((i + 1) * step).toFixed(1)}`,
-    count: c,
-    fill: i < bins / 2 ? 'var(--color-gov-green)' : 'var(--color-gov-yellow)',
-  }))
+  return counts.map((c, i) => {
+    // Colour by the bin's midpoint in real basis-point terms, an absolute
+    // tolerance threshold — not by its position in the data-scaled range.
+    const midBps = (i + 0.5) * step
+    const fill =
+      midBps <= 5 ? 'var(--color-gov-green)' : midBps <= 15 ? 'var(--color-gov-yellow)' : 'var(--color-gov-red)'
+    return {
+      range: `${(i * step).toFixed(1)}-${((i + 1) * step).toFixed(1)}`,
+      count: c,
+      fill,
+    }
+  })
 }
 
 export default function SlippageHistogram() {
-  const { data: bundle, isPending } = useAttributionBundle()
+  const { data: bundle, isPending, isError, error, refetch } = useAttributionBundle()
   const data = bundle?.executionSlippage
+
+  if (isError) {
+    return <PanelFallback title="Slippage Distribution" error={error} onRetry={() => refetch()} />
+  }
 
   const entryData = data ? bucketize(data.entry_slippage) : []
   const exitData = data ? bucketize(data.exit_slippage) : []
@@ -43,7 +55,6 @@ export default function SlippageHistogram() {
       emptyMessage="No closed trades yet — appears on exit"
       chartLabel={chartLabel}
     >
-      <p className="sr-only">{chartLabel}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
         <div className="min-w-0">
           <p className="text-2xs text-tertiary mb-1 font-medium">Entry Slippage</p>
@@ -52,7 +63,7 @@ export default function SlippageHistogram() {
               <XAxis dataKey="range" tick={{ ...axisTick, fontSize: 9 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ ...axisTick, fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+              <Bar dataKey="count" radius={[2, 2, 0, 0]} isAnimationActive={false}>
                 {entryData.map((e, i) => <Cell key={i} fill={e.fill} />)}
               </Bar>
             </BarChart>
@@ -65,7 +76,7 @@ export default function SlippageHistogram() {
               <XAxis dataKey="range" tick={{ ...axisTick, fontSize: 9 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ ...axisTick, fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+              <Bar dataKey="count" radius={[2, 2, 0, 0]} isAnimationActive={false}>
                 {exitData.map((e, i) => <Cell key={i} fill={e.fill} />)}
               </Bar>
             </BarChart>

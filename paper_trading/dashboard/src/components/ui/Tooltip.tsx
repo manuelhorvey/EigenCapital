@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode } from 'react'
+import { useState, useRef, useId, type ReactNode } from 'react'
 
 type TooltipSide = 'top' | 'bottom' | 'left' | 'right'
 
@@ -27,6 +27,7 @@ const arrowStyles: Record<TooltipSide, string> = {
 export default function Tooltip({ content, side = 'top', delay = 300, children, className = '' }: TooltipProps) {
   const [visible, setVisible] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const tooltipId = useId()
 
   const show = () => {
     clearTimeout(timer.current)
@@ -39,12 +40,25 @@ export default function Tooltip({ content, side = 'top', delay = 300, children, 
   }
 
   return (
-    <span className={`relative inline-flex ${className}`} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
-      {children}
+    <span
+      className={`relative inline-flex ${className}`}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      onKeyDown={e => {
+        if (e.key === 'Escape') hide()
+      }}
+    >
+      {/* Pass through aria-describedby so screen readers announce the tooltip */}
+      <span className="contents" aria-describedby={visible ? tooltipId : undefined}>
+        {children}
+      </span>
       {visible && (
         <span
-          className={`absolute z-50 pointer-events-none whitespace-nowrap ${sideStyles[side]}`}
+          id={tooltipId}
           role="tooltip"
+          className={`absolute z-50 pointer-events-none whitespace-nowrap ${sideStyles[side]}`}
         >
           <span className="block bg-default border border-strong text-primary text-2xs font-medium px-2 py-1 rounded shadow-tooltip">
             {content}

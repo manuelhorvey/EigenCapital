@@ -272,6 +272,16 @@ export default {
         "opacity": "1",
         "boxShadow": "0 0 8px rgba(240, 68, 68, 0.3)"
       }
+    },
+    "toast-progress": {
+      "0%": {
+        "transform": "scaleX(1)",
+        "opacity": "0.8"
+      },
+      "100%": {
+        "transform": "scaleX(0)",
+        "opacity": "0"
+      }
     }
   }
 }

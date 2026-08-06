@@ -44,6 +44,12 @@ function useOnScreen(
       return
     }
 
+    // Fallback: if IntersectionObserver is unavailable, never hide content.
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true)
+      return
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
@@ -132,8 +138,8 @@ export default function EntranceAnimator({
         ref={ref}
         className={`transition-all duration-500 ease-out will-change-transform ${
           visible
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-3'
+            ? variantVisible[variant]
+            : variantStyles[variant]
         } ${className}`}
         style={{
           transitionDelay: `${delay}ms`,

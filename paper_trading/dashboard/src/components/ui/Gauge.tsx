@@ -1,17 +1,12 @@
+import { useId } from 'react'
+import { scoreFillColor } from './governance'
+
 interface GaugeProps {
   label: string
   value: number
   size?: number
-  min?: number
-  max?: number
   color?: string
   className?: string
-}
-
-function valueColor(pct: number): string {
-  if (pct >= 0.8) return 'var(--color-gov-green)'
-  if (pct >= 0.5) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-red)'
 }
 
 export default function Gauge({
@@ -21,22 +16,23 @@ export default function Gauge({
   color,
   className = '',
 }: GaugeProps) {
+  const gradientId = useId()
   const pct = Math.min(Math.max(value, 0), 1)
-  const strokeColor = color ?? valueColor(pct)
+  const strokeColor = color ?? scoreFillColor(pct)
   const r = size * 0.35
   const circ = 2 * Math.PI * r
   const offset = circ * (1 - pct)
 
   return (
     <div className={`flex flex-col items-center gap-1 ${className}`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${label}: ${(pct * 100).toFixed(0)}%`}>
         <defs>
-          <linearGradient id={`gauge-track-${label.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-border-strong)" />
             <stop offset="100%" stopColor="var(--color-border)" />
           </linearGradient>
         </defs>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`url(#gauge-track-${label.replace(/\s/g, '')})`} strokeWidth={6} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`url(#${gradientId})`} strokeWidth={6} />
         <circle
           cx={size / 2}
           cy={size / 2}

@@ -1,3 +1,5 @@
+import { governanceDot, higherBetterRateToState, lowerBetterRateToState } from './governance'
+
 interface SltpGaugeProps {
   tpRate: number
   slRate: number
@@ -21,9 +23,9 @@ function bar(label: string, pct: number, color: string) {
 }
 
 export default function SltpGauge({ tpRate, slRate, flipRate }: SltpGaugeProps) {
-  const tpColor = tpRate >= 0.25 ? 'bg-gov-green' : tpRate >= 0.15 ? 'bg-gov-yellow' : 'bg-gov-red'
-  const slColor = slRate <= 0.5 ? 'bg-gov-green' : slRate <= 0.7 ? 'bg-gov-yellow' : 'bg-gov-red'
-  const flipColor = flipRate <= 0.15 ? 'bg-gov-green' : flipRate <= 0.3 ? 'bg-gov-yellow' : 'bg-gov-red'
+  const tpColor = governanceDot[higherBetterRateToState(tpRate, 0.25, 0.15)]
+  const slColor = governanceDot[lowerBetterRateToState(slRate, 0.5, 0.7)]
+  const flipColor = governanceDot[lowerBetterRateToState(flipRate, 0.15, 0.3)]
 
   return (
     <div className="flex flex-col gap-0.5 min-w-[130px]">

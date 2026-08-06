@@ -1,8 +1,21 @@
-# Quorrin Dashboard — Architecture v1.0
+# Quorrin Dashboard — Architecture v1.1
 
 ## System Boundary
 
 A React SPA (Vite + Tailwind + React Router) serving as a real-time monitoring interface for a cross-asset paper trading engine. Data flows unidirectionally from a single backend state-bundle endpoint through a sliced React Query layer to memoized UI components.
+
+## v1.1 Redesign Highlights (2026-08)
+
+- **Command palette** (`components/CommandPalette.tsx`) — Cmd/Ctrl+K or `/` opens a searchable palette over pages, per-route anchor sections, and live assets. Keyboard-navigable (↑/↓/↵/Esc), ARIA dialog + listbox, focus trapped. Provider: `hooks/useCommandPalette.tsx`.
+- **Global shortcuts** (`hooks/useGlobalShortcuts.ts`) — `g` then `d/t/e/r` page navigation, `?` shows a shortcut-help toast.
+- **Toast system** (`components/toast/Toast.tsx`) — `ToastProvider` + `useToast()` with success/info/warning/error variants, `aria-live="polite"`, auto-dismiss progress, keyboard-dismissible. Wired into user actions (weekly-review acknowledge).
+- **PageHeader** (`components/PageHeader.tsx`) — breadcrumb + title + description + live status chips on all four pages.
+- **Sidebar** — added command-palette search entry (⌘K), market open/closed + snapshot-age footer, refined hierarchy.
+- **Header** — desktop search trigger with ⌘K badge.
+- **KPI consolidation** — `StatCard` is now the single KPI primitive (variants `default`/`compact`/`kpi`, `icon`, `accent`, `valueClassName`, `size`); `KpiCard`/`MetricCard` deleted.
+- **A11y** — skip-to-content link, focus traps on all modals, `role="tooltip"` + `aria-describedby` on Tooltip, `overscroll-contain` on modal scroll areas, ErrorBoundary in-place retry (`resetKey` support), `name` on palette input.
+- **Performance** — Google Fonts moved from CSS `@import` to preconnect + stylesheet links in `index.html`; theme applied pre-paint to prevent flash; `color-scheme` set per theme.
+- **Charts** — EquityChart time-range presets (1W/1M/3M/6M/All).
 
 ---
 

@@ -32,22 +32,22 @@
   --color-neutral-800: #2e3835;
   --color-neutral-900: #1b221f;
   --color-neutral-950: #0b0e0c;
-  --color-app: #08090c;
-  --color-surface: #0c0d12;
-  --color-card: #0c0d12;
-  --color-panel: #13161f;
-  --color-panel-hover: #161820;
-  --color-text-primary: #f1f3f6;
-  --color-text-secondary: #94a3b8;
-  --color-text-tertiary: #64748b;
-  --color-text-muted: #475569;
-  --color-border: #1e2233;
-  --color-border-strong: #2a3040;
-  --color-glass: rgba(12, 13, 18, 0.92);
-  --color-focus-ring: rgba(20, 184, 166, 0.45);
-  --color-interactive-hover: rgba(255, 255, 255, 0.04);
-  --color-interactive-active: rgba(255, 255, 255, 0.08);
-  --color-interactive-selected: rgba(20, 184, 166, 0.08);
+  --color-app: #05060a;
+  --color-surface: #0a0c12;
+  --color-card: #0a0c12;
+  --color-panel: #12141d;
+  --color-panel-hover: #171a25;
+  --color-text-primary: #f2f4f8;
+  --color-text-secondary: #9aa7bd;
+  --color-text-tertiary: #6b7891;
+  --color-text-muted: #4c5569;
+  --color-border: #1d2231;
+  --color-border-strong: #2b3247;
+  --color-glass: rgba(5, 6, 10, 0.92);
+  --color-focus-ring: rgba(255, 176, 32, 0.45);
+  --color-interactive-hover: rgba(255, 255, 255, 0.05);
+  --color-interactive-active: rgba(255, 255, 255, 0.09);
+  --color-interactive-selected: rgba(255, 176, 32, 0.08);
   --color-gov-green: #25d065;
   --color-gov-green-muted: rgba(37, 208, 101, 0.12);
   --color-gov-green-muted2: rgba(37, 208, 101, 0.06);
@@ -72,7 +72,7 @@
   --color-accent-emerald: #2dd4bf;
   --color-accent-blue: #60a5fa;
   --color-accent-purple: #a78bfa;
-  --color-accent-amber: #fbbf24;
+  --color-accent-amber: #ffb020;
   --color-accent-indigo: #818cf8;
   --color-accent-pink: #f472b6;
   --color-chart-0: #14b8a6;
@@ -205,6 +205,17 @@
   }
 }
 
+@keyframes toast-progress {
+  0% {
+    transform: scaleX(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+}
+
 .light {
   --color-app: #f3f6f5;
   --color-surface: #ffffff;
@@ -220,7 +231,8 @@
   --color-glass: rgba(255, 255, 255, 0.92);
   --color-interactive-hover: rgba(0, 0, 0, 0.04);
   --color-interactive-active: rgba(0, 0, 0, 0.08);
-  --color-interactive-selected: rgba(20, 184, 166, 0.08);
+  --color-interactive-selected: rgba(255, 176, 32, 0.10);
+  --color-focus-ring: rgba(255, 176, 32, 0.4);
   --shadow-panel: 0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08);
   --shadow-card: 0 1px 0 rgba(0,0,0,0.03) inset, 0 8px 32px rgba(0,0,0,0.1);
   --shadow-modal: 0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.15);

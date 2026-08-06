@@ -20,10 +20,14 @@ export function useTradeInspector(
   asset?: string,
   entryDate?: string,
   exitDate?: string,
-): TradeInspectorData | null {
-  const { data: allTrades } = useAttributionTrades(500)
+): { data: TradeInspectorData | null; isLoading: boolean } {
+  const { data: allTrades, isPending, isFetching } = useAttributionTrades(
+    200,
+    0,
+    asset ? { asset } : undefined,
+  )
 
-  return useMemo(() => {
+  const data = useMemo(() => {
     if (!asset || !allTrades) return null
 
     const match = allTrades.find(t =>
@@ -48,4 +52,6 @@ export function useTradeInspector(
       attribution: match,
     }
   }, [asset, entryDate, exitDate, allTrades])
+
+  return { data, isLoading: isPending || isFetching }
 }

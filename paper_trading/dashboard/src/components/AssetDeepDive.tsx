@@ -44,22 +44,34 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const controller = new AbortController()
     setLoading(true)
-    fetch(`${API_BASE}/asset/${name}.json`)
+    fetch(`${API_BASE}/asset/${name}.json`, { signal: controller.signal })
       .then(r => r.json())
       .then((d: DeepDiveData) => {
         setData(d)
         setLoading(false)
       })
       .catch(() => {
-        setData(null)
-        setLoading(false)
+        if (!controller.signal.aborted) {
+          setData(null)
+          setLoading(false)
+        }
       })
+    return () => controller.abort()
   }, [name])
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={`Loading ${name}`}>
         <div className="text-sm text-tertiary animate-pulse">Loading {name}…</div>
       </div>
     )
@@ -67,8 +79,8 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
 
   if (!data) {
     return (
-      <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center">
-        <div className="text-sm text-gov-red">Failed to load data for {name}</div>
+      <div className="fixed inset-0 z-50 bg-app/95 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={`${name} data failed to load`}>
+        <div className="text-sm text-gov-red" role="alert">Failed to load data for {name}</div>
         <button type="button" onClick={onClose} className="ml-3 text-xs text-tertiary hover:text-primary underline">Close</button>
       </div>
     )
@@ -79,7 +91,7 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
   const m = data.metrics ?? {}
 
   return (
-    <div className="fixed inset-0 z-50 bg-app/95 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-app/95 flex flex-col" role="dialog" aria-modal="true" aria-label={`${data.asset} deep dive`}>
       <div className="flex items-center justify-between px-5 py-3 border-b border-default">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-bold text-primary">{data.asset}</h2>
@@ -98,12 +110,12 @@ export default function AssetDeepDive({ name, onClose }: { name: string; onClose
             </span>
           </span>
         </div>
-        <button type="button" onClick={onClose} className="p-1.5 rounded-md hover:bg-panel transition-colors">
+        <button type="button" onClick={onClose} className="p-1.5 rounded-md hover:bg-panel transition-colors" aria-label="Close deep dive">
           <X className="w-5 h-5 text-secondary" strokeWidth={2} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 overflow-y-auto p-5 overscroll-contain">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
           {/* ── Feature Importance ──────────────────────────────── */}

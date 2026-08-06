@@ -18,7 +18,7 @@ export default function ErrorScreen({
       <div className="w-12 h-12 rounded-xl panel border-gov-yellow/30 flex items-center justify-center">
         <AlertTriangle className={`w-6 h-6 ${governanceText.YELLOW}`} strokeWidth={1.5} />
       </div>
-      <div className="text-center max-w-md">
+      <div className="text-center max-w-md" role="alert">
         <h2 className="text-primary text-lg font-semibold tracking-tight">{title}</h2>
         <p className="text-tertiary text-sm mt-1.5">{message}</p>
       </div>

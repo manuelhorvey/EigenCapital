@@ -54,6 +54,7 @@ export default function Panel({
     ? 'cursor-pointer hover:border-strong hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 ease-out'
     : ''
 
+  const isInteractive = !!onClick
   const glowStyle = glowColor
     ? { boxShadow: `0 0 15px -3px ${glowColor}` }
     : undefined
@@ -61,11 +62,20 @@ export default function Panel({
   return (
     <div
       onClick={onClick}
+      role={isInteractive ? 'button' : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      onKeyDown={isInteractive ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick?.()
+        }
+      } : undefined}
       className={[
         'rounded-lg relative overflow-hidden',
         variantStyles[variant],
         paddingMap[padding],
         hoverStyles,
+        isInteractive ? 'cursor-pointer focus-ring' : '',
         leftAccent ? 'border-l-2' : '',
         className,
       ]

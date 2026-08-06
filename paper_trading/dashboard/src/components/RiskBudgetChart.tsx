@@ -5,8 +5,12 @@ import Panel from './ui/Panel'
 import EmptyState from './ui/EmptyState'
 
 function budgetBar(current: number, max: number, label: string): { pct: number; color: string } {
+  // `current` is the *remaining* budget (leverage/concurrent/daily-loss remaining).
+  // High remaining = safe; low remaining = close to exhausting the budget.
   const pct = max > 0 ? (current / max) * 100 : 0
-  const color = pct > 80 ? 'var(--color-gov-red)' : pct > 50 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'
+  const consumed = 100 - pct
+  const color =
+    consumed > 80 ? 'var(--color-gov-red)' : consumed > 50 ? 'var(--color-gov-yellow)' : 'var(--color-gov-green)'
   return { pct, color }
 }
 

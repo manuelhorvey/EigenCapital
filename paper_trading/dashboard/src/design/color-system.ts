@@ -46,33 +46,33 @@ export const rawTokens = {
   'color-neutral-900': '#1b221f',
   'color-neutral-950': '#0b0e0c',
 
-  // ── Application surfaces ──────────────────────────
-  'color-app': '#08090c',
-  'color-surface': '#0c0d12',
-  'color-card': '#0c0d12',
-  'color-panel': '#13161f',
-  'color-panel-hover': '#161820',
+  // ── Application surfaces (near-black "terminal ink") ──
+  'color-app': '#05060a',
+  'color-surface': '#0a0c12',
+  'color-card': '#0a0c12',
+  'color-panel': '#12141d',
+  'color-panel-hover': '#171a25',
 
   // ── Text hierarchy ────────────────────────────────
-  'color-text-primary': '#f1f3f6',
-  'color-text-secondary': '#94a3b8',
-  'color-text-tertiary': '#64748b',
-  'color-text-muted': '#475569',
+  'color-text-primary': '#f2f4f8',
+  'color-text-secondary': '#9aa7bd',
+  'color-text-tertiary': '#6b7891',
+  'color-text-muted': '#4c5569',
 
   // ── Borders ───────────────────────────────────────
-  'color-border': '#1e2233',
-  'color-border-strong': '#2a3040',
+  'color-border': '#1d2231',
+  'color-border-strong': '#2b3247',
 
   // ── Glass ─────────────────────────────────────────
-  'color-glass': 'rgba(12, 13, 18, 0.92)',
+  'color-glass': 'rgba(5, 6, 10, 0.92)',
 
-  // ── Focus ring ────────────────────────────────────
-  'color-focus-ring': 'rgba(20, 184, 166, 0.45)',
+  // ── Focus ring (amber terminal) ───────────────────
+  'color-focus-ring': 'rgba(255, 176, 32, 0.45)',
 
   // ── Interactive states ────────────────────────────
-  'color-interactive-hover': 'rgba(255, 255, 255, 0.04)',
-  'color-interactive-active': 'rgba(255, 255, 255, 0.08)',
-  'color-interactive-selected': 'rgba(20, 184, 166, 0.08)',
+  'color-interactive-hover': 'rgba(255, 255, 255, 0.05)',
+  'color-interactive-active': 'rgba(255, 255, 255, 0.09)',
+  'color-interactive-selected': 'rgba(255, 176, 32, 0.08)',
 
   // ── Governance (semantic) ─────────────────────────
   'color-gov-green': '#25d065',
@@ -102,10 +102,11 @@ export const rawTokens = {
   'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.06)',
 
   // ── Extended accent palette ───────────────────────
+  // accent-amber is the BRAND chrome accent (terminal amber).
   'color-accent-emerald': '#2dd4bf',
   'color-accent-blue': '#60a5fa',
   'color-accent-purple': '#a78bfa',
-  'color-accent-amber': '#fbbf24',
+  'color-accent-amber': '#ffb020',
   'color-accent-indigo': '#818cf8',
   'color-accent-pink': '#f472b6',
 
@@ -232,7 +233,9 @@ export const rawLightTokens = {
   // Interactive states (light bg → dark overlays)
   'color-interactive-hover': 'rgba(0, 0, 0, 0.04)',
   'color-interactive-active': 'rgba(0, 0, 0, 0.08)',
-  'color-interactive-selected': 'rgba(20, 184, 166, 0.08)',
+  'color-interactive-selected': 'rgba(255, 176, 32, 0.10)',
+  // Focus & selection (amber brand)
+  'color-focus-ring': 'rgba(255, 176, 32, 0.4)',
 
   // Shadows (softer on light backgrounds)
   'shadow-panel': '0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08)',
@@ -270,6 +273,10 @@ export const tailwindOnly = {
     'state-pulse-red': {
       '0%, 100%': { opacity: '0.4', boxShadow: '0 0 0 rgba(240, 68, 68, 0)' },
       '50%': { opacity: '1', boxShadow: '0 0 8px rgba(240, 68, 68, 0.3)' },
+    },
+    'toast-progress': {
+      '0%': { transform: 'scaleX(1)', opacity: '0.8' },
+      '100%': { transform: 'scaleX(0)', opacity: '0' },
     },
   },
 } as const
@@ -396,13 +403,13 @@ export const border = {
 export const glass = _['color-glass']
 
 export const usage = {
-  primaryAction: teal[500],
-  primaryActionHover: teal[600],
+  primaryAction: accents.amber,
+  primaryActionHover: '#ff9d0a',
   primaryActionText: neutral[950],
   secondaryAction: neutral[800],
   secondaryActionHover: neutral[700],
-  activeBorder: teal[500],
-  activeGlow: 'rgba(20, 184, 166, 0.3)',
+  activeBorder: accents.amber,
+  activeGlow: 'rgba(255, 176, 32, 0.3)',
   signalLong: success.DEFAULT,
   signalShort: error.DEFAULT,
   signalFlat: warning.DEFAULT,

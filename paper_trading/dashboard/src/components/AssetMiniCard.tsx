@@ -1,8 +1,11 @@
-import { memo, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { useSelectedAsset } from '../hooks/useSelectedAsset'
 import { confidenceToPercent } from '../utils/format'
-import type { AssetState, Position, SignalDistribution } from '../types/portfolio'
+import { assetHealth, healthColor } from '../utils/assetHealth'
+import PositionBar from './ui/PositionBar'
+import type { SystemBundle } from '../types/bundle'
 
 interface Props {
   name: string
@@ -24,11 +27,11 @@ function signalBg(signal: string): string {
   }
 }
 
-function borderColor(signal: string): string {
+function leftBar(signal: string): string {
   switch (signal) {
-    case 'BUY': return 'border-l-gov-green'
-    case 'SELL': return 'border-l-gov-red'
-    default: return 'border-l-gov-gray'
+    case 'BUY': return 'bg-gov-green'
+    case 'SELL': return 'bg-gov-red'
+    default: return 'bg-gov-gray'
   }
 }
 
@@ -38,18 +41,21 @@ function returnColor(v: number): string {
   return 'text-tertiary'
 }
 
-function distributionBar(sd: SignalDistribution, total: number): string {
-  if (total === 0) return ''
-  const b = (sd.BUY / total * 100).toFixed(0)
-  const s = (sd.SELL / total * 100).toFixed(0)
-  const f = (sd.FLAT / total * 100).toFixed(0)
-  return `${b}%/${s}%/${f}%`
+function SignalIcon({ signal }: { signal: string }) {
+  if (signal === 'BUY') return <TrendingUp className="w-2.5 h-2.5" strokeWidth={2.5} />
+  if (signal === 'SELL') return <TrendingDown className="w-2.5 h-2.5" strokeWidth={2.5} />
+  return <Minus className="w-2.5 h-2.5" strokeWidth={2.5} />
+}
+
+function pricePrecision(price: number | undefined): number {
+  return typeof price === 'number' && price < 10 ? 5 : 2
 }
 
 const AssetMiniCard = memo(function AssetMiniCard({ name }: Props) {
-  const { data: bundle } = useSystemSnapshot()
+  const { data: asset } = useSystemSnapshot(
+    useCallback((b: SystemBundle) => b.snapshot.assets?.[name], [name])
+  )
   const { setSelectedAsset } = useSelectedAsset()
-  const asset: AssetState | undefined = bundle?.snapshot?.assets?.[name]
 
   const info = useMemo(() => {
     if (!asset) return null
@@ -68,78 +74,89 @@ const AssetMiniCard = memo(function AssetMiniCard({ name }: Props) {
       totalReturn: m.mtm_return ?? m.total_return ?? 0,
       drawdown: m.drawdown ?? 0,
       nTrades: m.n_trades ?? 0,
-      signalDistribution: m.signal_distribution,
       sellOnly: asset.sell_only ?? false,
       tripwireActive: asset.tripwire_active ?? false,
+      health: assetHealth(asset),
       position: m.position ?? null,
     }
   }, [asset])
 
   if (!info) return null
 
-  const sdTotal = info.signalDistribution
-    ? info.signalDistribution.BUY + info.signalDistribution.SELL + info.signalDistribution.FLAT
-    : 0
+  const precision = pricePrecision(info.price)
+  const pos = info.position
+  const hasPos = !!pos && typeof pos.entry === 'number'
 
   return (
     <button
       type="button"
       onClick={() => setSelectedAsset(name)}
-      className={`w-full text-left p-3 rounded-lg border border-default bg-surface
-        hover:border-strong hover:bg-panel transition-all duration-200
-        border-l-4 ${borderColor(info.signal)}
-        focus-ring active:scale-[0.98]`}
+      className="group w-full text-left relative rounded-md border border-default bg-card overflow-hidden
+        hover:border-strong hover:bg-panel transition-all duration-200 focus-ring active:scale-[0.99]"
+      aria-label={`${name} — ${info.signal} @ ${info.price != null ? info.price.toFixed(precision) : '—'}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-semibold text-primary truncate">{name}</span>
+      {/* Direction rail */}
+      <span className={`absolute inset-y-0 left-0 w-0.5 ${leftBar(info.signal)}`} />
+
+      <div className="p-2 pl-3">
+        {/* Row 1: health dot + ticker + badges + signal */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${healthColor[info.health]}`} title={`Health: ${info.health}`} />
+          <span className="text-[11px] font-semibold text-primary truncate">{name}</span>
           {(info.sellOnly || info.tripwireActive) && (
-            <span className={`text-[9px] font-semibold px-1 py-0.5 rounded-sm leading-none ${
+            <span className={`shrink-0 text-[8px] font-bold px-1 py-px rounded-sm leading-none ${
               info.tripwireActive
                 ? 'bg-gov-red-muted text-gov-red border border-gov-red/25'
                 : 'bg-gov-yellow-muted text-gov-yellow border border-gov-yellow/25'
             }`}>
-              {info.tripwireActive ? '⚠' : 'SO'}
+              {info.tripwireActive ? 'TRIP' : 'SO'}
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${signalBg(info.signal)} ${signalColor(info.signal)}`}>
+          <span className={`ml-auto shrink-0 inline-flex items-center gap-1 px-1 py-px rounded-sm border text-[9px] font-semibold ${signalBg(info.signal)} ${signalColor(info.signal)}`}>
+            <SignalIcon signal={info.signal} />
             {info.signal}
           </span>
-          <span className={`text-[10px] font-mono tabular-nums ${signalColor(info.signal)}`}>
-            {info.confidence}%
-          </span>
         </div>
-      </div>
 
-      <div className="flex items-center justify-between gap-2 mt-1.5">
-        <div className="flex items-center gap-2 min-w-0">
-          {info.price != null && (
-            <span className="text-[10px] text-tertiary font-mono tabular-nums">
-              ${info.price.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}
+        {/* Row 2: price + return */}
+        <div className="flex items-baseline justify-between gap-2 mt-1">
+          {info.price != null ? (
+            <span className="text-[13px] font-mono font-semibold tabular-nums tracking-tight text-primary">
+              {info.price.toFixed(precision)}
             </span>
+          ) : (
+            <span className="text-[13px] font-mono text-muted">—</span>
           )}
-          <span className={`text-[10px] font-mono tabular-nums ${returnColor(info.totalReturn)}`}>
-            {info.totalReturn >= 0 ? '+' : ''}{info.totalReturn.toFixed(1)}%
+          <span className={`text-[11px] font-mono font-semibold tabular-nums ${returnColor(info.totalReturn)}`}>
+            {info.totalReturn >= 0 ? '+' : ''}{info.totalReturn.toFixed(2)}%
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[9px] text-tertiary font-mono tabular-nums">
-            DD {info.drawdown.toFixed(1)}%
-          </span>
-          <span className="text-[9px] text-tertiary">
-            {info.nTrades}tr
-          </span>
-        </div>
-      </div>
 
-      {info.position && (
-        <div className="flex items-center gap-3 mt-1 text-[9px] font-mono tabular-nums text-tertiary">
-          <span>SL <span className="text-gov-red">{info.position.sl.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
-          <span>TP <span className="text-gov-green">{info.position.tp.toFixed(typeof info.price === 'number' && info.price < 10 ? 5 : 2)}</span></span>
+        {/* Row 3: meta */}
+        <div className="flex items-center justify-between gap-2 mt-0.5">
+          <span className="text-[9px] font-mono tabular-nums text-tertiary">
+            {info.confidence != null ? `${info.confidence}%ci` : '—'}
+          </span>
+          <span className="text-[9px] font-mono tabular-nums text-tertiary/70">
+            {info.nTrades}tx · DD {info.drawdown.toFixed(1)}%
+          </span>
         </div>
-      )}
+
+        {/* Position strip */}
+        {hasPos && (
+          <div className="mt-1.5 pt-1.5 border-t border-border/70">
+            <div className="flex items-center justify-between text-2xs font-mono tabular-nums mb-1">
+              <span className={`font-semibold ${pos.side === 'short' ? 'text-gov-red' : 'text-gov-green'}`}>
+                {pos.side === 'short' ? 'SELL' : 'BUY'}
+              </span>
+              <span className={pos.unrealized_pnl >= 0 ? 'text-gov-green' : 'text-gov-red'}>
+                {pos.unrealized_pnl >= 0 ? '+' : ''}{pos.unrealized_pnl.toFixed(0)} uPnL
+              </span>
+            </div>
+            <PositionBar sl={pos.sl} tp={pos.tp} entry={pos.entry} current={info.price} side={pos.side} />
+          </div>
+        )}
+      </div>
     </button>
   )
 })

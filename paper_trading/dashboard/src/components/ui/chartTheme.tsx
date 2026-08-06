@@ -51,12 +51,12 @@ export const chartCursor = {
 
 const defsId = 'chartGradient'
 
-export function ChartGradientDefs({ id = defsId }: { id?: string }) {
+export function ChartGradientDefs({ id = defsId, color = CHART_PRIMARY }: { id?: string; color?: string }) {
   return (
     <defs>
       <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor={CHART_PRIMARY} stopOpacity={0.2} />
-        <stop offset="100%" stopColor={CHART_PRIMARY} stopOpacity={0.01} />
+        <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+        <stop offset="100%" stopColor={color} stopOpacity={0.01} />
       </linearGradient>
     </defs>
   )

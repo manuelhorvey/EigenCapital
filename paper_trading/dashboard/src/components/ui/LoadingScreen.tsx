@@ -10,7 +10,12 @@ export default function LoadingScreen({
   subtitle = 'Waiting for paper trading data…',
 }: LoadingScreenProps) {
   return (
-    <div className="min-h-screen bg-app flex flex-col items-center justify-center gap-5 px-6 animate-fade-in">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="min-h-screen bg-app flex flex-col items-center justify-center gap-5 px-6 animate-fade-in"
+    >
       <div className="relative">
         <div className="absolute inset-0 rounded-full bg-accent-emerald/20 blur-xl animate-pulse-subtle" />
         <div className="relative w-12 h-12 rounded-xl panel flex items-center justify-center border-strong">

@@ -3,9 +3,10 @@ import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { Skeleton } from '../ui/Skeleton'
+import PanelFallback from '../ui/PanelFallback'
 
 export default function ExecutionQualityStrip() {
-  const { data: bundle, isPending } = useAttributionBundle()
+  const { data: bundle, isPending, isError, error, refetch } = useAttributionBundle()
   const data = bundle?.executionQuality
 
   if (isPending) {
@@ -19,6 +20,10 @@ export default function ExecutionQualityStrip() {
         </div>
       </Panel>
     )
+  }
+
+  if (isError) {
+    return <PanelFallback title="Execution Quality" error={error} onRetry={() => refetch()} />
   }
 
   const byAsset = data?.by_asset ?? {}

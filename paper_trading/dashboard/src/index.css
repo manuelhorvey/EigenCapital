@@ -1,9 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import '../generated/tokens.css';
 
 :root {
+  color-scheme: dark;
+  --header-height: 44px;
   --scrollbar-thumb: var(--color-border);
   --scrollbar-thumb-hover: var(--color-border-strong);
+}
+
+.light {
+  color-scheme: light;
 }
 
 /* Smooth theme transition on all color properties */
@@ -172,18 +177,18 @@
     border-radius: 6px;
     font-size: 13px;
     font-weight: 500;
-    background-color: rgba(45, 211, 191, 0.9);
-    color: #08090c;
+    background-color: rgba(255, 176, 32, 0.92);
+    color: #0a0602;
     transition: background-color 150ms ease;
     outline: none;
   }
 
   .btn-primary:hover {
-    background-color: rgba(45, 211, 191, 1);
+    background-color: rgba(255, 176, 32, 1);
   }
 
   .btn-primary:focus-visible {
-    box-shadow: 0 0 0 2px rgba(45, 211, 191, 0.5);
+    box-shadow: 0 0 0 2px rgba(255, 176, 32, 0.5);
   }
 
   .btn-primary:active {
@@ -210,7 +215,7 @@
   }
 
   .btn-ghost:focus-visible {
-    box-shadow: 0 0 0 1px rgba(45, 211, 191, 0.3);
+    box-shadow: 0 0 0 1px rgba(255, 176, 32, 0.3);
   }
 
   .signal-pill {
@@ -267,7 +272,7 @@
 
   .sort-header:focus-visible {
     color: var(--color-text-primary);
-    outline: 2px solid rgba(45, 211, 191, 0.45);
+    outline: 2px solid rgba(255, 176, 32, 0.45);
     outline-offset: -2px;
   }
 
@@ -300,7 +305,7 @@
   .input-terminal:focus {
     outline: none;
     border-color: var(--color-border-strong);
-    box-shadow: 0 0 0 1px rgba(45, 211, 191, 0.2);
+    box-shadow: 0 0 0 1px rgba(255, 176, 32, 0.2);
   }
 }
 

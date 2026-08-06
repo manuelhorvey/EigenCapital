@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { X, Activity, DollarSign, TrendingUp, Zap } from 'lucide-react'
 import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { useMonitorAlerts } from '../hooks/useMonitorAlerts'
 import { useSystemHealthModal } from '../hooks/useSystemHealthModal'
+import useFocusTrap from '../hooks/useFocusTrap'
 import HealthSnapshotCard from './monitor/HealthSnapshotCard'
 import AlertFeed from './monitor/AlertFeed'
 import GovernanceStatusGrid from './monitor/GovernanceStatusGrid'
@@ -21,7 +22,7 @@ export default function SystemHealthModal() {
   const { data: state } = useSystemSnapshot(systemSelectors.snapshot)
   const { data: health } = useSystemSnapshot(systemSelectors.health)
   const alerts = useMonitorAlerts()
-  const modalRef = useRef<HTMLDivElement>(null)
+  const modalRef = useFocusTrap()
 
   useEffect(() => {
     if (!isOpen) return
@@ -104,14 +105,15 @@ export default function SystemHealthModal() {
           </div>
           <button
             onClick={close}
-            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
+            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors focus-ring"
+            aria-label="Close system health"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
           {isPending ? (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

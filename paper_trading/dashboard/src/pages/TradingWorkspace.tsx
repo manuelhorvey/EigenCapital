@@ -1,46 +1,27 @@
 import SignalsTable from '../components/SignalsTable'
-import TradeOutcomes from '../components/TradeOutcomes'
-import TradeFeed from '../components/TradeFeed'
 import EquityChart from '../components/EquityChart'
-import ExecutionFeed from '../components/ExecutionFeed'
-import AdmissionPanel from '../components/AdmissionPanel'
-import RejectedSignalExplorer from '../components/RejectedSignalExplorer'
+import LiveSharpeCard from '../components/LiveSharpeCard'
+import PageHeader from '../components/PageHeader'
 import Section from '../components/ui/Section'
-import EntranceAnimator from '../components/ui/EntranceAnimator'
 
 export default function TradingWorkspace() {
   return (
     <div className="space-y-6 sm:space-y-8">
+      <PageHeader
+        title="Trading"
+        description="Live market snapshot: current signals per asset, the portfolio equity curve, and live performance."
+        crumbs={[{ label: 'Trading' }]}
+      />
       <Section id="signals" errorTitle="Signals">
-        <EntranceAnimator variant="fade-up">
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 sm:gap-6">
-            <div className="xl:col-span-3 min-w-0">
-              <SignalsTable />
-            </div>
-            <div className="xl:col-span-2 min-w-0">
-              <EquityChart />
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 sm:gap-6">
+          <div className="xl:col-span-3 min-w-0">
+            <SignalsTable />
           </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={30}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <AdmissionPanel />
-            <RejectedSignalExplorer />
+          <div className="xl:col-span-2 min-w-0 space-y-4">
+            <EquityChart />
+            <LiveSharpeCard />
           </div>
-        </EntranceAnimator>
-      </Section>
-      <Section id="trades" errorTitle="Trades">
-        <EntranceAnimator variant="fade-up" delay={60}>
-          <TradeOutcomes />
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={100}>
-          <TradeFeed />
-        </EntranceAnimator>
-      </Section>
-      <Section id="execution-feed" errorTitle="Execution Feed">
-        <EntranceAnimator variant="fade-up" delay={80}>
-          <ExecutionFeed />
-        </EntranceAnimator>
+        </div>
       </Section>
     </div>
   )

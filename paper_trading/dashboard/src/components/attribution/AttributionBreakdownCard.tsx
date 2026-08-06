@@ -3,9 +3,10 @@ import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { Skeleton } from '../ui/Skeleton'
+import PanelFallback from '../ui/PanelFallback'
 
 export default function AttributionBreakdownCard() {
-  const { data: bundle, isPending } = useAttributionBundle()
+  const { data: bundle, isPending, isError, error, refetch } = useAttributionBundle()
   const data = bundle?.attributionSummary
 
   if (isPending) {
@@ -17,6 +18,10 @@ export default function AttributionBreakdownCard() {
         </div>
       </Panel>
     )
+  }
+
+  if (isError) {
+    return <PanelFallback title="Attribution Breakdown" error={error} onRetry={() => refetch()} />
   }
 
   const ds = data?.overall?.domain_scores

@@ -45,9 +45,11 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-emerald/50"
+      role="switch"
+      aria-checked={light}
+      className="h-8 w-8 flex items-center justify-center rounded-md border border-default hover:border-strong hover:bg-panel transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-amber/50"
       title={light ? 'Switch to dark mode' : 'Switch to light mode'}
-      aria-label="Toggle theme"
+      aria-label="Theme mode"
     >
       {light ? (
         <Sun className="w-3 h-3 text-secondary" strokeWidth={2} />

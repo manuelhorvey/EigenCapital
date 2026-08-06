@@ -1,7 +1,8 @@
-import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ZAxis, Cell } from 'recharts'
+import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ZAxis, Legend } from 'recharts'
 import { useAttributionTrades } from '../../hooks/useAttributionTrades'
 import { useLiveAttribution } from '../../hooks/useLiveAttribution'
 import ChartContainer from '../ui/ChartContainer'
+import PanelFallback from '../ui/PanelFallback'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
 const ARCHETYPE_COLORS: Record<string, string> = {
@@ -10,11 +11,30 @@ const ARCHETYPE_COLORS: Record<string, string> = {
   MOMENTUM: 'var(--color-accent-purple)',
   VOL_EXPANSION: 'var(--color-gov-yellow)',
   UNKNOWN: 'var(--color-text-muted)',
+  LIVE: 'var(--color-accent-purple)',
 }
 
+// Distinct marker shapes per archetype so the chart remains readable for
+// colour-blind users — never encode information by colour alone.
+const ARCHETYPE_SHAPES: Record<string, 'circle' | 'cross' | 'diamond' | 'square' | 'star' | 'triangle' | 'wye'> = {
+  BREAKOUT: 'circle',
+  MEAN_REVERSION: 'triangle',
+  MOMENTUM: 'square',
+  VOL_EXPANSION: 'cross',
+  UNKNOWN: 'diamond',
+  LIVE: 'star',
+}
+
+const ARCHETYPE_ORDER = ['BREAKOUT', 'MEAN_REVERSION', 'MOMENTUM', 'VOL_EXPANSION', 'UNKNOWN', 'LIVE'] as const
+
 export default function MaeMfeScatter() {
-  const { data, isPending } = useAttributionTrades(200)
-  const { data: liveData } = useLiveAttribution()
+  const { data, isPending, isError, error, refetch } = useAttributionTrades(200)
+  const live = useLiveAttribution()
+  const liveError = live.isError
+
+  if (isError || liveError) {
+    return <PanelFallback title="MAE / MFE Scatter" error={error ?? live.error ?? undefined} onRetry={() => { refetch(); live.refetch() }} />
+  }
 
   const chartData = (data ?? [])
     .filter(t => t.exit_mae > 0 || t.exit_mfe > 0)
@@ -28,7 +48,7 @@ export default function MaeMfeScatter() {
       isLive: false as const,
     }))
 
-  const livePoints = (liveData ?? [])
+  const livePoints = (live.data ?? [])
     .filter(p => p.running_mae != null && p.running_mfe != null)
     .map(p => ({
       mae: p.running_mae!,
@@ -55,7 +75,6 @@ export default function MaeMfeScatter() {
       emptyMessage="No closed trades yet — appears on exit"
       chartLabel={chartLabel}
     >
-      <p className="sr-only">{chartLabel}</p>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis
@@ -81,15 +100,29 @@ export default function MaeMfeScatter() {
             contentStyle={tooltipStyle}
             formatter={(value, name) => [typeof value === 'number' ? value.toFixed(2) : String(value), name]}
           />
-          <Scatter data={allData}>
-            {allData.map((point, i) => (
-              <Cell
-                key={point.trade_id || i}
-                fill={point.isLive ? 'var(--color-accent-purple)' : (ARCHETYPE_COLORS[point.archetype] ?? 'var(--color-text-muted)')}
-                fillOpacity={point.isLive ? 0.4 : 0.7}
-              />
-            ))}
-          </Scatter>
+          <Legend
+            iconType="circle"
+            iconSize={6}
+            wrapperStyle={{ fontSize: 10, color: 'var(--color-text-tertiary)' }}
+            formatter={(value) => <span style={{ color: 'var(--color-text-tertiary)' }}>{value}</span>}
+          />
+          {ARCHETYPE_ORDER.map((arch) => {
+              const points = allData.filter(p => (p.isLive ? 'LIVE' : p.archetype ?? 'UNKNOWN') === arch)
+              if (points.length === 0) return null
+              return (
+                <Scatter
+                  key={arch}
+                  name={arch}
+                  data={points}
+                  shape={ARCHETYPE_SHAPES[arch] ?? 'circle'}
+                  fill={ARCHETYPE_COLORS[arch] ?? 'var(--color-text-muted)'}
+                  stroke={ARCHETYPE_COLORS[arch] ?? 'var(--color-text-muted)'}
+                  fillOpacity={arch === 'LIVE' ? 0.4 : 0.7}
+                  strokeOpacity={arch === 'LIVE' ? 0.5 : 1}
+                  isAnimationActive={false}
+                />
+              )
+          })}
         </ScatterChart>
       </ResponsiveContainer>
     </ChartContainer>

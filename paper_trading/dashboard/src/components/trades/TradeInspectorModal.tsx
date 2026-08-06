@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Clock, BarChart3, GitCompare, Shield } from 'lucide-react'
 import { useTradeInspector } from '../../hooks/useTradeInspector'
 import useFocusTrap from '../../hooks/useFocusTrap'
@@ -6,7 +6,9 @@ import TradeTimeline from './TradeTimeline'
 import TradeGovernanceAudit from './TradeGovernanceAudit'
 import TradeCounterfactual from './TradeCounterfactual'
 import { computeDomainScores } from '../attribution/domainScores'
+import ScoreBar from '../ui/ScoreBar'
 import { Skeleton } from '../ui/Skeleton'
+import EmptyState from '../ui/EmptyState'
 
 interface TradeInspectorModalProps {
   asset: string
@@ -24,21 +26,9 @@ const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
   { id: 'governance', label: 'Governance', icon: Shield },
 ]
 
-function ScoreBar({ label, score, color }: { label: string; score: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-2xs text-tertiary w-20 shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-default rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${score * 100}%`, backgroundColor: color }} />
-      </div>
-      <span className="text-2xs font-mono text-secondary w-8 text-right">{(score * 100).toFixed(0)}%</span>
-    </div>
-  )
-}
-
 export default function TradeInspectorModal({ asset, entryDate, exitDate, onClose }: TradeInspectorModalProps) {
   const [tab, setTab] = useState<TabId>('timeline')
-  const tradeData = useTradeInspector(asset, entryDate, exitDate)
+  const { data: tradeData, isLoading } = useTradeInspector(asset, entryDate, exitDate)
   const modalRef = useFocusTrap()
 
   useEffect(() => {
@@ -73,20 +63,24 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors"
+            className="p-1.5 rounded-md hover:bg-panel border border-transparent hover:border-default transition-colors focus-ring"
+            aria-label="Close trade inspector"
           >
             <X className="w-3.5 h-3.5 text-tertiary" strokeWidth={2} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 px-3 border-b border-default shrink-0">
+        <div className="flex items-center gap-0 px-3 border-b border-default shrink-0" role="tablist" aria-label="Trade sections">
           {TABS.map(t => {
             const Icon = t.icon
             const isActive = tab === t.id
             return (
               <button
                 key={t.id}
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`trade-${t.id}-panel`}
                 onClick={() => setTab(t.id)}
                 className={`flex items-center gap-1.5 px-3 py-2 text-2xs font-medium border-b-2 transition-all ${
                   isActive
@@ -102,13 +96,19 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {!attribution ? (
-            <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 overscroll-contain">
+          {isLoading ? (
+            <div className="space-y-3" aria-busy="true" aria-label="Loading trade details">
               <Skeleton className="h-20 rounded-lg" />
               <Skeleton className="h-32 rounded-lg" />
               <Skeleton className="h-24 rounded-lg" />
             </div>
+          ) : !attribution ? (
+            <EmptyState
+              message="Trade record not found"
+              hint="The trade may have aged out of the local dataset, or the identifier no longer matches."
+              compact
+            />
           ) : tab === 'timeline' ? (
             <TradeTimeline data={attribution} />
           ) : tab === 'attribution' ? (

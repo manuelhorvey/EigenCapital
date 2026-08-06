@@ -4,8 +4,8 @@ import { useSystemSnapshot } from './useSystemSnapshot'
 const ALERTS_CHANNEL = 'quorrin-alerts'
 
 let _channel: BroadcastChannel | null = null
-function getChannel(): BroadcastChannel {
-  if (typeof BroadcastChannel === 'undefined') return null as never
+function getChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null
   if (!_channel) _channel = new BroadcastChannel(ALERTS_CHANNEL)
   return _channel
 }

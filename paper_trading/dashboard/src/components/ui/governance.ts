@@ -85,6 +85,26 @@ export function scoreToState(score: number): GovernanceState {
   return 'RED'
 }
 
+/** Higher-is-better rate (e.g. confidence, fill rate): GREEN at `mid`, YELLOW at `low`. */
+export function higherBetterRateToState(value: number, mid: number, low: number): GovernanceState {
+  if (value >= mid) return 'GREEN'
+  if (value >= low) return 'YELLOW'
+  return 'RED'
+}
+
+/** Lower-is-better rate (e.g. loss / flip / slippage rate): GREEN at `mid`, YELLOW at `high`. */
+export function lowerBetterRateToState(value: number, mid: number, high: number): GovernanceState {
+  if (value <= mid) return 'GREEN'
+  if (value <= high) return 'YELLOW'
+  return 'RED'
+}
+
+/** Fill (var(--color-gov-*)) used by inline SVGs such as Gauge. */
+export function scoreFillColor(score: number): string {
+  const state = scoreToState(score)
+  return state === 'GREEN' ? 'var(--color-gov-green)' : state === 'YELLOW' ? 'var(--color-gov-yellow)' : 'var(--color-gov-red)'
+}
+
 export function confToState(confidence: number): GovernanceState {
   const pct = Math.min(100, Math.max(0, confidence <= 1 ? confidence * 100 : confidence))
   if (pct >= 60) return 'GREEN'

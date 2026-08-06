@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, Shield, Sliders, Activity, BarChart3, ChevronDown, ChevronRight, List } from 'lucide-react'
 import type { AssetState } from '../types/portfolio'
 import { governanceText } from './ui/governance'
+import useFocusTrap from '../hooks/useFocusTrap'
 import WalTimeline from './WalTimeline'
 
 type TabId = 'overview' | 'governance' | 'sizing' | 'diagnostics' | 'wal'
@@ -59,9 +60,24 @@ const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
 
 export default function AssetDetailPanel({ asset, name, onClose }: Props) {
   const [tab, setTab] = useState<TabId>('overview')
+  const panelRef = useFocusTrap()
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-[420px] bg-app border-l border-default shadow-2xl flex flex-col">
+    <div
+      ref={panelRef}
+      className="fixed inset-y-0 right-0 z-40 w-[420px] max-w-full bg-app border-l border-default shadow-2xl flex flex-col"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${name} detail`}
+    >
       <div className="flex items-center justify-between px-4 py-3 border-b border-default">
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm text-primary">{name}</span>
@@ -103,7 +119,7 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
         {tab === 'overview' && <OverviewTab asset={asset} />}
         {tab === 'governance' && <GovernanceTab asset={asset} />}
         {tab === 'sizing' && <SizingTab asset={asset} />}

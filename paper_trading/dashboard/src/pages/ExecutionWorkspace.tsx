@@ -5,40 +5,39 @@ import TradeExecutionTable from '../components/execution/TradeExecutionTable'
 import AttributionBreakdownCard from '../components/attribution/AttributionBreakdownCard'
 import PnLWaterfall from '../components/attribution/PnLWaterfall'
 import MaeMfeScatter from '../components/attribution/MaeMfeScatter'
+import OptimizerRecommendations from '../components/OptimizerRecommendations'
+import PageHeader from '../components/PageHeader'
 import Section from '../components/ui/Section'
-import EntranceAnimator from '../components/ui/EntranceAnimator'
 
 export default function ExecutionWorkspace() {
   return (
     <div className="space-y-6 sm:space-y-8">
+      <PageHeader
+        title="Execution"
+        description="Fill quality, slippage distribution, trade attribution, and TP/SL optimizer drift across the portfolio."
+        crumbs={[{ label: 'Trading' }, { label: 'Execution' }]}
+      />
+      <Section id="optimization" errorTitle="Optimization Drift">
+        <OptimizerRecommendations />
+      </Section>
       <Section id="execution-quality" errorTitle="Execution Quality" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up">
-          <ExecutionQualityStrip />
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={60}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
-            <div className="lg:col-span-2 min-w-0">
-              <SlippageHistogram />
-            </div>
-            <div className="lg:col-span-1 min-w-0">
-              <FillQualityGauge />
-            </div>
+        <ExecutionQualityStrip />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+          <div className="lg:col-span-2 min-w-0">
+            <SlippageHistogram />
           </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={100}>
-          <TradeExecutionTable />
-        </EntranceAnimator>
+          <div className="lg:col-span-1 min-w-0">
+            <FillQualityGauge />
+          </div>
+        </div>
+        <TradeExecutionTable />
       </Section>
       <Section id="trade-attribution" errorTitle="Trade Attribution" className="space-y-5 sm:space-y-6">
-        <EntranceAnimator variant="fade-up">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <AttributionBreakdownCard />
-            <PnLWaterfall />
-          </div>
-        </EntranceAnimator>
-        <EntranceAnimator variant="fade-up" delay={80}>
-          <MaeMfeScatter />
-        </EntranceAnimator>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          <AttributionBreakdownCard />
+          <PnLWaterfall />
+        </div>
+        <MaeMfeScatter />
       </Section>
     </div>
   )

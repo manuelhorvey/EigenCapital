@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAttributionBundle } from '../../hooks/useAttributionBundle'
 import ChartContainer from '../ui/ChartContainer'
+import PanelFallback from '../ui/PanelFallback'
 import { axisTick, tooltipStyle } from '../ui/chartTheme'
 
 const COLORS = {
@@ -11,8 +12,12 @@ const COLORS = {
 }
 
 export default function PnLWaterfall() {
-  const { data: bundle, isPending } = useAttributionBundle()
+  const { data: bundle, isPending, isError, error, refetch } = useAttributionBundle()
   const data = bundle?.attributionWaterfall
+
+  if (isError) {
+    return <PanelFallback title="PnL Decomposition" error={error} onRetry={() => refetch()} />
+  }
 
   const chartData = data ? [
     { name: 'Prediction', value: data.prediction_pnl, fill: COLORS.prediction_pnl },
@@ -35,7 +40,6 @@ export default function PnLWaterfall() {
       emptyMessage="No closed trades yet — appears on exit"
       chartLabel={chartLabel}
     >
-      <p className="sr-only">{chartLabel}</p>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
           <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
@@ -44,7 +48,7 @@ export default function PnLWaterfall() {
             contentStyle={tooltipStyle}
             formatter={(value) => [`$${typeof value === 'number' ? value.toFixed(2) : value}`, '']}
           />
-          <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+          <Bar dataKey="value" radius={[2, 2, 0, 0]} isAnimationActive={false}>
             {chartData.map((entry, i) => (
               <Cell key={i} fill={entry.fill} />
             ))}

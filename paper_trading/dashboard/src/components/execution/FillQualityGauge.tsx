@@ -4,9 +4,10 @@ import SectionHeader from '../ui/SectionHeader'
 import { Skeleton } from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import Gauge from '../ui/Gauge'
+import PanelFallback from '../ui/PanelFallback'
 
 export default function FillQualityGauge() {
-  const { data: bundle, isPending } = useAttributionBundle()
+  const { data: bundle, isPending, isError, error, refetch } = useAttributionBundle()
   const data = bundle?.executionQuality
 
   if (isPending) {
@@ -19,6 +20,10 @@ export default function FillQualityGauge() {
         </div>
       </Panel>
     )
+  }
+
+  if (isError) {
+    return <PanelFallback title="Fill Quality" error={error} onRetry={() => refetch()} />
   }
 
   const byAsset = data?.by_asset ?? {}

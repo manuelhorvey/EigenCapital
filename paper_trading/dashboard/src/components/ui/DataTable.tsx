@@ -205,9 +205,17 @@ export default function DataTable<T>({
               <tr
                 key={keyExtractor(row)}
                 onClick={() => onRowClick?.(row)}
+                onKeyDown={onRowClick ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    onRowClick(row)
+                  }
+                } : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                aria-label={onRowClick ? 'Select row' : undefined}
                 className={[
                   'border-b border-default/30 table-row-hover',
-                  onRowClick ? 'cursor-pointer' : '',
+                  onRowClick ? 'cursor-pointer focus-ring' : '',
                   i % 2 === 1 ? 'bg-panel/30' : '',
                   rowClassName?.(row) ?? '',
                 ].filter(Boolean).join(' ')}

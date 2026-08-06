@@ -16,11 +16,20 @@ export function useAttributionBundle() {
     queryKey: QUERY_KEYS.attribution,
     queryFn: async (): Promise<AttributionBundleData> => {
       const [quality, slippage, summary, waterfall] = await Promise.allSettled([
-        fetchApi<ExecutionQualityResponse>('/execution/quality.json').catch(() => null),
-        fetchApi<SlippageDistribution>('/execution/slippage.json').catch(() => null),
-        fetchApi<AttributionSummary>('/attribution/summary.json').catch(() => null),
-        fetchApi<AttributionWaterfall>('/attribution/waterfall.json').catch(() => null),
+        fetchApi<ExecutionQualityResponse>('/execution/quality.json'),
+        fetchApi<SlippageDistribution>('/execution/slippage.json'),
+        fetchApi<AttributionSummary>('/attribution/summary.json'),
+        fetchApi<AttributionWaterfall>('/attribution/waterfall.json'),
       ])
+
+      const allFailed = [quality, slippage, summary, waterfall].every(r => r.status === 'rejected')
+      if (allFailed) {
+        const reasons = [quality, slippage, summary, waterfall]
+          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          .map(r => (r.reason as Error)?.message ?? 'unknown')
+          .join('; ')
+        throw new Error(`Execution endpoints unavailable (${reasons})`)
+      }
 
       return {
         executionQuality: quality.status === 'fulfilled' ? quality.value : null,

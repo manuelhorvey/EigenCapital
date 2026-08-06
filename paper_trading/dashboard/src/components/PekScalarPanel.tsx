@@ -3,7 +3,6 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import Panel from './ui/Panel'
 import StatCard from './ui/StatCard'
-import { Skeleton } from './ui/Skeleton'
 import EmptyState from './ui/EmptyState'
 
 function scalarColor(v: number, threshold = 0.7): string {
@@ -59,7 +58,7 @@ export default function PekScalarPanel() {
     if (!ps) return null
     return [
       { label: 'Leverage Remaining', value: ps.leverage_remaining.toFixed(2), sub: `max ${ps.max_leverage}`, accent: scalarColor(ps.leverage_remaining, 0.5) },
-      { label: 'Concurrent Remaining', value: String(ps.concurrent_remaining), sub: `max ${ps.max_concurrent}`, accent: scalarColor(ps.concurrent_remaining / ps.max_concurrent) },
+      { label: 'Concurrent Remaining', value: String(ps.concurrent_remaining), sub: `max ${ps.max_concurrent}`, accent: scalarColor(ps.max_concurrent > 0 ? ps.concurrent_remaining / ps.max_concurrent : 1) },
       { label: 'Gross Exposure', value: `${(ps.gross_exposure * 100).toFixed(1)}%`, accent: scalarColor(1 - ps.gross_exposure / 3, 0.5) },
       { label: 'Net Exposure', value: `${(ps.net_exposure * 100).toFixed(1)}%`, accent: scalarColor(1 - Math.abs(ps.net_exposure), 0.7) },
     ]

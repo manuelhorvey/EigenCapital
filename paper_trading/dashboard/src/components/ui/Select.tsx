@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 interface SelectOption {
@@ -11,6 +12,8 @@ interface SelectProps {
   onChange: (value: string) => void
   placeholder?: string
   size?: 'sm' | 'md'
+  /** Visible label, rendered as a sr-only control label for screen readers. */
+  label?: string
   className?: string
 }
 
@@ -25,14 +28,19 @@ export default function Select({
   onChange,
   placeholder = 'All',
   size = 'sm',
+  label,
   className = '',
 }: SelectProps) {
+  const id = `select-${useId()}`
   return (
     <div className={`relative ${className}`}>
+      {label && <label htmlFor={id} className="sr-only">{label}</label>}
       <select
+        id={label ? id : undefined}
+        aria-label={label ? undefined : placeholder || 'Select option'}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className={`appearance-none w-full bg-surface border border-default rounded text-primary font-medium transition-colors duration-150 hover:border-strong focus:outline-none focus:border-strong focus:shadow-[0_0_0_1px_rgba(45,211,191,0.2)] ${sizeStyles[size]}`}
+        className={`appearance-none w-full bg-surface border border-default rounded text-primary font-medium transition-colors duration-150 hover:border-strong focus:outline-none focus:border-strong focus:shadow-[0_0_0_1px_rgba(255,176,32,0.25)] ${sizeStyles[size]}`}
       >
         <option value="">{placeholder}</option>
         {options.map(opt => (

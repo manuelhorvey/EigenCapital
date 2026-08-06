@@ -46,7 +46,6 @@ export default function GovernanceRadar() {
         {/* Radar Chart */}
         <div className="lg:col-span-2">
           <div className="h-[260px]" role="img" aria-label={chartLabel}>
-            <p className="sr-only">{chartLabel}</p>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="80%">
                 <PolarGrid stroke="var(--color-border)" strokeWidth={0.75} />

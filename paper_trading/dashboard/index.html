@@ -5,7 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quorrin — Paper Trading Dashboard</title>
     <meta name="description" content="Real-time quantitative trading dashboard" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#08090c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f6f5" media="(prefers-color-scheme: light)" />
+
+    <!-- Fonts: preconnect + stylesheet (avoids render-blocking CSS @import) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+
+    <!-- Apply stored theme before first paint to prevent light/dark flash -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('qf-theme')
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+          if (theme === 'light') document.documentElement.classList.add('light')
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body class="bg-app text-primary font-sans antialiased">
     <div id="root"></div>

@@ -8,7 +8,12 @@ interface StatCardProps {
   value: ReactNode
   sub?: ReactNode
   variant?: StatCardVariant
+  /** CSS color used for accent line + value (default variant only) */
   accent?: string
+  /** Tailwind color classes for the value (overrides accent) */
+  valueClassName?: string
+  /** Leading icon for hero cards (default variant) */
+  icon?: ReactNode
   loading?: boolean
   size?: 'sm' | 'md'
   className?: string
@@ -34,13 +39,21 @@ function LoadingSkeleton({ variant }: { variant: StatCardVariant }) {
   )
 }
 
+const valueSize = {
+  sm: 'text-sm sm:text-base',
+  md: 'text-xl sm:text-2xl',
+} as const
+
 export default function StatCard({
   label,
   value,
   sub,
   variant = 'default',
   accent,
+  valueClassName,
+  icon,
   loading = false,
+  size = 'md',
   className = '',
   animate = false,
 }: StatCardProps) {
@@ -58,8 +71,9 @@ export default function StatCard({
         <div className="flex items-center justify-between gap-2 mb-0.5">
           <span className="text-[10px] text-tertiary font-medium truncate tracking-wider uppercase">{label}</span>
         </div>
-        <div className={`text-sm font-bold tabular-nums tracking-tight transition-colors duration-200 ${accent ? '' : 'text-secondary'}`}
-          style={accent ? { color: accent } : undefined}
+        <div
+          className={`text-sm font-bold tabular-nums tracking-tight transition-colors duration-200 ${valueClassName ?? (accent ? '' : 'text-secondary')}`}
+          style={accent && !valueClassName ? { color: accent } : undefined}
         >
           {value}
         </div>
@@ -72,8 +86,9 @@ export default function StatCard({
       <div className={`bg-panel/60 border border-default rounded-lg p-3 transition-all duration-200 hover:border-strong group ${animate ? 'animate-fade-in' : ''} ${className}`}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider">{label}</span>
-          <div className={`text-sm font-semibold tracking-tight font-mono tabular-nums transition-colors ${accent ? '' : 'text-primary'}`}
-            style={accent ? { color: accent } : undefined}
+          <div
+            className={`text-sm font-semibold tracking-tight font-mono tabular-nums transition-colors ${valueClassName ?? (accent ? '' : 'text-primary')}`}
+            style={accent && !valueClassName ? { color: accent } : undefined}
           >
             {value}
           </div>
@@ -110,22 +125,52 @@ export default function StatCard({
         />
       )}
 
-      <span className={[
-        'text-[11px] font-medium uppercase tracking-wider transition-colors duration-200',
-        'group-hover:text-secondary',
-        accent ? 'text-tertiary' : 'text-tertiary',
-      ].join(' ')}>
-        {label}
-      </span>
-      <div className={[
-        'text-xl sm:text-2xl font-semibold tracking-tight font-mono tabular-nums mt-1 leading-tight',
-        'transition-colors duration-200',
-        accent ? '' : 'text-primary',
-      ].join(' ')}
-        style={accent ? { color: accent } : undefined}
-      >
-        {value}
-      </div>
+      {icon != null ? (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-panel flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+            {icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className={[
+              'text-[11px] font-medium uppercase tracking-wider transition-colors duration-200 block truncate',
+              'group-hover:text-secondary',
+              'text-tertiary',
+            ].join(' ')}>
+              {label}
+            </span>
+            <div
+              className={[
+                `${valueSize[size]} font-semibold tracking-tight font-mono tabular-nums mt-0.5 leading-tight`,
+                'transition-colors duration-200',
+                valueClassName ?? (accent ? '' : 'text-primary'),
+              ].join(' ')}
+              style={accent && !valueClassName ? { color: accent } : undefined}
+            >
+              {value}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <span className={[
+            'text-[11px] font-medium uppercase tracking-wider transition-colors duration-200',
+            'group-hover:text-secondary',
+            'text-tertiary',
+          ].join(' ')}>
+            {label}
+          </span>
+          <div
+            className={[
+              `${valueSize[size]} font-semibold tracking-tight font-mono tabular-nums mt-1 leading-tight`,
+              'transition-colors duration-200',
+              valueClassName ?? (accent ? '' : 'text-primary'),
+            ].join(' ')}
+            style={accent && !valueClassName ? { color: accent } : undefined}
+          >
+            {value}
+          </div>
+        </>
+      )}
       {sub != null && (
         <p className="text-[11px] text-tertiary font-mono tabular-nums mt-1 opacity-80 group-hover:opacity-100 transition-opacity duration-200">{sub}</p>
       )}

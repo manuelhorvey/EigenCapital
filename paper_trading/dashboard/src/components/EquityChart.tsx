@@ -23,27 +23,49 @@ function formatValue(v: number): string {
   return v.toFixed(0)
 }
 
-export default function EquityChart() {
+type RangeKey = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | 'all'
+
+const RANGE_PRESETS: { key: RangeKey; label: string; title: string; days: number | null }[] = [
+  { key: '1w', label: '1W', title: '1 week', days: 7 },
+  { key: '1m', label: '1M', title: '1 month', days: 30 },
+  { key: '3m', label: '3M', title: '3 months', days: 90 },
+  { key: '6m', label: '6M', title: '6 months', days: 180 },
+  { key: 'all', label: 'All', title: 'All time', days: null },
+]
+
+const COMPACT_PRESETS: { key: RangeKey; label: string; title: string; days: number | null }[] = [
+  { key: '1d', label: 'D', title: 'Daily', days: 1 },
+  { key: '1w', label: 'W', title: 'Weekly', days: 7 },
+  { key: '1m', label: 'M', title: 'Monthly', days: 30 },
+  { key: '1y', label: 'Y', title: 'Yearly', days: 365 },
+]
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export default function EquityChart({ compact = false }: { compact?: boolean }) {
   const { data, isPending } = useEquityHistory()
   const { data: snapshot } = useSystemSnapshot(systemSelectors.snapshot)
   const state = snapshot
   const [selected, setSelected] = useState<Set<string>>(new Set(['portfolio']))
+  const [range, setRange] = useState<RangeKey>(() => (compact ? '1m' : 'all'))
 
-  const MAX_POINTS = 200
-
-  const chartData = useMemo(
-    () =>
-      (data ?? [])
-        .slice(-MAX_POINTS)
-        .filter(d => d.portfolio_value != null && !isNaN(d.portfolio_value))
-        .map(d => ({
-          t: d.timestamp?.split('T')[0] ?? '',
-          portfolio: d.portfolio_value,
-          drawdown: d.drawdown,
-          ...d.assets,
-        })),
-    [data],
-  )
+  const chartData = useMemo(() => {
+    const raw = (data ?? [])
+      .filter(d => d.portfolio_value != null && !isNaN(d.portfolio_value))
+      .map(d => ({
+        t: d.timestamp?.split('T')[0] ?? '',
+        ts: d.timestamp ? new Date(d.timestamp).getTime() : 0,
+        portfolio: d.portfolio_value,
+        drawdown: d.drawdown,
+        ...d.assets,
+      }))
+    const preset = (compact ? COMPACT_PRESETS : RANGE_PRESETS).find(r => r.key === range)
+    if (!preset || preset.days == null) return raw
+    const cutoff = Date.now() - preset.days * DAY_MS
+    const filtered = raw.filter(d => d.ts >= cutoff)
+    // Keep at least one point so the chart never renders empty for a valid range
+    return filtered.length > 0 ? filtered : raw.slice(-1)
+  }, [data, range, compact])
 
   const assetNames = useMemo(() => {
     if (!data || data.length === 0) return []
@@ -55,6 +77,11 @@ export default function EquityChart() {
   const pctChange = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0
   const startingCapital = data?.[0]?.portfolio_value ?? state?.portfolio?.capital ?? firstVal
   const latestDrawdown = chartData.length > 0 ? chartData[chartData.length - 1].drawdown : null
+
+  // State-aware colour: green above baseline, red below (profit vs drawdown).
+  const aboveBase = lastVal >= startingCapital
+  const curveColor = aboveBase ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
+  const equityGradId = 'equityCurveGradient'
 
   const minPoint = useMemo(() => {
     if (chartData.length === 0) return null
@@ -90,6 +117,29 @@ export default function EquityChart() {
       return next
     })
   }
+
+  const presets = compact ? COMPACT_PRESETS : RANGE_PRESETS
+
+  const rangeSelector = (
+    <div className="flex items-center gap-0.5 rounded-md border border-default bg-surface p-0.5" role="group" aria-label="Time range">
+      {presets.map(r => (
+        <button
+          key={r.key}
+          type="button"
+          onClick={() => setRange(r.key)}
+          title={r.title}
+          aria-pressed={range === r.key}
+          className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold transition-all focus-ring ${
+            range === r.key
+              ? 'bg-accent-amber/15 text-accent-amber'
+              : 'text-tertiary hover:text-secondary'
+          }`}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  )
 
   const legend = (
     <div className="flex flex-wrap gap-1.5 mb-3 -mt-1">
@@ -147,11 +197,24 @@ export default function EquityChart() {
           <span className="text-2xs text-tertiary font-mono tabular-nums">{chartData.length} pts</span>
         </div>
       }
-      toolbar={chartData.length > 0 ? legend : undefined}
+      toolbar={
+        compact
+          ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2 -mt-1">
+              {chartData.length > 0 && rangeSelector}
+            </div>
+          )
+          : (
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 -mt-1">
+              {chartData.length > 0 ? legend : <span />}
+              {chartData.length > 0 && rangeSelector}
+            </div>
+          )
+      }
       isPending={isPending}
       isEmpty={chartData.length === 0}
       emptyMessage="Waiting for equity history…"
-      height="h-56 sm:h-64"
+      height={compact ? 'h-36' : 'h-56 sm:h-64'}
       chartLabel={`Equity curve with ${chartData.length} points; visible portfolio change ${pctChange.toFixed(2)} percent`}
     >
       <div className="relative h-full w-full">
@@ -161,21 +224,22 @@ export default function EquityChart() {
         </p>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={chartMargin}>
-            <ChartGradientDefs />
+            <ChartGradientDefs id={equityGradId} color={curveColor} />
             <CartesianGrid {...cartesianGridProps} />
             <XAxis
               dataKey="t"
-              tick={axisTick}
+              tick={compact ? false : axisTick}
+              height={compact ? 4 : 30}
               interval="preserveStartEnd"
               axisLine={{ stroke: 'var(--color-border)' }}
               tickLine={false}
             />
             <YAxis
-              tick={axisTick}
+              tick={compact ? false : axisTick}
               domain={['auto', 'auto']}
               axisLine={false}
               tickLine={false}
-              width={48}
+              width={compact ? 4 : 48}
               tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
             />
             <Tooltip
@@ -220,14 +284,14 @@ export default function EquityChart() {
               <Area
                 type="monotone"
                 dataKey="portfolio"
-                stroke={CHART_PRIMARY}
-                fill={getGradientFill()}
+                stroke={curveColor}
+                fill={getGradientFill(equityGradId)}
                 fillOpacity={1}
                 strokeWidth={2}
                 name="Portfolio"
                 dot={false}
                 isAnimationActive={false}
-                activeDot={{ stroke: CHART_PRIMARY, strokeWidth: 2, r: 4, fill: 'var(--color-card)' }}
+                activeDot={{ stroke: curveColor, strokeWidth: 2, r: 4, fill: 'var(--color-card)' }}
               />
             )}
             {assetNames.map((a, i) =>

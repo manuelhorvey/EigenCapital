@@ -1,26 +1,32 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useAttributionTrades } from '../../hooks/useAttributionTrades'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import { TableSkeleton } from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
+import PanelFallback from '../ui/PanelFallback'
 import TradeDetailPanel from '../attribution/TradeDetailPanel'
 import Select from '../ui/Select'
 import Badge, { signalToBadge, reasonToBadge } from '../ui/Badge'
 
 export default function TradeExecutionTable() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const { data: trades, isPending } = useAttributionTrades(25)
   const [archetypeFilter, setArchetypeFilter] = useState('')
+  // Server-side filter so the archetype selection is not scoped to the first N rows.
+  const optionsQuery = useAttributionTrades(200)
+  const { data: trades, isPending, isError, error, refetch } = useAttributionTrades(
+    100,
+    0,
+    archetypeFilter ? { archetype: archetypeFilter } : undefined,
+  )
+  const filtered = trades ?? []
+  const loading = isPending && (archetypeFilter === '' ? optionsQuery.isPending : true)
 
-  const filtered = archetypeFilter
-    ? (trades ?? []).filter(t => t.pred_archetype_at_entry === archetypeFilter)
-    : (trades ?? [])
-
-  if (isPending) return <TableSkeleton rows={6} />
+  if (isError) return <PanelFallback title="Trade Execution Detail" error={error} onRetry={() => refetch()} />
+  if (loading) return <TableSkeleton rows={6} />
   if (!trades || trades.length === 0) return <Panel><EmptyState message="No attribution data yet" compact /></Panel>
 
-  const archetypes = [...new Set(trades.map(t => t.pred_archetype_at_entry))]
+  const archetypes = [...new Set((optionsQuery.data ?? trades).map(t => t.pred_archetype_at_entry))]
 
   // ── Mobile card rendering ──
   const MobileCards = (
@@ -96,28 +102,36 @@ export default function TradeExecutionTable() {
       <table className="w-full text-xs min-w-[720px]">
         <thead>
           <tr className="border-b border-default">
-            <th className="table-header text-left py-2 pr-2">Asset</th>
-            <th className="table-header text-left py-2 pr-2">Archetype</th>
-            <th className="table-header text-right py-2 pr-2">R</th>
-            <th className="table-header text-right py-2 pr-2">Slip (E)</th>
-            <th className="table-header text-right py-2 pr-2">Slip (X)</th>
-            <th className="table-header text-right py-2 pr-2">Fill%</th>
-            <th className="table-header text-right py-2 pr-2">Latency</th>
-            <th className="table-header text-right py-2 pr-2">MAE</th>
-            <th className="table-header text-right py-2 pr-2">MFE</th>
-            <th className="table-header text-right py-2">Exit</th>
+            <th scope="col" className="table-header text-left py-2 pr-2">Asset</th>
+            <th scope="col" className="table-header text-left py-2 pr-2">Archetype</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">R</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">Slip (E)</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">Slip (X)</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">Fill%</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">Latency</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">MAE</th>
+            <th scope="col" className="table-header text-right py-2 pr-2">MFE</th>
+            <th scope="col" className="table-header text-right py-2">Exit</th>
           </tr>
         </thead>
         <tbody>
           {filtered.map(t => {
             const selected = selectedId === `${t.trade_id ?? t.asset}_${t.exit_date}`
             const { variant: archVariant } = signalToBadge(t.pred_archetype_at_entry)
+            const toggle = () => setSelectedId(selected ? null : `${t.trade_id ?? t.asset}_${t.exit_date}`)
+            const key = `${t.trade_id ?? t.asset}_${t.exit_date}`
             return (
-              <>
+              <Fragment key={key}>
                 <tr
-                  key={`${t.trade_id ?? t.asset}_${t.exit_date}`}
-                  onClick={() => setSelectedId(selected ? null : `${t.trade_id ?? t.asset}_${t.exit_date}`)}
-                  className={`border-b border-default/40 table-row-hover cursor-pointer ${selected ? 'bg-panel/40' : ''}`}
+                  onClick={toggle}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-expanded={selected}
+                  aria-label={`${t.asset} ${t.pred_archetype_at_entry} trade, R ${t.exit_realized_r.toFixed(2)}`}
+                  className={`border-b border-default/40 table-row-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-amber/40 ${selected ? 'bg-panel/40' : ''}`}
                 >
                   <td className="py-2 pr-2 font-medium text-primary font-mono">{t.asset}</td>
                   <td className="py-2 pr-2">
@@ -149,13 +163,13 @@ export default function TradeExecutionTable() {
                   </td>
                 </tr>
                 {selected && (
-                  <tr key={`detail-${t.trade_id}`}>
+                  <tr>
                     <td colSpan={10} className="p-0">
                       <TradeDetailPanel trade={t} onClose={() => setSelectedId(null)} />
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             )
           })}
         </tbody>

@@ -6,10 +6,10 @@ import StatCard from './ui/StatCard'
 import EmptyState from './ui/EmptyState'
 
 function velocityColor(v: number): string {
+  // PnL/vol velocity is signed: negative velocity is a deterioration, positive is an improvement.
   const abs = Math.abs(v)
-  if (abs < 0.001) return 'var(--color-gov-green)'
-  if (abs < 0.005) return 'var(--color-gov-yellow)'
-  return 'var(--color-gov-red)'
+  if (abs < 0.001) return 'var(--color-gov-yellow)'
+  return v >= 0 ? 'var(--color-gov-green)' : 'var(--color-gov-red)'
 }
 
 function degradationColor(v: number): string {

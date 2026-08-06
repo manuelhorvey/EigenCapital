@@ -85,7 +85,14 @@ class CalibrationRegistry:
         """Load all calibrator JSON files from a directory. Returns count loaded."""
         directory = Path(directory)
         if not directory.exists():
-            logger.warning("Calibration directory %s does not exist", directory)
+            # A missing directory is the normal state when P1 calibration has
+            # not been trained yet (see scripts/training/train_calibration.py),
+            # so this is informational, not a warning.
+            logger.info(
+                "Calibration directory %s does not exist — no calibrators to load "
+                "(run scripts/training/train_calibration.py to train P1 calibration)",
+                directory,
+            )
             return 0
 
         count = 0

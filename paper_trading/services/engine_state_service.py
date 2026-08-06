@@ -295,6 +295,18 @@ class EngineStateService:
             logger.debug("Failed to compute factor exposures: %s", e)
             return {"exposures": {}, "violations": {}, "n_violations": 0, "within_limits": True}
 
+    @staticmethod
+    def _excursion_for_state(asset, attr: str) -> float:
+        """Serialize a running-excursion value for persistence.
+
+        Coerces None/NaN to 0.0 so the saved snapshot never round-trips a
+        null back into the engine (max()/comparisons crash on None/NaN).
+        """
+        value = getattr(asset, attr, 0.0)
+        if value is None or pd.isna(value):
+            return 0.0
+        return value
+
     def save_state(self):
         engine = self.engine
         state = self.get_state()
@@ -421,8 +433,8 @@ class EngineStateService:
                     },
                     "current_value": asset.pos_mgr.current_value,
                     "peak_value": asset.pos_mgr.peak_value,
-                    "running_mae": getattr(asset, "_running_mae", None),
-                    "running_mfe": getattr(asset, "_running_mfe", None),
+                    "running_mae": self._excursion_for_state(asset, "_running_mae"),
+                    "running_mfe": self._excursion_for_state(asset, "_running_mfe"),
                     "bars_at_entry": getattr(asset, "_bars_at_entry", 0),
                     "initial_sl": getattr(asset, "_initial_sl", None),
                     "initial_tp": getattr(asset, "_initial_tp", None),

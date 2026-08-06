@@ -1,5 +1,6 @@
 import logging
 
+import pandas as pd
 import pytz
 
 from paper_trading.entry.decision import PositionIntent, PositionSide
@@ -43,9 +44,12 @@ class EngineRecoveryService:
         if "initial_tp" in pos_data:
             asset._initial_tp = pos_data["initial_tp"]
         if "running_mae" in pos_data:
-            asset._running_mae = pos_data["running_mae"]
+            # Never restore None/NaN — downstream max()/comparisons crash on them.
+            _mae = pos_data["running_mae"]
+            asset._running_mae = _mae if _mae is not None and not pd.isna(_mae) else 0.0
         if "running_mfe" in pos_data:
-            asset._running_mfe = pos_data["running_mfe"]
+            _mfe = pos_data["running_mfe"]
+            asset._running_mfe = _mfe if _mfe is not None and not pd.isna(_mfe) else 0.0
 
     def restore_positions(self, saved_positions: dict) -> None:
         engine = self.engine

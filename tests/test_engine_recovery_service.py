@@ -97,6 +97,38 @@ class TestRestoreExistingAsset:
         )
 
 
+class TestRestoreRunningExcursion:
+    def test_restore_none_running_mae_coerced_to_zero(self, service, saved_position):
+        """None running_mae/mfe from legacy state must restore as 0.0."""
+        pos = dict(saved_position)
+        pos["running_mae"] = None
+        pos["running_mfe"] = None
+        asset = service.engine.assets["EURUSD"]
+        service._restore_saved_position(asset, pos)
+        assert asset._running_mae == 0.0
+        assert asset._running_mfe == 0.0
+
+    def test_restore_nan_running_mae_coerced_to_zero(self, service, saved_position):
+        """NaN running_mae/mfe must restore as 0.0."""
+        pos = dict(saved_position)
+        pos["running_mae"] = float("nan")
+        pos["running_mfe"] = float("nan")
+        asset = service.engine.assets["EURUSD"]
+        service._restore_saved_position(asset, pos)
+        assert asset._running_mae == 0.0
+        assert asset._running_mfe == 0.0
+
+    def test_restore_float_running_mae_preserved(self, service, saved_position):
+        """Finite running_mae/mfe from state are restored unchanged."""
+        pos = dict(saved_position)
+        pos["running_mae"] = 0.0123
+        pos["running_mfe"] = 0.0456
+        asset = service.engine.assets["EURUSD"]
+        service._restore_saved_position(asset, pos)
+        assert asset._running_mae == 0.0123
+        assert asset._running_mfe == 0.0456
+
+
 class TestOrphanDelistedWithMt5Ticket:
     def test_orphan_with_mt5_ticket_and_real_broker(self, service, saved_position, mock_broker, caplog):
         """Delisted asset with MT5 ticket on real broker logs WARNING and closes position."""

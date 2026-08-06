@@ -10,7 +10,10 @@ FORBIDDEN_MODULES = frozenset(
         "features.base_features",
         "features.structural_features",
         "features.interaction_features",
-        "labels.triple_barrier",
+        # NOTE: labels.triple_barrier is deliberately NOT forbidden — it is the
+        # current vectorized triple-barrier implementation (see features/labels.py
+        # docstring) and is imported by the production training pipeline
+        # (paper_trading/inference/training.py).
         "labels.generator",
         "shared.features",
         "shared.meta_labeling",

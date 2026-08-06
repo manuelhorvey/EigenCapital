@@ -393,6 +393,50 @@ class TestUpdatePnl:
         assert engine.position is None
         assert engine.current_value > engine.initial_capital
 
+    def test_running_mae_none_restored_from_state_does_not_crash(self, engine, signal_data):
+        """Regression: recovery restores _running_mae/_running_mfe as None from
+        saved state; update_pnl must not crash on max(float, None)."""
+        engine.signal_data = signal_data
+        engine.position = {
+            "side": "long",
+            "entry": 100.0,
+            "sl": 95.0,
+            "tp": 110.0,
+            "entry_date": "2026-05-01",
+            "vol": 0.02,
+        }
+        engine.current_price = 101.0
+        engine._running_mae = None
+        engine._running_mfe = None
+        engine.update_pnl()
+        assert engine._running_mae == 0.0
+        assert engine._running_mfe > 0.0
+
+    def test_running_excursion_skips_nan_prices(self, engine, signal_data):
+        """Regression: NaN entry/current_price must not crash update_pnl."""
+        engine.signal_data = signal_data
+        engine.position = {
+            "side": "long",
+            "entry": float("nan"),
+            "sl": 95.0,
+            "tp": 110.0,
+            "entry_date": "2026-05-01",
+            "vol": 0.02,
+        }
+        engine.current_price = 101.0
+        engine.update_pnl()  # must not raise
+
+        engine.position = {
+            "side": "long",
+            "entry": 100.0,
+            "sl": 95.0,
+            "tp": 110.0,
+            "entry_date": "2026-05-01",
+            "vol": 0.02,
+        }
+        engine.current_price = float("nan")
+        engine.update_pnl()  # must not raise
+
 
 class TestPaperTradingEngine:
     """Tests for PaperTradingEngine methods using __new__ to bypass __init__."""

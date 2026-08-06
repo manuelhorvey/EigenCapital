@@ -151,13 +151,29 @@ class AssetPnlController:
         cp = asset.current_price
         if entry is None or cp is None:
             return
-        raw_return = (cp - entry) / entry
+        # Defensive guards against non-finite / None prices (stale or missing
+        # quotes, or positions restored from state).  Without these,
+        # max(prev, -excursion) compares float vs None/NaN and raises
+        # TypeError — which crashed every actor on startup (2026-08-06).
+        try:
+            raw_return = (cp - entry) / entry
+            raw_return = float(np.asarray(raw_return).reshape(-1)[0])
+        except (TypeError, ValueError, ZeroDivisionError, IndexError):
+            logger.debug("%s: excursion skip — invalid entry/price (entry=%r, cp=%r)", asset.name, entry, cp)
+            return
+        if not np.isfinite(raw_return):
+            logger.debug("%s: excursion skip — non-finite return (entry=%r, cp=%r)", asset.name, entry, cp)
+            return
         side = asset.pos_mgr.position.side
         from quorrin.domain.entities.position import PositionSide
 
         excursion = raw_return if side == PositionSide.LONG else -raw_return
-        asset._running_mae = max(getattr(asset, "_running_mae", 0.0), -excursion)
-        asset._running_mfe = max(getattr(asset, "_running_mfe", 0.0), excursion)
+        prev_mae = getattr(asset, "_running_mae", 0.0)
+        prev_mfe = getattr(asset, "_running_mfe", 0.0)
+        prev_mae = 0.0 if prev_mae is None or pd.isna(prev_mae) else prev_mae
+        prev_mfe = 0.0 if prev_mfe is None or pd.isna(prev_mfe) else prev_mfe
+        asset._running_mae = max(prev_mae, -excursion)
+        asset._running_mfe = max(prev_mfe, excursion)
 
     def _check_scale_out_tiers(self, asset) -> None:
         if asset._scale_out_plan is None:

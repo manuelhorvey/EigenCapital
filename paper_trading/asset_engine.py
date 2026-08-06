@@ -553,6 +553,40 @@ class AssetEngine:
         except Exception as exc:  # noqa: BLE001
             logger.debug("%s: liquidity live refresh failed: %s", self.name, exc)
 
+    def _refresh_signal_date_live_if_needed(self) -> None:
+        """Push ``last_signal_date`` forward from fresh market data so a
+        signal-drought-alleged asset can clear the drought gate without the
+        inference pipeline.
+
+        Without this, a drought-halted asset self-locks: ``generate_signal``
+        returns early before the halted check, so the pipeline (the only
+        caller that writes ``last_signal_date``) never runs again, the stale
+        date persists, ``days_since`` stays above the threshold, and the
+        asset stays halted indefinitely.  This is throttled (min
+        ``_signal_date_live_refresh_interval`` seconds) and guarded by the
+        market-closed check so it does not mark ``last_signal_date`` during
+        closed windows.
+        """
+        if is_market_closed():
+            return
+        interval = getattr(self, "_signal_date_live_refresh_interval", 120.0)
+        last = getattr(self, "_last_signal_date_live_refresh", 0.0)
+        now = time.time()
+        if now - last < interval:
+            return
+        self._last_signal_date_live_refresh = now
+        try:
+            df = self._market_data.get_historical(self.ticker, period="6mo", progress=False)
+            if df is None or df.empty:
+                return
+            df = flatten(df)
+            latest_date = df.index.max()
+            if latest_date is None:
+                return
+            self.last_signal_date = latest_date
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("%s: signal-date live refresh failed: %s", self.name, exc)
+
     def refresh_spread(self) -> None:
         """Fetch current spread from MT5 and store on asset.
 
@@ -640,6 +674,19 @@ class AssetEngine:
         # without the inference pipeline that the halted check otherwise gates.
         if self.governance._liquidity_halted:
             self._refresh_liquidity_live_if_needed()
+        # Break the drought self-lock: if the asset would be flagged for a
+        # signal drought, refresh `last_signal_date` from live market data so
+        # the drought gate can clear once the data stream normalizes (or stay
+        # flagged if data genuinely stopped). Otherwise the stale date
+        # persists and -- because inference (the only writer of the date) is
+        # gated behind the halt it triggers -- the asset never recovers.
+        if self.last_signal_date is None:
+            self._refresh_signal_date_live_if_needed()
+        else:
+            drought_days = self.halt_config.get("signal_drought", 30)
+            days_since = (datetime.now(tz=ET).date() - pd.Timestamp(self.last_signal_date).date()).days
+            if days_since > drought_days:
+                self._refresh_signal_date_live_if_needed()
         return GovernanceService.check_halt_conditions(
             get_metrics=(lambda: metrics if metrics is not None else self.get_metrics()),
             name=self.name,

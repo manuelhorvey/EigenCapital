@@ -16,6 +16,7 @@ from paper_trading.api.asset_routes import (
     handle_wal_asset,
 )
 from paper_trading.api.bundle import handle_state_bundle
+from paper_trading.api.control_routes import handle_emergency_halt_reset
 from paper_trading.api.governance_routes import (
     handle_governance,
     handle_health,
@@ -98,4 +99,5 @@ GET_ROUTES_PREFIX: list[tuple[str, object, bool]] = [
 POST_ROUTES: dict[str, object] = {
     "/narrative/confirm": handle_narrative_confirm,
     "/weekly-review/acknowledge": handle_weekly_review_acknowledge,
+    "/emergency-halt/reset": handle_emergency_halt_reset,
 }

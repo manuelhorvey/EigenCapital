@@ -43,6 +43,15 @@ def register_engine(engine: object) -> None:
     _ENGINE = engine
 
 
+def get_registered_engine() -> object | None:
+    """Return the live engine instance registered via :func:`register_engine`.
+
+    Used by control-plane handlers (e.g. emergency-halt reset) that need to
+    mutate live orchestrator state, not just read persisted state.
+    """
+    return _ENGINE
+
+
 def _get_state_store() -> StateStore:
     global _STATE_STORE
     if _STATE_STORE is None:

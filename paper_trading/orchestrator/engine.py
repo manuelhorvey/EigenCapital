@@ -57,14 +57,21 @@ logger = logging.getLogger("quorrin.orchestrator.engine")
 DRAWDOWN_AUTO_UNHALT_THRESHOLD = -0.05  # -5% — recover above this to be eligible
 DRAWDOWN_AUTO_UNHALT_MIN_CYCLES = 10  # must show recovery for N consecutive cycles
 
-# Reasons that are eligible for automatic unhalt when drawdown recovers.
-# halt_ratio and vol_spike require manual EngineOrchestrator.reset_emergency_halt().
+# Reasons that are eligible for automatic unhalt when their underlying
+# condition recovers. DRAWDOWN/CONSECUTIVE_LOSSES use equity recovery;
+# HALT_RATIO uses sustained actor-health recovery (halt_ratio back under
+# max_halt_ratio). VOL_SPIKE requires manual EngineOrchestrator.reset_emergency_halt().
 HALT_REASON_AUTO_UNHALT_ALLOWED: frozenset[HaltReason] = frozenset(
     {
         HaltReason.DRAWDOWN,
         HaltReason.CONSECUTIVE_LOSSES,
+        HaltReason.HALT_RATIO,
     }
 )
+
+# Sustained healthy cycles required before a HALT_RATIO emergency halt is
+# auto-lifted (mirrors DRAWDOWN_AUTO_UNHALT_MIN_CYCLES hysteresis).
+HALT_RATIO_AUTO_UNHALT_MIN_CYCLES = 5
 
 
 class EnginePhase:
@@ -892,9 +899,12 @@ class EngineOrchestrator:
     def _check_auto_unhalt_eligibility(self) -> None:
         """Check if emergency halt can be automatically lifted.
 
-        Eligible reasons: DRAWDOWN, CONSECUTIVE_LOSSES.
-        Must show sustained recovery above DRAWDOWN_AUTO_UNHALT_THRESHOLD
-        for DRAWDOWN_AUTO_UNHALT_MIN_CYCLES consecutive cycles.
+        Eligible reasons: DRAWDOWN, CONSECUTIVE_LOSSES, HALT_RATIO.
+        DRAWDOWN/CONSECUTIVE_LOSSES must show sustained equity recovery above
+        DRAWDOWN_AUTO_UNHALT_THRESHOLD for DRAWDOWN_AUTO_UNHALT_MIN_CYCLES
+        consecutive cycles. HALT_RATIO must show the actor halt_ratio back
+        under max_halt_ratio for HALT_RATIO_AUTO_UNHALT_MIN_CYCLES consecutive
+        cycles.
 
         On first cycle after restart (_cycles_elapsed < 1), the equity
         snapshot is unstable — skip to avoid a noisy first read.
@@ -905,6 +915,11 @@ class EngineOrchestrator:
             return
         if self._cycles_elapsed < 1:
             return
+
+        if self._halt_reason == HaltReason.HALT_RATIO:
+            self._check_halt_ratio_unhalt()
+            return
+
         if self._peak_portfolio_value is None or self._peak_portfolio_value <= 0:
             return
 
@@ -922,6 +937,39 @@ class EngineOrchestrator:
                     self._halt_detail,
                     current_dd * 100,
                     DRAWDOWN_AUTO_UNHALT_THRESHOLD * 100,
+                    self._unhalt_recovery_cycles,
+                )
+                self._emergency_halt = False
+                self._halt_reason = None
+                self._halt_detail = ""
+                self._unhalt_recovery_cycles = 0
+                for actor in self._actors.values():
+                    actor.reset()
+                    if hasattr(actor._engine, "pos_mgr"):
+                        actor._engine.pos_mgr.exposure_multiplier = 1.0
+        else:
+            self._unhalt_recovery_cycles = 0
+
+    def _check_halt_ratio_unhalt(self) -> None:
+        """Lift a HALT_RATIO emergency halt once actor health recovers.
+
+        Requires the actor halt_ratio to stay under ``max_halt_ratio`` for
+        ``HALT_RATIO_AUTO_UNHALT_MIN_CYCLES`` consecutive cycles. This breaks
+        the stale-latch failure mode where all actors recover but the emergency
+        halt persists and blocks trading indefinitely.
+        """
+        from paper_trading.orchestrator.actor import compute_health_snapshot
+
+        health = compute_health_snapshot(self._actors)
+        if health.halt_ratio < self._max_halt_ratio:
+            self._unhalt_recovery_cycles += 1
+            if self._unhalt_recovery_cycles >= HALT_RATIO_AUTO_UNHALT_MIN_CYCLES:
+                logger.warning(
+                    "AUTO-UNHALT: halt_ratio recovered from %s to %.2f "
+                    "(threshold %.2f) after %d healthy cycles — resuming normal operation",
+                    self._halt_detail,
+                    health.halt_ratio,
+                    self._max_halt_ratio,
                     self._unhalt_recovery_cycles,
                 )
                 self._emergency_halt = False

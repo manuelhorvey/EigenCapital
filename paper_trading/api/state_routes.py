@@ -134,9 +134,62 @@ def handle_trades(path: str, query: dict) -> str:
 
 def handle_equity_history(path: str, query: dict) -> str:
     history = _STORE.read_equity_history()
-    data = json_dumps(history)
+    # Aggregate the raw ~30s-cycle points so the curve reads cleanly at
+    # multi-day scale: completed days collapse to a single end-of-day bar,
+    # while the current (in-progress) day keeps coarse intraday points.
+    data = json_dumps(_aggregate_equity_history(history))
     cache_set("/equity_history.json", data)
     return data
+
+
+# Cap of intraday points kept for the current, still-in-progress day. Holding
+# 30s cycles for a full day (~3k points) makes the curve unreadable; ~120 bars
+# preserves intraday shape without overwhelming the chart.
+_INTRADAY_MAX_POINTS = 120
+
+
+def _aggregate_equity_history(history: list) -> list:
+    if not history:
+        return []
+    # Bucket raw points by ET calendar day, preserving chronological order.
+    by_day: dict[str, list] = {}
+    order: list[str] = []
+    for rec in history:
+        ts = rec.get("timestamp")
+        if not ts:
+            continue
+        try:
+            dt = datetime.fromisoformat(ts)
+        except (ValueError, TypeError):
+            continue
+        day = dt.astimezone(ET).strftime("%Y-%m-%d")
+        if day not in by_day:
+            by_day[day] = []
+            order.append(day)
+        by_day[day].append(rec)
+
+    out: list = []
+    current_day = order[-1] if order else None
+
+    for day in order:
+        day_recs = by_day[day]
+        if day == current_day:
+            # Downsample the live day to a bounded number of points while
+            # always keeping the most recent (last) value.
+            points = day_recs
+            if len(points) > _INTRADAY_MAX_POINTS:
+                idxs = set(
+                    round((len(points) - 1) * i / float(_INTRADAY_MAX_POINTS - 1)) for i in range(_INTRADAY_MAX_POINTS)
+                )
+                points = [points[i] for i in sorted(idxs)]
+            out.extend(points)
+        else:
+            # Collapse a completed day to its end-of-day value (last point).
+            rec = day_recs[-1]
+            rec = {**rec}
+            rec.pop("id", None)
+            out.append(rec)
+    return out
 
 
 def handle_confidence(path: str, query: dict) -> str:

@@ -11,6 +11,7 @@ from paper_trading.execution.gate_constants import get_sell_only_assets
 from paper_trading.governance.risk import get_sell_tripwire_state
 from paper_trading.metrics.engine_metrics import update_engine_metrics
 from paper_trading.ops.experiment_context import ExperimentContext
+from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.ops.simulation_snapshot import build_asset_snapshot
 from paper_trading.performance.live_sharpe import LiveSharpeTracker
 from paper_trading.state_store import EngineSnapshot
@@ -471,9 +472,23 @@ class EngineStateService:
 
     def _append_equity_history(self, state):
         engine = self.engine
+        # Do not persist equity points while the market is closed: the price is
+        # frozen (see AssetEngine.refresh_price), so appending would just flood
+        # the history with duplicates that pollute the Sharpe / return calcs.
+        if is_market_closed():
+            return
         p = state.get("portfolio", {})
         total_value = p.get("total_value", 0)
         total_return = p.get("total_return", 0)
+
+        # Include the undeployed cash buffer so the equity curve reflects the
+        # TOTAL account value, not just the deployed MTM book. Deployed assets
+        # sum to initial_capital (e.g. 90% of config capital); the difference is
+        # idle cash. Adding it lifts the curve to start at exactly the config
+        # capital (with PnL accruing on top) without touching returns/Sharpe.
+        deployed = sum(a.initial_capital for a in engine.assets.values())
+        cash_buffer = max(0.0, float(get_config().capital or 0) - deployed)
+        total_value_total = total_value + cash_buffer
 
         gross = sum(
             a.get("metrics", {}).get("mtm_value", a.get("metrics", {}).get("current_value", 0))
@@ -489,10 +504,10 @@ class EngineStateService:
 
         record = {
             "timestamp": datetime.now(tz=ET).isoformat(),
-            "portfolio_value": total_value,
+            "portfolio_value": total_value_total,
             "portfolio_return": total_return,
             "drawdown": drawdown,
-            "gross_exposure": round(gross / total_value, 4) if total_value else 0,
+            "gross_exposure": round(gross / total_value_total, 4) if total_value_total else 0,
             "net_exposure": round(net, 4),
             "assets": {
                 name: (a.get("metrics", {}).get("mtm_value") or a.get("metrics", {}).get("current_value") or 0)

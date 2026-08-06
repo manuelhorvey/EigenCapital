@@ -38,3 +38,13 @@ crisis_reports/
 mc_results.json
 scripts/data/
 scripts/paper_trading/
+
+# Local skills (microsoft-foundry etc.) — excluded from VCS
+.agents/
+paper_trading/dashboard/.agents/
+
+# Local agent/tooling config — excluded from VCS
+opencode.json
+paper_trading/dashboard/skills-lock.json
+.claude/
+paper_trading/dashboard/.claude/

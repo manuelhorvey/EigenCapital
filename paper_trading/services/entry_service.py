@@ -578,11 +578,11 @@ class EntryService:
                 )
             else:
                 paper_pos = asset.position
-                # Phase D: orphan adoption — paper has position but no ticket (crash recovery / gap B)
+                # Orphan adoption — paper has position but no ticket (crash recovery / gap B)
                 if paper_pos and paper_pos.get("mt5_ticket") is None:
                     ticket = int(matching[0].position_id)
                     logger.info(
-                        "%s: PHASE_D_ADOPT adopting orphan ticket=%s on %s (sl=%.5f tp=%.5f)",
+                        "%s: MT5_ORPHAN_ADOPT adopting orphan ticket=%s on %s (sl=%.5f tp=%.5f)",
                         asset.name,
                         ticket,
                         mt5_symbol,

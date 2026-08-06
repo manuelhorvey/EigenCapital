@@ -5,8 +5,8 @@ Covers:
     - MT5Broker.close_position() returning False for real failures
     - MT5Broker.ticker_to_mt5_symbol()
     - PositionService.close_position() returning mt5_orphan on failure
-    - EngineOrchestrator._reconcile_mt5_orphans() Phase A: drain, retry, abandon
-    - EngineOrchestrator._reconcile_mt5_orphans() Phase B: stale ticket detection
+    - EngineOrchestrator._reconcile_mt5_orphans() drain: retry, abandon
+    - EngineOrchestrator._reconcile_mt5_orphans() stale ticket detection
     - EntryService._submit_mt5_order() pre-open guard blocking on orphan
 """
 
@@ -224,7 +224,7 @@ class TestPositionServiceAtomicClose:
         pos_service.pos_mgr.close.assert_called_once()
 
 
-# ── EngineOrchestrator._reconcile_mt5_orphans() — Phase A ────────────────
+# ── EngineOrchestrator._reconcile_mt5_orphans() — drain ─────────────────
 
 
 class _OrphanEngine:
@@ -270,7 +270,7 @@ def orch():
     return EngineOrchestrator(actors, wal_writer=None)
 
 
-class TestReconcilePhaseA:
+class TestReconcileDrain:
     def test_empty_queue_noop(self, orch, broker, mock_client):
         """No cleanup queue — nothing happens."""
         mock_client._close_result = {"error": "close failed: market closed"}
@@ -327,10 +327,10 @@ class TestReconcilePhaseA:
         assert actor._engine._mt5_cleanup_retries == 0
 
 
-# ── EngineOrchestrator._reconcile_mt5_orphans() — Phase B ────────────────
+# ── EngineOrchestrator._reconcile_mt5_orphans() — stale ticket ──────────
 
 
-class TestReconcilePhaseB:
+class TestReconcileStaleTicket:
     def test_stale_ticket_cleared(self, orch, broker, mock_client):
         """Paper has mt5_ticket but MT5 has no such position → cleared."""
         mock_client._positions = []
@@ -359,7 +359,7 @@ class TestReconcilePhaseB:
         assert actor._engine.position.get("mt5_ticket") == 12345
 
     def test_no_position_nothing_to_check(self, orch, broker, mock_client):
-        """No paper position → Phase B skips."""
+        """No paper position → stale ticket detection skips."""
         mock_client._positions = []
         actor = _OrphanActor("EURUSD", position=None, broker=broker)
         orch._actors["EURUSD"] = actor

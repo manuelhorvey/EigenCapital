@@ -3,8 +3,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -177,6 +176,59 @@ class TestEquityHistory:
         assert len(data) == 1
         assert data[0]["portfolio_value"] == 100000.0
 
+    def test_daily_aggregation_collapses_completed_days(self, tmp_store):
+        # Two full days of intraday points plus an in-progress day.
+        # Timestamps are ET-aware to avoid naive-tz day-boundary shifts.
+        import datetime as dt
+
+        import pytz
+
+        from paper_trading.api.state_routes import _aggregate_equity_history
+
+        et = pytz.timezone("US/Eastern")
+        # (day, sequential index) -> portfolio_value = day*1000 + idx
+        history = [
+            {
+                "timestamp": et.localize(dt.datetime(2026, 6, day, 0, 0) + dt.timedelta(minutes=10 * i)).isoformat(),
+                "portfolio_value": day * 1000 + i,
+                "drawdown": 0.0,
+            }
+            for day in (1, 2, 3)
+            for i in range(4)
+        ]
+
+        out = _aggregate_equity_history(history)
+        # Completed days (1, 2) collapse to their end-of-day (last) value;
+        # in-progress day (3, the largest date) keeps all inline points.
+        assert len(out) == 2 + 4
+        day1 = next(o for o in out if o["timestamp"].startswith("2026-06-01"))
+        assert day1["portfolio_value"] == 1003  # last i for day 1
+        day2 = next(o for o in out if o["timestamp"].startswith("2026-06-02"))
+        assert day2["portfolio_value"] == 2003  # last i for day 2
+        day3 = [o for o in out if o["timestamp"].startswith("2026-06-03")]
+        assert len(day3) == 4
+        assert [o["portfolio_value"] for o in day3] == [3000, 3001, 3002, 3003]
+
+    def test_aggregation_downsampling_caps_current_day(self):
+        import datetime as dt
+
+        import pytz
+
+        from paper_trading.api.state_routes import _INTRADAY_MAX_POINTS, _aggregate_equity_history
+
+        et = pytz.timezone("US/Eastern")
+        base = et.localize(dt.datetime(2026, 6, 3, 0, 0, 0))
+        history = []
+        for i in range(3000):
+            # 3000 points at 25s cadence = ~20.8h, all within one day
+            ts = (base + dt.timedelta(seconds=25 * i)).isoformat()
+            history.append({"timestamp": ts, "portfolio_value": 100000.0 + i})
+        out = _aggregate_equity_history(history)
+        # single (current) day: downsampled to the cap, last point preserved
+        assert len(out) == _INTRADAY_MAX_POINTS
+        assert out[-1]["portfolio_value"] == 100000.0 + 2999
+        assert out[0]["portfolio_value"] == 100000.0  # first point retained
+
 
 class TestLogs:
     def test_no_log_file(self):
@@ -332,16 +384,30 @@ class TestTradeOutcomes:
         assert data["overall"] == {}
 
     def test_with_outcomes(self, tmp_store):
-        tmp_store.append_trade({
-            "asset": "EURUSD", "entry": 1.05, "exit": 1.06,
-            "entry_date": "2026-06-01", "exit_date": "2026-06-10",
-            "reason": "tp", "return": 100.0, "realized_r": 2.0,
-        })
-        tmp_store.append_trade({
-            "asset": "EURUSD", "entry": 1.06, "exit": 1.05,
-            "entry_date": "2026-06-02", "exit_date": "2026-06-11",
-            "reason": "sl", "return": -50.0, "realized_r": -1.0,
-        })
+        tmp_store.append_trade(
+            {
+                "asset": "EURUSD",
+                "entry": 1.05,
+                "exit": 1.06,
+                "entry_date": "2026-06-01",
+                "exit_date": "2026-06-10",
+                "reason": "tp",
+                "return": 100.0,
+                "realized_r": 2.0,
+            }
+        )
+        tmp_store.append_trade(
+            {
+                "asset": "EURUSD",
+                "entry": 1.06,
+                "exit": 1.05,
+                "entry_date": "2026-06-02",
+                "exit_date": "2026-06-11",
+                "reason": "sl",
+                "return": -50.0,
+                "realized_r": -1.0,
+            }
+        )
         result = handle_trade_outcomes("/trade-outcomes.json", {})
         data = json.loads(result)
         assert data["overall"]["win_rate"] == 0.5

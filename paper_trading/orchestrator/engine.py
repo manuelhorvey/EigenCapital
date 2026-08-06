@@ -992,15 +992,15 @@ class EngineOrchestrator:
     def _reconcile_mt5_orphans(self) -> None:
         """Reconcile MT5 orphaned positions every cycle.
 
-        Phase A — Drain cleanup queues (event-triggered from close failures).
-        Phase B — Detect stale paper mt5_tickets (MT5-native SL/TP, manual close).
-        Phase C — Dry-run orphan report (log only, no state mutation).
+        Drain cleanup queues (event-triggered from close failures).
+        Detect stale paper mt5_tickets (MT5-native SL/TP, manual close).
+        Dry-run orphan report (log only, no state mutation).
         """
         broker = self._resolve_broker()
         if broker is None:
             return
 
-        # ── Phase A: Drain cleanup queues ──────────────────────────────────
+        # ── Drain cleanup queues ─────────────────────────────────────────
         for name, actor in self._actors.items():
             engine = actor._engine
             db = engine.__dict__
@@ -1058,7 +1058,7 @@ class EngineOrchestrator:
             engine._mt5_cleanup_queue = still_pending
             engine._mt5_cleanup_retries = retries + 1 if still_pending else 0
 
-        # ── Phase B: Stale ticket detection ────────────────────────────────
+        # ── Stale ticket detection ───────────────────────────────────────
         # Catches MT5-native SL/TP hits and manual closes where paper still
         # holds a stale mt5_ticket but the MT5 position no longer exists.
         # Invalidates broker cache first so entries placed earlier in this
@@ -1104,7 +1104,7 @@ class EngineOrchestrator:
                             name,
                         )
 
-        # ── Phase C: Dry-run orphan report (log only, no state mutation) ──
+        # ── Dry-run orphan report (log only, no state mutation) ──────────
         # Reports every MT5 position with no matching paper-side ticket.
         # Deduped by ticket; tracks first_seen cycle; flags removed-asset
         # orphans distinctly (engine_actor=None).
@@ -1167,10 +1167,10 @@ class EngineOrchestrator:
                     orphan_reason = f"paper_ticket_mismatch (has {paper_pos['mt5_ticket']})"
                 elif paper_pos:
                     orphan_reason = "paper_has_position_no_ticket"
-                    # Phase D: self-healing adoption — backfill mt5_ticket from broker
+                    # Self-healing adoption — backfill mt5_ticket from broker
                     matched_engine.position["mt5_ticket"] = int(ticket)
                     logger.info(
-                        "PHASE_D_ADOPT: %s adopted orphan ticket=%s on %s",
+                        "MT5_ORPHAN_ADOPT: %s adopted orphan ticket=%s on %s",
                         name,
                         int(ticket),
                         p.asset,
@@ -1187,7 +1187,7 @@ class EngineOrchestrator:
             vol = abs(p.quantity)
 
             logger.warning(
-                "PHASE_C_ORPHAN: ticket=%s mt5_symbol=%s ticker=%s "
+                "MT5_ORPHAN_REPORT: ticket=%s mt5_symbol=%s ticker=%s "
                 "engine_actor=%s side=%s vol=%.4f entry=%.5f price=%.5f "
                 "upnl=%.2f first_seen=%s reason=%s",
                 ticket,
@@ -1207,7 +1207,7 @@ class EngineOrchestrator:
         n_this_cycle = len(unique_orphans_this_cycle)
         if n_unique > 0 or n_this_cycle > 0:
             logger.warning(
-                "PHASE_C_SUMMARY: %d unique orphan tickets tracked (%d this cycle)",
+                "MT5_ORPHAN_SUMMARY: %d unique orphan tickets tracked (%d this cycle)",
                 n_unique,
                 n_this_cycle,
             )

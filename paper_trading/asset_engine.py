@@ -28,6 +28,7 @@ from paper_trading.governance.regime import RegimeClassifier
 from paper_trading.inference.pipeline import AssetInferencePipeline
 from paper_trading.inference.training import AssetTrainingPipeline
 from paper_trading.ops.data_fetcher import flatten
+from paper_trading.ops.market_hours import is_market_closed
 from paper_trading.ops.tracer import trace_exit
 from paper_trading.position.dynamic_sltp import DynamicSLTPEngine, build_dynamic_sltp_from_config
 from paper_trading.position.manager import PositionManager
@@ -501,6 +502,12 @@ class AssetEngine:
         )
 
     def refresh_price(self):
+        # When the market is closed, hold the last known price instead of
+        # pulling a stale/gapped quote. Otherwise the equity curve marks to
+        # market from whichever source answers (MT5 last quote, yfinance last
+        # close, Monday reopen) and fluctuates violently while no trading occurs.
+        if is_market_closed():
+            return
         # 1. Try real-time price first
         lp = self._market_data.get_realtime_price(self.ticker)
         if lp is not None:
@@ -516,6 +523,35 @@ class AssetEngine:
                 self.current_price = None if pd.isna(close) else close
         except (OSError, ValueError, KeyError):
             logger.debug("%s: fallback price download failed", self.name)
+
+    def _refresh_liquidity_live_if_needed(self) -> None:
+        """Recompute the liquidity regime from fresh market data so a
+        STRESSED/THIN asset can recover without the inference pipeline.
+
+        Without this, a liquidity-halted asset self-locks: ``generate_signal``
+        returns early before the halted check, so the pipeline (the only
+        caller of ``_refresh_liquidity``) never runs again, the stale
+        STRESSED feature persists, and the asset stays halted indefinitely.
+        This is throttled (min ``_liquidity_live_refresh_interval`` seconds)
+        and guarded by the market-closed check so it does not mark to market
+        during closed windows.
+        """
+        if is_market_closed():
+            return
+        interval = getattr(self, "_liquidity_live_refresh_interval", 120.0)
+        last = getattr(self, "_last_liquidity_live_refresh", 0.0)
+        now = time.time()
+        if now - last < interval:
+            return
+        self._last_liquidity_live_refresh = now
+        try:
+            df = self._market_data.get_historical(self.ticker, period="6mo", progress=False)
+            if df is None or df.empty:
+                return
+            df = flatten(df)
+            self.governance.refresh_liquidity(df)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("%s: liquidity live refresh failed: %s", self.name, exc)
 
     def refresh_spread(self) -> None:
         """Fetch current spread from MT5 and store on asset.
@@ -599,6 +635,11 @@ class AssetEngine:
         )
 
     def check_halt_conditions(self, metrics: dict | None = None):
+        # Break the liquidity self-lock: if the asset is (or was) liquidity
+        # halted, re-evaluate the regime from live data so it can recover
+        # without the inference pipeline that the halted check otherwise gates.
+        if self.governance._liquidity_halted:
+            self._refresh_liquidity_live_if_needed()
         return GovernanceService.check_halt_conditions(
             get_metrics=(lambda: metrics if metrics is not None else self.get_metrics()),
             name=self.name,

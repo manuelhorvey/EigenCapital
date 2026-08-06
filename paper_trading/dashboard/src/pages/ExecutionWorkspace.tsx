@@ -17,9 +17,6 @@ export default function ExecutionWorkspace() {
         description="Fill quality, slippage distribution, trade attribution, and TP/SL optimizer drift across the portfolio."
         crumbs={[{ label: 'Trading' }, { label: 'Execution' }]}
       />
-      <Section id="optimization" errorTitle="Optimization Drift">
-        <OptimizerRecommendations />
-      </Section>
       <Section id="execution-quality" errorTitle="Execution Quality" className="space-y-5 sm:space-y-6">
         <ExecutionQualityStrip />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
@@ -38,6 +35,9 @@ export default function ExecutionWorkspace() {
           <PnLWaterfall />
         </div>
         <MaeMfeScatter />
+      </Section>
+      <Section id="optimization" errorTitle="Optimization Drift">
+        <OptimizerRecommendations />
       </Section>
     </div>
   )

@@ -109,33 +109,48 @@ export default function DataTable<T>({
             {emptyMessage}
           </div>
         ) : (
-          sorted.map(row => (
-            <button
-              key={keyExtractor(row)}
-              type="button"
-              onClick={() => onRowClick?.(row)}
-              disabled={!onRowClick}
-              className={[
-                'w-full text-left rounded-lg border border-default bg-panel/50 px-3 py-2.5',
-                onRowClick ? 'active:scale-[0.99] transition-transform' : 'disabled:opacity-100',
-                mobileAccent ? 'border-l-2' : '',
-              ].join(' ')}
-              style={mobileAccent ? { borderLeftColor: mobileAccent(row) ?? 'var(--color-border)' } : undefined}
-            >
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
-                {columns.map(col => (
-                  <div key={col.key} className={col.align === 'right' ? 'text-right' : ''}>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">
-                      {col.label}
-                    </dt>
-                    <dd className="text-xs text-primary mt-0.5 min-w-0 overflow-hidden">
-                      {col.render(row)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </button>
-          ))
+          sorted.map(row => {
+            const clickable = !!onRowClick
+            const clickProps = clickable
+              ? {
+                  role: 'button' as const,
+                  tabIndex: 0,
+                  onClick: () => onRowClick(row),
+                  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onRowClick(row)
+                    }
+                  },
+                }
+              : {}
+            const rootClassName = [
+              'w-full text-left rounded-lg border border-default bg-panel/50 px-3 py-2.5',
+              clickable ? 'cursor-pointer active:scale-[0.99] transition-transform focus-ring' : '',
+              mobileAccent ? 'border-l-2' : '',
+            ].join(' ')
+            return (
+              <div
+                key={keyExtractor(row)}
+                {...clickProps}
+                className={rootClassName}
+                style={mobileAccent ? { borderLeftColor: mobileAccent(row) ?? 'var(--color-border)' } : undefined}
+              >
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                  {columns.map(col => (
+                    <div key={col.key} className={col.align === 'right' ? 'text-right' : ''}>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wider text-tertiary truncate">
+                        {col.label}
+                      </dt>
+                      <dd className="text-xs text-primary mt-0.5 min-w-0 overflow-hidden">
+                        {col.render(row)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )
+          })
         )}
       </div>
 
@@ -155,40 +170,38 @@ export default function DataTable<T>({
               <th
                 key={col.key}
                 scope="col"
-                tabIndex={sortable && col.sortable ? 0 : undefined}
-                role={sortable && col.sortable ? 'button' : undefined}
                 aria-sort={sortable && col.sortable ? sortAria(col.key) : undefined}
-                aria-label={sortable && col.sortable ? `${col.label}: activate to sort` : undefined}
                 className={[
                   'table-header py-2 pr-3 last:pr-0',
                   alignClass[col.align ?? 'left'],
                   sortable && col.sortable ? 'sort-header' : '',
                   stickyHeader ? 'sticky top-0 bg-app z-10' : '',
                 ].join(' ')}
-                onClick={() => col.sortable && toggleSort(col.key)}
-                onKeyDown={event => {
-                  if (!col.sortable) return
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    toggleSort(col.key)
-                  }
-                }}
                 style={{
                   width: col.width,
                   minWidth: col.minWidth,
                   ...(stickyHeader ? { backgroundAttachment: 'scroll' } : {}),
                 }}
               >
-                <span className="inline-flex items-center gap-1">
-                  {col.label}
-                  {sortable && col.sortable && (
-                    sortCol === col.key
+                {sortable && col.sortable ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(col.key)}
+                    aria-label={`${col.label}: activate to sort`}
+                    className="inline-flex items-center gap-1 focus-ring rounded-sm"
+                  >
+                    {col.label}
+                    {sortCol === col.key
                       ? (sortDir === 'asc'
                           ? <ChevronUp className="w-3 h-3 text-secondary" strokeWidth={2} />
                           : <ChevronDown className="w-3 h-3 text-secondary" strokeWidth={2} />)
-                      : <ChevronsUpDown className="w-3 h-3 text-muted/30" strokeWidth={1.5} />
-                  )}
-                </span>
+                      : <ChevronsUpDown className="w-3 h-3 text-muted/30" strokeWidth={1.5} />}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1">
+                    {col.label}
+                  </span>
+                )}
               </th>
             ))}
           </tr>
@@ -212,7 +225,7 @@ export default function DataTable<T>({
                   }
                 } : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
-                aria-label={onRowClick ? 'Select row' : undefined}
+                aria-label={onRowClick ? `Select row ${keyExtractor(row)}` : undefined}
                 className={[
                   'border-b border-default/30 table-row-hover',
                   onRowClick ? 'cursor-pointer focus-ring' : '',

@@ -2,18 +2,18 @@
 // Run `npm run build:tokens` to regenerate.
 export default {
   "colors": {
-    "teal": {
-      "50": "var(--color-teal-50)",
-      "100": "var(--color-teal-100)",
-      "200": "var(--color-teal-200)",
-      "300": "var(--color-teal-300)",
-      "400": "var(--color-teal-400)",
-      "500": "var(--color-teal-500)",
-      "600": "var(--color-teal-600)",
-      "700": "var(--color-teal-700)",
-      "800": "var(--color-teal-800)",
-      "900": "var(--color-teal-900)",
-      "950": "var(--color-teal-950)"
+    "emerald": {
+      "50": "var(--color-emerald-50)",
+      "100": "var(--color-emerald-100)",
+      "200": "var(--color-emerald-200)",
+      "300": "var(--color-emerald-300)",
+      "400": "var(--color-emerald-400)",
+      "500": "var(--color-emerald-500)",
+      "600": "var(--color-emerald-600)",
+      "700": "var(--color-emerald-700)",
+      "800": "var(--color-emerald-800)",
+      "900": "var(--color-emerald-900)",
+      "950": "var(--color-emerald-950)"
     },
     "indigo": {
       "50": "var(--color-indigo-50)",
@@ -56,6 +56,12 @@ export default {
     "interactive-hover": "var(--color-interactive-hover)",
     "interactive-active": "var(--color-interactive-active)",
     "interactive-selected": "var(--color-interactive-selected)",
+    "brand": {
+      "DEFAULT": "var(--color-brand)",
+      "hover": "var(--color-brand-hover)",
+      "soft": "var(--color-brand-soft)",
+      "text": "var(--color-brand-text)"
+    },
     "gov-green": {
       "DEFAULT": "var(--color-gov-green)",
       "muted": "var(--color-gov-green-muted)",
@@ -266,11 +272,11 @@ export default {
     "state-pulse-red": {
       "0%, 100%": {
         "opacity": "0.4",
-        "boxShadow": "0 0 0 rgba(240, 68, 68, 0)"
+        "boxShadow": "0 0 0 rgba(220, 38, 38, 0)"
       },
       "50%": {
         "opacity": "1",
-        "boxShadow": "0 0 8px rgba(240, 68, 68, 0.3)"
+        "boxShadow": "0 0 8px rgba(220, 38, 38, 0.3)"
       }
     },
     "toast-progress": {

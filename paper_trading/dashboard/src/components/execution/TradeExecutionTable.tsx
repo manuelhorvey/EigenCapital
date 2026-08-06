@@ -131,7 +131,7 @@ export default function TradeExecutionTable() {
                   role="button"
                   aria-expanded={selected}
                   aria-label={`${t.asset} ${t.pred_archetype_at_entry} trade, R ${t.exit_realized_r.toFixed(2)}`}
-                  className={`border-b border-default/40 table-row-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-amber/40 ${selected ? 'bg-panel/40' : ''}`}
+                  className={`border-b border-default/40 table-row-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-emerald/40 ${selected ? 'bg-panel/40' : ''}`}
                 >
                   <td className="py-2 pr-2 font-medium text-primary font-mono">{t.asset}</td>
                   <td className="py-2 pr-2">

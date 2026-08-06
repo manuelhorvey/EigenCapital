@@ -23,10 +23,10 @@ const paddingMap = {
 }
 
 const variantStyles: Record<PanelVariant, string> = {
-  default: 'bg-panel border border-default shadow-panel',
-  elevated: 'bg-panel border border-default shadow-card',
-  flat: 'bg-panel border border-default',
-  accent: 'bg-panel border border-default shadow-panel border-t-accent-emerald/40',
+  default: 'bg-surface border border-default shadow-panel',
+  elevated: 'bg-surface border border-default shadow-card',
+  flat: 'bg-surface border border-default',
+  accent: 'bg-surface border border-default shadow-panel border-t-accent-emerald/40',
   glass: 'bg-glass border border-default/60 shadow-panel backdrop-blur-xl',
 }
 
@@ -71,7 +71,7 @@ export default function Panel({
         }
       } : undefined}
       className={[
-        'rounded-lg relative overflow-hidden',
+        'rounded-xl relative overflow-hidden',
         variantStyles[variant],
         paddingMap[padding],
         hoverStyles,

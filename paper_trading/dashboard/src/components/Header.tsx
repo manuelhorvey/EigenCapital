@@ -56,8 +56,8 @@ function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header
-      className={`sticky top-0 z-30 bg-app/90 backdrop-blur-md border-b transition-shadow duration-200 ${
-        scrolled ? 'border-default shadow-[0_1px_0_rgba(255,255,255,0.04)]' : 'border-default/60'
+      className={`sticky top-0 z-30 bg-surface/85 backdrop-blur-md border-b transition-shadow duration-200 ${
+        scrolled ? 'border-default shadow-panel' : 'border-default/60'
       }`}
     >
       <div className="max-w-[90rem] mx-auto px-2 sm:px-6 flex items-center justify-between gap-1 sm:gap-3 h-[var(--header-height)]">
@@ -71,12 +71,12 @@ function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="w-3.5 h-3.5 text-secondary" strokeWidth={2} />
           </button>
-          <div className="w-6 h-6 rounded-lg bg-accent-amber/95 flex items-center justify-center shrink-0 shadow-sm">
-            <TrendingUp className="w-3 h-3 text-[#0a0602]" strokeWidth={2.25} />
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shrink-0 shadow-sm">
+            <TrendingUp className="w-3.5 h-3.5 text-white" strokeWidth={2.25} />
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline gap-1.5">
-              <h1 className="text-xs sm:text-[13px] font-bold tracking-tight text-primary leading-none truncate">Quorrin</h1>
+              <h1 className="text-sm sm:text-[15px] font-bold tracking-tight text-primary leading-none truncate">Quorrin</h1>
               {sequenceId != null && (
                 <span className="hidden sm:inline text-[8px] text-tertiary/40 font-mono leading-none">#{sequenceId}</span>
               )}

@@ -1,5 +1,4 @@
 import SignalsTable from '../components/SignalsTable'
-import EquityChart from '../components/EquityChart'
 import LiveSharpeCard from '../components/LiveSharpeCard'
 import PageHeader from '../components/PageHeader'
 import Section from '../components/ui/Section'
@@ -9,7 +8,7 @@ export default function TradingWorkspace() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Trading"
-        description="Live market snapshot: current signals per asset, the portfolio equity curve, and live performance."
+        description="Live market snapshot: current signals per asset and live performance."
         crumbs={[{ label: 'Trading' }]}
       />
       <Section id="signals" errorTitle="Signals">
@@ -17,8 +16,7 @@ export default function TradingWorkspace() {
           <div className="xl:col-span-3 min-w-0">
             <SignalsTable />
           </div>
-          <div className="xl:col-span-2 min-w-0 space-y-4">
-            <EquityChart />
+          <div className="xl:col-span-2 min-w-0">
             <LiveSharpeCard />
           </div>
         </div>

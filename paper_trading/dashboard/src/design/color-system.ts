@@ -4,23 +4,29 @@
 //   generated/tokens.css          →  :root { --color-teal-50: ... }
 //   generated/tailwind.partial.js →  { theme: { extend: { colors: ... } } }
 // All derived exports below are syntactic sugar on top of rawTokens.
+//
+// DESIGN SYSTEM: "Solstice" — light-first modern fintech.
+//   Light  = default (:root)  — off-white surfaces, deep emerald brand,
+//            generous whitespace, soft shadows, premium SaaS clarity.
+//   Dark   = `.dark` override — deep navy "Cascade" night mode with
+//            emerald/cyan accents for chart-first trading focus.
 // ──────────────────────────────────────────────────────────────────
 
 export const rawTokens = {
-  // ── Brand: Teal-Emerald (hero) ────────────────────
-  'color-teal-50': '#eefdf8',
-  'color-teal-100': '#d3faea',
-  'color-teal-200': '#adf5d8',
-  'color-teal-300': '#75ebc5',
-  'color-teal-400': '#3dd9ae',
-  'color-teal-500': '#14b8a6',
-  'color-teal-600': '#1bb5a5',
-  'color-teal-700': '#15918a',
-  'color-teal-800': '#14736e',
-  'color-teal-900': '#135e5a',
-  'color-teal-950': '#043533',
+  // ── Brand: Emerald (primary, fintech trust) ──────
+  'color-emerald-50': '#ecfdf5',
+  'color-emerald-100': '#d1fae5',
+  'color-emerald-200': '#a7f3d0',
+  'color-emerald-300': '#6ee7b7',
+  'color-emerald-400': '#34d399',
+  'color-emerald-500': '#10b981',
+  'color-emerald-600': '#059669',
+  'color-emerald-700': '#047857',
+  'color-emerald-800': '#065f46',
+  'color-emerald-900': '#064e3b',
+  'color-emerald-950': '#022c22',
 
-  // ── Brand: Indigo (secondary) ─────────────────────
+  // ── Brand: Indigo (secondary, data & depth) ──────
   'color-indigo-50': '#eef2ff',
   'color-indigo-100': '#e0e7ff',
   'color-indigo-200': '#c9d4fe',
@@ -33,64 +39,70 @@ export const rawTokens = {
   'color-indigo-900': '#312e81',
   'color-indigo-950': '#1e1b4b',
 
-  // ── Neutral: Surface palette ──────────────────────
-  'color-neutral-50': '#f3f6f5',
-  'color-neutral-100': '#e1e6e4',
-  'color-neutral-200': '#c3cdc8',
-  'color-neutral-300': '#9eada6',
-  'color-neutral-400': '#7a8d85',
-  'color-neutral-500': '#5f726b',
-  'color-neutral-600': '#4b5b55',
-  'color-neutral-700': '#3e4a46',
-  'color-neutral-800': '#2e3835',
-  'color-neutral-900': '#1b221f',
-  'color-neutral-950': '#0b0e0c',
+  // ── Neutral: Slate family (warm-cool neutral scale) ──
+  'color-neutral-50': '#f8fafc',
+  'color-neutral-100': '#f1f5f9',
+  'color-neutral-200': '#e2e8f0',
+  'color-neutral-300': '#cbd5e1',
+  'color-neutral-400': '#94a3b8',
+  'color-neutral-500': '#64748b',
+  'color-neutral-600': '#475569',
+  'color-neutral-700': '#334155',
+  'color-neutral-800': '#1e293b',
+  'color-neutral-900': '#0f172a',
+  'color-neutral-950': '#020617',
 
-  // ── Application surfaces (near-black "terminal ink") ──
-  'color-app': '#05060a',
-  'color-surface': '#0a0c12',
-  'color-card': '#0a0c12',
-  'color-panel': '#12141d',
-  'color-panel-hover': '#171a25',
+  // ── Application surfaces (light fintech base) ──────
+  'color-app': '#f4f6f8',
+  'color-surface': '#ffffff',
+  'color-card': '#ffffff',
+  'color-panel': '#ffffff',
+  'color-panel-hover': '#f8fafb',
 
   // ── Text hierarchy ────────────────────────────────
-  'color-text-primary': '#f2f4f8',
-  'color-text-secondary': '#9aa7bd',
-  'color-text-tertiary': '#6b7891',
-  'color-text-muted': '#4c5569',
+  'color-text-primary': '#0f172a',
+  'color-text-secondary': '#475569',
+  'color-text-tertiary': '#64748b',
+  'color-text-muted': '#94a3b8',
 
   // ── Borders ───────────────────────────────────────
-  'color-border': '#1d2231',
-  'color-border-strong': '#2b3247',
+  'color-border': '#e6e9ee',
+  'color-border-strong': '#cbd5e1',
 
   // ── Glass ─────────────────────────────────────────
-  'color-glass': 'rgba(5, 6, 10, 0.92)',
+  'color-glass': 'rgba(255, 255, 255, 0.86)',
 
-  // ── Focus ring (amber terminal) ───────────────────
-  'color-focus-ring': 'rgba(255, 176, 32, 0.45)',
+  // ── Focus ring (emerald brand) ────────────────────
+  'color-focus-ring': 'rgba(4, 120, 87, 0.38)',
 
   // ── Interactive states ────────────────────────────
-  'color-interactive-hover': 'rgba(255, 255, 255, 0.05)',
-  'color-interactive-active': 'rgba(255, 255, 255, 0.09)',
-  'color-interactive-selected': 'rgba(255, 176, 32, 0.08)',
+  'color-interactive-hover': 'rgba(15, 23, 42, 0.045)',
+  'color-interactive-active': 'rgba(15, 23, 42, 0.08)',
+  'color-interactive-selected': 'rgba(4, 120, 87, 0.09)',
+
+  // ── Brand chrome (emerald) ────────────────────────
+  'color-brand': '#047857',
+  'color-brand-hover': '#065f46',
+  'color-brand-soft': 'rgba(4, 120, 87, 0.10)',
+  'color-brand-text': '#ffffff',
 
   // ── Governance (semantic) ─────────────────────────
-  'color-gov-green': '#25d065',
-  'color-gov-green-muted': 'rgba(37, 208, 101, 0.12)',
-  'color-gov-green-muted2': 'rgba(37, 208, 101, 0.06)',
-  'color-gov-green-light': '#16a34a',
-  'color-gov-green-dark': '#15803d',
+  'color-gov-green': '#059669',
+  'color-gov-green-muted': 'rgba(5, 150, 105, 0.12)',
+  'color-gov-green-muted2': 'rgba(5, 150, 105, 0.06)',
+  'color-gov-green-light': '#10b981',
+  'color-gov-green-dark': '#047857',
 
-  'color-gov-yellow': '#eab308',
-  'color-gov-yellow-muted': 'rgba(234, 179, 8, 0.12)',
-  'color-gov-yellow-muted2': 'rgba(234, 179, 8, 0.06)',
-  'color-gov-yellow-light': '#d97706',
+  'color-gov-yellow': '#d97706',
+  'color-gov-yellow-muted': 'rgba(217, 119, 6, 0.12)',
+  'color-gov-yellow-muted2': 'rgba(217, 119, 6, 0.06)',
+  'color-gov-yellow-light': '#f59e0b',
   'color-gov-yellow-dark': '#b45309',
 
-  'color-gov-red': '#f04444',
-  'color-gov-red-muted': 'rgba(240, 68, 68, 0.12)',
-  'color-gov-red-muted2': 'rgba(240, 68, 68, 0.06)',
-  'color-gov-red-light': '#dc2626',
+  'color-gov-red': '#dc2626',
+  'color-gov-red-muted': 'rgba(220, 38, 38, 0.12)',
+  'color-gov-red-muted2': 'rgba(220, 38, 38, 0.06)',
+  'color-gov-red-light': '#ef4444',
   'color-gov-red-dark': '#b91c1c',
 
   'color-gov-init': '#64748b',
@@ -102,35 +114,39 @@ export const rawTokens = {
   'color-gov-gray-muted2': 'rgba(107, 114, 128, 0.06)',
 
   // ── Extended accent palette ───────────────────────
-  // accent-amber is the BRAND chrome accent (terminal amber).
-  'color-accent-emerald': '#2dd4bf',
-  'color-accent-blue': '#60a5fa',
-  'color-accent-purple': '#a78bfa',
-  'color-accent-amber': '#ffb020',
-  'color-accent-indigo': '#818cf8',
-  'color-accent-pink': '#f472b6',
+  'color-accent-emerald': '#059669',
+  'color-accent-blue': '#2563eb',
+  'color-accent-purple': '#7c3aed',
+  'color-accent-amber': '#d97706',
+  'color-accent-indigo': '#4f46e5',
+  'color-accent-pink': '#db2777',
 
-  // ── Chart palette (10-color sequence) ─────────────
-  'color-chart-0': '#14b8a6',
-  'color-chart-1': '#60a5fa',
-  'color-chart-2': '#fbbf24',
-  'color-chart-3': '#f472b6',
-  'color-chart-4': '#a78bfa',
-  'color-chart-5': '#34d399',
-  'color-chart-6': '#38bdf8',
-  'color-chart-7': '#fb923c',
-  'color-chart-8': '#e879f9',
-  'color-chart-9': '#a3e635',
+  // ── Chart palette (10-color sequence, light-safe) ──
+  'color-chart-0': '#059669',
+  'color-chart-1': '#2563eb',
+  'color-chart-2': '#d97706',
+  'color-chart-3': '#db2777',
+  'color-chart-4': '#7c3aed',
+  'color-chart-5': '#0d9488',
+  'color-chart-6': '#0284c7',
+  'color-chart-7': '#ea580c',
+  'color-chart-8': '#c026d3',
+  'color-chart-9': '#65a30d',
 
-  'color-chart-rose': '#fb7185',
-  'color-chart-teal': '#14b8a6',
+  'color-chart-rose': '#f43f5e',
+  'color-chart-teal': '#0d9488',
 
-  // ── Shadows ───────────────────────────────────────
-  'shadow-panel': '0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.35)',
-  'shadow-card': '0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.4)',
-  'shadow-modal': '0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.6)',
-  'shadow-tooltip': '0 4px 20px rgba(0,0,0,0.5)',
-  'shadow-inner-subtle': 'inset 0 1px 3px rgba(0,0,0,0.3)',
+  // ── Chart chrome (theme-aware; stronger contrast in light mode) ──
+  'color-chart-grid': '#d9e0ea',
+  'color-chart-axis': '#475569',
+  'color-chart-tooltip-border': '#94a3b8',
+
+  // ── Shadows (soft, light-mode appropriate) ────────
+  'shadow-panel': '0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)',
+  'shadow-card': '0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.14)',
+  'shadow-modal': '0 24px 80px -16px rgba(15, 23, 42, 0.28), 0 4px 16px rgba(15, 23, 42, 0.08)',
+  'shadow-tooltip': '0 4px 20px -4px rgba(15, 23, 42, 0.16)',
+  'shadow-inner-subtle': 'inset 0 1px 2px rgba(15, 23, 42, 0.04)',
 
   // ── Spacing (4px grid) ────────────────────────────
   'spacing-0': '0px',
@@ -192,11 +208,11 @@ export const rawTokens = {
   'tracking-display': '-0.03em',
   'tracking-hero': '-0.04em',
 
-  // ── Border radius ─────────────────────────────────
-  'radius-DEFAULT': '6px',
-  'radius-lg': '8px',
-  'radius-xl': '10px',
-  'radius-2xl': '12px',
+  // ── Border radius (fintech softness) ──────────────
+  'radius-DEFAULT': '8px',
+  'radius-lg': '10px',
+  'radius-xl': '12px',
+  'radius-2xl': '16px',
 
   // ── Animations ────────────────────────────────────
   'animation-pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
@@ -205,80 +221,54 @@ export const rawTokens = {
   'animation-fade-in': 'fade-in 0.4s ease-out',
 } as const
 
-// ── Light-mode overrides ────────────────────────────
-// Only role-mapping tokens that change in light mode.
-// Brand scales (teal, indigo, neutral), gov colors, accents, and
+// ── Dark-mode overrides (Cascade night theme) ──────
+// Applied when `.dark` is set on <html>. Only role-mapping tokens
+// that change in dark mode. Brand scales, gov colors, accents, and
 // structural tokens (spacing, fonts, radii) stay the same.
-export const rawLightTokens = {
-  // Surfaces
-  'color-app': '#f3f6f5',
-  'color-surface': '#ffffff',
-  'color-card': '#ffffff',
-  'color-panel': '#e1e6e4',
-  'color-panel-hover': '#c3cdc8',
+export const rawDarkTokens = {
+  // Surfaces — deep navy
+  'color-app': '#0a0f1c',
+  'color-surface': '#0d1322',
+  'color-card': '#0f1626',
+  'color-panel': '#121a2e',
+  'color-panel-hover': '#17233c',
 
   // Text
-  'color-text-primary': '#1b221f',
-  'color-text-secondary': '#4b5b55',
-  'color-text-tertiary': '#5f726b',
-  'color-text-muted': '#7a8d85',
+  'color-text-primary': '#e2e8f0',
+  'color-text-secondary': '#94a3b8',
+  'color-text-tertiary': '#64748b',
+  'color-text-muted': '#475569',
 
   // Borders
-  'color-border': '#9eada6',
-  'color-border-strong': '#7a8d85',
+  'color-border': 'rgba(148, 163, 184, 0.16)',
+  'color-border-strong': 'rgba(148, 163, 184, 0.30)',
 
   // Glass
-  'color-glass': 'rgba(255, 255, 255, 0.92)',
+  'color-glass': 'rgba(10, 15, 28, 0.86)',
 
-  // Interactive states (light bg → dark overlays)
-  'color-interactive-hover': 'rgba(0, 0, 0, 0.04)',
-  'color-interactive-active': 'rgba(0, 0, 0, 0.08)',
-  'color-interactive-selected': 'rgba(255, 176, 32, 0.10)',
-  // Focus & selection (amber brand)
-  'color-focus-ring': 'rgba(255, 176, 32, 0.4)',
+  // Interactive states (dark bg → light overlays)
+  'color-interactive-hover': 'rgba(255, 255, 255, 0.05)',
+  'color-interactive-active': 'rgba(255, 255, 255, 0.09)',
+  'color-interactive-selected': 'rgba(16, 185, 129, 0.12)',
+  // Focus & selection (emerald brand)
+  'color-focus-ring': 'rgba(16, 185, 129, 0.5)',
 
-  // Shadows (softer on light backgrounds)
-  'shadow-panel': '0 1px 0 rgba(0,0,0,0.04) inset, 0 4px 24px rgba(0,0,0,0.08)',
-  'shadow-card': '0 1px 0 rgba(0,0,0,0.03) inset, 0 8px 32px rgba(0,0,0,0.1)',
-  'shadow-modal': '0 0 0 1px rgba(0,0,0,0.04), 0 24px 80px rgba(0,0,0,0.15)',
-  'shadow-tooltip': '0 4px 20px rgba(0,0,0,0.12)',
-  'shadow-inner-subtle': 'inset 0 1px 3px rgba(0,0,0,0.05)',
-} as const
+  // Brand chrome brightens on dark
+  'color-brand': '#10b981',
+  'color-brand-hover': '#34d399',
+  'color-brand-soft': 'rgba(16, 185, 129, 0.14)',
 
-// ── Tailwind-only values (not expressible as single CSS vars) ──
-export const tailwindOnly = {
-  fontWeight: {
-    normal: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-  },
-  keyframes: {
-    'pulse-subtle': {
-      '0%, 100%': { opacity: '0.5' },
-      '50%': { opacity: '1' },
-    },
-    'scale-in': {
-      '0%': { transform: 'scale(0.97)', opacity: '0' },
-      '100%': { transform: 'scale(1)', opacity: '1' },
-    },
-    'slide-up': {
-      '0%': { transform: 'translateY(6px)', opacity: '0' },
-      '100%': { transform: 'translateY(0)', opacity: '1' },
-    },
-    'fade-in': {
-      '0%': { opacity: '0' },
-      '100%': { opacity: '1' },
-    },
-    'state-pulse-red': {
-      '0%, 100%': { opacity: '0.4', boxShadow: '0 0 0 rgba(240, 68, 68, 0)' },
-      '50%': { opacity: '1', boxShadow: '0 0 8px rgba(240, 68, 68, 0.3)' },
-    },
-    'toast-progress': {
-      '0%': { transform: 'scaleX(1)', opacity: '0.8' },
-      '100%': { transform: 'scaleX(0)', opacity: '0' },
-    },
-  },
+  // Shadows (deeper on dark backgrounds)
+  'shadow-panel': '0 1px 0 rgba(255,255,255,0.03) inset, 0 4px 20px rgba(0,0,0,0.35)',
+  'shadow-card': '0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.45)',
+  'shadow-modal': '0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.6)',
+  'shadow-tooltip': '0 4px 20px rgba(0,0,0,0.5)',
+  'shadow-inner-subtle': 'inset 0 1px 3px rgba(0,0,0,0.3)',
+
+  // Chart chrome (dark mode: subtler grid, brighter axis)
+  'color-chart-grid': 'rgba(148, 163, 184, 0.14)',
+  'color-chart-axis': '#94a3b8',
+  'color-chart-tooltip-border': 'rgba(148, 163, 184, 0.45)',
 } as const
 
 // ════════════════════════════════════════════════════════════════
@@ -289,17 +279,17 @@ export const tailwindOnly = {
 const _ = rawTokens // shorthand
 
 export const teal = {
-  50: _['color-teal-50'],
-  100: _['color-teal-100'],
-  200: _['color-teal-200'],
-  300: _['color-teal-300'],
-  400: _['color-teal-400'],
-  500: _['color-teal-500'],
-  600: _['color-teal-600'],
-  700: _['color-teal-700'],
-  800: _['color-teal-800'],
-  900: _['color-teal-900'],
-  950: _['color-teal-950'],
+  50: _['color-emerald-50'],
+  100: _['color-emerald-100'],
+  200: _['color-emerald-200'],
+  300: _['color-emerald-300'],
+  400: _['color-emerald-400'],
+  500: _['color-emerald-500'],
+  600: _['color-emerald-600'],
+  700: _['color-emerald-700'],
+  800: _['color-emerald-800'],
+  900: _['color-emerald-900'],
+  950: _['color-emerald-950'],
 } as const
 
 export const indigo = {
@@ -403,21 +393,21 @@ export const border = {
 export const glass = _['color-glass']
 
 export const usage = {
-  primaryAction: accents.amber,
-  primaryActionHover: '#ff9d0a',
-  primaryActionText: neutral[950],
-  secondaryAction: neutral[800],
-  secondaryActionHover: neutral[700],
-  activeBorder: accents.amber,
-  activeGlow: 'rgba(255, 176, 32, 0.3)',
+  primaryAction: _['color-brand'],
+  primaryActionHover: _['color-brand-hover'],
+  primaryActionText: _['color-brand-text'],
+  secondaryAction: neutral[200],
+  secondaryActionHover: neutral[300],
+  activeBorder: _['color-brand'],
+  activeGlow: 'rgba(4, 120, 87, 0.3)',
   signalLong: success.DEFAULT,
   signalShort: error.DEFAULT,
   signalFlat: warning.DEFAULT,
   positive: teal[500],
   negative: error.DEFAULT,
   areaGradient: {
-    from: 'rgba(45, 212, 191, 0.15)',
-    to: 'rgba(45, 212, 191, 0.01)',
+    from: 'rgba(5, 150, 105, 0.16)',
+    to: 'rgba(5, 150, 105, 0.01)',
   },
 } as const
 
@@ -471,7 +461,10 @@ export const typography = {
     '4xl': [rawTokens['font-size-4xl'], { lineHeight: rawTokens['line-height-4xl'] }],
   },
   fontWeight: {
-    ...tailwindOnly.fontWeight,
+    normal: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
     extrabold: 800,
     black: 900,
   },
@@ -576,4 +569,39 @@ export const tokens = {
   animation,
   typeRoles,
   gapRoles,
+} as const
+
+export const tailwindOnly = {
+  fontWeight: {
+    normal: 400,
+    medium: 500,
+    semibold: 600,
+    bold: 700,
+  },
+  keyframes: {
+    'pulse-subtle': {
+      '0%, 100%': { opacity: '0.5' },
+      '50%': { opacity: '1' },
+    },
+    'scale-in': {
+      '0%': { transform: 'scale(0.97)', opacity: '0' },
+      '100%': { transform: 'scale(1)', opacity: '1' },
+    },
+    'slide-up': {
+      '0%': { transform: 'translateY(6px)', opacity: '0' },
+      '100%': { transform: 'translateY(0)', opacity: '1' },
+    },
+    'fade-in': {
+      '0%': { opacity: '0' },
+      '100%': { opacity: '1' },
+    },
+    'state-pulse-red': {
+      '0%, 100%': { opacity: '0.4', boxShadow: '0 0 0 rgba(220, 38, 38, 0)' },
+      '50%': { opacity: '1', boxShadow: '0 0 8px rgba(220, 38, 38, 0.3)' },
+    },
+    'toast-progress': {
+      '0%': { transform: 'scaleX(1)', opacity: '0.8' },
+      '100%': { transform: 'scaleX(0)', opacity: '0' },
+    },
+  },
 } as const

@@ -4,6 +4,7 @@ import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { Skeleton } from '../ui/Skeleton'
 import PanelFallback from '../ui/PanelFallback'
+import EmptyState from '../ui/EmptyState'
 
 export default function ExecutionQualityStrip() {
   const { data: bundle, isPending, isError, error, refetch } = useAttributionBundle()
@@ -28,7 +29,14 @@ export default function ExecutionQualityStrip() {
 
   const byAsset = data?.by_asset ?? {}
   const assets = Object.keys(byAsset)
-  if (assets.length === 0) return null
+  if (assets.length === 0) {
+    return (
+      <Panel padding="md">
+        <SectionHeader title="Execution Quality" accent="blue" />
+        <EmptyState message="No execution quality data yet" compact />
+      </Panel>
+    )
+  }
 
   const avgEis = assets.reduce((s, a) => s + (byAsset[a].eis ?? 0), 0) / assets.length
   const avgFqi = assets.reduce((s, a) => s + (byAsset[a].fqi ?? 0), 0) / assets.length
@@ -39,10 +47,10 @@ export default function ExecutionQualityStrip() {
     <Panel padding="md">
       <SectionHeader title="Execution Quality" accent="blue" />
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard variant="kpi" label="Avg EIS" value={(avgEis * 100).toFixed(1) + '%'} accent={avgEis >= 0.7 ? '#22c55e' : '#eab308'} />
-        <StatCard variant="kpi" label="Avg FQI" value={(avgFqi * 100).toFixed(1) + '%'} accent={avgFqi >= 0.8 ? '#22c55e' : '#eab308'} />
-        <StatCard variant="kpi" label="Worst Slippage" value={worstSlip.toFixed(1) + ' bps'} accent={worstSlip > 10 ? '#ef4444' : '#22c55e'} />
-        <StatCard variant="kpi" label="Fill Rate" value={(avgFill * 100).toFixed(1) + '%'} accent={avgFill >= 0.95 ? '#22c55e' : '#eab308'} />
+        <StatCard variant="kpi" label="Avg EIS" value={(avgEis * 100).toFixed(1) + '%'} accent={avgEis >= 0.7 ? 'green' : 'yellow'} />
+        <StatCard variant="kpi" label="Avg FQI" value={(avgFqi * 100).toFixed(1) + '%'} accent={avgFqi >= 0.8 ? 'green' : 'yellow'} />
+        <StatCard variant="kpi" label="Worst Slippage" value={worstSlip.toFixed(1) + ' bps'} accent={worstSlip > 10 ? 'red' : 'green'} />
+        <StatCard variant="kpi" label="Fill Rate" value={(avgFill * 100).toFixed(1) + '%'} accent={avgFill >= 0.95 ? 'green' : 'yellow'} />
       </div>
       <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-2xs text-tertiary">
         {assets.map(a => (

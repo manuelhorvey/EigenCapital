@@ -203,7 +203,7 @@ export default function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="relative w-full max-w-lg rounded-xl bg-app border border-default shadow-modal overflow-hidden animate-scale-in"
+        className="relative w-full max-w-lg rounded-xl bg-card border border-default shadow-modal overflow-hidden animate-scale-in"
       >
         <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-default">
           <Search className="w-4 h-4 text-tertiary shrink-0" strokeWidth={2} />

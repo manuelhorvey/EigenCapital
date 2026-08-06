@@ -73,7 +73,7 @@ export default function AssetDetailPanel({ asset, name, onClose }: Props) {
   return (
     <div
       ref={panelRef}
-      className="fixed inset-y-0 right-0 z-40 w-[420px] max-w-full bg-app border-l border-default shadow-2xl flex flex-col"
+      className="fixed inset-y-0 right-0 z-40 w-[420px] max-w-full bg-card border-l border-default shadow-2xl flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-label={`${name} detail`}

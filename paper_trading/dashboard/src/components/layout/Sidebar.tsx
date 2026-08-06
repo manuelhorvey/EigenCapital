@@ -32,18 +32,18 @@ const NavItem = memo(function NavItem({ item, badge, onClose, onKeyDown }: NavIt
       onClick={onClose}
       onKeyDown={e => onKeyDown(e, item.id)}
       className={({ isActive }) =>
-        `w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs font-medium
+        `w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs font-medium
         transition-all duration-150 relative focus-ring ${
           isActive
-            ? 'bg-accent-amber/10 text-accent-amber border border-accent-amber/25 shadow-[inset_0_0_0_1px_rgba(255,176,32,0.08)]'
-            : 'text-tertiary hover:text-secondary hover:bg-panel/60 border border-transparent'
+            ? 'bg-brand-soft text-brand border border-brand/25'
+            : 'text-tertiary hover:text-secondary hover:bg-panel-hover border border-transparent'
         }`
       }
     >
       {({ isActive }) => (
         <>
           {isActive && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent-amber rounded-full shadow-[0_0_6px_rgba(255,176,32,0.5)]" />
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-brand rounded-full shadow-[0_0_6px_rgba(4,120,87,0.4)]" />
           )}
           <item.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
           <div className="flex flex-col min-w-0">
@@ -187,7 +187,7 @@ function Sidebar({ open, onClose }: SidebarProps) {
         aria-label="Navigation"
         className={`
           fixed inset-y-0 left-0 z-50 w-[232px] bg-surface border-r border-default
-          shadow-[inset_-1px_0_0_rgba(255,255,255,0.02)]
+          shadow-[inset_-1px_0_0_color-mix(in_srgb,var(--color-text-primary)_6%,transparent)]
           transform transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
           lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:overflow-y-auto
           flex flex-col
@@ -197,8 +197,8 @@ function Sidebar({ open, onClose }: SidebarProps) {
         {/* Region 1: Brand + Search sheet */}
         <div className="shrink-0 px-3 pt-2.5 pb-2 border-b border-default space-y-2">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-accent-amber flex items-center justify-center shrink-0">
-              <TrendingUp className="w-2.5 h-2.5 text-[#0a0602]" strokeWidth={2.25} />
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shrink-0 shadow-sm">
+              <TrendingUp className="w-3 h-3 text-white" strokeWidth={2.25} />
             </div>
             <span className="text-xs font-bold tracking-tight text-primary truncate">Quorrin</span>
             <button

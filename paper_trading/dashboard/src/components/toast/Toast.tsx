@@ -96,7 +96,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-auto relative overflow-hidden rounded-lg bg-app border border-default shadow-card animate-slide-up border-l-2 ${variantBorder[t.variant ?? 'info']}`}
+            className={`pointer-events-auto relative overflow-hidden rounded-lg bg-card border border-default shadow-card animate-slide-up border-l-2 ${variantBorder[t.variant ?? 'info']}`}
           >
             <div className="flex items-start gap-2.5 px-3 py-2.5">
               <span className="mt-px shrink-0">{variantIcon[t.variant ?? 'info']}</span>

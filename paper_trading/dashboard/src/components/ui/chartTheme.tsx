@@ -4,22 +4,22 @@ import { chart } from '../../design/color-system'
 export const CHART_PALETTE = chart
 
 export const CHART_PRIMARY = chart[0]
-export const CHART_GRID = 'var(--color-border)'
-export const CHART_AXIS = 'var(--color-text-tertiary)'
+export const CHART_GRID = 'var(--color-chart-grid)'
+export const CHART_AXIS = 'var(--color-chart-axis)'
 
 export const chartMargin = { top: 4, right: 8, left: 0, bottom: 0 }
 
 export const axisTick = {
   fontSize: 10,
-  fill: 'var(--color-text-tertiary)',
+  fill: 'var(--color-chart-axis)',
   fontFamily: 'var(--font-mono)',
-  fontWeight: 400,
+  fontWeight: 500,
 }
 
 export const tooltipStyle: CSSProperties = {
   background: 'var(--color-card)',
-  border: '1.5px solid var(--color-border-strong)',
-  borderRadius: '6px',
+  border: '1px solid var(--color-chart-tooltip-border)',
+  borderRadius: '8px',
   fontSize: '11px',
   fontFamily: 'var(--font-mono)',
   boxShadow: 'var(--shadow-tooltip, 0 4px 20px rgba(0,0,0,0.5))',
@@ -30,7 +30,7 @@ export const tooltipStyle: CSSProperties = {
 
 export const tooltipLabelStyle: CSSProperties = {
   color: 'var(--color-text-secondary)',
-  fontWeight: 600,
+  fontWeight: 700,
   marginBottom: 4,
   fontSize: '11px',
   textTransform: 'uppercase',
@@ -38,13 +38,13 @@ export const tooltipLabelStyle: CSSProperties = {
 }
 
 export const cartesianGridProps = {
-  stroke: 'var(--color-border)',
-  strokeWidth: 0.3,
+  stroke: 'var(--color-chart-grid)',
+  strokeWidth: 0.6,
   vertical: false,
 }
 
 export const chartCursor = {
-  stroke: 'var(--color-border-strong)',
+  stroke: 'var(--color-chart-axis)',
   strokeWidth: 1,
   strokeDasharray: '4 4',
 }

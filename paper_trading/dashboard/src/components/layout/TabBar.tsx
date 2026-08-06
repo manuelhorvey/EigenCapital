@@ -17,10 +17,10 @@ export default function TabBar() {
             end
             aria-label={tab.label}
             className={({ isActive }) =>
-              `flex items-center gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 text-2xs sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
+              `flex items-center gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 text-2xs sm:text-xs font-medium rounded-lg transition-colors shrink-0 ${
                 isActive
-                  ? 'bg-accent-amber/10 text-accent-amber border border-accent-amber/25'
-                  : 'text-tertiary hover:text-secondary hover:bg-panel/60 border border-transparent'
+                  ? 'bg-brand-soft text-brand border border-brand/25'
+                  : 'text-tertiary hover:text-secondary hover:bg-panel-hover border border-transparent'
               } active:scale-95 sm:active:scale-100`
             }
           >

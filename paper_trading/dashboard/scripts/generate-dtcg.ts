@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { rawTokens, rawLightTokens, tailwindOnly } from '../src/design/color-system.js'
+import { rawTokens, rawDarkTokens, tailwindOnly } from '../src/design/color-system.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(__dirname, '../generated')
@@ -27,8 +27,8 @@ type Route = { path: string[]; type: string }
 
 function route(key: string): Route | null {
   if (key.startsWith('color-')) {
-    // Scale colors: color-teal-50 → [color, teal, 50]
-    const scale = key.match(/^color-(teal|indigo|neutral)-(\d+)$/)
+    // Scale colors: color-emerald-50 → [color, emerald, 50]
+    const scale = key.match(/^color-(emerald|indigo|neutral)-(\d+)$/)
     if (scale) return { path: ['color', scale[1], scale[2]], type: 'color' }
 
     // Map special paths the same way as the tailwind generator
@@ -99,8 +99,8 @@ function buildGroup(source: Record<string, string>, groupLabel: string): Obj {
 
 const dtcg: Obj = {
   $schema: 'https://design-tokens.github.io/community-group/format/',
-  ...buildGroup(rawTokens, 'dark'),
-  ...buildGroup(rawLightTokens, 'light'),
+  ...buildGroup(rawTokens, 'light'),
+  ...buildGroup(rawDarkTokens, 'dark'),
 }
 
 // ── Write ──────────────────────────────────────────

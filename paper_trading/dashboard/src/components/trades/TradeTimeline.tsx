@@ -70,12 +70,12 @@ export default function TradeTimeline({ data }: TradeTimelineProps) {
       {events.map((event, i) => (
         <div key={event.type} className="relative pb-4 last:pb-0">
           {/* Dot */}
-          <div className={`absolute -left-[19px] top-0.5 w-[15px] h-[15px] rounded-full bg-app border-2 border-default flex items-center justify-center ${event.color}`}>
+          <div className={`absolute -left-[19px] top-0.5 w-[15px] h-[15px] rounded-full bg-card border-2 border-default flex items-center justify-center ${event.color}`}>
             <event.icon className="w-2 h-2" strokeWidth={2.5} />
           </div>
 
           {/* Content */}
-          <div className="bg-surface border border-default rounded-lg px-3 py-2">
+          <div className="bg-panel border border-default rounded-lg px-3 py-2">
             <div className="flex items-center gap-2 mb-1.5">
               <span className={`text-2xs font-bold uppercase tracking-wider ${event.color}`}>{event.type}</span>
               <span className="text-2xs text-tertiary font-mono">{event.time}</span>

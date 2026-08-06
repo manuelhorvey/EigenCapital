@@ -28,7 +28,14 @@ export default function FillQualityGauge() {
 
   const byAsset = data?.by_asset ?? {}
   const assets = Object.keys(byAsset)
-  if (assets.length === 0) return null
+  if (assets.length === 0) {
+    return (
+      <Panel padding="md">
+        <SectionHeader title="Fill Quality" accent="purple" />
+        <EmptyState message="No fill quality data yet" compact />
+      </Panel>
+    )
+  }
 
   const hasFqi = assets.some(a => byAsset[a].fqi != null)
   const hasEis = assets.some(a => byAsset[a].eis != null)

@@ -5,6 +5,7 @@ import { dismissAlert } from '../../hooks/useMonitorAlerts'
 import Panel from '../ui/Panel'
 import SectionHeader from '../ui/SectionHeader'
 import Badge from '../ui/Badge'
+import EmptyState from '../ui/EmptyState'
 
 interface AlertFeedProps {
   alerts: Alert[]
@@ -38,7 +39,14 @@ export default function AlertFeed({ alerts }: AlertFeedProps) {
     dismissAlert(id)
   }
 
-  if (visible.length === 0) return null
+  if (visible.length === 0) {
+    return (
+      <Panel padding="md">
+        <SectionHeader title="Active Alerts" accent="amber" />
+        <EmptyState message="No active alerts" compact />
+      </Panel>
+    )
+  }
 
   return (
     <Panel padding="md">

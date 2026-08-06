@@ -144,7 +144,16 @@ export default function StatisticalMetricsTable() {
     },
   ], [])
 
-  if (!stats || Object.keys(stats).length === 0) return <TableSkeleton rows={6} />
+  if (!stats) return <TableSkeleton rows={6} />
+
+  if (Object.keys(stats).length === 0) {
+    return (
+      <Panel className="p-4">
+        <SectionHeader title="Statistical Metrics" accent="purple" />
+        <EmptyState message="No asset metrics available yet" compact />
+      </Panel>
+    )
+  }
 
 
 

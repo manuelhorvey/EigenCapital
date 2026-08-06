@@ -40,7 +40,7 @@ export default function Select({
         aria-label={label ? undefined : placeholder || 'Select option'}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className={`appearance-none w-full bg-surface border border-default rounded text-primary font-medium transition-colors duration-150 hover:border-strong focus:outline-none focus:border-strong focus:shadow-[0_0_0_1px_rgba(255,176,32,0.25)] ${sizeStyles[size]}`}
+        className={`appearance-none w-full bg-surface border border-default rounded-lg text-primary font-medium transition-colors duration-150 hover:border-strong focus:outline-none focus:border-strong focus:shadow-[0_0_0_2px_var(--color-focus-ring)] ${sizeStyles[size]}`}
       >
         <option value="">{placeholder}</option>
         {options.map(opt => (

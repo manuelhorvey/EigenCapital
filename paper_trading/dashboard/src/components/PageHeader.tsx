@@ -39,8 +39,8 @@ export default function PageHeader({ title, description, crumbs, status, actions
           ))}
         </nav>
 
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-primary">{title}</h1>
-        {description && <p className="text-xs text-tertiary mt-1 max-w-2xl text-pretty">{description}</p>}
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primary">{title}</h1>
+        {description && <p className="text-sm text-tertiary mt-1 max-w-2xl text-pretty">{description}</p>}
       </div>
 
       <div className="flex items-center gap-2 shrink-0 flex-wrap">

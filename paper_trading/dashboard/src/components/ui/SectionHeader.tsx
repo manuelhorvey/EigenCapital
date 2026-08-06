@@ -21,13 +21,13 @@ const accentDot: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
 }
 
 const accentGlow: Record<NonNullable<SectionHeaderProps['accent']>, string> = {
-  emerald: 'shadow-[0_0_6px_rgba(45,211,191,0.4)]',
-  blue: 'shadow-[0_0_6px_rgba(96,165,250,0.4)]',
-  purple: 'shadow-[0_0_6px_rgba(167,139,250,0.4)]',
-  amber: 'shadow-[0_0_6px_rgba(251,191,36,0.4)]',
-  indigo: 'shadow-[0_0_6px_rgba(129,140,248,0.4)]',
-  pink: 'shadow-[0_0_6px_rgba(244,114,182,0.4)]',
-  neutral: 'shadow-[0_0_6px_rgba(100,116,139,0.2)]',
+  emerald: 'shadow-[0_0_6px_rgba(5,150,105,0.35)]',
+  blue: 'shadow-[0_0_6px_rgba(37,99,235,0.35)]',
+  purple: 'shadow-[0_0_6px_rgba(124,58,237,0.35)]',
+  amber: 'shadow-[0_0_6px_rgba(217,119,6,0.35)]',
+  indigo: 'shadow-[0_0_6px_rgba(79,70,229,0.35)]',
+  pink: 'shadow-[0_0_6px_rgba(219,39,119,0.35)]',
+  neutral: 'shadow-[0_0_6px_rgba(100,116,139,0.25)]',
 }
 
 const titleSize = {

@@ -4,6 +4,8 @@ import { useSystemSnapshot } from '../hooks/useSystemSnapshot'
 import { systemSelectors } from '../selectors/system'
 import { MetricCardSkeleton } from './ui/Skeleton'
 import { governanceDot, governanceText } from './ui/governance'
+import SectionHeader from './ui/SectionHeader'
+import EmptyState from './ui/EmptyState'
 
 export default function HaltConditions() {
   const { data, isPending } = useSystemSnapshot(systemSelectors.snapshot)
@@ -38,7 +40,14 @@ export default function HaltConditions() {
     return <MetricCardSkeleton count={4} />
   }
 
-  if (!data) return null
+  if (!data) {
+    return (
+      <div>
+        <SectionHeader title="Halt Gates" accent="amber" />
+        <EmptyState message="No halt data available" compact />
+      </div>
+    )
+  }
 
   const assets = data?.assets ?? {}
   let haltedAny = false
@@ -86,6 +95,7 @@ export default function HaltConditions() {
 
   return (
     <div>
+      <SectionHeader title="Halt Gates" accent="amber" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map(c => {
           const state = c.pass ? 'GREEN' : 'RED'

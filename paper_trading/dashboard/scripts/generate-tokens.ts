@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { rawTokens, rawLightTokens, tailwindOnly } from '../src/design/color-system.js'
+import { rawTokens, rawDarkTokens, tailwindOnly } from '../src/design/color-system.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(__dirname, '../generated')
@@ -44,10 +44,10 @@ for (const [name, frames] of Object.entries(tailwindOnly.keyframes)) {
   css += '}\n\n'
 }
 
-// ── Light mode override block ─────────────────────────
-if (Object.keys(rawLightTokens).length > 0) {
-  css += '.light {\n'
-  for (const [key, value] of Object.entries(rawLightTokens)) {
+// ── Dark mode override block ─────────────────────────
+if (Object.keys(rawDarkTokens).length > 0) {
+  css += '.dark {\n'
+  for (const [key, value] of Object.entries(rawDarkTokens)) {
     css += `  --${key}: ${value};\n`
   }
   css += '}\n\n'
@@ -56,7 +56,7 @@ if (Object.keys(rawLightTokens).length > 0) {
 // ── Step 2: Generate tailwind.partial.js ───────────────
 
 // Color path map — maps rawToken key → dotted Tailwind color path
-// Scale colors (teal-50, indigo-500, neutral-950) are auto-detected.
+// Scale colors (emerald-50, indigo-500, neutral-950) are auto-detected.
 const COLOR_MAP: Record<string, string> = {
   'color-app': 'app',
   'color-surface': 'surface',
@@ -88,6 +88,10 @@ const COLOR_MAP: Record<string, string> = {
   'color-gov-gray': 'gov-gray.DEFAULT',
   'color-gov-gray-muted': 'gov-gray.muted',
   'color-gov-gray-muted2': 'gov-gray.muted2',
+  'color-brand': 'brand.DEFAULT',
+  'color-brand-hover': 'brand.hover',
+  'color-brand-soft': 'brand.soft',
+  'color-brand-text': 'brand.text',
   'color-accent-emerald': 'accent-emerald',
   'color-accent-blue': 'accent-blue',
   'color-accent-purple': 'accent-purple',
@@ -103,8 +107,8 @@ const colors: Obj = {}
 for (const [key] of Object.entries(rawTokens)) {
   if (!key.startsWith('color-')) continue
 
-  // Auto-detect scale colors: color-teal-50 → teal.50
-  const scaleMatch = key.match(/^color-(teal|indigo|neutral)-(\d+)$/)
+  // Auto-detect scale colors: color-emerald-50 → emerald.50
+  const scaleMatch = key.match(/^color-(emerald|indigo|neutral)-(\d+)$/)
   if (scaleMatch) {
     setDeep(colors, `${scaleMatch[1]}.${scaleMatch[2]}`, `var(--${key})`)
     continue

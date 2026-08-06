@@ -33,10 +33,10 @@ export default function AttributionBreakdownCard() {
         <span className="text-2xs text-tertiary">{data.overall.n_trades} trades</span>
       } />
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <StatCard variant="kpi" label="Prediction" value={(ds.prediction_score * 100).toFixed(0) + '%'} accent="#60a5fa" />
-        <StatCard variant="kpi" label="Execution" value={(ds.execution_score * 100).toFixed(0) + '%'} accent="#a78bfa" />
-        <StatCard variant="kpi" label="Exit" value={(ds.exit_score * 100).toFixed(0) + '%'} accent="#22c55e" />
-        <StatCard variant="kpi" label="Friction" value={(ds.friction_score * 100).toFixed(0) + '%'} accent="#eab308" />
+        <StatCard variant="kpi" label="Prediction" value={(ds.prediction_score * 100).toFixed(0) + '%'} accent="blue" />
+        <StatCard variant="kpi" label="Execution" value={(ds.execution_score * 100).toFixed(0) + '%'} accent="purple" />
+        <StatCard variant="kpi" label="Exit" value={(ds.exit_score * 100).toFixed(0) + '%'} accent="green" />
+        <StatCard variant="kpi" label="Friction" value={(ds.friction_score * 100).toFixed(0) + '%'} accent="yellow" />
       </div>
 
       {data.domain_scores && Object.keys(data.domain_scores).length > 0 && (

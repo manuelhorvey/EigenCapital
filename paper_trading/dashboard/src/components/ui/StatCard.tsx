@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Skeleton } from './Skeleton'
+import { semanticColor } from './semantic'
 
 type StatCardVariant = 'default' | 'compact' | 'kpi'
 
@@ -59,21 +60,23 @@ export default function StatCard({
 }: StatCardProps) {
   if (loading) return <LoadingSkeleton variant={variant} />
 
+  const resolvedAccent = accent ? semanticColor(accent) : undefined
+
   if (variant === 'kpi') {
     return (
-      <div className={`bg-panel/60 border border-default rounded-lg p-2.5 relative overflow-hidden group ${animate ? 'animate-fade-in' : ''} ${className}`}>
-        {accent && (
+      <div className={`bg-surface border border-default rounded-xl p-3 shadow-panel relative overflow-hidden group transition-all duration-200 hover:border-strong hover:shadow-card ${animate ? 'animate-fade-in' : ''} ${className}`}>
+        {resolvedAccent && (
           <span
-            className="absolute top-0 left-0 right-0 h-0.5 rounded-t-lg pointer-events-none transition-all duration-300 group-hover:h-1"
-            style={{ backgroundColor: accent }}
+            className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl pointer-events-none transition-all duration-300 group-hover:h-1"
+            style={{ backgroundColor: resolvedAccent }}
           />
         )}
-        <div className="flex items-center justify-between gap-2 mb-0.5">
+        <div className="flex items-center justify-between gap-2 mb-1">
           <span className="text-[10px] text-tertiary font-medium truncate tracking-wider uppercase">{label}</span>
         </div>
         <div
-          className={`text-sm font-bold tabular-nums tracking-tight transition-colors duration-200 ${valueClassName ?? (accent ? '' : 'text-secondary')}`}
-          style={accent && !valueClassName ? { color: accent } : undefined}
+          className={`text-sm font-bold tabular-nums tracking-tight transition-colors duration-200 ${valueClassName ?? (resolvedAccent ? '' : 'text-primary')}`}
+          style={resolvedAccent && !valueClassName ? { color: resolvedAccent } : undefined}
         >
           {value}
         </div>
@@ -83,12 +86,12 @@ export default function StatCard({
 
   if (variant === 'compact') {
     return (
-      <div className={`bg-panel/60 border border-default rounded-lg p-3 transition-all duration-200 hover:border-strong group ${animate ? 'animate-fade-in' : ''} ${className}`}>
+      <div className={`bg-surface border border-default rounded-xl p-3 shadow-panel transition-all duration-200 hover:border-strong hover:shadow-card group ${animate ? 'animate-fade-in' : ''} ${className}`}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider">{label}</span>
           <div
-            className={`text-sm font-semibold tracking-tight font-mono tabular-nums transition-colors ${valueClassName ?? (accent ? '' : 'text-primary')}`}
-            style={accent && !valueClassName ? { color: accent } : undefined}
+            className={`text-sm font-semibold tracking-tight font-mono tabular-nums transition-colors ${valueClassName ?? (resolvedAccent ? '' : 'text-primary')}`}
+            style={resolvedAccent && !valueClassName ? { color: resolvedAccent } : undefined}
           >
             {value}
           </div>
@@ -102,26 +105,26 @@ export default function StatCard({
 
   return (
     <div className={[
-      'bg-panel border border-default rounded-lg p-3 sm:p-3.5',
+      'bg-surface border border-default rounded-xl p-3 sm:p-4',
       'transition-all duration-200 ease-out',
       'hover:border-strong hover:-translate-y-0.5 hover:shadow-card',
-      'group relative overflow-hidden',
+      'group relative overflow-hidden shadow-panel',
       animate ? 'animate-slide-up' : '',
       className,
     ].join(' ')}>
       {/* Subtle top gradient line */}
-      {accent && (
+      {resolvedAccent && (
         <span
           className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
+          style={{ background: `linear-gradient(90deg, ${resolvedAccent}, transparent)` }}
         />
       )}
 
       {/* Accent dot on hover */}
-      {accent && (
+      {resolvedAccent && (
         <span
           className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-300"
-          style={{ backgroundColor: accent }}
+          style={{ backgroundColor: resolvedAccent }}
         />
       )}
 
@@ -142,9 +145,9 @@ export default function StatCard({
               className={[
                 `${valueSize[size]} font-semibold tracking-tight font-mono tabular-nums mt-0.5 leading-tight`,
                 'transition-colors duration-200',
-                valueClassName ?? (accent ? '' : 'text-primary'),
+                valueClassName ?? (resolvedAccent ? '' : 'text-primary'),
               ].join(' ')}
-              style={accent && !valueClassName ? { color: accent } : undefined}
+              style={resolvedAccent && !valueClassName ? { color: resolvedAccent } : undefined}
             >
               {value}
             </div>
@@ -163,9 +166,9 @@ export default function StatCard({
             className={[
               `${valueSize[size]} font-semibold tracking-tight font-mono tabular-nums mt-1 leading-tight`,
               'transition-colors duration-200',
-              valueClassName ?? (accent ? '' : 'text-primary'),
+              valueClassName ?? (resolvedAccent ? '' : 'text-primary'),
             ].join(' ')}
-            style={accent && !valueClassName ? { color: accent } : undefined}
+            style={resolvedAccent && !valueClassName ? { color: resolvedAccent } : undefined}
           >
             {value}
           </div>

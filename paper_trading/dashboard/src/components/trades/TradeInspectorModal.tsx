@@ -50,7 +50,7 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-4">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div ref={modalRef} className="relative w-full max-w-2xl bg-app border border-default rounded-xl shadow-2xl animate-fade-in max-h-[80vh] flex flex-col" role="dialog" aria-modal="true" aria-label={`Trade inspector: ${asset}`}>
+      <div ref={modalRef} className="relative w-full max-w-2xl bg-card border border-default rounded-xl shadow-2xl animate-fade-in max-h-[80vh] flex flex-col" role="dialog" aria-modal="true" aria-label={`Trade inspector: ${asset}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
           <div>
@@ -119,10 +119,10 @@ export default function TradeInspectorModal({ asset, entryDate, exitDate, onClos
                   <>
                     <div className="space-y-2">
                       <p className="text-2xs font-semibold text-tertiary uppercase tracking-wider mb-2">Domain Scores</p>
-                      <ScoreBar label="Prediction" score={scores.prediction_score} color="#3b82f6" />
-                      <ScoreBar label="Execution" score={scores.execution_score} color="#a855f7" />
-                      <ScoreBar label="Exit" score={scores.exit_score} color="#22c55e" />
-                      <ScoreBar label="Friction" score={scores.friction_score} color="#f97316" />
+                      <ScoreBar label="Prediction" score={scores.prediction_score} color="blue" />
+                      <ScoreBar label="Execution" score={scores.execution_score} color="purple" />
+                      <ScoreBar label="Exit" score={scores.exit_score} color="green" />
+                      <ScoreBar label="Friction" score={scores.friction_score} color="orange" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-default">

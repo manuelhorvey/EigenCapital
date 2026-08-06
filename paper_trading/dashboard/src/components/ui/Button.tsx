@@ -14,13 +14,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-accent-amber text-[#0a0602] hover:brightness-110 focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] active:scale-[0.98]',
+    'bg-brand text-brand-text hover:bg-brand-hover shadow-panel focus-visible:shadow-[0_0_0_3px_var(--color-focus-ring)] active:scale-[0.98]',
   secondary:
-    'bg-panel border border-default text-secondary hover:bg-panel-hover hover:text-primary hover:border-strong focus-visible:shadow-[0_0_0_1px_var(--color-focus-ring)] active:scale-[0.98]',
+    'bg-surface border border-default text-secondary hover:bg-panel-hover hover:text-primary hover:border-strong focus-visible:shadow-[0_0_0_1px_var(--color-focus-ring)] active:scale-[0.98]',
   ghost:
-    'border border-transparent text-secondary hover:text-primary hover:bg-panel hover:border-default focus-visible:shadow-[0_0_0_1px_var(--color-focus-ring)] active:scale-[0.98]',
+    'border border-transparent text-secondary hover:text-primary hover:bg-panel-hover hover:border-default focus-visible:shadow-[0_0_0_1px_var(--color-focus-ring)] active:scale-[0.98]',
   outline:
-    'border border-accent-amber/50 text-accent-amber hover:bg-accent-amber/10 hover:border-accent-amber focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] active:scale-[0.98]',
+    'border border-brand/40 text-brand hover:bg-brand-soft hover:border-brand focus-visible:shadow-[0_0_0_2px_var(--color-focus-ring)] active:scale-[0.98]',
   danger:
     'bg-gov-red text-white hover:brightness-110 focus-visible:shadow-[0_0_0_2px_rgba(239,68,68,0.5)] active:scale-[0.98]',
 }
@@ -45,6 +45,7 @@ export default function Button({
     <button
       type="button"
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={`inline-flex items-center justify-center rounded font-medium transition-all duration-150 outline-none disabled:opacity-40 disabled:pointer-events-none ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
       {...props}
     >

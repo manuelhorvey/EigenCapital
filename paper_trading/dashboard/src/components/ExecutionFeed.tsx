@@ -112,7 +112,16 @@ export default function ExecutionFeed() {
                 <tr
                   key={c.asset}
                   onClick={() => setSelectedAsset(c.asset)}
-                  className="border-b border-default/30 table-row-hover cursor-pointer"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setSelectedAsset(c.asset)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open ${c.asset} details — signal ${c.signal}, ${(c.confidence * 100).toFixed(0)}% confidence`}
+                  className="border-b border-default/30 table-row-hover cursor-pointer focus-ring"
                 >
                   <td className="py-1.5 pr-2 font-medium font-mono text-primary">{c.asset}</td>
                   <td className="py-1.5 pr-2">

@@ -131,7 +131,7 @@ export default function EquityChart({ compact = false }: { compact?: boolean }) 
           aria-pressed={range === r.key}
           className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold transition-all focus-ring ${
             range === r.key
-              ? 'bg-accent-amber/15 text-accent-amber'
+              ? 'bg-brand-soft text-brand'
               : 'text-tertiary hover:text-secondary'
           }`}
         >
@@ -245,7 +245,7 @@ export default function EquityChart({ compact = false }: { compact?: boolean }) 
             <Tooltip
               contentStyle={tooltipStyle}
               labelStyle={tooltipLabelStyle}
-              itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11, padding: '1px 0' }}
+              itemStyle={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-text-primary)', padding: '1px 0' }}
               cursor={chartCursor}
             />
             {chartData.length > 0 && (

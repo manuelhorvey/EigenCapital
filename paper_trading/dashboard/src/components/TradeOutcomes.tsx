@@ -53,12 +53,12 @@ export default function TradeOutcomes() {
       ) : (
         <>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 mb-5">
-            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="#25d065" />
-            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="#f04444" />
-            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="#eab308" />
-            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? '#25d065' : '#f04444'} />
-            <StatCard variant="kpi" label="Win Rate" value={pct(overall.win_rate)} accent="#60a5fa" />
-            <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="#a78bfa" />
+            <StatCard variant="kpi" label="TP Hit Rate" value={pct(overall.tp_rate)} accent="green" />
+            <StatCard variant="kpi" label="SL Hit Rate" value={pct(overall.sl_rate)} accent="red" />
+            <StatCard variant="kpi" label="Flip Rate" value={pct(overall.signal_flip_rate)} accent="yellow" />
+            <StatCard variant="kpi" label="Avg R" value={r2(overall.avg_r)} accent={overall.avg_r >= 0 ? 'green' : 'red'} />
+            <StatCard variant="kpi" label="Win Rate" value={pct(overall.win_rate)} accent="blue" />
+            <StatCard variant="kpi" label="Profit Factor" value={overall.profit_factor !== null ? r2(overall.profit_factor) : '—'} accent="purple" />
           </div>
 
           <div className="overflow-x-auto">

@@ -74,7 +74,7 @@ export default function AppShell({ children }: AppShellProps) {
           main?.focus()
           main?.scrollIntoView()
         }}
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-3 focus:py-2 focus:rounded-md focus:bg-accent-amber focus:text-[#0a0602] focus:text-xs focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-3 focus:py-2 focus:rounded-lg focus:bg-brand focus:text-brand-text focus:text-xs focus:font-semibold"
       >
         Skip to main content
       </button>

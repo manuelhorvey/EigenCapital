@@ -1,0 +1,664 @@
+{
+  "freeze": {
+    "campaign_id": "R4-risk-transformation",
+    "version": "1.0",
+    "hypothesis": "Pre-specified risk architecture reduces tail risk while preserving OOS edge",
+    "signal": {
+      "type": "12_1_momentum",
+      "lookback": 252,
+      "skip": 21
+    },
+    "asset_vol_cap": {
+      "max_annual_vol": 0.5,
+      "vol_lookback": 60
+    },
+    "crypto_cap": {
+      "max_weight": 0.1
+    },
+    "concentration_cap": {
+      "max_single_asset": 0.2
+    },
+    "risk_parity": {
+      "vol_lookback": 60,
+      "target_vol": 0.1
+    },
+    "drawdown_reducer": {
+      "dd_threshold": -0.15,
+      "reduction_factor": 0.5
+    },
+    "regime_aware": {
+      "risk_lookback": 20,
+      "threshold": "expanding_median"
+    },
+    "walk_forward_folds": 3,
+    "min_train_bars": 500,
+    "test_bars": 252,
+    "stress_cost_multipliers": [
+      1,
+      2,
+      3
+    ],
+    "stress_vol_shocks": [
+      1.5,
+      2.0
+    ]
+  },
+  "freeze_hash": "ee0d7a03021eeb4f",
+  "strategies": {
+    "A_baseline_rc": {
+      "label": "A. Baseline RC",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "A_baseline_rc",
+        "overall_oos_sharpe": 1.542352955648434,
+        "avg_is_sharpe": 1.4080323984041367,
+        "avg_oos_sharpe": 1.5544865357663404,
+        "degradation": -0.10401332918773365,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-24 to 2023-04-02",
+            "test_period": "2023-04-03 to 2023-12-10",
+            "is_sharpe": 1.302146314778997,
+            "oos_sharpe": 1.5794759654577566,
+            "oos_return": 0.5161394073636095,
+            "oos_dd": -0.20633312722913144
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-12-31 to 2024-07-05",
+            "test_period": "2024-07-06 to 2025-06-28",
+            "is_sharpe": 1.5139184820292768,
+            "oos_sharpe": 1.529497106074924,
+            "oos_return": 0.6332453934366473,
+            "oos_dd": -0.20766131751358496
+          }
+        ],
+        "oos_total_return": 0.5746924004001284,
+        "oos_max_dd": -0.20766131751358508
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "A_baseline_rc",
+        "raw_max_dd": -0.6908836785965156,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.8511001257792871,
+            "annual_return": 0.4106182664663052,
+            "vol": 0.48245588742021817,
+            "cost_drag": 0.008721878862793572
+          },
+          "cost_2x": {
+            "sharpe": 0.7572927637394558,
+            "annual_return": 0.40189638760351165,
+            "vol": 0.5307014761622401,
+            "cost_drag": 0.017443757725587143
+          },
+          "cost_3x": {
+            "sharpe": 0.6791199620395966,
+            "annual_return": 0.3931745087407181,
+            "vol": 0.5789470649042617,
+            "cost_drag": 0.026165636588380715
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.0363255178947735,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.3817673571930311,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.51978302920815,
+            "low_vol_annual_return": 0.32153010244294544,
+            "regime_dependency": 0.19825292676520456
+          }
+        }
+      }
+    },
+    "B_asset_vol_cap": {
+      "label": "B. Asset Vol Cap",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "B_asset_vol_cap",
+        "overall_oos_sharpe": 1.542352955648434,
+        "avg_is_sharpe": 1.4080323984041367,
+        "avg_oos_sharpe": 1.5544865357663404,
+        "degradation": -0.10401332918773365,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-24 to 2023-04-02",
+            "test_period": "2023-04-03 to 2023-12-10",
+            "is_sharpe": 1.302146314778997,
+            "oos_sharpe": 1.5794759654577568,
+            "oos_return": 0.5161394073636095,
+            "oos_dd": -0.20633312722913144
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-12-31 to 2024-07-05",
+            "test_period": "2024-07-06 to 2025-06-28",
+            "is_sharpe": 1.5139184820292768,
+            "oos_sharpe": 1.529497106074924,
+            "oos_return": 0.6332453934366473,
+            "oos_dd": -0.20766131751358496
+          }
+        ],
+        "oos_total_return": 0.5746924004001284,
+        "oos_max_dd": -0.20766131751358508
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "B_asset_vol_cap",
+        "raw_max_dd": -0.6908836785965156,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.8512395056310413,
+            "annual_return": 0.41068551109637186,
+            "vol": 0.48245588742021817,
+            "cost_drag": 0.008654634232726922
+          },
+          "cost_2x": {
+            "sharpe": 0.7575461816517364,
+            "annual_return": 0.40203087686364497,
+            "vol": 0.5307014761622401,
+            "cost_drag": 0.017309268465453845
+          },
+          "cost_3x": {
+            "sharpe": 0.6794684116689825,
+            "annual_return": 0.393376242630918,
+            "vol": 0.5789470649042617,
+            "cost_drag": 0.025963902698180767
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.0363255178947735,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.3817673571930311,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.51978302920815,
+            "low_vol_annual_return": 0.32153010244294544,
+            "regime_dependency": 0.19825292676520456
+          }
+        }
+      }
+    },
+    "C_crypto_cap": {
+      "label": "C. Crypto Cap",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "C_crypto_cap",
+        "overall_oos_sharpe": 1.542352955648434,
+        "avg_is_sharpe": 1.4080323984041367,
+        "avg_oos_sharpe": 1.5544865357663404,
+        "degradation": -0.10401332918773365,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-24 to 2023-04-02",
+            "test_period": "2023-04-03 to 2023-12-10",
+            "is_sharpe": 1.302146314778997,
+            "oos_sharpe": 1.5794759654577566,
+            "oos_return": 0.5161394073636095,
+            "oos_dd": -0.20633312722913144
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-12-31 to 2024-07-05",
+            "test_period": "2024-07-06 to 2025-06-28",
+            "is_sharpe": 1.5139184820292768,
+            "oos_sharpe": 1.529497106074924,
+            "oos_return": 0.6332453934366473,
+            "oos_dd": -0.20766131751358496
+          }
+        ],
+        "oos_total_return": 0.5746924004001284,
+        "oos_max_dd": -0.20766131751358508
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "C_crypto_cap",
+        "raw_max_dd": -0.6908836785965156,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.8655625943119956,
+            "annual_return": 0.4175957695565401,
+            "vol": 0.48245588742021817,
+            "cost_drag": 0.001744375772558714
+          },
+          "cost_2x": {
+            "sharpe": 0.7835881610716531,
+            "annual_return": 0.4158513937839814,
+            "vol": 0.5307014761622401,
+            "cost_drag": 0.003488751545117428
+          },
+          "cost_3x": {
+            "sharpe": 0.7152761333713678,
+            "annual_return": 0.41410701801142263,
+            "vol": 0.5789470649042617,
+            "cost_drag": 0.005233127317676142
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.0363255178947735,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.3817673571930311,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.51978302920815,
+            "low_vol_annual_return": 0.32153010244294544,
+            "regime_dependency": 0.19825292676520456
+          }
+        }
+      }
+    },
+    "D_single_asset_cap": {
+      "label": "D. Single Asset Cap",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "D_single_asset_cap",
+        "overall_oos_sharpe": 1.542352955648434,
+        "avg_is_sharpe": 1.4080323984041367,
+        "avg_oos_sharpe": 1.5544865357663404,
+        "degradation": -0.10401332918773365,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-24 to 2023-04-02",
+            "test_period": "2023-04-03 to 2023-12-10",
+            "is_sharpe": 1.302146314778997,
+            "oos_sharpe": 1.5794759654577566,
+            "oos_return": 0.5161394073636095,
+            "oos_dd": -0.20633312722913144
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-12-31 to 2024-07-05",
+            "test_period": "2024-07-06 to 2025-06-28",
+            "is_sharpe": 1.5139184820292768,
+            "oos_sharpe": 1.529497106074924,
+            "oos_return": 0.6332453934366473,
+            "oos_dd": -0.20766131751358496
+          }
+        ],
+        "oos_total_return": 0.5746924004001284,
+        "oos_max_dd": -0.20766131751358508
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "D_single_asset_cap",
+        "raw_max_dd": -0.6908836785965156,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.8655625943119956,
+            "annual_return": 0.4175957695565401,
+            "vol": 0.48245588742021817,
+            "cost_drag": 0.001744375772558714
+          },
+          "cost_2x": {
+            "sharpe": 0.7835881610716531,
+            "annual_return": 0.4158513937839814,
+            "vol": 0.5307014761622401,
+            "cost_drag": 0.003488751545117428
+          },
+          "cost_3x": {
+            "sharpe": 0.7152761333713678,
+            "annual_return": 0.41410701801142263,
+            "vol": 0.5789470649042617,
+            "cost_drag": 0.005233127317676142
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.0363255178947735,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.3817673571930311,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.51978302920815,
+            "low_vol_annual_return": 0.32153010244294544,
+            "regime_dependency": 0.19825292676520456
+          }
+        }
+      }
+    },
+    "E_risk_parity": {
+      "label": "E. Risk Parity",
+      "oos_sharpe": 0.8381568624225348,
+      "max_dd": -0.7627358950003474,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "E_risk_parity",
+        "overall_oos_sharpe": 0.8381568624225348,
+        "avg_is_sharpe": 0.7404734974122468,
+        "avg_oos_sharpe": 0.8963769494896558,
+        "degradation": -0.21054562063632143,
+        "consistency": 0.6666666666666666,
+        "positive_folds": 2,
+        "total_folds": 3,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-03-02 to 2021-07-14",
+            "test_period": "2021-07-15 to 2022-03-23",
+            "is_sharpe": 1.6294911121533153,
+            "oos_sharpe": 0.9089693816003623,
+            "oos_return": 0.5363682717531393,
+            "oos_dd": -0.48530932341299005
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-02-05 to 2023-06-19",
+            "test_period": "2023-06-20 to 2024-02-26",
+            "is_sharpe": -0.1671335554567394,
+            "oos_sharpe": 2.1630152874152335,
+            "oos_return": 0.7259418115641897,
+            "oos_dd": -0.2124920992058721
+          },
+          {
+            "fold": 3,
+            "train_period": "2024-01-11 to 2025-05-24",
+            "test_period": "2025-05-25 to 2026-01-31",
+            "is_sharpe": 0.7590629355401644,
+            "oos_sharpe": -0.3828538205466281,
+            "oos_return": -0.1410174423894991,
+            "oos_dd": -0.4070301842105083
+          }
+        ],
+        "oos_total_return": 0.3737642136426099,
+        "oos_max_dd": -0.48530932341299005
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "E_risk_parity",
+        "raw_max_dd": -0.7627358950003474,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.7587735659059134,
+            "annual_return": 0.4164584372749402,
+            "vol": 0.5488573350308046,
+            "cost_drag": 0.0015278279868907374
+          },
+          "cost_2x": {
+            "sharpe": 0.6872635578171635,
+            "annual_return": 0.4149306092880494,
+            "vol": 0.603743068533885,
+            "cost_drag": 0.0030556559737814747
+          },
+          "cost_3x": {
+            "sharpe": 0.6276718844098721,
+            "annual_return": 0.4134027813011587,
+            "vol": 0.6586288020369655,
+            "cost_drag": 0.004583483960672212
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.1441038425005212,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.5254717900006949,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.5614817847640566,
+            "low_vol_annual_return": 0.2767760893225074,
+            "regime_dependency": 0.2847056954415492
+          }
+        }
+      }
+    },
+    "F_dd_reducer": {
+      "label": "F. DD Reducer",
+      "oos_sharpe": 1.322295981298228,
+      "max_dd": -0.736087419729715,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "F_dd_reducer",
+        "overall_oos_sharpe": 1.322295981298228,
+        "avg_is_sharpe": 1.280661287732284,
+        "avg_oos_sharpe": 1.3221184701141215,
+        "degradation": -0.032371699510998164,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-25 to 2023-04-27",
+            "test_period": "2023-04-28 to 2024-01-04",
+            "is_sharpe": 1.0446446117586798,
+            "oos_sharpe": 1.2711474348402294,
+            "oos_return": 0.41982241650800645,
+            "oos_dd": -0.2007181858178645
+          },
+          {
+            "fold": 2,
+            "train_period": "2023-01-09 to 2024-07-18",
+            "test_period": "2024-07-19 to 2025-07-18",
+            "is_sharpe": 1.516677963705888,
+            "oos_sharpe": 1.3730895053880139,
+            "oos_return": 0.5479673722806931,
+            "oos_dd": -0.20766131751358474
+          }
+        ],
+        "oos_total_return": 0.4838948943943498,
+        "oos_max_dd": -0.20766131751358474
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "F_dd_reducer",
+        "raw_max_dd": -0.736087419729715,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.7475616113991856,
+            "annual_return": 0.35615985828800933,
+            "vol": 0.47642876902332776,
+            "cost_drag": 0.004023485784919654
+          },
+          "cost_2x": {
+            "sharpe": 0.671924106638351,
+            "annual_return": 0.3521363725030897,
+            "vol": 0.5240716459256606,
+            "cost_drag": 0.008046971569839308
+          },
+          "cost_3x": {
+            "sharpe": 0.6088928526709889,
+            "annual_return": 0.34811288671817003,
+            "vol": 0.5717145228279933,
+            "cost_drag": 0.012070457354758962
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.1041311295945726,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.47217483945943,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.443532404508188,
+            "low_vol_annual_return": 0.27897432708127806,
+            "regime_dependency": 0.16455807742690992
+          }
+        }
+      }
+    },
+    "G_combined": {
+      "label": "G. Combined",
+      "oos_sharpe": 1.322295981298228,
+      "max_dd": -0.736087419729715,
+      "wf_passed": "True",
+      "stress_passed": false,
+      "wf_details": {
+        "passed": "True",
+        "label": "G_combined",
+        "overall_oos_sharpe": 1.322295981298228,
+        "avg_is_sharpe": 1.280661287732284,
+        "avg_oos_sharpe": 1.3221184701141215,
+        "degradation": -0.032371699510998164,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-25 to 2023-04-27",
+            "test_period": "2023-04-28 to 2024-01-04",
+            "is_sharpe": 1.0446446117586798,
+            "oos_sharpe": 1.2711474348402292,
+            "oos_return": 0.41982241650800645,
+            "oos_dd": -0.2007181858178645
+          },
+          {
+            "fold": 2,
+            "train_period": "2023-01-09 to 2024-07-18",
+            "test_period": "2024-07-19 to 2025-07-18",
+            "is_sharpe": 1.516677963705888,
+            "oos_sharpe": 1.3730895053880139,
+            "oos_return": 0.5479673722806931,
+            "oos_dd": -0.20766131751358474
+          }
+        ],
+        "oos_total_return": 0.4838948943943498,
+        "oos_max_dd": -0.20766131751358474
+      },
+      "stress_details": {
+        "passed": false,
+        "label": "G_combined",
+        "raw_max_dd": -0.736087419729715,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.7543176866767853,
+            "annual_return": 0.35937864691594507,
+            "vol": 0.47642876902332776,
+            "cost_drag": 0.0008046971569839309
+          },
+          "cost_2x": {
+            "sharpe": 0.6842078798703504,
+            "annual_return": 0.3585739497589612,
+            "vol": 0.5240716459256606,
+            "cost_drag": 0.0016093943139678618
+          },
+          "cost_3x": {
+            "sharpe": 0.6257830408649879,
+            "annual_return": 0.35776925260197723,
+            "vol": 0.5717145228279933,
+            "cost_drag": 0.0024140914709517925
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.1041311295945726,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.47217483945943,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.443532404508188,
+            "low_vol_annual_return": 0.27897432708127806,
+            "regime_dependency": 0.16455807742690992
+          }
+        }
+      }
+    }
+  },
+  "verdicts": {
+    "A_baseline_rc": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "B_asset_vol_cap": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "C_crypto_cap": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "D_single_asset_cap": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.542352955648434,
+      "max_dd": -0.6908836785965156,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "E_risk_parity": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 0.8381568624225348,
+      "max_dd": -0.7627358950003474,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "F_dd_reducer": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.322295981298228,
+      "max_dd": -0.736087419729715,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "G_combined": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.322295981298228,
+      "max_dd": -0.736087419729715,
+      "wf_passed": "True",
+      "stress_passed": false
+    }
+  },
+  "final_verdict": "HIGH_RISK_CONDITIONAL \u2014 OOS positive, stress DD -69.1%",
+  "best_candidate": "A_baseline_rc"
+}

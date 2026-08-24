@@ -14,8 +14,8 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Dict, Any
 import math
 
 
@@ -81,9 +81,7 @@ class Fill:
         # INVARIANT: Fill.side must equal Order.side (checked at OrderLifecycle level;
         # we at least validate side is BUY or SELL here)
         if self.side not in ("BUY", "SELL"):
-            raise ValueError(
-                f"Fill side must be 'BUY' or 'SELL', got '{self.side}'"
-            )
+            raise ValueError(f"Fill side must be 'BUY' or 'SELL', got '{self.side}'")
 
         # INVARIANT: Fill.instrument_id must match Order.instrument_id
         # We validate instrument_id is non-empty; the cross-order check is lifecycle-level
@@ -127,12 +125,22 @@ class Fill:
 
         # Validate strategy_id is non-empty (required for accountability)
         if not self.strategy_id:
-            raise ValueError("strategy_id must be non-empty (required for accountability)")
+            raise ValueError(
+                "strategy_id must be non-empty (required for accountability)"
+            )
 
         # Registry check for duplicate fill_id
         if self.fill_id in self._registry:
-            raise ValueError(f"Duplicate fill_id: {self.fill_id}. Fill IDs must be unique.")
-        self._registry[self.fill_id] = (self.fill_id, self.order_id, self.instrument_id, self.side, self.quantity)
+            raise ValueError(
+                f"Duplicate fill_id: {self.fill_id}. Fill IDs must be unique."
+            )
+        self._registry[self.fill_id] = (
+            self.fill_id,
+            self.order_id,
+            self.instrument_id,
+            self.side,
+            self.quantity,
+        )
 
     def __hash__(self) -> int:
         return hash((self.fill_id, self.order_id, self.side))

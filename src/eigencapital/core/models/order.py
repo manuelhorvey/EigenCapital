@@ -15,7 +15,7 @@ Invariants:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from typing import Optional, Dict, Any
 import math
 
 
@@ -61,7 +61,9 @@ class Order:
     quantity: float  # ALWAYS positive
     limit_price: Optional[float] = None
     stop_price: Optional[float] = None
-    status: str = "SUBMITTED"  # SUBMITTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
+    status: str = (
+        "SUBMITTED"  # SUBMITTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
+    )
     filled_quantity: float = 0.0  # Cumulative, always >= 0 and <= quantity
     filled_price: float = 0.0
     average_fill_price: float = 0.0  # Alias for filled_price
@@ -83,9 +85,7 @@ class Order:
 
         # Validate side is BUY or SELL
         if self.side not in ("BUY", "SELL"):
-            raise ValueError(
-                f"Order side must be 'BUY' or 'SELL', got '{self.side}'"
-            )
+            raise ValueError(f"Order side must be 'BUY' or 'SELL', got '{self.side}'")
 
         # Validate timestamp is ISO-8601 UTC
         if "T" not in self.timestamp_utc:
@@ -94,15 +94,23 @@ class Order:
             )
 
         # Validate status is known
-        valid_statuses = {"SUBMITTED", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"}
+        valid_statuses = {
+            "SUBMITTED",
+            "PARTIALLY_FILLED",
+            "FILLED",
+            "CANCELLED",
+            "REJECTED",
+        }
         if self.status not in valid_statuses:
             raise ValueError(
-                f"Invalid order status: {self.status}. "
-                f"Must be one of {valid_statuses}"
+                f"Invalid order status: {self.status}. Must be one of {valid_statuses}"
             )
 
         # If status is FILLED or PARTIALLY_FILLED, filled_quantity must be <= quantity
-        if self.status in ("FILLED", "PARTIALLY_FILLED") and self.filled_quantity > self.quantity:
+        if (
+            self.status in ("FILLED", "PARTIALLY_FILLED")
+            and self.filled_quantity > self.quantity
+        ):
             raise ValueError(
                 f"Invalid order state: filled_quantity ({self.filled_quantity}) "
                 f"> quantity ({self.quantity}) for status {self.status}"
@@ -110,14 +118,18 @@ class Order:
 
         # Validate limit_price if provided (for LIMIT/STOP_LIMIT)
         if self.order_type in ("LIMIT", "STOP_LIMIT") and self.limit_price is not None:
-            if self.limit_price is not None and (math.isnan(self.limit_price) or math.isinf(self.limit_price)):
+            if self.limit_price is not None and (
+                math.isnan(self.limit_price) or math.isinf(self.limit_price)
+            ):
                 raise ValueError("limit_price must be finite (no NaN/infinity)")
             if self.limit_price is not None and self.limit_price <= 0:
                 raise ValueError("limit_price must be > 0 if provided")
 
         # Validate stop_price if provided (for STOP/STOP_LIMIT)
         if self.order_type in ("STOP", "STOP_LIMIT") and self.stop_price is not None:
-            if self.stop_price is not None and (math.isnan(self.stop_price) or math.isinf(self.stop_price)):
+            if self.stop_price is not None and (
+                math.isnan(self.stop_price) or math.isinf(self.stop_price)
+            ):
                 raise ValueError("stop_price must be finite (no NaN/infinity)")
             if self.stop_price is not None and self.stop_price <= 0:
                 raise ValueError("stop_price must be > 0 if provided")
@@ -145,7 +157,9 @@ class Order:
 
         # Validate strategy_id is non-empty (required for accountability)
         if not self.strategy_id:
-            raise ValueError("strategy_id must be non-empty (required for accountability)")
+            raise ValueError(
+                "strategy_id must be non-empty (required for accountability)"
+            )
 
     def __hash__(self) -> int:
         return hash((self.order_id, self.side, self.quantity))
@@ -187,8 +201,12 @@ class Order:
             order_type=str(d["order_type"]),
             side=str(d["side"]),
             quantity=float(d["quantity"]),
-            limit_price=float(d["limit_price"]) if d.get("limit_price") is not None else None,
-            stop_price=float(d["stop_price"]) if d.get("stop_price") is not None else None,
+            limit_price=float(d["limit_price"])
+            if d.get("limit_price") is not None
+            else None,
+            stop_price=float(d["stop_price"])
+            if d.get("stop_price") is not None
+            else None,
             status=str(d.get("status", "SUBMITTED")),
             filled_quantity=float(d.get("filled_quantity", 0.0)),
             filled_price=float(d.get("filled_price", 0.0)),

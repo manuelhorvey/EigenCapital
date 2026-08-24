@@ -13,8 +13,8 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 import hashlib
 
 
@@ -70,7 +70,9 @@ class Instrument:
         if self.lot_size <= 0:
             raise ValueError(f"lot_size must be > 0, got {self.lot_size}")
         if self.price_precision < 0:
-            raise ValueError(f"price_precision must be >= 0, got {self.price_precision}")
+            raise ValueError(
+                f"price_precision must be >= 0, got {self.price_precision}"
+            )
         if self.currency_conversion_rate <= 0:
             raise ValueError(
                 f"currency_conversion_rate must be > 0, got {self.currency_conversion_rate}"

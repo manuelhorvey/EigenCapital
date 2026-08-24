@@ -14,9 +14,8 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
-from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 import math
 
 from .risk_check_result import RiskCheckResult
@@ -123,9 +122,7 @@ class RiskDecision:
         # Validate each risk check
         for i, check in enumerate(self.risk_checks):
             if not isinstance(check, RiskCheckResult):
-                raise ValueError(
-                    f"risk_checks[{i}] is not a RiskCheckResult instance"
-                )
+                raise ValueError(f"risk_checks[{i}] is not a RiskCheckResult instance")
 
         # Registry check for duplicate decision_ids
         if self.decision_id in self._registry:

@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
-from datetime import datetime
 
 
 class Horizon(str):
@@ -60,12 +59,15 @@ class StrategyIntent:
     target_risk: float  # portfolio-relative risk >= 0
     horizon: Horizon  # intraday or swing
     confidence: Optional[float] = None  # 0.0-1.0, strategy-internal
-    signal_metadata: Dict[str, Any] = field(default_factory=dict)  # free-form regime flags, etc.
+    signal_metadata: Dict[str, Any] = field(
+        default_factory=dict
+    )  # free-form regime flags, etc.
     expiry: Optional[str] = None  # ISO-8601 UTC when this intent expires
-    strategy_config_hash: str = ""  # SHA256(strategy parameters + strategy configuration)
+    strategy_config_hash: str = (
+        ""  # SHA256(strategy parameters + strategy configuration)
+    )
     strategy_artifact_hash: str = ""  # SHA256(strategy implementation / code)
     decision_snapshot_id: Optional[str] = None  # back to DecisionSnapshot
-
 
     def __post_init__(self) -> None:
         # Validate direction: must be 1, -1, or 0
@@ -89,17 +91,23 @@ class StrategyIntent:
 
         # Validate strategy_config_hash is present (non-empty)
         if not self.strategy_config_hash:
-            raise ValueError("strategy_config_hash must be non-empty (strategy parameters + config)")
+            raise ValueError(
+                "strategy_config_hash must be non-empty (strategy parameters + config)"
+            )
 
         # Validate strategy_artifact_hash is present (non-empty)
         if not self.strategy_artifact_hash:
-            raise ValueError("strategy_artifact_hash must be non-empty (strategy implementation hash)")
+            raise ValueError(
+                "strategy_artifact_hash must be non-empty (strategy implementation hash)"
+            )
 
         # Validate expiry if set: must be ISO-8601 and in future logic is caller's responsibility,
         # but we at least check format
         if self.expiry is not None:
             if "T" not in self.expiry:
-                raise ValueError(f"expiry should be ISO-8601 format, got: {self.expiry}")
+                raise ValueError(
+                    f"expiry should be ISO-8601 format, got: {self.expiry}"
+                )
 
         # Strategy ID must be non-empty
         if not self.strategy_id:
@@ -114,7 +122,12 @@ class StrategyIntent:
             raise ValueError("instrument_id must be non-empty")
 
         # Check for duplicate strategy intent (same strategy_id + version + instrument + timestamp)
-        key = (self.strategy_id, self.strategy_version, self.instrument_id, self.timestamp_utc)
+        key = (
+            self.strategy_id,
+            self.strategy_version,
+            self.instrument_id,
+            self.timestamp_utc,
+        )
         if key in self._registry:
             raise ValueError(
                 f"Duplicate StrategyIntent: strategy_id={self.strategy_id}, "
@@ -124,7 +137,14 @@ class StrategyIntent:
         self._registry[key] = key
 
     def __hash__(self) -> int:
-        return hash((self.strategy_id, self.strategy_version, self.instrument_id, self.timestamp_utc))
+        return hash(
+            (
+                self.strategy_id,
+                self.strategy_version,
+                self.instrument_id,
+                self.timestamp_utc,
+            )
+        )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, StrategyIntent):
@@ -164,11 +184,17 @@ class StrategyIntent:
             timestamp_utc=str(d["timestamp_utc"]),
             direction=int(d["direction"]),
             target_risk=float(d["target_risk"]),
-            horizon=Horizon(d["horizon"]) if isinstance(d.get("horizon"), str) else d["horizon"],
-            confidence=float(d["confidence"]) if d.get("confidence") is not None else None,
+            horizon=Horizon(d["horizon"])
+            if isinstance(d.get("horizon"), str)
+            else d["horizon"],
+            confidence=float(d["confidence"])
+            if d.get("confidence") is not None
+            else None,
             signal_metadata=d.get("signal_metadata", {}),
             expiry=d.get("expiry"),
-            strategy_config_hash=str(d.get("strategy_config_hash", d.get("config_hash", ""))),
+            strategy_config_hash=str(
+                d.get("strategy_config_hash", d.get("config_hash", ""))
+            ),
             strategy_artifact_hash=str(d.get("strategy_artifact_hash", "")),
             decision_snapshot_id=d.get("decision_snapshot_id"),
         )

@@ -101,7 +101,9 @@ class TrialMetadata:
             hypothesis_family=str(d["hypothesis_family"]),
             selection_method=str(d["selection_method"]),
             trials_in_family=(
-                int(d["trials_in_family"]) if d.get("trials_in_family") is not None else None
+                int(d["trials_in_family"])
+                if d.get("trials_in_family") is not None
+                else None
             ),
             parameter_search_space=d.get("parameter_search_space", {}),
         )
@@ -118,7 +120,9 @@ class TrialMetadata:
 
     def summary(self) -> str:
         """Human-readable one-liner."""
-        size = str(self.trials_in_family) if self.trials_in_family is not None else "open"
+        size = (
+            str(self.trials_in_family) if self.trials_in_family is not None else "open"
+        )
         return (
             f"{self.trial_group_id} [{self.hypothesis_family}] "
             f"trial {self.trial_index}/{size} "

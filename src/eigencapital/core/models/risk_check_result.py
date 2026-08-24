@@ -16,8 +16,8 @@ Used in RiskDecision.risk_checks: list[RiskCheckResult].
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Dict, Any
 import math
 
 
@@ -64,11 +64,15 @@ class RiskCheckResult:
 
         # Validate observed is finite
         if math.isnan(self.observed) or math.isinf(self.observed):
-            raise ValueError(f"observed must be finite (no NaN/infinity), got {self.observed}")
+            raise ValueError(
+                f"observed must be finite (no NaN/infinity), got {self.observed}"
+            )
 
         # Validate limit is finite
         if math.isnan(self.limit) or math.isinf(self.limit):
-            raise ValueError(f"limit must be finite (no NaN/infinity), got {self.limit}")
+            raise ValueError(
+                f"limit must be finite (no NaN/infinity), got {self.limit}"
+            )
 
         # Validate unit is non-empty
         if not self.unit:

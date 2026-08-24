@@ -16,8 +16,8 @@ Flow: PortfolioTarget → RiskDecision → ApprovedTarget → OrderPlan → Orde
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 import math
 
 

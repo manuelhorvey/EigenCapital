@@ -158,7 +158,10 @@ class Experiment:
 
         # Validate validation_split format if set
         if self.validation_split is not None:
-            if not isinstance(self.validation_split, tuple) or len(self.validation_split) != 2:
+            if (
+                not isinstance(self.validation_split, tuple)
+                or len(self.validation_split) != 2
+            ):
                 raise ValueError(
                     f"validation_split must be (start_date, end_date) tuple, got {self.validation_split}"
                 )
@@ -176,7 +179,9 @@ class Experiment:
                 )
             test_start, test_end = self.test_split
             if test_start > test_end:
-                raise ValueError(f"test_split start ({test_start}) must be <= end ({test_end})")
+                raise ValueError(
+                    f"test_split start ({test_start}) must be <= end ({test_end})"
+                )
 
         # CRITICAL INVARIANT: Once test_split is defined, parameters and strategy code are frozen.
         # No post-hoc parameter tweaking on the test period.
@@ -192,7 +197,11 @@ class Experiment:
 
         # INVARIANT: Splits must be non-overlapping (test must be after train/val)
         # Check overlaps if all three splits are defined
-        if self.train_split is not None and self.validation_split is not None and self.test_split is not None:
+        if (
+            self.train_split is not None
+            and self.validation_split is not None
+            and self.test_split is not None
+        ):
             train_start, train_end = self.train_split
             val_start, val_end = self.validation_split
             test_start, test_end = self.test_split
@@ -270,7 +279,9 @@ class Experiment:
             "start_date": str(self.start_date) if self.start_date else None,
             "end_date": str(self.end_date) if self.end_date else None,
             "train_split": list(self.train_split) if self.train_split else None,
-            "validation_split": list(self.validation_split) if self.validation_split else None,
+            "validation_split": list(self.validation_split)
+            if self.validation_split
+            else None,
             "test_split": list(self.test_split) if self.test_split else None,
             "horizon": self.horizon,
             "status": self.status,
@@ -295,15 +306,21 @@ class Experiment:
             strategy_version=str(d["strategy_version"]),
             parameters=d.get("parameters", {}),
             cost_model=str(d["cost_model"]),
-            random_seed=int(d["random_seed"]) if d.get("random_seed") is not None else None,
+            random_seed=int(d["random_seed"])
+            if d.get("random_seed") is not None
+            else None,
             start_date=(
-                date_type.fromisoformat(d["start_date"]) if d.get("start_date") else None
+                date_type.fromisoformat(d["start_date"])
+                if d.get("start_date")
+                else None
             ),
             end_date=(
                 date_type.fromisoformat(d["end_date"]) if d.get("end_date") else None
             ),
             train_split=tuple(d["train_split"]) if d.get("train_split") else None,
-            validation_split=tuple(d["validation_split"]) if d.get("validation_split") else None,
+            validation_split=tuple(d["validation_split"])
+            if d.get("validation_split")
+            else None,
             test_split=tuple(d["test_split"]) if d.get("test_split") else None,
             horizon=str(d.get("horizon", "swing")),
             status=str(d.get("status", ExperimentStatus.PRE_REGISTERED)),

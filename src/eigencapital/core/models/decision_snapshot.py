@@ -29,8 +29,7 @@ Flow: StrategyIntent + MarketState → DecisionSnapshot → PortfolioTarget → 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
-from datetime import datetime
+from typing import Optional, Dict, Any
 
 
 @dataclass(frozen=True)
@@ -78,10 +77,16 @@ class DecisionSnapshot:
     experiment_id: Optional[str] = None  # linked experiment (if any)
 
     # Market state at signal generation time
-    market_state: Dict[str, Any] = field(default_factory=dict)  # free-form: regime, flags, etc.
-    features: Dict[str, float] = field(default_factory=dict)  # computed feature vector at signal time
+    market_state: Dict[str, Any] = field(
+        default_factory=dict
+    )  # free-form: regime, flags, etc.
+    features: Dict[str, float] = field(
+        default_factory=dict
+    )  # computed feature vector at signal time
     signal: object = None  # the StrategyIntent that was generated
-    portfolio_state: Dict[str, Any] = field(default_factory=dict)  # positions, equity at signal time
+    portfolio_state: Dict[str, Any] = field(
+        default_factory=dict
+    )  # positions, equity at signal time
     risk_state: object = None  # the RiskDecision outcome
 
     # Explicit rationale
@@ -113,9 +118,7 @@ class DecisionSnapshot:
         ):
             ts = getattr(self, ts_name, None)
             if ts is not None and "T" not in ts:
-                raise ValueError(
-                    f"{ts_name} should be ISO-8601 format, got: {ts}"
-                )
+                raise ValueError(f"{ts_name} should be ISO-8601 format, got: {ts}")
 
         # Validate strategy_id is non-empty
         if not self.strategy_id:
@@ -175,6 +178,7 @@ class DecisionSnapshot:
 
         # INVARIANT: risk_state must be a RiskDecision instance
         from .risk_decision import RiskDecision
+
         if not isinstance(self.risk_state, RiskDecision):
             raise ValueError(
                 f"risk_state must be a RiskDecision instance, "
@@ -231,7 +235,9 @@ class DecisionSnapshot:
             "features": dict(self.features),
             "signal": self.signal.to_dict() if hasattr(self.signal, "to_dict") else {},
             "portfolio_state": dict(self.portfolio_state),
-            "risk_state": self.risk_state.to_dict() if hasattr(self.risk_state, "to_dict") else {},
+            "risk_state": self.risk_state.to_dict()
+            if hasattr(self.risk_state, "to_dict")
+            else {},
             "risk_decision_reason": self.risk_decision_reason,
             "execution_context": self.execution_context,
             "git_commit": self.git_commit,
@@ -252,7 +258,9 @@ class DecisionSnapshot:
             execution_timestamp_utc=str(d["execution_timestamp_utc"]),
             strategy_id=str(d["strategy_id"]),
             strategy_version=str(d["strategy_version"]),
-            strategy_config_hash=str(d.get("strategy_config_hash", d.get("config_hash", ""))),
+            strategy_config_hash=str(
+                d.get("strategy_config_hash", d.get("config_hash", ""))
+            ),
             strategy_artifact_hash=str(d.get("strategy_artifact_hash", "")),
             provenance_hash=str(d.get("provenance_hash", "")),
             instrument_id=str(d["instrument_id"]),
@@ -266,7 +274,9 @@ class DecisionSnapshot:
             execution_context=str(d.get("execution_context", "PAPER")),
             git_commit=str(d.get("git_commit", "")),
             dataset_version=str(d.get("dataset_version", "")),
-            random_seed=int(d["random_seed"]) if d.get("random_seed") is not None else None,
+            random_seed=int(d["random_seed"])
+            if d.get("random_seed") is not None
+            else None,
             parent_snapshot_ids=d.get("parent_snapshot_ids"),
         )
 

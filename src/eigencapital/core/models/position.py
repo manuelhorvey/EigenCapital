@@ -12,8 +12,8 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 import math
 
 
@@ -48,13 +48,10 @@ class Position:
     overnight: bool = False
     version: str = "v1"
 
-
     def __post_init__(self) -> None:
         # Validate quantity is numeric
         if not isinstance(self.quantity, (int, float)):
-            raise ValueError(
-                f"quantity must be numeric, got {type(self.quantity)}"
-            )
+            raise ValueError(f"quantity must be numeric, got {type(self.quantity)}")
 
         # Validate prices are finite if present
         if self.average_entry_price is not None:
@@ -75,9 +72,7 @@ class Position:
                 raise ValueError("market_value must be finite (no NaN/infinity)")
 
         # Validate unrealized_pnl is finite
-        if not math.isnan(self.unrealized_pnl) and not math.isinf(
-            self.unrealized_pnl
-        ):
+        if not math.isnan(self.unrealized_pnl) and not math.isinf(self.unrealized_pnl):
             if not isinstance(self.unrealized_pnl, (int, float)):
                 raise ValueError("unrealized_pnl must be numeric")
 
@@ -141,7 +136,9 @@ class Position:
             instrument_id=d["instrument_id"],
             quantity=float(d["quantity"]),
             average_entry_price=(
-                float(d["average_entry_price"]) if d.get("average_entry_price") is not None else None
+                float(d["average_entry_price"])
+                if d.get("average_entry_price") is not None
+                else None
             ),
             market_value=float(d["market_value"]),
             unrealized_pnl=float(d["unrealized_pnl"]),
@@ -190,7 +187,9 @@ class Position:
         For simplicity, we use market_value as the proxy when available.
         """
         if self.market_value != 0.0:
-            return abs(self.quantity) * abs(self.market_value / max(abs(self.quantity), 1))
+            return abs(self.quantity) * abs(
+                self.market_value / max(abs(self.quantity), 1)
+            )
         return 0.0
 
 

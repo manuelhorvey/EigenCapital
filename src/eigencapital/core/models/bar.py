@@ -13,8 +13,8 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 import math
 import hashlib
 
@@ -81,7 +81,9 @@ class Bar:
             if not isinstance(price, (int, float)):
                 raise ValueError(f"{price_name} must be numeric, got {type(price)}")
             if math.isnan(price) or math.isinf(price):
-                raise ValueError(f"{price_name} must be finite (no NaN/infinity), got {price}")
+                raise ValueError(
+                    f"{price_name} must be finite (no NaN/infinity), got {price}"
+                )
             if price <= 0:
                 raise ValueError(f"{price_name} must be > 0, got {price}")
 

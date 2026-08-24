@@ -11,8 +11,8 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, ClassVar
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 import math
 
 
@@ -82,9 +82,7 @@ class MarketSnapshot:
             if ts is not None:
                 # Simple format check: should contain 'T' and end with 'Z' or be parseable
                 if "T" not in ts:
-                    raise ValueError(
-                        f"{ts_name} should be ISO-8601 format, got: {ts}"
-                    )
+                    raise ValueError(f"{ts_name} should be ISO-8601 format, got: {ts}")
 
         # Validate prices are finite if present
         for price_name in ("mid_price", "bid_price", "ask_price", "last", "vwap"):
@@ -171,7 +169,9 @@ class MarketSnapshot:
             ask_size=float(d["ask_size"]) if d.get("ask_size") is not None else None,
             last=float(d["last"]) if d.get("last") is not None else None,
             volume=int(d["volume"]) if d.get("volume") is not None else None,
-            trade_count=int(d["trade_count"]) if d.get("trade_count") is not None else None,
+            trade_count=int(d["trade_count"])
+            if d.get("trade_count") is not None
+            else None,
             vwap=float(d["vwap"]) if d.get("vwap") is not None else None,
             session=str(d.get("session", "OPEN")),
             data_quality=str(d.get("data_quality", DataQualityStatus.VALID)),

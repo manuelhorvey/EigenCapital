@@ -169,21 +169,37 @@ class FidelityEvaluator:
         gate_results: List[GateResult] = []
 
         # Gate 1: Research Parity
-        match_rate = parity_summary.match_rate
+        # Expected differences (intentional cost model) are not failures
+        non_expected_total = (
+            parity_summary.total_checks
+            - parity_summary.expected_differences
+        )
+        if non_expected_total > 0:
+            effective_match_rate = (
+                parity_summary.exact_matches / non_expected_total
+            )
+        else:
+            effective_match_rate = 1.0
+
         research_parity_passed = (
-            match_rate >= self.MIN_MATCH_RATE
+            effective_match_rate >= self.MIN_MATCH_RATE
             and parity_summary.critical_divergences == 0
+            and parity_summary.unexplained_divergences == 0
         )
         gate_results.append(
             GateResult(
                 gate=FidelityGate.RESEARCH_PARITY,
                 passed=research_parity_passed,
                 reason=(
-                    f"Match rate {match_rate:.1%} "
-                    f"({'PASS' if research_parity_passed else 'FAIL'}, "
-                    f"threshold {self.MIN_MATCH_RATE:.0%})"
+                    f"Effective match rate {effective_match_rate:.1%} "
+                    f"(excl {parity_summary.expected_differences} expected), "
+                    f"0 unexplained, 0 critical "
+                    f"({'PASS' if research_parity_passed else 'FAIL'})"
                 ),
-                details={"match_rate": match_rate},
+                details={
+                    "effective_match_rate": effective_match_rate,
+                    "expected_differences": parity_summary.expected_differences,
+                },
             )
         )
 

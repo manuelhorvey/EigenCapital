@@ -1,8 +1,6 @@
 """Unit tests for EigenCapital domain models — StrategyIntent."""
 
-import sys
 from eigencapital.core.models.strategy_intent import StrategyIntent, Horizon
-from eigencapital.core.models.errors import InvariantViolation, InvalidInput
 
 _counter = 0
 

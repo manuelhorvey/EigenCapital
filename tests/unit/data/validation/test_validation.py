@@ -3,10 +3,10 @@
 import pytest
 from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
-from eigencapital.data.validation.ohlc import validate_ohlc, OHLCCheckResult
-from eigencapital.data.validation.temporal import validate_temporal, TemporalCheckResult
-from eigencapital.data.validation.anomalies import validate_anomalies, AnomalyCheckResult
-from eigencapital.data.validation.validator import DataValidator, DataValidationReport
+from eigencapital.data.validation.ohlc import validate_ohlc
+from eigencapital.data.validation.temporal import validate_temporal
+from eigencapital.data.validation.anomalies import validate_anomalies
+from eigencapital.data.validation.validator import DataValidator
 
 
 def _make_bar(**overrides):
@@ -27,6 +27,7 @@ def _make_bar(**overrides):
 
 # ─── OHLC Tests ─────────────────────────────────────────────────────────────
 
+
 class TestOHLCChecks:
     def test_valid_bar(self):
         bar = _make_bar()
@@ -46,6 +47,7 @@ class TestOHLCChecks:
 
 
 # ─── Temporal Tests ─────────────────────────────────────────────────────────
+
 
 class TestTemporalChecks:
     def test_valid_timestamp(self):
@@ -71,6 +73,7 @@ class TestTemporalChecks:
 
 
 # ─── Anomaly Tests ──────────────────────────────────────────────────────────
+
 
 class TestAnomalyChecks:
     def test_no_anomalies(self):
@@ -105,15 +108,21 @@ class TestAnomalyChecks:
 
 # ─── Full Validator Tests ───────────────────────────────────────────────────
 
+
 class TestDataValidator:
     def test_validate_clean_dataset(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         validator = DataValidator()
-        bars = [_make_bar(timestamp_utc=f"2024-03-15T09:{30+i}:00Z",
-                          bar_start_utc=f"2024-03-15T09:{25+i}:00Z",
-                          bar_end_utc=f"2024-03-15T09:{30+i}:00Z")
-                for i in range(5)]
+        bars = [
+            _make_bar(
+                timestamp_utc=f"2024-03-15T09:{30 + i}:00Z",
+                bar_start_utc=f"2024-03-15T09:{25 + i}:00Z",
+                bar_end_utc=f"2024-03-15T09:{30 + i}:00Z",
+            )
+            for i in range(5)
+        ]
         report = validator.validate(bars)
         assert report.total_bars == 5
         assert report.all_valid()
@@ -128,13 +137,17 @@ class TestDataValidator:
 
     def test_validator_with_anomalies(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         validator = DataValidator()
         bars = [
             _make_bar(),  # normal
-            _make_bar(timestamp_utc="2024-03-15T09:36:00Z",
-                      bar_start_utc="2024-03-15T09:31:00Z",
-                      bar_end_utc="2024-03-15T09:36:00Z", volume=0),  # anomaly
+            _make_bar(
+                timestamp_utc="2024-03-15T09:36:00Z",
+                bar_start_utc="2024-03-15T09:31:00Z",
+                bar_end_utc="2024-03-15T09:36:00Z",
+                volume=0,
+            ),  # anomaly
         ]
         report = validator.validate(bars)
         assert report.total_bars == 2

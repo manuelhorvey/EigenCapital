@@ -21,10 +21,16 @@ def _make_risk_decision():
         reason="Within all limits",
         var=1250.0,
         var_method="gaussian_99",
-        risk_checks=[RiskCheckResult(
-            check_id=f"chk_{_counter}", status="PASS",
-            observed=0.84, limit=2.0, unit="x", message="OK",
-        )],
+        risk_checks=[
+            RiskCheckResult(
+                check_id=f"chk_{_counter}",
+                status="PASS",
+                observed=0.84,
+                limit=2.0,
+                unit="x",
+                message="OK",
+            )
+        ],
         decision_snapshot_id="",
     )
 
@@ -88,7 +94,9 @@ def test_snapshot_three_timestamps():
 
 
 def test_snapshot_three_hashes():
-    ds = _make_snapshot(strategy_config_hash="c1", strategy_artifact_hash="a1", provenance_hash="p1")
+    ds = _make_snapshot(
+        strategy_config_hash="c1", strategy_artifact_hash="a1", provenance_hash="p1"
+    )
     assert ds.strategy_config_hash == "c1"
     assert ds.strategy_artifact_hash == "a1"
     assert ds.provenance_hash == "p1"
@@ -99,7 +107,11 @@ def test_snapshot_three_hashes():
 
 
 def test_snapshot_hash_required():
-    for field, val in [("strategy_config_hash", ""), ("strategy_artifact_hash", ""), ("provenance_hash", "")]:
+    for field, val in [
+        ("strategy_config_hash", ""),
+        ("strategy_artifact_hash", ""),
+        ("provenance_hash", ""),
+    ]:
         try:
             _make_snapshot(**{field: val})
             assert False

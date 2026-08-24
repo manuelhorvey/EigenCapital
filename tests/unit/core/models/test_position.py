@@ -4,9 +4,7 @@ Tests signed quantity invariants, average_entry_price None when flat,
 serialization, and deterministic behavior.
 """
 
-import sys
 from eigencapital.core.models.position import Position
-from eigencapital.core.models.errors import InvariantViolation, InvalidInput
 
 _counter = 0
 

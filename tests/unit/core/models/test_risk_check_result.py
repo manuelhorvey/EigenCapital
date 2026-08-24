@@ -1,6 +1,5 @@
 """Unit tests for EigenCapital domain models — RiskCheckResult."""
 
-import math
 from eigencapital.core.models.risk_check_result import RiskCheckResult, RISK_CHECK_IDS
 
 _counter = 0
@@ -91,6 +90,7 @@ def test_risk_check_required_fields():
 
 def test_risk_check_to_from_dict():
     from eigencapital.core.models.risk_check_result import RiskCheckResult as RCR
+
     original = _make_check(status="WARN", observed=1.5, limit=2.0)
     d = original.to_dict()
     RCR._registry.clear()
@@ -107,9 +107,17 @@ def test_risk_check_dict_consistency():
 
 def test_risk_check_ids_set():
     expected = {
-        "max_position", "gross_exposure", "net_exposure",
-        "leverage", "drawdown", "daily_loss", "weekly_loss",
-        "correlation", "asset_class", "liquidity",
-        "volatility_shock", "concentration",
+        "max_position",
+        "gross_exposure",
+        "net_exposure",
+        "leverage",
+        "drawdown",
+        "daily_loss",
+        "weekly_loss",
+        "correlation",
+        "asset_class",
+        "liquidity",
+        "volatility_shock",
+        "concentration",
     }
     assert RISK_CHECK_IDS == expected

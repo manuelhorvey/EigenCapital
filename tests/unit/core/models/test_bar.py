@@ -3,17 +3,14 @@
 Tests invariants, UTC-end invariant, price hierarchy, serialization, and deterministic behavior.
 """
 
-import sys
-import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from eigencapital.core.models.bar import Bar, BarInterval
-from eigencapital.core.models.errors import InvariantViolation, InvalidInput
 
 
 def clear_registry():
     """Clear the class-level registry."""
-    if hasattr(Bar, '_registry'):
+    if hasattr(Bar, "_registry"):
         Bar._registry.clear()
 
 
@@ -54,7 +51,7 @@ def test_bar_utc_end_invariant():
     """Test that timestamp_utc == bar_end_utc is enforced."""
     clear_registry()
     # Valid case: invariant holds
-    bar = Bar(
+    Bar(
         instrument_id="ES",
         timestamp_utc="2024-03-15T09:35:00Z",
         bar_start_utc="2024-03-15T09:30:00Z",
@@ -70,7 +67,7 @@ def test_bar_utc_end_invariant():
 
     # Invalid case: timestamp_utc != bar_end_utc
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -91,7 +88,7 @@ def test_bar_chronological_order():
     """Test that bar_start_utc < timestamp_utc (bar start before end)."""
     clear_registry()
     # Valid
-    bar = Bar(
+    Bar(
         instrument_id="ES",
         timestamp_utc="2024-03-15T09:35:00Z",
         bar_start_utc="2024-03-15T09:30:00Z",
@@ -106,7 +103,7 @@ def test_bar_chronological_order():
 
     # Invalid: bar_start_utc >= timestamp_utc
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:35:00Z",  # equal! invalid
@@ -127,7 +124,7 @@ def test_bar_price_hierarchy():
     """Test high >= max(open, close) and low <= min(open, close)."""
     clear_registry()
     # Valid bar
-    bar = Bar(
+    Bar(
         instrument_id="ES",
         timestamp_utc="2024-03-15T09:35:00Z",
         bar_start_utc="2024-03-15T09:30:00Z",
@@ -142,7 +139,7 @@ def test_bar_price_hierarchy():
 
     # Invalid: high < max(open, close)
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -160,7 +157,7 @@ def test_bar_price_hierarchy():
 
     # Invalid: low > min(open, close)
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -181,7 +178,7 @@ def test_bar_price_must_be_positive():
     """Test that all prices must be > 0."""
     clear_registry()
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -198,7 +195,7 @@ def test_bar_price_must_be_positive():
     print("  PASS: test_bar_price_must_be_positive open")
 
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -219,7 +216,7 @@ def test_bar_volume_nonnegative():
     """Test that volume >= 0."""
     clear_registry()
     # Valid
-    bar = Bar(
+    Bar(
         instrument_id="ES",
         timestamp_utc="2024-03-15T09:35:00Z",
         bar_start_utc="2024-03-15T09:30:00Z",
@@ -234,7 +231,7 @@ def test_bar_volume_nonnegative():
 
     # Invalid: negative volume
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -253,13 +250,12 @@ def test_bar_volume_nonnegative():
 
 def test_bar_nan_inf_prices():
     """Test that NaN/infinite prices are rejected."""
-    import math
-    
+
     clear_registry()
-    
+
     # NaN open
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -277,7 +273,7 @@ def test_bar_nan_inf_prices():
 
     # Inf high
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",
@@ -312,7 +308,7 @@ def test_bar_vwap_optional():
     )
     assert bar.vwap is None
     print("  PASS: vwap=None is valid")
-    
+
     # Valid: vwap set - need to clear registry first since first bar registered ES+timestamp
     clear_registry()
     bar2 = Bar(
@@ -417,14 +413,14 @@ def test_bar_interval_enum():
     for v in valid:
         bi = BarInterval(value=v)
         assert bi.value == v
-    
+
     # Invalid interval
     try:
         BarInterval(value="10m")
         assert False, "Should reject invalid interval"
     except ValueError:
         pass  # Expected
-    
+
     print("  PASS: test_bar_interval_enum")
 
 
@@ -444,7 +440,7 @@ def test_bar_side_property():
         volume=1000,
     )
     assert bar_up.side == "up"
-    
+
     # close < open => "down"
     clear_registry()
     bar_down = Bar(
@@ -459,7 +455,7 @@ def test_bar_side_property():
         volume=1000,
     )
     assert bar_down.side == "down"
-    
+
     # close == open => "down" (else branch)
     clear_registry()
     bar_flat = Bar(
@@ -481,7 +477,7 @@ def test_bar_negative_quantity():
     """Test that negative volume is rejected (already tested in volume test, but double-check)."""
     clear_registry()
     try:
-        bad_bar = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2024-03-15T09:35:00Z",
             bar_start_utc="2024-03-15T09:30:00Z",

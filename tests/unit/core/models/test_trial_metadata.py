@@ -19,7 +19,10 @@ def _make_tm(**overrides):
         hypothesis_family="trend",
         selection_method="best_validation_sharpe",
         trials_in_family=8,
-        parameter_search_space={"lookback": [20, 40, 60, 80], "stop_atr": [1.0, 1.5, 2.0]},
+        parameter_search_space={
+            "lookback": [20, 40, 60, 80],
+            "stop_atr": [1.0, 1.5, 2.0],
+        },
     )
     defaults.update(overrides)
     return TrialMetadata(**defaults)

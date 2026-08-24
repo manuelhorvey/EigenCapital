@@ -3,14 +3,12 @@
 Tests invariants, validation, serialization, and deterministic behavior.
 """
 
-import sys
 from eigencapital.core.models.instrument import Instrument, validate_asset_class
-from eigencapital.core.models.errors import InvariantViolation, InvalidInput
 
 
 def clear_registry():
     """Clear the class-level registry."""
-    if hasattr(Instrument, '_registry'):
+    if hasattr(Instrument, "_registry"):
         Instrument._registry.clear()
 
 
@@ -43,7 +41,7 @@ def test_instrument_creation():
 def test_instrument_duplicate_id():
     """Test that duplicate instrument_id raises error."""
     clear_registry()
-    inst1 = Instrument(
+    Instrument(
         instrument_id="ES1",
         symbol="S&P 500 E-mini",
         asset_class="EQUITY_FUTURE",
@@ -55,7 +53,7 @@ def test_instrument_duplicate_id():
         price_precision=2,
     )
     try:
-        inst2 = Instrument(
+        Instrument(
             instrument_id="ES1",  # duplicate
             symbol="Different",
             asset_class="EQUITY_FUTURE",
@@ -76,7 +74,7 @@ def test_instrument_invalid_tick_size():
     """Test that invalid tick_size raises error."""
     clear_registry()
     try:
-        inst = Instrument(
+        Instrument(
             instrument_id="BAD",
             symbol="Bad",
             asset_class="EQUITY_FUTURE",
@@ -97,7 +95,7 @@ def test_instrument_invalid_lot_size():
     """Test that invalid lot_size raises error."""
     clear_registry()
     try:
-        inst = Instrument(
+        Instrument(
             instrument_id="BAD",
             symbol="Bad",
             asset_class="EQUITY_FUTURE",
@@ -118,7 +116,7 @@ def test_instrument_invalid_price_precision():
     """Test that invalid price_precision raises error."""
     clear_registry()
     try:
-        inst = Instrument(
+        Instrument(
             instrument_id="BAD",
             symbol="Bad",
             asset_class="EQUITY_FUTURE",
@@ -232,7 +230,7 @@ def test_instrument_negative_tick_value():
     """Test that negative tick_value raises error."""
     clear_registry()
     try:
-        inst = Instrument(
+        Instrument(
             instrument_id="BAD",
             symbol="Bad",
             asset_class="EQUITY_FUTURE",
@@ -294,7 +292,7 @@ def test_instrument_validate_asset_class():
             validate_asset_class(valid)
         except ValueError:
             assert False, f"validate_asset_class({valid}) should not raise"
-    
+
     # Invalid classes
     for invalid in ["EQUITY_OPTION", "FUTURE_OPTION", "BOND", "INVALID"]:
         try:
@@ -302,7 +300,7 @@ def test_instrument_validate_asset_class():
             assert False, f"validate_asset_class({invalid}) should raise ValueError"
         except ValueError:
             pass  # Expected
-    
+
     print("  PASS: test_instrument_validate_asset_class")
 
 

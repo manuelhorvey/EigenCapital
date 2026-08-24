@@ -4,7 +4,6 @@ Tests per-fill invariants, side/instrument validation, serialization.
 The aggregate invariant (sum(fills.quantity) <= order.quantity) lives in OrderLifecycle.
 """
 
-import math
 from eigencapital.core.models.fill import Fill
 
 _counter = 0
@@ -183,6 +182,7 @@ def test_fill_liquidity_indicator():
 def test_fill_to_from_dict():
     """Test deterministic serialization round-trip."""
     from eigencapital.core.models.fill import Fill as FillClass
+
     original = _make_fill()
     d = original.to_dict()
 

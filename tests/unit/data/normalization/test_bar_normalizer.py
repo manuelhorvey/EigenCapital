@@ -10,8 +10,13 @@ def _make_raw_record(**overrides):
         source="test_source",
         instrument_id="ES",
         timestamp="2024-03-15T09:35:00Z",
-        data={"open": "4500.0", "high": "4510.0", "low": "4495.0",
-              "close": "4505.0", "volume": "1000"},
+        data={
+            "open": "4500.0",
+            "high": "4510.0",
+            "low": "4495.0",
+            "close": "4505.0",
+            "volume": "1000",
+        },
     )
     defaults.update(overrides)
     return RawRecord(**defaults)
@@ -20,6 +25,7 @@ def _make_raw_record(**overrides):
 class TestBarNormalizer:
     def test_normalize_single(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES", bar_interval="1d")
         record = _make_raw_record()
@@ -36,12 +42,20 @@ class TestBarNormalizer:
 
     def test_normalize_multiple(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES")
         records = [
-            _make_raw_record(timestamp=f"2024-03-15T09:3{i}:00Z",
-                           data={"open": "4500.0", "high": "4510.0",
-                                 "low": "4495.0", "close": "4505.0", "volume": "1000"})
+            _make_raw_record(
+                timestamp=f"2024-03-15T09:3{i}:00Z",
+                data={
+                    "open": "4500.0",
+                    "high": "4510.0",
+                    "low": "4495.0",
+                    "close": "4505.0",
+                    "volume": "1000",
+                },
+            )
             for i in range(3)
         ]
         bars = normalizer.normalize(records)
@@ -55,8 +69,15 @@ class TestBarNormalizer:
 
     def test_invalid_float_raises(self):
         normalizer = BarNormalizer(instrument_id="ES")
-        record = _make_raw_record(data={"open": "not_a_number", "high": "4510.0",
-                                        "low": "4495.0", "close": "4505.0", "volume": "1000"})
+        record = _make_raw_record(
+            data={
+                "open": "not_a_number",
+                "high": "4510.0",
+                "low": "4495.0",
+                "close": "4505.0",
+                "volume": "1000",
+            }
+        )
         with pytest.raises(NormalizationError, match="Cannot parse"):
             normalizer.normalize([record])
 
@@ -68,16 +89,25 @@ class TestBarNormalizer:
 
     def test_vwap_optional(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES")
-        record = _make_raw_record(data={"open": "4500.0", "high": "4510.0",
-                                        "low": "4495.0", "close": "4505.0",
-                                        "volume": "1000", "vwap": "4503.5"})
+        record = _make_raw_record(
+            data={
+                "open": "4500.0",
+                "high": "4510.0",
+                "low": "4495.0",
+                "close": "4505.0",
+                "volume": "1000",
+                "vwap": "4503.5",
+            }
+        )
         bars = normalizer.normalize([record])
         assert bars[0].vwap == 4503.5
 
     def test_source_attribution(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES", source="provider_x")
         record = _make_raw_record(source="")  # empty source → falls back to normalizer
@@ -86,6 +116,7 @@ class TestBarNormalizer:
 
     def test_timestamp_normalization(self):
         from eigencapital.core.models.bar import Bar as BarCls
+
         BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES")
         # Space separator → T

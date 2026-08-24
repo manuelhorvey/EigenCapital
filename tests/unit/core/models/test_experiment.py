@@ -62,8 +62,14 @@ class TestExperimentCreation:
         assert exp.parent_experiment_id is None
 
     def test_required_fields_must_be_non_empty(self):
-        for field in ("experiment_id", "git_commit", "dataset_version", "strategy_id",
-                      "strategy_version", "cost_model"):
+        for field in (
+            "experiment_id",
+            "git_commit",
+            "dataset_version",
+            "strategy_id",
+            "strategy_version",
+            "cost_model",
+        ):
             with pytest.raises(ValueError):
                 _make_experiment(**{field: ""})
 
@@ -78,9 +84,7 @@ class TestExperimentCreation:
     def test_duplicate_experiment_id_rejected(self):
         exp = _make_experiment()
         with pytest.raises(ValueError, match="[Dd]uplicate"):
-            Experiment(
-                **{**exp.__dict__, "parameters": dict(exp.parameters)}
-            )
+            Experiment(**{**exp.__dict__, "parameters": dict(exp.parameters)})
 
 
 class TestExperimentSplits:

@@ -39,7 +39,9 @@ def test_approved_target_decision_validation():
 
 
 def test_approved_target_rejected_implies_zero():
-    at = _make_target(decision="REJECTED", approved_quantity=0.0, approval_reason="Exceeds limit")
+    at = _make_target(
+        decision="REJECTED", approved_quantity=0.0, approval_reason="Exceeds limit"
+    )
     assert at.is_rejected
     assert at.approved_quantity == 0.0
 

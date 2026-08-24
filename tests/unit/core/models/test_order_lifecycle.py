@@ -8,6 +8,7 @@ _counter = 0
 def _make_fill(fill_id="F1", quantity=10.0, side="BUY"):
     class MockFill:
         pass
+
     f = MockFill()
     f.fill_id = fill_id
     f.quantity = quantity

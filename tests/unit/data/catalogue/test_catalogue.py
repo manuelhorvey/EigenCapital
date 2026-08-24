@@ -8,8 +8,8 @@ from eigencapital.data.catalogue.catalogue import (
     DuplicateInstrumentError,
 )
 from eigencapital.data.catalogue.schemas import (
-    ES, NQ, GC, EURUSD, GBPUSD, USDJPY, SPY, QQQ, BTCUSD, ETHUSD,
-    CATALOGUE, build_initial_catalogue,
+    CATALOGUE,
+    build_initial_catalogue,
 )
 
 
@@ -132,6 +132,7 @@ class TestRepository:
     def test_save_and_load(self, tmp_path):
         from eigencapital.data.catalogue.repository import CatalogueRepository
         from eigencapital.core.models.instrument import Instrument
+
         repo = CatalogueRepository(tmp_path)
         inst = _make_instrument()
         repo.save(inst)
@@ -142,12 +143,14 @@ class TestRepository:
     def test_load_not_found(self, tmp_path):
         from eigencapital.data.catalogue.repository import CatalogueRepository
         from eigencapital.data.catalogue.catalogue import InstrumentNotFoundError
+
         repo = CatalogueRepository(tmp_path)
         with pytest.raises(InstrumentNotFoundError):
             repo.load("NONEXISTENT")
 
     def test_list_ids(self, tmp_path):
         from eigencapital.data.catalogue.repository import CatalogueRepository
+
         repo = CatalogueRepository(tmp_path)
         i1 = _make_instrument()
         i2 = _make_instrument()
@@ -160,6 +163,7 @@ class TestRepository:
     def test_save_catalogue(self, tmp_path):
         from eigencapital.data.catalogue.repository import CatalogueRepository
         from eigencapital.core.models.instrument import Instrument
+
         repo = CatalogueRepository(tmp_path)
         cat = InstrumentCatalogue()
         i1 = _make_instrument()
@@ -173,6 +177,7 @@ class TestRepository:
 
     def test_delete(self, tmp_path):
         from eigencapital.data.catalogue.repository import CatalogueRepository
+
         repo = CatalogueRepository(tmp_path)
         inst = _make_instrument()
         repo.save(inst)

@@ -8,6 +8,7 @@ from eigencapital.core.models.market_snapshot import MarketSnapshot, DataQuality
 
 _counter = 0
 
+
 def _make_snapshot(**overrides):
     """Helper to create a MarketSnapshot with sensible defaults."""
     global _counter
@@ -48,8 +49,12 @@ def test_snapshot_optional_fields():
 
 def test_snapshot_data_quality():
     """Test data quality validation."""
-    for quality in (DataQualityStatus.VALID, DataQualityStatus.WARNING,
-                    DataQualityStatus.INVALID, DataQualityStatus.STALE):
+    for quality in (
+        DataQualityStatus.VALID,
+        DataQualityStatus.WARNING,
+        DataQualityStatus.INVALID,
+        DataQualityStatus.STALE,
+    ):
         ms = _make_snapshot(data_quality=quality)
         assert ms.data_quality == quality
 

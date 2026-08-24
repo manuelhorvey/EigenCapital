@@ -4,9 +4,7 @@ Tests positive quantity, side not signed, signed derivation, lifecycle invariant
 serialization, and deterministic behavior.
 """
 
-import sys
-from eigencapital.core.models.order import Order, OrderSide
-from eigencapital.core.models.errors import InvariantViolation, InvalidInput
+from eigencapital.core.models.order import Order
 
 
 def _make_order(order_id="O1", **overrides):
@@ -38,7 +36,9 @@ def test_order_creation_buy():
 
 def test_order_creation_sell():
     """Test Order creation with SELL side."""
-    order = _make_order(order_id="O2", side="SELL", limit_price=18000.0, order_type="LIMIT")
+    order = _make_order(
+        order_id="O2", side="SELL", limit_price=18000.0, order_type="LIMIT"
+    )
     assert order.side == "SELL"
     assert order.quantity == 100
     assert order.limit_price == 18000.0
@@ -100,7 +100,9 @@ def test_order_limit_stop_validation():
     order = _make_order(order_id="O14", order_type="STOP", stop_price=4550.0)
     assert order.stop_price == 4550.0
 
-    order = _make_order(order_id="O15", order_type="STOP_LIMIT", limit_price=4500.0, stop_price=4550.0)
+    order = _make_order(
+        order_id="O15", order_type="STOP_LIMIT", limit_price=4500.0, stop_price=4550.0
+    )
     assert order.limit_price == 4500.0
     assert order.stop_price == 4550.0
 
@@ -108,7 +110,9 @@ def test_order_limit_stop_validation():
 def test_order_filled_price_validation():
     """Test filled_price validation."""
     order = _make_order(
-        order_id="O16", filled_price=4500.0, filled_quantity=50,
+        order_id="O16",
+        filled_price=4500.0,
+        filled_quantity=50,
         average_fill_price=4500.0,
     )
     assert order.filled_price == 4500.0
@@ -120,7 +124,9 @@ def test_order_filled_price_validation():
 def test_order_average_fill_price_matches_filled_price():
     """Test that average_fill_price matches filled_price."""
     order = _make_order(
-        order_id="O17", filled_price=4500.0, filled_quantity=100,
+        order_id="O17",
+        filled_price=4500.0,
+        filled_quantity=100,
         average_fill_price=4500.0,
     )
     assert order.average_fill_price == order.filled_price
@@ -128,8 +134,10 @@ def test_order_average_fill_price_matches_filled_price():
 
 def test_order_status_transitions():
     """Test order status validation."""
-    for i, status in enumerate(["SUBMITTED", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"]):
-        order = _make_order(order_id=f"O18_{i}", status=status)
+    for i, status in enumerate(
+        ["SUBMITTED", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"]
+    ):
+        _make_order(order_id=f"O18_{i}", status=status)
 
     try:
         _make_order(order_id="O19", status="INVALID")
@@ -159,8 +167,11 @@ def test_order_strategy_id_required():
 def test_order_to_from_dict():
     """Test deterministic serialization round-trip."""
     original = _make_order(
-        order_id="O22", order_type="LIMIT", side="BUY",
-        limit_price=4500.0, strategy_id="trend_v1",
+        order_id="O22",
+        order_type="LIMIT",
+        side="BUY",
+        limit_price=4500.0,
+        strategy_id="trend_v1",
     )
 
     d = original.to_dict()

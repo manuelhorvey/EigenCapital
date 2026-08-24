@@ -33,7 +33,7 @@ def compute_realized_volatility(bars: List[Bar], lookback: int) -> Optional[floa
     if len(bars) < lookback + 1:
         return None
 
-    closes = [b.close for b in bars[-(lookback + 1):]]
+    closes = [b.close for b in bars[-(lookback + 1) :]]
     log_returns = []
     for i in range(1, len(closes)):
         if closes[i - 1] > 0 and closes[i] > 0:
@@ -72,7 +72,7 @@ def compute_parkinson_volatility(bars: List[Bar], lookback: int) -> Optional[flo
     for bar in recent:
         if bar.high > 0 and bar.low > 0:
             log_hl = math.log(bar.high / bar.low)
-            sum_sq += log_hl ** 2
+            sum_sq += log_hl**2
             count += 1
 
     if count < 2:
@@ -109,7 +109,7 @@ def compute_garman_klass_volatility(bars: List[Bar], lookback: int) -> Optional[
         if bar.high > 0 and bar.low > 0 and bar.open > 0 and bar.close > 0:
             log_hl = math.log(bar.high / bar.low)
             log_co = math.log(bar.close / bar.open)
-            sum_gk += 0.5 * log_hl ** 2 - (2 * math.log(2) - 1) * log_co ** 2
+            sum_gk += 0.5 * log_hl**2 - (2 * math.log(2) - 1) * log_co**2
             count += 1
 
     if count < 2:

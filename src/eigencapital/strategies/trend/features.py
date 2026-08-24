@@ -11,7 +11,7 @@ All features are computed from available bars only (no look-ahead).
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from eigencapital.core.models.bar import Bar
 
@@ -53,7 +53,7 @@ def compute_realized_volatility(bars: List[Bar], lookback: int) -> Optional[floa
         return None
 
     # Compute log returns
-    closes = [b.close for b in bars[-(lookback + 1):]]
+    closes = [b.close for b in bars[-(lookback + 1) :]]
     log_returns = []
     for i in range(1, len(closes)):
         if closes[i - 1] > 0 and closes[i] > 0:

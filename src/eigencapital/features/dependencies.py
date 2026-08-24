@@ -18,14 +18,15 @@ This module:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, Any
+from typing import Dict, List, Set, Any
 from enum import Enum
 
 
 class DependencyType(str, Enum):
     """Type of dependency between features."""
-    HARD = "hard"    # Feature cannot be computed without this dependency
-    SOFT = "soft"    # Feature can be computed with degraded output without this
+
+    HARD = "hard"  # Feature cannot be computed without this dependency
+    SOFT = "soft"  # Feature can be computed with degraded output without this
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class FeatureDependency:
         dependency_type: Whether this is a hard or soft dependency
         description: Why this dependency exists
     """
+
     feature_id: str
     depends_on: str
     dependency_type: DependencyType = DependencyType.HARD
@@ -58,6 +60,7 @@ class FeatureDAG:
 
     Resolves computation order and detects circular dependencies.
     """
+
     _edges: Dict[str, List[FeatureDependency]] = field(default_factory=dict)
     _reverse_edges: Dict[str, List[FeatureDependency]] = field(default_factory=dict)
 
@@ -196,6 +199,7 @@ class FeatureDAG:
 #  Default dependency graph for known features
 # ──────────────────────────────────────────────
 
+
 def build_default_dag() -> FeatureDAG:
     """Build the default dependency DAG for EigenCapital's feature set.
 
@@ -205,107 +209,135 @@ def build_default_dag() -> FeatureDAG:
     dag = FeatureDAG()
 
     # Momentum z-score depends on return and volatility
-    dag.add_dependency(FeatureDependency(
-        feature_id="momentum_zscore",
-        depends_on="return",
-        dependency_type=DependencyType.HARD,
-        description="Momentum z-score normalizes return by volatility",
-    ))
-    dag.add_dependency(FeatureDependency(
-        feature_id="momentum_zscore",
-        depends_on="volatility",
-        dependency_type=DependencyType.HARD,
-        description="Momentum z-score normalizes return by volatility",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="momentum_zscore",
+            depends_on="return",
+            dependency_type=DependencyType.HARD,
+            description="Momentum z-score normalizes return by volatility",
+        )
+    )
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="momentum_zscore",
+            depends_on="volatility",
+            dependency_type=DependencyType.HARD,
+            description="Momentum z-score normalizes return by volatility",
+        )
+    )
 
     # Distance from SMA depends on SMA
-    dag.add_dependency(FeatureDependency(
-        feature_id="distance_from_sma",
-        depends_on="sma",
-        dependency_type=DependencyType.HARD,
-        description="Distance is computed relative to SMA",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="distance_from_sma",
+            depends_on="sma",
+            dependency_type=DependencyType.HARD,
+            description="Distance is computed relative to SMA",
+        )
+    )
 
     # Distance from EMA depends on EMA
-    dag.add_dependency(FeatureDependency(
-        feature_id="distance_from_ema",
-        depends_on="ema",
-        dependency_type=DependencyType.HARD,
-        description="Distance is computed relative to EMA",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="distance_from_ema",
+            depends_on="ema",
+            dependency_type=DependencyType.HARD,
+            description="Distance is computed relative to EMA",
+        )
+    )
 
     # MA crossover depends on SMA (two windows)
-    dag.add_dependency(FeatureDependency(
-        feature_id="ma_crossover",
-        depends_on="sma",
-        dependency_type=DependencyType.HARD,
-        description="MA crossover compares two SMA windows",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="ma_crossover",
+            depends_on="sma",
+            dependency_type=DependencyType.HARD,
+            description="MA crossover compares two SMA windows",
+        )
+    )
 
     # Dual momentum depends on return
-    dag.add_dependency(FeatureDependency(
-        feature_id="dual_momentum",
-        depends_on="return",
-        dependency_type=DependencyType.HARD,
-        description="Dual momentum uses returns at two horizons",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="dual_momentum",
+            depends_on="return",
+            dependency_type=DependencyType.HARD,
+            description="Dual momentum uses returns at two horizons",
+        )
+    )
 
     # Bollinger position depends on SMA and volatility
-    dag.add_dependency(FeatureDependency(
-        feature_id="bollinger_position",
-        depends_on="sma",
-        dependency_type=DependencyType.HARD,
-        description="Bollinger bands are centered on SMA",
-    ))
-    dag.add_dependency(FeatureDependency(
-        feature_id="bollinger_position",
-        depends_on="volatility",
-        dependency_type=DependencyType.HARD,
-        description="Bollinger band width depends on volatility",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="bollinger_position",
+            depends_on="sma",
+            dependency_type=DependencyType.HARD,
+            description="Bollinger bands are centered on SMA",
+        )
+    )
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="bollinger_position",
+            depends_on="volatility",
+            dependency_type=DependencyType.HARD,
+            description="Bollinger band width depends on volatility",
+        )
+    )
 
     # Bollinger bandwidth depends on SMA and volatility
-    dag.add_dependency(FeatureDependency(
-        feature_id="bollinger_bandwidth",
-        depends_on="sma",
-        dependency_type=DependencyType.HARD,
-        description="Bandwidth is computed from SMA-based bands",
-    ))
-    dag.add_dependency(FeatureDependency(
-        feature_id="bollinger_bandwidth",
-        depends_on="volatility",
-        dependency_type=DependencyType.HARD,
-        description="Bandwidth depends on standard deviation",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="bollinger_bandwidth",
+            depends_on="sma",
+            dependency_type=DependencyType.HARD,
+            description="Bandwidth is computed from SMA-based bands",
+        )
+    )
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="bollinger_bandwidth",
+            depends_on="volatility",
+            dependency_type=DependencyType.HARD,
+            description="Bandwidth depends on standard deviation",
+        )
+    )
 
     # Z-score depends on SMA and volatility
-    dag.add_dependency(FeatureDependency(
-        feature_id="rolling_zscore",
-        depends_on="sma",
-        dependency_type=DependencyType.HARD,
-        description="Z-score = (value - mean) / std",
-    ))
-    dag.add_dependency(FeatureDependency(
-        feature_id="rolling_zscore",
-        depends_on="volatility",
-        dependency_type=DependencyType.HARD,
-        description="Z-score = (value - mean) / std",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="rolling_zscore",
+            depends_on="sma",
+            dependency_type=DependencyType.HARD,
+            description="Z-score = (value - mean) / std",
+        )
+    )
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="rolling_zscore",
+            depends_on="volatility",
+            dependency_type=DependencyType.HARD,
+            description="Z-score = (value - mean) / std",
+        )
+    )
 
     # ATR depends on true range
-    dag.add_dependency(FeatureDependency(
-        feature_id="atr",
-        depends_on="true_range",
-        dependency_type=DependencyType.HARD,
-        description="ATR is smoothed true range",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="atr",
+            depends_on="true_range",
+            dependency_type=DependencyType.HARD,
+            description="ATR is smoothed true range",
+        )
+    )
 
     # Volume ratio depends on volume MA
-    dag.add_dependency(FeatureDependency(
-        feature_id="volume_ratio",
-        depends_on="volume_ma",
-        dependency_type=DependencyType.HARD,
-        description="Volume ratio = current volume / volume MA",
-    ))
+    dag.add_dependency(
+        FeatureDependency(
+            feature_id="volume_ratio",
+            depends_on="volume_ma",
+            dependency_type=DependencyType.HARD,
+            description="Volume ratio = current volume / volume MA",
+        )
+    )
 
     return dag

@@ -12,7 +12,7 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.features.feature import Feature
@@ -146,7 +146,7 @@ def compute_momentum_zscore(
     ret = (bars[-1].close / bars[-(lookback + 1)].close) - 1.0
 
     # Compute volatility
-    closes = [b.close for b in bars[-(vol_lookback + 1):]]
+    closes = [b.close for b in bars[-(vol_lookback + 1) :]]
     log_returns = []
     for i in range(1, len(closes)):
         if closes[i - 1] > 0 and closes[i] > 0:

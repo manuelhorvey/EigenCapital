@@ -111,7 +111,7 @@ def compute_obv_direction(bars: List[Bar], lookback: int) -> Optional[float]:
     if len(bars) < lookback + 1:
         return None
 
-    recent = bars[-(lookback + 1):]
+    recent = bars[-(lookback + 1) :]
     obv = 0.0
 
     for i in range(1, len(recent)):

@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from typing import Dict, List, Any
 
-from eigencapital.features.feature_set import FeatureSet, FeatureEntry
+from eigencapital.features.feature_set import FeatureSet
 from eigencapital.features.pipeline import FeatureRequest, PipelineConfig
 
 
@@ -33,6 +33,7 @@ class ProvenanceRecord:
 
     This record makes the computation fully reproducible and auditable.
     """
+
     feature_set_hash: str
     instrument_id: str
     decision_timestamp: str

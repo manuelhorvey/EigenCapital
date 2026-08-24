@@ -26,18 +26,14 @@ Constraints:
 
 from __future__ import annotations
 
-import hashlib
-import json
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.strategies.base import BaseStrategy, StrategySignal
 from eigencapital.strategies.trend.config import TrendConfig
 from eigencapital.strategies.trend.features import (
-    compute_cumulative_return,
     compute_realized_volatility,
     compute_trend_signal,
-    compute_position_size,
 )
 
 
@@ -110,7 +106,9 @@ class CrossAssetTrendStrategy(BaseStrategy):
             return None
 
         # Determine direction based on signal and thresholds
-        current_direction = 1 if position_quantity > 0 else (-1 if position_quantity < 0 else 0)
+        current_direction = (
+            1 if position_quantity > 0 else (-1 if position_quantity < 0 else 0)
+        )
 
         if current_direction == 0:
             # No position — check for entry
@@ -124,7 +122,9 @@ class CrossAssetTrendStrategy(BaseStrategy):
             # Have position — check for exit
             if current_direction == 1 and signal_zscore < self.config.exit_threshold:
                 direction = 0  # Exit LONG
-            elif current_direction == -1 and signal_zscore > -self.config.exit_threshold:
+            elif (
+                current_direction == -1 and signal_zscore > -self.config.exit_threshold
+            ):
                 direction = 0  # Exit SHORT
             else:
                 # Hold — no signal

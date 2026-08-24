@@ -19,15 +19,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
 
-from eigencapital.features.feature import Feature
-
 
 class FeatureStatus(str, Enum):
     """Status of a feature within a FeatureSet."""
+
     COMPUTED = "computed"
     UNAVAILABLE = "unavailable"  # insufficient warm-up
-    STALE = "stale"             # availability > decision time
-    FAILED = "failed"           # computation error
+    STALE = "stale"  # availability > decision time
+    FAILED = "failed"  # computation error
 
 
 @dataclass(frozen=True)
@@ -38,6 +37,7 @@ class FeatureEntry:
     This allows explicit recording of missing/failed features
     rather than silent substitution with zeros.
     """
+
     feature_id: str
     feature_version: str
     status: FeatureStatus
@@ -109,9 +109,10 @@ class FeatureSet:
         provenance_hash: Deterministic hash of all inputs and outputs
         metadata: Free-form additional metadata
     """
+
     instrument_id: str
     decision_timestamp: str  # When the decision is made
-    timestamp_utc: str       # The bar timestamp
+    timestamp_utc: str  # The bar timestamp
     entries: Dict[str, FeatureEntry] = field(default_factory=dict)
     dataset_version: str = ""
     universe_version: str = ""
@@ -154,16 +155,15 @@ class FeatureSet:
     def computed_features(self) -> Dict[str, float]:
         """Get all successfully computed feature values."""
         return {
-            fid: entry.value
-            for fid, entry in self.entries.items()
-            if entry.is_usable
+            fid: entry.value for fid, entry in self.entries.items() if entry.is_usable
         }
 
     @property
     def unavailable_features(self) -> List[str]:
         """Get list of features that were unavailable (insufficient warm-up)."""
         return [
-            fid for fid, entry in self.entries.items()
+            fid
+            for fid, entry in self.entries.items()
             if entry.status == FeatureStatus.UNAVAILABLE
         ]
 
@@ -171,7 +171,8 @@ class FeatureSet:
     def failed_features(self) -> List[str]:
         """Get list of features that failed computation."""
         return [
-            fid for fid, entry in self.entries.items()
+            fid
+            for fid, entry in self.entries.items()
             if entry.status == FeatureStatus.FAILED
         ]
 
@@ -201,8 +202,7 @@ class FeatureSet:
             "decision_timestamp": self.decision_timestamp,
             "timestamp_utc": self.timestamp_utc,
             "entries": {
-                fid: entry.to_dict()
-                for fid, entry in sorted(self.entries.items())
+                fid: entry.to_dict() for fid, entry in sorted(self.entries.items())
             },
             "dataset_version": self.dataset_version,
             "universe_version": self.universe_version,

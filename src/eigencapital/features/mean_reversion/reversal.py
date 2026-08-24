@@ -10,7 +10,6 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 
 from __future__ import annotations
 
-import math
 from typing import List, Optional
 
 from eigencapital.core.models.bar import Bar

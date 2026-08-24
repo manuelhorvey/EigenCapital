@@ -10,7 +10,6 @@ All features use only bars available at the decision timestamp.
 
 from __future__ import annotations
 
-import math
 from typing import List, Optional
 
 from eigencapital.core.models.bar import Bar
@@ -56,7 +55,7 @@ def compute_atr(bars: List[Bar], lookback: int) -> Optional[float]:
         return None
 
     # Need one extra bar for prev_close of the first ATR bar
-    relevant = bars[-(lookback + 1):]
+    relevant = bars[-(lookback + 1) :]
     true_ranges = []
 
     for i in range(1, len(relevant)):

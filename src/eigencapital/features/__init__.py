@@ -18,8 +18,16 @@ from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureConfig, FeatureFamily, Normalization
 from eigencapital.features.registry import FeatureRegistry, FeatureDefinition
 from eigencapital.features.feature_set import FeatureSet, FeatureEntry, FeatureStatus
-from eigencapital.features.dependencies import FeatureDAG, FeatureDependency, build_default_dag
-from eigencapital.features.pipeline import FeaturePipeline, FeatureRequest, PipelineConfig
+from eigencapital.features.dependencies import (
+    FeatureDAG,
+    FeatureDependency,
+    build_default_dag,
+)
+from eigencapital.features.pipeline import (
+    FeaturePipeline,
+    FeatureRequest,
+    PipelineConfig,
+)
 from eigencapital.features.provenance import ProvenanceRecord, build_provenance_record
 from eigencapital.features.errors import (
     FeatureError,

@@ -11,8 +11,8 @@ Usage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Type, Callable, Any
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Callable, Any
 
 from eigencapital.features.contracts import FeatureConfig
 from eigencapital.features.errors import (
@@ -32,6 +32,7 @@ class FeatureDefinition:
         compute_fn: Optional callable that computes this feature
         description: Human-readable description
     """
+
     feature_id: str
     version: str
     config: FeatureConfig
@@ -154,8 +155,9 @@ class FeatureRegistry:
 
     def has_version(self, feature_id: str, version: str) -> bool:
         """Check if a specific version is registered."""
-        return (feature_id in self._definitions
-                and version in self._definitions[feature_id])
+        return (
+            feature_id in self._definitions and version in self._definitions[feature_id]
+        )
 
     def __len__(self) -> int:
         """Total number of feature definitions (all versions)."""

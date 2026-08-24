@@ -31,11 +31,14 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, ClassVar
+from typing import Dict, Any, List, ClassVar
 import math
 
-from eigencapital.features.contracts import FeatureConfig, FeatureFamily, Normalization
-from eigencapital.features.errors import FeatureAvailabilityError, FeatureValidationError
+from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.errors import (
+    FeatureAvailabilityError,
+    FeatureValidationError,
+)
 
 
 @dataclass(frozen=True)
@@ -129,8 +132,11 @@ class Feature:
             )
 
         # INVARIANT: availability_timestamp <= timestamp_utc
-        if (self.availability_timestamp and self.timestamp_utc
-                and self.availability_timestamp > self.timestamp_utc):
+        if (
+            self.availability_timestamp
+            and self.timestamp_utc
+            and self.availability_timestamp > self.timestamp_utc
+        ):
             raise FeatureAvailabilityError(
                 f"availability_timestamp ({self.availability_timestamp}) "
                 f"> timestamp_utc ({self.timestamp_utc}). "
@@ -140,8 +146,7 @@ class Feature:
         # Registry check for duplicate feature_id
         if self.feature_id in self._registry:
             raise ValueError(
-                f"Duplicate feature_id: {self.feature_id}. "
-                f"Feature IDs must be unique."
+                f"Duplicate feature_id: {self.feature_id}. Feature IDs must be unique."
             )
         self._registry[self.feature_id] = True
 

@@ -48,9 +48,7 @@ def compute_donchian_position(bars: List[Bar], lookback: int) -> Optional[float]
     return (close - low) / channel_range
 
 
-def compute_donchian_breakout(
-    bars: List[Bar], lookback: int
-) -> Optional[float]:
+def compute_donchian_breakout(bars: List[Bar], lookback: int) -> Optional[float]:
     """Compute Donchian breakout signal.
 
     Returns:
@@ -69,7 +67,7 @@ def compute_donchian_breakout(
         return None
 
     # Channel from bars BEFORE current bar
-    channel_bars = bars[-(lookback + 1):-1]
+    channel_bars = bars[-(lookback + 1) : -1]
     high = max(b.high for b in channel_bars)
     low = min(b.low for b in channel_bars)
 

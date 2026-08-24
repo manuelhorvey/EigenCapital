@@ -15,6 +15,7 @@ from typing import Dict, Any, Set
 
 # ── Feature Families ──────────────────────────────────────────────
 
+
 class FeatureFamily:
     """Canonical feature families.
 
@@ -40,10 +41,17 @@ class FeatureFamily:
     DERIVED = "derived"
 
     ALL_FAMILIES: Set[str] = {
-        RETURNS, VOLATILITY, RANGES, VOLUME,
-        MOMENTUM, MEAN_REVERSION, CROSS_SECTIONAL,
-        VOLATILITY_REGIME, CROSS_ASSET,
-        STRUCTURAL, DERIVED,
+        RETURNS,
+        VOLATILITY,
+        RANGES,
+        VOLUME,
+        MOMENTUM,
+        MEAN_REVERSION,
+        CROSS_SECTIONAL,
+        VOLATILITY_REGIME,
+        CROSS_ASSET,
+        STRUCTURAL,
+        DERIVED,
     }
 
     @classmethod
@@ -58,6 +66,7 @@ class FeatureFamily:
 
 
 # ── Normalization Methods ─────────────────────────────────────────
+
 
 class Normalization:
     """Canonical normalization methods.
@@ -76,8 +85,14 @@ class Normalization:
     DIFFERENCING = "differencing"
 
     ALL_METHODS: Set[str] = {
-        NONE, ZSCORE, RANK, PCT_CHANGE, LOG_RETURN,
-        MIN_MAX, WINSORIZE, DIFFERENCING,
+        NONE,
+        ZSCORE,
+        RANK,
+        PCT_CHANGE,
+        LOG_RETURN,
+        MIN_MAX,
+        WINSORIZE,
+        DIFFERENCING,
     }
 
     @classmethod
@@ -87,6 +102,7 @@ class Normalization:
 
 
 # ── Feature Configuration ─────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class FeatureConfig:
@@ -106,6 +122,7 @@ class FeatureConfig:
         parameters: Additional parameters (e.g., window sizes, thresholds)
         description: Human-readable description
     """
+
     feature_family: str
     normalization: str = Normalization.NONE
     lookback: int = 1

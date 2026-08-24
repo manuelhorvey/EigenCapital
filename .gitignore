@@ -33,6 +33,7 @@ Thumbs.db
 
 # Data (large files, not committed)
 data/raw/
+data/mt5/
 data/normalized/
 data/features/
 *.parquet

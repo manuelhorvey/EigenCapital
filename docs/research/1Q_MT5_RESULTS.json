@@ -1,0 +1,816 @@
+{
+  "stages": {
+    "data_integrity": {
+      "passed": true,
+      "checks": [
+        {
+          "name": "symbol_count",
+          "passed": true,
+          "details": "15 symbols available (need >=10)"
+        },
+        {
+          "name": "minimum_bars",
+          "passed": true,
+          "details": "Minimum bars per symbol: 2066 (need >=500)"
+        },
+        {
+          "name": "timestamp_monotonicity",
+          "passed": true,
+          "details": "All timestamps monotonic"
+        },
+        {
+          "name": "no_duplicates",
+          "passed": true,
+          "details": "No duplicates"
+        },
+        {
+          "name": "ohlc_invariants",
+          "passed": true,
+          "details": "All OHLC invariants hold"
+        },
+        {
+          "name": "positive_prices",
+          "passed": true,
+          "details": "All prices positive"
+        },
+        {
+          "name": "gap_analysis",
+          "passed": true,
+          "details": "No excessive gaps"
+        },
+        {
+          "name": "asset_class_coverage",
+          "passed": true,
+          "details": "Asset classes: {'index', 'forex_major', 'commodity', 'crypto', 'metal'}"
+        },
+        {
+          "name": "date_range",
+          "passed": true,
+          "details": "Date span: 6.6 years (2020-01-01 to 2026-08-24)"
+        },
+        {
+          "name": "manifest_hash",
+          "passed": true,
+          "details": "Manifest hash: f910a6fda81f3fdc"
+        }
+      ],
+      "manifest": {
+        "data_source": "mt5_csv",
+        "universe_hash": "745df83241b5b92a",
+        "start_date": "2020-01-01",
+        "end_date": "2026-08-24",
+        "bar_count": 31790,
+        "snapshot_hash": "f910a6fda81f3fdc"
+      }
+    },
+    "calibration": {
+      "passed": "True",
+      "trend_metrics": {
+        "hypothesis_id": "HYP-TREND-001",
+        "gross_sharpe": 0.7126036164277035,
+        "net_sharpe": 0.7011393383652148,
+        "annual_return": 0.40371429613182575,
+        "max_drawdown": -0.8213480638568273,
+        "volatility": 0.5757975256004477,
+        "sortino": 0.9700866293659852,
+        "calmar": 0.49152644767444037,
+        "t_stat": 2.059840983105851,
+        "turnover": 6.601102941176471,
+        "cost_drag": 0.006601102941176471,
+        "walk_forward_sharpe": 0.1891417242053946,
+        "hit_rate": 0.5135632183908045,
+        "n_bars": 2175,
+        "correlation_with_us500": 0.38579811660777724
+      }
+    }
+  },
+  "freeze_hash": "17a3dd804fbb578acdc531d4a6729fc71543429f15bf14a212d315c672f66c05",
+  "verdicts": [
+    {
+      "hypothesis_id": "HYP-TREND-001",
+      "family": "trend",
+      "status": "inconclusive",
+      "total_trials": 1,
+      "selected_trial_id": "",
+      "best_sharpe": 0.7011393383652148,
+      "net_sharpe": 0.7011393383652148,
+      "turnover": 6.601102941176471,
+      "max_drawdown": -0.8213480638568273,
+      "falsification_passed": "False",
+      "cost_survived": "True",
+      "incremental_value": false,
+      "incremental_sharpe_delta": 0,
+      "incremental_dd_delta": 0,
+      "notes": "Score: 0.257, WF: 0.189, T: 2.06"
+    },
+    {
+      "hypothesis_id": "HYP-VOL-001",
+      "family": "volatility",
+      "status": "rejected",
+      "total_trials": 1,
+      "selected_trial_id": "",
+      "best_sharpe": -0.7344715641667614,
+      "net_sharpe": -0.7344715641667614,
+      "turnover": 2.97972972972973,
+      "max_drawdown": -0.9994198977251112,
+      "falsification_passed": "False",
+      "cost_survived": "False",
+      "incremental_value": false,
+      "incremental_sharpe_delta": 0,
+      "incremental_dd_delta": 0,
+      "notes": "Score: 0.082, WF: -1.415, T: -2.25"
+    },
+    {
+      "hypothesis_id": "HYP-CS-001",
+      "family": "cross_sectional",
+      "status": "rejected",
+      "total_trials": 1,
+      "selected_trial_id": "",
+      "best_sharpe": 0,
+      "net_sharpe": 0,
+      "turnover": 0,
+      "max_drawdown": -0.3,
+      "falsification_passed": false,
+      "cost_survived": false,
+      "incremental_value": false,
+      "incremental_sharpe_delta": 0,
+      "incremental_dd_delta": 0,
+      "notes": "Score: 0.208, WF: 0.000, T: 0.00"
+    },
+    {
+      "hypothesis_id": "HYP-BRK-001",
+      "family": "breakout",
+      "status": "inconclusive",
+      "total_trials": 1,
+      "selected_trial_id": "",
+      "best_sharpe": 0.6334937303361893,
+      "net_sharpe": 0.6334937303361893,
+      "turnover": 14.816720257234726,
+      "max_drawdown": -0.8764148541070153,
+      "falsification_passed": "True",
+      "cost_survived": "True",
+      "incremental_value": false,
+      "incremental_sharpe_delta": 0,
+      "incremental_dd_delta": 0,
+      "notes": "Score: 0.220, WF: 0.397, T: 1.86"
+    },
+    {
+      "hypothesis_id": "HYP-MR-001",
+      "family": "mean_reversion",
+      "status": "rejected",
+      "total_trials": 1,
+      "selected_trial_id": "",
+      "best_sharpe": -1.1411393389821183,
+      "net_sharpe": -1.1411393389821183,
+      "turnover": 222.35992571192742,
+      "max_drawdown": -0.9963715453101667,
+      "falsification_passed": "False",
+      "cost_survived": "False",
+      "incremental_value": false,
+      "incremental_sharpe_delta": 0,
+      "incremental_dd_delta": 0,
+      "notes": "Score: 0.082, WF: -1.397, T: -3.54"
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "rejected": 3,
+    "supported": 0,
+    "portfolio_useful": 0,
+    "production_candidate": 0,
+    "survival_rate": 0.0
+  },
+  "research_map_dict": {
+    "campaign_id": "1Q-MT5-2026",
+    "total_hypotheses": 5,
+    "total_executed": 5,
+    "total_rejected": 3,
+    "total_supported": 0,
+    "total_portfolio_useful": 0,
+    "total_production_candidate": 0,
+    "family_summaries": [
+      {
+        "family": "trend",
+        "total_hypotheses": 1,
+        "executed": 1,
+        "rejected": 0,
+        "inconclusive": 1,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.7011393383652148,
+        "avg_sharpe": 0.7011393383652148,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "momentum",
+        "total_hypotheses": 0,
+        "executed": 0,
+        "rejected": 0,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "mean_reversion",
+        "total_hypotheses": 1,
+        "executed": 1,
+        "rejected": 1,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "breakout",
+        "total_hypotheses": 1,
+        "executed": 1,
+        "rejected": 0,
+        "inconclusive": 1,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.6334937303361893,
+        "avg_sharpe": 0.6334937303361893,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "volatility",
+        "total_hypotheses": 1,
+        "executed": 1,
+        "rejected": 1,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "cross_sectional",
+        "total_hypotheses": 1,
+        "executed": 1,
+        "rejected": 1,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "statistical_arbitrage",
+        "total_hypotheses": 0,
+        "executed": 0,
+        "rejected": 0,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "factor",
+        "total_hypotheses": 0,
+        "executed": 0,
+        "rejected": 0,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "alternative_data",
+        "total_hypotheses": 0,
+        "executed": 0,
+        "rejected": 0,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      },
+      {
+        "family": "ml",
+        "total_hypotheses": 0,
+        "executed": 0,
+        "rejected": 0,
+        "inconclusive": 0,
+        "supported": 0,
+        "portfolio_useful": 0,
+        "production_candidate": 0,
+        "survival_rate": 0.0,
+        "best_sharpe": 0.0,
+        "avg_sharpe": 0.0,
+        "best_incremental_delta": 0.0
+      }
+    ],
+    "verdicts": [
+      {
+        "hypothesis_id": "HYP-TREND-001",
+        "family": "trend",
+        "status": "inconclusive",
+        "total_trials": 1,
+        "selected_trial_id": "",
+        "best_sharpe": 0.7011393383652148,
+        "net_sharpe": 0.7011393383652148,
+        "turnover": 6.601102941176471,
+        "max_drawdown": -0.8213480638568273,
+        "falsification_passed": "False",
+        "cost_survived": "True",
+        "incremental_value": false,
+        "incremental_sharpe_delta": 0,
+        "incremental_dd_delta": 0,
+        "notes": "Score: 0.257, WF: 0.189, T: 2.06"
+      },
+      {
+        "hypothesis_id": "HYP-VOL-001",
+        "family": "volatility",
+        "status": "rejected",
+        "total_trials": 1,
+        "selected_trial_id": "",
+        "best_sharpe": -0.7344715641667614,
+        "net_sharpe": -0.7344715641667614,
+        "turnover": 2.97972972972973,
+        "max_drawdown": -0.9994198977251112,
+        "falsification_passed": "False",
+        "cost_survived": "False",
+        "incremental_value": false,
+        "incremental_sharpe_delta": 0,
+        "incremental_dd_delta": 0,
+        "notes": "Score: 0.082, WF: -1.415, T: -2.25"
+      },
+      {
+        "hypothesis_id": "HYP-CS-001",
+        "family": "cross_sectional",
+        "status": "rejected",
+        "total_trials": 1,
+        "selected_trial_id": "",
+        "best_sharpe": 0,
+        "net_sharpe": 0,
+        "turnover": 0,
+        "max_drawdown": -0.3,
+        "falsification_passed": false,
+        "cost_survived": false,
+        "incremental_value": false,
+        "incremental_sharpe_delta": 0,
+        "incremental_dd_delta": 0,
+        "notes": "Score: 0.208, WF: 0.000, T: 0.00"
+      },
+      {
+        "hypothesis_id": "HYP-BRK-001",
+        "family": "breakout",
+        "status": "inconclusive",
+        "total_trials": 1,
+        "selected_trial_id": "",
+        "best_sharpe": 0.6334937303361893,
+        "net_sharpe": 0.6334937303361893,
+        "turnover": 14.816720257234726,
+        "max_drawdown": -0.8764148541070153,
+        "falsification_passed": "True",
+        "cost_survived": "True",
+        "incremental_value": false,
+        "incremental_sharpe_delta": 0,
+        "incremental_dd_delta": 0,
+        "notes": "Score: 0.220, WF: 0.397, T: 1.86"
+      },
+      {
+        "hypothesis_id": "HYP-MR-001",
+        "family": "mean_reversion",
+        "status": "rejected",
+        "total_trials": 1,
+        "selected_trial_id": "",
+        "best_sharpe": -1.1411393389821183,
+        "net_sharpe": -1.1411393389821183,
+        "turnover": 222.35992571192742,
+        "max_drawdown": -0.9963715453101667,
+        "falsification_passed": "False",
+        "cost_survived": "False",
+        "incremental_value": false,
+        "incremental_sharpe_delta": 0,
+        "incremental_dd_delta": 0,
+        "notes": "Score: 0.082, WF: -1.397, T: -3.54"
+      }
+    ],
+    "scorecards": [
+      {
+        "hypothesis_id": "HYP-TREND-001",
+        "family": "trend",
+        "dimension_scores": [
+          {
+            "dimension": "statistical_evidence",
+            "score": 0.7,
+            "passed": "True",
+            "details": "sharpe=0.70, t_stat=2.06, pbo=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "economic_rationale",
+            "score": 0.0,
+            "passed": false,
+            "details": "rationale=False, mechanism=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "robustness",
+            "score": 0.0,
+            "passed": false,
+            "details": "wf=False, param=False, regime=False, univ=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "cost_survival",
+            "score": 0.0,
+            "passed": false,
+            "details": "cost_survived=False, turnover=6.60, spread=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "capacity",
+            "score": 1.0,
+            "passed": true,
+            "details": "capacity=True, adv_participation=0.0100",
+            "evidence": ""
+          },
+          {
+            "dimension": "incremental_value",
+            "score": 0.0,
+            "passed": false,
+            "details": "incremental=False, sharpe_delta=0.000, dd_delta=0.000, corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "diversification",
+            "score": 0.0,
+            "passed": false,
+            "details": "correlation=1.00, downside_corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "regime_stability",
+            "score": 0.4,
+            "passed": false,
+            "details": "regime=False, crisis=True",
+            "evidence": ""
+          },
+          {
+            "dimension": "breadth",
+            "score": 1.0,
+            "passed": true,
+            "details": "concentration=0.00, breadth=True",
+            "evidence": ""
+          }
+        ],
+        "overall_score": 0.257,
+        "admitted": false,
+        "verdict": "INCONCLUSIVE",
+        "restrictions": [
+          "Cost survival not demonstrated",
+          "Incremental portfolio value not demonstrated"
+        ],
+        "notes": "Weak economic rationale; Regime instability",
+        "evaluation_timestamp": "2026-08-24"
+      },
+      {
+        "hypothesis_id": "HYP-VOL-001",
+        "family": "volatility",
+        "dimension_scores": [
+          {
+            "dimension": "statistical_evidence",
+            "score": 0.0,
+            "passed": "False",
+            "details": "sharpe=-0.73, t_stat=-2.25, pbo=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "economic_rationale",
+            "score": 0.0,
+            "passed": false,
+            "details": "rationale=False, mechanism=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "robustness",
+            "score": 0.0,
+            "passed": false,
+            "details": "wf=False, param=False, regime=False, univ=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "cost_survival",
+            "score": 0.0,
+            "passed": false,
+            "details": "cost_survived=False, turnover=2.98, spread=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "capacity",
+            "score": 1.0,
+            "passed": true,
+            "details": "capacity=True, adv_participation=0.0100",
+            "evidence": ""
+          },
+          {
+            "dimension": "incremental_value",
+            "score": 0.0,
+            "passed": false,
+            "details": "incremental=False, sharpe_delta=0.000, dd_delta=0.000, corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "diversification",
+            "score": 0.0,
+            "passed": false,
+            "details": "correlation=1.00, downside_corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "regime_stability",
+            "score": 0.4,
+            "passed": false,
+            "details": "regime=False, crisis=True",
+            "evidence": ""
+          },
+          {
+            "dimension": "breadth",
+            "score": 1.0,
+            "passed": true,
+            "details": "concentration=0.00, breadth=True",
+            "evidence": ""
+          }
+        ],
+        "overall_score": 0.082,
+        "admitted": false,
+        "verdict": "REJECTED",
+        "restrictions": [
+          "Cost survival not demonstrated",
+          "Incremental portfolio value not demonstrated"
+        ],
+        "notes": "Weak economic rationale; Regime instability",
+        "evaluation_timestamp": "2026-08-24"
+      },
+      {
+        "hypothesis_id": "HYP-CS-001",
+        "family": "cross_sectional",
+        "dimension_scores": [
+          {
+            "dimension": "statistical_evidence",
+            "score": 0.0,
+            "passed": false,
+            "details": "sharpe=0.00, t_stat=0.00, pbo=0.50",
+            "evidence": ""
+          },
+          {
+            "dimension": "economic_rationale",
+            "score": 1.0,
+            "passed": true,
+            "details": "rationale=True, mechanism=True",
+            "evidence": ""
+          },
+          {
+            "dimension": "robustness",
+            "score": 0.0,
+            "passed": false,
+            "details": "wf=False, param=False, regime=False, univ=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "cost_survival",
+            "score": 0.25,
+            "passed": false,
+            "details": "cost_survived=False, turnover=0.00, spread=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "capacity",
+            "score": 0.5,
+            "passed": false,
+            "details": "capacity=False, adv_participation=0.1000",
+            "evidence": ""
+          },
+          {
+            "dimension": "incremental_value",
+            "score": 0.1,
+            "passed": false,
+            "details": "incremental=False, sharpe_delta=0.000, dd_delta=0.000, corr=0.50",
+            "evidence": ""
+          },
+          {
+            "dimension": "diversification",
+            "score": 0.6,
+            "passed": true,
+            "details": "correlation=0.50, downside_corr=0.50",
+            "evidence": ""
+          },
+          {
+            "dimension": "regime_stability",
+            "score": 0.0,
+            "passed": false,
+            "details": "regime=False, crisis=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "breadth",
+            "score": 0.0,
+            "passed": false,
+            "details": "concentration=0.50, breadth=False",
+            "evidence": ""
+          }
+        ],
+        "overall_score": 0.20750000000000002,
+        "admitted": false,
+        "verdict": "REJECTED",
+        "restrictions": [
+          "Cost survival not demonstrated",
+          "Incremental portfolio value not demonstrated"
+        ],
+        "notes": "Regime instability; Insufficient breadth",
+        "evaluation_timestamp": "2026-08-24"
+      },
+      {
+        "hypothesis_id": "HYP-BRK-001",
+        "family": "breakout",
+        "dimension_scores": [
+          {
+            "dimension": "statistical_evidence",
+            "score": 0.55,
+            "passed": "True",
+            "details": "sharpe=0.63, t_stat=1.86, pbo=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "economic_rationale",
+            "score": 0.0,
+            "passed": false,
+            "details": "rationale=False, mechanism=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "robustness",
+            "score": 0.0,
+            "passed": false,
+            "details": "wf=False, param=False, regime=False, univ=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "cost_survival",
+            "score": 0.0,
+            "passed": false,
+            "details": "cost_survived=False, turnover=14.82, spread=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "capacity",
+            "score": 1.0,
+            "passed": true,
+            "details": "capacity=True, adv_participation=0.0100",
+            "evidence": ""
+          },
+          {
+            "dimension": "incremental_value",
+            "score": 0.0,
+            "passed": false,
+            "details": "incremental=False, sharpe_delta=0.000, dd_delta=0.000, corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "diversification",
+            "score": 0.0,
+            "passed": false,
+            "details": "correlation=1.00, downside_corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "regime_stability",
+            "score": 0.4,
+            "passed": false,
+            "details": "regime=False, crisis=True",
+            "evidence": ""
+          },
+          {
+            "dimension": "breadth",
+            "score": 1.0,
+            "passed": true,
+            "details": "concentration=0.00, breadth=True",
+            "evidence": ""
+          }
+        ],
+        "overall_score": 0.21950000000000003,
+        "admitted": false,
+        "verdict": "INCONCLUSIVE",
+        "restrictions": [
+          "Cost survival not demonstrated",
+          "Incremental portfolio value not demonstrated"
+        ],
+        "notes": "Weak economic rationale; Regime instability",
+        "evaluation_timestamp": "2026-08-24"
+      },
+      {
+        "hypothesis_id": "HYP-MR-001",
+        "family": "mean_reversion",
+        "dimension_scores": [
+          {
+            "dimension": "statistical_evidence",
+            "score": 0.0,
+            "passed": "False",
+            "details": "sharpe=-1.14, t_stat=-3.54, pbo=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "economic_rationale",
+            "score": 0.0,
+            "passed": false,
+            "details": "rationale=False, mechanism=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "robustness",
+            "score": 0.0,
+            "passed": false,
+            "details": "wf=False, param=False, regime=False, univ=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "cost_survival",
+            "score": 0.0,
+            "passed": false,
+            "details": "cost_survived=False, turnover=222.36, spread=False",
+            "evidence": ""
+          },
+          {
+            "dimension": "capacity",
+            "score": 1.0,
+            "passed": true,
+            "details": "capacity=True, adv_participation=0.0100",
+            "evidence": ""
+          },
+          {
+            "dimension": "incremental_value",
+            "score": 0.0,
+            "passed": false,
+            "details": "incremental=False, sharpe_delta=0.000, dd_delta=0.000, corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "diversification",
+            "score": 0.0,
+            "passed": false,
+            "details": "correlation=1.00, downside_corr=1.00",
+            "evidence": ""
+          },
+          {
+            "dimension": "regime_stability",
+            "score": 0.4,
+            "passed": false,
+            "details": "regime=False, crisis=True",
+            "evidence": ""
+          },
+          {
+            "dimension": "breadth",
+            "score": 1.0,
+            "passed": true,
+            "details": "concentration=0.00, breadth=True",
+            "evidence": ""
+          }
+        ],
+        "overall_score": 0.082,
+        "admitted": false,
+        "verdict": "REJECTED",
+        "restrictions": [
+          "Cost survival not demonstrated",
+          "Incremental portfolio value not demonstrated"
+        ],
+        "notes": "Weak economic rationale; Regime instability",
+        "evaluation_timestamp": "2026-08-24"
+      }
+    ],
+    "incremental_results": [],
+    "overall_survival_rate": 0.0,
+    "timestamp": "2026-08-24"
+  }
+}

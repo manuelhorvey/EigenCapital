@@ -10,11 +10,12 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 
 class EventType(str, Enum):
     """Types of audit events."""
+
     ORDER_CREATED = "order_created"
     ORDER_SUBMITTED = "order_submitted"
     ORDER_PARTIALLY_FILLED = "order_partially_filled"
@@ -49,6 +50,7 @@ class AuditEvent:
         resulting_state_hash: Hash of resulting state
         event_hash: Deterministic hash of this event
     """
+
     event_id: str
     timestamp_utc: str
     event_type: EventType

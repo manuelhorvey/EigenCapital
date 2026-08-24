@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-import math
 
 from eigencapital.core.models.strategy_intent import StrategyIntent
 from eigencapital.core.models.portfolio_target import PortfolioTarget
@@ -36,15 +35,17 @@ class PortfolioState:
 
     positions: Dict[str, Position] = field(default_factory=dict)
     current_cash: float = 100_000.0
-    account_state: AccountState = field(default_factory=lambda: AccountState(
-        equity=100_000.0,
-        peak_equity=100_000.0,
-        daily_pnl=0.0,
-        weekly_pnl=0.0,
-        gross_exposure=0.0,
-        net_exposure=0.0,
-        position_count=0,
-    ))
+    account_state: AccountState = field(
+        default_factory=lambda: AccountState(
+            equity=100_000.0,
+            peak_equity=100_000.0,
+            daily_pnl=0.0,
+            weekly_pnl=0.0,
+            gross_exposure=0.0,
+            net_exposure=0.0,
+            position_count=0,
+        )
+    )
 
     def update_account_state(self) -> None:
         """Recompute account state from current positions."""
@@ -54,7 +55,6 @@ class PortfolioState:
         equity = self.current_cash + sum(
             p.unrealized_pnl for p in self.positions.values()
         )
-        leverage = total_notional / equity if equity > 0 else 0.0
 
         self.account_state = AccountState(
             equity=equity,
@@ -176,7 +176,7 @@ class Portfolio:
                 target_market_value=target_market_value,
                 target_risk=intent.target_risk,
                 justification=f"Signal: direction={intent.direction_enum}, "
-                              f"strategy={intent.strategy_id}",
+                f"strategy={intent.strategy_id}",
                 strategy_config_hash=strategy_config_hash,
                 strategy_artifact_hash=strategy_artifact_hash,
             )
@@ -266,9 +266,8 @@ class Portfolio:
                     new_avg = fill_price
                 else:
                     new_avg = (
-                        (old_qty * pos.average_entry_price + signed_qty * fill_price)
-                        / new_qty
-                    )
+                        old_qty * pos.average_entry_price + signed_qty * fill_price
+                    ) / new_qty
             else:
                 new_avg = 0.0
 
@@ -293,6 +292,6 @@ class Portfolio:
         # Update cash
         commission = 2.50  # Simplified; production uses CostModel
         if side == "BUY":
-            self.state.current_cash -= (quantity * fill_price + commission)
+            self.state.current_cash -= quantity * fill_price + commission
         else:
-            self.state.current_cash += (quantity * fill_price - commission)
+            self.state.current_cash += quantity * fill_price - commission

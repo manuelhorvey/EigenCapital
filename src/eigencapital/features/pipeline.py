@@ -26,17 +26,13 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Callable, Any
 
 from eigencapital.core.models.bar import Bar
+from eigencapital.features.feature import Feature
 from eigencapital.features.feature_set import (
     FeatureSet,
     FeatureEntry,
     FeatureStatus,
 )
 from eigencapital.features.dependencies import FeatureDAG, build_default_dag
-from eigencapital.features.errors import (
-    FeatureError,
-    FeatureAvailabilityError,
-    FeatureValidationError,
-)
 
 
 @dataclass(frozen=True)
@@ -50,6 +46,7 @@ class FeatureRequest:
         lookback: Minimum number of bars required
         parameters: Additional parameters for computation
     """
+
     feature_id: str
     feature_version: str = "v1"
     compute_fn: Optional[Callable] = None
@@ -69,6 +66,7 @@ class PipelineConfig:
         enforce_warmup: Whether to strictly enforce minimum bar counts
         fail_on_missing: Whether to fail if a feature cannot be computed
     """
+
     decision_timestamp: str = ""
     dataset_version: str = ""
     universe_version: str = ""
@@ -145,9 +143,7 @@ class FeaturePipeline:
 
         # Validate input
         if not bars:
-            return self._empty_featureset(
-                instrument_id, cfg.decision_timestamp, cfg
-            )
+            return self._empty_featureset(instrument_id, cfg.decision_timestamp, cfg)
 
         # Sort bars chronologically
         sorted_bars = sorted(bars, key=lambda b: b.timestamp_utc)
@@ -228,9 +224,7 @@ class FeaturePipeline:
                 feature_id=request.feature_id,
                 feature_version=request.feature_version,
                 status=FeatureStatus.UNAVAILABLE,
-                error_message=(
-                    f"Insufficient bars: {len(bars)} < {min_bars} required"
-                ),
+                error_message=(f"Insufficient bars: {len(bars)} < {min_bars} required"),
             )
 
         # Get compute function
@@ -279,7 +273,7 @@ class FeaturePipeline:
         availability_ts = feature_timestamp  # Default: available at bar time
 
         # Check availability
-        if (enforce_availability and availability_ts > decision_timestamp):
+        if enforce_availability and availability_ts > decision_timestamp:
             return FeatureEntry(
                 feature_id=request.feature_id,
                 feature_version=request.feature_version,
@@ -291,7 +285,6 @@ class FeaturePipeline:
 
         # Compute provenance hashes directly (without creating Feature
         # objects to avoid class-level registry collisions)
-        import json
         config_data = {
             "feature_family": "derived",
             "normalization": "none",

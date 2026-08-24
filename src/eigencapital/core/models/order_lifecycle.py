@@ -24,10 +24,8 @@ Responsibilities:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, ClassVar
-import math
+from typing import Dict
 
 
 @dataclass
@@ -54,7 +52,9 @@ class OrderLifecycle:
     order_instrument_id: str
     order_side: str  # BUY or SELL
     order_quantity: float  # ALWAYS positive, total order quantity
-    status: str = "SUBMITTED"  # SUBMITTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
+    status: str = (
+        "SUBMITTED"  # SUBMITTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
+    )
 
     # Internal tracking: all fills associated with this order
     _fills: Dict[str, float] = field(default_factory=dict)  # fill_id -> filled_quantity
@@ -64,9 +64,7 @@ class OrderLifecycle:
     def __post_init__(self) -> None:
         # Validate order_quantity is positive
         if self.order_quantity <= 0:
-            raise ValueError(
-                f"Order quantity must be > 0, got {order_quantity}"
-            )
+            raise ValueError(f"Order quantity must be > 0, got {self.order_quantity}")
 
         # Validate order_side is BUY or SELL
         if self.order_side not in ("BUY", "SELL"):
@@ -75,7 +73,13 @@ class OrderLifecycle:
             )
 
         # Validate status is known
-        valid_statuses = {"SUBMITTED", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"}
+        valid_statuses = {
+            "SUBMITTED",
+            "PARTIALLY_FILLED",
+            "FILLED",
+            "CANCELLED",
+            "REJECTED",
+        }
         if self.status not in valid_statuses:
             raise ValueError(
                 f"Invalid lifecycle status: {self.status}. "
@@ -110,9 +114,9 @@ class OrderLifecycle:
                       If fill_id already exists in this lifecycle
         """
         # Validate fill has required attributes
-        if not hasattr(fill, 'fill_id'):
+        if not hasattr(fill, "fill_id"):
             raise ValueError("fill must have a fill_id attribute")
-        if not hasattr(fill, 'quantity'):
+        if not hasattr(fill, "quantity"):
             raise ValueError("fill must have a quantity attribute")
 
         fill_id = fill.fill_id
@@ -142,9 +146,9 @@ class OrderLifecycle:
         # Update status based on fill state
         total_filled = sum(self._fills.values())
         if total_filled >= self.order_quantity and self.status != "FILLED":
-            object.__setattr__(self, 'status', 'FILLED')
+            object.__setattr__(self, "status", "FILLED")
         elif total_filled > 0 and self.status == "SUBMITTED":
-            object.__setattr__(self, 'status', 'PARTIALLY_FILLED')
+            object.__setattr__(self, "status", "PARTIALLY_FILLED")
 
     def remove_fill(self, fill_id: str) -> None:
         """Remove a fill from the lifecycle (e.g., on cancel/replace).
@@ -160,16 +164,16 @@ class OrderLifecycle:
                 f"Fill ID '{fill_id}' not found in order lifecycle for order {self.order_id}"
             )
 
-        removed_quantity = self._fills.pop(fill_id)
+        self._fills.pop(fill_id)
 
         # Update status after removal
         total_filled = sum(self._fills.values())
         if total_filled == 0:
-            object.__setattr__(self, 'status', 'SUBMITTED')
-        elif total_filled > 0 and self.status == 'FILLED':
+            object.__setattr__(self, "status", "SUBMITTED")
+        elif total_filled > 0 and self.status == "FILLED":
             # If we had filled the order entirely and now removing a fill,
             # move to partially filled (or SUBMITTED if we want to be conservative)
-            object.__setattr__(self, 'status', 'PARTIALLY_FILLED')
+            object.__setattr__(self, "status", "PARTIALLY_FILLED")
 
     @property
     def filled_quantity(self) -> float:
@@ -189,7 +193,10 @@ class OrderLifecycle:
     @property
     def is_partially_filled(self) -> bool:
         """Check if order is partially filled."""
-        return 0 < self.filled_quantity < self.order_quantity and self.status == "PARTIALLY_FILLED"
+        return (
+            0 < self.filled_quantity < self.order_quantity
+            and self.status == "PARTIALLY_FILLED"
+        )
 
     @property
     def is_active(self) -> bool:

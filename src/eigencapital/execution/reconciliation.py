@@ -24,11 +24,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 
 
 class ReconciliationStatus(str, Enum):
     """Reconciliation status."""
+
     RECONCILED = "reconciled"
     WARNING = "warning"
     MISMATCH = "mismatch"
@@ -45,6 +46,7 @@ class ReconciliationResult:
         mismatches: List of mismatch descriptions
         timestamp: When reconciliation was performed
     """
+
     status: ReconciliationStatus
     checks: Dict[str, bool] = field(default_factory=dict)
     mismatches: Tuple[str, ...] = ()
@@ -109,14 +111,18 @@ class ReconciliationEngine:
         # Check cash
         if abs(expected_cash - broker_cash) > tolerance:
             checks["cash"] = False
-            mismatches.append(f"Cash mismatch: expected={expected_cash}, broker={broker_cash}")
+            mismatches.append(
+                f"Cash mismatch: expected={expected_cash}, broker={broker_cash}"
+            )
         else:
             checks["cash"] = True
 
         # Check fill count
         if expected_fills != broker_fills:
             checks["fill_count"] = False
-            mismatches.append(f"Fill count mismatch: expected={expected_fills}, broker={broker_fills}")
+            mismatches.append(
+                f"Fill count mismatch: expected={expected_fills}, broker={broker_fills}"
+            )
         else:
             checks["fill_count"] = True
 

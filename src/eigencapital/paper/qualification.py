@@ -11,13 +11,14 @@ Missing evidence MUST NOT equal PASS.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 
 
 class QualificationVerdict(str, Enum):
     """Paper qualification verdict."""
+
     NOT_QUALIFIED = "not_qualified"
     CONDITIONAL = "conditional"
     PAPER_QUALIFIED = "paper_qualified"
@@ -25,6 +26,7 @@ class QualificationVerdict(str, Enum):
 
 class QualificationCheck(str, Enum):
     """Individual qualification checks."""
+
     RECONCILIATION_STABLE = "reconciliation_stable"
     RISK_BOUNDARY_RESPECTED = "risk_boundary_respected"
     ACCOUNTING_CONSISTENT = "accounting_consistent"
@@ -41,6 +43,7 @@ class QualificationCheck(str, Enum):
 @dataclass(frozen=True)
 class QualificationCheckResult:
     """Result of a single qualification check."""
+
     check: QualificationCheck
     passed: bool
     severity: str = "CRITICAL"
@@ -58,6 +61,7 @@ class QualificationCheckResult:
 @dataclass(frozen=True)
 class QualificationResult:
     """Complete qualification result with verdict."""
+
     campaign_id: str
     checks: Tuple[QualificationCheckResult, ...] = ()
     verdict: QualificationVerdict = QualificationVerdict.NOT_QUALIFIED
@@ -96,149 +100,185 @@ class QualificationResult:
         # 1. Reconciliation stability
         recon_failures = metrics.get("reconciliation_failures", 0)
         if recon_failures == 0:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.RECONCILIATION_STABLE,
-                passed=True,
-                details="No reconciliation failures",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.RECONCILIATION_STABLE,
+                    passed=True,
+                    details="No reconciliation failures",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.RECONCILIATION_STABLE,
-                passed=False,
-                severity="CRITICAL",
-                details=f"{recon_failures} reconciliation failures",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.RECONCILIATION_STABLE,
+                    passed=False,
+                    severity="CRITICAL",
+                    details=f"{recon_failures} reconciliation failures",
+                )
+            )
             failures.append(f"Reconciliation failures: {recon_failures}")
 
         # 2. Risk boundary respected
         risk_bypasses = metrics.get("risk_bypasses", 0)
         if risk_bypasses == 0:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.RISK_BOUNDARY_RESPECTED,
-                passed=True,
-                details="No risk boundary bypasses",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.RISK_BOUNDARY_RESPECTED,
+                    passed=True,
+                    details="No risk boundary bypasses",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.RISK_BOUNDARY_RESPECTED,
-                passed=False,
-                severity="CRITICAL",
-                details=f"{risk_bypasses} risk bypasses detected",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.RISK_BOUNDARY_RESPECTED,
+                    passed=False,
+                    severity="CRITICAL",
+                    details=f"{risk_bypasses} risk bypasses detected",
+                )
+            )
             failures.append(f"Risk bypasses: {risk_bypasses}")
 
         # 3. Accounting consistency
         accounting_errors = metrics.get("accounting_errors", 0)
         if accounting_errors == 0:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.ACCOUNTING_CONSISTENT,
-                passed=True,
-                details="No accounting inconsistencies",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.ACCOUNTING_CONSISTENT,
+                    passed=True,
+                    details="No accounting inconsistencies",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.ACCOUNTING_CONSISTENT,
-                passed=False,
-                severity="CRITICAL",
-                details=f"{accounting_errors} accounting errors",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.ACCOUNTING_CONSISTENT,
+                    passed=False,
+                    severity="CRITICAL",
+                    details=f"{accounting_errors} accounting errors",
+                )
+            )
             failures.append(f"Accounting errors: {accounting_errors}")
 
         # 4. No critical divergences
         critical_divs = metrics.get("critical_divergences", 0)
         if critical_divs == 0:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.NO_CRITICAL_DIVERGENCE,
-                passed=True,
-                details="No critical divergences",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.NO_CRITICAL_DIVERGENCE,
+                    passed=True,
+                    details="No critical divergences",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.NO_CRITICAL_DIVERGENCE,
-                passed=False,
-                severity="CRITICAL",
-                details=f"{critical_divs} critical divergences",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.NO_CRITICAL_DIVERGENCE,
+                    passed=False,
+                    severity="CRITICAL",
+                    details=f"{critical_divs} critical divergences",
+                )
+            )
             failures.append(f"Critical divergences: {critical_divs}")
 
         # 5. No fill corruption
         duplicate_fills = metrics.get("duplicate_fills", 0)
         if duplicate_fills == 0:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.NO_FILL_CORRUPTION,
-                passed=True,
-                details="No duplicate fills",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.NO_FILL_CORRUPTION,
+                    passed=True,
+                    details="No duplicate fills",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.NO_FILL_CORRUPTION,
-                passed=False,
-                severity="CRITICAL",
-                details=f"{duplicate_fills} duplicate fills detected",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.NO_FILL_CORRUPTION,
+                    passed=False,
+                    severity="CRITICAL",
+                    details=f"{duplicate_fills} duplicate fills detected",
+                )
+            )
             failures.append(f"Duplicate fills: {duplicate_fills}")
 
         # 6. Restart safety
         restart_errors = metrics.get("restart_errors", 0)
         if restart_errors == 0:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.RESTART_SAFE,
-                passed=True,
-                details="No restart/recovery errors",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.RESTART_SAFE,
+                    passed=True,
+                    details="No restart/recovery errors",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.RESTART_SAFE,
-                passed=False,
-                severity="HIGH",
-                details=f"{restart_errors} restart errors",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.RESTART_SAFE,
+                    passed=False,
+                    severity="HIGH",
+                    details=f"{restart_errors} restart errors",
+                )
+            )
             warnings.append(f"Restart errors: {restart_errors}")
 
         # 7. Costs within tolerance
         execution_drag = metrics.get("total_execution_drag", 0)
         max_drag = metrics.get("max_allowed_drag", float("inf"))
         if execution_drag <= max_drag:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.COSTS_WITHIN_TOLERANCE,
-                passed=True,
-                details=f"Execution drag {execution_drag:.4f} within tolerance",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.COSTS_WITHIN_TOLERANCE,
+                    passed=True,
+                    details=f"Execution drag {execution_drag:.4f} within tolerance",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.COSTS_WITHIN_TOLERANCE,
-                passed=False,
-                severity="HIGH",
-                details=f"Execution drag {execution_drag:.4f} exceeds {max_drag}",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.COSTS_WITHIN_TOLERANCE,
+                    passed=False,
+                    severity="HIGH",
+                    details=f"Execution drag {execution_drag:.4f} exceeds {max_drag}",
+                )
+            )
             warnings.append(f"Execution drag: {execution_drag:.4f}")
 
         # 8. Provenance complete
         provenance_complete = metrics.get("provenance_complete", True)
         if provenance_complete:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.PROVENANCE_COMPLETE,
-                passed=True,
-                details="Provenance records complete",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.PROVENANCE_COMPLETE,
+                    passed=True,
+                    details="Provenance records complete",
+                )
+            )
         else:
-            checks.append(QualificationCheckResult(
-                check=QualificationCheck.PROVENANCE_COMPLETE,
-                passed=False,
-                severity="HIGH",
-                details="Provenance records incomplete",
-            ))
+            checks.append(
+                QualificationCheckResult(
+                    check=QualificationCheck.PROVENANCE_COMPLETE,
+                    passed=False,
+                    severity="HIGH",
+                    details="Provenance records incomplete",
+                )
+            )
             warnings.append("Provenance incomplete")
 
         # 9. Audit trail
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.AUDIT_TRAIL_APPEND_ONLY,
-            passed=True,
-            details="Audit log is append-only",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.AUDIT_TRAIL_APPEND_ONLY,
+                passed=True,
+                details="Audit log is append-only",
+            )
+        )
 
         # Determine verdict
-        critical_failures = [c for c in checks if not c.passed and c.severity == "CRITICAL"]
+        critical_failures = [
+            c for c in checks if not c.passed and c.severity == "CRITICAL"
+        ]
         high_failures = [c for c in checks if not c.passed and c.severity == "HIGH"]
         all_passed = all(c.passed for c in checks)
 

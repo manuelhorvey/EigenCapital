@@ -17,9 +17,8 @@ Universe tracking:
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
@@ -35,6 +34,7 @@ class Universe:
         universe_timestamp: When the universe was defined
         instruments: List of instrument IDs in the universe
     """
+
     universe_id: str
     universe_version: str = "v1"
     universe_timestamp: str = ""
@@ -97,7 +97,9 @@ def compute_relative_strength(
     if benchmark_instrument not in instrument_returns:
         return None
 
-    return instrument_returns[target_instrument] - instrument_returns[benchmark_instrument]
+    return (
+        instrument_returns[target_instrument] - instrument_returns[benchmark_instrument]
+    )
 
 
 def compute_percentile_rank(values: List[float], target_value: float) -> float:

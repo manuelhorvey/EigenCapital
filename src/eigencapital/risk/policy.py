@@ -13,7 +13,7 @@ Usage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Any
 
 
@@ -66,11 +66,17 @@ class RiskPolicy:
 
     def __post_init__(self) -> None:
         if self.max_drawdown_pct <= 0:
-            raise ValueError(f"max_drawdown_pct must be > 0, got {self.max_drawdown_pct}")
+            raise ValueError(
+                f"max_drawdown_pct must be > 0, got {self.max_drawdown_pct}"
+            )
         if self.max_gross_leverage <= 0:
-            raise ValueError(f"max_gross_leverage must be > 0, got {self.max_gross_leverage}")
+            raise ValueError(
+                f"max_gross_leverage must be > 0, got {self.max_gross_leverage}"
+            )
         if self.daily_loss_limit < 0:
-            raise ValueError(f"daily_loss_limit must be >= 0, got {self.daily_loss_limit}")
+            raise ValueError(
+                f"daily_loss_limit must be >= 0, got {self.daily_loss_limit}"
+            )
         if self.min_equity < 0:
             raise ValueError(f"min_equity must be >= 0, got {self.min_equity}")
 

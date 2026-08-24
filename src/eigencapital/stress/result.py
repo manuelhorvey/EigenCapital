@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,7 @@ class StressTestResult:
         is_system_failure: True if system behaved incorrectly
         evidence: Supporting evidence
     """
+
     scenario_id: str = ""
     scenario_version: str = "v1"
     status: str = "PASS"

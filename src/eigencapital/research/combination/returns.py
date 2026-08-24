@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
-
-from eigencapital.research.combination.candidate import AlphaCandidate
+from typing import Dict, List, Any, Tuple
 
 
 @dataclass(frozen=True)
@@ -26,6 +24,7 @@ class ReturnStream:
         net_of_costs: Whether returns include transaction costs
         provenance_hash: Deterministic hash of the return stream
     """
+
     stream_id: str
     candidate_id: str
     returns: Tuple[float, ...]
@@ -83,7 +82,7 @@ class ReturnStream:
             return 0.0
         cum = 1.0
         for r in self.returns:
-            cum *= (1.0 + r)
+            cum *= 1.0 + r
         return cum - 1.0
 
 
@@ -98,6 +97,7 @@ class DependenceMatrix:
         downside: Downside correlation matrix (flat)
         rolling_correlations: Rolling correlation summaries
     """
+
     stream_ids: Tuple[str, ...]
     pearson: Tuple[Tuple[float, ...], ...]
     spearman: Tuple[Tuple[float, ...], ...]
@@ -150,6 +150,7 @@ def compute_pearson_correlation(x: List[float], y: List[float]) -> float:
 
 def compute_spearman_correlation(x: List[float], y: List[float]) -> float:
     """Compute Spearman rank correlation coefficient."""
+
     def _rank(values: List[float]) -> List[float]:
         sorted_vals = sorted(enumerate(values), key=lambda t: t[1])
         ranks = [0.0] * len(values)

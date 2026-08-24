@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Any, Tuple
 
 class ExecutionMode(str, Enum):
     """Execution mode."""
+
     PAPER = "paper"
     SHADOW = "shadow"
     LIVE = "live"
@@ -28,6 +29,7 @@ class ExecutionMode(str, Enum):
 
 class OrderResult(str, Enum):
     """Result of order submission."""
+
     ACCEPTED = "accepted"
     REJECTED = "rejected"
     PENDING = "pending"
@@ -39,6 +41,7 @@ class OrderResult(str, Enum):
 @dataclass(frozen=True)
 class BrokerOrder:
     """Order submitted to broker adapter."""
+
     order_id: str
     instrument_id: str
     side: str  # "BUY" or "SELL"
@@ -62,6 +65,7 @@ class BrokerOrder:
 @dataclass(frozen=True)
 class BrokerFill:
     """Fill from broker adapter."""
+
     fill_id: str
     order_id: str
     instrument_id: str
@@ -130,6 +134,7 @@ class ShadowBrokerAdapter(BrokerAdapter):
 
     Never submits real orders. Records hypothetical orders for analysis.
     """
+
     _orders: Dict[str, BrokerOrder] = field(default_factory=dict)
     _fills: List[BrokerFill] = field(default_factory=list)
     _order_counter: int = 0
@@ -173,6 +178,7 @@ class LiveAuthorization:
     Must be explicit and independently verifiable.
     Default: LIVE = DISABLED
     """
+
     live_enabled: bool = False
     authorization_token: str = ""
     config_fingerprint: str = ""
@@ -221,6 +227,7 @@ class ExecutionBoundary:
     - Risk boundary check
     - Market data freshness check
     """
+
     mode: ExecutionMode = ExecutionMode.PAPER
     authorization: LiveAuthorization = field(default_factory=LiveAuthorization)
     kill_switch_active: bool = False
@@ -257,7 +264,10 @@ class ExecutionBoundary:
         # Check execution mode
         if self.mode == ExecutionMode.LIVE:
             if not self.authorization.is_valid():
-                return (OrderResult.UNAUTHORIZED, "Live authorization invalid or missing")
+                return (
+                    OrderResult.UNAUTHORIZED,
+                    "Live authorization invalid or missing",
+                )
             # In 1N, live is always blocked
             return (OrderResult.UNAUTHORIZED, "Live execution disabled in Phase 1N")
 

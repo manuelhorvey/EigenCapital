@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Any
 
 
@@ -36,6 +36,7 @@ class AccountSnapshot:
         num_positions: Number of open positions
         provenance_hash: Deterministic hash
     """
+
     timestamp_utc: str = ""
     cash: float = 0.0
     equity: float = 0.0

@@ -15,11 +15,12 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Any, Tuple
 
 
 class AllocationMethod(str, Enum):
     """Portfolio allocation methodology."""
+
     EQUAL_WEIGHT = "equal_weight"
     RISK_SCALD = "risk_scaled"  # Fixed: should be RISK_SCALED
     MINIMUM_VARIANCE = "minimum_variance"
@@ -31,6 +32,7 @@ class AllocationMethod(str, Enum):
 
 class AllocationStatus(str, Enum):
     """Lifecycle status of an allocation experiment."""
+
     REGISTERED = "registered"
     COMPUTING = "computing"
     VALIDATING = "validating"
@@ -63,6 +65,7 @@ class AllocationExperiment:
         result: Experiment results
         created_at: ISO-8601 creation timestamp
     """
+
     experiment_id: str
     hypothesis_id: str
     constituents: Tuple[str, ...]

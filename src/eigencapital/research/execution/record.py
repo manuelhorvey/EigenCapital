@@ -22,11 +22,12 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 
 
 class ExecutionStatus(str, Enum):
     """Lifecycle status of an execution record."""
+
     REGISTERED = "registered"
     COMPUTING_FEATURES = "computing_features"
     BACKTESTING = "backtesting"
@@ -69,6 +70,7 @@ class ExecutionRecord:
         completed_at: ISO-8601 UTC completion timestamp
         metadata: Free-form additional metadata
     """
+
     execution_id: str
     hypothesis_id: str
     hypothesis_hash: str

@@ -9,7 +9,10 @@ Critical invariant: Paper-only boundary. No live broker connectivity.
 from eigencapital.execution.broker import PaperBroker
 from eigencapital.execution.position_manager import PositionManager
 from eigencapital.execution.account import AccountState, AccountSnapshot
-from eigencapital.execution.reconciliation import ReconciliationEngine, ReconciliationStatus
+from eigencapital.execution.reconciliation import (
+    ReconciliationEngine,
+    ReconciliationStatus,
+)
 from eigencapital.execution.events import AuditEvent, AuditLog
 
 __all__ = [

@@ -10,19 +10,14 @@ Integrates:
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple
 
 from eigencapital.research.portfolio.allocation import (
     AllocationExperiment,
-    AllocationMethod,
-    AllocationStatus,
 )
 from eigencapital.research.portfolio.evidence import (
     PortfolioEvidenceGate,
-    PortfolioVerdict,
 )
 from eigencapital.research.combination.candidate import AlphaCandidate
 from eigencapital.research.combination.returns import ReturnStream
@@ -37,6 +32,7 @@ from eigencapital.research.combination.portfolio import (
 @dataclass(frozen=True)
 class PortfolioResearchConfig:
     """Configuration for portfolio research."""
+
     eligible_verdicts: Tuple[str, ...] = ("CANDIDATE", "VALIDATED")
     baseline_methods: Tuple[str, ...] = ("equal_weight", "risk_scaled")
     cost_model_id: str = "moderate_v1"
@@ -80,7 +76,8 @@ class PortfolioResearchEngine:
         # Filter to eligible only
         eligible = [c for c in candidates if c.is_eligible]
         eligible_streams = [
-            s for s in streams
+            s
+            for s in streams
             if any(c.candidate_id == s.candidate_id for c in eligible)
         ]
 
@@ -96,9 +93,7 @@ class PortfolioResearchEngine:
 
         # Run each baseline method
         for method_name in self._config.baseline_methods:
-            method_result = self._run_method(
-                method_name, eligible_streams, eligible
-            )
+            method_result = self._run_method(method_name, eligible_streams, eligible)
             results["methods"][method_name] = method_result
 
         # Find best method by Sharpe
@@ -115,7 +110,9 @@ class PortfolioResearchEngine:
         # Run evidence gate on best method
         if best_method and "metrics" in results["methods"][best_method]:
             metrics = results["methods"][best_method]["metrics"]
-            baseline_metrics = results["methods"].get("equal_weight", {}).get("metrics", {})
+            baseline_metrics = (
+                results["methods"].get("equal_weight", {}).get("metrics", {})
+            )
 
             evidence = PortfolioEvidenceGate.evaluate(
                 experiment_id=f"PE-{best_method}",

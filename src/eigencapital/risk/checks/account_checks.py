@@ -198,7 +198,9 @@ def check_kill_switch(state: AccountState, policy: RiskPolicy) -> RiskCheckResul
     )
 
 
-def run_all_account_checks(state: AccountState, policy: RiskPolicy) -> List[RiskCheckResult]:
+def run_all_account_checks(
+    state: AccountState, policy: RiskPolicy
+) -> List[RiskCheckResult]:
     """Run all account-level risk checks."""
     return [
         check_kill_switch(state, policy),

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Any, Tuple
 
 from eigencapital.research.combination.returns import ReturnStream
 
@@ -29,6 +29,7 @@ class PortfolioWeights:
         turnover: Weight change from previous period
         provenance_hash: Deterministic hash
     """
+
     weights: Dict[str, float]
     method: str
     timestamp: str = ""
@@ -58,7 +59,7 @@ class PortfolioWeights:
         n = len(self.weights)
         if n == 0:
             return 0.0
-        return sum(w ** 2 for w in self.weights.values())
+        return sum(w**2 for w in self.weights.values())
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,7 @@ class PortfolioResult:
         metrics: Performance metrics
         provenance_hash: Deterministic hash
     """
+
     experiment_id: str
     method: str
     constituents: Tuple[str, ...]
@@ -216,9 +218,11 @@ def compute_portfolio_metrics(returns: Tuple[float, ...]) -> Dict[str, Any]:
     # Sortino (downside deviation)
     neg_returns = [r for r in returns if r < 0]
     if neg_returns and n > 1:
-        downside_var = sum(r ** 2 for r in neg_returns) / (n - 1)
+        downside_var = sum(r**2 for r in neg_returns) / (n - 1)
         downside_dev = math.sqrt(downside_var)
-        sortino = (mean_ret / downside_dev * math.sqrt(252)) if downside_dev > 1e-15 else 0.0
+        sortino = (
+            (mean_ret / downside_dev * math.sqrt(252)) if downside_dev > 1e-15 else 0.0
+        )
     else:
         sortino = 0.0
 
@@ -227,7 +231,7 @@ def compute_portfolio_metrics(returns: Tuple[float, ...]) -> Dict[str, Any]:
     peak = 1.0
     max_dd = 0.0
     for r in returns:
-        cum *= (1.0 + r)
+        cum *= 1.0 + r
         if cum > peak:
             peak = cum
         dd = (peak - cum) / peak
@@ -238,7 +242,7 @@ def compute_portfolio_metrics(returns: Tuple[float, ...]) -> Dict[str, Any]:
     if n > 0:
         cum_ret = 1.0
         for r in returns:
-            cum_ret *= (1.0 + r)
+            cum_ret *= 1.0 + r
         years = n / 252.0
         cagr = (cum_ret ** (1.0 / years) - 1.0) if years > 0 else 0.0
     else:

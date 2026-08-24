@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Any
 
 
 class CampaignStatus(str, Enum):
     """Campaign lifecycle status."""
+
     PLANNED = "planned"
     PREFLIGHT = "preflight"
     AUTHORIZED = "authorized"
@@ -30,14 +31,30 @@ class CampaignStatus(str, Enum):
 
 # Valid state transitions
 _VALID_TRANSITIONS: Dict[str, List[str]] = {
-    CampaignStatus.PLANNED.value: [CampaignStatus.PREFLIGHT.value, CampaignStatus.FAILED.value],
-    CampaignStatus.PREFLIGHT.value: [CampaignStatus.AUTHORIZED.value, CampaignStatus.FAILED.value],
-    CampaignStatus.AUTHORIZED.value: [CampaignStatus.ACTIVE.value, CampaignStatus.STOPPED.value],
-    CampaignStatus.ACTIVE.value: [CampaignStatus.PAUSED.value, CampaignStatus.STOPPED.value,
-                                  CampaignStatus.EXPIRED.value, CampaignStatus.FAILED.value,
-                                  CampaignStatus.COMPLETED.value],
-    CampaignStatus.PAUSED.value: [CampaignStatus.ACTIVE.value, CampaignStatus.STOPPED.value,
-                                  CampaignStatus.FAILED.value],
+    CampaignStatus.PLANNED.value: [
+        CampaignStatus.PREFLIGHT.value,
+        CampaignStatus.FAILED.value,
+    ],
+    CampaignStatus.PREFLIGHT.value: [
+        CampaignStatus.AUTHORIZED.value,
+        CampaignStatus.FAILED.value,
+    ],
+    CampaignStatus.AUTHORIZED.value: [
+        CampaignStatus.ACTIVE.value,
+        CampaignStatus.STOPPED.value,
+    ],
+    CampaignStatus.ACTIVE.value: [
+        CampaignStatus.PAUSED.value,
+        CampaignStatus.STOPPED.value,
+        CampaignStatus.EXPIRED.value,
+        CampaignStatus.FAILED.value,
+        CampaignStatus.COMPLETED.value,
+    ],
+    CampaignStatus.PAUSED.value: [
+        CampaignStatus.ACTIVE.value,
+        CampaignStatus.STOPPED.value,
+        CampaignStatus.FAILED.value,
+    ],
     CampaignStatus.STOPPED.value: [],
     CampaignStatus.EXPIRED.value: [],
     CampaignStatus.FAILED.value: [],
@@ -51,6 +68,7 @@ class MicroLiveCampaign:
 
     Campaign history is append-only and auditable.
     """
+
     campaign_id: str
     strategy_fingerprint: str
     portfolio_fingerprint: str
@@ -173,12 +191,14 @@ class CampaignManager:
         status: str,
         reason: str = "",
     ) -> None:
-        self._events.append({
-            "event_type": event_type,
-            "campaign_id": campaign_id,
-            "status": status,
-            "reason": reason,
-        })
+        self._events.append(
+            {
+                "event_type": event_type,
+                "campaign_id": campaign_id,
+                "status": status,
+                "reason": reason,
+            }
+        )
 
     def get_events(self) -> List[Dict[str, Any]]:
         return list(self._events)

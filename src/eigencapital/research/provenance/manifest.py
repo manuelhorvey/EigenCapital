@@ -82,7 +82,9 @@ class ResearchManifest:
                 "periods": self.periods,
                 "random_seed": self.random_seed,
             }
-            object.__setattr__(self, "provenance_hash", compute_provenance_hash(hash_input))
+            object.__setattr__(
+                self, "provenance_hash", compute_provenance_hash(hash_input)
+            )
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""
@@ -118,7 +120,10 @@ class ResearchManifest:
         if exp.train_start and exp.train_end:
             periods["train"] = {"start": exp.train_start, "end": exp.train_end}
         if exp.validation_start and exp.validation_end:
-            periods["validation"] = {"start": exp.validation_start, "end": exp.validation_end}
+            periods["validation"] = {
+                "start": exp.validation_start,
+                "end": exp.validation_end,
+            }
         if exp.test_start and exp.test_end:
             periods["test"] = {"start": exp.test_start, "end": exp.test_end}
 
@@ -162,9 +167,7 @@ class ResearchManifest:
         }
         provenance_hash = compute_provenance_hash(hash_input)
 
-        return cls(
-            **{**manifest.__dict__, "provenance_hash": provenance_hash}
-        )
+        return cls(**{**manifest.__dict__, "provenance_hash": provenance_hash})
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> ResearchManifest:

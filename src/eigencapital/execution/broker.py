@@ -9,12 +9,10 @@ No network calls. No external API access.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 
 from eigencapital.core.models.order import Order
 from eigencapital.core.models.fill import Fill
@@ -22,11 +20,13 @@ from eigencapital.core.models.fill import Fill
 
 class BrokerError(ValueError):
     """Raised on broker-level errors."""
+
     pass
 
 
 class OrderLifecycleState(str, Enum):
     """Explicit order lifecycle states."""
+
     NEW = "new"
     SUBMITTED = "submitted"
     PARTIALLY_FILLED = "partially_filled"
@@ -55,6 +55,7 @@ class PaperBroker:
         fill_probability: Probability of fill (0-1)
         deterministic_seed: For reproducible simulation
     """
+
     initial_capital: float = 100000.0
     spread_ticks: float = 1.0
     slippage_ticks: float = 0.5
@@ -89,7 +90,10 @@ class PaperBroker:
 
         if order.instrument_id in self._order_states:
             existing = self._order_states[order.instrument_id]
-            if existing in (OrderLifecycleState.SUBMITTED, OrderLifecycleState.PARTIALLY_FILLED):
+            if existing in (
+                OrderLifecycleState.SUBMITTED,
+                OrderLifecycleState.PARTIALLY_FILLED,
+            ):
                 raise BrokerError(
                     f"Order already active for {order.instrument_id}: {existing.value}"
                 )
@@ -124,8 +128,11 @@ class PaperBroker:
             raise BrokerError(f"Order not found: {order_id}")
 
         state = self._order_states[order_id]
-        if state in (OrderLifecycleState.FILLED, OrderLifecycleState.CANCELLED,
-                     OrderLifecycleState.REJECTED):
+        if state in (
+            OrderLifecycleState.FILLED,
+            OrderLifecycleState.CANCELLED,
+            OrderLifecycleState.REJECTED,
+        ):
             raise BrokerError(f"Order not fillable: {state.value}")
 
         order = self._orders[order_id]
@@ -231,7 +238,8 @@ class PaperBroker:
         return [
             self._orders[oid]
             for oid, state in self._order_states.items()
-            if state in (OrderLifecycleState.SUBMITTED, OrderLifecycleState.PARTIALLY_FILLED)
+            if state
+            in (OrderLifecycleState.SUBMITTED, OrderLifecycleState.PARTIALLY_FILLED)
         ]
 
     def get_positions(self) -> Dict[str, float]:

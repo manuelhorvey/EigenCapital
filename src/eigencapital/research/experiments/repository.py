@@ -49,7 +49,9 @@ class ExperimentRepository:
         """
         path = self._experiment_path(experiment_id)
         if not path.exists():
-            raise ExperimentError(f"Experiment not found on disk: {experiment_id}", experiment_id)
+            raise ExperimentError(
+                f"Experiment not found on disk: {experiment_id}", experiment_id
+            )
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return ExperimentRecord.from_dict(data)

@@ -18,17 +18,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Optional
 
 from eigencapital.production.fingerprint import ProductionFingerprint
-from eigencapital.production.evidence import ExecutionSummary
 from eigencapital.production.live_campaign import LiveCampaignResult
 
 
 class QualificationVerdict(str, Enum):
     """Production qualification verdict."""
+
     LIVE_BLOCKED = "live_blocked"
     LIVE_INCONCLUSIVE = "live_inconclusive"
     LIVE_QUALIFIED = "live_qualified"
@@ -38,6 +38,7 @@ class QualificationVerdict(str, Enum):
 
 class QualificationCheck(str, Enum):
     """Individual qualification checks."""
+
     SAFETY_CONSTRAINTS = "safety_constraints"
     EXECUTION_FIDELITY = "execution_fidelity"
     RECONCILIATION_STABILITY = "reconciliation_stability"
@@ -53,6 +54,7 @@ class QualificationCheck(str, Enum):
 @dataclass(frozen=True)
 class QualificationCheckResult:
     """Result of a single qualification check."""
+
     check: str
     passed: bool
     severity: str = "CRITICAL"
@@ -72,6 +74,7 @@ class QualificationCheckResult:
 @dataclass(frozen=True)
 class QualificationThresholds:
     """Configurable thresholds for qualification checks."""
+
     max_critical_divergences: int = 0
     max_total_divergences: int = 10
     max_risk_violations: int = 0
@@ -106,6 +109,7 @@ class QualificationThresholds:
 @dataclass(frozen=True)
 class QualificationResult:
     """Complete qualification result with verdict."""
+
     campaign_id: str
     verdict: str
     checks: tuple  # tuple of QualificationCheckResult
@@ -148,119 +152,171 @@ class ProductionQualificationGate:
         notes_parts: List[str] = []
 
         # 1. Safety constraints
-        safety_passed = campaign_result.risk_boundary_violations <= self._thresholds.max_risk_violations
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.SAFETY_CONSTRAINTS.value,
-            passed=safety_passed,
-            severity="CRITICAL",
-            details=f"Risk violations: {campaign_result.risk_boundary_violations}",
-            evidence=f"Threshold: {self._thresholds.max_risk_violations}",
-        ))
+        safety_passed = (
+            campaign_result.risk_boundary_violations
+            <= self._thresholds.max_risk_violations
+        )
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.SAFETY_CONSTRAINTS.value,
+                passed=safety_passed,
+                severity="CRITICAL",
+                details=f"Risk violations: {campaign_result.risk_boundary_violations}",
+                evidence=f"Threshold: {self._thresholds.max_risk_violations}",
+            )
+        )
         if not safety_passed:
             notes_parts.append("Safety constraint violated")
 
         # 2. Execution fidelity
         exec_summary = campaign_result.execution_summary
-        fill_rate_ok = exec_summary.fill_rate >= self._thresholds.max_fill_rate_threshold
-        rejection_rate_ok = exec_summary.rejection_rate <= self._thresholds.max_rejection_rate_threshold
-        slippage_ok = exec_summary.slippage_distribution.median <= self._thresholds.max_slippage_threshold
+        fill_rate_ok = (
+            exec_summary.fill_rate >= self._thresholds.max_fill_rate_threshold
+        )
+        rejection_rate_ok = (
+            exec_summary.rejection_rate <= self._thresholds.max_rejection_rate_threshold
+        )
+        slippage_ok = (
+            exec_summary.slippage_distribution.median
+            <= self._thresholds.max_slippage_threshold
+        )
         exec_passed = fill_rate_ok and rejection_rate_ok and slippage_ok
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.EXECUTION_FIDELITY.value,
-            passed=exec_passed,
-            severity="CRITICAL" if not exec_passed else "INFO",
-            details=f"fill_rate={exec_summary.fill_rate:.2f}, "
-                    f"rejection_rate={exec_summary.rejection_rate:.2f}, "
-                    f"slippage_median={exec_summary.slippage_distribution.median:.4f}",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.EXECUTION_FIDELITY.value,
+                passed=exec_passed,
+                severity="CRITICAL" if not exec_passed else "INFO",
+                details=f"fill_rate={exec_summary.fill_rate:.2f}, "
+                f"rejection_rate={exec_summary.rejection_rate:.2f}, "
+                f"slippage_median={exec_summary.slippage_distribution.median:.4f}",
+            )
+        )
         if not exec_passed:
             restrictions.append("Reduced execution frequency")
             notes_parts.append("Execution fidelity below threshold")
 
         # 3. Reconciliation stability
-        recon_passed = campaign_result.reconciliation_failures <= self._thresholds.max_reconciliation_failures
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.RECONCILIATION_STABILITY.value,
-            passed=recon_passed,
-            severity="CRITICAL",
-            details=f"Reconciliation failures: {campaign_result.reconciliation_failures}",
-        ))
+        recon_passed = (
+            campaign_result.reconciliation_failures
+            <= self._thresholds.max_reconciliation_failures
+        )
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.RECONCILIATION_STABILITY.value,
+                passed=recon_passed,
+                severity="CRITICAL",
+                details=f"Reconciliation failures: {campaign_result.reconciliation_failures}",
+            )
+        )
         if not recon_passed:
             notes_parts.append("Reconciliation instability detected")
 
         # 4. Divergence bounded
-        div_total_ok = campaign_result.total_divergences <= self._thresholds.max_total_divergences
-        div_crit_ok = campaign_result.critical_divergences <= self._thresholds.max_critical_divergences
+        div_total_ok = (
+            campaign_result.total_divergences <= self._thresholds.max_total_divergences
+        )
+        div_crit_ok = (
+            campaign_result.critical_divergences
+            <= self._thresholds.max_critical_divergences
+        )
         div_passed = div_total_ok and div_crit_ok
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.DIVERGENCE_BOUNDED.value,
-            passed=div_passed,
-            severity="CRITICAL" if not div_crit_ok else ("WARNING" if not div_total_ok else "INFO"),
-            details=f"total={campaign_result.total_divergences}, "
-                    f"critical={campaign_result.critical_divergences}",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.DIVERGENCE_BOUNDED.value,
+                passed=div_passed,
+                severity="CRITICAL"
+                if not div_crit_ok
+                else ("WARNING" if not div_total_ok else "INFO"),
+                details=f"total={campaign_result.total_divergences}, "
+                f"critical={campaign_result.critical_divergences}",
+            )
+        )
         if not div_passed:
             restrictions.append("Investigate divergence sources")
             notes_parts.append("Divergence exceeded bounds")
 
         # 5. Operational stability
-        ops_passed = campaign_result.kill_switch_activations <= self._thresholds.max_kill_switch_activations
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.OPERATIONAL_STABILITY.value,
-            passed=ops_passed,
-            severity="WARNING",
-            details=f"Kill switch activations: {campaign_result.kill_switch_activations}",
-        ))
+        ops_passed = (
+            campaign_result.kill_switch_activations
+            <= self._thresholds.max_kill_switch_activations
+        )
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.OPERATIONAL_STABILITY.value,
+                passed=ops_passed,
+                severity="WARNING",
+                details=f"Kill switch activations: {campaign_result.kill_switch_activations}",
+            )
+        )
         if not ops_passed:
             restrictions.append("Review kill switch activation causes")
 
         # 6. Evidence sufficiency
-        evidence_passed = campaign_result.evidence_completeness >= self._thresholds.min_evidence_completeness
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.EVIDENCE_SUFFICIENCY.value,
-            passed=evidence_passed,
-            severity="HIGH",
-            details=f"Evidence completeness: {campaign_result.evidence_completeness:.2f}",
-        ))
+        evidence_passed = (
+            campaign_result.evidence_completeness
+            >= self._thresholds.min_evidence_completeness
+        )
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.EVIDENCE_SUFFICIENCY.value,
+                passed=evidence_passed,
+                severity="HIGH",
+                details=f"Evidence completeness: {campaign_result.evidence_completeness:.2f}",
+            )
+        )
         if not evidence_passed:
             notes_parts.append("Insufficient evidence for qualification")
 
         # 7. Fingerprint integrity
         fp_passed = campaign_result.production_fingerprint is not None
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.FINGERPRINT_INTEGRITY.value,
-            passed=fp_passed,
-            severity="CRITICAL",
-            details="Production fingerprint present" if fp_passed else "Production fingerprint missing",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.FINGERPRINT_INTEGRITY.value,
+                passed=fp_passed,
+                severity="CRITICAL",
+                details="Production fingerprint present"
+                if fp_passed
+                else "Production fingerprint missing",
+            )
+        )
 
         # 8. Risk boundary respected
         risk_passed = campaign_result.risk_boundary_violations == 0
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.RISK_BOUNDARY_RESPECTED.value,
-            passed=risk_passed,
-            severity="CRITICAL",
-            details="No risk boundary violations" if risk_passed else f"{campaign_result.risk_boundary_violations} violations",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.RISK_BOUNDARY_RESPECTED.value,
+                passed=risk_passed,
+                severity="CRITICAL",
+                details="No risk boundary violations"
+                if risk_passed
+                else f"{campaign_result.risk_boundary_violations} violations",
+            )
+        )
 
         # 9. Kill switch functional
         ks_passed = True  # Kill switch is tested if activations occurred; no activations is also fine
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.KILL_SWITCH_FUNCTIONAL.value,
-            passed=ks_passed,
-            severity="INFO",
-            details=f"Kill switch activations: {campaign_result.kill_switch_activations}",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.KILL_SWITCH_FUNCTIONAL.value,
+                passed=ks_passed,
+                severity="INFO",
+                details=f"Kill switch activations: {campaign_result.kill_switch_activations}",
+            )
+        )
 
         # 10. No critical failures
-        critical_checks = [c for c in checks if not c.passed and c.severity == "CRITICAL"]
+        critical_checks = [
+            c for c in checks if not c.passed and c.severity == "CRITICAL"
+        ]
         no_critical_passed = len(critical_checks) == 0
-        checks.append(QualificationCheckResult(
-            check=QualificationCheck.NO_CRITICAL_FAILURES.value,
-            passed=no_critical_passed,
-            severity="CRITICAL",
-            details=f"Critical failures: {len(critical_checks)}",
-        ))
+        checks.append(
+            QualificationCheckResult(
+                check=QualificationCheck.NO_CRITICAL_FAILURES.value,
+                passed=no_critical_passed,
+                severity="CRITICAL",
+                details=f"Critical failures: {len(critical_checks)}",
+            )
+        )
 
         # Determine verdict
         all_critical = all(c.passed for c in checks if c.severity == "CRITICAL")

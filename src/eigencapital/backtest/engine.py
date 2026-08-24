@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from eigencapital.backtest.clock import BacktestClock, LookAheadViolationError
+from eigencapital.backtest.clock import BacktestClock
 from eigencapital.backtest.accounting import AccountingEngine
 from eigencapital.core.models.bar import Bar
 from eigencapital.research.costs.model import CostModel, ZERO_COST
@@ -128,35 +128,47 @@ class BacktestEngine:
                 timestamp=bar.timestamp_utc,
                 bars=available_bars,
                 position_quantity=self.accounting.position.quantity,
-                cash=self.accounting.accounting.current_cash if hasattr(self.accounting, 'accounting') else self.accounting.current_cash,
+                cash=self.accounting.accounting.current_cash
+                if hasattr(self.accounting, "accounting")
+                else self.accounting.current_cash,
             )
 
             # 3. Record signal
             if signal is not None:
-                results.signal_events.append({
-                    "timestamp": bar.timestamp_utc,
-                    "direction": signal.direction,
-                    "target_risk": signal.target_risk,
-                })
+                results.signal_events.append(
+                    {
+                        "timestamp": bar.timestamp_utc,
+                        "direction": signal.direction,
+                        "target_risk": signal.target_risk,
+                    }
+                )
 
                 # 4. Queue fill for next bar (execution delay)
                 self._queue_fill(bar, signal, results)
 
             # 5. Record equity
             equity = self.accounting.compute_equity(bar.close)
-            results.equity_curve.append({
-                "timestamp": bar.timestamp_utc,
-                "equity": equity,
-                "cash": self.accounting.current_cash,
-                "position": self.accounting.position.quantity,
-            })
+            results.equity_curve.append(
+                {
+                    "timestamp": bar.timestamp_utc,
+                    "equity": equity,
+                    "cash": self.accounting.current_cash,
+                    "position": self.accounting.position.quantity,
+                }
+            )
 
         # Process any remaining pending fills
         self._process_pending_fills(None, results)
 
         # Finalize results
-        results.final_equity = results.equity_curve[-1]["equity"] if results.equity_curve else self.config.initial_cash
-        results.total_return = (results.final_equity / self.config.initial_cash - 1) * 100
+        results.final_equity = (
+            results.equity_curve[-1]["equity"]
+            if results.equity_curve
+            else self.config.initial_cash
+        )
+        results.total_return = (
+            results.final_equity / self.config.initial_cash - 1
+        ) * 100
         results.max_drawdown = self._compute_max_drawdown(results.equity_curve)
         results.trade_count = len(results.fill_events) // 2  # Approximate round-trips
 
@@ -177,16 +189,23 @@ class BacktestEngine:
 
         return results
 
-    def _queue_fill(self, bar: Bar, signal: StrategySignal, results: BacktestResults) -> None:
+    def _queue_fill(
+        self, bar: Bar, signal: StrategySignal, results: BacktestResults
+    ) -> None:
         """Queue a fill for execution after the configured delay."""
-        self._pending_signals.append({
-            "signal_bar_index": self.clock.current_index,
-            "fill_bar_index": self.clock.current_index + self.config.execution_delay,
-            "direction": signal.direction,
-            "timestamp": bar.timestamp_utc,
-        })
+        self._pending_signals.append(
+            {
+                "signal_bar_index": self.clock.current_index,
+                "fill_bar_index": self.clock.current_index
+                + self.config.execution_delay,
+                "direction": signal.direction,
+                "timestamp": bar.timestamp_utc,
+            }
+        )
 
-    def _process_pending_fills(self, current_bar: Optional[Bar], results: BacktestResults) -> None:
+    def _process_pending_fills(
+        self, current_bar: Optional[Bar], results: BacktestResults
+    ) -> None:
         """Process any fills that should execute at the current bar."""
         remaining = []
         for pending in self._pending_signals:
@@ -198,7 +217,9 @@ class BacktestEngine:
                 remaining.append(pending)
         self._pending_signals = remaining
 
-    def _execute_fill(self, pending: Dict[str, Any], bar: Optional[Bar], results: BacktestResults) -> None:
+    def _execute_fill(
+        self, pending: Dict[str, Any], bar: Optional[Bar], results: BacktestResults
+    ) -> None:
         """Execute a fill at the current bar's close price."""
         if bar is None:
             return
@@ -248,14 +269,16 @@ class BacktestEngine:
             timestamp=bar.timestamp_utc,
         )
 
-        results.fill_events.append({
-            "timestamp": bar.timestamp_utc,
-            "side": side,
-            "quantity": quantity,
-            "fill_price": fill_price,
-            "commission": commission,
-            "fees": fees,
-        })
+        results.fill_events.append(
+            {
+                "timestamp": bar.timestamp_utc,
+                "side": side,
+                "quantity": quantity,
+                "fill_price": fill_price,
+                "commission": commission,
+                "fees": fees,
+            }
+        )
 
     def _compute_max_drawdown(self, equity_curve: List[Dict[str, Any]]) -> float:
         """Compute maximum drawdown from equity curve."""

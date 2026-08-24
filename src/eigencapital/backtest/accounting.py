@@ -108,15 +108,17 @@ class AccountingEngine:
         signed_qty = quantity if side == "BUY" else -quantity
 
         # Record the fill
-        self.fill_history.append(FillRecord(
-            timestamp=timestamp,
-            fill_price=fill_price,
-            quantity=quantity,
-            side=side,
-            multiplier=multiplier,
-            commission=commission,
-            fees=fees,
-        ))
+        self.fill_history.append(
+            FillRecord(
+                timestamp=timestamp,
+                fill_price=fill_price,
+                quantity=quantity,
+                side=side,
+                multiplier=multiplier,
+                commission=commission,
+                fees=fees,
+            )
+        )
 
         # Update costs
         self.total_commission += commission
@@ -144,8 +146,7 @@ class AccountingEngine:
         elif (new_qty > 0 and old_qty > 0) or (new_qty < 0 and old_qty < 0):
             # Adding to existing position (same direction)
             total_cost = (
-                self.position.average_entry_price * abs(old_qty)
-                + fill_price * quantity
+                self.position.average_entry_price * abs(old_qty) + fill_price * quantity
             )
             self.position.average_entry_price = total_cost / abs(new_qty)
             self.position.quantity = new_qty
@@ -165,7 +166,11 @@ class AccountingEngine:
         """Compute unrealized P&L at current market price."""
         if self.position.is_flat:
             return 0.0
-        return (current_price - self.position.average_entry_price) * self.position.quantity * self.contract_multiplier
+        return (
+            (current_price - self.position.average_entry_price)
+            * self.position.quantity
+            * self.contract_multiplier
+        )
 
     def compute_equity(self, current_price: float) -> float:
         """Compute total equity: cash + unrealized P&L."""

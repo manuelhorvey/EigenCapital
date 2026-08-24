@@ -46,8 +46,13 @@ class CostModel:
     def __post_init__(self) -> None:
         if not self.model_id:
             raise ValueError("model_id must be non-empty")
-        for field_name in ("commission_per_contract", "exchange_fee_per_contract",
-                           "spread_ticks", "slippage_ticks", "market_impact_bps"):
+        for field_name in (
+            "commission_per_contract",
+            "exchange_fee_per_contract",
+            "spread_ticks",
+            "slippage_ticks",
+            "market_impact_bps",
+        ):
             val = getattr(self, field_name)
             if val < 0:
                 raise ValueError(f"{field_name} must be >= 0, got {val}")
@@ -56,7 +61,12 @@ class CostModel:
         """Total fixed cost per contract in currency units."""
         spread_cost = self.spread_ticks * tick_value * 0.5
         slippage_cost = self.slippage_ticks * tick_value
-        return self.commission_per_contract + self.exchange_fee_per_contract + spread_cost + slippage_cost
+        return (
+            self.commission_per_contract
+            + self.exchange_fee_per_contract
+            + spread_cost
+            + slippage_cost
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""

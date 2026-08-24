@@ -12,18 +12,13 @@ Critical invariant: The runner never modifies hypotheses or results.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Callable
 
 from eigencapital.research.execution.engine import ExecutionEngine, ExecutionConfig
-from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
+from eigencapital.research.execution.record import ExecutionRecord
 from eigencapital.research.execution.ledger import ExecutionLedger
 from eigencapital.research.hypotheses.hypothesis import Hypothesis
-from eigencapital.research.experiments.registry import ExperimentRegistry
-from eigencapital.features.pipeline import FeaturePipeline
-from eigencapital.features.feature_set import FeatureSet
 
 
 @dataclass(frozen=True)
@@ -37,6 +32,7 @@ class CampaignManifest:
         cost_model_id: Cost model to use
         universe: Universe definition
     """
+
     campaign_id: str
     hypotheses: List[str]
     description: str = ""
@@ -56,6 +52,7 @@ class CampaignManifest:
 @dataclass(frozen=True)
 class CampaignResult:
     """Result of a complete campaign execution."""
+
     campaign_id: str
     executions: List[ExecutionRecord] = field(default_factory=list)
     comparison: Dict[str, Any] = field(default_factory=dict)
@@ -159,8 +156,13 @@ class CampaignRunner:
 
         # Reproducibility test (re-run first hypothesis)
         reproducibility = self._test_reproducibility(
-            manifest, hypotheses, executions,
-            compute_features_fn, run_backtest_fn, validate_fn, cost_model,
+            manifest,
+            hypotheses,
+            executions,
+            compute_features_fn,
+            run_backtest_fn,
+            validate_fn,
+            cost_model,
         )
 
         return CampaignResult(
@@ -187,12 +189,14 @@ class CampaignRunner:
             comparison["by_verdict"][verdict] = (
                 comparison["by_verdict"].get(verdict, 0) + 1
             )
-            comparison["results"].append({
-                "execution_id": record.execution_id,
-                "hypothesis_id": record.hypothesis_id,
-                "verdict": verdict,
-                "result": record.result,
-            })
+            comparison["results"].append(
+                {
+                    "execution_id": record.execution_id,
+                    "hypothesis_id": record.hypothesis_id,
+                    "verdict": verdict,
+                    "result": record.result,
+                }
+            )
 
         return comparison
 
@@ -238,7 +242,9 @@ class CampaignRunner:
 
         # Compare results (not provenance — experiment IDs differ)
         result_match = original.result == repro_record.result
-        verdict_match = original.evidence_gate_verdict == repro_record.evidence_gate_verdict
+        verdict_match = (
+            original.evidence_gate_verdict == repro_record.evidence_gate_verdict
+        )
         match = result_match and verdict_match
 
         return {

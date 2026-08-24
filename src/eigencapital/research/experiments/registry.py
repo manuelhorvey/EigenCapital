@@ -104,15 +104,27 @@ class ExperimentRecord:
 
     # Mutable fields that can change before freeze
     _MODIFIABLE_BEFORE_FREEZE = {
-        "parameters", "strategy_version", "strategy_config_hash",
-        "strategy_artifact_hash", "cost_model_id", "cost_model_version",
-        "random_seed", "result", "rejection_reason",
+        "parameters",
+        "strategy_version",
+        "strategy_config_hash",
+        "strategy_artifact_hash",
+        "cost_model_id",
+        "cost_model_version",
+        "random_seed",
+        "result",
+        "rejection_reason",
     }
 
     def __post_init__(self) -> None:
         if not self.experiment_id:
             raise ValueError("experiment_id must be non-empty")
-        valid_statuses = {"PRE_REGISTERED", "RUNNING", "COMPLETED", "REJECTED", "CANDIDATE"}
+        valid_statuses = {
+            "PRE_REGISTERED",
+            "RUNNING",
+            "COMPLETED",
+            "REJECTED",
+            "CANDIDATE",
+        }
         if self.status not in valid_statuses:
             raise ValueError(f"Invalid status: {self.status}")
         # Trial accounting: if present, must carry the required keys
@@ -124,9 +136,7 @@ class ExperimentRecord:
         }
         if self.trial_metadata and not _TRIAL_KEYS.issubset(self.trial_metadata):
             missing = _TRIAL_KEYS - set(self.trial_metadata)
-            raise ValueError(
-                f"trial_metadata missing required keys: {sorted(missing)}"
-            )
+            raise ValueError(f"trial_metadata missing required keys: {sorted(missing)}")
         # Trial identity is fixed at registration: index must be >= 1
         if self.trial_metadata:
             idx = self.trial_metadata["trial_index"]
@@ -208,7 +218,9 @@ class ExperimentRegistry:
     def get(self, experiment_id: str) -> ExperimentRecord:
         """Get an experiment by ID."""
         if experiment_id not in self._experiments:
-            raise ExperimentError(f"Experiment not found: {experiment_id}", experiment_id)
+            raise ExperimentError(
+                f"Experiment not found: {experiment_id}", experiment_id
+            )
         return self._experiments[experiment_id]
 
     def freeze_test_parameters(self, experiment_id: str) -> ExperimentRecord:
@@ -238,8 +250,12 @@ class ExperimentRegistry:
         exp.status = "RUNNING"
         return exp
 
-    def complete(self, experiment_id: str, status: str = "COMPLETED",
-                 result: Optional[Dict[str, Any]] = None) -> ExperimentRecord:
+    def complete(
+        self,
+        experiment_id: str,
+        status: str = "COMPLETED",
+        result: Optional[Dict[str, Any]] = None,
+    ) -> ExperimentRecord:
         """Complete an experiment with a final status."""
         exp = self.get(experiment_id)
         if exp.status != "RUNNING":

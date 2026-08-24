@@ -17,16 +17,20 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 
 from eigencapital.production.fingerprint import ProductionFingerprint
-from eigencapital.production.evidence import ExecutionEvidenceCollector, ExecutionSummary
+from eigencapital.production.evidence import (
+    ExecutionEvidenceCollector,
+    ExecutionSummary,
+)
 
 
 class LiveCampaignStatus(str, Enum):
     """Live campaign lifecycle."""
+
     PLANNED = "planned"
     CONNECTIVITY = "connectivity"
     MINIMAL_EXPOSURE = "minimal_exposure"
@@ -71,6 +75,7 @@ _VALID_LIVE_TRANSITIONS: Dict[str, List[str]] = {
 @dataclass(frozen=True)
 class LiveCampaign:
     """Immutable live campaign identity with frozen production fingerprint."""
+
     campaign_id: str
     production_fingerprint: ProductionFingerprint
     authorization_id: str
@@ -115,6 +120,7 @@ class LiveCampaign:
 @dataclass(frozen=True)
 class LiveCampaignResult:
     """Result of a completed live campaign."""
+
     campaign_id: str
     production_fingerprint: ProductionFingerprint
     execution_summary: ExecutionSummary
@@ -232,20 +238,28 @@ class LiveCampaignEngine:
 
     def record_risk_violation(self, campaign_id: str) -> None:
         """Record a risk boundary violation."""
-        self._risk_violations[campaign_id] = self._risk_violations.get(campaign_id, 0) + 1
+        self._risk_violations[campaign_id] = (
+            self._risk_violations.get(campaign_id, 0) + 1
+        )
 
     def record_reconciliation_failure(self, campaign_id: str) -> None:
         """Record a reconciliation failure."""
-        self._reconciliation_failures[campaign_id] = self._reconciliation_failures.get(campaign_id, 0) + 1
+        self._reconciliation_failures[campaign_id] = (
+            self._reconciliation_failures.get(campaign_id, 0) + 1
+        )
 
     def record_kill_switch_activation(self, campaign_id: str) -> None:
         """Record a kill switch activation."""
-        self._kill_switch_activations[campaign_id] = self._kill_switch_activations.get(campaign_id, 0) + 1
+        self._kill_switch_activations[campaign_id] = (
+            self._kill_switch_activations.get(campaign_id, 0) + 1
+        )
 
     def get_campaign(self, campaign_id: str) -> Optional[LiveCampaign]:
         return self._campaigns.get(campaign_id)
 
-    def get_evidence_collector(self, campaign_id: str) -> Optional[ExecutionEvidenceCollector]:
+    def get_evidence_collector(
+        self, campaign_id: str
+    ) -> Optional[ExecutionEvidenceCollector]:
         return self._evidence_collectors.get(campaign_id)
 
     def get_divergence_counts(self, campaign_id: str) -> Dict[str, int]:
@@ -260,13 +274,17 @@ class LiveCampaignEngine:
     def get_kill_switch_activations(self, campaign_id: str) -> int:
         return self._kill_switch_activations.get(campaign_id, 0)
 
-    def _record_event(self, event_type: str, campaign_id: str, status: str, reason: str = "") -> None:
-        self._events.append({
-            "event_type": event_type,
-            "campaign_id": campaign_id,
-            "status": status,
-            "reason": reason,
-        })
+    def _record_event(
+        self, event_type: str, campaign_id: str, status: str, reason: str = ""
+    ) -> None:
+        self._events.append(
+            {
+                "event_type": event_type,
+                "campaign_id": campaign_id,
+                "status": status,
+                "reason": reason,
+            }
+        )
 
     def get_events(self) -> List[Dict[str, Any]]:
         return list(self._events)

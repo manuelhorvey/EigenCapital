@@ -32,9 +32,9 @@ from typing import Dict, List, Optional, Any, Callable
 
 from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
 from eigencapital.research.hypotheses.hypothesis import Hypothesis
-from eigencapital.research.experiments.registry import ExperimentRegistry, ExperimentRecord
+from eigencapital.research.experiments.registry import ExperimentRegistry
 from eigencapital.research.costs.model import CostModel
-from eigencapital.features.pipeline import FeaturePipeline, FeatureRequest, PipelineConfig
+from eigencapital.features.pipeline import FeaturePipeline
 from eigencapital.features.feature_set import FeatureSet
 
 
@@ -50,6 +50,7 @@ class ExecutionConfig:
         parameters: Strategy parameters
         random_seed: For reproducibility
     """
+
     backtest_config: Dict[str, Any] = field(default_factory=dict)
     validation_config: Dict[str, Any] = field(default_factory=dict)
     cost_model: CostModel = field(default_factory=lambda: CostModel(model_id="zero"))
@@ -73,6 +74,7 @@ class ExecutionConfig:
 
 class ExecutionError(ValueError):
     """Raised on invalid execution state or violations."""
+
     pass
 
 
@@ -109,7 +111,9 @@ class ExecutionEngine:
         config: ExecutionConfig,
         compute_features_fn: Callable[[List[Any], ExecutionConfig], FeatureSet],
         run_backtest_fn: Callable[[FeatureSet, ExecutionConfig], Dict[str, Any]],
-        validate_fn: Optional[Callable[[Dict[str, Any], ExecutionConfig], Dict[str, Any]]] = None,
+        validate_fn: Optional[
+            Callable[[Dict[str, Any], ExecutionConfig], Dict[str, Any]]
+        ] = None,
     ) -> ExecutionRecord:
         """Execute a hypothesis through the complete research path.
 
@@ -192,13 +196,16 @@ class ExecutionEngine:
 
         # 6. Execute the research path (may raise on errors)
         try:
-            record = self._run_execution(record, config, compute_features_fn,
-                                         run_backtest_fn, validate_fn)
+            record = self._run_execution(
+                record, config, compute_features_fn, run_backtest_fn, validate_fn
+            )
         except Exception as e:
             record = ExecutionRecord(
-                **{**record.__dict__,
-                   "status": ExecutionStatus.FAILED,
-                   "rejection_reason": str(e)}
+                **{
+                    **record.__dict__,
+                    "status": ExecutionStatus.FAILED,
+                    "rejection_reason": str(e),
+                }
             )
 
         self._executions[execution_id] = record
@@ -225,9 +232,11 @@ class ExecutionEngine:
             )
         except Exception as e:
             return ExecutionRecord(
-                **{**record.__dict__,
-                   "status": ExecutionStatus.FAILED,
-                   "rejection_reason": f"Feature computation failed: {e}"}
+                **{
+                    **record.__dict__,
+                    "status": ExecutionStatus.FAILED,
+                    "rejection_reason": f"Feature computation failed: {e}",
+                }
             )
 
         # Stage 2: Run backtest
@@ -237,14 +246,14 @@ class ExecutionEngine:
 
         try:
             backtest_result = run_backtest_fn(featureset, config)
-            record = ExecutionRecord(
-                **{**record.__dict__, "result": backtest_result}
-            )
+            record = ExecutionRecord(**{**record.__dict__, "result": backtest_result})
         except Exception as e:
             return ExecutionRecord(
-                **{**record.__dict__,
-                   "status": ExecutionStatus.FAILED,
-                   "rejection_reason": f"Backtest failed: {e}"}
+                **{
+                    **record.__dict__,
+                    "status": ExecutionStatus.FAILED,
+                    "rejection_reason": f"Backtest failed: {e}",
+                }
             )
 
         # Stage 3: Validate (if validation function provided)
@@ -257,15 +266,19 @@ class ExecutionEngine:
                 validation_result = validate_fn(backtest_result, config)
                 verdict = validation_result.get("verdict", "INCONCLUSIVE")
                 record = ExecutionRecord(
-                    **{**record.__dict__,
-                       "validation_result": validation_result,
-                       "evidence_gate_verdict": verdict}
+                    **{
+                        **record.__dict__,
+                        "validation_result": validation_result,
+                        "evidence_gate_verdict": verdict,
+                    }
                 )
             except Exception as e:
                 record = ExecutionRecord(
-                    **{**record.__dict__,
-                       "evidence_gate_verdict": "INCONCLUSIVE",
-                       "rejection_reason": f"Validation failed: {e}"}
+                    **{
+                        **record.__dict__,
+                        "evidence_gate_verdict": "INCONCLUSIVE",
+                        "rejection_reason": f"Validation failed: {e}",
+                    }
                 )
 
         # Stage 4: Complete

@@ -13,9 +13,8 @@ are silently discarded.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from typing import Dict, List, Any
 
 from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
 
@@ -41,8 +40,7 @@ class ExecutionLedger:
         """
         if record.execution_id in self._records:
             raise ValueError(
-                f"Duplicate execution_id: {record.execution_id}. "
-                "Ledger is append-only."
+                f"Duplicate execution_id: {record.execution_id}. Ledger is append-only."
             )
         self._records[record.execution_id] = record
         self._insertion_order.append(record.execution_id)
@@ -59,24 +57,15 @@ class ExecutionLedger:
 
     def list_by_status(self, status: ExecutionStatus) -> List[ExecutionRecord]:
         """List records filtered by status."""
-        return [
-            r for r in self.list_all()
-            if r.status == status
-        ]
+        return [r for r in self.list_all() if r.status == status]
 
     def list_by_hypothesis(self, hypothesis_id: str) -> List[ExecutionRecord]:
         """List all executions for a given hypothesis."""
-        return [
-            r for r in self.list_all()
-            if r.hypothesis_id == hypothesis_id
-        ]
+        return [r for r in self.list_all() if r.hypothesis_id == hypothesis_id]
 
     def list_by_trial_group(self, trial_group_id: str) -> List[ExecutionRecord]:
         """List all executions in a given trial group."""
-        return [
-            r for r in self.list_all()
-            if r.trial_group_id == trial_group_id
-        ]
+        return [r for r in self.list_all() if r.trial_group_id == trial_group_id]
 
     def summary(self) -> Dict[str, Any]:
         """Summary statistics of the ledger."""

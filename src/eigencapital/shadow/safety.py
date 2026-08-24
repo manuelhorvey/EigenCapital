@@ -12,15 +12,14 @@ The kill switch must:
 
 from __future__ import annotations
 
-import hashlib
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 
 class KillSwitchStatus(str, Enum):
     """Kill switch status."""
+
     INACTIVE = "inactive"
     ACTIVE = "active"
     ACKNOWLEDGED = "acknowledged"
@@ -32,6 +31,7 @@ class KillSwitch:
 
     Stops all new order generation when activated.
     """
+
     status: KillSwitchStatus = KillSwitchStatus.INACTIVE
     activation_reason: str = ""
     activation_timestamp: str = ""
@@ -78,6 +78,7 @@ class KillSwitch:
 
 class DataSafetyStatus(str, Enum):
     """Market data safety status."""
+
     FRESH = "fresh"
     STALE = "stale"
     MISSING = "missing"
@@ -87,6 +88,7 @@ class DataSafetyStatus(str, Enum):
 @dataclass(frozen=True)
 class DataSafetyCheck:
     """Result of a market data safety check."""
+
     status: DataSafetyStatus
     instrument_id: str
     timestamp: str

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 
@@ -29,6 +29,7 @@ class ProductionFingerprint:
     Records the exact system configuration that produced live evidence.
     Any material change invalidates qualification.
     """
+
     strategy_hash: str
     portfolio_hash: str
     feature_registry_hash: str
@@ -93,7 +94,9 @@ class FingerprintRegistry:
         """Get a registered fingerprint."""
         return self._fingerprints.get(fingerprint_id)
 
-    def check_drift(self, fingerprint_id: str, current: ProductionFingerprint) -> Dict[str, Any]:
+    def check_drift(
+        self, fingerprint_id: str, current: ProductionFingerprint
+    ) -> Dict[str, Any]:
         """Check if current config drifts from registered fingerprint.
 
         Returns:
@@ -101,7 +104,11 @@ class FingerprintRegistry:
         """
         registered = self._fingerprints.get(fingerprint_id)
         if registered is None:
-            return {"drifted": True, "changed_fields": ["all"], "details": "Fingerprint not registered"}
+            return {
+                "drifted": True,
+                "changed_fields": ["all"],
+                "details": "Fingerprint not registered",
+            }
 
         changed = []
         if registered.strategy_hash != current.strategy_hash:
@@ -123,10 +130,12 @@ class FingerprintRegistry:
 
         drifted = len(changed) > 0
         if drifted:
-            self._drift_events.append({
-                "fingerprint_id": fingerprint_id,
-                "changed_fields": changed,
-            })
+            self._drift_events.append(
+                {
+                    "fingerprint_id": fingerprint_id,
+                    "changed_fields": changed,
+                }
+            )
 
         return {
             "drifted": drifted,

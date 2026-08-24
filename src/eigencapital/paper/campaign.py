@@ -14,11 +14,12 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 
 class CampaignStatus(str, Enum):
     """Paper campaign lifecycle status."""
+
     CREATED = "created"
     ARMED = "armed"
     RUNNING = "running"
@@ -36,6 +37,7 @@ class PaperCampaign:
     The campaign must have immutable identity and frozen configuration.
     No field may change after ARMED status.
     """
+
     campaign_id: str
     strategy_id: str
     strategy_version: str

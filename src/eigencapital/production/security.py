@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Any
 
 
 @dataclass(frozen=True)
 class SecurityBoundary:
     """Defines a security boundary between components."""
+
     component_a: str
     component_b: str
     separation_rule: str
@@ -37,6 +38,7 @@ class SecurityBoundary:
 @dataclass(frozen=True)
 class ConfigurationManifest:
     """Deployment configuration manifest with hashes."""
+
     strategy_config_hash: str = ""
     strategy_artifact_hash: str = ""
     feature_config_hash: str = ""
@@ -104,12 +106,14 @@ class SecurityAudit:
         recommendation: str = "",
     ) -> None:
         """Record a security finding."""
-        self._findings.append({
-            "category": category,
-            "severity": severity,
-            "description": description,
-            "recommendation": recommendation,
-        })
+        self._findings.append(
+            {
+                "category": category,
+                "severity": severity,
+                "description": description,
+                "recommendation": recommendation,
+            }
+        )
 
     def get_boundaries(self) -> List[SecurityBoundary]:
         return list(self._boundaries)

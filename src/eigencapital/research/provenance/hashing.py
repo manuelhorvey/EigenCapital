@@ -29,6 +29,7 @@ def canonical_json_dumps(data: Any) -> str:
     - Explicit null handling
     - No NaN/inf (rejected)
     """
+
     def _sort(obj: Any) -> Any:
         if isinstance(obj, dict):
             return {k: _sort(v) for k, v in sorted(obj.items())}

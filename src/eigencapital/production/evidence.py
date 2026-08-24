@@ -18,14 +18,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import statistics
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Any, Optional
 
 
 @dataclass(frozen=True)
 class OrderEvidence:
     """Evidence from a single live order execution."""
+
     order_id: str
     instrument_id: str
     side: str
@@ -70,6 +70,7 @@ class OrderEvidence:
 @dataclass(frozen=True)
 class SlippageDistribution:
     """Distribution statistics for slippage."""
+
     median: float = 0.0
     p75: float = 0.0
     p90: float = 0.0
@@ -93,6 +94,7 @@ class SlippageDistribution:
 @dataclass(frozen=True)
 class LatencyDistribution:
     """Distribution statistics for latency."""
+
     median: float = 0.0
     p75: float = 0.0
     p90: float = 0.0
@@ -116,6 +118,7 @@ class LatencyDistribution:
 @dataclass(frozen=True)
 class ExecutionSummary:
     """Summary of execution evidence across all orders."""
+
     total_orders: int
     filled_orders: int
     partial_orders: int
@@ -198,8 +201,11 @@ class ExecutionEvidenceCollector:
         total = len(self._evidence)
         slippages = [e.realized_slippage for e in self._evidence]
         latencies = [e.latency_seconds for e in self._evidence]
-        price_devs = [abs(e.fill_price - e.intended_price) / max(abs(e.intended_price), 1e-10)
-                      for e in filled if e.fill_price is not None]
+        price_devs = [
+            abs(e.fill_price - e.intended_price) / max(abs(e.intended_price), 1e-10)
+            for e in filled
+            if e.fill_price is not None
+        ]
 
         slippage_dist = SlippageDistribution(
             median=_percentile(slippages, 50),
@@ -234,5 +240,7 @@ class ExecutionEvidenceCollector:
             latency_distribution=latency_dist,
             total_realized_slippage=sum(slippages),
             total_latency=sum(latencies),
-            average_fill_price_deviation=sum(price_devs) / len(price_devs) if price_devs else 0.0,
+            average_fill_price_deviation=sum(price_devs) / len(price_devs)
+            if price_devs
+            else 0.0,
         )

@@ -28,6 +28,7 @@ class SystemState:
         market_data_valid: Whether market data is valid
         reconciliation_status: Current reconciliation status
     """
+
     cash: float = 100_000.0
     positions: Dict[str, float] = field(default_factory=dict)
     equity: float = 100_000.0
@@ -81,15 +82,17 @@ class StressTestEngine:
             forbidden_behavior: Human-readable forbidden behavior
             severity: CRITICAL, HIGH, MEDIUM, LOW
         """
-        self._scenarios.append({
-            "scenario_id": scenario_id,
-            "description": description,
-            "perturbation": perturbation,
-            "expected": expected,
-            "expected_behavior": expected_behavior,
-            "forbidden_behavior": forbidden_behavior,
-            "severity": severity,
-        })
+        self._scenarios.append(
+            {
+                "scenario_id": scenario_id,
+                "description": description,
+                "perturbation": perturbation,
+                "expected": expected,
+                "expected_behavior": expected_behavior,
+                "forbidden_behavior": forbidden_behavior,
+                "severity": severity,
+            }
+        )
 
     def execute(
         self,
@@ -115,27 +118,31 @@ class StressTestEngine:
             try:
                 stressed = scenario["perturbation"](baseline)
             except Exception as e:
-                results.append(StressTestResult(
-                    scenario_id=scenario["scenario_id"],
-                    status="INCONCLUSIVE",
-                    severity=scenario["severity"],
-                    description=scenario["description"],
-                    perturbation=f"Error applying perturbation: {e}",
-                    evidence={"error": str(e)},
-                ))
+                results.append(
+                    StressTestResult(
+                        scenario_id=scenario["scenario_id"],
+                        status="INCONCLUSIVE",
+                        severity=scenario["severity"],
+                        description=scenario["description"],
+                        perturbation=f"Error applying perturbation: {e}",
+                        evidence={"error": str(e)},
+                    )
+                )
                 continue
 
             # Check expected behavior
             try:
                 passed = scenario["expected"](baseline, stressed)
             except Exception as e:
-                results.append(StressTestResult(
-                    scenario_id=scenario["scenario_id"],
-                    status="INCONCLUSIVE",
-                    severity=scenario["severity"],
-                    description=scenario["description"],
-                    evidence={"check_error": str(e)},
-                ))
+                results.append(
+                    StressTestResult(
+                        scenario_id=scenario["scenario_id"],
+                        status="INCONCLUSIVE",
+                        severity=scenario["severity"],
+                        description=scenario["description"],
+                        evidence={"check_error": str(e)},
+                    )
+                )
                 continue
 
             # Check invariants
@@ -146,22 +153,26 @@ class StressTestEngine:
             # Compute max loss
             max_loss = max(0, baseline.equity - stressed.equity)
 
-            results.append(StressTestResult(
-                scenario_id=scenario["scenario_id"],
-                status=status,
-                severity=scenario["severity"],
-                description=scenario["description"],
-                expected_behavior=scenario["expected_behavior"],
-                actual_behavior=f"Passed: {passed}, Violations: {len(violations)}",
-                violated_invariants=violations,
-                maximum_loss=max_loss,
-                maximum_exposure=stressed.total_position_value,
-                is_system_failure=status == "FAIL",
-            ))
+            results.append(
+                StressTestResult(
+                    scenario_id=scenario["scenario_id"],
+                    status=status,
+                    severity=scenario["severity"],
+                    description=scenario["description"],
+                    expected_behavior=scenario["expected_behavior"],
+                    actual_behavior=f"Passed: {passed}, Violations: {len(violations)}",
+                    violated_invariants=violations,
+                    maximum_loss=max_loss,
+                    maximum_exposure=stressed.total_position_value,
+                    is_system_failure=status == "FAIL",
+                )
+            )
 
         return results
 
-    def _check_invariants(self, baseline: SystemState, stressed: SystemState) -> List[str]:
+    def _check_invariants(
+        self, baseline: SystemState, stressed: SystemState
+    ) -> List[str]:
         """Check fundamental invariants between baseline and stressed state."""
         violations = []
 
@@ -171,7 +182,7 @@ class StressTestEngine:
         # Invariant: cash must be finite
         if stressed.cash != stressed.cash:  # NaN check
             violations.append("cash_is_nan")
-        if stressed.cash == float('inf') or stressed.cash == float('-inf'):
+        if stressed.cash == float("inf") or stressed.cash == float("-inf"):
             violations.append("cash_is_infinite")
 
         # Invariant: no negative cash without explicit margin
@@ -181,7 +192,7 @@ class StressTestEngine:
         for inst, qty in stressed.positions.items():
             if qty != qty:  # NaN
                 violations.append(f"position_{inst}_nan")
-            if qty == float('inf') or qty == float('-inf'):
+            if qty == float("inf") or qty == float("-inf"):
                 violations.append(f"position_{inst}_infinite")
 
         # Invariant: risk halt must be respected

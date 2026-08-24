@@ -15,7 +15,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Tuple
+from typing import List, Optional
 
 from eigencapital.core.models.bar import Bar
 
@@ -48,7 +48,7 @@ class BacktestClock:
                 raise ValueError(
                     f"Bars must be sorted chronologically. "
                     f"Bar {i} ({self.bars[i].timestamp_utc}) <= "
-                    f"Bar {i-1} ({self.bars[i-1].timestamp_utc})"
+                    f"Bar {i - 1} ({self.bars[i - 1].timestamp_utc})"
                 )
 
     @property
@@ -88,7 +88,7 @@ class BacktestClock:
         """
         if up_to_index is None:
             up_to_index = self.current_index
-        return self.bars[:up_to_index + 1]
+        return self.bars[: up_to_index + 1]
 
     def bar_at(self, index: int) -> Bar:
         """Access a bar by index.

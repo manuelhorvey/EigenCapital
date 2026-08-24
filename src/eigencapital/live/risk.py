@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Any, Tuple
 
 
 class StopReason(str, Enum):
     """Reason for stopping new orders."""
+
     DAILY_LOSS = "daily_loss"
     TOTAL_DRAWDOWN = "total_drawdown"
     RECONCILIATION_MISMATCH = "reconciliation_mismatch"
@@ -38,6 +39,7 @@ class StopReason(str, Enum):
 @dataclass(frozen=True)
 class MicroLiveLimits:
     """Micro-live risk envelope — stricter than normal production limits."""
+
     max_account_exposure: float = 10000.0
     max_position_size: float = 1000.0
     max_order_notional: float = 5000.0
@@ -72,6 +74,7 @@ class MicroLiveLimits:
 @dataclass(frozen=True)
 class PreflightCheck:
     """Result of a preflight check."""
+
     check_name: str
     passed: bool
     severity: str = "CRITICAL"
@@ -117,11 +120,17 @@ class MicroLiveRiskEnvelope:
         """
         # Check notional
         if notional > self._limits.max_order_notional:
-            return (False, f"Order notional {notional} exceeds max {self._limits.max_order_notional}")
+            return (
+                False,
+                f"Order notional {notional} exceeds max {self._limits.max_order_notional}",
+            )
 
         # Check position count
         if current_positions >= self._limits.max_concurrent_positions:
-            return (False, f"Position count {current_positions} >= max {self._limits.max_concurrent_positions}")
+            return (
+                False,
+                f"Position count {current_positions} >= max {self._limits.max_concurrent_positions}",
+            )
 
         # Check spread
         if spread > self._limits.max_spread:
@@ -129,21 +138,33 @@ class MicroLiveRiskEnvelope:
 
         # Check slippage
         if slippage > self._limits.max_slippage:
-            return (False, f"Slippage {slippage} exceeds max {self._limits.max_slippage}")
+            return (
+                False,
+                f"Slippage {slippage} exceeds max {self._limits.max_slippage}",
+            )
 
         # Check daily loss
         if self._daily_pnl < -self._limits.max_daily_loss:
-            return (False, f"Daily loss {self._daily_pnl} exceeds max {self._limits.max_daily_loss}")
+            return (
+                False,
+                f"Daily loss {self._daily_pnl} exceeds max {self._limits.max_daily_loss}",
+            )
 
         # Check drawdown
         if self._peak_equity > 0:
             drawdown = self._peak_equity - self._current_equity
             if drawdown > self._limits.max_total_drawdown:
-                return (False, f"Drawdown {drawdown} exceeds max {self._limits.max_total_drawdown}")
+                return (
+                    False,
+                    f"Drawdown {drawdown} exceeds max {self._limits.max_total_drawdown}",
+                )
 
         # Check order frequency
         if self._order_count_hour >= self._limits.max_order_frequency:
-            return (False, f"Order frequency {self._order_count_hour} >= max {self._limits.max_order_frequency}")
+            return (
+                False,
+                f"Order frequency {self._order_count_hour} >= max {self._limits.max_order_frequency}",
+            )
 
         return (True, "Order allowed")
 

@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Any
 
 class EligibilityStatus(str, Enum):
     """Whether an alpha candidate is eligible for combination research."""
+
     ELIGIBLE = "eligible"
     EXCLUDED = "excluded"
     PENDING = "pending"
@@ -29,6 +30,7 @@ class EligibilityStatus(str, Enum):
 
 class ExclusionReason(str, Enum):
     """Why an alpha was excluded."""
+
     REJECTED = "rejected"
     INCONCLUSIVE = "inconclusive"
     NOT_REGISTERED = "not_registered"
@@ -55,6 +57,7 @@ class AlphaCandidate:
         eligibility_reason: Why included or excluded
         metadata: Free-form additional metadata
     """
+
     candidate_id: str
     hypothesis_id: str
     execution_record_id: str
@@ -104,10 +107,10 @@ class AlphaCandidate:
             reason = f"Evidence verdict '{verdict}' is eligible"
         elif verdict == "REJECTED":
             status = EligibilityStatus.EXCLUDED
-            reason = f"REJECTED by evidence gate"
+            reason = "REJECTED by evidence gate"
         elif verdict == "INCONCLUSIVE":
             status = EligibilityStatus.EXCLUDED
-            reason = f"INCONCLUSIVE — insufficient evidence"
+            reason = "INCONCLUSIVE — insufficient evidence"
         else:
             status = EligibilityStatus.EXCLUDED
             reason = f"Unknown verdict: {verdict}"

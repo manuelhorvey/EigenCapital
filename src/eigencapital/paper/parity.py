@@ -5,15 +5,14 @@ Every divergence must be classified and recorded. Never silently ignore divergen
 
 from __future__ import annotations
 
-import hashlib
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Any
 
 
 class DivergenceCategory(str, Enum):
     """Categories of research-vs-paper divergence."""
+
     SIGNAL = "signal_divergence"
     FEATURE = "feature_divergence"
     TIMESTAMP = "timestamp_divergence"
@@ -30,6 +29,7 @@ class DivergenceCategory(str, Enum):
 
 class DivergenceSeverity(str, Enum):
     """Severity of divergence."""
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -38,6 +38,7 @@ class DivergenceSeverity(str, Enum):
 @dataclass(frozen=True)
 class DivergenceRecord:
     """Record of a single divergence between research and paper execution."""
+
     divergence_id: str
     campaign_id: str
     timestamp: str
@@ -69,6 +70,7 @@ class DivergenceRecord:
 @dataclass(frozen=True)
 class ExecutionAttribution:
     """Quantitative attribution of execution drag."""
+
     expected_entry_price: float = 0.0
     actual_fill_price: float = 0.0
     spread_cost: float = 0.0
@@ -110,8 +112,12 @@ class ParityChecker:
         """Check signal parity."""
         if expected != observed:
             return self._record_divergence(
-                timestamp, instrument_id, DivergenceCategory.SIGNAL,
-                expected, observed, severity=DivergenceSeverity.WARNING,
+                timestamp,
+                instrument_id,
+                DivergenceCategory.SIGNAL,
+                expected,
+                observed,
+                severity=DivergenceSeverity.WARNING,
                 explanation="Signal mismatch between research and paper",
             )
         return None
@@ -127,10 +133,19 @@ class ParityChecker:
         """Check position parity."""
         diff = abs(expected_qty - observed_qty)
         if diff > tolerance:
-            severity = DivergenceSeverity.CRITICAL if diff > 1.0 else DivergenceSeverity.WARNING
+            severity = (
+                DivergenceSeverity.CRITICAL
+                if diff > 1.0
+                else DivergenceSeverity.WARNING
+            )
             return self._record_divergence(
-                timestamp, instrument_id, DivergenceCategory.POSITION,
-                expected_qty, observed_qty, magnitude=diff, severity=severity,
+                timestamp,
+                instrument_id,
+                DivergenceCategory.POSITION,
+                expected_qty,
+                observed_qty,
+                magnitude=diff,
+                severity=severity,
                 explanation=f"Position mismatch: expected={expected_qty}, observed={observed_qty}",
             )
         return None
@@ -147,8 +162,11 @@ class ParityChecker:
         """Check order parity."""
         if expected_side != observed_side or abs(expected_qty - observed_qty) > 1e-6:
             return self._record_divergence(
-                timestamp, instrument_id, DivergenceCategory.ORDER,
-                f"{expected_side} {expected_qty}", f"{observed_side} {observed_qty}",
+                timestamp,
+                instrument_id,
+                DivergenceCategory.ORDER,
+                f"{expected_side} {expected_qty}",
+                f"{observed_side} {observed_qty}",
                 severity=DivergenceSeverity.WARNING,
                 explanation="Order mismatch",
             )
@@ -166,8 +184,12 @@ class ParityChecker:
         slippage = abs(actual_price - expected_price)
         if slippage > max_slippage:
             return self._record_divergence(
-                timestamp, instrument_id, DivergenceCategory.FILL,
-                expected_price, actual_price, magnitude=slippage,
+                timestamp,
+                instrument_id,
+                DivergenceCategory.FILL,
+                expected_price,
+                actual_price,
+                magnitude=slippage,
                 severity=DivergenceSeverity.WARNING,
                 explanation=f"Slippage {slippage:.4f} exceeds threshold {max_slippage}",
             )

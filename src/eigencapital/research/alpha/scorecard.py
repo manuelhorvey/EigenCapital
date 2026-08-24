@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Any, Optional
 
 
 # Scorecard evaluation dimensions — using plain strings for clarity
@@ -37,6 +37,7 @@ BREADTH = "breadth"
 @dataclass(frozen=True)
 class DimensionScore:
     """Score for a single evaluation dimension."""
+
     dimension: str
     score: float  # 0.0 to 1.0
     passed: bool
@@ -60,12 +61,15 @@ class AlphaAdmissionScorecard:
     Integrates statistical, economic, robustness, cost, capacity,
     incremental, and diversification evidence.
     """
+
     hypothesis_id: str
     family: str
     dimension_scores: tuple  # tuple of DimensionScore
     overall_score: float  # weighted average
     admitted: bool
-    verdict: str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
+    verdict: (
+        str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
+    )
     restrictions: tuple = ()
     notes: str = ""
     evaluation_timestamp: str = ""
@@ -167,37 +171,76 @@ class ScorecardEvaluator:
 
         # Compute weighted overall score
         overall = sum(
-            ds.score * self._weights.get(ds.dimension, 0.0)
-            for ds in dimension_scores
+            ds.score * self._weights.get(ds.dimension, 0.0) for ds in dimension_scores
         )
 
         # Determine verdict
         passed_dims = [ds for ds in dimension_scores if ds.passed]
-        failed_critical = [ds for ds in dimension_scores
-                          if not ds.passed and ds.dimension in (
-                              STATISTICAL_EVIDENCE, COST_SURVIVAL, ROBUSTNESS)]
+        # Only statistical evidence failure is unconditionally REJECTED
+        # ROBUSTNESS/COST failures with good stats → FRAGILE
+        stats_failed = any(
+            ds.dimension == STATISTICAL_EVIDENCE and not ds.passed
+            for ds in dimension_scores
+        )
+        robustness_failed = any(
+            ds.dimension == ROBUSTNESS and not ds.passed for ds in dimension_scores
+        )
+        cost_failed = any(
+            ds.dimension == COST_SURVIVAL and not ds.passed for ds in dimension_scores
+        )
 
         restrictions = []
-        if not any(ds.dimension == COST_SURVIVAL and ds.passed for ds in dimension_scores):
+        if not any(
+            ds.dimension == COST_SURVIVAL and ds.passed for ds in dimension_scores
+        ):
             restrictions.append("Cost survival not demonstrated")
-        if not any(ds.dimension == INCREMENTAL_VALUE and ds.passed for ds in dimension_scores):
+        if not any(
+            ds.dimension == INCREMENTAL_VALUE and ds.passed for ds in dimension_scores
+        ):
             restrictions.append("Incremental portfolio value not demonstrated")
 
-        if failed_critical:
+        # Check correlation for redundancy detection
+        correlation_high = False
+        for ds in dimension_scores:
+            if ds.dimension == DIVERSIFICATION and "correlation=" in ds.details:
+                try:
+                    corr_val = float(ds.details.split("correlation=")[1].split(",")[0])
+                    correlation_high = corr_val >= 0.9
+                except (IndexError, ValueError):
+                    pass
+
+        # Determine verdict using richer classification
+        # Priority: statistical failure > inconclusive > capacity > redundant > fragile > ...
+        if stats_failed:
             verdict = "REJECTED"
             admitted = False
-        elif len(passed_dims) < 5:
+        elif len(passed_dims) < 4:
             verdict = "INCONCLUSIVE"
             admitted = False
-        elif overall >= 0.7 and incr_score.passed:
+        elif not capacity_score.passed:
+            verdict = "CAPACITY_LIMITED"
+            admitted = False
+        elif incr_score.passed and correlation_high:
+            verdict = "REDUNDANT"
+            admitted = False
+        elif robustness_failed or cost_failed:
+            verdict = "FRAGILE"
+            admitted = False
+        elif incr_score.passed and overall >= 0.7:
             verdict = "PRODUCTION_CANDIDATE"
             admitted = True
-        elif overall >= 0.5 and cost_score.passed:
+        elif incr_score.passed and overall >= 0.5:
+            verdict = "INCREMENTAL"
+            admitted = True
+        elif overall >= 0.5:
             verdict = "PORTFOLIO_USEFUL"
             admitted = True
         elif overall >= 0.3:
             verdict = "SUPPORTED"
             admitted = True
+        elif overall > 0.0:
+            verdict = "CONDITIONAL"
+            admitted = False
         else:
             verdict = "REJECTED"
             admitted = False
@@ -268,7 +311,10 @@ class ScorecardEvaluator:
         regime_stable = metrics.get("regime_stability", False)
         universe_perturbation = metrics.get("universe_perturbation_passed", False)
 
-        score = sum([walk_forward, parameter_stable, regime_stable, universe_perturbation]) / 4.0
+        score = (
+            sum([walk_forward, parameter_stable, regime_stable, universe_perturbation])
+            / 4.0
+        )
         passed = walk_forward and parameter_stable
         return DimensionScore(
             dimension=ROBUSTNESS,

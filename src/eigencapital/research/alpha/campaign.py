@@ -18,35 +18,63 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 
 
 class CampaignPhase(str, Enum):
     """Research campaign phase."""
+
     PLANNED = "planned"
-    CALIBRATION = "calibration"         # FACTOR-003 replication gate
-    SIMPLE_FACTORS = "simple_factors"   # Tier 1: cheap, broad, structurally useful
-    TREND_MOMENTUM = "trend_momentum"   # Tier 2: trend/momentum/breakout
-    MEAN_REVERSION = "mean_reversion"   # Tier 3: mean reversion (hostile)
-    STAT_ARB = "stat_arb"              # Tier 4: statistical arbitrage
-    VOLATILITY = "volatility"           # Volatility as conditioning layer
-    ALT_DATA = "alt_data"              # Alternative data (after timestamp discipline)
-    ML_GATE = "ml_gate"                # ML complexity ladder (last)
+    CALIBRATION = "calibration"  # FACTOR-003 replication gate
+    SIMPLE_FACTORS = "simple_factors"  # Tier 1: cheap, broad, structurally useful
+    TREND_MOMENTUM = "trend_momentum"  # Tier 2: trend/momentum/breakout
+    MEAN_REVERSION = "mean_reversion"  # Tier 3: mean reversion (hostile)
+    STAT_ARB = "stat_arb"  # Tier 4: statistical arbitrage
+    VOLATILITY = "volatility"  # Volatility as conditioning layer
+    ALT_DATA = "alt_data"  # Alternative data (after timestamp discipline)
+    ML_GATE = "ml_gate"  # ML complexity ladder (last)
     COMPLETED = "completed"
     FAILED = "failed"
 
 
 # Valid phase transitions
 _VALID_PHASE_TRANSITIONS: Dict[str, List[str]] = {
-    CampaignPhase.PLANNED.value: [CampaignPhase.CALIBRATION.value, CampaignPhase.FAILED.value],
-    CampaignPhase.CALIBRATION.value: [CampaignPhase.SIMPLE_FACTORS.value, CampaignPhase.FAILED.value],
-    CampaignPhase.SIMPLE_FACTORS.value: [CampaignPhase.TREND_MOMENTUM.value, CampaignPhase.FAILED.value],
-    CampaignPhase.TREND_MOMENTUM.value: [CampaignPhase.MEAN_REVERSION.value, CampaignPhase.FAILED.value],
-    CampaignPhase.MEAN_REVERSION.value: [CampaignPhase.STAT_ARB.value, CampaignPhase.FAILED.value],
-    CampaignPhase.STAT_ARB.value: [CampaignPhase.VOLATILITY.value, CampaignPhase.FAILED.value],
-    CampaignPhase.VOLATILITY.value: [CampaignPhase.ALT_DATA.value, CampaignPhase.FAILED.value],
-    CampaignPhase.ALT_DATA.value: [CampaignPhase.ML_GATE.value, CampaignPhase.FAILED.value],
-    CampaignPhase.ML_GATE.value: [CampaignPhase.COMPLETED.value, CampaignPhase.FAILED.value],
+    CampaignPhase.PLANNED.value: [
+        CampaignPhase.CALIBRATION.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.CALIBRATION.value: [
+        CampaignPhase.SIMPLE_FACTORS.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.SIMPLE_FACTORS.value: [
+        CampaignPhase.TREND_MOMENTUM.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.TREND_MOMENTUM.value: [
+        CampaignPhase.MEAN_REVERSION.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.MEAN_REVERSION.value: [
+        CampaignPhase.STAT_ARB.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.STAT_ARB.value: [
+        CampaignPhase.VOLATILITY.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.VOLATILITY.value: [
+        CampaignPhase.ALT_DATA.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.ALT_DATA.value: [
+        CampaignPhase.ML_GATE.value,
+        CampaignPhase.FAILED.value,
+    ],
+    CampaignPhase.ML_GATE.value: [
+        CampaignPhase.COMPLETED.value,
+        CampaignPhase.FAILED.value,
+    ],
     CampaignPhase.COMPLETED.value: [],
     CampaignPhase.FAILED.value: [],
 }
@@ -54,6 +82,7 @@ _VALID_PHASE_TRANSITIONS: Dict[str, List[str]] = {
 
 class HypothesisStatus(str, Enum):
     """Hypothesis lifecycle status."""
+
     UNVALIDATED = "unvalidated"
     REGISTERED = "registered"
     EXPERIMENTED = "experimented"
@@ -62,11 +91,19 @@ class HypothesisStatus(str, Enum):
     INCONCLUSIVE = "inconclusive"
     PORTFOLIO_USEFUL = "portfolio_useful"
     PRODUCTION_CANDIDATE = "production_candidate"
+    CONDITIONAL = "conditional"  # Works only under declared conditions
+    INCREMENTAL = "incremental"  # Adds value to existing portfolio
+    REDUNDANT = "redundant"  # Works individually but adds no portfolio value
+    FRAGILE = "fragile"  # Statistical edge fails robustness/cost/regime
+    CAPACITY_LIMITED = (
+        "capacity_limited"  # Edge exists but deployable capacity inadequate
+    )
 
 
 @dataclass(frozen=True)
 class HypothesisIdentity:
     """Immutable hypothesis identity — frozen at registration."""
+
     hypothesis_id: str
     family: str
     title: str
@@ -118,6 +155,7 @@ class HypothesisIdentity:
 @dataclass(frozen=True)
 class HypothesisTrial:
     """A single trial of a hypothesis experiment."""
+
     trial_id: str
     hypothesis_id: str
     trial_group_id: str
@@ -161,9 +199,12 @@ class HypothesisTrial:
 @dataclass(frozen=True)
 class HypothesisVerdict:
     """Final verdict on a hypothesis after all trials."""
+
     hypothesis_id: str
     family: str
-    status: str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
+    status: (
+        str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
+    )
     total_trials: int
     selected_trial_id: str = ""
     best_sharpe: float = 0.0
@@ -200,6 +241,7 @@ class HypothesisVerdict:
 @dataclass(frozen=True)
 class ResearchCampaign:
     """Immutable research campaign identity."""
+
     campaign_id: str
     production_fingerprint: str
     start_timestamp: str = ""
@@ -242,7 +284,9 @@ class ResearchCampaignRunner:
     def create_campaign(self, campaign: ResearchCampaign) -> ResearchCampaign:
         """Create a new research campaign."""
         self._campaigns[campaign.campaign_id] = campaign
-        self._record_event("CAMPAIGN_CREATED", campaign.campaign_id, campaign.current_phase)
+        self._record_event(
+            "CAMPAIGN_CREATED", campaign.campaign_id, campaign.current_phase
+        )
         return campaign
 
     def transition_phase(
@@ -259,7 +303,8 @@ class ResearchCampaignRunner:
 
         if not campaign.can_transition_to(new_phase):
             self._record_event(
-                "INVALID_TRANSITION", campaign_id,
+                "INVALID_TRANSITION",
+                campaign_id,
                 f"{campaign.current_phase} -> {new_phase} (INVALID)",
                 reason=reason,
             )
@@ -302,7 +347,9 @@ class ResearchCampaignRunner:
         )
         self._hypotheses[hypothesis.hypothesis_id] = registered
         self._trials[hypothesis.hypothesis_id] = []
-        self._record_event("HYPOTHESIS_REGISTERED", hypothesis.hypothesis_id, registered.family)
+        self._record_event(
+            "HYPOTHESIS_REGISTERED", hypothesis.hypothesis_id, registered.family
+        )
         return registered
 
     def record_trial(self, trial: HypothesisTrial) -> None:
@@ -311,7 +358,8 @@ class ResearchCampaignRunner:
         trials.append(trial)
         self._trials[trial.hypothesis_id] = trials
         self._record_event(
-            "TRIAL_RECORDED", trial.hypothesis_id,
+            "TRIAL_RECORDED",
+            trial.hypothesis_id,
             f"trial={trial.trial_id}, status={trial.result_status}",
         )
 
@@ -342,7 +390,9 @@ class ResearchCampaignRunner:
             )
             self._hypotheses[verdict.hypothesis_id] = updated
         self._record_event(
-            "VERDICT_RECORDED", verdict.hypothesis_id, verdict.status,
+            "VERDICT_RECORDED",
+            verdict.hypothesis_id,
+            verdict.status,
         )
 
     def cannot_modify_hypothesis(self, hypothesis_id: str) -> bool:
@@ -368,21 +418,35 @@ class ResearchCampaignRunner:
         return [v for v in self._verdicts.values() if v.family == family]
 
     def get_rejected_count(self) -> int:
-        return sum(1 for v in self._verdicts.values() if v.status == HypothesisStatus.REJECTED.value)
+        return sum(
+            1
+            for v in self._verdicts.values()
+            if v.status == HypothesisStatus.REJECTED.value
+        )
 
     def get_supported_count(self) -> int:
-        return sum(1 for v in self._verdicts.values()
-                   if v.status in (HypothesisStatus.SUPPORTED.value,
-                                   HypothesisStatus.PORTFOLIO_USEFUL.value,
-                                   HypothesisStatus.PRODUCTION_CANDIDATE.value))
+        return sum(
+            1
+            for v in self._verdicts.values()
+            if v.status
+            in (
+                HypothesisStatus.SUPPORTED.value,
+                HypothesisStatus.PORTFOLIO_USEFUL.value,
+                HypothesisStatus.PRODUCTION_CANDIDATE.value,
+            )
+        )
 
-    def _record_event(self, event_type: str, entity_id: str, status: str, reason: str = "") -> None:
-        self._events.append({
-            "event_type": event_type,
-            "entity_id": entity_id,
-            "status": status,
-            "reason": reason,
-        })
+    def _record_event(
+        self, event_type: str, entity_id: str, status: str, reason: str = ""
+    ) -> None:
+        self._events.append(
+            {
+                "event_type": event_type,
+                "entity_id": entity_id,
+                "status": status,
+                "reason": reason,
+            }
+        )
 
     def get_events(self) -> List[Dict[str, Any]]:
         return list(self._events)

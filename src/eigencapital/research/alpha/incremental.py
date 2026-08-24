@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Any
 
 
 @dataclass(frozen=True)
 class PortfolioBaseline:
     """Baseline portfolio metrics for incremental comparison."""
+
     portfolio_id: str
     sharpe: float
     sortino: float
@@ -46,6 +47,7 @@ class PortfolioBaseline:
 @dataclass(frozen=True)
 class IncrementalTestResult:
     """Result of an incremental alpha test."""
+
     hypothesis_id: str
     candidate_standalone_sharpe: float
     candidate_standalone_drawdown: float
@@ -125,25 +127,35 @@ class IncrementalAlphaTester:
         if baseline is None:
             baseline = PortfolioBaseline(
                 portfolio_id=portfolio_id,
-                sharpe=0.0, sortino=0.0, max_drawdown=0.0,
-                cagr=0.0, volatility=0.0, turnover=0.0, tail_risk=0.0,
+                sharpe=0.0,
+                sortino=0.0,
+                max_drawdown=0.0,
+                cagr=0.0,
+                volatility=0.0,
+                turnover=0.0,
+                tail_risk=0.0,
                 constituents=(),
             )
 
         sharpe_delta = portfolio_with_candidate.get("sharpe", 0.0) - baseline.sharpe
         sortino_delta = portfolio_with_candidate.get("sortino", 0.0) - baseline.sortino
-        drawdown_delta = portfolio_with_candidate.get("max_drawdown", 0.0) - baseline.max_drawdown
-        turnover_delta = portfolio_with_candidate.get("turnover", 0.0) - baseline.turnover
-        tail_risk_delta = portfolio_with_candidate.get("tail_risk", 0.0) - baseline.tail_risk
+        drawdown_delta = (
+            portfolio_with_candidate.get("max_drawdown", 0.0) - baseline.max_drawdown
+        )
+        turnover_delta = (
+            portfolio_with_candidate.get("turnover", 0.0) - baseline.turnover
+        )
+        tail_risk_delta = (
+            portfolio_with_candidate.get("tail_risk", 0.0) - baseline.tail_risk
+        )
 
         incremental_value = (
             sharpe_delta > 0.01  # at least 1% Sharpe improvement
             and drawdown_delta <= 0.05  # drawdown doesn't increase more than 5%
         )
 
-        diversification_value = (
-            correlation_with_existing < 0.7
-            and (sharpe_delta > 0 or drawdown_delta < -0.01)
+        diversification_value = correlation_with_existing < 0.7 and (
+            sharpe_delta > 0 or drawdown_delta < -0.01
         )
 
         # Recommendation

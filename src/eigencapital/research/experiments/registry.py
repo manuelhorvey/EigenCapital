@@ -54,6 +54,10 @@ class ExperimentRecord:
         cost_model_id: Cost model identifier
         cost_model_version: Cost model version
         random_seed: For stochastic reproducibility
+        parent_experiment_id: Lineage — experiment this one extends ("" if none)
+        trial_metadata: Multiple-testing accounting dict (see TrialMetadata):
+            trial_group_id, trial_index, hypothesis_family, selection_method,
+            trials_in_family, parameter_search_space
         train_start: Train period start (ISO-8601 UTC)
         train_end: Train period end
         validation_start: Validation period start
@@ -83,6 +87,8 @@ class ExperimentRecord:
     cost_model_id: str = "zero"
     cost_model_version: str = "v1"
     random_seed: Optional[int] = None
+    parent_experiment_id: str = ""
+    trial_metadata: Dict[str, Any] = field(default_factory=dict)
     train_start: str = ""
     train_end: str = ""
     validation_start: str = ""

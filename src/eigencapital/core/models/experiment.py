@@ -10,9 +10,13 @@ Invariants:
 - parameters is the strategy config at experiment start
 - cost_model is the transaction cost model version
 - random_seed is set for stochastic strategies
-- train/validation/test splits are non-overlapping, test is untouched
-- horizon matches strategy horizon (intraday/swing)
-- Once test_split is defined, parameters and strategy code are frozen
+ - train/validation/test splits are non-overlapping, test is untouched
+ - horizon matches strategy horizon (intraday/swing)
+ - Once test_split is defined, parameters and strategy code are frozen
+ - parent_experiment_id records lineage when an experiment extends another
+ - trial_metadata records multiple-testing accounting (trial family, index,
+   selection method); required before any CANDIDATE promotion per
+   RESEARCH_ENGINE_CONTRACT.md
 """
 
 from __future__ import annotations
@@ -20,6 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from datetime import date
+
+from eigencapital.core.models.trial_metadata import TrialMetadata
 
 
 class ExperimentStatus(str):
@@ -85,6 +91,8 @@ class Experiment:
     horizon: str = "swing"  # intraday or swing
     status: str = ExperimentStatus.PRE_REGISTERED  # lifecycle status
     created_at: Optional[str] = None  # ISO-8601 when experiment was created
+    parent_experiment_id: Optional[str] = None  # lineage: experiment this one extends
+    trial_metadata: Optional[TrialMetadata] = None  # multiple-testing accounting
     meta: Dict[str, Any] = field(default_factory=dict)  # free-form notes, tags
 
     # Class-level registry
@@ -222,6 +230,16 @@ class Experiment:
         if not isinstance(self.meta, dict):
             raise ValueError("meta must be a dict")
 
+        # Validate parent_experiment_id if set
+        if self.parent_experiment_id is not None and not self.parent_experiment_id:
+            raise ValueError("parent_experiment_id must be non-empty if set")
+
+        # Validate trial_metadata type
+        if self.trial_metadata is not None and not isinstance(
+            self.trial_metadata, TrialMetadata
+        ):
+            raise ValueError("trial_metadata must be a TrialMetadata instance or None")
+
         # Registry check for duplicate experiment_ids
         if self.experiment_id in self._registry:
             raise ValueError(
@@ -257,6 +275,10 @@ class Experiment:
             "horizon": self.horizon,
             "status": self.status,
             "created_at": self.created_at,
+            "parent_experiment_id": self.parent_experiment_id,
+            "trial_metadata": (
+                self.trial_metadata.to_dict() if self.trial_metadata else None
+            ),
             "meta": dict(self.meta),
         }
 
@@ -286,6 +308,12 @@ class Experiment:
             horizon=str(d.get("horizon", "swing")),
             status=str(d.get("status", ExperimentStatus.PRE_REGISTERED)),
             created_at=d.get("created_at"),
+            parent_experiment_id=d.get("parent_experiment_id"),
+            trial_metadata=(
+                TrialMetadata.from_dict(d["trial_metadata"])
+                if d.get("trial_metadata")
+                else None
+            ),
             meta=d.get("meta", {}),
         )
 
@@ -321,8 +349,23 @@ class Experiment:
             return (self.train_split, self.validation_split, self.test_split)
         return None
 
+    @property
+    def has_trial_metadata(self) -> bool:
+        """Check whether multiple-testing accounting is attached."""
+        return self.trial_metadata is not None
+
+    @property
+    def trial_family_size(self) -> Optional[int]:
+        """Known size of the trial family (None while the search is open)."""
+        return self.trial_metadata.trials_in_family if self.trial_metadata else None
+
     def summary(self) -> str:
         """Human-readable summary."""
+        trial_line = ""
+        if self.trial_metadata:
+            trial_line = f"\n  trials={self.trial_metadata.summary()}"
+            if self.parent_experiment_id:
+                trial_line += f"\n  parent={self.parent_experiment_id}"
         return (
             f"Experiment[{self.experiment_id}]:\n"
             f"  status={self.status}\n"
@@ -333,7 +376,7 @@ class Experiment:
             f"  train={self.train_split}\n"
             f"  val={self.validation_split}\n"
             f"  test={self.test_split}\n"
-            f"  seed={self.random_seed}"
+            f"  seed={self.random_seed}{trial_line}"
         )
 
 

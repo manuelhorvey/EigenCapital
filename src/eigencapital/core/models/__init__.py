@@ -22,6 +22,7 @@ from .order_plan import OrderPlan, Urgency
 from .order_lifecycle import OrderLifecycle
 from .decision_snapshot import DecisionSnapshot
 from .experiment import Experiment, ExperimentStatus
+from .trial_metadata import TrialMetadata
 from .errors import (
     EigenCapitalError,
     InvariantViolation,
@@ -59,6 +60,7 @@ __all__ = [
     # Research
     "Experiment",
     "ExperimentStatus",
+    "TrialMetadata",
     # Errors
     "EigenCapitalError",
     "InvariantViolation",

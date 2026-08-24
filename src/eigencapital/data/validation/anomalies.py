@@ -58,9 +58,7 @@ def validate_anomalies(bar: Bar) -> AnomalyCheckResult:
 
     # Check for flatlined price (all OHLC equal)
     if bar.open == bar.high == bar.low == bar.close:
-        messages.append(
-            f"Flatlined price: O=H=L=C={bar.open}"
-        )
+        messages.append(f"Flatlined price: O=H=L=C={bar.open}")
 
     # Check for extreme price jump (> 20% from open to close)
     if bar.open > 0:

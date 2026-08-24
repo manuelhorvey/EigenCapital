@@ -8,6 +8,10 @@ Modules:
     validation/ — walk-forward, bootstrap, permutation, sensitivity, etc.
 """
 
-from eigencapital.analytics.metrics import PerformanceMetrics, compute_metrics, compute_returns
+from eigencapital.analytics.metrics import (
+    PerformanceMetrics,
+    compute_metrics,
+    compute_returns,
+)
 
 __all__ = ["PerformanceMetrics", "compute_metrics", "compute_returns"]

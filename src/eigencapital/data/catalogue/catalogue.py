@@ -13,7 +13,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Iterator
+from typing import Dict, List, Iterator
 
 from eigencapital.core.models.instrument import Instrument
 
@@ -30,7 +30,9 @@ class DuplicateInstrumentError(ValueError):
     """Raised when attempting to register an instrument that already exists."""
 
     def __init__(self, instrument_id: str) -> None:
-        super().__init__(f"Instrument '{instrument_id}' already registered in catalogue")
+        super().__init__(
+            f"Instrument '{instrument_id}' already registered in catalogue"
+        )
         self.instrument_id = instrument_id
 
 

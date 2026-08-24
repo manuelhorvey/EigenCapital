@@ -13,9 +13,8 @@ Usage:
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+from typing import List, Dict, Any
 
 
 @dataclass(frozen=True)
@@ -31,6 +30,7 @@ class PBOResult:
         total_partitions: Total partitions evaluated
         message: Explanation of result
     """
+
     pbo: float = 0.0
     n_candidates: int = 0
     n_partitions: int = 0
@@ -108,7 +108,9 @@ def compute_pbo(
         test_oos = [(i, oos_sharpes[i]) for i in test]
         test_oos.sort(key=lambda x: x[1], reverse=True)
 
-        if test_oos and best_is_idx not in [i for i, _ in test_oos[:max(1, len(test_oos) // 4)]]:
+        if test_oos and best_is_idx not in [
+            i for i, _ in test_oos[: max(1, len(test_oos) // 4)]
+        ]:
             overfit_count += 1
 
     pbo = overfit_count / total_partitions if total_partitions > 0 else 0.0

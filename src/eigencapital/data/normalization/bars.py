@@ -56,19 +56,21 @@ class BarNormalizer(BaseNormalizer):
     dataset_version: str = "v1"
 
     # Default field mapping from common CSV column names
-    DEFAULT_FIELD_MAP: Dict[str, str] = field(default_factory=lambda: {
-        "open": "open",
-        "high": "high",
-        "low": "low",
-        "close": "close",
-        "volume": "volume",
-        "vwap": "vwap",
-        "date": "timestamp",
-        "datetime": "timestamp",
-        "time": "timestamp",
-        "Date": "timestamp",
-        "DateTime": "timestamp",
-    })
+    DEFAULT_FIELD_MAP: Dict[str, str] = field(
+        default_factory=lambda: {
+            "open": "open",
+            "high": "high",
+            "low": "low",
+            "close": "close",
+            "volume": "volume",
+            "vwap": "vwap",
+            "date": "timestamp",
+            "datetime": "timestamp",
+            "time": "timestamp",
+            "Date": "timestamp",
+            "DateTime": "timestamp",
+        }
+    )
 
     def normalize(self, records: List[RawRecord]) -> List[Bar]:
         """Normalize raw records into Bar instances.
@@ -125,7 +127,9 @@ class BarNormalizer(BaseNormalizer):
             data_version=self.dataset_version,
         )
 
-    def _parse_float(self, data: Dict[str, Any], field_name: str, record: RawRecord) -> float:
+    def _parse_float(
+        self, data: Dict[str, Any], field_name: str, record: RawRecord
+    ) -> float:
         """Parse a float value from raw data."""
         value = data.get(field_name)
         if value is None or value == "":
@@ -142,7 +146,11 @@ class BarNormalizer(BaseNormalizer):
             ) from e
 
     def _parse_int(
-        self, data: Dict[str, Any], field_name: str, record: RawRecord, required: bool = True
+        self,
+        data: Dict[str, Any],
+        field_name: str,
+        record: RawRecord,
+        required: bool = True,
     ) -> Optional[int]:
         """Parse an int value from raw data."""
         value = data.get(field_name)
@@ -177,7 +185,11 @@ class BarNormalizer(BaseNormalizer):
         # Normalize space separator to T
         normalized = raw_ts.replace(" ", "T")
         # Ensure Z suffix (assume UTC if no timezone info)
-        if not normalized.endswith("Z") and "+" not in normalized and normalized.count("-") <= 2:
+        if (
+            not normalized.endswith("Z")
+            and "+" not in normalized
+            and normalized.count("-") <= 2
+        ):
             normalized = normalized + "Z"
         return normalized
 
@@ -188,6 +200,7 @@ class BarNormalizer(BaseNormalizer):
         Falls back to subtracting 1 minute if parsing fails.
         """
         from datetime import datetime, timedelta
+
         try:
             # Parse the end timestamp
             ts = bar_end_utc.replace("Z", "+00:00")

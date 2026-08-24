@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 
 
 @dataclass(frozen=True)
@@ -39,6 +39,7 @@ class WalkForwardWindow:
         in_sample_return: Total return from training period
         out_of_sample_return: Total return from test period
     """
+
     window_id: int
     train_start: int
     train_end: int
@@ -66,6 +67,7 @@ class WalkForwardResult:
         oos_return_mean: Mean OOS return
         oos_return_std: Std of OOS returns
     """
+
     windows: List[WalkForwardWindow] = field(default_factory=list)
     mean_oos_sharpe: float = 0.0
     std_oos_sharpe: float = 0.0
@@ -192,20 +194,26 @@ def purged_walk_forward(
         # Compute metrics
         is_sharpe = _compute_sharpe(train_returns)
         oos_sharpe = _compute_sharpe(test_returns)
-        is_return = (train_equity[-1] / train_equity[0] - 1) if train_equity[0] > 0 else 0.0
-        oos_return = (test_equity[-1] / test_equity[0] - 1) if test_equity[0] > 0 else 0.0
+        is_return = (
+            (train_equity[-1] / train_equity[0] - 1) if train_equity[0] > 0 else 0.0
+        )
+        oos_return = (
+            (test_equity[-1] / test_equity[0] - 1) if test_equity[0] > 0 else 0.0
+        )
 
-        windows.append(WalkForwardWindow(
-            window_id=window_id,
-            train_start=train_start,
-            train_end=train_end,
-            test_start=test_start,
-            test_end=test_end,
-            in_sample_sharpe=is_sharpe,
-            out_of_sample_sharpe=oos_sharpe,
-            in_sample_return=is_return,
-            out_of_sample_return=oos_return,
-        ))
+        windows.append(
+            WalkForwardWindow(
+                window_id=window_id,
+                train_start=train_start,
+                train_end=train_end,
+                test_start=test_start,
+                test_end=test_end,
+                in_sample_sharpe=is_sharpe,
+                out_of_sample_sharpe=oos_sharpe,
+                in_sample_return=is_return,
+                out_of_sample_return=oos_return,
+            )
+        )
 
         window_id += 1
         start += test_bars  # Slide forward
@@ -223,7 +231,7 @@ def purged_walk_forward(
     std_oos = math.sqrt(var_oos)
 
     mean_is = sum(is_sharpes) / len(is_sharpes) if is_sharpes else 0.0
-    degradation = mean_is / mean_oos if mean_oos != 0 else float('inf')
+    degradation = mean_is / mean_oos if mean_oos != 0 else float("inf")
 
     profitable = sum(1 for r in oos_returns if r > 0)
     pct_profitable = (profitable / len(windows)) * 100

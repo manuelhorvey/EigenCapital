@@ -44,6 +44,7 @@ class BootstrapResult:
         pct_positive_sharpe: % of bootstrap samples with positive Sharpe
         confidence_level: Confidence level used
     """
+
     n_bootstrap: int = 0
     sharpe_mean: float = 0.0
     sharpe_std: float = 0.0
@@ -85,6 +86,7 @@ class PermutationResult:
         significant_at_5pct: Is result significant at 5%?
         significant_at_1pct: Is result significant at 1%?
     """
+
     n_permutations: int = 0
     observed_sharpe: float = 0.0
     p_value: float = 1.0
@@ -121,7 +123,7 @@ def _compute_total_return(returns: List[float]) -> float:
     """Compute total cumulative return."""
     cumulative = 1.0
     for r in returns:
-        cumulative *= (1 + r)
+        cumulative *= 1 + r
     return cumulative - 1.0
 
 

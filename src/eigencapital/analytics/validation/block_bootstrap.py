@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+from typing import List, Dict, Any
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,7 @@ class BlockBootstrapResult:
         method: Bootstrap method used
         seed: Random seed
     """
+
     n_bootstrap: int = 0
     block_size: int = 1
     sharpe_mean: float = 0.0
@@ -76,7 +77,7 @@ def _extract_blocks(returns: List[float], block_size: int) -> List[List[float]]:
     """Extract non-overlapping blocks from returns."""
     blocks = []
     for i in range(0, len(returns) - block_size + 1, block_size):
-        blocks.append(returns[i:i + block_size])
+        blocks.append(returns[i : i + block_size])
     # Handle remaining data
     remaining = len(returns) % block_size
     if remaining > 0:

@@ -12,9 +12,8 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List
 
 from eigencapital.core.models.instrument import Instrument
 from eigencapital.data.catalogue.catalogue import (
@@ -68,9 +67,7 @@ class CatalogueRepository:
 
     def list_ids(self) -> List[str]:
         """List all instrument IDs that have files on disk."""
-        return sorted(
-            p.stem for p in self.base_path.glob("*.json")
-        )
+        return sorted(p.stem for p in self.base_path.glob("*.json"))
 
     def load_all(self) -> InstrumentCatalogue:
         """Load all instruments from disk into a catalogue."""

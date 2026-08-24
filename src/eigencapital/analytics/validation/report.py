@@ -10,7 +10,6 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Optional
 
 from eigencapital.analytics.validation.validator import ValidationResult
 from eigencapital.analytics.validation.evidence_gate import EvidenceVerdict
@@ -46,8 +45,8 @@ def generate_report(result: ValidationResult) -> str:
     lines.append("")
     if result.baseline_metrics:
         m = result.baseline_metrics
-        lines.append(f"| Metric | Value |")
-        lines.append(f"|--------|-------|")
+        lines.append("| Metric | Value |")
+        lines.append("|--------|-------|")
         lines.append(f"| Total Return | {m.total_return:.4%} |")
         lines.append(f"| CAGR | {m.cagr:.4%} |")
         lines.append(f"| Annualized Volatility | {m.annualized_volatility:.4%} |")
@@ -67,7 +66,9 @@ def generate_report(result: ValidationResult) -> str:
         wf = result.walk_forward
         lines.append(f"- **Windows:** {wf.total_windows}")
         lines.append(f"- **Mean OOS Sharpe:** {wf.mean_oos_sharpe:.4f}")
-        lines.append(f"- **OOS Sharpe Range:** [{wf.min_oos_sharpe:.4f}, {wf.max_oos_sharpe:.4f}]")
+        lines.append(
+            f"- **OOS Sharpe Range:** [{wf.min_oos_sharpe:.4f}, {wf.max_oos_sharpe:.4f}]"
+        )
         lines.append(f"- **Degradation Ratio:** {wf.degradation_ratio:.2f}x")
         lines.append(f"- **Profitable Windows:** {wf.pct_profitable_windows:.1f}%")
     else:
@@ -79,14 +80,18 @@ def generate_report(result: ValidationResult) -> str:
     lines.append("")
     if result.bootstrap_iid and result.bootstrap_iid.n_bootstrap > 0:
         b = result.bootstrap_iid
-        lines.append(f"- **Method:** IID")
+        lines.append("- **Method:** IID")
         lines.append(f"- **Iterations:** {b.n_bootstrap}")
-        lines.append(f"- **Sharpe CI:** [{b.sharpe_ci_lower:.4f}, {b.sharpe_ci_upper:.4f}]")
+        lines.append(
+            f"- **Sharpe CI:** [{b.sharpe_ci_lower:.4f}, {b.sharpe_ci_upper:.4f}]"
+        )
         lines.append(f"- **% Positive Sharpe:** {b.pct_positive_sharpe:.1f}%")
     if result.bootstrap_block and result.bootstrap_block.n_bootstrap > 0:
         bb = result.bootstrap_block
         lines.append(f"- **Method:** Block (size={bb.block_size})")
-        lines.append(f"- **Sharpe CI:** [{bb.sharpe_ci_lower:.4f}, {bb.sharpe_ci_upper:.4f}]")
+        lines.append(
+            f"- **Sharpe CI:** [{bb.sharpe_ci_lower:.4f}, {bb.sharpe_ci_upper:.4f}]"
+        )
     if not result.bootstrap_iid and not result.bootstrap_block:
         lines.append("*Bootstrap analysis unavailable.*")
     lines.append("")
@@ -98,8 +103,12 @@ def generate_report(result: ValidationResult) -> str:
         p = result.permutation
         lines.append(f"- **Observed Sharpe:** {p.observed_sharpe:.4f}")
         lines.append(f"- **p-value:** {p.p_value:.4f}")
-        lines.append(f"- **Significant at 5%:** {'Yes' if p.significant_at_5pct else 'No'}")
-        lines.append(f"- **Significant at 1%:** {'Yes' if p.significant_at_1pct else 'No'}")
+        lines.append(
+            f"- **Significant at 5%:** {'Yes' if p.significant_at_5pct else 'No'}"
+        )
+        lines.append(
+            f"- **Significant at 1%:** {'Yes' if p.significant_at_1pct else 'No'}"
+        )
     else:
         lines.append("*Permutation test unavailable.*")
     lines.append("")
@@ -109,14 +118,18 @@ def generate_report(result: ValidationResult) -> str:
     lines.append("")
     if result.cost_stress and result.cost_stress.levels:
         cs = result.cost_stress
-        lines.append(f"- **Survives 1.5x costs:** {'Yes' if cs.survives_1_5x else 'No'}")
+        lines.append(
+            f"- **Survives 1.5x costs:** {'Yes' if cs.survives_1_5x else 'No'}"
+        )
         lines.append(f"- **Survives 2x costs:** {'Yes' if cs.survives_2x else 'No'}")
         lines.append(f"- **Breakeven multiplier:** {cs.breakeven_multiplier:.2f}x")
         lines.append("")
         lines.append("| Multiplier | Sharpe | Profitable |")
         lines.append("|-----------|--------|-----------|")
         for level in cs.levels:
-            lines.append(f"| {level.multiplier:.1f}x | {level.sharpe:.4f} | {'Yes' if level.is_profitable else 'No'} |")
+            lines.append(
+                f"| {level.multiplier:.1f}x | {level.sharpe:.4f} | {'Yes' if level.is_profitable else 'No'} |"
+            )
     else:
         lines.append("*Cost stress analysis unavailable.*")
     lines.append("")
@@ -134,7 +147,9 @@ def generate_report(result: ValidationResult) -> str:
         lines.append("| Regime | Sharpe | Total Return | Max DD | Win Rate |")
         lines.append("|--------|--------|-------------|--------|----------|")
         for regime in r.regimes:
-            lines.append(f"| {regime.regime} | {regime.sharpe:.4f} | {regime.total_return:.4%} | {regime.max_drawdown:.4%} | {regime.win_rate:.1f}% |")
+            lines.append(
+                f"| {regime.regime} | {regime.sharpe:.4f} | {regime.total_return:.4%} | {regime.max_drawdown:.4%} | {regime.win_rate:.1f}% |"
+            )
     else:
         lines.append("*Regime analysis unavailable.*")
     lines.append("")
@@ -144,12 +159,16 @@ def generate_report(result: ValidationResult) -> str:
     lines.append("")
     if result.universe:
         u = result.universe
-        lines.append(f"- **Single instrument dependency:** {'Yes' if u.single_instrument_dependency else 'No'}")
+        lines.append(
+            f"- **Single instrument dependency:** {'Yes' if u.single_instrument_dependency else 'No'}"
+        )
         lines.append(f"- **Robustness score:** {u.robustness_score:.1f}%")
         conc = u.concentration
         lines.append(f"- **HHI:** {conc.herfindahl_index:.4f}")
         lines.append(f"- **Most concentrated:** {conc.most_concentrated_instrument}")
-        lines.append(f"- **Concentration warning:** {'Yes' if conc.concentration_warning else 'No'}")
+        lines.append(
+            f"- **Concentration warning:** {'Yes' if conc.concentration_warning else 'No'}"
+        )
     else:
         lines.append("*Universe perturbation analysis unavailable.*")
     lines.append("")
@@ -165,7 +184,9 @@ def generate_report(result: ValidationResult) -> str:
         lines.append(f"- **Min Sharpe:** {t.min_sharpe:.4f}")
         lines.append(f"- **Max Sharpe:** {t.max_sharpe:.4f}")
         lines.append(f"- **% Positive Sharpe:** {t.pct_positive_sharpe:.1f}%")
-        lines.append(f"- **Performance decay:** {'Yes' if t.performance_decay else 'No'}")
+        lines.append(
+            f"- **Performance decay:** {'Yes' if t.performance_decay else 'No'}"
+        )
     else:
         lines.append("*Temporal stability analysis unavailable or insufficient data.*")
     lines.append("")
@@ -191,7 +212,7 @@ def generate_report(result: ValidationResult) -> str:
             lines.append(f"- **PBO:** {pbo.pbo:.4f}")
             lines.append(f"- **Candidates:** {pbo.n_candidates}")
         else:
-            lines.append(f"- **Status:** INSUFFICIENT_EXPERIMENTS")
+            lines.append("- **Status:** INSUFFICIENT_EXPERIMENTS")
             lines.append(f"- **Message:** {pbo.message}")
     else:
         lines.append("*PBO analysis not performed.*")
@@ -216,14 +237,20 @@ def generate_report(result: ValidationResult) -> str:
     for check in result.evidence_checks:
         passed = "✅" if check["passed"] else ("❓" if check.get("missing") else "❌")
         missing = "YES" if check.get("missing") else ""
-        lines.append(f"| {check['check_id']} | {passed} | {missing} | {check['severity']} | {check['message'][:80]} |")
+        lines.append(
+            f"| {check['check_id']} | {passed} | {missing} | {check['severity']} | {check['message'][:80]} |"
+        )
     lines.append("")
 
     # ── 13. Limitations ─────────────────────────────────────────────
     lines.append("## 13. Limitations")
     lines.append("")
-    lines.append("- This validation evaluates statistical properties of the equity curve.")
-    lines.append("- It does not evaluate real-world execution quality, liquidity, or market impact.")
+    lines.append(
+        "- This validation evaluates statistical properties of the equity curve."
+    )
+    lines.append(
+        "- It does not evaluate real-world execution quality, liquidity, or market impact."
+    )
     lines.append("- Missing evidence components result in INCONCLUSIVE, not PASS.")
     lines.append("- Statistical significance does not imply economic significance.")
     lines.append("")
@@ -236,10 +263,14 @@ def generate_report(result: ValidationResult) -> str:
     elif result.verdict == EvidenceVerdict.INCONCLUSIVE:
         lines.append("**INCONCLUSIVE.** Gather missing evidence before proceeding.")
     elif result.verdict == EvidenceVerdict.CANDIDATE:
-        lines.append("**CANDIDATE.** Evidence is promising but not yet strong enough for validation.")
+        lines.append(
+            "**CANDIDATE.** Evidence is promising but not yet strong enough for validation."
+        )
         lines.append("Recommend Phase 1H robustness and adversarial simulation.")
     elif result.verdict == EvidenceVerdict.VALIDATED:
-        lines.append("**VALIDATED.** Evidence is strong. Proceed with caution to Phase 1H.")
+        lines.append(
+            "**VALIDATED.** Evidence is strong. Proceed with caution to Phase 1H."
+        )
     lines.append("")
 
     return "\n".join(lines)

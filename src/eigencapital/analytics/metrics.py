@@ -11,8 +11,8 @@ Usage:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
 
 
 @dataclass(frozen=True)
@@ -163,7 +163,9 @@ def compute_metrics(
     # ── Return metrics ──────────────────────────────────────────────
     total_return = (equity_curve[-1] / equity_curve[0]) - 1.0
     years = n / annualization_factor
-    cagr = (equity_curve[-1] / equity_curve[0]) ** (1 / years) - 1.0 if years > 0 else 0.0
+    cagr = (
+        (equity_curve[-1] / equity_curve[0]) ** (1 / years) - 1.0 if years > 0 else 0.0
+    )
 
     mean_ret = sum(returns) / n
     variance = sum((r - mean_ret) ** 2 for r in returns) / (n - 1) if n > 1 else 0.0
@@ -205,13 +207,23 @@ def compute_metrics(
 
     # Sharpe ratio
     if std > 1e-15:
-        sharpe = (mean_ret - risk_free_rate / annualization_factor) / std * math.sqrt(annualization_factor)
+        sharpe = (
+            (mean_ret - risk_free_rate / annualization_factor)
+            / std
+            * math.sqrt(annualization_factor)
+        )
     else:
-        sharpe = math.copysign(100.0, mean_ret - risk_free_rate / annualization_factor) if abs(mean_ret - risk_free_rate / annualization_factor) > 1e-15 else 0.0
+        sharpe = (
+            math.copysign(100.0, mean_ret - risk_free_rate / annualization_factor)
+            if abs(mean_ret - risk_free_rate / annualization_factor) > 1e-15
+            else 0.0
+        )
 
     # Sortino ratio
     if downside_dev > 1e-15:
-        sortino = (annualized_ret - risk_free_rate) / (downside_dev * math.sqrt(annualization_factor))
+        sortino = (annualized_ret - risk_free_rate) / (
+            downside_dev * math.sqrt(annualization_factor)
+        )
     else:
         sortino = 0.0
 
@@ -239,11 +251,11 @@ def compute_metrics(
         hit_rate = len(wins) / len(trades) if trades else 0.0
         avg_win = sum(wins) / len(wins) if wins else 0.0
         avg_loss = sum(losses) / len(losses) if losses else 0.0
-        win_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else float('inf')
+        win_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else float("inf")
 
         gross_profit = sum(wins)
         gross_loss = abs(sum(losses))
-        profit_factor = gross_profit / gross_loss if gross_loss > 0 else float('inf')
+        profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf")
 
         expectancy = sum(trades) / len(trades)
 
@@ -282,11 +294,11 @@ def compute_metrics(
     if n >= 3:
         # Skewness
         m3 = sum((r - mean_ret) ** 3 for r in returns) / n
-        skew = m3 / (std ** 3) if std > 1e-15 else 0.0
+        skew = m3 / (std**3) if std > 1e-15 else 0.0
 
         # Kurtosis (excess)
         m4 = sum((r - mean_ret) ** 4 for r in returns) / n
-        kurtosis = (m4 / (std ** 4)) - 3.0 if std > 1e-15 else 0.0
+        kurtosis = (m4 / (std**4)) - 3.0 if std > 1e-15 else 0.0
 
     if n >= 20:
         sorted_returns = sorted(returns)

@@ -13,7 +13,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,7 @@ class MultipleTestingResult:
         alpha: Significance level
         family_definition: Description of the testing family
     """
+
     method: str = ""
     raw_p_values: List[float] = field(default_factory=list)
     adjusted_p_values: List[float] = field(default_factory=list)

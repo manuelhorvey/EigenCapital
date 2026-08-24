@@ -15,7 +15,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
@@ -52,20 +52,20 @@ def validate_ohlc(bar: Bar) -> OHLCCheckResult:
     # Check high >= max(open, close)
     max_oc = max(bar.open, bar.close)
     if bar.high < max_oc:
-        messages.append(
-            f"HIGH ({bar.high}) < max(OPEN, CLOSE) ({max_oc})"
-        )
+        messages.append(f"HIGH ({bar.high}) < max(OPEN, CLOSE) ({max_oc})")
 
     # Check low <= min(open, close)
     min_oc = min(bar.open, bar.close)
     if bar.low > min_oc:
-        messages.append(
-            f"LOW ({bar.low}) > min(OPEN, CLOSE) ({min_oc})"
-        )
+        messages.append(f"LOW ({bar.low}) > min(OPEN, CLOSE) ({min_oc})")
 
     # Check prices positive
-    for field_name, price in [("OPEN", bar.open), ("HIGH", bar.high),
-                               ("LOW", bar.low), ("CLOSE", bar.close)]:
+    for field_name, price in [
+        ("OPEN", bar.open),
+        ("HIGH", bar.high),
+        ("LOW", bar.low),
+        ("CLOSE", bar.close),
+    ]:
         if price <= 0:
             messages.append(f"{field_name} ({price}) must be > 0")
 

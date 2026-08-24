@@ -15,7 +15,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
@@ -48,15 +48,11 @@ def validate_temporal(bar: Bar, bar_index: int = 0) -> TemporalCheckResult:
 
     # Check ISO-8601 format
     if "T" not in bar.timestamp_utc:
-        messages.append(
-            f"Timestamp not ISO-8601: {bar.timestamp_utc}"
-        )
+        messages.append(f"Timestamp not ISO-8601: {bar.timestamp_utc}")
 
     # Check UTC suffix
     if not bar.timestamp_utc.endswith("Z"):
-        messages.append(
-            f"Timestamp not UTC (missing Z suffix): {bar.timestamp_utc}"
-        )
+        messages.append(f"Timestamp not UTC (missing Z suffix): {bar.timestamp_utc}")
 
     # Check bar_start < bar_end
     if bar.bar_start_utc >= bar.bar_end_utc:

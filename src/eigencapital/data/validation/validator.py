@@ -18,7 +18,10 @@ from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
 from eigencapital.data.validation.ohlc import validate_ohlc, OHLCCheckResult
 from eigencapital.data.validation.temporal import validate_temporal, TemporalCheckResult
-from eigencapital.data.validation.anomalies import validate_anomalies, AnomalyCheckResult
+from eigencapital.data.validation.anomalies import (
+    validate_anomalies,
+    AnomalyCheckResult,
+)
 
 
 @dataclass(frozen=True)
@@ -150,7 +153,10 @@ class DataValidator:
         temporal_result = None
         if self.enable_temporal:
             temporal_result = validate_temporal(bar, index)
-            if temporal_result is not None and temporal_result.status != DataQualityStatus.VALID:
+            if (
+                temporal_result is not None
+                and temporal_result.status != DataQualityStatus.VALID
+            ):
                 messages.extend(temporal_result.messages)
                 worst_status = self._worst_status(worst_status, temporal_result.status)
 
@@ -158,7 +164,10 @@ class DataValidator:
         anomaly_result = None
         if self.enable_anomalies:
             anomaly_result = validate_anomalies(bar)
-            if anomaly_result is not None and anomaly_result.status != DataQualityStatus.VALID:
+            if (
+                anomaly_result is not None
+                and anomaly_result.status != DataQualityStatus.VALID
+            ):
                 messages.extend(anomaly_result.messages)
                 worst_status = self._worst_status(worst_status, anomaly_result.status)
 

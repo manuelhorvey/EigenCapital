@@ -30,6 +30,7 @@ class RollingMetrics:
         mean_return: Mean period return
         win_rate: % of positive-return periods
     """
+
     start_idx: int = 0
     end_idx: int = 0
     sharpe: float = 0.0
@@ -64,6 +65,7 @@ class TemporalStabilityResult:
         window_count: Number of rolling windows
         performance_decay: True if Sharpe trend is significantly negative
     """
+
     rolling_metrics: List[RollingMetrics] = field(default_factory=list)
     sharpe_trend: float = 0.0
     sharpe_stability: float = 0.0
@@ -107,7 +109,7 @@ def _compute_max_drawdown(returns: List[float]) -> float:
     peak = 1.0
     max_dd = 0.0
     for r in returns:
-        equity *= (1 + r)
+        equity *= 1 + r
         if equity > peak:
             peak = equity
         dd = (peak - equity) / peak if peak > 0 else 0.0
@@ -143,24 +145,28 @@ def temporal_stability(
     start = 0
 
     while start + window_size <= len(returns):
-        window_returns = returns[start:start + window_size]
+        window_returns = returns[start : start + window_size]
 
         sharpe = _compute_sharpe(window_returns)
         mean_r = sum(window_returns) / len(window_returns)
-        var_r = sum((r - mean_r) ** 2 for r in window_returns) / (len(window_returns) - 1)
+        var_r = sum((r - mean_r) ** 2 for r in window_returns) / (
+            len(window_returns) - 1
+        )
         vol = math.sqrt(var_r) * math.sqrt(252)
         max_dd = _compute_max_drawdown(window_returns)
         win_rate = sum(1 for r in window_returns if r > 0) / len(window_returns) * 100
 
-        rolling.append(RollingMetrics(
-            start_idx=start,
-            end_idx=start + window_size,
-            sharpe=sharpe,
-            volatility=vol,
-            max_drawdown=max_dd,
-            mean_return=mean_r,
-            win_rate=win_rate,
-        ))
+        rolling.append(
+            RollingMetrics(
+                start_idx=start,
+                end_idx=start + window_size,
+                sharpe=sharpe,
+                volatility=vol,
+                max_drawdown=max_dd,
+                mean_return=mean_r,
+                win_rate=win_rate,
+            )
+        )
 
         start += step_size
 

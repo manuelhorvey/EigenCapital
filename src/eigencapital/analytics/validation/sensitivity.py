@@ -30,6 +30,7 @@ class ParameterSensitivity:
         max_sharpe: Best-case Sharpe
         sharpe_std: Std of Sharpe across values
     """
+
     parameter: str
     values: List[float] = field(default_factory=list)
     sharpes: List[float] = field(default_factory=list)
@@ -62,6 +63,7 @@ class SensitivityResult:
         degradation_threshold: Max acceptable Sharpe drop from base
         worst_case_sharpe: Worst Sharpe across all parameter combinations
     """
+
     base_sharpe: float = 0.0
     parameters: List[ParameterSensitivity] = field(default_factory=list)
     overall_robust: bool = True
@@ -108,7 +110,11 @@ def parameter_sensitivity(
         if not sharpes:
             continue
 
-        values = values_per_param.get(param_name, list(range(len(sharpes)))) if values_per_param else list(range(len(sharpes)))
+        values = (
+            values_per_param.get(param_name, list(range(len(sharpes))))
+            if values_per_param
+            else list(range(len(sharpes)))
+        )
 
         min_s = min(sharpes)
         max_s = max(sharpes)
@@ -126,15 +132,17 @@ def parameter_sensitivity(
         if not is_plateau:
             all_plateau = False
 
-        sensitivities.append(ParameterSensitivity(
-            parameter=param_name,
-            values=values,
-            sharpes=sharpes,
-            is_plateau=is_plateau,
-            min_sharpe=min_s,
-            max_sharpe=max_s,
-            sharpe_std=std_s,
-        ))
+        sensitivities.append(
+            ParameterSensitivity(
+                parameter=param_name,
+                values=values,
+                sharpes=sharpes,
+                is_plateau=is_plateau,
+                min_sharpe=min_s,
+                max_sharpe=max_s,
+                sharpe_std=std_s,
+            )
+        )
 
     return SensitivityResult(
         base_sharpe=base_sharpe,

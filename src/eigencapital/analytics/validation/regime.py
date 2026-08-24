@@ -33,6 +33,7 @@ class RegimeMetrics:
         max_drawdown: Maximum drawdown during regime
         win_rate: % of positive-return periods
     """
+
     regime: str
     bar_count: int = 0
     mean_return: float = 0.0
@@ -66,6 +67,7 @@ class RegimeResult:
         min_sharpe: Worst regime Sharpe
         max_sharpe: Best regime Sharpe
     """
+
     regimes: List[RegimeMetrics] = field(default_factory=list)
     worst_regime: str = ""
     best_regime: str = ""
@@ -108,7 +110,7 @@ def _compute_max_drawdown(returns: List[float]) -> float:
     peak = 1.0
     max_dd = 0.0
     for r in returns:
-        equity *= (1 + r)
+        equity *= 1 + r
         if equity > peak:
             peak = equity
         dd = (peak - equity) / peak if peak > 0 else 0.0
@@ -140,21 +142,23 @@ def regime_analysis(
         sharpe = _compute_sharpe(returns)
         total_ret = 1.0
         for r in returns:
-            total_ret *= (1 + r)
+            total_ret *= 1 + r
         total_ret -= 1.0
 
         max_dd = _compute_max_drawdown(returns)
         win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
 
-        regimes.append(RegimeMetrics(
-            regime=regime_name,
-            bar_count=len(returns),
-            mean_return=mean_ret,
-            sharpe=sharpe,
-            total_return=total_ret,
-            max_drawdown=max_dd,
-            win_rate=win_rate,
-        ))
+        regimes.append(
+            RegimeMetrics(
+                regime=regime_name,
+                bar_count=len(returns),
+                mean_return=mean_ret,
+                sharpe=sharpe,
+                total_return=total_ret,
+                max_drawdown=max_dd,
+                win_rate=win_rate,
+            )
+        )
         sharpes.append(sharpe)
 
     if not regimes:

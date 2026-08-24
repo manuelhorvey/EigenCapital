@@ -12,7 +12,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,7 @@ class ConcentrationMetrics:
         most_concentrated_instrument: Instrument with highest contribution
         concentration_warning: True if >50% from single instrument
     """
+
     instrument_contributions: Dict[str, float] = field(default_factory=dict)
     top_n_concentration: Dict[str, float] = field(default_factory=dict)
     herfindahl_index: float = 0.0
@@ -34,8 +35,12 @@ class ConcentrationMetrics:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "instrument_contributions": {k: round(v, 6) for k, v in self.instrument_contributions.items()},
-            "top_n_concentration": {str(k): round(v, 4) for k, v in self.top_n_concentration.items()},
+            "instrument_contributions": {
+                k: round(v, 6) for k, v in self.instrument_contributions.items()
+            },
+            "top_n_concentration": {
+                str(k): round(v, 4) for k, v in self.top_n_concentration.items()
+            },
             "herfindahl_index": round(self.herfindahl_index, 4),
             "most_concentrated_instrument": self.most_concentrated_instrument,
             "concentration_warning": self.concentration_warning,
@@ -53,6 +58,7 @@ class UniversePerturbationResult:
         single_instrument_dependency: True if one instrument dominates
         robustness_score: % of exclusion runs where Sharpe remains positive
     """
+
     base_metrics: Dict[str, float] = field(default_factory=dict)
     exclusion_results: Dict[str, Dict[str, float]] = field(default_factory=dict)
     concentration: ConcentrationMetrics = field(default_factory=ConcentrationMetrics)
@@ -88,7 +94,7 @@ def compute_concentration(
     for instrument, returns in instrument_returns.items():
         cumulative = 1.0
         for r in returns:
-            cumulative *= (1 + r)
+            cumulative *= 1 + r
         contributions[instrument] = cumulative - 1.0
 
     total_contribution = sum(abs(v) for v in contributions.values())
@@ -99,7 +105,7 @@ def compute_concentration(
     normalized = {k: abs(v) / total_contribution for k, v in contributions.items()}
 
     # Herfindahl index
-    hhi = sum(v ** 2 for v in normalized.values())
+    hhi = sum(v**2 for v in normalized.values())
 
     # Top N concentration
     sorted_instruments = sorted(normalized.items(), key=lambda x: x[1], reverse=True)
@@ -112,7 +118,9 @@ def compute_concentration(
         cumulative = 0.0
 
     most_concentrated = sorted_instruments[0][0] if sorted_instruments else ""
-    concentration_warning = sorted_instruments[0][1] > 0.5 if sorted_instruments else False
+    concentration_warning = (
+        sorted_instruments[0][1] > 0.5 if sorted_instruments else False
+    )
 
     return ConcentrationMetrics(
         instrument_contributions=contributions,
@@ -148,11 +156,14 @@ def universe_perturbation(
     if len(all_returns) >= 2:
         mean_r = sum(all_returns) / len(all_returns)
         var_r = sum((r - mean_r) ** 2 for r in all_returns) / (len(all_returns) - 1)
-        std_r = var_r ** 0.5
+        std_r = var_r**0.5
         if std_r > 1e-15:
-            base_sharpe = mean_r / std_r * (252 ** 0.5)
+            base_sharpe = mean_r / std_r * (252**0.5)
 
-    base_metrics = {"sharpe": base_sharpe, "mean_return": sum(all_returns) / len(all_returns) if all_returns else 0.0}
+    base_metrics = {
+        "sharpe": base_sharpe,
+        "mean_return": sum(all_returns) / len(all_returns) if all_returns else 0.0,
+    }
 
     # Exclusion analysis
     exclusion_results = {}
@@ -166,9 +177,11 @@ def universe_perturbation(
 
         if excluded_returns and len(excluded_returns) >= 2:
             mean_r = sum(excluded_returns) / len(excluded_returns)
-            var_r = sum((r - mean_r) ** 2 for r in excluded_returns) / (len(excluded_returns) - 1)
-            std_r = var_r ** 0.5
-            excl_sharpe = mean_r / std_r * (252 ** 0.5) if std_r > 1e-15 else 0.0
+            var_r = sum((r - mean_r) ** 2 for r in excluded_returns) / (
+                len(excluded_returns) - 1
+            )
+            std_r = var_r**0.5
+            excl_sharpe = mean_r / std_r * (252**0.5) if std_r > 1e-15 else 0.0
         else:
             excl_sharpe = 0.0
 

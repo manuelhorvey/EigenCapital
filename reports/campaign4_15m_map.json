@@ -1,0 +1,574 @@
+[
+  {
+    "hid": "MO-001",
+    "family": "momentum",
+    "description": "4-bar momentum (1h continuation)",
+    "hp": 16,
+    "gross_sharpe": -0.1193,
+    "net_base": -0.1193,
+    "net_adverse": -0.1193,
+    "max_dd": -0.9986,
+    "trades": 179517,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "MO-002",
+    "family": "momentum",
+    "description": "8-bar momentum (2h continuation)",
+    "hp": 16,
+    "gross_sharpe": -0.0389,
+    "net_base": -0.0389,
+    "net_adverse": -0.0389,
+    "max_dd": -0.9968,
+    "trades": 129442,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "MO-003",
+    "family": "momentum",
+    "description": "16-bar momentum (4h continuation)",
+    "hp": 16,
+    "gross_sharpe": 0.0904,
+    "net_base": 0.0904,
+    "net_adverse": 0.0904,
+    "max_dd": -0.9962,
+    "trades": 93187,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "MO-004",
+    "family": "momentum",
+    "description": "Vol-adjusted 8-bar momentum",
+    "hp": 16,
+    "gross_sharpe": -0.0422,
+    "net_base": -0.0422,
+    "net_adverse": -0.0422,
+    "max_dd": -0.9967,
+    "trades": 129490,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "MO-005",
+    "family": "momentum",
+    "description": "Momentum acceleration (mom strengthening)",
+    "hp": 16,
+    "gross_sharpe": -0.175,
+    "net_base": -0.175,
+    "net_adverse": -0.175,
+    "max_dd": -0.9991,
+    "trades": 219302,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "MR-001",
+    "family": "mean_reversion",
+    "description": "8-bar VWAP deviation",
+    "hp": 1,
+    "gross_sharpe": 0.0489,
+    "net_base": 0.0489,
+    "net_adverse": 0.0489,
+    "max_dd": -0.496,
+    "trades": 76788,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "MR-002",
+    "family": "mean_reversion",
+    "description": "16-bar z-score reversal",
+    "hp": 4,
+    "gross_sharpe": -0.139,
+    "net_base": -0.139,
+    "net_adverse": -0.139,
+    "max_dd": -0.9692,
+    "trades": 51193,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "MR-003",
+    "family": "mean_reversion",
+    "description": "16-bar vol-normalized deviation",
+    "hp": 1,
+    "gross_sharpe": 0.4703,
+    "net_base": 0.4703,
+    "net_adverse": 0.4703,
+    "max_dd": -0.4577,
+    "trades": 93197,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "MR-004",
+    "family": "mean_reversion",
+    "description": "Range reversion (close near range extreme)",
+    "hp": 1,
+    "gross_sharpe": 0.5218,
+    "net_base": 0.5218,
+    "net_adverse": 0.5218,
+    "max_dd": -0.4681,
+    "trades": 92248,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "BR-001",
+    "family": "breakout",
+    "description": "20-bar range breakout (5h range)",
+    "hp": 16,
+    "gross_sharpe": 0.0768,
+    "net_base": 0.0768,
+    "net_adverse": 0.0768,
+    "max_dd": -0.9988,
+    "trades": 92108,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "BR-002",
+    "family": "breakout",
+    "description": "Compression \u2192 expansion (vol squeeze)",
+    "hp": 16,
+    "gross_sharpe": 0.257,
+    "net_base": 0.257,
+    "net_adverse": 0.257,
+    "max_dd": -0.9903,
+    "trades": 215666,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "BR-003",
+    "family": "breakout",
+    "description": "Previous day high/low breakout",
+    "hp": 16,
+    "gross_sharpe": -0.0873,
+    "net_base": -0.0873,
+    "net_adverse": -0.0873,
+    "max_dd": -0.9997,
+    "trades": 37300,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "BR-004",
+    "family": "breakout",
+    "description": "Asian range breakout",
+    "hp": 2,
+    "gross_sharpe": 0.2166,
+    "net_base": 0.2166,
+    "net_adverse": 0.2166,
+    "max_dd": -0.8445,
+    "trades": 73448,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "SE-001",
+    "family": "sessions",
+    "description": "London open momentum (first 4 bars)",
+    "hp": 16,
+    "gross_sharpe": -0.1193,
+    "net_base": -0.1193,
+    "net_adverse": -0.1193,
+    "max_dd": -0.9986,
+    "trades": 179517,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "SE-002",
+    "family": "sessions",
+    "description": "NY open momentum (first 4 bars)",
+    "hp": 16,
+    "gross_sharpe": -0.1193,
+    "net_base": -0.1193,
+    "net_adverse": -0.1193,
+    "max_dd": -0.9986,
+    "trades": 179517,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "SE-003",
+    "family": "sessions",
+    "description": "Overlap momentum (London/NY)",
+    "hp": 16,
+    "gross_sharpe": -0.1193,
+    "net_base": -0.1193,
+    "net_adverse": -0.1193,
+    "max_dd": -0.9986,
+    "trades": 179517,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "SE-004",
+    "family": "sessions",
+    "description": "NY close mean-reversion",
+    "hp": 1,
+    "gross_sharpe": 1.1793,
+    "net_base": 1.1793,
+    "net_adverse": 1.1793,
+    "max_dd": -0.4397,
+    "trades": 179517,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "SE-005",
+    "family": "sessions",
+    "description": "Asian\u2192London transition",
+    "hp": 16,
+    "gross_sharpe": -0.1193,
+    "net_base": -0.1193,
+    "net_adverse": -0.1193,
+    "max_dd": -0.9986,
+    "trades": 179517,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "VR-001",
+    "family": "volatility",
+    "description": "Vol regime predicts returns (low vol = trend)",
+    "hp": 16,
+    "gross_sharpe": -0.0411,
+    "net_base": -0.0411,
+    "net_adverse": -0.0411,
+    "max_dd": -0.9968,
+    "trades": 129240,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "VR-002",
+    "family": "volatility",
+    "description": "Vol expansion momentum",
+    "hp": 8,
+    "gross_sharpe": 0.0121,
+    "net_base": 0.0121,
+    "net_adverse": 0.0121,
+    "max_dd": -0.9004,
+    "trades": 384408,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "VR-003",
+    "family": "volatility",
+    "description": "Vol contraction reversal",
+    "hp": 1,
+    "gross_sharpe": 0.3211,
+    "net_base": 0.3211,
+    "net_adverse": 0.3211,
+    "max_dd": -0.3098,
+    "trades": 182418,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "VR-004",
+    "family": "volatility",
+    "description": "Realized vol vs implied proxy",
+    "hp": 8,
+    "gross_sharpe": 0.0431,
+    "net_base": 0.0431,
+    "net_adverse": 0.0431,
+    "max_dd": -0.9915,
+    "trades": 21175,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "XA-001",
+    "family": "cross_asset",
+    "description": "US500 leads EURUSD (2-bar lag)",
+    "hp": 16,
+    "gross_sharpe": -0.0919,
+    "net_base": -0.0919,
+    "net_adverse": -0.0919,
+    "max_dd": -0.9875,
+    "trades": 249350,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "XA-002",
+    "family": "cross_asset",
+    "description": "USTEC leads EURUSD (2-bar lag)",
+    "hp": 16,
+    "gross_sharpe": -0.0919,
+    "net_base": -0.0919,
+    "net_adverse": -0.0919,
+    "max_dd": -0.9875,
+    "trades": 249350,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "XA-003",
+    "family": "cross_asset",
+    "description": "US500 leads XAUUSD (2-bar lag, inverse)",
+    "hp": 1,
+    "gross_sharpe": 0.8189,
+    "net_base": 0.8189,
+    "net_adverse": 0.8189,
+    "max_dd": -0.3176,
+    "trades": 249350,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "XA-004",
+    "family": "cross_asset",
+    "description": "EURUSD leads GBPUSD (1-bar lag)",
+    "hp": 16,
+    "gross_sharpe": -0.0631,
+    "net_base": -0.0631,
+    "net_adverse": -0.0631,
+    "max_dd": -0.9873,
+    "trades": 350062,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "PS-001",
+    "family": "price_structure",
+    "description": "Higher-high/lower-low continuation",
+    "hp": 16,
+    "gross_sharpe": -0.0782,
+    "net_base": -0.0782,
+    "net_adverse": -0.0782,
+    "max_dd": -0.9995,
+    "trades": 323874,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "PS-002",
+    "family": "price_structure",
+    "description": "Multi-bar directional persistence (8+)",
+    "hp": 16,
+    "gross_sharpe": -0.0731,
+    "net_base": -0.0731,
+    "net_adverse": -0.0731,
+    "max_dd": -0.9996,
+    "trades": 112967,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "PS-003",
+    "family": "price_structure",
+    "description": "Failed breakout reversal",
+    "hp": 2,
+    "gross_sharpe": 0.5674,
+    "net_base": 0.5674,
+    "net_adverse": 0.5674,
+    "max_dd": -0.2653,
+    "trades": 98916,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  },
+  {
+    "hid": "CM-001",
+    "family": "composite",
+    "description": "Momentum \u00d7 vol regime",
+    "hp": 16,
+    "gross_sharpe": -0.0475,
+    "net_base": -0.0475,
+    "net_adverse": -0.0475,
+    "max_dd": -0.9979,
+    "trades": 129184,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ]
+  },
+  {
+    "hid": "CM-002",
+    "family": "composite",
+    "description": "Breakout \u00d7 volume confirmation",
+    "hp": 16,
+    "gross_sharpe": 0.0895,
+    "net_base": 0.0895,
+    "net_adverse": 0.0895,
+    "max_dd": -0.999,
+    "trades": 96852,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": 0.0,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent"
+    ]
+  }
+]

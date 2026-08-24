@@ -243,6 +243,71 @@ This is enforced through the provenance hash computed by the backtest engine.
 
 ---
 
+## Trial Accounting (Mandatory)
+
+Every research experiment MUST be able to answer:
+
+> **How many materially distinct opportunities did we try before selecting this result?**
+
+A final Sharpe of 1.8 means something entirely different if it was the first
+hypothesis tested versus the best of 500 parameter/feature/model combinations.
+This information must survive permanently in the research ledger.
+
+### Trial Family
+
+All related searches constitute a **trial family**:
+
+```
+Trend hypothesis
+ ├── lookback 20
+ ├── lookback 40
+ ├── lookback 60
+ ├── lookback 80
+ ├── stop 1 ATR
+ ├── stop 1.5 ATR
+ ├── stop 2 ATR
+ └── different universes
+```
+
+Each member of a family carries `TrialMetadata` on its experiment record:
+
+| Field | Meaning |
+|---|---|
+| `trial_group_id` | Identifier of the family/search |
+| `trial_index` | 1-based ordinal of this trial within the family |
+| `trials_in_family` | Total distinct trials known (None while search is open) |
+| `hypothesis_family` | Research family label (trend, momentum, ...) |
+| `parameter_search_space` | Declared space searched by the family |
+| `selection_method` | How this configuration was chosen from the family |
+
+### Rules
+
+1. **Every experiment that participates in any search carries trial metadata.**
+   Single-shot experiments may declare `selection_method = "single_candidate"`
+   with `trial_index = 1`.
+2. **Trial identity is fixed at registration** (PRE_REGISTERED). It is
+   provenance, not a tunable field, and must never be modified post-freeze.
+3. **`selection_method` must never claim out-of-sample merit for an
+   in-sample selection.** Selecting the best validation-Sharpe config from a
+   grid is legitimate; reporting that config's test Sharpe as if it were the
+   only attempt is not.
+4. **Family size is monotone.** `trials_in_family >= max(trial_index)` over all
+   members; closing a family fixes the count permanently.
+5. **Candidate promotion requires closed accounting.** An experiment cannot be
+   promoted to CANDIDATE while its `trials_in_family` is open (search ongoing)
+   — the deflated performance estimate needs the final trial count.
+6. **Reported metrics are conditioned on trials.** Any headline result
+   (report, tear sheet, paper-trading proposal) must state the trial context:
+   `trial i/n`, selection method, and search-space size.
+
+### Rationale
+
+These fields exist to make selection bias quantifiable (e.g., deflated Sharpe
+ratio, Bailey & Prado) and to prevent the ledger itself from becoming a
+record of survivorship-biased results.
+
+---
+
 ## Anti-Patterns (Explicitly Prohibited)
 
 ### Look-Ahead Bias

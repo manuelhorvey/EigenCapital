@@ -24,7 +24,6 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 
 from eigencapital.research.provenance.hashing import compute_provenance_hash
-from eigencapital.research.provenance.manifest import ResearchManifest
 
 
 class ExperimentError(ValueError):
@@ -116,6 +115,23 @@ class ExperimentRecord:
         valid_statuses = {"PRE_REGISTERED", "RUNNING", "COMPLETED", "REJECTED", "CANDIDATE"}
         if self.status not in valid_statuses:
             raise ValueError(f"Invalid status: {self.status}")
+        # Trial accounting: if present, must carry the required keys
+        _TRIAL_KEYS = {
+            "trial_group_id",
+            "trial_index",
+            "hypothesis_family",
+            "selection_method",
+        }
+        if self.trial_metadata and not _TRIAL_KEYS.issubset(self.trial_metadata):
+            missing = _TRIAL_KEYS - set(self.trial_metadata)
+            raise ValueError(
+                f"trial_metadata missing required keys: {sorted(missing)}"
+            )
+        # Trial identity is fixed at registration: index must be >= 1
+        if self.trial_metadata:
+            idx = self.trial_metadata["trial_index"]
+            if not isinstance(idx, int) or idx < 1:
+                raise ValueError(f"trial_index must be an int >= 1, got {idx!r}")
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""
@@ -134,6 +150,8 @@ class ExperimentRecord:
             "cost_model_id": self.cost_model_id,
             "cost_model_version": self.cost_model_version,
             "random_seed": self.random_seed,
+            "parent_experiment_id": self.parent_experiment_id,
+            "trial_metadata": dict(sorted(self.trial_metadata.items())),
             "train_start": self.train_start,
             "train_end": self.train_end,
             "validation_start": self.validation_start,

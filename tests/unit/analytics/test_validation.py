@@ -358,6 +358,8 @@ class TestEvidenceGate:
     def test_all_pass_candidate(self):
         """Test evidence gate with all checks passing."""
         import random
+        from eigencapital.analytics.validation.universe import UniversePerturbationResult, ConcentrationMetrics
+        from eigencapital.analytics.validation.temporal import TemporalStabilityResult
         rng = random.Random(42)
         gate = EvidenceGate()
         # Walk-forward on a strong uptrend
@@ -371,6 +373,11 @@ class TestEvidenceGate:
         sens = parameter_sensitivity(1.5, {"p1": [1.4, 1.5, 1.3]})
         cost = cost_stress_test(1.5, [1.0, 1.5, 2.0], [1.5, 1.2, 0.8])
         regime = regime_analysis({"up": [0.01 + rng.gauss(0, 0.015) for _ in range(200)], "down": [0.008 + rng.gauss(0, 0.015) for _ in range(200)]})
+        universe = UniversePerturbationResult(
+            single_instrument_dependency=False,
+            concentration=ConcentrationMetrics(herfindahl_index=0.3),
+        )
+        temporal = TemporalStabilityResult(window_count=5, performance_decay=False, pct_positive_sharpe=60.0)
 
         result = gate.evaluate(
             walk_forward=wf,
@@ -379,6 +386,8 @@ class TestEvidenceGate:
             sensitivity=sens,
             cost_stress=cost,
             regime=regime,
+            universe=universe,
+            temporal=temporal,
         )
         # Should be CANDIDATE or VALIDATED
         assert result["verdict"] in (EvidenceVerdict.CANDIDATE, EvidenceVerdict.VALIDATED)
@@ -408,12 +417,12 @@ class TestEvidenceGate:
         result = gate.evaluate(walk_forward=wf)
         assert result["verdict"] == EvidenceVerdict.INCONCLUSIVE
 
-    def test_no_data_returns_candidate(self):
-        """Test evidence gate with no validation data."""
+    def test_no_data_rejected(self):
+        """Test evidence gate with no validation data → REJECTED."""
         gate = EvidenceGate()
         result = gate.evaluate()
-        assert result["verdict"] == EvidenceVerdict.CANDIDATE
-        assert result["total_checks"] == 0
+        assert result["verdict"] == EvidenceVerdict.REJECTED
+        assert len(result["missing_evidence"]) > 0
 
     def test_serialization(self):
         """Test evidence gate result serialization."""

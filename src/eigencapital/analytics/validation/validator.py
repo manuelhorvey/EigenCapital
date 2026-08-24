@@ -1,12 +1,12 @@
 """Validation Orchestrator — runs all validation tests and produces verdict.
 
-Combines: walk-forward, bootstrap, permutation, multiple-testing, PBO,
-parameter sensitivity, cost stress, regime, universe, concentration,
-temporal stability.
+Integrates: walk-forward, bootstrap, block-bootstrap, permutation,
+multiple-testing, PBO, sensitivity, cost stress, regime, universe,
+concentration, temporal stability.
 
 Usage:
-    validator = ValidationEngine()
-    result = validator.validate(
+    engine = ValidationEngine()
+    result = engine.validate(
         experiment_id="EXP-000001",
         equity_curve=equity_curve,
         instrument_returns=instrument_returns,
@@ -15,29 +15,28 @@ Usage:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 
 from eigencapital.analytics.metrics import PerformanceMetrics, compute_metrics
 from eigencapital.analytics.validation.walk_forward import WalkForwardResult, purged_walk_forward
 from eigencapital.analytics.validation.bootstrap import BootstrapResult, PermutationResult, bootstrap_test, permutation_test
+from eigencapital.analytics.validation.block_bootstrap import BlockBootstrapResult, block_bootstrap
 from eigencapital.analytics.validation.sensitivity import SensitivityResult, parameter_sensitivity
 from eigencapital.analytics.validation.cost_stress import CostStressResult, cost_stress_test
 from eigencapital.analytics.validation.regime import RegimeResult, regime_analysis
 from eigencapital.analytics.validation.evidence_gate import EvidenceGate, EvidenceVerdict
 from eigencapital.analytics.validation.multiple_testing import MultipleTestingResult, multiple_testing_correction
 from eigencapital.analytics.validation.pbo import PBOResult, compute_pbo
-from eigencapital.analytics.validation.universe import UniversePerturbationResult, universe_perturbation
+from eigencapital.analytics.validation.universe import UniversePerturbationResult, universe_perturbation, compute_concentration
 from eigencapital.analytics.validation.temporal import TemporalStabilityResult, temporal_stability
-from eigencapital.analytics.validation.block_bootstrap import BlockBootstrapResult, block_bootstrap
 
 
 @dataclass(frozen=True)
 class ValidationResult:
-    """Complete validation result for an experiment.
+    """Complete validation result for an experiment."""
 
-    Combines all validation dimensions into a single verdict.
-    """
     experiment_id: str = ""
     provenance_hash: str = ""
 
@@ -79,6 +78,7 @@ class ValidationResult:
     verdict: str = EvidenceVerdict.CANDIDATE
     evidence_checks: List[Dict[str, Any]] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    missing_evidence: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""
@@ -98,15 +98,20 @@ class ValidationResult:
             "universe": self.universe.to_dict() if self.universe else None,
             "temporal": self.temporal.to_dict() if self.temporal else None,
             "evidence_checks": self.evidence_checks,
+            "missing_evidence": self.missing_evidence,
             "warnings": self.warnings,
         }
+
+    def to_json(self, indent: int = 2) -> str:
+        """Deterministic JSON serialization."""
+        return json.dumps(self.to_dict(), indent=indent, sort_keys=True)
 
 
 class ValidationEngine:
     """Main validation orchestrator.
 
     Runs all validation tests against a strategy's equity curve
-    and produces a comprehensive verdict.
+    and produces a comprehensive verdict with evidence profile.
     """
 
     def __init__(
@@ -117,6 +122,9 @@ class ValidationEngine:
         bootstrap_iterations: int = 500,
         permutation_iterations: int = 500,
         bootstrap_seed: int = 42,
+        block_size: int = 21,
+        temporal_window: int = 252,
+        temporal_step: int = 63,
     ) -> None:
         self.wf_train = walk_forward_train
         self.wf_test = walk_forward_test
@@ -124,6 +132,9 @@ class ValidationEngine:
         self.bootstrap_iters = bootstrap_iterations
         self.perm_iters = permutation_iterations
         self.seed = bootstrap_seed
+        self.block_size = block_size
+        self.temporal_window = temporal_window
+        self.temporal_step = temporal_step
 
     def validate(
         self,
@@ -133,167 +144,112 @@ class ValidationEngine:
         trades: Optional[List[float]] = None,
         pbo_candidates: Optional[List[Dict[str, float]]] = None,
         regime_returns: Optional[Dict[str, List[float]]] = None,
+        sensitivity_data: Optional[Dict[str, List[float]]] = None,
+        cost_stress_data: Optional[Dict[str, Any]] = None,
     ) -> ValidationResult:
         """Run full validation suite.
 
-        Args:
-            experiment_id: Experiment identifier
-            equity_curve: Full equity curve
-            instrument_returns: Per-instrument return series
-            trades: Individual trade P&L values
-            pbo_candidates: Candidate results for PBO analysis
-            regime_returns: Per-regime return series
-
-        Returns:
-            ValidationResult with all test results and verdict
+        MISSING evidence → INCONCLUSIVE (never PASS).
         """
         warnings = []
-        result = ValidationResult(experiment_id=experiment_id)
 
         if not equity_curve or len(equity_curve) < 10:
             return ValidationResult(
                 experiment_id=experiment_id,
                 verdict=EvidenceVerdict.REJECTED,
-                warnings=["Insufficient equity curve data"],
+                warnings=["Insufficient equity curve data (minimum 10 observations)"],
+                missing_evidence=["equity_curve"],
             )
 
-        # 1. Baseline metrics
+        # ── 1. Baseline metrics ─────────────────────────────────────
+        baseline = None
         try:
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=compute_metrics(equity_curve, trades),
-            )
+            baseline = compute_metrics(equity_curve, trades)
         except ValueError as e:
             warnings.append(f"Baseline metrics error: {e}")
 
-        # 2. Walk-forward
-        result = ValidationResult(
-            experiment_id=result.experiment_id,
-            baseline_metrics=result.baseline_metrics,
-            walk_forward=purged_walk_forward(
-                equity_curve, self.wf_train, self.wf_test, self.wf_purge
-            ),
-        )
-        if result.walk_forward and result.walk_forward.total_windows > 0:
-            if result.walk_forward.mean_oos_sharpe <= 0:
-                warnings.append("Walk-forward OOS Sharpe is non-positive")
-
-        # 3. Bootstrap (IID)
+        # ── 2. Compute returns ──────────────────────────────────────
         returns = []
         for i in range(1, len(equity_curve)):
             if equity_curve[i - 1] > 0:
                 returns.append((equity_curve[i] / equity_curve[i - 1]) - 1.0)
 
-        if returns:
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=result.baseline_metrics,
-                walk_forward=result.walk_forward,
-                bootstrap_iid=bootstrap_test(returns, self.bootstrap_iters, seed=self.seed),
+        # ── 3. Walk-forward ─────────────────────────────────────────
+        wf = purged_walk_forward(equity_curve, self.wf_train, self.wf_test, self.wf_purge)
+        if wf.total_windows == 0:
+            warnings.append("Walk-forward: insufficient data for any complete window")
+        elif wf.mean_oos_sharpe <= 0:
+            warnings.append(f"Walk-forward: OOS Sharpe is non-positive ({wf.mean_oos_sharpe:.3f})")
+        if wf.total_windows > 0 and wf.degradation_ratio > 2.0:
+            warnings.append(f"Walk-forward: high degradation ({wf.degradation_ratio:.2f}x)")
+
+        # ── 4. Bootstrap (IID + Block) ──────────────────────────────
+        boot_iid = bootstrap_test(returns, self.bootstrap_iters, seed=self.seed) if returns else None
+        boot_block = block_bootstrap(returns, self.block_size, self.bootstrap_iters, seed=self.seed) if returns else None
+
+        # ── 5. Permutation test ─────────────────────────────────────
+        perm = permutation_test(returns, self.perm_iters, seed=self.seed) if returns else None
+
+        # ── 6. Sensitivity ──────────────────────────────────────────
+        sens = None
+        if sensitivity_data and baseline:
+            sens = parameter_sensitivity(baseline.sharpe_ratio, sensitivity_data)
+
+        # ── 7. Cost stress ──────────────────────────────────────────
+        cost = None
+        if cost_stress_data and baseline:
+            cost = cost_stress_test(
+                baseline.sharpe_ratio,
+                cost_stress_data.get("multipliers", []),
+                cost_stress_data.get("sharpes", []),
             )
 
-            # Block bootstrap
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=result.baseline_metrics,
-                walk_forward=result.walk_forward,
-                bootstrap_iid=result.bootstrap_iid,
-                bootstrap_block=block_bootstrap(returns, block_size=21, n_bootstrap=self.bootstrap_iters, seed=self.seed),
-            )
+        # ── 8. Regime analysis ──────────────────────────────────────
+        regime = regime_analysis(regime_returns) if regime_returns else None
 
-        # 4. Permutation test
-        if returns:
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=result.baseline_metrics,
-                walk_forward=result.walk_forward,
-                bootstrap_iid=result.bootstrap_iid,
-                bootstrap_block=result.bootstrap_block,
-                permutation=permutation_test(returns, self.perm_iters, seed=self.seed),
-            )
+        # ── 9. Universe perturbation ────────────────────────────────
+        universe = universe_perturbation(instrument_returns) if instrument_returns else None
 
-        # 5. Sensitivity (placeholder — needs parameter sweep data)
-        # Only computed if provided externally
+        # ── 10. Temporal stability ──────────────────────────────────
+        temporal = temporal_stability(equity_curve, self.temporal_window, self.temporal_step)
 
-        # 6. Regime analysis
-        if regime_returns:
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=result.baseline_metrics,
-                walk_forward=result.walk_forward,
-                bootstrap_iid=result.bootstrap_iid,
-                bootstrap_block=result.bootstrap_block,
-                permutation=result.permutation,
-                regime=regime_analysis(regime_returns),
-            )
+        # ── 11. Multiple testing (placeholder — needs trial data) ───
+        mt = None  # Only computed if trial data provided
 
-        # 7. Universe perturbation
-        if instrument_returns:
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=result.baseline_metrics,
-                walk_forward=result.walk_forward,
-                bootstrap_iid=result.bootstrap_iid,
-                bootstrap_block=result.bootstrap_block,
-                permutation=result.permutation,
-                regime=result.regime,
-                universe=universe_perturbation(instrument_returns),
-            )
+        # ── 12. PBO ─────────────────────────────────────────────────
+        pbo = compute_pbo(pbo_candidates) if pbo_candidates else None
 
-        # 8. PBO
-        if pbo_candidates:
-            result = ValidationResult(
-                experiment_id=result.experiment_id,
-                baseline_metrics=result.baseline_metrics,
-                walk_forward=result.walk_forward,
-                bootstrap_iid=result.bootstrap_iid,
-                bootstrap_block=result.bootstrap_block,
-                permutation=result.permutation,
-                regime=result.regime,
-                universe=result.universe,
-                pbo=compute_pbo(pbo_candidates),
-            )
-
-        # 9. Evidence gate
+        # ── 13. Evidence gate ───────────────────────────────────────
         gate = EvidenceGate()
         gate_result = gate.evaluate(
-            walk_forward=result.walk_forward,
-            bootstrap=result.bootstrap_iid,
-            permutation=result.permutation,
-            sensitivity=result.sensitivity,
-            cost_stress=result.cost_stress,
-            regime=result.regime,
+            walk_forward=wf,
+            bootstrap=boot_iid,
+            permutation=perm,
+            sensitivity=sens,
+            cost_stress=cost,
+            regime=regime,
+            universe=universe,
+            temporal=temporal,
+            multiple_testing=mt,
+            pbo=pbo,
         )
 
-        # Collect warnings
-        if result.walk_forward and result.walk_forward.total_windows > 0:
-            if result.walk_forward.degradation_ratio > 2.0:
-                warnings.append(f"High walk-forward degradation: {result.walk_forward.degradation_ratio:.2f}x")
-
-        if result.universe and result.universe.single_instrument_dependency:
-            warnings.append("Single instrument dependency detected")
-
-        if result.regime and result.regime.regime_dependent:
-            warnings.append(f"Regime-dependent performance: Sharpe range {result.regime.sharpe_range:.3f}")
-
-        if result.temporal and result.temporal.performance_decay:
-            warnings.append("Performance decay detected in rolling windows")
-
         return ValidationResult(
-            experiment_id=result.experiment_id,
-            baseline_metrics=result.baseline_metrics,
-            walk_forward=result.walk_forward,
-            bootstrap_iid=result.bootstrap_iid,
-            bootstrap_block=result.bootstrap_block,
-            permutation=result.permutation,
-            multiple_testing=result.multiple_testing,
-            pbo=result.pbo,
-            sensitivity=result.sensitivity,
-            cost_stress=result.cost_stress,
-            regime=result.regime,
-            universe=result.universe,
-            temporal=result.temporal,
+            experiment_id=experiment_id,
+            baseline_metrics=baseline,
+            walk_forward=wf,
+            bootstrap_iid=boot_iid,
+            bootstrap_block=boot_block,
+            permutation=perm,
+            multiple_testing=mt,
+            pbo=pbo,
+            sensitivity=sens,
+            cost_stress=cost,
+            regime=regime,
+            universe=universe,
+            temporal=temporal,
             verdict=gate_result["verdict"],
             evidence_checks=gate_result["checks"],
             warnings=warnings,
+            missing_evidence=gate_result.get("missing_evidence", []),
         )

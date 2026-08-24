@@ -130,6 +130,74 @@ class TestExperimentRegistry:
         assert exp2.experiment_id == exp.experiment_id
         assert exp2.parameters == exp.parameters
 
+    def test_to_from_dict_with_trial_metadata(self):
+        exp = _make_experiment(
+            experiment_id="EXP-000003",
+            parent_experiment_id="EXP-000001",
+            trial_metadata={
+                "trial_group_id": "HYP-TREND-001/lookback-stop-grid",
+                "trial_index": 4,
+                "hypothesis_family": "trend",
+                "selection_method": "best_validation_sharpe",
+                "trials_in_family": 8,
+                "parameter_search_space": {"lookback": [20, 40, 60, 80]},
+            },
+        )
+        d = exp.to_dict()
+        assert d["trial_metadata"]["trial_index"] == 4
+        restored = ExperimentRecord.from_dict(d)
+        assert restored.trial_metadata == exp.trial_metadata
+        assert restored.parent_experiment_id == "EXP-000001"
+
+
+class TestTrialAccounting:
+    """Registry-level enforcement of the Trial Accounting contract."""
+
+    def _tm(self, **overrides):
+        tm = {
+            "trial_group_id": "HYP-TREND-001/lookback-stop-grid",
+            "trial_index": 1,
+            "hypothesis_family": "trend",
+            "selection_method": "single_candidate",
+        }
+        tm.update(overrides)
+        return tm
+
+    def test_valid_trial_metadata_accepted(self):
+        reg = ExperimentRegistry()
+        exp = reg.create(**_make_experiment(
+            experiment_id="EXP-000010",
+            trial_metadata=self._tm(),
+        ).__dict__)
+        assert exp.trial_metadata["trial_index"] == 1
+        assert exp.provenance_hash != ""
+
+    def test_trial_metadata_changes_provenance_hash(self):
+        reg = ExperimentRegistry()
+        e1 = reg.create(**_make_experiment(experiment_id="EXP-000011").__dict__)
+        e2 = reg.create(**_make_experiment(
+            experiment_id="EXP-000012",
+            trial_metadata=self._tm(trial_index=2),
+        ).__dict__)
+        assert e1.provenance_hash != e2.provenance_hash
+
+    def test_missing_required_keys_rejected(self):
+        with pytest.raises(ValueError, match="missing required keys"):
+            _make_experiment(trial_metadata={"trial_index": 1})
+
+    def test_invalid_trial_index_rejected(self):
+        with pytest.raises(ValueError, match="trial_index"):
+            _make_experiment(trial_metadata=self._tm(trial_index=0))
+
+    def test_non_integer_trial_index_rejected(self):
+        with pytest.raises(ValueError, match="trial_index"):
+            _make_experiment(trial_metadata=self._tm(trial_index="1"))
+
+    def test_empty_trial_metadata_treated_as_absent(self):
+        """Legacy records without accounting remain valid."""
+        exp = _make_experiment(trial_metadata={})
+        assert exp.trial_metadata == {}
+
 
 class TestExperimentRepository:
     def test_save_and_load(self, tmp_path):

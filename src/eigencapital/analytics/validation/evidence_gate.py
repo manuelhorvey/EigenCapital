@@ -1,19 +1,14 @@
-"""Evidence Gate — determines hypothesis disposition based on all validation results.
+"""Evidence Gate — falsification-first hypothesis disposition.
 
-The evidence gate is the final arbiter of whether a hypothesis survives
-hostile validation. It collects all validation results and applies
-pre-registered falsification criteria.
+Critical design principle:
+    NO SILENT PASS.
+
+If a required validation component is unavailable, the verdict CANNOT
+become VALIDATED. Missing evidence → INCONCLUSIVE, never PASS.
 
 Usage:
     gate = EvidenceGate()
-    verdict = gate.evaluate(
-        walk_forward=result,
-        bootstrap=bootstrap,
-        permutation=permutation,
-        sensitivity=sensitivity,
-        cost_stress=cost_stress,
-        regime=regime,
-    )
+    result = gate.evaluate(walk_forward=wf, bootstrap=boot, ...)
 """
 
 from __future__ import annotations
@@ -26,6 +21,10 @@ from eigencapital.analytics.validation.bootstrap import BootstrapResult, Permuta
 from eigencapital.analytics.validation.sensitivity import SensitivityResult
 from eigencapital.analytics.validation.cost_stress import CostStressResult
 from eigencapital.analytics.validation.regime import RegimeResult
+from eigencapital.analytics.validation.universe import UniversePerturbationResult
+from eigencapital.analytics.validation.temporal import TemporalStabilityResult
+from eigencapital.analytics.validation.multiple_testing import MultipleTestingResult
+from eigencapital.analytics.validation.pbo import PBOResult
 
 
 class EvidenceVerdict(str):
@@ -43,11 +42,13 @@ class EvidenceCheck:
     Attributes:
         check_id: Unique check identifier
         passed: Did this check pass?
+        missing: Was the evidence unavailable?
         severity: CRITICAL, HIGH, MEDIUM, LOW
         message: Human-readable explanation
     """
     check_id: str
     passed: bool
+    missing: bool = False
     severity: str = "HIGH"
     message: str = ""
 
@@ -55,6 +56,7 @@ class EvidenceCheck:
         return {
             "check_id": self.check_id,
             "passed": self.passed,
+            "missing": self.missing,
             "severity": self.severity,
             "message": self.message,
         }
@@ -62,25 +64,18 @@ class EvidenceCheck:
 
 @dataclass(frozen=True)
 class EvidenceGate:
-    """Evaluates all validation results against pre-registered criteria.
+    """Falsification-first evidence gate.
 
-    The gate applies the falsification criteria from EXP-000001:
-    1. Out-of-sample expectancy > 0
-    2. Cost-stressed expectancy > 0 (at 1.5x costs)
-    3. Performance not dominated by single instrument
-    4. Performance survives parameter perturbation
-    5. Walk-forward degradation within tolerance
-    6. Statistical significance (permutation test)
-    7. Bootstrap confidence interval excludes zero
-
-    Disposition:
+    Semantic rules:
     - REJECTED: Any CRITICAL check fails
-    - INCONCLUSIVE: Some HIGH checks fail
-    - CANDIDATE: All checks pass
-    - VALIDATED: All checks pass with strong evidence
+    - INCONCLUSIVE: Any HIGH check fails OR any required evidence is missing
+    - CANDIDATE: All checks pass, but evidence is moderate
+    - VALIDATED: All checks pass with strong evidence AND no missing components
+
+    Missing evidence → INCONCLUSIVE (never PASS).
     """
 
-    # Thresholds (configurable)
+    # Thresholds (configurable, documented)
     min_oos_sharpe: float = 0.0
     max_degradation: float = 2.0
     min_pct_profitable_windows: float = 50.0
@@ -88,6 +83,8 @@ class EvidenceGate:
     min_pct_positive_bootstrap: float = 75.0
     min_worst_regime_sharpe: float = -0.5
     max_sharpe_range: float = 2.0
+    max_concentration_hhi: float = 0.5
+    max_single_instrument_pct: float = 50.0
 
     def evaluate(
         self,
@@ -97,15 +94,20 @@ class EvidenceGate:
         sensitivity: Optional[SensitivityResult] = None,
         cost_stress: Optional[CostStressResult] = None,
         regime: Optional[RegimeResult] = None,
+        universe: Optional[UniversePerturbationResult] = None,
+        temporal: Optional[TemporalStabilityResult] = None,
+        multiple_testing: Optional[MultipleTestingResult] = None,
+        pbo: Optional[PBOResult] = None,
     ) -> Dict[str, Any]:
-        """Evaluate all validation results.
+        """Evaluate all validation results with falsification-first semantics.
 
         Returns:
             Dict with verdict, checks, and summary
         """
         checks = []
+        missing_evidence = []
 
-        # Check 1: Walk-forward OOS Sharpe > 0
+        # ── 1. Walk-forward ─────────────────────────────────────────
         if walk_forward and walk_forward.total_windows > 0:
             passed = walk_forward.mean_oos_sharpe > self.min_oos_sharpe
             checks.append(EvidenceCheck(
@@ -115,7 +117,6 @@ class EvidenceGate:
                 message=f"OOS Sharpe: {walk_forward.mean_oos_sharpe:.3f} (min: {self.min_oos_sharpe})",
             ))
 
-            # Check walk-forward degradation
             passed_deg = walk_forward.degradation_ratio <= self.max_degradation
             checks.append(EvidenceCheck(
                 check_id="wf_degradation",
@@ -124,7 +125,6 @@ class EvidenceGate:
                 message=f"Degradation: {walk_forward.degradation_ratio:.2f}x (max: {self.max_degradation}x)",
             ))
 
-            # Check % profitable windows
             passed_win = walk_forward.pct_profitable_windows >= self.min_pct_profitable_windows
             checks.append(EvidenceCheck(
                 check_id="wf_profitable_windows",
@@ -132,8 +132,17 @@ class EvidenceGate:
                 severity="HIGH",
                 message=f"Profitable windows: {walk_forward.pct_profitable_windows:.1f}% (min: {self.min_pct_profitable_windows}%)",
             ))
+        else:
+            missing_evidence.append("walk_forward")
+            checks.append(EvidenceCheck(
+                check_id="wf_oos_positive",
+                passed=False,
+                missing=True,
+                severity="CRITICAL",
+                message="Walk-forward analysis unavailable or insufficient data",
+            ))
 
-        # Check 2: Bootstrap confidence interval excludes zero
+        # ── 2. Bootstrap ────────────────────────────────────────────
         if bootstrap and bootstrap.n_bootstrap > 0:
             passed_boot = bootstrap.sharpe_ci_lower > 0
             checks.append(EvidenceCheck(
@@ -150,8 +159,17 @@ class EvidenceGate:
                 severity="HIGH",
                 message=f"% positive Sharpe: {bootstrap.pct_positive_sharpe:.1f}% (min: {self.min_pct_positive_bootstrap}%)",
             ))
+        else:
+            missing_evidence.append("bootstrap")
+            checks.append(EvidenceCheck(
+                check_id="bootstrap_ci_positive",
+                passed=False,
+                missing=True,
+                severity="CRITICAL",
+                message="Bootstrap analysis unavailable",
+            ))
 
-        # Check 3: Permutation test significance
+        # ── 3. Permutation test ─────────────────────────────────────
         if permutation and permutation.n_permutations > 0:
             passed_perm = permutation.p_value < self.max_p_value
             checks.append(EvidenceCheck(
@@ -160,18 +178,17 @@ class EvidenceGate:
                 severity="CRITICAL",
                 message=f"p-value: {permutation.p_value:.4f} (max: {self.max_p_value})",
             ))
-
-        # Check 4: Parameter sensitivity
-        if sensitivity:
-            passed_sens = sensitivity.overall_robust
+        else:
+            missing_evidence.append("permutation")
             checks.append(EvidenceCheck(
-                check_id="sensitivity_robust",
-                passed=passed_sens,
-                severity="HIGH",
-                message=f"Parameter robust: {sensitivity.overall_robust}, worst Sharpe: {sensitivity.worst_case_sharpe:.3f}",
+                check_id="permutation_significant",
+                passed=False,
+                missing=True,
+                severity="CRITICAL",
+                message="Permutation test unavailable",
             ))
 
-        # Check 5: Cost stress
+        # ── 4. Cost stress ──────────────────────────────────────────
         if cost_stress:
             passed_cost = cost_stress.survives_1_5x
             checks.append(EvidenceCheck(
@@ -180,8 +197,28 @@ class EvidenceGate:
                 severity="CRITICAL",
                 message=f"Survives 1.5x costs: {cost_stress.survives_1_5x}, breakeven: {cost_stress.breakeven_multiplier:.2f}x",
             ))
+        else:
+            missing_evidence.append("cost_stress")
+            checks.append(EvidenceCheck(
+                check_id="cost_stress_1_5x",
+                passed=False,
+                missing=True,
+                severity="CRITICAL",
+                message="Cost stress analysis unavailable",
+            ))
 
-        # Check 6: Regime stability
+        # ── 5. Parameter sensitivity ────────────────────────────────
+        if sensitivity:
+            passed_sens = sensitivity.overall_robust
+            checks.append(EvidenceCheck(
+                check_id="sensitivity_robust",
+                passed=passed_sens,
+                severity="MEDIUM",
+                message=f"Parameter robust: {sensitivity.overall_robust}, worst Sharpe: {sensitivity.worst_case_sharpe:.3f}",
+            ))
+        # Note: missing sensitivity is advisory, not required
+
+        # ── 6. Regime stability ─────────────────────────────────────
         if regime:
             passed_regime = not regime.regime_dependent
             checks.append(EvidenceCheck(
@@ -198,17 +235,112 @@ class EvidenceGate:
                 severity="HIGH",
                 message=f"Min regime Sharpe: {regime.min_sharpe:.3f} (min: {self.min_worst_regime_sharpe})",
             ))
+        else:
+            missing_evidence.append("regime")
+            checks.append(EvidenceCheck(
+                check_id="regime_stable",
+                passed=False,
+                missing=True,
+                severity="HIGH",
+                message="Regime analysis unavailable",
+            ))
 
-        # Determine verdict
-        critical_failures = [c for c in checks if c.severity == "CRITICAL" and not c.passed]
-        high_failures = [c for c in checks if c.severity == "HIGH" and not c.passed]
+        # ── 7. Universe perturbation ────────────────────────────────
+        if universe:
+            passed_uni = not universe.single_instrument_dependency
+            checks.append(EvidenceCheck(
+                check_id="universe_no_single_dependency",
+                passed=passed_uni,
+                severity="HIGH",
+                message=f"Single instrument dependency: {universe.single_instrument_dependency}, "
+                        f"robustness: {universe.robustness_score:.1f}%",
+            ))
 
-        if critical_failures:
+            passed_conc = universe.concentration.herfindahl_index <= self.max_concentration_hhi
+            checks.append(EvidenceCheck(
+                check_id="universe_concentration",
+                passed=passed_conc,
+                severity="HIGH",
+                message=f"HHI: {universe.concentration.herfindahl_index:.4f} (max: {self.max_concentration_hhi})",
+            ))
+        else:
+            missing_evidence.append("universe")
+            checks.append(EvidenceCheck(
+                check_id="universe_no_single_dependency",
+                passed=False,
+                missing=True,
+                severity="HIGH",
+                message="Universe perturbation analysis unavailable",
+            ))
+
+        # ── 8. Temporal stability ───────────────────────────────────
+        if temporal and temporal.window_count > 0:
+            passed_decay = not temporal.performance_decay
+            checks.append(EvidenceCheck(
+                check_id="temporal_no_decay",
+                passed=passed_decay,
+                severity="HIGH",
+                message=f"Sharpe trend: {temporal.sharpe_trend:.6f}, "
+                        f"positive windows: {temporal.pct_positive_sharpe:.1f}%",
+            ))
+        else:
+            missing_evidence.append("temporal")
+            checks.append(EvidenceCheck(
+                check_id="temporal_no_decay",
+                passed=False,
+                missing=True,
+                severity="HIGH",
+                message="Temporal stability analysis unavailable or insufficient data",
+            ))
+
+        # ── 9. Multiple testing ─────────────────────────────────────
+        if multiple_testing and multiple_testing.n_tests > 1:
+            any_rejected_after_correction = any(multiple_testing.rejected)
+            checks.append(EvidenceCheck(
+                check_id="multiple_testing_survives",
+                passed=any_rejected_after_correction,
+                severity="MEDIUM",
+                message=f"Method: {multiple_testing.method}, "
+                        f"n_tests: {multiple_testing.n_tests}, "
+                        f"n_rejected: {sum(multiple_testing.rejected)}",
+            ))
+        # Note: missing multiple testing is advisory — single test is fine
+
+        # ── 10. PBO ─────────────────────────────────────────────────
+        if pbo:
+            if pbo.sufficient_experiments:
+                passed_pbo = pbo.pbo < 0.5
+                checks.append(EvidenceCheck(
+                    check_id="pbo_acceptable",
+                    passed=passed_pbo,
+                    severity="HIGH",
+                    message=f"PBO: {pbo.pbo:.2f}, candidates: {pbo.n_candidates}",
+                ))
+            else:
+                checks.append(EvidenceCheck(
+                    check_id="pbo_acceptable",
+                    passed=True,  # INSUFFICIENT is not a failure
+                    missing=True,
+                    severity="MEDIUM",
+                    message=f"PBO insufficient: {pbo.message}",
+                ))
+
+        # ── Determine verdict ───────────────────────────────────────
+        critical_failures = [c for c in checks if c.severity == "CRITICAL" and not c.passed and not c.missing]
+        critical_missing = [c for c in checks if c.severity == "CRITICAL" and c.missing]
+        high_failures = [c for c in checks if c.severity == "HIGH" and not c.passed and not c.missing]
+        high_missing = [c for c in checks if c.severity == "HIGH" and c.missing]
+
+        # ALL critical checks missing → REJECTED (no evidence at all)
+        all_critical_missing = all(c.missing for c in checks if c.severity == "CRITICAL")
+
+        if critical_failures or all_critical_missing:
             verdict = EvidenceVerdict.REJECTED
-        elif high_failures:
+        elif critical_missing or high_failures or high_missing:
+            # Missing critical/high evidence OR high checks failed → INCONCLUSIVE
             verdict = EvidenceVerdict.INCONCLUSIVE
         else:
-            # All checks passed — determine CANDIDATE vs VALIDATED
+            # All checks pass — determine CANDIDATE vs VALIDATED
             strong_evidence = (
                 (permutation and permutation.p_value < 0.01) or
                 (bootstrap and bootstrap.pct_positive_sharpe > 90) or
@@ -221,6 +353,9 @@ class EvidenceGate:
             "checks": [c.to_dict() for c in checks],
             "total_checks": len(checks),
             "passed_checks": sum(1 for c in checks if c.passed),
+            "missing_evidence": missing_evidence,
             "critical_failures": len(critical_failures),
+            "critical_missing": len(critical_missing),
             "high_failures": len(high_failures),
+            "high_missing": len(high_missing),
         }

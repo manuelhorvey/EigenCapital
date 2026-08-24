@@ -2,7 +2,9 @@
 
 import pytest
 from eigencapital.research.provenance.hashing import (
-    compute_provenance_hash, verify_provenance, canonical_json_dumps,
+    compute_provenance_hash,
+    verify_provenance,
+    canonical_json_dumps,
 )
 from eigencapital.research.provenance.manifest import ResearchManifest
 
@@ -55,6 +57,7 @@ class TestResearchManifest:
 
     def test_from_experiment(self):
         from eigencapital.research.experiments.registry import ExperimentRecord
+
         exp = ExperimentRecord(
             experiment_id="EXP-000001",
             hypothesis_id="HYP-000001",

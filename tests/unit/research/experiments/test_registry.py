@@ -2,7 +2,9 @@
 
 import pytest
 from eigencapital.research.experiments.registry import (
-    ExperimentRegistry, ExperimentRecord, ExperimentError,
+    ExperimentRegistry,
+    ExperimentRecord,
+    ExperimentError,
 )
 
 
@@ -55,8 +57,7 @@ class TestExperimentRegistry:
         exp = reg.start("EXP-000001")
         assert exp.status == "RUNNING"
 
-        exp = reg.complete("EXP-000001", status="CANDIDATE",
-                           result={"sharpe": 1.5})
+        exp = reg.complete("EXP-000001", status="CANDIDATE", result={"sharpe": 1.5})
         assert exp.status == "CANDIDATE"
         assert exp.result["sharpe"] == 1.5
 
@@ -98,8 +99,7 @@ class TestExperimentRegistry:
         reg = ExperimentRegistry()
         reg.create(**_make_experiment().__dict__)
         reg.start("EXP-000001")
-        exp = reg.complete("EXP-000001", status="REJECTED",
-                           result={"sharpe": 0.2})
+        exp = reg.complete("EXP-000001", status="REJECTED", result={"sharpe": 0.2})
         assert exp.status == "REJECTED"
 
     def test_provenance_hash_deterministic(self):
@@ -116,10 +116,12 @@ class TestExperimentRegistry:
         reg = ExperimentRegistry()
         exp1 = reg.create(**_make_experiment(experiment_id="EXP-000001").__dict__)
         reg2 = ExperimentRegistry()
-        exp2 = reg2.create(**_make_experiment(
-            experiment_id="EXP-000002",
-            parameters={"lookback": 200},
-        ).__dict__)
+        exp2 = reg2.create(
+            **_make_experiment(
+                experiment_id="EXP-000002",
+                parameters={"lookback": 200},
+            ).__dict__
+        )
         assert exp1.provenance_hash != exp2.provenance_hash
 
     def test_to_from_dict(self):
@@ -165,20 +167,24 @@ class TestTrialAccounting:
 
     def test_valid_trial_metadata_accepted(self):
         reg = ExperimentRegistry()
-        exp = reg.create(**_make_experiment(
-            experiment_id="EXP-000010",
-            trial_metadata=self._tm(),
-        ).__dict__)
+        exp = reg.create(
+            **_make_experiment(
+                experiment_id="EXP-000010",
+                trial_metadata=self._tm(),
+            ).__dict__
+        )
         assert exp.trial_metadata["trial_index"] == 1
         assert exp.provenance_hash != ""
 
     def test_trial_metadata_changes_provenance_hash(self):
         reg = ExperimentRegistry()
         e1 = reg.create(**_make_experiment(experiment_id="EXP-000011").__dict__)
-        e2 = reg.create(**_make_experiment(
-            experiment_id="EXP-000012",
-            trial_metadata=self._tm(trial_index=2),
-        ).__dict__)
+        e2 = reg.create(
+            **_make_experiment(
+                experiment_id="EXP-000012",
+                trial_metadata=self._tm(trial_index=2),
+            ).__dict__
+        )
         assert e1.provenance_hash != e2.provenance_hash
 
     def test_missing_required_keys_rejected(self):
@@ -202,6 +208,7 @@ class TestTrialAccounting:
 class TestExperimentRepository:
     def test_save_and_load(self, tmp_path):
         from eigencapital.research.experiments.repository import ExperimentRepository
+
         repo = ExperimentRepository(tmp_path)
         exp = _make_experiment()
         repo.save(exp)
@@ -211,12 +218,14 @@ class TestExperimentRepository:
 
     def test_load_not_found(self, tmp_path):
         from eigencapital.research.experiments.repository import ExperimentRepository
+
         repo = ExperimentRepository(tmp_path)
         with pytest.raises(ExperimentError):
             repo.load("NONEXISTENT")
 
     def test_list_ids(self, tmp_path):
         from eigencapital.research.experiments.repository import ExperimentRepository
+
         repo = ExperimentRepository(tmp_path)
         repo.save(_make_experiment(experiment_id="EXP-000002"))
         repo.save(_make_experiment(experiment_id="EXP-000001"))
@@ -224,6 +233,7 @@ class TestExperimentRepository:
 
     def test_delete(self, tmp_path):
         from eigencapital.research.experiments.repository import ExperimentRepository
+
         repo = ExperimentRepository(tmp_path)
         repo.save(_make_experiment())
         assert repo.delete("EXP-000001") is True

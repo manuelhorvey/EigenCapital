@@ -1,9 +1,8 @@
 """Unit tests for EigenRisk Engine — adversarial risk testing."""
 
 import pytest
-import math
-from eigencapital.risk.policy import RiskPolicy, CONSERVATIVE, MODERATE, AGGRESSIVE
-from eigencapital.risk.engine import EigenRiskEngine, RiskDecision
+from eigencapital.risk.policy import RiskPolicy, CONSERVATIVE, MODERATE
+from eigencapital.risk.engine import EigenRiskEngine
 from eigencapital.risk.checks.account_checks import (
     AccountState,
     check_max_drawdown,
@@ -13,11 +12,11 @@ from eigencapital.risk.checks.account_checks import (
     check_min_equity,
     check_position_count,
     check_kill_switch,
-    run_all_account_checks,
 )
 
 
 # ─── Policy Tests ───────────────────────────────────────────────────────────
+
 
 class TestRiskPolicy:
     def test_default_policy(self):
@@ -43,6 +42,7 @@ class TestRiskPolicy:
 
 
 # ─── Account Check Tests ────────────────────────────────────────────────────
+
 
 class TestAccountChecks:
     def test_drawdown_pass(self):
@@ -135,9 +135,11 @@ class TestAccountChecks:
 
 # ─── EigenRisk Engine Tests ─────────────────────────────────────────────────
 
+
 class TestEigenRiskEngine:
     def _clear_registries(self):
         from eigencapital.core.models.risk_check_result import RiskCheckResult
+
         RiskCheckResult._registry.clear()
 
     def test_all_pass(self):

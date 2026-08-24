@@ -45,8 +45,14 @@ class TestAccountingEngine:
 
     def test_commission_tracking(self):
         acc = AccountingEngine(initial_cash=100_000)
-        acc.apply_fill(fill_price=4500, quantity=1, side="BUY", multiplier=50,
-                       commission=2.50, fees=1.25)
+        acc.apply_fill(
+            fill_price=4500,
+            quantity=1,
+            side="BUY",
+            multiplier=50,
+            commission=2.50,
+            fees=1.25,
+        )
         assert acc.total_commission == 2.50
         assert acc.total_fees == 1.25
 
@@ -83,8 +89,9 @@ class TestAccountingEngine:
 
     def test_summary(self):
         acc = AccountingEngine(initial_cash=100_000)
-        acc.apply_fill(fill_price=4500, quantity=1, side="BUY", multiplier=50,
-                       commission=2.50)
+        acc.apply_fill(
+            fill_price=4500, quantity=1, side="BUY", multiplier=50, commission=2.50
+        )
         s = acc.summary()
         assert s["initial_cash"] == 100_000
         assert s["total_fills"] == 1

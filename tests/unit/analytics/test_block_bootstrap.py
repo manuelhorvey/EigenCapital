@@ -1,6 +1,5 @@
 """Tests for block bootstrap."""
 
-import pytest
 from eigencapital.analytics.validation.block_bootstrap import block_bootstrap
 
 

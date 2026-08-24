@@ -7,14 +7,16 @@ Strategy CANNOT bypass Portfolio or EigenRisk.
 """
 
 import pytest
-from eigencapital.portfolio.portfolio import Portfolio, PortfolioState, PortfolioDecision
+from eigencapital.portfolio.portfolio import (
+    Portfolio,
+    PortfolioState,
+    PortfolioDecision,
+)
 from eigencapital.core.models.strategy_intent import StrategyIntent, Horizon
 from eigencapital.core.models.portfolio_target import PortfolioTarget
 from eigencapital.core.models.approved_target import ApprovedTarget
-from eigencapital.core.models.order_plan import OrderPlan, Urgency
+from eigencapital.core.models.order_plan import OrderPlan
 from eigencapital.core.models.position import Position
-from eigencapital.risk.engine import EigenRiskEngine
-from eigencapital.risk.policy import RiskPolicy
 from eigencapital.risk.checks.account_checks import AccountState
 
 _counter = 0
@@ -34,8 +36,10 @@ def clear_registries():
     OrderPlan._registry.clear()
     Position._registry.clear()
     from eigencapital.core.models.strategy_intent import StrategyIntent as SI
+
     SI._registry.clear()
     from eigencapital.core.models.risk_check_result import RiskCheckResult
+
     RiskCheckResult._registry.clear()
     yield
     PortfolioTarget._registry.clear()
@@ -128,6 +132,7 @@ class TestPortfolio:
     def test_process_multiple_instruments(self):
         """Test processing intents for multiple instruments."""
         from eigencapital.core.models.risk_check_result import RiskCheckResult
+
         portfolio = Portfolio()
         intents = [
             StrategyIntent(
@@ -281,15 +286,17 @@ class TestPortfolio:
 
         # Verify Strategy base class only exposes on_bar
         from eigencapital.strategies.base import BaseStrategy
-        strategy_methods = [m for m in dir(BaseStrategy) if not m.startswith('_')]
-        assert 'on_bar' in strategy_methods
-        assert 'on_start' in strategy_methods
-        assert 'on_end' in strategy_methods
+
+        strategy_methods = [m for m in dir(BaseStrategy) if not m.startswith("_")]
+        assert "on_bar" in strategy_methods
+        assert "on_start" in strategy_methods
+        assert "on_end" in strategy_methods
 
         # Verify no Order/OrderPlan/EigenRisk references in strategy
         from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
         import inspect
+
         source = inspect.getsource(CrossAssetTrendStrategy)
-        assert 'Order' not in source
-        assert 'EigenRisk' not in source
-        assert 'Broker' not in source
+        assert "Order" not in source
+        assert "EigenRisk" not in source
+        assert "Broker" not in source

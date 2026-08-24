@@ -1,6 +1,5 @@
 """Tests for Probability of Backtest Overfitting."""
 
-import pytest
 from eigencapital.analytics.validation.pbo import compute_pbo
 
 
@@ -9,10 +8,12 @@ class TestPBO:
 
     def test_insufficient_experiments(self):
         """Test PBO with insufficient candidates."""
-        result = compute_pbo([
-            {"in_sample_sharpe": 2.0, "out_of_sample_sharpe": 0.3},
-            {"in_sample_sharpe": 1.5, "out_of_sample_sharpe": 1.2},
-        ])
+        result = compute_pbo(
+            [
+                {"in_sample_sharpe": 2.0, "out_of_sample_sharpe": 0.3},
+                {"in_sample_sharpe": 1.5, "out_of_sample_sharpe": 1.2},
+            ]
+        )
         assert not result.sufficient_experiments
         assert "INSUFFICIENT" in result.message
 

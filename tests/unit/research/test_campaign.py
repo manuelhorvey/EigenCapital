@@ -10,15 +10,11 @@ Tests cover:
 - Edge cases: missing hypotheses, failed executions
 """
 
-import pytest
-
 from eigencapital.research.campaigns.runner import (
     CampaignRunner,
     CampaignManifest,
-    CampaignResult,
 )
-from eigencapital.research.execution.engine import ExecutionEngine, ExecutionConfig
-from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
+from eigencapital.research.execution.engine import ExecutionEngine
 from eigencapital.research.execution.ledger import ExecutionLedger
 from eigencapital.research.hypotheses.hypothesis import Hypothesis
 from eigencapital.research.experiments.registry import ExperimentRegistry
@@ -30,6 +26,7 @@ from eigencapital.features.feature_set import FeatureSet, FeatureEntry, FeatureS
 # ───────────────────────────────────────────────
 #  Helpers
 # ───────────────────────────────────────────────
+
 
 def _make_hypothesis(hyp_id: str, family: str = "trend") -> Hypothesis:
     return Hypothesis(
@@ -63,6 +60,7 @@ def _mock_validate(result, config):
 #  CAMPAIGN MANIFEST
 # ═══════════════════════════════════════════════
 
+
 class TestCampaignManifest:
     def test_basic_creation(self):
         manifest = CampaignManifest(
@@ -86,6 +84,7 @@ class TestCampaignManifest:
 # ═══════════════════════════════════════════════
 #  CAMPAIGN RUNNER
 # ═══════════════════════════════════════════════
+
 
 class TestCampaignRunner:
     def test_run_single_hypothesis(self):

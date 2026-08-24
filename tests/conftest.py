@@ -26,21 +26,41 @@ def clear_all_registries():
     from eigencapital.core.models.experiment import Experiment
 
     for cls in (
-        Instrument, Bar, MarketSnapshot, StrategyIntent, Position,
-        Fill, RiskCheckResult, RiskDecision, PortfolioTarget,
-        ApprovedTarget, OrderPlan, OrderLifecycle, DecisionSnapshot,
+        Instrument,
+        Bar,
+        MarketSnapshot,
+        StrategyIntent,
+        Position,
+        Fill,
+        RiskCheckResult,
+        RiskDecision,
+        PortfolioTarget,
+        ApprovedTarget,
+        OrderPlan,
+        OrderLifecycle,
+        DecisionSnapshot,
         Experiment,
     ):
-        if hasattr(cls, '_registry') and isinstance(cls._registry, dict):
+        if hasattr(cls, "_registry") and isinstance(cls._registry, dict):
             cls._registry.clear()
 
     yield
 
     for cls in (
-        Instrument, Bar, MarketSnapshot, StrategyIntent, Position,
-        Fill, RiskCheckResult, RiskDecision, PortfolioTarget,
-        ApprovedTarget, OrderPlan, OrderLifecycle, DecisionSnapshot,
+        Instrument,
+        Bar,
+        MarketSnapshot,
+        StrategyIntent,
+        Position,
+        Fill,
+        RiskCheckResult,
+        RiskDecision,
+        PortfolioTarget,
+        ApprovedTarget,
+        OrderPlan,
+        OrderLifecycle,
+        DecisionSnapshot,
         Experiment,
     ):
-        if hasattr(cls, '_registry') and isinstance(cls._registry, dict):
+        if hasattr(cls, "_registry") and isinstance(cls._registry, dict):
             cls._registry.clear()

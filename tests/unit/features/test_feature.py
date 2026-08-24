@@ -4,10 +4,12 @@ Test invariants, edge cases, and failure modes.
 """
 
 import pytest
-import math
 from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureConfig, FeatureFamily, Normalization
-from eigencapital.features.errors import FeatureAvailabilityError, FeatureValidationError
+from eigencapital.features.errors import (
+    FeatureAvailabilityError,
+    FeatureValidationError,
+)
 
 _counter = 0
 
@@ -70,17 +72,17 @@ class TestFeatureInvariants:
     def test_nan_value_rejected(self):
         """NaN value must be rejected."""
         with pytest.raises(FeatureValidationError):
-            _make_feature(value=float('nan'))
+            _make_feature(value=float("nan"))
 
     def test_infinite_value_rejected(self):
         """Infinite value must be rejected."""
         with pytest.raises(FeatureValidationError):
-            _make_feature(value=float('inf'))
+            _make_feature(value=float("inf"))
 
     def test_negative_infinite_rejected(self):
         """Negative infinite value must be rejected."""
         with pytest.raises(FeatureValidationError):
-            _make_feature(value=float('-inf'))
+            _make_feature(value=float("-inf"))
 
     def test_invalid_family_rejected(self):
         """Invalid feature_family must be rejected."""

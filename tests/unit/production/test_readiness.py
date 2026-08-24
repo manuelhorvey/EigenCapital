@@ -8,12 +8,9 @@ Tests cover:
 - Edge cases: critical failures, missing evidence, no live connectivity
 """
 
-import pytest
-
 from eigencapital.production.readiness import (
     ReadinessResult,
     ReadinessVerdict,
-    ReadinessCheck,
 )
 from eigencapital.production.security import (
     SecurityBoundary,
@@ -25,6 +22,7 @@ from eigencapital.production.security import (
 # ═══════════════════════════════════════════════
 #  READINESS GATE
 # ═══════════════════════════════════════════════
+
 
 class TestReadinessGate:
     def test_production_ready_for_shadow(self):
@@ -198,6 +196,7 @@ class TestReadinessGate:
 #  SECURITY BOUNDARY
 # ═══════════════════════════════════════════════
 
+
 class TestSecurityBoundary:
     def test_boundary_creation(self):
         boundary = SecurityBoundary(
@@ -225,6 +224,7 @@ class TestSecurityBoundary:
 # ═══════════════════════════════════════════════
 #  CONFIGURATION MANIFEST
 # ═══════════════════════════════════════════════
+
 
 class TestConfigurationManifest:
     def test_manifest_creation(self):
@@ -261,11 +261,13 @@ class TestConfigurationManifest:
 #  SECURITY AUDIT
 # ═══════════════════════════════════════════════
 
+
 class TestSecurityAudit:
     def test_verify_boundary(self):
         audit = SecurityAudit()
         boundary = audit.verify_boundary(
-            "research", "execution",
+            "research",
+            "execution",
             "research cannot submit live orders",
             verified=True,
             evidence="Test passed",
@@ -308,6 +310,7 @@ class TestSecurityAudit:
 #  ADVERSARIAL — PROPERTIES
 # ═══════════════════════════════════════════════
 
+
 class TestProperties:
     def test_critical_failure_blocks_readiness(self):
         """Any critical failure must block production readiness."""
@@ -328,8 +331,9 @@ class TestProperties:
                 field_name: 1,
             }
             result = ReadinessResult.evaluate(metrics)
-            assert result.verdict == ReadinessVerdict.NOT_READY, \
+            assert result.verdict == ReadinessVerdict.NOT_READY, (
                 f"Field {field_name} should cause NOT_READY"
+            )
 
     def test_live_connectivity_blocks_readiness(self):
         """Live connectivity must always block readiness."""

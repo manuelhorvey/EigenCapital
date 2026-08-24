@@ -11,7 +11,6 @@ Tests cover:
 - Edge cases: empty streams, single stream, identical returns
 """
 
-import math
 import pytest
 
 from eigencapital.research.combination.candidate import (
@@ -20,14 +19,12 @@ from eigencapital.research.combination.candidate import (
 )
 from eigencapital.research.combination.returns import (
     ReturnStream,
-    DependenceMatrix,
     compute_pearson_correlation,
     compute_spearman_correlation,
     compute_downside_correlation,
     build_dependence_matrix,
 )
 from eigencapital.research.combination.portfolio import (
-    PortfolioWeights,
     PortfolioResult,
     compute_equal_weight,
     compute_risk_scaled,
@@ -41,20 +38,24 @@ from eigencapital.research.execution.record import ExecutionRecord, ExecutionSta
 #  Helpers
 # ───────────────────────────────────────────────
 
+
 def _make_streams(n: int = 3, length: int = 100, seed: int = 42):
     """Create n correlated return streams."""
     import random
+
     rng = random.Random(seed)
     streams = []
     for i in range(n):
         returns = [rng.gauss(0.0005, 0.01) for _ in range(length)]
         timestamps = [f"2025-01-{15 + j:02d}T10:00:00Z" for j in range(length)]
-        streams.append(ReturnStream(
-            stream_id=f"RS-{i}",
-            candidate_id=f"AC-{i}",
-            returns=tuple(returns),
-            timestamps=tuple(timestamps),
-        ))
+        streams.append(
+            ReturnStream(
+                stream_id=f"RS-{i}",
+                candidate_id=f"AC-{i}",
+                returns=tuple(returns),
+                timestamps=tuple(timestamps),
+            )
+        )
     return streams
 
 
@@ -79,6 +80,7 @@ def _make_execution_record(
 # ═══════════════════════════════════════════════
 #  ALPHA CANDIDATE
 # ═══════════════════════════════════════════════
+
 
 class TestAlphaCandidate:
     def test_basic_creation(self):
@@ -164,6 +166,7 @@ class TestAlphaCandidate:
 #  RETURN STREAM
 # ═══════════════════════════════════════════════
 
+
 class TestReturnStream:
     def test_basic_creation(self):
         stream = ReturnStream(
@@ -229,6 +232,7 @@ class TestReturnStream:
 #  CORRELATION
 # ═══════════════════════════════════════════════
 
+
 class TestCorrelation:
     def test_pearson_perfect(self):
         x = [1.0, 2.0, 3.0, 4.0, 5.0]
@@ -271,6 +275,7 @@ class TestCorrelation:
 #  PORTFOLIO CONSTRUCTORS
 # ═══════════════════════════════════════════════
 
+
 class TestPortfolioConstructors:
     def test_equal_weight(self):
         streams = _make_streams(3)
@@ -311,6 +316,7 @@ class TestPortfolioConstructors:
 # ═══════════════════════════════════════════════
 #  PORTFOLIO COMBINATION
 # ═══════════════════════════════════════════════
+
 
 class TestPortfolioCombination:
     def test_combine_returns(self):
@@ -378,6 +384,7 @@ class TestPortfolioCombination:
 #  ADVERSARIAL — PROPERTIES
 # ═══════════════════════════════════════════════
 
+
 class TestProperties:
     def test_correlation_bounds(self):
         streams = _make_streams(3, length=100)
@@ -396,15 +403,20 @@ class TestProperties:
     def test_diversification_benefit(self):
         """Combining uncorrelated streams should reduce volatility."""
         import random
+
         rng = random.Random(99)
         streams = []
         for i in range(5):
             returns = [rng.gauss(0.0005, 0.01) for _ in range(200)]
             timestamps = [f"2025-01-{15 + j:02d}T10:00:00Z" for j in range(200)]
-            streams.append(ReturnStream(
-                stream_id=f"RS-{i}", candidate_id=f"AC-{i}",
-                returns=tuple(returns), timestamps=tuple(timestamps),
-            ))
+            streams.append(
+                ReturnStream(
+                    stream_id=f"RS-{i}",
+                    candidate_id=f"AC-{i}",
+                    returns=tuple(returns),
+                    timestamps=tuple(timestamps),
+                )
+            )
 
         weights = compute_equal_weight(streams)
         combined, _ = combine_returns(streams, weights)

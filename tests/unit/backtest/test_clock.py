@@ -43,7 +43,9 @@ class TestBacktestClock:
     def test_look_ahead_violation(self):
         bars = [_make_bar(i) for i in range(30, 35)]
         clock = BacktestClock(bars)
-        with pytest.raises(LookAheadViolationError, match="Cannot access bar at index 3"):
+        with pytest.raises(
+            LookAheadViolationError, match="Cannot access bar at index 3"
+        ):
             clock.bar_at(3)  # Future bar
 
     def test_bar_at_current_index(self):

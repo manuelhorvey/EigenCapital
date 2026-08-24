@@ -10,7 +10,6 @@ Tests cover:
 - Edge cases: single candidate, empty streams
 """
 
-import math
 import random
 import pytest
 
@@ -27,15 +26,18 @@ from eigencapital.research.portfolio.evidence import (
 )
 from eigencapital.research.portfolio.engine import (
     PortfolioResearchEngine,
-    PortfolioResearchConfig,
 )
-from eigencapital.research.combination.candidate import AlphaCandidate, EligibilityStatus
+from eigencapital.research.combination.candidate import (
+    AlphaCandidate,
+    EligibilityStatus,
+)
 from eigencapital.research.combination.returns import ReturnStream
 
 
 # ───────────────────────────────────────────────
 #  Helpers
 # ───────────────────────────────────────────────
+
 
 def _make_streams(n: int = 3, length: int = 200, seed: int = 42):
     """Create n return streams with controlled correlation."""
@@ -44,12 +46,14 @@ def _make_streams(n: int = 3, length: int = 200, seed: int = 42):
     for i in range(n):
         returns = [rng.gauss(0.0005, 0.01) for _ in range(length)]
         timestamps = [f"2025-01-{15 + j:02d}T10:00:00Z" for j in range(length)]
-        streams.append(ReturnStream(
-            stream_id=f"RS-{i}",
-            candidate_id=f"AC-{i}",
-            returns=tuple(returns),
-            timestamps=tuple(timestamps),
-        ))
+        streams.append(
+            ReturnStream(
+                stream_id=f"RS-{i}",
+                candidate_id=f"AC-{i}",
+                returns=tuple(returns),
+                timestamps=tuple(timestamps),
+            )
+        )
     return streams
 
 
@@ -73,6 +77,7 @@ def _make_candidates(n: int = 3, eligible: bool = True):
 # ═══════════════════════════════════════════════
 #  ALLOCATION EXPERIMENT
 # ═══════════════════════════════════════════════
+
 
 class TestAllocationExperiment:
     def test_basic_creation(self):
@@ -155,6 +160,7 @@ class TestAllocationExperiment:
 #  PORTFOLIO EVIDENCE GATE
 # ═══════════════════════════════════════════════
 
+
 class TestPortfolioEvidenceGate:
     def test_all_pass_candidate(self):
         metrics = {
@@ -225,6 +231,7 @@ class TestPortfolioEvidenceGate:
 #  PORTFOLIO RESEARCH ENGINE
 # ═══════════════════════════════════════════════
 
+
 class TestPortfolioResearchEngine:
     def test_research_multiple_candidates(self):
         candidates = _make_candidates(3, eligible=True)
@@ -255,7 +262,10 @@ class TestPortfolioResearchEngine:
         result = engine.research(candidates, streams)
 
         # All excluded → no eligible candidates
-        assert result.get("status") == "insufficient_candidates" or result.get("candidates", 0) == 0
+        assert (
+            result.get("status") == "insufficient_candidates"
+            or result.get("candidates", 0) == 0
+        )
 
     def test_research_empty(self):
         engine = PortfolioResearchEngine()
@@ -316,5 +326,7 @@ class TestPortfolioResearchEngine:
         r1 = PortfolioResearchEngine().research(candidates, streams)
         r2 = PortfolioResearchEngine().research(candidates, streams)
 
-        assert r1["methods"]["equal_weight"]["metrics"]["sharpe"] == \
-               r2["methods"]["equal_weight"]["metrics"]["sharpe"]
+        assert (
+            r1["methods"]["equal_weight"]["metrics"]["sharpe"]
+            == r2["methods"]["equal_weight"]["metrics"]["sharpe"]
+        )

@@ -10,13 +10,9 @@ Tests cover:
 - Edge cases: unauthorized live, kill switch, stale data
 """
 
-import pytest
-
 from eigencapital.shadow.contracts import (
     ExecutionMode,
     BrokerOrder,
-    BrokerFill,
-    BrokerAdapter,
     ShadowBrokerAdapter,
     LiveAuthorization,
     ExecutionBoundary,
@@ -33,6 +29,7 @@ from eigencapital.shadow.safety import (
 # ═══════════════════════════════════════════════
 #  BROKER ADAPTER
 # ═══════════════════════════════════════════════
+
 
 class TestBrokerOrder:
     def test_basic_creation(self):
@@ -120,6 +117,7 @@ class TestShadowBrokerAdapter:
 #  LIVE AUTHORIZATION
 # ═══════════════════════════════════════════════
 
+
 class TestLiveAuthorization:
     def test_default_disabled(self):
         auth = LiveAuthorization()
@@ -173,6 +171,7 @@ class TestLiveAuthorization:
 # ═══════════════════════════════════════════════
 #  EXECUTION BOUNDARY
 # ═══════════════════════════════════════════════
+
 
 class TestExecutionBoundary:
     def test_paper_mode_allows(self):
@@ -296,6 +295,7 @@ class TestExecutionBoundary:
 #  KILL SWITCH
 # ═══════════════════════════════════════════════
 
+
 class TestKillSwitch:
     def test_default_inactive(self):
         ks = KillSwitch()
@@ -340,6 +340,7 @@ class TestKillSwitch:
 #  MARKET DATA SAFETY
 # ═══════════════════════════════════════════════
 
+
 class TestMarketDataSafety:
     def test_fresh_data(self):
         safety = MarketDataSafety()
@@ -376,6 +377,7 @@ class TestMarketDataSafety:
 #  ADVERSARIAL — PROPERTIES
 # ═══════════════════════════════════════════════
 
+
 class TestProperties:
     def test_live_always_blocked_in_1n(self):
         """Live execution must always be blocked in Phase 1N."""
@@ -386,7 +388,9 @@ class TestProperties:
                     authorization_token=token,
                     config_fingerprint=config,
                 )
-                boundary = ExecutionBoundary(mode=ExecutionMode.LIVE, authorization=auth)
+                boundary = ExecutionBoundary(
+                    mode=ExecutionMode.LIVE, authorization=auth
+                )
                 broker = ShadowBrokerAdapter()
                 order = BrokerOrder(
                     order_id="ORD-001",

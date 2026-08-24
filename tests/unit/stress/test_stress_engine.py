@@ -20,15 +20,10 @@ Tests EigenCapital under adverse conditions:
 """
 
 import pytest
-import math
 from eigencapital.stress.engine import StressTestEngine, SystemState
-from eigencapital.stress.result import StressTestResult
-from eigencapital.core.models.order_lifecycle import OrderLifecycle
 from eigencapital.core.models.position import Position
 from eigencapital.core.models.order import Order
 from eigencapital.core.models.fill import Fill
-from eigencapital.core.models.risk_check_result import RiskCheckResult
-from eigencapital.core.models.portfolio_target import PortfolioTarget
 from eigencapital.core.models.approved_target import ApprovedTarget
 from eigencapital.core.models.order_plan import OrderPlan, Urgency
 
@@ -52,6 +47,7 @@ def _baseline_state() -> SystemState:
 # ══════════════════════════════════════════════════════════════════
 # 1. Execution-Price Perturbation
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestExecutionPricePerturbation:
     """Adverse execution cannot improve economic results."""
@@ -78,7 +74,8 @@ class TestExecutionPricePerturbation:
         engine.register_scenario(
             "adverse_slippage",
             "Adverse slippage worsens execution",
-            perturb, check,
+            perturb,
+            check,
             severity="HIGH",
         )
         results = engine.execute(baseline)
@@ -100,7 +97,9 @@ class TestExecutionPricePerturbation:
             return s.equity > b.equity
 
         engine = StressTestEngine()
-        engine.register_scenario("favorable_slippage", "Favorable slippage", perturb, check)
+        engine.register_scenario(
+            "favorable_slippage", "Favorable slippage", perturb, check
+        )
         results = engine.execute(baseline)
         assert results[0].passed
 
@@ -111,6 +110,7 @@ class TestExecutionPricePerturbation:
         equities = []
 
         for cost in costs:
+
             def perturb(state, c=cost):
                 return SystemState(
                     cash=state.cash - c,
@@ -118,17 +118,19 @@ class TestExecutionPricePerturbation:
                     equity=state.equity - c,
                     peak_equity=state.peak_equity,
                 )
+
             stressed = perturb(baseline)
             equities.append(stressed.equity)
 
         # Monotonicity: higher cost → lower equity
         for i in range(1, len(equities)):
-            assert equities[i] <= equities[i-1]
+            assert equities[i] <= equities[i - 1]
 
 
 # ══════════════════════════════════════════════════════════════════
 # 2. Spread Stress
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestSpreadStress:
     """Spread widening increases costs, never improves results."""
@@ -136,6 +138,7 @@ class TestSpreadStress:
     def test_spread_cost_monotonicity(self):
         """Increasing spread must monotonically increase transaction cost."""
         from eigencapital.research.costs.model import CostModel
+
         multipliers = [1.0, 1.5, 2.0, 5.0, 10.0]
         costs = []
         for mult in multipliers:
@@ -147,11 +150,14 @@ class TestSpreadStress:
             costs.append(model.cost_per_contract(tick_value=0.25))
 
         for i in range(1, len(costs)):
-            assert costs[i] >= costs[i-1], f"Cost not monotonic at multiplier {multipliers[i]}"
+            assert costs[i] >= costs[i - 1], (
+                f"Cost not monotonic at multiplier {multipliers[i]}"
+            )
 
     def test_extreme_spread_increases_cost(self):
         """10x spread must cost more than 1x spread."""
         from eigencapital.research.costs.model import CostModel
+
         base = CostModel(model_id="base", spread_ticks=1, slippage_ticks=0.5)
         extreme = CostModel(model_id="extreme", spread_ticks=10, slippage_ticks=5)
         assert extreme.cost_per_contract(0.25) > base.cost_per_contract(0.25)
@@ -160,6 +166,7 @@ class TestSpreadStress:
 # ══════════════════════════════════════════════════════════════════
 # 3. Gap-Through-Stop
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestGapThroughStop:
     """Gaps must not produce favorable fills."""
@@ -176,7 +183,6 @@ class TestGapThroughStop:
     def test_gap_cannot_improve_pnl(self):
         """Gap-through-stop cannot produce favorable P&L."""
         entry_price = 100.0
-        stop_price = 98.0
         gap_price = 95.0
 
         # If we were long, gap produces loss at gap_price
@@ -187,6 +193,7 @@ class TestGapThroughStop:
 # ══════════════════════════════════════════════════════════════════
 # 4. Delayed Execution
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestDelayedExecution:
     """Delays must not produce favorable fills."""
@@ -202,7 +209,6 @@ class TestDelayedExecution:
 
     def test_stale_signal_not_executed(self):
         """Expired signal must not be executed."""
-        signal_timestamp = "2025-01-01T10:00:00Z"
         current_timestamp = "2025-01-01T10:05:00Z"
         expiry = "2025-01-01T10:02:00Z"
 
@@ -215,12 +221,14 @@ class TestDelayedExecution:
 # 5. Missing / Invalid / Stale Data
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestMissingInvalidData:
     """Invalid data must not produce new exposure."""
 
     def test_invalid_ohlc_rejected(self):
         """High < Low must be rejected by Bar model."""
         from eigencapital.core.models.bar import Bar
+
         Bar._registry.clear()
         with pytest.raises(ValueError):
             Bar(
@@ -228,7 +236,10 @@ class TestMissingInvalidData:
                 timestamp_utc="2025-01-01T10:00:00Z",
                 bar_start_utc="2025-01-01T09:59:00Z",
                 bar_end_utc="2025-01-01T10:00:00Z",
-                open=100, high=95, low=102, close=100,  # high < low
+                open=100,
+                high=95,
+                low=102,
+                close=100,  # high < low
                 volume=1000,
             )
         Bar._registry.clear()
@@ -236,6 +247,7 @@ class TestMissingInvalidData:
     def test_negative_price_rejected(self):
         """Negative price must be rejected."""
         from eigencapital.core.models.bar import Bar
+
         Bar._registry.clear()
         with pytest.raises(ValueError):
             Bar(
@@ -243,7 +255,10 @@ class TestMissingInvalidData:
                 timestamp_utc="2025-01-01T10:00:00Z",
                 bar_start_utc="2025-01-01T09:59:00Z",
                 bar_end_utc="2025-01-01T10:00:00Z",
-                open=-100, high=100, low=50, close=100,
+                open=-100,
+                high=100,
+                low=50,
+                close=100,
                 volume=1000,
             )
         Bar._registry.clear()
@@ -251,13 +266,17 @@ class TestMissingInvalidData:
     def test_zero_volume_allowed(self):
         """Zero volume is allowed (market halt)."""
         from eigencapital.core.models.bar import Bar
+
         Bar._registry.clear()
         bar = Bar(
             instrument_id="ES",
             timestamp_utc="2025-01-01T10:00:00Z",
             bar_start_utc="2025-01-01T09:59:00Z",
             bar_end_utc="2025-01-01T10:00:00Z",
-            open=100, high=100, low=100, close=100,
+            open=100,
+            high=100,
+            low=100,
+            close=100,
             volume=0,
         )
         assert bar.volume == 0
@@ -266,13 +285,17 @@ class TestMissingInvalidData:
     def test_duplicate_bar_rejected(self):
         """Duplicate instrument+timestamp must be rejected."""
         from eigencapital.core.models.bar import Bar
+
         Bar._registry.clear()
-        bar1 = Bar(
+        Bar(
             instrument_id="ES",
             timestamp_utc="2025-01-01T10:00:00Z",
             bar_start_utc="2025-01-01T09:59:00Z",
             bar_end_utc="2025-01-01T10:00:00Z",
-            open=100, high=101, low=99, close=100,
+            open=100,
+            high=101,
+            low=99,
+            close=100,
             volume=1000,
         )
         with pytest.raises(ValueError, match="Duplicate"):
@@ -281,7 +304,10 @@ class TestMissingInvalidData:
                 timestamp_utc="2025-01-01T10:00:00Z",
                 bar_start_utc="2025-01-01T09:59:00Z",
                 bar_end_utc="2025-01-01T10:00:00Z",
-                open=100, high=101, low=99, close=100,
+                open=100,
+                high=101,
+                low=99,
+                close=100,
                 volume=1000,
             )
         Bar._registry.clear()
@@ -290,6 +316,7 @@ class TestMissingInvalidData:
 # ══════════════════════════════════════════════════════════════════
 # 6. Extreme Volatility
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestExtremeVolatility:
     """Volatility spikes must not bypass risk controls."""
@@ -308,14 +335,15 @@ class TestExtremeVolatility:
 
     def test_volatility_increases_drawdown(self):
         """Higher volatility should produce larger drawdowns."""
-        low_vol = [100 * (1 + 0.001 * ((i*3) % 7 - 3) * 0.1) for i in range(100)]
-        high_vol = [100 * (1 + 0.01 * ((i*7) % 11 - 5) * 0.1) for i in range(100)]
+        low_vol = [100 * (1 + 0.001 * ((i * 3) % 7 - 3) * 0.1) for i in range(100)]
+        high_vol = [100 * (1 + 0.01 * ((i * 7) % 11 - 5) * 0.1) for i in range(100)]
 
         def max_dd(equity):
             peak = equity[0]
             mdd = 0
             for e in equity:
-                if e > peak: peak = e
+                if e > peak:
+                    peak = e
                 dd = (peak - e) / peak
                 mdd = max(mdd, dd)
             return mdd
@@ -326,6 +354,7 @@ class TestExtremeVolatility:
 # ══════════════════════════════════════════════════════════════════
 # 7. Liquidity Stress
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestLiquidityStress:
     """Reduced liquidity must not create phantom positions."""
@@ -357,6 +386,7 @@ class TestLiquidityStress:
 # 8. Order Rejection
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestOrderRejection:
     """Rejected orders must not become fills."""
 
@@ -370,7 +400,7 @@ class TestOrderRejection:
     def test_invalid_quantity_rejected(self):
         """Invalid order quantity must be rejected."""
         with pytest.raises(ValueError):
-            order = Order(
+            Order(
                 order_id="ORD-REJECT-1",
                 instrument_id="ES",
                 timestamp_utc="2025-01-01T10:00:00Z",
@@ -400,13 +430,14 @@ class TestOrderRejection:
 # 9. Duplicate Events
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestDuplicateEvents:
     """Duplicate events must not create duplicate exposure."""
 
     def test_duplicate_fill_rejected(self):
         """Duplicate fill ID must be rejected."""
         Fill._registry.clear()
-        fill1 = Fill(
+        Fill(
             fill_id="F-DUP-1",
             order_id="ORD-1",
             instrument_id="ES",
@@ -432,7 +463,7 @@ class TestDuplicateEvents:
     def test_duplicate_position_rejected(self):
         """Duplicate position (same instrument+quantity) must be rejected."""
         Position._registry.clear()
-        pos1 = Position(
+        Position(
             instrument_id="ES",
             quantity=5.0,
             average_entry_price=100.0,
@@ -451,6 +482,7 @@ class TestDuplicateEvents:
 # ══════════════════════════════════════════════════════════════════
 # 10. Reconciliation Divergence
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestReconciliationDivergence:
     """State divergence must be detected."""
@@ -477,6 +509,7 @@ class TestReconciliationDivergence:
 # ══════════════════════════════════════════════════════════════════
 # 11. Fail-Closed Verification
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestFailClosed:
     """System must fail closed under critical conditions."""
@@ -537,6 +570,7 @@ class TestFailClosed:
 # 12. Accounting Invariants
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestAccountingInvariants:
     """Accounting must be consistent under all conditions."""
 
@@ -581,6 +615,7 @@ class TestAccountingInvariants:
 # 13. Portfolio Drawdown Cascades
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestDrawdownCascades:
     """Drawdown breakers must activate correctly."""
 
@@ -606,6 +641,7 @@ class TestDrawdownCascades:
 # ══════════════════════════════════════════════════════════════════
 # 14. Property-Based Tests
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestPropertyBased:
     """Fundamental invariants that must hold under all conditions."""
@@ -660,17 +696,19 @@ class TestPropertyBased:
     def test_cost_stress_monotonicity(self):
         """Increasing cost multipliers must not improve Sharpe."""
         from eigencapital.analytics.validation.cost_stress import cost_stress_test
+
         result = cost_stress_test(
             base_sharpe=2.0,
             cost_multipliers=[1.0, 1.5, 2.0, 3.0],
             sharpe_at_costs=[2.0, 1.5, 0.8, 0.2],
         )
         for i in range(1, len(result.levels)):
-            assert result.levels[i].sharpe <= result.levels[i-1].sharpe + 0.001
+            assert result.levels[i].sharpe <= result.levels[i - 1].sharpe + 0.001
 
     def test_bootstrap_ci_contains_mean(self):
         """Bootstrap CI should approximately contain the point estimate."""
         from eigencapital.analytics.validation.bootstrap import bootstrap_test
+
         returns = [0.005 + (i % 5 - 2) * 0.002 for i in range(200)]
         result = bootstrap_test(returns, n_bootstrap=200, seed=42)
         # Point estimate should be within CI bounds (approximately)
@@ -680,6 +718,7 @@ class TestPropertyBased:
     def test_permutation_p_value_bounds(self):
         """Permutation p-value must be in [0, 1]."""
         from eigencapital.analytics.validation.bootstrap import permutation_test
+
         returns = [0.005 + (i % 3 - 1) * 0.002 for i in range(200)]
         result = permutation_test(returns, n_permutations=100, seed=42)
         assert 0 <= result.p_value <= 1
@@ -688,6 +727,7 @@ class TestPropertyBased:
 # ══════════════════════════════════════════════════════════════════
 # 15. Multi-Failure Scenarios
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestMultiFailure:
     """Combined failure scenarios — the most dangerous cases."""
@@ -714,8 +754,7 @@ class TestMultiFailure:
         """Partial fill + subsequent rejection must not create overfill."""
         order_qty = 100
         partial_fill = 40
-        remaining = order_qty - partial_fill
-        rejected = True
+        order_qty - partial_fill
 
         # After rejection, remaining should still be 60
         final_filled = partial_fill  # Rejection doesn't add fills
@@ -735,6 +774,7 @@ class TestMultiFailure:
 # 16. StressTestEngine Integration
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestStressTestEngine:
     """Integration tests for the stress test engine."""
 
@@ -742,8 +782,11 @@ class TestStressTestEngine:
         """Engine must execute all registered scenarios."""
         engine = StressTestEngine()
         engine.register_scenario(
-            "test_1", "Test scenario",
-            lambda s: SystemState(cash=s.cash - 100, equity=s.equity - 100, positions=s.positions.copy()),
+            "test_1",
+            "Test scenario",
+            lambda s: SystemState(
+                cash=s.cash - 100, equity=s.equity - 100, positions=s.positions.copy()
+            ),
             lambda b, s: s.equity < b.equity,
         )
         results = engine.execute(_baseline_state())
@@ -752,8 +795,14 @@ class TestStressTestEngine:
 
     def test_engine_deterministic(self):
         """Engine must produce deterministic results."""
+
         def perturb(state):
-            return SystemState(cash=state.cash - 100, equity=state.equity - 100, positions=state.positions.copy())
+            return SystemState(
+                cash=state.cash - 100,
+                equity=state.equity - 100,
+                positions=state.positions.copy(),
+            )
+
         def check(b, s):
             return s.equity < b.equity
 
@@ -770,12 +819,14 @@ class TestStressTestEngine:
 
     def test_engine_detects_invariant_violations(self):
         """Engine must detect NaN in positions."""
+
         def perturb(state):
             return SystemState(
                 cash=state.cash,
-                positions={"ES": float('nan')},  # Violation!
+                positions={"ES": float("nan")},  # Violation!
                 equity=state.equity,
             )
+
         def check(b, s):
             return True  # Check passes but invariant fails
 
@@ -787,8 +838,10 @@ class TestStressTestEngine:
 
     def test_inconclusive_on_error(self):
         """Engine must return INCONCLUSIVE on perturbation error."""
+
         def bad_perturb(state):
             raise RuntimeError("Simulated failure")
+
         def check(b, s):
             return True
 

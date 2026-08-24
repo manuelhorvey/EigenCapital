@@ -12,7 +12,6 @@ Tests cover:
 
 import math
 import random
-import pytest
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.features.momentum.time_series import (
@@ -115,10 +114,15 @@ def _make_bars(
     return bars
 
 
-def _constant_bars(n: int, price: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
+def _constant_bars(
+    n: int, price: float = 100.0, instrument_id: str = "ES"
+) -> list[Bar]:
     """Generate n bars at constant price."""
     _reset_bar_registry()
-    return [_make_bar(close=price, day_offset=i, instrument_id=instrument_id) for i in range(n)]
+    return [
+        _make_bar(close=price, day_offset=i, instrument_id=instrument_id)
+        for i in range(n)
+    ]
 
 
 def _extreme_bars(n: int, instrument_id: str = "ES") -> list[Bar]:
@@ -128,27 +132,38 @@ def _extreme_bars(n: int, instrument_id: str = "ES") -> list[Bar]:
     for i in range(1, n):
         prev = bars[-1].close
         if i % 10 == 0:
-            bars.append(_make_bar(close=prev * 2.0, day_offset=i, instrument_id=instrument_id))
+            bars.append(
+                _make_bar(close=prev * 2.0, day_offset=i, instrument_id=instrument_id)
+            )
         else:
-            bars.append(_make_bar(close=prev * 1.001, day_offset=i, instrument_id=instrument_id))
+            bars.append(
+                _make_bar(close=prev * 1.001, day_offset=i, instrument_id=instrument_id)
+            )
     return bars
 
 
 def _rising_bars(n: int, start: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate monotonically rising bars."""
     _reset_bar_registry()
-    return [_make_bar(close=start + i, day_offset=i, instrument_id=instrument_id) for i in range(n)]
+    return [
+        _make_bar(close=start + i, day_offset=i, instrument_id=instrument_id)
+        for i in range(n)
+    ]
 
 
 def _falling_bars(n: int, start: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate monotonically falling bars."""
     _reset_bar_registry()
-    return [_make_bar(close=start - i * 0.5, day_offset=i, instrument_id=instrument_id) for i in range(n)]
+    return [
+        _make_bar(close=start - i * 0.5, day_offset=i, instrument_id=instrument_id)
+        for i in range(n)
+    ]
 
 
 # ═══════════════════════════════════════════════
 #  TIME-SERIES MOMENTUM
 # ═══════════════════════════════════════════════
+
 
 class TestROC:
     def test_basic_roc(self):
@@ -239,7 +254,9 @@ class TestDualMomentum:
 
     def test_dual_momentum_deterministic(self):
         bars = _make_bars(100)
-        assert compute_dual_momentum(bars, 20, 40) == compute_dual_momentum(bars, 20, 40)
+        assert compute_dual_momentum(bars, 20, 40) == compute_dual_momentum(
+            bars, 20, 40
+        )
 
 
 class TestMomentumZscore:
@@ -269,6 +286,7 @@ class TestMomentumZscore:
 # ═══════════════════════════════════════════════
 #  CROSS-SECTIONAL
 # ═══════════════════════════════════════════════
+
 
 class TestCrossSectionalRank:
     def test_basic_rank(self):
@@ -342,6 +360,7 @@ class TestPercentileRank:
 # ═══════════════════════════════════════════════
 #  BREAKOUT
 # ═══════════════════════════════════════════════
+
 
 class TestDonchianPosition:
     def test_at_upper_band(self):
@@ -427,6 +446,7 @@ class TestBollingerPosition:
 #  Z-SCORE & BANDWIDTH
 # ═══════════════════════════════════════════════
 
+
 class TestRollingZscore:
     def test_basic_zscore(self):
         bars = _rising_bars(30)
@@ -468,6 +488,7 @@ class TestBollingerBandwidth:
 # ═══════════════════════════════════════════════
 #  DISTANCE FROM MA
 # ═══════════════════════════════════════════════
+
 
 class TestDistanceFromSMA:
     def test_above_sma(self):
@@ -513,6 +534,7 @@ class TestDistanceFromEMA:
 # ═══════════════════════════════════════════════
 #  REVERSAL & RSI
 # ═══════════════════════════════════════════════
+
 
 class TestShortTermReversal:
     def test_basic_reversal(self):
@@ -582,6 +604,7 @@ class TestRSI:
 #  CROSS-ASSET STRESS
 # ═══════════════════════════════════════════════
 
+
 class TestCrossAssetStress:
     def test_rank_100_instruments(self):
         returns = {f"I{i}": float(i) for i in range(100)}
@@ -603,6 +626,7 @@ class TestCrossAssetStress:
 # ═══════════════════════════════════════════════
 #  EXTREME VALUE STRESS
 # ═══════════════════════════════════════════════
+
 
 class TestExtremeValues:
     def test_extreme_prices_roc(self):
@@ -641,6 +665,7 @@ class TestExtremeValues:
 #  DETERMINISM & REPRODUCIBILITY
 # ═══════════════════════════════════════════════
 
+
 class TestDeterminism:
     def test_roc_determinism(self):
         bars = _make_bars(50, seed=123)
@@ -652,11 +677,15 @@ class TestDeterminism:
 
     def test_donchian_determinism(self):
         bars = _make_bars(50, seed=789)
-        assert compute_donchian_position(bars, 20) == compute_donchian_position(bars, 20)
+        assert compute_donchian_position(bars, 20) == compute_donchian_position(
+            bars, 20
+        )
 
     def test_bollinger_determinism(self):
         bars = _make_bars(50, seed=101)
-        assert compute_bollinger_position(bars, 20) == compute_bollinger_position(bars, 20)
+        assert compute_bollinger_position(bars, 20) == compute_bollinger_position(
+            bars, 20
+        )
 
     def test_rsi_determinism(self):
         bars = _make_bars(50, seed=202)

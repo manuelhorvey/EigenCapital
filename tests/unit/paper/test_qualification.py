@@ -13,21 +13,19 @@ import pytest
 from eigencapital.paper.campaign import PaperCampaign, CampaignStatus
 from eigencapital.paper.parity import (
     ParityChecker,
-    DivergenceRecord,
     DivergenceCategory,
     DivergenceSeverity,
-    ExecutionAttribution,
 )
 from eigencapital.paper.qualification import (
     QualificationResult,
     QualificationVerdict,
-    QualificationCheck,
 )
 
 
 # ═══════════════════════════════════════════════
 #  PAPER CAMPAIGN
 # ═══════════════════════════════════════════════
+
 
 class TestPaperCampaign:
     def test_basic_creation(self):
@@ -116,6 +114,7 @@ class TestPaperCampaign:
 #  PARITY CHECKER
 # ═══════════════════════════════════════════════
 
+
 class TestParityChecker:
     def test_no_divergence(self):
         checker = ParityChecker("PC-001")
@@ -146,8 +145,12 @@ class TestParityChecker:
     def test_order_divergence(self):
         checker = ParityChecker("PC-001")
         result = checker.check_order(
-            "2025-01-15T10:00:00Z", "ES",
-            "BUY", 10, "SELL", 10,
+            "2025-01-15T10:00:00Z",
+            "ES",
+            "BUY",
+            10,
+            "SELL",
+            10,
         )
         assert result is not None
         assert result.category == DivergenceCategory.ORDER
@@ -155,8 +158,11 @@ class TestParityChecker:
     def test_fill_price_slippage(self):
         checker = ParityChecker("PC-001")
         result = checker.check_fill_price(
-            "2025-01-15T10:00:00Z", "ES",
-            5000.0, 5001.0, max_slippage=0.5,
+            "2025-01-15T10:00:00Z",
+            "ES",
+            5000.0,
+            5001.0,
+            max_slippage=0.5,
         )
         assert result is not None
         assert result.magnitude == pytest.approx(1.0)
@@ -198,6 +204,7 @@ class TestParityChecker:
 # ═══════════════════════════════════════════════
 #  QUALIFICATION
 # ═══════════════════════════════════════════════
+
 
 class TestQualification:
     def test_paper_qualified(self):
@@ -317,12 +324,13 @@ class TestQualification:
 #  ADVERSARIAL — PROPERTIES
 # ═══════════════════════════════════════════════
 
+
 class TestProperties:
     def test_divergence_always_recorded(self):
         """Every divergence must be recorded."""
         checker = ParityChecker("PC-001")
         for i in range(10):
-            checker.check_signal(f"2025-01-{15+i:02d}T10:00:00Z", "ES", 0.05, 0.06)
+            checker.check_signal(f"2025-01-{15 + i:02d}T10:00:00Z", "ES", 0.05, 0.06)
         assert checker.divergence_count == 10
 
     def test_no_critical_passes_qualification(self):
@@ -341,9 +349,13 @@ class TestProperties:
 
     def test_critical_fails_qualification(self):
         """Any critical failure must block qualification."""
-        for field_name in ["reconciliation_failures", "risk_bypasses",
-                           "accounting_errors", "critical_divergences",
-                           "duplicate_fills"]:
+        for field_name in [
+            "reconciliation_failures",
+            "risk_bypasses",
+            "accounting_errors",
+            "critical_divergences",
+            "duplicate_fills",
+        ]:
             metrics = {
                 "reconciliation_failures": 0,
                 "risk_bypasses": 0,
@@ -355,5 +367,6 @@ class TestProperties:
                 field_name: 1,
             }
             result = QualificationResult.evaluate("PC-001", metrics)
-            assert result.verdict == QualificationVerdict.NOT_QUALIFIED, \
+            assert result.verdict == QualificationVerdict.NOT_QUALIFIED, (
                 f"Field {field_name} should cause NOT_QUALIFIED"
+            )

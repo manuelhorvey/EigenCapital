@@ -5,9 +5,9 @@ large drawdowns, single-trade, etc.
 """
 
 import pytest
-import math
 from eigencapital.analytics.metrics import (
-    PerformanceMetrics, compute_metrics, compute_returns,
+    compute_metrics,
+    compute_returns,
 )
 
 
@@ -19,7 +19,7 @@ class TestComputeReturns:
         returns = compute_returns([100, 110, 105])
         assert len(returns) == 2
         assert abs(returns[0] - 0.10) < 0.001
-        assert abs(returns[1] - (-5/110)) < 0.001
+        assert abs(returns[1] - (-5 / 110)) < 0.001
 
     def test_single_value(self):
         """Test with single equity value."""
@@ -37,7 +37,7 @@ class TestComputeMetrics:
 
     def test_constant_positive_returns(self):
         """Test with constant positive returns."""
-        equity = [100 * (1.001 ** i) for i in range(252)]
+        equity = [100 * (1.001**i) for i in range(252)]
         metrics = compute_metrics(equity)
         assert metrics.total_return > 0
         assert metrics.sharpe_ratio > 0
@@ -45,7 +45,7 @@ class TestComputeMetrics:
 
     def test_constant_negative_returns(self):
         """Test with constant negative returns."""
-        equity = [100 * (0.999 ** i) for i in range(252)]
+        equity = [100 * (0.999**i) for i in range(252)]
         metrics = compute_metrics(equity)
         assert metrics.total_return < 0
         assert metrics.max_drawdown > 0

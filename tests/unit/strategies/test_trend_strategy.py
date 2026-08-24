@@ -5,7 +5,6 @@ not to be profitable.
 """
 
 import pytest
-import math
 from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
 from eigencapital.strategies.trend.config import TrendConfig
 from eigencapital.strategies.trend.features import (
@@ -33,6 +32,7 @@ def _make_bar(
     global _bar_counter
     _bar_counter += 1
     from datetime import datetime, timedelta
+
     ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     if bar_interval == "1h":
         start = ts - timedelta(hours=1)
@@ -60,16 +60,18 @@ def _make_uptrend_bars(n: int = 70, start_price: float = 100.0) -> list:
     """Create daily bars with an uptrend."""
     bars = []
     for i in range(n):
-        price = start_price * (1.005 ** i)  # 0.5% daily uptrend
-        bars.append(_make_bar(
-            instrument_id="ES",
-            timestamp=f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
-            open_=price * 0.999,
-            high=price * 1.005,
-            low=price * 0.995,
-            close=price,
-            bar_interval="1d",
-        ))
+        price = start_price * (1.005**i)  # 0.5% daily uptrend
+        bars.append(
+            _make_bar(
+                instrument_id="ES",
+                timestamp=f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
+                open_=price * 0.999,
+                high=price * 1.005,
+                low=price * 0.995,
+                close=price,
+                bar_interval="1d",
+            )
+        )
     return bars
 
 
@@ -77,16 +79,18 @@ def _make_downtrend_bars(n: int = 70, start_price: float = 100.0) -> list:
     """Create daily bars with a downtrend."""
     bars = []
     for i in range(n):
-        price = start_price * (0.995 ** i)  # -0.5% daily downtrend
-        bars.append(_make_bar(
-            instrument_id="ES",
-            timestamp=f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
-            open_=price * 1.001,
-            high=price * 1.005,
-            low=price * 0.995,
-            close=price,
-            bar_interval="1d",
-        ))
+        price = start_price * (0.995**i)  # -0.5% daily downtrend
+        bars.append(
+            _make_bar(
+                instrument_id="ES",
+                timestamp=f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
+                open_=price * 1.001,
+                high=price * 1.005,
+                low=price * 0.995,
+                close=price,
+                bar_interval="1d",
+            )
+        )
     return bars
 
 
@@ -140,7 +144,12 @@ class TestFeatures:
 
     def test_cumulative_return_insufficient_data(self):
         """Test cumulative return with insufficient bars."""
-        bars = [_make_bar("ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h") for i in range(1, 6)]
+        bars = [
+            _make_bar(
+                "ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h"
+            )
+            for i in range(1, 6)
+        ]
         result = compute_cumulative_return(bars, lookback=63)
         assert result is None
 
@@ -160,7 +169,12 @@ class TestFeatures:
 
     def test_realized_volatility_insufficient_data(self):
         """Test volatility with insufficient bars."""
-        bars = [_make_bar("ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h") for i in range(1, 6)]
+        bars = [
+            _make_bar(
+                "ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h"
+            )
+            for i in range(1, 6)
+        ]
         result = compute_realized_volatility(bars, lookback=21)
         assert result is None
 
@@ -238,7 +252,12 @@ class TestCrossAssetTrendStrategy:
     def test_insufficient_data_returns_none(self):
         """Test that strategy returns None with insufficient data."""
         strategy = CrossAssetTrendStrategy()
-        bars = [_make_bar("ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h") for i in range(1, 6)]
+        bars = [
+            _make_bar(
+                "ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h"
+            )
+            for i in range(1, 6)
+        ]
         signal = strategy.on_bar(
             timestamp="2025-01-01T05:00:00Z",
             bars=bars,
@@ -279,15 +298,17 @@ class TestCrossAssetTrendStrategy:
         # Create flat bars (no trend)
         bars = []
         for i in range(70):
-            bars.append(_make_bar(
-                instrument_id="ES",
-                timestamp=f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
-                open_=100.0,
-                high=101.0,
-                low=99.0,
-                close=100.0,
-                bar_interval="1d",
-            ))
+            bars.append(
+                _make_bar(
+                    instrument_id="ES",
+                    timestamp=f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
+                    open_=100.0,
+                    high=101.0,
+                    low=99.0,
+                    close=100.0,
+                    bar_interval="1d",
+                )
+            )
         signal = strategy.on_bar(
             timestamp=bars[-1].timestamp_utc,
             bars=bars,

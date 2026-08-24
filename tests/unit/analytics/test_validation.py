@@ -4,33 +4,38 @@ The validation layer tries to DISPROVE trading edges, not confirm them.
 These tests verify that the validation machinery itself is correct.
 """
 
-import math
-import pytest
 from eigencapital.analytics.validation.walk_forward import (
-    WalkForwardResult, purged_walk_forward, _compute_sharpe, _compute_returns,
+    WalkForwardResult,
+    purged_walk_forward,
+    _compute_sharpe,
+    _compute_returns,
 )
 from eigencapital.analytics.validation.bootstrap import (
-    BootstrapResult, PermutationResult, bootstrap_test, permutation_test,
+    bootstrap_test,
+    permutation_test,
 )
 from eigencapital.analytics.validation.sensitivity import (
-    SensitivityResult, parameter_sensitivity,
+    parameter_sensitivity,
 )
 from eigencapital.analytics.validation.cost_stress import (
-    CostStressResult, cost_stress_test,
+    cost_stress_test,
 )
 from eigencapital.analytics.validation.regime import (
-    RegimeResult, regime_analysis,
+    regime_analysis,
 )
 from eigencapital.analytics.validation.evidence_gate import (
-    EvidenceGate, EvidenceVerdict,
+    EvidenceGate,
+    EvidenceVerdict,
 )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _make_uptrend_equity(n: int = 1000, daily_drift: float = 0.0005) -> list:
     """Create equity curve with upward drift and realistic noise."""
     import random
+
     rng = random.Random(42)
     equity = [100_000.0]
     for i in range(n - 1):
@@ -42,6 +47,7 @@ def _make_uptrend_equity(n: int = 1000, daily_drift: float = 0.0005) -> list:
 def _make_downtrend_equity(n: int = 1000, daily_drift: float = -0.0005) -> list:
     """Create equity curve with downward drift and realistic noise."""
     import random
+
     rng = random.Random(43)
     equity = [100_000.0]
     for i in range(n - 1):
@@ -53,6 +59,7 @@ def _make_downtrend_equity(n: int = 1000, daily_drift: float = -0.0005) -> list:
 def _make_random_equity(n: int = 1000, seed: int = 42) -> list:
     """Create equity curve with random walk."""
     import random
+
     rng = random.Random(seed)
     equity = [100_000.0]
     for i in range(n - 1):
@@ -62,6 +69,7 @@ def _make_random_equity(n: int = 1000, seed: int = 42) -> list:
 
 
 # ── Walk-Forward Tests ───────────────────────────────────────────────────────
+
 
 class TestWalkForward:
     """Tests for purged walk-forward analysis."""
@@ -138,7 +146,7 @@ class TestWalkForward:
         returns = _compute_returns(equity)
         assert len(returns) == 3
         assert abs(returns[0] - 0.10) < 0.001
-        assert abs(returns[1] - (-5/110)) < 0.001
+        assert abs(returns[1] - (-5 / 110)) < 0.001
 
     def test_degradation_ratio(self):
         """Test degradation ratio computation."""
@@ -149,6 +157,7 @@ class TestWalkForward:
 
 
 # ── Bootstrap Tests ──────────────────────────────────────────────────────────
+
 
 class TestBootstrap:
     """Tests for bootstrap analysis."""
@@ -191,6 +200,7 @@ class TestBootstrap:
     def test_permutation_random_returns(self):
         """Test permutation on random returns (should not be significant)."""
         import random
+
         rng = random.Random(42)
         returns = [rng.gauss(0, 0.01) for _ in range(200)]
         result = permutation_test(returns, n_permutations=500, seed=42)
@@ -202,6 +212,7 @@ class TestBootstrap:
         """Test permutation on strong signal (should be significant)."""
         # Strong positive signal with enough variance for meaningful Sharpe
         import random
+
         rng = random.Random(42)
         returns = [0.01 + rng.gauss(0, 0.015) for _ in range(500)]
         result = permutation_test(returns, n_permutations=500, seed=42)
@@ -219,6 +230,7 @@ class TestBootstrap:
 
 
 # ── Sensitivity Tests ────────────────────────────────────────────────────────
+
 
 class TestSensitivity:
     """Tests for parameter sensitivity analysis."""
@@ -261,6 +273,7 @@ class TestSensitivity:
 
 
 # ── Cost Stress Tests ───────────────────────────────────────────────────────
+
 
 class TestCostStress:
     """Tests for cost stress analysis."""
@@ -311,6 +324,7 @@ class TestCostStress:
 
 # ── Regime Tests ─────────────────────────────────────────────────────────────
 
+
 class TestRegime:
     """Tests for regime analysis."""
 
@@ -352,18 +366,25 @@ class TestRegime:
 
 # ── Evidence Gate Tests ──────────────────────────────────────────────────────
 
+
 class TestEvidenceGate:
     """Tests for evidence gate — hypothesis disposition."""
 
     def test_all_pass_candidate(self):
         """Test evidence gate with all checks passing."""
         import random
-        from eigencapital.analytics.validation.universe import UniversePerturbationResult, ConcentrationMetrics
+        from eigencapital.analytics.validation.universe import (
+            UniversePerturbationResult,
+            ConcentrationMetrics,
+        )
         from eigencapital.analytics.validation.temporal import TemporalStabilityResult
+
         rng = random.Random(42)
         gate = EvidenceGate()
         # Walk-forward on a strong uptrend
-        wf = purged_walk_forward(_make_uptrend_equity(1000, 0.005), train_bars=300, test_bars=100)
+        wf = purged_walk_forward(
+            _make_uptrend_equity(1000, 0.005), train_bars=300, test_bars=100
+        )
         # Bootstrap: strong positive returns with realistic variance
         pos_returns = [0.01 + rng.gauss(0, 0.01) for _ in range(500)]
         boot = bootstrap_test(pos_returns, n_bootstrap=500, seed=42)
@@ -372,12 +393,19 @@ class TestEvidenceGate:
         perm = permutation_test(perm_returns, n_permutations=500, seed=42)
         sens = parameter_sensitivity(1.5, {"p1": [1.4, 1.5, 1.3]})
         cost = cost_stress_test(1.5, [1.0, 1.5, 2.0], [1.5, 1.2, 0.8])
-        regime = regime_analysis({"up": [0.01 + rng.gauss(0, 0.015) for _ in range(200)], "down": [0.008 + rng.gauss(0, 0.015) for _ in range(200)]})
+        regime = regime_analysis(
+            {
+                "up": [0.01 + rng.gauss(0, 0.015) for _ in range(200)],
+                "down": [0.008 + rng.gauss(0, 0.015) for _ in range(200)],
+            }
+        )
         universe = UniversePerturbationResult(
             single_instrument_dependency=False,
             concentration=ConcentrationMetrics(herfindahl_index=0.3),
         )
-        temporal = TemporalStabilityResult(window_count=5, performance_decay=False, pct_positive_sharpe=60.0)
+        temporal = TemporalStabilityResult(
+            window_count=5, performance_decay=False, pct_positive_sharpe=60.0
+        )
 
         result = gate.evaluate(
             walk_forward=wf,
@@ -390,7 +418,10 @@ class TestEvidenceGate:
             temporal=temporal,
         )
         # Should be CANDIDATE or VALIDATED
-        assert result["verdict"] in (EvidenceVerdict.CANDIDATE, EvidenceVerdict.VALIDATED)
+        assert result["verdict"] in (
+            EvidenceVerdict.CANDIDATE,
+            EvidenceVerdict.VALIDATED,
+        )
         assert result["critical_failures"] == 0
 
     def test_rejected_on_cost_stress(self):

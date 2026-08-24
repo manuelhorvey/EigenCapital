@@ -8,10 +8,10 @@ Tests:
 - Adversarial scenarios
 """
 
-import pytest
-import hashlib
-
-from eigencapital.production.fingerprint import ProductionFingerprint, FingerprintRegistry
+from eigencapital.production.fingerprint import (
+    ProductionFingerprint,
+    FingerprintRegistry,
+)
 from eigencapital.production.evidence import (
     OrderEvidence,
     ExecutionEvidenceCollector,
@@ -36,6 +36,7 @@ from eigencapital.production.qualification import (
 # ============================================================
 # Production Fingerprint Tests
 # ============================================================
+
 
 class TestProductionFingerprint:
     """Test production fingerprint determinism and drift detection."""
@@ -96,15 +97,20 @@ class TestProductionFingerprint:
 # Fingerprint Registry Tests
 # ============================================================
 
+
 class TestFingerprintRegistry:
     """Test fingerprint registry with drift detection."""
 
     def _make_fp(self, **overrides):
         defaults = {
-            "strategy_hash": "s", "portfolio_hash": "p",
-            "feature_registry_hash": "f", "risk_config_hash": "r",
-            "broker_config_hash": "b", "execution_config_hash": "e",
-            "code_commit": "c1", "data_version": "v1",
+            "strategy_hash": "s",
+            "portfolio_hash": "p",
+            "feature_registry_hash": "f",
+            "risk_config_hash": "r",
+            "broker_config_hash": "b",
+            "execution_config_hash": "e",
+            "code_commit": "c1",
+            "data_version": "v1",
         }
         defaults.update(overrides)
         return ProductionFingerprint(**defaults)
@@ -160,6 +166,7 @@ class TestFingerprintRegistry:
 # Execution Evidence Tests
 # ============================================================
 
+
 class TestExecutionEvidence:
     """Test execution evidence collection and distributions."""
 
@@ -205,7 +212,9 @@ class TestExecutionEvidence:
         collector.record_order(self._make_evidence(status="FILLED"))
         collector.record_order(self._make_evidence(order_id="ord-2", status="PARTIAL"))
         collector.record_order(self._make_evidence(order_id="ord-3", status="REJECTED"))
-        collector.record_order(self._make_evidence(order_id="ord-4", status="CANCELLED"))
+        collector.record_order(
+            self._make_evidence(order_id="ord-4", status="CANCELLED")
+        )
         summary = collector.get_summary()
         assert summary.total_orders == 4
         assert summary.filled_orders == 1
@@ -219,10 +228,12 @@ class TestExecutionEvidence:
         """Slippage distribution is computed correctly."""
         collector = ExecutionEvidenceCollector()
         for i in range(100):
-            collector.record_order(self._make_evidence(
-                order_id=f"ord-{i}",
-                realized_slippage=i * 0.001,
-            ))
+            collector.record_order(
+                self._make_evidence(
+                    order_id=f"ord-{i}",
+                    realized_slippage=i * 0.001,
+                )
+            )
         summary = collector.get_summary()
         assert summary.slippage_distribution.count == 100
         assert summary.slippage_distribution.median > 0
@@ -231,10 +242,12 @@ class TestExecutionEvidence:
         """Latency distribution is computed correctly."""
         collector = ExecutionEvidenceCollector()
         for i in range(100):
-            collector.record_order(self._make_evidence(
-                order_id=f"ord-{i}",
-                latency_seconds=i * 0.1,
-            ))
+            collector.record_order(
+                self._make_evidence(
+                    order_id=f"ord-{i}",
+                    latency_seconds=i * 0.1,
+                )
+            )
         summary = collector.get_summary()
         assert summary.latency_distribution.count == 100
         assert summary.latency_distribution.max > 0
@@ -251,15 +264,20 @@ class TestExecutionEvidence:
 # Live Campaign Lifecycle Tests
 # ============================================================
 
+
 class TestLiveCampaignLifecycle:
     """Test live campaign lifecycle and evidence aggregation."""
 
     def _make_fingerprint(self):
         return ProductionFingerprint(
-            strategy_hash="s", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
-            code_commit="c1", data_version="v1",
+            strategy_hash="s",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
+            code_commit="c1",
+            data_version="v1",
         )
 
     def _make_campaign(self, status=LiveCampaignStatus.PLANNED.value):
@@ -285,10 +303,18 @@ class TestLiveCampaignLifecycle:
         """Valid lifecycle transitions work."""
         engine = LiveCampaignEngine()
         engine.create_campaign(self._make_campaign())
-        engine.transition_campaign("live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1")
-        engine.transition_campaign("live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2")
-        engine.transition_campaign("live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3")
-        engine.transition_campaign("live-1", LiveCampaignStatus.QUALIFICATION.value, "t4")
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1"
+        )
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2"
+        )
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3"
+        )
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.QUALIFICATION.value, "t4"
+        )
         engine.transition_campaign("live-1", LiveCampaignStatus.COMPLETED.value, "t5")
         final = engine.get_campaign("live-1")
         assert final.status == LiveCampaignStatus.COMPLETED.value
@@ -296,8 +322,13 @@ class TestLiveCampaignLifecycle:
     def test_invalid_transition_blocked(self):
         """Invalid transition is blocked."""
         engine = LiveCampaignEngine()
-        engine.create_campaign(self._make_campaign(status=LiveCampaignStatus.COMPLETED.value))
-        assert engine.transition_campaign("live-1", LiveCampaignStatus.PLANNED.value, "t1") is False
+        engine.create_campaign(
+            self._make_campaign(status=LiveCampaignStatus.COMPLETED.value)
+        )
+        assert (
+            engine.transition_campaign("live-1", LiveCampaignStatus.PLANNED.value, "t1")
+            is False
+        )
 
     def test_divergence_tracking(self):
         """Divergence counts are tracked."""
@@ -343,19 +374,25 @@ class TestLiveCampaignLifecycle:
 # Production Qualification Gate Tests
 # ============================================================
 
+
 class TestProductionQualification:
     """Test production qualification gate and verdicts."""
 
     def _make_fp(self):
         return ProductionFingerprint(
-            strategy_hash="s", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
-            code_commit="c1", data_version="v1",
+            strategy_hash="s",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
+            code_commit="c1",
+            data_version="v1",
         )
 
     def _make_summary(self, **overrides):
         from eigencapital.production.evidence import ExecutionSummary
+
         defaults = {
             "total_orders": 10,
             "filled_orders": 9,
@@ -365,8 +402,18 @@ class TestProductionQualification:
             "fill_rate": 0.9,
             "rejection_rate": 0.0,
             "partial_fill_rate": 0.1,
-            "slippage_distribution": SlippageDistribution(median=0.001, p75=0.002, p90=0.003, p95=0.004, p99=0.005, max=0.006, count=10),
-            "latency_distribution": LatencyDistribution(median=0.5, p75=0.7, p90=0.9, p95=1.0, p99=1.5, max=2.0, count=10),
+            "slippage_distribution": SlippageDistribution(
+                median=0.001,
+                p75=0.002,
+                p90=0.003,
+                p95=0.004,
+                p99=0.005,
+                max=0.006,
+                count=10,
+            ),
+            "latency_distribution": LatencyDistribution(
+                median=0.5, p75=0.7, p90=0.9, p95=1.0, p99=1.5, max=2.0, count=10
+            ),
             "total_realized_slippage": 0.01,
             "total_latency": 5.0,
             "average_fill_price_deviation": 0.001,
@@ -423,9 +470,11 @@ class TestProductionQualification:
     def test_high_rejection_rate_adds_restrictions(self):
         """High rejection rate → restrictions added."""
         gate = ProductionQualificationGate()
-        result = gate.evaluate(self._make_result(
-            execution_summary=self._make_summary(rejection_rate=0.5, fill_rate=0.5),
-        ))
+        result = gate.evaluate(
+            self._make_result(
+                execution_summary=self._make_summary(rejection_rate=0.5, fill_rate=0.5),
+            )
+        )
         assert len(result.restrictions) > 0
 
     def test_missing_fingerprint_blocks(self):
@@ -466,6 +515,7 @@ class TestProductionQualification:
 # Adversarial / Integration Tests
 # ============================================================
 
+
 class TestPhase1PAdversarial:
     """Adversarial tests for Phase 1P."""
 
@@ -473,41 +523,55 @@ class TestPhase1PAdversarial:
         """Good P&L does not automatically qualify — checks matter."""
         gate = ProductionQualificationGate()
         # Risk violation even with good execution
-        result = gate.evaluate(LiveCampaignResult(
-            campaign_id="live-1",
-            production_fingerprint=ProductionFingerprint(
-                strategy_hash="s", portfolio_hash="p",
-                feature_registry_hash="f", risk_config_hash="r",
-                broker_config_hash="b", execution_config_hash="e",
-                code_commit="c1",
-            ),
-            execution_summary=ExecutionSummary(
-                total_orders=10, filled_orders=10, partial_orders=0,
-                rejected_orders=0, cancelled_orders=0,
-                fill_rate=1.0, rejection_rate=0.0, partial_fill_rate=0.0,
-                slippage_distribution=SlippageDistribution(median=0.001, count=10),
-                latency_distribution=LatencyDistribution(median=0.5, count=10),
-                total_realized_slippage=0.01, total_latency=5.0,
-                average_fill_price_deviation=0.001,
-            ),
-            total_divergences=0,
-            critical_divergences=0,
-            risk_boundary_violations=1,  # Safety violation!
-            reconciliation_failures=0,
-            kill_switch_activations=0,
-            qualification_passed=True,
-            verdict="",
-            evidence_completeness=1.0,
-        ))
+        result = gate.evaluate(
+            LiveCampaignResult(
+                campaign_id="live-1",
+                production_fingerprint=ProductionFingerprint(
+                    strategy_hash="s",
+                    portfolio_hash="p",
+                    feature_registry_hash="f",
+                    risk_config_hash="r",
+                    broker_config_hash="b",
+                    execution_config_hash="e",
+                    code_commit="c1",
+                ),
+                execution_summary=ExecutionSummary(
+                    total_orders=10,
+                    filled_orders=10,
+                    partial_orders=0,
+                    rejected_orders=0,
+                    cancelled_orders=0,
+                    fill_rate=1.0,
+                    rejection_rate=0.0,
+                    partial_fill_rate=0.0,
+                    slippage_distribution=SlippageDistribution(median=0.001, count=10),
+                    latency_distribution=LatencyDistribution(median=0.5, count=10),
+                    total_realized_slippage=0.01,
+                    total_latency=5.0,
+                    average_fill_price_deviation=0.001,
+                ),
+                total_divergences=0,
+                critical_divergences=0,
+                risk_boundary_violations=1,  # Safety violation!
+                reconciliation_failures=0,
+                kill_switch_activations=0,
+                qualification_passed=True,
+                verdict="",
+                evidence_completeness=1.0,
+            )
+        )
         assert result.verdict == QualificationVerdict.LIVE_BLOCKED.value
 
     def test_campaign_lifecycle_full_flow(self):
         """Full campaign lifecycle from PLANNED to COMPLETED."""
         engine = LiveCampaignEngine()
         fp = ProductionFingerprint(
-            strategy_hash="s", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
+            strategy_hash="s",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
             code_commit="c1",
         )
         campaign = LiveCampaign(
@@ -520,10 +584,18 @@ class TestPhase1PAdversarial:
             expiry_timestamp="2026-06-30",
         )
         engine.create_campaign(campaign)
-        engine.transition_campaign("live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1")
-        engine.transition_campaign("live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2")
-        engine.transition_campaign("live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3")
-        engine.transition_campaign("live-1", LiveCampaignStatus.QUALIFICATION.value, "t4")
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1"
+        )
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2"
+        )
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3"
+        )
+        engine.transition_campaign(
+            "live-1", LiveCampaignStatus.QUALIFICATION.value, "t4"
+        )
         engine.transition_campaign("live-1", LiveCampaignStatus.COMPLETED.value, "t5")
         final = engine.get_campaign("live-1")
         assert final.status == LiveCampaignStatus.COMPLETED.value
@@ -533,15 +605,21 @@ class TestPhase1PAdversarial:
         """Fingerprint drift should invalidate qualification."""
         registry = FingerprintRegistry()
         fp_original = ProductionFingerprint(
-            strategy_hash="original", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
+            strategy_hash="original",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
             code_commit="c1",
         )
         fp_changed = ProductionFingerprint(
-            strategy_hash="CHANGED", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
+            strategy_hash="CHANGED",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
             code_commit="c1",
         )
         registry.register("prod-1", fp_original)
@@ -552,41 +630,55 @@ class TestPhase1PAdversarial:
     def test_reconciliation_failure_blocks_qualification(self):
         """Reconciliation failure → LIVE_BLOCKED."""
         gate = ProductionQualificationGate()
-        result = gate.evaluate(LiveCampaignResult(
-            campaign_id="live-1",
-            production_fingerprint=ProductionFingerprint(
-                strategy_hash="s", portfolio_hash="p",
-                feature_registry_hash="f", risk_config_hash="r",
-                broker_config_hash="b", execution_config_hash="e",
-                code_commit="c1",
-            ),
-            execution_summary=ExecutionSummary(
-                total_orders=10, filled_orders=10, partial_orders=0,
-                rejected_orders=0, cancelled_orders=0,
-                fill_rate=1.0, rejection_rate=0.0, partial_fill_rate=0.0,
-                slippage_distribution=SlippageDistribution(median=0.001, count=10),
-                latency_distribution=LatencyDistribution(median=0.5, count=10),
-                total_realized_slippage=0.01, total_latency=5.0,
-                average_fill_price_deviation=0.001,
-            ),
-            total_divergences=0,
-            critical_divergences=0,
-            risk_boundary_violations=0,
-            reconciliation_failures=1,  # Reconciliation failure!
-            kill_switch_activations=0,
-            qualification_passed=True,
-            verdict="",
-            evidence_completeness=1.0,
-        ))
+        result = gate.evaluate(
+            LiveCampaignResult(
+                campaign_id="live-1",
+                production_fingerprint=ProductionFingerprint(
+                    strategy_hash="s",
+                    portfolio_hash="p",
+                    feature_registry_hash="f",
+                    risk_config_hash="r",
+                    broker_config_hash="b",
+                    execution_config_hash="e",
+                    code_commit="c1",
+                ),
+                execution_summary=ExecutionSummary(
+                    total_orders=10,
+                    filled_orders=10,
+                    partial_orders=0,
+                    rejected_orders=0,
+                    cancelled_orders=0,
+                    fill_rate=1.0,
+                    rejection_rate=0.0,
+                    partial_fill_rate=0.0,
+                    slippage_distribution=SlippageDistribution(median=0.001, count=10),
+                    latency_distribution=LatencyDistribution(median=0.5, count=10),
+                    total_realized_slippage=0.01,
+                    total_latency=5.0,
+                    average_fill_price_deviation=0.001,
+                ),
+                total_divergences=0,
+                critical_divergences=0,
+                risk_boundary_violations=0,
+                reconciliation_failures=1,  # Reconciliation failure!
+                kill_switch_activations=0,
+                qualification_passed=True,
+                verdict="",
+                evidence_completeness=1.0,
+            )
+        )
         assert result.verdict == QualificationVerdict.LIVE_BLOCKED.value
 
     def test_evidence_collector_tracks_campaign_evidence(self):
         """Engine tracks evidence per campaign."""
         engine = LiveCampaignEngine()
         fp = ProductionFingerprint(
-            strategy_hash="s", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
+            strategy_hash="s",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
             code_commit="c1",
         )
         campaign = LiveCampaign(
@@ -601,14 +693,23 @@ class TestPhase1PAdversarial:
         engine.create_campaign(campaign)
         collector = engine.get_evidence_collector("live-1")
         assert collector is not None
-        collector.record_order(OrderEvidence(
-            order_id="ord-1", instrument_id="AAPL", side="BUY",
-            intended_price=150.0, fill_price=150.05,
-            spread_at_decision=0.01, spread_at_execution=0.015,
-            expected_slippage=0.001, realized_slippage=0.003,
-            latency_seconds=0.5, filled_quantity=10.0,
-            requested_quantity=10.0, status="FILLED",
-        ))
+        collector.record_order(
+            OrderEvidence(
+                order_id="ord-1",
+                instrument_id="AAPL",
+                side="BUY",
+                intended_price=150.0,
+                fill_price=150.05,
+                spread_at_decision=0.01,
+                spread_at_execution=0.015,
+                expected_slippage=0.001,
+                realized_slippage=0.003,
+                latency_seconds=0.5,
+                filled_quantity=10.0,
+                requested_quantity=10.0,
+                status="FILLED",
+            )
+        )
         summary = collector.get_summary()
         assert summary.total_orders == 1
         assert summary.filled_orders == 1
@@ -617,9 +718,12 @@ class TestPhase1PAdversarial:
         """Multiple campaigns are tracked independently."""
         engine = LiveCampaignEngine()
         fp = ProductionFingerprint(
-            strategy_hash="s", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
+            strategy_hash="s",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
             code_commit="c1",
         )
         for i in range(3):
@@ -642,32 +746,43 @@ class TestPhase1PAdversarial:
     def test_qualification_result_has_all_checks(self):
         """Qualification result includes all 10 checks."""
         gate = ProductionQualificationGate()
-        result = gate.evaluate(LiveCampaignResult(
-            campaign_id="live-1",
-            production_fingerprint=ProductionFingerprint(
-                strategy_hash="s", portfolio_hash="p",
-                feature_registry_hash="f", risk_config_hash="r",
-                broker_config_hash="b", execution_config_hash="e",
-                code_commit="c1",
-            ),
-            execution_summary=ExecutionSummary(
-                total_orders=10, filled_orders=9, partial_orders=1,
-                rejected_orders=0, cancelled_orders=0,
-                fill_rate=0.9, rejection_rate=0.0, partial_fill_rate=0.1,
-                slippage_distribution=SlippageDistribution(median=0.001, count=10),
-                latency_distribution=LatencyDistribution(median=0.5, count=10),
-                total_realized_slippage=0.01, total_latency=5.0,
-                average_fill_price_deviation=0.001,
-            ),
-            total_divergences=2,
-            critical_divergences=0,
-            risk_boundary_violations=0,
-            reconciliation_failures=0,
-            kill_switch_activations=0,
-            qualification_passed=True,
-            verdict="",
-            evidence_completeness=0.95,
-        ))
+        result = gate.evaluate(
+            LiveCampaignResult(
+                campaign_id="live-1",
+                production_fingerprint=ProductionFingerprint(
+                    strategy_hash="s",
+                    portfolio_hash="p",
+                    feature_registry_hash="f",
+                    risk_config_hash="r",
+                    broker_config_hash="b",
+                    execution_config_hash="e",
+                    code_commit="c1",
+                ),
+                execution_summary=ExecutionSummary(
+                    total_orders=10,
+                    filled_orders=9,
+                    partial_orders=1,
+                    rejected_orders=0,
+                    cancelled_orders=0,
+                    fill_rate=0.9,
+                    rejection_rate=0.0,
+                    partial_fill_rate=0.1,
+                    slippage_distribution=SlippageDistribution(median=0.001, count=10),
+                    latency_distribution=LatencyDistribution(median=0.5, count=10),
+                    total_realized_slippage=0.01,
+                    total_latency=5.0,
+                    average_fill_price_deviation=0.001,
+                ),
+                total_divergences=2,
+                critical_divergences=0,
+                risk_boundary_violations=0,
+                reconciliation_failures=0,
+                kill_switch_activations=0,
+                qualification_passed=True,
+                verdict="",
+                evidence_completeness=0.95,
+            )
+        )
         assert len(result.checks) == 10
         check_names = [c.check for c in result.checks]
         for expected in QualificationCheck:
@@ -677,14 +792,23 @@ class TestPhase1PAdversarial:
         """Collector returns all evidence."""
         collector = ExecutionEvidenceCollector()
         for i in range(5):
-            collector.record_order(OrderEvidence(
-                order_id=f"ord-{i}", instrument_id="AAPL", side="BUY",
-                intended_price=150.0, fill_price=150.0,
-                spread_at_decision=0.01, spread_at_execution=0.01,
-                expected_slippage=0.001, realized_slippage=0.001,
-                latency_seconds=0.1, filled_quantity=10.0,
-                requested_quantity=10.0, status="FILLED",
-            ))
+            collector.record_order(
+                OrderEvidence(
+                    order_id=f"ord-{i}",
+                    instrument_id="AAPL",
+                    side="BUY",
+                    intended_price=150.0,
+                    fill_price=150.0,
+                    spread_at_decision=0.01,
+                    spread_at_execution=0.01,
+                    expected_slippage=0.001,
+                    realized_slippage=0.001,
+                    latency_seconds=0.1,
+                    filled_quantity=10.0,
+                    requested_quantity=10.0,
+                    status="FILLED",
+                )
+            )
         all_ev = collector.get_all_evidence()
         assert len(all_ev) == 5
 
@@ -692,33 +816,46 @@ class TestPhase1PAdversarial:
         """Qualification results are tracked in history."""
         gate = ProductionQualificationGate()
         fp = ProductionFingerprint(
-            strategy_hash="s", portfolio_hash="p",
-            feature_registry_hash="f", risk_config_hash="r",
-            broker_config_hash="b", execution_config_hash="e",
+            strategy_hash="s",
+            portfolio_hash="p",
+            feature_registry_hash="f",
+            risk_config_hash="r",
+            broker_config_hash="b",
+            execution_config_hash="e",
             code_commit="c1",
         )
         for i in range(3):
-            gate.evaluate(LiveCampaignResult(
-                campaign_id=f"live-{i}",
-                production_fingerprint=fp,
-                execution_summary=ExecutionSummary(
-                    total_orders=10, filled_orders=10, partial_orders=0,
-                    rejected_orders=0, cancelled_orders=0,
-                    fill_rate=1.0, rejection_rate=0.0, partial_fill_rate=0.0,
-                    slippage_distribution=SlippageDistribution(median=0.001, count=10),
-                    latency_distribution=LatencyDistribution(median=0.5, count=10),
-                    total_realized_slippage=0.01, total_latency=5.0,
-                    average_fill_price_deviation=0.001,
-                ),
-                total_divergences=0,
-                critical_divergences=0,
-                risk_boundary_violations=0,
-                reconciliation_failures=0,
-                kill_switch_activations=0,
-                qualification_passed=True,
-                verdict="",
-                evidence_completeness=1.0,
-            ))
+            gate.evaluate(
+                LiveCampaignResult(
+                    campaign_id=f"live-{i}",
+                    production_fingerprint=fp,
+                    execution_summary=ExecutionSummary(
+                        total_orders=10,
+                        filled_orders=10,
+                        partial_orders=0,
+                        rejected_orders=0,
+                        cancelled_orders=0,
+                        fill_rate=1.0,
+                        rejection_rate=0.0,
+                        partial_fill_rate=0.0,
+                        slippage_distribution=SlippageDistribution(
+                            median=0.001, count=10
+                        ),
+                        latency_distribution=LatencyDistribution(median=0.5, count=10),
+                        total_realized_slippage=0.01,
+                        total_latency=5.0,
+                        average_fill_price_deviation=0.001,
+                    ),
+                    total_divergences=0,
+                    critical_divergences=0,
+                    risk_boundary_violations=0,
+                    reconciliation_failures=0,
+                    kill_switch_activations=0,
+                    qualification_passed=True,
+                    verdict="",
+                    evidence_completeness=1.0,
+                )
+            )
         results = gate.get_results()
         assert len(results) == 3
         latest = gate.get_latest_result()

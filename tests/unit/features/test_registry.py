@@ -1,7 +1,7 @@
 """Tests for FeatureRegistry — duplicate prevention and version tracking."""
 
 import pytest
-from eigencapital.features.registry import FeatureRegistry, FeatureDefinition
+from eigencapital.features.registry import FeatureRegistry
 from eigencapital.features.contracts import FeatureConfig, FeatureFamily
 from eigencapital.features.errors import FeatureDuplicateError, FeatureRegistryError
 
@@ -103,7 +103,9 @@ class TestFeatureRegistry:
         """FeatureDefinition must be serializable."""
         registry = FeatureRegistry()
         config = _make_config()
-        defn = registry.register("return_20", "v1", config, description="20-period return")
+        defn = registry.register(
+            "return_20", "v1", config, description="20-period return"
+        )
         d = defn.to_dict()
         assert d["feature_id"] == "return_20"
         assert d["version"] == "v1"

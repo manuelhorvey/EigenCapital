@@ -11,10 +11,6 @@ Tests:
 - Adversarial scenarios
 """
 
-import pytest
-import hashlib
-from unittest.mock import MagicMock
-
 from eigencapital.live.broker import LiveBrokerAdapter, BrokerConfig, BrokerStatus
 from eigencapital.live.risk import (
     MicroLiveRiskEnvelope,
@@ -25,7 +21,6 @@ from eigencapital.live.risk import (
 from eigencapital.live.authorization import (
     LiveAuthorization,
     AuthorizationGate,
-    AuthorizationStatus,
     ExecutionMode,
 )
 from eigencapital.live.campaign import (
@@ -60,6 +55,7 @@ def _make_order(**overrides):
 # ============================================================
 # Broker Adapter Tests
 # ============================================================
+
 
 class TestBrokerAdapter:
     """Test live broker adapter contract."""
@@ -159,6 +155,7 @@ class TestBrokerAdapter:
 # ============================================================
 # Authorization Gate Tests
 # ============================================================
+
 
 class TestAuthorizationGate:
     """Test live authorization gate — fail-closed."""
@@ -330,6 +327,7 @@ class TestAuthorizationGate:
 # Micro-Live Risk Envelope Tests
 # ============================================================
 
+
 class TestMicroLiveRiskEnvelope:
     """Test micro-live risk envelope."""
 
@@ -362,7 +360,9 @@ class TestMicroLiveRiskEnvelope:
         """Order with excessive spread is blocked."""
         limits = MicroLiveLimits(max_spread=0.005)
         envelope = MicroLiveRiskEnvelope(limits=limits)
-        allowed, reason = envelope.check_order(notional=100.0, current_positions=0, spread=0.01)
+        allowed, reason = envelope.check_order(
+            notional=100.0, current_positions=0, spread=0.01
+        )
         assert allowed is False
         assert "spread" in reason.lower()
 
@@ -370,7 +370,9 @@ class TestMicroLiveRiskEnvelope:
         """Order with excessive slippage is blocked."""
         limits = MicroLiveLimits(max_slippage=0.002)
         envelope = MicroLiveRiskEnvelope(limits=limits)
-        allowed, reason = envelope.check_order(notional=100.0, current_positions=0, slippage=0.01)
+        allowed, reason = envelope.check_order(
+            notional=100.0, current_positions=0, slippage=0.01
+        )
         assert allowed is False
         assert "slippage" in reason.lower()
 
@@ -426,6 +428,7 @@ class TestMicroLiveRiskEnvelope:
 # Campaign Lifecycle Tests
 # ============================================================
 
+
 class TestCampaignLifecycle:
     """Test micro-live campaign lifecycle."""
 
@@ -460,7 +463,9 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign()
         manager.create_campaign(campaign)
-        assert manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
+        assert manager.transition_campaign(
+            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
+        )
         updated = manager.get_campaign("camp-1")
         assert updated.status == CampaignStatus.PREFLIGHT.value
 
@@ -469,34 +474,53 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign(status=CampaignStatus.COMPLETED.value)
         manager.create_campaign(campaign)
-        assert manager.transition_campaign("camp-1", CampaignStatus.ACTIVE.value, "2026-01-01T01:00:00") is False
+        assert (
+            manager.transition_campaign(
+                "camp-1", CampaignStatus.ACTIVE.value, "2026-01-01T01:00:00"
+            )
+            is False
+        )
         updated = manager.get_campaign("camp-1")
         assert updated.status == CampaignStatus.COMPLETED.value
 
     def test_planned_to_preflight(self):
         """PLANNED → PREFLIGHT is valid."""
-        assert self._make_campaign(CampaignStatus.PLANNED.value).can_transition_to(CampaignStatus.PREFLIGHT.value)
+        assert self._make_campaign(CampaignStatus.PLANNED.value).can_transition_to(
+            CampaignStatus.PREFLIGHT.value
+        )
 
     def test_preflight_to_authorized(self):
         """PREFLIGHT → AUTHORIZED is valid."""
-        assert self._make_campaign(CampaignStatus.PREFLIGHT.value).can_transition_to(CampaignStatus.AUTHORIZED.value)
+        assert self._make_campaign(CampaignStatus.PREFLIGHT.value).can_transition_to(
+            CampaignStatus.AUTHORIZED.value
+        )
 
     def test_authorized_to_active(self):
         """AUTHORIZED → ACTIVE is valid."""
-        assert self._make_campaign(CampaignStatus.AUTHORIZED.value).can_transition_to(CampaignStatus.ACTIVE.value)
+        assert self._make_campaign(CampaignStatus.AUTHORIZED.value).can_transition_to(
+            CampaignStatus.ACTIVE.value
+        )
 
     def test_active_to_completed(self):
         """ACTIVE → COMPLETED is valid."""
-        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(CampaignStatus.COMPLETED.value)
+        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(
+            CampaignStatus.COMPLETED.value
+        )
 
     def test_active_to_failed(self):
         """ACTIVE → FAILED is valid."""
-        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(CampaignStatus.FAILED.value)
+        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(
+            CampaignStatus.FAILED.value
+        )
 
     def test_terminal_states_no_transitions(self):
         """Terminal states cannot transition."""
-        for terminal in [CampaignStatus.COMPLETED.value, CampaignStatus.FAILED.value,
-                         CampaignStatus.STOPPED.value, CampaignStatus.EXPIRED.value]:
+        for terminal in [
+            CampaignStatus.COMPLETED.value,
+            CampaignStatus.FAILED.value,
+            CampaignStatus.STOPPED.value,
+            CampaignStatus.EXPIRED.value,
+        ]:
             campaign = self._make_campaign(status=terminal)
             assert not campaign.can_transition_to(CampaignStatus.ACTIVE.value)
 
@@ -512,8 +536,12 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign()
         manager.create_campaign(campaign)
-        manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
-        manager.transition_campaign("camp-1", CampaignStatus.AUTHORIZED.value, "2026-01-01T02:00:00")
+        manager.transition_campaign(
+            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
+        )
+        manager.transition_campaign(
+            "camp-1", CampaignStatus.AUTHORIZED.value, "2026-01-01T02:00:00"
+        )
         updated = manager.get_campaign("camp-1")
         assert len(updated.status_history) == 2
 
@@ -522,7 +550,9 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign()
         manager.create_campaign(campaign)
-        manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
+        manager.transition_campaign(
+            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
+        )
         events = manager.get_events()
         assert len(events) == 2  # CREATE + STATUS_CHANGED
 
@@ -531,6 +561,7 @@ class TestCampaignLifecycle:
 # Divergence Analysis Tests
 # ============================================================
 
+
 class TestDivergenceAnalysis:
     """Test live/shadow/backtest comparison."""
 
@@ -538,25 +569,60 @@ class TestDivergenceAnalysis:
         """Identical decisions produce no divergences."""
         analyzer = DivergenceAnalyzer()
         decisions = [
-            {"instrument_id": "AAPL", "features": {"f1": 1.0}, "strategy_intent": {"side": "BUY"}, "risk_decision": {"approved": True}},
+            {
+                "instrument_id": "AAPL",
+                "features": {"f1": 1.0},
+                "strategy_intent": {"side": "BUY"},
+                "risk_decision": {"approved": True},
+            },
         ]
-        result = analyzer.compare_decisions(decisions, decisions, "paper", "shadow", "comp-1")
+        result = analyzer.compare_decisions(
+            decisions, decisions, "paper", "shadow", "comp-1"
+        )
         assert result.total_divergences == 0
         assert result.critical_divergences == 0
 
     def test_feature_divergence_detected(self):
         """Feature divergence detected."""
         analyzer = DivergenceAnalyzer()
-        source = [{"instrument_id": "AAPL", "features": {"f1": 1.0}, "strategy_intent": {}, "risk_decision": {}}]
-        target = [{"instrument_id": "AAPL", "features": {"f1": 2.0}, "strategy_intent": {}, "risk_decision": {}}]
+        source = [
+            {
+                "instrument_id": "AAPL",
+                "features": {"f1": 1.0},
+                "strategy_intent": {},
+                "risk_decision": {},
+            }
+        ]
+        target = [
+            {
+                "instrument_id": "AAPL",
+                "features": {"f1": 2.0},
+                "strategy_intent": {},
+                "risk_decision": {},
+            }
+        ]
         result = analyzer.compare_decisions(source, target, "paper", "shadow", "comp-1")
         assert result.total_divergences > 0
 
     def test_risk_divergence_classified_critical(self):
         """Risk divergence classified as CRITICAL."""
         analyzer = DivergenceAnalyzer()
-        source = [{"instrument_id": "AAPL", "features": {}, "strategy_intent": {}, "risk_decision": {"approved": True}}]
-        target = [{"instrument_id": "AAPL", "features": {}, "strategy_intent": {}, "risk_decision": {"approved": False}}]
+        source = [
+            {
+                "instrument_id": "AAPL",
+                "features": {},
+                "strategy_intent": {},
+                "risk_decision": {"approved": True},
+            }
+        ]
+        target = [
+            {
+                "instrument_id": "AAPL",
+                "features": {},
+                "strategy_intent": {},
+                "risk_decision": {"approved": False},
+            }
+        ]
         result = analyzer.compare_decisions(source, target, "paper", "shadow", "comp-1")
         assert result.critical_divergences > 0
 
@@ -599,10 +665,20 @@ class TestDivergenceAnalysis:
         """Critical divergences can be filtered."""
         analyzer = DivergenceAnalyzer()
         source = [
-            {"instrument_id": "AAPL", "features": {"f1": 1.0}, "strategy_intent": {"s": 1}, "risk_decision": {"a": 1}},
+            {
+                "instrument_id": "AAPL",
+                "features": {"f1": 1.0},
+                "strategy_intent": {"s": 1},
+                "risk_decision": {"a": 1},
+            },
         ]
         target = [
-            {"instrument_id": "AAPL", "features": {"f1": 2.0}, "strategy_intent": {"s": 2}, "risk_decision": {"a": 2}},
+            {
+                "instrument_id": "AAPL",
+                "features": {"f1": 2.0},
+                "strategy_intent": {"s": 2},
+                "risk_decision": {"a": 2},
+            },
         ]
         analyzer.compare_decisions(source, target, "paper", "shadow", "comp-1")
         critical = analyzer.get_critical_divergences()
@@ -613,6 +689,7 @@ class TestDivergenceAnalysis:
 # ============================================================
 # Preflight Tests
 # ============================================================
+
 
 class TestPreflight:
     """Test live preflight checks."""
@@ -649,6 +726,7 @@ class TestPreflight:
 # ============================================================
 # Adversarial / Integration Tests
 # ============================================================
+
 
 class TestPhase1OAdversarial:
     """Adversarial tests for Phase 1O."""
@@ -746,7 +824,9 @@ class TestPhase1OAdversarial:
         )
         manager.create_campaign(campaign)
         original_status = campaign.status
-        manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
+        manager.transition_campaign(
+            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
+        )
         # Original unchanged
         assert campaign.status == original_status
         # New object updated
@@ -764,10 +844,20 @@ class TestPhase1OAdversarial:
         """Divergence severity correctly classified."""
         analyzer = DivergenceAnalyzer()
         source = [
-            {"instrument_id": "AAPL", "features": {}, "strategy_intent": {"s": 1}, "risk_decision": {"a": 1}},
+            {
+                "instrument_id": "AAPL",
+                "features": {},
+                "strategy_intent": {"s": 1},
+                "risk_decision": {"a": 1},
+            },
         ]
         target = [
-            {"instrument_id": "AAPL", "features": {}, "strategy_intent": {"s": 2}, "risk_decision": {"a": 1}},
+            {
+                "instrument_id": "AAPL",
+                "features": {},
+                "strategy_intent": {"s": 2},
+                "risk_decision": {"a": 1},
+            },
         ]
         result = analyzer.compare_decisions(source, target, "paper", "live", "comp-1")
         # Strategy intent divergence is CRITICAL

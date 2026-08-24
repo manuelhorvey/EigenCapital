@@ -13,16 +13,20 @@ Tests cover:
 import pytest
 
 from eigencapital.execution.broker import PaperBroker, OrderLifecycleState, BrokerError
-from eigencapital.execution.position_manager import PositionManager, PositionRecord
-from eigencapital.execution.account import AccountState, AccountSnapshot
-from eigencapital.execution.reconciliation import ReconciliationEngine, ReconciliationStatus
-from eigencapital.execution.events import AuditLog, AuditEvent, EventType
+from eigencapital.execution.position_manager import PositionManager
+from eigencapital.execution.account import AccountState
+from eigencapital.execution.reconciliation import (
+    ReconciliationEngine,
+    ReconciliationStatus,
+)
+from eigencapital.execution.events import AuditLog, EventType
 from eigencapital.core.models.order import Order
 
 
 # ───────────────────────────────────────────────
 #  Helpers
 # ───────────────────────────────────────────────
+
 
 def _make_order(
     instrument_id: str = "ES",
@@ -45,6 +49,7 @@ def _make_order(
 # ═══════════════════════════════════════════════
 #  PAPER BROKER
 # ═══════════════════════════════════════════════
+
 
 class TestPaperBroker:
     def test_submit_order(self):
@@ -80,7 +85,9 @@ class TestPaperBroker:
         order = _make_order(quantity=100, price=5000)
         broker.submit_order(order)
         broker.generate_fill("ES", fill_price=5000, fill_quantity=60)
-        broker.generate_fill("ES", fill_price=5001, fill_quantity=50)  # Only 40 remaining
+        broker.generate_fill(
+            "ES", fill_price=5001, fill_quantity=50
+        )  # Only 40 remaining
 
         # Total fills should be 100, not 110
         fills = broker._fills["ES"]
@@ -104,13 +111,18 @@ class TestPaperBroker:
         assert broker.get_order_state("ES") == OrderLifecycleState.CANCELLED
 
     def test_invalid_quantity_rejected(self):
-        broker = PaperBroker()
+        PaperBroker()
         # Order model raises ValueError for negative quantity
         with pytest.raises(ValueError, match="quantity must be >= 0"):
             Order(
-                order_id="ORD-NEG", instrument_id="ES", side="BUY",
-                quantity=-5, timestamp_utc="2025-01-15T10:00:00Z",
-                order_type="LIMIT", limit_price=5000, strategy_id="test",
+                order_id="ORD-NEG",
+                instrument_id="ES",
+                side="BUY",
+                quantity=-5,
+                timestamp_utc="2025-01-15T10:00:00Z",
+                order_type="LIMIT",
+                limit_price=5000,
+                strategy_id="test",
             )
 
     def test_duplicate_order_rejected(self):
@@ -169,9 +181,11 @@ class TestPaperBroker:
 #  POSITION MANAGER
 # ═══════════════════════════════════════════════
 
+
 class TestPositionManager:
     def _make_fill(self, fill_id: str, side: str, quantity: float, price: float):
         from eigencapital.core.models.fill import Fill
+
         return Fill(
             fill_id=fill_id,
             order_id="O1",
@@ -250,6 +264,7 @@ class TestPositionManager:
 #  ACCOUNT STATE
 # ═══════════════════════════════════════════════
 
+
 class TestAccountState:
     def test_initial_state(self):
         account = AccountState(initial_capital=100000)
@@ -301,6 +316,7 @@ class TestAccountState:
 # ═══════════════════════════════════════════════
 #  RECONCILIATION
 # ═══════════════════════════════════════════════
+
 
 class TestReconciliation:
     def test_reconciled(self):
@@ -381,6 +397,7 @@ class TestReconciliation:
 # ═══════════════════════════════════════════════
 #  AUDIT LOG
 # ═══════════════════════════════════════════════
+
 
 class TestAuditLog:
     def test_append_event(self):

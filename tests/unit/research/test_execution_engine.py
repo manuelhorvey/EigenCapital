@@ -10,24 +10,26 @@ Tests cover:
 - Edge cases: missing hypothesis, failed backtest, missing validation
 """
 
-import hashlib
-import json
 import pytest
 
 from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
-from eigencapital.research.execution.engine import ExecutionEngine, ExecutionConfig, ExecutionError
+from eigencapital.research.execution.engine import (
+    ExecutionEngine,
+    ExecutionConfig,
+    ExecutionError,
+)
 from eigencapital.research.execution.ledger import ExecutionLedger
 from eigencapital.research.hypotheses.hypothesis import Hypothesis
 from eigencapital.research.experiments.registry import ExperimentRegistry
-from eigencapital.research.costs.model import CostModel, ZERO_COST, MODERATE_COST
-from eigencapital.features.pipeline import FeaturePipeline, FeatureRequest, PipelineConfig
+from eigencapital.research.costs.model import MODERATE_COST
+from eigencapital.features.pipeline import FeaturePipeline
 from eigencapital.features.feature_set import FeatureSet, FeatureEntry, FeatureStatus
-from eigencapital.features.momentum.time_series import compute_roc
 
 
 # ───────────────────────────────────────────────
 #  Helpers
 # ───────────────────────────────────────────────
+
 
 def _make_hypothesis(status: str = "REGISTERED") -> Hypothesis:
     return Hypothesis(
@@ -43,7 +45,11 @@ def _make_config() -> ExecutionConfig:
     return ExecutionConfig(
         backtest_config={"start_date": "2025-01-01", "end_date": "2025-06-30"},
         cost_model=MODERATE_COST,
-        universe={"instruments": ["ES", "NQ"], "trial_group_id": "TG-001", "trial_index": 1},
+        universe={
+            "instruments": ["ES", "NQ"],
+            "trial_group_id": "TG-001",
+            "trial_index": 1,
+        },
         parameters={"lookback": 20, "threshold": 0.02},
         random_seed=42,
     )
@@ -52,7 +58,10 @@ def _make_config() -> ExecutionConfig:
 def _mock_compute_features(bars, config: ExecutionConfig) -> FeatureSet:
     """Mock feature computation."""
     entry = FeatureEntry(
-        "roc_20", "v1", FeatureStatus.COMPUTED, value=0.05,
+        "roc_20",
+        "v1",
+        FeatureStatus.COMPUTED,
+        value=0.05,
     )
     return FeatureSet(
         instrument_id="ES",
@@ -84,6 +93,7 @@ def _mock_validate(result: dict, config: ExecutionConfig) -> dict:
 # ═══════════════════════════════════════════════
 #  EXECUTION RECORD
 # ═══════════════════════════════════════════════
+
 
 class TestExecutionRecord:
     def test_basic_creation(self):
@@ -184,14 +194,22 @@ class TestExecutionRecord:
 
     def test_provenance_changes_with_result(self):
         r1 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         r2 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
             result={"sharpe": 1.5},
         )
         # Provenance excludes result, so should be same
@@ -201,6 +219,7 @@ class TestExecutionRecord:
 # ═══════════════════════════════════════════════
 #  EXECUTION ENGINE
 # ═══════════════════════════════════════════════
+
 
 class TestExecutionEngine:
     def test_basic_execution(self):
@@ -348,7 +367,8 @@ class TestExecutionEngine:
         config = _make_config()
 
         r1 = engine1.execute(
-            hypothesis=hyp, config=config,
+            hypothesis=hyp,
+            config=config,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
         )
@@ -358,7 +378,8 @@ class TestExecutionEngine:
         engine2 = ExecutionEngine(registry2, pipeline2)
 
         r2 = engine2.execute(
-            hypothesis=hyp, config=config,
+            hypothesis=hyp,
+            config=config,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
         )
@@ -375,7 +396,8 @@ class TestExecutionEngine:
         config = _make_config()
 
         record = engine.execute(
-            hypothesis=hyp, config=config,
+            hypothesis=hyp,
+            config=config,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
         )
@@ -392,7 +414,8 @@ class TestExecutionEngine:
         config = _make_config()
 
         engine.execute(
-            hypothesis=hyp, config=config,
+            hypothesis=hyp,
+            config=config,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
         )
@@ -404,13 +427,18 @@ class TestExecutionEngine:
 #  EXECUTION LEDGER
 # ═══════════════════════════════════════════════
 
+
 class TestExecutionLedger:
     def test_append_and_get(self):
         ledger = ExecutionLedger()
         record = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         ledger.append(record)
         assert ledger.get("EXEC-001") == record
@@ -418,9 +446,13 @@ class TestExecutionLedger:
     def test_append_only(self):
         ledger = ExecutionLedger()
         record = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         ledger.append(record)
         with pytest.raises(ValueError, match="Duplicate"):
@@ -429,21 +461,29 @@ class TestExecutionLedger:
     def test_cannot_delete(self):
         """Ledger has no delete method — records are permanent."""
         ledger = ExecutionLedger()
-        assert not hasattr(ledger, 'delete')
-        assert not hasattr(ledger, 'remove')
+        assert not hasattr(ledger, "delete")
+        assert not hasattr(ledger, "remove")
 
     def test_list_by_status(self):
         ledger = ExecutionLedger()
         r1 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
             status=ExecutionStatus.COMPLETED,
         )
         r2 = ExecutionRecord(
-            execution_id="EXEC-002", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-002",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=2,
+            execution_id="EXEC-002",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-002",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=2,
             status=ExecutionStatus.FAILED,
         )
         ledger.append(r1)
@@ -456,14 +496,22 @@ class TestExecutionLedger:
     def test_list_by_hypothesis(self):
         ledger = ExecutionLedger()
         r1 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         r2 = ExecutionRecord(
-            execution_id="EXEC-002", hypothesis_id="HYP-002",
-            hypothesis_hash="abc", experiment_id="EXP-002",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-002",
+            hypothesis_id="HYP-002",
+            hypothesis_hash="abc",
+            experiment_id="EXP-002",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         ledger.append(r1)
         ledger.append(r2)
@@ -474,14 +522,22 @@ class TestExecutionLedger:
     def test_list_by_trial_group(self):
         ledger = ExecutionLedger()
         r1 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         r2 = ExecutionRecord(
-            execution_id="EXEC-002", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-002",
-            experiment_hash="def", trial_group_id="TG-002", trial_index=1,
+            execution_id="EXEC-002",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-002",
+            experiment_hash="def",
+            trial_group_id="TG-002",
+            trial_index=1,
         )
         ledger.append(r1)
         ledger.append(r2)
@@ -492,15 +548,23 @@ class TestExecutionLedger:
     def test_summary(self):
         ledger = ExecutionLedger()
         r1 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
             status=ExecutionStatus.COMPLETED,
         )
         r2 = ExecutionRecord(
-            execution_id="EXEC-002", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-002",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=2,
+            execution_id="EXEC-002",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-002",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=2,
             status=ExecutionStatus.FAILED,
         )
         ledger.append(r1)
@@ -514,9 +578,13 @@ class TestExecutionLedger:
     def test_serialization_roundtrip(self):
         ledger = ExecutionLedger()
         r1 = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         ledger.append(r1)
 
@@ -528,9 +596,13 @@ class TestExecutionLedger:
     def test_contains(self):
         ledger = ExecutionLedger()
         record = ExecutionRecord(
-            execution_id="EXEC-001", hypothesis_id="HYP-001",
-            hypothesis_hash="abc", experiment_id="EXP-001",
-            experiment_hash="def", trial_group_id="TG-001", trial_index=1,
+            execution_id="EXEC-001",
+            hypothesis_id="HYP-001",
+            hypothesis_hash="abc",
+            experiment_id="EXP-001",
+            experiment_hash="def",
+            trial_group_id="TG-001",
+            trial_index=1,
         )
         ledger.append(record)
         assert "EXEC-001" in ledger
@@ -540,6 +612,7 @@ class TestExecutionLedger:
 # ═══════════════════════════════════════════════
 #  INTEGRATION — FULL RESEARCH PATH
 # ═══════════════════════════════════════════════
+
 
 class TestFullResearchPath:
     def test_hypothesis_to_ledger(self):
@@ -553,7 +626,8 @@ class TestFullResearchPath:
         config = _make_config()
 
         record = engine.execute(
-            hypothesis=hyp, config=config,
+            hypothesis=hyp,
+            config=config,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
             validate_fn=_mock_validate,
@@ -583,12 +657,14 @@ class TestFullResearchPath:
         )
 
         r1 = engine.execute(
-            hypothesis=hyp, config=config1,
+            hypothesis=hyp,
+            config=config1,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
         )
         r2 = engine.execute(
-            hypothesis=hyp, config=config2,
+            hypothesis=hyp,
+            config=config2,
             compute_features_fn=_mock_compute_features,
             run_backtest_fn=_mock_run_backtest,
         )

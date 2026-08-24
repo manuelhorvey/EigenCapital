@@ -10,8 +10,6 @@ Tests cover:
 - Edge cases: empty bars, single bar, extreme values
 """
 
-import hashlib
-import math
 import random
 import pytest
 
@@ -25,7 +23,6 @@ from eigencapital.features.feature_set import (
 from eigencapital.features.dependencies import (
     FeatureDAG,
     FeatureDependency,
-    DependencyType,
     build_default_dag,
 )
 from eigencapital.features.pipeline import (
@@ -42,8 +39,6 @@ from eigencapital.features.provenance import (
 )
 from eigencapital.features.momentum.time_series import compute_roc
 from eigencapital.features.momentum.breakout import compute_donchian_position
-from eigencapital.features.mean_reversion.zscore import compute_rolling_zscore
-from eigencapital.features.errors import FeatureAvailabilityError
 
 
 # ───────────────────────────────────────────────
@@ -65,9 +60,15 @@ def _bar(close: float, day: int = 0, inst: str = "ES") -> Bar:
     h = max(close * 1.002, close)
     lo = min(close * 0.998, close)
     return Bar(
-        instrument_id=inst, timestamp_utc=ts,
-        bar_start_utc=start, bar_end_utc=ts,
-        open=close, high=h, low=lo, close=close, volume=1000,
+        instrument_id=inst,
+        timestamp_utc=ts,
+        bar_start_utc=start,
+        bar_end_utc=ts,
+        open=close,
+        high=h,
+        low=lo,
+        close=close,
+        volume=1000,
     )
 
 
@@ -94,11 +95,14 @@ def _constant(n, price=100.0, inst="ES", day_offset=0):
 #  FEATURE SET
 # ═══════════════════════════════════════════════
 
+
 class TestFeatureSet:
     def test_basic_creation(self):
         entry = FeatureEntry(
-            feature_id="roc_20", feature_version="v1",
-            status=FeatureStatus.COMPUTED, value=0.05,
+            feature_id="roc_20",
+            feature_version="v1",
+            status=FeatureStatus.COMPUTED,
+            value=0.05,
         )
         fs = FeatureSet(
             instrument_id="ES",
@@ -121,7 +125,8 @@ class TestFeatureSet:
 
     def test_get_value_unavailable(self):
         entry = FeatureEntry(
-            feature_id="roc_200", feature_version="v1",
+            feature_id="roc_200",
+            feature_version="v1",
             status=FeatureStatus.UNAVAILABLE,
             error_message="Insufficient bars",
         )
@@ -135,8 +140,10 @@ class TestFeatureSet:
 
     def test_get_value_failed(self):
         entry = FeatureEntry(
-            feature_id="bad", feature_version="v1",
-            status=FeatureStatus.FAILED, error_message="boom",
+            feature_id="bad",
+            feature_version="v1",
+            status=FeatureStatus.FAILED,
+            error_message="boom",
         )
         fs = FeatureSet(
             instrument_id="ES",
@@ -224,7 +231,10 @@ class TestFeatureSet:
 
     def test_feature_entry_serialization(self):
         entry = FeatureEntry(
-            "roc_20", "v1", FeatureStatus.COMPUTED, value=0.05,
+            "roc_20",
+            "v1",
+            FeatureStatus.COMPUTED,
+            value=0.05,
             availability_timestamp="2025-01-15T10:00:00Z",
         )
         d = entry.to_dict()
@@ -237,6 +247,7 @@ class TestFeatureSet:
 # ═══════════════════════════════════════════════
 #  DEPENDENCY DAG
 # ═══════════════════════════════════════════════
+
 
 class TestFeatureDAG:
     def test_empty_dag(self):
@@ -303,6 +314,7 @@ class TestFeatureDAG:
 #  PIPELINE — BASIC COMPUTATION
 # ═══════════════════════════════════════════════
 
+
 class TestPipelineBasic:
     def test_compute_single_feature(self):
         _reset()
@@ -311,7 +323,14 @@ class TestPipelineBasic:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                )
+            ],
         )
         assert fs.get_value("roc") is not None
         assert isinstance(fs.get_value("roc"), float)
@@ -324,8 +343,18 @@ class TestPipelineBasic:
             bars=bars,
             instrument_id="ES",
             requests=[
-                FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5}),
-                FeatureRequest("donchian", compute_fn=compute_donchian_position, lookback=20, parameters={"lookback": 20}),
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                ),
+                FeatureRequest(
+                    "donchian",
+                    compute_fn=compute_donchian_position,
+                    lookback=20,
+                    parameters={"lookback": 20},
+                ),
             ],
         )
         assert fs.get_value("roc") is not None
@@ -338,7 +367,14 @@ class TestPipelineBasic:
         fs = pipeline.compute(
             bars=[],
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                )
+            ],
         )
         assert fs.feature_count == 0
 
@@ -349,7 +385,14 @@ class TestPipelineBasic:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                )
+            ],
         )
         assert fs.provenance_hash != ""
         assert len(fs.provenance_hash) == 64
@@ -359,6 +402,7 @@ class TestPipelineBasic:
 #  PIPELINE — WARM-UP ENFORCEMENT
 # ═══════════════════════════════════════════════
 
+
 class TestPipelineWarmup:
     def test_insufficient_bars_unavailable(self):
         _reset()
@@ -367,7 +411,14 @@ class TestPipelineWarmup:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 20})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 20},
+                )
+            ],
         )
         assert fs.get_value("roc") is None
         assert fs.unavailable_features == ["roc"]
@@ -379,7 +430,14 @@ class TestPipelineWarmup:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 20})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 20},
+                )
+            ],
         )
         assert fs.get_value("roc") is not None
 
@@ -391,7 +449,14 @@ class TestPipelineWarmup:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 2})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 2},
+                )
+            ],
         )
         # With warmup disabled, should compute (lookback=2, bars=3)
         assert fs.get_value("roc") is not None
@@ -400,6 +465,7 @@ class TestPipelineWarmup:
 # ═══════════════════════════════════════════════
 #  PIPELINE — AVAILABILITY ENFORCEMENT
 # ═══════════════════════════════════════════════
+
 
 class TestPipelineAvailability:
     def test_future_data_rejected(self):
@@ -416,7 +482,14 @@ class TestPipelineAvailability:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                )
+            ],
         )
         entry = fs.get_entry("roc")
         # Bar timestamp > decision → should be STALE
@@ -432,7 +505,14 @@ class TestPipelineAvailability:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                )
+            ],
         )
         assert fs.get_value("roc") is not None
 
@@ -447,7 +527,14 @@ class TestPipelineAvailability:
         fs = pipeline.compute(
             bars=bars,
             instrument_id="ES",
-            requests=[FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})],
+            requests=[
+                FeatureRequest(
+                    "roc",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 5},
+                )
+            ],
         )
         assert fs.get_value("roc") is not None
 
@@ -455,6 +542,7 @@ class TestPipelineAvailability:
 # ═══════════════════════════════════════════════
 #  PIPELINE — NO COMPUTE FUNCTION
 # ═══════════════════════════════════════════════
+
 
 class TestPipelineMissingFunction:
     def test_missing_compute_fn_failed(self):
@@ -474,12 +562,17 @@ class TestPipelineMissingFunction:
 #  PIPELINE — DETERMINISM
 # ═══════════════════════════════════════════════
 
+
 class TestPipelineDeterminism:
     def test_same_input_same_output(self):
         _reset()
         pipeline = FeaturePipeline()
         bars = _bars(50)
-        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10})]
+        reqs = [
+            FeatureRequest(
+                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10}
+            )
+        ]
 
         fs1 = pipeline.compute(bars=bars, instrument_id="ES", requests=reqs)
         _reset()
@@ -491,7 +584,11 @@ class TestPipelineDeterminism:
         pipeline = FeaturePipeline()
         bars1 = _bars(50, seed=42)
         bars2 = _bars(50, seed=99)
-        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10})]
+        reqs = [
+            FeatureRequest(
+                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10}
+            )
+        ]
 
         fs1 = pipeline.compute(bars=bars1, instrument_id="ES", requests=reqs)
         _reset()
@@ -502,6 +599,7 @@ class TestPipelineDeterminism:
 # ═══════════════════════════════════════════════
 #  PROVENANCE
 # ═══════════════════════════════════════════════
+
 
 class TestProvenance:
     def test_bars_hash_deterministic(self):
@@ -528,7 +626,11 @@ class TestProvenance:
         _reset()
         pipeline = FeaturePipeline()
         bars = _rising(30)
-        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})]
+        reqs = [
+            FeatureRequest(
+                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5}
+            )
+        ]
         config = PipelineConfig()
 
         fs = pipeline.compute(bars=bars, instrument_id="ES", requests=reqs)
@@ -538,14 +640,20 @@ class TestProvenance:
 
     def test_provenance_record_serialization(self):
         record = ProvenanceRecord(
-            feature_set_hash="abc", instrument_id="ES",
+            feature_set_hash="abc",
+            instrument_id="ES",
             decision_timestamp="2025-01-15T10:00:00Z",
             timestamp_utc="2025-01-15T10:00:00Z",
-            bar_count=10, bar_hash="def",
-            requested_features=["roc"], computed_features=["roc"],
-            unavailable_features=[], failed_features=[],
-            dataset_version="v1", universe_version="v1",
-            config_hash="ghi", computation_order=["roc"],
+            bar_count=10,
+            bar_hash="def",
+            requested_features=["roc"],
+            computed_features=["roc"],
+            unavailable_features=[],
+            failed_features=[],
+            dataset_version="v1",
+            universe_version="v1",
+            config_hash="ghi",
+            computation_order=["roc"],
             availability_violations=[],
         )
         d = record.to_dict()
@@ -558,15 +666,20 @@ class TestProvenance:
 #  ADVERSARIAL — FUTURE DATA INJECTION
 # ═══════════════════════════════════════════════
 
+
 class TestFutureDataInjection:
     def test_future_bars_dont_change_past_featureset(self):
         """FeatureSet at T must be identical regardless of what happens at T+1."""
         _reset()
         pipeline = FeaturePipeline()
         bars_early = _rising(25)
-        ts_early = bars_early[-1].timestamp_utc
+        bars_early[-1].timestamp_utc
 
-        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})]
+        reqs = [
+            FeatureRequest(
+                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5}
+            )
+        ]
 
         # Compute with 25 bars
         fs1 = pipeline.compute(bars=bars_early, instrument_id="ES", requests=reqs)
@@ -586,6 +699,7 @@ class TestFutureDataInjection:
 #  ADVERSARIAL — MIXED STATUS FEATURESET
 # ═══════════════════════════════════════════════
 
+
 class TestMixedStatus:
     def test_pipeline_mixed_computed_and_unavailable(self):
         """Pipeline should produce both computed and unavailable features."""
@@ -596,8 +710,18 @@ class TestMixedStatus:
             bars=bars,
             instrument_id="ES",
             requests=[
-                FeatureRequest("roc_short", compute_fn=compute_roc, lookback=15, parameters={"lookback": 5}),
-                FeatureRequest("roc_long", compute_fn=compute_roc, lookback=20, parameters={"lookback": 20}),
+                FeatureRequest(
+                    "roc_short",
+                    compute_fn=compute_roc,
+                    lookback=15,
+                    parameters={"lookback": 5},
+                ),
+                FeatureRequest(
+                    "roc_long",
+                    compute_fn=compute_roc,
+                    lookback=20,
+                    parameters={"lookback": 20},
+                ),
             ],
         )
         assert fs.get_value("roc_short") is not None
@@ -607,7 +731,9 @@ class TestMixedStatus:
 
     def test_feature_set_with_stale_entry(self):
         entry = FeatureEntry(
-            "roc_20", "v1", FeatureStatus.STALE,
+            "roc_20",
+            "v1",
+            FeatureStatus.STALE,
             error_message="availability > decision",
         )
         fs = FeatureSet(
@@ -623,6 +749,7 @@ class TestMixedStatus:
 # ═══════════════════════════════════════════════
 #  ADVERSARIAL — PROPERTIES
 # ═══════════════════════════════════════════════
+
 
 class TestProperties:
     def test_feature_set_contains(self):

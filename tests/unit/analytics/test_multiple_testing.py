@@ -2,7 +2,10 @@
 
 import pytest
 from eigencapital.analytics.validation.multiple_testing import (
-    MultipleTestingResult, multiple_testing_correction, bonferroni, holm, benjamini_hochberg,
+    multiple_testing_correction,
+    bonferroni,
+    holm,
+    benjamini_hochberg,
 )
 
 

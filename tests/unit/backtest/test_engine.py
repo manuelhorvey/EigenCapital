@@ -1,14 +1,14 @@
 """Unit tests for Backtest Engine — adversarial synthetic scenarios."""
 
-import pytest
-from typing import List, Optional
 from eigencapital.core.models.bar import Bar
-from eigencapital.backtest.engine import BacktestEngine, BacktestConfig, BacktestResults
-from eigencapital.research.costs.model import CostModel, ZERO_COST, MODERATE_COST
+from eigencapital.backtest.engine import BacktestEngine, BacktestConfig
+from eigencapital.research.costs.model import ZERO_COST, MODERATE_COST
 from eigencapital.strategies.base import BaseStrategy, StrategySignal
 
 
-def _make_bar(ts_min: int, close: float = 4500.0, volume: int = 1000, instrument_id="ES"):
+def _make_bar(
+    ts_min: int, close: float = 4500.0, volume: int = 1000, instrument_id="ES"
+):
     """Helper to create a bar at minute ts_min."""
     return Bar(
         instrument_id=instrument_id,
@@ -25,6 +25,7 @@ def _make_bar(ts_min: int, close: float = 4500.0, volume: int = 1000, instrument
 
 class AlwaysBuyStrategy(BaseStrategy):
     """Simple strategy that always buys — for testing the engine loop."""
+
     @property
     def strategy_id(self) -> str:
         return "always_buy"
@@ -41,6 +42,7 @@ class AlwaysBuyStrategy(BaseStrategy):
 
 class AlternateStrategy(BaseStrategy):
     """Alternates between buy and sell every bar."""
+
     def __init__(self):
         self._step = 0
 
@@ -65,6 +67,7 @@ class AlternateStrategy(BaseStrategy):
 
 class FlatStrategy(BaseStrategy):
     """Always flat — generates no signals."""
+
     @property
     def strategy_id(self) -> str:
         return "flat"
@@ -120,7 +123,9 @@ class TestBacktestEngine:
 
         # At each step, bars seen should be <= step index + 1
         for i, count in enumerate(seen_bars):
-            assert count <= i + 1, f"Saw {count} bars at step {i}, max should be {i+1}"
+            assert count <= i + 1, (
+                f"Saw {count} bars at step {i}, max should be {i + 1}"
+            )
 
     def test_execution_delay(self):
         """Signals should not fill immediately."""
@@ -140,7 +145,8 @@ class TestBacktestEngine:
 
         # No cost
         engine_no_cost = BacktestEngine(
-            strategy=strategy, bars=bars,
+            strategy=strategy,
+            bars=bars,
             config=BacktestConfig(cost_model=ZERO_COST),
         )
         results_no_cost = engine_no_cost.run()
@@ -148,7 +154,8 @@ class TestBacktestEngine:
         # With costs
         strategy2 = AlwaysBuyStrategy()
         engine_with_cost = BacktestEngine(
-            strategy=strategy2, bars=bars,
+            strategy=strategy2,
+            bars=bars,
             config=BacktestConfig(cost_model=MODERATE_COST),
         )
         results_with_cost = engine_with_cost.run()

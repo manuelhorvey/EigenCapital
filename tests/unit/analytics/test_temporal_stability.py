@@ -1,8 +1,7 @@
 """Tests for temporal stability analysis."""
 
-import pytest
 from eigencapital.analytics.validation.temporal import (
-    TemporalStabilityResult, temporal_stability,
+    temporal_stability,
 )
 
 

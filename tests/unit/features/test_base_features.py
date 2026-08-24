@@ -9,21 +9,32 @@ import math
 from eigencapital.core.models.bar import Bar
 from eigencapital.features.feature import Feature
 from eigencapital.features.base.returns import (
-    compute_simple_return, compute_log_return, compute_return_ratio,
-    make_return_feature, make_log_return_feature,
+    compute_simple_return,
+    compute_log_return,
+    compute_return_ratio,
+    make_return_feature,
+    make_log_return_feature,
 )
 from eigencapital.features.base.volatility import (
-    compute_realized_volatility, compute_parkinson_volatility,
-    compute_garman_klass_volatility, compute_volatility_ratio,
+    compute_realized_volatility,
+    compute_parkinson_volatility,
+    compute_garman_klass_volatility,
+    compute_volatility_ratio,
     make_volatility_feature,
 )
 from eigencapital.features.base.ranges import (
-    compute_true_range, compute_atr, compute_high_low_range,
-    compute_normalized_range, make_atr_feature,
+    compute_true_range,
+    compute_atr,
+    compute_high_low_range,
+    compute_normalized_range,
+    make_atr_feature,
 )
 from eigencapital.features.base.volume import (
-    compute_volume_ma, compute_volume_ratio, compute_volume_zscore,
-    compute_obv_direction, make_volume_ratio_feature,
+    compute_volume_ma,
+    compute_volume_ratio,
+    compute_volume_zscore,
+    compute_obv_direction,
+    make_volume_ratio_feature,
 )
 
 _counter = 0
@@ -45,10 +56,18 @@ def clear_registries():
     Bar._registry.clear()
 
 
-def _make_bar(instrument_id: str, timestamp: str, open_: float, high: float,
-              low: float, close: float, volume: int = 1000) -> Bar:
+def _make_bar(
+    instrument_id: str,
+    timestamp: str,
+    open_: float,
+    high: float,
+    low: float,
+    close: float,
+    volume: int = 1000,
+) -> Bar:
     """Create a test bar."""
     from datetime import datetime, timedelta
+
     ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     start = ts - timedelta(hours=1)
     bar_start = start.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -70,12 +89,17 @@ def _make_uptrend_bars(n: int = 50, start_price: float = 100.0) -> list:
     """Create bars with uptrend."""
     bars = []
     for i in range(n):
-        price = start_price * (1.005 ** i)
-        bars.append(_make_bar(
-            "ES",
-            f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
-            price * 0.999, price * 1.005, price * 0.995, price,
-        ))
+        price = start_price * (1.005**i)
+        bars.append(
+            _make_bar(
+                "ES",
+                f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
+                price * 0.999,
+                price * 1.005,
+                price * 0.995,
+                price,
+            )
+        )
     return bars
 
 
@@ -83,17 +107,23 @@ def _make_flat_bars(n: int = 50) -> list:
     """Create bars with flat prices."""
     bars = []
     for i in range(n):
-        bars.append(_make_bar(
-            "ES",
-            f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
-            100.0, 101.0, 99.0, 100.0,
-        ))
+        bars.append(
+            _make_bar(
+                "ES",
+                f"2025-01-{(i // 24) + 1:02d}T{i % 24:02d}:00:00Z",
+                100.0,
+                101.0,
+                99.0,
+                100.0,
+            )
+        )
     return bars
 
 
 # ══════════════════════════════════════════════════════════════════
 # Return Features
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestReturnFeatures:
     """Tests for return feature computation."""
@@ -165,6 +195,7 @@ class TestReturnFeatures:
 # Volatility Features
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestVolatilityFeatures:
     """Tests for volatility feature computation."""
 
@@ -228,6 +259,7 @@ class TestVolatilityFeatures:
 # Range Features
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestRangeFeatures:
     """Tests for range feature computation."""
 
@@ -282,6 +314,7 @@ class TestRangeFeatures:
 # Volume Features
 # ══════════════════════════════════════════════════════════════════
 
+
 class TestVolumeFeatures:
     """Tests for volume feature computation."""
 
@@ -330,6 +363,7 @@ class TestVolumeFeatures:
 # ══════════════════════════════════════════════════════════════════
 # Property-Based Tests
 # ══════════════════════════════════════════════════════════════════
+
 
 class TestFeaturePrimitivesProperties:
     """Fundamental properties that must hold for all features."""

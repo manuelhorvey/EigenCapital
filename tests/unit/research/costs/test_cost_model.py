@@ -1,7 +1,12 @@
 """Unit tests for CostModel."""
 
 import pytest
-from eigencapital.research.costs.model import CostModel, ZERO_COST, MODERATE_COST, STRESS_COST
+from eigencapital.research.costs.model import (
+    CostModel,
+    ZERO_COST,
+    MODERATE_COST,
+    STRESS_COST,
+)
 
 
 class TestCostModel:
@@ -21,8 +26,12 @@ class TestCostModel:
             CostModel(model_id="test", slippage_ticks=-0.5)
 
     def test_cost_per_contract(self):
-        cm = CostModel(model_id="test", commission_per_contract=2.50,
-                       spread_ticks=2, slippage_ticks=1)
+        cm = CostModel(
+            model_id="test",
+            commission_per_contract=2.50,
+            spread_ticks=2,
+            slippage_ticks=1,
+        )
         # cost = commission + fees + spread*0.5*tick + slippage*tick
         # = 2.50 + 0 + 2*0.5*1.0 + 1*1.0 = 2.50 + 1.0 + 1.0 = 4.50
         assert cm.cost_per_contract(tick_value=1.0) == 4.50

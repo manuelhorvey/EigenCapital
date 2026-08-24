@@ -1,0 +1,140 @@
+{
+  "campaign_id": "PQ-aaab6c00dc05",
+  "scale_level": "minimal",
+  "verdict": "qualified_with_restrictions",
+  "checks": [
+    {
+      "check_name": "no_manual_trades",
+      "passed": true,
+      "reason": "Manual trades: 0",
+      "details": {}
+    },
+    {
+      "check_name": "r4_attribution",
+      "passed": false,
+      "reason": "R4 trades: 0, open: 0",
+      "details": {}
+    },
+    {
+      "check_name": "reconciliation",
+      "passed": true,
+      "reason": "100% broker/internal agreement",
+      "details": {}
+    },
+    {
+      "check_name": "fingerprint_frozen",
+      "passed": true,
+      "reason": "Fingerprint unchanged",
+      "details": {}
+    },
+    {
+      "check_name": "slippage_scaling",
+      "passed": true,
+      "reason": "Slippage deterioration: 0.00x",
+      "details": {}
+    },
+    {
+      "check_name": "spread_scaling",
+      "passed": true,
+      "reason": "Spread deterioration: 1.00x",
+      "details": {}
+    },
+    {
+      "check_name": "fill_rate",
+      "passed": true,
+      "reason": "Fill rate: 100.0%",
+      "details": {}
+    },
+    {
+      "check_name": "margin_pressure",
+      "passed": true,
+      "reason": "Margin usage: 0.0%",
+      "details": {}
+    },
+    {
+      "check_name": "risk_proportional",
+      "passed": true,
+      "reason": "Position risk ratio: 0.00",
+      "details": {}
+    }
+  ],
+  "total_checks": 9,
+  "passed_checks": 8,
+  "failed_checks": 1,
+  "attribution": {
+    "r4_pnl": 0,
+    "pre_existing_pnl": 0,
+    "manual_pnl": 0,
+    "total_pnl": 0,
+    "r4_trades": 0,
+    "pre_existing_trades": 0,
+    "manual_trades": 0,
+    "r4_open_positions": 0,
+    "pre_existing_open_positions": 0
+  },
+  "scaling_metrics": {
+    "slippage_at_micro": 0.0,
+    "slippage_at_current": 0.0,
+    "slippage_deterioration": 0.0,
+    "spread_at_micro": 0.0,
+    "spread_at_current": 0,
+    "spread_deterioration": 1.0,
+    "fill_rate_at_micro": 1.0,
+    "fill_rate_at_current": 1.0,
+    "fill_rate_deterioration": 0.0,
+    "margin_usage": 0.0,
+    "margin_pressure": false,
+    "position_risk_ratio": 0.0,
+    "risk_proportional": true
+  },
+  "report_hash": "63a76aacc33ebc8ccb94cd79d7a1f8237184da9a8fdb214b7e7c10bcf3c96675",
+  "account": {
+    "balance": 0.0,
+    "equity": 0.0,
+    "margin": 0.0,
+    "free_margin": 0.0,
+    "leverage": 2000000000,
+    "currency": "USD",
+    "profit": 0.0
+  },
+  "broker_positions": [],
+  "scale_result": {
+    "level": "minimal",
+    "checks": {
+      "slippage": {
+        "passed": true,
+        "deterioration": 0.0,
+        "threshold": 2.0
+      },
+      "spread": {
+        "passed": true,
+        "deterioration": 1.0,
+        "threshold": 2.0
+      },
+      "fill_rate": {
+        "passed": true,
+        "rate": 1.0,
+        "threshold": 0.9
+      },
+      "margin": {
+        "passed": true,
+        "usage": 0.0,
+        "threshold": 0.5
+      },
+      "risk_proportional": {
+        "passed": true,
+        "ratio": 0.0
+      }
+    },
+    "all_passed": true
+  },
+  "envelope": {
+    "level": "minimal",
+    "max_equity": 5000,
+    "max_position_size": 500,
+    "max_order_notional": 250,
+    "max_drawdown_pct": 0.2
+  },
+  "manifest_identity": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
+  "total_unrealized_pnl": 0
+}

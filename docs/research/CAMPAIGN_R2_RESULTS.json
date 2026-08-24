@@ -1,0 +1,126 @@
+{
+  "manifest": {
+    "data_source": "mt5_csv",
+    "universe_hash": "11a042d96009befc",
+    "start_date": "2020-01-01",
+    "end_date": "2026-08-24",
+    "bar_count": 57425,
+    "snapshot_hash": "111fc39327408fcf"
+  },
+  "sections": {
+    "drawdown_decomposition": {
+      "max_drawdown": -0.8213480638568273,
+      "peak_date": "2021-11-08",
+      "trough_date": "2022-11-21",
+      "drawdown_duration_days": 379,
+      "asset_contributions": {
+        "ETHUSDm": -0.6882832988727797,
+        "BTCUSDm": -0.016159455524044686,
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0,
+        "AUDUSDm": 0.0,
+        "USDCADm": 0.0,
+        "USDCHFm": 0.0,
+        "NZDUSDm": 0.0,
+        "XAUUSDm": 0.0,
+        "US500m": 0.0,
+        "US30m": 0.0,
+        "USTECm": 0.0,
+        "XAGUSDm": 0.0,
+        "USOILm": 0.0,
+        "AAPLm": 0.0,
+        "AMZNm": 0.0,
+        "MSFTm": 0.0,
+        "GOOGLm": 0.0,
+        "TSLAm": 0.0,
+        "JPMm": 0.0,
+        "JNJm": 0.0,
+        "PGm": 0.0,
+        "HDm": 0.0,
+        "UNHm": 0.0,
+        "NFLXm": 0.0,
+        "INTCm": 0.0,
+        "BACm": 0.0,
+        "XOMm": 0.0,
+        "AMDm": 0.0,
+        "PYPLm": 0.0,
+        "COSTm": 0.0,
+        "LINm": 0.0,
+        "ISRGm": 0.0,
+        "ADPm": 0.0,
+        "GILDm": 0.0,
+        "BMYm": 0.0,
+        "CVSm": 0.0
+      },
+      "long_contrib_during_dd": -0.7044427543968244,
+      "short_contrib_during_dd": 0.0,
+      "vol_at_peak": NaN,
+      "vol_at_trough": NaN,
+      "total_return_during_dd": -1.3668713964888197
+    },
+    "regime_conditioning": {
+      "volatility": {
+        "raw_sharpe": 0.6609269430742021,
+        "conditioned_sharpe": 0.6416974383665223,
+        "raw_max_dd": -0.8134203525388831,
+        "conditioned_max_dd": -0.820028120229811,
+        "raw_turnover": 8.060350030175014,
+        "conditioned_turnover": 8.060350030175014,
+        "regime_pct_high_vol": 0.0
+      },
+      "trend_strength": {
+        "raw_sharpe": 1.8011799553136425,
+        "conditioned_sharpe": 1.3297779623674797,
+        "raw_max_dd": -0.572082977764567,
+        "conditioned_max_dd": -0.5720829777645673,
+        "raw_turnover": 0.5283018867924528,
+        "conditioned_turnover": 0.5283018867924528,
+        "regime_pct_strong_trend": 1.0
+      },
+      "cross_asset_risk": {
+        "raw_sharpe": 0.7029704031146019,
+        "conditioned_sharpe": 0.8671238180613853,
+        "raw_max_dd": -0.6559712663292578,
+        "conditioned_max_dd": -0.6102968556743019,
+        "regime_pct_low_risk": 1.0
+      }
+    },
+    "risk_transformation": {
+      "vol_targeting": {
+        "raw_sharpe": 0.6793874274299355,
+        "vol_targeted_sharpe": 0.6812555457415779,
+        "raw_max_dd": -0.8213480638568273,
+        "vol_targeted_max_dd": -0.23583055740946735,
+        "raw_vol": 0.5765833163339514,
+        "vol_targeted_vol": 0.10647392245245449,
+        "avg_leverage": 0.2182231918024653
+      },
+      "signal_strength": {
+        "raw_sharpe": 0.7124396012415146,
+        "sized_sharpe": 0.7124396012415146,
+        "raw_max_dd": -0.8213480638568273,
+        "sized_max_dd": -0.8213480638568273
+      }
+    },
+    "portfolio_construction": {
+      "inverse_vol": {
+        "method": "inverse_vol",
+        "sharpe": 0.7520672702816396,
+        "max_dd": -0.7627358950003474,
+        "turnover": 1.5278279868907374
+      }
+    }
+  },
+  "summary": {
+    "best_regime_conditioner": "trend",
+    "best_regime_sharpe": 1.3297779623674797,
+    "best_risk_transformer": "signal_size",
+    "best_risk_sharpe": 0.7124396012415146,
+    "improvements": [
+      "Vol targeting halves drawdown"
+    ],
+    "raw_sharpe": 0.6609269430742021,
+    "raw_max_dd": -0.8134203525388831
+  }
+}

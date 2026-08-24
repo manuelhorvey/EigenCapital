@@ -1,0 +1,416 @@
+{
+  "freeze": {
+    "campaign_id": "R3-pre-registered-risk-transformation",
+    "version": "1.0",
+    "frozen_before_execution": true,
+    "hypothesis": "Risk-normalized continuation contains diversified alpha",
+    "signal": {
+      "type": "12_1_momentum",
+      "lookback": 252,
+      "skip": 21,
+      "universe": "all_39_symbols"
+    },
+    "vol_targeting": {
+      "target_vol": 0.1,
+      "vol_lookback": 60,
+      "max_leverage": 3.0,
+      "min_leverage": 0.1,
+      "rebalance": "daily"
+    },
+    "regime_conditioning": {
+      "method": "cross_asset_risk",
+      "risk_lookback": 20,
+      "threshold": "expanding_median"
+    },
+    "asset_constraints": {
+      "crypto_max_weight": 0.15,
+      "forex_max_weight": 0.4,
+      "index_max_weight": 0.3,
+      "metal_max_weight": 0.2,
+      "commodity_max_weight": 0.1
+    },
+    "costs": {
+      "per_trade_bps": 10,
+      "spread_bps": 5,
+      "slippage_bps": 3
+    },
+    "validation": {
+      "walk_forward_folds": 3,
+      "min_train_bars": 500,
+      "test_bars": 252,
+      "significance_level": 0.05
+    },
+    "stress": {
+      "cost_multiplier": [
+        1,
+        2,
+        3
+      ],
+      "vol_shock": [
+        1.5,
+        2.0
+      ],
+      "drawdown_threshold": -0.25
+    }
+  },
+  "freeze_hash": "b06be7ac4461473e",
+  "strategies": {
+    "raw": {
+      "wf": {
+        "passed": "False",
+        "label": "raw_continuation",
+        "overall_oos_sharpe": -0.38369274725057967,
+        "avg_is_sharpe": 0.8887202475234707,
+        "avg_oos_sharpe": -0.2122132991254183,
+        "degradation": 1.238785264223221,
+        "consistency": 0.3333333333333333,
+        "positive_folds": 1,
+        "total_folds": 3,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-09 to 2022-01-21",
+            "test_period": "2022-01-22 to 2022-09-30",
+            "is_sharpe": 1.6180983212340976,
+            "oos_sharpe": -0.9447010874792451,
+            "oos_return": -0.6145651097117388,
+            "oos_dd": -0.7067975620203173
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-06-12 to 2023-10-24",
+            "test_period": "2023-10-25 to 2024-07-02",
+            "is_sharpe": 0.2839989873792223,
+            "oos_sharpe": 1.6173175192909663,
+            "oos_return": 0.6918980458238959,
+            "oos_dd": -0.20145911473450806
+          },
+          {
+            "fold": 3,
+            "train_period": "2024-03-14 to 2025-07-26",
+            "test_period": "2025-07-27 to 2026-04-04",
+            "is_sharpe": 0.7640634339570918,
+            "oos_sharpe": -1.3092563291879762,
+            "oos_return": -0.7082834726699737,
+            "oos_dd": -0.6323952244160858
+          }
+        ],
+        "oos_total_return": -0.2103168455192722,
+        "oos_max_dd": -0.780952923901668
+      },
+      "stress": {
+        "passed": false,
+        "label": "raw_continuation",
+        "raw_max_dd": -0.8213480638568273,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.700972692115608,
+            "annual_return": 0.40352573206975184,
+            "vol": 0.5756654098062929,
+            "cost_drag": 0.006601102941176471
+          },
+          "cost_2x": {
+            "sharpe": 0.6268234390815469,
+            "annual_return": 0.3969246291285754,
+            "vol": 0.6332319507869222,
+            "cost_drag": 0.013202205882352942
+          },
+          "cost_3x": {
+            "sharpe": 0.5650323948864958,
+            "annual_return": 0.3903235261873989,
+            "vol": 0.6907984917675515,
+            "cost_drag": 0.019803308823529413
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -1.232022095785241,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.6426961277136547,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.5743201778330064,
+            "low_vol_annual_return": 0.24892426346065488,
+            "regime_dependency": 0.3253959143723515
+          }
+        }
+      },
+      "returns": "time\n2020-09-09    0.000000\n2020-09-10    0.049323\n2020-09-11    0.015487\n2020-09-12    0.036934\n2020-09-13   -0.055599\n                ...   \n2026-08-20    0.053649\n2026-08-21    0.072823\n2026-08-22   -0.016160\n2026-08-23    0.008782\n2026-08-24   -0.008858\nFreq: D, Length: 2176, dtype: float64"
+    },
+    "vol_targeted": {
+      "wf": {
+        "passed": "False",
+        "label": "vol_targeted_continuation",
+        "overall_oos_sharpe": -0.629992434251136,
+        "avg_is_sharpe": 1.1325693875971037,
+        "avg_oos_sharpe": -0.6370588013255061,
+        "degradation": 1.5624898644639433,
+        "consistency": 0.3333333333333333,
+        "positive_folds": 1,
+        "total_folds": 3,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-11-08 to 2022-03-22",
+            "test_period": "2022-03-23 to 2022-11-29",
+            "is_sharpe": 1.605337961766246,
+            "oos_sharpe": -1.7236807692620124,
+            "oos_return": -0.18346810648859407,
+            "oos_dd": -0.21031185984102896
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-07-22 to 2023-12-03",
+            "test_period": "2023-12-04 to 2024-08-11",
+            "is_sharpe": 0.8356528813659223,
+            "oos_sharpe": 1.0248633049769442,
+            "oos_return": 0.11307711796344742,
+            "oos_dd": -0.07314350930812397
+          },
+          {
+            "fold": 3,
+            "train_period": "2024-04-03 to 2025-08-15",
+            "test_period": "2025-08-16 to 2026-04-24",
+            "is_sharpe": 0.9567173196591424,
+            "oos_sharpe": -1.21235893969145,
+            "oos_return": -0.13857489001149728,
+            "oos_dd": -0.1770135392092722
+          }
+        ],
+        "oos_total_return": -0.06965529284554799,
+        "oos_max_dd": -0.262876969115598
+      },
+      "stress": {
+        "passed": true,
+        "label": "vol_targeted_continuation",
+        "raw_max_dd": -0.23583055740946768,
+        "dd_breach": "False",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.6456129199201351,
+            "annual_return": 0.06910295835324345,
+            "vol": 0.10703465841698423,
+            "cost_drag": 0.0033005514705882356
+          },
+          "cost_2x": {
+            "sharpe": 0.5588878478994673,
+            "annual_return": 0.06580240688265522,
+            "vol": 0.11773812425868266,
+            "cost_drag": 0.006601102941176471
+          },
+          "cost_3x": {
+            "sharpe": 0.486616954548911,
+            "annual_return": 0.06250185541206699,
+            "vol": 0.12844159010038106,
+            "cost_drag": 0.009901654411764707
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -0.3537458361142015,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -0.47166111481893536,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.0988451440926873,
+            "low_vol_annual_return": 0.046457037245404106,
+            "regime_dependency": 0.05238810684728319
+          }
+        }
+      },
+      "returns": "time\n2020-11-08    0.008005\n2020-11-09   -0.003944\n2020-11-10    0.002313\n2020-11-11    0.005288\n2020-11-12   -0.000262\n                ...   \n2026-08-20    0.019559\n2026-08-21    0.024925\n2026-08-22   -0.004967\n2026-08-23    0.002709\n2026-08-24   -0.002784\nFreq: D, Length: 2116, dtype: float64"
+    },
+    "risk_conditioned": {
+      "wf": {
+        "passed": "True",
+        "label": "risk_conditioned_continuation",
+        "overall_oos_sharpe": 1.1120217494458198,
+        "avg_is_sharpe": 1.544853851235244,
+        "avg_oos_sharpe": 1.1253010215643513,
+        "degradation": 0.27158091966785347,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-09-23 to 2023-04-01",
+            "test_period": "2023-04-02 to 2023-12-09",
+            "is_sharpe": 1.5916845574387712,
+            "oos_sharpe": 1.5305318317681695,
+            "oos_return": 0.5007615992863567,
+            "oos_dd": -0.20633312722913133
+          },
+          {
+            "fold": 2,
+            "train_period": "2022-12-30 to 2024-07-04",
+            "test_period": "2024-07-05 to 2025-06-27",
+            "is_sharpe": 1.498023145031717,
+            "oos_sharpe": 0.7200702113605332,
+            "oos_return": 0.2517973387689668,
+            "oos_dd": -0.2613029427447122
+          }
+        ],
+        "oos_total_return": 0.37627946902766174,
+        "oos_max_dd": -0.2613029427447121
+      },
+      "stress": {
+        "passed": false,
+        "label": "risk_conditioned_continuation",
+        "raw_max_dd": -0.610296855674302,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.8578044835571198,
+            "annual_return": 0.36456180621727824,
+            "vol": 0.42499405541169877,
+            "cost_drag": 0.003960661764705883
+          },
+          "cost_2x": {
+            "sharpe": 0.7713501355025949,
+            "annual_return": 0.36060114445257235,
+            "vol": 0.4674934609528687,
+            "cost_drag": 0.007921323529411765
+          },
+          "cost_3x": {
+            "sharpe": 0.6993048454571577,
+            "annual_return": 0.35664048268786647,
+            "vol": 0.5099928664940385,
+            "cost_drag": 0.011881985294117648
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -0.915445283511453,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.220593711348604,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.37020950430634264,
+            "low_vol_annual_return": 0.3668796527932577,
+            "regime_dependency": 0.003329851513084958
+          }
+        }
+      },
+      "returns": "time\n2020-09-23    0.000000\n2020-09-24    0.087210\n2020-09-25    0.008673\n2020-09-26    0.005894\n2020-09-27    0.010530\n                ...   \n2026-08-16   -0.002971\n2026-08-17    0.026107\n2026-08-18    0.003212\n2026-08-19    0.071249\n2026-08-20    0.053649\nLength: 1506, dtype: float64"
+    },
+    "combined": {
+      "wf": {
+        "passed": "True",
+        "label": "combined_portfolio",
+        "overall_oos_sharpe": 1.0155523845815704,
+        "avg_is_sharpe": 1.2508612468265026,
+        "avg_oos_sharpe": 1.009137114342744,
+        "degradation": 0.19324615987346705,
+        "consistency": 1.0,
+        "positive_folds": 2,
+        "total_folds": 2,
+        "fold_details": [
+          {
+            "fold": 1,
+            "train_period": "2020-11-07 to 2023-05-16",
+            "test_period": "2023-05-17 to 2024-01-23",
+            "is_sharpe": 1.3032280650066046,
+            "oos_sharpe": 1.1631052882432353,
+            "oos_return": 0.4279182896787127,
+            "oos_dd": -0.20667504827992256
+          },
+          {
+            "fold": 2,
+            "train_period": "2023-01-29 to 2024-08-03",
+            "test_period": "2024-08-04 to 2025-07-27",
+            "is_sharpe": 1.1984944286464005,
+            "oos_sharpe": 0.8551689404422523,
+            "oos_return": 0.28972769800137577,
+            "oos_dd": -0.21957847426620936
+          }
+        ],
+        "oos_total_return": 0.35882299384004424,
+        "oos_max_dd": -0.30561017931166923
+      },
+      "stress": {
+        "passed": false,
+        "label": "combined_portfolio",
+        "raw_max_dd": -0.6200284123220053,
+        "dd_breach": "True",
+        "scenarios": {
+          "cost_1x": {
+            "sharpe": 0.7540378967006952,
+            "annual_return": 0.3264191824805363,
+            "vol": 0.43289492996146295,
+            "cost_drag": 0.0019803308823529413
+          },
+          "cost_2x": {
+            "sharpe": 0.6813302492825672,
+            "annual_return": 0.32443885159818336,
+            "vol": 0.47618442295760927,
+            "cost_drag": 0.003960661764705883
+          },
+          "cost_3x": {
+            "sharpe": 0.6207405431007941,
+            "annual_return": 0.3224585207158304,
+            "vol": 0.5194739159537555,
+            "cost_drag": 0.005940992647058824
+          },
+          "vol_shock_1.5x": {
+            "stressed_max_dd": -0.930042618483008,
+            "shock_multiplier": 1.5
+          },
+          "vol_shock_2.0x": {
+            "stressed_max_dd": -1.2400568246440107,
+            "shock_multiplier": 2.0
+          },
+          "regime_analysis": {
+            "high_vol_annual_return": 0.32801556722728137,
+            "low_vol_annual_return": 0.3287736014220425,
+            "regime_dependency": 0.0007580341947611147
+          }
+        }
+      },
+      "returns": "time\n2020-11-07    0.000000\n2020-11-08    0.044118\n2020-11-09   -0.021531\n2020-11-10    0.012624\n2020-11-11    0.028759\n                ...   \n2026-08-16   -0.002937\n2026-08-17    0.026190\n2026-08-18    0.003203\n2026-08-19    0.083630\n2026-08-20    0.057145\nLength: 1461, dtype: float64"
+    }
+  },
+  "verdicts": {
+    "raw": {
+      "verdict": "REJECTED",
+      "oos_sharpe": -0.38369274725057967,
+      "max_dd": -0.8213480638568273,
+      "wf_passed": "False",
+      "stress_passed": false
+    },
+    "vol_targeted": {
+      "verdict": "FRAGILE",
+      "oos_sharpe": -0.629992434251136,
+      "max_dd": -0.23583055740946768,
+      "wf_passed": "False",
+      "stress_passed": true
+    },
+    "risk_conditioned": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.1120217494458198,
+      "max_dd": -0.610296855674302,
+      "wf_passed": "True",
+      "stress_passed": false
+    },
+    "combined": {
+      "verdict": "CONDITIONAL",
+      "oos_sharpe": 1.0155523845815704,
+      "max_dd": -0.6200284123220053,
+      "wf_passed": "True",
+      "stress_passed": false
+    }
+  },
+  "final_verdict": "CONDITIONAL \u2014 OOS positive but stress concerns remain",
+  "summary": {
+    "raw_oos_sharpe": -0.38369274725057967,
+    "combined_oos_sharpe": 1.0155523845815704,
+    "raw_max_dd": -0.8213480638568273,
+    "combined_max_dd": -0.6200284123220053,
+    "dd_reduction": 0.24510881609616222,
+    "improvement": true
+  }
+}

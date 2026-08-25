@@ -1,0 +1,781 @@
+[
+  {
+    "hid": "TF-001",
+    "family": "tick_flow",
+    "description": "Signed quote-flow continuation (1-bar)",
+    "hp": 6,
+    "gross_sharpe": -0.4918,
+    "net_base": -0.4918,
+    "net_adverse": -0.4918,
+    "max_dd": -0.5866,
+    "trades": 321905,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -0.4674,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.387,
+      "GBPUSDm": -0.014,
+      "USDJPYm": -1.0863,
+      "AUDUSDm": -0.3852,
+      "XAUUSDm": -0.627,
+      "US500m": -0.9938,
+      "USTECm": -0.8722,
+      "USOILm": 0.4309
+    },
+    "session_sharpes": {
+      "asian": -0.9809,
+      "london": -0.0033,
+      "overlap": -0.5902,
+      "new_york": -0.6824,
+      "off_hours": 1.132
+    },
+    "year_sharpes": {
+      "2025": -0.297,
+      "2026": -0.4331
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "TF-002",
+    "family": "tick_flow",
+    "description": "Signed quote-flow continuation (3-bar)",
+    "hp": 6,
+    "gross_sharpe": -0.5714,
+    "net_base": -0.5714,
+    "net_adverse": -0.5714,
+    "max_dd": -0.7613,
+    "trades": 180564,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -0.9556,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.5065,
+      "GBPUSDm": 0.3811,
+      "USDJPYm": -1.222,
+      "AUDUSDm": -0.748,
+      "XAUUSDm": -0.7501,
+      "US500m": -0.9708,
+      "USTECm": -1.2174,
+      "USOILm": 0.4626
+    },
+    "session_sharpes": {
+      "asian": -0.4578,
+      "london": -0.5051,
+      "overlap": -1.0837,
+      "new_york": -0.9475,
+      "off_hours": 1.6398
+    },
+    "year_sharpes": {
+      "2025": -0.1158,
+      "2026": -0.6988
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "TF-003",
+    "family": "tick_flow",
+    "description": "Flow-extreme reversal",
+    "hp": 1,
+    "gross_sharpe": 1.6472,
+    "net_base": 1.6472,
+    "net_adverse": 1.6472,
+    "max_dd": -0.3448,
+    "trades": 322149,
+    "wf_consistency": 1.0,
+    "wf_oos_sharpe": 2.3074,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.01,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 2.1826,
+      "GBPUSDm": 1.8979,
+      "USDJPYm": 1.8929,
+      "AUDUSDm": 1.9521,
+      "XAUUSDm": 1.7384,
+      "US500m": 1.7437,
+      "USTECm": 0.4186,
+      "USOILm": 1.3515
+    },
+    "session_sharpes": {
+      "asian": 1.398,
+      "london": 3.3131,
+      "overlap": 1.3501,
+      "new_york": 3.3152,
+      "off_hours": 1.3332
+    },
+    "year_sharpes": {
+      "2025": 1.6612,
+      "2026": 2.4491
+    },
+    "permutation_p_bonferroni": 0.72,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "AI-001",
+    "family": "intensity",
+    "description": "Tick-intensity anomaly + direction",
+    "hp": 1,
+    "gross_sharpe": 0.9338,
+    "net_base": 0.9338,
+    "net_adverse": 0.9338,
+    "max_dd": -0.4592,
+    "trades": 308268,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -1.518,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent",
+      "oos_negative",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "oos_negative",
+    "sym_sharpes": {
+      "EURUSDm": -0.8739,
+      "GBPUSDm": 1.3466,
+      "USDJPYm": -2.0086,
+      "AUDUSDm": 1.384,
+      "XAUUSDm": 4.0384,
+      "US500m": 0.5819,
+      "USTECm": 1.7745,
+      "USOILm": 1.2272
+    },
+    "session_sharpes": {
+      "asian": -0.0472,
+      "london": -4.5724,
+      "overlap": -1.0602,
+      "new_york": 1.6395,
+      "off_hours": 0.4926
+    },
+    "year_sharpes": {
+      "2025": -1.4092,
+      "2026": -0.6111
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "AI-002",
+    "family": "intensity",
+    "description": "Intensity spike x flow composite",
+    "hp": 6,
+    "gross_sharpe": -0.0314,
+    "net_base": -0.0314,
+    "net_adverse": -0.0314,
+    "max_dd": -0.5382,
+    "trades": 124914,
+    "wf_consistency": 0.0,
+    "wf_oos_sharpe": -0.7537,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.5962,
+      "GBPUSDm": 0.7532,
+      "USDJPYm": -0.238,
+      "AUDUSDm": -0.3654,
+      "XAUUSDm": -0.5304,
+      "US500m": -0.2067,
+      "USTECm": -0.2345,
+      "USOILm": 1.1665
+    },
+    "session_sharpes": {
+      "asian": -1.4353,
+      "london": -0.2364,
+      "overlap": -0.8476,
+      "new_york": -0.0546,
+      "off_hours": 0.5134
+    },
+    "year_sharpes": {
+      "2025": -0.3962,
+      "2026": -0.7057
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "AI-003",
+    "family": "intensity",
+    "description": "Quiet-market reversion",
+    "hp": 1,
+    "gross_sharpe": 1.3708,
+    "net_base": 1.3708,
+    "net_adverse": 1.3708,
+    "max_dd": -0.2067,
+    "trades": 134766,
+    "wf_consistency": 0.5,
+    "wf_oos_sharpe": 0.6792,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.18,
+    "primary_failure": "permutation_insignificant",
+    "sym_sharpes": {
+      "EURUSDm": 0.8549,
+      "GBPUSDm": 0.7456,
+      "USDJPYm": 2.8718,
+      "AUDUSDm": 0.2527,
+      "XAUUSDm": -0.1873,
+      "US500m": 2.5295,
+      "USTECm": 2.0439,
+      "USOILm": 1.855
+    },
+    "session_sharpes": {
+      "asian": 3.4769,
+      "london": -1.6966,
+      "overlap": -5.7128,
+      "new_york": 3.3968,
+      "off_hours": 1.9184
+    },
+    "year_sharpes": {
+      "2025": -0.866,
+      "2026": 1.6322
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "SD-001",
+    "family": "spread",
+    "description": "Spread expansion reversal",
+    "hp": 1,
+    "gross_sharpe": 0.4139,
+    "net_base": 0.4139,
+    "net_adverse": 0.4139,
+    "max_dd": -0.2118,
+    "trades": 78313,
+    "wf_consistency": 0.75,
+    "wf_oos_sharpe": 1.0991,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.18,
+    "primary_failure": "permutation_insignificant",
+    "sym_sharpes": {
+      "EURUSDm": 1.1214,
+      "GBPUSDm": 0.431,
+      "USDJPYm": 0.2874,
+      "AUDUSDm": -0.1937,
+      "XAUUSDm": 1.5293,
+      "US500m": 0.5868,
+      "USTECm": -0.9318,
+      "USOILm": 0.4809
+    },
+    "session_sharpes": {
+      "asian": -0.7987,
+      "london": 1.4928,
+      "overlap": -0.9059,
+      "new_york": 2.0728,
+      "off_hours": 7.5677
+    },
+    "year_sharpes": {
+      "2025": 2.3249,
+      "2026": 0.4866
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "SD-002",
+    "family": "spread",
+    "description": "Spread contraction continuation",
+    "hp": 3,
+    "gross_sharpe": -0.3113,
+    "net_base": -0.3113,
+    "net_adverse": -0.3113,
+    "max_dd": -0.5496,
+    "trades": 235652,
+    "wf_consistency": 0.5,
+    "wf_oos_sharpe": 0.156,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.4327,
+      "GBPUSDm": 0.7424,
+      "USDJPYm": -0.6384,
+      "AUDUSDm": -0.7348,
+      "XAUUSDm": 1.2877,
+      "US500m": -1.3498,
+      "USTECm": -0.9426,
+      "USOILm": -0.4221
+    },
+    "session_sharpes": {
+      "asian": -0.3045,
+      "london": -0.6936,
+      "overlap": -1.7832,
+      "new_york": -0.7882,
+      "off_hours": 3.6782
+    },
+    "year_sharpes": {
+      "2025": -1.2637,
+      "2026": -0.026
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "SD-003",
+    "family": "spread",
+    "description": "Spread-spike fade",
+    "hp": 1,
+    "gross_sharpe": 0.7273,
+    "net_base": 0.7273,
+    "net_adverse": 0.7273,
+    "max_dd": -0.3137,
+    "trades": 298508,
+    "wf_consistency": 1.0,
+    "wf_oos_sharpe": 2.3445,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd"
+    ],
+    "permutation_p": 0.0,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 2.5137,
+      "GBPUSDm": -0.8206,
+      "USDJPYm": 0.5211,
+      "AUDUSDm": 1.7198,
+      "XAUUSDm": -0.4803,
+      "US500m": 0.2501,
+      "USTECm": 0.8033,
+      "USOILm": 1.311
+    },
+    "session_sharpes": {
+      "asian": 2.2792,
+      "london": 3.3994,
+      "overlap": 1.1476,
+      "new_york": 4.2816,
+      "off_hours": 1.1942
+    },
+    "year_sharpes": {
+      "2025": 3.2414,
+      "2026": 2.1499
+    },
+    "permutation_p_bonferroni": 0.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "PI-001",
+    "family": "impact",
+    "description": "High impact-per-tick continuation",
+    "hp": 3,
+    "gross_sharpe": -0.2716,
+    "net_base": -0.2716,
+    "net_adverse": -0.2716,
+    "max_dd": -0.4423,
+    "trades": 188056,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -1.2102,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -1.0574,
+      "GBPUSDm": -0.1608,
+      "USDJPYm": 0.1142,
+      "AUDUSDm": -0.0469,
+      "XAUUSDm": 0.4483,
+      "US500m": -1.2183,
+      "USTECm": -0.3926,
+      "USOILm": 0.1405
+    },
+    "session_sharpes": {
+      "asian": -1.7855,
+      "london": -2.0703,
+      "overlap": -0.6842,
+      "new_york": -0.7795,
+      "off_hours": 1.1157
+    },
+    "year_sharpes": {
+      "2025": -1.7011,
+      "2026": -0.7288
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "PI-002",
+    "family": "impact",
+    "description": "Low-impact move fade",
+    "hp": 1,
+    "gross_sharpe": 0.778,
+    "net_base": 0.778,
+    "net_adverse": 0.778,
+    "max_dd": -0.2565,
+    "trades": 268384,
+    "wf_consistency": 0.5,
+    "wf_oos_sharpe": -1.0069,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "oos_negative",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "oos_negative",
+    "sym_sharpes": {
+      "EURUSDm": -0.3493,
+      "GBPUSDm": -0.3679,
+      "USDJPYm": 0.5576,
+      "AUDUSDm": 0.2646,
+      "XAUUSDm": 0.7917,
+      "US500m": 1.231,
+      "USTECm": 2.2879,
+      "USOILm": 1.8084
+    },
+    "session_sharpes": {
+      "asian": 0.0951,
+      "london": -2.1875,
+      "overlap": 0.4493,
+      "new_york": 1.1557,
+      "off_hours": -2.877
+    },
+    "year_sharpes": {
+      "2025": 1.5813,
+      "2026": -1.323
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "PE-001",
+    "family": "persistence",
+    "description": "Multi-bar directional persistence",
+    "hp": 2,
+    "gross_sharpe": -0.0617,
+    "net_base": -0.0617,
+    "net_adverse": -0.0617,
+    "max_dd": -0.5154,
+    "trades": 122328,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -1.3264,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -1.3825,
+      "GBPUSDm": 1.0916,
+      "USDJPYm": -1.4151,
+      "AUDUSDm": 0.3785,
+      "XAUUSDm": 1.0999,
+      "US500m": -0.4437,
+      "USTECm": 0.1155,
+      "USOILm": 0.062
+    },
+    "session_sharpes": {
+      "asian": -0.1167,
+      "london": -1.4008,
+      "overlap": -2.569,
+      "new_york": -2.7842,
+      "off_hours": 1.7099
+    },
+    "year_sharpes": {
+      "2025": -2.123,
+      "2026": -1.0195
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "PE-002",
+    "family": "persistence",
+    "description": "Quote-run persistence",
+    "hp": 6,
+    "gross_sharpe": -0.6729,
+    "net_base": -0.6729,
+    "net_adverse": -0.6729,
+    "max_dd": -0.8708,
+    "trades": 169984,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -0.9938,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.5063,
+      "GBPUSDm": -0.0524,
+      "USDJPYm": -1.2933,
+      "AUDUSDm": -0.916,
+      "XAUUSDm": -0.6253,
+      "US500m": -0.9947,
+      "USTECm": -1.1306,
+      "USOILm": 0.1356
+    },
+    "session_sharpes": {
+      "asian": -1.0371,
+      "london": 0.2299,
+      "overlap": -0.1402,
+      "new_york": -1.6975,
+      "off_hours": 0.6116
+    },
+    "year_sharpes": {
+      "2025": -0.0745,
+      "2026": -0.7224
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "LL-001",
+    "family": "lead_lag",
+    "description": "EURUSD flow leads GBPUSD (1-bar lag)",
+    "hp": 6,
+    "gross_sharpe": 0.5018,
+    "net_base": 0.5018,
+    "net_adverse": 0.5018,
+    "max_dd": -0.798,
+    "trades": 332546,
+    "wf_consistency": 0.75,
+    "wf_oos_sharpe": 0.0164,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.36,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.1137,
+      "GBPUSDm": 0.6861,
+      "USDJPYm": -0.0257,
+      "AUDUSDm": 0.2948,
+      "XAUUSDm": 1.5531,
+      "US500m": 0.8538,
+      "USTECm": 0.7476,
+      "USOILm": -0.2093
+    },
+    "session_sharpes": {
+      "asian": -0.4939,
+      "london": 0.3742,
+      "overlap": 0.1625,
+      "new_york": -0.2009,
+      "off_hours": 1.4947
+    },
+    "year_sharpes": {
+      "2025": 0.414,
+      "2026": -0.0367
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "LL-002",
+    "family": "lead_lag",
+    "description": "US500 flow leads USTEC (1-bar lag)",
+    "hp": 3,
+    "gross_sharpe": -0.3448,
+    "net_base": -0.3448,
+    "net_adverse": -0.3448,
+    "max_dd": -0.524,
+    "trades": 282824,
+    "wf_consistency": 0.5,
+    "wf_oos_sharpe": 0.1723,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.0095,
+      "GBPUSDm": 0.0217,
+      "USDJPYm": -0.805,
+      "AUDUSDm": -0.3893,
+      "XAUUSDm": 1.6113,
+      "US500m": -1.7657,
+      "USTECm": -1.2729,
+      "USOILm": -0.1491
+    },
+    "session_sharpes": {
+      "asian": -0.3504,
+      "london": 0.9045,
+      "overlap": 0.3141,
+      "new_york": -0.0052,
+      "off_hours": -1.9026
+    },
+    "year_sharpes": {
+      "2026": -0.0118
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "LL-003",
+    "family": "lead_lag",
+    "description": "XAUUSD flow leads AUDUSD (1-bar lag)",
+    "hp": 2,
+    "gross_sharpe": -0.0351,
+    "net_base": -0.0351,
+    "net_adverse": -0.0351,
+    "max_dd": -0.2437,
+    "trades": 151672,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": 0.339,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 0.3,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": 0.3252,
+      "GBPUSDm": 0.4003,
+      "USDJPYm": -1.2717,
+      "AUDUSDm": 0.0525,
+      "XAUUSDm": -0.6591,
+      "US500m": 0.1129,
+      "USTECm": 0.3147,
+      "USOILm": 0.4441
+    },
+    "session_sharpes": {
+      "asian": -0.4912,
+      "london": 0.3167,
+      "overlap": -0.8598,
+      "new_york": 1.662,
+      "off_hours": 3.0488
+    },
+    "year_sharpes": {
+      "2026": 0.4048
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "CO-001",
+    "family": "composite",
+    "description": "Flow x spread-regime composite",
+    "hp": 6,
+    "gross_sharpe": -0.0333,
+    "net_base": -0.0333,
+    "net_adverse": -0.0333,
+    "max_dd": -0.5527,
+    "trades": 199378,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -0.3845,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.6082,
+      "GBPUSDm": 0.0745,
+      "USDJPYm": -0.6323,
+      "AUDUSDm": -0.1569,
+      "XAUUSDm": 0.8366,
+      "US500m": -0.2489,
+      "USTECm": -0.0612,
+      "USOILm": 0.5299
+    },
+    "session_sharpes": {
+      "asian": -0.7828,
+      "london": -1.4121,
+      "overlap": -0.8233,
+      "new_york": -0.2132,
+      "off_hours": 1.003
+    },
+    "year_sharpes": {
+      "2025": -0.825,
+      "2026": -0.5035
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  },
+  {
+    "hid": "CO-002",
+    "family": "composite",
+    "description": "Intensity spike x micro-breakout",
+    "hp": 1,
+    "gross_sharpe": -0.5191,
+    "net_base": -0.5191,
+    "net_adverse": -0.5191,
+    "max_dd": -0.4094,
+    "trades": 84176,
+    "wf_consistency": 0.25,
+    "wf_oos_sharpe": -0.9133,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.9231,
+      "GBPUSDm": -0.5229,
+      "USDJPYm": -0.4494,
+      "AUDUSDm": -1.3128,
+      "XAUUSDm": 0.874,
+      "US500m": -1.4184,
+      "USTECm": 1.0684,
+      "USOILm": -1.4683
+    },
+    "session_sharpes": {
+      "asian": -0.8718,
+      "london": -0.4844,
+      "overlap": -2.2015,
+      "new_york": -1.3245,
+      "off_hours": 3.9809
+    },
+    "year_sharpes": {
+      "2025": -0.7107,
+      "2026": -1.0349
+    },
+    "permutation_p_bonferroni": 1.0,
+    "bonferroni_family_size": 72
+  }
+]

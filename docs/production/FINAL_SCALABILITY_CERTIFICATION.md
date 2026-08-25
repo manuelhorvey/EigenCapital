@@ -57,6 +57,7 @@ EigenCapital is production-ready for supervised operation at $5K capital with al
 | Process supervision | PID file, duplicate prevention | 13 tests |
 | Provider abstraction | Contract tests for TradingProvider | 20 tests |
 | Failure injection | Malformed data, stale ticks, partial fills | 13 tests |
+| Clock/time reliability | UTC discipline, rollover, TZ offsets, tampered baselines | 20 tests |
 
 ### ⚠️ Partially Proven
 
@@ -190,6 +191,24 @@ EigenCapital is safe for production operation at $5K capital with:
 
 ---
 
+## Campaign Deliverables Index
+
+| Deliverable | File | Status |
+|-------------|------|--------|
+| Baseline | `SCALABILITY_LONGEVITY_BASELINE.md` | ✅ |
+| Longevity audit | `LONGEVITY_RELIABILITY_AUDIT.md` | ✅ |
+| Capital scaling model | `CAPITAL_SCALING_MODEL.md` | ✅ |
+| Capacity analysis | `CAPACITY_ANALYSIS.md` | ✅ |
+| Failure/recovery matrix | `FAILURE_RECOVERY_MATRIX.md` (supersedes pre-remediation `PRODUCTION_FAILURE_MATRIX.md`) | ✅ |
+| Disaster recovery | `DISASTER_RECOVERY.md` | ✅ |
+| SLOs | `PRODUCTION_SLO.md` | ✅ |
+| Chaos testing | `CHAOS_TESTING.md` | ✅ |
+| Capital tier governance | `CAPITAL_TIER_GOVERNANCE.md` (+ `CAPITAL_SCALING_POLICY.md` limits) | ✅ |
+| Storage scalability | `LOG_STORAGE_SCALABILITY.md` | ✅ |
+| Final certification | this document | ✅ |
+
+---
+
 ## Remaining Work for Full Certification
 
 ### P1 (Before scaling beyond $5K)
@@ -206,6 +225,7 @@ EigenCapital is safe for production operation at $5K capital with:
 3. **Spread-aware execution** — Minimize slippage at scale
 4. **Broker rate-limit handling** — Throttle and backoff
 5. **100+ instrument scaling test** — Verify performance at scale
+6. **DR restore drill script** — Automate the manual procedure in `DISASTER_RECOVERY.md` §4
 
 ### P3 (Nice to have)
 

@@ -12,6 +12,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Any, Tuple
 
+from eigencapital.risk.checks.account_checks import (
+    AccountState,
+    run_all_account_checks,
+)
+from eigencapital.risk.policy import RiskPolicy
+
 
 class StopReason(str, Enum):
     """Reason for stopping new orders."""
@@ -98,8 +104,16 @@ class MicroLiveRiskEnvelope:
     Any breach blocks new orders.
     """
 
-    def __init__(self, limits: Optional[MicroLiveLimits] = None) -> None:
+    def __init__(
+        self,
+        limits: Optional[MicroLiveLimits] = None,
+        policy: Optional[RiskPolicy] = None,
+        require_exposure_maps: bool = True,
+    ) -> None:
         self._limits = limits or MicroLiveLimits()
+        # Single source of truth for account-level live risk decisions.
+        self._policy = policy or RiskPolicy()
+        self._require_exposure_maps = require_exposure_maps
         self._daily_pnl: float = 0.0
         self._peak_equity: float = 0.0
         self._current_equity: float = 0.0
@@ -167,6 +181,31 @@ class MicroLiveRiskEnvelope:
             )
 
         return (True, "Order allowed")
+
+    def check_policy_state(self, state: AccountState) -> tuple:
+        """Authoritative account-level gate via EigenRisk RiskPolicy.
+
+        Fail-closed on missing exposure maps whenever positions are open:
+        a live runner may never silently skip concentration / asset-class
+        enforcement by omitting the maps.
+
+        Returns:
+            (allowed, reason)
+        """
+        position_count = int(getattr(state, "position_count", 0) or 0)
+        if self._require_exposure_maps and position_count > 0:
+            for attr in ("instrument_exposures", "asset_class_exposures"):
+                if not getattr(state, attr, None):
+                    return (
+                        False,
+                        f"exposure_map_missing:{attr} "
+                        f"(fail-closed; populate from open positions)",
+                    )
+        results = run_all_account_checks(state, self._policy)
+        failures = [r.message for r in results if r.status == "FAIL"]
+        if failures:
+            return False, "; ".join(failures)
+        return True, "policy checks passed"
 
     def update_pnl(self, daily_pnl: float, current_equity: float) -> None:
         """Update P&L state."""

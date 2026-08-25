@@ -238,3 +238,4 @@ None carries implied alpha.
 | Date | Note |
 |---|---|
 | 2026-08-23 | Initial extraction from full-text read of ML4T 2nd ed. (821 pp.) |
+| 2026-08-25 | "Extract now" gaps closed: deflated Sharpe ratio, Alphalens-style factor evaluation (IC/quantile/turnover), walk-forward embargo (distinct from purge), volume/notional bars with VWAP + trade counts, Parquet/HDF5 storage policy with optional engines, survivorship-aware universe membership registry |

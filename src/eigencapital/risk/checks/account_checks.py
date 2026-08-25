@@ -6,8 +6,8 @@ FAIL status causes position REJECTION.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import Dict, List
 
 from eigencapital.core.models.risk_check_result import RiskCheckResult
 from eigencapital.risk.policy import RiskPolicy
@@ -24,6 +24,8 @@ class AccountState:
     gross_exposure: float = 0.0
     net_exposure: float = 0.0
     position_count: int = 0
+    instrument_exposures: Dict[str, float] = field(default_factory=dict)
+    asset_class_exposures: Dict[str, float] = field(default_factory=dict)
 
 
 def check_max_drawdown(state: AccountState, policy: RiskPolicy) -> RiskCheckResult:
@@ -198,6 +200,65 @@ def check_kill_switch(state: AccountState, policy: RiskPolicy) -> RiskCheckResul
     )
 
 
+def _pct(notional: float, equity: float) -> float:
+    return (notional / equity * 100) if equity > 0 else float("inf")
+
+
+def check_max_concentration(
+    state: AccountState, policy: RiskPolicy
+) -> RiskCheckResult:
+    """FAIL if any single instrument exceeds max_concentration_pct of equity."""
+    if not getattr(state, "instrument_exposures", None):
+        return RiskCheckResult(check_id="max_concentration", status="PASS",
+                               observed=0, limit=policy.max_concentration_pct,
+                               unit="%", message="No instrument exposures")
+    worst_sym, worst_notional = max(
+        getattr(state, "instrument_exposures", {}).items(),
+        key=lambda kv: abs(kv[1]),
+    )
+    pct = _pct(abs(worst_notional), state.equity)
+    if pct > policy.max_concentration_pct:
+        status, msg = "FAIL", (
+            f"{worst_sym} concentration {pct:.1f}% exceeds "
+            f"{policy.max_concentration_pct}% cap")
+    elif pct > policy.warn_concentration_pct:
+        status, msg = "WARN", f"{worst_sym} concentration {pct:.1f}% elevated"
+    else:
+        status, msg = "PASS", f"Max concentration {pct:.1f}% within limits"
+    return RiskCheckResult(check_id="max_concentration", status=status,
+                           observed=round(pct, 2),
+                           limit=policy.max_concentration_pct, unit="%",
+                           message=msg)
+
+
+def check_asset_class_exposure(
+    state: AccountState, policy: RiskPolicy
+) -> RiskCheckResult:
+    """FAIL if any asset class exceeds max_asset_class_exposure_pct."""
+    if not getattr(state, "asset_class_exposures", None):
+        return RiskCheckResult(check_id="asset_class_exposure", status="PASS",
+                               observed=0,
+                               limit=policy.max_asset_class_exposure_pct,
+                               unit="%", message="No asset-class exposures")
+    worst_cls, worst_notional = max(
+        getattr(state, "asset_class_exposures", {}).items(),
+        key=lambda kv: abs(kv[1]),
+    )
+    pct = _pct(abs(worst_notional), state.equity)
+    if pct > policy.max_asset_class_exposure_pct:
+        status, msg = "FAIL", (
+            f"{worst_cls} exposure {pct:.1f}% exceeds "
+            f"{policy.max_asset_class_exposure_pct}% cap")
+    elif pct > policy.warn_asset_class_exposure_pct:
+        status, msg = "WARN", f"{worst_cls} exposure {pct:.1f}% elevated"
+    else:
+        status, msg = "PASS", f"Max class exposure {pct:.1f}% within limits"
+    return RiskCheckResult(check_id="asset_class_exposure", status=status,
+                           observed=round(pct, 2),
+                           limit=policy.max_asset_class_exposure_pct,
+                           unit="%", message=msg)
+
+
 def run_all_account_checks(
     state: AccountState, policy: RiskPolicy
 ) -> List[RiskCheckResult]:
@@ -210,4 +271,6 @@ def run_all_account_checks(
         check_weekly_loss(state, policy),
         check_gross_leverage(state, policy),
         check_position_count(state, policy),
+        check_max_concentration(state, policy),
+        check_asset_class_exposure(state, policy),
     ]

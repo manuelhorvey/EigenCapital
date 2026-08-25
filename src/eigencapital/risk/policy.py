@@ -63,6 +63,7 @@ class RiskPolicy:
     warn_daily_loss: float = 2_000.0
     warn_gross_leverage: float = 1.5
     warn_concentration_pct: float = 15.0
+    warn_asset_class_exposure_pct: float = 25.0
 
     def __post_init__(self) -> None:
         if self.max_drawdown_pct <= 0:

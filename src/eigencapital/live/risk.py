@@ -280,3 +280,67 @@ class LivePreflight:
             "all_passed": self.all_passed,
             "critical_failures": len(self.critical_failures),
         }
+
+
+class HealthGateAction:
+    TRADE = "TRADE"
+    MANAGE_ONLY = "MANAGE_ONLY"
+    HALT = "HALT"
+
+
+class HealthGate:
+    """Enforcement wrapper: monitor verdict -> execution permission.
+
+    HEALTHY -> TRADE; DEGRADED -> MANAGE_ONLY (no new entries);
+    CRITICAL/FROZEN -> HALT. Any monitor exception, unparseable result,
+    or non-operational report fails closed to HALT.
+    """
+
+    _ACTION_BY_STATE = {
+        "healthy": HealthGateAction.TRADE,
+        "degraded": HealthGateAction.MANAGE_ONLY,
+        "critical": HealthGateAction.HALT,
+        "frozen": HealthGateAction.HALT,
+    }
+
+    def __init__(self, monitor) -> None:
+        self._monitor = monitor
+        self._transitions: List[Dict[str, Any]] = []
+
+    def evaluate(self, snapshot, **kwargs) -> tuple:
+        try:
+            report = self._monitor.assess(snapshot, **kwargs)
+            state = str(getattr(report, "state", "")).split(".")[-1].lower()
+            if not getattr(report, "is_operational", False) and \
+                    state == "degraded":
+                state = "critical"
+            action = self._ACTION_BY_STATE.get(state, HealthGateAction.HALT)
+        except Exception as exc:  # noqa: BLE001 - fail closed on ANY error
+            return HealthGateAction.HALT, f"health_assessment_failed:{exc}"
+        self._record(action, state)
+        return action, getattr(report, "message", state)
+
+    def _record(self, action: str, state: str) -> None:
+        prev = self._transitions[-1]["digest"] if self._transitions else ""
+        entry = {"action": action, "state": state}
+        digest = hashlib.sha256(
+            (prev + json.dumps(entry, sort_keys=True)).encode()
+        ).hexdigest()
+        self._transitions.append({**entry, "digest": digest})
+
+    def verify_transition_integrity(self) -> bool:
+        prev = ""
+        for t in self._transitions:
+            expect = hashlib.sha256(
+                (prev + json.dumps(
+                    {k: t[k] for k in ("action", "state")},
+                    sort_keys=True)).encode()
+            ).hexdigest()
+            if t["digest"] != expect:
+                return False
+            prev = expect
+        return True
+
+    @property
+    def transitions(self) -> List[Dict[str, Any]]:
+        return list(self._transitions)

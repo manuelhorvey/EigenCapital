@@ -109,3 +109,121 @@ class TestCampaignArtifactGuard:
             "research artifacts are immutable records; edits here break "
             "the provenance chain."
         )
+
+
+# Governed parameters with mutation values used to prove that every
+# parameter participates in compute_identity(). A parameter absent from
+# the identity payload could drift without invalidating fingerprints.
+GOVERNED_PARAMS = {
+    "strategy_name": "OTHER",
+    "strategy_version": "R9.9",
+    "strategy_hash": "drift",
+    "feature_registry_version": "9.9",
+    "feature_registry_hash": "drift",
+    "data_snapshot_hash": "drift",
+    "data_start_date": "1999-01-01",
+    "data_end_date": "1999-12-31",
+    "crypto_max_allocation": 0.99,
+    "asset_risk_limit": 0.99,
+    "correlation_threshold": 0.99,
+    "drawdown_control_threshold": -0.99,
+    "drawdown_control_reduction": 0.99,
+    "regime_vol_lookback": 999,
+    "regime_high_vol_threshold": 0.99,
+    "vol_target_annual": 0.99,
+    "vol_lookback": 999,
+    "risk_parity_method": "other",
+    "risk_parity_rebalance": 999,
+    "signal_lookback_short": 999,
+    "signal_lookback_long": 999,
+    "signal_combination": "other",
+    "transaction_cost_bps": 99.0,
+    "slippage_bps": 99.0,
+    "rebalance_frequency": "yearly",
+    "cost_model_version": "DRIFT",
+}
+
+
+class TestIdentitySensitivity:
+    """Every governed parameter must be covered by compute_identity()."""
+
+    @pytest.mark.parametrize("param,mutated", sorted(GOVERNED_PARAMS.items()))
+    def test_identity_changes_on_drift(self, param, mutated):
+        baseline = R4ConfigManifest().compute_identity()
+        drifted = R4ConfigManifest(**{param: mutated}).compute_identity()
+        assert drifted != baseline, (
+            f"{param} does not participate in the manifest identity; "
+            f"it can drift without invalidating qualification fingerprints"
+        )
+
+    def test_identity_changes_on_universe_drift(self):
+        baseline = R4ConfigManifest().compute_identity()
+        frozen = R4ConfigManifest().universe
+
+        dropped = dict(frozen)
+        del dropped["USOILm"]
+        assert R4ConfigManifest(universe=dropped).compute_identity() != baseline
+
+        reclassified = dict(frozen)
+        reclassified["BTCUSDm"] = "forex"
+        assert (
+            R4ConfigManifest(universe=reclassified).compute_identity()
+            != baseline
+        )
+
+        reordered = dict(reversed(list(frozen.items())))
+        assert (
+            R4ConfigManifest(universe=reordered).compute_identity()
+            == baseline
+        )
+
+
+class TestUncoveredFields:
+    """Fields outside compute_identity() are pinned explicitly."""
+
+    def test_data_provenance_fields(self):
+        m = R4ConfigManifest()
+        assert m.data_source == "exness_mt5"
+        assert m.data_terminal_id == "168966110"
+        assert m.data_bar_count == 31790
+
+    def test_correlation_threshold(self):
+        assert R4ConfigManifest().correlation_threshold == pytest.approx(0.7)
+
+    def test_regime_parameters(self):
+        m = R4ConfigManifest()
+        assert m.regime_vol_lookback == 20
+        assert m.regime_high_vol_threshold == pytest.approx(0.75)
+
+    def test_cost_model_hash_placeholder(self):
+        """cost_model_hash is in neither identity nor to_dict; pin it."""
+        assert R4ConfigManifest().cost_model_hash == ""
+
+
+class TestUniversePartition:
+    def test_asset_class_partition(self):
+        classes: dict = {}
+        for symbol, asset_class in R4ConfigManifest().universe.items():
+            classes.setdefault(asset_class, []).append(symbol)
+        assert len(classes["forex"]) == 7
+        assert len(classes["metals"]) == 2
+        assert len(classes["indices"]) == 3
+        assert len(classes["crypto"]) == 2
+        assert len(classes["energy"]) == 1
+
+    def test_crypto_cap_consistent_with_partition(self):
+        manifest = R4ConfigManifest()
+        assert any(c == "crypto" for c in manifest.universe.values())
+        assert 0.0 < manifest.crypto_max_allocation <= 1.0
+
+
+class TestAdversarialDriftDetection:
+    def test_guard_detects_subtle_float_drift(self):
+        baseline = R4ConfigManifest().compute_identity()
+        drifted = R4ConfigManifest(vol_target_annual=0.1000001)
+        assert drifted.compute_identity() != baseline
+
+    def test_guard_detects_string_whitespace_drift(self):
+        baseline = R4ConfigManifest().compute_identity()
+        drifted = R4ConfigManifest(strategy_version="R4.0 ")
+        assert drifted.compute_identity() != baseline

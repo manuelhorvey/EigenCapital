@@ -11,7 +11,10 @@ violates the EigenCapital falsification-first contract.
 
 ---
 
-## Final scoreboard (127 hypotheses / evaluations)
+## Final scoreboard (M1→1H freeze: 133 governed evaluations)
+
+> Program-wide total including Campaign 7 tick microstructure: **205**
+> governed evaluations — see [INTRADAY_RESEARCH_LEDGER.md](INTRADAY_RESEARCH_LEDGER.md).
 
 | Timeframe | Campaign | Hypotheses | Supported | Verdict |
 |---|---|---|---|---|

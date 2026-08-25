@@ -1,5 +1,12 @@
 # CAMPAIGN 7 — BROKER-SPECIFIC MICROSTRUCTURE (REAL TICK QUOTES)
 
+> **[SUPERSEDED]** This report was generated under the pre-hardening
+> accounting engine and is retained as raw forensic evidence only.
+> The authoritative Campaign 7 verdict is
+> [campaign7_rerun_hardened.md](campaign7_rerun_hardened.md):
+> **18/18 REJECTED** under corrected per-bar cost accounting with
+> family-wise + cumulative multiple-testing correction.
+
 **Information source:** Exness MT5 quote ticks → M5 micro bars (broker-specific microstructure, NOT institutional order flow)
 **Universe:** 8 instruments
 **Generated:** 2026-08-25 01:13 UTC

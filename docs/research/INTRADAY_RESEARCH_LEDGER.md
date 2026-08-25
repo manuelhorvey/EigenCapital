@@ -22,7 +22,7 @@ falsification record remains auditable.
 | 6 | 1H ST-001 confirmation | OHLCV H1, 8 years | 24 | 0 | ❌ NOT_CONFIRMED |
 | 7 | Broker microstructure | Real quote ticks → M5 micro bars | 18×4 = 72 | 1 raw (TF-003) | ❌ Frozen by rerun |
 | 7R | Hardened-governance rerun | same snapshot | 72 | **0** | ❌ Frozen |
-| | **Total governed evaluations** | | **~205** | **0 final** | |
+| | **Total governed evaluations** | | **205** | **0 final** | |
 
 ## 2. Three distinct falsification modes demonstrated
 

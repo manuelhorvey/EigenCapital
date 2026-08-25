@@ -45,3 +45,29 @@ data/features/
 
 # Runtime datasets (repo root only — must NOT ignore src/*/data packages)
 /data/
+
+# Reports & logs (runtime artifacts)
+reports/r4_loop/*.log
+reports/r4_loop/*.jsonl
+reports/r4_loop/last_*.json
+reports/t0_snapshot.json
+reports/t0_snapshot.md
+reports/instrument_eligibility.json
+reports/instrument_eligibility.md
+reports/production_qualification_*.json
+reports/production_qualification_*.md
+
+# MT5 runtime
+nohup.out
+*.log
+
+# Campaign state
+last_positions.json
+last_equity.json
+last_regime.json
+last_health.json
+
+# Misc
+.env.local
+*.bak
+*.tmp

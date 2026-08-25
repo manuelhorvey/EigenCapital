@@ -50,14 +50,27 @@ The freeze does **not** claim "intraday doesn't work." It claims:
 > information between M1 and 1H contains no robust exploitable alpha that
 > survives hostile validation.
 
+## ADDENDUM (2026-08-25): broker-microstructure branch also frozen
+
+The tick/microstructure branch (Campaign 7) was rerun under hardened
+governance (`reports/campaign7_rerun_hardened.{md,json}`):
+
+- Corrected per-bar cost accounting (Stage-A engine, unit-test locked)
+- Bonferroni family correction over all 72 evaluations (18 hyp × 4 horizons)
+- Cumulative trial ledger: 205 program evaluations
+
+Result: **18/18 REJECTED — zero survivors.** TF-003's raw permutation
+p=0.03 becomes p_family=1.0 and p_cumulative=1.0. Its gross Sharpe (+2.18)
+confirms genuine short-horizon quote-flow predictiveness, but the effect
+(~1.7bp/flip) cannot pay its own turnover (65K flips/year at ≥6.5bp/flip →
+cost drag ≈ 40× gross alpha). C8 confirmation was never started; it was
+unlocked only for a survivor.
+
+**Program-wide conclusion:** no robust intraday alpha found across M1–1H
+OHLCV/session mechanisms or broker-quote microstructure in this universe,
+under fail-closed validation with corrected measurement systems.
+
 ## Next branch (pre-registered direction)
 
-New **information source**, not another timeframe sweep:
-real broker tick data → broker-specific microstructure features
-(signed tick flow, spread dynamics, quote intensity, price impact,
-liquidity withdrawal). Explicitly labeled *broker-specific microstructure* —
-Exness MT5 tick flow is not centralized institutional order flow.
-
-Any survivor from that branch faces the same funnel: independent
-confirmation → frozen configuration → paper fidelity → forward paper →
-shadow → micro-live.
+[SUPERSEDED — see addendum above. The tick branch was executed as
+Campaign 7 and frozen by the hardened-governance rerun.]

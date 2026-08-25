@@ -1,0 +1,66 @@
+# EigenCapital Paper Trading Configuration
+# Simulated environment for forward testing
+
+[broker]
+account_id = "0"
+account_name = "PaperTrading"
+environment = "paper"
+broker_name = "paper"
+platform = "paper"
+server = "paper-simulated"
+
+max_spread = 0.0010
+max_slippage = 0.0005
+min_volume = 0.01
+max_volume = 1.0
+
+[broker.allowed_symbols]
+EURUSDm = "forex"
+GBPUSDm = "forex"
+USDJPYm = "forex"
+AUDUSDm = "forex"
+USDCADm = "forex"
+USDCHFm = "forex"
+NZDUSDm = "forex"
+XAUUSDm = "metals"
+XAGUSDm = "metals"
+US500m = "indices"
+US30m = "indices"
+USTECm = "indices"
+BTCUSDm = "crypto"
+ETHUSDm = "crypto"
+USOILm = "energy"
+
+[capital]
+# Paper trading — larger limits for validation
+max_equity = 100000.0
+max_drawdown_pct = 25.0
+max_daily_loss = 2500.0
+max_total_drawdown = 10000.0
+max_position_size = 10000.0
+max_order_notional = 5000.0
+max_concurrent_positions = 20
+campaign_duration_days = 365
+
+[risk]
+max_drawdown_pct = 15.0
+daily_loss_limit = 10000.0
+weekly_loss_limit = 30000.0
+max_gross_leverage = 2.0
+max_position_count = 20
+min_equity = 50000.0
+
+[strategy]
+version = "R4.0"
+
+[health]
+max_snapshot_age_seconds = 600.0
+max_recovery_attempts = 5
+
+[execution]
+max_chase_attempts = 3
+max_age_seconds = 120.0
+max_order_frequency = 30
+
+[alerts]
+enabled = true

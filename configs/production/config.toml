@@ -1,0 +1,104 @@
+# EigenCapital Production Configuration
+# Environment: Exness-MT5Trial9
+# Campaign: $5K MINIMAL R4 Qualification
+# Last updated: 2026-08-25
+
+[broker]
+# Account identity — must match MT5 login exactly
+account_id = "436921728"
+account_name = "EigenCapital-R4-Trial"
+environment = "demo"      # "live" or "demo"
+broker_name = "exness"
+platform = "mt5"
+server = "Exness-MT5Trial9"
+
+# Execution constraints
+max_spread = 0.0015       # 15 pips max spread
+max_slippage = 0.0008     # 8 pips max slippage
+min_volume = 0.01         # Minimum lot size
+max_volume = 1.0          # Maximum lot size
+
+# R4 universe — all 15 symbols must be available
+[broker.allowed_symbols]
+EURUSDm = "forex"
+GBPUSDm = "forex"
+USDJPYm = "forex"
+AUDUSDm = "forex"
+USDCADm = "forex"
+USDCHFm = "forex"
+NZDUSDm = "forex"
+XAUUSDm = "metals"
+XAGUSDm = "metals"
+US500m = "indices"
+US30m = "indices"
+USTECm = "indices"
+BTCUSDm = "crypto"
+ETHUSDm = "crypto"
+USOILm = "energy"
+
+[capital]
+# $5K MINIMAL campaign boundaries — these are hard limits
+max_equity = 5000.0              # Maximum authorized equity
+max_drawdown_pct = 20.0          # 20% max campaign drawdown
+max_daily_loss = 250.0           # $250 max daily loss
+max_total_drawdown = 1000.0      # $1,000 max total drawdown
+max_position_size = 500.0        # $500 max position
+max_order_notional = 250.0       # $250 max order
+max_concurrent_positions = 8     # Maximum open positions
+campaign_duration_days = 30      # 30-day qualification window
+max_spread = 0.0015              # Spread limit for capital checks
+max_slippage = 0.0008            # Slippage limit for capital checks
+max_execution_divergence = 0.004 # Max execution deviation
+
+[risk]
+# RiskPolicy — sole account-level authority
+max_drawdown_pct = 10.0          # 10% max drawdown from peak
+daily_loss_limit = 5000.0        # $5,000 daily loss limit
+weekly_loss_limit = 15000.0      # $15,000 weekly loss limit
+max_gross_leverage = 2.0         # 2x max gross leverage
+max_net_leverage = 1.5           # 1.5x max net leverage
+max_position_count = 10          # Maximum position count
+min_equity = 50000.0             # Minimum equity to trade
+max_position_notional = 500000.0 # Max notional per position
+max_position_risk_pct = 20.0     # Max risk per position (%)
+max_strategy_exposure_pct = 30.0 # Max exposure per strategy
+max_asset_class_exposure_pct = 40.0 # Max exposure per asset class
+max_concentration_pct = 25.0     # Max concentration in single instrument
+kill_switch = false              # Emergency kill switch
+
+[strategy]
+# Frozen R4 identity — DO NOT MODIFY
+name = "risk_conditioned_continuation"
+version = "R4.0"
+manifest_fingerprint = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+data_terminal_id = "436921728"   # Must match broker account_id
+
+# Volatility targeting
+vol_target_annual = 0.10         # 10% target volatility
+vol_lookback = 20                # Days for vol estimation
+
+# Signal parameters
+signal_lookback_short = 63       # 3 months
+signal_lookback_long = 252       # 12 months
+rebalance_frequency = "weekly"   # Rebalance cadence
+
+# Cost model
+transaction_cost_bps = 10.0      # 10 bps per trade
+slippage_bps = 5.0               # 5 bps slippage
+
+[health]
+# Health monitoring
+max_snapshot_age_seconds = 300.0 # 5 minutes max snapshot age
+max_recovery_attempts = 3        # Max disconnect recovery attempts
+stale_threshold_seconds = 60.0   # 60 seconds stale threshold
+
+[execution]
+# Partial-fill and execution controls
+max_chase_attempts = 2           # Max chase attempts for partial fills
+max_age_seconds = 60.0           # Max age for unfilled orders
+max_cumulative_slippage_bps = 15.0 # Max cumulative slippage
+max_order_frequency = 10         # Max orders per hour
+
+[alerts]
+# Alert delivery
+enabled = true

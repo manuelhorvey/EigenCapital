@@ -1,0 +1,66 @@
+# EigenCapital Research Configuration
+# Backtesting and strategy analysis
+
+[broker]
+account_id = "0"
+account_name = "ResearchBacktest"
+environment = "backtest"
+broker_name = "research"
+platform = "backtest"
+server = "backtest-simulated"
+
+max_spread = 0.0010
+max_slippage = 0.0005
+min_volume = 0.01
+max_volume = 10.0  # Larger for backtesting
+
+[broker.allowed_symbols]
+EURUSDm = "forex"
+GBPUSDm = "forex"
+USDJPYm = "forex"
+AUDUSDm = "forex"
+USDCADm = "forex"
+USDCHFm = "forex"
+NZDUSDm = "forex"
+XAUUSDm = "metals"
+XAGUSDm = "metals"
+US500m = "indices"
+US30m = "indices"
+USTECm = "indices"
+BTCUSDm = "crypto"
+ETHUSDm = "crypto"
+USOILm = "energy"
+
+[capital]
+# Research — no real capital constraints
+max_equity = 1000000.0
+max_drawdown_pct = 25.0
+max_daily_loss = 25000.0
+max_total_drawdown = 100000.0
+max_position_size = 100000.0
+max_order_notional = 50000.0
+max_concurrent_positions = 50
+campaign_duration_days = 365
+
+[risk]
+max_drawdown_pct = 20.0
+daily_loss_limit = 50000.0
+weekly_loss_limit = 100000.0
+max_gross_leverage = 2.0
+max_position_count = 50
+min_equity = 100000.0
+
+[strategy]
+version = "R4.0"
+
+[health]
+max_snapshot_age_seconds = 3600.0
+max_recovery_attempts = 10
+
+[execution]
+max_chase_attempts = 5
+max_age_seconds = 300.0
+max_order_frequency = 100
+
+[alerts]
+enabled = false  # No alerts in research mode

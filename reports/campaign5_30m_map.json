@@ -1,0 +1,783 @@
+[
+  {
+    "hid": "NC-001",
+    "family": "ny_close_rev",
+    "description": "SE-004 continuation: NY-close mean reversion at 30M",
+    "hp": 1,
+    "gross_sharpe": 0.4328,
+    "net_base": 0.4328,
+    "net_adverse": 0.4328,
+    "max_dd": -0.381,
+    "trades": 47034,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": 0.6803,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd"
+    ],
+    "permutation_p": 0.04,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.7105,
+      "GBPUSDm": 0.5817,
+      "USDJPYm": 1.0358,
+      "AUDUSDm": 0.9448,
+      "XAUUSDm": 0.2081,
+      "US500m": 0.0286,
+      "USTECm": 0.0445,
+      "USOILm": -0.0915
+    },
+    "session_sharpes": {
+      "new_york": 1.4731,
+      "off_hours": 0.7726
+    },
+    "year_sharpes": {
+      "2022": 2.3014,
+      "2023": 1.6663,
+      "2024": 1.5045,
+      "2025": -1.089,
+      "2026": 0.0461
+    }
+  },
+  {
+    "hid": "NC-002",
+    "family": "ny_close_rev",
+    "description": "Late-NY fade (UTC 19-21 only)",
+    "hp": 2,
+    "gross_sharpe": 0.3951,
+    "net_base": 0.3951,
+    "net_adverse": 0.3951,
+    "max_dd": -0.3953,
+    "trades": 27084,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": 0.45,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.08,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.5404,
+      "GBPUSDm": 0.8937,
+      "USDJPYm": 0.9981,
+      "AUDUSDm": 1.1648,
+      "XAUUSDm": -0.6124,
+      "US500m": 0.0153,
+      "USTECm": 0.0186,
+      "USOILm": 0.1421
+    },
+    "session_sharpes": {
+      "new_york": 0.775,
+      "off_hours": 1.2588
+    },
+    "year_sharpes": {
+      "2022": 0.8311,
+      "2023": 2.2133,
+      "2024": 0.9161,
+      "2025": -0.8723,
+      "2026": 0.8563
+    }
+  },
+  {
+    "hid": "NC-003",
+    "family": "ny_close_rev",
+    "description": "NY-close reversion x vol regime composite",
+    "hp": 1,
+    "gross_sharpe": 0.4506,
+    "net_base": 0.4506,
+    "net_adverse": 0.4506,
+    "max_dd": -0.3712,
+    "trades": 47030,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": 0.8035,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd"
+    ],
+    "permutation_p": 0.01,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.8296,
+      "GBPUSDm": 0.5779,
+      "USDJPYm": 1.0288,
+      "AUDUSDm": 1.0184,
+      "XAUUSDm": 0.1461,
+      "US500m": 0.03,
+      "USTECm": 0.0387,
+      "USOILm": -0.0648
+    },
+    "session_sharpes": {
+      "new_york": 1.6797,
+      "off_hours": 1.2296
+    },
+    "year_sharpes": {
+      "2022": 2.2576,
+      "2023": 1.7459,
+      "2024": 1.6476,
+      "2025": -0.7695,
+      "2026": -0.0323
+    }
+  },
+  {
+    "hid": "NR-001",
+    "family": "ny_range",
+    "description": "NY opening-range breakout (first hour range)",
+    "hp": 8,
+    "gross_sharpe": 0.0492,
+    "net_base": 0.0492,
+    "net_adverse": 0.0492,
+    "max_dd": -0.9265,
+    "trades": 30992,
+    "wf_consistency": 0.4,
+    "wf_oos_sharpe": 0.1277,
+    "degradation": 0.0,
+    "verdict": "regime_dependent",
+    "reasons": [
+      "catastrophic_dd",
+      "wf_inconsistent",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": -0.1047,
+      "GBPUSDm": -0.0845,
+      "USDJPYm": 0.1244,
+      "AUDUSDm": -0.0915,
+      "XAUUSDm": 0.3553,
+      "US500m": -0.082,
+      "USTECm": 0.3043,
+      "USOILm": -0.0279
+    },
+    "session_sharpes": {
+      "new_york": -0.1712,
+      "off_hours": -0.2521
+    },
+    "year_sharpes": {
+      "2022": -0.4729,
+      "2023": -0.2735,
+      "2024": -0.231,
+      "2025": 0.5325,
+      "2026": -0.6496
+    }
+  },
+  {
+    "hid": "NR-002",
+    "family": "ny_range",
+    "description": "Intraday closing-range fade during NY",
+    "hp": 1,
+    "gross_sharpe": 0.0507,
+    "net_base": 0.0507,
+    "net_adverse": 0.0507,
+    "max_dd": -0.5011,
+    "trades": 27012,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": 0.4207,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": -0.178,
+      "GBPUSDm": 0.1118,
+      "USDJPYm": 1.367,
+      "AUDUSDm": 0.599,
+      "XAUUSDm": -0.4091,
+      "US500m": -0.4713,
+      "USTECm": -0.6688,
+      "USOILm": 0.0548
+    },
+    "session_sharpes": {
+      "new_york": -0.4547,
+      "off_hours": 0.3717
+    },
+    "year_sharpes": {
+      "2022": -1.3242,
+      "2023": 0.8633,
+      "2024": 0.7896,
+      "2025": 0.2074,
+      "2026": -2.7105
+    }
+  },
+  {
+    "hid": "MH-001",
+    "family": "multihour_mom",
+    "description": "2h momentum (4-bar continuation)",
+    "hp": 8,
+    "gross_sharpe": -0.0497,
+    "net_base": -0.0497,
+    "net_adverse": -0.0497,
+    "max_dd": -0.9995,
+    "trades": 171340,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": -0.0017,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.0734,
+      "GBPUSDm": -0.1701,
+      "USDJPYm": 0.1736,
+      "AUDUSDm": -0.4979,
+      "XAUUSDm": 0.4875,
+      "US500m": -0.0766,
+      "USTECm": 0.2142,
+      "USOILm": -0.455
+    },
+    "session_sharpes": {
+      "asian": 0.1037,
+      "london": 0.0428,
+      "overlap": -0.133,
+      "new_york": 0.3469,
+      "off_hours": -1.7473
+    },
+    "year_sharpes": {
+      "2022": -0.9058,
+      "2023": 0.4785,
+      "2024": -0.0193,
+      "2025": -0.3403,
+      "2026": 0.2418
+    }
+  },
+  {
+    "hid": "MH-002",
+    "family": "multihour_mom",
+    "description": "4h momentum vol-adjusted (8-bar)",
+    "hp": 8,
+    "gross_sharpe": 0.0376,
+    "net_base": 0.0376,
+    "net_adverse": 0.0376,
+    "max_dd": -0.9998,
+    "trades": 128443,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": -0.0517,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "oos_negative",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "oos_negative",
+    "sym_sharpes": {
+      "EURUSDm": -0.2051,
+      "GBPUSDm": -0.2682,
+      "USDJPYm": 0.3365,
+      "AUDUSDm": -0.5206,
+      "XAUUSDm": 0.6377,
+      "US500m": 0.1757,
+      "USTECm": 0.4806,
+      "USOILm": -0.3361
+    },
+    "session_sharpes": {
+      "asian": -0.8668,
+      "london": 0.3156,
+      "overlap": -0.6897,
+      "new_york": 1.1899,
+      "off_hours": -1.4867
+    },
+    "year_sharpes": {
+      "2022": -0.9764,
+      "2023": 0.3385,
+      "2024": -0.3305,
+      "2025": -0.5625,
+      "2026": 0.4678
+    }
+  },
+  {
+    "hid": "MH-003",
+    "family": "multihour_rev",
+    "description": "Daily z-score reversal (48-bar lookback)",
+    "hp": 4,
+    "gross_sharpe": -0.0995,
+    "net_base": -0.0995,
+    "net_adverse": -0.0995,
+    "max_dd": -0.9845,
+    "trades": 58421,
+    "wf_consistency": 1.0,
+    "wf_oos_sharpe": 0.2996,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 0.07,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": 0.3069,
+      "GBPUSDm": 0.2524,
+      "USDJPYm": -0.8399,
+      "AUDUSDm": 0.5747,
+      "XAUUSDm": -1.216,
+      "US500m": 0.34,
+      "USTECm": -0.365,
+      "USOILm": 0.1506
+    },
+    "session_sharpes": {
+      "asian": 0.8076,
+      "london": -0.2091,
+      "overlap": 0.2698,
+      "new_york": -0.1822,
+      "off_hours": 1.4442
+    },
+    "year_sharpes": {
+      "2022": 1.9272,
+      "2023": -0.6141,
+      "2024": 1.1646,
+      "2025": -0.1317,
+      "2026": -0.2094
+    }
+  },
+  {
+    "hid": "MH-004",
+    "family": "multihour_rev",
+    "description": "Two-day VWAP deviation reversion",
+    "hp": 1,
+    "gross_sharpe": 0.1405,
+    "net_base": 0.1405,
+    "net_adverse": 0.1405,
+    "max_dd": -0.503,
+    "trades": 38995,
+    "wf_consistency": 0.8,
+    "wf_oos_sharpe": 0.4648,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.12,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.5152,
+      "GBPUSDm": 0.6305,
+      "USDJPYm": -0.449,
+      "AUDUSDm": 1.3569,
+      "XAUUSDm": -0.6136,
+      "US500m": 0.0086,
+      "USTECm": -0.4746,
+      "USOILm": 0.15
+    },
+    "session_sharpes": {
+      "asian": 1.7333,
+      "london": 0.518,
+      "overlap": 0.161,
+      "new_york": -1.1263,
+      "off_hours": 2.0393
+    },
+    "year_sharpes": {
+      "2022": 2.4497,
+      "2023": -0.7126,
+      "2024": 1.5826,
+      "2025": -0.0917,
+      "2026": 0.225
+    }
+  },
+  {
+    "hid": "ST-001",
+    "family": "session_transition",
+    "description": "Asia\u2192London transition continuation",
+    "hp": 1,
+    "gross_sharpe": 0.3038,
+    "net_base": 0.3038,
+    "net_adverse": 0.3038,
+    "max_dd": -0.2126,
+    "trades": 20514,
+    "wf_consistency": 0.8,
+    "wf_oos_sharpe": 0.8906,
+    "degradation": 0.0,
+    "verdict": "supported",
+    "reasons": [],
+    "permutation_p": 0.02,
+    "primary_failure": "all_gates_passed",
+    "sym_sharpes": {
+      "EURUSDm": 0.9124,
+      "GBPUSDm": 0.4372,
+      "USDJPYm": -0.1272,
+      "AUDUSDm": 0.2904,
+      "XAUUSDm": 1.1603,
+      "US500m": -0.0965,
+      "USTECm": -0.0037,
+      "USOILm": -0.1426
+    },
+    "session_sharpes": {
+      "london": 1.9987
+    },
+    "year_sharpes": {
+      "2022": 1.0453,
+      "2023": 0.7687,
+      "2024": 1.8957,
+      "2025": -0.0552,
+      "2026": 1.2752
+    }
+  },
+  {
+    "hid": "ST-002",
+    "family": "session_transition",
+    "description": "London/NY overlap momentum",
+    "hp": 1,
+    "gross_sharpe": 0.2124,
+    "net_base": 0.2124,
+    "net_adverse": 0.2124,
+    "max_dd": -0.3786,
+    "trades": 42480,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": -0.1294,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "oos_negative",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.38,
+    "primary_failure": "oos_negative",
+    "sym_sharpes": {
+      "EURUSDm": 0.14,
+      "GBPUSDm": 0.4656,
+      "USDJPYm": 0.6945,
+      "AUDUSDm": -0.6287,
+      "XAUUSDm": 0.0038,
+      "US500m": 0.2631,
+      "USTECm": 0.26,
+      "USOILm": 0.5008
+    },
+    "session_sharpes": {
+      "overlap": 0.2492,
+      "new_york": 0.4356
+    },
+    "year_sharpes": {
+      "2022": 0.3629,
+      "2023": 1.6339,
+      "2024": -2.2019,
+      "2025": 0.2268,
+      "2026": 0.5395
+    }
+  },
+  {
+    "hid": "VR-101",
+    "family": "vol_regime",
+    "description": "Vol expansion momentum (20/80 windows)",
+    "hp": 1,
+    "gross_sharpe": 0.5529,
+    "net_base": 0.5529,
+    "net_adverse": 0.5529,
+    "max_dd": -0.4027,
+    "trades": 349969,
+    "wf_consistency": 0.8,
+    "wf_oos_sharpe": 0.6593,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.12,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.5471,
+      "GBPUSDm": 1.1345,
+      "USDJPYm": -0.76,
+      "AUDUSDm": 0.4579,
+      "XAUUSDm": 0.1136,
+      "US500m": 0.9598,
+      "USTECm": 0.6758,
+      "USOILm": 1.2945
+    },
+    "session_sharpes": {
+      "asian": 1.6258,
+      "london": 1.2643,
+      "overlap": 0.2021,
+      "new_york": -0.6361,
+      "off_hours": -0.111
+    },
+    "year_sharpes": {
+      "2022": 0.6263,
+      "2023": 1.9541,
+      "2024": 0.3599,
+      "2025": -0.8102,
+      "2026": 1.0765
+    }
+  },
+  {
+    "hid": "VR-102",
+    "family": "vol_regime",
+    "description": "Vol contraction reversal (20/80 windows)",
+    "hp": 1,
+    "gross_sharpe": 0.0877,
+    "net_base": 0.0877,
+    "net_adverse": 0.0877,
+    "max_dd": -0.4188,
+    "trades": 160347,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": -0.4002,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "oos_negative",
+      "instrument_dependent",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "oos_negative",
+    "sym_sharpes": {
+      "EURUSDm": -0.6371,
+      "GBPUSDm": 0.9956,
+      "USDJPYm": -0.1559,
+      "AUDUSDm": -0.0916,
+      "XAUUSDm": -0.1002,
+      "US500m": -0.1999,
+      "USTECm": -0.1517,
+      "USOILm": 1.0425
+    },
+    "session_sharpes": {
+      "asian": 0.5436,
+      "london": -0.3755,
+      "overlap": -1.7453,
+      "new_york": -0.0204,
+      "off_hours": -3.0967
+    },
+    "year_sharpes": {
+      "2022": -1.3833,
+      "2023": -0.3429,
+      "2024": -1.6389,
+      "2025": -0.5169,
+      "2026": 0.9666
+    }
+  },
+  {
+    "hid": "XA-101",
+    "family": "cross_asset",
+    "description": "US500 leads XAUUSD inverse (C4 XA-003 continuation)",
+    "hp": 1,
+    "gross_sharpe": 0.6249,
+    "net_base": 0.6249,
+    "net_adverse": 0.6249,
+    "max_dd": -0.4724,
+    "trades": 221020,
+    "wf_consistency": 0.8,
+    "wf_oos_sharpe": 0.6533,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.1,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.6381,
+      "GBPUSDm": 0.5935,
+      "USDJPYm": 0.2602,
+      "AUDUSDm": 0.9009,
+      "XAUUSDm": 0.7286,
+      "US500m": 0.9055,
+      "USTECm": 0.8783,
+      "USOILm": 0.0942
+    },
+    "session_sharpes": {
+      "asian": 0.1612,
+      "london": -0.4462,
+      "overlap": 2.355,
+      "new_york": 0.8375,
+      "off_hours": -0.6873
+    },
+    "year_sharpes": {
+      "2022": -0.1487,
+      "2023": 1.7815,
+      "2024": 1.8953,
+      "2025": -0.6879,
+      "2026": 0.4254
+    }
+  },
+  {
+    "hid": "XA-102",
+    "family": "cross_asset",
+    "description": "USTEC leads EURUSD (C4 XA-002 continuation)",
+    "hp": 8,
+    "gross_sharpe": -0.1347,
+    "net_base": -0.1347,
+    "net_adverse": -0.1347,
+    "max_dd": -0.9986,
+    "trades": 220774,
+    "wf_consistency": 0.2,
+    "wf_oos_sharpe": -0.6564,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.4277,
+      "GBPUSDm": -0.2947,
+      "USDJPYm": -0.1234,
+      "AUDUSDm": -0.2547,
+      "XAUUSDm": 0.1071,
+      "US500m": 0.0781,
+      "USTECm": 0.1902,
+      "USOILm": -0.3523
+    },
+    "session_sharpes": {
+      "asian": -0.5183,
+      "london": -0.3288,
+      "overlap": -0.7479,
+      "new_york": -0.1226,
+      "off_hours": -0.4553
+    },
+    "year_sharpes": {
+      "2022": 0.1539,
+      "2023": -0.3749,
+      "2024": -1.0394,
+      "2025": -0.0627,
+      "2026": -1.0894
+    }
+  },
+  {
+    "hid": "XA-103",
+    "family": "cross_asset",
+    "description": "USOIL leads USDJPY (C4 XA-004 continuation)",
+    "hp": 4,
+    "gross_sharpe": -0.1878,
+    "net_base": -0.1878,
+    "net_adverse": -0.1878,
+    "max_dd": -0.9887,
+    "trades": 163788,
+    "wf_consistency": 0.4,
+    "wf_oos_sharpe": -0.1506,
+    "degradation": 0.0,
+    "verdict": "rejected",
+    "reasons": [
+      "negative_gross"
+    ],
+    "permutation_p": 1.0,
+    "primary_failure": "negative_gross_alpha",
+    "sym_sharpes": {
+      "EURUSDm": -0.3694,
+      "GBPUSDm": -0.1026,
+      "USDJPYm": -0.2549,
+      "AUDUSDm": -0.1959,
+      "XAUUSDm": 0.018,
+      "US500m": -0.0968,
+      "USTECm": 0.0822,
+      "USOILm": -0.583
+    },
+    "session_sharpes": {
+      "asian": -0.1752,
+      "london": -1.0796,
+      "overlap": -0.4816,
+      "new_york": 0.63,
+      "off_hours": -0.6701
+    },
+    "year_sharpes": {
+      "2022": -0.918,
+      "2023": -0.5373,
+      "2024": 0.509,
+      "2025": -1.2229,
+      "2026": 0.9625
+    }
+  },
+  {
+    "hid": "CM-101",
+    "family": "composite",
+    "description": "Momentum gated to NY session",
+    "hp": 4,
+    "gross_sharpe": 0.0967,
+    "net_base": 0.0967,
+    "net_adverse": 0.0967,
+    "max_dd": -0.8938,
+    "trades": 38014,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": 0.0897,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.12,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.3382,
+      "GBPUSDm": -0.2138,
+      "USDJPYm": -0.6912,
+      "AUDUSDm": -0.0297,
+      "XAUUSDm": 0.9529,
+      "US500m": 0.1349,
+      "USTECm": 0.5234,
+      "USOILm": -0.2411
+    },
+    "session_sharpes": {
+      "new_york": 0.4319,
+      "off_hours": 1.6537
+    },
+    "year_sharpes": {
+      "2022": 1.268,
+      "2023": 0.0048,
+      "2024": -0.0965,
+      "2025": -0.4691,
+      "2026": 2.007
+    }
+  },
+  {
+    "hid": "CM-102",
+    "family": "composite",
+    "description": "Range breakout x volume confirmation",
+    "hp": 1,
+    "gross_sharpe": 0.2955,
+    "net_base": 0.2955,
+    "net_adverse": 0.2955,
+    "max_dd": -0.6665,
+    "trades": 107188,
+    "wf_consistency": 0.6,
+    "wf_oos_sharpe": 0.4839,
+    "degradation": 0.0,
+    "verdict": "fragile",
+    "reasons": [
+      "catastrophic_dd",
+      "permutation_insignificant"
+    ],
+    "permutation_p": 0.16,
+    "primary_failure": "catastrophic_dd",
+    "sym_sharpes": {
+      "EURUSDm": 0.3777,
+      "GBPUSDm": -0.3611,
+      "USDJPYm": 1.2736,
+      "AUDUSDm": 0.1566,
+      "XAUUSDm": -0.0499,
+      "US500m": 0.3709,
+      "USTECm": 0.9985,
+      "USOILm": -0.4019
+    },
+    "session_sharpes": {
+      "asian": -1.0045,
+      "london": 0.8115,
+      "overlap": 0.0165,
+      "new_york": 3.0738,
+      "off_hours": -1.2354
+    },
+    "year_sharpes": {
+      "2022": -0.6743,
+      "2023": 1.2618,
+      "2024": -0.3779,
+      "2025": 0.1433,
+      "2026": 1.744
+    }
+  }
+]

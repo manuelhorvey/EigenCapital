@@ -344,3 +344,101 @@ class HealthGate:
     @property
     def transitions(self) -> List[Dict[str, Any]]:
         return list(self._transitions)
+
+
+class RecoveryState(str, Enum):
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+    RECONCILING = "reconciling"
+    HALTED = "halted"
+    RESUMED = "resumed"
+    FROZEN = "frozen"
+
+
+class DisconnectRecovery:
+    """State machine for broker disconnect recovery. Reconnect never
+    grants permission by itself; only the FULL sequence (reconnect ->
+    reconciliation match -> freshness -> risk -> fingerprint -> healthy)
+    resumes trading. Excessive recovery cycles escalate to FROZEN.
+    """
+
+    def __init__(self, max_recovery_attempts: int = 3) -> None:
+        if max_recovery_attempts < 1:
+            raise ValueError("max_recovery_attempts must be >= 1")
+        self._state = RecoveryState.CONNECTED
+        self._attempts = 0
+        self._max = max_recovery_attempts
+        self._mismatch: str = ""
+        self._flatten_required = False
+        self._reconciled = False
+
+    @property
+    def state(self) -> RecoveryState:
+        return self._state
+
+    def on_disconnect(self) -> str:
+        self._attempts += 1
+        if self._attempts > self._max:
+            self._state = RecoveryState.FROZEN
+            return "FROZEN_EXCESSIVE_DISCONNECTS"
+        self._state = RecoveryState.DISCONNECTED
+        self._reconciled = False
+        return "HALT_NEW_ORDERS"
+
+    def on_reconnect(self) -> str:
+        if self._state is not RecoveryState.DISCONNECTED:
+            return f"INVALID:{self._state.value}"
+        self._state = RecoveryState.RECONCILING
+        return "RECONCILIATION_REQUIRED"
+
+    def submit_reconciliation(
+        self,
+        positions_match: bool,
+        orders_match: bool,
+        equity_match: bool,
+        fingerprint_match: bool,
+        details: str = "",
+    ) -> str:
+        if self._state is not RecoveryState.RECONCILING:
+            return f"INVALID:{self._state.value}"
+        if not (positions_match and orders_match and equity_match
+                and fingerprint_match):
+            self._mismatch = details or "unspecified_broker_mismatch"
+            self._state = RecoveryState.HALTED
+            return "HALT_RECONCILE_OR_FLATTEN"
+        self._reconciled = True
+        return "RECONCILED_AWAITING_RESUME_CHECKS"
+
+    def request_resume(
+        self,
+        data_fresh: bool,
+        positions_reconciled: bool,
+        no_unexpected_orders: bool,
+        risk_limits_passing: bool,
+        config_fingerprint_unchanged: bool,
+        health_state: str = "healthy",
+        kill_switch_active: bool = False,
+    ) -> str:
+        if self._state is not RecoveryState.RECONCILING:
+            return f"INVALID:{self._state.value}"
+        if not self._reconciled:
+            return "INVALID:reconciliation_not_submitted"
+        checks = [data_fresh, positions_reconciled, no_unexpected_orders,
+                  risk_limits_passing, config_fingerprint_unchanged,
+                  health_state.lower() == "healthy", not kill_switch_active]
+        if all(checks):
+            self._state = RecoveryState.RESUMED
+            return "TRADING_RESUMED"
+        self._state = RecoveryState.HALTED
+        failed = [n for n, ok in zip(
+            ["data_fresh", "positions_reconciled", "no_unexpected_orders",
+             "risk_limits_passing", "config_fingerprint_unchanged",
+             "health_healthy", "no_kill_switch"], checks) if not ok]
+        return "HALT:" + ",".join(failed)
+
+    def authorize_reset(self) -> str:
+        if self._state is RecoveryState.FROZEN:
+            self._attempts = 0
+            self._state = RecoveryState.HALTED
+            return "RESET_TO_HALTED_MANUAL_REVIEW_REQUIRED"
+        return f"INVALID:{self._state.value}"

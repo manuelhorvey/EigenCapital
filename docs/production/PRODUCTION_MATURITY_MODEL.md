@@ -1,136 +1,60 @@
 # EigenCapital — Production Maturity Model
 
-## Level 0 — Research
-**Definition:** Backtest / simulation only.
+## Levels
 
-**Entry criteria:**
-- Strategy implemented and tested
-- Backtest engine operational
-- No real capital at risk
+| Level | Name | Capital | Requirements | Status |
+|-------|------|---------|-------------|--------|
+| 0 | Research | $0 | Backtest/simulation only | ✅ |
+| 1 | Paper | $0 | Paper execution, no real orders | ✅ |
+| 2 | Shadow | $0 | Real data, simulated execution | ✅ |
+| 3 | Micro-live | <$1K | Minimal real execution | ✅ |
+| 4 | $5K qualification | $5K | Proven risk/recovery/fingerprint | ✅ CURRENT |
+| 5 | $10K | $10K | 14 days stable, zero incidents | ⬜ Requires evidence |
+| 6 | $25K | $25K | 30 days stable, capacity review | ⬜ Requires evidence |
+| 7 | $50K | $50K | 60 days stable, liquidity review | ⬜ Requires evidence |
+| 8 | $100K | $100K | 90 days stable, execution review | ⬜ NOT CERTIFIED |
+| 9 | Institutional | $100K+ | Full production hardening | ❌ Not applicable |
 
-**Exit criteria:**
-- [x] Strategy frozen (R4.0)
-- [x] Backtest results validated
-- [x] Walk-forward analysis complete
-- [x] Stress testing complete
+## Level 4 → 5 Promotion Requirements
 
-**Current status:** ✅ COMPLETE
-
----
-
-## Level 1 — Paper
-**Definition:** Paper execution with simulated fills.
-
-**Entry criteria:**
-- [x] Paper broker implemented
-- [x] Fill simulation
-- [x] Position tracking
-- [x] Risk enforcement on paper
-
-**Exit criteria:**
-- [x] Paper fidelity verified against backtest
-- [x] Shadow comparison clean
-- [x] Forward paper results consistent
-
-**Current status:** ✅ COMPLETE
-
----
-
-## Level 2 — Shadow
-**Definition:** Real market data, simulated execution.
-
-**Entry criteria:**
-- [x] Shadow broker adapter
-- [x] Real market data integration
-- [x] Divergence analysis
-
-**Exit criteria:**
-- [x] Shadow/backtest divergence within tolerance
-- [x] No critical divergences
-- [x] Execution assumptions validated
-
-**Current status:** ✅ COMPLETE
-
----
-
-## Level 3 — Micro-Live
-**Definition:** Very small capital ($5K) with full risk controls.
-
-**Entry criteria:**
-- [x] MT5 broker connection
-- [x] Real order submission capability
-- [x] All 7 risk gates operational
-- [x] Fingerprint verification
-- [x] Daily loss tracking
-- [x] Process supervision
-- [x] Disconnect recovery
-- [x] Configuration single source
-- [x] Platform abstraction
-
-**Exit criteria (for $5K qualification):**
-- [ ] 30 days supervised operation
-- [ ] Zero position count breaches
-- [ ] Zero risk control bypasses
-- [ ] Zero fingerprint drifts
-- [ ] All disconnects recovered
-- [ ] All crashes recovered
-- [ ] Daily loss resets correctly
-- [ ] Audit trail complete
-
-**Current status:** 🔄 IN PROGRESS (supervised qualification)
-
----
-
-## Level 4 — Controlled Production
-**Definition:** Validated capital tier with continuous supervision.
-
-**Entry criteria (from Level 3):**
-- [ ] Level 3 exit criteria met
-- [ ] 30 days stable at $5K
+- [ ] 14 days continuous supervised operation
 - [ ] Zero critical incidents
-- [ ] Capital scaling review approved
-- [ ] Operational procedures documented
+- [ ] Zero duplicate orders
+- [ ] Zero unauthorized orders
+- [ ] All reconciliation checks passing
+- [ ] Process supervision verified
+- [ ] State persistence verified
+- [ ] Emergency flatten verified
+- [ ] Fingerprint verification verified
+- [ ] Broker execution stable
+- [ ] Historical drawdown within T2 limit (15%)
+- [ ] All tests passing (excluding 5 pre-existing)
 
-**Exit criteria (for $10K-$25K):**
-- [ ] 60 days stable operation
-- [ ] Process supervision proven
-- [ ] Recovery from all tested failures
-- [ ] Execution quality metrics established
-- [ ] No requotes/rejects above threshold
+## Level 5 → 6 Promotion Requirements
 
-**Current status:** ❌ NOT STARTED
+All Level 4→5 requirements, plus:
+- [ ] 30 days continuous operation
+- [ ] Capacity review for $25K
+- [ ] Instrument liquidity verification
+- [ ] Execution quality metrics acceptable
 
----
+## Level 6 → 7 Promotion Requirements
 
-## Level 5 — Scaled Production
-**Definition:** Material capital with proven reliability.
+All Level 5→6 requirements, plus:
+- [ ] 60 days continuous operation
+- [ ] Order slicing capability (if needed)
+- [ ] Spread-aware execution
+- [ ] Liquidity stress testing
 
-**Entry criteria (from Level 4):**
-- [ ] Level 4 exit criteria met
-- [ ] 90 days stable at previous tier
-- [ ] Capacity analysis complete
-- [ ] Liquidity impact assessed
-- [ ] Multi-broker evaluation (if needed)
-- [ ] Institutional procedures
+## Level 7 → 8 Promotion Requirements
 
-**Exit criteria:**
-- [ ] Stable operation across market conditions
-- [ ] Recovery from all failure modes
-- [ ] Audit trail integrity verified
-- [ ] Production maturity demonstrated
+**NOT RECOMMENDED** under current R4 instrument universe.
+Requires: larger universe, institutional execution, full production hardening.
 
-**Current status:** ❌ NOT STARTED
+## Promotion Rules
 
----
-
-## Current Assessment
-
-EigenCapital is at **Level 3 (Micro-Live)** — in supervised qualification.
-
-The system has the architecture for Level 4+ but has not yet demonstrated the operational stability required to advance.
-
-**Blocking items for Level 4:**
-1. Complete 30-day supervised qualification
-2. Demonstrate crash recovery in production
-3. Demonstrate disconnect recovery in production
-4. Establish execution quality baseline
+1. No level may be skipped
+2. Promotion requires evidence, not confidence
+3. Promotion is an engineering decision, not a profitability decision
+4. Any incident resets the observation clock
+5. Rollback is automatic on safety violation

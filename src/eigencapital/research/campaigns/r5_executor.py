@@ -140,7 +140,8 @@ def _rsi(close: pd.Series, n: int = 14) -> pd.Series:
     delta = close.diff()
     gain = delta.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
     loss = (-delta.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
-    rs = gain / loss.replace(0, np.nan)
+    # loss==0 with gain>0 -> rs=inf -> RSI=100 (pure uptrend must NOT be NaN)
+    rs = gain / loss
     return 100 - 100 / (1 + rs)
 
 

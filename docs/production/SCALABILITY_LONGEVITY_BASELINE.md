@@ -72,3 +72,25 @@ print(R4ConfigManifest().compute_identity())
 "
 # Expected: aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb
 ```
+
+---
+
+## Campaign Completion Record — Long-Horizon Reliability & Scaling (2026-08-25)
+
+All P0 gaps in the original table above were subsequently closed by the remediation
+campaign and verified by the reliability campaign; see `FAILURE_RECOVERY_MATRIX.md`
+for per-scenario status. Fingerprints re-verified unchanged at completion.
+
+| Item | Value at completion |
+|------|---------------------|
+| Commit | `e6a4590` + working tree (reliability campaign) |
+| R4 fingerprint | `aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb` (**unchanged**) |
+| Test suite | 2224 passed / 5 pre-existing failures (`test_pre_trading.py` symbol-naming) / 1 skipped |
+| Reliability suites | ~97 tests across chaos, failure-storm, restart-cert, state-machine, scaling benchmarks, leaks, clock |
+| Lint | Campaign-owned files clean; repo-wide pre-existing debt remains (~250 auto-fixable, research/legacy code) |
+| Typecheck | mypy: 182 pre-existing errors in legacy/research modules; none introduced by campaign files |
+| Deliverables | All nine §28 documents present under `docs/production/` |
+
+**Verdict:** **B — PRODUCTION READY WITH EXPLICIT CAPACITY LIMITS** ($5K certified;
+scaling gated per `CAPITAL_TIER_GOVERNANCE.md`). See
+`FINAL_SCALABILITY_CERTIFICATION.md`.

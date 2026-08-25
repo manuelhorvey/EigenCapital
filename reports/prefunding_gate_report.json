@@ -1,0 +1,530 @@
+{
+  "campaign_id": "R4-MINIMAL-5K",
+  "verdict": "GO",
+  "total_checks": 48,
+  "passed_checks": 48,
+  "failed_checks": 0,
+  "critical_failures": 0,
+  "warnings": 0,
+  "manifest_fingerprint": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
+  "category_results": {
+    "identity": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    "risk": {
+      "total": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    "execution": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    "health": {
+      "total": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    "observability": {
+      "total": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    "broker_boundary": {
+      "total": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    "capital_boundary": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0
+    }
+  },
+  "checks": [
+    {
+      "check_id": "ID-01",
+      "category": "identity",
+      "description": "Frozen R4 manifest fingerprint is non-empty",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "non-empty fingerprint",
+      "observed": "aaab6c00dc05a09a"
+    },
+    {
+      "check_id": "ID-02",
+      "category": "identity",
+      "description": "Production configuration matches frozen identity",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "Production config must hash to the same fingerprint as the frozen manifest",
+      "expected": "aaab6c00dc05a09a",
+      "observed": "aaab6c00dc05a09a"
+    },
+    {
+      "check_id": "ID-03",
+      "category": "identity",
+      "description": "Manifest computed identity matches frozen fingerprint",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "aaab6c00dc05a09a",
+      "observed": "aaab6c00dc05a09a"
+    },
+    {
+      "check_id": "ID-04",
+      "category": "identity",
+      "description": "Strategy version is frozen at R4.0",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "R4.0",
+      "observed": "R4.0"
+    },
+    {
+      "check_id": "ID-05",
+      "category": "identity",
+      "description": "Golden manifest guard passes",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "guard pass",
+      "observed": "pass"
+    },
+    {
+      "check_id": "ID-06",
+      "category": "identity",
+      "description": "No strategy/risk/execution parameter drift",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "no drift detected",
+      "observed": "clean"
+    },
+    {
+      "check_id": "RK-01",
+      "category": "risk",
+      "description": "RiskPolicy is sole account-level authority",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "RiskPolicy sole authority",
+      "observed": "sole authority"
+    },
+    {
+      "check_id": "RK-02",
+      "category": "risk",
+      "description": "Position and asset-class exposure maps populated from broker state",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "exposure maps populated",
+      "observed": "populated"
+    },
+    {
+      "check_id": "RK-03",
+      "category": "risk",
+      "description": "Concentration limits enforced (not diagnostic-only)",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "enforced",
+      "observed": "enforced"
+    },
+    {
+      "check_id": "RK-04",
+      "category": "risk",
+      "description": "Asset-class limits enforced (not diagnostic-only)",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "enforced",
+      "observed": "enforced"
+    },
+    {
+      "check_id": "RK-05",
+      "category": "risk",
+      "description": "Drawdown limits verified",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "verified",
+      "observed": "verified"
+    },
+    {
+      "check_id": "RK-06",
+      "category": "risk",
+      "description": "Daily loss limits verified",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "verified",
+      "observed": "verified"
+    },
+    {
+      "check_id": "RK-07",
+      "category": "risk",
+      "description": "Leverage limits verified",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "verified",
+      "observed": "verified"
+    },
+    {
+      "check_id": "RK-08",
+      "category": "risk",
+      "description": "Position count limits verified",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "verified",
+      "observed": "verified"
+    },
+    {
+      "check_id": "RK-09",
+      "category": "risk",
+      "description": "Order frequency limits verified",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "verified",
+      "observed": "verified"
+    },
+    {
+      "check_id": "RK-10",
+      "category": "risk",
+      "description": "Kill switch verified",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "verified",
+      "observed": "verified"
+    },
+    {
+      "check_id": "RK-11",
+      "category": "risk",
+      "description": "Missing state fails closed",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "fail closed on missing state",
+      "observed": "fail closed"
+    },
+    {
+      "check_id": "EX-01",
+      "category": "execution",
+      "description": "Partial-fill state machine active",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "active",
+      "observed": "active"
+    },
+    {
+      "check_id": "EX-02",
+      "category": "execution",
+      "description": "Broker-authoritative reconciliation",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "broker authoritative",
+      "observed": "authoritative"
+    },
+    {
+      "check_id": "EX-03",
+      "category": "execution",
+      "description": "Duplicate fill protection",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "protected",
+      "observed": "protected"
+    },
+    {
+      "check_id": "EX-04",
+      "category": "execution",
+      "description": "Disconnect \u2192 reconcile \u2192 resume sequence enforced",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "sequence enforced",
+      "observed": "enforced"
+    },
+    {
+      "check_id": "EX-05",
+      "category": "execution",
+      "description": "No reconnect-only trading",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "reconnect alone does not grant permission",
+      "observed": "safe"
+    },
+    {
+      "check_id": "EX-06",
+      "category": "execution",
+      "description": "Kill/freeze mechanisms independently tested",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "tested",
+      "observed": "tested"
+    },
+    {
+      "check_id": "HL-01",
+      "category": "health",
+      "description": "HEALTHY \u2192 TRADE",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "TRADE action",
+      "observed": "TRADE"
+    },
+    {
+      "check_id": "HL-02",
+      "category": "health",
+      "description": "DEGRADED \u2192 MANAGE_ONLY",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "MANAGE_ONLY action",
+      "observed": "MANAGE_ONLY"
+    },
+    {
+      "check_id": "HL-03",
+      "category": "health",
+      "description": "CRITICAL \u2192 HALT",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "HALT action",
+      "observed": "HALT"
+    },
+    {
+      "check_id": "HL-04",
+      "category": "health",
+      "description": "FROZEN \u2192 HALT",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "HALT action",
+      "observed": "HALT"
+    },
+    {
+      "check_id": "HL-05",
+      "category": "health",
+      "description": "Stale health snapshot \u2192 HALT",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "HALT",
+      "observed": "HALT"
+    },
+    {
+      "check_id": "HL-06",
+      "category": "health",
+      "description": "Unparseable health state \u2192 HALT",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "HALT",
+      "observed": "HALT"
+    },
+    {
+      "check_id": "HL-07",
+      "category": "health",
+      "description": "Monitor exception \u2192 HALT (fail closed)",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "HALT",
+      "observed": "HALT"
+    },
+    {
+      "check_id": "HL-08",
+      "category": "health",
+      "description": "Manual reset required for frozen state",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "manual reset required",
+      "observed": "manual reset"
+    },
+    {
+      "check_id": "OB-01",
+      "category": "observability",
+      "description": "Critical events durably recorded",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "durably recorded",
+      "observed": "recorded"
+    },
+    {
+      "check_id": "OB-02",
+      "category": "observability",
+      "description": "Alert delivery works",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "delivery functional",
+      "observed": "functional"
+    },
+    {
+      "check_id": "OB-03",
+      "category": "observability",
+      "description": "Alert failure cannot weaken safety state",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "safety state unchanged on alert failure",
+      "observed": "safety preserved"
+    },
+    {
+      "check_id": "OB-04",
+      "category": "observability",
+      "description": "Tamper-evident health history verifies correctly",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "chain verifies",
+      "observed": "verified"
+    },
+    {
+      "check_id": "BB-01",
+      "category": "broker_boundary",
+      "description": "Correct MT5 account",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "correct account",
+      "observed": "correct"
+    },
+    {
+      "check_id": "BB-02",
+      "category": "broker_boundary",
+      "description": "Correct environment (demo vs live)",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "correct environment",
+      "observed": "correct"
+    },
+    {
+      "check_id": "BB-03",
+      "category": "broker_boundary",
+      "description": "Correct symbol mapping",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "correct mapping",
+      "observed": "correct"
+    },
+    {
+      "check_id": "BB-04",
+      "category": "broker_boundary",
+      "description": "Correct contract specifications",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "correct specs",
+      "observed": "correct"
+    },
+    {
+      "check_id": "BB-05",
+      "category": "broker_boundary",
+      "description": "Correct volume/price constraints",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "correct constraints",
+      "observed": "correct"
+    },
+    {
+      "check_id": "BB-06",
+      "category": "broker_boundary",
+      "description": "Spread/slippage controls active",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "controls active",
+      "observed": "active"
+    },
+    {
+      "check_id": "BB-07",
+      "category": "broker_boundary",
+      "description": "No accidental demo/live/environment confusion",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "no confusion",
+      "observed": "clean"
+    },
+    {
+      "check_id": "CB-01",
+      "category": "capital_boundary",
+      "description": "$5K is maximum authorized campaign equity",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "$5,000 max",
+      "observed": "$5,000 enforced"
+    },
+    {
+      "check_id": "CB-02",
+      "category": "capital_boundary",
+      "description": "Campaign duration pre-registered",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "duration registered",
+      "observed": "registered"
+    },
+    {
+      "check_id": "CB-03",
+      "category": "capital_boundary",
+      "description": "Risk envelope pre-registered for MINIMAL scale",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "envelope registered",
+      "observed": "registered"
+    },
+    {
+      "check_id": "CB-04",
+      "category": "capital_boundary",
+      "description": "R4-owned positions explicitly separated",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "separated",
+      "observed": "separated"
+    },
+    {
+      "check_id": "CB-05",
+      "category": "capital_boundary",
+      "description": "Pre-existing positions separated from R4",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "separated",
+      "observed": "separated"
+    },
+    {
+      "check_id": "CB-06",
+      "category": "capital_boundary",
+      "description": "No manual trading during qualification",
+      "passed": true,
+      "severity": "CRITICAL",
+      "details": "",
+      "expected": "zero manual trades",
+      "observed": "zero"
+    }
+  ],
+  "report_hash": "63f4c7e3ee902d48f2c14daf1ecf1e79ba6e024a7950e34bda8eb847ae2aa601"
+}

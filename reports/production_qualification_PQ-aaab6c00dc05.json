@@ -89,11 +89,11 @@
   },
   "report_hash": "63a76aacc33ebc8ccb94cd79d7a1f8237184da9a8fdb214b7e7c10bcf3c96675",
   "account": {
-    "balance": 0.0,
-    "equity": 0.0,
+    "balance": 5012.4,
+    "equity": 5012.4,
     "margin": 0.0,
-    "free_margin": 0.0,
-    "leverage": 2000000000,
+    "free_margin": 5012.4,
+    "leverage": 2000,
     "currency": "USD",
     "profit": 0.0
   },

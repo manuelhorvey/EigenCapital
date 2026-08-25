@@ -9,11 +9,11 @@
 
 | Metric | Value |
 |---|---|
-| Balance | $0.00 |
-| Equity | $0.00 |
-| Free Margin | $0.00 |
+| Balance | $5012.40 |
+| Equity | $5012.40 |
+| Free Margin | $5012.40 |
 | Unrealized P&L | $0.00 |
-| Leverage | 2000000000 |
+| Leverage | 2000 |
 
 ## Scale Envelope (MINIMAL)
 

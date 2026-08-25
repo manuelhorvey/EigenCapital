@@ -218,7 +218,7 @@ class TestIllegalTransitions:
         """Double disconnect should escalate or stay."""
         r = DisconnectRecovery()
         r.on_disconnect()
-        result = r.on_disconnect()
+        r.on_disconnect()
         # Should either stay DISCONNECTED or escalate
         assert r.state in (RecoveryState.DISCONNECTED, RecoveryState.FROZEN)
 

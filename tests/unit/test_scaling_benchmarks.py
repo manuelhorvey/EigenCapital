@@ -87,7 +87,7 @@ class TestInstrumentScalingBenchmark:
         t0 = time.perf_counter()
         features = self._compute_synthetic_features(instruments)
         signals = self._compute_synthetic_signals(features, instruments)
-        risk = self._evaluate_risk_checks(signals, 5000, 8)
+        self._evaluate_risk_checks(signals, 5000, 8)
         elapsed = time.perf_counter() - t0
         assert len(signals) == 11
         assert elapsed < 0.1, f"11-instrument cycle too slow: {elapsed:.3f}s"
@@ -98,7 +98,7 @@ class TestInstrumentScalingBenchmark:
         t0 = time.perf_counter()
         features = self._compute_synthetic_features(instruments)
         signals = self._compute_synthetic_signals(features, instruments)
-        risk = self._evaluate_risk_checks(signals, 5000, 8)
+        self._evaluate_risk_checks(signals, 5000, 8)
         elapsed = time.perf_counter() - t0
         assert len(signals) == 50
         assert elapsed < 0.5, f"50-instrument cycle too slow: {elapsed:.3f}s"
@@ -109,7 +109,7 @@ class TestInstrumentScalingBenchmark:
         t0 = time.perf_counter()
         features = self._compute_synthetic_features(instruments)
         signals = self._compute_synthetic_signals(features, instruments)
-        risk = self._evaluate_risk_checks(signals, 5000, 8)
+        self._evaluate_risk_checks(signals, 5000, 8)
         elapsed = time.perf_counter() - t0
         assert len(signals) == 100
         assert elapsed < 1.0, f"100-instrument cycle too slow: {elapsed:.3f}s"
@@ -121,7 +121,7 @@ class TestInstrumentScalingBenchmark:
         t0 = time.perf_counter()
         features = self._compute_synthetic_features(instruments, lookback=50)
         signals = self._compute_synthetic_signals(features, instruments)
-        risk = self._evaluate_risk_checks(signals, 5000, 8)
+        self._evaluate_risk_checks(signals, 5000, 8)
         elapsed = time.perf_counter() - t0
         current, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
@@ -136,7 +136,7 @@ class TestInstrumentScalingBenchmark:
         t0 = time.perf_counter()
         features = self._compute_synthetic_features(instruments, lookback=50)
         signals = self._compute_synthetic_signals(features, instruments)
-        risk = self._evaluate_risk_checks(signals, 5000, 8)
+        self._evaluate_risk_checks(signals, 5000, 8)
         elapsed = time.perf_counter() - t0
         current, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
@@ -184,8 +184,8 @@ class TestPositionScalingBenchmark:
         """Baseline: 8 positions."""
         positions = self._build_positions(8)
         t0 = time.perf_counter()
-        total_margin = sum(p["margin"] for p in positions.values())
-        total_pnl = sum(p["unrealized_pnl"] for p in positions.values())
+        sum(p["margin"] for p in positions.values())
+        sum(p["unrealized_pnl"] for p in positions.values())
         elapsed = time.perf_counter() - t0
         assert len(positions) == 8
         assert elapsed < 0.01
@@ -194,8 +194,8 @@ class TestPositionScalingBenchmark:
         """50 positions."""
         positions = self._build_positions(50)
         t0 = time.perf_counter()
-        total_margin = sum(p["margin"] for p in positions.values())
-        total_pnl = sum(p["unrealized_pnl"] for p in positions.values())
+        sum(p["margin"] for p in positions.values())
+        sum(p["unrealized_pnl"] for p in positions.values())
         elapsed = time.perf_counter() - t0
         assert len(positions) == 50
         assert elapsed < 0.05
@@ -204,8 +204,8 @@ class TestPositionScalingBenchmark:
         """100 positions."""
         positions = self._build_positions(100)
         t0 = time.perf_counter()
-        total_margin = sum(p["margin"] for p in positions.values())
-        total_pnl = sum(p["unrealized_pnl"] for p in positions.values())
+        sum(p["margin"] for p in positions.values())
+        sum(p["unrealized_pnl"] for p in positions.values())
         elapsed = time.perf_counter() - t0
         assert len(positions) == 100
         assert elapsed < 0.1
@@ -214,8 +214,8 @@ class TestPositionScalingBenchmark:
         """500 positions — stress."""
         positions = self._build_positions(500)
         t0 = time.perf_counter()
-        total_margin = sum(p["margin"] for p in positions.values())
-        total_pnl = sum(p["unrealized_pnl"] for p in positions.values())
+        sum(p["margin"] for p in positions.values())
+        sum(p["unrealized_pnl"] for p in positions.values())
         elapsed = time.perf_counter() - t0
         assert len(positions) == 500
         assert elapsed < 0.5
@@ -291,7 +291,7 @@ class TestPerformanceLatencyBenchmark:
             {"symbol": f"SYM_{i}", "pip_value": 0.0001}
             for i in range(num_instruments)
         ]
-        market_data = {inst["symbol"]: 1.1000 + i * 0.001 for i, inst in enumerate(instruments)}
+        {inst["symbol"]: 1.1000 + i * 0.001 for i, inst in enumerate(instruments)}
         timings["data_acquisition"] = time.perf_counter() - t0
 
         # Phase 2: Feature computation
@@ -329,7 +329,7 @@ class TestPerformanceLatencyBenchmark:
 
         # Phase 7: Reconciliation
         t0 = time.perf_counter()
-        reconciled = len(fills) == len(orders)
+        len(fills) == len(orders)
         timings["reconciliation"] = time.perf_counter() - t0
 
         timings["total"] = sum(timings.values())
@@ -381,7 +381,6 @@ class TestClockTimeAudit:
 
     def test_utc_usage_in_risk_enforcement(self):
         """Verify risk enforcement uses UTC-aware timestamps."""
-        import ast
         import pathlib
         risk_file = pathlib.Path("src/eigencapital/live/risk_enforcement.py")
         if not risk_file.exists():

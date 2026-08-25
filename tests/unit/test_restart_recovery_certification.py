@@ -15,7 +15,6 @@ The system must be idempotent across restarts.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
@@ -126,7 +125,7 @@ class TestRestartRecovery:
                 )
 
             # Simulate crash: serialize state
-            state_data = {
+            {
                 "state": r.state.value,
                 "attempts": r._attempts,
                 "reconciled": r._reconciled,

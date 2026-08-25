@@ -19,7 +19,6 @@ import hashlib
 import json
 import os
 import signal
-import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path

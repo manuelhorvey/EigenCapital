@@ -2,11 +2,10 @@
 Failure storm testing: Simulate cascading and compound failures.
 Tests that the system never trades during compound failure conditions.
 """
-import time
 import hashlib
 import json
-from typing import List, Dict, Any, Optional
-from unittest.mock import MagicMock, patch
+from typing import List
+from unittest.mock import MagicMock
 
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.risk.policy import RiskPolicy
@@ -148,7 +147,7 @@ class TestDataCorruption:
 
         # Create tampered manifest using dataclasses.replace (frozen dataclass)
         tampered = dataclasses.replace(R4ConfigManifest(), strategy_version="R4.0_TAMPERED")
-        fv2 = FingerprintVerifier(manifest=tampered, risk_policy=RiskPolicy())
+        FingerprintVerifier(manifest=tampered, risk_policy=RiskPolicy())
         # The tampered manifest's fingerprint differs from the original
         assert R4ConfigManifest().compute_identity() != tampered.compute_identity()
 
@@ -160,14 +159,13 @@ class TestDataCorruption:
 
     def test_corrupted_config_rejects(self):
         """Corrupted config must cause rejection."""
-        from eigencapital.config import LiveRiskConfig
         config = LiveRiskConfig()
         # Valid config
         assert config.min_equity > 0
 
         # Corrupted config (negative equity) — constructor validation
         try:
-            corrupted = LiveRiskConfig(min_equity=-1)
+            LiveRiskConfig(min_equity=-1)
             # If constructor doesn't validate, the test reveals the gap
         except Exception:
             pass  # Expected — constructor validates
@@ -243,8 +241,8 @@ class TestCompoundFailures:
         r = DisconnectRecovery()
         r.on_disconnect()
         r.on_reconnect()
-        result = r.submit_reconciliation(True, True, False, True,
-                                         details="equity_mismatch")
+        r.submit_reconciliation(True, True, False, True,
+                                details="equity_mismatch")
         assert r.state == RecoveryState.HALTED
 
     def test_order_mismatch_halts(self):
@@ -252,8 +250,8 @@ class TestCompoundFailures:
         r = DisconnectRecovery()
         r.on_disconnect()
         r.on_reconnect()
-        result = r.submit_reconciliation(True, False, True, True,
-                                         details="order_mismatch")
+        r.submit_reconciliation(True, False, True, True,
+                                details="order_mismatch")
         assert r.state == RecoveryState.HALTED
 
 
@@ -302,9 +300,8 @@ class TestSecurityAtScale:
     def test_no_credentials_in_audit_log(self):
         """Audit logs must never contain credentials."""
         from eigencapital.live.risk_enforcement import RiskEnforcer, RiskGateResult
-        from eigencapital.config import LiveRiskConfig
 
-        from eigencapital.live.risk_enforcement import GateResult, BlockReason, RiskGateResult
+        from eigencapital.live.risk_enforcement import GateResult, BlockReason
         enforcer = RiskEnforcer(LiveRiskConfig())
         # Simulate many cycles
         for _ in range(100):
@@ -351,7 +348,6 @@ class TestSecurityAtScale:
 
     def test_config_fingerprint_consistency(self):
         """Config fingerprint must be deterministic."""
-        from eigencapital.config import LiveRiskConfig
         import json
 
         c1 = LiveRiskConfig()

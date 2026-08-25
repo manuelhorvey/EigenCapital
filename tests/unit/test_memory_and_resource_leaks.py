@@ -20,17 +20,15 @@ import os
 import resource
 import sys
 import tracemalloc
-from typing import List
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.config import load_config
-from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
+from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-from eigencapital.risk.policy import RiskPolicy
 
 
 CYCLES = 10_000

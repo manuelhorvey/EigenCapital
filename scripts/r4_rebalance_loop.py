@@ -39,69 +39,64 @@ sys.path.insert(0, "src")
 
 import numpy as np
 import pandas as pd
-from mt5linux import MetaTrader5
 
+try:
+    from mt5linux import MetaTrader5
+except ImportError:
+    MetaTrader5 = None  # Allow import on non-Linux for testing
+
+from eigencapital.config import load_config, LiveRiskConfig
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
+from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.production_qual.fingerprint_verifier import (
+    FingerprintVerifier,
+    VerificationStatus,
+)
 
-# ── Configuration ──────────────────────────────────────────────────
+# ── Load Configuration (Single Source of Truth) ───────────────────
 
-R4_SYMBOLS = [
-    "US30", "AUDJPY", "AUDUSD", "AUDCHF", "AUDCAD",
-    "NZDJPY", "GBPJPY", "AUDNZD", "NZDUSD", "NZDCHF",
-    "NZDCAD", "GBPUSD", "GBPCHF", "GBPCAD", "CHFJPY",
-    "EURJPY", "USDJPY", "CADJPY", "XAUUSD", "EURUSD",
-    "EURCHF", "USDCHF", "EURCAD", "USDCAD", "CADCHF",
-    "GBPNZD", "EURGBP", "EURNZD", "GBPAUD", "EURAUD",
-    "BTCUSD",
-]
+_config = load_config(os.environ.get("EIGENCAPITAL_ENV", "production"))
 
-# Eligible at $1,500 position limit (broker-derived)
+# R4 universe — derived from broker config
+R4_SYMBOLS = list(_config.broker.allowed_symbols.keys())
+
+# Eligible symbols — those classified as tradeable (not excluded)
 ELIGIBLE_SYMBOLS = [
-    "AUDUSD", "AUDCHF", "AUDCAD", "AUDNZD",
-    "NZDUSD", "NZDCHF", "NZDCAD",
-    "GBPUSD", "GBPCHF",
-    "EURUSD", "EURCHF", "USDCHF",
-    "USDCAD", "CADCHF",
-    "EURGBP",
-    "BTCUSD",
+    sym for sym, cls in _config.broker.allowed_symbols.items()
+    if not cls.endswith("_excluded")
 ]
 
+# Asset classes — derived from broker config
 ASSET_CLASSES = {
-    "US30": "indices", "AUDJPY": "forex", "AUDUSD": "forex",
-    "AUDCHF": "forex", "AUDCAD": "forex", "NZDJPY": "forex",
-    "GBPJPY": "forex", "AUDNZD": "forex", "NZDUSD": "forex",
-    "NZDCHF": "forex", "NZDCAD": "forex", "GBPUSD": "forex",
-    "GBPCHF": "forex", "GBPCAD": "forex", "CHFJPY": "forex",
-    "EURJPY": "forex", "USDJPY": "forex", "CADJPY": "forex",
-    "XAUUSD": "metals", "EURUSD": "forex", "EURCHF": "forex",
-    "USDCHF": "forex", "EURCAD": "forex", "USDCAD": "forex",
-    "CADCHF": "forex", "GBPNZD": "forex", "EURGBP": "forex",
-    "EURNZD": "forex", "GBPAUD": "forex", "EURAUD": "forex",
-    "BTCUSD": "crypto",
+    sym: cls.split("_")[0]  # "forex_excluded" → "forex"
+    for sym, cls in _config.broker.allowed_symbols.items()
 }
 
-LOOKBACK = 252
-SKIP = 21
-RISK_LOOKBACK = 20
-VOL_LOOKBACK = 60
-VOL_TARGET = 0.10
+# Strategy parameters — from config (single source of truth)
+LOOKBACK = _config.strategy.signal_lookback_long  # 252
+SKIP = _config.strategy.skip_months * 21  # 1 month ≈ 21 trading days
+RISK_LOOKBACK = _config.strategy.risk_lookback  # 20
+VOL_LOOKBACK = _config.strategy.vol_lookback_signal  # 60
+VOL_TARGET = _config.strategy.vol_target_annual  # 0.10
 
-MAX_EQUITY = 5_100.0
-MAX_POSITION_USD = 1_500.0
-MAX_CONCURRENT = 8
-MAX_ORDERS_PER_CYCLE = 8
+# Capital limits — from config
+MAX_EQUITY = _config.capital.max_equity  # 5100
+MAX_POSITION_USD = _config.capital.max_position_size  # 1500
+MAX_CONCURRENT = _config.capital.max_concurrent_positions  # 8
+MAX_ORDERS_PER_CYCLE = _config.execution.max_orders_per_cycle  # 8
 
-# Risk enforcement envelope (must match T=0 frozen values)
+# Risk enforcement envelope — from live_risk config (single source of truth)
+_lr = _config.live_risk
 RISK_ENVELOPE = RiskEnvelope(
-    max_concurrent_positions=8,
-    max_position_notional=1_500.0,
-    max_order_notional=1_500.0,
-    max_per_position_loss_pct=0.10,
-    max_account_drawdown_pct=0.10,
-    max_daily_loss=250.0,
-    min_equity=4_000.0,
-    require_sl_on_positions=False,  # R4 uses signal-based exits, not fixed SL
-    t0_equity=5_010.94,
+    max_concurrent_positions=_lr.max_concurrent_positions,
+    max_position_notional=_lr.max_position_notional,
+    max_order_notional=_lr.max_order_notional,
+    max_per_position_loss_pct=_lr.max_per_position_loss_pct,
+    max_account_drawdown_pct=_lr.max_account_drawdown_pct,
+    max_daily_loss=_lr.max_daily_loss,
+    min_equity=_lr.min_equity,
+    require_sl_on_positions=_lr.require_sl_on_positions,
+    t0_equity=_lr.t0_equity,
 )
 
 AUDIT_DIR = "reports/r4_loop"
@@ -111,7 +106,11 @@ AUDIT_FILE = os.path.join(AUDIT_DIR, "decisions.jsonl")
 
 _shutdown = False
 _risk_enforcer = RiskEnforcer(RISK_ENVELOPE)
-_daily_start_recorded = False
+_fingerprint_verifier = FingerprintVerifier(config=_config)
+_daily_loss_tracker = DailyLossTracker(
+    max_daily_loss=_lr.max_daily_loss,
+    persistence_dir=AUDIT_DIR,
+)
 
 
 def _handle_signal(sig, frame):
@@ -121,7 +120,9 @@ def _handle_signal(sig, frame):
 
 
 signal.signal(signal.SIGINT, _handle_signal)
-signal.signal(signal.SIGTERM, _handle_signal)
+# SIGTERM not available on Windows — use SIGBREAK there
+if hasattr(signal, "SIGTERM"):
+    signal.signal(signal.SIGTERM, _handle_signal)
 
 
 # ── Helpers ────────────────────────────────────────────────────────
@@ -410,6 +411,23 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     log(f"Equity: ${equity:,.2f}")
 
+    # 0. Fingerprint verification (fail closed)
+    fp_result = _fingerprint_verifier.verify_all()
+    if not fp_result.all_verified:
+        failed = [c for c in fp_result.checks if c.status != "verified"]
+        log(f"🔴 FINGERPRINT VERIFICATION FAILED — {len(failed)} component(s) mismatched")
+        for fc in failed:
+            log(f"   → {fc.component}: {fc.message}")
+        audit({"event": "fingerprint_failed", "checks": [c.to_dict() for c in fp_result.checks]})
+        return {"status": "BLOCKED", "reason": "fingerprint_mismatch", "checks": [c.to_dict() for c in fp_result.checks]}
+
+    # 0b. Daily loss check (correct tracker, not broken RiskEnforcer daily loss)
+    _daily_loss_tracker.update(equity=equity)
+    if _daily_loss_tracker.is_daily_loss_breached:
+        log(f"🔴 DAILY LOSS BREACHED: ${_daily_loss_tracker.daily_loss:,.2f} > ${_lr.max_daily_loss:,.2f}")
+        audit({"event": "daily_loss_breached", **_daily_loss_tracker.to_dict()})
+        return {"status": "BLOCKED", "reason": "daily_loss_breached", **_daily_loss_tracker.to_dict()}
+
     # 1. Fetch data
     data = fetch_d1_data(mt5, R4_SYMBOLS, bars=300)
     if len(data) < 5:
@@ -668,12 +686,25 @@ def main() -> None:
         mt5.shutdown()
         return
 
-    # Record daily start equity for loss tracking
-    global _daily_start_recorded
-    if not _daily_start_recorded:
-        _risk_enforcer.record_daily_start(account.equity)
-        _daily_start_recorded = True
-        log(f"Daily start equity: ${account.equity:,.2f}")
+    # Initialize daily loss tracker (handles persistence, midnight rollover, restart)
+    _daily_loss_tracker.initialize(broker_equity=account.equity)
+    log(f"Daily loss tracker: baseline=${_daily_loss_tracker.baseline_equity:,.2f}, "
+        f"budget=${_daily_loss_tracker.remaining_daily_loss_budget:,.2f}")
+
+    # Startup fingerprint verification (fail closed)
+    log("\nVerifying configuration fingerprints...")
+    fp_result = _fingerprint_verifier.verify_all()
+    for check in fp_result.checks:
+        icon = "✅" if check.status == "verified" else "❌"
+        log(f"  {icon} {check.component}: {check.message}")
+    if not fp_result.all_verified:
+        log("\n🔴 FINGERPRINT VERIFICATION FAILED — cannot start trading")
+        log("   Fix configuration drift before running.")
+        audit({"event": "startup_fingerprint_failed", "checks": [c.to_dict() for c in fp_result.checks]})
+        mt5.shutdown()
+        return
+    log("✅ All fingerprints verified — trading authorized\n")
+    audit({"event": "startup_fingerprint_verified", "checks": [c.to_dict() for c in fp_result.checks]})
 
     cycle = 0
     while not _shutdown:

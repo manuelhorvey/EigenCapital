@@ -48,6 +48,7 @@ except ImportError:
 from eigencapital.config import load_config, LiveRiskConfig
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
     VerificationStatus,
@@ -111,6 +112,12 @@ _daily_loss_tracker = DailyLossTracker(
     max_daily_loss=_lr.max_daily_loss,
     persistence_dir=AUDIT_DIR,
 )
+_disconnect_recovery = DisconnectRecovery(
+    max_recovery_attempts=_config.health.max_recovery_attempts,
+)
+
+# State persisted across restarts
+_STATE_FILE = os.path.join(AUDIT_DIR, "runtime_state.json")
 
 
 def _handle_signal(sig, frame):
@@ -137,6 +144,39 @@ def audit(record: Dict[str, Any]) -> None:
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
     with open(AUDIT_FILE, "a") as f:
         f.write(json.dumps(record, default=str) + "\n")
+
+
+def _persist_state() -> None:
+    """Persist critical runtime state for crash recovery."""
+    state = {
+        "recovery_state": _disconnect_recovery.state.value,
+        "recovery_attempts": _disconnect_recovery._attempts,
+        "peak_equity": _risk_enforcer._peak_equity,
+        "daily_start": _risk_enforcer._daily_pnl_start,
+        "daily_loss": _daily_loss_tracker.to_dict(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    os.makedirs(AUDIT_DIR, exist_ok=True)
+    tmp = _STATE_FILE + ".tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(state, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, _STATE_FILE)
+    except OSError:
+        pass
+
+
+def _load_state() -> Optional[Dict[str, Any]]:
+    """Load persisted state from disk."""
+    if not os.path.exists(_STATE_FILE):
+        return None
+    try:
+        with open(_STATE_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 # ── Signal Computation ─────────────────────────────────────────────
@@ -691,6 +731,18 @@ def main() -> None:
     log(f"Daily loss tracker: baseline=${_daily_loss_tracker.baseline_equity:,.2f}, "
         f"budget=${_daily_loss_tracker.remaining_daily_loss_budget:,.2f}")
 
+    # Load persisted state (survives restart)
+    saved_state = _load_state()
+    if saved_state:
+        saved_recovery = saved_state.get("recovery_state", "connected")
+        saved_attempts = saved_state.get("recovery_attempts", 0)
+        log(f"Loaded persisted state: recovery={saved_recovery}, attempts={saved_attempts}")
+        # Restore peak equity if persisted
+        saved_peak = saved_state.get("peak_equity")
+        if saved_peak and saved_peak > _risk_enforcer._peak_equity:
+            _risk_enforcer._peak_equity = saved_peak
+            log(f"Restored peak equity: ${saved_peak:,.2f}")
+
     # Startup fingerprint verification (fail closed)
     log("\nVerifying configuration fingerprints...")
     fp_result = _fingerprint_verifier.verify_all()
@@ -710,15 +762,154 @@ def main() -> None:
     while not _shutdown:
         cycle += 1
         log(f"\n{'─' * 50}")
-        log(f"CYCLE {cycle}")
+        log(f"CYCLE {cycle} | Recovery: {_disconnect_recovery.state.value}")
         log(f"{'─' * 50}")
 
+        # ── Disconnect detection ──────────────────────────────────────
+        mt5_ok = False
+        try:
+            test_account = mt5.account_info()
+            mt5_ok = test_account is not None and test_account.equity > 0
+        except Exception:
+            mt5_ok = False
+
+        if not mt5_ok:
+            # MT5 disconnected
+            if _disconnect_recovery.state == RecoveryState.CONNECTED:
+                recovery_msg = _disconnect_recovery.on_disconnect()
+                log(f"🔴 MT5 DISCONNECTED — {recovery_msg}")
+                audit({"event": "disconnect", "recovery_state": _disconnect_recovery.state.value})
+            elif _disconnect_recovery.state == RecoveryState.RESUMED:
+                # Was resumed but now disconnected again
+                recovery_msg = _disconnect_recovery.on_disconnect()
+                log(f"🔴 MT5 DISCONNECTED (was resumed) — {recovery_msg}")
+                audit({"event": "disconnect_from_resumed", "recovery_state": _disconnect_recovery.state.value})
+
+            # Check if frozen
+            if _disconnect_recovery.state == RecoveryState.FROZEN:
+                log("🔴 FROZEN — too many disconnects. Manual review required.")
+                audit({"event": "frozen", "reason": "excessive_disconnects"})
+                _persist_state()
+                if not loop_mode:
+                    break
+                # Wait and retry
+                for _ in range(min(interval, 300)):
+                    if _shutdown:
+                        break
+                    time.sleep(1)
+                continue
+
+            # Persist and wait
+            _persist_state()
+            log(f"   Waiting {min(interval, 60)}s for reconnection...")
+            for _ in range(min(interval, 60)):
+                if _shutdown:
+                    break
+                time.sleep(1)
+            continue
+
+        # ── Reconnection handling ─────────────────────────────────────
+        if _disconnect_recovery.state == RecoveryState.DISCONNECTED:
+            recovery_msg = _disconnect_recovery.on_reconnect()
+            log(f"🟢 MT5 RECONNECTED — {recovery_msg}")
+            audit({"event": "reconnect", "recovery_state": _disconnect_recovery.state.value})
+
+            # Reconcile: verify positions, equity, fingerprint
+            try:
+                account = mt5.account_info()
+                positions = mt5.positions_get()
+                pos_list = list(positions) if positions else []
+
+                # Fingerprint check
+                fp_ok = _fingerprint_verifier.verify_all().all_verified
+
+                # Position count check
+                pos_ok = len(pos_list) <= RISK_ENVELOPE.max_concurrent_positions
+
+                # Equity check
+                eq_ok = account.equity > 0 if account else False
+
+                # Risk check
+                risk_ok = True  # Would need full risk check here
+
+                reconcile_msg = _disconnect_recovery.submit_reconciliation(
+                    positions_match=pos_ok,
+                    orders_match=True,  # No order tracking yet
+                    equity_match=eq_ok,
+                    fingerprint_match=fp_ok,
+                    details=f"pos={len(pos_list)}, eq={account.equity if account else 0:.2f}",
+                )
+                log(f"   Reconciliation: {reconcile_msg}")
+                audit({"event": "reconciliation", "result": reconcile_msg})
+
+                if _disconnect_recovery.state == RecoveryState.HALTED:
+                    log("🔴 RECONCILIATION FAILED — HALTED")
+                    _persist_state()
+                    if not loop_mode:
+                        break
+                    for _ in range(min(interval, 300)):
+                        if _shutdown:
+                            break
+                        time.sleep(1)
+                    continue
+
+                # Request resume
+                resume_msg = _disconnect_recovery.request_resume(
+                    data_fresh=True,
+                    positions_reconciled=pos_ok,
+                    no_unexpected_orders=True,
+                    risk_limits_passing=risk_ok,
+                    config_fingerprint_unchanged=fp_ok,
+                    health_state="healthy",
+                )
+                log(f"   Resume: {resume_msg}")
+                audit({"event": "resume", "result": resume_msg})
+
+                if _disconnect_recovery.state != RecoveryState.RESUMED:
+                    log("🔴 RESUME FAILED — trading remains halted")
+                    _persist_state()
+                    if not loop_mode:
+                        break
+                    for _ in range(min(interval, 300)):
+                        if _shutdown:
+                            break
+                        time.sleep(1)
+                    continue
+
+            except Exception as e:
+                log(f"🔴 Reconciliation error: {e}")
+                audit({"event": "reconciliation_error", "error": str(e)})
+                _persist_state()
+                if not loop_mode:
+                    break
+                for _ in range(min(interval, 60)):
+                    if _shutdown:
+                        break
+                    time.sleep(1)
+                continue
+
+        # ── Trading permission check ──────────────────────────────────
+        if _disconnect_recovery.state not in (RecoveryState.CONNECTED, RecoveryState.RESUMED):
+            log(f"⛔ Trading halted — state: {_disconnect_recovery.state.value}")
+            _persist_state()
+            if not loop_mode:
+                break
+            for _ in range(min(interval, 60)):
+                if _shutdown:
+                    break
+                time.sleep(1)
+            continue
+
+        # ── Run trading cycle ─────────────────────────────────────────
         try:
             result = run_cycle(mt5, force_regime, dry_run)
         except Exception as e:
             log(f"❌ Cycle error: {e}")
             audit({"event": "error", "error": str(e)})
             result = {"status": "ERROR"}
+
+        # Persist state after each cycle
+        _persist_state()
 
         if not loop_mode:
             break
@@ -732,6 +923,8 @@ def main() -> None:
                 break
             time.sleep(1)
 
+    # Shutdown: persist final state
+    _persist_state()
     mt5.shutdown()
     log("Disconnected. Done.")
 

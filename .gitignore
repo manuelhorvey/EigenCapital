@@ -42,3 +42,6 @@ data/features/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Runtime datasets (repo root only — must NOT ignore src/*/data packages)
+/data/

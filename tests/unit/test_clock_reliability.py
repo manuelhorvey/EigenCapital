@@ -148,11 +148,14 @@ class TestMidnightRollover:
         tracker = DailyLossTracker(max_daily_loss=100.0, persistence_dir=str(tmp_path))
         tracker.initialize(broker_equity=5000.0)
         first_hash = tracker._baseline.hash if tracker._baseline else None
+        assert first_hash
 
         # Second call on same day should not reset
         tracker.initialize(broker_equity=5000.0)
         assert tracker._baseline is not None
         assert tracker._baseline.date_str == tracker._today_str()
+        # Same-day re-initialize must preserve the existing baseline identity
+        assert tracker._baseline.hash == first_hash
 
     def test_restart_same_day_preserves_baseline(self, tmp_path):
         from eigencapital.live.daily_loss import DailyLossTracker
@@ -167,7 +170,7 @@ class TestMidnightRollover:
         assert loaded.equity == 5000.0
 
     def test_restart_after_midnight_rebaselines(self, tmp_path):
-        from eigencapital.live.daily_loss import DailyLossTracker, DailyBaseline
+        from eigencapital.live.daily_loss import DailyLossTracker
         import json
 
         # Write yesterday's baseline

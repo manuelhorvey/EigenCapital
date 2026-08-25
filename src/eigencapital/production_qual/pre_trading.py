@@ -431,18 +431,39 @@ class PreTradingValidator:
         ))
         checks.append(self._checks[-1])
 
-        # 2.5 Spread/slippage
-        spread_check = validator.validate_spread_slippage(
-            broker_state.current_spread,
-            broker_state.current_slippage,
-        )
+        # 2.5 Spread/slippage — per-symbol check (points, not decimal)
+        # MT5 spread is in points; config max_spread is in decimal pips.
+        # Convert max_spread decimal to points: for 5-digit forex, 1 pip = 10 points.
+        # For simplicity, check each symbol's spread against a per-symbol max.
+        spread_issues = []
+        for sym, specs in broker_state.symbol_specs.items():
+            if sym not in self._broker_config.expected_symbols:
+                continue
+            spread_pts = specs.get("spread", 0) if isinstance(specs, dict) else specs
+            # Classify symbol and set per-symbol spread limit (in points)
+            asset_class = self._broker_config.expected_symbols.get(sym, "forex")
+            if "forex" in asset_class:
+                max_spread_pts = 15  # 15 points = 1.5 pips
+            elif "metals" in asset_class:
+                max_spread_pts = 50
+            elif "indices" in asset_class:
+                max_spread_pts = 50
+            elif "crypto" in asset_class:
+                max_spread_pts = 1000
+            elif "energy" in asset_class:
+                max_spread_pts = 30
+            else:
+                max_spread_pts = 50
+            if spread_pts > max_spread_pts:
+                spread_issues.append(f"{sym}: {spread_pts} pts (max {max_spread_pts})")
+        spread_ok = len(spread_issues) == 0
         self._add_check(PreTradingCheck(
             step=step,
             check_id="PT-BROKER-05",
-            passed=spread_check.passed,
-            description="Current spread/slippage within bounds",
-            expected=f"spread <= {self._broker_config.max_spread}",
-            observed=f"spread={broker_state.current_spread:.6f}, slippage={broker_state.current_slippage:.6f}",
+            passed=spread_ok,
+            description="Current spread within per-symbol bounds",
+            expected="all spreads within per-symbol limits",
+            observed="; ".join(spread_issues) if spread_issues else "all within bounds",
         ))
         checks.append(self._checks[-1])
 

@@ -27,21 +27,12 @@ class BrokerBoundaryConfig:
     expected_broker: str = "exness"
     expected_platform: str = "mt5"
     expected_symbols: Dict[str, str] = field(default_factory=lambda: {
-        "EURUSDm": "forex",
-        "GBPUSDm": "forex",
-        "USDJPYm": "forex",
-        "AUDUSDm": "forex",
-        "USDCADm": "forex",
-        "USDCHFm": "forex",
-        "NZDUSDm": "forex",
-        "XAUUSDm": "metals",
-        "XAGUSDm": "metals",
-        "US500m": "indices",
-        "US30m": "indices",
-        "USTECm": "indices",
-        "BTCUSDm": "crypto",
-        "ETHUSDm": "crypto",
-        "USOILm": "energy",
+        "AUDUSD": "forex", "AUDCHF": "forex", "AUDCAD": "forex",
+        "AUDNZD": "forex", "NZDUSD": "forex", "NZDCHF": "forex",
+        "NZDCAD": "forex", "GBPUSD": "forex", "GBPCHF": "forex",
+        "EURUSD": "forex", "EURCHF": "forex", "USDCHF": "forex",
+        "USDCAD": "forex", "CADCHF": "forex", "EURGBP": "forex",
+        "BTCUSD": "crypto",
     })
     max_spread: float = 0.0015
     max_slippage: float = 0.0008
@@ -174,9 +165,9 @@ class BrokerBoundaryValidator:
                 issues.append(f"{symbol}: min volume {min_vol} > max allowed {self._config.max_volume}")
             if max_vol < self._config.min_volume:
                 issues.append(f"{symbol}: max volume {max_vol} < min required {self._config.min_volume}")
-            # Check digit precision
+            # Check digit precision (crypto=2, forex=4-5, indices=0-2)
             digits = specs.get("digits", 0)
-            if digits < 3 or digits > 5:
+            if digits < 2 or digits > 5:
                 issues.append(f"{symbol}: unusual digit precision {digits}")
 
         passed = len(issues) == 0

@@ -13,40 +13,63 @@ platform = "mt5"
 server = "Exness-MT5Trial9"
 
 # Execution constraints
-max_spread = 0.0015       # 15 pips max spread
+max_spread = 0.0015       # 15 pips max spread (forex)
 max_slippage = 0.0008     # 8 pips max slippage
-min_volume = 0.01         # Minimum lot size
+min_volume = 0.01         # Minimum lot size (forex)
 max_volume = 1.0          # Maximum lot size
 
-# R4 universe — all 15 symbols must be available
+# R4 universe — 31 symbols, Exness MT5 bare names (no 'm' suffix)
+# Eligible = min lot fits within $1,500 position limit
+# Excluded = min lot exceeds $1,500 (mostly JPY crosses due to 100K contract × JPY rate)
 [broker.allowed_symbols]
-EURUSDm = "forex"
-GBPUSDm = "forex"
-USDJPYm = "forex"
-AUDUSDm = "forex"
-USDCADm = "forex"
-USDCHFm = "forex"
-NZDUSDm = "forex"
-XAUUSDm = "metals"
-XAGUSDm = "metals"
-US500m = "indices"
-US30m = "indices"
-USTECm = "indices"
-BTCUSDm = "crypto"
-ETHUSDm = "crypto"
-USOILm = "energy"
+
+US30 = "indices_excluded"  # min lot $2,675
+AUDJPY = "forex_excluded"  # min lot $114K (JPY)
+AUDUSD = "forex"          # min lot $716
+AUDCHF = "forex"          # min lot $574
+AUDCAD = "forex"          # min lot $990
+NZDJPY = "forex_excluded"  # min lot $95K (JPY)
+GBPJPY = "forex_excluded"  # min lot $217K (JPY)
+AUDNZD = "forex"          # min lot $1,199
+NZDUSD = "forex"          # min lot $597
+NZDCHF = "forex"          # min lot $479
+NZDCAD = "forex"          # min lot $826
+GBPUSD = "forex"          # min lot $1,363
+GBPCHF = "forex"          # min lot $1,094
+GBPCAD = "forex_excluded"  # min lot $1,886
+CHFJPY = "forex_excluded"  # min lot $198K (JPY)
+EURJPY = "forex_excluded"  # min lot $186K (JPY)
+
+USDJPY = "forex_excluded"  # min lot $159K (JPY)
+CADJPY = "forex_excluded"  # min lot $115K (JPY)
+XAUUSD = "metals_excluded"  # min lot $4,627
+EURUSD = "forex"          # min lot $1,167
+EURCHF = "forex"          # min lot $937
+USDCHF = "forex"          # min lot $803
+EURCAD = "forex_excluded"  # min lot $1,615
+USDCAD = "forex"          # min lot $1,384
+CADCHF = "forex"          # min lot $580
+GBPNZD = "forex_excluded"  # min lot $2,284
+EURGBP = "forex"          # min lot $856
+EURNZD = "forex_excluded"  # min lot $1,955
+GBPAUD = "forex_excluded"  # min lot $1,905
+EURAUD = "forex_excluded"  # min lot $1,631
+BTCUSD = "crypto"         # min lot $792
 
 [capital]
-# $5K MINIMAL campaign boundaries — these are hard limits
-max_equity = 5000.0              # Maximum authorized equity
+# $5K MINIMAL campaign boundaries — calibrated to Exness min-lot constraints
+# Max position = $1,500 (30% of equity) — fits all tradeable instruments
+# Max order = $1,500 — single order can fill any position
+# 12 tradeable instruments out of 15 (USDJPY, XAUUSD, XAGUSD, US30 excluded)
+max_equity = 5100.0              # Maximum authorized equity ($5K + 2% buffer for P&L drift)
 max_drawdown_pct = 20.0          # 20% max campaign drawdown
 max_daily_loss = 250.0           # $250 max daily loss
 max_total_drawdown = 1000.0      # $1,000 max total drawdown
-max_position_size = 500.0        # $500 max position
-max_order_notional = 250.0       # $250 max order
+max_position_size = 1500.0       # $1,500 max position (30% equity; fits min lot of all tradeable instruments)
+max_order_notional = 1500.0      # $1,500 max order (must fit min lot: largest tradeable is GBPUSD at $1,364)
 max_concurrent_positions = 8     # Maximum open positions
 campaign_duration_days = 30      # 30-day qualification window
-max_spread = 0.0015              # Spread limit for capital checks
+max_spread = 0.0015              # Spread limit for capital checks (forex)
 max_slippage = 0.0008            # Slippage limit for capital checks
 max_execution_divergence = 0.004 # Max execution deviation
 

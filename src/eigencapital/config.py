@@ -46,21 +46,19 @@ class BrokerConfig:
     min_volume: float = 0.01
     max_volume: float = 1.0
     allowed_symbols: Dict[str, str] = field(default_factory=lambda: {
-        "EURUSDm": "forex",
-        "GBPUSDm": "forex",
-        "USDJPYm": "forex",
-        "AUDUSDm": "forex",
-        "USDCADm": "forex",
-        "USDCHFm": "forex",
-        "NZDUSDm": "forex",
-        "XAUUSDm": "metals",
-        "XAGUSDm": "metals",
-        "US500m": "indices",
-        "US30m": "indices",
-        "USTECm": "indices",
-        "BTCUSDm": "crypto",
-        "ETHUSDm": "crypto",
-        "USOILm": "energy",
+        "US30": "indices_excluded", "AUDJPY": "forex_excluded",
+        "AUDUSD": "forex", "AUDCHF": "forex", "AUDCAD": "forex",
+        "NZDJPY": "forex_excluded", "GBPJPY": "forex_excluded",
+        "AUDNZD": "forex", "NZDUSD": "forex", "NZDCHF": "forex",
+        "NZDCAD": "forex", "GBPUSD": "forex", "GBPCHF": "forex",
+        "GBPCAD": "forex_excluded", "CHFJPY": "forex_excluded",
+        "EURJPY": "forex_excluded", "USDJPY": "forex_excluded",
+        "CADJPY": "forex_excluded", "XAUUSD": "metals_excluded",
+        "EURUSD": "forex", "EURCHF": "forex", "USDCHF": "forex",
+        "EURCAD": "forex_excluded", "USDCAD": "forex", "CADCHF": "forex",
+        "GBPNZD": "forex_excluded", "EURGBP": "forex",
+        "EURNZD": "forex_excluded", "GBPAUD": "forex_excluded",
+        "EURAUD": "forex_excluded", "BTCUSD": "crypto",
     })
 
     @classmethod
@@ -73,12 +71,12 @@ class BrokerConfig:
 class CapitalConfig:
     """Capital boundary and campaign configuration."""
 
-    max_equity: float = 5000.0
+    max_equity: float = 5100.0  # $5K + 2% buffer for P&L drift
     max_drawdown_pct: float = 20.0
     max_daily_loss: float = 250.0
     max_total_drawdown: float = 1000.0
-    max_position_size: float = 500.0
-    max_order_notional: float = 250.0
+    max_position_size: float = 1500.0
+    max_order_notional: float = 1500.0
     max_concurrent_positions: int = 8
     campaign_duration_days: int = 30
     max_spread: float = 0.0015

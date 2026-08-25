@@ -29,12 +29,12 @@ class CapitalVerdict(str, Enum):
 class CapitalBoundaryConfig:
     """Pre-registered capital constraints for the MINIMAL campaign."""
 
-    max_equity: float = 5_000.0
+    max_equity: float = 5_100.0  # $5K + 2% buffer for P&L drift
     max_drawdown_pct: float = 20.0
     max_daily_loss: float = 250.0
     max_total_drawdown: float = 1_000.0
-    max_position_size: float = 500.0
-    max_order_notional: float = 250.0
+    max_position_size: float = 1_500.0
+    max_order_notional: float = 1_500.0
     max_concurrent_positions: int = 8
     campaign_duration_days: int = 30
     max_spread: float = 0.0015

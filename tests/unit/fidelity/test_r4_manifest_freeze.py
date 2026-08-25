@@ -184,7 +184,7 @@ class TestUncoveredFields:
     def test_data_provenance_fields(self):
         m = R4ConfigManifest()
         assert m.data_source == "exness_mt5"
-        assert m.data_terminal_id == "168966110"
+        assert m.data_terminal_id == "436921728"  # Exness-MT5Trial9
         assert m.data_bar_count == 31790
 
     def test_correlation_threshold(self):

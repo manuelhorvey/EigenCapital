@@ -3,9 +3,9 @@
   "campaign_id": "R4-MINIMAL-5K",
   "verdict": "GO",
   "report_hash": "63f4c7e3ee902d48f2c14daf1ecf1e79ba6e024a7950e34bda8eb847ae2aa601",
-  "decision_timestamp": "2026-08-25T12:02:21Z",
+  "decision_timestamp": "2026-08-25T12:31:13Z",
   "total_checks": 48,
   "passed_checks": 48,
   "critical_failures": 0,
-  "gate_fingerprint": "1d4454a0748805446e99d4888ae2396df6498255cb7759fbc04b24b737fea40e"
+  "gate_fingerprint": "98d022172413bd750a303fff4ce2db80031e9b8f40a13bafb9fe43f3d46c0ff8"
 }

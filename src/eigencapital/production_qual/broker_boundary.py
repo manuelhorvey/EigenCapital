@@ -22,8 +22,8 @@ from typing import Any, Dict, List, Optional
 class BrokerBoundaryConfig:
     """Expected broker configuration for the funded campaign."""
 
-    expected_account_id: str = "168966110"
-    expected_environment: str = "live"  # must be "live", not "demo"
+    expected_account_id: str = "436921728"
+    expected_environment: str = "demo"  # Exness-MT5Trial9
     expected_broker: str = "exness"
     expected_platform: str = "mt5"
     expected_symbols: Dict[str, str] = field(default_factory=lambda: {

@@ -32,7 +32,7 @@ class R4ConfigManifest:
 
     # Data snapshot
     data_source: str = "exness_mt5"
-    data_terminal_id: str = "168966110"
+    data_terminal_id: str = "436921728"  # Exness-MT5Trial9
     data_snapshot_hash: str = ""
     data_start_date: str = "2020-01-01"
     data_end_date: str = "2026-08-24"

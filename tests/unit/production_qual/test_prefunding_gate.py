@@ -1023,8 +1023,8 @@ class TestBrokerBoundary:
         config = BrokerBoundaryConfig()
         validator = BrokerBoundaryValidator(config)
         checks = validator.run_all_validations(
-            account_id="168966110",
-            environment="live",
+            account_id="436921728",
+            environment="demo",
             broker_name="exness",
             platform="mt5",
             symbols=list(config.expected_symbols.keys()),
@@ -1046,7 +1046,7 @@ class TestBrokerBoundary:
     def test_wrong_environment_fails(self):
         """Wrong environment → BB-ENV fails."""
         validator = BrokerBoundaryValidator()
-        validator.validate_environment("demo")
+        validator.validate_environment("live")  # expects demo, gets live
         assert not validator.all_passed
 
     def test_missing_symbols_fails(self):

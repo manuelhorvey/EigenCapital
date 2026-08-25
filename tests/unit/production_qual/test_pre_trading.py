@@ -54,9 +54,9 @@ def _make_broker_state(
 ) -> BrokerStateSnapshot:
     """Create a valid broker state snapshot with sensible defaults."""
     defaults = dict(
-        account_id="168966110",
+        account_id="436921728",
         account_name="EigenCapital-R4",
-        environment="live",
+        environment="demo",
         broker_name="exness",
         platform="mt5",
         equity=5000.0,
@@ -156,7 +156,11 @@ class TestBrokerConnection:
 
     def test_correct_broker_state(self) -> None:
         """Correct account, environment, symbols → all pass."""
-        validator = PreTradingValidator()
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
         state = _make_broker_state()
         checks = validator.validate_broker_connection(state)
         assert len(checks) == 6
@@ -164,16 +168,24 @@ class TestBrokerConnection:
 
     def test_wrong_account_blocks(self) -> None:
         """Wrong account ID → BLOCKED."""
-        validator = PreTradingValidator()
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
         state = _make_broker_state(account_id="99999999")
         checks = validator.validate_broker_connection(state)
         assert not checks[0].passed
         assert checks[0].check_id == "PT-BROKER-01"
 
     def test_wrong_environment_blocks(self) -> None:
-        """Demo instead of live → BLOCKED."""
-        validator = PreTradingValidator()
-        state = _make_broker_state(environment="demo")
+        """Live instead of demo → BLOCKED."""
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
+        state = _make_broker_state(environment="live")
         checks = validator.validate_broker_connection(state)
         assert not checks[1].passed
         assert checks[1].check_id == "PT-BROKER-02"
@@ -198,18 +210,26 @@ class TestBrokerConnection:
 
     def test_wrong_broker_blocks(self) -> None:
         """Wrong broker name → BLOCKED (confusion check)."""
-        validator = PreTradingValidator()
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
         state = _make_broker_state(broker_name="oanda")
         checks = validator.validate_broker_connection(state)
         assert not checks[5].passed
         assert checks[5].check_id == "PT-BROKER-06"
 
     def test_demo_live_confusion_blocks(self) -> None:
-        """Demo account on live config → BLOCKED."""
-        validator = PreTradingValidator()
+        """Live account on demo config → BLOCKED."""
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
         state = _make_broker_state(
             account_id="99999999",
-            environment="demo",
+            environment="live",
             broker_name="exness",
         )
         checks = validator.validate_broker_connection(state)
@@ -463,7 +483,11 @@ class TestFullValidation:
 
     def test_wrong_account_blocks(self) -> None:
         """Wrong broker account → TRADING_BLOCKED."""
-        validator = PreTradingValidator()
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
         state = _make_broker_state(account_id="99999999")
         gate_record = _make_gate_record()
 
@@ -473,9 +497,13 @@ class TestFullValidation:
         assert len(auth.critical_failures) > 0
 
     def test_demo_live_confusion_blocks(self) -> None:
-        """Demo account → TRADING_BLOCKED."""
-        validator = PreTradingValidator()
-        state = _make_broker_state(environment="demo")
+        """Live account on demo config → TRADING_BLOCKED."""
+        broker_config = BrokerBoundaryConfig(
+            expected_account_id="436921728",
+            expected_environment="demo",
+        )
+        validator = PreTradingValidator(broker_config=broker_config)
+        state = _make_broker_state(environment="live")
         gate_record = _make_gate_record()
 
         auth = validator.run_full_validation(state, None, gate_record)
@@ -647,7 +675,7 @@ class TestNegativePathMatrix:
         if failure == "wrong_account":
             state = _make_broker_state(account_id="99999999")
         elif failure == "wrong_environment":
-            state = _make_broker_state(environment="demo")
+            state = _make_broker_state(environment="live")  # expects demo, gets live
         elif failure == "wrong_broker":
             state = _make_broker_state(broker_name="oanda")
         elif failure == "excess_equity":

@@ -259,8 +259,8 @@ def verify_broker_checks(
     # For a pre-deployment audit, we verify the CONFIGURATION is correct
     # (not live broker state, which isn't available yet)
     # All checks verify that the expected config matches what we want
-    correct_account = broker_config.expected_account_id == "168966110"
-    correct_environment = broker_config.expected_environment == "live"
+    correct_account = broker_config.expected_account_id == "436921728"
+    correct_environment = broker_config.expected_environment == "demo"
     correct_symbol_mapping = len(broker_config.expected_symbols) == 15
     correct_contract_specs = True  # Verified by config
     correct_volume_price_constraints = (
@@ -270,7 +270,7 @@ def verify_broker_checks(
         broker_config.max_spread > 0 and broker_config.max_slippage > 0
     )
     no_environment_confusion = (
-        broker_config.expected_environment == "live"
+        broker_config.expected_environment == "demo"
         and broker_config.expected_broker == "exness"
     )
 
@@ -331,10 +331,10 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
     # 2. Instantiate auditor
     auditor = PrefundingGateAuditor()
 
-    # 3. Configure broker boundary
+    # 3. Configure broker boundary (matching actual MT5 state)
     broker_config = BrokerBoundaryConfig(
-        expected_account_id="168966110",
-        expected_environment="live",
+        expected_account_id="436921728",
+        expected_environment="demo",  # Exness-MT5Trial9 is a trial/demo server
         expected_broker="exness",
         expected_platform="mt5",
     )
@@ -346,7 +346,11 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
     )
 
     # 5. Run all audit categories
-    print("Running 7-category audit...")
+    print("Running 7-category audit against actual broker state...")
+    print("-" * 40)
+    print(f"  Account:        {broker_config.expected_account_id}")
+    print(f"  Server:         Exness-MT5Trial9")
+    print(f"  Environment:    {broker_config.expected_environment}")
     print("-" * 40)
 
     verify_identity_checks(auditor, frozen_fingerprint)

@@ -28,6 +28,7 @@ from eigencapital.analytics.validation.universe import UniversePerturbationResul
 from eigencapital.analytics.validation.temporal import TemporalStabilityResult
 from eigencapital.analytics.validation.multiple_testing import MultipleTestingResult
 from eigencapital.analytics.validation.pbo import PBOResult
+from eigencapital.analytics.validation.deflated_sharpe import DeflatedSharpeResult
 
 
 class EvidenceVerdict(str):
@@ -103,6 +104,7 @@ class EvidenceGate:
         temporal: Optional[TemporalStabilityResult] = None,
         multiple_testing: Optional[MultipleTestingResult] = None,
         pbo: Optional[PBOResult] = None,
+        deflated_sharpe: Optional[DeflatedSharpeResult] = None,
     ) -> Dict[str, Any]:
         """Evaluate all validation results with falsification-first semantics.
 
@@ -379,6 +381,37 @@ class EvidenceGate:
                         missing=True,
                         severity="MEDIUM",
                         message=f"PBO insufficient: {pbo.message}",
+                    )
+                )
+
+        # ── 11. Deflated Sharpe (selection-bias-aware) ──────────────
+        # Missing DSR evidence is advisory — trial histories may not exist
+        # yet; but an INSUFFICIENT_TRIALS result that IS supplied counts as
+        # missing evidence for VALIDATED-level claims.
+        if deflated_sharpe is not None:
+            if deflated_sharpe.sufficient_trials:
+                passed_dsr = deflated_sharpe.significant
+                checks.append(
+                    EvidenceCheck(
+                        check_id="dsr_significant",
+                        passed=passed_dsr,
+                        severity="HIGH",
+                        message=(
+                            f"DSR: {deflated_sharpe.deflated_sharpe:.4f} "
+                            f"(confidence {deflated_sharpe.confidence:.2f}), "
+                            f"SR0: {deflated_sharpe.expected_max_sharpe:.4f}, "
+                            f"N trials: {deflated_sharpe.n_trials}"
+                        ),
+                    )
+                )
+            else:
+                checks.append(
+                    EvidenceCheck(
+                        check_id="dsr_significant",
+                        passed=False,
+                        missing=True,
+                        severity="HIGH",
+                        message=f"DSR unavailable: {deflated_sharpe.message}",
                     )
                 )
 

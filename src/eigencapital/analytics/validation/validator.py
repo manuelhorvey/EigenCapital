@@ -153,6 +153,7 @@ class ValidationEngine:
         walk_forward_train: int = 300,
         walk_forward_test: int = 100,
         walk_forward_purge: int = 10,
+        walk_forward_embargo: int = 0,
         bootstrap_iterations: int = 500,
         permutation_iterations: int = 500,
         bootstrap_seed: int = 42,
@@ -163,6 +164,7 @@ class ValidationEngine:
         self.wf_train = walk_forward_train
         self.wf_test = walk_forward_test
         self.wf_purge = walk_forward_purge
+        self.wf_embargo = walk_forward_embargo
         self.bootstrap_iters = bootstrap_iterations
         self.perm_iters = permutation_iterations
         self.seed = bootstrap_seed
@@ -210,7 +212,11 @@ class ValidationEngine:
 
         # ── 3. Walk-forward ─────────────────────────────────────────
         wf = purged_walk_forward(
-            equity_curve, self.wf_train, self.wf_test, self.wf_purge
+            equity_curve,
+            self.wf_train,
+            self.wf_test,
+            self.wf_purge,
+            embargo_bars=self.wf_embargo,
         )
         if wf.total_windows == 0:
             warnings.append("Walk-forward: insufficient data for any complete window")

@@ -1,9 +1,17 @@
-"""Walk-Forward Analysis — purged out-of-sample validation.
+"""Walk-Forward Analysis — purged and embargoed out-of-sample validation.
 
 Walk-forward prevents overfitting by:
 1. Training on a rolling window
 2. Testing on a forward window (unseen data)
 3. Purging overlap to prevent label leakage
+4. Embargoing bars immediately after each test window so serial-correlation
+   leakage cannot re-enter subsequent training sets
+
+Purge vs. embargo: the purge gap sits BEFORE the test window and removes
+training bars whose label horizon could overlap test labels. The embargo
+gap sits AFTER the test window and removes those bars from every later
+training slice. Window geometry is unaffected by either; only training
+composition changes.
 
 A strategy that works in-sample but fails walk-forward
 is likely curve-fitted, not genuinely predictive.
@@ -14,6 +22,7 @@ Usage:
         train_bars=500,
         test_bars=100,
         purge_bars=10,
+        embargo_bars=5,
     )
 """
 
@@ -21,7 +30,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 
 @dataclass(frozen=True)
@@ -49,6 +58,7 @@ class WalkForwardWindow:
     out_of_sample_sharpe: float = 0.0
     in_sample_return: float = 0.0
     out_of_sample_return: float = 0.0
+    train_indices: Tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -78,6 +88,8 @@ class WalkForwardResult:
     total_windows: int = 0
     oos_return_mean: float = 0.0
     oos_return_std: float = 0.0
+    purge_bars: int = 0
+    embargo_bars: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""
@@ -91,6 +103,8 @@ class WalkForwardResult:
             "pct_profitable_windows": round(self.pct_profitable_windows, 2),
             "oos_return_mean": round(self.oos_return_mean, 4),
             "oos_return_std": round(self.oos_return_std, 4),
+            "purge_bars": self.purge_bars,
+            "embargo_bars": self.embargo_bars,
         }
 
 
@@ -141,25 +155,84 @@ def _compute_returns(equity_curve: List[float]) -> List[float]:
     return returns
 
 
+def _returns_from_segments(segments: List[List[float]]) -> List[float]:
+    """Compute period returns within contiguous segments only.
+
+    Returns are never computed across a segment boundary, so embargoed
+    bars cannot leak information through a bridging return.
+    """
+    returns = []
+    for segment in segments:
+        returns.extend(_compute_returns(segment))
+    return returns
+
+
+def _contiguous_segments(
+    indices: List[int], equity_curve: List[float]
+) -> List[List[float]]:
+    """Split bar indices into contiguous runs and map them to equity values."""
+    segments: List[List[float]] = []
+    current: List[int] = []
+    for idx in indices:
+        if current and idx != current[-1] + 1:
+            segments.append([equity_curve[i] for i in current])
+            current = []
+        current.append(idx)
+    if current:
+        segments.append([equity_curve[i] for i in current])
+    return segments
+
+
+def _exclude_embargo_zones(
+    train_start: int,
+    train_end: int,
+    embargo_zones: List[Tuple[int, int]],
+) -> List[int]:
+    """Return training bar indices with all embargo zones removed."""
+    zones = sorted(embargo_zones)
+    indices: List[int] = []
+    cursor = train_start
+    for zone_start, zone_end in zones:
+        if zone_end <= cursor or zone_start >= train_end:
+            continue
+        upper = min(zone_start, train_end)
+        indices.extend(range(cursor, upper))
+        cursor = max(cursor, zone_end)
+    if cursor < train_end:
+        indices.extend(range(cursor, train_end))
+    return indices
+
+
 def purged_walk_forward(
     equity_curve: List[float],
     train_bars: int = 500,
     test_bars: int = 100,
     purge_bars: int = 10,
+    embargo_bars: int = 0,
     anchored: bool = False,
 ) -> WalkForwardResult:
-    """Perform purged walk-forward analysis.
+    """Perform purged and embargoed walk-forward analysis.
 
     Args:
         equity_curve: Full equity curve (list of equity values per bar)
         train_bars: Number of bars in training window
         test_bars: Number of bars in test window
         purge_bars: Number of bars to purge between train and test
+        embargo_bars: Bars after each test window excluded from all later
+            training slices (serial-correlation buffer). 0 disables.
         anchored: If True, training window starts at beginning (anchored)
 
     Returns:
-        WalkForwardResult with per-window metrics and aggregates
+        WalkForwardResult with per-window metrics and aggregates. Window
+        geometry (train/test boundaries) is independent of embargo_bars;
+        only training composition changes.
     """
+    if train_bars <= 0 or test_bars <= 0 or purge_bars < 0 or embargo_bars < 0:
+        raise ValueError(
+            "train_bars and test_bars must be > 0; purge_bars and "
+            "embargo_bars must be >= 0"
+        )
+
     n = len(equity_curve)
     if n < train_bars + purge_bars + test_bars:
         return WalkForwardResult(total_windows=0)
@@ -167,6 +240,7 @@ def purged_walk_forward(
     windows = []
     window_id = 0
     start = 0
+    embargo_zones: List[Tuple[int, int]] = []
 
     while True:
         if anchored:
@@ -185,17 +259,33 @@ def purged_walk_forward(
             break
 
         # Compute returns for train and test periods
-        train_equity = equity_curve[train_start:train_end]
+        if embargo_bars > 0:
+            train_indices = _exclude_embargo_zones(
+                train_start, train_end, embargo_zones
+            )
+            train_segments = _contiguous_segments(train_indices, equity_curve)
+        else:
+            train_indices = list(range(train_start, train_end))
+            train_segments = [equity_curve[train_start:train_end]]
         test_equity = equity_curve[test_start:test_end]
 
-        train_returns = _compute_returns(train_equity)
+        train_returns = _returns_from_segments(train_segments)
         test_returns = _compute_returns(test_equity)
 
         # Compute metrics
         is_sharpe = _compute_sharpe(train_returns)
         oos_sharpe = _compute_sharpe(test_returns)
+
+        def _total_return(segment_equity: List[float]) -> float:
+            if len(segment_equity) < 2 or segment_equity[0] <= 0:
+                return 0.0
+            compounded = 1.0
+            for i in range(1, len(segment_equity)):
+                compounded *= segment_equity[i] / segment_equity[i - 1]
+            return compounded - 1.0
+
         is_return = (
-            (train_equity[-1] / train_equity[0] - 1) if train_equity[0] > 0 else 0.0
+            _total_return(train_segments[0]) if len(train_segments) == 1 else 0.0
         )
         oos_return = (
             (test_equity[-1] / test_equity[0] - 1) if test_equity[0] > 0 else 0.0
@@ -212,8 +302,12 @@ def purged_walk_forward(
                 out_of_sample_sharpe=oos_sharpe,
                 in_sample_return=is_return,
                 out_of_sample_return=oos_return,
+                train_indices=tuple(train_indices),
             )
         )
+
+        if embargo_bars > 0:
+            embargo_zones.append((test_end, test_end + embargo_bars))
 
         window_id += 1
         start += test_bars  # Slide forward
@@ -251,4 +345,6 @@ def purged_walk_forward(
         total_windows=len(windows),
         oos_return_mean=mean_oos_ret,
         oos_return_std=std_oos_ret,
+        purge_bars=purge_bars,
+        embargo_bars=embargo_bars,
     )

@@ -46,12 +46,14 @@ UNIVERSE = [
     "XAUUSDm", "US500m", "USTECm", "USOILm",
 ]
 
-CROSS_ASSET_PAIRS = {
-    "US500m": "EURUSDm",
-    "USTECm": "EURUSDm",
-    "US500m": "XAUUSDm",
-    "USOILm": "USDJPYm",
-}
+# (leader, follower) pairs — US500 legitimately leads two followers,
+# which a follower-keyed dict cannot express without silent overwrite.
+CROSS_ASSET_PAIRS = [
+    ("US500m", "EURUSDm"),
+    ("USTECm", "EURUSDm"),
+    ("US500m", "XAUUSDm"),
+    ("USOILm", "USDJPYm"),
+]
 
 SESSION_BOUNDS_UTC = {
     "asian":       (0, 7),

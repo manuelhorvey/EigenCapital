@@ -95,6 +95,7 @@ class FingerprintVerifier:
         self._frozen_live_risk_fp = self._live_risk.compute_fingerprint()
         self._frozen_config_fp = self._compute_config_fingerprint()
         self._verification_log: List[Dict[str, Any]] = []
+        self._max_log_entries = 100  # Bounded retention
 
     def _compute_risk_fingerprint(self) -> str:
         """Compute deterministic fingerprint of RiskPolicy."""
@@ -217,6 +218,9 @@ class FingerprintVerifier:
         )
 
         self._verification_log.append(result.to_dict())
+        # Bounded retention
+        if len(self._verification_log) > self._max_log_entries:
+            self._verification_log = self._verification_log[-self._max_log_entries:]
         return result
 
     @property

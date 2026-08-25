@@ -93,12 +93,13 @@ class RiskEnforcer:
     Returns PASS or BLOCK with exact reason.
     """
 
-    def __init__(self, envelope: Optional[RiskEnvelope] = None) -> None:
+    def __init__(self, envelope: Optional[RiskEnvelope] = None, *, max_audit_entries: int = 1000) -> None:
         self._envelope = envelope or RiskEnvelope()
         self._t0_equity = self._envelope.t0_equity
         self._peak_equity = self._t0_equity
         self._daily_pnl_start = 0.0
         self._audit_log: List[Dict[str, Any]] = []
+        self._max_audit_entries = max_audit_entries
 
     def check_all(
         self,
@@ -389,7 +390,7 @@ class RiskEnforcer:
         self._daily_pnl_start = equity
 
     def audit(self, results: List[RiskGateResult]) -> None:
-        """Record gate results to audit log."""
+        """Record gate results to audit log with bounded retention."""
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "gates": [r.to_dict() for r in results],
@@ -397,6 +398,9 @@ class RiskEnforcer:
             "any_critical": any(r.result == GateResult.CRITICAL for r in results),
         }
         self._audit_log.append(entry)
+        # Bounded retention: keep only recent entries
+        if len(self._audit_log) > self._max_audit_entries:
+            self._audit_log = self._audit_log[-self._max_audit_entries:]
 
     def get_audit_log(self) -> List[Dict[str, Any]]:
         return list(self._audit_log)

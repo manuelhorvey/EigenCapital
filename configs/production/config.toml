@@ -105,9 +105,32 @@ signal_lookback_short = 63       # 3 months
 signal_lookback_long = 252       # 12 months
 rebalance_frequency = "weekly"   # Rebalance cadence
 
+# R4-specific signal parameters
+skip_months = 1                  # months to skip from 12-month momentum
+vol_lookback_signal = 60         # days for vol scaling in signal
+risk_lookback = 20               # days for regime conditioning
+
 # Cost model
 transaction_cost_bps = 10.0      # 10 bps per trade
 slippage_bps = 5.0               # 5 bps slippage
+
+# Execution
+max_orders_per_cycle = 8         # max orders per rebalance cycle
+
+[live_risk]
+# Live trading risk envelope — qualification-specific limits
+# These are STRICTER than the general [risk] section
+# and are the AUTHORITATIVE source for the rebalance loop
+max_concurrent_positions = 8
+max_position_notional = 1500.0
+max_order_notional = 1500.0
+max_per_position_loss_pct = 0.10
+max_account_drawdown_pct = 0.10
+max_daily_loss = 250.0
+min_equity = 4000.0
+require_sl_on_positions = false  # R4 uses signal-based exits
+
+t0_equity = 5010.94              # from T=0 snapshot
 
 [health]
 # Health monitoring

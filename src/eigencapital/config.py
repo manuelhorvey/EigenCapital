@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import os
 import tomllib
 from dataclasses import dataclass, field
@@ -128,6 +129,10 @@ class StrategyConfig:
     rebalance_frequency: str = "weekly"
     transaction_cost_bps: float = 10.0
     slippage_bps: float = 5.0
+    # R4-specific parameters (used by rebalance loop)
+    skip_months: int = 1  # months to skip from 12-month momentum
+    vol_lookback_signal: int = 60  # days for vol scaling in signal
+    risk_lookback: int = 20  # days for regime conditioning
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> StrategyConfig:
@@ -157,6 +162,7 @@ class ExecutionConfig:
     max_age_seconds: float = 60.0
     max_cumulative_slippage_bps: float = 15.0
     max_order_frequency: int = 10  # per hour
+    max_orders_per_cycle: int = 8  # max orders per rebalance cycle
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> ExecutionConfig:
@@ -180,6 +186,39 @@ class AlertConfig:
 
 
 @dataclass(frozen=True)
+class LiveRiskConfig:
+    """Live trading risk envelope — qualification-specific limits.
+
+    These are STRICTER than the general RiskConfig and are the
+    authoritative source for the live rebalance loop risk envelope.
+    """
+
+    max_concurrent_positions: int = 8
+    max_position_notional: float = 1_500.0
+    max_order_notional: float = 1_500.0
+    max_per_position_loss_pct: float = 0.10
+    max_account_drawdown_pct: float = 0.10
+    max_daily_loss: float = 250.0
+    min_equity: float = 4_000.0
+    require_sl_on_positions: bool = False
+    t0_equity: float = 5_010.94
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> LiveRiskConfig:
+        fields = {f.name for f in cls.__dataclass_fields__.values()}
+        return cls(**{k: v for k, v in d.items() if k in fields})
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+
+    def compute_fingerprint(self) -> str:
+        """Deterministic fingerprint of the live risk envelope."""
+        import hashlib
+        payload = json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+
+@dataclass(frozen=True)
 class EigenCapitalConfig:
     """Top-level configuration for EigenCapital."""
 
@@ -187,6 +226,7 @@ class EigenCapitalConfig:
     broker: BrokerConfig = field(default_factory=BrokerConfig)
     capital: CapitalConfig = field(default_factory=CapitalConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
+    live_risk: LiveRiskConfig = field(default_factory=LiveRiskConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     health: HealthConfig = field(default_factory=HealthConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
@@ -198,6 +238,7 @@ class EigenCapitalConfig:
             "broker": self.broker.__dict__,
             "capital": self.capital.__dict__,
             "risk": self.risk.__dict__,
+            "live_risk": self.live_risk.__dict__,
             "strategy": self.strategy.__dict__,
             "health": self.health.__dict__,
             "execution": self.execution.__dict__,
@@ -250,6 +291,7 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
     broker = BrokerConfig.from_dict(merged.get("broker", {}))
     capital = CapitalConfig.from_dict(merged.get("capital", {}))
     risk = RiskConfig.from_dict(merged.get("risk", {}))
+    live_risk = LiveRiskConfig.from_dict(merged.get("live_risk", {}))
     strategy = StrategyConfig.from_dict(merged.get("strategy", {}))
     health = HealthConfig.from_dict(merged.get("health", {}))
     execution = ExecutionConfig.from_dict(merged.get("execution", {}))
@@ -260,6 +302,7 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
         broker=broker,
         capital=capital,
         risk=risk,
+        live_risk=live_risk,
         strategy=strategy,
         health=health,
         execution=execution,

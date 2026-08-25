@@ -48,3 +48,18 @@ Only survivors become strategy candidates. Reject aggressively.
 | `factor/` | Data-driven risk factors and baselines |
 | `ml/` | ML signal aggregation (gated behind 1G + simplicity ladder) |
 | `alternative_data/` | Text/sentiment-derived signals |
+
+## R5 Disposition (2026-08-25)
+
+Campaign R5 (`research/campaigns/R5_SWING_BREADTH_PREREGISTRATION.md`,
+pre-registered before execution) evaluated 16 library hypotheses on the
+frozen 38-instrument D1 snapshot under family-wise correction, cumulative
+ledger N=43 and deflated-Sharpe gating.
+
+**Result: 0/16 SUPPORTED** (13 REJECTED, 3 FRAGILE). Per the campaign
+decision rule, the following are dispositioned **REJECTED** for this
+universe/sample: TREND-001..003, MOM-001/002, MR-001..003, BRK-001/002,
+VOL-001..003, SA-001/003, FACTOR-001. FRAGILE survivors (TREND-003,
+BRK-001, TREND-001) remain archived as forensic evidence only; further
+optimization prohibited without a new pre-registration adding materially
+different information content.

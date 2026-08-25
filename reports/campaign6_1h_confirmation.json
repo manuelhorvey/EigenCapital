@@ -1,0 +1,1636 @@
+{
+  "campaign": "campaign6_1h_confirmation",
+  "mechanism": "ST-001 asia->london transition continuation",
+  "final_verdict": "NOT_CONFIRMED",
+  "notes": [
+    "No horizon passes all frozen gates at 1H."
+  ],
+  "generated": "2026-08-24 23:21 UTC",
+  "bonferroni_family_size": 24,
+  "primary": [
+    {
+      "variant": "b=07,k=2",
+      "boundary": 7,
+      "lookback": 2,
+      "hp": 1,
+      "gross_sharpe": -0.0347,
+      "net_base": -0.0347,
+      "net_adverse": -0.0347,
+      "max_dd": -0.347,
+      "trades": 32622,
+      "wf_consistency": 0.8,
+      "wf_oos_sharpe": 0.2304,
+      "degradation": 0.0,
+      "permutation_p": 0.175,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.366,
+        "GBPUSDm": 0.119,
+        "USDJPYm": -0.032,
+        "AUDUSDm": -0.4101,
+        "XAUUSDm": 0.1427,
+        "US500m": -0.3178,
+        "USTECm": -0.3794,
+        "USOILm": 0.2342
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.1646,
+        "GBPUSDm": 0.0681,
+        "USDJPYm": 0.0,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.1099,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.6574
+      },
+      "year_sharpes": {
+        "2018": 0.6258,
+        "2019": 0.8296,
+        "2020": -0.2109,
+        "2021": 1.1317,
+        "2022": 0.5244,
+        "2023": 1.028,
+        "2024": 0.1617,
+        "2025": -0.0591,
+        "2026": -0.8714
+      },
+      "year_dd": {
+        "2018": -0.01,
+        "2019": -0.011,
+        "2020": -0.0225,
+        "2021": -0.0107,
+        "2022": -0.0206,
+        "2023": -0.0135,
+        "2024": -0.0154,
+        "2025": -0.0098,
+        "2026": -0.0118
+      },
+      "session_sharpes": {
+        "london": 0.8016
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=07,k=2",
+      "boundary": 7,
+      "lookback": 2,
+      "hp": 2,
+      "gross_sharpe": -0.1087,
+      "net_base": -0.1087,
+      "net_adverse": -0.1087,
+      "max_dd": -0.4129,
+      "trades": 32622,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.0402,
+      "degradation": 0.0,
+      "permutation_p": 0.34,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.1217,
+        "GBPUSDm": 0.1379,
+        "USDJPYm": 0.0418,
+        "AUDUSDm": -0.2395,
+        "XAUUSDm": 0.1996,
+        "US500m": -0.5401,
+        "USTECm": -0.6548,
+        "USOILm": 0.0642
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.1113,
+        "GBPUSDm": 0.1655,
+        "USDJPYm": 0.0374,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.3343,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.3516
+      },
+      "year_sharpes": {
+        "2018": -0.1414,
+        "2019": 0.5158,
+        "2020": 0.2409,
+        "2021": 0.6156,
+        "2022": -0.0895,
+        "2023": 0.8578,
+        "2024": -0.2474,
+        "2025": -0.6528,
+        "2026": -0.0167
+      },
+      "year_dd": {
+        "2018": -0.018,
+        "2019": -0.0164,
+        "2020": -0.0266,
+        "2021": -0.0132,
+        "2022": -0.0335,
+        "2023": -0.0166,
+        "2024": -0.0183,
+        "2025": -0.0363,
+        "2026": -0.012
+      },
+      "session_sharpes": {
+        "london": 0.2666
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=07,k=2",
+      "boundary": 7,
+      "lookback": 2,
+      "hp": 3,
+      "gross_sharpe": -0.0815,
+      "net_base": -0.0815,
+      "net_adverse": -0.0815,
+      "max_dd": -0.5539,
+      "trades": 32622,
+      "wf_consistency": 0.4,
+      "wf_oos_sharpe": 0.0403,
+      "degradation": 0.0,
+      "permutation_p": 0.365,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0493,
+        "GBPUSDm": 0.0284,
+        "USDJPYm": -0.0547,
+        "AUDUSDm": 0.053,
+        "XAUUSDm": 0.3179,
+        "US500m": -0.5228,
+        "USTECm": -0.411,
+        "USOILm": -0.112
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.064,
+        "GBPUSDm": 0.0486,
+        "USDJPYm": 0.0,
+        "AUDUSDm": 0.0806,
+        "XAUUSDm": 0.8068,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.0282,
+        "2019": -0.0175,
+        "2020": 0.3074,
+        "2021": 0.422,
+        "2022": -0.0311,
+        "2023": 0.059,
+        "2024": 0.1935,
+        "2025": -0.5324,
+        "2026": 0.1892
+      },
+      "year_dd": {
+        "2018": -0.0186,
+        "2019": -0.0305,
+        "2020": -0.031,
+        "2021": -0.016,
+        "2022": -0.0578,
+        "2023": -0.0257,
+        "2024": -0.0168,
+        "2025": -0.0499,
+        "2026": -0.015
+      },
+      "session_sharpes": {
+        "london": 0.1079
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=07,k=2",
+      "boundary": 7,
+      "lookback": 2,
+      "hp": 4,
+      "gross_sharpe": -0.0626,
+      "net_base": -0.0626,
+      "net_adverse": -0.0626,
+      "max_dd": -0.7213,
+      "trades": 32622,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": -0.0003,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.0461,
+        "GBPUSDm": -0.1278,
+        "USDJPYm": 0.0146,
+        "AUDUSDm": 0.1231,
+        "XAUUSDm": 0.0251,
+        "US500m": -0.3078,
+        "USTECm": -0.1319,
+        "USOILm": -0.0501
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0729,
+        "AUDUSDm": 0.6881,
+        "XAUUSDm": 0.239,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.9103,
+        "2019": -0.094,
+        "2020": 0.2619,
+        "2021": 0.565,
+        "2022": -0.1368,
+        "2023": 0.0609,
+        "2024": -0.6413,
+        "2025": 0.0354,
+        "2026": -0.0413
+      },
+      "year_dd": {
+        "2018": -0.0304,
+        "2019": -0.0362,
+        "2020": -0.0355,
+        "2021": -0.0189,
+        "2022": -0.0743,
+        "2023": -0.0273,
+        "2024": -0.056,
+        "2025": -0.0382,
+        "2026": -0.0241
+      },
+      "session_sharpes": {
+        "london": -0.101
+      },
+      "primary_failure": "negative_gross_alpha"
+    }
+  ],
+  "sensitivity": [
+    {
+      "variant": "b=06,k=2",
+      "boundary": 6,
+      "lookback": 2,
+      "hp": 1,
+      "gross_sharpe": 0.0663,
+      "net_base": 0.0663,
+      "net_adverse": 0.0663,
+      "max_dd": -0.1257,
+      "trades": 32598,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.246,
+      "degradation": 0.0,
+      "permutation_p": 0.4,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0414,
+        "GBPUSDm": 0.0688,
+        "USDJPYm": 0.1602,
+        "AUDUSDm": -0.3609,
+        "XAUUSDm": 0.3195,
+        "US500m": -0.2955,
+        "USTECm": -0.067,
+        "USOILm": 0.6638
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0093,
+        "GBPUSDm": 0.0194,
+        "USDJPYm": 0.0406,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.1262,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.8046
+      },
+      "year_sharpes": {
+        "2018": -2.0818,
+        "2019": -1.1532,
+        "2020": -0.3199,
+        "2021": -0.1223,
+        "2022": 1.2063,
+        "2023": 0.5589,
+        "2024": 0.8573,
+        "2025": -0.7403,
+        "2026": 0.6981
+      },
+      "year_dd": {
+        "2018": -0.0203,
+        "2019": -0.0266,
+        "2020": -0.0307,
+        "2021": -0.0145,
+        "2022": -0.0115,
+        "2023": -0.0108,
+        "2024": -0.0095,
+        "2025": -0.0237,
+        "2026": -0.0094
+      },
+      "session_sharpes": {
+        "london": 0.0906
+      },
+      "primary_failure": "permutation_insignificant"
+    },
+    {
+      "variant": "b=06,k=2",
+      "boundary": 6,
+      "lookback": 2,
+      "hp": 2,
+      "gross_sharpe": 0.0672,
+      "net_base": 0.0672,
+      "net_adverse": 0.0672,
+      "max_dd": -0.3307,
+      "trades": 32598,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.0745,
+      "degradation": 0.0,
+      "permutation_p": 0.49,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "catastrophic_dd",
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.011,
+        "GBPUSDm": -0.0498,
+        "USDJPYm": 0.1067,
+        "AUDUSDm": -0.0583,
+        "XAUUSDm": 0.2719,
+        "US500m": -0.0731,
+        "USTECm": -0.0369,
+        "USOILm": 0.3661
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0039,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0388,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.1742,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.7831
+      },
+      "year_sharpes": {
+        "2018": -1.0838,
+        "2019": -0.2942,
+        "2020": -0.0411,
+        "2021": 0.3521,
+        "2022": 0.1156,
+        "2023": 0.0609,
+        "2024": 1.0066,
+        "2025": -0.8311,
+        "2026": 0.3553
+      },
+      "year_dd": {
+        "2018": -0.0237,
+        "2019": -0.02,
+        "2020": -0.029,
+        "2021": -0.0125,
+        "2022": -0.0321,
+        "2023": -0.0292,
+        "2024": -0.015,
+        "2025": -0.0374,
+        "2026": -0.0092
+      },
+      "session_sharpes": {
+        "london": 0.024
+      },
+      "primary_failure": "catastrophic_dd"
+    },
+    {
+      "variant": "b=06,k=2",
+      "boundary": 6,
+      "lookback": 2,
+      "hp": 3,
+      "gross_sharpe": -0.0195,
+      "net_base": -0.0195,
+      "net_adverse": -0.0195,
+      "max_dd": -0.3538,
+      "trades": 32598,
+      "wf_consistency": 0.4,
+      "wf_oos_sharpe": 0.0362,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.0117,
+        "GBPUSDm": 0.0262,
+        "USDJPYm": 0.1842,
+        "AUDUSDm": -0.0116,
+        "XAUUSDm": 0.1938,
+        "US500m": -0.4333,
+        "USTECm": -0.2733,
+        "USOILm": 0.1693
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.0213,
+        "USDJPYm": 0.1236,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.2284,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.6267
+      },
+      "year_sharpes": {
+        "2018": -0.5851,
+        "2019": -0.4207,
+        "2020": -0.4036,
+        "2021": 0.3211,
+        "2022": 0.2698,
+        "2023": 0.02,
+        "2024": 0.8958,
+        "2025": -0.5608,
+        "2026": 0.1703
+      },
+      "year_dd": {
+        "2018": -0.0231,
+        "2019": -0.0243,
+        "2020": -0.0374,
+        "2021": -0.0169,
+        "2022": -0.0319,
+        "2023": -0.0377,
+        "2024": -0.0188,
+        "2025": -0.0403,
+        "2026": -0.0104
+      },
+      "session_sharpes": {
+        "london": -0.0256
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=06,k=2",
+      "boundary": 6,
+      "lookback": 2,
+      "hp": 4,
+      "gross_sharpe": -0.034,
+      "net_base": -0.034,
+      "net_adverse": -0.034,
+      "max_dd": -0.4338,
+      "trades": 32598,
+      "wf_consistency": 0.4,
+      "wf_oos_sharpe": -0.0712,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.1289,
+        "GBPUSDm": 0.1663,
+        "USDJPYm": 0.1462,
+        "AUDUSDm": 0.0121,
+        "XAUUSDm": 0.1669,
+        "US500m": -0.4654,
+        "USTECm": -0.3061,
+        "USOILm": 0.1371
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.142,
+        "USDJPYm": 0.1035,
+        "AUDUSDm": 0.0097,
+        "XAUUSDm": 0.2181,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.5267
+      },
+      "year_sharpes": {
+        "2018": -0.0606,
+        "2019": -0.8412,
+        "2020": -0.5929,
+        "2021": 0.3722,
+        "2022": 0.2517,
+        "2023": -0.4434,
+        "2024": 0.6952,
+        "2025": -0.3646,
+        "2026": -0.0286
+      },
+      "year_dd": {
+        "2018": -0.02,
+        "2019": -0.0482,
+        "2020": -0.0464,
+        "2021": -0.0198,
+        "2022": -0.036,
+        "2023": -0.0686,
+        "2024": -0.0229,
+        "2025": -0.0329,
+        "2026": -0.0139
+      },
+      "session_sharpes": {
+        "london": -0.2824
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=06,k=3",
+      "boundary": 6,
+      "lookback": 3,
+      "hp": 1,
+      "gross_sharpe": 0.2434,
+      "net_base": 0.2434,
+      "net_adverse": 0.2434,
+      "max_dd": -0.1822,
+      "trades": 32624,
+      "wf_consistency": 1.0,
+      "wf_oos_sharpe": 0.7412,
+      "degradation": 0.0,
+      "permutation_p": 0.11,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.468,
+        "GBPUSDm": 0.4717,
+        "USDJPYm": 0.2284,
+        "AUDUSDm": -0.3284,
+        "XAUUSDm": 0.6252,
+        "US500m": -0.0836,
+        "USTECm": -0.096,
+        "USOILm": 0.662
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0784,
+        "GBPUSDm": 0.0985,
+        "USDJPYm": 0.043,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.1835,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.5966
+      },
+      "year_sharpes": {
+        "2018": -0.1062,
+        "2019": -1.6418,
+        "2020": 1.1609,
+        "2021": -0.4764,
+        "2022": 1.5932,
+        "2023": 0.1536,
+        "2024": 1.1458,
+        "2025": 0.1151,
+        "2026": 1.6481
+      },
+      "year_dd": {
+        "2018": -0.0161,
+        "2019": -0.0273,
+        "2020": -0.0219,
+        "2021": -0.026,
+        "2022": -0.0152,
+        "2023": -0.0174,
+        "2024": -0.0122,
+        "2025": -0.01,
+        "2026": -0.0124
+      },
+      "session_sharpes": {
+        "london": 1.0251
+      },
+      "primary_failure": "permutation_insignificant"
+    },
+    {
+      "variant": "b=06,k=3",
+      "boundary": 6,
+      "lookback": 3,
+      "hp": 2,
+      "gross_sharpe": 0.166,
+      "net_base": 0.166,
+      "net_adverse": 0.166,
+      "max_dd": -0.4603,
+      "trades": 32624,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.2444,
+      "degradation": 0.0,
+      "permutation_p": 0.3,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "catastrophic_dd",
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.1602,
+        "GBPUSDm": 0.2798,
+        "USDJPYm": 0.1054,
+        "AUDUSDm": -0.1188,
+        "XAUUSDm": 0.4489,
+        "US500m": 0.209,
+        "USTECm": 0.0375,
+        "USOILm": 0.2063
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0521,
+        "GBPUSDm": 0.1136,
+        "USDJPYm": 0.0355,
+        "AUDUSDm": 0.0,
+        "XAUUSDm": 0.2662,
+        "US500m": 0.1024,
+        "USTECm": 0.0217,
+        "USOILm": 0.4085
+      },
+      "year_sharpes": {
+        "2018": -0.113,
+        "2019": -0.4471,
+        "2020": 0.2492,
+        "2021": -0.0434,
+        "2022": 0.225,
+        "2023": -0.2838,
+        "2024": 1.6085,
+        "2025": -0.2949,
+        "2026": 0.5684
+      },
+      "year_dd": {
+        "2018": -0.0199,
+        "2019": -0.0191,
+        "2020": -0.0221,
+        "2021": -0.0205,
+        "2022": -0.0218,
+        "2023": -0.0365,
+        "2024": -0.0113,
+        "2025": -0.0221,
+        "2026": -0.0203
+      },
+      "session_sharpes": {
+        "london": 0.3509
+      },
+      "primary_failure": "catastrophic_dd"
+    },
+    {
+      "variant": "b=06,k=3",
+      "boundary": 6,
+      "lookback": 3,
+      "hp": 3,
+      "gross_sharpe": 0.0479,
+      "net_base": 0.0479,
+      "net_adverse": 0.0479,
+      "max_dd": -0.4227,
+      "trades": 32624,
+      "wf_consistency": 0.8,
+      "wf_oos_sharpe": 0.1677,
+      "degradation": 0.0,
+      "permutation_p": 0.33,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "catastrophic_dd",
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0809,
+        "GBPUSDm": 0.2782,
+        "USDJPYm": 0.1322,
+        "AUDUSDm": 0.076,
+        "XAUUSDm": 0.272,
+        "US500m": -0.2037,
+        "USTECm": -0.2411,
+        "USOILm": -0.0114
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0695,
+        "GBPUSDm": 0.3028,
+        "USDJPYm": 0.1189,
+        "AUDUSDm": 0.0788,
+        "XAUUSDm": 0.4299,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.3597,
+        "2019": -0.5429,
+        "2020": -0.064,
+        "2021": 0.3619,
+        "2022": 0.284,
+        "2023": -0.1796,
+        "2024": 1.2871,
+        "2025": -0.5971,
+        "2026": 0.6326
+      },
+      "year_dd": {
+        "2018": -0.021,
+        "2019": -0.0275,
+        "2020": -0.0284,
+        "2021": -0.015,
+        "2022": -0.036,
+        "2023": -0.0409,
+        "2024": -0.0137,
+        "2025": -0.036,
+        "2026": -0.0166
+      },
+      "session_sharpes": {
+        "london": 0.1771
+      },
+      "primary_failure": "catastrophic_dd"
+    },
+    {
+      "variant": "b=06,k=3",
+      "boundary": 6,
+      "lookback": 3,
+      "hp": 4,
+      "gross_sharpe": 0.0537,
+      "net_base": 0.0537,
+      "net_adverse": 0.0537,
+      "max_dd": -0.4554,
+      "trades": 32624,
+      "wf_consistency": 0.4,
+      "wf_oos_sharpe": -0.006,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "regime_dependent",
+      "reasons": [
+        "catastrophic_dd",
+        "wf_inconsistent",
+        "oos_negative",
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.0702,
+        "GBPUSDm": 0.3636,
+        "USDJPYm": 0.0821,
+        "AUDUSDm": 0.0699,
+        "XAUUSDm": 0.2806,
+        "US500m": -0.1817,
+        "USTECm": -0.1722,
+        "USOILm": 0.0579
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.3064,
+        "USDJPYm": 0.0573,
+        "AUDUSDm": 0.0551,
+        "XAUUSDm": 0.3617,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.2195
+      },
+      "year_sharpes": {
+        "2018": 0.1241,
+        "2019": -0.7942,
+        "2020": -0.3532,
+        "2021": 0.2729,
+        "2022": 0.333,
+        "2023": -0.5268,
+        "2024": 0.5582,
+        "2025": -0.3913,
+        "2026": 0.4472
+      },
+      "year_dd": {
+        "2018": -0.0184,
+        "2019": -0.0447,
+        "2020": -0.0433,
+        "2021": -0.0176,
+        "2022": -0.0384,
+        "2023": -0.0717,
+        "2024": -0.0183,
+        "2025": -0.0291,
+        "2026": -0.0261
+      },
+      "session_sharpes": {
+        "london": -0.1538
+      },
+      "primary_failure": "oos_negative"
+    },
+    {
+      "variant": "b=07,k=3",
+      "boundary": 7,
+      "lookback": 3,
+      "hp": 1,
+      "gross_sharpe": -0.0244,
+      "net_base": -0.0244,
+      "net_adverse": -0.0244,
+      "max_dd": -0.3406,
+      "trades": 32630,
+      "wf_consistency": 0.4,
+      "wf_oos_sharpe": -0.0835,
+      "degradation": 0.0,
+      "permutation_p": 0.46,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0618,
+        "GBPUSDm": -0.2176,
+        "USDJPYm": 0.045,
+        "AUDUSDm": 0.3007,
+        "XAUUSDm": 0.3501,
+        "US500m": -0.2727,
+        "USTECm": -0.4216,
+        "USOILm": -0.0407
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0584,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0414,
+        "AUDUSDm": 0.3327,
+        "XAUUSDm": 0.5675,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": 1.0302,
+        "2019": 0.3892,
+        "2020": -0.1536,
+        "2021": 1.0233,
+        "2022": -0.5183,
+        "2023": 0.9242,
+        "2024": 0.2555,
+        "2025": -0.7863,
+        "2026": -1.0648
+      },
+      "year_dd": {
+        "2018": -0.0076,
+        "2019": -0.0082,
+        "2020": -0.0191,
+        "2021": -0.0073,
+        "2022": -0.0424,
+        "2023": -0.0132,
+        "2024": -0.0134,
+        "2025": -0.0168,
+        "2026": -0.015
+      },
+      "session_sharpes": {
+        "london": 0.1353
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=07,k=3",
+      "boundary": 7,
+      "lookback": 3,
+      "hp": 2,
+      "gross_sharpe": -0.091,
+      "net_base": -0.091,
+      "net_adverse": -0.091,
+      "max_dd": -0.4234,
+      "trades": 32630,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": -0.0062,
+      "degradation": 0.0,
+      "permutation_p": 0.51,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0206,
+        "GBPUSDm": -0.0876,
+        "USDJPYm": 0.0804,
+        "AUDUSDm": 0.3716,
+        "XAUUSDm": 0.1233,
+        "US500m": -0.4698,
+        "USTECm": -0.6634,
+        "USOILm": -0.1035
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0269,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.1026,
+        "AUDUSDm": 0.5757,
+        "XAUUSDm": 0.2948,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.3431,
+        "2019": -0.0149,
+        "2020": 0.2899,
+        "2021": 0.4712,
+        "2022": -0.3202,
+        "2023": 0.915,
+        "2024": -0.0927,
+        "2025": -0.8621,
+        "2026": 0.0933
+      },
+      "year_dd": {
+        "2018": -0.0161,
+        "2019": -0.0148,
+        "2020": -0.0258,
+        "2021": -0.0114,
+        "2022": -0.0481,
+        "2023": -0.0153,
+        "2024": -0.015,
+        "2025": -0.0396,
+        "2026": -0.0119
+      },
+      "session_sharpes": {
+        "london": 0.0452
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=07,k=3",
+      "boundary": 7,
+      "lookback": 3,
+      "hp": 3,
+      "gross_sharpe": -0.0524,
+      "net_base": -0.0524,
+      "net_adverse": -0.0524,
+      "max_dd": -0.4892,
+      "trades": 32630,
+      "wf_consistency": 0.2,
+      "wf_oos_sharpe": -0.0367,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.0754,
+        "GBPUSDm": -0.0634,
+        "USDJPYm": 0.0502,
+        "AUDUSDm": 0.45,
+        "XAUUSDm": 0.2524,
+        "US500m": -0.4933,
+        "USTECm": -0.4812,
+        "USOILm": -0.0583
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0461,
+        "AUDUSDm": 0.4926,
+        "XAUUSDm": 0.4613,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.1045,
+        "2019": -0.5245,
+        "2020": 0.0977,
+        "2021": 0.1211,
+        "2022": -0.3005,
+        "2023": 0.0921,
+        "2024": 0.7311,
+        "2025": -0.6232,
+        "2026": 0.0746
+      },
+      "year_dd": {
+        "2018": -0.0177,
+        "2019": -0.032,
+        "2020": -0.0271,
+        "2021": -0.0147,
+        "2022": -0.0653,
+        "2023": -0.0183,
+        "2024": -0.0148,
+        "2025": -0.0507,
+        "2026": -0.0158
+      },
+      "session_sharpes": {
+        "london": -0.1651
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=07,k=3",
+      "boundary": 7,
+      "lookback": 3,
+      "hp": 4,
+      "gross_sharpe": -0.0981,
+      "net_base": -0.0981,
+      "net_adverse": -0.0981,
+      "max_dd": -0.633,
+      "trades": 32630,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": -0.0441,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.1357,
+        "GBPUSDm": -0.1314,
+        "USDJPYm": 0.0212,
+        "AUDUSDm": 0.4637,
+        "XAUUSDm": -0.1306,
+        "US500m": -0.4815,
+        "USTECm": -0.3888,
+        "USOILm": -0.0019
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0392,
+        "AUDUSDm": 0.9608,
+        "XAUUSDm": 0.0,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.8493,
+        "2019": -0.714,
+        "2020": -0.0152,
+        "2021": 0.4023,
+        "2022": -0.4213,
+        "2023": 0.115,
+        "2024": 0.207,
+        "2025": -0.1492,
+        "2026": -0.2798
+      },
+      "year_dd": {
+        "2018": -0.0346,
+        "2019": -0.0424,
+        "2020": -0.0302,
+        "2021": -0.0121,
+        "2022": -0.0694,
+        "2023": -0.0445,
+        "2024": -0.0346,
+        "2025": -0.0443,
+        "2026": -0.0328
+      },
+      "session_sharpes": {
+        "london": -0.2973
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=2",
+      "boundary": 8,
+      "lookback": 2,
+      "hp": 1,
+      "gross_sharpe": -0.0479,
+      "net_base": -0.0479,
+      "net_adverse": -0.0479,
+      "max_dd": -0.3552,
+      "trades": 32614,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.6115,
+      "degradation": 0.0,
+      "permutation_p": 0.06,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.5999,
+        "GBPUSDm": -0.3121,
+        "USDJPYm": -0.0641,
+        "AUDUSDm": 0.5274,
+        "XAUUSDm": -0.0394,
+        "US500m": -0.2474,
+        "USTECm": -0.2905,
+        "USOILm": -0.5566
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.4784,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0,
+        "AUDUSDm": 0.5216,
+        "XAUUSDm": 0.0,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": 0.6137,
+        "2019": -0.2603,
+        "2020": -0.7461,
+        "2021": -0.6041,
+        "2022": 2.681,
+        "2023": 1.9986,
+        "2024": -0.2285,
+        "2025": -0.0057,
+        "2026": 0.7692
+      },
+      "year_dd": {
+        "2018": -0.0095,
+        "2019": -0.011,
+        "2020": -0.0237,
+        "2021": -0.0178,
+        "2022": -0.0077,
+        "2023": -0.0114,
+        "2024": -0.0126,
+        "2025": -0.0153,
+        "2026": -0.0083
+      },
+      "session_sharpes": {
+        "london": 1.3141
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=2",
+      "boundary": 8,
+      "lookback": 2,
+      "hp": 2,
+      "gross_sharpe": -0.0288,
+      "net_base": -0.0288,
+      "net_adverse": -0.0288,
+      "max_dd": -0.4234,
+      "trades": 32614,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.0354,
+      "degradation": 0.0,
+      "permutation_p": 0.36,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0636,
+        "GBPUSDm": -0.2525,
+        "USDJPYm": 0.0491,
+        "AUDUSDm": 0.3461,
+        "XAUUSDm": 0.2437,
+        "US500m": -0.0835,
+        "USTECm": -0.2826,
+        "USOILm": -0.3146
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0609,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0467,
+        "AUDUSDm": 0.3989,
+        "XAUUSDm": 0.4935,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": 0.3642,
+        "2019": 0.1603,
+        "2020": -0.0839,
+        "2021": -0.475,
+        "2022": 0.554,
+        "2023": -0.1576,
+        "2024": -0.2886,
+        "2025": -0.0022,
+        "2026": 0.5334
+      },
+      "year_dd": {
+        "2018": -0.0106,
+        "2019": -0.0092,
+        "2020": -0.0244,
+        "2021": -0.0263,
+        "2022": -0.0221,
+        "2023": -0.0287,
+        "2024": -0.0181,
+        "2025": -0.0288,
+        "2026": -0.0065
+      },
+      "session_sharpes": {
+        "london": 0.1393
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=2",
+      "boundary": 8,
+      "lookback": 2,
+      "hp": 3,
+      "gross_sharpe": -0.0162,
+      "net_base": -0.0162,
+      "net_adverse": -0.0162,
+      "max_dd": -0.4368,
+      "trades": 32614,
+      "wf_consistency": 0.8,
+      "wf_oos_sharpe": 0.2197,
+      "degradation": 0.0,
+      "permutation_p": 0.21,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.1741,
+        "GBPUSDm": -0.051,
+        "USDJPYm": 0.1239,
+        "AUDUSDm": 0.3337,
+        "XAUUSDm": -0.1349,
+        "US500m": -0.2263,
+        "USTECm": -0.297,
+        "USOILm": -0.052
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.2389,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.1901,
+        "AUDUSDm": 0.5709,
+        "XAUUSDm": 0.0,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.4081,
+        "2019": 0.1724,
+        "2020": 0.3104,
+        "2021": -0.3529,
+        "2022": 0.4788,
+        "2023": -0.2859,
+        "2024": 0.0816,
+        "2025": 0.5514,
+        "2026": 0.6407
+      },
+      "year_dd": {
+        "2018": -0.0194,
+        "2019": -0.0171,
+        "2020": -0.027,
+        "2021": -0.0386,
+        "2022": -0.0328,
+        "2023": -0.0555,
+        "2024": -0.027,
+        "2025": -0.0222,
+        "2026": -0.0138
+      },
+      "session_sharpes": {
+        "london": 0.3814
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=2",
+      "boundary": 8,
+      "lookback": 2,
+      "hp": 4,
+      "gross_sharpe": 0.1107,
+      "net_base": 0.1107,
+      "net_adverse": 0.1107,
+      "max_dd": -0.4566,
+      "trades": 32614,
+      "wf_consistency": 0.8,
+      "wf_oos_sharpe": 0.2857,
+      "degradation": 0.0,
+      "permutation_p": 0.08,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "catastrophic_dd",
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.2477,
+        "GBPUSDm": 0.1202,
+        "USDJPYm": 0.2542,
+        "AUDUSDm": 0.2676,
+        "XAUUSDm": 0.1167,
+        "US500m": 0.0023,
+        "USTECm": -0.1124,
+        "USOILm": -0.0105
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.1929,
+        "GBPUSDm": 0.1136,
+        "USDJPYm": 0.2246,
+        "AUDUSDm": 0.2633,
+        "XAUUSDm": 0.2024,
+        "US500m": 0.0032,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": 0.4048,
+        "2019": 0.2184,
+        "2020": 0.321,
+        "2021": -0.2349,
+        "2022": 0.4145,
+        "2023": -0.1908,
+        "2024": 0.3575,
+        "2025": 0.3759,
+        "2026": 0.8648
+      },
+      "year_dd": {
+        "2018": -0.0175,
+        "2019": -0.0194,
+        "2020": -0.0394,
+        "2021": -0.0362,
+        "2022": -0.0555,
+        "2023": -0.0646,
+        "2024": -0.0285,
+        "2025": -0.0287,
+        "2026": -0.0157
+      },
+      "session_sharpes": {
+        "london": 0.5426
+      },
+      "primary_failure": "catastrophic_dd"
+    },
+    {
+      "variant": "b=08,k=3",
+      "boundary": 8,
+      "lookback": 3,
+      "hp": 1,
+      "gross_sharpe": -0.1476,
+      "net_base": -0.1476,
+      "net_adverse": -0.1476,
+      "max_dd": -0.3206,
+      "trades": 32652,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.3256,
+      "degradation": 0.0,
+      "permutation_p": 0.19,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.2544,
+        "GBPUSDm": -0.1371,
+        "USDJPYm": 0.0174,
+        "AUDUSDm": 0.2043,
+        "XAUUSDm": -0.1662,
+        "US500m": -0.3086,
+        "USTECm": -0.5751,
+        "USOILm": -0.4702
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.4844,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.0324,
+        "AUDUSDm": 0.4832,
+        "XAUUSDm": 0.0,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": 0.1707,
+        "2019": -0.8886,
+        "2020": -0.9382,
+        "2021": -0.8487,
+        "2022": 2.0683,
+        "2023": 1.7265,
+        "2024": -0.9729,
+        "2025": 0.1615,
+        "2026": 0.2639
+      },
+      "year_dd": {
+        "2018": -0.0142,
+        "2019": -0.0148,
+        "2020": -0.0275,
+        "2021": -0.0189,
+        "2022": -0.0089,
+        "2023": -0.0113,
+        "2024": -0.0139,
+        "2025": -0.0148,
+        "2026": -0.0077
+      },
+      "session_sharpes": {
+        "london": 0.5571
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=3",
+      "boundary": 8,
+      "lookback": 3,
+      "hp": 2,
+      "gross_sharpe": -0.0567,
+      "net_base": -0.0567,
+      "net_adverse": -0.0567,
+      "max_dd": -0.4191,
+      "trades": 32652,
+      "wf_consistency": 0.4,
+      "wf_oos_sharpe": -0.0465,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.0537,
+        "GBPUSDm": -0.0963,
+        "USDJPYm": 0.1431,
+        "AUDUSDm": 0.2789,
+        "XAUUSDm": 0.3248,
+        "US500m": -0.4343,
+        "USTECm": -0.3133,
+        "USOILm": -0.303
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.0,
+        "USDJPYm": 0.1223,
+        "AUDUSDm": 0.2888,
+        "XAUUSDm": 0.5889,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.3641,
+        "2019": -0.0082,
+        "2020": -0.5004,
+        "2021": 0.1062,
+        "2022": 0.4942,
+        "2023": -0.3245,
+        "2024": -0.7187,
+        "2025": 0.1129,
+        "2026": 0.5072
+      },
+      "year_dd": {
+        "2018": -0.0166,
+        "2019": -0.0094,
+        "2020": -0.0394,
+        "2021": -0.0155,
+        "2022": -0.0168,
+        "2023": -0.0197,
+        "2024": -0.0218,
+        "2025": -0.0298,
+        "2026": -0.0087
+      },
+      "session_sharpes": {
+        "london": -0.1175
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=3",
+      "boundary": 8,
+      "lookback": 3,
+      "hp": 3,
+      "gross_sharpe": -0.0679,
+      "net_base": -0.0679,
+      "net_adverse": -0.0679,
+      "max_dd": -0.5409,
+      "trades": 32652,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.0759,
+      "degradation": 0.0,
+      "permutation_p": 1.0,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "rejected",
+      "reasons": [
+        "negative_gross"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": -0.0081,
+        "GBPUSDm": 0.0189,
+        "USDJPYm": 0.1741,
+        "AUDUSDm": 0.1747,
+        "XAUUSDm": -0.197,
+        "US500m": -0.3813,
+        "USTECm": -0.2109,
+        "USOILm": -0.1138
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0,
+        "GBPUSDm": 0.053,
+        "USDJPYm": 0.4465,
+        "AUDUSDm": 0.5005,
+        "XAUUSDm": 0.0,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -1.6292,
+        "2019": -0.0358,
+        "2020": -0.1581,
+        "2021": 0.5844,
+        "2022": 0.0939,
+        "2023": -0.2722,
+        "2024": 0.1043,
+        "2025": 0.1959,
+        "2026": 0.3214
+      },
+      "year_dd": {
+        "2018": -0.0363,
+        "2019": -0.0163,
+        "2020": -0.0399,
+        "2021": -0.0243,
+        "2022": -0.029,
+        "2023": -0.0381,
+        "2024": -0.0282,
+        "2025": -0.0251,
+        "2026": -0.0138
+      },
+      "session_sharpes": {
+        "london": -0.0177
+      },
+      "primary_failure": "negative_gross_alpha"
+    },
+    {
+      "variant": "b=08,k=3",
+      "boundary": 8,
+      "lookback": 3,
+      "hp": 4,
+      "gross_sharpe": 0.0059,
+      "net_base": 0.0059,
+      "net_adverse": 0.0059,
+      "max_dd": -0.5328,
+      "trades": 32652,
+      "wf_consistency": 0.6,
+      "wf_oos_sharpe": 0.0865,
+      "degradation": 0.0,
+      "permutation_p": 0.48,
+      "permutation_p_bonferroni": 1.0,
+      "verdict": "fragile",
+      "reasons": [
+        "catastrophic_dd",
+        "permutation_insignificant"
+      ],
+      "sym_sharpes": {
+        "EURUSDm": 0.0167,
+        "GBPUSDm": 0.0984,
+        "USDJPYm": 0.1208,
+        "AUDUSDm": 0.2238,
+        "XAUUSDm": 0.1904,
+        "US500m": -0.3239,
+        "USTECm": -0.2049,
+        "USOILm": -0.0739
+      },
+      "sym_pnl_share": {
+        "EURUSDm": 0.0171,
+        "GBPUSDm": 0.1218,
+        "USDJPYm": 0.14,
+        "AUDUSDm": 0.2889,
+        "XAUUSDm": 0.4323,
+        "US500m": 0.0,
+        "USTECm": 0.0,
+        "USOILm": 0.0
+      },
+      "year_sharpes": {
+        "2018": -0.675,
+        "2019": -0.1659,
+        "2020": 0.023,
+        "2021": 0.6559,
+        "2022": 0.0209,
+        "2023": -0.0656,
+        "2024": 0.2152,
+        "2025": -0.2,
+        "2026": 0.0909
+      },
+      "year_dd": {
+        "2018": -0.0289,
+        "2019": -0.0247,
+        "2020": -0.0511,
+        "2021": -0.0289,
+        "2022": -0.0632,
+        "2023": -0.0505,
+        "2024": -0.0377,
+        "2025": -0.0459,
+        "2026": -0.0201
+      },
+      "session_sharpes": {
+        "london": 0.0366
+      },
+      "primary_failure": "catastrophic_dd"
+    }
+  ],
+  "cross_instrument_correlation": {
+    "AUDUSDm|EURUSDm": 0.2623,
+    "AUDUSDm|GBPUSDm": 0.2389,
+    "AUDUSDm|US500m": 0.1548,
+    "AUDUSDm|USDJPYm": 0.1653,
+    "AUDUSDm|USOILm": 0.0562,
+    "AUDUSDm|USTECm": 0.1528,
+    "AUDUSDm|XAUUSDm": 0.194,
+    "EURUSDm|GBPUSDm": 0.2559,
+    "EURUSDm|US500m": 0.0849,
+    "EURUSDm|USDJPYm": 0.1388,
+    "EURUSDm|USOILm": -0.0123,
+    "EURUSDm|USTECm": 0.0635,
+    "EURUSDm|XAUUSDm": 0.0585,
+    "GBPUSDm|US500m": 0.0891,
+    "GBPUSDm|USDJPYm": 0.0695,
+    "GBPUSDm|USOILm": 0.0481,
+    "GBPUSDm|USTECm": 0.1164,
+    "GBPUSDm|XAUUSDm": 0.0819,
+    "US500m|USDJPYm": 0.0689,
+    "US500m|USOILm": 0.0659,
+    "US500m|USTECm": 0.8044,
+    "US500m|XAUUSDm": 0.0883,
+    "USDJPYm|USOILm": 0.0033,
+    "USDJPYm|USTECm": 0.0694,
+    "USDJPYm|XAUUSDm": 0.0448,
+    "USOILm|USTECm": 0.0333,
+    "USOILm|XAUUSDm": -0.0117,
+    "USTECm|XAUUSDm": 0.0825
+  }
+}

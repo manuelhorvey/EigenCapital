@@ -71,3 +71,7 @@ last_health.json
 .env.local
 *.bak
 *.tmp
+
+# Dev-only scripts (not production)
+scripts/list_symbols.py
+scripts/test_order_submission.py

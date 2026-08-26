@@ -69,8 +69,8 @@ class CapitalTier:
 
 
 TIER_1_QUALIFICATION = CapitalTier(
-    tier_id="T1-QUALIFICATION", max_equity=5_100.0, max_position_size=1_500.0,
-    max_order_notional=1_500.0, max_concurrent_positions=8, max_daily_loss=250.0,
+    tier_id="T1-QUALIFICATION", max_equity=5_100.0, max_position_size=2_500.0,
+    max_order_notional=2_500.0, max_concurrent_positions=19, max_daily_loss=250.0,
     max_drawdown_pct=20.0, max_total_drawdown=1_000.0,
 )
 

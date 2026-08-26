@@ -47,19 +47,19 @@ class BrokerConfig:
     min_volume: float = 0.01
     max_volume: float = 1.0
     allowed_symbols: Dict[str, str] = field(default_factory=lambda: {
-        "US30": "indices_excluded", "AUDJPY": "forex_excluded",
+        "US30": "indices", "AUDJPY": "forex_excluded",
         "AUDUSD": "forex", "AUDCHF": "forex", "AUDCAD": "forex",
         "NZDJPY": "forex_excluded", "GBPJPY": "forex_excluded",
         "AUDNZD": "forex", "NZDUSD": "forex", "NZDCHF": "forex",
         "NZDCAD": "forex", "GBPUSD": "forex", "GBPCHF": "forex",
-        "GBPCAD": "forex_excluded", "CHFJPY": "forex_excluded",
+        "GBPCAD": "forex", "CHFJPY": "forex_excluded",
         "EURJPY": "forex_excluded", "USDJPY": "forex_excluded",
-        "CADJPY": "forex_excluded", "XAUUSD": "metals_excluded",
+        "CADJPY": "forex_excluded", "XAUUSD": "metals",
         "EURUSD": "forex", "EURCHF": "forex", "USDCHF": "forex",
-        "EURCAD": "forex_excluded", "USDCAD": "forex", "CADCHF": "forex",
-        "GBPNZD": "forex_excluded", "EURGBP": "forex",
-        "EURNZD": "forex_excluded", "GBPAUD": "forex_excluded",
-        "EURAUD": "forex_excluded", "BTCUSD": "crypto",
+        "EURCAD": "forex", "USDCAD": "forex", "CADCHF": "forex",
+        "GBPNZD": "forex", "EURGBP": "forex",
+        "EURNZD": "forex", "GBPAUD": "forex",
+        "EURAUD": "forex", "BTCUSD": "crypto",
     })
 
     @classmethod
@@ -76,9 +76,9 @@ class CapitalConfig:
     max_drawdown_pct: float = 20.0
     max_daily_loss: float = 250.0
     max_total_drawdown: float = 1000.0
-    max_position_size: float = 1500.0
-    max_order_notional: float = 1500.0
-    max_concurrent_positions: int = 8
+    max_position_size: float = 5000.0
+    max_order_notional: float = 5000.0
+    max_concurrent_positions: int = 19
     campaign_duration_days: int = 30
     max_spread: float = 0.0015
     max_slippage: float = 0.0008
@@ -193,9 +193,9 @@ class LiveRiskConfig:
     authoritative source for the live rebalance loop risk envelope.
     """
 
-    max_concurrent_positions: int = 8
-    max_position_notional: float = 1_500.0
-    max_order_notional: float = 1_500.0
+    max_concurrent_positions: int = 19
+    max_position_notional: float = 2_500.0
+    max_order_notional: float = 2_500.0
     max_per_position_loss_pct: float = 0.10
     max_account_drawdown_pct: float = 0.10
     max_daily_loss: float = 250.0

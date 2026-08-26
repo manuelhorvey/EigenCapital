@@ -53,7 +53,7 @@ def config():
 @pytest.fixture
 def envelope():
     return RiskEnvelope(
-        max_concurrent_positions=8, max_position_notional=1500.0,
+        max_concurrent_positions=19, max_position_notional=5000.0,
         max_order_notional=1500.0, max_per_position_loss_pct=0.10,
         max_account_drawdown_pct=0.10, max_daily_loss=250.0,
         min_equity=4000.0, require_sl_on_positions=False, t0_equity=5010.94,

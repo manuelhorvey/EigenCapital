@@ -39,8 +39,8 @@ from eigencapital.live.risk_enforcement import (
 def envelope():
     """Standard $5K MINIMAL envelope."""
     return RiskEnvelope(
-        max_concurrent_positions=8,
-        max_position_notional=1_500.0,
+        max_concurrent_positions=19,
+        max_position_notional=5_000.0,
         max_order_notional=1_500.0,
         max_per_position_loss_pct=0.10,
         max_account_drawdown_pct=0.10,
@@ -75,8 +75,8 @@ def _make_position(symbol="EURUSD", volume=0.01, sl=0.0, tp=0.0, profit=0.0, pty
 def _envelope(**kwargs):
     """Create a RiskEnvelope with overrides (avoids frozen dataclass mutation)."""
     defaults = dict(
-        max_concurrent_positions=8,
-        max_position_notional=1_500.0,
+        max_concurrent_positions=19,
+        max_position_notional=5_000.0,
         max_order_notional=1_500.0,
         max_per_position_loss_pct=0.10,
         max_account_drawdown_pct=0.10,

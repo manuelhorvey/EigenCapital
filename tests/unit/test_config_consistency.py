@@ -42,7 +42,7 @@ class TestConfigLoading:
         config = load_config("production")
         lr = config.live_risk
         assert lr.max_concurrent_positions == 8
-        assert lr.max_position_notional == 1500.0
+        assert lr.max_position_notional == 2500.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
         assert lr.t0_equity == 5010.94
@@ -103,7 +103,7 @@ class TestConfigVsScriptConsistency:
         config = load_config("production")
         lr = config.live_risk
         assert lr.max_concurrent_positions == 8
-        assert lr.max_position_notional == 1500.0
+        assert lr.max_position_notional == 2500.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
         assert lr.t0_equity == 5010.94
@@ -112,7 +112,7 @@ class TestConfigVsScriptConsistency:
         """Capital limits must match config."""
         config = load_config("production")
         assert config.capital.max_equity == 5100.0
-        assert config.capital.max_position_size == 1500.0
+        assert config.capital.max_position_size == 5000.0
         assert config.capital.max_concurrent_positions == 8
 
     def test_no_discrepancy_between_live_risk_and_capital(self):

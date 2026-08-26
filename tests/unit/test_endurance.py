@@ -36,8 +36,8 @@ from eigencapital.risk.policy import RiskPolicy
 
 def _make_enforcer():
     envelope = RiskEnvelope(
-        max_concurrent_positions=8,
-        max_position_notional=1500.0,
+        max_concurrent_positions=19,
+        max_position_notional=5000.0,
         max_order_notional=1500.0,
         max_account_drawdown_pct=20.0,
         max_daily_loss=250.0,

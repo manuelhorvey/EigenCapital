@@ -23,7 +23,7 @@ max_volume = 1.0          # Maximum lot size
 # Excluded = min lot exceeds $1,500 (mostly JPY crosses due to 100K contract × JPY rate)
 [broker.allowed_symbols]
 
-US30 = "indices_excluded"  # min lot $2,675
+US30 = "indices"          # min lot $2,675 (fits $5K cap)
 AUDJPY = "forex_excluded"  # min lot $114K (JPY)
 AUDUSD = "forex"          # min lot $716
 AUDCHF = "forex"          # min lot $574
@@ -36,24 +36,24 @@ NZDCHF = "forex"          # min lot $479
 NZDCAD = "forex"          # min lot $826
 GBPUSD = "forex"          # min lot $1,363
 GBPCHF = "forex"          # min lot $1,094
-GBPCAD = "forex_excluded"  # min lot $1,886
+GBPCAD = "forex"          # min lot $1,886 (fits $2,500 cap)
 CHFJPY = "forex_excluded"  # min lot $198K (JPY)
 EURJPY = "forex_excluded"  # min lot $186K (JPY)
 
 USDJPY = "forex_excluded"  # min lot $159K (JPY)
 CADJPY = "forex_excluded"  # min lot $115K (JPY)
-XAUUSD = "metals_excluded"  # min lot $4,627
+XAUUSD = "metals"         # min lot $4,627 (fits $5K cap)
 EURUSD = "forex"          # min lot $1,167
 EURCHF = "forex"          # min lot $937
 USDCHF = "forex"          # min lot $803
-EURCAD = "forex_excluded"  # min lot $1,615
+EURCAD = "forex"          # min lot $1,615 (fits $2,500 cap)
 USDCAD = "forex"          # min lot $1,384
 CADCHF = "forex"          # min lot $580
-GBPNZD = "forex_excluded"  # min lot $2,284
+GBPNZD = "forex"          # min lot $2,284 (fits $5K cap)
 EURGBP = "forex"          # min lot $856
-EURNZD = "forex_excluded"  # min lot $1,955
-GBPAUD = "forex_excluded"  # min lot $1,905
-EURAUD = "forex_excluded"  # min lot $1,631
+EURNZD = "forex"          # min lot $1,955 (fits $2,500 cap)
+GBPAUD = "forex"          # min lot $1,905 (fits $2,500 cap)
+EURAUD = "forex"          # min lot $1,631 (fits $2,500 cap)
 BTCUSD = "crypto"         # min lot $792
 
 [capital]
@@ -65,9 +65,9 @@ max_equity = 5100.0              # Maximum authorized equity ($5K + 2% buffer fo
 max_drawdown_pct = 20.0          # 20% max campaign drawdown
 max_daily_loss = 250.0           # $250 max daily loss
 max_total_drawdown = 1000.0      # $1,000 max total drawdown
-max_position_size = 1500.0       # $1,500 max position (30% equity; fits min lot of all tradeable instruments)
-max_order_notional = 1500.0      # $1,500 max order (must fit min lot: largest tradeable is GBPUSD at $1,364)
-max_concurrent_positions = 8     # Maximum open positions
+max_position_size = 5000.0       # $5,000 max position (fits XAUUSD $4,627 + US30 $2,687)
+max_order_notional = 5000.0      # $5,000 max order
+max_concurrent_positions = 19    # Maximum open positions (24 tradeable at $5K cap)
 campaign_duration_days = 30      # 30-day qualification window
 max_spread = 0.0015              # Spread limit for capital checks (forex)
 max_slippage = 0.0008            # Slippage limit for capital checks
@@ -121,9 +121,9 @@ max_orders_per_cycle = 8         # max orders per rebalance cycle
 # Live trading risk envelope — qualification-specific limits
 # These are STRICTER than the general [risk] section
 # and are the AUTHORITATIVE source for the rebalance loop
-max_concurrent_positions = 8
-max_position_notional = 1500.0
-max_order_notional = 1500.0
+max_concurrent_positions = 19
+max_position_notional = 2500.0
+max_order_notional = 2500.0
 max_per_position_loss_pct = 0.10
 max_account_drawdown_pct = 0.10
 max_daily_loss = 250.0

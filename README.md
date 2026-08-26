@@ -6,12 +6,16 @@ Asset-agnostic quantitative research and execution platform.
 [![Tests](https://img.shields.io/badge/tests-2%2C301%20passing-brightgreen)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> **Status: 🟢 LIVE — CONTROLLED $5K QUALIFICATION**
+> **Phase 1: 🟢 COMPLETE — Production Hardening & Safety Qualification**
+> **Phase 2: 🟡 ACTIVE — Live Economic Validation & Capacity Discovery**
+> **Phase 3: 🔒 LOCKED — Capital Scaling (requires Phase 2 evidence gates)**
 >
 > EigenCapital is running live against a real MT5 broker under explicit safety
 > controls. The frozen R4 strategy is generating real trade evidence. No strategy
-> modifications, parameter tuning, or capital promotion is permitted until the
-> evidence window is complete.
+> modifications, parameter tuning, or capital promotion is permitted until
+> Phase 2 evidence gates are satisfied.
+>
+> See [`docs/production/PHASE_STATUS.md`](docs/production/PHASE_STATUS.md) for details.
 
 ## What EigenCapital Does
 

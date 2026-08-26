@@ -60,7 +60,7 @@ class TestPositionCountEnforcement:
 
     def test_zero_positions_always_pass_count_gate(self):
         """Zero positions should never violate position count."""
-        envelope = RiskEnvelope(max_concurrent_positions=8, t0_equity=5000.0)
+        envelope = RiskEnvelope(max_concurrent_positions=19, t0_equity=5000.0)
         enforcer = RiskEnforcer(envelope)
         passed, results = enforcer.check_all(
             broker_positions=[], account_equity=5000.0, account_free_margin=3000.0,
@@ -69,7 +69,7 @@ class TestPositionCountEnforcement:
 
     def test_positions_without_sl_are_critical(self):
         """Positions without SL must trigger position_protection CRITICAL."""
-        envelope = RiskEnvelope(max_concurrent_positions=8, t0_equity=5000.0)
+        envelope = RiskEnvelope(max_concurrent_positions=19, t0_equity=5000.0)
         enforcer = RiskEnforcer(envelope)
         positions = [{"symbol": "EURUSD", "volume": 0.01, "price": 1.1, "sl": 0.0}]
         passed, results = enforcer.check_all(

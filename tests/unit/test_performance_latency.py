@@ -25,7 +25,7 @@ class TestRiskEvaluationLatency:
     def test_risk_check_latency(self):
         from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
 
-        envelope = RiskEnvelope(max_concurrent_positions=8, max_position_notional=1500.0,
+        envelope = RiskEnvelope(max_concurrent_positions=19, max_position_notional=5000.0,
                                 max_order_notional=1500.0, max_account_drawdown_pct=20.0,
                                 max_daily_loss=250.0, min_equity=4000.0)
         enforcer = RiskEnforcer(envelope)
@@ -39,7 +39,7 @@ class TestRiskEvaluationLatency:
     def test_risk_check_with_positions_latency(self):
         from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
 
-        envelope = RiskEnvelope(max_concurrent_positions=8, max_position_notional=1500.0,
+        envelope = RiskEnvelope(max_concurrent_positions=19, max_position_notional=5000.0,
                                 max_order_notional=1500.0, max_account_drawdown_pct=20.0,
                                 max_daily_loss=250.0, min_equity=4000.0)
         enforcer = RiskEnforcer(envelope)
@@ -108,7 +108,7 @@ class TestLatencyStability:
     def test_risk_check_stable_over_10k_cycles(self):
         from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
 
-        envelope = RiskEnvelope(max_concurrent_positions=8, max_position_notional=1500.0,
+        envelope = RiskEnvelope(max_concurrent_positions=19, max_position_notional=5000.0,
                                 max_order_notional=1500.0, max_account_drawdown_pct=20.0,
                                 max_daily_loss=250.0, min_equity=4000.0)
         enforcer = RiskEnforcer(envelope)

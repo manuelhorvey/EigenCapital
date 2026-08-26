@@ -74,9 +74,9 @@ class RiskGateResult:
 @dataclass(frozen=True)
 class RiskEnvelope:
     """Hard risk limits — these are invariant, not tunable."""
-    max_concurrent_positions: int = 8
-    max_position_notional: float = 1_500.0
-    max_order_notional: float = 1_500.0
+    max_concurrent_positions: int = 19
+    max_position_notional: float = 5_000.0
+    max_order_notional: float = 5_000.0
     max_per_position_loss_pct: float = 0.10  # 10% of position notional
     max_account_drawdown_pct: float = 0.10  # 10% from T=0 equity
     max_daily_loss: float = 250.0

@@ -47,13 +47,7 @@ data/features/
 /data/
 
 # Reports & logs (runtime artifacts)
-reports/r4_loop/*.log
-reports/r4_loop/*.jsonl
-reports/r4_loop/last_*.json
-reports/r4_loop/runtime_state.json
-reports/r4_loop/supervisor.pid
-reports/r4_loop/supervisor_state.json
-reports/r4_loop/loop_health.json
+reports/r4_loop/
 reports/r4_qualification/evidence/
 reports/t0_snapshot.json
 reports/t0_snapshot.md

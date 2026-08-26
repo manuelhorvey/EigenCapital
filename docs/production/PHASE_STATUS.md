@@ -25,23 +25,25 @@ Last updated: 2026-08-26
 | $5K controlled deployment | 🟢 Active |
 | Documentation synchronization | ✅ Complete |
 
-## Phase 2: Live Economic Validation & Capacity Discovery 🟡
+## Phase 2: Live Economic Validation 🟡
 
 **Started:** 2026-08-26
 
 ### Objective
 
-> Determine whether R4's backtested economic edge survives real execution, how the edge behaves through different regimes, and how much capital the strategy can actually deploy without destroying its economics or risk profile.
+> Does R4, exactly as frozen and deployed, produce a statistically credible positive net edge in live conditions while remaining inside its risk envelope?
 
-### Workstreams
+### Sub-phases
 
-| # | Workstream | Status | Timeline |
+| # | Sub-phase | Purpose | Status |
 |---|---|---|---|
-| 1 | Live-vs-research validation | 🟡 Collecting evidence | Ongoing |
-| 2 | Entry validation | 🟡 Collecting evidence | Ongoing |
-| 3 | Exit economics | 🟡 Collecting evidence | Ongoing |
-| 4 | Risk dynamics | 🟡 Collecting evidence | Ongoing |
-| 5 | Long-duration survival | 🟡 Collecting evidence | Ongoing |
+| 2A | Execution Fidelity | Research → Paper → Live comparison | 🟡 Collecting |
+| 2B | Entry Quality | Slow edge validation | 🟡 Collecting |
+| 2C | Holding Period | Edge expression timeline | 🟡 Collecting |
+| 2D | Downside/SL Validation | Catastrophic protection behavior | 🟡 Collecting |
+| 2E | Portfolio Risk | Correlation, clusters, VaR/CVaR | 🟡 Collecting |
+| 2F | Operational Survival | Failure → detection → recovery | 🟡 Collecting |
+| 2G | Profitability | Net expectancy, Sharpe, drawdown | 🟡 Collecting |
 
 ### Workstream 1: Live-vs-Research Validation
 
@@ -133,40 +135,63 @@ The strategy needs 20-40+ days for its economics to express.
 
 ## Phase 2 Exit Criteria
 
-### Outcome A: R4 Validates → Phase 3 (Capital Scaling)
+### Minimum Evidence Gate
 
-- [ ] Positive expectancy over 30+ days
-- [ ] Expected holding period (20-40+ days) confirmed
-- [ ] Acceptable MAE (within research bounds)
-- [ ] Acceptable execution costs
-- [ ] Reliable exits
-- [ ] Risk controls work
-- [ ] No serious operational failures
+- [ ] Meaningful number of completed trades
+- [ ] Sufficient exposure across regimes
+- [ ] Sufficient holding-period observations
+- [ ] Multiple weekly/monthly cycles
+- [ ] At least one meaningful volatility transition
+- [ ] Weekend/open-gap observations
+- [ ] Execution statistics
+- [ ] Zero unresolved P0 safety incidents
+- [ ] Complete trade-level attribution
 
-### Outcome B: R4 Works but Has Weaknesses → Research Campaign
+### Economic Gate
 
-- [ ] Identify specific weakness (e.g., Q1-Q4 entries destroy expectancy)
-- [ ] Freeze live system
-- [ ] Create offline preregistered experiment
-- [ ] Walk-forward validation
-- [ ] OOS validation
-- [ ] Compare against frozen R4
-- [ ] Promotion decision
+- [ ] Live net expectancy > 0
+- [ ] Confidence intervals don't contradict research expectation
+- [ ] Expectancy/trade, expectancy/day, expectancy/month positive
+- [ ] Sharpe, Sortino, profit factor acceptable
+- [ ] Maximum drawdown within bounds
+- [ ] CVaR acceptable
+- [ ] Losing streaks within research bounds
 
-### Outcome C: Live Evidence Contradicts Research → Investigate
+### Risk Gate
 
-- [ ] Execution costs materially higher
-- [ ] Holding-period edge disappears
-- [ ] Correlations underestimated
-- [ ] Drawdowns materially worse
-- [ ] Exits behave differently
-- [ ] Catastrophic stops trigger too frequently
+- [ ] No uncontrolled DD breach
+- [ ] Daily loss controls behave correctly
+- [ ] Catastrophic protection works (rare activation)
+- [ ] No unexplained position creation
+- [ ] No foreign-position contamination
+- [ ] No reconciliation failures
+- [ ] No persistent execution anomaly
+
+### Fidelity Gate
+
+- [ ] Research and live behavior sufficiently consistent
+- [ ] Entry prices match signal expectations
+- [ ] Exit behavior matches research model
+- [ ] Holding period distribution matches research
+
+### Outcomes
+
+| Outcome | Result | Next Phase |
+|---|---|---|
+| A: R4 validates | Positive expectancy, all gates pass | Phase 3: Capital Scaling |
+| B: R4 has weaknesses | Specific issues identified | Research Improvement Campaign |
+| C: Evidence contradicts research | Major discrepancies | Investigation, no scaling |
 
 ## Governance Rules During Phase 2
 
 | Rule | Status |
 |---|---|
-| R4 strategy frozen | 🔒 LOCKED |
+| R4 signal frozen | 🔒 LOCKED |
+| R4 universe frozen | 🔒 LOCKED |
+| R4 cadence frozen | 🔒 LOCKED |
+| R4 sizing frozen | 🔒 LOCKED |
+| R4 exit logic frozen | 🔒 LOCKED |
+| R4 risk envelope frozen | 🔒 LOCKED |
 | $5K maximum tier | 🔒 LOCKED |
 | No optimization | 🔒 LOCKED |
 | No universe expansion | 🔒 LOCKED |
@@ -176,14 +201,65 @@ The strategy needs 20-40+ days for its economics to express.
 | Documentation updates | 🟢 ALLOWED |
 | Safety fixes | 🟢 ALLOWED (separately governed) |
 
+### Why Freeze Everything
+
+> Do not optimize R4 while collecting this evidence.
+> Otherwise you'll never know whether the live results came from R4 or from constant intervention.
+
+Every live trade is evidence. Create a separate **R4 Live Qualification Dataset** and treat every trade as data.
+
 ## Evidence Collection Schedule
 
 | Frequency | Collection |
 |---|---|
+| Per trade | Signal, fill, spread, slippage, latency, swap |
 | Hourly | Position snapshots, risk gate results |
-| Daily | Portfolio state, P&L attribution |
-| Weekly | Correlation analysis, stress tests |
-| Monthly | Full qualification review |
+| Daily | Portfolio state, P&L attribution, MAE/MFE |
+| Weekly | Correlation analysis, stress tests, holding period |
+| Monthly | Full qualification review, expectancy calculation |
+
+## Key Metrics to Track
+
+### Per-Trade
+- Signal timestamp, intended symbol/direction/weight
+- Requested price, fill price, spread, slippage
+- Execution latency, rejection/partial-fill status
+- Swap/financing, commissions
+- Actual exit, exit reason, realized P&L
+- MAE, MFE, holding period
+
+### Entry Quality
+- Forward return at 1h/1d/3d/5d/10d/20d
+- Time to first profit
+- Time to first -0.25R / -0.5R / -1R
+- Eventual winner/loser
+- Signal-strength percentile, regime, volatility state
+
+### Holding Period Distribution
+- <1d: Immediate edge?
+- 1-5d: Early adverse movement normal?
+- 5-10d: Position beginning to work?
+- 10-20d: Expectancy improving?
+- 20-40d: Predicted edge emerging?
+- 40d+: Majority of P&L from here?
+
+### Portfolio Risk
+- Gross/net/long/short exposure
+- FX/commodity/index exposure
+- Currency-factor exposure
+- Correlation clusters
+- Portfolio VaR/CVaR
+- Simultaneous MAE/SL losses
+- Drawdown, daily loss, margin utilization
+
+### SL Validation
+- SL hit frequency
+- Loss per SL
+- MAE before recovery
+- How many trades would have recovered
+- Portfolio-level simultaneous SLs
+- Gap-through-SL losses
+- SL contribution to total P&L
 
 ## Key Documents
 

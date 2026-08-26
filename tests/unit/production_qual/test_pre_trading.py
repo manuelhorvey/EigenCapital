@@ -65,7 +65,7 @@ def _make_broker_state(
         margin_level=1000.0,
         positions=[],
         position_count=0,
-        available_symbols=list(R4ConfigManifest().universe.keys()),
+        available_symbols=list(BrokerBoundaryConfig().expected_symbols.keys()),
         symbol_specs={},
         current_spread=0.0005,
         current_slippage=0.0002,
@@ -203,7 +203,9 @@ class TestBrokerConnection:
     def test_excessive_spread_blocks(self) -> None:
         """Spread exceeds max → BLOCKED."""
         validator = PreTradingValidator()
-        state = _make_broker_state(current_spread=0.01)  # 10 pips
+        state = _make_broker_state(
+            symbol_specs={"EURUSD": {"spread": 50}},  # 50 points > 15 point forex limit
+        )
         checks = validator.validate_broker_connection(state)
         assert not checks[4].passed
         assert checks[4].check_id == "PT-BROKER-05"
@@ -685,7 +687,7 @@ class TestNegativePathMatrix:
         elif failure == "missing_symbols":
             state = _make_broker_state(available_symbols=["EURUSDm"])
         elif failure == "excessive_spread":
-            state = _make_broker_state(current_spread=0.01)
+            state = _make_broker_state(symbol_specs={"EURUSD": {"spread": 50}})
         elif failure == "unclassified_position":
             state = _make_broker_state(
                 positions=[{

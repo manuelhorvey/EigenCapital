@@ -1,0 +1,61 @@
+{
+  "horizons_bars": [
+    1,
+    3,
+    5,
+    10,
+    20,
+    60
+  ],
+  "fwd_1bar": {
+    "n": 635,
+    "mean": 0.00013392955375237972,
+    "median": 0.00040365297905353703,
+    "win_rate": 0.5401574803149606
+  },
+  "fwd_3bar": {
+    "n": 596,
+    "mean": 0.00028626509306188346,
+    "median": 6.3526271455449645e-06,
+    "win_rate": 0.5016778523489933
+  },
+  "fwd_5bar": {
+    "n": 616,
+    "mean": -0.0002873930985084642,
+    "median": -0.00013121265813959004,
+    "win_rate": 0.4935064935064935
+  },
+  "fwd_10bar": {
+    "n": 593,
+    "mean": -5.548582140709669e-05,
+    "median": 0.0005390798797479945,
+    "win_rate": 0.5160202360876898
+  },
+  "fwd_20bar": {
+    "n": 676,
+    "mean": 0.0013834504365804166,
+    "median": 0.0008189441957610066,
+    "win_rate": 0.5251479289940828
+  },
+  "fwd_60bar": {
+    "n": 586,
+    "mean": 0.0011085351066697847,
+    "median": 0.000324922428086849,
+    "win_rate": 0.5051194539249146
+  },
+  "mfe_mae": {
+    "mfe_R_median": 0.28305649356548657,
+    "mae_R_median": 0.19957462099575662,
+    "mfe_over_mae_ratio_median": 0.659938533100756,
+    "adverse_first_ratio_p25R_before_mfe25R": 0.10752688172043011,
+    "early_failure_rate_05R_within_5bars": 0.1975806451612903,
+    "immediate_adverse_move_share_any_negative_mae": 0.5577956989247311,
+    "prob_reach_plus_1R": 0.23521505376344087,
+    "prob_reach_minus_1R": 0.25268817204301075,
+    "prob_reach_plus_2R": 0.11290322580645161,
+    "prob_reach_minus_2R": 0.12231182795698925
+  },
+  "time_to_profit_bars_median": 2.0,
+  "time_to_loss_bars_median": 2.0,
+  "nan_R_share": 0.0
+}

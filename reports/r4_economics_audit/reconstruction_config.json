@@ -1,0 +1,43 @@
+{
+  "git_head": "d16148e",
+  "frozen_identity": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
+  "eligible_symbols": [
+    "AUDCAD",
+    "AUDCHF",
+    "AUDNZD",
+    "AUDUSD",
+    "BTCUSD",
+    "CADCHF",
+    "EURCHF",
+    "EURGBP",
+    "EURUSD",
+    "GBPCHF",
+    "GBPUSD",
+    "NZDCAD",
+    "NZDCHF",
+    "NZDUSD",
+    "USDCAD",
+    "USDCHF"
+  ],
+  "n_trades_daily": 744,
+  "n_trades_weekly": 325,
+  "signal_first_valid": "2020-09-09 00:00:00",
+  "parity_check_passed": true,
+  "parity_probes": [
+    {
+      "cut_row": 2361,
+      "weights_equal": true,
+      "regime_equal": true
+    },
+    {
+      "cut_row": 1972,
+      "weights_equal": true,
+      "regime_equal": true
+    },
+    {
+      "cut_row": 2044,
+      "weights_equal": true,
+      "regime_equal": true
+    }
+  ]
+}

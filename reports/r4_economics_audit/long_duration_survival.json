@@ -1,0 +1,30 @@
+{
+  "existing_artifacts_reviewed": [
+    "docs/production/LONG_DURATION_SURVIVAL_REPORT.md (Verdict: PASS - resources bounded)",
+    "docs/production/CHAOS_TESTING.md (unauthorized trading/duplicates/state corruption)",
+    "docs/production/DISASTER_RECOVERY.md (broker-authoritative state classification)",
+    "git history: clock reliability, restart-recovery chaos tests, bounded retention, supervisor"
+  ],
+  "claim_vs_deployment_gap": {
+    "claim": "HEAD passes endurance + chaos + DR suites; 44 freeze tests pass",
+    "deployment_reality": "process that ran the live campaign predates HEAD (no startup fingerprint logs, missing runtime_state.json/daily_baseline.json, unknown exit comments in broker history); those guarantees were NOT active",
+    "severity": "P0-4 in PRELIMINARY_SAFETY_TRIAGE"
+  },
+  "observed_session_stress_results": {
+    "bridge_disconnect_9h": "loop cycled blind hourly with silent SKIPs; DisconnectRecovery never engaged (not in deployed build); positions unprotected throughout",
+    "midnight_crossing": "Equity $0.00 reads around midnight UTC create the daily-baseline poisoning hazard (P1-2)",
+    "flatten_under_contamination": "concurrency gate blocked bot rotation while foreign magic=0 positions occupied slots"
+  },
+  "unmitigated_single_points_of_failure": [
+    "single mt5linux bridge host:port (127.0.0.1:8001), no failover, no acting watchdog",
+    "single terminal/account dependency",
+    "monitor alert-only; Telegram disabled during session"
+  ],
+  "months_scale_verdict": "UNPROVEN IN DEPLOYMENT: platform tests PASS at HEAD but no evidence a long-lived deployment ran a HEAD-matching build with per-cycle fingerprints; observed 12.5h session contained an outage defeating survival assumptions",
+  "conditions_for_months_scale_operation": [
+    "deployed build pinned to audited commit with per-cycle fingerprint proof",
+    "bridge failover or watchdog auto-flatten with retry",
+    "external escalation channel proven live",
+    "absolute audit paths; audited SKIP events"
+  ]
+}

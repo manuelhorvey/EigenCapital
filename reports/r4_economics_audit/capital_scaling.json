@@ -1,0 +1,109 @@
+{
+  "method": "per-tier constraint mapping: config min-lot notionals, 30% position cap, |w| clip 0.20, top-8; no linear performance extrapolation",
+  "rows": [
+    {
+      "tier_usd": 5000,
+      "max_position_notional_30pct": 1500,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "0/16",
+      "symbols_untradeable_even_at_max_clip": "5/16",
+      "gross_exposure_cap_8pos": 12000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 10000,
+      "max_position_notional_30pct": 3000,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "1/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 24000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 25000,
+      "max_position_notional_30pct": 7500,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "14/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 60000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 50000,
+      "max_position_notional_30pct": 15000,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "16/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 120000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 100000,
+      "max_position_notional_30pct": 30000,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "16/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 240000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 250000,
+      "max_position_notional_30pct": 75000,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "16/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 600000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 500000,
+      "max_position_notional_30pct": 150000,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "16/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 1200000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    },
+    {
+      "tier_usd": 1000000,
+      "max_position_notional_30pct": 300000,
+      "symbols_minlot_fits_poscap": "16/16",
+      "symbols_typical_target_ge_minlot": "16/16",
+      "symbols_untradeable_even_at_max_clip": "0/16",
+      "gross_exposure_cap_8pos": 2400000,
+      "expected_maxdd_relative": "-12.3% control backtest; scales with capital",
+      "liquidity_note": "FX crosses absorb these sizes at negligible impact; BTC fine < $10M gross",
+      "broker_limits_note": "max_volume 1.0 lot binds ~$130K+ per single FX order; multi-order possible"
+    }
+  ],
+  "evidence_gated_verdicts": {
+    "5000": "CONDITIONAL - only tier with live evidence; evidence contaminated (P0-3), safety gaps open (P0-1)",
+    "10000": "NOT JUSTIFIED YET - requires clean post-P0-fix qualification + preregistered variant acceptance",
+    "25000": "NOT JUSTIFIED YET",
+    "50000": "NOT JUSTIFIED YET - GBPUSD/EURUSD/AUDNZD approach flooring at typical |w|",
+    "100000": "NOT JUSTIFIED YET - single-order lot caps begin to bind; multi-fill unproven",
+    "250000": "NOT JUSTIFIED YET",
+    "500000": "NOT JUSTIFIED YET - RiskPolicy 25% concentration conflicts with 30% position design; redesign needed",
+    "1000000": "NOT JUSTIFIED YET - strategy capacity unproven; needs execution-capacity study + broker agreements"
+  },
+  "promotion_requires_new_evidence": [
+    "clean reconciled qualification window at current tier",
+    "preregistered OOS-validated risk improvements deployed",
+    "execution-quality telemetry meeting config limits on live fills",
+    "independent catastrophic protection layer active and tested"
+  ]
+}

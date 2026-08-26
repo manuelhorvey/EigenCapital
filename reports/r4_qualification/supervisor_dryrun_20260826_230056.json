@@ -1,0 +1,239 @@
+{
+  "timestamp": "2026-08-26T23:00:56.397185+00:00",
+  "account_id": 436921728,
+  "balance": 6992.34,
+  "equity": 6991.98,
+  "free_margin": 6981.0,
+  "positions": {
+    "total": 19,
+    "r4": 19,
+    "foreign": 0,
+    "unclassified": 0,
+    "with_sl": 19,
+    "without_sl": 0
+  },
+  "fingerprint_ok": true,
+  "watchdog_state": "NORMAL",
+  "contamination": false,
+  "gates": [
+    {
+      "name": "broker_connectivity",
+      "passed": true,
+      "severity": "critical",
+      "detail": "MT5 connection established",
+      "evidence": {}
+    },
+    {
+      "name": "position_count",
+      "passed": true,
+      "severity": "info",
+      "detail": "19/19 R4 positions",
+      "evidence": {
+        "r4_count": 19,
+        "max": 19
+      }
+    },
+    {
+      "name": "foreign_positions",
+      "passed": true,
+      "severity": "info",
+      "detail": "No foreign positions",
+      "evidence": {
+        "foreign_count": 0,
+        "foreign": []
+      }
+    },
+    {
+      "name": "unclassified_positions",
+      "passed": true,
+      "severity": "info",
+      "detail": "0 unclassified position(s)",
+      "evidence": {}
+    },
+    {
+      "name": "catastrophic_protection",
+      "passed": true,
+      "severity": "warn",
+      "detail": "19/19 R4 positions have SL",
+      "evidence": {
+        "positions_with_sl": [
+          {
+            "ticket": 3140147169,
+            "symbol": "BTCUSD",
+            "sl": 83573.32
+          },
+          {
+            "ticket": 3140147352,
+            "symbol": "AUDCAD",
+            "sl": 0.98594
+          },
+          {
+            "ticket": 3140147373,
+            "symbol": "AUDCHF",
+            "sl": 0.57154
+          },
+          {
+            "ticket": 3140147404,
+            "symbol": "AUDUSD",
+            "sl": 0.71102
+          },
+          {
+            "ticket": 3140147419,
+            "symbol": "EURUSD",
+            "sl": 1.17823
+          },
+          {
+            "ticket": 3140147429,
+            "symbol": "CADCHF",
+            "sl": 0.58558
+          },
+          {
+            "ticket": 3140147444,
+            "symbol": "NZDCAD",
+            "sl": 0.81762
+          },
+          {
+            "ticket": 3140147460,
+            "symbol": "USDCHF",
+            "sl": 0.79492
+          },
+          {
+            "ticket": 3140147507,
+            "symbol": "EURGBP",
+            "sl": 0.86475
+          },
+          {
+            "ticket": 3140147514,
+            "symbol": "EURCHF",
+            "sl": 0.94723
+          },
+          {
+            "ticket": 3140147539,
+            "symbol": "NZDUSD",
+            "sl": 0.60265
+          },
+          {
+            "ticket": 3140147547,
+            "symbol": "GBPCHF",
+            "sl": 1.08448
+          },
+          {
+            "ticket": 3140181582,
+            "symbol": "AUDNZD",
+            "sl": 1.19393
+          },
+          {
+            "ticket": 3140181673,
+            "symbol": "GBPUSD",
+            "sl": 1.37561
+          },
+          {
+            "ticket": 3140181836,
+            "symbol": "USDCAD",
+            "sl": 1.37314
+          },
+          {
+            "ticket": 3140320029,
+            "symbol": "EURAUD",
+            "sl": 1.64066
+          },
+          {
+            "ticket": 3140320031,
+            "symbol": "EURNZD",
+            "sl": 1.97875
+          },
+          {
+            "ticket": 3140320040,
+            "symbol": "GBPCAD",
+            "sl": 1.87027
+          },
+          {
+            "ticket": 3140320046,
+            "symbol": "GBPAUD",
+            "sl": 1.91589
+          }
+        ],
+        "positions_without_sl": []
+      }
+    },
+    {
+      "name": "fingerprint_verification",
+      "passed": true,
+      "severity": "critical",
+      "detail": "All fingerprints verified",
+      "evidence": {
+        "checks": [
+          {
+            "component": "r4_manifest",
+            "status": "verified",
+            "expected": "aaab6c00dc05a09a",
+            "observed": "aaab6c00dc05a09a",
+            "message": "R4 manifest fingerprint matches"
+          },
+          {
+            "component": "risk_policy",
+            "status": "verified",
+            "expected": "a1eb1373fa11dff7",
+            "observed": "a1eb1373fa11dff7",
+            "message": "RiskPolicy fingerprint matches"
+          },
+          {
+            "component": "live_risk",
+            "status": "verified",
+            "expected": "ee9324293336b827",
+            "observed": "ee9324293336b827",
+            "message": "LiveRiskConfig fingerprint matches"
+          },
+          {
+            "component": "strategy_version",
+            "status": "verified",
+            "expected": "R4.0",
+            "observed": "R4.0",
+            "message": "Strategy version frozen at R4.0"
+          },
+          {
+            "component": "config",
+            "status": "verified",
+            "expected": "a72115bfceb6620e",
+            "observed": "a72115bfceb6620e",
+            "message": "Config fingerprint matches"
+          }
+        ]
+      }
+    },
+    {
+      "name": "equity_floor",
+      "passed": true,
+      "severity": "info",
+      "detail": "Equity $6,991.98 above minimum $4,000",
+      "evidence": {
+        "equity": 6991.98,
+        "min_equity": 4000.0
+      }
+    },
+    {
+      "name": "quarantine_logic",
+      "passed": true,
+      "severity": "info",
+      "detail": "19/19 R4 positions",
+      "evidence": {
+        "allow_new_entries": false,
+        "allow_self_rotation": true
+      }
+    },
+    {
+      "name": "watchdog_state",
+      "passed": true,
+      "severity": "info",
+      "detail": "Watchdog: NORMAL \u2014 all probes healthy",
+      "evidence": {
+        "state": "NORMAL",
+        "authorize_trading": true,
+        "authorize_flatten": false
+      }
+    }
+  ],
+  "intended_actions": [],
+  "verdict": "PASS",
+  "message": "All safety gates passed \u2014 system is compliant"
+}

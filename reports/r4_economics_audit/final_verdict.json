@@ -1,0 +1,95 @@
+{
+  "audit": "R4 Trade Economics, Entry Quality, Exit Risk & Production Safety — Final Verdict",
+  "generated_utc": "2026-08-26",
+  "frozen_control": {"strategy": "risk_conditioned_continuation vR4.0", "identity_verified": true, "git_head": "d16148e", "freeze_tests": "44/44 passed"},
+  "entry_quality": {
+    "verdict": "YELLOW",
+    "evidence": ["forward drift ~0 until +20 bars (+0.138%)", "55.8% immediate adverse; MFE/MAE median 0.66", "early failure (<=-0.5R in 5 bars) 19.8%", "P(+1R)=23.5% vs P(-1R)=25.3% symmetric at 1R", "edge concentrates in strongest entries: Q5 |w| exp +5.03% vs negative Q1-Q4; rank-1/2 exp +3.6%", "no smooth monotonicity (rho=0.20 p=0.75); threshold structure"],
+    "conditions_that_improve": ["strongest cross-sectional ranks", "longest holding tolerance"],
+    "conditions_that_degrade": ["weak-signal churn", "daily-cadence over-trading vs weekly design"]
+  },
+  "holding_period": {
+    "minimum_economically_meaningful_days": 20,
+    "edge_primary_range_days": "40+",
+    "median_observed_trading_days": 3,
+    "typical_winner_hold": "40d+ bucket: +7.35%/trade expectancy, 84% of positive P&L",
+    "typical_loser_hold": "1-5 days, -0.2% average",
+    "note": "weekly-declared cadence (median hold 17d) dominates operational daily cadence on every metric"
+  },
+  "loss_control": {
+    "how_losses_currently_controlled": "only by eventual rotation/sign-flip at cycle boundaries; no automatic reducer exists anywhere in chain",
+    "typical_mae_R_median": 0.20,
+    "tail_mae_95pct": ">=1R for ~12% of trades",
+    "recovery_after_-1R": 0.186,
+    "max_tested_reaction_time_seconds": 34200,
+    "worst_case_unprotected_exposure": "margin-call bound only; sl=tp=0 verified on all live positions"
+  },
+  "exit_quality": {
+    "verdict": "YELLOW",
+    "value_creating": "sign_flip exits (+6.97 total contribution)",
+    "value_destroying": "rotation churn of weak entries (-1.62 total; 71% of exits unprofitable after costs)",
+    "premature_exit_evidence": "40d+ concentration shows rotation truncates future winners early despite low average post-exit resumption (+0.07%)"
+  },
+  "no_sl_tp_design": "JUSTIFIED",
+  "no_sl_tp_basis": "33 preregistered trials; ZERO survive family-wise significance; TPs/trails/tight stops actively destructive (-0.34..-1.41 Sharpe deltas); edge IS convex tail capture",
+  "catastrophic_protection": "INSUFFICIENT",
+  "catastrophic_protection_note": "none exists today; a >=2xATR broker-side disaster stop halves MaxDD (-12.3%->-6.7%) at <=0.05 Sharpe drag and is recommended as SAFETY-ONLY layer distinct from economic exits",
+  "fivek_status": "PAUSE",
+  "fivek_status_basis": "4x P0 confirmed with live broker evidence (no reduction path; real 10.01% DD breach with zero reaction; foreign $789K notional contamination + PQ misattestation; deployment drift)",
+  "capital": {
+    "max_justified_tier": "$5,000 CONDITIONAL",
+    "next_tier_requirements": ["clean reconciled qualification window", "preregistered OOS-validated improvements deployed", "execution telemetry meeting limits", "catastrophic layer active"],
+    "strategy_capacity_ceiling": "not binding below ~$10M gross; evidence-gated far earlier",
+    "broker_execution_ceiling": "single-order lot caps near $100K+/order; multi-fill unproven"
+  },
+  "required_p0_fixes": [
+    "quarantine/close foreign magic=0 positions; repair PQ attribution; fresh T0",
+    "pin deployed build to audited commit w/ per-cycle fingerprint proof + build-id stamps",
+    "independent catastrophic protection layer (disaster SL >=2ATR or watchdog auto-flatten w/ retry), safety-tested offline",
+    "restore active DisconnectRecovery/fingerprint startup path to deployment"
+  ],
+  "required_p1_improvements": [
+    "implement-or-remove per-position loss gate",
+    "midnight zero-baseline guard in DailyLossTracker",
+    "explicit regime-OFF position policy documentation (currently ride-through by omission)",
+    "alert dedup + acting escalation channel",
+    "canonical regime definition across research/live/monitor"
+  ],
+  "research_only_improvements": [
+    "loser time-stop @10 bars (sole control-beater, not significant)",
+    "rank-based entry filter (strongest-only)",
+    "cadence correction test (weekly vs daily)",
+    "vol-target overlay; correlation-aware sizing; CVaR limits; execution-quality gates; weekend policy"
+  ],
+  "do_not_implement": [
+    "any take-profit level",
+    "tight fixed stops <1%",
+    "any trailing stop variant",
+    "winner time caps",
+    "regime-OFF flatten as economic policy"
+  ],
+  "entry_to_exit_risk_lifecycle": "signal (regime-gated XS momentum) -> sizing (min-lot floored at $5K) -> BLOCK-only risk gates -> cycle-boundary execution -> NO intraday protection -> rotation/sign-flip/regime-ride exits; single manual flatten is the only reducer; worst observed unprotected excursion 10.01% inside a 9.5h blind window",
+  "final_recommendation": "PAUSE live R4 trading immediately; implement P0 safety/deployment fixes; continue offline research track (loser time-stop preregistration first); resume qualification only under SAFE_WITH_CONDITIONS criteria; capital scaling frozen at $5K CONDITIONAL",
+  "success_criteria_answers": {
+    "Q1_hold_for_edge": "20d minimum meaningful; 40d+ primary (84% of positive P&L)",
+    "Q2_entry_quality": "YELLOW: slow tail edge, poor timing metrics",
+    "Q3_adverse_before_winners": "MAE median 0.20R; MFE/MAE 0.66; 55.8% go adverse",
+    "Q4_loser_depth_before_exit": "-0.23% avg at rotation; no natural threshold; monotone deterioration",
+    "Q5_reaction_speed_live": "one hourly/daily cycle for BLOCKs; NEVER for reduction; observed 9.5h blind",
+    "Q6_protection_while_asleep": "NONE (sl=tp=0 verified)",
+    "Q7_no_sl_economics": "JUSTIFIED economically",
+    "Q8_catastrophic_stop_safety": "YES: containment proven at <=0.05 drag",
+    "Q9_tp_truncation": "YES, severely (-0.34..-0.63 deltas)",
+    "Q10_trailing": "HURTS (-0.56..-1.41)",
+    "Q11_most_profitable_exit": "sign_flip (+6.97 total)",
+    "Q12_premature_exits": "rotation churn (713 trades, 35.3% profitable)",
+    "Q13_eight_position_correlated_downside": "bounded (-12.3% modeled MaxDD) if compliant; real account risk came from foreign book",
+    "Q14_shock_5_10pct": "-$600..-$1200 on compliant book; margin-relevant only via leverage abuse",
+    "Q15_disconnect": "9.5h blind, silent SKIPs, positions unprotected",
+    "Q16_process_crash": "supervisor exists at HEAD; not proven in deployed build",
+    "Q17_months_operation": "UNPROVEN IN DEPLOYMENT",
+    "Q18_max_capital": "$5K CONDITIONAL",
+    "Q19_statistically_justified_changes": "none survive correction yet; loser-time-stop candidate",
+    "Q20_plausible_hypotheses": "entry filters, cadence fix, vol-target overlay"
+  }
+}

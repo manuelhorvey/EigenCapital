@@ -1,0 +1,36 @@
+{
+  "evidence_window": "2026-08-25T12:31Z .. 2026-08-26T01:07Z (~12.5h)",
+  "fills_observed_bot": 90,
+  "fill_rate_reported": "all executed events fully filled (6/6,1/1,8/8,8/8,8/8,8/8)",
+  "cycle_duration_seconds_first_cycle": 2.74,
+  "swap_charged_total": 0.0,
+  "commission_charged_total": 0.0,
+  "cost_model_reconciliation": {
+    "config_transaction_cost_bps": 10.0,
+    "config_slippage_bps": 5.0,
+    "live_swap_commission": 0.0,
+    "note": "trial account zero swap/commission; true cost is spread crossing; reconstruction 10bps/side is conservative vs this demo but realistic for production accounts"
+  },
+  "slippage_direct_measurement": "NOT MEASURABLE from artifacts (request price not persisted); deviation cap 10 points active",
+  "min_lot_friction": {
+    "bot_fills_all_at_min_lot_0.01": true,
+    "implication": "at $5K equity min-lot flooring dominates sizing; intended |w|*equity often below min-lot notional -> realized weights differ from target weights"
+  },
+  "attribution": {
+    "bot_realized_closed_trades_usd": -3.67,
+    "manual_realized_closed_trades_usd": -242.65,
+    "manual_unrealized_at_export": 353.55,
+    "verdict": "$5K campaign P&L NOT attributable to R4; foreign positions dominate the equity path"
+  },
+  "execution_anomalies": [
+    "bridge outage 15:13:51Z->00:20Z+ with loop blind and unaudited silent SKIPs",
+    "equity_after=0 read failure immediately after fills",
+    "deployment drift vs git HEAD (P0-4)",
+    "duplicate-alert amplification up to 1:506"
+  ],
+  "research_vs_live_divergences": [
+    "regime universe: research 15 symbols vs live 31 allowed keys vs monitor 6",
+    "cadence: manifest weekly vs operational hourly/daily rotation",
+    "signal universe includes JPY crosses never tradeable under min-lot rules"
+  ]
+}

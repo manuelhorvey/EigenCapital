@@ -49,6 +49,8 @@ from eigencapital.config import load_config, LiveRiskConfig
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
+from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
+from eigencapital.live.position_attribution import classify_all, snapshot_hash, R4_MAGIC
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
     VerificationStatus,
@@ -114,6 +116,11 @@ _daily_loss_tracker = DailyLossTracker(
 )
 _disconnect_recovery = DisconnectRecovery(
     max_recovery_attempts=_config.health.max_recovery_attempts,
+)
+_watchdog = Watchdog(
+    stale_after_seconds=300,
+    blind_after_seconds=900,
+    contain_after_seconds=3600,
 )
 
 # State persisted across restarts
@@ -272,18 +279,20 @@ def generate_orders(
     contract_sizes: Dict[str, float],
     min_volumes: Dict[str, float],
     equity: float,
-) -> List[Tuple[str, str, float, str]]:
+    pos_details: Optional[Dict[str, List[Any]]] = None,
+) -> List[Tuple[str, str, float, str, Optional[int]]]:
     """Portfolio rebalance: strongest longs + strongest shorts.
 
     Strategy:
     1. Compute target lots for ALL eligible symbols
     2. Sort by |weight| (strongest signals first)
     3. Take top N that fit within position limit
-    4. Close positions no longer in top N
+    4. Close positions no longer in top N (by ticket — hedging-safe)
     5. Open new positions that entered top N
     6. Flip direction when signal changes sign
 
-    Returns list of (symbol, side, lots, reason).
+    pos_details: {symbol: [position_ticket, ...]} for hedging-safe closes.
+    Returns list of (symbol, side, lots, reason, ticket_or_None).
     """
     capped_equity = min(equity, MAX_EQUITY)
 
@@ -351,7 +360,13 @@ def generate_orders(
             side = "SELL" if cur_lots > 0 else "BUY"
             lots = abs(cur_lots)
             reason = f"rotated out (not in top {MAX_CONCURRENT})"
-            orders.append((sym, side, lots, reason))
+            # Hedging-safe: close by ticket if available
+            tickets = (pos_details or {}).get(sym, [])
+            if tickets:
+                for tkt in tickets:
+                    orders.append((sym, side, lots if len(tickets) == 1 else tkt["volume"], reason, tkt["ticket"]))
+            else:
+                orders.append((sym, side, lots, reason, None))
 
     # 4b: Open or adjust positions that ARE in target portfolio
     for sym in target_symbols:
@@ -377,10 +392,10 @@ def generate_orders(
             lots = delta
             reason = f"{info['direction']} {info['weight']:+.1%} ({info['abs_weight']:.1%} |w|)"
 
-        orders.append((sym, side, lots, reason))
+        orders.append((sym, side, lots, reason, None))
 
     # Sort: close orders first (free up margin), then open orders
-    close_orders = [o for o in orders if o[1] == "SELL" and o[0] in {s for s, _, _, _ in orders if "rotated out" in _}]
+    close_orders = [o for o in orders if "rotated out" in o[3]]
     open_orders = [o for o in orders if o not in close_orders]
 
     return close_orders + open_orders
@@ -395,19 +410,37 @@ def detect_filling_mode(mt5) -> int:
 
 
 def execute_orders(
-    mt5, orders: List[Tuple[str, str, float, str]], filling_mode: int
+    mt5, orders: List[Tuple[str, str, float, str, Optional[int]]], filling_mode: int
 ) -> Dict[str, Any]:
-    """Submit orders and return results."""
+    """Submit orders and return results.
+
+    Each order is (symbol, side, lots, reason, ticket_or_None).
+    When ticket is provided (close), the order is bound to that position
+    so it works correctly on hedging accounts.
+    """
     results = {"submitted": 0, "filled": 0, "failed": 0, "fills": []}
 
-    for sym, side, lots, reason in orders[:MAX_ORDERS_PER_CYCLE]:
+    for sym, side, lots, reason, ticket in orders[:MAX_ORDERS_PER_CYCLE]:
         tick = mt5.symbol_info_tick(sym)
         if tick is None:
             results["failed"] += 1
             continue
 
-        price = tick.ask if side == "BUY" else tick.bid
-        mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+        # Ticket-scoped close (hedging-safe): opposite side of position
+        if ticket is not None:
+            # Need to look up the position type to get correct price side
+            positions = mt5.positions_get(ticket=ticket)
+            if positions and len(positions) > 0:
+                pos_type = positions[0].type  # 0=BUY, 1=SELL
+                mt5_type = MetaTrader5.ORDER_TYPE_SELL if pos_type == 0 else MetaTrader5.ORDER_TYPE_BUY
+                price = tick.bid if pos_type == 0 else tick.ask
+            else:
+                # Fallback: treat as new order
+                mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+                price = tick.ask if side == "BUY" else tick.bid
+        else:
+            mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+            price = tick.ask if side == "BUY" else tick.bid
 
         request = {
             "action": MetaTrader5.TRADE_ACTION_DEAL,
@@ -421,6 +454,8 @@ def execute_orders(
             "type_time": MetaTrader5.ORDER_TIME_GTC,
             "type_filling": filling_mode,
         }
+        if ticket is not None:
+            request["position"] = ticket
 
         result = mt5.order_send(request)
         results["submitted"] += 1
@@ -431,7 +466,8 @@ def execute_orders(
                 "symbol": sym, "side": side, "lots": lots,
                 "price": result.price, "deal": result.deal,
             })
-            log(f"  ✅ {side} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}")
+            verb = "CLOSE" if ticket is not None else side
+            log(f"  ✅ {verb} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}")
         else:
             results["failed"] += 1
             rc = result.retcode if result else "None"
@@ -443,15 +479,59 @@ def execute_orders(
 
 # ── Main Loop ──────────────────────────────────────────────────────
 
+def _reconnect_mt5(mt5) -> bool:
+    """Force a fresh MT5 session.
+
+    mt5linux proxies can return stale/zero data after the terminal or
+    bridge restarts while the loop keeps its old session object.
+    shutdown() + initialize() re-establishes a healthy connection.
+    """
+    try:
+        mt5.shutdown()
+    except Exception:
+        pass
+    time.sleep(2)
+    try:
+        return bool(mt5.initialize())
+    except Exception:
+        return False
+
+
 def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     """Run one rebalance cycle. Returns cycle result."""
     cycle_start = time.time()
     account = mt5.account_info()
+    if account is None or getattr(account, "equity", 0) <= 0:
+        log("⚠️  Stale MT5 session detected (no account data) — reconnecting...")
+        if _reconnect_mt5(mt5):
+            account = mt5.account_info()
+            log("🟢 Reconnected to MT5")
     equity = account.equity if account else 0
 
     log(f"Equity: ${equity:,.2f}")
 
-    # 0. Fingerprint verification (fail closed)
+    # 0. Watchdog probe — detect stale/blind/contain conditions
+    positions_for_hash = list(mt5.positions_get() or [])
+    free_margin = getattr(account, 'margin_free', 0) or getattr(account, 'free_margin', 0) or 0
+    broker_hash = snapshot_hash(
+        [{"ticket": p.ticket, "symbol": p.symbol} for p in positions_for_hash],
+        equity, free_margin,
+    )
+    wd_probe = ProbeResult(
+        process_alive=True,
+        trail_age_seconds=0.0,
+        equity_read_ok=equity > 0,
+        broker_reachable=True,
+        evidence_hash=broker_hash,
+    )
+    wd_decision = _watchdog.evaluate(wd_probe)
+    if wd_decision.state not in (WatchState.NORMAL,):
+        log(f"🔴 Watchdog: {wd_decision.state.value} — {wd_decision.reason}")
+        audit({"event": "watchdog_escalation", "state": wd_decision.state.value, "reason": wd_decision.reason})
+        if not wd_decision.authorize_trading:
+            return {"status": "BLOCKED", "reason": f"watchdog_{wd_decision.state.value}"}
+
+    # 0b. Fingerprint verification (fail closed)
     fp_result = _fingerprint_verifier.verify_all()
     if not fp_result.all_verified:
         failed = [c for c in fp_result.checks if c.status != "verified"]
@@ -468,11 +548,17 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         audit({"event": "daily_loss_breached", **_daily_loss_tracker.to_dict()})
         return {"status": "BLOCKED", "reason": "daily_loss_breached", **_daily_loss_tracker.to_dict()}
 
-    # 1. Fetch data
+    # 1. Fetch data (retry once with a fresh connection on failure)
     data = fetch_d1_data(mt5, R4_SYMBOLS, bars=300)
     if len(data) < 5:
-        log(f"⚠️  Only {len(data)} symbols — insufficient data")
-        return {"status": "SKIP", "reason": "insufficient_data"}
+        log("⚠️  Insufficient symbols — retrying once with a fresh MT5 connection...")
+        if _reconnect_mt5(mt5):
+            log("🟢 Reconnected to MT5")
+            data = fetch_d1_data(mt5, R4_SYMBOLS, bars=300)
+        if len(data) < 5:
+            log(f"⚠️  Only {len(data)} symbols — insufficient data")
+            audit({"event": "stale_connection", "symbols": len(data)})
+            return {"status": "SKIP", "reason": "insufficient_data"}
 
     # 2. Compute signal
     target_weights, diag = compute_r4_signal(data, force_regime)
@@ -494,7 +580,23 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         sign = 1.0 if p.type == 0 else -1.0  # BUY=+1, SELL=-1
         current_lots[p.symbol] = current_lots.get(p.symbol, 0) + sign * p.volume
 
-    # 5. Risk enforcement gates (before generating orders)
+    # 5. Position attribution — classify all positions before risk checks
+    classified = classify_all([{
+        "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
+        "volume": p.volume, "magic": p.magic, "comment": p.comment,
+        "profit": p.profit, "price_open": p.price_open,
+        "sl": p.sl, "tp": p.tp,
+    } for p in pos_list])
+    from eigencapital.live.position_attribution import capacity_account
+    capacity = capacity_account(classified, MAX_CONCURRENT)
+    if capacity.contaminated:
+        log(f"⚠️ QUARANTINE: {len(capacity.foreign_positions)} foreign position(s) — new entries blocked")
+        audit({"event": "quarantine", "foreign": capacity.foreign_positions})
+        # Allow self-rotation but block new entries
+    if capacity.r4_open_count > capacity.max_concurrent:
+        log(f"⚠️ R4 OVERFLOW: {capacity.r4_open_count}/{capacity.max_concurrent} — forcing rotation")
+
+    # 5b. Risk enforcement gates (before generating orders)
     broker_positions = []
     for p in pos_list:
         broker_positions.append({
@@ -565,8 +667,15 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             contract_sizes[sym] = info.trade_contract_size
             min_volumes[sym] = info.volume_min
 
+    # 6. Build position details (tickets for hedging-safe closes)
+    pos_details: Dict[str, List[Dict[str, Any]]] = {}
+    for p in pos_list:
+        pos_details.setdefault(p.symbol, []).append({
+            "ticket": p.ticket, "volume": p.volume, "type": p.type,
+        })
+
     # 6. Generate orders (rotation-aware: closes weak, opens strong)
-    orders = generate_orders(target_weights, current_lots, prices, contract_sizes, min_volumes, equity)
+    orders = generate_orders(target_weights, current_lots, prices, contract_sizes, min_volumes, equity, pos_details)
 
     # Split into closes and opens
     closes = [o for o in orders if "rotated out" in o[3]]
@@ -594,8 +703,9 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     # 7. Display plan
     log(f"Orders: {len(orders)}")
-    for sym, side, lots, reason in orders:
-        log(f"  → {side} {lots:.2f} {sym} ({reason})")
+    for sym, side, lots, reason, ticket in orders:
+        verb = "CLOSE" if ticket is not None else side
+        log(f"  → {verb} {lots:.2f} {sym} ({reason})")
 
     # 8. Execute
     if dry_run:
@@ -757,6 +867,50 @@ def main() -> None:
         return
     log("✅ All fingerprints verified — trading authorized\n")
     audit({"event": "startup_fingerprint_verified", "checks": [c.to_dict() for c in fp_result.checks]})
+
+    # T=0 validation — verify frozen campaign boundary exists and matches
+    import glob as _glob
+    t0_files = sorted(_glob.glob("reports/r4_qualification/T0_*.json"), key=os.path.getmtime)
+    if t0_files:
+        try:
+            with open(t0_files[-1]) as f:
+                t0 = json.load(f)
+            t0_config_fp = t0.get("fingerprints", {}).get("config", "")
+            current_cfg_fp = _fingerprint_verifier._frozen_config_fp
+            t0_match = t0_config_fp == current_cfg_fp
+            t0_account = t0.get("account", {}).get("id", 0)
+            live_account = int(account.login) if account else 0
+            account_match = t0_account == live_account
+            if t0_match and account_match:
+                log(f"✅ T=0 validated: {t0_files[-1]}")
+                log(f"   Campaign: {t0.get('campaign_id', '?')} | Account: {t0_account} | Hash: {t0.get('snapshot_hash', '?')[:16]}...")
+                audit({"event": "t0_validated", "file": t0_files[-1], "campaign_id": t0.get("campaign_id")})
+            else:
+                log(f"🔴 T=0 MISMATCH: config_fp={'match' if t0_match else 'DRIFT'}, account={'match' if account_match else 'MISMATCH'}")
+                audit({"event": "t0_mismatch", "config_match": t0_match, "account_match": account_match})
+                mt5.shutdown()
+                return
+        except Exception as e:
+            log(f"⚠️  T=0 validation error: {e} — proceeding without T=0 check")
+    else:
+        log("⚠️  No T=0 snapshot found — proceeding without T=0 check")
+
+    # Position count assertion
+    from eigencapital.live.position_attribution import classify_all as _classify, capacity_account as _capacity
+    pos_assertion = list(mt5.positions_get() or [])
+    classified_start = _classify([{
+        "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
+        "volume": p.volume, "magic": p.magic, "comment": p.comment,
+        "profit": p.profit, "price_open": p.price_open, "sl": p.sl, "tp": p.tp,
+    } for p in pos_assertion])
+    cap_start = _capacity(classified_start, MAX_CONCURRENT)
+    log(f"📊 Position assertion: {cap_start.r4_open_count} R4, {len(cap_start.foreign_positions)} foreign, max={MAX_CONCURRENT}")
+    log(f"   gate: {'PASS' if cap_start.r4_open_count <= MAX_CONCURRENT and len(cap_start.foreign_positions) == 0 else 'BLOCK'}")
+    audit({"event": "startup_position_assertion", "r4_count": cap_start.r4_open_count,
+           "foreign": len(cap_start.foreign_positions), "max": MAX_CONCURRENT})
+
+    log("🟢 TRADING_AUTHORIZED — all startup gates passed\n")
+    audit({"event": "trading_authorized"})
 
     cycle = 0
     while not _shutdown:

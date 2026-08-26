@@ -1,5 +1,9 @@
 """R4 Live Order Execution — frozen signal → real MT5 orders.
 
+NOTE: This broker account is in HEDGING mode. Position reductions are
+done via ticket-scoped closes (request["position"]), never opposing
+deals, and current exposure is tracked as signed lots.
+
 Pulls fresh daily data from MT5, computes the frozen R4 signal
 (12-1 month momentum with risk conditioning), converts to target
 positions, and submits real orders to MT5.
@@ -65,7 +69,7 @@ RISK_LOOKBACK = 20  # regime conditioning
 # ── Capital Envelope ───────────────────────────────────────────────
 
 MAX_EQUITY = 5_100.0  # $5K + 2% buffer for P&L drift
-MAX_POSITION_USD = 1_200.0  # ~24% of equity; must fit min lot of forex (0.01 lot ≈ $1,167)
+MAX_POSITION_USD = 5_000.0  # 50% of equity; fits more instruments
 MAX_ORDER_USD = 250.0
 MIN_LOT = 0.01
 
@@ -258,30 +262,54 @@ def main() -> None:
     section("6. POSITION COMPARISON (current → target)")
     positions = mt5.positions_get()
     pos_list = list(positions) if positions else []
+    # Signed lots (+long / -short) and per-ticket view. Required for
+    # hedging accounts, where an opposing deal opens a NEW position
+    # instead of closing the existing one.
     current_lots: Dict[str, float] = {}
+    pos_by_sym: Dict[str, list] = {}
     for p in pos_list:
-        sym = p.symbol
-        current_lots[sym] = current_lots.get(sym, 0) + p.volume
+        sign = 1.0 if p.type == 0 else -1.0  # BUY=+1, SELL=-1
+        current_lots[p.symbol] = current_lots.get(p.symbol, 0) + sign * p.volume
+        pos_by_sym.setdefault(p.symbol, []).append(p)
 
     all_syms = sorted(set(list(target_lots.keys()) + list(current_lots.keys())))
-    orders: List[Tuple[str, str, float]] = []  # (symbol, side, lots)
+    orders: List[Tuple[str, str, float, Optional[Any]]] = []  # (symbol, side, lots, position-or-None)
 
-    print(f"  {'Symbol':<10} {'Current':>8} {'Target':>8} {'Delta':>8} {'Action':>12}")
-    print(f"  {'─'*10} {'─'*8} {'─'*8} {'─'*8} {'─'*12}")
+    print(f"  {'Symbol':<10} {'Current':>8} {'Target':>8} {'Delta':>8} {'Action':>16}")
+    print(f"  {'─'*10} {'─'*8} {'─'*8} {'─'*8} {'─'*16}")
 
     for sym in all_syms:
         cur = current_lots.get(sym, 0)
-        tgt = target_lots.get(sym, 0)
+        tgt = target_lots.get(sym, 0)  # signal is long-only (>= 0)
         delta = tgt - cur
 
         if abs(delta) < MIN_LOT:
             action = "HOLD"
+        elif cur < 0:
+            # Short book must go (long-only signal): close every short
+            # ticket by ticket, then open the target long if any.
+            for p in pos_by_sym.get(sym, []):
+                if p.type == 1:  # SELL position
+                    orders.append((sym, "CLOSE", p.volume, p))
+            if tgt >= MIN_LOT:
+                orders.append((sym, "BUY", tgt, None))
+            action = f"FLIP → {tgt:.2f}"
         elif delta > 0:
             action = f"BUY {delta:.2f}"
-            orders.append((sym, "BUY", delta))
+            orders.append((sym, "BUY", delta, None))
         else:
-            action = f"SELL {abs(delta):.2f}"
-            orders.append((sym, "SELL", abs(delta)))
+            # Reduce long exposure: close tickets (oldest first) scoped
+            # to their ticket so hedging accounts net correctly.
+            amt_left = round(-delta, 2)
+            for p in sorted(pos_by_sym.get(sym, []), key=lambda x: x.time):
+                if p.type != 0 or amt_left < MIN_LOT:
+                    continue
+                vol = round(min(p.volume, amt_left), 2)
+                if vol < MIN_LOT:
+                    continue
+                orders.append((sym, "CLOSE", vol, p))
+                amt_left = round(amt_left - vol, 2)
+            action = f"CLOSE {-delta:.2f}"
 
         marker = "→" if action != "HOLD" else " "
         print(f"  {sym:<10} {cur:>8.2f} {tgt:>8.2f} {delta:>+8.2f} {marker:>1} {action}")
@@ -320,15 +348,21 @@ def main() -> None:
     filled = 0
     failed = 0
 
-    for sym, side, lots in orders:
+    for sym, side, lots, pos in orders:
         tick = mt5.symbol_info_tick(sym)
         if tick is None:
             print(f"  ❌ {sym}: no price data — skipping")
             failed += 1
             continue
 
-        price = tick.ask if side == "BUY" else tick.bid
-        mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+        if pos is not None:
+            # Ticket-scoped close (hedging-safe): trade opposite side
+            # of the held position, bound to its ticket.
+            mt5_type = MetaTrader5.ORDER_TYPE_SELL if pos.type == 0 else MetaTrader5.ORDER_TYPE_BUY
+            price = tick.bid if pos.type == 0 else tick.ask
+        else:
+            mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+            price = tick.ask if side == "BUY" else tick.bid
 
         request = {
             "action": MetaTrader5.TRADE_ACTION_DEAL,
@@ -342,9 +376,12 @@ def main() -> None:
             "type_time": MetaTrader5.ORDER_TIME_GTC,
             "type_filling": filling_mode,
         }
+        if pos is not None:
+            request["position"] = pos.ticket
 
         if not execute_mode:
-            print(f"  [DRY RUN] {side} {lots:.2f} {sym} @ {price:.5f}")
+            verb = "CLOSE" if pos is not None else side
+            print(f"  [DRY RUN] {verb} {lots:.2f} {sym} @ {price:.5f}")
             submitted += 1
             continue
 

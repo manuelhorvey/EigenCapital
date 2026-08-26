@@ -3,346 +3,320 @@
 Asset-agnostic quantitative research and execution platform.
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-0.1.0-orange)](#status)
+[![Tests](https://img.shields.io/badge/tests-2%2C301%20passing-brightgreen)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Runtime deps](https://img.shields.io/badge/core%20runtime%20deps-0-success)](#design-principles)
-[![Tests](https://img.shields.io/badge/tests-1%2C267%20passing-brightgreen)](#testing-strategy)
 
-> **Status: Pre-Alpha.** Phases 1A–1T are complete: research-to-paper fidelity
-> passes all gates (`paper_fidelity_pass`, 7/7), the system is shadow-qualified,
-> and a micro-live runner operates against a real MT5 broker under strict
-> capital limits. EigenCapital is **not** cleared for unrestricted live trading;
-> every promotion step requires an explicit evidence-based verdict.
+> **Status: 🟢 LIVE — CONTROLLED $5K QUALIFICATION**
+>
+> EigenCapital is running live against a real MT5 broker under explicit safety
+> controls. The frozen R4 strategy is generating real trade evidence. No strategy
+> modifications, parameter tuning, or capital promotion is permitted until the
+> evidence window is complete.
 
-EigenCapital separates *deciding* from *doing*. Strategies express intent; the
-portfolio layer allocates; risk adjudicates; execution acts; reconciliation and
-monitoring verify. Each stage communicates through explicit, immutable decision
-objects — never through inferred state — so every production outcome can be
-reconstructed and audited end-to-end.
+## What EigenCapital Does
 
-The same discipline governs research: claims enter as falsifiable hypotheses,
-survive a hostile validation pipeline (or don't), and only then may cross the
-fidelity ladder toward real capital. Verdicts are evidence-based and fail-closed:
-the evidence gate can return `INCONCLUSIVE`, never an unearned pass.
-
-## Architecture
-
-A strict, acyclic dependency graph. Dependencies point upward only; no layer may
-import a layer above it.
+EigenCapital separates *deciding* from *doing*:
 
 ```
-                     CORE (models, contracts)
-                        ▲
-                        │
-                       DATA
-                        │
-                    FEATURES
-                        │
-                   STRATEGIES
-                        │
-                   PORTFOLIO
-                        │
-                      RISK
-                        │
-                  EXECUTION
-                        │
-                RECONCILIATION
-                        │
-                   MONITORING
+Research → Validation → Frozen Strategy → Signal → Portfolio → Risk → Execution → MT5 → Audit
 ```
 
-| Layer | Responsibility | Status |
+- **Research**: Falsifiable hypotheses survive hostile validation (walk-forward, bootstrap, multiple-testing correction, deflated Sharpe)
+- **Strategy**: R4 is a frozen momentum strategy — parameters are immutable
+- **Risk**: Independent risk boundary enforces limits before any order reaches the broker
+- **Execution**: Ticket-scoped closes, hedging-safe order generation, auto-reconnect
+- **Audit**: Every decision recorded to JSONL with full provenance chain
+
+## Current Architecture
+
+```
+                    R4 Signal (frozen)
+                         ↓
+                    Portfolio Construction
+                         ↓
+                    RiskPolicy Check
+                    ├─ Fingerprint ✅
+                    ├─ Position Count ✅
+                    ├─ Equity Floor ✅
+                    ├─ Daily Loss ✅
+                    ├─ Watchdog ✅
+                    └─ Foreign Quarantine ✅
+                         ↓
+                    Order Generation
+                    ├─ Ticket-scoped closes
+                    └─ Signed volumes
+                         ↓
+                    MT5 Execution
+                         ↓
+                    Reconciliation
+                         ↓
+                    Audit Trail (JSONL)
+```
+
+### Safety Stack
+
+| Layer | Module | Purpose |
 |---|---|---|
-| `core` | Domain models, invariants, contracts, events | ✅ Implemented |
-| `data` | Instrument catalogue, loaders (CSV, MT5), normalization, OHLC/temporal validation | ✅ Implemented |
-| `features` | Feature library (base, momentum, mean-reversion), registry, pipeline, provenance | ✅ Implemented |
-| `strategies` | Strategy contract, registry; trend strategy | ✅ Implemented |
-| `portfolio` | Intent aggregation → `PortfolioTarget`; allocation research | ✅ Implemented |
-| `risk` | EigenRisk engine, policy, account checks | ✅ Implemented |
-| `execution` | Paper broker, account, position manager, events, reconciliation | ✅ Implemented |
-| `reconciliation` | Broker/fund state vs. internal books | 🟡 Partial (execution layer) |
-| `monitoring` | Health, drift, alerting | ⬜ Scaffolded |
+| Fingerprint | `fingerprint_verifier.py` | Fail-closed config integrity |
+| Attribution | `position_attribution.py` | R4/foreign classification |
+| Quarantine | `position_attribution.py` | Foreign → block new entries |
+| Watchdog | `watchdog.py` | Blind-window detection |
+| Catastrophic | `catastrophic_protection.py` | Disaster stop-loss boundary |
+| Recovery | `risk.py` | Disconnect/reconnect handling |
+| Audit | `durable_audit.py` | Crash-resistant JSONL trail |
 
-| Subsystem | Responsibility | Status |
+## R4 Strategy
+
+R4 is a **frozen** cross-sectional momentum strategy:
+
+- **Signal**: 12-month minus 1-month momentum, cross-sectional ranks
+- **Regime**: Volatility gate (trade when vol < median)
+- **Sizing**: Volatility-scaled, clipped to ±20% (BTC ±10%)
+- **Rebalance**: Hourly rotation of top-19 positions by signal strength
+- **Exit**: Signal reversal, regime change, or catastrophic stop-loss
+- **Protection**: 2× ATR14 or 1% floor (whichever is larger)
+
+### What R4 Is NOT
+
+- R4 does **not** use conventional SL/TP as normal exits
+- R4 does **not** optimize for short-term profit
+- R4's edge emerges **slowly** (20-40+ day holding periods)
+- R4 does **not** trade every signal — regime gate filters low-conviction periods
+
+## Qualification Status
+
+| Tier | Status | Evidence |
 |---|---|---|
-| `backtest` | Deterministic engine, clock, accounting (no look-ahead) | ✅ Implemented |
-| `analytics` | Canonical metrics + statistical validation suite | ✅ Implemented |
-| `research` | Hypothesis library, campaigns (R2–R4), provenance, cost model, combination | ✅ Implemented |
-| `stress` | Adversarial scenario engine | ✅ Implemented |
-| `fidelity` | R4 replay, research↔paper parity, forward paper campaigns, fidelity gates | ✅ Implemented |
-| `shadow` | Fail-closed shadow-mode live boundary | ✅ Implemented |
-| `live` / `paper` | Controlled live/paper boundaries, broker adapters, qualification | ✅ Implemented |
-| `production` | Readiness audits, fingerprinting, execution evidence, security | ✅ Implemented |
-| `micro_live` | Micro-live qualification framework + real-broker runner | ✅ Implemented |
-| `production_qual` | Scaling qualification from micro-live to larger capital | 🚧 Phase 1U (in progress) |
+| $5K | 🟢 LIVE | T=0 frozen, attestation valid, 10/10 adversarial tests |
+| $10K | 🔴 Not yet | Requires $5K evidence window |
+| $25K+ | 🔴 Not yet | Requires $10K qualification |
 
-## Decision Pipeline
+### Position Count Governance
 
-```
-Market Data → Strategy → StrategyIntent → Portfolio → PortfolioTarget
-→ EigenRisk → RiskDecision → ApprovedTarget → OrderPlan → Order
-→ Fill → Position → Reconciliation → AccountSnapshot
-```
+- **MAX_CONCURRENT = 19** (explicit governance decision)
+- Top-19 captures **97.4%** of total signal weight
+- Remaining 5 symbols contribute <3% — marginal
+- `MAX_CONCURRENT` is a risk-policy parameter, not tied to universe size
 
-Every transition is explicit. No downstream subsystem may infer upstream intent
-from downstream state when the upstream decision object should exist. This rule
-is what makes the system auditable: given any fill, you can walk backward through
-`Order`, `OrderPlan`, `ApprovedTarget`, `RiskDecision`, `PortfolioTarget`, and
-`StrategyIntent` to recover exactly *why* a trade happened.
+### Capital Semantics
 
-## Design Principles
+| Concept | Value | Meaning |
+|---|---|---|
+| Account equity | ~$6,980 | What broker shows |
+| Authorized capital | $5,100 | What strategy trades against |
+| Campaign tier | $5,000 | Qualification level |
+| Position limit | $5,000 | Max notional per position |
+| Risk budget | $250/day | Daily loss limit |
 
-1. **Explicit decisions over inferred state.** Every pipeline transition produces
-   a named, typed decision object.
-2. **Invariants at construction.** Domain objects validate themselves in
-   `__post_init__`; an invalid object cannot exist.
-3. **Immutability by default.** All domain models are frozen dataclasses.
-4. **Canonical serialization.** Deterministic `to_dict` / `from_dict` with sorted
-   keys and stable hashing (`canonical_serialization`) for provenance and audit trails.
-5. **Zero runtime dependencies in core.** The domain core is pure standard
-   library; heavy numerics stay optional (`research` extra) and out of the kernel.
-6. **Uniqueness enforced system-wide.** E.g., `instrument_id` is registered once
-   and duplicates are rejected at construction.
-7. **No look-ahead.** A signal at time *t* uses only information available at
-   *t* — see [RESEARCH_ENGINE_CONTRACT.md](docs/RESEARCH_ENGINE_CONTRACT.md).
-8. **Falsification-first.** Evidence gates default to rejection
-   (`MISSING`/`INCONCLUSIVE`); nothing passes by implication.
-9. **Fail-closed boundaries.** Shadow/live boundaries make unauthorized real-money
-   execution impossible by default.
+See [`docs/production/CAPITAL_SEMANTICS.md`](docs/production/CAPITAL_SEMANTICS.md) for full definitions.
 
-## Domain Models
+## Live Execution Sequence
 
-Implemented in [`src/eigencapital/core/models/`](src/eigencapital/core/models/) — all frozen dataclasses
-with invariant validation and deterministic serialization.
+Every cycle (hourly):
 
-### Market Data
+1. Verify build fingerprints (fail-closed)
+2. Validate T=0 snapshot matches config
+3. Assert position count within limits
+4. Check watchdog state (NORMAL/DEGRADED/BLIND/CONTAIN)
+5. Check risk gates (equity, drawdown, daily loss)
+6. Compute R4 signal (frozen, regime-gated)
+7. Generate orders (rotation-aware, ticket-scoped closes)
+8. Execute only what passes all gates
+9. Audit every decision to JSONL
 
-| Model | Purpose |
-|---|---|
-| `Instrument` | Immutable tradable-instrument metadata; globally unique `instrument_id` |
-| `Bar` / `BarInterval` | Normalized OHLCV bars at explicit intervals |
-| `MarketSnapshot` | Point-in-time market state for decision inputs |
+**No valid R4 signal = no trade.**
 
-### Decision Chain
+## Platform Support
 
-| Model | Purpose |
-|---|---|
-| `StrategyIntent` (+ `Horizon`) | A strategy's desired exposure change and horizon |
-| `PortfolioTarget` | Portfolio-level allocation target derived from intents |
-| `RiskCheckResult` / `RiskDecision` | Risk gate evaluation and verdict |
-| `ApprovedTarget` | Target cleared for execution |
-| `OrderPlan` (+ `Urgency`) | Execution plan: slicing, urgency, constraints |
-| `Order` / `OrderSide` | Order instructions issued to a venue |
-| `Fill` | Execution report for (part of) an order |
-| `OrderLifecycle` | Order state machine from submission to terminal state |
-| `Position` | Resulting holding state after fills |
+| Platform | Status | Evidence |
+|---|---|---|
+| Linux (Ubuntu/Debian) | 🟢 Production | Live running since Aug 2026 |
+| Windows | 🟡 Architecturally supported | Deployment docs exist |
+| mt5linux bridge | 🟢 Working | Rpyc connection to MT5 terminal |
 
-### Audit & Research
+### Key Distinction
 
-| Model | Purpose |
-|---|---|
-| `DecisionSnapshot` | Full provenance record of one decision cycle |
-| `Experiment` / `ExperimentStatus` | Research experiment tracking |
-| `TrialMetadata` | Multi-trial accounting (group id, selection method, ...) |
-| `errors.py` | Exception hierarchy (`EigenCapitalError`, `InvariantViolation`, ...) |
-| `canonical_serialization.py` | Deterministic serialization and hashing utilities |
+- **Application architecture**: Platform-agnostic (abstraction layer)
+- **MT5 integration**: Requires mt5linux bridge on Linux, native on Windows
+- **Currently certified**: Linux only (where live qualification runs)
 
-## Research & Qualification Pipeline
+## Deployment
 
-Research and deployment follow one continuous, gated pipeline:
-
-```
-Hypothesis → Backtest (contract-bound) → Statistical Validation → Stress
-→ Alpha Campaign → Freeze → Replay Parity → Forward Paper → Shadow
-→ Micro-Live → Production Qualification
-```
-
-- **Hypotheses are not strategies.** [29 pre-registered hypotheses](research/hypotheses/README.md)
-  across ten families (momentum, mean reversion, trend, volatility, stat-arb,
-  factor, cross-sectional, ML, breakout, alternative data) each carry mandatory
-  economic rationale and falsification criteria.
-- **Hostile validation** ([`analytics/validation/`](src/eigencapital/analytics/validation/)):
-  purged + embargoed walk-forward, IID/block bootstrap, permutation tests,
-  multiple-testing corrections (Bonferroni, Holm, BH/FDR), deflated Sharpe
-  ratio (Bailey & Prado), PBO, parameter-sensitivity plateaus, cost breakeven
-  stress, regime conditioning, universe perturbation, temporal stability,
-  Alphalens-style factor evaluation (IC / quantile spreads / turnover), and a
-  falsification-first evidence gate.
-- **Information-driven bars**: volume and notional bars with VWAP + trade
-  counts (`data/normalization/information_bars.py`); storage policy per book
-  guidance — HDF5 numeric, Parquet mixed, CSV fallback (`data/storage/`);
-  survivorship-aware universe membership with point-in-time queries
-  (`data/catalogue/membership.py`).
-- **Adversarial stress testing** per [STRESS_TEST_CONTRACT.md](docs/STRESS_TEST_CONTRACT.md):
-  perturbation scenarios must produce defined behavior and forbid undefined behavior.
-- **Alpha campaigns** executed against real MT5 data produced the
-  [Alpha Research Map](docs/research/ALPHA_RESEARCH_MAP_1Q_FULL.md); campaigns R2–R4
-  are pre-registered risk transformations with frozen manifests.
-- **Fidelity ladder**: frozen-config deterministic replay, research↔paper parity
-  (100% effective match rate on R4), forward paper campaign (`paper_fidelity_pass`,
-  7/7 gates), shadow execution (`SHADOW_QUALIFIED`), then micro-live with minimal
-  capital on a real broker.
-
-## Project Layout
-
-```
-eigencapital/
-├── src/eigencapital/
-│   ├── core/            # Domain models, contracts, events
-│   ├── data/            # Catalogue, loaders (CSV, MT5), normalization, validation
-│   ├── features/        # Feature library, registry, pipeline, provenance
-│   ├── strategies/      # Strategy contract, registry, trend strategy
-│   ├── portfolio/       # Intent aggregation and allocation
-│   ├── risk/            # EigenRisk engine, policy, checks
-│   ├── execution/       # Paper broker, account, positions, reconciliation
-│   ├── backtest/        # Deterministic backtest engine
-│   ├── analytics/       # Metrics + statistical validation suite
-│   ├── research/        # Hypotheses, campaigns, executors, provenance, costs
-│   ├── stress/          # Adversarial scenario engine
-│   ├── fidelity/        # Replay, parity, forward paper, verdicts
-│   ├── shadow/          # Fail-closed shadow boundary
-│   ├── live/, paper/    # Controlled live/paper boundaries and adapters
-│   ├── production/      # Readiness audits, fingerprints, evidence
-│   ├── micro_live/      # Micro-live qualification + runner
-│   └── production_qual/ # Scaling qualification (in progress)
-├── tests/
-│   ├── unit/            # Unit tests per model/layer/subsystem
-│   ├── property/        # Property-based tests (invariants hold universally)
-│   ├── integration/     # Cross-layer contract tests
-│   ├── simulation/      # End-to-end simulated runs
-│   └── failure_injection/  # Fault-tolerance scenarios
-├── configs/             # development/ paper/ production/ research/
-├── data/                # raw/ normalized/ features/ metadata/ mt5/
-├── docs/                # Contracts, phase reports, research results
-├── research/            # hypotheses/ experiments/ notebooks/ reports/
-├── scripts/
-├── .github/workflows/   # CI (planned)
-├── Makefile
-└── pyproject.toml
-```
-
-## Governing Contracts
-
-These documents are authoritative; code that violates them is wrong:
-
-| Document | Scope |
-|---|---|
-| [DATA_CONTRACT.md](docs/DATA_CONTRACT.md) | What counts as a valid bar; quality classification |
-| [RESEARCH_ENGINE_CONTRACT.md](docs/RESEARCH_ENGINE_CONTRACT.md) | Timestamp semantics, look-ahead prohibition, trial accounting |
-| [STRESS_TEST_CONTRACT.md](docs/STRESS_TEST_CONTRACT.md) | Scenario taxonomy, expected vs. forbidden behavior |
-
-Phase reports and campaign results live in [`docs/`](docs/) and
-[`docs/research/`](docs/research/).
-
-## Getting Started
-
-**Requirements:** Python 3.11+
+### Linux (Production)
 
 ```bash
 # Clone
-git clone git@github.com:manuelhorvey/EigenCapital.git && cd EigenCapital
+git clone <repo> && cd EigenCapital
 
-# Install with dev dependencies (editable install)
-make dev
-
-# Optional numerics for research/analytics work
+# Install
 pip install -e ".[research]"
 
-# Run the full test suite
+# Configure
+cp .env.example .env
+# Edit .env with broker credentials
+
+# Run live loop
+python scripts/r4_rebalance_loop.py --loop --interval 3600
+
+# Monitor
+python scripts/r4_monitor.py --loop --interval 60
+
+# Supervisor dry-run
+python scripts/r4_supervisor_dryrun.py
+```
+
+### Pre-flight Checks
+
+Before live trading:
+
+```bash
+# 1. Verify fingerprints
+python -c "from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier; print(FingerprintVerifier().verify_all().all_verified)"
+
+# 2. Run supervisor dry-run
+python scripts/r4_supervisor_dryrun.py
+
+# 3. Run adversarial audit
+python scripts/r4_adversarial_audit.py
+
+# 4. Generate T=0 snapshot
+python scripts/r4_generate_t0.py
+
+# 5. Generate attestation
+python scripts/r4_attestation.py
+```
+
+## Testing
+
+| Suite | Count | Command |
+|---|---|---|
+| Unit | 2,301 | `pytest tests/unit/` |
+| Property | — | `pytest tests/property/` |
+| P0 Safety | 44 | `pytest tests/unit/live/test_p0_safety.py` |
+| Risk Enforcement | — | `pytest tests/unit/live/test_risk_enforcement.py` |
+
+```bash
+# Full suite
 make test
 
 # Unit tests only
 make test-unit
 
-# Property-based tests only
-make test-property
-
 # Lint and type-check
-make lint        # ruff
-make typecheck   # mypy
-
-# See all targets
-make help
+make lint && make typecheck
 ```
 
-If you prefer not to install, run tests against the source tree directly:
+## Risk Architecture
 
-```bash
-PYTHONPATH=src python -m pytest tests/
+### Pre-trade Gates
+
+| Gate | Limit | Enforcement |
+|---|---|---|
+| Fingerprint | 5 components | Fail-closed |
+| Position count | ≤ 19 | Block new entries |
+| Position notional | ≤ $5,000 | Skip symbol |
+| Equity floor | ≥ $4,000 | Block trading |
+| Daily loss | ≤ $250 | Block trading |
+| Drawdown | ≤ 10% | Block trading |
+| Foreign quarantine | 0 foreign | Block new entries |
+
+### During-trade Controls
+
+- Catastrophic stop-loss (2× ATR or 1% floor)
+- Ticket-scoped closes (hedging-safe)
+- Auto-reconnect on stale MT5 session
+- Watchdog escalation (NORMAL → DEGRADED → BLIND → CONTAIN)
+
+### Portfolio-level Risk
+
+- Signal clips weights to ±20%
+- Volatility-scaled sizing
+- Regime gate (no trade when vol > median)
+- Correlation monitoring (rolling 20/60/120-day)
+
+## Capital Scaling
+
+| Tier | Max Position | Max Concurrent | Universe | Status |
+|---|---|---|---|---|
+| $5K | $5,000 | 19 | 24 symbols | 🟢 Live |
+| $10K | $10,000 | TBD | TBD | 🔴 Not qualified |
+| $25K | $25,000 | TBD | TBD | 🔴 Not qualified |
+| $50K | $50,000 | TBD | TBD | 🔴 Not qualified |
+
+**Capital scaling is earned through evidence, not enabled by changing a configuration value.**
+
+See [`docs/production/CAPITAL_SEMANTICS.md`](docs/production/CAPITAL_SEMANTICS.md).
+
+## Research
+
+R4 is the current production strategy. Research history:
+
+| Strategy | Status | Notes |
+|---|---|---|
+| R4 momentum | 🟢 Live | Frozen, qualified at $5K |
+| R5 swing breadth | 🔴 Rejected | 16/16 hypotheses failed |
+| M1-1H OHLCV | 🔴 Frozen | Not production-qualified |
+| Tick microstructure | 🔴 Frozen | Campaign 7 hardened, not promoted |
+
+### Research Philosophy
+
+> Falsification is a successful outcome.
+
+The research pipeline intentionally rejects attractive-looking signals when they fail:
+- Multiple-testing correction (Bonferroni, Holm, BH/FDR)
+- Out-of-sample validation
+- Parameter stability checks
+- Drawdown requirements
+- Evidence thresholds
+
+## Project Structure
+
+```
+eigencapital/
+├── src/eigencapital/
+│   ├── core/            # Domain models, contracts
+│   ├── data/            # Catalogue, loaders, normalization
+│   ├── features/        # Feature library, pipeline
+│   ├── risk/            # Risk engine, policy
+│   ├── execution/       # Broker, positions, reconciliation
+│   ├── live/            # Safety: watchdog, attribution, catastrophic protection
+│   ├── production_qual/ # Qualification: fingerprint, scaling, campaigns
+│   └── fidelity/        # R4 manifest, replay, parity
+├── tests/
+│   ├── unit/            # 2,301 unit tests
+│   └── unit/live/       # P0 safety, risk enforcement
+├── configs/production/  # Single source of truth for config
+├── scripts/             # Live trading, monitoring, qualification
+├── reports/
+│   ├── r4_qualification/ # T=0, audits, attestation
+│   ├── r4_loop/          # Runtime logs (gitignored)
+│   └── r4_economics_audit/ # Trade economics evidence
+├── docs/
+│   ├── production/       # Production documentation
+│   └── research/         # Research documentation
+└── research/             # Hypotheses, experiments
 ```
 
-## Configuration
+## Documentation
 
-Copy `.env.example` to `.env`. Key variables:
+| Document | Purpose |
+|---|---|
+| [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](docs/DOCUMENTATION_SOURCE_OF_TRUTH.md) | Which doc is authoritative for each subject |
+| [`docs/production/PRODUCTION_EVIDENCE_INDEX.md`](docs/production/PRODUCTION_EVIDENCE_INDEX.md) | All qualification evidence artifacts |
+| [`docs/production/CAPITAL_SEMANTICS.md`](docs/production/CAPITAL_SEMANTICS.md) | Capital concept definitions |
+| [`docs/production/PRODUCTION_OPERATIONS_RUNBOOK.md`](docs/production/PRODUCTION_OPERATIONS_RUNBOOK.md) | Operations procedures |
+| [`docs/production/FAILURE_RECOVERY_MATRIX.md`](docs/production/FAILURE_RECOVERY_MATRIX.md) | Failure handling procedures |
 
-| Variable | Description | Default |
-|---|---|---|
-| `EIGENCAPITAL_ENV` | Execution context: `PAPER` \| `LIVE` \| `BACKTEST` | `development` |
-| `BROKER_API_KEY` / `BROKER_API_SECRET` | Broker credentials (live phases only) | unset |
-| `BROKER_PAPER` | Route to broker paper endpoint | `true` |
-| `DATA_PROVIDER` / `DATA_API_KEY` | Market data source | unset |
-| `MAX_LEVERAGE` | Portfolio leverage cap | `2.0` |
-| `MAX_DRAWDOWN` | Max drawdown cap | `0.10` |
-| `LOG_LEVEL` | Logging verbosity | `INFO` |
+## Limitations
 
-Never commit `.env` or real credentials. Real market data flows through the
-MT5 provider (Wine bridge) with a yfinance fallback; exports land under
-`data/mt5/` (gitignored).
-
-## Testing Strategy
-
-Tests mirror the dependency graph: lower layers are tested exhaustively before
-upper layers are trusted on top of them.
-
-| Suite | Scope | Command |
-|---|---|---|
-| Unit (`tests/unit/`) | Models, layers, subsystems, edge cases, error paths — **all green** | `make test-unit` |
-| Property (`tests/property/`) | Invariants hold for arbitrary valid inputs | `make test-property` |
-| Integration (`tests/integration/`) | Cross-layer contracts | scaffolded |
-| Simulation (`tests/simulation/`) | Full-pipeline behavior | scaffolded |
-| Failure injection (`tests/failure_injection/`) | Fault tolerance and recovery | scaffolded |
-
-Coverage is configured with a minimum gate of 80% (`pyproject.toml`). An
-architecture audit test (`tests/unit/test_architecture_audit.py`) continuously
-verifies layer-dependency rules.
-
-## Roadmap
-
-- [x] **Phase 1A** — Core domain models, invariants, canonical serialization
-- [x] **Phase 1B** — Instrument catalogue, ingestion, normalization, data validation
-- [x] **Phase 1C** — Research identity: experiment registry, provenance hashing
-- [x] **Phase 1D** — Contract-bound backtest engine (clock, accounting)
-- [x] **Phase 1E** — EigenRisk independent risk boundary
-- [x] **Phase 1F** — Portfolio construction and allocation pipeline
-- [x] **Phase 1G** — Statistical validation suite + falsification-first evidence gate
-- [x] **Phase 1H** — Stress testing and adversarial simulation
-- [x] **Phase 1I** — Feature infrastructure and alpha research readiness
-- [x] **Phase 1J** — Portfolio research and allocation evidence
-- [x] **Phase 1K** — Paper-trading infrastructure
-- [x] **Phase 1L** — Paper-trading validation and qualification
-- [x] **Phase 1M** — Production readiness and governance audit
-- [x] **Phase 1N** — Shadow trading and live boundary (fail-closed)
-- [x] **Phase 1O** — Controlled live execution boundary
-- [x] **Phase 1P** — Controlled live campaign + production qualification
-- [x] **Phase 1Q** — Independent alpha research campaigns (R2–R4) on real MT5 data
-- [x] **Phase 1R** — R4 replay, paper fidelity (`PASS`), shadow execution (`QUALIFIED`)
-- [x] **Phase 1T** — Micro-live qualification framework + real-broker runner
-- [ ] **Phase 1U** — Production qualification and capital scaling *(current)*
-- [ ] **Phase 2** — Monitoring, alerting, operations hardening
-- [ ] **Phase 3** — CI workflows, multi-strategy portfolio at scale
-
-## Contributing
-
-This project is pre-release and governed by explicit contracts. Before opening PRs:
-
-1. Read the architecture section above — respect the dependency graph.
-2. New domain models must enforce their invariants in `__post_init__`.
-3. Every model ships with unit tests; invariant-critical logic warrants
-   property-based tests.
-4. Never weaken an evidence gate or invariant to make something pass —
-   `INCONCLUSIVE` is a valid, honest outcome.
-5. Run `make lint typecheck test` locally before submitting.
+- **$5K qualification only** — not certified for larger capital
+- **24 symbols** — 7 JPY crosses excluded (broker contract constraint)
+- **19 max concurrent** — governance decision, not technical limit
+- **Linux only** — Windows architecturally supported but not certified
+- **R4 edge is slow** — requires 20-40+ day holding periods for evidence
+- **No guaranteed stop-loss** — catastrophic SL subject to gap/slippage risk
+- **No live profitability evidence yet** — currently collecting evidence
 
 ## License
 
-[MIT](LICENSE) — see [LICENSE](LICENSE).
+[MIT](LICENSE)

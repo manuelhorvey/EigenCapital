@@ -1,0 +1,123 @@
+{
+  "decisions": {
+    "n_records": 26,
+    "event_counts": {
+      "dry_run": 8,
+      "executed": 6,
+      "aligned": 4,
+      "regime_skip": 2,
+      "error": 1,
+      "concurrency_limit": 3,
+      "emergency_flatten": 2
+    },
+    "first_ts": "2026-08-25T14:08:07.927774+00:00",
+    "last_ts": "2026-08-25T15:13:51.075352+00:00",
+    "executed_equity_series": [
+      {
+        "ts": "2026-08-25T14:08:20.147066+00:00",
+        "equity_before": 5011.94,
+        "equity_after": 5011.36,
+        "filled": 6,
+        "submitted": 6
+      },
+      {
+        "ts": "2026-08-25T14:36:48.766651+00:00",
+        "equity_before": 5010.09,
+        "equity_after": 5009.98,
+        "filled": 1,
+        "submitted": 1
+      },
+      {
+        "ts": "2026-08-25T14:51:44.298099+00:00",
+        "equity_before": 5020.61,
+        "equity_after": 5019.89,
+        "filled": 8,
+        "submitted": 8
+      },
+      {
+        "ts": "2026-08-25T15:00:53.031249+00:00",
+        "equity_before": 5018.75,
+        "equity_after": 5017.99,
+        "filled": 8,
+        "submitted": 8
+      },
+      {
+        "ts": "2026-08-25T15:10:49.613138+00:00",
+        "equity_before": 5018.39,
+        "equity_after": 5018.34,
+        "filled": 8,
+        "submitted": 8
+      },
+      {
+        "ts": "2026-08-25T15:13:51.075352+00:00",
+        "equity_before": 5019.05,
+        "equity_after": 0,
+        "filled": 8,
+        "submitted": 8
+      }
+    ],
+    "zero_equity_reads": [
+      {
+        "ts": "2026-08-25T15:13:51.075352+00:00",
+        "equity_before": 5019.05,
+        "equity_after": 0,
+        "filled": 8,
+        "submitted": 8
+      }
+    ]
+  },
+  "monitor": {
+    "n_records": 3915,
+    "title_counts": {
+      "POSITION OPENED": 7,
+      "CONCURRENCY LIMIT": 1501,
+      "EMERGENCY FLATTEN": 1483,
+      "POSITION MODIFIED": 1,
+      "POSITION CLOSED": 2,
+      "EQUITY CHANGE": 453,
+      "MT5 DISCONNECTED": 468
+    },
+    "unique_bodies_per_title": {
+      "POSITION OPENED": 7,
+      "CONCURRENCY LIMIT": 1,
+      "EMERGENCY FLATTEN": 1,
+      "POSITION MODIFIED": 1,
+      "POSITION CLOSED": 2,
+      "EQUITY CHANGE": 453,
+      "MT5 DISCONNECTED": 1
+    },
+    "amplification_ratio": {
+      "POSITION OPENED": 1.0,
+      "CONCURRENCY LIMIT": 1501.0,
+      "EMERGENCY FLATTEN": 1483.0,
+      "POSITION MODIFIED": 1.0,
+      "POSITION CLOSED": 1.0,
+      "EQUITY CHANGE": 1.0,
+      "MT5 DISCONNECTED": 468.0
+    },
+    "first_ts": "2026-08-25T15:05:13.202911+00:00",
+    "last_ts": "2026-08-26T09:26:03.563797+00:00",
+    "equity_change_series_count": 453,
+    "equity_min": 4885.99,
+    "equity_max": 6869.04
+  },
+  "last_positions": {
+    "n_total": 16,
+    "n_bot": 8,
+    "n_manual_magic_0": 8,
+    "manual_symbols": [
+      "AUDCAD",
+      "AUDCHF",
+      "AUDNZD",
+      "AUDUSD",
+      "BTCUSD",
+      "CADCHF",
+      "EURUSD",
+      "USDCAD"
+    ],
+    "bot_unrealized_pnl": 22.67,
+    "manual_unrealized_pnl": 1719.12,
+    "any_sl_set": false,
+    "any_tp_set": false
+  }
+}

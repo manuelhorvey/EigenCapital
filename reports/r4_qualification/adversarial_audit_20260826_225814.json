@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-08-26T22:58:14.198091+00:00",
+  "total": 10,
+  "passed": 9,
+  "failed": 1,
+  "checks": [
+    {
+      "name": "foreign_quarantine",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "contamination=True, entries_blocked=True, self_rotation=True, foreign=1",
+      "passed": true
+    },
+    {
+      "name": "missing_sl_detection",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "actions=1, has_set_sl=True, ticket_match=True",
+      "passed": true
+    },
+    {
+      "name": "idempotent_sl",
+      "result": "FAIL",
+      "expected": "PASS",
+      "detail": "actions=1 (expected 0 \u2014 already protected)",
+      "passed": false
+    },
+    {
+      "name": "watchdog_state_machine",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "4a_healthy_is_normal=\u2705, 4b_dead_process_degraded=\u2705, 4c_stale_escalates=\u2705, 4d_reconcile_clean_resumed=\u2705, 4e_reconcile_dirty_halted=\u2705, 4f_halted_sticky=\u2705",
+      "passed": true
+    },
+    {
+      "name": "flatten_retry",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "outcome=FLATTENED, closed=3, attempts=4",
+      "passed": true
+    },
+    {
+      "name": "risk_enforcement",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "normal_pass=True, equity_block=True, fp_block=True",
+      "passed": true
+    },
+    {
+      "name": "position_count_overflow",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "r4=19, max=19, entries_blocked=True",
+      "passed": true
+    },
+    {
+      "name": "snapshot_hash_sensitivity",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "h1=a86bb363, h2=69cfbf71, h3=b66367b9, all_different=True",
+      "passed": true
+    },
+    {
+      "name": "fingerprint_fail_closed",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "checks=5, verified=True, structured=True",
+      "passed": true
+    },
+    {
+      "name": "full_pipeline",
+      "result": "PASS",
+      "expected": "PASS",
+      "detail": "r4=19, foreign=1, quarantine=True, protection_actions=19",
+      "passed": true
+    }
+  ]
+}

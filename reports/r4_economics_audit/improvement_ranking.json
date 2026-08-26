@@ -1,0 +1,34 @@
+{
+  "scoring_formula": "benefit(1-5) x evidence_strength(1-5) / (complexity(1-5) x new_risk(1-5)); higher = implement first",
+  "evidence_sources": [
+    "counterfactual_results.json (33 preregistered trials)",
+    "PRELIMINARY_SAFETY_TRIAGE.json (P0/P1 findings + live broker evidence)",
+    "loss_dynamics.json recovery curves",
+    "holding_period.json concentration results",
+    "signal_strength.json rank/weight structure",
+    "live_vs_paper_comparison.json execution frictions"
+  ],
+  "rankings": [
+    {"rank": 1, "item": "Deployed-build pinning: per-cycle fingerprint proof + build-id in audit records", "benefit": 5, "evidence": 5, "complexity": 1, "new_risk": 1, "score": 25.0, "class": "IMPLEMENT NOW", "basis": "P0-4 deployment drift; qualification attests to unknown binary"},
+    {"rank": 2, "item": "Foreign-position quarantine + PQ attribution repair + T0 restart", "benefit": 5, "evidence": 5, "complexity": 2, "new_risk": 1, "score": 12.5, "class": "IMPLEMENT NOW", "basis": "P0-3; ~$789K foreign notional on $5K account; PQ asserts Manual trades: 0 vs broker truth"},
+    {"rank": 3, "item": "Catastrophic protection layer: broker-side disaster SL >= 2ATR (or watchdog auto-flatten with retry)", "benefit": 5, "evidence": 4, "complexity": 2, "new_risk": 2, "score": 5.0, "class": "IMPLEMENT NOW (SAFETY ONLY)", "basis": "F2_atr_1..2: MaxDD -12.3%->-6.7% at Sharpe drag <=0.05; containment criteria met per ledger; distinct from economic exits which remain no-SL"},
+    {"rank": 4, "item": "Bridge failover / acting watchdog (auto-flatten path, external escalation proven)", "benefit": 5, "evidence": 4, "complexity": 3, "new_risk": 2, "score": 3.33, "class": "IMPLEMENT NOW", "basis": "observed 9.5h blind window; monitor alert-only could not act"},
+    {"rank": 5, "item": "Midnight zero-equity baseline guard (DailyLossTracker)", "benefit": 4, "evidence": 5, "complexity": 1, "new_risk": 1, "score": 20.0, "class": "IMPLEMENT NOW", "basis": "P1-2 observed Equity $0.00 cycles crossing midnight UTC"},
+    {"rank": 6, "item": "Implement per-position loss gate OR remove declared limit", "benefit": 3, "evidence": 5, "complexity": 2, "new_risk": 1, "score": 7.5, "class": "IMPLEMENT NOW", "basis": "declared max_per_position_loss_pct never enforced (P1-1); honesty of envelope"},
+    {"rank": 7, "item": "Alert dedup + audited SKIP events + absolute audit paths", "benefit": 3, "evidence": 5, "complexity": 2, "new_risk": 1, "score": 7.5, "class": "IMPLEMENT NOW", "basis": "1:506 amplification; silent unaudited SKIPs during outage; cwd-dependent trails"},
+    {"rank": 8, "item": "Single canonical regime definition (research/live/monitor)", "benefit": 3, "evidence": 5, "complexity": 2, "new_risk": 2, "score": 3.75, "class": "IMPLEMENT NOW", "basis": "three divergent universes (15/31/6 symbols) break fidelity chain"},
+    {"rank": 9, "item": "Time-stop on losers (exit if <0 after 10 bars)", "benefit": 3, "evidence": 3, "complexity": 2, "new_risk": 2, "score": 2.25, "class": "PREREGISTERED RESEARCH", "basis": "only control-beater (+0.068 Sharpe, -45% MaxDD) but NOT significant after Bonferroni; needs OOS confirmation on fresh window"},
+    {"rank": 10, "item": "Entry-quality filter: require cross-sectional rank <= 3 (strongest entries only)", "benefit": 3, "evidence": 2, "complexity": 2, "new_risk": 3, "score": 1.0, "class": "PREREGISTERED RESEARCH", "basis": "rank-1/2 quintile exp +3.6% vs -0.2% weak; but post-hoc subgroup -> must be preregistered + WF validated before any production consideration"},
+    {"rank": 11, "item": "Volatility-targeted portfolio exposure overlay", "benefit": 3, "evidence": 2, "complexity": 3, "new_risk": 2, "score": 1.0, "class": "PREREGISTERED RESEARCH"},
+    {"rank": 12, "item": "Correlation-aware sizing / CVaR limits", "benefit": 3, "evidence": 2, "complexity": 4, "new_risk": 3, "score": 0.5, "class": "PREREGISTERED RESEARCH"},
+    {"rank": 13, "item": "Spread/slippage entry filters + execution-quality gate", "benefit": 2, "evidence": 2, "complexity": 2, "new_risk": 2, "score": 1.0, "class": "PREREGISTERED RESEARCH", "basis": "slippage not yet measurable from artifacts; needs fill telemetry first"},
+    {"rank": 14, "item": "Weekend gap protection (reduce into Friday close)", "benefit": 2, "evidence": 1, "complexity": 2, "new_risk": 3, "score": 0.33, "class": "PREREGISTERED RESEARCH", "basis": "no weekend-loss episodes isolated yet in sample; risk of destroying momentum tail"},
+    {"rank": 15, "item": "Adaptive rebalance cadence (weekly-declared vs daily-operational resolution)", "benefit": 2, "evidence": 2, "complexity": 3, "new_risk": 2, "score": 0.67, "class": "PREREGISTERED RESEARCH", "basis": "daily n=744 vs weekly n=325 datasets exist for comparison; decide via preregistered test"},
+    {"rank": 16, "item": "Take-profit mechanisms (any level)", "benefit": 1, "evidence": 5, "complexity": 2, "new_risk": 3, "score": 0.83, "class": "DO NOT IMPLEMENT", "basis": "ALL 7 TP trials harm expectancy (-0.34..-0.63 Sharpe delta); edge is convex tail capture"},
+    {"rank": 17, "item": "Tight fixed stops (<1%) or any trailing stop", "benefit": 1, "evidence": 5, "complexity": 2, "new_risk": 3, "score": 0.83, "class": "DO NOT IMPLEMENT", "basis": "F1 0.25-0.5% and ALL F5 trails: catastrophic Sharpe destruction (-1.0..-1.4)"},
+    {"rank": 18, "item": "Regime-OFF flatten of existing positions", "benefit": 1, "evidence": 4, "complexity": 1, "new_risk": 2, "score": 2.5, "class": "DO NOT IMPLEMENT (ECONOMICALLY) - REVISIT AS SAFETY OPTION ONLY IF catastrophic layer cannot be built broker-side", "basis": "F6_regimeoff_flatten Delta=-0.713: riding frozen periods through recovery outperforms flattening"},
+    {"rank": 19, "item": "Time caps on winners (60d/120d)", "benefit": 1, "evidence": 5, "complexity": 2, "new_risk": 3, "score": 0.83, "class": "DO NOT IMPLEMENT", "basis": "40d+ bucket holds 84% of positive P&L; caps destroy convexity (false-stop 43-58%)"},
+    {"rank": 20, "item": "Additional broker failover providers", "benefit": 3, "evidence": 1, "complexity": 5, "new_risk": 3, "score": 0.2, "class": "PREREGISTERED RESEARCH", "basis": "valuable ops redundancy; no second broker integration exists to evaluate"}
+  ],
+  "note_on_safety_vs_economics": "Ranks 1-8 are operational-safety implementations justified by containment/deployment-integrity evidence, NOT by backtest optimization. Rank 3 explicitly preserves R4's economic no-SL design while adding an independent disaster layer."
+}

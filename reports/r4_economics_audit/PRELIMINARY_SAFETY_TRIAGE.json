@@ -1,0 +1,87 @@
+{
+  "document": "PRELIMINARY_SAFETY_TRIAGE",
+  "generated_at_utc": "2026-08-26T06:40:00Z",
+  "audit_phase": 1,
+  "governing_rule": "Safety triage precedes all economic analysis. Do not infer safety from profitability.",
+  "evidence_sources": [
+    "reports/r4_loop/decisions.jsonl (26 records, 2026-08-25T14:08Z..15:13Z)",
+    "reports/r4_loop/monitor.jsonl (still appending as of generation time; alert counts grown)",
+    "reports/r4_loop/loop.log (cycles 1-10, 15:13Z..00:13Z)",
+    "reports/r4_loop/last_positions.json",
+    "reports/t0_snapshot.json (T0 equity $5,010.94 @ 14:32:48Z)",
+    "MT5 bridge read-only exports: reports/r4_economics_audit/mt5_deals_live.json (137 deals; re-export confirmed identical trade set)",
+    "Code inspection at git d16148e"
+  ],
+  "live_broker_state": {
+    "account": 436921728,
+    "equity_at_first_export": 5379.40,
+    "equity_at_second_export_hours_later": 6752.81,
+    "balance": 5019.05,
+    "t0_equity": 5010.94,
+    "realized_pnl_since_t0": 8.11,
+    "bot_realized_pnl_closed_trades": -3.67,
+    "manual_realized_pnl_closed_trades": -242.65,
+    "floating_pnl_total_at_second_export": 1733.76,
+    "open_positions_total": 16,
+    "open_positions_bot_magic_20260825": 8,
+    "open_positions_manual_magic_0": 8,
+    "positions_with_sl": 0,
+    "positions_with_tp": 0,
+    "equity_range_observed_on_5k_account": [4885.99, 6752.81],
+    "note": "entire equity path driven by foreign magic=0 positions; R4 bot realized -3.67 USD on closed round trips"
+  },
+  "control_chain_verdicts": {
+    "risk_enforcer_gates": {"can_reduce_exposure": false, "note": "ALL gates BLOCK-new-entries only; per-position loss gate DECLARED BUT NEVER IMPLEMENTED; internal daily-loss gate inert (_daily_pnl_start never set)"},
+    "daily_loss_tracker": {"action_on_breach": "BLOCK new cycles only", "midnight_zero_baseline_hazard": true, "persistence_file_missing_during_session": true},
+    "regime_gate": {"can_reduce_exposure": false, "note": "regime OFF returns SKIP before position handling -> positions NOT exited when regime turns OFF", "fidelity_drift": "three divergent universes: research(15)/live-loop(31)/monitor(6)"},
+    "emergency_flatten": {"invocations": "manual --flatten only (14:55:41, 15:13:16); single-pass, no retry, closes ALL magics"},
+    "monitoring": {"interval_s": 60, "alert_only": true, "telegram_active": false, "amplification": {"CONCURRENCY LIMIT": "1501 alerts <- 1 unique event", "EMERGENCY FLATTEN": "1483 <- 1", "MT5 DISCONNECTED": "468 <- 1 body"}},
+    "disconnect_recovery": {"executed_in_head_code": true, "active_during_session": false}
+  },
+  "reaction_time_quantification": {
+    "observed_order_round_trip_seconds": 3,
+    "loop_interval_seconds": 3600,
+    "observed_blind_window_seconds": 34200,
+    "worst_case_unprotected_exposure_bound": "margin call only (2000:1 demo leverage); sl=tp=0 verified on all 16 positions",
+    "worst_observed_outcome": "peak-to-trough DD 10.01% ($5429.45 @00:20Z vs $4885.99 @16:05Z) entirely inside bridge outage; account_drawdown gate (>10%) breached with zero reaction"
+  },
+  "exposure_quantification": {
+    "manual_notional_estimate_usd": 789000,
+    "manual_leverage_multiple_of_equity": "~117-146x depending on equity mark",
+    "concentration": "foreign book AUD-long across AUDUSD/AUDCAD/AUDNZD/AUDCHF full lots + BTCUSD 0.15 short (~$11.9K)",
+    "correlated_shock_example": "+1% adverse USD-wide move ~ -$7.9K > total equity at T0"
+  },
+  "anomaly_adjudication": {
+    "magic0_positions": "CONFIRMED at broker twice (two exports hours apart); PQ artifact 'Manual trades: 0' contradicted",
+    "deployment_drift": "running loop predates HEAD: no startup fingerprint lines, missing runtime_state/daily_baseline files, broker history contains exit comments absent from HEAD code",
+    "equity_after_zero": "bridge death symptom at 15:13:51Z; loop blind until 00:20Z+; silent unaudited SKIP cycles during outage",
+    "alert_counts_grew_during_audit": "monitor STILL RUNNING and appending during audit session (506->1501 concurrency alerts between first and second forensic pass)"
+  },
+  "severity_classification": [
+    {"id": "P0-1", "title": "No layer can reduce live exposure automatically; worst case bounded only by margin call"},
+    {"id": "P0-2", "title": "10% drawdown gate breached in reality with zero reaction (10.01% peak-to-trough inside blind window)"},
+    {"id": "P0-3", "title": "Campaign boundary compromised by foreign positions (~$789K notional) + PQ misattestation"},
+    {"id": "P0-4", "title": "Deployment drift: live process predates audited HEAD"},
+    {"id": "P1-1", "title": "Per-position loss limit declared but unimplemented"},
+    {"id": "P1-2", "title": "Midnight zero-equity baseline poisoning disables daily-loss protection for the day"},
+    {"id": "P1-3", "title": "Regime-OFF leaves existing positions unmanaged by design"},
+    {"id": "P1-4", "title": "Alert amplification + no acting escalation channel"},
+    {"id": "P1-5", "title": "Three divergent regime definitions break fidelity"},
+    {"id": "P2-1", "title": "Min-lot flooring oversizes weak signals at $5K"},
+    {"id": "P2-2", "title": "Audit trail fragility (relative paths, silent SKIPs)"}
+  ],
+  "verdict": {
+    "pause_required": true,
+    "scope": "R4 rebalance loop trading on account 436921728",
+    "rationale": "Four independent P0 conditions confirmed with live-broker evidence. Economic audit continued offline per governance; no live actions taken by the audit.",
+    "minimum_conditions_to_resume": [
+      "Resolve/quarantine foreign magic=0 positions; reconcile PQ attribution against broker truth; restart qualification clock post-reconciliation",
+      "Pin deployed build to audited commit with startup+per-cycle fingerprint proof and build-id stamped in audit records",
+      "Implement independent catastrophic protection layer (broker-side disaster SL >= 2ATR or watchdog auto-flatten with retry), tested offline first",
+      "Fix P1-1..P1-5",
+      "Absolute audit paths; audit insufficient-data SKIP events",
+      "Fresh T0 snapshot only after clean reconciliation"
+    ],
+    "economic_analysis_continues": true
+  }
+}

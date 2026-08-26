@@ -1,0 +1,37 @@
+{
+  "basis": "block-bootstrap (20d blocks, 2000 draws) of control daily net returns 2021..2026-08 at 10bps/side costs; STATISTICAL SCENARIO, NOT A GUARANTEE",
+  "scenarios": {
+    "conservative": {
+      "ann_return_bootstrap_pctile": "P10",
+      "ann_return": 0.009453062844817426,
+      "ann_vol": 0.04708917200935905,
+      "sharpe_ann": 0.20074812194486272,
+      "prob_losing_month_empirical": 0.35,
+      "time_to_double_years_compounded": 73.67117266799161,
+      "prob_hit_20pct_dd_within_1y_normal_approx": 1.075232628655609e-06
+    },
+    "baseline": {
+      "ann_return_bootstrap_pctile": "P50",
+      "ann_return": 0.029519624915473622,
+      "ann_vol": 0.04708917200935905,
+      "sharpe_ann": 0.6268877462871199,
+      "prob_losing_month_empirical": 0.35,
+      "time_to_double_years_compounded": 23.82578707464105,
+      "prob_hit_20pct_dd_within_1y_normal_approx": 1.075232628655609e-06
+    },
+    "optimistic": {
+      "ann_return_bootstrap_pctile": "P90",
+      "ann_return": 0.05150844634009644,
+      "ann_vol": 0.04708917200935905,
+      "sharpe_ann": 1.0938490557841845,
+      "prob_losing_month_empirical": 0.35,
+      "time_to_double_years_compounded": 13.800634083239267,
+      "prob_hit_20pct_dd_within_1y_normal_approx": 1.075232628655609e-06
+    }
+  },
+  "cost_drag_gross_minus_net_annualized": 0.025887037376757904,
+  "compounding_note": "sizing capped by max_equity=$5100 during qualification; compounding intentionally disabled until capital promotion",
+  "max_drawdown_control_backtest": -0.123,
+  "campaign_daily_loss_limit_usd": 250.0,
+  "prob_daily_loss_beyond_limit_normal_approx": 0.0
+}

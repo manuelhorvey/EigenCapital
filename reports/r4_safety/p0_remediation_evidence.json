@@ -1,0 +1,63 @@
+{
+ "campaign": "R4 P0 Safety Remediation & Controlled Resume",
+ "generated_utc": "2026-08-26T07:40:00Z",
+ "build_pin": {
+  "verified": true,
+  "build_id": "e1a62f17761b3e7ee97379ecaea8a4b9",
+  "git_head": "d16148e6a8a9"
+ },
+ "broker_state_at_evidence": {
+  "equity": 6756.87,
+  "balance": 6741.77,
+  "positions_total": 9,
+  "bot_positions": 9,
+  "foreign_positions": 0,
+  "positions_with_sl": 0,
+  "note": "foreign book closed by operator since triage; balance realized"
+ },
+ "dry_run_supervisor_tick": {
+  "watch_state": "BLIND",
+  "authorize_trading": false,
+  "r4_open_count": 9,
+  "capacity_breach_detected": true,
+  "protection_actions_planned": 9,
+  "sample_plan": [
+   {
+    "ticket": 3136307500,
+    "symbol": "AUDNZD",
+    "sl": 1.18683,
+    "mult_atr": 2.0
+   },
+   {
+    "ticket": 3136307572,
+    "symbol": "AUDCAD",
+    "sl": 0.98033,
+    "mult_atr": 2.0
+   },
+   {
+    "ticket": 3136307589,
+    "symbol": "AUDCHF",
+    "sl": 0.56864,
+    "mult_atr": 2.0
+   }
+  ]
+ },
+ "attribution_ledger": {
+  "by_magic": {
+   "UNATTRIBUTED_MAGIC_0": {
+    "deals": 47,
+    "realized_pnl": 4529.35
+   },
+   "R4_BOT": {
+    "deals": 90,
+    "realized_pnl": -3.67
+   }
+  },
+  "attestation_valid": false
+ },
+ "durable_audit": {
+  "chain_valid": true,
+  "records": 2,
+  "mirror_ok": true
+ }
+}

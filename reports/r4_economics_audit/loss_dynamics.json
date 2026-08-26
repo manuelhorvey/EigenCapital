@@ -1,0 +1,73 @@
+{
+  "loss_speed": {
+    "time_to_mae_bars_median_losers": 1.0,
+    "within_5_bars_share": 0.7172995780590717
+  },
+  "underwater": {
+    "note": "cumulative path negative share computed from pathdata",
+    "median_time_underwater_share": 0.06274509803921569
+  },
+  "ever_profitable_among_losers": 0.42616033755274263,
+  "recovery_curves": [
+    {
+      "threshold_R": 0.25,
+      "n_reached": 360,
+      "pct_eventually_profitable_net": 0.3333333333333333,
+      "avg_final_return_R": -0.3105705350259243,
+      "pct_deteriorated_further_025R": 0.8138888888888889,
+      "median_additional_mae_beyond_threshold_R": 1.1032025574999216
+    },
+    {
+      "threshold_R": 0.5,
+      "n_reached": 293,
+      "pct_eventually_profitable_net": 0.2901023890784983,
+      "avg_final_return_R": -0.8156266020805077,
+      "pct_deteriorated_further_025R": 0.7713310580204779,
+      "median_additional_mae_beyond_threshold_R": 1.231652491086078
+    },
+    {
+      "threshold_R": 0.75,
+      "n_reached": 226,
+      "pct_eventually_profitable_net": 0.2168141592920354,
+      "avg_final_return_R": -1.0992074017291544,
+      "pct_deteriorated_further_025R": 0.831858407079646,
+      "median_additional_mae_beyond_threshold_R": 1.2217436273984494
+    },
+    {
+      "threshold_R": 1.0,
+      "n_reached": 188,
+      "pct_eventually_profitable_net": 0.18617021276595744,
+      "avg_final_return_R": -1.299044510991608,
+      "pct_deteriorated_further_025R": 0.851063829787234,
+      "median_additional_mae_beyond_threshold_R": 1.2907855835123643
+    },
+    {
+      "threshold_R": 1.5,
+      "n_reached": 127,
+      "pct_eventually_profitable_net": 0.14960629921259844,
+      "avg_final_return_R": -1.7653356793181882,
+      "pct_deteriorated_further_025R": 0.889763779527559,
+      "median_additional_mae_beyond_threshold_R": 1.4122915711795452
+    },
+    {
+      "threshold_R": 2.0,
+      "n_reached": 91,
+      "pct_eventually_profitable_net": 0.12087912087912088,
+      "avg_final_return_R": -2.04338545136572,
+      "pct_deteriorated_further_025R": 0.8791208791208791,
+      "median_additional_mae_beyond_threshold_R": 1.6176006295963843
+    },
+    {
+      "threshold_R": 3.0,
+      "n_reached": 53,
+      "pct_eventually_profitable_net": 0.09433962264150944,
+      "avg_final_return_R": -2.811277037524713,
+      "pct_deteriorated_further_025R": 0.9056603773584906,
+      "median_additional_mae_beyond_threshold_R": 2.156777132998897
+    }
+  ],
+  "clustering_months_with_losses_gini_like": {
+    "max_losses_single_month": 16,
+    "months_with_3plus_losses": 53
+  }
+}

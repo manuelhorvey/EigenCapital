@@ -158,6 +158,52 @@ The qualification monitor should continuously produce:
 - Operational incidents
 - Broker reconciliation status
 
+## Implementation Priorities
+
+### P0 — Phase 2 Compatible (Now)
+
+| # | Item | Purpose |
+|---|---|---|
+| 1 | Reconciliation | Broker/internal state consistency |
+| 2 | Continuous risk observation | OBSERVE/ALERT/CONTAIN/HALT |
+| 3 | Live state/account state | End-to-end position reconstruction |
+| 4 | Event/evidence ledger | Canonical economic record |
+| 5 | Monitoring + health states | SYSTEM_HEALTH aggregation |
+| 6 | Alerting | Safety/drift/milestone alerts |
+| 7 | Execution edge-case handling | Partial fills, rejections |
+| 8 | Failure/recovery instrumentation | Timestamped recovery records |
+| 9 | Phase 2 qualification reporting | Continuous evidence reports |
+
+### P1 — Phase 2 Shadow (Build, Don't Activate)
+
+| # | Item | Purpose |
+|---|---|---|
+| 10 | Shadow REDUCED risk engine | Evidence collection only |
+| 11 | Shadow portfolio risk analytics | Evidence collection only |
+| 12 | Scaling governance framework | Phase 3 infrastructure |
+| 13 | Capacity monitoring | Future tier readiness |
+| 14 | Operational dashboards | Visibility |
+
+### P2 — Phase 3+ (Later)
+
+| # | Item | Purpose |
+|---|---|---|
+| 15 | Activate REDUCED behavior | After Phase 2 evidence |
+| 16 | Capital promotion | After evidence gates |
+| 17 | Strategy expansion | Phase 5 |
+| 18 | New alpha research | Phase 5 |
+| 19 | Universe expansion | Phase 5 |
+
+### Explicit Constraints
+
+> Do not perform opportunistic refactors.
+> Do not alter R4 strategy behavior.
+> Do not alter R4 signal generation, universe, cadence, sizing, exits, or parameters.
+> Do not change production risk semantics unless explicitly designated as shadow-only.
+> Do not modify the Phase 2 qualification baseline.
+
+Required: Before/after behavioral parity tests for all frozen R4 pathways.
+
 ## Phase 3 Gate
 
 Phase 3 (Capital Scaling) opens only when:
@@ -168,3 +214,5 @@ Phase 3 (Capital Scaling) opens only when:
 4. No unresolved safety incidents
 5. Research and live behavior sufficiently consistent
 6. Formal review and approval
+
+Phase 3 machinery can exist. **Promotion remains disabled.**

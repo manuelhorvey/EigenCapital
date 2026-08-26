@@ -77,15 +77,27 @@ Last updated: 2026-08-26
 | Risk enforcement tests | Risk tests | `tests/unit/live/test_risk_enforcement.py` |
 | Test count | pytest collection | Run `pytest --co -q` |
 
+## Operational Documents
+
+| Document | Purpose | Location |
+|---|---|---|
+| Risk architecture | Complete risk control documentation | `docs/production/RISK_ARCHITECTURE.md` |
+| Live trading | Operational sequence and procedures | `docs/production/LIVE_TRADING.md` |
+| Deployment | Installation and startup procedures | `docs/production/DEPLOYMENT.md` |
+| Operations runbook | Daily/weekly checks, failure handling | `docs/production/OPERATIONS_RUNBOOK.md` |
+| Capital scaling | Tier definitions and promotion criteria | `docs/production/CAPITAL_SCALING.md` |
+| Platform portability | Linux vs Windows support status | `docs/production/PLATFORM_PORTABILITY.md` |
+| Testing | Test architecture and categories | `docs/production/TESTING.md` |
+| Sync audit | Documentation synchronization results | `docs/production/DOCUMENTATION_SYNC_AUDIT.md` |
+
 ## Documentation Gaps
 
 The following areas lack a single authoritative document:
 
-1. **Windows support status** — No conformance test evidence exists
-2. **Strategy capacity limits** — Not formally documented
-3. **Correlation/concentration limits** — No formal portfolio-level risk policy
-4. **Holding period economics** — Only research evidence, no live confirmation
-5. **Entry slippage benchmarks** — No baseline established yet
+1. **Strategy capacity limits** — Not formally documented
+2. **Correlation/concentration limits** — No formal portfolio-level risk policy
+3. **Holding period economics** — Only research evidence, no live confirmation
+4. **Entry slippage benchmarks** — No baseline established yet
 
 ## How to Use This Map
 

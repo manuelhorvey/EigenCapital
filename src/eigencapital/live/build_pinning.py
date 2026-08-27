@@ -13,7 +13,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-EXPECTED_GIT_HEAD = "d16148e"
+EXPECTED_GIT_HEAD = "375a71b"
 EXPECTED_MANIFEST_IDENTITY = (
     "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
 )

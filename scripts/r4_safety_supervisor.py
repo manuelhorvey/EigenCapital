@@ -120,7 +120,7 @@ class BrokerAdapter:
             return False
         p = pos[0]
         req = {
-            "action": self._mt5.TRADE_ACTION_SLTX,
+            "action": self._mt5.TRADE_ACTION_SLTP,
             "position": ticket,
             "sl": float(sl),
             "tp": p.tp,

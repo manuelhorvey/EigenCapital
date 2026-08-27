@@ -23,6 +23,8 @@ env/
 .coverage
 htmlcov/
 .mypy_cache/
+coverage.xml
+coverage.json
 
 # OS
 .DS_Store

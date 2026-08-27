@@ -49,7 +49,7 @@ from eigencapital.config import load_config
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
-from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
+from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState, trail_age_seconds
 from eigencapital.live.position_attribution import classify_all, snapshot_hash, R4_MAGIC
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
@@ -576,6 +576,11 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             log("🟢 Reconnected to MT5")
     equity = account.equity if account else 0
 
+    # Record daily start equity for Gate 4 (daily loss) if not yet set
+    if _risk_enforcer._daily_pnl_start == 0.0:
+        _risk_enforcer.record_daily_start(equity)
+        log(f"📊 Daily loss baseline set: ${equity:,.2f}")
+
     log(f"Equity: ${equity:,.2f}")
 
     # 0. Watchdog probe — detect stale/blind/contain conditions
@@ -588,9 +593,13 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         equity,
         free_margin,
     )
+    # Compute actual trail age from audit file
+    audit_file = Path(AUDIT_FILE)
+    actual_trail_age = trail_age_seconds(audit_file)
+    
     wd_probe = ProbeResult(
         process_alive=True,
-        trail_age_seconds=0.0,
+        trail_age_seconds=actual_trail_age if actual_trail_age is not None else 0.0,
         equity_read_ok=equity > 0,
         broker_reachable=True,
         evidence_hash=broker_hash,
@@ -811,7 +820,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         account_equity=equity,
         account_free_margin=free_margin,
         target_orders=0,  # we check before generating orders
-        fingerprint_match=True,
+        fingerprint_match=fp_result.all_verified,
     )
 
     _risk_enforcer.audit(gate_results)

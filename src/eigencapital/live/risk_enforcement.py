@@ -190,12 +190,12 @@ class RiskEnforcer:
             return False, results
 
         # Gate 6: Per-position SL check
+        # NOTE: Gate 6 CRITICAL does NOT early-exit (intentional).
+        # R4 uses signal-based exits, not SL-based exits.
+        # Catastrophic SL is a safety backstop, not a normal exit mechanism.
+        # SL missing is logged as CRITICAL for audit trail but does not block new entries.
         r = self._check_position_protection(broker_positions, now, state_hash)
         results.append(r)
-        if r.result != GateResult.CRITICAL:
-            # SL missing is CRITICAL but doesn't block new entries by itself
-            # (existing positions may be intentionally SL-less from R4)
-            pass
 
         # Gate 7: Fingerprint
         r = self._check_fingerprint(fingerprint_match, now, state_hash)

@@ -1,0 +1,269 @@
+{
+  "attestation_timestamp": "2026-08-27T06:28:30.675979+00:00",
+  "account_id": 436921728,
+  "balance": 6992.0,
+  "equity": 6991.0,
+  "free_margin": 6972.54,
+  "positions": {
+    "total": 19,
+    "r4_count": 19,
+    "foreign_count": 0,
+    "detail": [
+      {
+        "ticket": 3140147169,
+        "symbol": "BTCUSD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -3.25,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147352,
+        "symbol": "AUDCAD",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 1.19,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147373,
+        "symbol": "AUDCHF",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 1.92,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147404,
+        "symbol": "AUDUSD",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 0.32,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147419,
+        "symbol": "EURUSD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 1.06,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147429,
+        "symbol": "CADCHF",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -0.79,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147444,
+        "symbol": "NZDCAD",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -0.04,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147460,
+        "symbol": "USDCHF",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 2.18,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147507,
+        "symbol": "EURGBP",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -1.98,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140147539,
+        "symbol": "NZDUSD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 0.6,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140181582,
+        "symbol": "AUDNZD",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 1.11,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140181836,
+        "symbol": "USDCAD",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 1.07,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140320029,
+        "symbol": "EURAUD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 1.76,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140320031,
+        "symbol": "EURNZD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -0.02,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140320040,
+        "symbol": "GBPCAD",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -1.8,
+        "has_sl": true
+      },
+      {
+        "ticket": 3140320046,
+        "symbol": "GBPAUD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 3.94,
+        "has_sl": true
+      },
+      {
+        "ticket": 3143909540,
+        "symbol": "XAUUSD",
+        "direction": "SHORT",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": 0.75,
+        "has_sl": true
+      },
+      {
+        "ticket": 3143909546,
+        "symbol": "US30",
+        "direction": "LONG",
+        "volume": 0.05,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -7.25,
+        "has_sl": false
+      },
+      {
+        "ticket": 3144859300,
+        "symbol": "USOIL",
+        "direction": "LONG",
+        "volume": 0.01,
+        "magic": 20260825,
+        "classification": "R4_BOT",
+        "profit": -1.77,
+        "has_sl": false
+      }
+    ]
+  },
+  "ownership": {
+    "all_r4_owned": true,
+    "r4_magic": 20260825,
+    "attribution_method": "magic_number"
+  },
+  "quarantine": {
+    "contamination_detected": false,
+    "new_entries_allowed": false,
+    "self_rotation_allowed": true,
+    "foreign_positions": [],
+    "quarantine_rule": "foreign_positions \u2192 block_new_entries, allow_self_rotation"
+  },
+  "deal_attribution": {
+    "total_deals": 0,
+    "unattributable_deals": 0,
+    "attestation_valid": true,
+    "by_owner": {}
+  },
+  "fingerprint": {
+    "all_verified": true,
+    "checks": [
+      {
+        "component": "r4_manifest",
+        "status": "verified",
+        "expected": "aaab6c00dc05a09a",
+        "observed": "aaab6c00dc05a09a",
+        "message": "R4 manifest fingerprint matches"
+      },
+      {
+        "component": "risk_policy",
+        "status": "verified",
+        "expected": "a1eb1373fa11dff7",
+        "observed": "a1eb1373fa11dff7",
+        "message": "RiskPolicy fingerprint matches"
+      },
+      {
+        "component": "live_risk",
+        "status": "verified",
+        "expected": "ee9324293336b827",
+        "observed": "ee9324293336b827",
+        "message": "LiveRiskConfig fingerprint matches"
+      },
+      {
+        "component": "strategy_version",
+        "status": "verified",
+        "expected": "R4.0",
+        "observed": "R4.0",
+        "message": "Strategy version frozen at R4.0"
+      },
+      {
+        "component": "config",
+        "status": "verified",
+        "expected": "32fbeadcab9a3a14",
+        "observed": "32fbeadcab9a3a14",
+        "message": "Config fingerprint matches"
+      }
+    ]
+  },
+  "broker_state_hash": "a51cdb40c8a5f672",
+  "risk_limits_enforced": {
+    "max_concurrent": 19,
+    "max_position_size": 5000.0,
+    "max_daily_loss": 250.0
+  },
+  "attestation_hash": "f5518bb8a891c4edf31952bd628c1d1d16570f490a3bd4646fcc8c6033683aca"
+}

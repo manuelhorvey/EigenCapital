@@ -1,19 +1,28 @@
-"""Reconciliation — canonical implementation lives in execution.
+"""Reconciliation — canonical implementation in reconciliation.engine.
 
-This package is a stable facade over
-``eigencapital.execution.reconciliation`` so callers can import
-reconciliation primitives without depending on the execution package's
-internal layout. Do not add logic here.
+This package provides the production-grade reconciliation engine with
+hostile condition detection and SAFE_AUTOFIX/REVIEW/HALT classification.
+
+For backward compatibility, the paper-only execution.reconciliation is
+still available but deprecated.
 """
 
-from eigencapital.execution.reconciliation import (
+from eigencapital.reconciliation.engine import (
     ReconciliationEngine,
     ReconciliationResult,
-    ReconciliationStatus,
+    ReconciliationCheck,
+    ReconciliationAction,
+    ReconciliationSeverity,
+    BrokerState,
+    InternalState,
 )
 
 __all__ = [
     "ReconciliationEngine",
     "ReconciliationResult",
-    "ReconciliationStatus",
+    "ReconciliationCheck",
+    "ReconciliationAction",
+    "ReconciliationSeverity",
+    "BrokerState",
+    "InternalState",
 ]

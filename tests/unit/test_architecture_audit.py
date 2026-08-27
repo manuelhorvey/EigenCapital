@@ -18,11 +18,12 @@ Research MUST NOT mutate test datasets.
 """
 
 import pytest
-from eigencapital.strategies.base import BaseStrategy, StrategySignal
-from eigencapital.core.models.order import Order
-from eigencapital.risk.policy import RiskPolicy
-from eigencapital.risk.engine import EigenRiskEngine
+
 from eigencapital.backtest.engine import BacktestConfig
+from eigencapital.core.models.order import Order
+from eigencapital.risk.engine import EigenRiskEngine
+from eigencapital.risk.policy import RiskPolicy
+from eigencapital.strategies.base import BaseStrategy, StrategySignal
 
 
 class TestStrategyBypassPrevention:
@@ -129,8 +130,8 @@ class TestExperimentImmutability:
 
     def test_freeze_prevents_parameter_change(self):
         from eigencapital.research.experiments.registry import (
-            ExperimentRegistry,
             ExperimentError,
+            ExperimentRegistry,
         )
 
         reg = ExperimentRegistry()

@@ -9,6 +9,7 @@ Invariants under test:
 """
 
 import pytest
+
 from eigencapital.core.models.trial_metadata import TrialMetadata
 
 
@@ -52,7 +53,7 @@ class TestTrialMetadataCreation:
 
     def test_frozen_immutability(self):
         tm = _make_tm()
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, TypeError)):
             tm.trial_index = 99
 
 

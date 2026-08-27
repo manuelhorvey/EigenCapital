@@ -7,16 +7,17 @@ Strategy CANNOT bypass Portfolio or EigenRisk.
 """
 
 import pytest
-from eigencapital.portfolio.portfolio import (
-    Portfolio,
-    PortfolioState,
-    PortfolioDecision,
-)
-from eigencapital.core.models.strategy_intent import StrategyIntent, Horizon
-from eigencapital.core.models.portfolio_target import PortfolioTarget
+
 from eigencapital.core.models.approved_target import ApprovedTarget
 from eigencapital.core.models.order_plan import OrderPlan
+from eigencapital.core.models.portfolio_target import PortfolioTarget
 from eigencapital.core.models.position import Position
+from eigencapital.core.models.strategy_intent import Horizon, StrategyIntent
+from eigencapital.portfolio.portfolio import (
+    Portfolio,
+    PortfolioDecision,
+    PortfolioState,
+)
 from eigencapital.risk.checks.account_checks import AccountState
 
 _counter = 0
@@ -293,8 +294,9 @@ class TestPortfolio:
         assert "on_end" in strategy_methods
 
         # Verify no Order/OrderPlan/EigenRisk references in strategy
-        from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
         import inspect
+
+        from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
 
         source = inspect.getsource(CrossAssetTrendStrategy)
         assert "Order" not in source

@@ -11,20 +11,19 @@ Tests cover:
 """
 
 from eigencapital.shadow.contracts import (
-    ExecutionMode,
     BrokerOrder,
-    ShadowBrokerAdapter,
-    LiveAuthorization,
     ExecutionBoundary,
+    ExecutionMode,
+    LiveAuthorization,
     OrderResult,
+    ShadowBrokerAdapter,
 )
 from eigencapital.shadow.safety import (
+    DataSafetyStatus,
     KillSwitch,
     KillSwitchStatus,
     MarketDataSafety,
-    DataSafetyStatus,
 )
-
 
 # ═══════════════════════════════════════════════
 #  BROKER ADAPTER
@@ -388,9 +387,7 @@ class TestProperties:
                     authorization_token=token,
                     config_fingerprint=config,
                 )
-                boundary = ExecutionBoundary(
-                    mode=ExecutionMode.LIVE, authorization=auth
-                )
+                boundary = ExecutionBoundary(mode=ExecutionMode.LIVE, authorization=auth)
                 broker = ShadowBrokerAdapter()
                 order = BrokerOrder(
                     order_id="ORD-001",

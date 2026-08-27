@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 
 from eigencapital.research.campaigns.r5_executor import (
-    FAMILY_SIZE,
     CUMULATIVE_TRIALS,
+    FAMILY_SIZE,
     PRIOR_EVALUATIONS,
     _hold,
     _portfolio_series,
@@ -44,8 +44,7 @@ class TestPrimitives:
 
     def test_tercile_ls_requires_minimum_names(self):
         idx = pd.date_range("2020-01-01", periods=5, freq="D")
-        thin = pd.DataFrame({"a": [1, 1, 1, 1, 1], "b": [2, 2, 2, 2, 2],
-                             "c": [3, 3, 3, 3, 3]}, index=idx)
+        thin = pd.DataFrame({"a": [1, 1, 1, 1, 1], "b": [2, 2, 2, 2, 2], "c": [3, 3, 3, 3, 3]}, index=idx)
         assert (_tercile_ls(thin) == 0).all().all()
 
     def test_hold_limits_exposure_length(self):
@@ -67,8 +66,7 @@ class TestPortfolioSeries:
 
     def test_no_lookahead_position_enters_next_bar(self):
         px = _flat_px(n=50)
-        sig = pd.DataFrame(np.sign(px.pct_change()), index=px.index,
-                           columns=px.columns)
+        sig = pd.DataFrame(np.sign(px.pct_change()), index=px.index, columns=px.columns)
         s = _portfolio_series(px, sig, 0.0)
         assert s.iloc[0] == 0.0 or np.isnan(s.iloc[0])
 
@@ -77,18 +75,14 @@ class TestEvaluateHypothesis:
     def test_zero_signal_rejected_without_crash(self):
         px = _flat_px()
         empty = pd.DataFrame(0.0, index=px.index, columns=px.columns)
-        result = evaluate_hypothesis("TREND-001", lambda *a, **k: empty,
-                                     {}, px, px * 0, px * 0, None)
+        result = evaluate_hypothesis("TREND-001", lambda *a, **k: empty, {}, px, px * 0, px * 0, None)
         assert result["verdict"] == "REJECTED"
         assert result["reasons"] == ["no_signal"]
 
     def test_perfect_foresight_is_statistically_strong(self):
         px = _flat_px(n=400)
-        fwd_sign = pd.DataFrame(np.sign(px.shift(-1) - px),
-                                index=px.index, columns=px.columns)
-        result = evaluate_hypothesis("TREND-001",
-                                     lambda *a, **k: fwd_sign.fillna(0),
-                                     {}, px, px * 0, px * 0, None)
+        fwd_sign = pd.DataFrame(np.sign(px.shift(-1) - px), index=px.index, columns=px.columns)
+        result = evaluate_hypothesis("TREND-001", lambda *a, **k: fwd_sign.fillna(0), {}, px, px * 0, px * 0, None)
         assert result["net_sharpe"] > 1.0
         assert result["p_raw"] < 0.05
 

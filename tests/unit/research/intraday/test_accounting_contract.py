@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
+from eigencapital.research.intraday import campaign7_rerun_hardened as gov
 from eigencapital.research.intraday.campaign8_tf003_confirmation import (
     COST_ONE_WAY_ADVERSE,
     COST_ONE_WAY_BASE,
     bt_corrected,
 )
-from eigencapital.research.intraday import campaign7_rerun_hardened as gov
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -32,13 +32,11 @@ class TestContractDocs:
         p = REPO_ROOT / "docs" / "RESEARCH_ACCOUNTING_CONTRACT.md"
         assert p.exists(), "accounting contract missing"
         text = p.read_text()
-        for token in ["bt_corrected", "COST_ONE_WAY_BASE",
-                      "family_adjust", "cumulative_adjust"]:
+        for token in ["bt_corrected", "COST_ONE_WAY_BASE", "family_adjust", "cumulative_adjust"]:
             assert token in text, f"contract must reference {token}"
 
     def test_timeframe_freeze_doc_present(self):
-        p = (REPO_ROOT / "docs" / "research"
-             / "INTRADAY_TIMEFRAME_BRANCH_FROZEN.md")
+        p = REPO_ROOT / "docs" / "research" / "INTRADAY_TIMEFRAME_BRANCH_FROZEN.md"
         assert p.exists()
 
 
@@ -47,8 +45,8 @@ class TestMandatoryPrimitivesImportable:
         assert callable(bt_corrected)
 
     def test_cost_constants_locked(self):
-        assert COST_ONE_WAY_BASE == pytest.approx(6.5e-4)
-        assert COST_ONE_WAY_ADVERSE == pytest.approx(11e-4)
+        assert pytest.approx(6.5e-4) == COST_ONE_WAY_BASE
+        assert pytest.approx(11e-4) == COST_ONE_WAY_ADVERSE
 
     def test_governance_counters_monotonic(self):
         assert gov.PRIOR_EVALUATIONS >= 133

@@ -12,16 +12,15 @@ Tests cover:
 
 import pytest
 
-from eigencapital.execution.broker import PaperBroker, OrderLifecycleState, BrokerError
-from eigencapital.execution.position_manager import PositionManager
+from eigencapital.core.models.order import Order
 from eigencapital.execution.account import AccountState
+from eigencapital.execution.broker import BrokerError, OrderLifecycleState, PaperBroker
+from eigencapital.execution.events import AuditLog, EventType
+from eigencapital.execution.position_manager import PositionManager
 from eigencapital.execution.reconciliation import (
     ReconciliationEngine,
     ReconciliationStatus,
 )
-from eigencapital.execution.events import AuditLog, EventType
-from eigencapital.core.models.order import Order
-
 
 # ───────────────────────────────────────────────
 #  Helpers
@@ -85,9 +84,7 @@ class TestPaperBroker:
         order = _make_order(quantity=100, price=5000)
         broker.submit_order(order)
         broker.generate_fill("ES", fill_price=5000, fill_quantity=60)
-        broker.generate_fill(
-            "ES", fill_price=5001, fill_quantity=50
-        )  # Only 40 remaining
+        broker.generate_fill("ES", fill_price=5001, fill_quantity=50)  # Only 40 remaining
 
         # Total fills should be 100, not 110
         fills = broker._fills["ES"]

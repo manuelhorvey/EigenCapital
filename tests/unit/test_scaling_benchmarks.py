@@ -2,10 +2,11 @@
 Scaling benchmarks for EigenCapital.
 Tests instrument count, position count, and performance characteristics.
 """
+
+import statistics
 import time
 import tracemalloc
-import statistics
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class TestInstrumentScalingBenchmark:
@@ -15,24 +16,42 @@ class TestInstrumentScalingBenchmark:
         """Generate synthetic instrument metadata."""
         instruments = []
         fx_pairs = [
-            "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
-            "NZDUSD", "USDCHF", "EURJPY", "GBPJPY", "AUDJPY",
-            "EURAUD", "EURGBP", "USDSEK", "USDNOK", "USDSGD",
-            "USDZAR", "USDMXN", "USDTRY", "USDPLN", "USDHUF",
+            "EURUSD",
+            "GBPUSD",
+            "USDJPY",
+            "AUDUSD",
+            "USDCAD",
+            "NZDUSD",
+            "USDCHF",
+            "EURJPY",
+            "GBPJPY",
+            "AUDJPY",
+            "EURAUD",
+            "EURGBP",
+            "USDSEK",
+            "USDNOK",
+            "USDSGD",
+            "USDZAR",
+            "USDMXN",
+            "USDTRY",
+            "USDPLN",
+            "USDHUF",
         ]
         for i in range(n):
             name = fx_pairs[i % len(fx_pairs)] + (f"_{i // len(fx_pairs)}" if i >= len(fx_pairs) else "")
-            instruments.append({
-                "symbol": name,
-                "pip_value": 0.0001 if "JPY" not in name else 0.01,
-                "contract_size": 100000,
-                "min_lot": 0.01,
-                "max_lot": 100.0,
-                "lot_step": 0.01,
-                "spread_pips": 1.0 + (i % 5) * 0.5,
-                "avg_daily_volume": 1_000_000 - (i % 10) * 50_000,
-                "tick_value": 0.00001 * 100000 if "JPY" not in name else 0.01 * 100000,
-            })
+            instruments.append(
+                {
+                    "symbol": name,
+                    "pip_value": 0.0001 if "JPY" not in name else 0.01,
+                    "contract_size": 100000,
+                    "min_lot": 0.01,
+                    "max_lot": 100.0,
+                    "lot_step": 0.01,
+                    "spread_pips": 1.0 + (i % 5) * 0.5,
+                    "avg_daily_volume": 1_000_000 - (i % 10) * 50_000,
+                    "tick_value": 0.00001 * 100000 if "JPY" not in name else 0.01 * 100000,
+                }
+            )
         return instruments
 
     def _compute_synthetic_features(self, instruments: List[Dict], lookback: int = 100) -> Dict[str, float]:
@@ -46,9 +65,9 @@ class TestInstrumentScalingBenchmark:
             mean_val = sum(values) / len(values)
             variance = sum((v - mean_val) ** 2 for v in values) / len(values)
             features[f"{sym}_mean"] = mean_val
-            features[f"{sym}_std"] = variance ** 0.5
+            features[f"{sym}_std"] = variance**0.5
             features[f"{sym}_momentum"] = values[-1] - values[0]
-            features[f"{sym}_volatility"] = variance ** 0.5 * (252 ** 0.5)
+            features[f"{sym}_volatility"] = variance**0.5 * (252**0.5)
         return features
 
     def _compute_synthetic_signals(self, features: Dict[str, float], instruments: List[Dict]) -> Dict[str, float]:
@@ -165,8 +184,16 @@ class TestPositionScalingBenchmark:
     def _build_positions(self, n: int) -> Dict[str, Dict[str, Any]]:
         positions = {}
         symbols = [
-            "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
-            "NZDUSD", "USDCHF", "EURJPY", "GBPJPY", "AUDJPY",
+            "EURUSD",
+            "GBPUSD",
+            "USDJPY",
+            "AUDUSD",
+            "USDCAD",
+            "NZDUSD",
+            "USDCHF",
+            "EURJPY",
+            "GBPJPY",
+            "AUDJPY",
         ]
         for i in range(n):
             sym = symbols[i % len(symbols)] + (f"_{i // len(symbols)}" if i >= len(symbols) else "")
@@ -227,12 +254,14 @@ class TestPositionScalingBenchmark:
         # Simulate flatten: generate close orders for all positions
         close_orders = []
         for sym, pos in positions.items():
-            close_orders.append({
-                "symbol": sym,
-                "volume": pos["volume"],
-                "direction": "SELL" if pos["volume"] > 0 else "BUY",
-                "type": "MARKET",
-            })
+            close_orders.append(
+                {
+                    "symbol": sym,
+                    "volume": pos["volume"],
+                    "direction": "SELL" if pos["volume"] > 0 else "BUY",
+                    "type": "MARKET",
+                }
+            )
         elapsed = time.perf_counter() - t0
         assert len(close_orders) == 100
         assert elapsed < 0.1, f"Emergency flatten planning too slow: {elapsed:.3f}s"
@@ -241,10 +270,7 @@ class TestPositionScalingBenchmark:
         """Emergency flatten for 500 positions."""
         positions = self._build_positions(500)
         t0 = time.perf_counter()
-        close_orders = [
-            {"symbol": sym, "volume": pos["volume"], "type": "MARKET"}
-            for sym, pos in positions.items()
-        ]
+        close_orders = [{"symbol": sym, "volume": pos["volume"], "type": "MARKET"} for sym, pos in positions.items()]
         elapsed = time.perf_counter() - t0
         assert len(close_orders) == 500
         assert elapsed < 0.5
@@ -287,10 +313,7 @@ class TestPerformanceLatencyBenchmark:
 
         # Phase 1: Data acquisition
         t0 = time.perf_counter()
-        instruments = [
-            {"symbol": f"SYM_{i}", "pip_value": 0.0001}
-            for i in range(num_instruments)
-        ]
+        instruments = [{"symbol": f"SYM_{i}", "pip_value": 0.0001} for i in range(num_instruments)]
         {inst["symbol"]: 1.1000 + i * 0.001 for i, inst in enumerate(instruments)}
         timings["data_acquisition"] = time.perf_counter() - t0
 
@@ -316,10 +339,7 @@ class TestPerformanceLatencyBenchmark:
 
         # Phase 5: Order generation
         t0 = time.perf_counter()
-        orders = [
-            {"symbol": sym, "volume": 0.01, "type": "MARKET"}
-            for sym in approved
-        ]
+        orders = [{"symbol": sym, "volume": 0.01, "type": "MARKET"} for sym in approved]
         timings["order_generation"] = time.perf_counter() - t0
 
         # Phase 6: Broker submission (simulated)
@@ -329,7 +349,7 @@ class TestPerformanceLatencyBenchmark:
 
         # Phase 7: Reconciliation
         t0 = time.perf_counter()
-        len(fills) == len(orders)
+        assert len(fills) == len(orders)
         timings["reconciliation"] = time.perf_counter() - t0
 
         timings["total"] = sum(timings.values())
@@ -338,17 +358,17 @@ class TestPerformanceLatencyBenchmark:
     def test_cycle_latency_11_instruments(self):
         """Measure cycle latency at 11 instruments."""
         t = self._simulate_full_cycle(5000, 11)
-        assert t["total"] < 0.01, f"Cycle too slow: {t['total']*1000:.1f}ms"
+        assert t["total"] < 0.01, f"Cycle too slow: {t['total'] * 1000:.1f}ms"
 
     def test_cycle_latency_50_instruments(self):
         """Measure cycle latency at 50 instruments."""
         t = self._simulate_full_cycle(5000, 50)
-        assert t["total"] < 0.05, f"Cycle too slow: {t['total']*1000:.1f}ms"
+        assert t["total"] < 0.05, f"Cycle too slow: {t['total'] * 1000:.1f}ms"
 
     def test_cycle_latency_100_instruments(self):
         """Measure cycle latency at 100 instruments."""
         t = self._simulate_full_cycle(5000, 100)
-        assert t["total"] < 0.1, f"Cycle too slow: {t['total']*1000:.1f}ms"
+        assert t["total"] < 0.1, f"Cycle too slow: {t['total'] * 1000:.1f}ms"
 
     def test_cycle_latency_consistency(self):
         """Measure p50/p95/p99 of cycle latency over 1000 iterations."""
@@ -361,9 +381,9 @@ class TestPerformanceLatencyBenchmark:
         p95 = sorted(latencies)[int(len(latencies) * 0.95)]
         p99 = sorted(latencies)[int(len(latencies) * 0.99)]
 
-        assert p50 < 0.005, f"p50 too high: {p50*1000:.2f}ms"
-        assert p95 < 0.01, f"p95 too high: {p95*1000:.2f}ms"
-        assert p99 < 0.02, f"p99 too high: {p99*1000:.2f}ms"
+        assert p50 < 0.005, f"p50 too high: {p50 * 1000:.2f}ms"
+        assert p95 < 0.01, f"p95 too high: {p95 * 1000:.2f}ms"
+        assert p99 < 0.02, f"p99 too high: {p99 * 1000:.2f}ms"
 
     def test_memory_does_not_grow_over_repeated_cycles(self):
         """Verify memory is stable over 1000 simulated full cycles."""
@@ -382,36 +402,42 @@ class TestClockTimeAudit:
     def test_utc_usage_in_risk_enforcement(self):
         """Verify risk enforcement uses UTC-aware timestamps."""
         import pathlib
+
         risk_file = pathlib.Path("src/eigencapital/live/risk_enforcement.py")
         if not risk_file.exists():
             return  # Skip if file not found
         content = risk_file.read_text()
         # Should not use naive datetime.now()
         # Check for awareness patterns
-        assert "timezone" in content or "utc" in content.lower() or "datetime.now" not in content, \
+        assert "timezone" in content or "utc" in content.lower() or "datetime.now" not in content, (
             "Risk enforcement should use timezone-aware datetimes"
+        )
 
     def test_daily_loss_tracker_uses_utc(self):
         """Verify daily loss tracker uses UTC."""
         import pathlib
+
         loss_file = pathlib.Path("src/eigencapital/live/daily_loss.py")
         if not loss_file.exists():
             return
         content = loss_file.read_text()
-        assert "timezone" in content or "utc" in content.lower() or "datetime.now" not in content, \
+        assert "timezone" in content or "utc" in content.lower() or "datetime.now" not in content, (
             "Daily loss tracker should use timezone-aware datetimes"
+        )
 
     def test_config_uses_consistent_time(self):
         """Verify config does not hardcode timezone assumptions."""
         import pathlib
+
         config_file = pathlib.Path("src/eigencapital/config.py")
         if not config_file.exists():
             return
         content = config_file.read_text()
         # Should not contain hardcoded timezone strings like "US/Eastern"
         lower = content.lower()
-        assert "us/eastern" not in lower and "america/" not in lower, \
+        assert "us/eastern" not in lower and "america/" not in lower, (
             "Config should not hardcode timezone — let operator configure"
+        )
 
 
 class TestCapitalBoundaryEnforcement:
@@ -420,31 +446,37 @@ class TestCapitalBoundaryEnforcement:
     def test_capital_boundary_is_configurable(self):
         """Capital boundary must exist in config."""
         import pathlib
+
         config_file = pathlib.Path("configs/production/config.toml")
         if not config_file.exists():
             return
         content = config_file.read_text()
         # Config uses max_equity as the capital ceiling
-        assert "max_equity" in content.lower() or "capital_boundary" in content.lower() or "max_capital" in content.lower(), \
-            "Capital boundary must be defined in production config"
+        assert (
+            "max_equity" in content.lower() or "capital_boundary" in content.lower() or "max_capital" in content.lower()
+        ), "Capital boundary must be defined in production config"
 
     def test_risk_policy_has_capital_limits(self):
         """RiskPolicy must enforce capital limits."""
         from eigencapital.risk.policy import RiskPolicy
+
         rp = RiskPolicy()
         # Must have some form of capital/equity limit
-        assert hasattr(rp, 'max_drawdown_pct') or hasattr(rp, 'max_position_value'), \
+        assert hasattr(rp, "max_drawdown_pct") or hasattr(rp, "max_position_value"), (
             "RiskPolicy must have capital-related limits"
+        )
 
     def test_live_risk_config_exists(self):
         """LiveRiskConfig must exist as single source of truth."""
         from eigencapital.config import LiveRiskConfig
+
         config = LiveRiskConfig()
         # Must have capital-related fields
-        assert hasattr(config, 'min_equity'), "LiveRiskConfig must have min_equity"
+        assert hasattr(config, "min_equity"), "LiveRiskConfig must have min_equity"
         # LiveRiskConfig uses max_account_drawdown_pct
-        assert hasattr(config, 'max_account_drawdown_pct') or hasattr(config, 'max_drawdown_pct'), \
+        assert hasattr(config, "max_account_drawdown_pct") or hasattr(config, "max_drawdown_pct"), (
             "LiveRiskConfig must have drawdown limit"
+        )
         assert config.min_equity > 0, "min_equity must be positive"
-        dd = getattr(config, 'max_account_drawdown_pct', None) or getattr(config, 'max_drawdown_pct', None)
+        dd = getattr(config, "max_account_drawdown_pct", None) or getattr(config, "max_drawdown_pct", None)
         assert dd is not None and 0 < dd <= 1.0, "drawdown limit must be between 0 and 1"

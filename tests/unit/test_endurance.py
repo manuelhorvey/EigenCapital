@@ -17,20 +17,19 @@ import threading
 import time
 import tracemalloc
 
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
+from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.risk.policy import RiskPolicy
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_enforcer():
     envelope = RiskEnvelope(
@@ -47,6 +46,7 @@ def _make_enforcer():
 # ---------------------------------------------------------------------------
 # Endurance: Risk Evaluation
 # ---------------------------------------------------------------------------
+
 
 class TestRiskEndurance:
     """Risk evaluation must remain stable over 50K cycles."""
@@ -74,7 +74,7 @@ class TestRiskEndurance:
         growth = snapshots[-1] - snapshots[0]
         assert growth < 2_000_000, (
             f"Memory grew {growth / 1024:.1f}KB over 50K cycles: "
-            f"{snapshots[0]/1024:.1f}KB → {snapshots[-1]/1024:.1f}KB"
+            f"{snapshots[0] / 1024:.1f}KB → {snapshots[-1] / 1024:.1f}KB"
         )
 
     def test_50k_risk_cycles_latency_stable(self):
@@ -110,9 +110,7 @@ class TestRiskEndurance:
 
         # Last batch should not be > 3x slower than first
         ratio = last_batch_us / max(first_batch_us, 0.001)
-        assert ratio < 3.0, (
-            f"Latency degraded {ratio:.1f}x: {first_batch_us:.1f}µs → {last_batch_us:.1f}µs"
-        )
+        assert ratio < 3.0, f"Latency degraded {ratio:.1f}x: {first_batch_us:.1f}µs → {last_batch_us:.1f}µs"
 
     def test_50k_risk_cycles_audit_log_bounded(self):
         """Audit log must stay bounded at 1000 entries."""
@@ -138,9 +136,7 @@ class TestRiskEndurance:
             )
         fd_end = len(os.listdir("/proc/self/fd"))
         fd_growth = fd_end - fd_start
-        assert fd_growth < 10, (
-            f"File descriptors grew by {fd_growth}: {fd_start} → {fd_end}"
-        )
+        assert fd_growth < 10, f"File descriptors grew by {fd_growth}: {fd_start} → {fd_end}"
 
     def test_thread_count_stable_over_50k_cycles(self):
         """Thread count must not leak."""
@@ -153,14 +149,13 @@ class TestRiskEndurance:
                 account_free_margin=3000.0,
             )
         threads_end = threading.active_count()
-        assert threads_end - threads_start < 5, (
-            f"Threads grew from {threads_start} to {threads_end}"
-        )
+        assert threads_end - threads_start < 5, f"Threads grew from {threads_start} to {threads_end}"
 
 
 # ---------------------------------------------------------------------------
 # Endurance: Fingerprint Verification
 # ---------------------------------------------------------------------------
+
 
 class TestFingerprintEndurance:
     """Fingerprint verification must remain stable over 50K cycles."""
@@ -181,9 +176,7 @@ class TestFingerprintEndurance:
         tracemalloc.stop()
 
         growth = snapshots[-1] - snapshots[0]
-        assert growth < 2_000_000, (
-            f"Fingerprint verifier memory grew {growth/1024:.1f}KB"
-        )
+        assert growth < 2_000_000, f"Fingerprint verifier memory grew {growth / 1024:.1f}KB"
 
     def test_50k_fingerprint_log_bounded(self):
         verifier = FingerprintVerifier(
@@ -199,6 +192,7 @@ class TestFingerprintEndurance:
 # ---------------------------------------------------------------------------
 # Endurance: Daily Loss Tracking
 # ---------------------------------------------------------------------------
+
 
 class TestDailyLossEndurance:
     """Daily loss tracker must handle many updates without corruption."""
@@ -234,6 +228,7 @@ class TestDailyLossEndurance:
 
         # Read the persisted file directly
         import json
+
         data = json.loads((tmp_path / "daily_baseline.json").read_text())
         assert "date_str" in data
         assert "equity" in data
@@ -243,6 +238,7 @@ class TestDailyLossEndurance:
 # ---------------------------------------------------------------------------
 # Endurance: Disconnect Recovery
 # ---------------------------------------------------------------------------
+
 
 class TestDisconnectRecoveryEndurance:
     """Disconnect recovery must handle repeated cycles without state corruption."""
@@ -256,7 +252,7 @@ class TestDisconnectRecoveryEndurance:
                 dr.on_reconnect()
             assert dr.state in (
                 RecoveryState.CONNECTED,
-            RecoveryState.RECONCILING,
+                RecoveryState.RECONCILING,
                 RecoveryState.HALTED,
                 RecoveryState.FROZEN,
             )
@@ -275,6 +271,7 @@ class TestDisconnectRecoveryEndurance:
 # ---------------------------------------------------------------------------
 # Endurance: Combined System
 # ---------------------------------------------------------------------------
+
 
 class TestCombinedEndurance:
     """All components operating simultaneously over many cycles."""
@@ -325,8 +322,6 @@ class TestCombinedEndurance:
         assert len(vlog) <= 500
 
         # Memory growth should be bounded
-        assert current < 50_000_000, (
-            f"Combined memory usage {current/1024/1024:.1f}MB exceeds 50MB"
-        )
+        assert current < 50_000_000, f"Combined memory usage {current / 1024 / 1024:.1f}MB exceeds 50MB"
 
         supervisor.release()

@@ -19,9 +19,7 @@ class TestUniverseMembership:
         assert m.is_active_on("2026-08-25")
 
     def test_closed_interval_bounds_inclusive(self):
-        m = UniverseMembership(
-            "ES", "futures_core", "2015-03-01", "2020-12-31", reason="delisted"
-        )
+        m = UniverseMembership("ES", "futures_core", "2015-03-01", "2020-12-31", reason="delisted")
         assert m.is_active_on("2015-03-01")
         assert m.is_active_on("2020-12-31")
         assert not m.is_active_on("2021-01-01")
@@ -65,11 +63,7 @@ class TestRegistryPointInTime:
     def _registry(self) -> UniverseMembershipRegistry:
         registry = UniverseMembershipRegistry()
         registry.add(UniverseMembership("AAA", "sp500", "2010-01-01"))
-        registry.add(
-            UniverseMembership(
-                "DELISTED", "sp500", "2010-01-01", "2018-06-30", "acquired"
-            )
-        )
+        registry.add(UniverseMembership("DELISTED", "sp500", "2010-01-01", "2018-06-30", "acquired"))
         registry.add(UniverseMembership("LATE", "sp500", "2020-01-01"))
         return registry
 
@@ -157,10 +151,7 @@ class TestRegistrySerialization:
         registry.add(UniverseMembership("B", "u2", "2020-01-01"))
         registry.add(UniverseMembership("A", "u1", "2021-01-01"))
         d = registry.to_dict()
-        order = [
-            (m["universe_id"], m["instrument_id"])
-            for m in d["memberships"]
-        ]
+        order = [(m["universe_id"], m["instrument_id"]) for m in d["memberships"]]
         assert order == [("u1", "A"), ("u2", "B")]
 
     def test_roundtrip_preserves_queries(self):

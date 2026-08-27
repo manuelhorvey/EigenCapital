@@ -84,9 +84,7 @@ class TestFailClosed:
         report = monitor.assess(snap, now_utc=NOW)
 
         assert report.state == HealthState.CRITICAL
-        assert any(
-            a.code == ALERT_SNAPSHOT_UNPARSEABLE for a in report.alerts
-        )
+        assert any(a.code == ALERT_SNAPSHOT_UNPARSEABLE for a in report.alerts)
         assert report.checks["snapshot_fresh"] is False
         assert report.snapshot_age_seconds is None
 
@@ -104,14 +102,10 @@ class TestFailClosed:
         """A snapshot from the future must not count as fresh."""
         monitor = PortfolioHealthMonitor(policy)
         future_ts = "2026-08-25T12:01:00+00:00"
-        report = monitor.assess(
-            _snapshot(timestamp_utc=future_ts), now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(timestamp_utc=future_ts), now_utc=NOW)
 
         assert report.state == HealthState.CRITICAL
-        assert any(
-            a.code == ALERT_SNAPSHOT_STALE for a in report.alerts
-        )
+        assert any(a.code == ALERT_SNAPSHOT_STALE for a in report.alerts)
 
     def test_zero_equity_fail_closed(self, policy):
         monitor = PortfolioHealthMonitor(policy)
@@ -126,9 +120,7 @@ class TestFailClosed:
 class TestHardConstraintBreaches:
     def test_kill_switch_freezes(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report = monitor.assess(
-            _snapshot(), kill_switch_active=True, now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(), kill_switch_active=True, now_utc=NOW)
 
         assert report.state == HealthState.FROZEN
         assert not report.is_operational
@@ -160,27 +152,21 @@ class TestHardConstraintBreaches:
 
     def test_daily_loss_breach(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report = monitor.assess(
-            _snapshot(), daily_pnl=-1_500.0, now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(), daily_pnl=-1_500.0, now_utc=NOW)
 
         assert report.state == HealthState.CRITICAL
         assert any(a.code == ALERT_DAILY_LOSS for a in report.alerts)
 
     def test_daily_loss_warning(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report = monitor.assess(
-            _snapshot(), daily_pnl=-700.0, now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(), daily_pnl=-700.0, now_utc=NOW)
 
         assert report.state == HealthState.DEGRADED
         assert any(a.code == ALERT_WARN_DAILY_LOSS for a in report.alerts)
 
     def test_weekly_loss_breach(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report = monitor.assess(
-            _snapshot(), weekly_pnl=-3_500.0, now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(), weekly_pnl=-3_500.0, now_utc=NOW)
 
         assert report.state == HealthState.CRITICAL
         codes = [a.code for a in report.alerts]
@@ -198,9 +184,7 @@ class TestHardConstraintBreaches:
 
     def test_position_count_breach(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report = monitor.assess(
-            _snapshot(num_positions=6), now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(num_positions=6), now_utc=NOW)
 
         assert report.state == HealthState.CRITICAL
         assert any(a.code == ALERT_POSITION_COUNT for a in report.alerts)
@@ -225,9 +209,7 @@ class TestHardConstraintBreaches:
         )
 
         assert report.state == HealthState.CRITICAL
-        assert any(
-            a.code == ALERT_ASSET_CLASS_EXPOSURE for a in report.alerts
-        )
+        assert any(a.code == ALERT_ASSET_CLASS_EXPOSURE for a in report.alerts)
 
 
 class TestCriticalDominates:
@@ -235,15 +217,9 @@ class TestCriticalDominates:
         monitor = PortfolioHealthMonitor(policy)
         monitor.assess(_snapshot(equity=100_000.0), now_utc=NOW)
         # Drawdown 7% (> 5% warn, < 10% max) + daily loss breach.
-        report = monitor.assess(
-            _snapshot(equity=93_000.0), daily_pnl=-2_000.0, now_utc=NOW
-        )
-        criticals = [
-            a for a in report.alerts if a.severity == Severity.CRITICAL
-        ]
-        warnings = [
-            a for a in report.alerts if a.severity == Severity.WARNING
-        ]
+        report = monitor.assess(_snapshot(equity=93_000.0), daily_pnl=-2_000.0, now_utc=NOW)
+        criticals = [a for a in report.alerts if a.severity == Severity.CRITICAL]
+        warnings = [a for a in report.alerts if a.severity == Severity.WARNING]
         assert criticals and warnings
         assert report.state == HealthState.CRITICAL
 
@@ -252,9 +228,7 @@ class TestCriticalDominates:
         healthy_first = monitor.assess(_snapshot(), now_utc=NOW)
         assert healthy_first.state == HealthState.HEALTHY
 
-        frozen = monitor.assess(
-            _snapshot(), kill_switch_active=True, now_utc=NOW
-        )
+        frozen = monitor.assess(_snapshot(), kill_switch_active=True, now_utc=NOW)
         assert frozen.state == HealthState.FROZEN
 
 
@@ -280,9 +254,7 @@ class TestImmutableEventLog:
 
         class TamperedMonitor:
             event_log = property(lambda self: tuple(tampered))
-            verify_log_integrity = (
-                PortfolioHealthMonitor.verify_log_integrity
-            )
+            verify_log_integrity = PortfolioHealthMonitor.verify_log_integrity
 
         assert not TamperedMonitor().verify_log_integrity()
 
@@ -296,9 +268,7 @@ class TestImmutableEventLog:
 
         class TamperedMonitor:
             event_log = property(lambda self: tuple(tampered))
-            verify_log_integrity = (
-                PortfolioHealthMonitor.verify_log_integrity
-            )
+            verify_log_integrity = PortfolioHealthMonitor.verify_log_integrity
 
         assert not TamperedMonitor().verify_log_integrity()
 
@@ -322,9 +292,7 @@ class TestConstructorGuards:
 class TestReportContract:
     def test_to_dict_shape(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report: HealthReport = monitor.assess(
-            _snapshot(), daily_pnl=-100.0, now_utc=NOW
-        )
+        report: HealthReport = monitor.assess(_snapshot(), daily_pnl=-100.0, now_utc=NOW)
         d = report.to_dict()
         assert set(d) == {
             "state",
@@ -337,9 +305,7 @@ class TestReportContract:
 
     def test_alert_dict_shape(self, policy):
         monitor = PortfolioHealthMonitor(policy)
-        report = monitor.assess(
-            _snapshot(), daily_pnl=-2_000.0, now_utc=NOW
-        )
+        report = monitor.assess(_snapshot(), daily_pnl=-2_000.0, now_utc=NOW)
         alert = next(a for a in report.alerts if a.code == ALERT_DAILY_LOSS)
         assert set(alert.to_dict()) == {
             "severity",

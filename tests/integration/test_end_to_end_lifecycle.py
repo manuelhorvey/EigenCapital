@@ -7,36 +7,34 @@ They are NOT unit tests. They prove connected components work together.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+# Health Monitor
+from eigencapital.live.health import (
+    HealthDimension,
+    HealthMonitor,
+    HealthState,
+    TradingAuthorization,
+    update_broker_health,
+    update_reconciliation_health,
+    update_risk_health,
+)
+
+# Risk Observer
+from eigencapital.live.risk_observation import RiskObservationLevel, RiskObserver
 
 # Event Ledger
 from eigencapital.production_qual.event_ledger import EventLedger, EventType
 
-# Reconciliation (production)
-from eigencapital.reconciliation.engine import (
-    ReconciliationEngine,
-    BrokerState,
-    InternalState,
-)
-
-# Health Monitor
-from eigencapital.live.health import (
-    HealthMonitor,
-    HealthDimension,
-    HealthState,
-    TradingAuthorization,
-    update_broker_health,
-    update_risk_health,
-    update_reconciliation_health,
-)
-
-# Risk Observer
-from eigencapital.live.risk_observation import RiskObserver, RiskObservationLevel
-
 # Fingerprint
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
+# Reconciliation (production)
+from eigencapital.reconciliation.engine import (
+    BrokerState,
+    InternalState,
+    ReconciliationEngine,
+)
 
 # ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -49,14 +47,14 @@ def _clean_broker_internal():
         account_balance=5000.0,
         account_free_margin=5000.0,
         orders=[],
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
     internal = InternalState(
         positions={},
         pending_orders=[],
         last_signal={},
         target_weights={},
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
     return broker, internal
 
@@ -161,27 +159,29 @@ class TestFullLifecycle:
 
         # Create mismatch: broker has position, internal doesn't
         broker = BrokerState(
-            positions=[{
-                "ticket": 12345,
-                "symbol": "EURUSD",
-                "volume": 0.1,
-                "type": "BUY",
-                "price_open": 1.0852,
-                "profit": 0.0,
-                "time": datetime.now(timezone.utc).isoformat(),
-            }],
+            positions=[
+                {
+                    "ticket": 12345,
+                    "symbol": "EURUSD",
+                    "volume": 0.1,
+                    "type": "BUY",
+                    "price_open": 1.0852,
+                    "profit": 0.0,
+                    "time": datetime.now(UTC).isoformat(),
+                }
+            ],
             account_equity=5000.0,
             account_balance=5000.0,
             account_free_margin=4500.0,
             orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={},  # Empty — mismatch
             pending_orders=[],
             last_signal={},
             target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
         result = engine.reconcile(broker, internal)
@@ -245,20 +245,21 @@ class TestFullLifecycle:
 
     def test_ledger_persistence_across_instances(self):
         """Event ledger should persist events across instances."""
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             storage_path = os.path.join(tmpdir, "test_ledger")
 
             # First instance - flush to disk
             ledger1 = EventLedger(base_path=storage_path, flush_after=1)
-            event = ledger1.append(            event_type=EventType.SIGNAL_COMPUTED,
-            account_id="TEST-001",
-            tier="T1-5K",
-            campaign_id="R4-5K-TEST",
-            symbol="EURUSD",
-        )
+            ledger1.append(
+                event_type=EventType.SIGNAL_COMPUTED,
+                account_id="TEST-001",
+                tier="T1-5K",
+                campaign_id="R4-5K-TEST",
+                symbol="EURUSD",
+            )
 
             # Second instance (reads from same directory)
             ledger2 = EventLedger(base_path=storage_path)
@@ -271,7 +272,7 @@ class TestFullLifecycle:
         """Fingerprint verifier should be deterministic."""
         verifier = FingerprintVerifier()
         # The verifier computes a config fingerprint on init
-        assert hasattr(verifier, '_frozen_config_fp')
+        assert hasattr(verifier, "_frozen_config_fp")
         # Compute it again - should be same
         fp1 = verifier._compute_config_fingerprint()
         fp2 = verifier._compute_config_fingerprint()
@@ -379,27 +380,29 @@ class TestReconciliationFailClosed:
     def test_unexpected_position_halts(self):
         engine = ReconciliationEngine()
         broker = BrokerState(
-            positions=[{
-                "ticket": 12345,
-                "symbol": "EURUSD",
-                "volume": 0.1,
-                "type": "BUY",
-                "price_open": 1.0852,
-                "profit": 0.0,
-                "time": datetime.now(timezone.utc).isoformat(),
-            }],
+            positions=[
+                {
+                    "ticket": 12345,
+                    "symbol": "EURUSD",
+                    "volume": 0.1,
+                    "type": "BUY",
+                    "price_open": 1.0852,
+                    "profit": 0.0,
+                    "time": datetime.now(UTC).isoformat(),
+                }
+            ],
             account_equity=5000.0,
             account_balance=5000.0,
             account_free_margin=4500.0,
             orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={},
             pending_orders=[],
             last_signal={},
             target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -407,20 +410,22 @@ class TestReconciliationFailClosed:
     def test_quantity_mismatch_detected(self):
         engine = ReconciliationEngine()
         broker = BrokerState(
-            positions=[{
-                "ticket": 12345,
-                "symbol": "EURUSD",
-                "volume": 0.2,  # WRONG
-                "type": "BUY",
-                "price_open": 1.0852,
-                "profit": 0.0,
-                "time": datetime.now(timezone.utc).isoformat(),
-            }],
+            positions=[
+                {
+                    "ticket": 12345,
+                    "symbol": "EURUSD",
+                    "volume": 0.2,  # WRONG
+                    "type": "BUY",
+                    "price_open": 1.0852,
+                    "profit": 0.0,
+                    "time": datetime.now(UTC).isoformat(),
+                }
+            ],
             account_equity=5000.0,
             account_balance=5000.0,
             account_free_margin=4500.0,
             orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={
@@ -434,7 +439,7 @@ class TestReconciliationFailClosed:
             pending_orders=[],
             last_signal={},
             target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -454,14 +459,14 @@ class TestReconciliationFailClosed:
             account_balance=0.0,
             account_free_margin=0.0,
             orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={},
             pending_orders=[],
             last_signal={},
             target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         # Zero equity should be flagged

@@ -23,11 +23,16 @@ def _percentiles(latencies: List[float]) -> dict:
 
 class TestRiskEvaluationLatency:
     def test_risk_check_latency(self):
-        from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
+        from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 
-        envelope = RiskEnvelope(max_concurrent_positions=19, max_position_notional=5000.0,
-                                max_order_notional=1500.0, max_account_drawdown_pct=20.0,
-                                max_daily_loss=250.0, min_equity=4000.0)
+        envelope = RiskEnvelope(
+            max_concurrent_positions=19,
+            max_position_notional=5000.0,
+            max_order_notional=1500.0,
+            max_account_drawdown_pct=20.0,
+            max_daily_loss=250.0,
+            min_equity=4000.0,
+        )
         enforcer = RiskEnforcer(envelope)
 
         def check():
@@ -37,11 +42,16 @@ class TestRiskEvaluationLatency:
         assert pcts["p99"] < 500, f"Risk check p99={pcts['p99']:.0f}µs"
 
     def test_risk_check_with_positions_latency(self):
-        from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
+        from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 
-        envelope = RiskEnvelope(max_concurrent_positions=19, max_position_notional=5000.0,
-                                max_order_notional=1500.0, max_account_drawdown_pct=20.0,
-                                max_daily_loss=250.0, min_equity=4000.0)
+        envelope = RiskEnvelope(
+            max_concurrent_positions=19,
+            max_position_notional=5000.0,
+            max_order_notional=1500.0,
+            max_account_drawdown_pct=20.0,
+            max_daily_loss=250.0,
+            min_equity=4000.0,
+        )
         enforcer = RiskEnforcer(envelope)
         positions = [{"symbol": f"SYM{i}", "volume": 0.01, "price": 100.0 + i} for i in range(8)]
 
@@ -55,8 +65,8 @@ class TestRiskEvaluationLatency:
 class TestFingerprintLatency:
     def test_fingerprint_verification_latency(self):
         from eigencapital.fidelity.r4_manifest import R4ConfigManifest
-        from eigencapital.risk.policy import RiskPolicy
         from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
+        from eigencapital.risk.policy import RiskPolicy
 
         verifier = FingerprintVerifier(manifest=R4ConfigManifest(), risk_policy=RiskPolicy())
         pcts = _percentiles(_bench(verifier.verify_all, 2000))
@@ -66,6 +76,7 @@ class TestFingerprintLatency:
 class TestConfigValidationLatency:
     def test_config_load_latency(self):
         from eigencapital.config import load_config
+
         pcts = _percentiles(_bench(lambda: load_config("production"), 500))
         assert pcts["p99"] < 50_000, f"Config load p99={pcts['p99']:.0f}µs"
 
@@ -93,11 +104,16 @@ class TestCapitalBoundaryLatency:
 
         def validate():
             validator.run_all_validations(
-                actual_equity=5000.0, start_timestamp="2026-01-01T00:00:00Z",
-                end_timestamp="2026-01-15T00:00:00Z", actual_duration_days=14.0,
-                r4_position_count=4, pre_existing_position_count=0,
-                manual_position_count=0, manual_trade_count=0,
-                current_drawdown_pct=5.0, current_daily_loss=50.0,
+                actual_equity=5000.0,
+                start_timestamp="2026-01-01T00:00:00Z",
+                end_timestamp="2026-01-15T00:00:00Z",
+                actual_duration_days=14.0,
+                r4_position_count=4,
+                pre_existing_position_count=0,
+                manual_position_count=0,
+                manual_trade_count=0,
+                current_drawdown_pct=5.0,
+                current_daily_loss=50.0,
             )
 
         pcts = _percentiles(_bench(validate, 2000))
@@ -106,11 +122,16 @@ class TestCapitalBoundaryLatency:
 
 class TestLatencyStability:
     def test_risk_check_stable_over_10k_cycles(self):
-        from eigencapital.live.risk_enforcement import RiskEnvelope, RiskEnforcer
+        from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 
-        envelope = RiskEnvelope(max_concurrent_positions=19, max_position_notional=5000.0,
-                                max_order_notional=1500.0, max_account_drawdown_pct=20.0,
-                                max_daily_loss=250.0, min_equity=4000.0)
+        envelope = RiskEnvelope(
+            max_concurrent_positions=19,
+            max_position_notional=5000.0,
+            max_order_notional=1500.0,
+            max_account_drawdown_pct=20.0,
+            max_daily_loss=250.0,
+            min_equity=4000.0,
+        )
         enforcer = RiskEnforcer(envelope)
 
         block_medians = []
@@ -127,25 +148,52 @@ class TestLatencyStability:
 
 class TestEmergencyFlattenLatency:
     def test_flatten_with_many_positions(self):
+        from typing import List
+
         from eigencapital.execution.trading_provider import (
-            TradingProvider, AccountInfo, PositionInfo, SymbolInfo,
-            TickInfo, OrderRequest, OrderResult,
+            AccountInfo,
+            OrderRequest,
+            OrderResult,
+            PositionInfo,
+            SymbolInfo,
+            TickInfo,
+            TradingProvider,
         )
-        from typing import Optional, List
 
         class FakeProvider(TradingProvider):
-            def connect(self, host="127.0.0.1", port=8001) -> bool: return True
-            def disconnect(self) -> None: pass
-            def is_connected(self) -> bool: return True
-            def account_info(self) -> Optional[AccountInfo]: return AccountInfo(equity=5000.0)
-            def positions_get(self, ticket=None) -> List[PositionInfo]: return []
-            def symbol_info(self, symbol: str) -> Optional[SymbolInfo]: return None
-            def symbol_info_tick(self, symbol: str) -> Optional[TickInfo]: return None
-            def symbol_select(self, symbol: str, enable=True) -> bool: return True
-            def copy_rates_from_pos(self, symbol, timeframe, start_pos, count): return []
+            def connect(self, host="127.0.0.1", port=8001) -> bool:
+                return True
+
+            def disconnect(self) -> None:
+                pass
+
+            def is_connected(self) -> bool:
+                return True
+
+            def account_info(self) -> AccountInfo | None:
+                return AccountInfo(equity=5000.0)
+
+            def positions_get(self, ticket=None) -> List[PositionInfo]:
+                return []
+
+            def symbol_info(self, symbol: str) -> SymbolInfo | None:
+                return None
+
+            def symbol_info_tick(self, symbol: str) -> TickInfo | None:
+                return None
+
+            def symbol_select(self, symbol: str, enable=True) -> bool:
+                return True
+
+            def copy_rates_from_pos(self, symbol, timeframe, start_pos, count):
+                return []
+
             def order_send(self, request: OrderRequest) -> OrderResult:
                 return OrderResult(success=True, order=1, deal=1, retcode=10009)
-            def last_error(self) -> str: return ""
+
+            def last_error(self) -> str:
+                return ""
+
             def emergency_flatten(self):
                 return [{"symbol": f"S{i}", "closed": True} for i in range(100)]
 
@@ -155,4 +203,4 @@ class TestEmergencyFlattenLatency:
         elapsed_us = (time.perf_counter_ns() - start) / 1000
 
         assert len(result) == 100
-        assert elapsed_us < 1_000_000, f"Emergency flatten took {elapsed_us/1000:.1f}ms"
+        assert elapsed_us < 1_000_000, f"Emergency flatten took {elapsed_us / 1000:.1f}ms"

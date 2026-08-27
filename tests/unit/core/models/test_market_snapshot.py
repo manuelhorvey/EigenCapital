@@ -3,8 +3,7 @@
 Tests data quality, price validation, optional fields, serialization.
 """
 
-from eigencapital.core.models.market_snapshot import MarketSnapshot, DataQualityStatus
-
+from eigencapital.core.models.market_snapshot import DataQualityStatus, MarketSnapshot
 
 _counter = 0
 
@@ -60,7 +59,7 @@ def test_snapshot_data_quality():
 
     try:
         _make_snapshot(data_quality="UNKNOWN")
-        assert False, "Should reject unknown data quality"
+        raise AssertionError("Should reject unknown data quality")
     except ValueError:
         pass
 
@@ -73,7 +72,7 @@ def test_snapshot_session_validation():
 
     try:
         _make_snapshot(session="PRE_MARKET")
-        assert False, "Should reject invalid session"
+        raise AssertionError("Should reject invalid session")
     except ValueError:
         pass
 
@@ -85,7 +84,7 @@ def test_snapshot_timestamp_format():
 
     try:
         _make_snapshot(timestamp_utc="2024-03-15 09:35:00")
-        assert False, "Should reject non-ISO timestamp"
+        raise AssertionError("Should reject non-ISO timestamp")
     except ValueError:
         pass
 
@@ -95,14 +94,14 @@ def test_snapshot_price_finiteness():
     # NaN
     try:
         _make_snapshot(mid_price=float("nan"))
-        assert False, "Should reject NaN mid_price"
+        raise AssertionError("Should reject NaN mid_price")
     except ValueError:
         pass
 
     # Inf
     try:
         _make_snapshot(mid_price=float("inf"))
-        assert False, "Should reject inf mid_price"
+        raise AssertionError("Should reject inf mid_price")
     except ValueError:
         pass
 
@@ -115,7 +114,7 @@ def test_snapshot_sizes_nonnegative():
 
     try:
         _make_snapshot(bid_size=-1)
-        assert False, "Should reject negative bid_size"
+        raise AssertionError("Should reject negative bid_size")
     except ValueError:
         pass
 

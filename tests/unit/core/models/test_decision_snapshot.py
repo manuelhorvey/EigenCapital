@@ -1,9 +1,9 @@
 """Unit tests for EigenCapital domain models — DecisionSnapshot."""
 
-from eigencapital.core.models.strategy_intent import StrategyIntent, Horizon
+from eigencapital.core.models.decision_snapshot import DecisionSnapshot
 from eigencapital.core.models.risk_check_result import RiskCheckResult
 from eigencapital.core.models.risk_decision import RiskDecision
-from eigencapital.core.models.decision_snapshot import DecisionSnapshot
+from eigencapital.core.models.strategy_intent import Horizon, StrategyIntent
 
 _counter = 0
 
@@ -94,9 +94,7 @@ def test_snapshot_three_timestamps():
 
 
 def test_snapshot_three_hashes():
-    ds = _make_snapshot(
-        strategy_config_hash="c1", strategy_artifact_hash="a1", provenance_hash="p1"
-    )
+    ds = _make_snapshot(strategy_config_hash="c1", strategy_artifact_hash="a1", provenance_hash="p1")
     assert ds.strategy_config_hash == "c1"
     assert ds.strategy_artifact_hash == "a1"
     assert ds.provenance_hash == "p1"
@@ -114,7 +112,7 @@ def test_snapshot_hash_required():
     ]:
         try:
             _make_snapshot(**{field: val})
-            assert False
+            raise AssertionError()
         except ValueError:
             pass
 
@@ -125,7 +123,7 @@ def test_snapshot_execution_context():
         assert ds.execution_context == ctx
     try:
         _make_snapshot(execution_context="PRODUCTION")
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 

@@ -14,8 +14,8 @@ from eigencapital.research.intraday.campaign8_tf003_confirmation import (
     bt_corrected,
 )
 
-
 # ── Governance math ─────────────────────────────────────────────────────
+
 
 class TestGovernanceMath:
     def test_family_size_is_72(self):
@@ -29,7 +29,7 @@ class TestGovernanceMath:
         # linear scaling below the cap, capped at 1 above it
         assert hr.family_adjust(0.0005) == pytest.approx(0.0005 * 72)
         assert hr.family_adjust(0.001) == pytest.approx(0.072)
-        assert hr.family_adjust(0.03) == 1.0   # capped at 1
+        assert hr.family_adjust(0.03) == 1.0  # capped at 1
         assert hr.family_adjust(0.5) == 1.0
         assert hr.family_adjust(1.0) == 1.0
 
@@ -39,9 +39,7 @@ class TestGovernanceMath:
 
     def test_tf003_raw_p_fails_family_gate(self):
         # The exact numbers from the discovery run
-        assert hr.family_adjust(0.03) > 0.05, (
-            "TF-003 raw p=0.03 must fail the pre-registered family gate"
-        )
+        assert hr.family_adjust(0.03) > 0.05, "TF-003 raw p=0.03 must fail the pre-registered family gate"
 
     def test_cumulative_downgrade_threshold_registered(self):
         # 0.05 aligns with the family gate alpha; anything above
@@ -52,10 +50,19 @@ class TestGovernanceMath:
 class TestDowngradeRule:
     def _result(self, verdict=Verdict.SUPPORTED, p_raw=0.0005):
         r = hr.HypResult(
-            hid="X", family="f", description="d", hp=1,
-            gross_sharpe=1.5, net_base=1.2, net_adverse=0.9, max_dd=-0.15,
-            trades=50000, wf_consistency=0.9, wf_oos_sharpe=1.0,
-            degradation=0.1, permutation_p=p_raw,
+            hid="X",
+            family="f",
+            description="d",
+            hp=1,
+            gross_sharpe=1.5,
+            net_base=1.2,
+            net_adverse=0.9,
+            max_dd=-0.15,
+            trades=50000,
+            wf_consistency=0.9,
+            wf_oos_sharpe=1.0,
+            degradation=0.1,
+            permutation_p=p_raw,
         )
         return r
 
@@ -67,12 +74,13 @@ class TestDowngradeRule:
 
     def test_passes_family_but_not_cumulative_would_be_downgraded(self):
         # find a p that passes family but fails cumulative
-        p = 0.02 / 72          # p_fam ≈ 0.02 ≤ 0.05
+        p = 0.02 / 72  # p_fam ≈ 0.02 ≤ 0.05
         assert hr.family_adjust(p) <= 0.05
         assert hr.cumulative_adjust(p) > hr.CUMULATIVE_DOWNGRADE
 
 
 # ── Corrected engine drives verdicts ────────────────────────────────────
+
 
 class TestCorrectedVerdictIntegration:
     @pytest.fixture
@@ -83,19 +91,26 @@ class TestCorrectedVerdictIntegration:
         ret = rng.normal(0, 3e-4, n)
         close = 1.1000 * np.exp(np.cumsum(ret))
         flow = rng.normal(0, 0.25, n).clip(-1, 1)
-        return pd.DataFrame({
-            "time": times,
-            "n_ticks": rng.integers(20, 400, n).astype(float),
-            "up_frac": (0.5 + flow / 2), "dn_frac": (0.5 - flow / 2),
-            "signed_flow": flow,
-            "spread_mean_bps": np.abs(rng.normal(0.8, 0.2, n)),
-            "spread_max_bps": np.abs(rng.normal(1.4, 0.4, n)),
-            "mid_open": close, "mid_high": close,
-            "mid_low": close, "mid_close": close, "mid_ret": ret,
-        })
+        return pd.DataFrame(
+            {
+                "time": times,
+                "n_ticks": rng.integers(20, 400, n).astype(float),
+                "up_frac": (0.5 + flow / 2),
+                "dn_frac": (0.5 - flow / 2),
+                "signed_flow": flow,
+                "spread_mean_bps": np.abs(rng.normal(0.8, 0.2, n)),
+                "spread_max_bps": np.abs(rng.normal(1.4, 0.4, n)),
+                "mid_open": close,
+                "mid_high": close,
+                "mid_low": close,
+                "mid_close": close,
+                "mid_ret": ret,
+            }
+        )
 
     def test_corrected_net_le_gross_under_costs(self, micro_df):
         from eigencapital.research.intraday.campaign7_micro import SIGNALS
+
         sig = SIGNALS["sig_flow_fade"](micro_df)
         r = bt_corrected(micro_df, sig, hp=1, cost_one_way=COST_ONE_WAY_BASE)
         assert r.net_sharpe <= r.gross_sharpe + 1e-9
@@ -104,6 +119,7 @@ class TestCorrectedVerdictIntegration:
 
     def test_adverse_cost_worse_than_base(self, micro_df):
         from eigencapital.research.intraday.campaign7_micro import SIGNALS
+
         sig = SIGNALS["sig_flow_fade"](micro_df)
         rb = bt_corrected(micro_df, sig, 1, COST_ONE_WAY_BASE)
         ra = bt_corrected(micro_df, sig, 1, COST_ONE_WAY_ADVERSE)
@@ -112,6 +128,7 @@ class TestCorrectedVerdictIntegration:
 
 # ── Fail-closed on missing data ─────────────────────────────────────────
 
+
 class TestFailClosed:
     def test_run_empty_dir_returns_empty(self, tmp_path):
         assert hr.run(data_dir=str(tmp_path)) == []
@@ -119,22 +136,39 @@ class TestFailClosed:
 
 # ── Reports smoke ───────────────────────────────────────────────────────
 
+
 class TestReports:
     def test_write_reports_smoke(self, tmp_path, monkeypatch):
         monkeypatch.setattr(hr, "REPORT_MD", str(tmp_path / "rr.md"))
         monkeypatch.setattr(hr, "REPORT_JSON", str(tmp_path / "rr.json"))
         r = hr.HypResult(
-            hid="TF-003", family="tick_flow", description="d", hp=1,
-            gross_sharpe=1.6, net_base=0.4, net_adverse=-0.1, max_dd=-0.34,
-            trades=300000, wf_consistency=1.0, wf_oos_sharpe=1.5,
-            degradation=0.75, verdict=Verdict.REJECTED,
+            hid="TF-003",
+            family="tick_flow",
+            description="d",
+            hp=1,
+            gross_sharpe=1.6,
+            net_base=0.4,
+            net_adverse=-0.1,
+            max_dd=-0.34,
+            trades=300000,
+            wf_consistency=1.0,
+            wf_oos_sharpe=1.5,
+            degradation=0.75,
+            verdict=Verdict.REJECTED,
             reasons=["permutation_insignificant"],
-            permutation_p=0.03, primary_failure="permutation_insignificant",
+            permutation_p=0.03,
+            primary_failure="permutation_insignificant",
         )
-        object.__setattr__(r, "_governance", {
-            "p_raw": 0.03, "p_adj_family": 1.0,
-            "p_adj_cumulative": 1.0, "eval_count": 72,
-        })
+        object.__setattr__(
+            r,
+            "_governance",
+            {
+                "p_raw": 0.03,
+                "p_adj_family": 1.0,
+                "p_adj_cumulative": 1.0,
+                "eval_count": 72,
+            },
+        )
         hr.write_reports([r])
         md = (tmp_path / "rr.md").read_text()
         assert "HARDENED GOVERNANCE" in md

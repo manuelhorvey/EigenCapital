@@ -8,8 +8,7 @@ Tests:
 - No hypothesis modified after registration
 """
 
-
-from eigencapital.research.alpha.executor import CampaignExecutor, HYPOTHESIS_LIBRARY, SIMULATED_EVIDENCE
+from eigencapital.research.alpha.executor import HYPOTHESIS_LIBRARY, SIMULATED_EVIDENCE, CampaignExecutor
 
 
 class TestCampaignExecution:
@@ -78,7 +77,7 @@ class TestCampaignExecution:
     def test_no_hypothesis_modified(self):
         """Registered hypothesis fingerprints match original definitions."""
         executor = CampaignExecutor()
-        result = executor.execute()
+        executor.execute()
         runner = executor._runner
         for hyp_def in HYPOTHESIS_LIBRARY:
             h = runner.get_hypothesis(hyp_def["id"])
@@ -113,9 +112,13 @@ class TestCampaignExecution:
         result = executor.execute()
         s = result["summary"]
         total_accounted = (
-            s["rejected"] + s["supported"] + s["incremental"] +
-            s["production_candidate"] + s["portfolio_useful"] +
-            s["inconclusive"] + s["conditional"]
+            s["rejected"]
+            + s["supported"]
+            + s["incremental"]
+            + s["production_candidate"]
+            + s["portfolio_useful"]
+            + s["inconclusive"]
+            + s["conditional"]
         )
         assert total_accounted == 29, f"Counts don't add up: {total_accounted} != 29"
 
@@ -133,9 +136,18 @@ class TestCampaignExecution:
         executor = CampaignExecutor()
         result = executor.execute()
         families = {v.family for v in result["verdicts"]}
-        expected = {"factor", "trend", "momentum", "mean_reversion", "breakout",
-                    "volatility", "cross_sectional", "statistical_arbitrage",
-                    "alternative_data", "ml"}
+        expected = {
+            "factor",
+            "trend",
+            "momentum",
+            "mean_reversion",
+            "breakout",
+            "volatility",
+            "cross_sectional",
+            "statistical_arbitrage",
+            "alternative_data",
+            "ml",
+        }
         assert expected == families
 
     def test_trend_mom_vol_have_survivors(self):

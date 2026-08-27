@@ -10,18 +10,17 @@ Tests cover:
 - Edge cases: missing hypotheses, failed executions
 """
 
+from eigencapital.features.feature_set import FeatureEntry, FeatureSet, FeatureStatus
+from eigencapital.features.pipeline import FeaturePipeline
 from eigencapital.research.campaigns.runner import (
-    CampaignRunner,
     CampaignManifest,
+    CampaignRunner,
 )
+from eigencapital.research.costs.model import MODERATE_COST
 from eigencapital.research.execution.engine import ExecutionEngine
 from eigencapital.research.execution.ledger import ExecutionLedger
-from eigencapital.research.hypotheses.hypothesis import Hypothesis
 from eigencapital.research.experiments.registry import ExperimentRegistry
-from eigencapital.research.costs.model import MODERATE_COST
-from eigencapital.features.pipeline import FeaturePipeline
-from eigencapital.features.feature_set import FeatureSet, FeatureEntry, FeatureStatus
-
+from eigencapital.research.hypotheses.hypothesis import Hypothesis
 
 # ───────────────────────────────────────────────
 #  Helpers

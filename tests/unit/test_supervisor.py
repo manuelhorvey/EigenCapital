@@ -1,4 +1,5 @@
 """Process Supervisor Tests — prove duplicate prevention and health tracking."""
+
 from __future__ import annotations
 
 import json

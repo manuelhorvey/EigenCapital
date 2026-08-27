@@ -11,6 +11,7 @@ trading cycle, the system can:
 The system must never assume that "the last process state" is authoritative.
 The broker is authoritative for live positions/orders.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,8 +25,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.config import load_config
-from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
 
@@ -55,7 +56,7 @@ class TestStatePersistence:
         }
 
         # Simulate restart: deserialize
-        recovery2 = DisconnectRecovery(max_recovery_attempts=3)
+        DisconnectRecovery(max_recovery_attempts=3)
         # In production, we'd restore from persisted state
         assert state["recovery_state"] == "disconnected"
         assert state["recovery_attempts"] == 1

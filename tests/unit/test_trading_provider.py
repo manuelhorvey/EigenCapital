@@ -6,6 +6,7 @@ These tests verify that:
 3. Data models are correct
 4. The factory function works
 """
+
 from __future__ import annotations
 
 import os
@@ -16,17 +17,17 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.execution.trading_provider import (
-    TradingProvider,
-    LinuxMT5Provider,
-    WindowsMT5Provider,
     AccountInfo,
-    PositionInfo,
-    TickInfo,
-    SymbolInfo,
+    BarData,
+    LinuxMT5Provider,
     OrderRequest,
     OrderResult,
-    BarData,
     OrderSide,
+    PositionInfo,
+    SymbolInfo,
+    TickInfo,
+    TradingProvider,
+    WindowsMT5Provider,
     create_trading_provider,
 )
 
@@ -47,10 +48,7 @@ class TestDataProviderModels:
             info.login = 99999
 
     def test_position_info_creation(self):
-        pos = PositionInfo(
-            ticket=1001, symbol="EURUSD", side="BUY",
-            volume=0.1, price_open=1.1000
-        )
+        pos = PositionInfo(ticket=1001, symbol="EURUSD", side="BUY", volume=0.1, price_open=1.1000)
         assert pos.ticket == 1001
         assert pos.symbol == "EURUSD"
         assert pos.side == "BUY"
@@ -67,18 +65,13 @@ class TestDataProviderModels:
         assert tick.ask == 1.1002
 
     def test_symbol_info_creation(self):
-        sym = SymbolInfo(
-            symbol="EURUSD", spread=12, digits=5,
-            trade_contract_size=100000, volume_min=0.01
-        )
+        sym = SymbolInfo(symbol="EURUSD", spread=12, digits=5, trade_contract_size=100000, volume_min=0.01)
         assert sym.symbol == "EURUSD"
         assert sym.spread == 12
         assert sym.volume_min == 0.01
 
     def test_order_request_creation(self):
-        req = OrderRequest(
-            symbol="EURUSD", side="BUY", volume=0.1, price=1.1000
-        )
+        req = OrderRequest(symbol="EURUSD", side="BUY", volume=0.1, price=1.1000)
         assert req.symbol == "EURUSD"
         assert req.side == "BUY"
         assert req.volume == 0.1

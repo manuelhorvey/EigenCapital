@@ -5,15 +5,15 @@ statistical validation layer to be trustworthy.
 """
 
 from eigencapital.analytics.metrics import compute_metrics, compute_returns
-from eigencapital.analytics.validation.walk_forward import purged_walk_forward
-from eigencapital.analytics.validation.bootstrap import bootstrap_test, permutation_test
 from eigencapital.analytics.validation.block_bootstrap import block_bootstrap
+from eigencapital.analytics.validation.bootstrap import bootstrap_test, permutation_test
 from eigencapital.analytics.validation.cost_stress import cost_stress_test
 from eigencapital.analytics.validation.evidence_gate import (
     EvidenceGate,
     EvidenceVerdict,
 )
 from eigencapital.analytics.validation.validator import ValidationEngine
+from eigencapital.analytics.validation.walk_forward import purged_walk_forward
 
 
 def _make_equity(n=500, drift=0.001, seed=42):
@@ -113,10 +113,7 @@ class TestSeedDeterminism:
         r1 = bootstrap_test(returns, n_bootstrap=200, seed=42)
         r2 = bootstrap_test(returns, n_bootstrap=200, seed=99)
         # Very unlikely to be exactly equal with different seeds
-        assert (
-            r1.sharpe_ci_lower != r2.sharpe_ci_lower
-            or r1.sharpe_ci_upper != r2.sharpe_ci_upper
-        )
+        assert r1.sharpe_ci_lower != r2.sharpe_ci_lower or r1.sharpe_ci_upper != r2.sharpe_ci_upper
 
 
 # ── D. Walk-Forward Temporal Integrity ─────────────────────────────
@@ -128,9 +125,7 @@ class TestWalkForwardTemporalIntegrity:
     def test_no_train_test_overlap(self):
         """Test that train and test windows never overlap."""
         equity = _make_equity(1000)
-        result = purged_walk_forward(
-            equity, train_bars=300, test_bars=100, purge_bars=10
-        )
+        result = purged_walk_forward(equity, train_bars=300, test_bars=100, purge_bars=10)
         for window in result.windows:
             assert window.train_end <= window.test_start, (
                 f"Train ends at {window.train_end} but test starts at {window.test_start}"
@@ -139,9 +134,7 @@ class TestWalkForwardTemporalIntegrity:
     def test_purge_gap(self):
         """Test that purge gap exists between train and test."""
         equity = _make_equity(1000)
-        result = purged_walk_forward(
-            equity, train_bars=300, test_bars=100, purge_bars=10
-        )
+        result = purged_walk_forward(equity, train_bars=300, test_bars=100, purge_bars=10)
         for window in result.windows:
             gap = window.test_start - window.train_end
             assert gap >= 10, f"Purge gap is {gap}, expected >= 10"
@@ -149,9 +142,7 @@ class TestWalkForwardTemporalIntegrity:
     def test_chronological_order(self):
         """Test that windows are in chronological order."""
         equity = _make_equity(1000)
-        result = purged_walk_forward(
-            equity, train_bars=300, test_bars=100, purge_bars=10
-        )
+        result = purged_walk_forward(equity, train_bars=300, test_bars=100, purge_bars=10)
         for i in range(1, len(result.windows)):
             assert result.windows[i].test_start >= result.windows[i - 1].test_start
 
@@ -237,18 +228,18 @@ class TestEvidenceGateNoSilentPass:
     def test_all_pass_moderate_evidence_candidate(self):
         """Test that all checks pass with moderate evidence → CANDIDATE."""
         gate = EvidenceGate()
-        from eigencapital.analytics.validation.walk_forward import WalkForwardResult
         from eigencapital.analytics.validation.bootstrap import (
             BootstrapResult,
             PermutationResult,
         )
         from eigencapital.analytics.validation.cost_stress import CostStressResult
-        from eigencapital.analytics.validation.regime import RegimeResult, RegimeMetrics
-        from eigencapital.analytics.validation.universe import (
-            UniversePerturbationResult,
-            ConcentrationMetrics,
-        )
+        from eigencapital.analytics.validation.regime import RegimeMetrics, RegimeResult
         from eigencapital.analytics.validation.temporal import TemporalStabilityResult
+        from eigencapital.analytics.validation.universe import (
+            ConcentrationMetrics,
+            UniversePerturbationResult,
+        )
+        from eigencapital.analytics.validation.walk_forward import WalkForwardResult
 
         result = gate.evaluate(
             walk_forward=WalkForwardResult(
@@ -276,9 +267,7 @@ class TestEvidenceGateNoSilentPass:
                 single_instrument_dependency=False,
                 concentration=ConcentrationMetrics(herfindahl_index=0.3),
             ),
-            temporal=TemporalStabilityResult(
-                window_count=5, performance_decay=False, pct_positive_sharpe=60.0
-            ),
+            temporal=TemporalStabilityResult(window_count=5, performance_decay=False, pct_positive_sharpe=60.0),
         )
         assert result["verdict"] == EvidenceVerdict.CANDIDATE
 

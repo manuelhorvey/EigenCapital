@@ -1,6 +1,7 @@
 """Unit tests for Accounting Engine."""
 
 import pytest
+
 from eigencapital.backtest.accounting import AccountingEngine
 
 
@@ -89,9 +90,7 @@ class TestAccountingEngine:
 
     def test_summary(self):
         acc = AccountingEngine(initial_cash=100_000)
-        acc.apply_fill(
-            fill_price=4500, quantity=1, side="BUY", multiplier=50, commission=2.50
-        )
+        acc.apply_fill(fill_price=4500, quantity=1, side="BUY", multiplier=50, commission=2.50)
         s = acc.summary()
         assert s["initial_cash"] == 100_000
         assert s["total_fills"] == 1

@@ -1,18 +1,18 @@
 """Phase 1T Tests — Micro-Live Qualification."""
 
 import pytest
+
 from eigencapital.micro_live.campaign import (
+    KillReason,
+    MicroLiveAuthorization,
     MicroLiveCampaign,
     MicroLiveEnvelope,
-    MicroLiveAuthorization,
     MicroLiveStatus,
     MicroLiveVerdict,
-    KillReason,
 )
 from eigencapital.micro_live.qualification import (
     MicroLiveEvaluator,
 )
-
 
 # ============================================================
 # MICRO-LIVE ENVELOPE TESTS
@@ -340,11 +340,16 @@ class TestAdversarialMicroLive:
 
     def test_authorization_immutable(self):
         auth = MicroLiveAuthorization(
-            authorization_id="A", campaign_id="C",
-            strategy_fingerprint="s", risk_envelope_hash="r",
-            broker_identity="b", account_identity="a",
-            operator_identity="o", max_capital=1000,
-            max_duration_hours=168, created_timestamp="t",
+            authorization_id="A",
+            campaign_id="C",
+            strategy_fingerprint="s",
+            risk_envelope_hash="r",
+            broker_identity="b",
+            account_identity="a",
+            operator_identity="o",
+            max_capital=1000,
+            max_duration_hours=168,
+            created_timestamp="t",
             expiry_timestamp="e",
         )
         with pytest.raises(AttributeError):
@@ -354,11 +359,16 @@ class TestAdversarialMicroLive:
         """Kill must stop all activity immediately."""
         env = MicroLiveEnvelope()
         auth = MicroLiveAuthorization(
-            authorization_id="A", campaign_id="C",
-            strategy_fingerprint="s", risk_envelope_hash="r",
-            broker_identity="b", account_identity="a",
-            operator_identity="o", max_capital=1000,
-            max_duration_hours=168, created_timestamp="t",
+            authorization_id="A",
+            campaign_id="C",
+            strategy_fingerprint="s",
+            risk_envelope_hash="r",
+            broker_identity="b",
+            account_identity="a",
+            operator_identity="o",
+            max_capital=1000,
+            max_duration_hours=168,
+            created_timestamp="t",
             expiry_timestamp="e",
         )
         camp = MicroLiveCampaign("C", env, auth)
@@ -374,11 +384,16 @@ class TestAdversarialMicroLive:
         """Reconciliation mismatch must be fatal — no recovery without human review."""
         env = MicroLiveEnvelope()
         auth = MicroLiveAuthorization(
-            authorization_id="A", campaign_id="C",
-            strategy_fingerprint="s", risk_envelope_hash="r",
-            broker_identity="b", account_identity="a",
-            operator_identity="o", max_capital=1000,
-            max_duration_hours=168, created_timestamp="t",
+            authorization_id="A",
+            campaign_id="C",
+            strategy_fingerprint="s",
+            risk_envelope_hash="r",
+            broker_identity="b",
+            account_identity="a",
+            operator_identity="o",
+            max_capital=1000,
+            max_duration_hours=168,
+            created_timestamp="t",
             expiry_timestamp="e",
         )
         camp = MicroLiveCampaign("C", env, auth)
@@ -398,11 +413,16 @@ class TestAdversarialMicroLive:
         """Excessive slippage must trigger immediate kill."""
         env = MicroLiveEnvelope()
         auth = MicroLiveAuthorization(
-            authorization_id="A", campaign_id="C",
-            strategy_fingerprint="s", risk_envelope_hash="r",
-            broker_identity="b", account_identity="a",
-            operator_identity="o", max_capital=1000,
-            max_duration_hours=168, created_timestamp="t",
+            authorization_id="A",
+            campaign_id="C",
+            strategy_fingerprint="s",
+            risk_envelope_hash="r",
+            broker_identity="b",
+            account_identity="a",
+            operator_identity="o",
+            max_capital=1000,
+            max_duration_hours=168,
+            created_timestamp="t",
             expiry_timestamp="e",
         )
         camp = MicroLiveCampaign("C", env, auth)
@@ -410,8 +430,12 @@ class TestAdversarialMicroLive:
         camp.activate()
 
         camp.record_fill(
-            instrument_id="X", side="BUY", quantity=10,
-            fill_price=100, spread=0.001, slippage=0.01,
+            instrument_id="X",
+            side="BUY",
+            quantity=10,
+            fill_price=100,
+            spread=0.001,
+            slippage=0.01,
         )
         assert camp.was_killed
 
@@ -419,11 +443,16 @@ class TestAdversarialMicroLive:
         """A loss-making campaign can still qualify if behavior is correct."""
         env = MicroLiveEnvelope()
         auth = MicroLiveAuthorization(
-            authorization_id="A", campaign_id="C",
-            strategy_fingerprint="s", risk_envelope_hash="r",
-            broker_identity="b", account_identity="a",
-            operator_identity="o", max_capital=1000,
-            max_duration_hours=168, created_timestamp="t",
+            authorization_id="A",
+            campaign_id="C",
+            strategy_fingerprint="s",
+            risk_envelope_hash="r",
+            broker_identity="b",
+            account_identity="a",
+            operator_identity="o",
+            max_capital=1000,
+            max_duration_hours=168,
+            created_timestamp="t",
             expiry_timestamp="e",
         )
         camp = MicroLiveCampaign("C", env, auth)
@@ -433,8 +462,12 @@ class TestAdversarialMicroLive:
         # Record loss-making fills
         for i in range(5):
             camp.record_fill(
-                instrument_id=f"SYM{i}", side="BUY", quantity=10,
-                fill_price=100, spread=0.0002, slippage=0.0001,
+                instrument_id=f"SYM{i}",
+                side="BUY",
+                quantity=10,
+                fill_price=100,
+                spread=0.0002,
+                slippage=0.0001,
             )
         camp._state.total_pnl = -50.0  # losing money
 

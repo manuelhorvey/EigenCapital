@@ -6,6 +6,7 @@ These tests ensure that:
 3. The live_risk envelope matches capital boundaries
 4. Fingerprint verification works end-to-end
 """
+
 from __future__ import annotations
 
 import os
@@ -16,8 +17,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.config import (
-    load_config,
     LiveRiskConfig,
+    load_config,
 )
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
@@ -85,10 +86,7 @@ class TestConfigVsScriptConsistency:
     def test_eligible_symbols_from_config(self):
         """Eligible symbols should be derived from broker config."""
         config = load_config("production")
-        eligible = [
-            sym for sym, cls in config.broker.allowed_symbols.items()
-            if not cls.endswith("_excluded")
-        ]
+        eligible = [sym for sym, cls in config.broker.allowed_symbols.items() if not cls.endswith("_excluded")]
         # Must include core forex pairs
         for sym in ["EURUSD", "GBPUSD", "AUDUSD", "USDCHF"]:
             assert sym in eligible, f"{sym} missing from eligible symbols"
@@ -113,10 +111,7 @@ class TestConfigVsScriptConsistency:
     def test_no_discrepancy_between_live_risk_and_capital(self):
         """live_risk.max_concurrent_positions must equal capital.max_concurrent_positions."""
         config = load_config("production")
-        assert (
-            config.live_risk.max_concurrent_positions
-            == config.capital.max_concurrent_positions
-        ), (
+        assert config.live_risk.max_concurrent_positions == config.capital.max_concurrent_positions, (
             f"Discrepancy: live_risk={config.live_risk.max_concurrent_positions} "
             f"vs capital={config.capital.max_concurrent_positions}"
         )

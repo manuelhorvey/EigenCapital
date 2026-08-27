@@ -9,6 +9,7 @@ Tests cover:
 - State persistence across simulated restarts
 - Trading permission at each state
 """
+
 from __future__ import annotations
 
 import os
@@ -89,8 +90,10 @@ class TestStateTransitions:
         recovery.on_disconnect()
         recovery.on_reconnect()
         recovery.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         result = recovery.request_resume(
             data_fresh=False,  # stale data
@@ -119,8 +122,10 @@ class TestExcessiveDisconnects:
         recovery.on_reconnect()
         # Fail reconciliation to get to HALTED
         recovery.submit_reconciliation(
-            positions_match=False, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=False,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         # authorize_reset from HALTED doesn't work, but from FROZEN it does
         # We need to get back to a state that allows on_disconnect
@@ -133,8 +138,10 @@ class TestExcessiveDisconnects:
         assert recovery.state == RecoveryState.DISCONNECTED
         recovery.on_reconnect()  # → RECONCILING
         recovery.submit_reconciliation(
-            positions_match=False, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=False,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )  # → HALTED
         # From HALTED, on_disconnect is not valid. authorize_reset from non-frozen.
         # Let's just call on_disconnect directly (it increments counter regardless of state)
@@ -172,8 +179,10 @@ class TestInvalidTransitions:
     def test_reconciliation_from_connected_invalid(self, recovery):
         """Cannot submit reconciliation from CONNECTED state."""
         result = recovery.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         assert "INVALID" in result
 
@@ -181,9 +190,12 @@ class TestInvalidTransitions:
         """Cannot request resume from DISCONNECTED state."""
         recovery.on_disconnect()
         result = recovery.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         assert "INVALID" in result
 
@@ -192,9 +204,12 @@ class TestInvalidTransitions:
         recovery.on_disconnect()
         recovery.on_reconnect()
         result = recovery.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         assert "INVALID" in result
 
@@ -222,8 +237,10 @@ class TestTradingPermission:
         recovery.on_disconnect()
         recovery.on_reconnect()
         recovery.submit_reconciliation(
-            positions_match=False, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=False,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         assert recovery.state == RecoveryState.HALTED
 
@@ -232,13 +249,18 @@ class TestTradingPermission:
         recovery.on_disconnect()
         recovery.on_reconnect()
         recovery.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         recovery.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         assert recovery.state == RecoveryState.RESUMED
 
@@ -257,7 +279,7 @@ class TestIdempotency:
     def test_double_disconnect(self, recovery):
         """Two disconnects in a row should be handled gracefully."""
         recovery.on_disconnect()
-        result = recovery.on_disconnect()
+        recovery.on_disconnect()
         # Should either stay DISCONNECTED or escalate
         assert recovery.state in (RecoveryState.DISCONNECTED, RecoveryState.FROZEN)
 

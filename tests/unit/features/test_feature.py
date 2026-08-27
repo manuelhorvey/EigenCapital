@@ -4,12 +4,13 @@ Test invariants, edge cases, and failure modes.
 """
 
 import pytest
-from eigencapital.features.feature import Feature
+
 from eigencapital.features.contracts import FeatureConfig, FeatureFamily, Normalization
 from eigencapital.features.errors import (
     FeatureAvailabilityError,
     FeatureValidationError,
 )
+from eigencapital.features.feature import Feature
 
 _counter = 0
 

@@ -33,15 +33,13 @@ def test_approved_target_decision_validation():
     assert at.decision == "REJECTED"
     try:
         _make_target(decision="UNKNOWN")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "Invalid approved target decision" in str(e)
 
 
 def test_approved_target_rejected_implies_zero():
-    at = _make_target(
-        decision="REJECTED", approved_quantity=0.0, approval_reason="Exceeds limit"
-    )
+    at = _make_target(decision="REJECTED", approved_quantity=0.0, approval_reason="Exceeds limit")
     assert at.is_rejected
     assert at.approved_quantity == 0.0
 
@@ -49,7 +47,7 @@ def test_approved_target_rejected_implies_zero():
 def test_approved_target_rejected_nonzero():
     try:
         _make_target(decision="REJECTED", approved_quantity=5.0)
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "REJECTED must have approved_quantity = 0" in str(e)
 
@@ -66,7 +64,7 @@ def test_approved_target_convenience_properties():
 def test_approved_target_requires_reason():
     try:
         _make_target(approval_reason="")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "approval_reason must be non-empty" in str(e)
 

@@ -8,8 +8,8 @@ import pytest
 
 from eigencapital.research.intraday import campaign6_1h_confirmation as c6
 
-
 # ── Fixtures ────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def h1_df() -> pd.DataFrame:
@@ -25,13 +25,20 @@ def h1_df() -> pd.DataFrame:
     high = np.maximum(open_, close) + spread
     low = np.minimum(open_, close) - spread
     vol = rng.integers(100, 900, n).astype(float)
-    return pd.DataFrame({
-        "time": times, "open": open_, "high": high,
-        "low": low, "close": close, "tick_volume": vol,
-    })
+    return pd.DataFrame(
+        {
+            "time": times,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "tick_volume": vol,
+        }
+    )
 
 
 # ── Signal: same economic mechanism, no look-ahead ──────────────────────
+
 
 class TestSignal:
     def test_primary_signal_gated_to_london_open(self, h1_df):
@@ -54,9 +61,7 @@ class TestSignal:
         pert = h1_df.copy()
         pert.loc[pert.index[cut:], ["open", "high", "low", "close"]] *= 2.0
         after = func(pert).fillna(0)
-        pd.testing.assert_series_equal(
-            base.iloc[:cut], after.iloc[:cut], check_names=False
-        )
+        pd.testing.assert_series_equal(base.iloc[:cut], after.iloc[:cut], check_names=False)
 
     def test_pre_registered_grids_frozen(self):
         assert c6.BOUNDARY_GRID == [6, 7, 8]
@@ -68,6 +73,7 @@ class TestSignal:
 
 # ── Engine ──────────────────────────────────────────────────────────────
 
+
 class TestEngine:
     def test_h1_annualization(self):
         assert c6.BARS_PER_TRADING_DAY == 24
@@ -78,8 +84,7 @@ class TestEngine:
         assert sh > 1.0 and trades > 0
 
     def test_costs_reduce_returns(self, h1_df):
-        sig = pd.Series(np.sign(h1_df["close"].pct_change().fillna(0)),
-                        index=h1_df.index)
+        sig = pd.Series(np.sign(h1_df["close"].pct_change().fillna(0)), index=h1_df.index)
         _, r_free, _, _ = c6.bt(h1_df, sig, hp=1, cost=0)
         _, r_cost, _, _ = c6.bt(h1_df, sig, hp=1, cost=0.0022)
         assert r_cost <= r_free
@@ -93,13 +98,10 @@ class TestEngine:
         assert 0 <= p <= 1
 
     def test_regime_analysis_includes_year_dd(self, h1_df):
-        yr, sess, ydd = c6.regime_analysis(
-            h1_df, c6.PRIMARY_SIGNAL(h1_df).fillna(0), hp=1
-        )
+        yr, sess, ydd = c6.regime_analysis(h1_df, c6.PRIMARY_SIGNAL(h1_df).fillna(0), hp=1)
         assert set(yr) == set(ydd)
         assert all(-1 <= d <= 0 for d in ydd.values())
-        assert set(sess).issubset({"asian", "london", "overlap",
-                                   "new_york", "off_hours"})
+        assert set(sess).issubset({"asian", "london", "overlap", "new_york", "off_hours"})
 
     def test_daily_returns_aggregates_by_day(self, h1_df):
         dr = c6.daily_returns(h1_df, c6.PRIMARY_SIGNAL(h1_df), hp=1)
@@ -110,12 +112,23 @@ class TestEngine:
 
 # ── Confirmation logic is fail-closed ───────────────────────────────────
 
+
 def _mk_result(**over):
     base = dict(
-        variant="b=07,k=2", boundary=7, lookback=2, hp=2,
-        gross_sharpe=0.6, net_base=0.5, net_adverse=0.35, max_dd=-0.08,
-        trades=400, wf_consistency=0.85, wf_oos_sharpe=0.4,
-        degradation=0.15, permutation_p=0.01, permutation_p_bonferroni=0.16,
+        variant="b=07,k=2",
+        boundary=7,
+        lookback=2,
+        hp=2,
+        gross_sharpe=0.6,
+        net_base=0.5,
+        net_adverse=0.35,
+        max_dd=-0.08,
+        trades=400,
+        wf_consistency=0.85,
+        wf_oos_sharpe=0.4,
+        degradation=0.15,
+        permutation_p=0.01,
+        permutation_p_bonferroni=0.16,
         verdict="fragile",
     )
     base.update(over)
@@ -124,15 +137,19 @@ def _mk_result(**over):
 
 class TestConfirmationLogic:
     def test_confirmed_requires_supported_and_corrected_p(self):
-        v, notes = c6.confirm_verdict([
-            _mk_result(verdict="supported", permutation_p_bonferroni=0.04),
-        ])
+        v, notes = c6.confirm_verdict(
+            [
+                _mk_result(verdict="supported", permutation_p_bonferroni=0.04),
+            ]
+        )
         assert v == "CONFIRMED"
 
     def test_supported_but_uncorrected_is_not_confirmed(self):
-        v, _ = c6.confirm_verdict([
-            _mk_result(verdict="supported", permutation_p_bonferroni=0.16),
-        ])
+        v, _ = c6.confirm_verdict(
+            [
+                _mk_result(verdict="supported", permutation_p_bonferroni=0.16),
+            ]
+        )
         assert v == "NOT_CONFIRMED"
 
     def test_all_fragile_not_confirmed(self):
@@ -146,15 +163,26 @@ class TestConfirmationLogic:
 
 # ── Frozen gates still enforced through classify ────────────────────────
 
+
 class TestFrozenGates:
     def test_classify_blocks_weak_edge(self):
         """net_base barely positive + poor WF must NOT classify supported."""
         from eigencapital.research.intraday.campaign4_15m import HypResult
+
         hr = HypResult(
-            hid="t", family="f", description="d", hp=2,
-            gross_sharpe=0.31, net_base=0.05, net_adverse=-0.05, max_dd=-0.5,
-            trades=50, wf_consistency=0.4, wf_oos_sharpe=0.0,
-            degradation=0.8, permutation_p=0.9,
+            hid="t",
+            family="f",
+            description="d",
+            hp=2,
+            gross_sharpe=0.31,
+            net_base=0.05,
+            net_adverse=-0.05,
+            max_dd=-0.5,
+            trades=50,
+            wf_consistency=0.4,
+            wf_oos_sharpe=0.0,
+            degradation=0.8,
+            permutation_p=0.9,
         )
         verdict, reasons, _ = __import__(
             "eigencapital.research.intraday.campaign5_30m",
@@ -167,11 +195,21 @@ class TestFrozenGates:
         corrected-fail signal cannot be supported."""
         from eigencapital.research.intraday.campaign4_15m import HypResult
         from eigencapital.research.intraday.campaign5_30m import classify
+
         hr = HypResult(
-            hid="t", family="f", description="d", hp=2,
-            gross_sharpe=0.6, net_base=0.5, net_adverse=0.4, max_dd=-0.05,
-            trades=500, wf_consistency=0.9, wf_oos_sharpe=0.5,
-            degradation=0.1, permutation_p=0.20,  # corrected value fails
+            hid="t",
+            family="f",
+            description="d",
+            hp=2,
+            gross_sharpe=0.6,
+            net_base=0.5,
+            net_adverse=0.4,
+            max_dd=-0.05,
+            trades=500,
+            wf_consistency=0.9,
+            wf_oos_sharpe=0.5,
+            degradation=0.1,
+            permutation_p=0.20,  # corrected value fails
         )
         verdict, reasons, _ = classify(hr)
         assert verdict.value != "supported"
@@ -180,15 +218,22 @@ class TestFrozenGates:
 
 # ── Reports smoke test ──────────────────────────────────────────────────
 
+
 class TestReports:
     def test_write_reports_smoke(self, tmp_path, monkeypatch):
         monkeypatch.setattr(c6, "REPORT_MD", str(tmp_path / "c6.md"))
         monkeypatch.setattr(c6, "REPORT_JSON", str(tmp_path / "c6.json"))
         primary = [_mk_result()]
         sens = [
-            c6.ConfirmResult(variant="x", boundary=6, lookback=2, hp=1,
-                             net_base=0.1, permutation_p_bonferroni=0.5,
-                             verdict="rejected"),
+            c6.ConfirmResult(
+                variant="x",
+                boundary=6,
+                lookback=2,
+                hp=1,
+                net_base=0.1,
+                permutation_p_bonferroni=0.5,
+                verdict="rejected",
+            ),
         ]
         c6.write_reports(primary, sens, {("EURUSDm", "GBPUSDm"): 0.21})
         md = (tmp_path / "c6.md").read_text()

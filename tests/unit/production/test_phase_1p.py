@@ -8,15 +8,16 @@ Tests:
 - Adversarial scenarios
 """
 
-from eigencapital.production.fingerprint import (
-    ProductionFingerprint,
-    FingerprintRegistry,
-)
 from eigencapital.production.evidence import (
-    OrderEvidence,
     ExecutionEvidenceCollector,
-    SlippageDistribution,
+    ExecutionSummary,
     LatencyDistribution,
+    OrderEvidence,
+    SlippageDistribution,
+)
+from eigencapital.production.fingerprint import (
+    FingerprintRegistry,
+    ProductionFingerprint,
 )
 from eigencapital.production.live_campaign import (
     LiveCampaign,
@@ -24,14 +25,12 @@ from eigencapital.production.live_campaign import (
     LiveCampaignResult,
     LiveCampaignStatus,
 )
-from eigencapital.production.evidence import ExecutionSummary
 from eigencapital.production.qualification import (
     ProductionQualificationGate,
-    QualificationVerdict,
-    QualificationThresholds,
     QualificationCheck,
+    QualificationThresholds,
+    QualificationVerdict,
 )
-
 
 # ============================================================
 # Production Fingerprint Tests
@@ -212,9 +211,7 @@ class TestExecutionEvidence:
         collector.record_order(self._make_evidence(status="FILLED"))
         collector.record_order(self._make_evidence(order_id="ord-2", status="PARTIAL"))
         collector.record_order(self._make_evidence(order_id="ord-3", status="REJECTED"))
-        collector.record_order(
-            self._make_evidence(order_id="ord-4", status="CANCELLED")
-        )
+        collector.record_order(self._make_evidence(order_id="ord-4", status="CANCELLED"))
         summary = collector.get_summary()
         assert summary.total_orders == 4
         assert summary.filled_orders == 1
@@ -303,18 +300,10 @@ class TestLiveCampaignLifecycle:
         """Valid lifecycle transitions work."""
         engine = LiveCampaignEngine()
         engine.create_campaign(self._make_campaign())
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1"
-        )
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2"
-        )
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3"
-        )
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.QUALIFICATION.value, "t4"
-        )
+        engine.transition_campaign("live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1")
+        engine.transition_campaign("live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2")
+        engine.transition_campaign("live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3")
+        engine.transition_campaign("live-1", LiveCampaignStatus.QUALIFICATION.value, "t4")
         engine.transition_campaign("live-1", LiveCampaignStatus.COMPLETED.value, "t5")
         final = engine.get_campaign("live-1")
         assert final.status == LiveCampaignStatus.COMPLETED.value
@@ -322,13 +311,8 @@ class TestLiveCampaignLifecycle:
     def test_invalid_transition_blocked(self):
         """Invalid transition is blocked."""
         engine = LiveCampaignEngine()
-        engine.create_campaign(
-            self._make_campaign(status=LiveCampaignStatus.COMPLETED.value)
-        )
-        assert (
-            engine.transition_campaign("live-1", LiveCampaignStatus.PLANNED.value, "t1")
-            is False
-        )
+        engine.create_campaign(self._make_campaign(status=LiveCampaignStatus.COMPLETED.value))
+        assert engine.transition_campaign("live-1", LiveCampaignStatus.PLANNED.value, "t1") is False
 
     def test_divergence_tracking(self):
         """Divergence counts are tracked."""
@@ -584,18 +568,10 @@ class TestPhase1PAdversarial:
             expiry_timestamp="2026-06-30",
         )
         engine.create_campaign(campaign)
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1"
-        )
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2"
-        )
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3"
-        )
-        engine.transition_campaign(
-            "live-1", LiveCampaignStatus.QUALIFICATION.value, "t4"
-        )
+        engine.transition_campaign("live-1", LiveCampaignStatus.CONNECTIVITY.value, "t1")
+        engine.transition_campaign("live-1", LiveCampaignStatus.MINIMAL_EXPOSURE.value, "t2")
+        engine.transition_campaign("live-1", LiveCampaignStatus.EXTENDED_OBSERVATION.value, "t3")
+        engine.transition_campaign("live-1", LiveCampaignStatus.QUALIFICATION.value, "t4")
         engine.transition_campaign("live-1", LiveCampaignStatus.COMPLETED.value, "t5")
         final = engine.get_campaign("live-1")
         assert final.status == LiveCampaignStatus.COMPLETED.value
@@ -838,9 +814,7 @@ class TestPhase1PAdversarial:
                         fill_rate=1.0,
                         rejection_rate=0.0,
                         partial_fill_rate=0.0,
-                        slippage_distribution=SlippageDistribution(
-                            median=0.001, count=10
-                        ),
+                        slippage_distribution=SlippageDistribution(median=0.001, count=10),
                         latency_distribution=LatencyDistribution(median=0.5, count=10),
                         total_realized_slippage=0.01,
                         total_latency=5.0,

@@ -4,38 +4,40 @@ Test all return, volatility, range, and volume features
 for correctness, edge cases, and look-ahead prevention.
 """
 
-import pytest
 import math
+
+import pytest
+
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
-from eigencapital.features.base.returns import (
-    compute_simple_return,
-    compute_log_return,
-    compute_return_ratio,
-    make_return_feature,
-    make_log_return_feature,
-)
-from eigencapital.features.base.volatility import (
-    compute_realized_volatility,
-    compute_parkinson_volatility,
-    compute_garman_klass_volatility,
-    compute_volatility_ratio,
-    make_volatility_feature,
-)
 from eigencapital.features.base.ranges import (
-    compute_true_range,
     compute_atr,
     compute_high_low_range,
     compute_normalized_range,
+    compute_true_range,
     make_atr_feature,
 )
+from eigencapital.features.base.returns import (
+    compute_log_return,
+    compute_return_ratio,
+    compute_simple_return,
+    make_log_return_feature,
+    make_return_feature,
+)
+from eigencapital.features.base.volatility import (
+    compute_garman_klass_volatility,
+    compute_parkinson_volatility,
+    compute_realized_volatility,
+    compute_volatility_ratio,
+    make_volatility_feature,
+)
 from eigencapital.features.base.volume import (
+    compute_obv_direction,
     compute_volume_ma,
     compute_volume_ratio,
     compute_volume_zscore,
-    compute_obv_direction,
     make_volume_ratio_feature,
 )
+from eigencapital.features.feature import Feature
 
 _counter = 0
 

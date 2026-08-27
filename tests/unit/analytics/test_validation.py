@@ -4,30 +4,29 @@ The validation layer tries to DISPROVE trading edges, not confirm them.
 These tests verify that the validation machinery itself is correct.
 """
 
-from eigencapital.analytics.validation.walk_forward import (
-    WalkForwardResult,
-    purged_walk_forward,
-    _compute_sharpe,
-    _compute_returns,
-)
 from eigencapital.analytics.validation.bootstrap import (
     bootstrap_test,
     permutation_test,
 )
-from eigencapital.analytics.validation.sensitivity import (
-    parameter_sensitivity,
-)
 from eigencapital.analytics.validation.cost_stress import (
     cost_stress_test,
-)
-from eigencapital.analytics.validation.regime import (
-    regime_analysis,
 )
 from eigencapital.analytics.validation.evidence_gate import (
     EvidenceGate,
     EvidenceVerdict,
 )
-
+from eigencapital.analytics.validation.regime import (
+    regime_analysis,
+)
+from eigencapital.analytics.validation.sensitivity import (
+    parameter_sensitivity,
+)
+from eigencapital.analytics.validation.walk_forward import (
+    WalkForwardResult,
+    _compute_returns,
+    _compute_sharpe,
+    purged_walk_forward,
+)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -373,18 +372,17 @@ class TestEvidenceGate:
     def test_all_pass_candidate(self):
         """Test evidence gate with all checks passing."""
         import random
-        from eigencapital.analytics.validation.universe import (
-            UniversePerturbationResult,
-            ConcentrationMetrics,
-        )
+
         from eigencapital.analytics.validation.temporal import TemporalStabilityResult
+        from eigencapital.analytics.validation.universe import (
+            ConcentrationMetrics,
+            UniversePerturbationResult,
+        )
 
         rng = random.Random(42)
         gate = EvidenceGate()
         # Walk-forward on a strong uptrend
-        wf = purged_walk_forward(
-            _make_uptrend_equity(1000, 0.005), train_bars=300, test_bars=100
-        )
+        wf = purged_walk_forward(_make_uptrend_equity(1000, 0.005), train_bars=300, test_bars=100)
         # Bootstrap: strong positive returns with realistic variance
         pos_returns = [0.01 + rng.gauss(0, 0.01) for _ in range(500)]
         boot = bootstrap_test(pos_returns, n_bootstrap=500, seed=42)
@@ -403,9 +401,7 @@ class TestEvidenceGate:
             single_instrument_dependency=False,
             concentration=ConcentrationMetrics(herfindahl_index=0.3),
         )
-        temporal = TemporalStabilityResult(
-            window_count=5, performance_decay=False, pct_positive_sharpe=60.0
-        )
+        temporal = TemporalStabilityResult(window_count=5, performance_decay=False, pct_positive_sharpe=60.0)
 
         result = gate.evaluate(
             walk_forward=wf,

@@ -1,11 +1,12 @@
 """Unit tests for data validation — OHLC, temporal, and anomaly checks."""
 
 import pytest
+
 from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
+from eigencapital.data.validation.anomalies import validate_anomalies
 from eigencapital.data.validation.ohlc import validate_ohlc
 from eigencapital.data.validation.temporal import validate_temporal
-from eigencapital.data.validation.anomalies import validate_anomalies
 from eigencapital.data.validation.validator import DataValidator
 
 

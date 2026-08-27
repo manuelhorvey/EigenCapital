@@ -11,21 +11,23 @@ Proves that under failure conditions, the system:
 import os
 import sys
 
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from eigencapital.live.risk_enforcement import (
-    RiskEnvelope, RiskEnforcer, GateResult, BlockReason,
-)
-from eigencapital.live.risk import DisconnectRecovery, RecoveryState
-from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+from eigencapital.live.risk import DisconnectRecovery, RecoveryState
+from eigencapital.live.risk_enforcement import (
+    BlockReason,
+    GateResult,
+    RiskEnforcer,
+    RiskEnvelope,
+)
+from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 from eigencapital.risk.policy import RiskPolicy
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _gate_blocked(results, reason: BlockReason) -> bool:
     return any(r.result != GateResult.PASS and r.reason == reason for r in results)
@@ -39,6 +41,7 @@ def _any_blocked(results) -> bool:
 # Position Count Enforcement
 # ---------------------------------------------------------------------------
 
+
 class TestPositionCountEnforcement:
     def test_position_count_breach_detected(self):
         """3 positions with limit 2 must be detected as CRITICAL."""
@@ -46,7 +49,9 @@ class TestPositionCountEnforcement:
         enforcer = RiskEnforcer(envelope)
         positions = [{"symbol": f"S{i}", "volume": 0.01, "price": 100.0} for i in range(3)]
         passed, results = enforcer.check_all(
-            broker_positions=positions, account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=positions,
+            account_equity=5000.0,
+            account_free_margin=3000.0,
         )
         assert passed is False
         # Position count breach OR position protection (no SL) — both should block
@@ -57,7 +62,9 @@ class TestPositionCountEnforcement:
         envelope = RiskEnvelope(max_concurrent_positions=19, t0_equity=5000.0)
         enforcer = RiskEnforcer(envelope)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=[],
+            account_equity=5000.0,
+            account_free_margin=3000.0,
         )
         assert passed is True
 
@@ -67,7 +74,9 @@ class TestPositionCountEnforcement:
         enforcer = RiskEnforcer(envelope)
         positions = [{"symbol": "EURUSD", "volume": 0.01, "price": 1.1, "sl": 0.0}]
         passed, results = enforcer.check_all(
-            broker_positions=positions, account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=positions,
+            account_equity=5000.0,
+            account_free_margin=3000.0,
         )
         assert passed is False
         assert _gate_blocked(results, BlockReason.NO_SL_PROTECTION)
@@ -77,13 +86,16 @@ class TestPositionCountEnforcement:
 # Equity / Drawdown Enforcement
 # ---------------------------------------------------------------------------
 
+
 class TestEquityDrawdownEnforcement:
     def test_equity_floor_enforced(self):
         """Equity below minimum must be blocked."""
         envelope = RiskEnvelope(min_equity=4000.0, t0_equity=5000.0, max_account_drawdown_pct=9999.0)
         enforcer = RiskEnforcer(envelope)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=3500.0, account_free_margin=3000.0,
+            broker_positions=[],
+            account_equity=3500.0,
+            account_free_margin=3000.0,
         )
         assert passed is False
         assert _gate_blocked(results, BlockReason.EQUITY_BELOW_MIN)
@@ -93,7 +105,9 @@ class TestEquityDrawdownEnforcement:
         envelope = RiskEnvelope(min_equity=4000.0, t0_equity=5000.0)
         enforcer = RiskEnforcer(envelope)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=[],
+            account_equity=5000.0,
+            account_free_margin=3000.0,
         )
         assert passed is True
 
@@ -102,7 +116,9 @@ class TestEquityDrawdownEnforcement:
         envelope = RiskEnvelope(t0_equity=5000.0)
         enforcer = RiskEnforcer(envelope)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=0.0, account_free_margin=0.0,
+            broker_positions=[],
+            account_equity=0.0,
+            account_free_margin=0.0,
         )
         assert passed is False
         assert _gate_blocked(results, BlockReason.BROKER_DISCONNECT)
@@ -111,6 +127,7 @@ class TestEquityDrawdownEnforcement:
 # ---------------------------------------------------------------------------
 # Stale State Prevention
 # ---------------------------------------------------------------------------
+
 
 class TestStaleStatePrevention:
     def test_disconnect_halts_trading(self):
@@ -147,25 +164,30 @@ class TestStaleStatePrevention:
 # Risk Gate Enforcement
 # ---------------------------------------------------------------------------
 
+
 class TestRiskGateEnforcement:
     def test_all_gates_reported(self):
         """Every gate must produce a result."""
         enforcer = RiskEnforcer(RiskEnvelope(t0_equity=5000.0))
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=[],
+            account_equity=5000.0,
+            account_free_margin=3000.0,
         )
         assert len(results) > 0
         for r in results:
-            assert hasattr(r, 'result')
-            assert hasattr(r, 'gate_name')
-            assert hasattr(r, 'reason')
-            assert hasattr(r, 'timestamp')
+            assert hasattr(r, "result")
+            assert hasattr(r, "gate_name")
+            assert hasattr(r, "reason")
+            assert hasattr(r, "timestamp")
 
     def test_fingerprint_gate_present(self):
         """Fingerprint gate must be in results."""
         enforcer = RiskEnforcer(RiskEnvelope(t0_equity=5000.0))
         _, results = enforcer.check_all(
-            broker_positions=[], account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=[],
+            account_equity=5000.0,
+            account_free_margin=3000.0,
         )
         gate_names = [r.gate_name for r in results]
         assert "fingerprint" in gate_names
@@ -174,7 +196,9 @@ class TestRiskGateEnforcement:
         """Fingerprint mismatch must block trading."""
         enforcer = RiskEnforcer(RiskEnvelope(t0_equity=5000.0))
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5000.0, account_free_margin=3000.0,
+            broker_positions=[],
+            account_equity=5000.0,
+            account_free_margin=3000.0,
             fingerprint_match=False,
         )
         assert passed is False
@@ -184,10 +208,12 @@ class TestRiskGateEnforcement:
 # Fingerprint Integrity
 # ---------------------------------------------------------------------------
 
+
 class TestFingerprintIntegrity:
     def test_fingerprint_consistent_across_10k_calls(self):
         verifier = FingerprintVerifier(
-            manifest=R4ConfigManifest(), risk_policy=RiskPolicy(),
+            manifest=R4ConfigManifest(),
+            risk_policy=RiskPolicy(),
         )
         first = verifier.verify_all()
         for _ in range(10_000):
@@ -196,6 +222,7 @@ class TestFingerprintIntegrity:
 
     def test_fingerprint_detects_manifest_change(self):
         from dataclasses import replace
+
         manifest1 = R4ConfigManifest()
         manifest2 = replace(manifest1, strategy_version="R4.0_TAMPERED")
         assert manifest1.compute_identity() != manifest2.compute_identity()

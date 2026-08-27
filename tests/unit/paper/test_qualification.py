@@ -10,17 +10,16 @@ Tests cover:
 
 import pytest
 
-from eigencapital.paper.campaign import PaperCampaign, CampaignStatus
+from eigencapital.paper.campaign import CampaignStatus, PaperCampaign
 from eigencapital.paper.parity import (
-    ParityChecker,
     DivergenceCategory,
     DivergenceSeverity,
+    ParityChecker,
 )
 from eigencapital.paper.qualification import (
     QualificationResult,
     QualificationVerdict,
 )
-
 
 # ═══════════════════════════════════════════════
 #  PAPER CAMPAIGN

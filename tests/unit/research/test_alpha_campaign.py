@@ -12,16 +12,13 @@ Tests:
 import pytest
 
 from eigencapital.research.alpha.campaign import (
-    ResearchCampaign,
-    ResearchCampaignRunner,
+    CampaignPhase,
     HypothesisIdentity,
+    HypothesisStatus,
     HypothesisTrial,
     HypothesisVerdict,
-    HypothesisStatus,
-    CampaignPhase,
-)
-from eigencapital.research.alpha.scorecard import (
-    ScorecardEvaluator,
+    ResearchCampaign,
+    ResearchCampaignRunner,
 )
 from eigencapital.research.alpha.incremental import (
     IncrementalAlphaTester,
@@ -30,7 +27,9 @@ from eigencapital.research.alpha.incremental import (
 from eigencapital.research.alpha.research_map import (
     ResearchMapGenerator,
 )
-
+from eigencapital.research.alpha.scorecard import (
+    ScorecardEvaluator,
+)
 
 # ============================================================
 # Hypothesis Identity Tests
@@ -127,9 +126,7 @@ class TestResearchCampaignRunner:
         """Valid phase transition works."""
         runner = ResearchCampaignRunner()
         runner.create_campaign(self._make_campaign())
-        assert runner.transition_phase(
-            "1Q-campaign", CampaignPhase.CALIBRATION.value, "t1"
-        )
+        assert runner.transition_phase("1Q-campaign", CampaignPhase.CALIBRATION.value, "t1")
         campaign = runner.get_campaign("1Q-campaign")
         assert campaign.current_phase == CampaignPhase.CALIBRATION.value
 
@@ -137,9 +134,7 @@ class TestResearchCampaignRunner:
         """Invalid phase transition is blocked."""
         runner = ResearchCampaignRunner()
         runner.create_campaign(self._make_campaign())
-        assert not runner.transition_phase(
-            "1Q-campaign", CampaignPhase.COMPLETED.value, "t1"
-        )
+        assert not runner.transition_phase("1Q-campaign", CampaignPhase.COMPLETED.value, "t1")
 
     def test_register_hypothesis(self):
         """Hypothesis registration works."""
@@ -581,9 +576,7 @@ class TestResearchMapGenerator:
                 status=HypothesisStatus.REJECTED.value,
             ),
         ]
-        research_map = generator.generate(
-            "1Q-campaign", verdicts, [], [], timestamp="2026-06-01"
-        )
+        research_map = generator.generate("1Q-campaign", verdicts, [], [], timestamp="2026-06-01")
         assert research_map.total_hypotheses == 3
         assert research_map.total_rejected == 2
         assert research_map.total_supported == 1
@@ -592,15 +585,9 @@ class TestResearchMapGenerator:
         """Survival rate is correctly computed."""
         generator = ResearchMapGenerator()
         verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-B", status=HypothesisStatus.SUPPORTED.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-C", status=HypothesisStatus.REJECTED.value
-            ),
+            self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value),
+            self._make_verdict(hypothesis_id="HYP-B", status=HypothesisStatus.SUPPORTED.value),
+            self._make_verdict(hypothesis_id="HYP-C", status=HypothesisStatus.REJECTED.value),
         ]
         research_map = generator.generate("camp", verdicts, [], [])
         assert research_map.overall_survival_rate == pytest.approx(1 / 3, abs=0.01)
@@ -642,9 +629,7 @@ class TestResearchMapGenerator:
         """Markdown report generation works."""
         generator = ResearchMapGenerator()
         verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value
-            ),
+            self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value),
             self._make_verdict(
                 hypothesis_id="HYP-B",
                 family="momentum",
@@ -661,11 +646,7 @@ class TestResearchMapGenerator:
     def test_map_fingerprint_deterministic(self):
         """Research map fingerprint is deterministic."""
         generator = ResearchMapGenerator()
-        verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value
-            )
-        ]
+        verdicts = [self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value)]
         rm1 = generator.generate("camp", verdicts, [], [])
         rm2 = generator.generate("camp", verdicts, [], [])
         assert rm1.compute_fingerprint() == rm2.compute_fingerprint()
@@ -807,9 +788,7 @@ class TestPhase1QAdversarial:
     def test_campaign_cannot_skip_phases(self):
         """Campaign cannot skip phases."""
         runner = ResearchCampaignRunner()
-        runner.create_campaign(
-            ResearchCampaign(campaign_id="c1", production_fingerprint="fp")
-        )
+        runner.create_campaign(ResearchCampaign(campaign_id="c1", production_fingerprint="fp"))
         # Cannot skip to COMPLETED directly
         assert not runner.transition_phase("c1", CampaignPhase.COMPLETED.value, "t1")
 
@@ -875,9 +854,7 @@ class TestPhase1QAdversarial:
     def test_ml_hypothesis_last_in_campaign(self):
         """ML gate is the last phase before completion."""
         runner = ResearchCampaignRunner()
-        runner.create_campaign(
-            ResearchCampaign(campaign_id="c1", production_fingerprint="fp")
-        )
+        runner.create_campaign(ResearchCampaign(campaign_id="c1", production_fingerprint="fp"))
         runner.transition_phase("c1", CampaignPhase.CALIBRATION.value, "t0")
         runner.transition_phase("c1", CampaignPhase.SIMPLE_FACTORS.value, "t1")
         runner.transition_phase("c1", CampaignPhase.TREND_MOMENTUM.value, "t2")

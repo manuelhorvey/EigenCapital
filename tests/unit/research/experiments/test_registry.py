@@ -1,10 +1,11 @@
 """Unit tests for Experiment Registry."""
 
 import pytest
+
 from eigencapital.research.experiments.registry import (
-    ExperimentRegistry,
-    ExperimentRecord,
     ExperimentError,
+    ExperimentRecord,
+    ExperimentRegistry,
 )
 
 

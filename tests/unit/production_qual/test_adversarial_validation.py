@@ -12,43 +12,56 @@ Chain under test:
 
 Hard rule: May fix infrastructure defects but CANNOT modify frozen R4 behavior.
 """
+
 from __future__ import annotations
 
 import gc
 import time
 import tracemalloc
-from datetime import datetime, timezone
-from typing import Dict, Any
-
-
-# P0 infrastructure
-from eigencapital.reconciliation.engine import (
-    ReconciliationEngine, BrokerState, InternalState,
-    ReconciliationAction,
-)
-from eigencapital.live.health import (
-    HealthMonitor, HealthDimension, HealthState, TradingAuthorization,
-    update_broker_health, update_risk_health, update_reconciliation_health,
-)
-from eigencapital.live.risk_observation import RiskObserver
-from eigencapital.live.structured_alerts import (
-    StructuredAlertDispatcher, AlertSeverity, AlertCategory,
-)
-from eigencapital.production_qual.event_ledger import EventLedger, EventType
-
-# Phase 2 economics
-from eigencapital.production_qual.live_qualification import (
-    R4LiveQualificationDataset, ExecutionFidelity, EntryQuality,
-    HoldingPeriodMetrics, DownsideMetrics, ExitReason,
-)
-from eigencapital.production_qual.phase2_report import Phase2ReportGenerator
+from datetime import UTC, datetime
+from typing import Any, Dict
 
 # R4 parity
 from eigencapital.config import load_config
+from eigencapital.live.health import (
+    HealthDimension,
+    HealthMonitor,
+    HealthState,
+    TradingAuthorization,
+    update_broker_health,
+    update_reconciliation_health,
+    update_risk_health,
+)
+from eigencapital.live.risk_observation import RiskObserver
+from eigencapital.live.structured_alerts import (
+    AlertCategory,
+    AlertSeverity,
+    StructuredAlertDispatcher,
+)
+from eigencapital.production_qual.event_ledger import EventLedger, EventType
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
+# Phase 2 economics
+from eigencapital.production_qual.live_qualification import (
+    DownsideMetrics,
+    EntryQuality,
+    ExecutionFidelity,
+    ExitReason,
+    HoldingPeriodMetrics,
+    R4LiveQualificationDataset,
+)
+from eigencapital.production_qual.phase2_report import Phase2ReportGenerator
+
+# P0 infrastructure
+from eigencapital.reconciliation.engine import (
+    BrokerState,
+    InternalState,
+    ReconciliationAction,
+    ReconciliationEngine,
+)
 
 # ─── Helpers ───────────────────────────────────────────────────────────
+
 
 def _clean_state() -> Dict[str, Any]:
     """Create clean broker/internal state for testing."""
@@ -58,14 +71,14 @@ def _clean_state() -> Dict[str, Any]:
         account_balance=5000.0,
         account_free_margin=5000.0,
         orders=[],
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
     internal = InternalState(
         positions={},
         pending_orders=[],
         last_signal={},
         target_weights={},
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
     return {"broker": broker, "internal": internal}
 
@@ -99,6 +112,7 @@ def _make_internal_position(ticket: int, symbol: str, volume: float, side: str =
 # 1. END-TO-END INTEGRATION
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestEndToEndIntegration:
     """Prove that an actual simulated order produces the full chain
     with one correlation ID throughout."""
@@ -110,14 +124,17 @@ class TestEndToEndIntegration:
         recon = ReconciliationEngine()
         health = HealthMonitor()
         risk = RiskObserver()
-        alerts = StructuredAlertDispatcher(alert_path="/tmp/e2e_alerts.jsonl")
+        StructuredAlertDispatcher(alert_path="/tmp/e2e_alerts.jsonl")
         dataset = R4LiveQualificationDataset(campaign_id="E2E-TEST")
 
         # 1. Signal
         signal_event = ledger.append(
             event_type=EventType.SIGNAL_COMPUTED,
-            account_id="test", tier="T1-5K", campaign_id="E2E-TEST",
-            symbol="EURUSD", correlation_id=correlation_id,
+            account_id="test",
+            tier="T1-5K",
+            campaign_id="E2E-TEST",
+            symbol="EURUSD",
+            correlation_id=correlation_id,
             payload={"direction": 1.0, "weight": 0.15},
         )
         assert signal_event.correlation_id == correlation_id
@@ -125,56 +142,82 @@ class TestEndToEndIntegration:
         # 2. Order
         order_event = ledger.append(
             event_type=EventType.ORDER_SUBMITTED,
-            account_id="test", tier="T1-5K", campaign_id="E2E-TEST",
-            symbol="EURUSD", order_ticket="ORD-001",
-            correlation_id=correlation_id, parent_event_id=signal_event.event_id,
+            account_id="test",
+            tier="T1-5K",
+            campaign_id="E2E-TEST",
+            symbol="EURUSD",
+            order_ticket="ORD-001",
+            correlation_id=correlation_id,
+            parent_event_id=signal_event.event_id,
         )
         assert order_event.correlation_id == correlation_id
 
         # 3. Fill
         fill_event = ledger.append(
             event_type=EventType.FILL,
-            account_id="test", tier="T1-5K", campaign_id="E2E-TEST",
-            symbol="EURUSD", position_ticket=1001, order_ticket="ORD-001",
-            correlation_id=correlation_id, parent_event_id=order_event.event_id,
+            account_id="test",
+            tier="T1-5K",
+            campaign_id="E2E-TEST",
+            symbol="EURUSD",
+            position_ticket=1001,
+            order_ticket="ORD-001",
+            correlation_id=correlation_id,
+            parent_event_id=order_event.event_id,
             payload={"fill_price": 1.0801, "slippage": 0.0001},
         )
         assert fill_event.correlation_id == correlation_id
 
         # 4. Position opened
-        pos_event = ledger.append(
+        ledger.append(
             event_type=EventType.POSITION_OPENED,
-            account_id="test", tier="T1-5K", campaign_id="E2E-TEST",
-            symbol="EURUSD", position_ticket=1001,
-            correlation_id=correlation_id, parent_event_id=fill_event.event_id,
+            account_id="test",
+            tier="T1-5K",
+            campaign_id="E2E-TEST",
+            symbol="EURUSD",
+            position_ticket=1001,
+            correlation_id=correlation_id,
+            parent_event_id=fill_event.event_id,
         )
 
         # 5. Record in qualification dataset
         execution = ExecutionFidelity(
             signal_timestamp=signal_event.timestamp,
-            intended_symbol="EURUSD", intended_direction=1.0, intended_weight=0.15,
-            requested_price=1.0800, fill_price=1.0801, spread=0.0001,
-            slippage=0.0001, execution_latency_ms=50.0,
-            rejection_status="FILLED", partial_fill_qty=0.01,
-            swap_daily=-0.50, commission=-1.00,
+            intended_symbol="EURUSD",
+            intended_direction=1.0,
+            intended_weight=0.15,
+            requested_price=1.0800,
+            fill_price=1.0801,
+            spread=0.0001,
+            slippage=0.0001,
+            execution_latency_ms=50.0,
+            rejection_status="FILLED",
+            partial_fill_qty=0.01,
+            swap_daily=-0.50,
+            commission=-1.00,
         )
-        trade = dataset.record_entry(
-            symbol="EURUSD", side="BUY", volume=0.01,
-            execution=execution, correlation_id=correlation_id,
+        dataset.record_entry(
+            symbol="EURUSD",
+            side="BUY",
+            volume=0.01,
+            execution=execution,
+            correlation_id=correlation_id,
         )
 
         # 6. Reconciliation — position matches
         broker = BrokerState(
             positions=[_make_position(1001, "EURUSD", 0.01)],
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01)},
-            pending_orders=[], last_signal={"EURUSD": 0.15},
+            pending_orders=[],
+            last_signal={"EURUSD": 0.15},
             target_weights={"EURUSD": 0.15},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = recon.reconcile(broker, internal)
         assert result.status == "RECONCILED"
@@ -186,8 +229,11 @@ class TestEndToEndIntegration:
 
         # 8. Risk observation
         risk_state = risk.observe(
-            equity=5000.0, balance=5000.0, free_margin=5000.0,
-            positions=[{"notional": 1100, "sl": 1.0}], daily_pnl=0.0,
+            equity=5000.0,
+            balance=5000.0,
+            free_margin=5000.0,
+            positions=[{"notional": 1100, "sl": 1.0}],
+            daily_pnl=0.0,
         )
         assert risk_state.overall_level in ("NORMAL", "ELEVATED")
 
@@ -205,6 +251,7 @@ class TestEndToEndIntegration:
 # 2. RECONCILIATION UNDER HOSTILE CONDITIONS
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestReconciliationHostileConditions:
     """Inject every failure mode and verify correct classification."""
 
@@ -213,14 +260,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[],  # Empty — fill "missing"
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01)},
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -232,17 +283,21 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[],
-            account_equity=5000.0, account_balance=5000.0,
+            account_equity=5000.0,
+            account_balance=5000.0,
             account_free_margin=5000.0,
             orders=[
                 {"ticket": "ORD-001", "symbol": "EURUSD"},
                 {"ticket": "ORD-001", "symbol": "EURUSD"},  # Duplicate
             ],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
-            positions={}, pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            positions={},
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -253,14 +308,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[_make_position(1001, "EURUSD", 0.02)],  # 0.02 at broker
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01)},  # 0.01 internal
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -272,14 +331,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[_make_position(1001, "EURUSD", 0.01, side="sell")],  # Sell at broker
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01, side="buy")},  # Buy internal
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -290,13 +353,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[_make_position(2001, "GBPUSD", 0.05, magic=0)],  # Foreign
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
-            positions={}, pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            positions={},
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status == "BLOCKING"
@@ -308,14 +376,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[_make_position(3001, "AUDUSD", 0.01, magic=20260825)],
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={},  # Internal doesn't know about it
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status == "BLOCKING"
@@ -326,13 +398,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[],
-            account_equity=0.0, account_balance=5000.0,
-            account_free_margin=0.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=0.0,
+            account_balance=5000.0,
+            account_free_margin=0.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
-            positions={}, pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            positions={},
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status == "BLOCKING"
@@ -343,13 +420,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[],
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=-100.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=-100.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
-            positions={}, pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            positions={},
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status in ("MISMATCH", "BLOCKING")
@@ -360,14 +442,18 @@ class TestReconciliationHostileConditions:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[_make_position(1001, "EURUSD", 0.01)],
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01)},
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status == "RECONCILED"
@@ -380,14 +466,18 @@ class TestReconciliationHostileConditions:
         # Inject a dangerous scenario
         broker = BrokerState(
             positions=[_make_position(1001, "EURUSD", 0.05)],  # Wrong qty
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01)},
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         # Must NOT be SAFE_AUTOFIX for quantity mismatch
@@ -398,6 +488,7 @@ class TestReconciliationHostileConditions:
 # ═══════════════════════════════════════════════════════════════════════
 # 3. HEALTH-STATE CORRECTNESS
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestHealthStateTransitions:
     """Test every health state transition and recovery."""
@@ -412,9 +503,7 @@ class TestHealthStateTransitions:
     def test_single_blocked_blocks_trading(self):
         """One BLOCKED dimension → TRADING_BLOCKED."""
         monitor = HealthMonitor()
-        monitor.update_dimension(
-            HealthDimension.BROKER, HealthState.BLOCKED, "Disconnected"
-        )
+        monitor.update_dimension(HealthDimension.BROKER, HealthState.BLOCKED, "Disconnected")
         health = monitor.get_system_health()
         assert health.authorization == TradingAuthorization.BLOCKED.value
         assert "BROKER_HEALTH" in health.blocking_dimensions
@@ -422,9 +511,7 @@ class TestHealthStateTransitions:
     def test_single_halted_halts_trading(self):
         """One HALTED dimension → TRADING_HALTED."""
         monitor = HealthMonitor()
-        monitor.update_dimension(
-            HealthDimension.RECONCILIATION, HealthState.HALTED, "Reconciliation failed"
-        )
+        monitor.update_dimension(HealthDimension.RECONCILIATION, HealthState.HALTED, "Reconciliation failed")
         health = monitor.get_system_health()
         assert health.authorization == TradingAuthorization.HALTED.value
         assert health.overall_state == HealthState.HALTED.value
@@ -432,9 +519,7 @@ class TestHealthStateTransitions:
     def test_degraded_does_not_block(self):
         """DEGRADED doesn't block trading (it's a warning)."""
         monitor = HealthMonitor()
-        monitor.update_dimension(
-            HealthDimension.DATA, HealthState.DEGRADED, "Stale data"
-        )
+        monitor.update_dimension(HealthDimension.DATA, HealthState.DEGRADED, "Stale data")
         health = monitor.get_system_health()
         assert health.authorization == TradingAuthorization.AUTHORIZED.value
         assert "DATA_HEALTH" in health.degraded_dimensions
@@ -451,9 +536,7 @@ class TestHealthStateTransitions:
     def test_halted_cannot_return_to_normal_directly(self):
         """HALTED state requires explicit intervention — can't auto-recover."""
         monitor = HealthMonitor()
-        monitor.update_dimension(
-            HealthDimension.RECONCILIATION, HealthState.HALTED, "Failed"
-        )
+        monitor.update_dimension(HealthDimension.RECONCILIATION, HealthState.HALTED, "Failed")
         assert not monitor.is_trading_authorized()
 
         # Even setting all back to healthy should not auto-recover from HALTED
@@ -491,6 +574,7 @@ class TestHealthStateTransitions:
 # 4. TRADING AUTHORIZATION AS SINGLE CHOKE POINT
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestTradingAuthorizationChokePoint:
     """No component can place a live order unless TRADING_AUTHORIZATION permits."""
 
@@ -502,9 +586,7 @@ class TestTradingAuthorizationChokePoint:
     def test_authorization_blocked_on_reconciliation_failure(self):
         """Reconciliation failure blocks trading."""
         monitor = HealthMonitor()
-        update_reconciliation_health(
-            monitor, "BLOCKING", ["qty mismatch"], "Recon failed"
-        )
+        update_reconciliation_health(monitor, "BLOCKING", ["qty mismatch"], "Recon failed")
         assert not monitor.is_trading_authorized()
 
     def test_authorization_blocked_on_broker_disconnect(self):
@@ -542,16 +624,20 @@ class TestTradingAuthorizationChokePoint:
 # 5. RESTART / RECOVERY
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestRestartRecovery:
     """Kill at every lifecycle point and verify safety."""
 
     def test_event_ledger_survives_conceptual_restart(self):
         """Event ledger data persists across instances."""
         ledger1 = EventLedger(base_path="/tmp/restart_ledger", flush_after=100)
-        event = ledger1.append(
+        ledger1.append(
             event_type=EventType.SIGNAL_COMPUTED,
-            account_id="test", tier="T1-5K", campaign_id="TEST",
-            symbol="EURUSD", payload={"restart_test": True},
+            account_id="test",
+            tier="T1-5K",
+            campaign_id="TEST",
+            symbol="EURUSD",
+            payload={"restart_test": True},
         )
         ledger1.flush()
 
@@ -568,14 +654,18 @@ class TestRestartRecovery:
         # Pre-restart: position existed
         broker = BrokerState(
             positions=[_make_position(1001, "EURUSD", 0.01)],
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={1001: _make_internal_position(1001, "EURUSD", 0.01)},
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         result = engine.reconcile(broker, internal)
         assert result.status == "RECONCILED"
@@ -609,13 +699,14 @@ class TestRestartRecovery:
                 f"Cycle {i}",
             )
 
-        health = monitor.get_system_health()
+        monitor.get_system_health()
         assert len(monitor.get_history()) > 0
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # 6. LONG-DURATION INFRASTRUCTURE
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestLongDurationInfrastructure:
     """Verify new infrastructure doesn't become the production failure."""
@@ -629,8 +720,11 @@ class TestLongDurationInfrastructure:
         for i in range(10_000):
             ledger.append(
                 event_type=EventType.SIGNAL_COMPUTED,
-                account_id="test", tier="T1-5K", campaign_id="DURATION",
-                symbol="EURUSD", payload={"index": i},
+                account_id="test",
+                tier="T1-5K",
+                campaign_id="DURATION",
+                symbol="EURUSD",
+                payload={"index": i},
             )
         ledger.flush()
 
@@ -647,14 +741,18 @@ class TestLongDurationInfrastructure:
         engine = ReconciliationEngine()
         broker = BrokerState(
             positions=[_make_position(i, f"SYM{i}", 0.01) for i in range(19)],
-            account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
             positions={i: _make_internal_position(i, f"SYM{i}", 0.01) for i in range(19)},
-            pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
         start = time.time()
@@ -730,20 +828,31 @@ class TestLongDurationInfrastructure:
             execution = ExecutionFidelity(
                 signal_timestamp=f"2026-08-26T{10 + (i % 14)}:00:00Z",
                 intended_symbol="EURUSD",
-                intended_direction=1.0, intended_weight=0.15,
-                requested_price=1.0800, fill_price=1.0801,
-                spread=0.0001, slippage=0.0001,
+                intended_direction=1.0,
+                intended_weight=0.15,
+                requested_price=1.0800,
+                fill_price=1.0801,
+                spread=0.0001,
+                slippage=0.0001,
                 execution_latency_ms=50.0,
-                rejection_status="FILLED", partial_fill_qty=0.01,
-                swap_daily=-0.50, commission=-1.00,
+                rejection_status="FILLED",
+                partial_fill_qty=0.01,
+                swap_daily=-0.50,
+                commission=-1.00,
             )
             trade = dataset.record_entry(
-                symbol="EURUSD", side="BUY", volume=0.01, execution=execution,
+                symbol="EURUSD",
+                side="BUY",
+                volume=0.01,
+                execution=execution,
             )
             dataset.record_exit(
-                trade_id=trade.trade_id, exit_price=1.0850,
-                exit_reason="ROTATION", realized_pnl=50.0,
-                net_pnl=45.0, total_costs=5.0,
+                trade_id=trade.trade_id,
+                exit_price=1.0850,
+                exit_reason="ROTATION",
+                realized_pnl=50.0,
+                net_pnl=45.0,
+                total_costs=5.0,
             )
         elapsed = time.time() - start
 
@@ -755,6 +864,7 @@ class TestLongDurationInfrastructure:
 # ═══════════════════════════════════════════════════════════════════════
 # 7. EVIDENCE PIPELINE VALIDATION
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestEvidencePipelineValidation:
     """Every trade must be fully reconstructable."""
@@ -784,8 +894,12 @@ class TestEvidencePipelineValidation:
         for event_type, payload in event_chain:
             event = ledger.append(
                 event_type=event_type,
-                account_id="test", tier="T1-5K", campaign_id="EVIDENCE",
-                symbol="EURUSD", position_ticket=1001, order_ticket="ORD-001",
+                account_id="test",
+                tier="T1-5K",
+                campaign_id="EVIDENCE",
+                symbol="EURUSD",
+                position_ticket=1001,
+                order_ticket="ORD-001",
                 correlation_id=cid,
                 payload=payload,
             )
@@ -813,19 +927,32 @@ class TestEvidencePipelineValidation:
 
         execution = ExecutionFidelity(
             signal_timestamp="2026-08-26T10:00:00Z",
-            intended_symbol="EURUSD", intended_direction=1.0,
-            intended_weight=0.15, requested_price=1.0800,
-            fill_price=1.0801, spread=0.0001, slippage=0.0001,
-            execution_latency_ms=50.0, rejection_status="FILLED",
-            partial_fill_qty=0.01, swap_daily=-0.50, commission=-1.00,
+            intended_symbol="EURUSD",
+            intended_direction=1.0,
+            intended_weight=0.15,
+            requested_price=1.0800,
+            fill_price=1.0801,
+            spread=0.0001,
+            slippage=0.0001,
+            execution_latency_ms=50.0,
+            rejection_status="FILLED",
+            partial_fill_qty=0.01,
+            swap_daily=-0.50,
+            commission=-1.00,
         )
         trade = dataset.record_entry(
-            symbol="EURUSD", side="BUY", volume=0.01, execution=execution,
+            symbol="EURUSD",
+            side="BUY",
+            volume=0.01,
+            execution=execution,
         )
 
         entry_quality = EntryQuality(
-            forward_return_1d=0.001, forward_return_5d=0.005,
-            forward_return_20d=0.012, mae=-0.002, mfe=0.008,
+            forward_return_1d=0.001,
+            forward_return_5d=0.005,
+            forward_return_20d=0.012,
+            mae=-0.002,
+            mfe=0.008,
             time_to_first_profit_seconds=3600,
             signal_strength_percentile=75.0,
             regime_at_entry="LOW_VOL",
@@ -834,22 +961,30 @@ class TestEvidencePipelineValidation:
         dataset.update_entry_quality(trade.trade_id, entry_quality)
 
         holding = HoldingPeriodMetrics(
-            holding_period_days=5.2, holding_period_bucket="1-5d",
-            pnl_at_exit=50.0, pnl_per_day=9.62,
-            max_drawdown_during_hold=-0.002, max_rally_during_hold=0.008,
-            was_underwater_at_5d=False, recovered_before_exit=True,
+            holding_period_days=5.2,
+            holding_period_bucket="1-5d",
+            pnl_at_exit=50.0,
+            pnl_per_day=9.62,
+            max_drawdown_during_hold=-0.002,
+            max_rally_during_hold=0.008,
+            was_underwater_at_5d=False,
+            recovered_before_exit=True,
         )
         dataset.update_holding_period(trade.trade_id, holding)
 
         downside = DownsideMetrics(
-            sl_hit=False, catastrophic_protection_active=True,
+            sl_hit=False,
+            catastrophic_protection_active=True,
         )
         dataset.update_downside(trade.trade_id, downside)
 
         dataset.record_exit(
-            trade_id=trade.trade_id, exit_price=1.0850,
+            trade_id=trade.trade_id,
+            exit_price=1.0850,
             exit_reason=ExitReason.ROTATION.value,
-            realized_pnl=50.0, net_pnl=45.0, total_costs=5.0,
+            realized_pnl=50.0,
+            net_pnl=45.0,
+            total_costs=5.0,
         )
 
         # Verify all metrics are present
@@ -869,20 +1004,33 @@ class TestEvidencePipelineValidation:
 
         for i in range(5):
             execution = ExecutionFidelity(
-                signal_timestamp=f"2026-08-26T{10+i}:00:00Z",
-                intended_symbol="EURUSD", intended_direction=1.0,
-                intended_weight=0.15, requested_price=1.0800,
-                fill_price=1.0801, spread=0.0001, slippage=0.0001,
-                execution_latency_ms=50.0, rejection_status="FILLED",
-                partial_fill_qty=0.01, swap_daily=-0.50, commission=-1.00,
+                signal_timestamp=f"2026-08-26T{10 + i}:00:00Z",
+                intended_symbol="EURUSD",
+                intended_direction=1.0,
+                intended_weight=0.15,
+                requested_price=1.0800,
+                fill_price=1.0801,
+                spread=0.0001,
+                slippage=0.0001,
+                execution_latency_ms=50.0,
+                rejection_status="FILLED",
+                partial_fill_qty=0.01,
+                swap_daily=-0.50,
+                commission=-1.00,
             )
             trade = dataset.record_entry(
-                symbol="EURUSD", side="BUY", volume=0.01, execution=execution,
+                symbol="EURUSD",
+                side="BUY",
+                volume=0.01,
+                execution=execution,
             )
             dataset.record_exit(
-                trade_id=trade.trade_id, exit_price=1.0850,
-                exit_reason="ROTATION", realized_pnl=50.0,
-                net_pnl=45.0, total_costs=5.0,
+                trade_id=trade.trade_id,
+                exit_price=1.0850,
+                exit_reason="ROTATION",
+                realized_pnl=50.0,
+                net_pnl=45.0,
+                total_costs=5.0,
             )
 
         generator = Phase2ReportGenerator(dataset)
@@ -908,19 +1056,27 @@ class TestEvidencePipelineValidation:
         ledger = EventLedger(base_path="/tmp/parity_ledger", flush_after=100)
         ledger.append(
             event_type=EventType.SIGNAL_COMPUTED,
-            account_id="test", tier="T1-5K", campaign_id="PARITY",
+            account_id="test",
+            tier="T1-5K",
+            campaign_id="PARITY",
             symbol="EURUSD",
         )
 
         engine = ReconciliationEngine()
         broker = BrokerState(
-            positions=[], account_equity=5000.0, account_balance=5000.0,
-            account_free_margin=5000.0, orders=[],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            positions=[],
+            account_equity=5000.0,
+            account_balance=5000.0,
+            account_free_margin=5000.0,
+            orders=[],
+            timestamp=datetime.now(UTC).isoformat(),
         )
         internal = InternalState(
-            positions={}, pending_orders=[], last_signal={}, target_weights={},
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            positions={},
+            pending_orders=[],
+            last_signal={},
+            target_weights={},
+            timestamp=datetime.now(UTC).isoformat(),
         )
         engine.reconcile(broker, internal)
 

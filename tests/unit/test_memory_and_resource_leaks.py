@@ -13,6 +13,7 @@ Tests:
 
 Each test measures RSS before and after, and asserts no significant growth.
 """
+
 from __future__ import annotations
 
 import gc
@@ -26,10 +27,9 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.config import load_config
-from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-
 
 CYCLES = 10_000
 
@@ -42,6 +42,7 @@ def _rss_mb() -> float:
 def _heap_bytes() -> int:
     """Current Python heap size."""
     import sys
+
     return sys.getsizeof([])  # Placeholder — tracemalloc used for real
 
 
@@ -53,10 +54,15 @@ def config():
 @pytest.fixture
 def envelope():
     return RiskEnvelope(
-        max_concurrent_positions=19, max_position_notional=5000.0,
-        max_order_notional=1500.0, max_per_position_loss_pct=0.10,
-        max_account_drawdown_pct=0.10, max_daily_loss=250.0,
-        min_equity=4000.0, require_sl_on_positions=False, t0_equity=5010.94,
+        max_concurrent_positions=19,
+        max_position_notional=5000.0,
+        max_order_notional=1500.0,
+        max_per_position_loss_pct=0.10,
+        max_account_drawdown_pct=0.10,
+        max_daily_loss=250.0,
+        min_equity=4000.0,
+        require_sl_on_positions=False,
+        t0_equity=5010.94,
     )
 
 
@@ -70,9 +76,10 @@ class TestRiskEvaluationLeak:
         tracemalloc.start()
         snapshot1 = tracemalloc.take_snapshot()
 
-        positions = [{"symbol": f"S{i}", "volume": 0.01, "type": 0,
-                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
-                      for i in range(5)]
+        positions = [
+            {"symbol": f"S{i}", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+            for i in range(5)
+        ]
 
         for _ in range(CYCLES):
             enforcer.check_all(
@@ -89,9 +96,7 @@ class TestRiskEvaluationLeak:
         stats = snapshot2.compare_to(snapshot1, "lineno")
         total_growth = sum(s.size_diff for s in stats if s.size_diff > 0)
         # Allow up to 5MB growth over 10K cycles
-        assert total_growth < 5 * 1024 * 1024, (
-            f"Memory grew {total_growth / 1024:.1f}KB over {CYCLES} risk evaluations"
-        )
+        assert total_growth < 5 * 1024 * 1024, f"Memory grew {total_growth / 1024:.1f}KB over {CYCLES} risk evaluations"
 
 
 class TestFingerprintVerificationLeak:
@@ -156,8 +161,9 @@ class TestAuditLogLeak:
         tracemalloc.start()
         snapshot1 = tracemalloc.take_snapshot()
 
-        positions = [{"symbol": "EURUSD", "volume": 0.01, "type": 0,
-                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+        positions = [
+            {"symbol": "EURUSD", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+        ]
 
         for _ in range(CYCLES):
             _, results = enforcer.check_all(
@@ -180,9 +186,7 @@ class TestAuditLogLeak:
         # Audit log is append-only, so growth is expected.
         # Check it's proportional, not super-linear.
         bytes_per_entry = total_growth / CYCLES
-        assert bytes_per_entry < 1024, (
-            f"Audit log uses {bytes_per_entry:.0f} bytes/entry — too large"
-        )
+        assert bytes_per_entry < 1024, f"Audit log uses {bytes_per_entry:.0f} bytes/entry — too large"
 
 
 class TestConfigLoadLeak:
@@ -202,9 +206,7 @@ class TestConfigLoadLeak:
 
         stats = snapshot2.compare_to(snapshot1, "lineno")
         total_growth = sum(s.size_diff for s in stats if s.size_diff > 0)
-        assert total_growth < 5 * 1024 * 1024, (
-            f"Memory grew {total_growth / 1024:.1f}KB over {CYCLES} config loads"
-        )
+        assert total_growth < 5 * 1024 * 1024, f"Memory grew {total_growth / 1024:.1f}KB over {CYCLES} config loads"
 
 
 class TestCombinedLeak:
@@ -217,8 +219,9 @@ class TestCombinedLeak:
 
         enforcer = RiskEnforcer(envelope)
         verifier = FingerprintVerifier(config=config)
-        positions = [{"symbol": "EURUSD", "volume": 0.01, "type": 0,
-                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+        positions = [
+            {"symbol": "EURUSD", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+        ]
 
         for i in range(CYCLES):
             # Risk check

@@ -11,11 +11,12 @@ Tests deterministic sorting, JSON output, hashing per Correction #9:
 """
 
 import json
+
 from eigencapital.core.models.canonical_serialization import (
-    canonical_sort,
-    canonical_json,
     canonical_hash,
     canonical_hash_hex,
+    canonical_json,
+    canonical_sort,
 )
 
 
@@ -97,7 +98,7 @@ def test_canonical_hash_rejects_nan():
     data = {"a": float("nan")}
     try:
         canonical_json(data)
-        assert False, "Should reject NaN in JSON serialization"
+        raise AssertionError("Should reject NaN in JSON serialization")
     except ValueError:
         pass
 

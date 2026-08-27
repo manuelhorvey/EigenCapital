@@ -13,6 +13,7 @@ trading lifecycle. Each cycle proves:
 
 The system must be idempotent across restarts.
 """
+
 from __future__ import annotations
 
 import os
@@ -25,11 +26,10 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.config import load_config
-from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-
 
 CYCLES = 500  # Simulate 500 crash-restart cycles
 
@@ -42,10 +42,15 @@ def config():
 @pytest.fixture
 def envelope():
     return RiskEnvelope(
-        max_concurrent_positions=19, max_position_notional=5000.0,
-        max_order_notional=1500.0, max_per_position_loss_pct=0.10,
-        max_account_drawdown_pct=0.10, max_daily_loss=250.0,
-        min_equity=4000.0, require_sl_on_positions=False, t0_equity=5010.94,
+        max_concurrent_positions=19,
+        max_position_notional=5000.0,
+        max_order_notional=1500.0,
+        max_per_position_loss_pct=0.10,
+        max_account_drawdown_pct=0.10,
+        max_daily_loss=250.0,
+        min_equity=4000.0,
+        require_sl_on_positions=False,
+        t0_equity=5010.94,
     )
 
 
@@ -111,25 +116,39 @@ class TestRestartRecovery:
             r = DisconnectRecovery()
 
             # Navigate to crash point
-            if crash_point in ("after_disconnect", "before_reconnect",
-                               "after_reconnect", "before_reconciliation",
-                               "after_reconciliation", "before_resume", "after_resume"):
+            if crash_point in (
+                "after_disconnect",
+                "before_reconnect",
+                "after_reconnect",
+                "before_reconciliation",
+                "after_reconciliation",
+                "before_resume",
+                "after_resume",
+            ):
                 r.on_disconnect()
-            if crash_point in ("after_reconnect", "before_reconciliation",
-                               "after_reconciliation", "before_resume", "after_resume"):
+            if crash_point in (
+                "after_reconnect",
+                "before_reconciliation",
+                "after_reconciliation",
+                "before_resume",
+                "after_resume",
+            ):
                 r.on_reconnect()
             if crash_point in ("after_reconciliation", "before_resume", "after_resume"):
                 r.submit_reconciliation(
-                    positions_match=True, orders_match=True,
-                    equity_match=True, fingerprint_match=True,
+                    positions_match=True,
+                    orders_match=True,
+                    equity_match=True,
+                    fingerprint_match=True,
                 )
 
             # Simulate crash: serialize state
-            {
+            saved_state = {
                 "state": r.state.value,
                 "attempts": r._attempts,
                 "reconciled": r._reconciled,
             }
+            assert saved_state["state"] == r.state.value
 
             # Simulate restart: new instance starts fresh
             r2 = DisconnectRecovery()
@@ -148,8 +167,18 @@ class TestRestartRecovery:
             tracker.initialize(broker_equity=5010.94)
 
             # 2. Do some work
-            positions = [{"symbol": "EURUSD", "volume": 0.01, "type": 0,
-                           "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+            positions = [
+                {
+                    "symbol": "EURUSD",
+                    "volume": 0.01,
+                    "type": 0,
+                    "sl": 0,
+                    "tp": 0,
+                    "profit": 0,
+                    "magic": 0,
+                    "comment": "",
+                }
+            ]
             passed, results = enforcer.check_all(
                 broker_positions=positions,
                 account_equity=5010.94,
@@ -164,7 +193,10 @@ class TestRestartRecovery:
             # 4. Restart: verify everything works
             enforcer2 = RiskEnforcer(envelope)
             verifier2 = FingerprintVerifier(config=config)
-            assert verifier2.frozen_manifest_fingerprint == "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+            assert (
+                verifier2.frozen_manifest_fingerprint
+                == "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+            )
             assert enforcer2._envelope.max_concurrent_positions == 19
 
 
@@ -175,8 +207,9 @@ class TestNoDuplicateOrders:
         """After restart, system has no memory of previous orders."""
         enforcer = RiskEnforcer(RiskEnvelope())
         # Simulate some audit entries
-        positions = [{"symbol": "EURUSD", "volume": 0.01, "type": 0,
-                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+        positions = [
+            {"symbol": "EURUSD", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+        ]
         for _ in range(10):
             _, results = enforcer.check_all(
                 broker_positions=positions,
@@ -192,8 +225,7 @@ class TestNoDuplicateOrders:
     def test_position_state_from_broker_not_local(self):
         """After restart, positions come from broker, not local state."""
         # Local state before crash: 5 positions
-        local_positions = {"EURUSD": 0.1, "GBPUSD": 0.05, "AUDUSD": 0.02,
-                           "USDCHF": 0.03, "USDCAD": 0.01}
+        local_positions = {"EURUSD": 0.1, "GBPUSD": 0.05, "AUDUSD": 0.02, "USDCHF": 0.03, "USDCAD": 0.01}
 
         # On restart, broker says: 3 positions
         broker_positions = {"EURUSD": 0.1, "AUDUSD": 0.02, "USDCHF": 0.03}

@@ -10,9 +10,9 @@ from eigencapital.risk.policy import RiskPolicy
 
 
 def _state(inst=None, cls=None) -> AccountState:
-    return AccountState(equity=100_000.0, peak_equity=100_000.0,
-                        instrument_exposures=inst or {},
-                        asset_class_exposures=cls or {})
+    return AccountState(
+        equity=100_000.0, peak_equity=100_000.0, instrument_exposures=inst or {}, asset_class_exposures=cls or {}
+    )
 
 
 class TestMaxConcentration:
@@ -45,8 +45,7 @@ class TestAssetClassExposure:
         assert r.status == "FAIL" and "crypto" in r.message
 
     def test_pass_within_cap(self):
-        r = check_asset_class_exposure(
-            _state(cls={"forex": 20_000, "indices": 15_000}), RiskPolicy())
+        r = check_asset_class_exposure(_state(cls={"forex": 20_000, "indices": 15_000}), RiskPolicy())
         assert r.status == "PASS"
 
     def test_empty_passes(self):
@@ -55,8 +54,7 @@ class TestAssetClassExposure:
 
 class TestPipelineIntegration:
     def test_both_checks_run_in_pipeline(self):
-        results = run_all_account_checks(
-            _state({"XAUUSDm": 50_000}, {"metals": 50_000}), RiskPolicy())
+        results = run_all_account_checks(_state({"XAUUSDm": 50_000}, {"metals": 50_000}), RiskPolicy())
         ids = {r.check_id for r in results}
         assert {"max_concentration", "asset_class_exposure"} <= ids
         by_id = {r.check_id: r for r in results}

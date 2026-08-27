@@ -1,7 +1,7 @@
 """Tests for the validation orchestrator."""
 
-from eigencapital.analytics.validation.validator import ValidationEngine
 from eigencapital.analytics.validation.evidence_gate import EvidenceVerdict
+from eigencapital.analytics.validation.validator import ValidationEngine
 
 
 def _make_uptrend_equity(n: int = 500) -> list:

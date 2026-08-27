@@ -11,28 +11,28 @@ Tests cover:
 """
 
 import random
+
 import pytest
 
-from eigencapital.research.portfolio.allocation import (
-    AllocationExperiment,
-    AllocationMethod,
-    AllocationStatus,
-)
-from eigencapital.research.portfolio.evidence import (
-    PortfolioEvidenceGate,
-    PortfolioVerdict,
-    EvidenceCheck,
-    EvidenceCheckResult,
-)
-from eigencapital.research.portfolio.engine import (
-    PortfolioResearchEngine,
-)
 from eigencapital.research.combination.candidate import (
     AlphaCandidate,
     EligibilityStatus,
 )
 from eigencapital.research.combination.returns import ReturnStream
-
+from eigencapital.research.portfolio.allocation import (
+    AllocationExperiment,
+    AllocationMethod,
+    AllocationStatus,
+)
+from eigencapital.research.portfolio.engine import (
+    PortfolioResearchEngine,
+)
+from eigencapital.research.portfolio.evidence import (
+    EvidenceCheck,
+    EvidenceCheckResult,
+    PortfolioEvidenceGate,
+    PortfolioVerdict,
+)
 
 # ───────────────────────────────────────────────
 #  Helpers
@@ -262,10 +262,7 @@ class TestPortfolioResearchEngine:
         result = engine.research(candidates, streams)
 
         # All excluded → no eligible candidates
-        assert (
-            result.get("status") == "insufficient_candidates"
-            or result.get("candidates", 0) == 0
-        )
+        assert result.get("status") == "insufficient_candidates" or result.get("candidates", 0) == 0
 
     def test_research_empty(self):
         engine = PortfolioResearchEngine()
@@ -326,7 +323,4 @@ class TestPortfolioResearchEngine:
         r1 = PortfolioResearchEngine().research(candidates, streams)
         r2 = PortfolioResearchEngine().research(candidates, streams)
 
-        assert (
-            r1["methods"]["equal_weight"]["metrics"]["sharpe"]
-            == r2["methods"]["equal_weight"]["metrics"]["sharpe"]
-        )
+        assert r1["methods"]["equal_weight"]["metrics"]["sharpe"] == r2["methods"]["equal_weight"]["metrics"]["sharpe"]

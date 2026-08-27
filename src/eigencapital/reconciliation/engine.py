@@ -482,14 +482,37 @@ class ReconciliationEngine:
         )
     
     def _check_stale_positions(self, broker: BrokerState) -> ReconciliationCheck:
-        """Check for stale positions."""
-        # This is a simplified check - in production, you'd compare
-        # against internal timestamps
-        stale_count = 0
+        """Check for stale positions.
+        
+        A position is stale if its open time is older than the stale threshold
+        and it hasn't been updated. This can indicate orphaned positions or
+        broker state inconsistency.
+        """
+        stale_positions = []
+        now_ts = datetime.now(timezone.utc).timestamp()
+        
         for pos in broker.positions:
-            # In a real implementation, you'd check the position's
-            # open time against the stale threshold
-            pass
+            open_time = pos.get("time", 0)
+            if open_time and isinstance(open_time, (int, float)):
+                age_seconds = now_ts - open_time
+                if age_seconds > self._stale_threshold:
+                    stale_positions.append({
+                        "ticket": pos.get("ticket"),
+                        "symbol": pos.get("symbol"),
+                        "age_hours": round(age_seconds / 3600, 1),
+                    })
+        
+        if stale_positions:
+            return ReconciliationCheck(
+                check_name="stale_positions",
+                status="WARNING",
+                severity=ReconciliationSeverity.WARNING.value,
+                action=ReconciliationAction.REQUIRES_REVIEW.value,
+                message=f"{len(stale_positions)} stale position(s) detected (>{self._stale_threshold / 3600:.0f}h old)",
+                details={"stale_positions": stale_positions},
+                broker_value=len(stale_positions),
+                internal_value=0,
+            )
         
         return ReconciliationCheck(
             check_name="stale_positions",
@@ -497,8 +520,8 @@ class ReconciliationEngine:
             severity=ReconciliationSeverity.INFO.value,
             action=ReconciliationAction.SAFE_AUTOFIX.value,
             message="Position staleness check passed",
-            details={"stale_count": stale_count},
-            broker_value=stale_count,
+            details={"stale_count": 0},
+            broker_value=0,
             internal_value=0,
         )
     

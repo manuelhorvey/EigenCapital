@@ -11,6 +11,134 @@ The book is a **research roadmap**, not a checklist of missing production featur
 
 ---
 
+## Research Governance Principles
+
+EigenCapital follows five principles for all research:
+
+### 1. R4 Remains the Control Group
+
+Every future improvement must beat the **frozen R4 baseline**, not merely produce a good backtest. R4 is the benchmark against which all new work is measured.
+
+### 2. Every New Model Needs an Explicit Job
+
+A model must answer a specific, testable question:
+
+| ❌ Bad | ✅ Good |
+|--------|--------|
+| "Add XGBoost" | "Predict whether an R4 entry will experience >1R adverse excursion before reaching +1R" |
+| "Use ML" | "Estimate P(forward_return > threshold | features) for R4 candidates" |
+| "Improve signals" | "Identify which R4 entries will fail in the first 5 days" |
+
+### 3. Complexity Must Earn Its Place
+
+Move down this ladder only when the simpler approach fails:
+
+```
+Simple rule
+    ↓
+Statistical model
+    ↓
+Linear model
+    ↓
+Gradient boosting
+    ↓
+Ensemble
+    ↓
+Deep learning
+```
+
+If inverse-volatility weighting gives 90% of the improvement of HRP with 20% of the complexity, **use inverse volatility.**
+
+### 4. Incremental Value Matters More Than Standalone Performance
+
+A new model must answer:
+
+> Does it improve the **existing portfolio after costs, correlation, turnover, drawdown and multiple-testing correction?**
+
+Not:
+
+> Does it have Sharpe 1.8 in isolation?
+
+### 5. Live Evidence Outranks Research Elegance
+
+Every idea follows this path:
+
+```
+Hypothesis
+   ↓
+Research
+   ↓
+Out-of-sample validation
+   ↓
+Shadow mode
+   ↓
+Micro-live
+   ↓
+Controlled deployment
+   ↓
+Promotion
+```
+
+No shortcut.
+
+---
+
+## Kill Criteria
+
+Every Phase 3 research hypothesis must include:
+
+| Component | Description |
+|-----------|-------------|
+| **Hypothesis** | What we believe and why |
+| **Economic rationale** | Why this should work in markets |
+| **Target** | What we're predicting |
+| **Available information** | What data is available at decision time |
+| **Leakage analysis** | Proof of no look-ahead or survivorship bias |
+| **Baseline** | What we're comparing against (R4 alone) |
+| **Success metric** | How we measure improvement |
+| **OOS requirement** | Minimum out-of-sample performance |
+| **Cost assumptions** | Spread, slippage, commission, swap |
+| **Multiple-testing budget** | How many hypotheses in this family |
+| **Shadow requirement** | Minimum shadow-mode duration |
+| **Kill criterion** | What failure looks like — and acceptance of it |
+
+EigenCapital should be just as comfortable saying:
+
+> **"This idea doesn't work. Archive it."**
+
+as it is saying:
+
+> **"This model is ready."**
+
+---
+
+## Phase 2 as Training Specification
+
+Phase 2 is not just "collecting evidence." It is creating the **training specification for Phase 3**.
+
+The live R4 campaign will eventually answer questions like:
+
+| Evidence Finding | Phase 3 Research Question |
+|-----------------|--------------------------|
+| 40% of entries experience >1.5R adverse excursion before winning | Can we predict temporary adverse excursions? |
+| R4 edge disappears during high-vol regimes | Can a simple regime rule capture this? |
+| Q5 entries vastly outperform Q1-Q4 live | Can we build a quality filter? |
+| Rotation exits destroy profitable trades | Can we predict which positions need patience? |
+| AUD cluster creates hidden tail risk | Can correlation-aware sizing reduce drawdown? |
+| Execution costs exceed research assumptions | Can execution algorithms reduce costs? |
+
+For each finding, the research question follows the philosophy:
+
+> **What measurable problem does the evidence reveal, and what is the simplest tool capable of solving it?**
+
+Sometimes the answer is:
+
+> **No model can reliably predict it.**
+
+That is also a valuable result.
+
+---
+
 ## Where EigenCapital Is Now
 
 | Phase | Purpose | Status |

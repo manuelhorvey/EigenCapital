@@ -553,9 +553,12 @@ def _restart_bridge_if_needed() -> bool:
     """Check if the RPyC bridge is alive; restart it if not.
 
     Returns True if bridge is reachable after the check.
+    Cross-platform: works on Linux, macOS, and Windows (Git Bash).
     """
     import subprocess
+    import platform
 
+    # Quick check: is bridge already alive?
     try:
         import rpyc
         conn = rpyc.classic.connect("127.0.0.1", 8001)
@@ -567,43 +570,85 @@ def _restart_bridge_if_needed() -> bool:
     log("⚠️  RPyC bridge not responding — restarting...")
     audit({"event": "bridge_restart"})
 
-    # Kill stale bridge
+    system = platform.system().lower()
+
+    # Kill stale bridge processes (platform-specific)
     try:
-        subprocess.run(["pkill", "-f", "server.py.*8001"], capture_output=True, timeout=5)
+        if system in ("linux", "darwin"):
+            subprocess.run(["pkill", "-f", "server.py.*8001"], capture_output=True, timeout=5)
+        elif system == "windows":
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "python.exe", "/T"],
+                capture_output=True, timeout=5
+            )
     except Exception:
         pass
     time.sleep(2)
 
-    # Start fresh bridge
-    server_dir = "/tmp/mt5linux"
-    wine_prefix = os.path.expanduser("~/.wine_mt5")
-    wine_python = r"C:\users\manuelhorveydaniel\AppData\Local\Programs\Python\Python312\python.exe"
+    # Determine paths based on platform
+    if system in ("linux", "darwin"):
+        server_dir = "/tmp/mt5linux"
+        wine_prefix = os.path.expanduser("~/.wine_mt5")
+        wine_python = r"C:\users\manuelhorveydaniel\AppData\Local\Programs\Python\Python312\python.exe"
+        bridge_log = "/tmp/mt5bridge.log"
 
-    env = os.environ.copy()
-    env["WINEPREFIX"] = wine_prefix
-    env["DISPLAY"] = ":1"
+        env = os.environ.copy()
+        env["WINEPREFIX"] = wine_prefix
+        env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
 
-    try:
-        # Ensure Xvfb
-        subprocess.run(["pgrep", "-f", "Xvfb :1"], capture_output=True, timeout=5)
-        subprocess.Popen(
-            ["Xvfb", ":1", "-screen", "0", "1024x768x24"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-    except Exception:
-        pass
+        # Ensure Xvfb for headless display (Linux only)
+        if system == "linux":
+            try:
+                result = subprocess.run(
+                    ["pgrep", "-f", "Xvfb"], capture_output=True, timeout=5
+                )
+                if result.returncode != 0:
+                    subprocess.Popen(
+                        ["Xvfb", ":1", "-screen", "0", "1024x768x24"],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    time.sleep(1)
+            except Exception:
+                pass
 
-    try:
-        subprocess.Popen(
-            ["setsid", "wine", wine_python, "server.py", "--host", "127.0.0.1", "-p", "8001"],
-            cwd=server_dir, env=env,
-            stdout=open("/tmp/mt5bridge.log", "w"),
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-    except Exception as e:
-        log(f"  ❌ Failed to start bridge: {e}")
+        # Start bridge with setsid (Linux) or nohup (macOS)
+        try:
+            if system == "linux":
+                subprocess.Popen(
+                    ["setsid", "wine", wine_python, "server.py",
+                     "--host", "127.0.0.1", "-p", "8001"],
+                    cwd=server_dir, env=env,
+                    stdout=open(bridge_log, "w"),
+                    stderr=subprocess.STDOUT,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+            else:  # macOS
+                subprocess.Popen(
+                    ["wine", wine_python, "server.py",
+                     "--host", "127.0.0.1", "-p", "8001"],
+                    cwd=server_dir, env=env,
+                    stdout=open(bridge_log, "w"),
+                    stderr=subprocess.STDOUT,
+                    stdin=subprocess.DEVNULL,
+                )
+        except Exception as e:
+            log(f"  ❌ Failed to start bridge: {e}")
+            return False
+
+    elif system == "windows":
+        # Windows: MT5 runs natively, no Wine needed
+        # Try to import MetaTrader5 directly
+        try:
+            import MetaTrader5 as mt5_native
+            mt5_native.initialize()
+            log("  ✅ MT5 initialized natively on Windows")
+            return True
+        except Exception as e:
+            log(f"  ❌ Windows MT5 initialization failed: {e}")
+            return False
+    else:
+        log(f"  ❌ Unsupported platform: {system}")
         return False
 
     # Wait for bridge to become ready

@@ -50,7 +50,11 @@ markers = [
 
 [tool.coverage.run]
 source = ["eigencapital"]
-omit = ["tests/*"]
+omit = [
+    "tests/*",
+    "**/research/alpha/**",
+    "**/research/intraday/**",
+]
 
 [tool.coverage.report]
 show_missing = true

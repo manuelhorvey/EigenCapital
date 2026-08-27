@@ -549,6 +549,80 @@ def _reconnect_mt5(mt5) -> bool:
         return False
 
 
+def _restart_bridge_if_needed() -> bool:
+    """Check if the RPyC bridge is alive; restart it if not.
+
+    Returns True if bridge is reachable after the check.
+    """
+    import subprocess
+
+    try:
+        import rpyc
+        conn = rpyc.classic.connect("127.0.0.1", 8001)
+        conn.close()
+        return True
+    except Exception:
+        pass
+
+    log("⚠️  RPyC bridge not responding — restarting...")
+    audit({"event": "bridge_restart"})
+
+    # Kill stale bridge
+    try:
+        subprocess.run(["pkill", "-f", "server.py.*8001"], capture_output=True, timeout=5)
+    except Exception:
+        pass
+    time.sleep(2)
+
+    # Start fresh bridge
+    server_dir = "/tmp/mt5linux"
+    wine_prefix = os.path.expanduser("~/.wine_mt5")
+    wine_python = r"C:\users\manuelhorveydaniel\AppData\Local\Programs\Python\Python312\python.exe"
+
+    env = os.environ.copy()
+    env["WINEPREFIX"] = wine_prefix
+    env["DISPLAY"] = ":1"
+
+    try:
+        # Ensure Xvfb
+        subprocess.run(["pgrep", "-f", "Xvfb :1"], capture_output=True, timeout=5)
+        subprocess.Popen(
+            ["Xvfb", ":1", "-screen", "0", "1024x768x24"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
+
+    try:
+        subprocess.Popen(
+            ["setsid", "wine", wine_python, "server.py", "--host", "127.0.0.1", "-p", "8001"],
+            cwd=server_dir, env=env,
+            stdout=open("/tmp/mt5bridge.log", "w"),
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception as e:
+        log(f"  ❌ Failed to start bridge: {e}")
+        return False
+
+    # Wait for bridge to become ready
+    for i in range(15):
+        time.sleep(2)
+        try:
+            import rpyc as _rpyc
+            conn = _rpyc.classic.connect("127.0.0.1", 8001)
+            conn.close()
+            log("  ✅ Bridge restarted and accepting connections")
+            audit({"event": "bridge_restarted"})
+            return True
+        except Exception:
+            continue
+
+    log("  ❌ Bridge restart failed after 30s")
+    return False
+
+
 def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     """Run one rebalance cycle. Returns cycle result."""
     cycle_start = time.time()
@@ -1305,6 +1379,17 @@ def main() -> None:
 
             # Persist and wait
             _persist_state()
+
+            # Try to restart the RPyC bridge if it's down
+            bridge_ok = _restart_bridge_if_needed()
+            if bridge_ok:
+                # Bridge is back — reconnect MT5 through it
+                log("  Attempting MT5 reconnection through restarted bridge...")
+                if _reconnect_mt5(mt5):
+                    log("  ✅ MT5 reconnected after bridge restart")
+                else:
+                    log("  ⚠️  MT5 still unreachable — waiting...")
+
             log(f"   Waiting {min(interval, 60)}s for reconnection...")
             for _ in range(min(interval, 60)):
                 if _shutdown:

@@ -23,6 +23,7 @@ sys.path.insert(0, str(REPO / "scripts" / "audit"))
 sys.path.insert(0, str(REPO / "src"))
 
 import reconstruct as rec  # noqa: E402
+
 from eigencapital.config import load_config  # noqa: E402
 
 
@@ -61,7 +62,7 @@ def fwd_returns(trades: pd.DataFrame, close_wide: pd.DataFrame, bars_list) -> di
         fr = np.where(valid, dirsign * (px_fwd / px_entry - 1.0), np.nan)
         fr = pd.Series(fr, index=trades.index).dropna()
         out[f"fwd_{b}bar"] = {
-            "n": int(len(fr)),
+            "n": len(fr),
             "mean": float(fr.mean()),
             "median": float(fr.median()),
             "win_rate": float((fr > 0).mean()),
@@ -102,10 +103,7 @@ def main() -> None:
     e_idx = close_wide.index.get_indexer(pd.DatetimeIndex(trades["entry_ts"]))
     sym_arr = trades["symbol"].to_numpy()
     r_atr = np.array(
-        [
-            float(atr[s].iloc[e]) if e >= 0 and np.isfinite(atr[s].iloc[e]) else np.nan
-            for s, e in zip(sym_arr, e_idx)
-        ]
+        [float(atr[s].iloc[e]) if e >= 0 and np.isfinite(atr[s].iloc[e]) else np.nan for s, e in zip(sym_arr, e_idx)]
     )
     trades["atr14pct_at_entry"] = r_atr
     trades["R_price_space"] = r_atr
@@ -138,11 +136,7 @@ def main() -> None:
     for tid, g in paths.groupby("trade_id"):
         pos = g[g["cum_return"] > 0]
         neg = g[g["cum_return"] < 0]
-        ttp.append(
-            int(g.loc[pos.index[0], "date"])
-            if False
-            else (g.index.get_loc(pos.index[0]) if len(pos) else None)
-        )
+        ttp.append(int(g.loc[pos.index[0], "date"]) if False else (g.index.get_loc(pos.index[0]) if len(pos) else None))
         ttl.append(g.index.get_loc(neg.index[0]) if len(neg) else None)
     trades["time_to_profit_bars"] = [x + 1 if x is not None else np.nan for x in ttp]
     trades["time_to_loss_bars"] = [x + 1 if x is not None else np.nan for x in ttl]
@@ -164,13 +158,11 @@ def main() -> None:
             rows.append(
                 {
                     "bucket": int(b),
-                    "n": int(len(g)),
+                    "n": len(g),
                     "signal_strength_mean": float(g[col].abs().mean()),
                     "expectancy_net": float(r.mean()),
                     "win_rate": float((r > 0).mean()),
-                    "sharpe_per_trade": float(r.mean() / r.std())
-                    if r.std() > 0
-                    else None,
+                    "sharpe_per_trade": float(r.mean() / r.std()) if r.std() > 0 else None,
                     "mfe_R_median": float(g["mfe_R"].median()),
                     "mae_R_median": float(g["mae_R"].median()),
                     "hold_days_median": float(g["holding_trading_days"].median()),
@@ -194,9 +186,7 @@ def main() -> None:
 
     rho, p = spearmanr(range(len(exps)), exps)
     ss["monotonicity_expectancy_spearman"] = {"rho": float(rho), "p_value": float(p)}
-    ss["monotonicity_holds"] = bool(
-        exps == sorted(exps) or exps == sorted(exps, reverse=True)
-    )
+    ss["monotonicity_holds"] = bool(exps == sorted(exps) or exps == sorted(exps, reverse=True))
     jdump(ss, "signal_strength.json")
 
     # ── Phase 5: holding-period economics ──────────────────────────
@@ -206,10 +196,7 @@ def main() -> None:
     total_pos = trades.loc[trades[net] > 0, net].sum()
     for lab_i in range(len(labels)):
         lo, hi = bins[lab_i], bins[lab_i + 1]
-        g = trades[
-            (trades["holding_trading_days"] >= lo)
-            & (trades["holding_trading_days"] < hi)
-        ]
+        g = trades[(trades["holding_trading_days"] >= lo) & (trades["holding_trading_days"] < hi)]
         if len(g) == 0:
             continue
         r = g[net]
@@ -217,32 +204,25 @@ def main() -> None:
         hb.append(
             {
                 "bucket": labels[lab_i],
-                "n": int(len(g)),
+                "n": len(g),
                 "share_of_trades": round(len(g) / len(trades), 4),
                 "expectancy_net": float(r.mean()),
                 "win_rate": float((r > 0).mean()),
                 "avg_win": float(wins.mean()) if len(wins) else 0.0,
                 "avg_loss": float(losses.mean()) if len(losses) else 0.0,
                 "sum_net_contribution": float(r.sum()),
-                "contribution_share_of_positive_pnl": float(r[r > 0].sum() / total_pos)
-                if total_pos
-                else None,
+                "contribution_share_of_positive_pnl": float(r[r > 0].sum() / total_pos) if total_pos else None,
                 "mae_R_median": float(g["mae_R"].median()),
                 "mfe_R_median": float(g["mfe_R"].median()),
                 "sharpe_per_trade": float(r.mean() / r.std()) if r.std() > 0 else None,
                 "financing": 0.0,
-                "prob_recovery_given_loser": float((g.loc[r < 0, "mfe_R"] > 1).mean())
-                if (r < 0).any()
-                else None,
+                "prob_recovery_given_loser": float((g.loc[r < 0, "mfe_R"] > 1).mean()) if (r < 0).any() else None,
             }
         )
     hp = {
         "buckets_trading_days": hb,
         "percentiles_trading_days": {
-            k: float(v)
-            for k, v in trades["holding_trading_days"]
-            .quantile([0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
-            .items()
+            k: float(v) for k, v in trades["holding_trading_days"].quantile([0.25, 0.5, 0.75, 0.9, 0.95, 0.99]).items()
         },
     }
     jdump(hp, "holding_period.json")
@@ -259,13 +239,11 @@ def main() -> None:
         recovery.append(
             {
                 "threshold_R": th,
-                "n_reached": int(len(hit)),
+                "n_reached": len(hit),
                 "pct_eventually_profitable_net": float((hit[net] > 0).mean()),
                 "avg_final_return_R": float((hit[net] / hit["R_price_space"]).mean()),
                 "pct_deteriorated_further_025R": float(len(worse) / max(len(hit), 1)),
-                "median_additional_mae_beyond_threshold_R": float(
-                    (worse["mae_R"] - th).median()
-                )
+                "median_additional_mae_beyond_threshold_R": float((worse["mae_R"] - th).median())
                 if len(worse)
                 else 0.0,
             }
@@ -273,19 +251,13 @@ def main() -> None:
     losers = trades[trades[net] <= 0]
     ld = {
         "loss_speed": {
-            "time_to_mae_bars_median_losers": float(
-                losers["time_to_mae_trading_days"].median()
-            ),
-            "within_5_bars_share": float(
-                (losers["time_to_mae_trading_days"] <= 5).mean()
-            ),
+            "time_to_mae_bars_median_losers": float(losers["time_to_mae_trading_days"].median()),
+            "within_5_bars_share": float((losers["time_to_mae_trading_days"] <= 5).mean()),
         },
         "underwater": {
             "note": "cumulative path negative share computed from pathdata",
         },
-        "ever_profitable_among_losers": float((losers["mfe_R"] > 0.25).mean())
-        if len(losers)
-        else None,
+        "ever_profitable_among_losers": float((losers["mfe_R"] > 0.25).mean()) if len(losers) else None,
         "recovery_curves": recovery,
     }
     # underwater duration from paths
@@ -323,7 +295,7 @@ def main() -> None:
         ea.append(
             {
                 "exit_reason": reason,
-                "n": int(len(g)),
+                "n": len(g),
                 "avg_net": float(g[net].mean()),
                 "median_net": float(g[net].median()),
                 "pct_profitable": float((g[net] > 0).mean()),
@@ -331,16 +303,9 @@ def main() -> None:
                 "mae_R_median": float(g["mae_R"].median()),
                 "hold_days_median": float(g["holding_trading_days"].median()),
                 "total_contribution": float(g[net].sum()),
-                "post_exit_20b_dir_resumption_mean": float(np.nanmean(opp20))
-                if opp20
-                else None,
+                "post_exit_20b_dir_resumption_mean": float(np.nanmean(opp20)) if opp20 else None,
                 "post_exit_missed_move_share_gt_halfR": float(
-                    np.mean(
-                        [
-                            o > 0.5 * g["R_price_space"].iloc[k]
-                            for k, o in enumerate(opp20)
-                        ]
-                    )
+                    np.mean([o > 0.5 * g["R_price_space"].iloc[k] for k, o in enumerate(opp20)])
                 )
                 if opp20
                 else None,

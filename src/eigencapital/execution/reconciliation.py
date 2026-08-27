@@ -28,11 +28,10 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 warnings.warn(
-    "eigencapital.execution.reconciliation is deprecated. "
-    "Use eigencapital.reconciliation.engine instead.",
+    "eigencapital.execution.reconciliation is deprecated. Use eigencapital.reconciliation.engine instead.",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -113,27 +112,21 @@ class ReconciliationEngine:
             broker = broker_positions.get(instrument, 0.0)
             if abs(expected - broker) > tolerance:
                 checks[f"position_{instrument}"] = False
-                mismatches.append(
-                    f"Position mismatch {instrument}: expected={expected}, broker={broker}"
-                )
+                mismatches.append(f"Position mismatch {instrument}: expected={expected}, broker={broker}")
             else:
                 checks[f"position_{instrument}"] = True
 
         # Check cash
         if abs(expected_cash - broker_cash) > tolerance:
             checks["cash"] = False
-            mismatches.append(
-                f"Cash mismatch: expected={expected_cash}, broker={broker_cash}"
-            )
+            mismatches.append(f"Cash mismatch: expected={expected_cash}, broker={broker_cash}")
         else:
             checks["cash"] = True
 
         # Check fill count
         if expected_fills != broker_fills:
             checks["fill_count"] = False
-            mismatches.append(
-                f"Fill count mismatch: expected={expected_fills}, broker={broker_fills}"
-            )
+            mismatches.append(f"Fill count mismatch: expected={expected_fills}, broker={broker_fills}")
         else:
             checks["fill_count"] = True
 

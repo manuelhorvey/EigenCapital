@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class PortfolioVerdict(str, Enum):
@@ -95,8 +95,8 @@ class PortfolioEvidenceGate:
         cls,
         experiment_id: str,
         metrics: Dict[str, Any],
-        baseline_metrics: Optional[Dict[str, Any]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        baseline_metrics: Dict[str, Any] | None = None,
+        config: Dict[str, Any] | None = None,
     ) -> PortfolioEvidenceGate:
         """Evaluate a portfolio against evidence standards.
 
@@ -241,9 +241,7 @@ class PortfolioEvidenceGate:
         )
 
         # Determine verdict
-        critical_failures = [
-            c for c in checks if not c.passed and c.severity == "CRITICAL"
-        ]
+        critical_failures = [c for c in checks if not c.passed and c.severity == "CRITICAL"]
         high_failures = [c for c in checks if not c.passed and c.severity == "HIGH"]
         all_passed = all(c.passed for c in checks)
 

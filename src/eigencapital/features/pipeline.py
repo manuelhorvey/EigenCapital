@@ -23,16 +23,16 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Callable, Dict, List
 
 from eigencapital.core.models.bar import Bar
+from eigencapital.features.dependencies import FeatureDAG, build_default_dag
 from eigencapital.features.feature import Feature
 from eigencapital.features.feature_set import (
-    FeatureSet,
     FeatureEntry,
+    FeatureSet,
     FeatureStatus,
 )
-from eigencapital.features.dependencies import FeatureDAG, build_default_dag
 
 
 @dataclass(frozen=True)
@@ -49,7 +49,7 @@ class FeatureRequest:
 
     feature_id: str
     feature_version: str = "v1"
-    compute_fn: Optional[Callable] = None
+    compute_fn: Callable | None = None
     lookback: int = 1
     parameters: Dict[str, Any] = field(default_factory=dict)
 
@@ -91,8 +91,8 @@ class FeaturePipeline:
 
     def __init__(
         self,
-        dag: Optional[FeatureDAG] = None,
-        config: Optional[PipelineConfig] = None,
+        dag: FeatureDAG | None = None,
+        config: PipelineConfig | None = None,
     ) -> None:
         self._dag = dag or build_default_dag()
         self._config = config or PipelineConfig()
@@ -122,7 +122,7 @@ class FeaturePipeline:
         bars: List[Bar],
         instrument_id: str,
         requests: List[FeatureRequest],
-        config: Optional[PipelineConfig] = None,
+        config: PipelineConfig | None = None,
     ) -> FeatureSet:
         """Compute features for a single instrument at a specific timestamp.
 
@@ -216,9 +216,7 @@ class FeaturePipeline:
     ) -> FeatureEntry:
         """Compute a single feature and return its entry."""
         # Check warm-up requirement
-        min_bars = request.lookback or self._lookback_requirements.get(
-            request.feature_id, 1
-        )
+        min_bars = request.lookback or self._lookback_requirements.get(request.feature_id, 1)
         if enforce_warmup and len(bars) < min_bars:
             return FeatureEntry(
                 feature_id=request.feature_id,
@@ -228,9 +226,7 @@ class FeaturePipeline:
             )
 
         # Get compute function
-        compute_fn = request.compute_fn or self._compute_functions.get(
-            request.feature_id
-        )
+        compute_fn = request.compute_fn or self._compute_functions.get(request.feature_id)
         if compute_fn is None:
             return FeatureEntry(
                 feature_id=request.feature_id,
@@ -278,9 +274,7 @@ class FeaturePipeline:
                 feature_id=request.feature_id,
                 feature_version=request.feature_version,
                 status=FeatureStatus.STALE,
-                error_message=(
-                    f"Availability {availability_ts} > decision {decision_timestamp}"
-                ),
+                error_message=(f"Availability {availability_ts} > decision {decision_timestamp}"),
             )
 
         # Compute provenance hashes directly (without creating Feature
@@ -291,9 +285,7 @@ class FeaturePipeline:
             "lookback": min_bars,
             "source_features": [],
         }
-        config_hash = hashlib.sha256(
-            json.dumps(config_data, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        config_hash = hashlib.sha256(json.dumps(config_data, sort_keys=True).encode("utf-8")).hexdigest()
 
         provenance_data = {
             "feature_id": request.feature_id,
@@ -306,9 +298,7 @@ class FeaturePipeline:
             "availability_timestamp": availability_ts,
             "config_hash": config_hash,
         }
-        provenance_hash = hashlib.sha256(
-            json.dumps(provenance_data, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        provenance_hash = hashlib.sha256(json.dumps(provenance_data, sort_keys=True).encode("utf-8")).hexdigest()
 
         return FeatureEntry(
             feature_id=request.feature_id,

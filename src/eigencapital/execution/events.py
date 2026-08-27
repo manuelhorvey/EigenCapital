@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 
 class EventType(str, Enum):
@@ -121,7 +121,7 @@ class AuditLog:
         self.append(event)
         return event
 
-    def get_events(self, event_type: Optional[EventType] = None) -> List[AuditEvent]:
+    def get_events(self, event_type: EventType | None = None) -> List[AuditEvent]:
         """Get events, optionally filtered by type."""
         if event_type is None:
             return list(self._events)

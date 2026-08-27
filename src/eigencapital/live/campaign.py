@@ -12,7 +12,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class CampaignStatus(str, Enum):
@@ -172,7 +172,7 @@ class CampaignManager:
         self._record_event("STATUS_CHANGED", campaign_id, new_status, reason=reason)
         return True
 
-    def get_campaign(self, campaign_id: str) -> Optional[MicroLiveCampaign]:
+    def get_campaign(self, campaign_id: str) -> MicroLiveCampaign | None:
         """Get a campaign by ID."""
         return self._campaigns.get(campaign_id)
 

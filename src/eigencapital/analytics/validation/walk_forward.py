@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 @dataclass(frozen=True)
@@ -167,9 +167,7 @@ def _returns_from_segments(segments: List[List[float]]) -> List[float]:
     return returns
 
 
-def _contiguous_segments(
-    indices: List[int], equity_curve: List[float]
-) -> List[List[float]]:
+def _contiguous_segments(indices: List[int], equity_curve: List[float]) -> List[List[float]]:
     """Split bar indices into contiguous runs and map them to equity values."""
     segments: List[List[float]] = []
     current: List[int] = []
@@ -228,10 +226,7 @@ def purged_walk_forward(
         only training composition changes.
     """
     if train_bars <= 0 or test_bars <= 0 or purge_bars < 0 or embargo_bars < 0:
-        raise ValueError(
-            "train_bars and test_bars must be > 0; purge_bars and "
-            "embargo_bars must be >= 0"
-        )
+        raise ValueError("train_bars and test_bars must be > 0; purge_bars and embargo_bars must be >= 0")
 
     n = len(equity_curve)
     if n < train_bars + purge_bars + test_bars:
@@ -260,9 +255,7 @@ def purged_walk_forward(
 
         # Compute returns for train and test periods
         if embargo_bars > 0:
-            train_indices = _exclude_embargo_zones(
-                train_start, train_end, embargo_zones
-            )
+            train_indices = _exclude_embargo_zones(train_start, train_end, embargo_zones)
             train_segments = _contiguous_segments(train_indices, equity_curve)
         else:
             train_indices = list(range(train_start, train_end))
@@ -284,12 +277,8 @@ def purged_walk_forward(
                 compounded *= segment_equity[i] / segment_equity[i - 1]
             return compounded - 1.0
 
-        is_return = (
-            _total_return(train_segments[0]) if len(train_segments) == 1 else 0.0
-        )
-        oos_return = (
-            (test_equity[-1] / test_equity[0] - 1) if test_equity[0] > 0 else 0.0
-        )
+        is_return = _total_return(train_segments[0]) if len(train_segments) == 1 else 0.0
+        oos_return = (test_equity[-1] / test_equity[0] - 1) if test_equity[0] > 0 else 0.0
 
         windows.append(
             WalkForwardWindow(

@@ -28,14 +28,14 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable
+from typing import Any, Callable, Dict, List
 
-from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
-from eigencapital.research.hypotheses.hypothesis import Hypothesis
-from eigencapital.research.experiments.registry import ExperimentRegistry
-from eigencapital.research.costs.model import CostModel
-from eigencapital.features.pipeline import FeaturePipeline
 from eigencapital.features.feature_set import FeatureSet
+from eigencapital.features.pipeline import FeaturePipeline
+from eigencapital.research.costs.model import CostModel
+from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
+from eigencapital.research.experiments.registry import ExperimentRegistry
+from eigencapital.research.hypotheses.hypothesis import Hypothesis
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class ExecutionConfig:
     cost_model: CostModel = field(default_factory=lambda: CostModel(model_id="zero"))
     universe: Dict[str, Any] = field(default_factory=dict)
     parameters: Dict[str, Any] = field(default_factory=dict)
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
 
     def compute_config_hash(self) -> str:
         """Deterministic hash of configuration."""
@@ -111,9 +111,7 @@ class ExecutionEngine:
         config: ExecutionConfig,
         compute_features_fn: Callable[[List[Any], ExecutionConfig], FeatureSet],
         run_backtest_fn: Callable[[FeatureSet, ExecutionConfig], Dict[str, Any]],
-        validate_fn: Optional[
-            Callable[[Dict[str, Any], ExecutionConfig], Dict[str, Any]]
-        ] = None,
+        validate_fn: Callable[[Dict[str, Any], ExecutionConfig], Dict[str, Any]] | None = None,
     ) -> ExecutionRecord:
         """Execute a hypothesis through the complete research path.
 
@@ -132,10 +130,7 @@ class ExecutionEngine:
         """
         # 1. Validate hypothesis
         if hypothesis.status != "REGISTERED":
-            raise ExecutionError(
-                f"Hypothesis {hypothesis.hypothesis_id} must be REGISTERED, "
-                f"got {hypothesis.status}"
-            )
+            raise ExecutionError(f"Hypothesis {hypothesis.hypothesis_id} must be REGISTERED, got {hypothesis.status}")
 
         # 2. Compute hashes for immutable registration
         hypothesis_hash = self._hash_dict(hypothesis.to_dict())
@@ -188,17 +183,13 @@ class ExecutionEngine:
         )
 
         # 5. Compute provenance
-        record = ExecutionRecord(
-            **{**record.__dict__, "provenance_hash": record.compute_provenance_hash()}
-        )
+        record = ExecutionRecord(**{**record.__dict__, "provenance_hash": record.compute_provenance_hash()})
 
         self._executions[execution_id] = record
 
         # 6. Execute the research path (may raise on errors)
         try:
-            record = self._run_execution(
-                record, config, compute_features_fn, run_backtest_fn, validate_fn
-            )
+            record = self._run_execution(record, config, compute_features_fn, run_backtest_fn, validate_fn)
         except Exception as e:
             record = ExecutionRecord(
                 **{
@@ -217,19 +208,15 @@ class ExecutionEngine:
         config: ExecutionConfig,
         compute_features_fn: Callable,
         run_backtest_fn: Callable,
-        validate_fn: Optional[Callable],
+        validate_fn: Callable | None,
     ) -> ExecutionRecord:
         """Run the execution through each stage."""
         # Stage 1: Compute features
-        record = ExecutionRecord(
-            **{**record.__dict__, "status": ExecutionStatus.COMPUTING_FEATURES}
-        )
+        record = ExecutionRecord(**{**record.__dict__, "status": ExecutionStatus.COMPUTING_FEATURES})
 
         try:
             featureset = compute_features_fn([], config)  # bars passed externally
-            record = ExecutionRecord(
-                **{**record.__dict__, "feature_set_hash": featureset.provenance_hash}
-            )
+            record = ExecutionRecord(**{**record.__dict__, "feature_set_hash": featureset.provenance_hash})
         except Exception as e:
             return ExecutionRecord(
                 **{
@@ -240,9 +227,7 @@ class ExecutionEngine:
             )
 
         # Stage 2: Run backtest
-        record = ExecutionRecord(
-            **{**record.__dict__, "status": ExecutionStatus.BACKTESTING}
-        )
+        record = ExecutionRecord(**{**record.__dict__, "status": ExecutionStatus.BACKTESTING})
 
         try:
             backtest_result = run_backtest_fn(featureset, config)
@@ -258,9 +243,7 @@ class ExecutionEngine:
 
         # Stage 3: Validate (if validation function provided)
         if validate_fn is not None:
-            record = ExecutionRecord(
-                **{**record.__dict__, "status": ExecutionStatus.VALIDATING}
-            )
+            record = ExecutionRecord(**{**record.__dict__, "status": ExecutionStatus.VALIDATING})
 
             try:
                 validation_result = validate_fn(backtest_result, config)
@@ -282,14 +265,10 @@ class ExecutionEngine:
                 )
 
         # Stage 4: Complete
-        record = ExecutionRecord(
-            **{**record.__dict__, "status": ExecutionStatus.COMPLETED}
-        )
+        record = ExecutionRecord(**{**record.__dict__, "status": ExecutionStatus.COMPLETED})
 
         # Recompute provenance with final state
-        record = ExecutionRecord(
-            **{**record.__dict__, "provenance_hash": record.compute_provenance_hash()}
-        )
+        record = ExecutionRecord(**{**record.__dict__, "provenance_hash": record.compute_provenance_hash()})
 
         return record
 

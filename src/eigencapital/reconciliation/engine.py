@@ -31,9 +31,9 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class ReconciliationAction(str, Enum):
@@ -65,7 +65,7 @@ class ReconciliationCheck:
     details: Dict[str, Any] = field(default_factory=dict)
     broker_value: Any = None
     internal_value: Any = None
-    tolerance: Optional[float] = None
+    tolerance: float | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -183,7 +183,7 @@ class ReconciliationEngine:
         self,
         broker: BrokerState,
         internal: InternalState,
-        config_fingerprint: Optional[str] = None,
+        config_fingerprint: str | None = None,
     ) -> ReconciliationResult:
         """Perform full reconciliation.
 
@@ -195,7 +195,7 @@ class ReconciliationEngine:
         Returns:
             ReconciliationResult with all findings
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         checks: List[ReconciliationCheck] = []
         mismatches: List[str] = []
 
@@ -278,9 +278,7 @@ class ReconciliationEngine:
         # Record to history
         self._reconciliation_history.append(result.to_dict())
         if len(self._reconciliation_history) > self._max_history:
-            self._reconciliation_history = self._reconciliation_history[
-                -self._max_history :
-            ]
+            self._reconciliation_history = self._reconciliation_history[-self._max_history :]
 
         return result
 
@@ -516,7 +514,7 @@ class ReconciliationEngine:
         broker state inconsistency.
         """
         stale_positions = []
-        now_ts = datetime.now(timezone.utc).timestamp()
+        now_ts = datetime.now(UTC).timestamp()
 
         for pos in broker.positions:
             open_time = pos.get("time", 0)

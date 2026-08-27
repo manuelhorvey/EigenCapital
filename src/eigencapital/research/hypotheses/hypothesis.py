@@ -16,7 +16,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -61,9 +61,7 @@ class Hypothesis:
             raise ValueError("claim must be non-empty")
         valid_statuses = {"DRAFT", "REGISTERED", "TESTED", "REJECTED", "SUPPORTED"}
         if self.status not in valid_statuses:
-            raise ValueError(
-                f"Invalid status: {self.status}. Must be one of {valid_statuses}"
-            )
+            raise ValueError(f"Invalid status: {self.status}. Must be one of {valid_statuses}")
 
     def register(self) -> Hypothesis:
         """Transition to REGISTERED status (returns new frozen instance)."""

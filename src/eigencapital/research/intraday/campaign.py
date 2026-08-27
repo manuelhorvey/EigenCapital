@@ -10,22 +10,22 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 
 from .hypotheses import (
-    HypothesisDefinition,
-    HoldingPeriod,
-    Verdict,
     ALL_HYPOTHESES,
+    HoldingPeriod,
+    HypothesisDefinition,
+    Verdict,
     compute_library_hash,
 )
 from .sessions import (
-    add_session_features,
-    add_realized_volatility_features,
     add_price_structure_features,
+    add_realized_volatility_features,
+    add_session_features,
 )
 
 logger = logging.getLogger(__name__)
@@ -114,9 +114,7 @@ class HypothesisResult:
             "degradation_pct": round(self.degradation_pct, 2),
             "failure_modes": self.failure_modes,
             "asset_sharpes": {k: round(v, 4) for k, v in self.asset_sharpes.items()},
-            "session_sharpes": {
-                k: round(v, 4) for k, v in self.session_sharpes.items()
-            },
+            "session_sharpes": {k: round(v, 4) for k, v in self.session_sharpes.items()},
             "reason": self.reason,
         }
 
@@ -159,9 +157,7 @@ class IntradayCostModel:
 # ============================================================
 
 
-def generate_momentum_signal(
-    df: pd.DataFrame, lookback: int, threshold: float = 0.0
-) -> pd.Series:
+def generate_momentum_signal(df: pd.DataFrame, lookback: int, threshold: float = 0.0) -> pd.Series:
     """Generate directional momentum signal.
 
     Uses volatility-scaled threshold to reduce noise.
@@ -178,12 +174,8 @@ def generate_momentum_signal(
     # Smooth: require 2 consecutive same-direction signals
     smoothed = signal.copy()
     for i in range(2, len(signal)):
-        if signal.iloc[i] != 0 and signal.iloc[i] == signal.iloc[i - 1]:
-            smoothed.iloc[i] = signal.iloc[i]
-        elif (
-            i >= 2
-            and signal.iloc[i] != 0
-            and signal.iloc[i] == signal.iloc[i - 1] == signal.iloc[i - 2]
+        if (signal.iloc[i] != 0 and signal.iloc[i] == signal.iloc[i - 1]) or (
+            i >= 2 and signal.iloc[i] != 0 and signal.iloc[i] == signal.iloc[i - 1] == signal.iloc[i - 2]
         ):
             smoothed.iloc[i] = signal.iloc[i]
         else:
@@ -191,9 +183,7 @@ def generate_momentum_signal(
     return smoothed
 
 
-def generate_reversal_signal(
-    df: pd.DataFrame, lookback: int, z_threshold: float = 2.0
-) -> pd.Series:
+def generate_reversal_signal(df: pd.DataFrame, lookback: int, z_threshold: float = 2.0) -> pd.Series:
     """Generate mean reversion signal from z-score.
 
     Uses cumulative return z-score over lookback window.
@@ -210,9 +200,7 @@ def generate_reversal_signal(
     return signal
 
 
-def generate_vol_expansion_signal(
-    df: pd.DataFrame, short_window: int = 12, long_window: int = 36
-) -> pd.Series:
+def generate_vol_expansion_signal(df: pd.DataFrame, short_window: int = 12, long_window: int = 36) -> pd.Series:
     """Generate volatility expansion breakout signal.
 
     Only signal on strong vol expansion (>1.8x) with confirmed direction.
@@ -247,9 +235,7 @@ def generate_breakout_signal(df: pd.DataFrame, lookback: int = 12) -> pd.Series:
     return signal
 
 
-def generate_session_signal(
-    df: pd.DataFrame, lookback: int = 12, feature_col: str = "is_london_open"
-) -> pd.Series:
+def generate_session_signal(df: pd.DataFrame, lookback: int = 12, feature_col: str = "is_london_open") -> pd.Series:
     """Generate session-based signal.
 
     Only signal during the specified session, with vol-scaled threshold.
@@ -482,7 +468,7 @@ def walk_forward_validate(
 def generate_signal_for_hypothesis(
     df: pd.DataFrame,
     hyp: HypothesisDefinition,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> pd.Series:
     """Generate signal for a given hypothesis."""
     fid = hyp.hypothesis_id
@@ -642,11 +628,7 @@ def classify_verdict(
 
     # Degradation
     if result["gross_sharpe"] != 0:
-        degradation = (
-            abs(result["gross_sharpe"] - result["net_sharpe"])
-            / abs(result["gross_sharpe"])
-            * 100
-        )
+        degradation = abs(result["gross_sharpe"] - result["net_sharpe"]) / abs(result["gross_sharpe"]) * 100
     else:
         degradation = 100.0
 
@@ -718,8 +700,8 @@ class IntradayCampaignExecutor:
         self,
         data: Dict[str, pd.DataFrame],
         manifest: Any,  # IntradayDataManifest
-        cost_model: Optional[IntradayCostModel] = None,
-        hypotheses: Optional[List[HypothesisDefinition]] = None,
+        cost_model: IntradayCostModel | None = None,
+        hypotheses: List[HypothesisDefinition] | None = None,
     ) -> None:
         self._data = data
         self._manifest = manifest
@@ -773,9 +755,7 @@ class IntradayCampaignExecutor:
             signal = generate_signal_for_hypothesis(df, hyp, self._data)
             holding_bars = HOLDING_BARS.get(hyp.holding_period, 6)
 
-            result = evaluate_strategy(
-                df, signal, holding_bars, self._cost_model, hyp.hypothesis_id
-            )
+            result = evaluate_strategy(df, signal, holding_bars, self._cost_model, hyp.hypothesis_id)
             all_symbol_results.append(result)
             asset_sharpes[sym] = result["net_sharpe"]
 
@@ -787,19 +767,13 @@ class IntradayCampaignExecutor:
             "gross_sharpe": np.mean([r["gross_sharpe"] for r in all_symbol_results]),
             "net_sharpe": np.mean([r["net_sharpe"] for r in all_symbol_results]),
             "max_dd_pct": np.min([r["max_dd_pct"] for r in all_symbol_results]),
-            "turnover_annual": np.mean(
-                [r["turnover_annual"] for r in all_symbol_results]
-            ),
+            "turnover_annual": np.mean([r["turnover_annual"] for r in all_symbol_results]),
             "total_trades": sum(r["total_trades"] for r in all_symbol_results),
-            "avg_holding_bars": np.mean(
-                [r["avg_holding_bars"] for r in all_symbol_results]
-            ),
+            "avg_holding_bars": np.mean([r["avg_holding_bars"] for r in all_symbol_results]),
             "hit_rate": np.mean([r["hit_rate"] for r in all_symbol_results]),
             "long_sharpe": np.mean([r["long_sharpe"] for r in all_symbol_results]),
             "short_sharpe": np.mean([r["short_sharpe"] for r in all_symbol_results]),
-            "cost_pct_of_gross": np.mean(
-                [r["cost_pct_of_gross"] for r in all_symbol_results]
-            ),
+            "cost_pct_of_gross": np.mean([r["cost_pct_of_gross"] for r in all_symbol_results]),
         }
 
         # Walk-forward on first symbol with enough data
@@ -815,9 +789,7 @@ class IntradayCampaignExecutor:
         wf = walk_forward_validate(wf_df, sig_func, n_folds=5)
 
         # Classify verdict
-        verdict, failure_modes, reason = classify_verdict(
-            agg, wf, hyp, self._cost_model
-        )
+        verdict, failure_modes, reason = classify_verdict(agg, wf, hyp, self._cost_model)
 
         # Session sharpes (simplified: by named sessions)
         session_sharpes = {}
@@ -837,11 +809,7 @@ class IntradayCampaignExecutor:
 
         degradation = 0.0
         if agg["gross_sharpe"] != 0:
-            degradation = (
-                abs(agg["gross_sharpe"] - agg["net_sharpe"])
-                / abs(agg["gross_sharpe"])
-                * 100
-            )
+            degradation = abs(agg["gross_sharpe"] - agg["net_sharpe"]) / abs(agg["gross_sharpe"]) * 100
 
         return HypothesisResult(
             hypothesis_id=hyp.hypothesis_id,
@@ -940,15 +908,11 @@ class IntradayCampaignExecutor:
                 lines.append(f"{verdict.upper():30s} {len(group):3d}  {bar}")
 
         total = len(results)
-        surviving = len(by_verdict.get("supported", [])) + len(
-            by_verdict.get("incremental", [])
-        )
+        surviving = len(by_verdict.get("supported", [])) + len(by_verdict.get("incremental", []))
         lines.extend(
             [
                 "```",
-                f"**Survival Rate: {surviving / total * 100:.1f}%**"
-                if total > 0
-                else "N/A",
+                f"**Survival Rate: {surviving / total * 100:.1f}%**" if total > 0 else "N/A",
                 "",
             ]
         )
@@ -982,9 +946,7 @@ class IntradayCampaignExecutor:
         lines.append("")
 
         # Survivor details
-        survivors = [
-            r for r in results if r.verdict in (Verdict.SUPPORTED, Verdict.INCREMENTAL)
-        ]
+        survivors = [r for r in results if r.verdict in (Verdict.SUPPORTED, Verdict.INCREMENTAL)]
         if survivors:
             lines.extend(["## Survivors — Detailed Analysis", ""])
             for r in survivors:
@@ -1006,9 +968,7 @@ class IntradayCampaignExecutor:
                 for sym, sharpe in sorted(r.asset_sharpes.items(), key=lambda x: -x[1]):
                     lines.append(f"  - {sym}: {sharpe:.3f}")
                 lines.extend(["", "**Session Sharpe:**"])
-                for sess, sharpe in sorted(
-                    r.session_sharpes.items(), key=lambda x: -x[1]
-                ):
+                for sess, sharpe in sorted(r.session_sharpes.items(), key=lambda x: -x[1]):
                     lines.append(f"  - {sess}: {sharpe:.3f}")
                 lines.append("")
 
@@ -1018,9 +978,7 @@ class IntradayCampaignExecutor:
             lines.extend(["## Rejected — Loser Analysis", ""])
             for r in rejected:
                 fms = ", ".join(r.failure_modes) if r.failure_modes else "unknown"
-                lines.append(
-                    f"- **{r.hypothesis_id}** ({r.name}): {r.reason} [failure modes: {fms}]"
-                )
+                lines.append(f"- **{r.hypothesis_id}** ({r.name}): {r.reason} [failure modes: {fms}]")
             lines.append("")
 
         lines.extend(
@@ -1034,8 +992,7 @@ class IntradayCampaignExecutor:
                 "5. Every rejection has a forensic explanation",
                 "",
                 "---",
-                f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-                f"Campaign: {self._freeze.campaign_id}*",
+                f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | Campaign: {self._freeze.campaign_id}*",
             ]
         )
 

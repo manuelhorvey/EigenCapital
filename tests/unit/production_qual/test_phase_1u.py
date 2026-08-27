@@ -1,15 +1,12 @@
 """Phase 1U Tests — Production Qualification."""
 
-import pytest
 from eigencapital.production_qual.campaign_boundary import (
     CampaignBoundary,
     TradeRecord,
     TradeOrigin,
-    TradeStatus,
 )
 from eigencapital.production_qual.scaling import (
     ScaleLevel,
-    ScaleEnvelope,
     SCALE_ENVELOPES,
     ScalingMetrics,
     ProductionScaleEvaluator,

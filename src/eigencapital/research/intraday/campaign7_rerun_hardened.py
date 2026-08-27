@@ -99,10 +99,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     if not data:
         print("ERROR: no microstructure bars")
         return []
-    print(
-        f"Loaded {len(data)} symbols from snapshot "
-        f"(family={FAMILY_SIZE}, cumulative={CUMULATIVE_TRIALS})"
-    )
+    print(f"Loaded {len(data)} symbols from snapshot (family={FAMILY_SIZE}, cumulative={CUMULATIVE_TRIALS})")
 
     anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0])
     anchor = data[anchor_name]
@@ -258,8 +255,7 @@ def write_reports(results: List[HypResult]) -> str:
         "**Snapshot:** immutable C7 tick snapshot (unchanged)",
         f"**Generated:** {now}",
         "**Engine:** corrected per-bar cost accounting (one-way 6.5/11 bps)",
-        f"**Family:** {FAMILY_SIZE} evaluations (18 hyp × 4 horizons); "
-        f"Bonferroni within-family",
+        f"**Family:** {FAMILY_SIZE} evaluations (18 hyp × 4 horizons); Bonferroni within-family",
         f"**Cumulative ledger:** {CUMULATIVE_TRIALS} program evaluations",
         "",
         "---",
@@ -279,9 +275,7 @@ def write_reports(results: List[HypResult]) -> str:
     ]:
         hs = [r for r in results if r.verdict.value == v]
         if hs:
-            lines.append(
-                f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |"
-            )
+            lines.append(f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |")
 
     top = sorted(results, key=lambda r: r.net_base, reverse=True)[:6]
     lines += [
@@ -306,15 +300,13 @@ def write_reports(results: List[HypResult]) -> str:
     if tf003 is not None:
         gov = getattr(tf003, "_governance", {})
         lines += [
-            f"- Corrected net Sharpe (base): **{tf003.net_base:+.2f}** "
-            f"(adverse {tf003.net_adverse:+.2f})",
+            f"- Corrected net Sharpe (base): **{tf003.net_base:+.2f}** (adverse {tf003.net_adverse:+.2f})",
             f"- Max DD (net): {tf003.max_dd:.1%}",
             f"- WF consistency: {tf003.wf_consistency:.0%}",
             f"- p_raw {gov.get('p_raw', 1):.3f} → p_family "
             f"{gov.get('p_adj_family', 1):.3f} → p_cumulative "
             f"{gov.get('p_adj_cumulative', 1):.3f}",
-            f"- Final verdict: **{tf003.verdict.value.upper()}** "
-            f"(reasons: {', '.join(tf003.reasons) or 'none'})",
+            f"- Final verdict: **{tf003.verdict.value.upper()}** (reasons: {', '.join(tf003.reasons) or 'none'})",
         ]
 
     lines += ["", "## DECISION", ""]
@@ -322,8 +314,7 @@ def write_reports(results: List[HypResult]) -> str:
         ids = ", ".join(r.hid for r in surv)
         lines += [
             f"SUPPORTED under hardened governance: **{ids}**.",
-            "Proceed to C8 confirmation on fresh/held-out tick data with "
-            "cumulative trial accounting inherited.",
+            "Proceed to C8 confirmation on fresh/held-out tick data with cumulative trial accounting inherited.",
         ]
     else:
         lines += [

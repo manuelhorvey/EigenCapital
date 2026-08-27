@@ -24,6 +24,7 @@ sys.path.insert(0, str(REPO / "scripts" / "audit"))
 sys.path.insert(0, str(REPO / "src"))
 
 import reconstruct as rec  # noqa: E402
+
 from eigencapital.config import load_config  # noqa: E402
 
 COST_BPS = 10.0
@@ -81,11 +82,7 @@ def walk_episode(row, ctx, params) -> tuple[pd.Timestamp | None, float | None, s
     sym = row["symbol"]
     d = 1 if row["direction"] == "LONG" else -1
     entry_px = row["entry_price"]
-    R_abs = (
-        row["atr14pct_at_entry"] * entry_px
-        if np.isfinite(row["atr14pct_at_entry"])
-        else np.nan
-    )
+    R_abs = row["atr14pct_at_entry"] * entry_px if np.isfinite(row["atr14pct_at_entry"]) else np.nan
 
     stop_px: float | None = None
     tp_px: float | None = None
@@ -125,9 +122,7 @@ def walk_episode(row, ctx, params) -> tuple[pd.Timestamp | None, float | None, s
     for i in range(e_loc + 1, n_loc + 1):
         bars += 1
         oi, hi, li, ci = o[i], h[i], lo_[i], c[i]
-        if not (
-            np.isfinite(oi) and np.isfinite(hi) and np.isfinite(li) and np.isfinite(ci)
-        ):
+        if not (np.isfinite(oi) and np.isfinite(hi) and np.isfinite(li) and np.isfinite(ci)):
             continue
         # ratchet trail before checks (prior-close basis)
         dist: float | None = None
@@ -137,28 +132,14 @@ def walk_episode(row, ctx, params) -> tuple[pd.Timestamp | None, float | None, s
             dist = trail_dist
         if dist is not None:
             cand = peak_close - d * dist
-            trail_px = (
-                cand
-                if trail_px is None
-                else (max(trail_px, cand) if d > 0 else min(trail_px, cand))
-            )
+            trail_px = cand if trail_px is None else (max(trail_px, cand) if d > 0 else min(trail_px, cand))
         # 1) hard stop (pessimistic first)
-        if stop_px is not None and (
-            (d > 0 and li <= stop_px) or (d < 0 and hi >= stop_px)
-        ):
-            fill = (
-                oi if (d > 0 and oi < stop_px) or (d < 0 and oi > stop_px) else stop_px
-            )
+        if stop_px is not None and ((d > 0 and li <= stop_px) or (d < 0 and hi >= stop_px)):
+            fill = oi if (d > 0 and oi < stop_px) or (d < 0 and oi > stop_px) else stop_px
             return idx[i], float(fill), "stop"
         # 2) trail
-        if trail_px is not None and (
-            (d > 0 and li <= trail_px) or (d < 0 and hi >= trail_px)
-        ):
-            fill = (
-                oi
-                if (d > 0 and oi < trail_px) or (d < 0 and oi > trail_px)
-                else trail_px
-            )
+        if trail_px is not None and ((d > 0 and li <= trail_px) or (d < 0 and hi >= trail_px)):
+            fill = oi if (d > 0 and oi < trail_px) or (d < 0 and oi > trail_px) else trail_px
             return idx[i], float(fill), "trail"
         # 3) TP
         if tp_px is not None and ((d > 0 and hi >= tp_px) or (d < 0 and li <= tp_px)):
@@ -216,9 +197,7 @@ def portfolio_curve(trades_with_exits: pd.DataFrame, ctx, label="") -> pd.Series
     return net
 
 
-def metrics(
-    daily_ret: pd.Series, episodes: pd.DataFrame, control_episodes=None
-) -> dict:
+def metrics(daily_ret: pd.Series, episodes: pd.DataFrame, control_episodes=None) -> dict:
     r = daily_ret.dropna()
     eq = (1 + r).cumprod()
     dd = eq / eq.cummax() - 1
@@ -229,9 +208,7 @@ def metrics(
     for y, g in r.groupby(r.index.year):
         sd = g.std() * np.sqrt(252)
         years[int(y)] = float(g.mean() * 252 / sd) if sd > 0 else 0.0
-    stopped = episodes[
-        episodes["_etype"].isin(["stop", "trail", "time_loser", "time_cap", "giveback"])
-    ]
+    stopped = episodes[episodes["_etype"].isin(["stop", "trail", "time_loser", "time_cap", "giveback"])]
     false_stop = None
     if control_episodes is not None and len(stopped):
         ctrl = control_episodes["_ret"]
@@ -240,26 +217,20 @@ def metrics(
     return {
         "ann_return": float(r.mean() * 252),
         "ann_vol": float(r.std() * np.sqrt(252)),
-        "sharpe": float(r.mean() * 252 / (r.std() * np.sqrt(252)))
-        if r.std() > 0
-        else 0.0,
-        "sortino": float(r.mean() * 252 / downside)
-        if downside and downside > 0
-        else None,
+        "sharpe": float(r.mean() * 252 / (r.std() * np.sqrt(252))) if r.std() > 0 else 0.0,
+        "sortino": float(r.mean() * 252 / downside) if downside and downside > 0 else None,
         "max_drawdown": float(dd.min()),
         "calmar": float(r.mean() * 252 / abs(dd.min())) if dd.min() < 0 else None,
         "profit_factor": float(wins / losses) if losses > 0 else None,
         "win_rate_trades": float((episodes["_ret"] > 0).mean()),
-        "n_trades": int(len(episodes)),
+        "n_trades": len(episodes),
         "avg_trade_net": float(episodes["_ret"].mean()),
         "tail_daily_P05": float(r.quantile(0.05)),
         "cvar95_daily": float(r[r <= r.quantile(0.05)].mean()),
         "yearly_sharpe": years,
-        "yearly_consistency": float(np.mean([v > 0 for v in years.values()]))
-        if years
-        else None,
+        "yearly_consistency": float(np.mean([v > 0 for v in years.values()])) if years else None,
         "sharpe_first_half": None,  # filled below
-        "stopped_n": int(len(stopped)),
+        "stopped_n": len(stopped),
         "stop_frequency": float(len(stopped) / max(len(episodes), 1)),
         "false_stop_rate": false_stop,
         "half_split": {},
@@ -299,9 +270,7 @@ def main() -> None:
     m_ctrl = metrics(curve_ctrl, t_ctrl)
     halves = np.array_split(curve_ctrl.index.unique(), 2)
     m_ctrl["half_split"] = {
-        str(i): float(
-            curve_ctrl.loc[h].mean() * 252 / (curve_ctrl.loc[h].std() * np.sqrt(252))
-        )
+        str(i): float(curve_ctrl.loc[h].mean() * 252 / (curve_ctrl.loc[h].std() * np.sqrt(252)))
         for i, h in enumerate(halves)
     }
     results["control"] = {"id": "baseline", **m_ctrl}
@@ -339,10 +308,7 @@ def main() -> None:
                     xd, xp, etype = walk_episode(row, ctx, params)
                 elif params.get("exit_on_regime_off"):
                     off_days = pol["regime_off"]
-                    window = off_days.loc[
-                        (off_days.index > row["entry_ts"])
-                        & (off_days.index <= row["exit_ts"])
-                    ]
+                    window = off_days.loc[(off_days.index > row["entry_ts"]) & (off_days.index <= row["exit_ts"])]
                     if window.any():
                         xd = window.index[0]
                         xp = float(ctx["cw"][row["symbol"]].asof(xd))
@@ -352,10 +318,7 @@ def main() -> None:
                     window = flag.loc[row["symbol"]] if False else None
                     col = flag.get(row["symbol"])
                     if col is not None:
-                        win = col.loc[
-                            (col.index > row["entry_ts"])
-                            & (col.index <= row["exit_ts"])
-                        ]
+                        win = col.loc[(col.index > row["entry_ts"]) & (col.index <= row["exit_ts"])]
                         hit = win[win.astype(bool)]
                         if len(hit):
                             xd = hit.index[0]
@@ -377,35 +340,26 @@ def main() -> None:
             tv["_exit_ts_final"] = ex["_exit_ts_final"]
             tv["_etype"] = ex["_etype"]
             tv["_ret"] = [
-                episode_return(row, ex.loc[i, "_exit_ts_final"], ex.loc[i, "_exit_px"])
-                for i, row in tv.iterrows()
+                episode_return(row, ex.loc[i, "_exit_ts_final"], ex.loc[i, "_exit_px"]) for i, row in tv.iterrows()
             ]
             cv = portfolio_curve(tv, ctx, tid)
             mv = metrics(cv, tv, control_episodes=t_ctrl)
             halves = np.array_split(cv.index.unique(), 2)
             mv["half_split"] = {
-                str(i): float(cv.loc[h].mean() * 252 / (cv.loc[h].std() * np.sqrt(252)))
-                for i, h in enumerate(halves)
+                str(i): float(cv.loc[h].mean() * 252 / (cv.loc[h].std() * np.sqrt(252))) for i, h in enumerate(halves)
             }
             diff = cv - curve_ctrl
             p_raw = block_bootstrap_p(diff)
-            fam_size = next(
-                f["n_trials"]
-                for f in ledger["families"]
-                if f["family_id"] == fam["family_id"]
-            )
+            fam_size = next(f["n_trials"] for f in ledger["families"] if f["family_id"] == fam["family_id"])
             mv.update(
                 {
                     "trial_id": tid,
                     "family": fam["family_id"],
                     "params": params,
                     "sharpe_delta_vs_control": mv["sharpe"] - m_ctrl["sharpe"],
-                    "maxdd_delta_vs_control": mv["max_drawdown"]
-                    - m_ctrl["max_drawdown"],
+                    "maxdd_delta_vs_control": mv["max_drawdown"] - m_ctrl["max_drawdown"],
                     "bootstrap_p_raw": p_raw,
-                    "bonferroni_p": min(1.0, p_raw * fam_size)
-                    if np.isfinite(p_raw)
-                    else None,
+                    "bonferroni_p": min(1.0, p_raw * fam_size) if np.isfinite(p_raw) else None,
                 }
             )
             results["trials"].append(mv)
@@ -456,8 +410,7 @@ def main() -> None:
                     * params.get(
                         "atr_mult",
                         params.get("stop_pct", 0) / row["atr14pct_at_entry"]
-                        if np.isfinite(row["atr14pct_at_entry"])
-                        and row["atr14pct_at_entry"] > 0
+                        if np.isfinite(row["atr14pct_at_entry"]) and row["atr14pct_at_entry"] > 0
                         else 1,
                     )
                     * R_abs
@@ -491,9 +444,7 @@ def main() -> None:
             )
     results["h1_sensitivity"] = sens
 
-    (OUT / "counterfactual_results.json").write_text(
-        json.dumps(results, indent=2, default=str)
-    )
+    (OUT / "counterfactual_results.json").write_text(json.dumps(results, indent=2, default=str))
 
     # save a few curves
     for tid in [

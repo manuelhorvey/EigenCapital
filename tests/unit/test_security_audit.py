@@ -25,7 +25,7 @@ class TestNoHardcodedCredentials:
             for match in pattern.finditer(content):
                 line_no = content[:match.start()].count("\n") + 1
                 violations.append(f"{py_file}:{line_no}: {match.group()[:60]}")
-        assert not violations, f"Hardcoded passwords:\n" + "\n".join(violations)
+        assert not violations, "Hardcoded passwords:\n" + "\n".join(violations)
 
     def test_no_hardcoded_api_keys(self):
         pattern = re.compile(r"""(?:api_key|apikey|api_secret)\s*=\s*["'][A-Za-z0-9_\-]{20,}["']""", re.IGNORECASE)
@@ -37,7 +37,7 @@ class TestNoHardcodedCredentials:
             for match in pattern.finditer(content):
                 line_no = content[:match.start()].count("\n") + 1
                 violations.append(f"{py_file}:{line_no}")
-        assert not violations, f"Hardcoded API keys:\n" + "\n".join(violations)
+        assert not violations, "Hardcoded API keys:\n" + "\n".join(violations)
 
     def test_telegram_tokens_from_env(self):
         monitor = importlib.import_module("scripts.r4_monitor")
@@ -78,7 +78,7 @@ class TestSecurityBoundaries:
             content = py_file.read_text(errors="replace")
             if "from eigencapital.execution" in content or "from eigencapital.live" in content:
                 violations.append(str(py_file))
-        assert not violations, f"Research imports live execution:\n" + "\n".join(violations)
+        assert not violations, "Research imports live execution:\n" + "\n".join(violations)
 
     def test_live_cannot_retrain(self):
         live_dir = Path(__file__).resolve().parent.parent.parent / "src" / "eigencapital" / "live"
@@ -90,7 +90,7 @@ class TestSecurityBoundaries:
             for forbidden in ["sklearn", "keras", "tensorflow", "torch"]:
                 if f"import {forbidden}" in source or f"from {forbidden}" in source:
                     violations.append(f"{py_file}: imports {forbidden}")
-        assert not violations, f"Live code imports training:\n" + "\n".join(violations)
+        assert not violations, "Live code imports training:\n" + "\n".join(violations)
 
 
 class TestConfigurationManifest:

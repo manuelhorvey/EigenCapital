@@ -12,9 +12,9 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ class Position:
 
     instrument_id: str
     quantity: float  # SIGNED: positive=LONG, negative=SHORT, 0=FLAT
-    average_entry_price: Optional[float] = None
+    average_entry_price: float | None = None
     market_value: float = 0.0
     unrealized_pnl: float = 0.0
     realized_pnl_today: float = 0.0
@@ -56,12 +56,8 @@ class Position:
         # Validate prices are finite if present
         if self.average_entry_price is not None:
             if not isinstance(self.average_entry_price, (int, float)):
-                raise ValueError(
-                    f"average_entry_price must be numeric, got {type(self.average_entry_price)}"
-                )
-            if math.isnan(self.average_entry_price) or math.isinf(
-                self.average_entry_price
-            ):
+                raise ValueError(f"average_entry_price must be numeric, got {type(self.average_entry_price)}")
+            if math.isnan(self.average_entry_price) or math.isinf(self.average_entry_price):
                 raise ValueError("average_entry_price must be finite (no NaN/infinity)")
 
         # Validate market_value is finite if non-zero
@@ -77,9 +73,7 @@ class Position:
                 raise ValueError("unrealized_pnl must be numeric")
 
         # Validate realized_pnl_today is finite
-        if not math.isnan(self.realized_pnl_today) and not math.isinf(
-            self.realized_pnl_today
-        ):
+        if not math.isnan(self.realized_pnl_today) and not math.isinf(self.realized_pnl_today):
             if not isinstance(self.realized_pnl_today, (int, float)):
                 raise ValueError("realized_pnl_today must be numeric")
 
@@ -111,10 +105,7 @@ class Position:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Position):
             return NotImplemented
-        return (
-            self.instrument_id == other.instrument_id
-            and self.quantity == other.quantity
-        )
+        return self.instrument_id == other.instrument_id and self.quantity == other.quantity
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization for provenance/hashing."""
@@ -135,11 +126,7 @@ class Position:
         return Position(
             instrument_id=d["instrument_id"],
             quantity=float(d["quantity"]),
-            average_entry_price=(
-                float(d["average_entry_price"])
-                if d.get("average_entry_price") is not None
-                else None
-            ),
+            average_entry_price=(float(d["average_entry_price"]) if d.get("average_entry_price") is not None else None),
             market_value=float(d["market_value"]),
             unrealized_pnl=float(d["unrealized_pnl"]),
             realized_pnl_today=float(d["realized_pnl_today"]),
@@ -176,7 +163,7 @@ class Position:
         return self.quantity < 0
 
     @property
-    def entry_price(self) -> Optional[float]:
+    def entry_price(self) -> float | None:
         """Convenience: average_entry_price alias."""
         return self.average_entry_price
 
@@ -187,9 +174,7 @@ class Position:
         For simplicity, we use market_value as the proxy when available.
         """
         if self.market_value != 0.0:
-            return abs(self.quantity) * abs(
-                self.market_value / max(abs(self.quantity), 1)
-            )
+            return abs(self.quantity) * abs(self.market_value / max(abs(self.quantity), 1))
         return 0.0
 
 

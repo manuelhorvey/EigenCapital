@@ -25,7 +25,7 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
 from eigencapital.data.loaders.base import RawRecord
 
@@ -103,7 +103,7 @@ class StorageRecommendation:
 
 def recommend_format(
     numeric_only: bool,
-    engines: Optional[Dict[str, bool]] = None,
+    engines: Dict[str, bool] | None = None,
 ) -> StorageRecommendation:
     """Select the storage format for a dataset profile.
 
@@ -122,9 +122,7 @@ def recommend_format(
     """
     if engines is None:
         engines = detect_engines()
-    parquet_ok = engines.get("pandas", False) and (
-        engines.get("pyarrow", False) or engines.get("fastparquet", False)
-    )
+    parquet_ok = engines.get("pandas", False) and (engines.get("pyarrow", False) or engines.get("fastparquet", False))
     hdf5_ok = engines.get("pandas", False) and engines.get("tables", False)
 
     if numeric_only:
@@ -147,11 +145,7 @@ def recommend_format(
     preferred = available[preferred_index][0]
     fallbacks = tuple(fmt for fmt, ok in available[preferred_index + 1 :] if ok)
     degraded = preferred_index != 0
-    reason = base_reason + (
-        ""
-        if not degraded
-        else "; degraded because higher-ranked engines are unavailable"
-    )
+    reason = base_reason + ("" if not degraded else "; degraded because higher-ranked engines are unavailable")
     return StorageRecommendation(
         preferred=preferred,
         fallbacks=fallbacks,
@@ -198,9 +192,7 @@ class DatasetStore:
     silently degrading.
     """
 
-    def __init__(
-        self, base_path: str | Path, fmt: Optional[StorageFormat] = None
-    ) -> None:
+    def __init__(self, base_path: str | Path, fmt: StorageFormat | None = None) -> None:
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._forced_format = fmt
@@ -216,9 +208,7 @@ class DatasetStore:
             return recommendation
         if self._forced_format == recommendation.preferred:
             return recommendation
-        forced_reason = (
-            f"forced by caller (policy would choose {recommendation.preferred.value})"
-        )
+        forced_reason = f"forced by caller (policy would choose {recommendation.preferred.value})"
         return StorageRecommendation(
             preferred=self._forced_format,
             fallbacks=(recommendation.preferred,) + recommendation.fallbacks,
@@ -229,7 +219,7 @@ class DatasetStore:
         self,
         name: str,
         records: Sequence[Dict[str, Any]],
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> Path:
         """Persist rows under the resolved format; returns the file path.
 
@@ -298,7 +288,7 @@ class DatasetStore:
     @staticmethod
     def _require_pandas() -> Any:
         try:
-            import pandas  # type: ignore[import-untyped] # noqa: PLC0415 — optional engine, imported lazily
+            import pandas  # type: ignore[import-untyped]
         except ImportError as e:
             raise StorageEngineUnavailableError(StorageFormat.PARQUET) from e
         return pandas
@@ -317,9 +307,7 @@ class DatasetStore:
         return df.to_dict(orient="records")
 
     @classmethod
-    def _save_hdf5(
-        cls, path: Path, key: str, records: Sequence[Dict[str, Any]]
-    ) -> None:
+    def _save_hdf5(cls, path: Path, key: str, records: Sequence[Dict[str, Any]]) -> None:
         engines = detect_engines()
         if not engines["pandas"] or not engines["tables"]:
             raise StorageEngineUnavailableError(StorageFormat.HDF5)

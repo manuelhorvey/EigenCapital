@@ -11,7 +11,7 @@ This script:
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -34,9 +34,7 @@ def run_shadow() -> Dict[str, Any]:
     print("\n[1/5] Loading MT5 data...")
     provider = MT5DataProvider()
     data, manifest = provider.load_from_csv()
-    print(
-        f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars"
-    )
+    print(f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars")
 
     # 2. Create R4 manifest
     print("\n[2/5] Creating frozen R4 manifest...")
@@ -54,11 +52,7 @@ def run_shadow() -> Dict[str, Any]:
     # 4. Compute R4 weights (same as paper)
     print("\n[4/5] Running R4 through paper and shadow paths...")
     returns_df = pd.DataFrame(
-        {
-            sym: df["close"].pct_change()
-            for sym, df in data.items()
-            if "close" in df.columns
-        }
+        {sym: df["close"].pct_change() for sym, df in data.items() if "close" in df.columns}
     ).dropna(how="all")
 
     # R4 weights (frozen)
@@ -89,9 +83,7 @@ def run_shadow() -> Dict[str, Any]:
     rp_weights = inv_vol.div(inv_vol.sum(axis=1), axis=0).fillna(0)
     combined = 0.7 * final_weights + 0.3 * rp_weights
 
-    port_ret = (combined.shift(1) * returns_df).sum(axis=1) / combined.abs().sum(
-        axis=1
-    ).replace(0, np.nan)
+    port_ret = (combined.shift(1) * returns_df).sum(axis=1) / combined.abs().sum(axis=1).replace(0, np.nan)
     port_ret = port_ret.dropna()
     cum = (1 + port_ret).cumprod()
     peak = cum.expanding().max()
@@ -114,9 +106,7 @@ def run_shadow() -> Dict[str, Any]:
 
                     # Paper path: signal → weight → position
                     paper_signal = (
-                        float(signal.loc[date, inst])
-                        if inst in signal.columns and date in signal.index
-                        else 0.0
+                        float(signal.loc[date, inst]) if inst in signal.columns and date in signal.index else 0.0
                     )
                     float(w)
                     paper_side = "BUY" if w > 0 else "SELL"

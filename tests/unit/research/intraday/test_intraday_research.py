@@ -7,7 +7,6 @@ import pytest
 from eigencapital.research.intraday.hypotheses import (
     ALL_HYPOTHESES,
     HYPOTHESIS_REGISTRY,
-    HypothesisDefinition,
     HypothesisFamily,
     HoldingPeriod,
     Verdict,

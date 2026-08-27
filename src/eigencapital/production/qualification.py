@@ -20,7 +20,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 from eigencapital.production.fingerprint import ProductionFingerprint
 from eigencapital.production.live_campaign import LiveCampaignResult
@@ -115,7 +115,7 @@ class QualificationResult:
     checks: tuple  # tuple of QualificationCheckResult
     restrictions: tuple = ()
     notes: str = ""
-    production_fingerprint: Optional[ProductionFingerprint] = None
+    production_fingerprint: ProductionFingerprint | None = None
     evidence_fingerprint: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -137,7 +137,7 @@ class QualificationResult:
 class ProductionQualificationGate:
     """Evaluates live campaign evidence and produces qualification verdict."""
 
-    def __init__(self, thresholds: Optional[QualificationThresholds] = None) -> None:
+    def __init__(self, thresholds: QualificationThresholds | None = None) -> None:
         self._thresholds = thresholds or QualificationThresholds()
         self._results: List[QualificationResult] = []
 
@@ -152,10 +152,7 @@ class ProductionQualificationGate:
         notes_parts: List[str] = []
 
         # 1. Safety constraints
-        safety_passed = (
-            campaign_result.risk_boundary_violations
-            <= self._thresholds.max_risk_violations
-        )
+        safety_passed = campaign_result.risk_boundary_violations <= self._thresholds.max_risk_violations
         checks.append(
             QualificationCheckResult(
                 check=QualificationCheck.SAFETY_CONSTRAINTS.value,
@@ -170,16 +167,9 @@ class ProductionQualificationGate:
 
         # 2. Execution fidelity
         exec_summary = campaign_result.execution_summary
-        fill_rate_ok = (
-            exec_summary.fill_rate >= self._thresholds.max_fill_rate_threshold
-        )
-        rejection_rate_ok = (
-            exec_summary.rejection_rate <= self._thresholds.max_rejection_rate_threshold
-        )
-        slippage_ok = (
-            exec_summary.slippage_distribution.median
-            <= self._thresholds.max_slippage_threshold
-        )
+        fill_rate_ok = exec_summary.fill_rate >= self._thresholds.max_fill_rate_threshold
+        rejection_rate_ok = exec_summary.rejection_rate <= self._thresholds.max_rejection_rate_threshold
+        slippage_ok = exec_summary.slippage_distribution.median <= self._thresholds.max_slippage_threshold
         exec_passed = fill_rate_ok and rejection_rate_ok and slippage_ok
         checks.append(
             QualificationCheckResult(
@@ -196,10 +186,7 @@ class ProductionQualificationGate:
             notes_parts.append("Execution fidelity below threshold")
 
         # 3. Reconciliation stability
-        recon_passed = (
-            campaign_result.reconciliation_failures
-            <= self._thresholds.max_reconciliation_failures
-        )
+        recon_passed = campaign_result.reconciliation_failures <= self._thresholds.max_reconciliation_failures
         checks.append(
             QualificationCheckResult(
                 check=QualificationCheck.RECONCILIATION_STABILITY.value,
@@ -212,23 +199,15 @@ class ProductionQualificationGate:
             notes_parts.append("Reconciliation instability detected")
 
         # 4. Divergence bounded
-        div_total_ok = (
-            campaign_result.total_divergences <= self._thresholds.max_total_divergences
-        )
-        div_crit_ok = (
-            campaign_result.critical_divergences
-            <= self._thresholds.max_critical_divergences
-        )
+        div_total_ok = campaign_result.total_divergences <= self._thresholds.max_total_divergences
+        div_crit_ok = campaign_result.critical_divergences <= self._thresholds.max_critical_divergences
         div_passed = div_total_ok and div_crit_ok
         checks.append(
             QualificationCheckResult(
                 check=QualificationCheck.DIVERGENCE_BOUNDED.value,
                 passed=div_passed,
-                severity="CRITICAL"
-                if not div_crit_ok
-                else ("WARNING" if not div_total_ok else "INFO"),
-                details=f"total={campaign_result.total_divergences}, "
-                f"critical={campaign_result.critical_divergences}",
+                severity="CRITICAL" if not div_crit_ok else ("WARNING" if not div_total_ok else "INFO"),
+                details=f"total={campaign_result.total_divergences}, critical={campaign_result.critical_divergences}",
             )
         )
         if not div_passed:
@@ -236,10 +215,7 @@ class ProductionQualificationGate:
             notes_parts.append("Divergence exceeded bounds")
 
         # 5. Operational stability
-        ops_passed = (
-            campaign_result.kill_switch_activations
-            <= self._thresholds.max_kill_switch_activations
-        )
+        ops_passed = campaign_result.kill_switch_activations <= self._thresholds.max_kill_switch_activations
         checks.append(
             QualificationCheckResult(
                 check=QualificationCheck.OPERATIONAL_STABILITY.value,
@@ -252,10 +228,7 @@ class ProductionQualificationGate:
             restrictions.append("Review kill switch activation causes")
 
         # 6. Evidence sufficiency
-        evidence_passed = (
-            campaign_result.evidence_completeness
-            >= self._thresholds.min_evidence_completeness
-        )
+        evidence_passed = campaign_result.evidence_completeness >= self._thresholds.min_evidence_completeness
         checks.append(
             QualificationCheckResult(
                 check=QualificationCheck.EVIDENCE_SUFFICIENCY.value,
@@ -274,9 +247,7 @@ class ProductionQualificationGate:
                 check=QualificationCheck.FINGERPRINT_INTEGRITY.value,
                 passed=fp_passed,
                 severity="CRITICAL",
-                details="Production fingerprint present"
-                if fp_passed
-                else "Production fingerprint missing",
+                details="Production fingerprint present" if fp_passed else "Production fingerprint missing",
             )
         )
 
@@ -305,9 +276,7 @@ class ProductionQualificationGate:
         )
 
         # 10. No critical failures
-        critical_checks = [
-            c for c in checks if not c.passed and c.severity == "CRITICAL"
-        ]
+        critical_checks = [c for c in checks if not c.passed and c.severity == "CRITICAL"]
         no_critical_passed = len(critical_checks) == 0
         checks.append(
             QualificationCheckResult(
@@ -356,5 +325,5 @@ class ProductionQualificationGate:
     def get_results(self) -> List[QualificationResult]:
         return list(self._results)
 
-    def get_latest_result(self) -> Optional[QualificationResult]:
+    def get_latest_result(self) -> QualificationResult | None:
         return self._results[-1] if self._results else None

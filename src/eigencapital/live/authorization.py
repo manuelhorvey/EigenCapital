@@ -25,7 +25,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class AuthorizationStatus(str, Enum):
@@ -157,9 +157,7 @@ class AuthorizationGate:
 
         # Check status
         if auth.status != AuthorizationStatus.ACTIVE.value:
-            self._log_rejection(
-                authorization_id, f"Authorization status: {auth.status}"
-            )
+            self._log_rejection(authorization_id, f"Authorization status: {auth.status}")
             return (False, f"Authorization status: {auth.status}")
 
         # Check expiry
@@ -172,10 +170,7 @@ class AuthorizationGate:
             self._log_rejection(authorization_id, "Strategy fingerprint mismatch")
             return (False, "Strategy fingerprint mismatch")
 
-        if (
-            portfolio_fingerprint
-            and portfolio_fingerprint != auth.portfolio_fingerprint
-        ):
+        if portfolio_fingerprint and portfolio_fingerprint != auth.portfolio_fingerprint:
             self._log_rejection(authorization_id, "Portfolio fingerprint mismatch")
             return (False, "Portfolio fingerprint mismatch")
 
@@ -196,20 +191,14 @@ class AuthorizationGate:
     def is_live_enabled(self) -> bool:
         """Check if any active authorization exists for live mode."""
         for auth in self._authorizations.values():
-            if (
-                auth.status == AuthorizationStatus.ACTIVE.value
-                and auth.execution_mode == ExecutionMode.LIVE.value
-            ):
+            if auth.status == AuthorizationStatus.ACTIVE.value and auth.execution_mode == ExecutionMode.LIVE.value:
                 return True
         return False
 
-    def get_active_authorization(self, campaign_id: str) -> Optional[LiveAuthorization]:
+    def get_active_authorization(self, campaign_id: str) -> LiveAuthorization | None:
         """Get active authorization for a campaign."""
         for auth in self._authorizations.values():
-            if (
-                auth.campaign_id == campaign_id
-                and auth.status == AuthorizationStatus.ACTIVE.value
-            ):
+            if auth.campaign_id == campaign_id and auth.status == AuthorizationStatus.ACTIVE.value:
                 return auth
         return None
 

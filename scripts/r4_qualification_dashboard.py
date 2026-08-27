@@ -23,7 +23,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add src to path
@@ -98,7 +98,7 @@ def load_qualification_data() -> dict:
 
 def generate_dashboard(data: dict) -> str:
     """Generate the R4 Economic Truth Dashboard."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     lines = [
         "                    R4 QUALIFICATION DASHBOARD",
@@ -201,13 +201,13 @@ def main():
     data = load_qualification_data()
 
     if args.json:
-        data["generated_at"] = datetime.now(timezone.utc).isoformat()
+        data["generated_at"] = datetime.now(UTC).isoformat()
         print(json.dumps(data, indent=2, default=str))
     elif args.markdown:
         print("# R4 Economic Truth Dashboard\n")
         print(f"**Campaign:** {data.get('campaign_id', 'unknown')}")
         print(f"**Status:** {data.get('status', 'unknown')}")
-        print(f"**Generated:** {datetime.now(timezone.utc).isoformat()}\n")
+        print(f"**Generated:** {datetime.now(UTC).isoformat()}\n")
         print("---\n")
         print("*Dashboard data will be populated as live evidence accumulates.*")
     else:

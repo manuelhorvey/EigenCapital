@@ -26,7 +26,7 @@ Constraints:
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.strategies.base import BaseStrategy, StrategySignal
@@ -54,7 +54,7 @@ class CrossAssetTrendStrategy(BaseStrategy):
     The purpose is to test the complete research pipeline.
     """
 
-    def __init__(self, config: Optional[TrendConfig] = None) -> None:
+    def __init__(self, config: TrendConfig | None = None) -> None:
         self.config = config or TrendConfig()
         self._strategy_id = "cross_asset_trend_v1"
         self._strategy_version = "v1.0.0"
@@ -73,7 +73,7 @@ class CrossAssetTrendStrategy(BaseStrategy):
         bars: List[Bar],
         position_quantity: float,
         cash: float,
-    ) -> Optional[StrategySignal]:
+    ) -> StrategySignal | None:
         """Process a new bar and generate a signal.
 
         Args:
@@ -106,9 +106,7 @@ class CrossAssetTrendStrategy(BaseStrategy):
             return None
 
         # Determine direction based on signal and thresholds
-        current_direction = (
-            1 if position_quantity > 0 else (-1 if position_quantity < 0 else 0)
-        )
+        current_direction = 1 if position_quantity > 0 else (-1 if position_quantity < 0 else 0)
 
         if current_direction == 0:
             # No position — check for entry
@@ -122,9 +120,7 @@ class CrossAssetTrendStrategy(BaseStrategy):
             # Have position — check for exit
             if current_direction == 1 and signal_zscore < self.config.exit_threshold:
                 direction = 0  # Exit LONG
-            elif (
-                current_direction == -1 and signal_zscore > -self.config.exit_threshold
-            ):
+            elif current_direction == -1 and signal_zscore > -self.config.exit_threshold:
                 direction = 0  # Exit SHORT
             else:
                 # Hold — no signal

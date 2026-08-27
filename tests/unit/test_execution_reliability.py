@@ -11,14 +11,9 @@ Proves that under failure conditions, the system:
 import os
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from eigencapital.execution.trading_provider import (
-    TradingProvider, AccountInfo, PositionInfo, SymbolInfo,
-    TickInfo, OrderRequest, OrderResult,
-)
 from eigencapital.live.risk_enforcement import (
     RiskEnvelope, RiskEnforcer, GateResult, BlockReason,
 )
@@ -26,7 +21,6 @@ from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.risk.policy import RiskPolicy
-from typing import Optional, List
 
 
 # ---------------------------------------------------------------------------

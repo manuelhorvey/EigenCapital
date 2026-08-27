@@ -113,25 +113,15 @@ class HostileCostModel:
 
     @classmethod
     def base(cls) -> float:
-        return (
-            cls.BASE_SPREAD_BPS + cls.BASE_SLIPPAGE_BPS + cls.BASE_COMMISSION_BPS
-        ) / 10000
+        return (cls.BASE_SPREAD_BPS + cls.BASE_SLIPPAGE_BPS + cls.BASE_COMMISSION_BPS) / 10000
 
     @classmethod
     def adverse(cls) -> float:
-        return (
-            cls.ADVERSE_SPREAD_BPS
-            + cls.ADVERSE_SLIPPAGE_BPS
-            + cls.ADVERSE_COMMISSION_BPS
-        ) / 10000
+        return (cls.ADVERSE_SPREAD_BPS + cls.ADVERSE_SLIPPAGE_BPS + cls.ADVERSE_COMMISSION_BPS) / 10000
 
     @classmethod
     def hostile(cls) -> float:
-        return (
-            cls.HOSTILE_SPREAD_BPS
-            + cls.HOSTILE_SLIPPAGE_BPS
-            + cls.HOSTILE_COMMISSION_BPS
-        ) / 10000
+        return (cls.HOSTILE_SPREAD_BPS + cls.HOSTILE_SLIPPAGE_BPS + cls.HOSTILE_COMMISSION_BPS) / 10000
 
 
 # ── Signal generators ──────────────────────────────────────────────────
@@ -227,20 +217,12 @@ def sig_volume_acceleration(df: pd.DataFrame, **kw) -> pd.Series:
 
 def sig_volume_direction_agree(df: pd.DataFrame, **kw) -> pd.Series:
     d = np.sign(df["close"].diff(1))
-    return (
-        d
-        * df["tick_volume"].astype(float)
-        / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
-    )
+    return d * df["tick_volume"].astype(float) / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
 
 
 def sig_volume_direction_disagree(df: pd.DataFrame, **kw) -> pd.Series:
     d = np.sign(df["close"].diff(1))
-    return (
-        -d
-        * df["tick_volume"].astype(float)
-        / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
-    )
+    return -d * df["tick_volume"].astype(float) / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
 
 
 def sig_high_vol_reversal(df: pd.DataFrame, **kw) -> pd.Series:
@@ -717,18 +699,10 @@ def classify(result: HypothesisResult) -> Tuple[Verdict, List[str]]:
         if len(vals) > 0 and pos_count / len(vals) < 0.3:
             reasons.append("instrument_dependent")
 
-    if (
-        len(reasons) == 0
-        and result.net_sharpe_base > 0.3
-        and result.wf_consistency >= 0.75
-    ):
+    if len(reasons) == 0 and result.net_sharpe_base > 0.3 and result.wf_consistency >= 0.75:
         return Verdict.SUPPORTED, reasons
 
-    if (
-        result.net_sharpe_base > 0
-        and result.net_sharpe_hostile > 0
-        and result.wf_consistency >= 0.50
-    ):
+    if result.net_sharpe_base > 0 and result.net_sharpe_hostile > 0 and result.wf_consistency >= 0.50:
         if result.max_drawdown > -0.20:
             return Verdict.FRAGILE, reasons
         return Verdict.COST_SENSITIVE, reasons
@@ -856,9 +830,7 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
                 max_drawdown=avg_dd,
                 turnover=total_trades / len(all_data),
                 num_trades=total_trades,
-                degradation=1 - (avg_net_b / avg_gross)
-                if abs(avg_gross) > 0.001
-                else 1,
+                degradation=1 - (avg_net_b / avg_gross) if abs(avg_gross) > 0.001 else 1,
                 wf_consistency=wf["wf_consistency"],
                 wf_oos_sharpe=wf["wf_oos_sharpe"],
             )
@@ -893,9 +865,7 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
     return results
 
 
-def produce_map(
-    results: List[HypothesisResult], path: str = "reports/campaign3_full_map.md"
-) -> str:
+def produce_map(results: List[HypothesisResult], path: str = "reports/campaign3_full_map.md") -> str:
     """Produce the full Intraday Alpha Research Map."""
     lines = [
         "# EigenCapital Intraday Alpha Research Map — Campaign 3 (Full)",
@@ -925,14 +895,8 @@ def produce_map(
         ids = ", ".join(h.hypothesis_id for h in hyps)
         lines.append(f"| **{v.upper()}** | {len(hyps)} | {ids} |")
 
-    survivors = [
-        r
-        for r in results
-        if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)
-    ]
-    lines.append(
-        f"\n**Survival: {len(survivors)}/{len(results)} ({len(survivors) / len(results) * 100:.1f}%)**"
-    )
+    survivors = [r for r in results if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)]
+    lines.append(f"\n**Survival: {len(survivors)}/{len(results)} ({len(survivors) / len(results) * 100:.1f}%)**")
 
     # Family breakdown
     lines.extend(["", "---", "", "## Family Breakdown", ""])
@@ -955,11 +919,7 @@ def produce_map(
                 Verdict.INSTRUMENT_DEPENDENT,
             )
         )
-        sup = sum(
-            1
-            for h in hyps
-            if h.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)
-        )
+        sup = sum(1 for h in hyps if h.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE))
         lines.append(f"| {fam} | {len(hyps)} | {rej} | {frac} | {sup} |")
 
     # Detailed results
@@ -969,8 +929,7 @@ def produce_map(
             "🟢"
             if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)
             else "🟡"
-            if r.verdict
-            in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)
+            if r.verdict in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)
             else "🔴"
         )
         lines.extend(
@@ -1001,15 +960,11 @@ def produce_map(
         lines.append("Combined M5+M1 intraday research (Campaigns 1-3):")
         lines.append("- Campaign 1 (M5 price): 24/24 rejected")
         lines.append("- Campaign 2 (M5 microstructure): 20/20 rejected")
-        lines.append(
-            f"- Campaign 3 (M1 full): {len(results)}/{len(results)} rejected/fragile"
-        )
+        lines.append(f"- Campaign 3 (M1 full): {len(results)}/{len(results)} rejected/fragile")
         total = 44 + len(results)
         lines.append(f"- **Total: {total} hypotheses tested, 0 survivors**")
     else:
-        lines.append(
-            f"**{len(survivors)} candidate(s) survived** — requires deeper investigation."
-        )
+        lines.append(f"**{len(survivors)} candidate(s) survived** — requires deeper investigation.")
 
     lines.extend(
         [

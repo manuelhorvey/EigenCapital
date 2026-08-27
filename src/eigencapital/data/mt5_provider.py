@@ -14,7 +14,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
@@ -146,7 +146,7 @@ class MT5DataProvider:
     Falls back to yfinance if MT5 is unavailable.
     """
 
-    def __init__(self, universe: Optional[List[str]] = None) -> None:
+    def __init__(self, universe: List[str] | None = None) -> None:
         self._universe = universe or DEFAULT_UNIVERSE
         self._data_cache: Dict[str, pd.DataFrame] = {}
         self._mt5_connected = False
@@ -169,7 +169,7 @@ class MT5DataProvider:
 
     def fetch_data(
         self,
-        symbols: Optional[List[str]] = None,
+        symbols: List[str] | None = None,
         start_date: str = "2015-01-01",
         end_date: str = "2026-08-24",
         source: str = "mt5",
@@ -213,9 +213,7 @@ class MT5DataProvider:
             "bars": total_bars,
             "symbols": sorted(data.keys()),
         }
-        snapshot_hash = hashlib.sha256(
-            json.dumps(snapshot_data, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        snapshot_hash = hashlib.sha256(json.dumps(snapshot_data, sort_keys=True).encode()).hexdigest()[:16]
 
         manifest = DataManifest(
             data_source=source,
@@ -286,9 +284,7 @@ class MT5DataProvider:
                     df = pd.DataFrame(rates)
                     df["time"] = pd.to_datetime(df["time"], unit="s")
                     df = df.set_index("time")
-                    data[sym] = df[
-                        ["open", "high", "low", "close", "tick_volume"]
-                    ].copy()
+                    data[sym] = df[["open", "high", "low", "close", "tick_volume"]].copy()
                     data[sym].columns = ["open", "high", "low", "close", "volume"]
 
             mt5.shutdown()
@@ -297,9 +293,7 @@ class MT5DataProvider:
             logger.warning(f"MT5 fetch failed: {e}")
             return {}
 
-    def load_from_csv(
-        self, data_dir: str = "data/mt5"
-    ) -> Tuple[Dict[str, pd.DataFrame], DataManifest]:
+    def load_from_csv(self, data_dir: str = "data/mt5") -> Tuple[Dict[str, pd.DataFrame], DataManifest]:
         """Load data from saved MT5 CSV files."""
         import os
 
@@ -339,9 +333,7 @@ class MT5DataProvider:
             start_date=str(min(dates).date()) if dates else "",
             end_date=str(max(dates).date()) if dates else "",
             bar_count=total_bars,
-            snapshot_hash=hashlib.sha256(
-                f"{universe_hash}:{total_bars}".encode()
-            ).hexdigest()[:16],
+            snapshot_hash=hashlib.sha256(f"{universe_hash}:{total_bars}".encode()).hexdigest()[:16],
         )
 
         return data, manifest

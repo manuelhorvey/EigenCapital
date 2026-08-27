@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -131,7 +131,7 @@ def bootstrap_test(
     returns: List[float],
     n_bootstrap: int = 1000,
     confidence_level: float = 0.95,
-    sample_size: Optional[int] = None,
+    sample_size: int | None = None,
     seed: int = 42,
 ) -> BootstrapResult:
     """Perform bootstrap analysis on returns.

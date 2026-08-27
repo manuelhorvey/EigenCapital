@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, Any, List, Mapping, Sequence, Set, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Set, Tuple
 
 
 def _ranks(values: Sequence[float]) -> List[float]:
@@ -248,12 +248,8 @@ def quantile_analysis(
     sizes = tuple(counts)
     spread = means[-1] - means[0]
 
-    non_increasing = all(
-        means[i] >= means[i + 1] - 1e-12 for i in range(n_quantiles - 1)
-    )
-    non_decreasing = all(
-        means[i] <= means[i + 1] + 1e-12 for i in range(n_quantiles - 1)
-    )
+    non_increasing = all(means[i] >= means[i + 1] - 1e-12 for i in range(n_quantiles - 1))
+    non_decreasing = all(means[i] <= means[i + 1] + 1e-12 for i in range(n_quantiles - 1))
 
     if spread > 0:
         direction = "positive"
@@ -294,9 +290,7 @@ def quantile_spread_series(
     for panel in panels:
         if len(panel) < min_names:
             continue
-        result = quantile_analysis(
-            [p[0] for p in panel], [p[1] for p in panel], n_quantiles
-        )
+        result = quantile_analysis([p[0] for p in panel], [p[1] for p in panel], n_quantiles)
         spreads.append(result.top_minus_bottom)
     return spreads
 
@@ -327,12 +321,8 @@ class TurnoverResult:
             "mean_top_set_turnover": round(self.mean_top_set_turnover, 6),
             "mean_rank_autocorrelation": round(self.mean_rank_autocorrelation, 6),
             "n_rebalances": self.n_rebalances,
-            "top_set_turnover_series": [
-                round(v, 6) for v in self.top_set_turnover_series
-            ],
-            "rank_autocorrelation_series": [
-                round(v, 6) for v in self.rank_autocorrelation_series
-            ],
+            "top_set_turnover_series": [round(v, 6) for v in self.top_set_turnover_series],
+            "rank_autocorrelation_series": [round(v, 6) for v in self.rank_autocorrelation_series],
         }
 
 

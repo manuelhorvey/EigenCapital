@@ -10,18 +10,15 @@ Covers:
 6. Report generation (MD + JSON)
 """
 
-import pytest
 
 from eigencapital.production_qual.prefunding_audit import (
     AuditCategory,
     AuditCheck,
-    AuditReport,
     AuditVerdict,
     PrefundingGateAuditor,
 )
 from eigencapital.production_qual.prefunding_gate import (
     GateDecision,
-    GateRecord,
     PrefundingGate,
 )
 from eigencapital.production_qual.broker_boundary import (
@@ -31,7 +28,6 @@ from eigencapital.production_qual.broker_boundary import (
 from eigencapital.production_qual.capital_boundary import (
     CapitalBoundaryConfig,
     CapitalBoundaryValidator,
-    CapitalVerdict,
 )
 
 

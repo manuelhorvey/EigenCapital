@@ -33,7 +33,7 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -161,9 +161,7 @@ def permutation_test(
         return 1.0
     count_ge = 0
     for _ in range(n_permutations):
-        shuffled = pd.Series(
-            real_sig.sample(frac=1.0, replace=False).values, index=df.index
-        )
+        shuffled = pd.Series(real_sig.sample(frac=1.0, replace=False).values, index=df.index)
         perm_sharpe, _, _, _ = bt(df, shuffled, hp, CostModel.BASE)
         if perm_sharpe >= real_sharpe:
             count_ge += 1
@@ -254,13 +252,7 @@ class ConfirmResult:
 
     def to_dict(self) -> Dict[str, Any]:
         d = self.__dict__.copy()
-        d.update(
-            {
-                k: {kk: round(vv, 4) for kk, vv in v.items()}
-                for k, v in d.items()
-                if isinstance(v, dict)
-            }
-        )
+        d.update({k: {kk: round(vv, 4) for kk, vv in v.items()} for k, v in d.items() if isinstance(v, dict)})
         for k in [
             "gross_sharpe",
             "net_base",
@@ -328,9 +320,7 @@ def evaluate_variant(
 
     # Regime decomposition on anchor
     try:
-        yr_sh, sess_sh, yr_dd = regime_analysis(
-            anchor, _threshold(func(anchor).fillna(0)), hp
-        )
+        yr_sh, sess_sh, yr_dd = regime_analysis(anchor, _threshold(func(anchor).fillna(0)), hp)
     except Exception:
         yr_sh, sess_sh, yr_dd = {}, {}, {}
 
@@ -339,10 +329,7 @@ def evaluate_variant(
     try:
         total_pos = sum(max(0.0, float(v.sum())) for v in daily_by_sym.values())
         if total_pos > 0:
-            pnl_share = {
-                s: round(max(0.0, float(r.sum())) / total_pos, 4)
-                for s, r in daily_by_sym.items()
-            }
+            pnl_share = {s: round(max(0.0, float(r.sum())) / total_pos, 4) for s, r in daily_by_sym.items()}
     except Exception:
         pass
 
@@ -425,10 +412,7 @@ def run(data_dir: str = DATA_DIR) -> Tuple[List[ConfirmResult], List[ConfirmResu
         p = os.path.join(data_dir, f"{s}_H1.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(
-                f"  Loaded {s}: {len(data[s])} bars "
-                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
-            )
+            print(f"  Loaded {s}: {len(data[s])} bars ({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
     if not data:
         print("ERROR: No H1 data found")
         return [], []
@@ -437,10 +421,7 @@ def run(data_dir: str = DATA_DIR) -> Tuple[List[ConfirmResult], List[ConfirmResu
     grid_size = len(BOUNDARY_GRID) * len(LOOKBACK_GRID)
     family_size = len(HORIZONS) * grid_size
 
-    print(
-        f"\nFamily size for Bonferroni: {family_size} "
-        f"(4 horizons x {grid_size} variants)"
-    )
+    print(f"\nFamily size for Bonferroni: {family_size} (4 horizons x {grid_size} variants)")
 
     results: List[ConfirmResult] = []
     print("\n=== PRIMARY: ST-001 @1H (b=07, k=2) ===")
@@ -492,16 +473,11 @@ def run(data_dir: str = DATA_DIR) -> Tuple[List[ConfirmResult], List[ConfirmResu
 def confirm_verdict(results: List[ConfirmResult]) -> Tuple[str, List[str]]:
     """Fail-closed confirmation decision."""
     notes: List[str] = []
-    confirmed = [
-        r
-        for r in results
-        if r.verdict == "supported" and r.permutation_p_bonferroni <= 0.05
-    ]
+    confirmed = [r for r in results if r.verdict == "supported" and r.permutation_p_bonferroni <= 0.05]
     if confirmed:
         best = max(confirmed, key=lambda r: r.net_base)
         notes.append(
-            f"CONFIRMED at HP={best.hp}h (net={best.net_base:+.3f}, "
-            f"p_adj={best.permutation_p_bonferroni:.3f})"
+            f"CONFIRMED at HP={best.hp}h (net={best.net_base:+.3f}, p_adj={best.permutation_p_bonferroni:.3f})"
         )
         return "CONFIRMED", notes
 
@@ -524,7 +500,7 @@ def confirm_verdict(results: List[ConfirmResult]) -> Tuple[str, List[str]]:
 def write_reports(
     results: List[ConfirmResult],
     sensitivity: List[ConfirmResult],
-    correlations: Optional[Dict[Tuple[str, str], float]] = None,
+    correlations: Dict[Tuple[str, str], float] | None = None,
 ) -> None:
     now = time.strftime("%Y-%m-%d %H:%M UTC")
     os.makedirs("reports", exist_ok=True)
@@ -538,8 +514,7 @@ def write_reports(
         "**Data:** ~50,000 bars/symbol (~8 years, 2018 → 2026)",
         f"**Generated:** {now}",
         f"**Costs:** base {CostModel.BASE * 10000:.0f}bps / adverse {CostModel.ADVERSE * 10000:.0f}bps",
-        f"**Multiple testing:** Bonferroni over {len(results)} primary + "
-        f"{len(sensitivity)} sensitivity evaluations",
+        f"**Multiple testing:** Bonferroni over {len(results)} primary + {len(sensitivity)} sensitivity evaluations",
         "",
         "---",
         "",
@@ -582,15 +557,11 @@ def write_reports(
             ],
             "",
             "**Session attribution:**",
-            *[
-                f"- {s}: {sh:+.2f}"
-                for s, sh in sorted(best_primary.session_sharpes.items())
-            ],
+            *[f"- {s}: {sh:+.2f}" for s, sh in sorted(best_primary.session_sharpes.items())],
             "",
             "**Per-instrument (net Sharpe | PnL share):**",
             *[
-                f"- {s}: {best_primary.sym_sharpes.get(s, 0):+.3f} | "
-                f"{best_primary.sym_pnl_share.get(s, 0):.1%}"
+                f"- {s}: {best_primary.sym_sharpes.get(s, 0):+.3f} | {best_primary.sym_pnl_share.get(s, 0):.1%}"
                 for s in sorted(best_primary.sym_sharpes)
             ],
             "",
@@ -607,8 +578,7 @@ def write_reports(
                 "",
                 f"- Average pairwise correlation of daily strategy returns: {avg:+.3f}",
                 f"- Maximum pairwise correlation: {mx:+.3f}",
-                "- Interpretation: high correlation ⇒ concentrated risk factor, "
-                "not independent edges.",
+                "- Interpretation: high correlation ⇒ concentrated risk factor, not independent edges.",
                 "",
             ]
         )
@@ -629,9 +599,7 @@ def write_reports(
             f"{r.net_base:+.3f} | {r.wf_consistency:.0%} | "
             f"{r.permutation_p_bonferroni:.3f} | {r.verdict} |"
         )
-    robust_count = sum(
-        1 for r in sensitivity if r.net_base > 0 and r.permutation_p_bonferroni <= 0.10
-    )
+    robust_count = sum(1 for r in sensitivity if r.net_base > 0 and r.permutation_p_bonferroni <= 0.10)
     lines.extend(
         [
             "",
@@ -670,11 +638,7 @@ def write_reports(
         "bonferroni_family_size": len(results) + len(sensitivity),
         "primary": [r.to_dict() for r in results],
         "sensitivity": [r.to_dict() for r in sensitivity],
-        "cross_instrument_correlation": (
-            {f"{a}|{b}": c for (a, b), c in correlations.items()}
-            if correlations
-            else {}
-        ),
+        "cross_instrument_correlation": ({f"{a}|{b}": c for (a, b), c in correlations.items()} if correlations else {}),
     }
     with open(REPORT_JSON, "w") as f:
         json.dump(payload, f, indent=2, default=str)

@@ -19,8 +19,9 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import UTC
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eigencapital.config import EigenCapitalConfig, LiveRiskConfig
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
@@ -84,10 +85,10 @@ class FingerprintVerifier:
 
     def __init__(
         self,
-        config: Optional[EigenCapitalConfig] = None,
-        manifest: Optional[R4ConfigManifest] = None,
-        risk_policy: Optional[RiskPolicy] = None,
-        live_risk: Optional[LiveRiskConfig] = None,
+        config: EigenCapitalConfig | None = None,
+        manifest: R4ConfigManifest | None = None,
+        risk_policy: RiskPolicy | None = None,
+        live_risk: LiveRiskConfig | None = None,
     ) -> None:
         self._config = config
         self._manifest = manifest or R4ConfigManifest()
@@ -118,9 +119,9 @@ class FingerprintVerifier:
 
     def verify_all(self) -> FingerprintVerificationResult:
         """Run all fingerprint verifications. Fail closed on any error."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         checks: List[FingerprintCheck] = []
 
         # 1. R4 Manifest fingerprint
@@ -130,14 +131,10 @@ class FingerprintVerifier:
             checks.append(
                 FingerprintCheck(
                     component="r4_manifest",
-                    status=VerificationStatus.VERIFIED.value
-                    if match
-                    else VerificationStatus.MISMATCH.value,
+                    status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
                     expected=self._frozen_manifest_fp,
                     observed=current_fp,
-                    message="R4 manifest fingerprint matches"
-                    if match
-                    else "R4 manifest fingerprint MISMATCH",
+                    message="R4 manifest fingerprint matches" if match else "R4 manifest fingerprint MISMATCH",
                 )
             )
         except Exception as e:
@@ -158,14 +155,10 @@ class FingerprintVerifier:
             checks.append(
                 FingerprintCheck(
                     component="risk_policy",
-                    status=VerificationStatus.VERIFIED.value
-                    if match
-                    else VerificationStatus.MISMATCH.value,
+                    status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
                     expected=self._frozen_risk_fp,
                     observed=current_risk_fp,
-                    message="RiskPolicy fingerprint matches"
-                    if match
-                    else "RiskPolicy fingerprint MISMATCH",
+                    message="RiskPolicy fingerprint matches" if match else "RiskPolicy fingerprint MISMATCH",
                 )
             )
         except Exception as e:
@@ -186,14 +179,10 @@ class FingerprintVerifier:
             checks.append(
                 FingerprintCheck(
                     component="live_risk",
-                    status=VerificationStatus.VERIFIED.value
-                    if match
-                    else VerificationStatus.MISMATCH.value,
+                    status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
                     expected=self._frozen_live_risk_fp,
                     observed=current_lr_fp,
-                    message="LiveRiskConfig fingerprint matches"
-                    if match
-                    else "LiveRiskConfig fingerprint MISMATCH",
+                    message="LiveRiskConfig fingerprint matches" if match else "LiveRiskConfig fingerprint MISMATCH",
                 )
             )
         except Exception as e:
@@ -212,14 +201,10 @@ class FingerprintVerifier:
         checks.append(
             FingerprintCheck(
                 component="strategy_version",
-                status=VerificationStatus.VERIFIED.value
-                if version_ok
-                else VerificationStatus.MISMATCH.value,
+                status=VerificationStatus.VERIFIED.value if version_ok else VerificationStatus.MISMATCH.value,
                 expected="R4.0",
                 observed=self._manifest.strategy_version,
-                message="Strategy version frozen at R4.0"
-                if version_ok
-                else "Strategy version MISMATCH",
+                message="Strategy version frozen at R4.0" if version_ok else "Strategy version MISMATCH",
             )
         )
 
@@ -231,9 +216,7 @@ class FingerprintVerifier:
                 checks.append(
                     FingerprintCheck(
                         component="config",
-                        status=VerificationStatus.VERIFIED.value
-                        if match
-                        else VerificationStatus.MISMATCH.value,
+                        status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
                         expected=self._frozen_config_fp,
                         observed=current_cfg_fp,
                         message="Config fingerprint matches"
@@ -252,9 +235,7 @@ class FingerprintVerifier:
                     )
                 )
 
-        all_verified = all(
-            c.status == VerificationStatus.VERIFIED.value for c in checks
-        )
+        all_verified = all(c.status == VerificationStatus.VERIFIED.value for c in checks)
         result = FingerprintVerificationResult(
             all_verified=all_verified,
             checks=tuple(checks),

@@ -30,8 +30,8 @@ from typing import Any, Dict, List
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.pre_trading import (
-    PreTradingAuthorization,
     BrokerStateSnapshot,
+    PreTradingAuthorization,
 )
 from eigencapital.production_qual.prefunding_gate import GateRecord
 from eigencapital.risk.policy import RiskPolicy
@@ -302,13 +302,9 @@ def capture_start_snapshot(
     capital_fingerprint = capital_config.compute_fingerprint()
 
     # Compute exposure from positions
-    total_exposure = sum(
-        abs(p.get("volume", 0) * p.get("price_open", 0)) for p in broker_state.positions
-    )
+    total_exposure = sum(abs(p.get("volume", 0) * p.get("price_open", 0)) for p in broker_state.positions)
     net_exposure = sum(
-        p.get("volume", 0)
-        * p.get("price_open", 0)
-        * (1 if p.get("side", "").upper() == "BUY" else -1)
+        p.get("volume", 0) * p.get("price_open", 0) * (1 if p.get("side", "").upper() == "BUY" else -1)
         for p in broker_state.positions
     )
 

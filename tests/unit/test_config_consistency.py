@@ -8,8 +8,6 @@ These tests ensure that:
 """
 from __future__ import annotations
 
-import hashlib
-import json
 import os
 import sys
 
@@ -19,10 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.config import (
     load_config,
-    EigenCapitalConfig,
     LiveRiskConfig,
-    CapitalConfig,
-    reset_config,
 )
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 

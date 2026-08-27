@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class DivergenceCategory(str, Enum):
@@ -108,7 +108,7 @@ class ParityChecker:
         expected: Any,
         observed: Any,
         tolerance: float = 1e-6,
-    ) -> Optional[DivergenceRecord]:
+    ) -> DivergenceRecord | None:
         """Check signal parity."""
         if expected != observed:
             return self._record_divergence(
@@ -129,15 +129,11 @@ class ParityChecker:
         expected_qty: float,
         observed_qty: float,
         tolerance: float = 1e-6,
-    ) -> Optional[DivergenceRecord]:
+    ) -> DivergenceRecord | None:
         """Check position parity."""
         diff = abs(expected_qty - observed_qty)
         if diff > tolerance:
-            severity = (
-                DivergenceSeverity.CRITICAL
-                if diff > 1.0
-                else DivergenceSeverity.WARNING
-            )
+            severity = DivergenceSeverity.CRITICAL if diff > 1.0 else DivergenceSeverity.WARNING
             return self._record_divergence(
                 timestamp,
                 instrument_id,
@@ -158,7 +154,7 @@ class ParityChecker:
         expected_qty: float,
         observed_side: str,
         observed_qty: float,
-    ) -> Optional[DivergenceRecord]:
+    ) -> DivergenceRecord | None:
         """Check order parity."""
         if expected_side != observed_side or abs(expected_qty - observed_qty) > 1e-6:
             return self._record_divergence(
@@ -179,7 +175,7 @@ class ParityChecker:
         expected_price: float,
         actual_price: float,
         max_slippage: float = 0.01,
-    ) -> Optional[DivergenceRecord]:
+    ) -> DivergenceRecord | None:
         """Check fill price parity and compute slippage."""
         slippage = abs(actual_price - expected_price)
         if slippage > max_slippage:
@@ -217,8 +213,8 @@ class ParityChecker:
 
     def get_divergences(
         self,
-        severity: Optional[DivergenceSeverity] = None,
-        category: Optional[DivergenceCategory] = None,
+        severity: DivergenceSeverity | None = None,
+        category: DivergenceCategory | None = None,
     ) -> List[DivergenceRecord]:
         """Get divergences, optionally filtered."""
         results = self._divergences

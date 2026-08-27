@@ -17,7 +17,7 @@ D. Portfolio construction — HOW to combine signals?
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -54,35 +54,22 @@ class DrawdownDecomposer:
 
         # 2. Asset contribution during drawdown
         drawdown_period = (
-            portfolio_returns.loc[peak_before:trough_idx]
-            if peak_before != trough_idx
-            else pd.Series(dtype=float)
+            portfolio_returns.loc[peak_before:trough_idx] if peak_before != trough_idx else pd.Series(dtype=float)
         )
         asset_contributions = {}
         for col in weights.columns:
             if col in all_returns.columns:
                 aligned_idx = drawdown_period.index.intersection(all_returns[col].index)
                 if len(aligned_idx) > 0:
-                    contrib = (
-                        weights[col].reindex(aligned_idx).shift(1)
-                        * all_returns[col].reindex(aligned_idx)
-                    ).sum()
+                    contrib = (weights[col].reindex(aligned_idx).shift(1) * all_returns[col].reindex(aligned_idx)).sum()
                     asset_contributions[col] = float(contrib)
 
         # 3. Regime analysis — what was volatility doing?
         spy = all_returns.get("US500m", pd.Series(dtype=float))
         if len(spy) > 0:
             vol_20d = spy.rolling(20).std() * np.sqrt(252)
-            vol_at_peak = (
-                vol_20d.reindex([peak_before]).values[0]
-                if peak_before in vol_20d.index
-                else 0
-            )
-            vol_at_trough = (
-                vol_20d.reindex([trough_idx]).values[0]
-                if trough_idx in vol_20d.index
-                else 0
-            )
+            vol_at_peak = vol_20d.reindex([peak_before]).values[0] if peak_before in vol_20d.index else 0
+            vol_at_trough = vol_20d.reindex([trough_idx]).values[0] if trough_idx in vol_20d.index else 0
         else:
             vol_at_peak = vol_at_trough = 0
 
@@ -94,28 +81,20 @@ class DrawdownDecomposer:
                 aligned = drawdown_period.index.intersection(all_returns[col].index)
                 if len(aligned) > 0:
                     lc = (
-                        weights[col].reindex(aligned).clip(lower=0).shift(1)
-                        * all_returns[col].reindex(aligned)
+                        weights[col].reindex(aligned).clip(lower=0).shift(1) * all_returns[col].reindex(aligned)
                     ).sum()
                     sc = (
-                        weights[col].reindex(aligned).clip(upper=0).shift(1)
-                        * all_returns[col].reindex(aligned)
+                        weights[col].reindex(aligned).clip(upper=0).shift(1) * all_returns[col].reindex(aligned)
                     ).sum()
                     long_contrib += lc
                     short_contrib += sc
 
         return {
             "max_drawdown": float(dd.min()),
-            "peak_date": str(peak_before.date())
-            if hasattr(peak_before, "date")
-            else str(peak_before),
-            "trough_date": str(trough_idx.date())
-            if hasattr(trough_idx, "date")
-            else str(trough_idx),
+            "peak_date": str(peak_before.date()) if hasattr(peak_before, "date") else str(peak_before),
+            "trough_date": str(trough_idx.date()) if hasattr(trough_idx, "date") else str(trough_idx),
             "drawdown_duration_days": len(drawdown_period),
-            "asset_contributions": dict(
-                sorted(asset_contributions.items(), key=lambda x: x[1])
-            ),
+            "asset_contributions": dict(sorted(asset_contributions.items(), key=lambda x: x[1])),
             "long_contrib_during_dd": float(long_contrib),
             "short_contrib_during_dd": float(short_contrib),
             "vol_at_peak": float(vol_at_peak),
@@ -140,9 +119,7 @@ class RegimeConditioner:
     ) -> Dict[str, Any]:
         """Reduce exposure when volatility is high."""
         # Realized vol
-        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(
-            axis=1
-        ).replace(0, np.nan)
+        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(0, np.nan)
         vol = port_ret.rolling(vol_lookback).std() * np.sqrt(252)
         vol_median = vol.expanding().median()
 
@@ -151,9 +128,9 @@ class RegimeConditioner:
         conditioned_signal = signal.multiply(regime, axis=0)
 
         # Compute conditioned returns
-        conditioned_ret = (conditioned_signal.shift(1) * returns_df).sum(
+        conditioned_ret = (conditioned_signal.shift(1) * returns_df).sum(axis=1) / conditioned_signal.abs().sum(
             axis=1
-        ) / conditioned_signal.abs().sum(axis=1).replace(0, np.nan)
+        ).replace(0, np.nan)
         conditioned_ret = conditioned_ret.dropna()
 
         # Compare
@@ -178,11 +155,7 @@ class RegimeConditioner:
     ) -> Dict[str, Any]:
         """Reduce exposure when trend is weak."""
         # Cross-sectional trend strength: dispersion of 12m returns
-        mom = (
-            (1 + returns_df)
-            .rolling(trend_lookback)
-            .apply(lambda x: x.prod() - 1, raw=True)
-        )
+        mom = (1 + returns_df).rolling(trend_lookback).apply(lambda x: x.prod() - 1, raw=True)
         trend_strength = mom.std(axis=1)
         strength_median = trend_strength.expanding().median()
 
@@ -190,12 +163,10 @@ class RegimeConditioner:
         regime = (trend_strength > strength_median).astype(float)
         conditioned_signal = signal.multiply(regime, axis=0)
 
-        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(
+        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(0, np.nan)
+        cond_ret = (conditioned_signal.shift(1) * returns_df).sum(axis=1) / conditioned_signal.abs().sum(
             axis=1
         ).replace(0, np.nan)
-        cond_ret = (conditioned_signal.shift(1) * returns_df).sum(
-            axis=1
-        ) / conditioned_signal.abs().sum(axis=1).replace(0, np.nan)
 
         common = port_ret.dropna().index.intersection(cond_ret.dropna().index)
 
@@ -223,12 +194,10 @@ class RegimeConditioner:
         regime = (avg_vol < risk_median).astype(float)
         conditioned_signal = signal.multiply(regime, axis=0)
 
-        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(
+        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(0, np.nan)
+        cond_ret = (conditioned_signal.shift(1) * returns_df).sum(axis=1) / conditioned_signal.abs().sum(
             axis=1
         ).replace(0, np.nan)
-        cond_ret = (conditioned_signal.shift(1) * returns_df).sum(
-            axis=1
-        ) / conditioned_signal.abs().sum(axis=1).replace(0, np.nan)
 
         common = port_ret.dropna().index.intersection(cond_ret.dropna().index)
 
@@ -271,9 +240,7 @@ class RiskTransformer:
         vol_lookback: int = 60,
     ) -> Dict[str, Any]:
         """Volatility-target the portfolio."""
-        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(
-            axis=1
-        ).replace(0, np.nan)
+        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(0, np.nan)
         realized_vol = port_ret.rolling(vol_lookback).std() * np.sqrt(252)
 
         # Scale: target_vol / realized_vol
@@ -305,12 +272,8 @@ class RiskTransformer:
         signal_strength = signal.abs().sum(axis=1)
         normalized = signal.div(signal_strength.replace(0, np.nan), axis=0)
 
-        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(
-            axis=1
-        ).replace(0, np.nan)
-        sized_ret = (normalized.shift(1) * returns_df).sum(
-            axis=1
-        ) / normalized.abs().sum(axis=1).replace(0, np.nan)
+        port_ret = (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(0, np.nan)
+        sized_ret = (normalized.shift(1) * returns_df).sum(axis=1) / normalized.abs().sum(axis=1).replace(0, np.nan)
 
         common = port_ret.dropna().index.intersection(sized_ret.dropna().index)
 
@@ -355,9 +318,7 @@ class PortfolioConstructor:
         ranks = avg_signal_df.rank(axis=1, pct=True)
         weights = pd.DataFrame({"avg": (ranks - 0.5).values}, index=ranks.index)
 
-        port_ret = (weights.shift(1) * returns_df.mean(axis=1).to_frame("avg")).sum(
-            axis=1
-        )
+        port_ret = (weights.shift(1) * returns_df.mean(axis=1).to_frame("avg")).sum(axis=1)
 
         return {
             "method": "equal_weight",
@@ -377,9 +338,7 @@ class PortfolioConstructor:
         inv_vol = 1 / asset_vol.replace(0, np.nan)
         weights = inv_vol.div(inv_vol.sum(axis=1), axis=0).fillna(0)
 
-        (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(
-            0, np.nan
-        )
+        (signal.shift(1) * returns_df).sum(axis=1) / signal.abs().sum(axis=1).replace(0, np.nan)
 
         # Recompute with inv-vol weights
         port_ret_iv = (weights.shift(1) * returns_df).sum(axis=1)
@@ -422,27 +381,19 @@ class R2CampaignExecutor:
 
         # Compute the surviving signal: 3-month momentum (best performer)
         returns_df = pd.DataFrame(
-            {
-                sym: df["close"].pct_change()
-                for sym, df in data.items()
-                if "close" in df.columns
-            }
+            {sym: df["close"].pct_change() for sym, df in data.items() if "close" in df.columns}
         ).dropna(how="all")
 
         # Core signal: 3-month momentum (TREND-002's signal)
         (1 + returns_df).rolling(63).apply(lambda x: x.prod() - 1, raw=True)
         mom_12m = (1 + returns_df).rolling(252).apply(lambda x: x.prod() - 1, raw=True)
-        signal_12_1 = mom_12m - (1 + returns_df).rolling(21).apply(
-            lambda x: x.prod() - 1, raw=True
-        )
+        signal_12_1 = mom_12m - (1 + returns_df).rolling(21).apply(lambda x: x.prod() - 1, raw=True)
 
         ranks = signal_12_1.rank(axis=1, pct=True)
         weights = ranks - 0.5
         weights = weights.dropna(how="all")
 
-        port_ret = (weights.shift(1) * returns_df).sum(axis=1) / weights.abs().sum(
-            axis=1
-        ).replace(0, np.nan)
+        port_ret = (weights.shift(1) * returns_df).sum(axis=1) / weights.abs().sum(axis=1).replace(0, np.nan)
         port_ret = port_ret.dropna()
 
         # ================================================================
@@ -461,16 +412,10 @@ class R2CampaignExecutor:
         print(f"  Duration: {dd_analysis['drawdown_duration_days']} days")
         print(f"  Vol at peak: {dd_analysis['vol_at_peak']:.3f}")
         print(f"  Vol at trough: {dd_analysis['vol_at_trough']:.3f}")
-        print(
-            f"  Long contribution during DD: {dd_analysis['long_contrib_during_dd']:.4f}"
-        )
-        print(
-            f"  Short contribution during DD: {dd_analysis['short_contrib_during_dd']:.4f}"
-        )
+        print(f"  Long contribution during DD: {dd_analysis['long_contrib_during_dd']:.4f}")
+        print(f"  Short contribution during DD: {dd_analysis['short_contrib_during_dd']:.4f}")
         print("\n  Asset contributions during drawdown:")
-        for asset, contrib in sorted(
-            dd_analysis["asset_contributions"].items(), key=lambda x: x[1]
-        ):
+        for asset, contrib in sorted(dd_analysis["asset_contributions"].items(), key=lambda x: x[1]):
             print(f"    {asset:12s} {contrib:+.4f}")
 
         results["sections"]["drawdown_decomposition"] = dd_analysis
@@ -597,9 +542,7 @@ class R2CampaignExecutor:
             key=lambda x: x[1],
         )
 
-        print(
-            f"\n  Best regime conditioner: {best_regime[0]} (Sharpe {best_regime[1]:.3f})"
-        )
+        print(f"\n  Best regime conditioner: {best_regime[0]} (Sharpe {best_regime[1]:.3f})")
         print(f"  Best risk transformer: {best_risk[0]} (Sharpe {best_risk[1]:.3f})")
 
         # Key finding
@@ -616,9 +559,7 @@ class R2CampaignExecutor:
             print(f"    ✅ {imp}")
 
         if not improvements:
-            print(
-                "    ⚠️  No regime/risk transformation significantly improved the profile"
-            )
+            print("    ⚠️  No regime/risk transformation significantly improved the profile")
 
         results["summary"] = {
             "best_regime_conditioner": best_regime[0],

@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class AuditVerdict(str, Enum):
@@ -144,14 +144,8 @@ class AuditReport:
         lines.extend(["", "## Detailed Checks", ""])
 
         for check in self.checks:
-            icon = (
-                "✅"
-                if check.passed
-                else ("❌" if check.severity == "CRITICAL" else "⚠️")
-            )
-            lines.append(
-                f"- {icon} **[{check.category}] {check.check_id}**: {check.description}"
-            )
+            icon = "✅" if check.passed else ("❌" if check.severity == "CRITICAL" else "⚠️")
+            lines.append(f"- {icon} **[{check.category}] {check.check_id}**: {check.description}")
             if not check.passed:
                 lines.append(f"  - Expected: {check.expected}")
                 lines.append(f"  - Observed: {check.observed}")
@@ -161,13 +155,10 @@ class AuditReport:
         lines.extend(["", "## Verdict", ""])
 
         if self.verdict == AuditVerdict.GO:
-            lines.append(
-                "**GO** — All critical checks passed. System is safe to deploy $5K capital."
-            )
+            lines.append("**GO** — All critical checks passed. System is safe to deploy $5K capital.")
         elif self.verdict == AuditVerdict.RESTRICTED:
             lines.append(
-                "**RESTRICTED** — Some checks passed with warnings. "
-                "Deployment permitted with documented constraints."
+                "**RESTRICTED** — Some checks passed with warnings. Deployment permitted with documented constraints."
             )
         else:
             lines.append(
@@ -219,9 +210,7 @@ class PrefundingGateAuditor:
                 description="Frozen R4 manifest fingerprint is non-empty",
                 passed=has_fingerprint,
                 expected="non-empty fingerprint",
-                observed=frozen_manifest_fingerprint[:16]
-                if frozen_manifest_fingerprint
-                else "(empty)",
+                observed=frozen_manifest_fingerprint[:16] if frozen_manifest_fingerprint else "(empty)",
             )
         )
         checks.append(self._checks[-1])
@@ -235,9 +224,7 @@ class PrefundingGateAuditor:
                 description="Production configuration matches frozen identity",
                 passed=config_matches,
                 expected=frozen_manifest_fingerprint[:16],
-                observed=production_config_fingerprint[:16]
-                if production_config_fingerprint
-                else "(empty)",
+                observed=production_config_fingerprint[:16] if production_config_fingerprint else "(empty)",
                 details="Production config must hash to the same fingerprint as the frozen manifest",
             )
         )
@@ -252,9 +239,7 @@ class PrefundingGateAuditor:
                 description="Manifest computed identity matches frozen fingerprint",
                 passed=identity_matches,
                 expected=frozen_manifest_fingerprint[:16],
-                observed=manifest_computed_identity[:16]
-                if manifest_computed_identity
-                else "(empty)",
+                observed=manifest_computed_identity[:16] if manifest_computed_identity else "(empty)",
             )
         )
         checks.append(self._checks[-1])
@@ -331,9 +316,7 @@ class PrefundingGateAuditor:
                 description="RiskPolicy is sole account-level authority",
                 passed=risk_policy_is_authority,
                 expected="RiskPolicy sole authority",
-                observed="sole authority"
-                if risk_policy_is_authority
-                else "NOT sole authority",
+                observed="sole authority" if risk_policy_is_authority else "NOT sole authority",
             )
         )
         checks.append(self._checks[-1])
@@ -453,9 +436,7 @@ class PrefundingGateAuditor:
                 description="Missing state fails closed",
                 passed=missing_state_fails_closed,
                 expected="fail closed on missing state",
-                observed="fail closed"
-                if missing_state_fails_closed
-                else "FAIL OPEN (unsafe)",
+                observed="fail closed" if missing_state_fails_closed else "FAIL OPEN (unsafe)",
                 severity="CRITICAL",
             )
         )
@@ -497,9 +478,7 @@ class PrefundingGateAuditor:
                 description="Broker-authoritative reconciliation",
                 passed=broker_reconciliation_authoritative,
                 expected="broker authoritative",
-                observed="authoritative"
-                if broker_reconciliation_authoritative
-                else "NOT authoritative",
+                observed="authoritative" if broker_reconciliation_authoritative else "NOT authoritative",
             )
         )
         checks.append(self._checks[-1])
@@ -523,9 +502,7 @@ class PrefundingGateAuditor:
                 description="Disconnect → reconcile → resume sequence enforced",
                 passed=disconnect_reconcile_resume_enforced,
                 expected="sequence enforced",
-                observed="enforced"
-                if disconnect_reconcile_resume_enforced
-                else "NOT enforced",
+                observed="enforced" if disconnect_reconcile_resume_enforced else "NOT enforced",
             )
         )
         checks.append(self._checks[-1])
@@ -537,9 +514,7 @@ class PrefundingGateAuditor:
                 description="No reconnect-only trading",
                 passed=no_reconnect_only_trading,
                 expected="reconnect alone does not grant permission",
-                observed="safe"
-                if no_reconnect_only_trading
-                else "UNSAFE: reconnect grants trading",
+                observed="safe" if no_reconnect_only_trading else "UNSAFE: reconnect grants trading",
             )
         )
         checks.append(self._checks[-1])
@@ -666,9 +641,7 @@ class PrefundingGateAuditor:
                 description="Manual reset required for frozen state",
                 passed=manual_reset_required,
                 expected="manual reset required",
-                observed="manual reset"
-                if manual_reset_required
-                else "auto-reset (unsafe)",
+                observed="manual reset" if manual_reset_required else "auto-reset (unsafe)",
             )
         )
         checks.append(self._checks[-1])
@@ -719,9 +692,7 @@ class PrefundingGateAuditor:
                 description="Alert failure cannot weaken safety state",
                 passed=alert_failure_cannot_weaken_safety,
                 expected="safety state unchanged on alert failure",
-                observed="safety preserved"
-                if alert_failure_cannot_weaken_safety
-                else "SAFETY COMPROMISED",
+                observed="safety preserved" if alert_failure_cannot_weaken_safety else "SAFETY COMPROMISED",
                 severity="CRITICAL",
             )
         )
@@ -812,9 +783,7 @@ class PrefundingGateAuditor:
                 description="Correct volume/price constraints",
                 passed=correct_volume_price_constraints,
                 expected="correct constraints",
-                observed="correct"
-                if correct_volume_price_constraints
-                else "WRONG CONSTRAINTS",
+                observed="correct" if correct_volume_price_constraints else "WRONG CONSTRAINTS",
             )
         )
         checks.append(self._checks[-1])
@@ -880,9 +849,7 @@ class PrefundingGateAuditor:
                 description="Campaign duration pre-registered",
                 passed=campaign_duration_preregistered,
                 expected="duration registered",
-                observed="registered"
-                if campaign_duration_preregistered
-                else "NOT registered",
+                observed="registered" if campaign_duration_preregistered else "NOT registered",
             )
         )
         checks.append(self._checks[-1])
@@ -894,9 +861,7 @@ class PrefundingGateAuditor:
                 description="Risk envelope pre-registered for MINIMAL scale",
                 passed=risk_envelope_preregistered,
                 expected="envelope registered",
-                observed="registered"
-                if risk_envelope_preregistered
-                else "NOT registered",
+                observed="registered" if risk_envelope_preregistered else "NOT registered",
             )
         )
         checks.append(self._checks[-1])
@@ -944,7 +909,7 @@ class PrefundingGateAuditor:
 
     def compute_verdict(
         self,
-        checks: Optional[List[AuditCheck]] = None,
+        checks: List[AuditCheck] | None = None,
     ) -> AuditVerdict:
         """Compute the gate verdict from all checks.
 
@@ -955,12 +920,8 @@ class PrefundingGateAuditor:
         """
         all_checks = checks if checks is not None else self._checks
 
-        critical_failures = [
-            c for c in all_checks if not c.passed and c.severity == "CRITICAL"
-        ]
-        warning_failures = [
-            c for c in all_checks if not c.passed and c.severity == "WARNING"
-        ]
+        critical_failures = [c for c in all_checks if not c.passed and c.severity == "CRITICAL"]
+        warning_failures = [c for c in all_checks if not c.passed and c.severity == "WARNING"]
 
         if critical_failures:
             return AuditVerdict.NO_GO

@@ -13,16 +13,16 @@ This script:
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
 from eigencapital.data.mt5_provider import MT5DataProvider
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
 )
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.verdict import FidelityEvaluator
 
 logger = logging.getLogger(__name__)
@@ -42,32 +42,18 @@ class R4ResearchEngine:
     def run(self, data: Dict[str, pd.DataFrame]) -> List[Dict[str, Any]]:
         """Run research engine and produce decisions for every rebalance date."""
         returns_df = pd.DataFrame(
-            {
-                sym: df["close"].pct_change()
-                for sym, df in data.items()
-                if "close" in df.columns
-            }
+            {sym: df["close"].pct_change() for sym, df in data.items() if "close" in df.columns}
         ).dropna(how="all")
 
         # Base signal: 12-1 momentum
-        mom_12m = (
-            (1 + returns_df)
-            .rolling(self._manifest.signal_lookback_long)
-            .apply(lambda x: x.prod() - 1, raw=True)
-        )
-        mom_1m = (
-            (1 + returns_df)
-            .rolling(self._manifest.signal_lookback_short)
-            .apply(lambda x: x.prod() - 1, raw=True)
-        )
+        mom_12m = (1 + returns_df).rolling(self._manifest.signal_lookback_long).apply(lambda x: x.prod() - 1, raw=True)
+        mom_1m = (1 + returns_df).rolling(self._manifest.signal_lookback_short).apply(lambda x: x.prod() - 1, raw=True)
         signal = (mom_12m - mom_1m).dropna(how="all")
         ranks = signal.rank(axis=1, pct=True)
         base_weights = ranks - 0.5
 
         # Regime conditioning
-        avg_vol = returns_df.rolling(self._manifest.regime_vol_lookback).std().mean(
-            axis=1
-        ) * np.sqrt(252)
+        avg_vol = returns_df.rolling(self._manifest.regime_vol_lookback).std().mean(axis=1) * np.sqrt(252)
         risk_median = avg_vol.expanding().median()
         regime = (avg_vol < risk_median).astype(float)
         rc_weights = base_weights.multiply(regime, axis=0)
@@ -118,9 +104,7 @@ class R4ResearchEngine:
                 if abs(w) > 1e-6:
                     decisions.append(
                         {
-                            "timestamp": str(date.date())
-                            if hasattr(date, "date")
-                            else str(date),
+                            "timestamp": str(date.date()) if hasattr(date, "date") else str(date),
                             "instrument_id": inst,
                             "signal": float(signal.loc[date, inst])
                             if inst in signal.columns and date in signal.index
@@ -133,9 +117,7 @@ class R4ResearchEngine:
 
         return decisions
 
-    def _portfolio_return(
-        self, weights: pd.DataFrame, returns_df: pd.DataFrame
-    ) -> pd.Series:
+    def _portfolio_return(self, weights: pd.DataFrame, returns_df: pd.DataFrame) -> pd.Series:
         aligned = weights.index.intersection(returns_df.index)
         w = weights.reindex(aligned).shift(1)
         r = returns_df.reindex(aligned)
@@ -166,32 +148,18 @@ class R4PaperEngine:
         # For deterministic replay, the paper engine uses the same logic
         # but through the paper execution path
         returns_df = pd.DataFrame(
-            {
-                sym: df["close"].pct_change()
-                for sym, df in data.items()
-                if "close" in df.columns
-            }
+            {sym: df["close"].pct_change() for sym, df in data.items() if "close" in df.columns}
         ).dropna(how="all")
 
         # Same signal computation
-        mom_12m = (
-            (1 + returns_df)
-            .rolling(self._manifest.signal_lookback_long)
-            .apply(lambda x: x.prod() - 1, raw=True)
-        )
-        mom_1m = (
-            (1 + returns_df)
-            .rolling(self._manifest.signal_lookback_short)
-            .apply(lambda x: x.prod() - 1, raw=True)
-        )
+        mom_12m = (1 + returns_df).rolling(self._manifest.signal_lookback_long).apply(lambda x: x.prod() - 1, raw=True)
+        mom_1m = (1 + returns_df).rolling(self._manifest.signal_lookback_short).apply(lambda x: x.prod() - 1, raw=True)
         signal = (mom_12m - mom_1m).dropna(how="all")
         ranks = signal.rank(axis=1, pct=True)
         base_weights = ranks - 0.5
 
         # Regime conditioning
-        avg_vol = returns_df.rolling(self._manifest.regime_vol_lookback).std().mean(
-            axis=1
-        ) * np.sqrt(252)
+        avg_vol = returns_df.rolling(self._manifest.regime_vol_lookback).std().mean(axis=1) * np.sqrt(252)
         risk_median = avg_vol.expanding().median()
         regime = (avg_vol < risk_median).astype(float)
         rc_weights = base_weights.multiply(regime, axis=0)
@@ -252,17 +220,13 @@ class R4PaperEngine:
                     # Compute paper P&L with costs
                     if date in returns_df.index and inst in returns_df.columns:
                         daily_ret = returns_df.loc[date, inst]
-                        paper_pnl = float(w * daily_ret) - float(
-                            abs(w) * spread_cost * 0.01
-                        )
+                        paper_pnl = float(w * daily_ret) - float(abs(w) * spread_cost * 0.01)
                     else:
                         paper_pnl = 0.0
 
                     decisions.append(
                         {
-                            "timestamp": str(date.date())
-                            if hasattr(date, "date")
-                            else str(date),
+                            "timestamp": str(date.date()) if hasattr(date, "date") else str(date),
                             "instrument_id": inst,
                             "signal": float(signal.loc[date, inst])
                             if inst in signal.columns and date in signal.index
@@ -275,9 +239,7 @@ class R4PaperEngine:
 
         return decisions
 
-    def _portfolio_return(
-        self, weights: pd.DataFrame, returns_df: pd.DataFrame
-    ) -> pd.Series:
+    def _portfolio_return(self, weights: pd.DataFrame, returns_df: pd.DataFrame) -> pd.Series:
         aligned = weights.index.intersection(returns_df.index)
         w = weights.reindex(aligned).shift(1)
         r = returns_df.reindex(aligned)
@@ -380,9 +342,7 @@ def run_r4_replay() -> Dict[str, Any]:
     print("\n[1/5] Loading MT5 data...")
     provider = MT5DataProvider()
     data, manifest = provider.load_from_csv()
-    print(
-        f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars"
-    )
+    print(f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars")
 
     # 2. Create R4 manifest
     print("\n[2/5] Creating frozen R4 manifest...")

@@ -17,9 +17,9 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from eigencapital.execution.account import AccountSnapshot
 from eigencapital.risk.policy import RiskPolicy
@@ -82,7 +82,7 @@ class HealthReport:
     alerts: Tuple[Alert, ...] = ()
     checks: Dict[str, bool] = field(default_factory=dict)
     assessed_at_utc: str = ""
-    snapshot_age_seconds: Optional[float] = None
+    snapshot_age_seconds: float | None = None
 
     @property
     def is_operational(self) -> bool:
@@ -99,11 +99,11 @@ class HealthReport:
         }
 
 
-def _parse_ts(ts: str) -> Optional[datetime]:
+def _parse_ts(ts: str) -> datetime | None:
     try:
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except (ValueError, AttributeError):
         return None
@@ -121,14 +121,14 @@ class PortfolioHealthMonitor:
         policy: RiskPolicy,
         *,
         max_snapshot_age_seconds: float = 300.0,
-        clock: Optional[datetime] = None,
+        clock: datetime | None = None,
     ) -> None:
         if max_snapshot_age_seconds <= 0:
             raise ValueError("max_snapshot_age_seconds must be > 0")
         self._policy = policy
         self._max_age = max_snapshot_age_seconds
         self._clock = clock
-        self._peak_equity: Optional[float] = None
+        self._peak_equity: float | None = None
         self._log: List[Dict[str, Any]] = []
         self._last_prev_hash: str = hashlib.sha256(b"genesis").hexdigest()
 
@@ -138,22 +138,22 @@ class PortfolioHealthMonitor:
         self,
         snapshot: AccountSnapshot,
         *,
-        daily_pnl: Optional[float] = None,
-        weekly_pnl: Optional[float] = None,
-        position_notionals: Optional[Dict[str, float]] = None,
-        asset_class_exposure: Optional[Dict[str, float]] = None,
+        daily_pnl: float | None = None,
+        weekly_pnl: float | None = None,
+        position_notionals: Dict[str, float] | None = None,
+        asset_class_exposure: Dict[str, float] | None = None,
         kill_switch_active: bool = False,
-        now_utc: Optional[str] = None,
+        now_utc: str | None = None,
     ) -> HealthReport:
         """Evaluate one snapshot. Unknown inputs produce no pass."""
         p = self._policy
-        parsed_now: Optional[datetime] = None
+        parsed_now: datetime | None = None
         if now_utc is not None:
             parsed_now = _parse_ts(now_utc)
-        now = parsed_now or self._clock or datetime.now(timezone.utc)
+        now = parsed_now or self._clock or datetime.now(UTC)
         alerts: List[Alert] = []
         checks: Dict[str, bool] = {}
-        age: Optional[float] = None
+        age: float | None = None
 
         snap_dt = _parse_ts(snapshot.timestamp_utc)
         if snap_dt is None:
@@ -223,8 +223,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.CRITICAL,
                         ALERT_MAX_DRAWDOWN,
-                        f"Drawdown {dd_pct:.2f}% exceeds limit "
-                        f"{p.max_drawdown_pct:.2f}%",
+                        f"Drawdown {dd_pct:.2f}% exceeds limit {p.max_drawdown_pct:.2f}%",
                         observed=f"{dd_pct:.4f}",
                     )
                 )
@@ -233,8 +232,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.WARNING,
                         ALERT_WARN_DRAWDOWN,
-                        f"Drawdown {dd_pct:.2f}% above warning level "
-                        f"{p.warn_drawdown_pct:.2f}%",
+                        f"Drawdown {dd_pct:.2f}% above warning level {p.warn_drawdown_pct:.2f}%",
                         observed=f"{dd_pct:.4f}",
                     )
                 )
@@ -246,8 +244,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.CRITICAL,
                         ALERT_GROSS_LEVERAGE,
-                        f"Gross leverage {gross_lev:.3f} exceeds limit "
-                        f"{p.max_gross_leverage:.3f}",
+                        f"Gross leverage {gross_lev:.3f} exceeds limit {p.max_gross_leverage:.3f}",
                         observed=f"{gross_lev:.4f}",
                     )
                 )
@@ -256,8 +253,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.WARNING,
                         ALERT_WARN_GROSS_LEVERAGE,
-                        f"Gross leverage {gross_lev:.3f} above warning level "
-                        f"{p.warn_gross_leverage:.3f}",
+                        f"Gross leverage {gross_lev:.3f} above warning level {p.warn_gross_leverage:.3f}",
                         observed=f"{gross_lev:.4f}",
                     )
                 )
@@ -268,8 +264,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.CRITICAL,
                         ALERT_POSITION_COUNT,
-                        f"{snapshot.num_positions} positions exceeds limit "
-                        f"{p.max_position_count}",
+                        f"{snapshot.num_positions} positions exceeds limit {p.max_position_count}",
                         observed=str(snapshot.num_positions),
                     )
                 )
@@ -286,8 +281,7 @@ class PortfolioHealthMonitor:
                         Alert(
                             Severity.CRITICAL,
                             ALERT_CONCENTRATION,
-                            f"{worst_sym} concentration {worst_val:.2f}% "
-                            f"exceeds limit {p.max_concentration_pct:.2f}%",
+                            f"{worst_sym} concentration {worst_val:.2f}% exceeds limit {p.max_concentration_pct:.2f}%",
                             observed=worst_sym,
                         )
                     )
@@ -328,8 +322,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.WARNING,
                         ALERT_WARN_DAILY_LOSS,
-                        f"Daily loss {lost:.2f} above warning level "
-                        f"{p.warn_daily_loss:.2f}",
+                        f"Daily loss {lost:.2f} above warning level {p.warn_daily_loss:.2f}",
                         observed=f"{lost:.2f}",
                     )
                 )
@@ -342,8 +335,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.CRITICAL,
                         ALERT_WEEKLY_LOSS,
-                        f"Weekly loss {lost:.2f} exceeds limit "
-                        f"{p.weekly_loss_limit:.2f}",
+                        f"Weekly loss {lost:.2f} exceeds limit {p.weekly_loss_limit:.2f}",
                         observed=f"{lost:.2f}",
                     )
                 )
@@ -381,9 +373,7 @@ class PortfolioHealthMonitor:
             "payload_sha256": hashlib.sha256(body).hexdigest(),
             "prev_entry_hash": self._last_prev_hash,
         }
-        entry_hash = hashlib.sha256(
-            json.dumps(entry, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        entry_hash = hashlib.sha256(json.dumps(entry, sort_keys=True).encode("utf-8")).hexdigest()
         entry["entry_hash"] = entry_hash
         self._log.append(entry)
         self._last_prev_hash = entry_hash
@@ -403,9 +393,7 @@ class PortfolioHealthMonitor:
             if entry["seq"] != i or entry["prev_entry_hash"] != prev:
                 return False
             material = {k: v for k, v in entry.items() if k != "entry_hash"}
-            expected = hashlib.sha256(
-                json.dumps(material, sort_keys=True).encode("utf-8")
-            ).hexdigest()
+            expected = hashlib.sha256(json.dumps(material, sort_keys=True).encode("utf-8")).hexdigest()
             if entry["entry_hash"] != expected:
                 return False
             prev = entry["entry_hash"]

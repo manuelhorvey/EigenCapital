@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 _DATE_FMT = "%Y-%m-%d"
 
@@ -33,9 +33,7 @@ def _validate_date(value: str, label: str) -> str:
     try:
         datetime.strptime(value, _DATE_FMT)
     except (TypeError, ValueError) as e:
-        raise MembershipError(
-            f"{label} must be an ISO date (YYYY-MM-DD), got {value!r}"
-        ) from e
+        raise MembershipError(f"{label} must be an ISO date (YYYY-MM-DD), got {value!r}") from e
     return value
 
 
@@ -63,7 +61,7 @@ class UniverseMembership:
     instrument_id: str
     universe_id: str
     effective_from: str
-    effective_to: Optional[str] = None
+    effective_to: str | None = None
     reason: str = ""
 
     def __post_init__(self) -> None:
@@ -74,8 +72,7 @@ class UniverseMembership:
             _validate_date(self.effective_to, "effective_to")
             if self.effective_to < self.effective_from:
                 raise MembershipError(
-                    f"effective_to ({self.effective_to}) precedes "
-                    f"effective_from ({self.effective_from})"
+                    f"effective_to ({self.effective_to}) precedes effective_from ({self.effective_from})"
                 )
 
     def is_active_on(self, date: str) -> bool:
@@ -185,38 +182,27 @@ class UniverseMembershipRegistry:
                 )
                 self._records[i] = closed
                 return closed
-        raise MembershipError(
-            f"No open membership for {instrument_id} in {universe_id}; cannot delist."
-        )
+        raise MembershipError(f"No open membership for {instrument_id} in {universe_id}; cannot delist.")
 
     def members_as_of(self, universe_id: str, date: str) -> List[str]:
         """Instruments belonging to the universe on a given date."""
         _validate_date(date, "date")
-        return sorted(
-            m.instrument_id
-            for m in self._records
-            if m.universe_id == universe_id and m.is_active_on(date)
-        )
+        return sorted(m.instrument_id for m in self._records if m.universe_id == universe_id and m.is_active_on(date))
 
     def active_members(self, universe_id: str) -> List[str]:
         """Instruments with an open (current) membership interval."""
-        return sorted(
-            m.instrument_id
-            for m in self._records
-            if m.universe_id == universe_id and m.effective_to is None
-        )
+        return sorted(m.instrument_id for m in self._records if m.universe_id == universe_id and m.effective_to is None)
 
     def history(
         self,
         instrument_id: str,
-        universe_id: Optional[str] = None,
+        universe_id: str | None = None,
     ) -> List[UniverseMembership]:
         """All membership intervals for an instrument, chronological."""
         records = [
             m
             for m in self._records
-            if m.instrument_id == instrument_id
-            and (universe_id is None or m.universe_id == universe_id)
+            if m.instrument_id == instrument_id and (universe_id is None or m.universe_id == universe_id)
         ]
         return sorted(records, key=lambda m: m.effective_from)
 

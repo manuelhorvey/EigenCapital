@@ -20,7 +20,7 @@ R4 should not be considered promotion-ready until E5 or E6.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Dict, List
 
@@ -146,7 +146,7 @@ class EvidenceMaturityTracker:
         Returns:
             Current evidence state
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Determine highest achievable level
         achieved_level = EvidenceLevel.E0_NO_EVIDENCE

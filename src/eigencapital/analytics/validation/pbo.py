@@ -14,7 +14,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -108,9 +108,7 @@ def compute_pbo(
         test_oos = [(i, oos_sharpes[i]) for i in test]
         test_oos.sort(key=lambda x: x[1], reverse=True)
 
-        if test_oos and best_is_idx not in [
-            i for i, _ in test_oos[: max(1, len(test_oos) // 4)]
-        ]:
+        if test_oos and best_is_idx not in [i for i, _ in test_oos[: max(1, len(test_oos) // 4)]]:
             overfit_count += 1
 
     pbo = overfit_count / total_partitions if total_partitions > 0 else 0.0

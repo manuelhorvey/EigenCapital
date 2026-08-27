@@ -12,7 +12,6 @@ from eigencapital.fidelity.parity import (
 from eigencapital.fidelity.replay import (
     DeterministicReplayCampaign,
     ReplayStatus,
-    ReplayResult,
 )
 from eigencapital.fidelity.forward import (
     ForwardPaperCampaign,

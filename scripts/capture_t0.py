@@ -22,7 +22,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict
 
 sys.path.insert(0, "src")
@@ -102,13 +102,8 @@ def check_eligibility_inline(mt5, position_limit: float) -> Dict[str, Any]:
         cs = info.trade_contract_size
         min_notional = min_vol * ask * cs
         eligible = min_notional <= position_limit
-        reason = (
-            f"min lot {min_vol} \u00d7 {ask:.5f} \u00d7 {cs:,.0f} = ${min_notional:,.2f}"
-            + (
-                f" \u2264 ${position_limit:,.0f}"
-                if eligible
-                else f" > ${position_limit:,.0f}"
-            )
+        reason = f"min lot {min_vol} \u00d7 {ask:.5f} \u00d7 {cs:,.0f} = ${min_notional:,.2f}" + (
+            f" \u2264 ${position_limit:,.0f}" if eligible else f" > ${position_limit:,.0f}"
         )
         results.append(
             {
@@ -331,11 +326,9 @@ def main() -> None:
         position_count=len(pos_list),
         available_symbols=sorted(symbol_specs.keys()),
         symbol_specs=symbol_specs,
-        current_spread=max(s.get("spread", 0) for s in symbol_specs.values())
-        if symbol_specs
-        else 0,
+        current_spread=max(s.get("spread", 0) for s in symbol_specs.values()) if symbol_specs else 0,
         current_slippage=0.0,
-        snapshot_timestamp=datetime.now(timezone.utc).isoformat(),
+        snapshot_timestamp=datetime.now(UTC).isoformat(),
     )
 
     validator = PreTradingValidator(
@@ -362,7 +355,7 @@ def main() -> None:
 
     # ── 7. Build & Freeze Snapshot ───────────────────────────────────
     section("7. FREEZING T=0 SNAPSHOT")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     campaign_id = f"R4-MINIMAL-5K-{now[:10]}"
 
     snapshot = {
@@ -480,9 +473,7 @@ def main() -> None:
     }
 
     # Compute snapshot hash (tamper detection)
-    snapshot_hash = hashlib.sha256(
-        json.dumps(snapshot, sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
+    snapshot_hash = hashlib.sha256(json.dumps(snapshot, sort_keys=True, default=str).encode("utf-8")).hexdigest()
     snapshot["snapshot_hash"] = snapshot_hash
 
     check("✅", "Snapshot hash", f"{snapshot_hash[:32]}...")
@@ -558,9 +549,7 @@ def main() -> None:
     for s in eligibility["symbols"]:
         icon = "✅" if s["eligible"] else "❌"
         status = "ELIGIBLE" if s["eligible"] else "INELIGIBLE"
-        md_lines.append(
-            f"| {s['symbol']} | {s['asset_class']} | ${s['min_notional']:,.2f} | {icon} {status} |"
-        )
+        md_lines.append(f"| {s['symbol']} | {s['asset_class']} | ${s['min_notional']:,.2f} | {icon} {status} |")
 
     md_lines.extend(
         [

@@ -13,10 +13,9 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import hashlib
-
+from dataclasses import dataclass
+from typing import Any, Dict
 
 INFINITY = float("inf")
 
@@ -51,9 +50,9 @@ class Instrument:
     tick_value: float
     lot_size: float
     price_precision: int
-    trading_calendar: Optional[str] = None
-    timezone: Optional[str] = None
-    expiration_rule: Optional[str] = None
+    trading_calendar: str | None = None
+    timezone: str | None = None
+    expiration_rule: str | None = None
     currency_conversion_rate: float = 1.0
     metadata_version: str = "v1"
 
@@ -70,17 +69,12 @@ class Instrument:
         if self.lot_size <= 0:
             raise ValueError(f"lot_size must be > 0, got {self.lot_size}")
         if self.price_precision < 0:
-            raise ValueError(
-                f"price_precision must be >= 0, got {self.price_precision}"
-            )
+            raise ValueError(f"price_precision must be >= 0, got {self.price_precision}")
         if self.currency_conversion_rate <= 0:
-            raise ValueError(
-                f"currency_conversion_rate must be > 0, got {self.currency_conversion_rate}"
-            )
+            raise ValueError(f"currency_conversion_rate must be > 0, got {self.currency_conversion_rate}")
         if self.instrument_id in self._registry:
             raise ValueError(
-                f"Duplicate instrument_id: {self.instrument_id}. "
-                "instrument_id must be unique across the system."
+                f"Duplicate instrument_id: {self.instrument_id}. instrument_id must be unique across the system."
             )
         self._registry[self.instrument_id] = self
 
@@ -153,10 +147,7 @@ INSTRUMENT_ASSET_CLASSES = {
 def validate_asset_class(asset_class: str) -> None:
     """Validate asset class is one of the permitted values."""
     if asset_class not in INSTRUMENT_ASSET_CLASSES:
-        raise ValueError(
-            f"Invalid asset_class: {asset_class}. "
-            f"Must be one of {INSTRUMENT_ASSET_CLASSES}"
-        )
+        raise ValueError(f"Invalid asset_class: {asset_class}. Must be one of {INSTRUMENT_ASSET_CLASSES}")
 
 
 Instrument._registry = {}

@@ -66,9 +66,7 @@ class Watchdog:
         contain_after_seconds: float,
         now: Callable[[], float] = time.monotonic,
     ) -> None:
-        if not (
-            0 < stale_after_seconds <= blind_after_seconds <= contain_after_seconds
-        ):
+        if not (0 < stale_after_seconds <= blind_after_seconds <= contain_after_seconds):
             raise ValueError("thresholds must satisfy 0 < stale <= blind <= contain")
         self._stale_after = stale_after_seconds
         self._blind_after = blind_after_seconds
@@ -102,9 +100,7 @@ class Watchdog:
             )
         if clean:
             self.state = WatchState.RESUMED
-            return WatchDecision(
-                self.state, prev, True, False, "reconciled clean; trading re-authorized"
-            )
+            return WatchDecision(self.state, prev, True, False, "reconciled clean; trading re-authorized")
         self.state = WatchState.HALTED
         return WatchDecision(
             self.state,
@@ -158,17 +154,11 @@ class Watchdog:
             (not probe.process_alive)
             or (not probe.broker_reachable)
             or (not probe.equity_read_ok)
-            or (
-                probe.trail_age_seconds is not None
-                and probe.trail_age_seconds > self._stale_after
-            )
+            or (probe.trail_age_seconds is not None and probe.trail_age_seconds > self._stale_after)
         )
         blind_signal = degraded_signal and (
             (not probe.broker_reachable)
-            or (
-                probe.trail_age_seconds is not None
-                and probe.trail_age_seconds > self._blind_after
-            )
+            or (probe.trail_age_seconds is not None and probe.trail_age_seconds > self._blind_after)
         )
 
         if not degraded_signal:
@@ -176,9 +166,7 @@ class Watchdog:
             self._blind_since = None
             self._contain_since = None
             self.state = WatchState.NORMAL
-            return WatchDecision(
-                WatchState.NORMAL, prev, True, False, "all probes healthy", ev
-            )
+            return WatchDecision(WatchState.NORMAL, prev, True, False, "all probes healthy", ev)
 
         if self._degraded_since is None:
             self._degraded_since = now
@@ -240,9 +228,7 @@ def process_alive(pattern: str = "r4_rebalance_loop") -> bool:
     import subprocess
 
     try:
-        r = subprocess.run(
-            ["pgrep", "-f", pattern], capture_output=True, text=True, timeout=5
-        )
+        r = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=5)
         return r.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False

@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class FailureType(str, Enum):
@@ -64,10 +64,10 @@ class FailureEvent:
     severity: str
     message: str
     details: Dict[str, Any] = field(default_factory=dict)
-    event_id: Optional[str] = None  # Link to event ledger
-    correlation_id: Optional[str] = None
+    event_id: str | None = None  # Link to event ledger
+    correlation_id: str | None = None
     recovered: bool = False
-    recovery_time_seconds: Optional[float] = None
+    recovery_time_seconds: float | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -137,9 +137,9 @@ class FailureInstrumentation:
         failure_type: FailureType,
         severity: FailureSeverity,
         message: str,
-        details: Optional[Dict[str, Any]] = None,
-        event_id: Optional[str] = None,
-        correlation_id: Optional[str] = None,
+        details: Dict[str, Any] | None = None,
+        event_id: str | None = None,
+        correlation_id: str | None = None,
     ) -> FailureEvent:
         """Record a failure event.
 
@@ -154,7 +154,7 @@ class FailureInstrumentation:
         Returns:
             Created failure event
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         failure = FailureEvent(
             failure_id=self._generate_failure_id(),
@@ -173,9 +173,7 @@ class FailureInstrumentation:
             self._failures = self._failures[-self._max_history :]
 
         # Update counts
-        self._failure_counts[failure_type.value] = (
-            self._failure_counts.get(failure_type.value, 0) + 1
-        )
+        self._failure_counts[failure_type.value] = self._failure_counts.get(failure_type.value, 0) + 1
 
         # Update recent failures for pattern detection
         if failure_type.value not in self._recent_failures:
@@ -184,29 +182,23 @@ class FailureInstrumentation:
 
         # Clean old recent failures (keep last hour)
         cutoff = time.time() - 3600
-        self._recent_failures[failure_type.value] = [
-            t for t in self._recent_failures[failure_type.value] if t > cutoff
-        ]
+        self._recent_failures[failure_type.value] = [t for t in self._recent_failures[failure_type.value] if t > cutoff]
 
         # Track active failure
         self._active_failures[failure_type.value] = failure
 
         # Update stats
         self._stats["total_failures"] += 1
-        self._stats["by_type"][failure_type.value] = (
-            self._stats["by_type"].get(failure_type.value, 0) + 1
-        )
-        self._stats["by_severity"][severity.value] = (
-            self._stats["by_severity"].get(severity.value, 0) + 1
-        )
+        self._stats["by_type"][failure_type.value] = self._stats["by_type"].get(failure_type.value, 0) + 1
+        self._stats["by_severity"][severity.value] = self._stats["by_severity"].get(severity.value, 0) + 1
 
         return failure
 
     def record_recovery(
         self,
         failure_type: FailureType,
-        recovery_details: Optional[Dict[str, Any]] = None,
-    ) -> Optional[FailureEvent]:
+        recovery_details: Dict[str, Any] | None = None,
+    ) -> FailureEvent | None:
         """Record recovery from a failure.
 
         Args:
@@ -220,10 +212,8 @@ class FailureInstrumentation:
         if not active:
             return None
 
-        datetime.now(timezone.utc).isoformat()
-        recovery_time = (
-            time.time() - datetime.fromisoformat(active.timestamp).timestamp()
-        )
+        datetime.now(UTC).isoformat()
+        recovery_time = time.time() - datetime.fromisoformat(active.timestamp).timestamp()
 
         # Create updated failure event
         updated = FailureEvent(
@@ -264,8 +254,8 @@ class FailureInstrumentation:
 
     def get_failure_history(
         self,
-        failure_type: Optional[FailureType] = None,
-        severity: Optional[FailureSeverity] = None,
+        failure_type: FailureType | None = None,
+        severity: FailureSeverity | None = None,
         limit: int = 100,
     ) -> List[FailureEvent]:
         """Get failure history with optional filtering."""
@@ -296,7 +286,7 @@ class FailureInstrumentation:
                         "count": recent_count,
                         "window": "1 hour",
                         "threshold": self._alert_threshold,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
                 )
 
@@ -343,7 +333,7 @@ def record_partial_fill(
     symbol: str,
     requested_qty: float,
     filled_qty: float,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record a partial fill failure."""
     return instrumentation.record_failure(
@@ -366,7 +356,7 @@ def record_order_rejected(
     order_ticket: str,
     symbol: str,
     reason: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record an order rejection."""
     return instrumentation.record_failure(
@@ -385,7 +375,7 @@ def record_order_rejected(
 def record_broker_disconnect(
     instrumentation: FailureInstrumentation,
     reason: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record a broker disconnect."""
     return instrumentation.record_failure(
@@ -402,7 +392,7 @@ def record_stale_price(
     symbol: str,
     age_seconds: float,
     threshold_seconds: float,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record stale price data."""
     return instrumentation.record_failure(
@@ -423,7 +413,7 @@ def record_mismatch(
     mismatch_type: str,
     broker_value: Any,
     internal_value: Any,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record a broker/internal mismatch."""
     return instrumentation.record_failure(
@@ -442,7 +432,7 @@ def record_mismatch(
 def record_weekend_session(
     instrumentation: FailureInstrumentation,
     session_start: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record weekend/session transition."""
     return instrumentation.record_failure(
@@ -458,7 +448,7 @@ def record_persistence_corrupt(
     instrumentation: FailureInstrumentation,
     file_path: str,
     error: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> FailureEvent:
     """Record persistence corruption."""
     return instrumentation.record_failure(

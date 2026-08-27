@@ -34,7 +34,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -72,9 +72,7 @@ LOOKBACK, SKIP, RISK_LB, VOL_LB = 252, 21, 20, 60
 
 
 def _load_loop_module():
-    spec = importlib.util.spec_from_file_location(
-        "r4_rebalance_loop", REPO / "scripts" / "r4_rebalance_loop.py"
-    )
+    spec = importlib.util.spec_from_file_location("r4_rebalance_loop", REPO / "scripts" / "r4_rebalance_loop.py")
     mod = importlib.util.module_from_spec(spec)
     sys.modules["r4_rebalance_loop"] = mod
     spec.loader.exec_module(mod)
@@ -201,9 +199,7 @@ def replicate_signal(close_wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]
     return fin, regime_on
 
 
-def _update_open_paths(
-    holdings, t, close_wide, high_wide, low_wide, regime_off_day: bool
-) -> None:
+def _update_open_paths(holdings, t, close_wide, high_wide, low_wide, regime_off_day: bool) -> None:
     for s, h in holdings.items():
         try:
             c = float(close_wide[s].loc[t])
@@ -299,9 +295,7 @@ def build_episodes(
         active = [
             (s, float(w_row[s]))
             for s in eligible
-            if s in w_row.index
-            and np.isfinite(w_row[s])
-            and abs(float(w_row[s])) > 0.005
+            if s in w_row.index and np.isfinite(w_row[s]) and abs(float(w_row[s])) > 0.005
         ]
         active.sort(key=lambda x: abs(x[1]), reverse=True)
         target = dict(active[:8])
@@ -313,17 +307,11 @@ def build_episodes(
             if s not in target_syms:
                 px = close_wide[s].get(t, np.nan)
                 if np.isfinite(px):
-                    closed.append(
-                        _close_episode(
-                            holdings, s, t, float(px), "rotated_out_top8", label
-                        )
-                    )
+                    closed.append(_close_episode(holdings, s, t, float(px), "rotated_out_top8", label))
             elif np.sign(target[s]) != np.sign(h["w_entry"]):
                 px = close_wide[s].get(t, np.nan)
                 if np.isfinite(px):
-                    closed.append(
-                        _close_episode(holdings, s, t, float(px), "sign_flip", label)
-                    )
+                    closed.append(_close_episode(holdings, s, t, float(px), "sign_flip", label))
 
         for s in target_syms:
             if s in holdings:
@@ -376,12 +364,8 @@ def main() -> None:
     signal_syms = [s for s in sorted(frames.keys()) if s in allowed]
 
     close_wide = pd.DataFrame({s: frames[s]["close"] for s in signal_syms}).sort_index()
-    high_wide = pd.DataFrame({s: frames[s]["high"] for s in signal_syms}).reindex(
-        close_wide.index
-    )
-    low_wide = pd.DataFrame({s: frames[s]["low"] for s in signal_syms}).reindex(
-        close_wide.index
-    )
+    high_wide = pd.DataFrame({s: frames[s]["high"] for s in signal_syms}).reindex(close_wide.index)
+    low_wide = pd.DataFrame({s: frames[s]["low"] for s in signal_syms}).reindex(close_wide.index)
 
     fin, regime_on = replicate_signal(close_wide)
 
@@ -393,17 +377,10 @@ def main() -> None:
     parity_detail = []
     for _ in range(3):
         cut = int(rng.integers(len(close_wide) // 2, len(close_wide)))
-        sub = {
-            s: close_wide[[s]].iloc[:cut].rename(columns={s: "close"}).copy()
-            for s in probe_syms
-        }
+        sub = {s: close_wide[[s]].iloc[:cut].rename(columns={s: "close"}).copy() for s in probe_syms}
         latest_mod, diag_mod = mod.compute_r4_signal(sub)
         # align on the frozen function's own last-valid-return row
-        r_sub_idx = (
-            pd.DataFrame({s: sub[s]["close"].pct_change() for s in probe_syms})
-            .dropna(how="all")
-            .index
-        )
+        r_sub_idx = pd.DataFrame({s: sub[s]["close"].pct_change() for s in probe_syms}).dropna(how="all").index
         target_ts = r_sub_idx[-1]
         latest_rep = fin.loc[target_ts]
         common = [c for c in latest_mod.index if c in probe_syms]
@@ -414,28 +391,17 @@ def main() -> None:
             equal_nan=True,
         )
         # regime parity: recompute avg_vol over identical input
-        rets_sub = (
-            close_wide[probe_syms]
-            .iloc[:cut]
-            .pct_change()
-            .dropna(how="all")
-            .ffill()
-            .fillna(0)
-        )
+        rets_sub = close_wide[probe_syms].iloc[:cut].pct_change().dropna(how="all").ffill().fillna(0)
         av = rets_sub.rolling(RISK_LB).std().mean(axis=1) * np.sqrt(252)
         rm = av.expanding().median()
         reg_eq = bool(av.iloc[-1] < rm.iloc[-1]) == bool(diag_mod["regime_on"])
-        parity_detail.append(
-            {"cut_row": cut, "weights_equal": bool(eq), "regime_equal": bool(reg_eq)}
-        )
+        parity_detail.append({"cut_row": cut, "weights_equal": bool(eq), "regime_equal": bool(reg_eq)})
         if not (eq and reg_eq):
             parity_ok = False
     print(f"parity_vs_frozen_compute_r4_signal: {parity_ok}")
     print(json.dumps(parity_detail))
 
-    trades = build_episodes(
-        fin, regime_on, high_wide, low_wide, close_wide, eligible, label="daily"
-    )
+    trades = build_episodes(fin, regime_on, high_wide, low_wide, close_wide, eligible, label="daily")
 
     wk_mask = pd.Series(False, index=fin.index)
     wk_mask.iloc[::5] = True
@@ -472,11 +438,7 @@ def main() -> None:
     trades_out = trades.drop(columns=["_path"]) if "_path" in trades else trades
     trades_out.to_csv(OUT / "trades.csv", index=False)
     trades_out.to_parquet(OUT / "trades.parquet", index=False)
-    tw = (
-        trades_weekly.drop(columns=["_path"])
-        if "_path" in trades_weekly
-        else trades_weekly
-    )
+    tw = trades_weekly.drop(columns=["_path"]) if "_path" in trades_weekly else trades_weekly
     tw.to_csv(OUT / "trades_weekly.csv", index=False)
 
     path_rows = []
@@ -519,7 +481,7 @@ def main() -> None:
         },
         "universe_available": sorted(frames.keys()),
         "universe_missing_locally": sorted(missing),
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
     }
     (OUT / "trades.schema.json").write_text(json.dumps(schema, indent=2))
 
@@ -527,8 +489,8 @@ def main() -> None:
         "git_head": "d16148e",
         "frozen_identity": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
         "eligible_symbols": sorted(eligible),
-        "n_trades_daily": int(len(trades)),
-        "n_trades_weekly": int(len(trades_weekly)),
+        "n_trades_daily": len(trades),
+        "n_trades_weekly": len(trades_weekly),
         "signal_first_valid": str(fin.dropna(how="all").index.min()),
         "parity_check_passed": bool(parity_ok),
         "parity_probes": parity_detail,

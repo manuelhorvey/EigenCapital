@@ -14,50 +14,50 @@ Critical invariant:
 This prevents look-ahead bias in feature computation.
 """
 
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureConfig, FeatureFamily, Normalization
-from eigencapital.features.registry import FeatureRegistry, FeatureDefinition
-from eigencapital.features.feature_set import FeatureSet, FeatureEntry, FeatureStatus
 from eigencapital.features.dependencies import (
     FeatureDAG,
     FeatureDependency,
     build_default_dag,
 )
+from eigencapital.features.errors import (
+    FeatureAvailabilityError,
+    FeatureDuplicateError,
+    FeatureError,
+    FeatureRegistryError,
+    FeatureValidationError,
+)
+from eigencapital.features.feature import Feature
+from eigencapital.features.feature_set import FeatureEntry, FeatureSet, FeatureStatus
 from eigencapital.features.pipeline import (
     FeaturePipeline,
     FeatureRequest,
     PipelineConfig,
 )
 from eigencapital.features.provenance import ProvenanceRecord, build_provenance_record
-from eigencapital.features.errors import (
-    FeatureError,
-    FeatureAvailabilityError,
-    FeatureDuplicateError,
-    FeatureValidationError,
-    FeatureRegistryError,
-)
+from eigencapital.features.registry import FeatureDefinition, FeatureRegistry
 
 __all__ = [
     "Feature",
+    "FeatureAvailabilityError",
     "FeatureConfig",
-    "FeatureFamily",
-    "Normalization",
-    "FeatureRegistry",
-    "FeatureDefinition",
-    "FeatureSet",
-    "FeatureEntry",
-    "FeatureStatus",
     "FeatureDAG",
+    "FeatureDefinition",
     "FeatureDependency",
-    "build_default_dag",
+    "FeatureDuplicateError",
+    "FeatureEntry",
+    "FeatureError",
+    "FeatureFamily",
     "FeaturePipeline",
+    "FeatureRegistry",
+    "FeatureRegistryError",
     "FeatureRequest",
+    "FeatureSet",
+    "FeatureStatus",
+    "FeatureValidationError",
+    "Normalization",
     "PipelineConfig",
     "ProvenanceRecord",
+    "build_default_dag",
     "build_provenance_record",
-    "FeatureError",
-    "FeatureAvailabilityError",
-    "FeatureDuplicateError",
-    "FeatureValidationError",
-    "FeatureRegistryError",
 ]

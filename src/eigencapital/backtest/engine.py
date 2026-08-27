@@ -17,12 +17,12 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from eigencapital.backtest.clock import BacktestClock
 from eigencapital.backtest.accounting import AccountingEngine
+from eigencapital.backtest.clock import BacktestClock
 from eigencapital.core.models.bar import Bar
-from eigencapital.research.costs.model import CostModel, ZERO_COST
+from eigencapital.research.costs.model import ZERO_COST, CostModel
 from eigencapital.research.provenance.hashing import compute_provenance_hash
 from eigencapital.strategies.base import BaseStrategy, StrategySignal
 
@@ -99,7 +99,7 @@ class BacktestEngine:
         self,
         strategy: BaseStrategy,
         bars: List[Bar],
-        config: Optional[BacktestConfig] = None,
+        config: BacktestConfig | None = None,
     ) -> None:
         self.strategy = strategy
         self.config = config or BacktestConfig()
@@ -161,14 +161,8 @@ class BacktestEngine:
         self._process_pending_fills(None, results)
 
         # Finalize results
-        results.final_equity = (
-            results.equity_curve[-1]["equity"]
-            if results.equity_curve
-            else self.config.initial_cash
-        )
-        results.total_return = (
-            results.final_equity / self.config.initial_cash - 1
-        ) * 100
+        results.final_equity = results.equity_curve[-1]["equity"] if results.equity_curve else self.config.initial_cash
+        results.total_return = (results.final_equity / self.config.initial_cash - 1) * 100
         results.max_drawdown = self._compute_max_drawdown(results.equity_curve)
         results.trade_count = len(results.fill_events) // 2  # Approximate round-trips
 
@@ -189,23 +183,18 @@ class BacktestEngine:
 
         return results
 
-    def _queue_fill(
-        self, bar: Bar, signal: StrategySignal, results: BacktestResults
-    ) -> None:
+    def _queue_fill(self, bar: Bar, signal: StrategySignal, results: BacktestResults) -> None:
         """Queue a fill for execution after the configured delay."""
         self._pending_signals.append(
             {
                 "signal_bar_index": self.clock.current_index,
-                "fill_bar_index": self.clock.current_index
-                + self.config.execution_delay,
+                "fill_bar_index": self.clock.current_index + self.config.execution_delay,
                 "direction": signal.direction,
                 "timestamp": bar.timestamp_utc,
             }
         )
 
-    def _process_pending_fills(
-        self, current_bar: Optional[Bar], results: BacktestResults
-    ) -> None:
+    def _process_pending_fills(self, current_bar: Bar | None, results: BacktestResults) -> None:
         """Process any fills that should execute at the current bar."""
         remaining = []
         for pending in self._pending_signals:
@@ -217,9 +206,7 @@ class BacktestEngine:
                 remaining.append(pending)
         self._pending_signals = remaining
 
-    def _execute_fill(
-        self, pending: Dict[str, Any], bar: Optional[Bar], results: BacktestResults
-    ) -> None:
+    def _execute_fill(self, pending: Dict[str, Any], bar: Bar | None, results: BacktestResults) -> None:
         """Execute a fill at the current bar's close price."""
         if bar is None:
             return

@@ -17,7 +17,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class EligibilityStatus(str, Enum):
@@ -85,7 +85,7 @@ class AlphaCandidate:
         cls,
         candidate_id: str,
         record: Any,  # ExecutionRecord
-        eligible_verdicts: Optional[List[str]] = None,
+        eligible_verdicts: List[str] | None = None,
     ) -> AlphaCandidate:
         """Create a candidate from an execution record with eligibility check.
 

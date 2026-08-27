@@ -14,7 +14,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Any, Dict
 
 
 class CampaignStatus(str, Enum):
@@ -48,7 +48,7 @@ class PaperCampaign:
     initial_capital: float = 100000.0
     risk_policy_hash: str = ""
     cost_model_id: str = ""
-    deterministic_seed: Optional[int] = None
+    deterministic_seed: int | None = None
     start_timestamp: str = ""
     end_timestamp: str = ""
     status: CampaignStatus = CampaignStatus.CREATED

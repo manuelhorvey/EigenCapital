@@ -24,8 +24,7 @@ import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, List
 
 # ── Config paths ──────────────────────────────────────────────────
 
@@ -141,9 +140,7 @@ class StrategyConfig:
 
     name: str = "risk_conditioned_continuation"
     version: str = "R4.0"
-    manifest_fingerprint: str = (
-        "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
-    )
+    manifest_fingerprint: str = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
     data_terminal_id: str = "436921728"
     vol_target_annual: float = 0.10
     vol_lookback: int = 20
@@ -218,7 +215,7 @@ class WatchdogConfig:
     contain_after_seconds: float = 3600.0
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "WatchdogConfig":
+    def from_dict(cls, d: Dict[str, Any]) -> WatchdogConfig:
         fields = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in fields})
 
@@ -230,7 +227,7 @@ class ReconciliationConfig:
     stale_threshold_seconds: float = 86400.0
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ReconciliationConfig":
+    def from_dict(cls, d: Dict[str, Any]) -> ReconciliationConfig:
         fields = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in fields})
 
@@ -242,7 +239,7 @@ class DataConfig:
     fetch_bars: int = 300
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "DataConfig":
+    def from_dict(cls, d: Dict[str, Any]) -> DataConfig:
         fields = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in fields})
 
@@ -388,7 +385,7 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
 
 # ── Singleton ─────────────────────────────────────────────────────
 
-_config: Optional[EigenCapitalConfig] = None
+_config: EigenCapitalConfig | None = None
 
 
 def get_config() -> EigenCapitalConfig:

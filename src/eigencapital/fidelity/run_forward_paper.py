@@ -11,16 +11,16 @@ This script:
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
 
 from eigencapital.data.mt5_provider import MT5DataProvider
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.forward_campaign import (
     ForwardPaperCampaign,
 )
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,7 @@ def run_forward_paper() -> Dict[str, Any]:
     print("\n[1/6] Loading MT5 data...")
     provider = MT5DataProvider()
     data, manifest = provider.load_from_csv()
-    print(
-        f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars"
-    )
+    print(f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars")
 
     # 2. Create R4 manifest
     print("\n[2/6] Creating frozen R4 manifest...")
@@ -56,32 +54,18 @@ def run_forward_paper() -> Dict[str, Any]:
     # 4. Process bars sequentially
     print("\n[4/6] Processing bars sequentially...")
     returns_df = pd.DataFrame(
-        {
-            sym: df["close"].pct_change()
-            for sym, df in data.items()
-            if "close" in df.columns
-        }
+        {sym: df["close"].pct_change() for sym, df in data.items() if "close" in df.columns}
     ).dropna(how="all")
 
     # Compute R4 weights
-    mom_12m = (
-        (1 + returns_df)
-        .rolling(r4_manifest.signal_lookback_long)
-        .apply(lambda x: x.prod() - 1, raw=True)
-    )
-    mom_1m = (
-        (1 + returns_df)
-        .rolling(r4_manifest.signal_lookback_short)
-        .apply(lambda x: x.prod() - 1, raw=True)
-    )
+    mom_12m = (1 + returns_df).rolling(r4_manifest.signal_lookback_long).apply(lambda x: x.prod() - 1, raw=True)
+    mom_1m = (1 + returns_df).rolling(r4_manifest.signal_lookback_short).apply(lambda x: x.prod() - 1, raw=True)
     signal = (mom_12m - mom_1m).dropna(how="all")
     ranks = signal.rank(axis=1, pct=True)
     base_weights = ranks - 0.5
 
     # Regime conditioning
-    avg_vol = returns_df.rolling(r4_manifest.regime_vol_lookback).std().mean(
-        axis=1
-    ) * np.sqrt(252)
+    avg_vol = returns_df.rolling(r4_manifest.regime_vol_lookback).std().mean(axis=1) * np.sqrt(252)
     risk_median = avg_vol.expanding().median()
     regime = (avg_vol < risk_median).astype(float)
     rc_weights = base_weights.multiply(regime, axis=0)
@@ -116,9 +100,7 @@ def run_forward_paper() -> Dict[str, Any]:
     combined = 0.7 * final_weights + 0.3 * rp_weights
 
     # Drawdown reducer
-    port_ret = (combined.shift(1) * returns_df).sum(axis=1) / combined.abs().sum(
-        axis=1
-    ).replace(0, np.nan)
+    port_ret = (combined.shift(1) * returns_df).sum(axis=1) / combined.abs().sum(axis=1).replace(0, np.nan)
     port_ret = port_ret.dropna()
     cum = (1 + port_ret).cumprod()
     peak = cum.expanding().max()
@@ -150,11 +132,7 @@ def run_forward_paper() -> Dict[str, Any]:
                     )
 
                     # Make decision
-                    sig = (
-                        float(signal.loc[date, inst])
-                        if inst in signal.columns and date in signal.index
-                        else 0.0
-                    )
+                    sig = float(signal.loc[date, inst]) if inst in signal.columns and date in signal.index else 0.0
                     campaign.make_decision(
                         timestamp=str(date),
                         instrument_id=inst,

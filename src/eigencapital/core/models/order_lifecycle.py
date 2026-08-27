@@ -52,9 +52,7 @@ class OrderLifecycle:
     order_instrument_id: str
     order_side: str  # BUY or SELL
     order_quantity: float  # ALWAYS positive, total order quantity
-    status: str = (
-        "SUBMITTED"  # SUBMITTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
-    )
+    status: str = "SUBMITTED"  # SUBMITTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
 
     # Internal tracking: all fills associated with this order
     _fills: Dict[str, float] = field(default_factory=dict)  # fill_id -> filled_quantity
@@ -68,9 +66,7 @@ class OrderLifecycle:
 
         # Validate order_side is BUY or SELL
         if self.order_side not in ("BUY", "SELL"):
-            raise ValueError(
-                f"Order side must be 'BUY' or 'SELL', got '{self.order_side}'"
-            )
+            raise ValueError(f"Order side must be 'BUY' or 'SELL', got '{self.order_side}'")
 
         # Validate status is known
         valid_statuses = {
@@ -81,10 +77,7 @@ class OrderLifecycle:
             "REJECTED",
         }
         if self.status not in valid_statuses:
-            raise ValueError(
-                f"Invalid lifecycle status: {self.status}. "
-                f"Must be one of {valid_statuses}"
-            )
+            raise ValueError(f"Invalid lifecycle status: {self.status}. Must be one of {valid_statuses}")
 
         # Validate order_id is non-empty
         if not self.order_id:
@@ -96,8 +89,7 @@ class OrderLifecycle:
         # Registry check for duplicate order_id lifecycles
         if self.order_id in self._registry:
             raise ValueError(
-                f"Duplicate order_id in lifecycle: {self.order_id}. "
-                "Each order can have only one lifecycle."
+                f"Duplicate order_id in lifecycle: {self.order_id}. Each order can have only one lifecycle."
             )
         self._registry[self.order_id] = True
 
@@ -160,9 +152,7 @@ class OrderLifecycle:
             ValueError: If fill_id not found in this lifecycle
         """
         if fill_id not in self._fills:
-            raise ValueError(
-                f"Fill ID '{fill_id}' not found in order lifecycle for order {self.order_id}"
-            )
+            raise ValueError(f"Fill ID '{fill_id}' not found in order lifecycle for order {self.order_id}")
 
         self._fills.pop(fill_id)
 
@@ -193,10 +183,7 @@ class OrderLifecycle:
     @property
     def is_partially_filled(self) -> bool:
         """Check if order is partially filled."""
-        return (
-            0 < self.filled_quantity < self.order_quantity
-            and self.status == "PARTIALLY_FILLED"
-        )
+        return 0 < self.filled_quantity < self.order_quantity and self.status == "PARTIALLY_FILLED"
 
     @property
     def is_active(self) -> bool:

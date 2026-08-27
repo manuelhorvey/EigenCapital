@@ -10,25 +10,25 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.micro_live.runner import MT5Connection
 from eigencapital.production_qual.campaign_boundary import (
     CampaignBoundary,
-    TradeRecord,
     TradeOrigin,
+    TradeRecord,
     TradeStatus,
-)
-from eigencapital.production_qual.scaling import (
-    ScaleLevel,
-    SCALE_ENVELOPES,
-    ScalingMetrics,
-    ProductionScaleEvaluator,
 )
 from eigencapital.production_qual.qualification import (
     ProductionEvaluator,
     ProductionVerdict,
+)
+from eigencapital.production_qual.scaling import (
+    SCALE_ENVELOPES,
+    ProductionScaleEvaluator,
+    ScaleLevel,
+    ScalingMetrics,
 )
 
 
@@ -122,9 +122,7 @@ def run_production_qualification() -> Dict[str, Any]:
 
     for cp in classified_positions:
         icon = "🟢" if cp["origin"] == "r4_campaign" else "⚪"
-        print(
-            f"    {icon} {cp['symbol']}: {cp['origin']} | {cp['side']} {cp['volume']} | P&L: ${cp['pnl']:.2f}"
-        )
+        print(f"    {icon} {cp['symbol']}: {cp['origin']} | {cp['side']} {cp['volume']} | P&L: ${cp['pnl']:.2f}")
 
     # 4. Compute scaling metrics
     print("\n[4/7] Computing scaling metrics...")
@@ -251,9 +249,7 @@ def run_production_qualification() -> Dict[str, Any]:
     ]
 
     for cp in classified_positions:
-        md_lines.append(
-            f"| {cp['symbol']} | {cp['origin']} | {cp['side']} | {cp['volume']} | ${cp['pnl']:.2f} |"
-        )
+        md_lines.append(f"| {cp['symbol']} | {cp['origin']} | {cp['side']} | {cp['volume']} | ${cp['pnl']:.2f} |")
 
     md_lines.extend(
         [
@@ -277,9 +273,7 @@ def run_production_qualification() -> Dict[str, Any]:
 
     for check_name, check in scale_result["checks"].items():
         icon = "✅" if check["passed"] else "❌"
-        md_lines.append(
-            f"- {icon} **{check_name}**: {json.dumps({k: v for k, v in check.items() if k != 'passed'})}"
-        )
+        md_lines.append(f"- {icon} **{check_name}**: {json.dumps({k: v for k, v in check.items() if k != 'passed'})}")
 
     md_lines.extend(
         [
@@ -307,9 +301,7 @@ def run_production_qualification() -> Dict[str, Any]:
     elif report.verdict == ProductionVerdict.QUALIFIED:
         md_lines.append("**QUALIFIED** — System remains safe at this scale.")
     elif report.verdict == ProductionVerdict.QUALIFIED_WITH_RESTRICTIONS:
-        md_lines.append(
-            "**QUALIFIED WITH RESTRICTIONS** — Safe, but specific constraints remain."
-        )
+        md_lines.append("**QUALIFIED WITH RESTRICTIONS** — Safe, but specific constraints remain.")
     elif report.verdict == ProductionVerdict.BLOCKED:
         md_lines.append("**BLOCKED** — Critical scaling or safety issue detected.")
     else:
@@ -345,9 +337,7 @@ def run_production_qualification() -> Dict[str, Any]:
     print(f"  Checks: {report.passed_checks}/{report.total_checks} passed")
     print(f"  Scaling: {'PASS' if scale_result['all_passed'] else 'FAIL'}")
     print(f"  Account equity: ${equity:.2f}")
-    print(
-        f"  Positions: {len(broker_positions)} ({attribution['pre_existing_trades']} pre-existing)"
-    )
+    print(f"  Positions: {len(broker_positions)} ({attribution['pre_existing_trades']} pre-existing)")
     print("=" * 70)
 
     return report_dict

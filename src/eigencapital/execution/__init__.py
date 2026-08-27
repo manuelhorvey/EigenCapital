@@ -6,16 +6,16 @@ Implements the complete paper-trading execution path:
 Critical invariant: Paper-only boundary. No live broker connectivity.
 """
 
+from eigencapital.execution.account import AccountSnapshot, AccountState
 from eigencapital.execution.broker import PaperBroker
-from eigencapital.execution.position_manager import PositionManager
-from eigencapital.execution.account import AccountState, AccountSnapshot
 from eigencapital.execution.events import AuditEvent, AuditLog
+from eigencapital.execution.position_manager import PositionManager
 
 __all__ = [
-    "PaperBroker",
-    "PositionManager",
-    "AccountState",
     "AccountSnapshot",
+    "AccountState",
     "AuditEvent",
     "AuditLog",
+    "PaperBroker",
+    "PositionManager",
 ]

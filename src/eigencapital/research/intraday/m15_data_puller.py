@@ -12,7 +12,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
@@ -91,9 +91,7 @@ def _check_integrity(data: Dict[str, pd.DataFrame]) -> Tuple[int, int, int, int]
 
         if all(c in df.columns for c in ["open", "high", "low", "close"]):
             hl_violations = (df["high"] < df["low"]).sum()
-            close_outside = (
-                (df["close"] < df["low"]) | (df["close"] > df["high"])
-            ).sum()
+            close_outside = ((df["close"] < df["low"]) | (df["close"] > df["high"])).sum()
             total_ohlc += int(hl_violations + close_outside)
 
         if len(df) > 1:
@@ -107,7 +105,7 @@ def _check_integrity(data: Dict[str, pd.DataFrame]) -> Tuple[int, int, int, int]
 
 
 def pull_m15_data(
-    symbols: Optional[List[str]] = None,
+    symbols: List[str] | None = None,
     host: str = "127.0.0.1",
     port: int = 8001,
     output_dir: str = "data/intraday_m15",
@@ -141,14 +139,10 @@ def pull_m15_data(
                 all_frames: List[pd.DataFrame] = []
 
                 for offset in range(0, MAX_BARS, CHUNK_SIZE):
-                    rates = mt5.copy_rates_from_pos(
-                        symbol, TIMEFRAME_M15, offset, CHUNK_SIZE
-                    )
+                    rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_M15, offset, CHUNK_SIZE)
                     if rates is None or len(rates) == 0:
                         break
-                    all_frames.append(
-                        pd.DataFrame(rates.tolist(), columns=rates.dtype.names)
-                    )
+                    all_frames.append(pd.DataFrame(rates.tolist(), columns=rates.dtype.names))
 
                 if not all_frames:
                     logger.warning(f"No M15 data for {symbol}")
@@ -156,16 +150,9 @@ def pull_m15_data(
 
                 df = pd.concat(all_frames, ignore_index=True)
                 df["time"] = pd.to_datetime(df["time"], unit="s")
-                df = (
-                    df.drop_duplicates(subset="time")
-                    .sort_values("time")
-                    .reset_index(drop=True)
-                )
+                df = df.drop_duplicates(subset="time").sort_values("time").reset_index(drop=True)
 
-                logger.info(
-                    f"  {symbol}: {len(df)} M15 bars | "
-                    f"{df['time'].iloc[0]} → {df['time'].iloc[-1]}"
-                )
+                logger.info(f"  {symbol}: {len(df)} M15 bars | {df['time'].iloc[0]} → {df['time'].iloc[-1]}")
 
                 csv_path = os.path.join(output_dir, f"{symbol}_M15.csv")
                 df.to_csv(csv_path, index=False)
@@ -200,9 +187,7 @@ def pull_m15_data(
         "bars": bars_info,
         "total_bars": total_bars,
     }
-    snapshot_hash = hashlib.sha256(
-        json.dumps(snapshot_data, sort_keys=True).encode()
-    ).hexdigest()[:16]
+    snapshot_hash = hashlib.sha256(json.dumps(snapshot_data, sort_keys=True).encode()).hexdigest()[:16]
 
     manifest = M15DataManifest(
         broker="Exness",
@@ -270,9 +255,7 @@ def _load_from_csv(
         "bars": bars_info,
         "total_bars": total_bars,
     }
-    snapshot_hash = hashlib.sha256(
-        json.dumps(snapshot_data, sort_keys=True).encode()
-    ).hexdigest()[:16]
+    snapshot_hash = hashlib.sha256(json.dumps(snapshot_data, sort_keys=True).encode()).hexdigest()[:16]
 
     manifest = M15DataManifest(
         broker="Exness_csv",

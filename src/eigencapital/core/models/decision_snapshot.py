@@ -29,7 +29,7 @@ Flow: StrategyIntent + MarketState → DecisionSnapshot → PortfolioTarget → 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -74,19 +74,13 @@ class DecisionSnapshot:
     strategy_artifact_hash: str  # hash(strategy implementation / code)
     provenance_hash: str  # hash(full provenance chain)
     instrument_id: str
-    experiment_id: Optional[str] = None  # linked experiment (if any)
+    experiment_id: str | None = None  # linked experiment (if any)
 
     # Market state at signal generation time
-    market_state: Dict[str, Any] = field(
-        default_factory=dict
-    )  # free-form: regime, flags, etc.
-    features: Dict[str, float] = field(
-        default_factory=dict
-    )  # computed feature vector at signal time
+    market_state: Dict[str, Any] = field(default_factory=dict)  # free-form: regime, flags, etc.
+    features: Dict[str, float] = field(default_factory=dict)  # computed feature vector at signal time
     signal: object = None  # the StrategyIntent that was generated
-    portfolio_state: Dict[str, Any] = field(
-        default_factory=dict
-    )  # positions, equity at signal time
+    portfolio_state: Dict[str, Any] = field(default_factory=dict)  # positions, equity at signal time
     risk_state: object = None  # the RiskDecision outcome
 
     # Explicit rationale
@@ -98,10 +92,10 @@ class DecisionSnapshot:
     # Provenance chain
     git_commit: str = ""
     dataset_version: str = ""
-    random_seed: Optional[int] = None  # if stochastic strategy
+    random_seed: int | None = None  # if stochastic strategy
 
     # Version chain for provenance
-    parent_snapshot_ids: Optional[list] = None  # → parent snapshots, for provenance
+    parent_snapshot_ids: list | None = None  # → parent snapshots, for provenance
 
     # Internal tracking
 
@@ -151,10 +145,7 @@ class DecisionSnapshot:
         # Validate execution_context is known
         valid_contexts = {"PAPER", "LIVE", "BACKTEST"}
         if self.execution_context not in valid_contexts:
-            raise ValueError(
-                f"Invalid execution_context: {self.execution_context}. "
-                f"Must be one of {valid_contexts}"
-            )
+            raise ValueError(f"Invalid execution_context: {self.execution_context}. Must be one of {valid_contexts}")
 
         # Validate git_commit is non-empty
         if not self.git_commit:
@@ -180,10 +171,7 @@ class DecisionSnapshot:
         from .risk_decision import RiskDecision
 
         if not isinstance(self.risk_state, RiskDecision):
-            raise ValueError(
-                f"risk_state must be a RiskDecision instance, "
-                f"got {type(self.risk_state)}"
-            )
+            raise ValueError(f"risk_state must be a RiskDecision instance, got {type(self.risk_state)}")
 
         # INVARIANT: signal must not be None
         if self.signal is None:
@@ -192,8 +180,7 @@ class DecisionSnapshot:
         # Registry check for duplicate snapshot_ids
         if self.snapshot_id in self._registry:
             raise ValueError(
-                f"Duplicate snapshot_id: {self.snapshot_id}. "
-                "Snapshot IDs must be unique (audit trail requirement)."
+                f"Duplicate snapshot_id: {self.snapshot_id}. Snapshot IDs must be unique (audit trail requirement)."
             )
         self._registry[self.snapshot_id] = True
 
@@ -235,9 +222,7 @@ class DecisionSnapshot:
             "features": dict(self.features),
             "signal": self.signal.to_dict() if hasattr(self.signal, "to_dict") else {},
             "portfolio_state": dict(self.portfolio_state),
-            "risk_state": self.risk_state.to_dict()
-            if hasattr(self.risk_state, "to_dict")
-            else {},
+            "risk_state": self.risk_state.to_dict() if hasattr(self.risk_state, "to_dict") else {},
             "risk_decision_reason": self.risk_decision_reason,
             "execution_context": self.execution_context,
             "git_commit": self.git_commit,
@@ -258,9 +243,7 @@ class DecisionSnapshot:
             execution_timestamp_utc=str(d["execution_timestamp_utc"]),
             strategy_id=str(d["strategy_id"]),
             strategy_version=str(d["strategy_version"]),
-            strategy_config_hash=str(
-                d.get("strategy_config_hash", d.get("config_hash", ""))
-            ),
+            strategy_config_hash=str(d.get("strategy_config_hash", d.get("config_hash", ""))),
             strategy_artifact_hash=str(d.get("strategy_artifact_hash", "")),
             provenance_hash=str(d.get("provenance_hash", "")),
             instrument_id=str(d["instrument_id"]),
@@ -274,9 +257,7 @@ class DecisionSnapshot:
             execution_context=str(d.get("execution_context", "PAPER")),
             git_commit=str(d.get("git_commit", "")),
             dataset_version=str(d.get("dataset_version", "")),
-            random_seed=int(d["random_seed"])
-            if d.get("random_seed") is not None
-            else None,
+            random_seed=int(d["random_seed"]) if d.get("random_seed") is not None else None,
             parent_snapshot_ids=d.get("parent_snapshot_ids"),
         )
 

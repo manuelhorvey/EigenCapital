@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class ParityBoundary(str, Enum):
@@ -148,7 +148,7 @@ class ResearchPaperParityEngine:
     def __init__(
         self,
         campaign_id: str,
-        tolerances: Optional[Dict[ParityBoundary, float]] = None,
+        tolerances: Dict[ParityBoundary, float] | None = None,
     ) -> None:
         self._campaign_id = campaign_id
         self._tolerances = tolerances or dict(self.DEFAULT_TOLERANCES)
@@ -180,9 +180,7 @@ class ResearchPaperParityEngine:
         tolerance = self._tolerances.get(boundary, 1e-6)
 
         # Compute difference
-        if isinstance(research_value, (int, float)) and isinstance(
-            paper_value, (int, float)
-        ):
+        if isinstance(research_value, (int, float)) and isinstance(paper_value, (int, float)):
             difference = abs(float(research_value) - float(paper_value))
         elif research_value == paper_value:
             difference = 0.0
@@ -306,29 +304,11 @@ class ResearchPaperParityEngine:
     def get_summary(self) -> ParitySummary:
         """Compute aggregate parity statistics."""
         total = len(self._results)
-        exact = sum(
-            1 for r in self._results if r.divergence_type == DivergenceType.EXACT_MATCH
-        )
-        expected = sum(
-            1
-            for r in self._results
-            if r.divergence_type == DivergenceType.EXPECTED_DIFFERENCE
-        )
-        tolerable = sum(
-            1
-            for r in self._results
-            if r.divergence_type == DivergenceType.TOLERABLE_DIVERGENCE
-        )
-        unexplained = sum(
-            1
-            for r in self._results
-            if r.divergence_type == DivergenceType.UNEXPLAINED_DIVERGENCE
-        )
-        critical = sum(
-            1
-            for r in self._results
-            if r.divergence_type == DivergenceType.CRITICAL_DIVERGENCE
-        )
+        exact = sum(1 for r in self._results if r.divergence_type == DivergenceType.EXACT_MATCH)
+        expected = sum(1 for r in self._results if r.divergence_type == DivergenceType.EXPECTED_DIFFERENCE)
+        tolerable = sum(1 for r in self._results if r.divergence_type == DivergenceType.TOLERABLE_DIVERGENCE)
+        unexplained = sum(1 for r in self._results if r.divergence_type == DivergenceType.UNEXPLAINED_DIVERGENCE)
+        critical = sum(1 for r in self._results if r.divergence_type == DivergenceType.CRITICAL_DIVERGENCE)
 
         if critical > 0:
             overall = "CRITICAL"
@@ -351,8 +331,8 @@ class ResearchPaperParityEngine:
 
     def get_results(
         self,
-        boundary: Optional[ParityBoundary] = None,
-        status: Optional[ParityStatus] = None,
+        boundary: ParityBoundary | None = None,
+        status: ParityStatus | None = None,
     ) -> List[ParityCheckResult]:
         """Get results, optionally filtered."""
         results = self._results
@@ -364,10 +344,7 @@ class ResearchPaperParityEngine:
 
     @property
     def has_critical(self) -> bool:
-        return any(
-            r.divergence_type == DivergenceType.CRITICAL_DIVERGENCE
-            for r in self._results
-        )
+        return any(r.divergence_type == DivergenceType.CRITICAL_DIVERGENCE for r in self._results)
 
     @property
     def check_count(self) -> int:

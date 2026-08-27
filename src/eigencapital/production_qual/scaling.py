@@ -12,7 +12,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class ScaleLevel(str, Enum):
@@ -193,8 +193,7 @@ class ProductionScaleEvaluator:
 
         # Margin check
         checks["margin"] = {
-            "passed": not metrics.margin_pressure
-            and metrics.margin_usage <= self.MAX_MARGIN_USAGE,
+            "passed": not metrics.margin_pressure and metrics.margin_usage <= self.MAX_MARGIN_USAGE,
             "usage": metrics.margin_usage,
             "threshold": self.MAX_MARGIN_USAGE,
         }

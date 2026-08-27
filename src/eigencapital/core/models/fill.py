@@ -14,9 +14,9 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -74,8 +74,7 @@ class Fill:
         # INVARIANT: quantity is ALWAYS positive
         if self.quantity <= 0:
             raise ValueError(
-                f"Fill quantity must be > 0, got {self.quantity}. "
-                "Fill quantity is always positive (executed quantity)."
+                f"Fill quantity must be > 0, got {self.quantity}. Fill quantity is always positive (executed quantity)."
             )
 
         # INVARIANT: Fill.side must equal Order.side (checked at OrderLifecycle level;
@@ -90,9 +89,7 @@ class Fill:
 
         # Validate timestamp is ISO-8601 UTC
         if "T" not in self.timestamp_utc:
-            raise ValueError(
-                f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}"
-            )
+            raise ValueError(f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}")
 
         # Validate fill_price is finite and positive
         if math.isnan(self.fill_price) or math.isinf(self.fill_price):
@@ -111,29 +108,22 @@ class Fill:
         # Validate fill_type is known
         valid_fill_types = {"FULL", "PARTIAL", "CANCELLED"}
         if self.fill_type not in valid_fill_types:
-            raise ValueError(
-                f"Invalid fill_type: {self.fill_type}. Must be one of {valid_fill_types}"
-            )
+            raise ValueError(f"Invalid fill_type: {self.fill_type}. Must be one of {valid_fill_types}")
 
         # Validate liquidity_indicator
         valid_liquidity = {"TAKER", "MAKER"}
         if self.liquidity_indicator not in valid_liquidity:
             raise ValueError(
-                f"Invalid liquidity_indicator: {self.liquidity_indicator}. "
-                f"Must be one of {valid_liquidity}"
+                f"Invalid liquidity_indicator: {self.liquidity_indicator}. Must be one of {valid_liquidity}"
             )
 
         # Validate strategy_id is non-empty (required for accountability)
         if not self.strategy_id:
-            raise ValueError(
-                "strategy_id must be non-empty (required for accountability)"
-            )
+            raise ValueError("strategy_id must be non-empty (required for accountability)")
 
         # Registry check for duplicate fill_id
         if self.fill_id in self._registry:
-            raise ValueError(
-                f"Duplicate fill_id: {self.fill_id}. Fill IDs must be unique."
-            )
+            raise ValueError(f"Duplicate fill_id: {self.fill_id}. Fill IDs must be unique.")
         self._registry[self.fill_id] = (
             self.fill_id,
             self.order_id,

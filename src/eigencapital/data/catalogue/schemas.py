@@ -11,7 +11,6 @@ Usage:
 from eigencapital.core.models.instrument import Instrument
 from eigencapital.data.catalogue.catalogue import InstrumentCatalogue
 
-
 # ─── Futures ────────────────────────────────────────────────────────────────
 
 ES = Instrument(

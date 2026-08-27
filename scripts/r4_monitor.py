@@ -32,9 +32,9 @@ import os
 import signal
 import sys
 import time
-import urllib.request
 import urllib.parse
-from datetime import datetime, timezone
+import urllib.request
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -70,13 +70,13 @@ signal.signal(signal.SIGTERM, _handle_signal)
 
 
 def log(msg: str) -> None:
-    ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    ts = datetime.now(UTC).strftime("%H:%M:%S")
     print(f"  [{ts}] {msg}", flush=True)
 
 
 def monitor_record(record: Dict[str, Any]) -> None:
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
-    record["timestamp"] = datetime.now(timezone.utc).isoformat()
+    record["timestamp"] = datetime.now(UTC).isoformat()
     with open(MONITOR_LOG, "a") as f:
         f.write(json.dumps(record, default=str) + "\n")
 
@@ -95,9 +95,7 @@ def send_telegram(text: str) -> bool:
                 "parse_mode": "HTML",
             }
         ).encode()
-        req = urllib.request.Request(
-            url, data=data, headers={"Content-Type": "application/json"}
-        )
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
         resp = urllib.request.urlopen(req, timeout=10)
         return resp.status == 200
     except Exception as e:
@@ -162,9 +160,7 @@ def get_broker_positions(mt5) -> Dict[str, Dict[str, Any]]:
     return result
 
 
-def diff_positions(
-    old: Dict[str, Dict], new: Dict[str, Dict]
-) -> Tuple[List[str], List[str], List[str]]:
+def diff_positions(old: Dict[str, Dict], new: Dict[str, Dict]) -> Tuple[List[str], List[str], List[str]]:
     """Compare old and new positions. Returns (added, removed, modified)."""
     added = []
     removed = []
@@ -185,14 +181,8 @@ def diff_positions(
         old_p = old[key]
         new_p = new[key]
         # Only alert on structural changes, not P&L noise
-        if (
-            old_p["volume"] != new_p["volume"]
-            or old_p["sl"] != new_p["sl"]
-            or old_p["tp"] != new_p["tp"]
-        ):
-            modified.append(
-                f"{new_p['symbol']} vol={new_p['volume']:.2f} sl={new_p['sl']} tp={new_p['tp']}"
-            )
+        if old_p["volume"] != new_p["volume"] or old_p["sl"] != new_p["sl"] or old_p["tp"] != new_p["tp"]:
+            modified.append(f"{new_p['symbol']} vol={new_p['volume']:.2f} sl={new_p['sl']} tp={new_p['tp']}")
 
     return added, removed, modified
 
@@ -307,9 +297,7 @@ def check_equity(mt5) -> None:
 
     # Save current equity
     with open(last_equity_file, "w") as f:
-        json.dump(
-            {"equity": equity, "timestamp": datetime.now(timezone.utc).isoformat()}, f
-        )
+        json.dump({"equity": equity, "timestamp": datetime.now(UTC).isoformat()}, f)
 
 
 def check_regime() -> None:
@@ -347,10 +335,7 @@ def check_regime() -> None:
             return
 
         returns_df = (
-            pd.DataFrame({sym: df.pct_change() for sym, df in data.items()})
-            .dropna(how="all")
-            .ffill()
-            .fillna(0)
+            pd.DataFrame({sym: df.pct_change() for sym, df in data.items()}).dropna(how="all").ffill().fillna(0)
         )
         avg_vol = returns_df.rolling(20).std().mean(axis=1) * np.sqrt(252)
         risk_median = avg_vol.expanding().median()
@@ -372,7 +357,7 @@ def check_regime() -> None:
                     "regime_on": regime_on,
                     "vol": float(avg_vol.iloc[-1]),
                     "median": float(risk_median.iloc[-1]),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
                 f,
             )
@@ -415,7 +400,7 @@ def check_loop_health() -> None:
         json.dump(
             {
                 "alive": alive,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             f,
         )
@@ -443,9 +428,7 @@ def show_status(mt5) -> None:
         print("POSITIONS:")
         for p in pos_list:
             d = "LONG" if p.type == 0 else "SHORT"
-            print(
-                f"  {d:5s} {p.symbol:8s} {p.volume:.2f} lots @ {p.price_open:.5f} pnl={p.profit:+.2f}"
-            )
+            print(f"  {d:5s} {p.symbol:8s} {p.volume:.2f} lots @ {p.price_open:.5f} pnl={p.profit:+.2f}")
         print()
 
     # Regime
@@ -454,9 +437,7 @@ def show_status(mt5) -> None:
         with open(regime_file) as f:
             data = json.load(f)
         regime = "ON ✅" if data.get("regime_on") else "OFF ⛔"
-        print(
-            f"REGIME: {regime} (vol {data.get('vol', 0):.1%} vs median {data.get('median', 0):.1%})"
-        )
+        print(f"REGIME: {regime} (vol {data.get('vol', 0):.1%} vs median {data.get('median', 0):.1%})")
     else:
         print("REGIME: unknown (no check yet)")
     print()
@@ -523,9 +504,7 @@ def main() -> None:
     # Telegram setup check
     if "--telegram" in args:
         if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-            print(
-                "⚠️  Telegram not configured. Set R4_TELEGRAM_BOT_TOKEN and R4_TELEGRAM_CHAT_ID"
-            )
+            print("⚠️  Telegram not configured. Set R4_TELEGRAM_BOT_TOKEN and R4_TELEGRAM_CHAT_ID")
             print("   1. Create bot via @BotFather → get BOT_TOKEN")
             print("   2. Send message to bot → get CHAT_ID from /getUpdates")
             print("   3. export R4_TELEGRAM_BOT_TOKEN=...")

@@ -23,7 +23,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-
 R4_MAGIC = 20260825
 R4_COMMENT_PREFIX = "R4"
 
@@ -94,9 +93,7 @@ class CapacityVerdict:
     reason: str
 
 
-def capacity_account(
-    classified: list[ClassifiedPosition], max_concurrent: int
-) -> CapacityVerdict:
+def capacity_account(classified: list[ClassifiedPosition], max_concurrent: int) -> CapacityVerdict:
     """Capacity counts ONLY R4-owned positions. Foreign presence quarantines."""
     r4 = [p for p in classified if p.pclass == PositionClass.R4_BOT]
     foreign = [p.to_dict() for p in classified if p.pclass != PositionClass.R4_BOT]
@@ -122,22 +119,15 @@ def capacity_account(
         foreign_positions=[],
         allow_new_entries=len(r4) < max_concurrent and not over,
         allow_self_rotation=True,
-        reason=(
-            f"{len(r4)}/{max_concurrent} R4 positions"
-            + (" — ALREADY BREACHED" if over else "")
-        ),
+        reason=(f"{len(r4)}/{max_concurrent} R4 positions" + (" — ALREADY BREACHED" if over else "")),
     )
 
 
-def snapshot_hash(
-    positions: list[dict[str, Any]], equity: float | None, free_margin: float | None
-) -> str:
+def snapshot_hash(positions: list[dict[str, Any]], equity: float | None, free_margin: float | None) -> str:
     """Broker-state evidence hash bound into every risk decision (A7)."""
     material = json.dumps(
         {
-            "positions": sorted(
-                json.dumps(p, sort_keys=True, default=str) for p in positions
-            ),
+            "positions": sorted(json.dumps(p, sort_keys=True, default=str) for p in positions),
             "equity": equity,
             "free_margin": free_margin,
         },
@@ -159,9 +149,7 @@ class AttributionLedger:
     rows: list[dict[str, Any]] = field(default_factory=list)
 
 
-def ledger_from_deals(
-    deals: list[dict[str, Any]], known_magics: dict[int, str] | None = None
-) -> AttributionLedger:
+def ledger_from_deals(deals: list[dict[str, Any]], known_magics: dict[int, str] | None = None) -> AttributionLedger:
     """Build realized-P&L attribution per magic from broker deal history.
 
     Attestation is honest by construction: `manual_trades` is whatever the
@@ -177,20 +165,12 @@ def ledger_from_deals(
     for d in deals:
         magic = int(d.get("magic", 0) or 0)
         owner = known.get(magic)
-        bucket = (
-            owner
-            if owner
-            else (f"MAGIC_{magic}" if magic != 0 else "UNATTRIBUTED_MAGIC_0")
-        )
+        bucket = owner if owner else (f"MAGIC_{magic}" if magic != 0 else "UNATTRIBUTED_MAGIC_0")
         if owner is None:
             unattr += 1
         agg = by_magic.setdefault(bucket, {"deals": 0, "realized_pnl": 0.0})
         agg["deals"] += 1
-        pnl = (
-            float(d.get("profit", 0) or 0)
-            + float(d.get("commission", 0) or 0)
-            + float(d.get("swap", 0) or 0)
-        )
+        pnl = float(d.get("profit", 0) or 0) + float(d.get("commission", 0) or 0) + float(d.get("swap", 0) or 0)
         agg["realized_pnl"] += pnl
         rows.append(
             {

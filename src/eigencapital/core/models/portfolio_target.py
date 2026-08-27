@@ -14,9 +14,9 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -87,9 +87,7 @@ class PortfolioTarget:
 
         # Registry check for duplicate target_ids
         if self.target_id in self._registry:
-            raise ValueError(
-                f"Duplicate target_id: {self.target_id}. Target IDs must be unique."
-            )
+            raise ValueError(f"Duplicate target_id: {self.target_id}. Target IDs must be unique.")
         self._registry[self.target_id] = True
 
     def __hash__(self) -> int:
@@ -124,9 +122,7 @@ class PortfolioTarget:
             target_market_value=float(d["target_market_value"]),
             target_risk=float(d["target_risk"]),
             justification=str(d["justification"]),
-            strategy_config_hash=str(
-                d.get("strategy_config_hash", d.get("config_hash", ""))
-            ),
+            strategy_config_hash=str(d.get("strategy_config_hash", d.get("config_hash", ""))),
             strategy_artifact_hash=str(d.get("strategy_artifact_hash", "")),
             version=str(d.get("version", "v1")),
         )

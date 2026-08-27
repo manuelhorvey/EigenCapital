@@ -11,14 +11,14 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_donchian_position(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_donchian_position(bars: List[Bar], lookback: int) -> float | None:
     """Compute position within Donchian channel.
 
     Returns a value between 0 and 1:
@@ -48,7 +48,7 @@ def compute_donchian_position(bars: List[Bar], lookback: int) -> Optional[float]
     return (close - low) / channel_range
 
 
-def compute_donchian_breakout(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_donchian_breakout(bars: List[Bar], lookback: int) -> float | None:
     """Compute Donchian breakout signal.
 
     Returns:
@@ -81,9 +81,7 @@ def compute_donchian_breakout(bars: List[Bar], lookback: int) -> Optional[float]
         return 0.0
 
 
-def compute_bollinger_position(
-    bars: List[Bar], lookback: int, num_std: float = 2.0
-) -> Optional[float]:
+def compute_bollinger_position(bars: List[Bar], lookback: int, num_std: float = 2.0) -> float | None:
     """Compute position within Bollinger Bands.
 
     Returns a value between 0 and 1:
@@ -119,7 +117,7 @@ def compute_bollinger_position(
     return (current - lower) / band_range
 
 
-def compute_distance_from_high(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_distance_from_high(bars: List[Bar], lookback: int) -> float | None:
     """Compute distance from N-period high (as percentage).
 
     Negative = below high, positive = at/above high.
@@ -148,8 +146,8 @@ def make_donchian_position_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from Donchian position computation."""
     value = compute_donchian_position(bars, lookback)
     if value is None:
@@ -179,8 +177,8 @@ def make_bollinger_position_feature(
     lookback: int,
     instrument_id: str,
     num_std: float = 2.0,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from Bollinger position computation."""
     value = compute_bollinger_position(bars, lookback, num_std)
     if value is None:

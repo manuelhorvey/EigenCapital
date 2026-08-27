@@ -21,9 +21,9 @@ import json
 import os
 import signal
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -71,17 +71,17 @@ class ProcessSupervisor:
         self._pid_file = self._state_dir / "supervisor.pid"
         self._state_file = self._state_dir / "supervisor_state.json"
         self._health_file = self._state_dir / "loop_health.json"
-        self._state: Optional[SupervisorState] = None
+        self._state: SupervisorState | None = None
 
     def _now_utc(self) -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     def _generate_instance_id(self) -> str:
         """Generate a unique instance ID from PID + timestamp."""
         data = f"{os.getpid()}:{self._now_utc()}"
         return hashlib.sha256(data.encode()).hexdigest()[:12]
 
-    def _load_state(self) -> Optional[SupervisorState]:
+    def _load_state(self) -> SupervisorState | None:
         """Load state from disk."""
         if not self._state_file.exists():
             return None
@@ -120,7 +120,7 @@ class ProcessSupervisor:
         self._state_dir.mkdir(parents=True, exist_ok=True)
         self._pid_file.write_text(str(os.getpid()))
 
-    def _read_pid(self) -> Optional[int]:
+    def _read_pid(self) -> int | None:
         """Read PID from file."""
         if not self._pid_file.exists():
             return None
@@ -286,7 +286,7 @@ class ProcessSupervisor:
         return pid == os.getpid()
 
     @property
-    def state(self) -> Optional[SupervisorState]:
+    def state(self) -> SupervisorState | None:
         return self._state
 
     def get_health_status(self) -> Dict[str, Any]:

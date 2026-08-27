@@ -18,10 +18,10 @@ Universe tracking:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class Universe:
 def compute_cross_sectional_rank(
     instrument_returns: Dict[str, float],
     target_instrument: str,
-) -> Optional[float]:
+) -> float | None:
     """Compute cross-sectional rank of an instrument's return.
 
     Returns rank as a value between 0 and 1 (percentile).
@@ -79,7 +79,7 @@ def compute_relative_strength(
     instrument_returns: Dict[str, float],
     target_instrument: str,
     benchmark_instrument: str,
-) -> Optional[float]:
+) -> float | None:
     """Compute relative strength vs benchmark.
 
     Relative strength = target_return - benchmark_return
@@ -97,9 +97,7 @@ def compute_relative_strength(
     if benchmark_instrument not in instrument_returns:
         return None
 
-    return (
-        instrument_returns[target_instrument] - instrument_returns[benchmark_instrument]
-    )
+    return instrument_returns[target_instrument] - instrument_returns[benchmark_instrument]
 
 
 def compute_percentile_rank(values: List[float], target_value: float) -> float:
@@ -126,8 +124,8 @@ def make_cross_sectional_rank_feature(
     instrument_returns: Dict[str, float],
     target_instrument: str,
     universe: Universe,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from cross-sectional rank computation."""
     value = compute_cross_sectional_rank(instrument_returns, target_instrument)
     if value is None:

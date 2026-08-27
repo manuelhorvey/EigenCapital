@@ -10,10 +10,10 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import ParitySummary
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
 
 class FidelityGate(str, Enum):
@@ -121,17 +121,11 @@ class FidelityReport:
         )
 
         if self.verdict == FidelityVerdict.PAPER_FIDELITY_PASS:
-            lines.append(
-                "**The paper implementation reproduces the validated R4 research.**"
-            )
+            lines.append("**The paper implementation reproduces the validated R4 research.**")
         elif self.verdict == FidelityVerdict.BLOCKED:
-            lines.append(
-                "**CRITICAL: Paper implementation does NOT reproduce research.**"
-            )
+            lines.append("**CRITICAL: Paper implementation does NOT reproduce research.**")
         else:
-            lines.append(
-                "**CONDITIONAL: Some gates failed but no critical divergence.**"
-            )
+            lines.append("**CONDITIONAL: Some gates failed but no critical divergence.**")
 
         return "\n".join(lines)
 
@@ -162,7 +156,7 @@ class FidelityEvaluator:
         reconciliation_success_rate: float = 1.0,
         total_cost_drag_bps: float = 0.0,
         max_slippage_bps: float = 0.0,
-        operational_events: Optional[Dict[str, int]] = None,
+        operational_events: Dict[str, int] | None = None,
     ) -> FidelityReport:
         """Evaluate all fidelity gates and produce a verdict.
 
@@ -178,9 +172,7 @@ class FidelityEvaluator:
 
         # Gate 1: Research Parity
         # Expected differences (intentional cost model) are not failures
-        non_expected_total = (
-            parity_summary.total_checks - parity_summary.expected_differences
-        )
+        non_expected_total = parity_summary.total_checks - parity_summary.expected_differences
         if non_expected_total > 0:
             effective_match_rate = parity_summary.exact_matches / non_expected_total
         else:
@@ -209,10 +201,7 @@ class FidelityEvaluator:
         )
 
         # Gate 2: Execution Accounting
-        accounting_passed = (
-            total_cost_drag_bps <= self.MAX_COST_DRAG_BPS
-            and max_slippage_bps <= self.MAX_SLIPPAGE_BPS
-        )
+        accounting_passed = total_cost_drag_bps <= self.MAX_COST_DRAG_BPS and max_slippage_bps <= self.MAX_SLIPPAGE_BPS
         gate_results.append(
             GateResult(
                 gate=FidelityGate.EXECUTION_ACCOUNTING,
@@ -236,17 +225,14 @@ class FidelityEvaluator:
                 gate=FidelityGate.RISK_BEHAVIOR,
                 passed=risk_passed,
                 reason=(
-                    f"Critical divergences: {parity_summary.critical_divergences} "
-                    f"({'PASS' if risk_passed else 'FAIL'})"
+                    f"Critical divergences: {parity_summary.critical_divergences} ({'PASS' if risk_passed else 'FAIL'})"
                 ),
                 details={"critical_divergences": parity_summary.critical_divergences},
             )
         )
 
         # Gate 4: Reconciliation
-        reconciliation_passed = (
-            reconciliation_success_rate >= self.MIN_RECONCILIATION_RATE
-        )
+        reconciliation_passed = reconciliation_success_rate >= self.MIN_RECONCILIATION_RATE
         gate_results.append(
             GateResult(
                 gate=FidelityGate.RECONCILIATION,
@@ -269,8 +255,7 @@ class FidelityEvaluator:
                 gate=FidelityGate.OPERATIONAL_STABILITY,
                 passed=ops_passed,
                 reason=(
-                    f"Missing bars: {missing_bars}, stale events: {stale_events} "
-                    f"({'PASS' if ops_passed else 'FAIL'})"
+                    f"Missing bars: {missing_bars}, stale events: {stale_events} ({'PASS' if ops_passed else 'FAIL'})"
                 ),
                 details={"missing_bars": missing_bars, "stale_events": stale_events},
             )
@@ -278,16 +263,13 @@ class FidelityEvaluator:
 
         # Gate 6: Cost/Slippage Envelope
         cost_envelope_passed = (
-            total_cost_drag_bps <= self.MAX_COST_DRAG_BPS
-            and max_slippage_bps <= self.MAX_SLIPPAGE_BPS
+            total_cost_drag_bps <= self.MAX_COST_DRAG_BPS and max_slippage_bps <= self.MAX_SLIPPAGE_BPS
         )
         gate_results.append(
             GateResult(
                 gate=FidelityGate.COST_SLIPPAGE_ENVELOPE,
                 passed=cost_envelope_passed,
-                reason=(
-                    f"Within envelope ({'PASS' if cost_envelope_passed else 'FAIL'})"
-                ),
+                reason=(f"Within envelope ({'PASS' if cost_envelope_passed else 'FAIL'})"),
                 details={
                     "cost_bps": total_cost_drag_bps,
                     "slippage_bps": max_slippage_bps,

@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from eigencapital.live.supervisor import ProcessSupervisor, SupervisorState
+from eigencapital.live.supervisor import ProcessSupervisor
 
 
 @pytest.fixture

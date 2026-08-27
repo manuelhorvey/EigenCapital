@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -155,9 +155,7 @@ class AccountState:
             net_exposure=self._net_exposure,
             num_positions=self._num_positions,
         )
-        return AccountSnapshot(
-            **{**snap.__dict__, "provenance_hash": snap.compute_hash()}
-        )
+        return AccountSnapshot(**{**snap.__dict__, "provenance_hash": snap.compute_hash()})
 
     def reset(self) -> None:
         """Reset to initial state."""

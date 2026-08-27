@@ -8,7 +8,6 @@ Tests:
 - No hypothesis modified after registration
 """
 
-import pytest
 
 from eigencapital.research.alpha.executor import CampaignExecutor, HYPOTHESIS_LIBRARY, SIMULATED_EVIDENCE
 

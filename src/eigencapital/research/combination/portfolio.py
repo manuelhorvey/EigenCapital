@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 from eigencapital.research.combination.returns import ReturnStream
 
@@ -220,9 +220,7 @@ def compute_portfolio_metrics(returns: Tuple[float, ...]) -> Dict[str, Any]:
     if neg_returns and n > 1:
         downside_var = sum(r**2 for r in neg_returns) / (n - 1)
         downside_dev = math.sqrt(downside_var)
-        sortino = (
-            (mean_ret / downside_dev * math.sqrt(252)) if downside_dev > 1e-15 else 0.0
-        )
+        sortino = (mean_ret / downside_dev * math.sqrt(252)) if downside_dev > 1e-15 else 0.0
     else:
         sortino = 0.0
 

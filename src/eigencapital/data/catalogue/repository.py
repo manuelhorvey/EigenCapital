@@ -57,7 +57,7 @@ class CatalogueRepository:
         path = self._instrument_path(instrument_id)
         if not path.exists():
             raise InstrumentNotFoundError(instrument_id)
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return Instrument.from_dict(data)
 

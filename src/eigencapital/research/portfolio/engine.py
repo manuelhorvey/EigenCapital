@@ -11,21 +11,21 @@ Integrates:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
+from eigencapital.research.combination.candidate import AlphaCandidate
+from eigencapital.research.combination.portfolio import (
+    combine_returns,
+    compute_equal_weight,
+    compute_portfolio_metrics,
+    compute_risk_scaled,
+)
+from eigencapital.research.combination.returns import ReturnStream
 from eigencapital.research.portfolio.allocation import (
     AllocationExperiment,
 )
 from eigencapital.research.portfolio.evidence import (
     PortfolioEvidenceGate,
-)
-from eigencapital.research.combination.candidate import AlphaCandidate
-from eigencapital.research.combination.returns import ReturnStream
-from eigencapital.research.combination.portfolio import (
-    compute_equal_weight,
-    compute_risk_scaled,
-    combine_returns,
-    compute_portfolio_metrics,
 )
 
 
@@ -51,7 +51,7 @@ class PortfolioResearchEngine:
         )
     """
 
-    def __init__(self, config: Optional[PortfolioResearchConfig] = None) -> None:
+    def __init__(self, config: PortfolioResearchConfig | None = None) -> None:
         self._config = config or PortfolioResearchConfig()
         self._experiments: Dict[str, AllocationExperiment] = {}
         self._evidence_gates: Dict[str, PortfolioEvidenceGate] = {}
@@ -75,11 +75,7 @@ class PortfolioResearchEngine:
 
         # Filter to eligible only
         eligible = [c for c in candidates if c.is_eligible]
-        eligible_streams = [
-            s
-            for s in streams
-            if any(c.candidate_id == s.candidate_id for c in eligible)
-        ]
+        eligible_streams = [s for s in streams if any(c.candidate_id == s.candidate_id for c in eligible)]
 
         if len(eligible) < 2:
             return {"status": "insufficient_candidates", "count": len(eligible)}
@@ -110,9 +106,7 @@ class PortfolioResearchEngine:
         # Run evidence gate on best method
         if best_method and "metrics" in results["methods"][best_method]:
             metrics = results["methods"][best_method]["metrics"]
-            baseline_metrics = (
-                results["methods"].get("equal_weight", {}).get("metrics", {})
-            )
+            baseline_metrics = results["methods"].get("equal_weight", {}).get("metrics", {})
 
             evidence = PortfolioEvidenceGate.evaluate(
                 experiment_id=f"PE-{best_method}",
@@ -159,8 +153,8 @@ class PortfolioResearchEngine:
             "num_periods": len(combined),
         }
 
-    def get_experiment(self, experiment_id: str) -> Optional[AllocationExperiment]:
+    def get_experiment(self, experiment_id: str) -> AllocationExperiment | None:
         return self._experiments.get(experiment_id)
 
-    def get_evidence_gate(self, experiment_id: str) -> Optional[PortfolioEvidenceGate]:
+    def get_evidence_gate(self, experiment_id: str) -> PortfolioEvidenceGate | None:
         return self._evidence_gates.get(experiment_id)

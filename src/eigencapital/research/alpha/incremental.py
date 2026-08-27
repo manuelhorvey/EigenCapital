@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -139,24 +139,16 @@ class IncrementalAlphaTester:
 
         sharpe_delta = portfolio_with_candidate.get("sharpe", 0.0) - baseline.sharpe
         sortino_delta = portfolio_with_candidate.get("sortino", 0.0) - baseline.sortino
-        drawdown_delta = (
-            portfolio_with_candidate.get("max_drawdown", 0.0) - baseline.max_drawdown
-        )
-        turnover_delta = (
-            portfolio_with_candidate.get("turnover", 0.0) - baseline.turnover
-        )
-        tail_risk_delta = (
-            portfolio_with_candidate.get("tail_risk", 0.0) - baseline.tail_risk
-        )
+        drawdown_delta = portfolio_with_candidate.get("max_drawdown", 0.0) - baseline.max_drawdown
+        turnover_delta = portfolio_with_candidate.get("turnover", 0.0) - baseline.turnover
+        tail_risk_delta = portfolio_with_candidate.get("tail_risk", 0.0) - baseline.tail_risk
 
         incremental_value = (
             sharpe_delta > 0.01  # at least 1% Sharpe improvement
             and drawdown_delta <= 0.05  # drawdown doesn't increase more than 5%
         )
 
-        diversification_value = correlation_with_existing < 0.7 and (
-            sharpe_delta > 0 or drawdown_delta < -0.01
-        )
+        diversification_value = correlation_with_existing < 0.7 and (sharpe_delta > 0 or drawdown_delta < -0.01)
 
         # Recommendation
         # High correlation (>0.9) with no meaningful diversification → REJECT regardless

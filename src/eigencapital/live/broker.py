@@ -19,12 +19,12 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 from eigencapital.shadow.contracts import (
     BrokerAdapter,
-    BrokerOrder,
     BrokerFill,
+    BrokerOrder,
     OrderResult,
 )
 
@@ -85,9 +85,7 @@ class LiveBrokerAdapter(BrokerAdapter):
     Never silently converts unknown states into success.
     """
 
-    config: BrokerConfig = field(
-        default_factory=lambda: BrokerConfig(broker_id="live", broker_name="live")
-    )
+    config: BrokerConfig = field(default_factory=lambda: BrokerConfig(broker_id="live", broker_name="live"))
     _status: BrokerStatus = BrokerStatus.DISCONNECTED
     _orders: Dict[str, BrokerOrder] = field(default_factory=dict)
     _order_states: Dict[str, str] = field(default_factory=dict)
@@ -133,7 +131,7 @@ class LiveBrokerAdapter(BrokerAdapter):
         self._order_states[order_id] = "CANCELLED"
         return True
 
-    def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+    def get_order(self, order_id: str) -> Dict[str, Any] | None:
         """Get order status."""
         order = self._orders.get(order_id)
         if order is None:

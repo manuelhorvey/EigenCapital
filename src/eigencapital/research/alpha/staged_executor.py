@@ -18,22 +18,22 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 
-from eigencapital.data.mt5_provider import MT5DataProvider, DataManifest
+from eigencapital.data.mt5_provider import DataManifest, MT5DataProvider
 from eigencapital.research.alpha.campaign import (
     HypothesisVerdict,
 )
-from eigencapital.research.alpha.scorecard import ScorecardEvaluator
+from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
 from eigencapital.research.alpha.incremental import (
     IncrementalAlphaTester,
     PortfolioBaseline,
 )
 from eigencapital.research.alpha.research_map import ResearchMapGenerator
-from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
+from eigencapital.research.alpha.scorecard import ScorecardEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +126,7 @@ class DataIntegrityValidator:
             DataIntegrityCheck(
                 check_name="timestamp_monotonicity",
                 passed=monotonic_ok,
-                details=f"Non-monotonic: {bad_syms}"
-                if bad_syms
-                else "All timestamps monotonic",
+                details=f"Non-monotonic: {bad_syms}" if bad_syms else "All timestamps monotonic",
                 severity="CRITICAL",
             )
         )
@@ -144,9 +142,7 @@ class DataIntegrityValidator:
             DataIntegrityCheck(
                 check_name="no_duplicates",
                 passed=no_dups,
-                details=f"Duplicate timestamps in: {dup_syms}"
-                if dup_syms
-                else "No duplicates",
+                details=f"Duplicate timestamps in: {dup_syms}" if dup_syms else "No duplicates",
                 severity="CRITICAL",
             )
         )
@@ -170,9 +166,7 @@ class DataIntegrityValidator:
             DataIntegrityCheck(
                 check_name="ohlc_invariants",
                 passed=ohlc_ok,
-                details=f"OHLC violations in: {bad_ohlc}"
-                if bad_ohlc
-                else "All OHLC invariants hold",
+                details=f"OHLC violations in: {bad_ohlc}" if bad_ohlc else "All OHLC invariants hold",
                 severity="CRITICAL",
             )
         )
@@ -190,9 +184,7 @@ class DataIntegrityValidator:
             DataIntegrityCheck(
                 check_name="positive_prices",
                 passed=prices_ok,
-                details=f"Zero/negative prices in: {bad_prices}"
-                if bad_prices
-                else "All prices positive",
+                details=f"Zero/negative prices in: {bad_prices}" if bad_prices else "All prices positive",
                 severity="CRITICAL",
             )
         )
@@ -217,7 +209,7 @@ class DataIntegrityValidator:
         )
 
         # 8. Multi-asset-class coverage
-        classes_found = set(ASSET_CLASSES.get(sym, "unknown") for sym in data.keys())
+        classes_found = set(ASSET_CLASSES.get(sym, "unknown") for sym in data)
         checks.append(
             DataIntegrityCheck(
                 check_name="asset_class_coverage",
@@ -232,9 +224,7 @@ class DataIntegrityValidator:
         for df in data.values():
             if len(df) > 0:
                 all_dates.extend([df.index[0], df.index[-1]])
-        date_span_years = (
-            (max(all_dates) - min(all_dates)).days / 365.25 if all_dates else 0
-        )
+        date_span_years = (max(all_dates) - min(all_dates)).days / 365.25 if all_dates else 0
         checks.append(
             DataIntegrityCheck(
                 check_name="date_range",
@@ -272,7 +262,7 @@ class HypothesisComputer:
 
     def __init__(self, data: Dict[str, pd.DataFrame]) -> None:
         self._data = data
-        self._returns: Optional[Dict[str, pd.Series]] = None
+        self._returns: Dict[str, pd.Series] | None = None
 
     def _get_returns(self) -> Dict[str, pd.Series]:
         if self._returns is None:
@@ -294,9 +284,7 @@ class HypothesisComputer:
         port = (w * r).sum(axis=1) / w.abs().sum(axis=1).replace(0, np.nan)
         return port.dropna()
 
-    def _metrics_from_returns(
-        self, port_returns: pd.Series, label: str, turnover: float = 0.0
-    ) -> Dict[str, Any]:
+    def _metrics_from_returns(self, port_returns: pd.Series, label: str, turnover: float = 0.0) -> Dict[str, Any]:
         """Compute all metrics from a return series."""
         if len(port_returns) < 50:
             return {"n_bars": len(port_returns), "insufficient_data": True}
@@ -371,9 +359,7 @@ class HypothesisComputer:
 
         # Compute momentum signal
         cum = (1 + returns_df).rolling(lookback).apply(lambda x: x.prod(), raw=True) - 1
-        skip_cum = (1 + returns_df).rolling(skip).apply(
-            lambda x: x.prod(), raw=True
-        ) - 1
+        skip_cum = (1 + returns_df).rolling(skip).apply(lambda x: x.prod(), raw=True) - 1
         signal = cum - skip_cum
         signal = signal.dropna(how="all")
 
@@ -423,13 +409,7 @@ class HypothesisComputer:
     def compute_breakout(self) -> Dict[str, Any]:
         """BRK-001: 52-week breakout."""
         returns = self._get_returns()
-        prices = pd.DataFrame(
-            {
-                sym: df["close"]
-                for sym, df in self._data.items()
-                if "close" in df.columns
-            }
-        )
+        prices = pd.DataFrame({sym: df["close"] for sym, df in self._data.items() if "close" in df.columns})
 
         high_52w = prices.rolling(252).max()
         dist_from_high = (prices - high_52w) / high_52w
@@ -525,10 +505,7 @@ class StagedCampaignExecutor:
 
         results["stages"]["data_integrity"] = {
             "passed": all_passed,
-            "checks": [
-                {"name": c.check_name, "passed": c.passed, "details": c.details}
-                for c in checks
-            ],
+            "checks": [{"name": c.check_name, "passed": c.passed, "details": c.details} for c in checks],
             "manifest": manifest.to_dict(),
         }
 
@@ -598,9 +575,7 @@ class StagedCampaignExecutor:
             print(f"  Trend annual return: {trend_result['annual_return']:.3f}")
             print(f"  Trend max drawdown: {trend_result['max_drawdown']:.3f}")
             print(f"  Trend t-stat: {trend_result['t_stat']:.3f}")
-            print(
-                f"  Calibration: {'✅ PASSED' if calibration_passed else '❌ FAILED'}"
-            )
+            print(f"  Calibration: {'✅ PASSED' if calibration_passed else '❌ FAILED'}")
 
             results["stages"]["calibration"] = {
                 "passed": calibration_passed,

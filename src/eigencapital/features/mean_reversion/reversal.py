@@ -10,14 +10,14 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_short_term_reversal(bars: List[Bar], lookback: int = 1) -> Optional[float]:
+def compute_short_term_reversal(bars: List[Bar], lookback: int = 1) -> float | None:
     """Compute short-term reversal signal.
 
     The reversal is the NEGATIVE of the recent return.
@@ -43,7 +43,7 @@ def compute_short_term_reversal(bars: List[Bar], lookback: int = 1) -> Optional[
     return -ret  # Reversal is negative of return
 
 
-def compute_rsi(bars: List[Bar], lookback: int = 14) -> Optional[float]:
+def compute_rsi(bars: List[Bar], lookback: int = 14) -> float | None:
     """Compute Relative Strength Index (RSI).
 
     RSI ranges from 0 to 100:
@@ -84,7 +84,7 @@ def compute_rsi(bars: List[Bar], lookback: int = 14) -> Optional[float]:
     return 100 - (100 / (1 + rs))
 
 
-def compute_rsi_zscore(bars: List[Bar], lookback: int = 14) -> Optional[float]:
+def compute_rsi_zscore(bars: List[Bar], lookback: int = 14) -> float | None:
     """Compute RSI as z-score (centered at 50, scaled by typical RSI range).
 
     This makes RSI comparable across instruments.
@@ -111,8 +111,8 @@ def make_rsi_feature(
     bars: List[Bar],
     lookback: int = 14,
     instrument_id: str = "",
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from RSI computation."""
     value = compute_rsi(bars, lookback)
     if value is None:
@@ -141,8 +141,8 @@ def make_reversal_feature(
     bars: List[Bar],
     lookback: int = 1,
     instrument_id: str = "",
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from short-term reversal computation."""
     value = compute_short_term_reversal(bars, lookback)
     if value is None:

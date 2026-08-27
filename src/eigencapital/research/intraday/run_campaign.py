@@ -9,15 +9,15 @@ Phase I-A through I-L:
 5. Produce Intraday Alpha Research Map
 """
 
-import sys
-import os
 import logging
+import os
+import sys
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from eigencapital.research.intraday.data_puller import IntradayDataPuller
 from eigencapital.research.intraday.campaign import IntradayCampaignExecutor
+from eigencapital.research.intraday.data_puller import IntradayDataPuller
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -97,15 +97,9 @@ def main():
             print(f"  {verdict.upper():30s} {count:3d}  {bar}")
 
     total = len(results)
-    survivors = verdict_counts.get("supported", 0) + verdict_counts.get(
-        "incremental", 0
-    )
+    survivors = verdict_counts.get("supported", 0) + verdict_counts.get("incremental", 0)
     print(f"\n  Total hypotheses: {total}")
-    print(
-        f"  Survivors: {survivors} ({survivors / total * 100:.1f}%)"
-        if total > 0
-        else "  No results"
-    )
+    print(f"  Survivors: {survivors} ({survivors / total * 100:.1f}%)" if total > 0 else "  No results")
 
     # Failure mode summary
     mode_counts = {}
@@ -121,9 +115,7 @@ def main():
     # Top results
     print("\n  Top Results by Net Sharpe:")
     for r in sorted(results, key=lambda x: -x.net_sharpe)[:5]:
-        print(
-            f"    {r.hypothesis_id:15s} {r.verdict.value:20s} Sharpe={r.net_sharpe:.3f}  DD={r.max_dd_pct:.1f}%"
-        )
+        print(f"    {r.hypothesis_id:15s} {r.verdict.value:20s} Sharpe={r.net_sharpe:.3f}  DD={r.max_dd_pct:.1f}%")
 
     print(f"\n  Campaign: {executor.freeze.campaign_id}")
     print(f"  Data: {manifest.total_bars} bars across {len(manifest.symbols)} symbols")

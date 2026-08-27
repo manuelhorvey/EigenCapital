@@ -25,19 +25,19 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.broker_boundary import (
     BrokerBoundaryConfig,
     BrokerBoundaryValidator,
 )
-from eigencapital.production_qual.capital_boundary import (
-    CapitalBoundaryConfig,
-)
 from eigencapital.production_qual.campaign_boundary import (
     CampaignBoundary,
     TradeOrigin,
+)
+from eigencapital.production_qual.capital_boundary import (
+    CapitalBoundaryConfig,
 )
 from eigencapital.production_qual.prefunding_gate import (
     GateDecision,
@@ -246,14 +246,8 @@ class PreTradingAuthorization:
         ]
 
         for check in self.checks:
-            icon = (
-                "✅"
-                if check.passed
-                else ("❌" if check.severity == "CRITICAL" else "⚠️")
-            )
-            lines.append(
-                f"- {icon} **[{check.step}] {check.check_id}**: {check.description}"
-            )
+            icon = "✅" if check.passed else ("❌" if check.severity == "CRITICAL" else "⚠️")
+            lines.append(f"- {icon} **[{check.step}] {check.check_id}**: {check.description}")
             if not check.passed:
                 lines.append(f"  - Expected: {check.expected}")
                 lines.append(f"  - Observed: {check.observed}")
@@ -263,14 +257,10 @@ class PreTradingAuthorization:
         lines.extend(["", "## Decision", ""])
 
         if self.decision == PreTradingDecision.TRADING_AUTHORIZED.value:
-            lines.append(
-                "**TRADING_AUTHORIZED** — All 5 steps passed. "
-                "First order may proceed as evidence collection."
-            )
+            lines.append("**TRADING_AUTHORIZED** — All 5 steps passed. First order may proceed as evidence collection.")
         else:
             lines.append(
-                "**TRADING_BLOCKED** — One or more steps failed. "
-                "Do NOT place any orders until all checks pass."
+                "**TRADING_BLOCKED** — One or more steps failed. Do NOT place any orders until all checks pass."
             )
 
         return "\n".join(lines)
@@ -294,8 +284,8 @@ class PreTradingValidator:
     def __init__(
         self,
         campaign_id: str = "R4-MINIMAL-5K",
-        broker_config: Optional[BrokerBoundaryConfig] = None,
-        capital_config: Optional[CapitalBoundaryConfig] = None,
+        broker_config: BrokerBoundaryConfig | None = None,
+        capital_config: CapitalBoundaryConfig | None = None,
     ) -> None:
         self._campaign_id = campaign_id
         self._broker_config = broker_config or BrokerBoundaryConfig()
@@ -459,9 +449,7 @@ class PreTradingValidator:
             asset_class = self._broker_config.expected_symbols.get(sym, "forex")
             if "forex" in asset_class:
                 max_spread_pts = 15  # 15 points = 1.5 pips
-            elif "metals" in asset_class:
-                max_spread_pts = 50
-            elif "indices" in asset_class:
+            elif "metals" in asset_class or "indices" in asset_class:
                 max_spread_pts = 50
             elif "crypto" in asset_class:
                 max_spread_pts = 1000
@@ -479,9 +467,7 @@ class PreTradingValidator:
                 passed=spread_ok,
                 description="Current spread within per-symbol bounds",
                 expected="all spreads within per-symbol limits",
-                observed="; ".join(spread_issues)
-                if spread_issues
-                else "all within bounds",
+                observed="; ".join(spread_issues) if spread_issues else "all within bounds",
             )
         )
         checks.append(self._checks[-1])
@@ -512,7 +498,7 @@ class PreTradingValidator:
     def reconcile_positions(
         self,
         broker_state: BrokerStateSnapshot,
-        campaign_boundary: Optional[CampaignBoundary] = None,
+        campaign_boundary: CampaignBoundary | None = None,
     ) -> List[PreTradingCheck]:
         """Step 3: Classify all positions before first R4 order.
 
@@ -593,9 +579,7 @@ class PreTradingValidator:
         checks.append(self._checks[-1])
 
         # 3.3 Position count within limits
-        count_ok = (
-            broker_state.position_count <= self._capital_config.max_concurrent_positions
-        )
+        count_ok = broker_state.position_count <= self._capital_config.max_concurrent_positions
         self._add_check(
             PreTradingCheck(
                 step=step,
@@ -699,7 +683,7 @@ class PreTradingValidator:
 
     def authorize_trading(
         self,
-        pre_funding_gate_record: Optional[GateRecord] = None,
+        pre_funding_gate_record: GateRecord | None = None,
     ) -> List[PreTradingCheck]:
         """Step 5: Final authorization gate.
 
@@ -711,9 +695,7 @@ class PreTradingValidator:
 
         # 5.1 Pre-funding gate was AUTHORIZED
         if pre_funding_gate_record is not None:
-            gate_authorized = (
-                pre_funding_gate_record.decision == GateDecision.AUTHORIZED.value
-            )
+            gate_authorized = pre_funding_gate_record.decision == GateDecision.AUTHORIZED.value
             self._add_check(
                 PreTradingCheck(
                     step=step,
@@ -787,8 +769,8 @@ class PreTradingValidator:
     def run_full_validation(
         self,
         broker_state: BrokerStateSnapshot,
-        campaign_boundary: Optional[CampaignBoundary] = None,
-        pre_funding_gate_record: Optional[GateRecord] = None,
+        campaign_boundary: CampaignBoundary | None = None,
+        pre_funding_gate_record: GateRecord | None = None,
     ) -> PreTradingAuthorization:
         """Run the complete 5-step pre-trading validation sequence.
 
@@ -812,9 +794,7 @@ class PreTradingValidator:
         self._unclassified_positions = 0
 
         # Compute broker snapshot hash
-        broker_hash = hashlib.sha256(
-            json.dumps(broker_state.to_dict(), sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        broker_hash = hashlib.sha256(json.dumps(broker_state.to_dict(), sort_keys=True).encode("utf-8")).hexdigest()
 
         # Step 1: Fund Capital
         self.validate_capital(broker_state)
@@ -832,13 +812,9 @@ class PreTradingValidator:
         self.authorize_trading(pre_funding_gate_record)
 
         # Compute decision
-        critical_failures = [
-            c for c in self._checks if not c.passed and c.severity == "CRITICAL"
-        ]
+        critical_failures = [c for c in self._checks if not c.passed and c.severity == "CRITICAL"]
         decision = (
-            PreTradingDecision.TRADING_AUTHORIZED
-            if not critical_failures
-            else PreTradingDecision.TRADING_BLOCKED
+            PreTradingDecision.TRADING_AUTHORIZED if not critical_failures else PreTradingDecision.TRADING_BLOCKED
         )
 
         # Build authorization record
@@ -854,11 +830,7 @@ class PreTradingValidator:
             pre_existing_positions=self._pre_existing_positions,
             manual_positions=self._manual_positions,
             unclassified_positions=self._unclassified_positions,
-            gate_record_hash=(
-                pre_funding_gate_record.gate_fingerprint
-                if pre_funding_gate_record
-                else ""
-            ),
+            gate_record_hash=(pre_funding_gate_record.gate_fingerprint if pre_funding_gate_record else ""),
         )
         # Compute fingerprint after construction
         object.__setattr__(auth, "authorization_fingerprint", auth.compute_hash())

@@ -15,44 +15,36 @@ Hard rule: May fix infrastructure defects but CANNOT modify frozen R4 behavior.
 from __future__ import annotations
 
 import gc
-import json
-import os
 import time
 import tracemalloc
 from datetime import datetime, timezone
-from typing import Dict, List, Any
+from typing import Dict, Any
 
-import pytest
 
 # P0 infrastructure
 from eigencapital.reconciliation.engine import (
     ReconciliationEngine, BrokerState, InternalState,
-    ReconciliationAction, ReconciliationSeverity,
+    ReconciliationAction,
 )
 from eigencapital.live.health import (
     HealthMonitor, HealthDimension, HealthState, TradingAuthorization,
     update_broker_health, update_risk_health, update_reconciliation_health,
 )
-from eigencapital.live.risk_observation import RiskObserver, RiskObservationLevel
+from eigencapital.live.risk_observation import RiskObserver
 from eigencapital.live.structured_alerts import (
     StructuredAlertDispatcher, AlertSeverity, AlertCategory,
-)
-from eigencapital.live.failure_instrumentation import (
-    FailureInstrumentation, FailureType, FailureSeverity,
 )
 from eigencapital.production_qual.event_ledger import EventLedger, EventType
 
 # Phase 2 economics
 from eigencapital.production_qual.live_qualification import (
     R4LiveQualificationDataset, ExecutionFidelity, EntryQuality,
-    HoldingPeriodMetrics, DownsideMetrics, PortfolioRiskSnapshot,
-    OperationalEvent, ExitReason,
+    HoldingPeriodMetrics, DownsideMetrics, ExitReason,
 )
 from eigencapital.production_qual.phase2_report import Phase2ReportGenerator
 
 # R4 parity
 from eigencapital.config import load_config
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
 

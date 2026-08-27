@@ -20,13 +20,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
-from eigencapital.production_qual.prefunding_audit import (
-    AuditReport,
-    AuditVerdict,
-    PrefundingGateAuditor,
-)
-from eigencapital.production_qual.prefunding_gate import (
-    PrefundingGate,
+from eigencapital.live.risk import (
+    DisconnectRecovery,
+    HealthGate,
+    MicroLiveRiskEnvelope,
+    RecoveryState,
 )
 from eigencapital.production_qual.broker_boundary import (
     BrokerBoundaryConfig,
@@ -35,14 +33,15 @@ from eigencapital.production_qual.broker_boundary import (
 from eigencapital.production_qual.capital_boundary import (
     CapitalBoundaryConfig,
 )
-from eigencapital.risk.policy import RiskPolicy
-from eigencapital.live.risk import (
-    DisconnectRecovery,
-    HealthGate,
-    MicroLiveRiskEnvelope,
-    RecoveryState,
+from eigencapital.production_qual.prefunding_audit import (
+    AuditReport,
+    AuditVerdict,
+    PrefundingGateAuditor,
 )
-
+from eigencapital.production_qual.prefunding_gate import (
+    PrefundingGate,
+)
+from eigencapital.risk.policy import RiskPolicy
 
 # ── Frozen R4 Identity ────────────────────────────────────────────
 # This is the actual frozen manifest from the R4 paper fidelity campaign.
@@ -247,15 +246,10 @@ def verify_broker_checks(
     correct_environment = broker_config.expected_environment == "demo"
     correct_symbol_mapping = len(broker_config.expected_symbols) == 15
     correct_contract_specs = True  # Verified by config
-    correct_volume_price_constraints = (
-        broker_config.min_volume <= broker_config.max_volume
-    )
-    spread_slippage_controls = (
-        broker_config.max_spread > 0 and broker_config.max_slippage > 0
-    )
+    correct_volume_price_constraints = broker_config.min_volume <= broker_config.max_volume
+    spread_slippage_controls = broker_config.max_spread > 0 and broker_config.max_slippage > 0
     no_environment_confusion = (
-        broker_config.expected_environment == "demo"
-        and broker_config.expected_broker == "exness"
+        broker_config.expected_environment == "demo" and broker_config.expected_broker == "exness"
     )
 
     auditor.audit_broker_boundary(

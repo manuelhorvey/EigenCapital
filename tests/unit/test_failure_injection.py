@@ -27,7 +27,6 @@ from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
-    VerificationStatus,
 )
 from eigencapital.risk.policy import RiskPolicy
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult

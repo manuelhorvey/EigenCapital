@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 sys.path.insert(0, "src")
 
@@ -127,23 +127,16 @@ def fetch_d1_data(mt5, symbols: List[str], bars: int = 300) -> Dict[str, pd.Data
         df = df.set_index("time")
         df = df.rename(columns={"tick_volume": "volume"})
         data[sym] = df[["open", "high", "low", "close", "volume"]].copy()
-        print(
-            f"  ✅ {sym}: {len(df)} bars ({df.index[0].date()} → {df.index[-1].date()})"
-        )
+        print(f"  ✅ {sym}: {len(df)} bars ({df.index[0].date()} → {df.index[-1].date()})")
     return data
 
 
-def compute_r4_signal(
-    data: Dict[str, pd.DataFrame], force_regime: bool = False
-) -> pd.DataFrame:
+def compute_r4_signal(data: Dict[str, pd.DataFrame], force_regime: bool = False) -> pd.DataFrame:
     """Compute frozen R4 signal: 12-1 momentum with risk conditioning."""
 
     # Build returns frame — fill NaN gaps so rolling windows work
     returns_df = (
-        pd.DataFrame({sym: df["close"].pct_change() for sym, df in data.items()})
-        .dropna(how="all")
-        .ffill()
-        .fillna(0)
+        pd.DataFrame({sym: df["close"].pct_change() for sym, df in data.items()}).dropna(how="all").ffill().fillna(0)
     )
 
     # 12-1 month momentum
@@ -189,7 +182,7 @@ def compute_lot_sizes(
     prices: Dict[str, float],
     contract_sizes: Dict[str, float],
     equity: float,
-    min_volumes: Optional[Dict[str, float]] = None,
+    min_volumes: Dict[str, float] | None = None,
 ) -> Dict[str, float]:
     """Convert target weights to MT5 lot sizes, respecting envelope."""
     lots: Dict[str, float] = {}
@@ -250,9 +243,7 @@ def main() -> None:
     print(f"  ✅ Connected — Account: {account.login}, Equity: ${equity:,.2f}")
 
     if equity > MAX_EQUITY:
-        print(
-            f"  ⚠️  Equity ${equity:,.2f} exceeds MAX ${MAX_EQUITY:,.0f} — capping at envelope"
-        )
+        print(f"  ⚠️  Equity ${equity:,.2f} exceeds MAX ${MAX_EQUITY:,.0f} — capping at envelope")
 
     # ── 2. Fetch D1 Data ───────────────────────────────────────────
     section("2. FETCHING DAILY DATA FROM MT5")
@@ -290,22 +281,16 @@ def main() -> None:
         prices[sym] = tick.ask  # use ask for buys
         contract_sizes[sym] = info.trade_contract_size
         min_volumes[sym] = info.volume_min
-        print(
-            f"  {sym:<10} Ask: {tick.ask:<14.5f} Contract: {contract_sizes[sym]:>10.0f} MinVol: {min_volumes[sym]}"
-        )
+        print(f"  {sym:<10} Ask: {tick.ask:<14.5f} Contract: {contract_sizes[sym]:>10.0f} MinVol: {min_volumes[sym]}")
 
     # ── 5. Compute Target Lot Sizes ────────────────────────────────
     section("5. TARGET LOT SIZES (within $5K envelope)")
-    target_lots = compute_lot_sizes(
-        latest, prices, contract_sizes, min(equity, MAX_EQUITY), min_volumes
-    )
+    target_lots = compute_lot_sizes(latest, prices, contract_sizes, min(equity, MAX_EQUITY), min_volumes)
 
     # Report untradeable symbols
     untradeable = [s for s in latest.index if latest[s] > 0.01 and s not in target_lots]
     if untradeable:
-        print(
-            f"  ⚠️  Skipped (min lot exceeds $500 position limit): {', '.join(untradeable)}"
-        )
+        print(f"  ⚠️  Skipped (min lot exceeds $500 position limit): {', '.join(untradeable)}")
 
     # ── 6. Compare vs Current Positions ────────────────────────────
     section("6. POSITION COMPARISON (current → target)")
@@ -322,9 +307,7 @@ def main() -> None:
         pos_by_sym.setdefault(p.symbol, []).append(p)
 
     all_syms = sorted(set(list(target_lots.keys()) + list(current_lots.keys())))
-    orders: List[
-        Tuple[str, str, float, Optional[Any]]
-    ] = []  # (symbol, side, lots, position-or-None)
+    orders: List[Tuple[str, str, float, Any | None]] = []  # (symbol, side, lots, position-or-None)
 
     print(f"  {'Symbol':<10} {'Current':>8} {'Target':>8} {'Delta':>8} {'Action':>16}")
     print(f"  {'─' * 10} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 16}")
@@ -363,9 +346,7 @@ def main() -> None:
             action = f"CLOSE {-delta:.2f}"
 
         marker = "→" if action != "HOLD" else " "
-        print(
-            f"  {sym:<10} {cur:>8.2f} {tgt:>8.2f} {delta:>+8.2f} {marker:>1} {action}"
-        )
+        print(f"  {sym:<10} {cur:>8.2f} {tgt:>8.2f} {delta:>+8.2f} {marker:>1} {action}")
 
     # ── 7. Submit Orders ───────────────────────────────────────────
     section("7. ORDER SUBMISSION")
@@ -403,18 +384,10 @@ def main() -> None:
         if pos is not None:
             # Ticket-scoped close (hedging-safe): trade opposite side
             # of the held position, bound to its ticket.
-            mt5_type = (
-                MetaTrader5.ORDER_TYPE_SELL
-                if pos.type == 0
-                else MetaTrader5.ORDER_TYPE_BUY
-            )
+            mt5_type = MetaTrader5.ORDER_TYPE_SELL if pos.type == 0 else MetaTrader5.ORDER_TYPE_BUY
             price = tick.bid if pos.type == 0 else tick.ask
         else:
-            mt5_type = (
-                MetaTrader5.ORDER_TYPE_BUY
-                if side == "BUY"
-                else MetaTrader5.ORDER_TYPE_SELL
-            )
+            mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
             price = tick.ask if side == "BUY" else tick.bid
 
         request = {
@@ -442,9 +415,7 @@ def main() -> None:
         submitted += 1
         if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
             filled += 1
-            print(
-                f"  ✅ {side} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}"
-            )
+            print(f"  ✅ {side} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}")
         else:
             failed += 1
             rc = result.retcode if result else "None"
@@ -463,9 +434,7 @@ def main() -> None:
     print(f"  Positions: {len(pos_after)}")
     for p in pos_after:
         side = "BUY" if p.type == 0 else "SELL"
-        print(
-            f"    {p.symbol}: {side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}"
-        )
+        print(f"    {p.symbol}: {side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}")
 
     # ── Summary ────────────────────────────────────────────────────
     print("\n" + "=" * 60)

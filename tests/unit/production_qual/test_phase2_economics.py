@@ -5,15 +5,11 @@ to ensure evidence collection is working correctly.
 """
 from __future__ import annotations
 
-import pytest
-from datetime import datetime, timezone, timedelta
 
 from eigencapital.production_qual.live_qualification import (
     R4LiveQualificationDataset,
     ExecutionFidelity,
     EntryQuality,
-    HoldingPeriodMetrics,
-    DownsideMetrics,
     PortfolioRiskSnapshot,
     OperationalEvent,
     ExitReason,

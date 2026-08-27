@@ -42,8 +42,7 @@ def phase10_live_comparison() -> None:
             ),
         },
         "slippage_direct_measurement": (
-            "NOT MEASURABLE from artifacts (request price not "
-            "persisted); deviation cap 10 points active"
+            "NOT MEASURABLE from artifacts (request price not persisted); deviation cap 10 points active"
         ),
         "min_lot_friction": {
             "bot_fills_all_at_min_lot_0.01": True,
@@ -57,10 +56,7 @@ def phase10_live_comparison() -> None:
             "bot_realized_closed_trades_usd": -3.67,
             "manual_realized_closed_trades_usd": -242.65,
             "manual_unrealized_at_export": 353.55,
-            "verdict": (
-                "$5K campaign P&L NOT attributable to R4; foreign positions "
-                "dominate the equity path"
-            ),
+            "verdict": ("$5K campaign P&L NOT attributable to R4; foreign positions dominate the equity path"),
         },
         "execution_anomalies": [
             "bridge outage 15:13:51Z->00:20Z+ with loop blind and unaudited silent SKIPs",
@@ -102,12 +98,10 @@ def phase11_survival_synthesis() -> None:
                 "build); positions unprotected throughout"
             ),
             "midnight_crossing": (
-                "Equity $0.00 reads around midnight UTC create the "
-                "daily-baseline poisoning hazard (P1-2)"
+                "Equity $0.00 reads around midnight UTC create the daily-baseline poisoning hazard (P1-2)"
             ),
             "flatten_under_contamination": (
-                "concurrency gate blocked bot rotation while "
-                "foreign magic=0 positions occupied slots"
+                "concurrency gate blocked bot rotation while foreign magic=0 positions occupied slots"
             ),
         },
         "unmitigated_single_points_of_failure": [
@@ -205,16 +199,12 @@ def block_bootstrap_ann(r: pd.Series, n_boot=2000, block=20, seed=11):
     out = np.empty(n_boot)
     for b in range(n_boot):
         starts = rng.integers(0, len(x) - block, size=nb)
-        out[b] = (
-            np.concatenate([x[s : s + block] for s in starts])[: len(x)].mean() * 252
-        )
+        out[b] = np.concatenate([x[s : s + block] for s in starts])[: len(x)].mean() * 252
     return out
 
 
 def phase13_profitability() -> None:
-    curve = pd.read_csv(OUT / "curve_control.csv", index_col=0, parse_dates=True)[
-        "port_net"
-    ]
+    curve = pd.read_csv(OUT / "curve_control.csv", index_col=0, parse_dates=True)["port_net"]
     boot = block_bootstrap_ann(curve)
     vol = float(curve.std() * np.sqrt(252))
     monthly = curve.groupby(curve.index.to_period("M")).sum()
@@ -238,9 +228,7 @@ def phase13_profitability() -> None:
             "prob_hit_20pct_dd_within_1y_normal_approx": p_hit_dd,
         }
     pc = pd.read_csv(OUT / "portfolio_curve_daily.csv", index_col=0, parse_dates=True)
-    drag_ann = float(
-        (pc["ret_gross_weighted"].mean() - pc["ret_net_weighted"].mean()) * 252
-    )
+    drag_ann = float((pc["ret_gross_weighted"].mean() - pc["ret_net_weighted"].mean()) * 252)
     jdump(
         {
             "basis": (

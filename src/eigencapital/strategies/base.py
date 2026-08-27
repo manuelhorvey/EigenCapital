@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eigencapital.core.models.bar import Bar
 
@@ -33,7 +33,7 @@ class StrategySignal:
 
     direction: int  # 1, -1, or 0
     target_risk: float = 0.0
-    confidence: Optional[float] = None
+    confidence: float | None = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -71,7 +71,7 @@ class BaseStrategy(ABC):
         bars: List[Bar],
         position_quantity: float,
         cash: float,
-    ) -> Optional[StrategySignal]:
+    ) -> StrategySignal | None:
         """Process a new bar and optionally generate a signal.
 
         Args:

@@ -28,7 +28,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 
 class FreezeStatus(str, Enum):
@@ -123,9 +123,7 @@ class CampaignFreezeManifest:
         return {
             "intact": len(violations) == 0,
             "violations": violations,
-            "details": f"Violations: {', '.join(violations)}"
-            if violations
-            else "Manifest intact",
+            "details": f"Violations: {', '.join(violations)}" if violations else "Manifest intact",
         }
 
 
@@ -140,13 +138,11 @@ class FreezeRegistry:
         """Register a frozen campaign manifest."""
         self._manifests[manifest.campaign_id] = manifest
 
-    def get(self, campaign_id: str) -> Optional[CampaignFreezeManifest]:
+    def get(self, campaign_id: str) -> CampaignFreezeManifest | None:
         """Get a frozen manifest."""
         return self._manifests.get(campaign_id)
 
-    def validate(
-        self, campaign_id: str, current: CampaignFreezeManifest
-    ) -> Dict[str, Any]:
+    def validate(self, campaign_id: str, current: CampaignFreezeManifest) -> Dict[str, Any]:
         """Validate that current environment matches frozen manifest.
 
         Returns:

@@ -31,7 +31,7 @@ import json
 import os
 import time
 from collections import defaultdict
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -42,11 +42,9 @@ from eigencapital.research.intraday.campaign4_15m import (
     SESSION_BOUNDS_UTC,
     UNIVERSE,
     CostModel,
-    HypResult,
     Hypothesis,
+    HypResult,
     Verdict,
-)
-from eigencapital.research.intraday.campaign4_15m import (
     _rmean,
     _rstd,
     _safe_div,
@@ -362,7 +360,7 @@ def wf_validate(
     func: Callable,
     hp: int,
     n_folds: int = 5,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> Tuple[float, float]:
     fold_size = len(df) // (n_folds + 1)
     fold_sharpes: List[float] = []
@@ -389,7 +387,7 @@ def permutation_test(
     func: Callable,
     hp: int,
     n_permutations: int = 100,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> float:
     try:
         kw = {"all_data": all_data} if all_data else {}
@@ -401,9 +399,7 @@ def permutation_test(
         return 1.0
     count_ge = 0
     for _ in range(n_permutations):
-        shuffled = pd.Series(
-            real_sig.sample(frac=1.0, replace=False).values, index=df.index
-        )
+        shuffled = pd.Series(real_sig.sample(frac=1.0, replace=False).values, index=df.index)
         perm_sharpe, _, _, _ = bt(df, shuffled, hp, CostModel.BASE)
         if perm_sharpe >= real_sharpe:
             count_ge += 1
@@ -453,10 +449,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
         p = os.path.join(data_dir, f"{s}_M30.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(
-                f"  Loaded {s}: {len(data[s])} bars "
-                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
-            )
+            print(f"  Loaded {s}: {len(data[s])} bars ({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
     if not data:
         print("ERROR: No M30 data found")
         return []
@@ -532,9 +525,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 
             try:
                 perm_kw = {"all_data": data} if is_cross_asset else {}
-                r.permutation_p = permutation_test(
-                    anchor, func, hp, n_permutations=100, **perm_kw
-                )
+                r.permutation_p = permutation_test(anchor, func, hp, n_permutations=100, **perm_kw)
             except Exception:
                 r.permutation_p = 1.0
 
@@ -595,12 +586,7 @@ def write_reports(results: List[HypResult]) -> None:
         groups[r.verdict.value].append(r)
 
     surv = groups.get("supported", [])
-    frag = [
-        r
-        for r in results
-        if r.verdict
-        in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)
-    ]
+    frag = [r for r in results if r.verdict in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)]
 
     lines: List[str] = [
         "# CAMPAIGN 5 — 30M MECHANISM-FOCUSED INTRADAY INVESTIGATION",
@@ -630,9 +616,7 @@ def write_reports(results: List[HypResult]) -> None:
     ]:
         hs = groups.get(v, [])
         if hs:
-            lines.append(
-                f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |"
-            )
+            lines.append(f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |")
     lines.extend(["", f"**Survivors: {len(surv)}/{len(results)}**", ""])
 
     # Failure modes
@@ -675,36 +659,25 @@ def write_reports(results: List[HypResult]) -> None:
     # Detailed per-hypothesis
     lines.extend(["---", "", "## DETAILED RESULTS", ""])
     for r in results:
-        icon = (
-            "🟢"
-            if r.verdict == Verdict.SUPPORTED
-            else "🟡"
-            if r.verdict != Verdict.REJECTED
-            else "🔴"
-        )
+        icon = "🟢" if r.verdict == Verdict.SUPPORTED else "🟡" if r.verdict != Verdict.REJECTED else "🔴"
         lines.extend(
             [
                 f"### {icon} {r.hid} — {r.description}",
-                f"**Family:** {r.family} | **HP:** {r.hp * 30}m "
-                f"| **Verdict:** {r.verdict.value}",
+                f"**Family:** {r.family} | **HP:** {r.hp * 30}m | **Verdict:** {r.verdict.value}",
                 "",
                 "| Metric | Value |",
                 "|---|---|",
-                f"| Gross / Net / Adverse Sharpe | {r.gross_sharpe:+.3f} / "
-                f"{r.net_base:+.3f} / {r.net_adverse:+.3f} |",
+                f"| Gross / Net / Adverse Sharpe | {r.gross_sharpe:+.3f} / {r.net_base:+.3f} / {r.net_adverse:+.3f} |",
                 f"| Max DD | {r.max_dd:.3f} |",
                 f"| Trades | {r.trades} |",
-                f"| WF Consistency / OOS Sharpe | {r.wf_consistency:.0%} / "
-                f"{r.wf_oos_sharpe:+.3f} |",
+                f"| WF Consistency / OOS Sharpe | {r.wf_consistency:.0%} / {r.wf_oos_sharpe:+.3f} |",
                 f"| Permutation p | {r.permutation_p:.3f} |",
                 f"| Primary Failure | {r.primary_failure} |",
                 "",
             ]
         )
         if r.session_sharpes:
-            ss = ", ".join(
-                f"{k}: {v:+.2f}" for k, v in sorted(r.session_sharpes.items())
-            )
+            ss = ", ".join(f"{k}: {v:+.2f}" for k, v in sorted(r.session_sharpes.items()))
             lines.append(f"**Sessions:** {ss}")
         if r.year_sharpes:
             ys = ", ".join(f"{k}: {v:+.2f}" for k, v in sorted(r.year_sharpes.items()))
@@ -735,8 +708,7 @@ def write_reports(results: List[HypResult]) -> None:
 
     if surv:
         lines.append(
-            "**SURVIVOR(S) FOUND — proceed to independent confirmation (1H) "
-            "before any fidelity-ladder step.**"
+            "**SURVIVOR(S) FOUND — proceed to independent confirmation (1H) before any fidelity-ladder step.**"
         )
     else:
         lines.extend(

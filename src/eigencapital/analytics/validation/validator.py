@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 from eigencapital.analytics.metrics import PerformanceMetrics, compute_metrics
-from eigencapital.analytics.validation.walk_forward import (
-    WalkForwardResult,
-    purged_walk_forward,
+from eigencapital.analytics.validation.block_bootstrap import (
+    BlockBootstrapResult,
+    block_bootstrap,
 )
 from eigencapital.analytics.validation.bootstrap import (
     BootstrapResult,
@@ -30,32 +30,32 @@ from eigencapital.analytics.validation.bootstrap import (
     bootstrap_test,
     permutation_test,
 )
-from eigencapital.analytics.validation.block_bootstrap import (
-    BlockBootstrapResult,
-    block_bootstrap,
-)
-from eigencapital.analytics.validation.sensitivity import (
-    SensitivityResult,
-    parameter_sensitivity,
-)
 from eigencapital.analytics.validation.cost_stress import (
     CostStressResult,
     cost_stress_test,
 )
-from eigencapital.analytics.validation.regime import RegimeResult, regime_analysis
 from eigencapital.analytics.validation.evidence_gate import (
     EvidenceGate,
     EvidenceVerdict,
 )
 from eigencapital.analytics.validation.multiple_testing import MultipleTestingResult
 from eigencapital.analytics.validation.pbo import PBOResult, compute_pbo
-from eigencapital.analytics.validation.universe import (
-    UniversePerturbationResult,
-    universe_perturbation,
+from eigencapital.analytics.validation.regime import RegimeResult, regime_analysis
+from eigencapital.analytics.validation.sensitivity import (
+    SensitivityResult,
+    parameter_sensitivity,
 )
 from eigencapital.analytics.validation.temporal import (
     TemporalStabilityResult,
     temporal_stability,
+)
+from eigencapital.analytics.validation.universe import (
+    UniversePerturbationResult,
+    universe_perturbation,
+)
+from eigencapital.analytics.validation.walk_forward import (
+    WalkForwardResult,
+    purged_walk_forward,
 )
 
 
@@ -67,38 +67,38 @@ class ValidationResult:
     provenance_hash: str = ""
 
     # Baseline metrics
-    baseline_metrics: Optional[PerformanceMetrics] = None
+    baseline_metrics: PerformanceMetrics | None = None
 
     # Walk-forward
-    walk_forward: Optional[WalkForwardResult] = None
+    walk_forward: WalkForwardResult | None = None
 
     # Bootstrap
-    bootstrap_iid: Optional[BootstrapResult] = None
-    bootstrap_block: Optional[BlockBootstrapResult] = None
+    bootstrap_iid: BootstrapResult | None = None
+    bootstrap_block: BlockBootstrapResult | None = None
 
     # Permutation
-    permutation: Optional[PermutationResult] = None
+    permutation: PermutationResult | None = None
 
     # Multiple testing
-    multiple_testing: Optional[MultipleTestingResult] = None
+    multiple_testing: MultipleTestingResult | None = None
 
     # PBO
-    pbo: Optional[PBOResult] = None
+    pbo: PBOResult | None = None
 
     # Sensitivity
-    sensitivity: Optional[SensitivityResult] = None
+    sensitivity: SensitivityResult | None = None
 
     # Cost stress
-    cost_stress: Optional[CostStressResult] = None
+    cost_stress: CostStressResult | None = None
 
     # Regime
-    regime: Optional[RegimeResult] = None
+    regime: RegimeResult | None = None
 
     # Universe
-    universe: Optional[UniversePerturbationResult] = None
+    universe: UniversePerturbationResult | None = None
 
     # Temporal
-    temporal: Optional[TemporalStabilityResult] = None
+    temporal: TemporalStabilityResult | None = None
 
     # Final verdict
     verdict: str = EvidenceVerdict.CANDIDATE
@@ -111,20 +111,12 @@ class ValidationResult:
         return {
             "experiment_id": self.experiment_id,
             "verdict": self.verdict,
-            "baseline_metrics": self.baseline_metrics.to_dict()
-            if self.baseline_metrics
-            else None,
+            "baseline_metrics": self.baseline_metrics.to_dict() if self.baseline_metrics else None,
             "walk_forward": self.walk_forward.to_dict() if self.walk_forward else None,
-            "bootstrap_iid": self.bootstrap_iid.to_dict()
-            if self.bootstrap_iid
-            else None,
-            "bootstrap_block": self.bootstrap_block.to_dict()
-            if self.bootstrap_block
-            else None,
+            "bootstrap_iid": self.bootstrap_iid.to_dict() if self.bootstrap_iid else None,
+            "bootstrap_block": self.bootstrap_block.to_dict() if self.bootstrap_block else None,
             "permutation": self.permutation.to_dict() if self.permutation else None,
-            "multiple_testing": self.multiple_testing.to_dict()
-            if self.multiple_testing
-            else None,
+            "multiple_testing": self.multiple_testing.to_dict() if self.multiple_testing else None,
             "pbo": self.pbo.to_dict() if self.pbo else None,
             "sensitivity": self.sensitivity.to_dict() if self.sensitivity else None,
             "cost_stress": self.cost_stress.to_dict() if self.cost_stress else None,
@@ -175,13 +167,13 @@ class ValidationEngine:
     def validate(
         self,
         experiment_id: str = "",
-        equity_curve: Optional[List[float]] = None,
-        instrument_returns: Optional[Dict[str, List[float]]] = None,
-        trades: Optional[List[float]] = None,
-        pbo_candidates: Optional[List[Dict[str, float]]] = None,
-        regime_returns: Optional[Dict[str, List[float]]] = None,
-        sensitivity_data: Optional[Dict[str, List[float]]] = None,
-        cost_stress_data: Optional[Dict[str, Any]] = None,
+        equity_curve: List[float] | None = None,
+        instrument_returns: Dict[str, List[float]] | None = None,
+        trades: List[float] | None = None,
+        pbo_candidates: List[Dict[str, float]] | None = None,
+        regime_returns: Dict[str, List[float]] | None = None,
+        sensitivity_data: Dict[str, List[float]] | None = None,
+        cost_stress_data: Dict[str, Any] | None = None,
     ) -> ValidationResult:
         """Run full validation suite.
 
@@ -221,34 +213,18 @@ class ValidationEngine:
         if wf.total_windows == 0:
             warnings.append("Walk-forward: insufficient data for any complete window")
         elif wf.mean_oos_sharpe <= 0:
-            warnings.append(
-                f"Walk-forward: OOS Sharpe is non-positive ({wf.mean_oos_sharpe:.3f})"
-            )
+            warnings.append(f"Walk-forward: OOS Sharpe is non-positive ({wf.mean_oos_sharpe:.3f})")
         if wf.total_windows > 0 and wf.degradation_ratio > 2.0:
-            warnings.append(
-                f"Walk-forward: high degradation ({wf.degradation_ratio:.2f}x)"
-            )
+            warnings.append(f"Walk-forward: high degradation ({wf.degradation_ratio:.2f}x)")
 
         # ── 4. Bootstrap (IID + Block) ──────────────────────────────
-        boot_iid = (
-            bootstrap_test(returns, self.bootstrap_iters, seed=self.seed)
-            if returns
-            else None
-        )
+        boot_iid = bootstrap_test(returns, self.bootstrap_iters, seed=self.seed) if returns else None
         boot_block = (
-            block_bootstrap(
-                returns, self.block_size, self.bootstrap_iters, seed=self.seed
-            )
-            if returns
-            else None
+            block_bootstrap(returns, self.block_size, self.bootstrap_iters, seed=self.seed) if returns else None
         )
 
         # ── 5. Permutation test ─────────────────────────────────────
-        perm = (
-            permutation_test(returns, self.perm_iters, seed=self.seed)
-            if returns
-            else None
-        )
+        perm = permutation_test(returns, self.perm_iters, seed=self.seed) if returns else None
 
         # ── 6. Sensitivity ──────────────────────────────────────────
         sens = None
@@ -268,14 +244,10 @@ class ValidationEngine:
         regime = regime_analysis(regime_returns) if regime_returns else None
 
         # ── 9. Universe perturbation ────────────────────────────────
-        universe = (
-            universe_perturbation(instrument_returns) if instrument_returns else None
-        )
+        universe = universe_perturbation(instrument_returns) if instrument_returns else None
 
         # ── 10. Temporal stability ──────────────────────────────────
-        temporal = temporal_stability(
-            equity_curve, self.temporal_window, self.temporal_step
-        )
+        temporal = temporal_stability(equity_curve, self.temporal_window, self.temporal_step)
 
         # ── 11. Multiple testing (placeholder — needs trial data) ───
         mt = None  # Only computed if trial data provided

@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
 )
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
 
 class ReplayStatus(str, Enum):

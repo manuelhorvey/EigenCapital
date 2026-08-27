@@ -21,7 +21,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -129,7 +129,7 @@ def aggregate_tick_chunk(ticks: np.ndarray) -> pd.DataFrame:
 
 
 def pull_tick_data(
-    symbols: Optional[List[str]] = None,
+    symbols: List[str] | None = None,
     host: str = "127.0.0.1",
     port: int = 8001,
     days: int = 365,
@@ -187,11 +187,7 @@ def pull_tick_data(
                     continue
 
                 bars = pd.concat(chunks, ignore_index=True)
-                bars = (
-                    bars.drop_duplicates(subset="time")
-                    .sort_values("time")
-                    .reset_index(drop=True)
-                )
+                bars = bars.drop_duplicates(subset="time").sort_values("time").reset_index(drop=True)
                 csv_path = os.path.join(output_dir, f"{symbol}_M5micro.csv")
                 bars.to_csv(csv_path, index=False)
 
@@ -208,9 +204,7 @@ def pull_tick_data(
         if not all_data:
             raise RuntimeError("No tick data retrieved from MT5")
 
-        manifest = _build_manifest(
-            all_data, bars_info, ticks_info, days, "Exness", terminal_id
-        )
+        manifest = _build_manifest(all_data, bars_info, ticks_info, days, "Exness", terminal_id)
 
     except Exception as e:
         logger.warning(f"MT5 bridge failed ({e}); loading CSV fallback")

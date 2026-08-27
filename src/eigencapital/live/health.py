@@ -33,9 +33,9 @@ Any critical layer says NO:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class HealthState(str, Enum):
@@ -79,7 +79,7 @@ class DimensionHealth:
     message: str
     timestamp: str
     details: Dict[str, Any] = field(default_factory=dict)
-    last_change: Optional[str] = None
+    last_change: str | None = None
     consecutive_failures: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
@@ -149,7 +149,7 @@ class HealthMonitor:
                 dimension=dim.value,
                 state=HealthState.HEALTHY.value,
                 message="Initialized",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
     def update_dimension(
@@ -157,7 +157,7 @@ class HealthMonitor:
         dimension: HealthDimension,
         state: HealthState,
         message: str,
-        details: Optional[Dict[str, Any]] = None,
+        details: Dict[str, Any] | None = None,
     ) -> DimensionHealth:
         """Update health state for a dimension.
 
@@ -170,7 +170,7 @@ class HealthMonitor:
         Returns:
             Updated DimensionHealth
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         current = self._dimensions.get(dimension.value)
 
         # Track consecutive failures
@@ -209,7 +209,7 @@ class HealthMonitor:
 
     def get_system_health(self) -> SystemHealth:
         """Compute complete system health and trading authorization."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Classify dimensions
         blocking = []
@@ -228,12 +228,8 @@ class HealthMonitor:
         # Determine overall state
         if blocking:
             # Check if any dimension is HALTED
-            halted = any(
-                d.state == HealthState.HALTED.value for d in self._dimensions.values()
-            )
-            overall_state = (
-                HealthState.HALTED.value if halted else HealthState.BLOCKED.value
-            )
+            halted = any(d.state == HealthState.HALTED.value for d in self._dimensions.values())
+            overall_state = HealthState.HALTED.value if halted else HealthState.BLOCKED.value
         elif degraded:
             overall_state = HealthState.DEGRADED.value
         else:
@@ -271,7 +267,7 @@ class HealthMonitor:
                 dimension=dimension.value,
                 state=HealthState.HEALTHY.value,
                 message="Not initialized",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             ),
         )
 

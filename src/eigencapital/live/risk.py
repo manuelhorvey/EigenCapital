@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 from eigencapital.risk.checks.account_checks import (
     AccountState,
@@ -106,8 +106,8 @@ class MicroLiveRiskEnvelope:
 
     def __init__(
         self,
-        limits: Optional[MicroLiveLimits] = None,
-        policy: Optional[RiskPolicy] = None,
+        limits: MicroLiveLimits | None = None,
+        policy: RiskPolicy | None = None,
         require_exposure_maps: bool = True,
     ) -> None:
         self._limits = limits or MicroLiveLimits()
@@ -198,8 +198,7 @@ class MicroLiveRiskEnvelope:
                 if not getattr(state, attr, None):
                     return (
                         False,
-                        f"exposure_map_missing:{attr} "
-                        f"(fail-closed; populate from open positions)",
+                        f"exposure_map_missing:{attr} (fail-closed; populate from open positions)",
                     )
         results = run_all_account_checks(state, self._policy)
         failures = [r.message for r in results if r.status == "FAIL"]
@@ -314,7 +313,7 @@ class HealthGate:
             if not getattr(report, "is_operational", False) and state == "degraded":
                 state = "critical"
             action = self._ACTION_BY_STATE.get(state, HealthGateAction.HALT)
-        except Exception as exc:  # noqa: BLE001 - fail closed on ANY error
+        except Exception as exc:
             return HealthGateAction.HALT, f"health_assessment_failed:{exc}"
         self._record(action, state)
         return action, getattr(report, "message", state)
@@ -322,19 +321,14 @@ class HealthGate:
     def _record(self, action: str, state: str) -> None:
         prev = self._transitions[-1]["digest"] if self._transitions else ""
         entry = {"action": action, "state": state}
-        digest = hashlib.sha256(
-            (prev + json.dumps(entry, sort_keys=True)).encode()
-        ).hexdigest()
+        digest = hashlib.sha256((prev + json.dumps(entry, sort_keys=True)).encode()).hexdigest()
         self._transitions.append({**entry, "digest": digest})
 
     def verify_transition_integrity(self) -> bool:
         prev = ""
         for t in self._transitions:
             expect = hashlib.sha256(
-                (
-                    prev
-                    + json.dumps({k: t[k] for k in ("action", "state")}, sort_keys=True)
-                ).encode()
+                (prev + json.dumps({k: t[k] for k in ("action", "state")}, sort_keys=True)).encode()
             ).hexdigest()
             if t["digest"] != expect:
                 return False
@@ -401,9 +395,7 @@ class DisconnectRecovery:
     ) -> str:
         if self._state is not RecoveryState.RECONCILING:
             return f"INVALID:{self._state.value}"
-        if not (
-            positions_match and orders_match and equity_match and fingerprint_match
-        ):
+        if not (positions_match and orders_match and equity_match and fingerprint_match):
             self._mismatch = details or "unspecified_broker_mismatch"
             self._state = RecoveryState.HALTED
             return "HALT_RECONCILE_OR_FLATTEN"

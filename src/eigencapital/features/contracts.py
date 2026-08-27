@@ -10,8 +10,7 @@ one normalization method.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Set
-
+from typing import Any, Dict, Set
 
 # ── Feature Families ──────────────────────────────────────────────
 
@@ -132,13 +131,11 @@ class FeatureConfig:
     def __post_init__(self) -> None:
         if not FeatureFamily.is_valid(self.feature_family):
             raise ValueError(
-                f"Invalid feature_family: {self.feature_family}. "
-                f"Must be one of {sorted(FeatureFamily.ALL_FAMILIES)}"
+                f"Invalid feature_family: {self.feature_family}. Must be one of {sorted(FeatureFamily.ALL_FAMILIES)}"
             )
         if not Normalization.is_valid(self.normalization):
             raise ValueError(
-                f"Invalid normalization: {self.normalization}. "
-                f"Must be one of {sorted(Normalization.ALL_METHODS)}"
+                f"Invalid normalization: {self.normalization}. Must be one of {sorted(Normalization.ALL_METHODS)}"
             )
         if self.lookback < 1:
             raise ValueError(f"lookback must be >= 1, got {self.lookback}")

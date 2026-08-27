@@ -56,9 +56,7 @@ def validate_temporal(bar: Bar, bar_index: int = 0) -> TemporalCheckResult:
 
     # Check bar_start < bar_end
     if bar.bar_start_utc >= bar.bar_end_utc:
-        messages.append(
-            f"bar_start_utc ({bar.bar_start_utc}) >= bar_end_utc ({bar.bar_end_utc})"
-        )
+        messages.append(f"bar_start_utc ({bar.bar_start_utc}) >= bar_end_utc ({bar.bar_end_utc})")
 
     # Determine status
     if messages:

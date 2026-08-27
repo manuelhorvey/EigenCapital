@@ -12,16 +12,16 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
-from eigencapital.data.validation.ohlc import validate_ohlc, OHLCCheckResult
-from eigencapital.data.validation.temporal import validate_temporal, TemporalCheckResult
 from eigencapital.data.validation.anomalies import (
-    validate_anomalies,
     AnomalyCheckResult,
+    validate_anomalies,
 )
+from eigencapital.data.validation.ohlc import OHLCCheckResult, validate_ohlc
+from eigencapital.data.validation.temporal import TemporalCheckResult, validate_temporal
 
 
 @dataclass(frozen=True)
@@ -43,9 +43,9 @@ class BarValidationResult:
     instrument_id: str
     timestamp_utc: str
     status: str  # VALID, WARNING, INVALID, STALE
-    ohlc_result: Optional[OHLCCheckResult] = None
-    temporal_result: Optional[TemporalCheckResult] = None
-    anomaly_result: Optional[AnomalyCheckResult] = None
+    ohlc_result: OHLCCheckResult | None = None
+    temporal_result: TemporalCheckResult | None = None
+    anomaly_result: AnomalyCheckResult | None = None
     messages: List[str] = field(default_factory=list)
 
 
@@ -153,10 +153,7 @@ class DataValidator:
         temporal_result = None
         if self.enable_temporal:
             temporal_result = validate_temporal(bar, index)
-            if (
-                temporal_result is not None
-                and temporal_result.status != DataQualityStatus.VALID
-            ):
+            if temporal_result is not None and temporal_result.status != DataQualityStatus.VALID:
                 messages.extend(temporal_result.messages)
                 worst_status = self._worst_status(worst_status, temporal_result.status)
 
@@ -164,10 +161,7 @@ class DataValidator:
         anomaly_result = None
         if self.enable_anomalies:
             anomaly_result = validate_anomalies(bar)
-            if (
-                anomaly_result is not None
-                and anomaly_result.status != DataQualityStatus.VALID
-            ):
+            if anomaly_result is not None and anomaly_result.status != DataQualityStatus.VALID:
                 messages.extend(anomaly_result.messages)
                 worst_status = self._worst_status(worst_status, anomaly_result.status)
 

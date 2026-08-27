@@ -27,7 +27,6 @@ from eigencapital.execution.trading_provider import (
     OrderResult,
     BarData,
     OrderSide,
-    OrderFillingMode,
     create_trading_provider,
 )
 

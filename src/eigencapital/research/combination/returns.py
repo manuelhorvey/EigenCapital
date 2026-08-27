@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 @dataclass(frozen=True)
@@ -36,8 +36,7 @@ class ReturnStream:
     def __post_init__(self) -> None:
         if len(self.returns) != len(self.timestamps):
             raise ValueError(
-                f"returns ({len(self.returns)}) and timestamps "
-                f"({len(self.timestamps)}) must have same length"
+                f"returns ({len(self.returns)}) and timestamps ({len(self.timestamps)}) must have same length"
             )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -165,9 +164,7 @@ def compute_spearman_correlation(x: List[float], y: List[float]) -> float:
     return compute_pearson_correlation(_rank(x[:n]), _rank(y[:n]))
 
 
-def compute_downside_correlation(
-    x: List[float], y: List[float], threshold: float = 0.0
-) -> float:
+def compute_downside_correlation(x: List[float], y: List[float], threshold: float = 0.0) -> float:
     """Compute correlation only during downside periods."""
     n = min(len(x), len(y))
     if n < 2:

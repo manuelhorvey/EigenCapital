@@ -11,14 +11,14 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_rolling_zscore(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_rolling_zscore(bars: List[Bar], lookback: int) -> float | None:
     """Compute rolling z-score of close prices.
 
     Z-score = (current - mean) / std
@@ -52,9 +52,7 @@ def compute_rolling_zscore(bars: List[Bar], lookback: int) -> Optional[float]:
     return (current - mean) / std
 
 
-def compute_bollinger_bandwidth(
-    bars: List[Bar], lookback: int, num_std: float = 2.0
-) -> Optional[float]:
+def compute_bollinger_bandwidth(bars: List[Bar], lookback: int, num_std: float = 2.0) -> float | None:
     """Compute Bollinger Bandwidth (upper - lower) / middle.
 
     Bandwidth indicates volatility relative to price level.
@@ -89,8 +87,8 @@ def make_zscore_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from rolling z-score computation."""
     value = compute_rolling_zscore(bars, lookback)
     if value is None:

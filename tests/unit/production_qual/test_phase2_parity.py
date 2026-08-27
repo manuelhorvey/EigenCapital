@@ -11,9 +11,7 @@ before being considered Phase-2-safe.
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
-from typing import Dict, Any
 
 import pytest
 
@@ -27,7 +25,7 @@ from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifie
 from eigencapital.production_qual.event_ledger import EventLedger, EventType
 from eigencapital.reconciliation.engine import ReconciliationEngine, BrokerState, InternalState
 from eigencapital.live.health import HealthMonitor, HealthDimension, HealthState
-from eigencapital.live.risk_observation import RiskObserver, RiskObservationLevel
+from eigencapital.live.risk_observation import RiskObserver
 from eigencapital.live.structured_alerts import StructuredAlertDispatcher, AlertSeverity, AlertCategory
 from eigencapital.live.failure_instrumentation import FailureInstrumentation, FailureType, FailureSeverity
 

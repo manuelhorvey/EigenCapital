@@ -16,9 +16,9 @@ Used in RiskDecision.risk_checks: list[RiskCheckResult].
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -53,10 +53,7 @@ class RiskCheckResult:
         # Validate status is one of PASS, WARN, FAIL
         valid_statuses = {"PASS", "WARN", "FAIL"}
         if self.status not in valid_statuses:
-            raise ValueError(
-                f"Invalid risk check status: {self.status}. "
-                f"Must be one of {valid_statuses}"
-            )
+            raise ValueError(f"Invalid risk check status: {self.status}. Must be one of {valid_statuses}")
 
         # Validate check_id is non-empty
         if not self.check_id:
@@ -64,15 +61,11 @@ class RiskCheckResult:
 
         # Validate observed is finite
         if math.isnan(self.observed) or math.isinf(self.observed):
-            raise ValueError(
-                f"observed must be finite (no NaN/infinity), got {self.observed}"
-            )
+            raise ValueError(f"observed must be finite (no NaN/infinity), got {self.observed}")
 
         # Validate limit is finite
         if math.isnan(self.limit) or math.isinf(self.limit):
-            raise ValueError(
-                f"limit must be finite (no NaN/infinity), got {self.limit}"
-            )
+            raise ValueError(f"limit must be finite (no NaN/infinity), got {self.limit}")
 
         # Validate unit is non-empty
         if not self.unit:
@@ -89,8 +82,7 @@ class RiskCheckResult:
         # Registry check for duplicate check_id definitions
         if self.check_id in self._registry:
             raise ValueError(
-                f"Duplicate risk check_id: {self.check_id}. "
-                f"Check IDs must be unique within a risk policy version."
+                f"Duplicate risk check_id: {self.check_id}. Check IDs must be unique within a risk policy version."
             )
         self._registry[self.check_id] = True
 

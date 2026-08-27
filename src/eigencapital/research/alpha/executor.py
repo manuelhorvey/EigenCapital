@@ -17,24 +17,23 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from eigencapital.research.alpha.campaign import (
-    ResearchCampaign,
-    ResearchCampaignRunner,
+    CampaignPhase,
     HypothesisIdentity,
     HypothesisTrial,
     HypothesisVerdict,
-    CampaignPhase,
+    ResearchCampaign,
+    ResearchCampaignRunner,
 )
-from eigencapital.research.alpha.scorecard import ScorecardEvaluator
+from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
 from eigencapital.research.alpha.incremental import (
     IncrementalAlphaTester,
     PortfolioBaseline,
 )
 from eigencapital.research.alpha.research_map import ResearchMapGenerator
-from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
-
+from eigencapital.research.alpha.scorecard import ScorecardEvaluator
 
 # ============================================================
 # 29-Hypothesis Library — pre-registered, immutable
@@ -1062,9 +1061,7 @@ class CampaignExecutor:
             data_snapshot_id="data-v2026-08",
             feature_registry_version="feat-v1",
             hypothesis_library_hash=hashlib.sha256(
-                json.dumps(
-                    [h["id"] for h in HYPOTHESIS_LIBRARY], sort_keys=True
-                ).encode()
+                json.dumps([h["id"] for h in HYPOTHESIS_LIBRARY], sort_keys=True).encode()
             ).hexdigest()[:16],
             trial_registry_hash="trial-v1",
             cost_model_version="cost-v1",
@@ -1126,9 +1123,7 @@ class CampaignExecutor:
             evidence = SIMULATED_EVIDENCE.get(hyp_id, {})
 
             # Scorecard evaluation
-            scorecard = self._evaluator.evaluate(
-                hyp_id, hyp_def["family"], evidence, timestamp=timestamp
-            )
+            scorecard = self._evaluator.evaluate(hyp_id, hyp_def["family"], evidence, timestamp=timestamp)
             scorecards.append(scorecard)
 
             # Incremental evaluation
@@ -1137,13 +1132,10 @@ class CampaignExecutor:
                 candidate_sharpe=evidence.get("net_sharpe", 0.0),
                 candidate_drawdown=evidence.get("max_drawdown", -0.2),
                 candidate_turnover=evidence.get("turnover", 0.5),
-                correlation_with_existing=evidence.get(
-                    "correlation_with_existing", 0.5
-                ),
+                correlation_with_existing=evidence.get("correlation_with_existing", 0.5),
                 portfolio_with_candidate={
                     "sharpe": 0.45 + evidence.get("incremental_sharpe_delta", 0.0),
-                    "sortino": 0.9
-                    + evidence.get("incremental_sharpe_delta", 0.0) * 1.5,
+                    "sortino": 0.9 + evidence.get("incremental_sharpe_delta", 0.0) * 1.5,
                     "max_drawdown": -0.12 + evidence.get("incremental_dd_delta", 0.0),
                     "turnover": 0.25 + evidence.get("turnover", 0.5) * 0.1,
                     "tail_risk": 0.04 + evidence.get("incremental_dd_delta", 0.0) * 0.5,
@@ -1229,19 +1221,12 @@ class CampaignExecutor:
             "summary": {
                 "total": len(verdicts),
                 "rejected": sum(
-                    1
-                    for v in verdicts
-                    if v.status
-                    in ("rejected", "fragile", "capacity_limited", "redundant")
+                    1 for v in verdicts if v.status in ("rejected", "fragile", "capacity_limited", "redundant")
                 ),
                 "supported": sum(1 for v in verdicts if v.status == "supported"),
                 "incremental": sum(1 for v in verdicts if v.status == "incremental"),
-                "production_candidate": sum(
-                    1 for v in verdicts if v.status == "production_candidate"
-                ),
-                "portfolio_useful": sum(
-                    1 for v in verdicts if v.status == "portfolio_useful"
-                ),
+                "production_candidate": sum(1 for v in verdicts if v.status == "production_candidate"),
+                "portfolio_useful": sum(1 for v in verdicts if v.status == "portfolio_useful"),
                 "inconclusive": sum(1 for v in verdicts if v.status == "inconclusive"),
                 "conditional": sum(1 for v in verdicts if v.status == "conditional"),
             },

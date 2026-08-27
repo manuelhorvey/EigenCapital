@@ -7,30 +7,30 @@ All domain models are frozen dataclasses with:
 - Canonical serialization support via canonical_sort()
 """
 
-from .instrument import Instrument
-from .bar import Bar, BarInterval
-from .market_snapshot import MarketSnapshot
-from .strategy_intent import StrategyIntent, Horizon
-from .position import Position
-from .order import Order, OrderSide
-from .fill import Fill
-from .risk_check_result import RiskCheckResult
-from .risk_decision import RiskDecision
-from .portfolio_target import PortfolioTarget
 from .approved_target import ApprovedTarget
-from .order_plan import OrderPlan, Urgency
-from .order_lifecycle import OrderLifecycle
+from .bar import Bar, BarInterval
 from .decision_snapshot import DecisionSnapshot
-from .experiment import Experiment, ExperimentStatus
-from .trial_metadata import TrialMetadata
 from .errors import (
-    EigenCapitalError,
-    InvariantViolation,
-    InvalidInput,
-    DuplicateResource,
     ConfigurationError,
+    DuplicateResource,
+    EigenCapitalError,
+    InvalidInput,
+    InvariantViolation,
     ProvenanceError,
 )
+from .experiment import Experiment, ExperimentStatus
+from .fill import Fill
+from .instrument import Instrument
+from .market_snapshot import MarketSnapshot
+from .order import Order, OrderSide
+from .order_lifecycle import OrderLifecycle
+from .order_plan import OrderPlan, Urgency
+from .portfolio_target import PortfolioTarget
+from .position import Position
+from .risk_check_result import RiskCheckResult
+from .risk_decision import RiskDecision
+from .strategy_intent import Horizon, StrategyIntent
+from .trial_metadata import TrialMetadata
 
 __all__ = [
     # Data models

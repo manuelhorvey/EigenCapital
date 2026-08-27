@@ -15,7 +15,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class MicroLiveStatus(str, Enum):
@@ -242,9 +242,7 @@ class MicroLiveCampaign:
         }
 
         all_pass = all(checks.values())
-        self._state.status = (
-            MicroLiveStatus.PREFLIGHT if all_pass else MicroLiveStatus.FAILED
-        )
+        self._state.status = MicroLiveStatus.PREFLIGHT if all_pass else MicroLiveStatus.FAILED
 
         return {
             "checks": checks,
@@ -266,9 +264,7 @@ class MicroLiveCampaign:
         )
         return True
 
-    def check_kill_conditions(
-        self, current_equity: float = 0.0
-    ) -> Optional[KillReason]:
+    def check_kill_conditions(self, current_equity: float = 0.0) -> KillReason | None:
         """Check if any automatic kill condition is triggered."""
         # Drawdown limit
         if self._state.peak_equity > 0:

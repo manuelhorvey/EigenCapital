@@ -90,9 +90,7 @@ def plan_protection(
     for p in classified:
         if p.pclass != PositionClass.R4_BOT or p.ticket is None:
             continue
-        boundary = disaster_stop_price(
-            p.direction, entry_price_lookup(p), atr_pct_by_symbol.get(p.symbol), mult
-        )
+        boundary = disaster_stop_price(p.direction, entry_price_lookup(p), atr_pct_by_symbol.get(p.symbol), mult)
         if boundary is None:
             continue
         cur = current_sl_by_ticket.get(p.ticket, 0.0)
@@ -146,11 +144,7 @@ def flatten_with_retry(
         if only_tickets is not None:
             positions = [p for p in positions if p.get("ticket") in only_tickets]
         if not positions:
-            return (
-                FlattenOutcome.ALREADY_FLAT
-                if closed_total == 0
-                else FlattenOutcome.FLATTENED
-            ), closed_total
+            return (FlattenOutcome.ALREADY_FLAT if closed_total == 0 else FlattenOutcome.FLATTENED), closed_total
         progressed = False
         for p in positions:
             ticket = p.get("ticket")

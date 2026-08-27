@@ -12,7 +12,7 @@ import json
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from eigencapital.production_qual.prefunding_audit import (
     AuditReport,
@@ -109,7 +109,7 @@ class PrefundingGate:
     def get_records(self) -> List[GateRecord]:
         return list(self._records)
 
-    def get_record(self, campaign_id: str) -> Optional[GateRecord]:
+    def get_record(self, campaign_id: str) -> GateRecord | None:
         for record in reversed(self._records):
             if record.campaign_id == campaign_id:
                 return record

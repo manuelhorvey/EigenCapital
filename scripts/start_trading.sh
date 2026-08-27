@@ -10,7 +10,7 @@
 #   - Automatic bridge restart on failure
 #   - Port health checks before starting dependent services
 #   - Graceful shutdown on SIGINT/SIGTERM
-#   - Process isolation via setsid
+#   - Process isolation via setsid (Linux) or nohup (macOS)
 #
 # Usage:
 #   ./scripts/start_trading.sh                    # rebalance loop only
@@ -21,6 +21,15 @@
 #   ./scripts/start_trading.sh --stop             # stop everything
 #
 set -euo pipefail
+
+# ── Platform Detection ────────────────────────────────────────────
+OS="$(uname -s)"
+case "$OS" in
+    Linux*)   PLATFORM=linux  ;;
+    Darwin*)  PLATFORM=macos  ;;
+    MINGW*|MSYS*|CYGWIN*) PLATFORM=windows ;;
+    *)        PLATFORM=unknown ;;
+esac
 
 # ── Configuration ─────────────────────────────────────────────────
 WINEPREFIX="${HOME}/.wine_mt5"
@@ -67,19 +76,66 @@ log() {
 
 ensure_dirs() {
     mkdir -p reports/r4_loop reports/r4_qualification/evidence
-    mkdir -p "$SERVER_DIR"
+    mkdir -p "$SERVER_DIR" 2>/dev/null || true
 }
 
-# Check if a port is listening
+# Check if a port is listening (cross-platform)
 port_listening() {
     local port=$1
-    ss -tlnp 2>/dev/null | grep -q ":${port} "
+    case "$PLATFORM" in
+        linux)
+            ss -tlnp 2>/dev/null | grep -q ":${port} "
+            ;;
+        macos)
+            lsof -i :"$port" -sTCP:LISTEN >/dev/null 2>&1
+            ;;
+        windows)
+            netstat -an 2>/dev/null | grep -q "LISTENING.*:${port}"
+            ;;
+        *)
+            # Fallback: try to connect with Python
+            python3 -c "
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(1)
+try:
+    s.connect(('127.0.0.1', $port))
+    s.close()
+    exit(0)
+except:
+    exit(1)
+" 2>/dev/null
+            ;;
+    esac
 }
 
-# Check if a process matching a pattern is running
+# Check if a process matching a pattern is running (cross-platform)
 process_running() {
     local pattern=$1
-    pgrep -f "$pattern" >/dev/null 2>&1
+    case "$PLATFORM" in
+        linux|macos)
+            pgrep -f "$pattern" >/dev/null 2>&1
+            ;;
+        windows)
+            tasklist 2>/dev/null | grep -qi "$pattern"
+            ;;
+        *)
+            false
+            ;;
+    esac
+}
+
+# Kill processes matching a pattern (cross-platform)
+kill_pattern() {
+    local pattern=$1
+    case "$PLATFORM" in
+        linux|macos)
+            pkill -f "$pattern" 2>/dev/null || true
+            ;;
+        windows)
+            taskkill //F //IM "python.exe" //T 2>/dev/null || true
+            ;;
+    esac
 }
 
 # Check if the RPyC bridge is alive and accepting connections
@@ -99,6 +155,7 @@ conn.close()
 show_status() {
     echo "═══════════════════════════════════════════════════════════════"
     echo "  EigenCapital Trading System Status"
+    echo "  Platform: $PLATFORM"
     echo "═══════════════════════════════════════════════════════════════"
 
     # Bridge
@@ -144,9 +201,9 @@ show_status() {
 # ── Stop All ──────────────────────────────────────────────────────
 stop_all() {
     log "Stopping all trading processes..."
-    pkill -f "r4_rebalance_loop" 2>/dev/null && log "  Stopped rebalance loop" || true
-    pkill -f "r4_monitor" 2>/dev/null && log "  Stopped monitor" || true
-    pkill -f "r4_supervisor_dryrun" 2>/dev/null && log "  Stopped supervisor" || true
+    kill_pattern "r4_rebalance_loop" && log "  Stopped rebalance loop" || true
+    kill_pattern "r4_monitor" && log "  Stopped monitor" || true
+    kill_pattern "r4_supervisor_dryrun" && log "  Stopped supervisor" || true
     # Don't kill the bridge or terminal by default — they're shared
     log "Done. (Bridge and MT5 terminal left running)"
 }
@@ -159,16 +216,24 @@ start_bridge() {
     fi
 
     # Kill any stale bridge processes
-    pkill -f "server.py.*$BRIDGE_PORT" 2>/dev/null || true
+    kill_pattern "server.py.*$BRIDGE_PORT"
     sleep 1
 
     log "Starting MT5 RPyC bridge on port $BRIDGE_PORT..."
 
-    # Ensure Xvfb is running for headless display
-    if ! pgrep -f "Xvfb $DISPLAY_NUM" >/dev/null 2>&1; then
-        log "  Starting Xvfb on $DISPLAY_NUM..."
-        Xvfb "$DISPLAY_NUM" -screen 0 1024x768x24 &>/dev/null &
-        sleep 1
+    if [[ "$PLATFORM" == "windows" ]]; then
+        log "  Windows detected — using native MT5"
+        # On Windows, MT5 runs natively, no Wine bridge needed
+        return 0
+    fi
+
+    # Ensure Xvfb is running for headless display (Linux only)
+    if [[ "$PLATFORM" == "linux" ]]; then
+        if ! pgrep -f "Xvfb $DISPLAY_NUM" >/dev/null 2>&1; then
+            log "  Starting Xvfb on $DISPLAY_NUM..."
+            Xvfb "$DISPLAY_NUM" -screen 0 1024x768x24 &>/dev/null &
+            sleep 1
+        fi
     fi
 
     # Start the bridge server
@@ -176,8 +241,13 @@ start_bridge() {
     export WINEPREFIX
     cd "$SERVER_DIR"
 
-    setsid wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
-        </dev/null >"$BRIDGE_LOG" 2>&1 &
+    if [[ "$PLATFORM" == "linux" ]]; then
+        setsid wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
+            </dev/null >"$BRIDGE_LOG" 2>&1 &
+    elif [[ "$PLATFORM" == "macos" ]]; then
+        nohup wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
+            </dev/null >"$BRIDGE_LOG" 2>&1 &
+    fi
 
     # Wait for port to come up (max 30s)
     log "  Waiting for bridge to bind..."
@@ -225,6 +295,7 @@ ensure_dirs
 
 log "═══════════════════════════════════════════════════════════════"
 log "  EigenCapital Trading System — Starting Up"
+log "  Platform: $PLATFORM"
 log "═══════════════════════════════════════════════════════════════"
 
 # 1. Ensure bridge is running

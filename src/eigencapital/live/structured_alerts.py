@@ -101,6 +101,9 @@ class StructuredAlertDispatcher:
         dedup_window_seconds: float = 300.0,  # 5 minutes
         max_consecutive_alerts: int = 10,
         mirror_stderr: bool = True,
+        webhook_url: str | None = None,
+        telegram_bot_token: str | None = None,
+        telegram_chat_id: str | None = None,
     ) -> None:
         """Initialize alert dispatcher.
 
@@ -109,11 +112,17 @@ class StructuredAlertDispatcher:
             dedup_window_seconds: Window for deduplication
             max_consecutive_alerts: Max consecutive identical alerts
             mirror_stderr: Mirror critical/warning alerts to stderr
+            webhook_url: Optional webhook URL for alert delivery
+            telegram_bot_token: Optional Telegram bot token
+            telegram_chat_id: Optional Telegram chat ID
         """
         self._alert_path = alert_path
         self._dedup_window = dedup_window_seconds
         self._max_consecutive = max_consecutive_alerts
         self._mirror_stderr = mirror_stderr
+        self._webhook_url = webhook_url or os.environ.get("ALERT_WEBHOOK_URL")
+        self._telegram_bot_token = telegram_bot_token or os.environ.get("TELEGRAM_BOT_TOKEN")
+        self._telegram_chat_id = telegram_chat_id or os.environ.get("TELEGRAM_CHAT_ID")
 
         # Deduplication tracking
         self._recent_alerts: Dict[str, float] = {}  # key -> last_sent_time
@@ -260,6 +269,65 @@ class StructuredAlertDispatcher:
             import sys
 
             print(f"[{alert.severity}] {alert.category}: {alert.message}", file=sys.stderr)
+
+        # Webhook delivery (if configured)
+        if self._webhook_url and alert.severity in (
+            AlertSeverity.CRITICAL.value,
+            AlertSeverity.WARNING.value,
+        ):
+            self._deliver_webhook(alert)
+
+        # Telegram delivery (if configured)
+        if self._telegram_bot_token and self._telegram_chat_id:
+            if alert.severity == AlertSeverity.CRITICAL.value:
+                self._deliver_telegram(alert)
+
+    def _deliver_webhook(self, alert: Alert) -> None:
+        """Deliver alert via webhook (POST to URL)."""
+        import urllib.request
+
+        try:
+            payload = json.dumps({
+                "text": f"[{alert.severity}] {alert.category}: {alert.message}",
+                "alert_id": alert.alert_id,
+                "severity": alert.severity,
+                "category": alert.category,
+                "timestamp": alert.timestamp,
+                "details": alert.details,
+            }).encode()
+
+            req = urllib.request.Request(
+                self._webhook_url,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass  # Don't fail on webhook errors
+
+    def _deliver_telegram(self, alert: Alert) -> None:
+        """Deliver alert via Telegram bot."""
+        import urllib.parse
+        import urllib.request
+
+        try:
+            text = f"🔴 *{alert.severity}* | {alert.category}\n{alert.message}"
+            if alert.details:
+                detail_str = json.dumps(alert.details, default=str)[:200]
+                text += f"\n\n`{detail_str}`"
+
+            url = f"https://api.telegram.org/bot{self._telegram_bot_token}/sendMessage"
+            data = urllib.parse.urlencode({
+                "chat_id": self._telegram_chat_id,
+                "text": text,
+                "parse_mode": "Markdown",
+            }).encode()
+
+            req = urllib.request.Request(url, data=data, method="POST")
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass  # Don't fail on Telegram errors
 
     def get_history(self) -> List[Dict[str, Any]]:
         """Get alert history."""

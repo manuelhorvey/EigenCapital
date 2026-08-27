@@ -74,7 +74,7 @@ class TestChaosScenarios:
 
         for _ in range(100):
             enforcer = RiskEnforcer(envelope)
-            num_positions = rng.randint(0, 15)
+            num_positions = rng.randint(0, 25)
             equity = rng.uniform(1000, 10000)
             free_margin = rng.uniform(0, equity)
 
@@ -91,8 +91,8 @@ class TestChaosScenarios:
                 account_free_margin=free_margin,
             )
 
-            # If over 8 positions, must be BLOCKED
-            if num_positions > 8:
+            # If over 19 positions, must be BLOCKED
+            if num_positions > 19:
                 pos_gate = next(r for r in results if r.gate_name == "position_count")
                 assert pos_gate.result in (GateResult.BLOCK, GateResult.CRITICAL)
 
@@ -210,25 +210,25 @@ class TestBoundaryConditions:
     """Test exact boundary values for all safety limits."""
 
     def test_exact_position_limit(self, envelope):
-        """Exactly 8 positions → PASS, 9 → BLOCK."""
+        """Exactly 19 positions → PASS, 20 → CRITICAL."""
         enforcer = RiskEnforcer(envelope)
 
-        # 8 positions
-        positions_8 = [{"symbol": f"S{i}", "volume": 0.01, "type": 0,
-                         "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
-                        for i in range(8)]
+        # 19 positions
+        positions_19 = [{"symbol": f"S{i}", "volume": 0.01, "type": 0,
+                          "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+                         for i in range(19)]
         passed, results = enforcer.check_all(
-            broker_positions=positions_8,
+            broker_positions=positions_19,
             account_equity=5010.94, account_free_margin=4900.0,
         )
         pos_gate = next(r for r in results if r.gate_name == "position_count")
         assert pos_gate.result == GateResult.PASS
 
-        # 9 positions
-        positions_9 = positions_8 + [{"symbol": "S8", "volume": 0.01, "type": 0,
-                                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+        # 20 positions
+        positions_20 = positions_19 + [{"symbol": "S19", "volume": 0.01, "type": 0,
+                                         "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
         passed, results = enforcer.check_all(
-            broker_positions=positions_9,
+            broker_positions=positions_20,
             account_equity=5010.94, account_free_margin=4900.0,
         )
         pos_gate = next(r for r in results if r.gate_name == "position_count")

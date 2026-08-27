@@ -49,8 +49,11 @@ class TestSampleMoments:
             sample_kurtosis([0.01])
 
     def test_constant_series_no_crash(self):
-        assert sample_skewness([0.01] * 10) == 0.0
-        assert sample_kurtosis([0.01] * 10) == 3.0
+        skew = sample_skewness([0.01] * 10)
+        kurt = sample_kurtosis([0.01] * 10)
+        # Constant series: skewness should be 0, kurtosis should be 3
+        assert abs(skew) < 1e-10, f"Constant series skewness should be ~0, got {skew}"
+        assert abs(kurt - 3.0) < 1e-10, f"Constant series kurtosis should be ~3, got {kurt}"
 
 
 class TestExpectedMaximumSharpe:

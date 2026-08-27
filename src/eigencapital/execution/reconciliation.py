@@ -22,6 +22,8 @@ Check:
 Any mismatch must produce an explicit reconciliation failure.
 Never silently repair state.
 """
+from __future__ import annotations
+
 import warnings
 warnings.warn(
     "eigencapital.execution.reconciliation is deprecated. "
@@ -29,7 +31,6 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum

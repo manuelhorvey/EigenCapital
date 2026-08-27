@@ -24,6 +24,7 @@ max_volume = 1.0          # Maximum lot size
 [broker.allowed_symbols]
 
 US30 = "indices"          # min lot $2,675 (fits $5K cap)
+USOIL = "energy"          # min lot fits $5K cap
 AUDJPY = "forex_excluded"  # min lot $114K (JPY)
 AUDUSD = "forex"          # min lot $716
 AUDCHF = "forex"          # min lot $574

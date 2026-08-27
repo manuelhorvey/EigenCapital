@@ -1,0 +1,86 @@
+{
+  "audit_id": "CA-2026-08-27-001",
+  "audit_type": "comprehensive_forensic",
+  "audit_date": "2026-08-27T05:03:51Z",
+  "auditor": "automated + manual review",
+  "scope": "complete codebase",
+  "git": {
+    "head": "b84f880aea179cc8f3e3268ea9dbc0e5dec4cc4a",
+    "branch": "main",
+    "working_tree_clean": true,
+    "total_commits": 16
+  },
+  "environment": {
+    "python_version": "3.14.7",
+    "os": "Linux 7.1.5-101.fc43.x86_64",
+    "platform": "linux"
+  },
+  "codebase": {
+    "total_modules": 247,
+    "total_lines": 58169,
+    "test_files": 156,
+    "scripts": 18,
+    "production_docs": 54
+  },
+  "test_results": {
+    "collected": 1981,
+    "passed": "N/A (audit-first, no test execution during audit)",
+    "collection_errors": 20,
+    "error_files": [
+      "tests/unit/backtest/test_accounting.py",
+      "tests/unit/backtest/test_engine.py",
+      "tests/unit/research/campaigns/test_r5_executor.py",
+      "tests/unit/research/costs/test_cost_model.py",
+      "tests/unit/research/experiments/test_registry.py",
+      "tests/unit/research/hypotheses/test_hypothesis.py",
+      "tests/unit/research/intraday/test_accounting_contract.py",
+      "tests/unit/research/intraday/test_campaign4.py",
+      "tests/unit/research/intraday/test_campaign5.py",
+      "tests/unit/research/intraday/test_campaign6.py",
+      "tests/unit/research/intraday/test_campaign7.py",
+      "tests/unit/research/intraday/test_campaign7_rerun.py",
+      "tests/unit/research/intraday/test_campaign8.py",
+      "tests/unit/research/intraday/test_intraday_research.py",
+      "tests/unit/research/intraday/test_net_accounting.py",
+      "tests/unit/research/test_campaign.py",
+      "tests/unit/research/test_combination.py",
+      "tests/unit/research/test_execution_engine.py",
+      "tests/unit/research/test_portfolio_research.py",
+      "tests/unit/test_architecture_audit.py"
+    ]
+  },
+  "fingerprints": {
+    "config": "verified_at_startup",
+    "risk_policy": "verified_at_startup",
+    "live_risk": "verified_at_startup",
+    "r4_manifest": "verified_at_startup"
+  },
+  "findings_summary": {
+    "total": 10,
+    "critical": 1,
+    "high": 1,
+    "medium": 5,
+    "low": 3,
+    "production_blockers": 2
+  },
+  "verdict": {
+    "overall_score": 74,
+    "max_score": 100,
+    "classification": "Production Ready with Minor Changes",
+    "critical_blockers": 1,
+    "p0_required": 2,
+    "p1_required": 3,
+    "p2_recommended": 4
+  },
+  "deliverables": [
+    "docs/production/CODEBASE_FORENSIC_AUDIT.md",
+    "docs/production/PRODUCTION_REMEDIATION_ROADMAP.md",
+    "reports/codebase_audit/findings.json",
+    "reports/codebase_audit/risk_matrix.json",
+    "reports/codebase_audit/production_readiness.json",
+    "reports/codebase_audit/technical_debt.json",
+    "reports/codebase_audit/module_inventory.json",
+    "reports/codebase_audit/dependency_graph.json",
+    "reports/codebase_audit/provenance.json"
+  ]
+}

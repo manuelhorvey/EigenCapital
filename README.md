@@ -244,7 +244,7 @@ The research pipeline intentionally rejects attractive-looking signals when they
 
 ```bash
 # Clone
-git clone <repo> && cd EigenCapital
+git clone git@github.com:manuelhorvey/EigenCapital.git && cd EigenCapital
 
 # Install
 pip install -e ".[research]"
@@ -312,13 +312,6 @@ Coverage is tracked via [Codecov](https://codecov.io/github/manuelhorvey/EigenCa
 ## Licensing
 
 [MIT](LICENSE)
-
-## Support & Contact
-
-- **Issues**: [GitHub Issues](https://github.com/manuelhorvey/EigenCapital/issues)
-- **Documentation**: [docs/](docs/)
-- **Research**: [research/](research/)
-- **Contact**: eigencapital-team@example.com
 
 ## Versioning
 

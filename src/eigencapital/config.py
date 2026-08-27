@@ -48,6 +48,7 @@ class BrokerConfig:
     max_volume: float = 1.0
     allowed_symbols: Dict[str, str] = field(default_factory=lambda: {
         "US30": "indices", "AUDJPY": "forex_excluded",
+        "USOIL": "energy",
         "AUDUSD": "forex", "AUDCHF": "forex", "AUDCAD": "forex",
         "NZDJPY": "forex_excluded", "GBPJPY": "forex_excluded",
         "AUDNZD": "forex", "NZDUSD": "forex", "NZDCHF": "forex",

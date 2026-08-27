@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.micro_live.runner import MT5Connection
@@ -22,7 +22,6 @@ from eigencapital.production_qual.campaign_boundary import (
 )
 from eigencapital.production_qual.scaling import (
     ScaleLevel,
-    ScaleEnvelope,
     SCALE_ENVELOPES,
     ScalingMetrics,
     ProductionScaleEvaluator,
@@ -62,7 +61,9 @@ def run_production_qualification() -> Dict[str, Any]:
     broker_positions = mt5.get_positions()
     print(f"  Open positions: {len(broker_positions)}")
     for pos in broker_positions:
-        print(f"    {pos['symbol']}: {pos['type']} {pos['volume']} @ {pos['price_open']:.5f} | P&L: ${pos['profit']:.2f}")
+        print(
+            f"    {pos['symbol']}: {pos['type']} {pos['volume']} @ {pos['price_open']:.5f} | P&L: ${pos['profit']:.2f}"
+        )
 
     # 3. Create campaign boundary
     print("\n[3/7] Establishing campaign boundary...")
@@ -103,14 +104,16 @@ def run_production_qualification() -> Dict[str, Any]:
         else:
             boundary.record_r4_trade(trade)
 
-        classified_positions.append({
-            "symbol": pos.get("symbol"),
-            "ticket": pos.get("ticket"),
-            "origin": origin.value,
-            "side": pos.get("type"),
-            "volume": pos.get("volume"),
-            "pnl": pos.get("profit", 0),
-        })
+        classified_positions.append(
+            {
+                "symbol": pos.get("symbol"),
+                "ticket": pos.get("ticket"),
+                "origin": origin.value,
+                "side": pos.get("type"),
+                "volume": pos.get("volume"),
+                "pnl": pos.get("profit", 0),
+            }
+        )
 
     attribution = boundary.get_attribution()
     print(f"  R4 trades: {attribution['r4_trades']}")
@@ -119,7 +122,9 @@ def run_production_qualification() -> Dict[str, Any]:
 
     for cp in classified_positions:
         icon = "🟢" if cp["origin"] == "r4_campaign" else "⚪"
-        print(f"    {icon} {cp['symbol']}: {cp['origin']} | {cp['side']} {cp['volume']} | P&L: ${cp['pnl']:.2f}")
+        print(
+            f"    {icon} {cp['symbol']}: {cp['origin']} | {cp['side']} {cp['volume']} | P&L: ${cp['pnl']:.2f}"
+        )
 
     # 4. Compute scaling metrics
     print("\n[4/7] Computing scaling metrics...")
@@ -175,7 +180,7 @@ def run_production_qualification() -> Dict[str, Any]:
     # 6. Run production qualification
     print("\n[6/7] Running production qualification...")
     reconciliation_ok = True  # We have no new R4 orders yet
-    drift_detected = False    # Fingerprint is frozen
+    drift_detected = False  # Fingerprint is frozen
 
     evaluator = ProductionEvaluator()
     report = evaluator.evaluate(
@@ -222,8 +227,8 @@ def run_production_qualification() -> Dict[str, Any]:
         "",
         "## Account State",
         "",
-        f"| Metric | Value |",
-        f"|---|---|",
+        "| Metric | Value |",
+        "|---|---|",
         f"| Balance | ${account.get('balance', 0):.2f} |",
         f"| Equity | ${account.get('equity', 0):.2f} |",
         f"| Free Margin | ${account.get('free_margin', 0):.2f} |",
@@ -232,8 +237,8 @@ def run_production_qualification() -> Dict[str, Any]:
         "",
         "## Scale Envelope (MINIMAL)",
         "",
-        f"| Parameter | Value |",
-        f"|---|---|",
+        "| Parameter | Value |",
+        "|---|---|",
         f"| Max Equity | ${envelope.max_equity:,.0f} |",
         f"| Max Position | ${envelope.max_position_size:,.0f} |",
         f"| Max Order | ${envelope.max_order_notional:,.0f} |",
@@ -241,8 +246,8 @@ def run_production_qualification() -> Dict[str, Any]:
         "",
         "## Position Classification",
         "",
-        f"| Symbol | Origin | Side | Volume | P&L |",
-        f"|---|---|---|---|---|",
+        "| Symbol | Origin | Side | Volume | P&L |",
+        "|---|---|---|---|---|",
     ]
 
     for cp in classified_positions:
@@ -250,49 +255,61 @@ def run_production_qualification() -> Dict[str, Any]:
             f"| {cp['symbol']} | {cp['origin']} | {cp['side']} | {cp['volume']} | ${cp['pnl']:.2f} |"
         )
 
-    md_lines.extend([
-        "",
-        "## Qualification Checks",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## Qualification Checks",
+            "",
+        ]
+    )
 
     for check in report.checks:
         icon = "✅" if check.passed else "❌"
         md_lines.append(f"- {icon} **{check.check_name}**: {check.reason}")
 
-    md_lines.extend([
-        "",
-        "## Scaling Evaluation",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## Scaling Evaluation",
+            "",
+        ]
+    )
 
     for check_name, check in scale_result["checks"].items():
         icon = "✅" if check["passed"] else "❌"
-        md_lines.append(f"- {icon} **{check_name}**: {json.dumps({k: v for k, v in check.items() if k != 'passed'})}")
+        md_lines.append(
+            f"- {icon} **{check_name}**: {json.dumps({k: v for k, v in check.items() if k != 'passed'})}"
+        )
 
-    md_lines.extend([
-        "",
-        "## P&L Attribution",
-        "",
-        f"- R4 P&L: ${attribution.get('r4_pnl', 0):.2f}",
-        f"- Pre-existing P&L: ${attribution.get('pre_existing_pnl', 0):.2f}",
-        f"- Manual P&L: ${attribution.get('manual_pnl', 0):.2f}",
-        f"- Total P&L: ${attribution.get('total_pnl', 0):.2f}",
-        "",
-        "## Summary",
-        "",
-        f"- Passed: {report.passed_checks}/{report.total_checks}",
-        f"- Failed: {report.failed_checks}/{report.total_checks}",
-        f"- Report Hash: {report.report_hash[:16]}",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## P&L Attribution",
+            "",
+            f"- R4 P&L: ${attribution.get('r4_pnl', 0):.2f}",
+            f"- Pre-existing P&L: ${attribution.get('pre_existing_pnl', 0):.2f}",
+            f"- Manual P&L: ${attribution.get('manual_pnl', 0):.2f}",
+            f"- Total P&L: ${attribution.get('total_pnl', 0):.2f}",
+            "",
+            "## Summary",
+            "",
+            f"- Passed: {report.passed_checks}/{report.total_checks}",
+            f"- Failed: {report.failed_checks}/{report.total_checks}",
+            f"- Report Hash: {report.report_hash[:16]}",
+            "",
+        ]
+    )
 
     if report.verdict == ProductionVerdict.QUALIFIED_FOR_NEXT_SCALE:
-        md_lines.append("**QUALIFIED FOR NEXT SCALE** — System remains safe at MINIMAL scale, ready to increase capital.")
+        md_lines.append(
+            "**QUALIFIED FOR NEXT SCALE** — System remains safe at MINIMAL scale, ready to increase capital."
+        )
     elif report.verdict == ProductionVerdict.QUALIFIED:
         md_lines.append("**QUALIFIED** — System remains safe at this scale.")
     elif report.verdict == ProductionVerdict.QUALIFIED_WITH_RESTRICTIONS:
-        md_lines.append("**QUALIFIED WITH RESTRICTIONS** — Safe, but specific constraints remain.")
+        md_lines.append(
+            "**QUALIFIED WITH RESTRICTIONS** — Safe, but specific constraints remain."
+        )
     elif report.verdict == ProductionVerdict.BLOCKED:
         md_lines.append("**BLOCKED** — Critical scaling or safety issue detected.")
     else:
@@ -303,6 +320,7 @@ def run_production_qualification() -> Dict[str, Any]:
     # Save report
     report_path = f"reports/production_qualification_{campaign_id}.md"
     import os
+
     os.makedirs("reports", exist_ok=True)
     with open(report_path, "w") as f:
         f.write(md_report)
@@ -322,12 +340,14 @@ def run_production_qualification() -> Dict[str, Any]:
     print("PRODUCTION QUALIFICATION RESULT")
     print("=" * 70)
     print(f"  Campaign: {campaign_id}")
-    print(f"  Scale: MINIMAL ($5,000 envelope)")
+    print("  Scale: MINIMAL ($5,000 envelope)")
     print(f"  Verdict: {report.verdict.value}")
     print(f"  Checks: {report.passed_checks}/{report.total_checks} passed")
     print(f"  Scaling: {'PASS' if scale_result['all_passed'] else 'FAIL'}")
     print(f"  Account equity: ${equity:.2f}")
-    print(f"  Positions: {len(broker_positions)} ({attribution['pre_existing_trades']} pre-existing)")
+    print(
+        f"  Positions: {len(broker_positions)} ({attribution['pre_existing_trades']} pre-existing)"
+    )
     print("=" * 70)
 
     return report_dict

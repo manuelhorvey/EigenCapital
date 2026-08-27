@@ -21,33 +21,77 @@ from __future__ import annotations
 import json
 import os
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 sys.path.insert(0, "src")
 
 from mt5linux import MetaTrader5
 
 R4_UNIVERSE = [
-    "US30", "AUDJPY", "AUDUSD", "AUDCHF", "AUDCAD",
-    "NZDJPY", "GBPJPY", "AUDNZD", "NZDUSD", "NZDCHF",
-    "NZDCAD", "GBPUSD", "GBPCHF", "GBPCAD", "CHFJPY",
-    "EURJPY", "USDJPY", "CADJPY", "XAUUSD", "EURUSD",
-    "EURCHF", "USDCHF", "EURCAD", "USDCAD", "CADCHF",
-    "GBPNZD", "EURGBP", "EURNZD", "GBPAUD", "EURAUD",
+    "US30",
+    "AUDJPY",
+    "AUDUSD",
+    "AUDCHF",
+    "AUDCAD",
+    "NZDJPY",
+    "GBPJPY",
+    "AUDNZD",
+    "NZDUSD",
+    "NZDCHF",
+    "NZDCAD",
+    "GBPUSD",
+    "GBPCHF",
+    "GBPCAD",
+    "CHFJPY",
+    "EURJPY",
+    "USDJPY",
+    "CADJPY",
+    "XAUUSD",
+    "EURUSD",
+    "EURCHF",
+    "USDCHF",
+    "EURCAD",
+    "USDCAD",
+    "CADCHF",
+    "GBPNZD",
+    "EURGBP",
+    "EURNZD",
+    "GBPAUD",
+    "EURAUD",
     "BTCUSD",
 ]
 
 ASSET_CLASSES = {
-    "US30": "indices", "AUDJPY": "forex", "AUDUSD": "forex",
-    "AUDCHF": "forex", "AUDCAD": "forex", "NZDJPY": "forex",
-    "GBPJPY": "forex", "AUDNZD": "forex", "NZDUSD": "forex",
-    "NZDCHF": "forex", "NZDCAD": "forex", "GBPUSD": "forex",
-    "GBPCHF": "forex", "GBPCAD": "forex", "CHFJPY": "forex",
-    "EURJPY": "forex", "USDJPY": "forex", "CADJPY": "forex",
-    "XAUUSD": "metals", "EURUSD": "forex", "EURCHF": "forex",
-    "USDCHF": "forex", "EURCAD": "forex", "USDCAD": "forex",
-    "CADCHF": "forex", "GBPNZD": "forex", "EURGBP": "forex",
-    "EURNZD": "forex", "GBPAUD": "forex", "EURAUD": "forex",
+    "US30": "indices",
+    "AUDJPY": "forex",
+    "AUDUSD": "forex",
+    "AUDCHF": "forex",
+    "AUDCAD": "forex",
+    "NZDJPY": "forex",
+    "GBPJPY": "forex",
+    "AUDNZD": "forex",
+    "NZDUSD": "forex",
+    "NZDCHF": "forex",
+    "NZDCAD": "forex",
+    "GBPUSD": "forex",
+    "GBPCHF": "forex",
+    "GBPCAD": "forex",
+    "CHFJPY": "forex",
+    "EURJPY": "forex",
+    "USDJPY": "forex",
+    "CADJPY": "forex",
+    "XAUUSD": "metals",
+    "EURUSD": "forex",
+    "EURCHF": "forex",
+    "USDCHF": "forex",
+    "EURCAD": "forex",
+    "USDCAD": "forex",
+    "CADCHF": "forex",
+    "GBPNZD": "forex",
+    "EURGBP": "forex",
+    "EURNZD": "forex",
+    "GBPAUD": "forex",
+    "EURAUD": "forex",
     "BTCUSD": "crypto",
 }
 
@@ -62,17 +106,19 @@ def check_eligibility(mt5, position_limit: float) -> Dict[str, Any]:
         tick = mt5.symbol_info_tick(sym)
 
         if info is None or tick is None:
-            results.append({
-                "symbol": sym,
-                "asset_class": ASSET_CLASSES.get(sym, "unknown"),
-                "eligible": False,
-                "reason": "symbol not available on broker",
-                "min_volume": 0,
-                "current_ask": 0,
-                "contract_size": 0,
-                "min_notional": 0,
-                "position_limit": position_limit,
-            })
+            results.append(
+                {
+                    "symbol": sym,
+                    "asset_class": ASSET_CLASSES.get(sym, "unknown"),
+                    "eligible": False,
+                    "reason": "symbol not available on broker",
+                    "min_volume": 0,
+                    "current_ask": 0,
+                    "contract_size": 0,
+                    "min_notional": 0,
+                    "position_limit": position_limit,
+                }
+            )
             continue
 
         min_vol = info.volume_min
@@ -81,26 +127,27 @@ def check_eligibility(mt5, position_limit: float) -> Dict[str, Any]:
         min_notional = min_vol * ask * cs
 
         eligible = min_notional <= position_limit
-        reason = (
-            f"min lot {min_vol} × {ask:.5f} × {cs:,.0f} = ${min_notional:,.2f}"
-            + (f" ≤ ${position_limit:,.0f}" if eligible else f" > ${position_limit:,.0f}")
+        reason = f"min lot {min_vol} × {ask:.5f} × {cs:,.0f} = ${min_notional:,.2f}" + (
+            f" ≤ ${position_limit:,.0f}" if eligible else f" > ${position_limit:,.0f}"
         )
 
-        results.append({
-            "symbol": sym,
-            "asset_class": ASSET_CLASSES.get(sym, "unknown"),
-            "eligible": eligible,
-            "reason": reason,
-            "min_volume": min_vol,
-            "volume_step": info.volume_step,
-            "current_ask": ask,
-            "current_bid": tick.bid,
-            "spread": info.spread,
-            "contract_size": cs,
-            "digits": info.digits,
-            "min_notional": round(min_notional, 2),
-            "position_limit": position_limit,
-        })
+        results.append(
+            {
+                "symbol": sym,
+                "asset_class": ASSET_CLASSES.get(sym, "unknown"),
+                "eligible": eligible,
+                "reason": reason,
+                "min_volume": min_vol,
+                "volume_step": info.volume_step,
+                "current_ask": ask,
+                "current_bid": tick.bid,
+                "spread": info.spread,
+                "contract_size": cs,
+                "digits": info.digits,
+                "min_notional": round(min_notional, 2),
+                "position_limit": position_limit,
+            }
+        )
 
     return {
         "position_limit": position_limit,
@@ -134,13 +181,15 @@ def format_report(result: Dict[str, Any]) -> str:
                 f"${s['min_notional']:,.2f} | ✅ ELIGIBLE |"
             )
 
-    lines.extend([
-        "",
-        "## Ineligible Instruments",
-        "",
-        "| Symbol | Asset Class | Min Vol | Ask | Contract | Min Notional | Reason |",
-        "|---|---|---|---|---|---|---|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Ineligible Instruments",
+            "",
+            "| Symbol | Asset Class | Min Vol | Ask | Contract | Min Notional | Reason |",
+            "|---|---|---|---|---|---|---|",
+        ]
+    )
 
     for s in result["symbols"]:
         if not s["eligible"]:
@@ -150,15 +199,17 @@ def format_report(result: Dict[str, Any]) -> str:
                 f"${s['min_notional']:,.2f} | ❌ {s['reason']} |"
             )
 
-    lines.extend([
-        "",
-        "## Key Insight",
-        "",
-        "**Research universe ≠ executable universe at every capital scale.**",
-        "The $5K MINIMAL campaign can only trade instruments whose minimum",
-        "tradable notional fits within the position limit. This is",
-        "broker-derived, not hand-picked.",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Key Insight",
+            "",
+            "**Research universe ≠ executable universe at every capital scale.**",
+            "The $5K MINIMAL campaign can only trade instruments whose minimum",
+            "tradable notional fits within the position limit. This is",
+            "broker-derived, not hand-picked.",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -188,8 +239,10 @@ def main() -> None:
 
     for s in result["symbols"]:
         icon = "✅" if s["eligible"] else "❌"
-        print(f"  {icon} {s['symbol']:<10} {s['asset_class']:<10} "
-              f"min_notional=${s['min_notional']:>10,.2f}  {s['reason']}")
+        print(
+            f"  {icon} {s['symbol']:<10} {s['asset_class']:<10} "
+            f"min_notional=${s['min_notional']:>10,.2f}  {s['reason']}"
+        )
 
     # Save
     os.makedirs("reports", exist_ok=True)
@@ -200,8 +253,8 @@ def main() -> None:
     with open("reports/instrument_eligibility.md", "w") as f:
         f.write(format_report(result))
 
-    print(f"\n  Saved: reports/instrument_eligibility.json")
-    print(f"  Saved: reports/instrument_eligibility.md")
+    print("\n  Saved: reports/instrument_eligibility.json")
+    print("  Saved: reports/instrument_eligibility.md")
 
 
 if __name__ == "__main__":

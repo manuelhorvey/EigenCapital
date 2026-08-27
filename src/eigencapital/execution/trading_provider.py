@@ -20,13 +20,14 @@ Capability matrix:
   shutdown          | req     | req
   health_check      | req     | req
 """
+
 from __future__ import annotations
 
 import platform
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 class OrderSide(str, Enum):
@@ -43,6 +44,7 @@ class OrderFillingMode(str, Enum):
 @dataclass(frozen=True)
 class AccountInfo:
     """Platform-agnostic account information."""
+
     login: int = 0
     balance: float = 0.0
     equity: float = 0.0
@@ -58,6 +60,7 @@ class AccountInfo:
 @dataclass(frozen=True)
 class PositionInfo:
     """Platform-agnostic position information."""
+
     ticket: int = 0
     symbol: str = ""
     side: str = "BUY"  # "BUY" or "SELL"
@@ -76,6 +79,7 @@ class PositionInfo:
 @dataclass(frozen=True)
 class TickInfo:
     """Platform-agnostic tick information."""
+
     bid: float = 0.0
     ask: float = 0.0
     last: float = 0.0
@@ -86,6 +90,7 @@ class TickInfo:
 @dataclass(frozen=True)
 class SymbolInfo:
     """Platform-agnostic symbol information."""
+
     symbol: str = ""
     bid: float = 0.0
     ask: float = 0.0
@@ -101,6 +106,7 @@ class SymbolInfo:
 @dataclass(frozen=True)
 class OrderRequest:
     """Platform-agnostic order request."""
+
     symbol: str
     side: str  # "BUY" or "SELL"
     volume: float
@@ -116,6 +122,7 @@ class OrderRequest:
 @dataclass(frozen=True)
 class OrderResult:
     """Platform-agnostic order result."""
+
     success: bool = False
     order: int = 0
     deal: int = 0
@@ -128,6 +135,7 @@ class OrderResult:
 @dataclass(frozen=True)
 class BarData:
     """Platform-agnostic bar data."""
+
     time: int = 0
     open: float = 0.0
     high: float = 0.0
@@ -226,6 +234,7 @@ class LinuxMT5Provider(TradingProvider):
     def connect(self, host: str = "127.0.0.1", port: int = 8001) -> bool:
         try:
             from mt5linux import MetaTrader5
+
             self._mt5 = MetaTrader5(host=host, port=port)
             self._connected = self._mt5.initialize()
             return self._connected
@@ -263,7 +272,11 @@ class LinuxMT5Provider(TradingProvider):
     def positions_get(self, ticket: Optional[int] = None) -> List[PositionInfo]:
         if not self._connected or self._mt5 is None:
             return []
-        positions = self._mt5.positions_get(ticket=ticket) if ticket else self._mt5.positions_get()
+        positions = (
+            self._mt5.positions_get(ticket=ticket)
+            if ticket
+            else self._mt5.positions_get()
+        )
         if positions is None:
             return []
         return [
@@ -359,7 +372,9 @@ class LinuxMT5Provider(TradingProvider):
             "magic": request.magic,
             "comment": request.comment,
             "type_time": MetaTrader5.ORDER_TIME_GTC,
-            "type_filling": filling_map.get(request.filling_mode, MetaTrader5.ORDER_FILLING_FOK),
+            "type_filling": filling_map.get(
+                request.filling_mode, MetaTrader5.ORDER_FILLING_FOK
+            ),
         }
         if request.sl > 0:
             mt5_request["sl"] = request.sl
@@ -413,6 +428,7 @@ class WindowsMT5Provider(TradingProvider):
     def connect(self, host: str = "127.0.0.1", port: int = 8001) -> bool:
         try:
             import MetaTrader5 as mt5
+
             self._mt5 = mt5
             self._connected = mt5.initialize()
             return self._connected
@@ -452,7 +468,11 @@ class WindowsMT5Provider(TradingProvider):
     def positions_get(self, ticket: Optional[int] = None) -> List[PositionInfo]:
         if not self._connected or self._mt5 is None:
             return []
-        positions = self._mt5.positions_get(ticket=ticket) if ticket else self._mt5.positions_get()
+        positions = (
+            self._mt5.positions_get(ticket=ticket)
+            if ticket
+            else self._mt5.positions_get()
+        )
         if positions is None:
             return []
         return [
@@ -548,7 +568,9 @@ class WindowsMT5Provider(TradingProvider):
             "magic": request.magic,
             "comment": request.comment,
             "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": filling_map.get(request.filling_mode, mt5.ORDER_FILLING_FOK),
+            "type_filling": filling_map.get(
+                request.filling_mode, mt5.ORDER_FILLING_FOK
+            ),
         }
         if request.sl > 0:
             mt5_request["sl"] = request.sl

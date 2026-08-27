@@ -61,9 +61,7 @@ class TradeTick:
         if math.isnan(self.price) or math.isinf(self.price) or self.price <= 0:
             raise InformationBarError(f"price must be finite and > 0, got {self.price}")
         if isinstance(self.volume, bool) or not isinstance(self.volume, int):
-            raise InformationBarError(
-                f"volume must be an int, got {type(self.volume)}"
-            )
+            raise InformationBarError(f"volume must be an int, got {type(self.volume)}")
         if self.volume <= 0:
             raise InformationBarError(f"volume must be > 0, got {self.volume}")
 
@@ -84,8 +82,7 @@ class TradeTick:
             )
         except (TypeError, ValueError) as e:
             raise InformationBarError(
-                f"Cannot parse tick from raw record: price={price!r}, "
-                f"volume={volume!r}"
+                f"Cannot parse tick from raw record: price={price!r}, volume={volume!r}"
             ) from e
 
 
@@ -133,19 +130,14 @@ class InformationBar:
                 or math.isinf(value)
                 or value <= 0
             ):
-                raise InformationBarError(
-                    f"{name} must be finite and > 0, got {value}"
-                )
+                raise InformationBarError(f"{name} must be finite and > 0, got {value}")
         if self.high < max(self.open, self.close):
-            raise InformationBarError(
-                f"high ({self.high}) < max(open, close)"
-            )
+            raise InformationBarError(f"high ({self.high}) < max(open, close)")
         if self.low > min(self.open, self.close):
             raise InformationBarError(f"low ({self.low}) > min(open, close)")
         if not (self.low - 1e-9 <= self.vwap <= self.high + 1e-9):
             raise InformationBarError(
-                f"vwap ({self.vwap}) outside [low, high] = "
-                f"[{self.low}, {self.high}]"
+                f"vwap ({self.vwap}) outside [low, high] = [{self.low}, {self.high}]"
             )
         if self.volume < 0:
             raise InformationBarError(f"volume must be >= 0, got {self.volume}")
@@ -207,8 +199,7 @@ class BaseInformationBarAggregator(ABC):
 
     @property
     @abstractmethod
-    def bar_type(self) -> str:
-        ...
+    def bar_type(self) -> str: ...
 
     @abstractmethod
     def _metric(self, tick: TradeTick) -> float:
@@ -216,8 +207,7 @@ class BaseInformationBarAggregator(ABC):
         ...
 
     @abstractmethod
-    def _threshold(self) -> float:
-        ...
+    def _threshold(self) -> float: ...
 
     def aggregate(self, ticks: Sequence[TradeTick]) -> List[InformationBar]:
         """Aggregate ticks into information bars.

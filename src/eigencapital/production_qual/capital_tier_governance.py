@@ -35,6 +35,7 @@ class PromotionVerdict(str, Enum):
 @dataclass(frozen=True)
 class CapitalTier:
     """An immutable capital tier definition."""
+
     tier_id: str
     max_equity: float
     max_position_size: float
@@ -49,8 +50,9 @@ class CapitalTier:
 
     def __post_init__(self) -> None:
         if not self.created_at:
-            object.__setattr__(self, "created_at",
-                               datetime.now(timezone.utc).isoformat())
+            object.__setattr__(
+                self, "created_at", datetime.now(timezone.utc).isoformat()
+            )
 
     def compute_fingerprint(self) -> str:
         data = {
@@ -69,38 +71,70 @@ class CapitalTier:
 
 
 TIER_1_QUALIFICATION = CapitalTier(
-    tier_id="T1-QUALIFICATION", max_equity=5_100.0, max_position_size=2_500.0,
-    max_order_notional=2_500.0, max_concurrent_positions=19, max_daily_loss=250.0,
-    max_drawdown_pct=20.0, max_total_drawdown=1_000.0,
+    tier_id="T1-QUALIFICATION",
+    max_equity=5_100.0,
+    max_position_size=2_500.0,
+    max_order_notional=2_500.0,
+    max_concurrent_positions=19,
+    max_daily_loss=250.0,
+    max_drawdown_pct=20.0,
+    max_total_drawdown=1_000.0,
 )
 
 TIER_2_PROVISIONAL = CapitalTier(
-    tier_id="T2-PROVISIONAL", max_equity=10_100.0, max_position_size=2_500.0,
-    max_order_notional=2_500.0, max_concurrent_positions=10, max_daily_loss=500.0,
-    max_drawdown_pct=15.0, max_total_drawdown=2_000.0, required_stable_days=14,
+    tier_id="T2-PROVISIONAL",
+    max_equity=10_100.0,
+    max_position_size=2_500.0,
+    max_order_notional=2_500.0,
+    max_concurrent_positions=10,
+    max_daily_loss=500.0,
+    max_drawdown_pct=15.0,
+    max_total_drawdown=2_000.0,
+    required_stable_days=14,
 )
 
 TIER_3_CONTROLLED = CapitalTier(
-    tier_id="T3-CONTROLLED", max_equity=25_100.0, max_position_size=5_000.0,
-    max_order_notional=5_000.0, max_concurrent_positions=12, max_daily_loss=1_000.0,
-    max_drawdown_pct=12.0, max_total_drawdown=5_000.0, required_stable_days=30,
+    tier_id="T3-CONTROLLED",
+    max_equity=25_100.0,
+    max_position_size=5_000.0,
+    max_order_notional=5_000.0,
+    max_concurrent_positions=12,
+    max_daily_loss=1_000.0,
+    max_drawdown_pct=12.0,
+    max_total_drawdown=5_000.0,
+    required_stable_days=30,
 )
 
 TIER_4_SCALED = CapitalTier(
-    tier_id="T4-SCALED", max_equity=50_100.0, max_position_size=8_000.0,
-    max_order_notional=8_000.0, max_concurrent_positions=15, max_daily_loss=2_000.0,
-    max_drawdown_pct=10.0, max_total_drawdown=10_000.0, required_stable_days=60,
+    tier_id="T4-SCALED",
+    max_equity=50_100.0,
+    max_position_size=8_000.0,
+    max_order_notional=8_000.0,
+    max_concurrent_positions=15,
+    max_daily_loss=2_000.0,
+    max_drawdown_pct=10.0,
+    max_total_drawdown=10_000.0,
+    required_stable_days=60,
 )
 
 TIER_5_INSTITUTIONAL = CapitalTier(
-    tier_id="T5-INSTITUTIONAL", max_equity=100_100.0, max_position_size=15_000.0,
-    max_order_notional=15_000.0, max_concurrent_positions=20, max_daily_loss=3_000.0,
-    max_drawdown_pct=8.0, max_total_drawdown=15_000.0, required_stable_days=90,
+    tier_id="T5-INSTITUTIONAL",
+    max_equity=100_100.0,
+    max_position_size=15_000.0,
+    max_order_notional=15_000.0,
+    max_concurrent_positions=20,
+    max_daily_loss=3_000.0,
+    max_drawdown_pct=8.0,
+    max_total_drawdown=15_000.0,
+    required_stable_days=90,
 )
 
 ALL_TIERS: List[CapitalTier] = [
-    TIER_1_QUALIFICATION, TIER_2_PROVISIONAL, TIER_3_CONTROLLED,
-    TIER_4_SCALED, TIER_5_INSTITUTIONAL,
+    TIER_1_QUALIFICATION,
+    TIER_2_PROVISIONAL,
+    TIER_3_CONTROLLED,
+    TIER_4_SCALED,
+    TIER_5_INSTITUTIONAL,
 ]
 
 
@@ -187,12 +221,15 @@ class CapitalTierGovernor:
         return equity <= self._active_tier.max_equity
 
     def evaluate_promotion(
-        self, target_tier_id: str, evidence: PromotionEvidence,
+        self,
+        target_tier_id: str,
+        evidence: PromotionEvidence,
     ) -> PromotionVerdictResult:
         target = get_tier_by_id(target_tier_id)
         if target is None:
             return PromotionVerdictResult(
-                target_tier=target_tier_id, verdict=PromotionVerdict.BLOCKED,
+                target_tier=target_tier_id,
+                verdict=PromotionVerdict.BLOCKED,
                 blocking_reasons=[f"Unknown tier: {target_tier_id}"],
             )
 
@@ -200,25 +237,39 @@ class CapitalTierGovernor:
 
         if self._active_tier is not None:
             current_idx = next(
-                (i for i, t in enumerate(self._tiers) if t.tier_id == self._active_tier.tier_id), -1,
+                (
+                    i
+                    for i, t in enumerate(self._tiers)
+                    if t.tier_id == self._active_tier.tier_id
+                ),
+                -1,
             )
             target_idx = next(
-                (i for i, t in enumerate(self._tiers) if t.tier_id == target_tier_id), -1,
+                (i for i, t in enumerate(self._tiers) if t.tier_id == target_tier_id),
+                -1,
             )
             if target_idx > current_idx + 1:
-                reasons.append(f"Cannot skip from {self._active_tier.tier_id} to {target_tier_id}")
+                reasons.append(
+                    f"Cannot skip from {self._active_tier.tier_id} to {target_tier_id}"
+                )
 
         if evidence.stable_days < target.required_stable_days:
-            reasons.append(f"Need {target.required_stable_days} stable days, have {evidence.stable_days}")
+            reasons.append(
+                f"Need {target.required_stable_days} stable days, have {evidence.stable_days}"
+            )
 
         if target.required_zero_critical_incidents and evidence.critical_incidents > 0:
-            reasons.append(f"Require zero critical incidents, have {evidence.critical_incidents}")
+            reasons.append(
+                f"Require zero critical incidents, have {evidence.critical_incidents}"
+            )
 
         if evidence.duplicate_orders > 0:
             reasons.append(f"Duplicate orders detected: {evidence.duplicate_orders}")
 
         if evidence.unauthorized_orders > 0:
-            reasons.append(f"Unauthorized orders detected: {evidence.unauthorized_orders}")
+            reasons.append(
+                f"Unauthorized orders detected: {evidence.unauthorized_orders}"
+            )
 
         if not evidence.broker_stable:
             reasons.append("Broker is not stable")
@@ -229,14 +280,21 @@ class CapitalTierGovernor:
                 f"exceeds new tier limit {target.max_drawdown_pct:.1f}%"
             )
 
-        verdict = PromotionVerdict.APPROVED if not reasons else (
-            PromotionVerdict.INSUFFICIENT_EVIDENCE if evidence.stable_days > 0
-            else PromotionVerdict.BLOCKED
+        verdict = (
+            PromotionVerdict.APPROVED
+            if not reasons
+            else (
+                PromotionVerdict.INSUFFICIENT_EVIDENCE
+                if evidence.stable_days > 0
+                else PromotionVerdict.BLOCKED
+            )
         )
 
         result = PromotionVerdictResult(
-            target_tier=target_tier_id, verdict=verdict,
-            blocking_reasons=reasons, evidence=evidence,
+            target_tier=target_tier_id,
+            verdict=verdict,
+            blocking_reasons=reasons,
+            evidence=evidence,
         )
         self._audit_event("PROMOTION_EVALUATED", result.to_dict())
         return result
@@ -249,10 +307,14 @@ class CapitalTierGovernor:
         return False
 
     def _audit_event(self, event_type: str, data: Dict[str, Any]) -> None:
-        entry = {"event": event_type, "timestamp": datetime.now(timezone.utc).isoformat(), **data}
+        entry = {
+            "event": event_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **data,
+        }
         self._audit_log.append(entry)
         if len(self._audit_log) > self._max_audit_entries:
-            self._audit_log = self._audit_log[-self._max_audit_entries:]
+            self._audit_log = self._audit_log[-self._max_audit_entries :]
 
     def get_audit_log(self) -> List[Dict[str, Any]]:
         return list(self._audit_log)
@@ -260,7 +322,9 @@ class CapitalTierGovernor:
     def get_status(self) -> Dict[str, Any]:
         return {
             "active_tier": self._active_tier.tier_id if self._active_tier else None,
-            "active_tier_fingerprint": self._active_tier.compute_fingerprint() if self._active_tier else None,
+            "active_tier_fingerprint": self._active_tier.compute_fingerprint()
+            if self._active_tier
+            else None,
             "available_tiers": [t.tier_id for t in self._tiers],
             "audit_entries": len(self._audit_log),
         }

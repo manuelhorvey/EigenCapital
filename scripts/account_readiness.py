@@ -32,6 +32,7 @@ from mt5linux import MetaTrader5
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def section(title: str) -> None:
     print(f"\n{'─' * 60}")
     print(f"  {title}")
@@ -54,12 +55,36 @@ def tick_price(mt5, symbol: str) -> Optional[Dict[str, float]]:
 # ── R4 Universe ────────────────────────────────────────────────────
 
 R4_SYMBOLS = [
-    "US30", "AUDJPY", "AUDUSD", "AUDCHF", "AUDCAD",
-    "NZDJPY", "GBPJPY", "AUDNZD", "NZDUSD", "NZDCHF",
-    "NZDCAD", "GBPUSD", "GBPCHF", "GBPCAD", "CHFJPY",
-    "EURJPY", "USDJPY", "CADJPY", "XAUUSD", "EURUSD",
-    "EURCHF", "USDCHF", "EURCAD", "USDCAD", "CADCHF",
-    "GBPNZD", "EURGBP", "EURNZD", "GBPAUD", "EURAUD",
+    "US30",
+    "AUDJPY",
+    "AUDUSD",
+    "AUDCHF",
+    "AUDCAD",
+    "NZDJPY",
+    "GBPJPY",
+    "AUDNZD",
+    "NZDUSD",
+    "NZDCHF",
+    "NZDCAD",
+    "GBPUSD",
+    "GBPCHF",
+    "GBPCAD",
+    "CHFJPY",
+    "EURJPY",
+    "USDJPY",
+    "CADJPY",
+    "XAUUSD",
+    "EURUSD",
+    "EURCHF",
+    "USDCHF",
+    "EURCAD",
+    "USDCAD",
+    "CADCHF",
+    "GBPNZD",
+    "EURGBP",
+    "EURNZD",
+    "GBPAUD",
+    "EURAUD",
     "BTCUSD",
 ]
 
@@ -72,8 +97,8 @@ MAX_SPREAD_POINTS = 15  # for forex; metals/crypto/indexes higher
 
 # ── Main ───────────────────────────────────────────────────────────
 
+
 def main() -> None:
-    all_passed = True
     total_checks = 0
     passed_checks = 0
     critical_failures: List[str] = []
@@ -122,7 +147,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Account ID", acct_id)
     else:
-        all_passed = False
         critical_failures.append(f"Wrong account: {acct_id} != {EXPECTED_ACCOUNT_ID}")
         check("❌", "Account ID", f"expected {EXPECTED_ACCOUNT_ID}, got {acct_id}")
 
@@ -132,7 +156,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Server", server)
     else:
-        all_passed = False
         critical_failures.append(f"Wrong server: {server}")
         check("❌", "Server", f"expected {EXPECTED_SERVER}, got {server}")
 
@@ -142,7 +165,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Currency", currency)
     else:
-        all_passed = False
         critical_failures.append(f"Unexpected currency: {currency}")
         check("❌", "Currency", f"expected USD, got {currency}")
 
@@ -152,7 +174,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Leverage", f"1:{leverage}")
     else:
-        all_passed = False
         critical_failures.append(f"Invalid leverage: {leverage}")
         check("❌", "Leverage", f"1:{leverage}")
 
@@ -165,7 +186,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Equity within max", f"${equity:,.2f} <= ${MAX_EQUITY:,.0f}")
     else:
-        all_passed = False
         critical_failures.append(f"Equity ${equity:,.2f} exceeds ${MAX_EQUITY:,.0f}")
         check("❌", "Equity within max", f"${equity:,.2f} > ${MAX_EQUITY:,.0f}")
 
@@ -175,7 +195,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Account funded", f"${equity:,.2f}")
     else:
-        all_passed = False
         critical_failures.append("Account has zero/negative equity")
         check("❌", "Account funded", f"${equity:,.2f}")
 
@@ -185,7 +204,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Free margin", f"${free_margin:,.2f}")
     else:
-        all_passed = False
         critical_failures.append("No free margin")
         check("❌", "Free margin", f"${free_margin:,.2f}")
 
@@ -196,7 +214,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Margin utilization", f"{margin_pct:.1f}%")
     else:
-        all_passed = False
         critical_failures.append(f"Margin utilization {margin_pct:.1f}% > 50%")
         check("❌", "Margin utilization", f"{margin_pct:.1f}%")
 
@@ -219,7 +236,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "R4 symbols present", f"{len(present)}/{len(R4_SYMBOLS)}")
     else:
-        all_passed = False
         critical_failures.append(f"Missing R4 symbols: {missing}")
         check("❌", "R4 symbols missing", ", ".join(missing))
 
@@ -267,7 +283,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Symbol specs", f"{len(symbol_data)} symbols validated")
     else:
-        all_passed = False
         for issue in spec_issues:
             critical_failures.append(f"Spec: {issue}")
         check("❌", "Symbol specs", "; ".join(spec_issues))
@@ -310,7 +325,7 @@ def main() -> None:
     # Print spread table
     print()
     print(f"  {'Symbol':<10} {'Spread':>8}")
-    print(f"  {'─'*10} {'─'*8}")
+    print(f"  {'─' * 10} {'─' * 8}")
     for sym in R4_SYMBOLS:
         sp = spread_data.get(sym, 0)
         marker = " ⚠️" if sym in [s.split(":")[0] for s in spread_issues] else ""
@@ -329,11 +344,15 @@ def main() -> None:
         check("⚠️", f"Open positions: {len(pos_list)}", "(will be classified)")
         for p in pos_list:
             side = "BUY" if p.type == 0 else "SELL"
-            check("  ", f"{p.symbol}: {side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}")
+            check(
+                "  ",
+                f"{p.symbol}: {side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}",
+            )
 
     # ── 8. R4 Manifest Fingerprint ─────────────────────────────────
     section("8. R4 MANIFEST FINGERPRINT")
     from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+
     manifest = R4ConfigManifest()
     fp = manifest.compute_identity()
 
@@ -342,7 +361,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Manifest fingerprint", fp[:32] + "...")
     else:
-        all_passed = False
         critical_failures.append(f"Fingerprint drift: {fp[:32]}")
         check("❌", "Manifest fingerprint", f"DRIFT — {fp[:32]}...")
 
@@ -351,7 +369,6 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Strategy version", manifest.strategy_version)
     else:
-        all_passed = False
         critical_failures.append(f"Version drift: {manifest.strategy_version}")
         check("❌", "Strategy version", manifest.strategy_version)
 
@@ -360,8 +377,9 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Terminal ID match", f"{manifest.data_terminal_id} == {acct_id}")
     else:
-        all_passed = False
-        critical_failures.append(f"Terminal ID mismatch: {manifest.data_terminal_id} != {acct_id}")
+        critical_failures.append(
+            f"Terminal ID mismatch: {manifest.data_terminal_id} != {acct_id}"
+        )
         check("❌", "Terminal ID match", f"{manifest.data_terminal_id} != {acct_id}")
 
     # ── 9. Pre-Trading 5-Step Gate ─────────────────────────────────
@@ -372,9 +390,6 @@ def main() -> None:
     )
     from eigencapital.production_qual.broker_boundary import (
         BrokerBoundaryConfig,
-    )
-    from eigencapital.production_qual.capital_boundary import (
-        CapitalBoundaryConfig,
     )
 
     # Build broker state from real MT5 data
@@ -388,15 +403,18 @@ def main() -> None:
         free_margin=free_margin,
         balance=balance,
         margin_level=(equity / margin * 100) if margin > 0 else 9999.0,
-        positions=[{
-            "ticket": p.ticket,
-            "symbol": p.symbol,
-            "type": "BUY" if p.type == 0 else "SELL",
-            "volume": p.volume,
-            "price_open": p.price_open,
-            "price_current": p.price_current,
-            "profit": p.profit,
-        } for p in pos_list],
+        positions=[
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "type": "BUY" if p.type == 0 else "SELL",
+                "volume": p.volume,
+                "price_open": p.price_open,
+                "price_current": p.price_current,
+                "profit": p.profit,
+            }
+            for p in pos_list
+        ],
         position_count=len(pos_list),
         available_symbols=sorted(present),
         symbol_specs=symbol_data,
@@ -437,28 +455,44 @@ def main() -> None:
 
     for check_item in auth.checks:
         step_icon = step_icons.get(check_item.step, "  ")
-        icon = "✅" if check_item.passed else ("❌" if check_item.severity == "CRITICAL" else "⚠️")
+        icon = (
+            "✅"
+            if check_item.passed
+            else ("❌" if check_item.severity == "CRITICAL" else "⚠️")
+        )
         total_checks += 1
         if check_item.passed:
             passed_checks += 1
         elif check_item.severity == "CRITICAL":
-            all_passed = False
-            critical_failures.append(f"[{check_item.step}] {check_item.check_id}: {check_item.description}")
+            critical_failures.append(
+                f"[{check_item.step}] {check_item.check_id}: {check_item.description}"
+            )
 
         detail = ""
         if not check_item.passed:
             detail = f"expected={check_item.expected} observed={check_item.observed}"
-        check(icon, f"{step_icon} [{check_item.step}] {check_item.check_id}: {check_item.description}", detail)
+        check(
+            icon,
+            f"{step_icon} [{check_item.step}] {check_item.check_id}: {check_item.description}",
+            detail,
+        )
 
     gate_decision = auth.decision
     total_checks += 1
     if gate_decision == "TRADING_AUTHORIZED":
         passed_checks += 1
-        check("✅", f"Gate decision: {gate_decision}", f"{auth.passed_checks}/{auth.total_checks} passed")
+        check(
+            "✅",
+            f"Gate decision: {gate_decision}",
+            f"{auth.passed_checks}/{auth.total_checks} passed",
+        )
     else:
-        all_passed = False
         critical_failures.append(f"Gate decision: {gate_decision}")
-        check("❌", f"Gate decision: {gate_decision}", f"{auth.passed_checks}/{auth.total_checks} passed")
+        check(
+            "❌",
+            f"Gate decision: {gate_decision}",
+            f"{auth.passed_checks}/{auth.total_checks} passed",
+        )
 
     # Disconnect
     mt5.shutdown()

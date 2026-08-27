@@ -16,17 +16,18 @@ Evidence maturity states:
 
 R4 should not be considered promotion-ready until E5 or E6.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class EvidenceLevel(str, Enum):
     """Evidence maturity levels."""
-    
+
     E0_NO_EVIDENCE = "E0_NO_EVIDENCE"
     E1_OPERATIONAL = "E1_OPERATIONAL"
     E2_EXECUTION = "E2_EXECUTION"
@@ -39,23 +40,23 @@ class EvidenceLevel(str, Enum):
 @dataclass(frozen=True)
 class EvidenceState:
     """Current evidence maturity state."""
-    
+
     level: str
     level_number: int
     timestamp: str
-    
+
     # What we know
     operational_days: float
     completed_trades: int
     independent_episodes: int
     max_holding_period_days: float
-    
+
     # What we need for next level
     next_level_requirements: List[str]
-    
+
     # Assessment
     assessment: str
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "level": self.level,
@@ -72,11 +73,11 @@ class EvidenceState:
 
 class EvidenceMaturityTracker:
     """Tracks evidence maturity for Phase 2 qualification.
-    
+
     Prevents premature capital promotion by requiring sufficient
     evidence at each level before advancing.
     """
-    
+
     # Level advancement thresholds
     THRESHOLDS = {
         EvidenceLevel.E0_NO_EVIDENCE: {
@@ -122,11 +123,11 @@ class EvidenceMaturityTracker:
             "max_holding": 40,
         },
     }
-    
+
     def __init__(self) -> None:
         self._current_level = EvidenceLevel.E0_NO_EVIDENCE
         self._level_history: List[Dict[str, Any]] = []
-    
+
     def assess(
         self,
         operational_days: float,
@@ -135,22 +136,22 @@ class EvidenceMaturityTracker:
         max_holding_period_days: float,
     ) -> EvidenceState:
         """Assess current evidence maturity level.
-        
+
         Args:
             operational_days: Days of continuous operation
             completed_trades: Number of completed trade lifecycles
             independent_episodes: Number of independent portfolio episodes
             max_holding_period_days: Longest observed holding period
-            
+
         Returns:
             Current evidence state
         """
         now = datetime.now(timezone.utc).isoformat()
-        
+
         # Determine highest achievable level
         achieved_level = EvidenceLevel.E0_NO_EVIDENCE
         achieved_number = 0
-        
+
         for level in [
             EvidenceLevel.E6_PROMOTION_READY,
             EvidenceLevel.E5_REPLICATED,
@@ -169,29 +170,42 @@ class EvidenceMaturityTracker:
                 achieved_level = level
                 achieved_number = int(level.value[1])
                 break
-        
+
         # Compute next level requirements
         next_requirements = []
         next_level_num = achieved_number + 1
         if next_level_num <= 6:
-            next_level = EvidenceLevel(f"E{next_level_num}_{'OPERATIONAL' if next_level_num == 1 else 'EXECUTION' if next_level_num == 2 else 'EARLY_ECONOMIC' if next_level_num == 3 else 'FULL_HOLDING' if next_level_num == 4 else 'REPLICATED' if next_level_num == 5 else 'PROMOTION_READY'}")
+            next_level = EvidenceLevel(
+                f"E{next_level_num}_{'OPERATIONAL' if next_level_num == 1 else 'EXECUTION' if next_level_num == 2 else 'EARLY_ECONOMIC' if next_level_num == 3 else 'FULL_HOLDING' if next_level_num == 4 else 'REPLICATED' if next_level_num == 5 else 'PROMOTION_READY'}"
+            )
             next_thresholds = self.THRESHOLDS[next_level]
-            
+
             if operational_days < next_thresholds["min_days"]:
-                next_requirements.append(f"Need {next_thresholds['min_days'] - operational_days:.0f} more operational days")
+                next_requirements.append(
+                    f"Need {next_thresholds['min_days'] - operational_days:.0f} more operational days"
+                )
             if completed_trades < next_thresholds["min_trades"]:
-                next_requirements.append(f"Need {next_thresholds['min_trades'] - completed_trades} more completed trades")
+                next_requirements.append(
+                    f"Need {next_thresholds['min_trades'] - completed_trades} more completed trades"
+                )
             if independent_episodes < next_thresholds["min_episodes"]:
-                next_requirements.append(f"Need {next_thresholds['min_episodes'] - independent_episodes} more independent episodes")
+                next_requirements.append(
+                    f"Need {next_thresholds['min_episodes'] - independent_episodes} more independent episodes"
+                )
             if max_holding_period_days < next_thresholds["max_holding"]:
-                next_requirements.append(f"Need {next_thresholds['max_holding'] - max_holding_period_days:.0f} more days of holding observation")
-        
+                next_requirements.append(
+                    f"Need {next_thresholds['max_holding'] - max_holding_period_days:.0f} more days of holding observation"
+                )
+
         # Generate assessment
         assessment = self._generate_assessment(
-            achieved_level, operational_days, completed_trades,
-            independent_episodes, max_holding_period_days,
+            achieved_level,
+            operational_days,
+            completed_trades,
+            independent_episodes,
+            max_holding_period_days,
         )
-        
+
         state = EvidenceState(
             level=achieved_level.value,
             level_number=achieved_number,
@@ -203,20 +217,22 @@ class EvidenceMaturityTracker:
             next_level_requirements=next_requirements,
             assessment=assessment,
         )
-        
+
         # Track level changes
         if achieved_level != self._current_level:
-            self._level_history.append({
-                "from": self._current_level.value,
-                "to": achieved_level.value,
-                "timestamp": now,
-                "operational_days": operational_days,
-                "completed_trades": completed_trades,
-            })
+            self._level_history.append(
+                {
+                    "from": self._current_level.value,
+                    "to": achieved_level.value,
+                    "timestamp": now,
+                    "operational_days": operational_days,
+                    "completed_trades": completed_trades,
+                }
+            )
             self._current_level = achieved_level
-        
+
         return state
-    
+
     def _generate_assessment(
         self,
         level: EvidenceLevel,
@@ -236,22 +252,22 @@ class EvidenceMaturityTracker:
             EvidenceLevel.E6_PROMOTION_READY: f"Promotion-ready evidence: {episodes} episodes, {trades} trades, {days:.0f} days. Statistically defensible for scaling.",
         }
         return assessments.get(level, "Unknown level")
-    
+
     def get_current_level(self) -> EvidenceLevel:
         """Get current evidence level."""
         return self._current_level
-    
+
     def get_history(self) -> List[Dict[str, Any]]:
         """Get level change history."""
         return list(self._level_history)
-    
+
     def is_promotion_ready(self) -> bool:
         """Check if evidence level supports capital promotion."""
         return self._current_level in (
             EvidenceLevel.E5_REPLICATED,
             EvidenceLevel.E6_PROMOTION_READY,
         )
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Export current state."""
         return {

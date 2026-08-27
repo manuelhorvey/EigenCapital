@@ -16,6 +16,7 @@ Usage:
     python scripts/r4_qualification_dashboard.py --json
     python scripts/r4_qualification_dashboard.py --markdown
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,10 +33,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 def get_git_info() -> dict:
     """Get git HEAD info."""
     import subprocess
+
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return {"head": result.stdout.strip() if result.returncode == 0 else "unknown"}
     except Exception:
@@ -45,7 +49,10 @@ def get_git_info() -> dict:
 def load_config_fingerprint() -> str:
     """Load config fingerprint."""
     try:
-        from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
+        from eigencapital.production_qual.fingerprint_verifier import (
+            FingerprintVerifier,
+        )
+
         verifier = FingerprintVerifier()
         return verifier.frozen_manifest_fingerprint[:16]
     except Exception:
@@ -60,7 +67,7 @@ def load_qualification_data() -> dict:
         "fingerprint": load_config_fingerprint(),
         "status": "FROZEN",
     }
-    
+
     # Try to load baseline
     baseline_path = Path("reports/phase2_baseline.json")
     if baseline_path.exists():
@@ -72,7 +79,7 @@ def load_qualification_data() -> dict:
             data["captured_at"] = baseline.get("captured_at", "")
         except Exception:
             pass
-    
+
     # Try to load latest T0
     t0_dir = Path("reports/r4_qualification")
     if t0_dir.exists():
@@ -85,14 +92,14 @@ def load_qualification_data() -> dict:
                 data["t0_hash"] = t0.get("snapshot_hash", "")[:16]
             except Exception:
                 pass
-    
+
     return data
 
 
 def generate_dashboard(data: dict) -> str:
     """Generate the R4 Economic Truth Dashboard."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    
+
     lines = [
         "                    R4 QUALIFICATION DASHBOARD",
         "══════════════════════════════════════════════════════════════════════════════",
@@ -180,7 +187,7 @@ def generate_dashboard(data: dict) -> str:
         "trade lifecycle. No data is fabricated or estimated.",
         "",
     ]
-    
+
     return "\n".join(lines)
 
 
@@ -190,9 +197,9 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--markdown", action="store_true", help="Output as markdown")
     args = parser.parse_args()
-    
+
     data = load_qualification_data()
-    
+
     if args.json:
         data["generated_at"] = datetime.now(timezone.utc).isoformat()
         print(json.dumps(data, indent=2, default=str))

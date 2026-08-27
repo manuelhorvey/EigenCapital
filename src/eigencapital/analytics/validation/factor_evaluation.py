@@ -187,9 +187,7 @@ class QuantileResult:
         """Deterministic serialization."""
         return {
             "n_quantiles": self.n_quantiles,
-            "quantile_mean_returns": [
-                round(v, 8) for v in self.quantile_mean_returns
-            ],
+            "quantile_mean_returns": [round(v, 8) for v in self.quantile_mean_returns],
             "quantile_sizes": list(self.quantile_sizes),
             "top_minus_bottom": round(self.top_minus_bottom, 8),
             "monotonic": self.monotonic,
@@ -198,9 +196,7 @@ class QuantileResult:
         }
 
 
-def _assign_quantiles(
-    signals: Sequence[float], n_quantiles: int
-) -> List[int]:
+def _assign_quantiles(signals: Sequence[float], n_quantiles: int) -> List[int]:
     """Assign each observation a quantile bucket 0 (bottom) .. n-1 (top).
 
     Observations are ranked by signal; buckets are as even as possible.
@@ -329,9 +325,7 @@ class TurnoverResult:
         """Deterministic serialization."""
         return {
             "mean_top_set_turnover": round(self.mean_top_set_turnover, 6),
-            "mean_rank_autocorrelation": round(
-                self.mean_rank_autocorrelation, 6
-            ),
+            "mean_rank_autocorrelation": round(self.mean_rank_autocorrelation, 6),
             "n_rebalances": self.n_rebalances,
             "top_set_turnover_series": [
                 round(v, 6) for v in self.top_set_turnover_series
@@ -342,9 +336,7 @@ class TurnoverResult:
         }
 
 
-def _top_set(
-    ranking: Mapping[str, float], top_fraction: float
-) -> Set[str]:
+def _top_set(ranking: Mapping[str, float], top_fraction: float) -> Set[str]:
     """Names in the top fraction of a ranking map."""
     if not ranking:
         return set()

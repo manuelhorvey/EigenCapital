@@ -14,11 +14,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -60,6 +58,7 @@ def _compute_hyp_hash(h: Hypothesis) -> str:
 
 # ── Signal generators ──────────────────────────────────────────────────
 
+
 def signal_tick_direction(df: pd.DataFrame, lookback: int = 20) -> pd.Series:
     """Order-flow proxy: net tick direction over lookback."""
     direction = np.sign(df["close"].diff())
@@ -84,7 +83,9 @@ def signal_vwap_deviation(df: pd.DataFrame, lookback: int = 60) -> pd.Series:
     return (df["close"] - vwap) / vwap.replace(0, np.nan)
 
 
-def signal_spread_shock(df: pd.DataFrame, lookback: int = 60, shock_pct: float = 1.5) -> pd.Series:
+def signal_spread_shock(
+    df: pd.DataFrame, lookback: int = 60, shock_pct: float = 1.5
+) -> pd.Series:
     """Liquidity proxy: spread relative to its rolling median."""
     med = df["spread"].rolling(lookback).median()
     return df["spread"] / med.replace(0, np.nan)
@@ -131,7 +132,9 @@ def signal_volatility_regime(df: pd.DataFrame, lookback: int = 60) -> pd.Series:
     return rv / rv_avg.replace(0, np.nan)
 
 
-def signal_session_open_momentum(df: pd.DataFrame, session_start_idx: int = 0, lookback: int = 30) -> pd.Series:
+def signal_session_open_momentum(
+    df: pd.DataFrame, session_start_idx: int = 0, lookback: int = 30
+) -> pd.Series:
     """Momentum in first N bars of session."""
     ret = df["close"].pct_change(1)
     return ret.rolling(lookback).sum()
@@ -206,7 +209,6 @@ CAMPAIGN3_HYPOTHESES: List[Hypothesis] = [
         holding_periods=[5, 15, 30],
         economic_rationale="Aggressive buying/selling leaves directional footprint in bar close position",
     ),
-
     # Family: Liquidity Dynamics (Tier 2)
     Hypothesis(
         hypothesis_id="LQ-001",
@@ -232,7 +234,6 @@ CAMPAIGN3_HYPOTHESES: List[Hypothesis] = [
         holding_periods=[10, 20],
         economic_rationale="Simultaneous spread widening and volume burst is strongest liquidity signal",
     ),
-
     # Family: Price Structure at M1 (Tier 3)
     Hypothesis(
         hypothesis_id="PS-001",
@@ -266,7 +267,6 @@ CAMPAIGN3_HYPOTHESES: List[Hypothesis] = [
         holding_periods=[5, 15, 30],
         economic_rationale="Accelerating price moves tend to continue; decelerating moves tend to reverse",
     ),
-
     # Family: Volatility/Regime (Tier 4)
     Hypothesis(
         hypothesis_id="VR-001",
@@ -276,7 +276,6 @@ CAMPAIGN3_HYPOTHESES: List[Hypothesis] = [
         holding_periods=[15, 30, 60],
         economic_rationale="Volatility mean-reverts; high vol periods precede directional moves",
     ),
-
     # Family: Session Microstructure (Tier 5)
     Hypothesis(
         hypothesis_id="SS-001",
@@ -294,7 +293,6 @@ CAMPAIGN3_HYPOTHESES: List[Hypothesis] = [
         holding_periods=[30, 60, 120],
         economic_rationale="Gaps from overnight sessions may fill or extend depending on information content",
     ),
-
     # Family: Composite (Tier 6)
     Hypothesis(
         hypothesis_id="CP-001",

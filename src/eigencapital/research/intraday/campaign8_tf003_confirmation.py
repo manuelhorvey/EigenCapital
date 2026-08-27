@@ -56,21 +56,19 @@ from eigencapital.research.intraday.campaign7_micro import (
     TRADING_DAYS_PER_YEAR,
     BARS_PER_TRADING_DAY,
     _threshold,
-    regime_analysis,
 )
-from eigencapital.research.intraday.campaign5_30m import classify
 
 # ── Constants ───────────────────────────────────────────────────────────
 
 PRIMARY_HID = "TF-003"
 PRIMARY_SIGNAL = "sig_flow_fade"
-PRIMARY_HP = 1                     # 5 minutes — as discovered, frozen
-DIAGNOSTIC_HPS = [2]               # reported only, never gate-relevant
+PRIMARY_HP = 1  # 5 minutes — as discovered, frozen
+DIAGNOSTIC_HPS = [2]  # reported only, never gate-relevant
 
-COST_ONE_WAY_BASE = 13 / 2 / 10000     # 6.5 bps
+COST_ONE_WAY_BASE = 13 / 2 / 10000  # 6.5 bps
 COST_ONE_WAY_ADVERSE = 22 / 2 / 10000  # 11 bps
 
-HOLDOUT_FRACTION = 0.20            # strict chronological tail
+HOLDOUT_FRACTION = 0.20  # strict chronological tail
 WF_N_FOLDS = 5
 
 GATES = {
@@ -90,6 +88,7 @@ REPORT_MD = "reports/campaign8_tf003_confirmation.md"
 # STAGE A — CORRECTED ENGINE
 # ═══════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class NetResult:
     gross_sharpe: float
@@ -98,9 +97,9 @@ class NetResult:
     total_net_ret: float
     total_cost_drag: float
     n_flips: int
-    exposure: float                 # fraction of bars with nonzero position
-    max_dd: float                   # on NET returns
-    worst_bar: float                # tail loss, single worst NET bar
+    exposure: float  # fraction of bars with nonzero position
+    max_dd: float  # on NET returns
+    worst_bar: float  # tail loss, single worst NET bar
     avg_cost_per_flip_bps: float
 
 
@@ -115,7 +114,7 @@ def bt_corrected(
     fwd = df["mid_close"].pct_change(hp).shift(-hp)
 
     gross = pos * fwd
-    flips = pos.diff().abs().fillna(0)          # charge at every position change
+    flips = pos.diff().abs().fillna(0)  # charge at every position change
     net = gross - flips * cost_one_way
 
     g_clean = gross.dropna()
@@ -146,9 +145,7 @@ def bt_corrected(
         exposure=float((pos != 0).mean()),
         max_dd=_maxdd(n_clean),
         worst_bar=float(n_clean.min()) if len(n_clean) else 0.0,
-        avg_cost_per_flip_bps=(
-            cost_one_way * 10000 if n_flips else 0.0
-        ),
+        avg_cost_per_flip_bps=(cost_one_way * 10000 if n_flips else 0.0),
     )
 
 
@@ -218,6 +215,7 @@ def permutation_test_corrected(
 # STAGE B — GATES AND RUNNER
 # ═══════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class ConfirmationReport:
     verdict: str = "NOT_CONFIRMED"
@@ -266,11 +264,11 @@ def _gate_check(
     else:
         failed.append(f"max_dd {full.max_dd:.1%} ≤ {GATES['max_dd_limit']}")
 
-    bad_sessions = {s: v for s, v in session_sharpes.items()
-                    if v < GATES["session_floor"]}
+    bad_sessions = {
+        s: v for s, v in session_sharpes.items() if v < GATES["session_floor"]
+    }
     if not bad_sessions:
-        passed.append("no session below floor "
-                      f"{GATES['session_floor']}")
+        passed.append(f"no session below floor {GATES['session_floor']}")
     else:
         failed.append(f"sessions below floor: {bad_sessions}")
 
@@ -293,8 +291,7 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
         rep.failed_gates.append("no_data")
         return rep
 
-    anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data),
-                       list(data)[0])
+    anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0])
     anchor = data[anchor_name]
 
     # ── Full window, base + adverse ────────────────────────────────────
@@ -302,9 +299,11 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
     sig_anchor = _threshold(func(anchor))
     full_base = bt_corrected(anchor, sig_anchor, PRIMARY_HP, COST_ONE_WAY_BASE)
     full_adv = bt_corrected(anchor, sig_anchor, PRIMARY_HP, COST_ONE_WAY_ADVERSE)
-    print(f"  anchor={anchor_name}: gross={full_base.gross_sharpe:+.2f} "
-          f"net_base={full_base.net_sharpe:+.2f} net_adv={full_adv.net_sharpe:+.2f} "
-          f"flips={full_base.n_flips:,} DD(net)={full_base.max_dd:.1%}")
+    print(
+        f"  anchor={anchor_name}: gross={full_base.gross_sharpe:+.2f} "
+        f"net_base={full_base.net_sharpe:+.2f} net_adv={full_adv.net_sharpe:+.2f} "
+        f"flips={full_base.n_flips:,} DD(net)={full_base.max_dd:.1%}"
+    )
 
     # Adverse must also clear the Sharpe gate
     if full_adv.net_sharpe < GATES["net_sharpe_min"]:
@@ -313,19 +312,14 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
             f"{GATES['net_sharpe_min']}"
         )
     else:
-        rep.passed_gates.append(
-            f"adverse-cost net Sharpe {full_adv.net_sharpe:.2f}"
-        )
+        rep.passed_gates.append(f"adverse-cost net Sharpe {full_adv.net_sharpe:.2f}")
 
     # ── Walk-forward + permutation (corrected) ─────────────────────────
-    wf_cons, wf_oos = wf_validate_corrected(
-        anchor, func, PRIMARY_HP, COST_ONE_WAY_BASE
-    )
+    wf_cons, wf_oos = wf_validate_corrected(anchor, func, PRIMARY_HP, COST_ONE_WAY_BASE)
     perm_p = permutation_test_corrected(
         anchor, func, PRIMARY_HP, COST_ONE_WAY_BASE, n_permutations=200
     )
-    print(f"  WF consistency={wf_cons:.0%} (OOS {wf_oos:+.2f}) "
-          f"perm_p={perm_p:.3f}")
+    print(f"  WF consistency={wf_cons:.0%} (OOS {wf_oos:+.2f}) perm_p={perm_p:.3f}")
     rep.full_window = {
         **full_base.__dict__,
         "net_adverse_sharpe": full_adv.net_sharpe,
@@ -339,18 +333,16 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
     print("\n=== STAGE B2: chronological holdout ===")
     cut = int(len(anchor) * (1 - HOLDOUT_FRACTION))
     ho_sig = _threshold(func(anchor.iloc[cut:]))
-    holdout = bt_corrected(
-        anchor.iloc[cut:], ho_sig, PRIMARY_HP, COST_ONE_WAY_BASE
+    holdout = bt_corrected(anchor.iloc[cut:], ho_sig, PRIMARY_HP, COST_ONE_WAY_BASE)
+    print(
+        f"  holdout ({HOLDOUT_FRACTION:.0%} tail): net={holdout.net_sharpe:+.2f} "
+        f"DD={holdout.max_dd:.1%}"
     )
-    print(f"  holdout ({HOLDOUT_FRACTION:.0%} tail): net={holdout.net_sharpe:+.2f} "
-          f"DD={holdout.max_dd:.1%}")
     rep.holdout = holdout.__dict__
     if holdout.net_sharpe > 0:
         rep.passed_gates.append(f"holdout net Sharpe {holdout.net_sharpe:+.2f} > 0")
     else:
-        rep.failed_gates.append(
-            f"holdout net Sharpe {holdout.net_sharpe:+.2f} ≤ 0"
-        )
+        rep.failed_gates.append(f"holdout net Sharpe {holdout.net_sharpe:+.2f} ≤ 0")
 
     # ── Per-instrument (base costs) ────────────────────────────────────
     print("\n=== Per-instrument ===")
@@ -359,8 +351,9 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
             sig = _threshold(func(df))
             r = bt_corrected(df, sig, PRIMARY_HP, COST_ONE_WAY_BASE)
             rep.per_instrument[s] = r.__dict__
-            print(f"  {s}: net={r.net_sharpe:+.2f} DD={r.max_dd:.1%} "
-                  f"flips={r.n_flips:,}")
+            print(
+                f"  {s}: net={r.net_sharpe:+.2f} DD={r.max_dd:.1%} flips={r.n_flips:,}"
+            )
         except Exception as e:
             print(f"  {s}: FAILED ({e})")
 
@@ -371,6 +364,7 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
     net_series = (pos * fwd - flips * COST_ONE_WAY_BASE).dropna()
     ann = np.sqrt(TRADING_DAYS_PER_YEAR * BARS_PER_TRADING_DAY / PRIMARY_HP)
     from eigencapital.research.intraday.campaign4_15m import SESSION_BOUNDS_UTC
+
     hours = pd.to_datetime(anchor.loc[net_series.index, "time"]).dt.hour
     session_sharpes: Dict[str, float] = {}
     for name, (lo, hi) in SESSION_BOUNDS_UTC.items():
@@ -398,6 +392,7 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
 # REPORTS
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def write_reports(rep: ConfirmationReport) -> None:
     now = time.strftime("%Y-%m-%d %H:%M UTC")
     os.makedirs("reports", exist_ok=True)
@@ -409,21 +404,25 @@ def write_reports(rep: ConfirmationReport) -> None:
         f"**Generated:** {now}",
         f"**Mechanism:** {PRIMARY_HID} quote-flow-extreme reversal "
         f"(HP={PRIMARY_HP}, frozen)",
-        f"**Cost model:** one-way per flip — base {COST_ONE_WAY_BASE*10000:.1f}bps, "
-        f"adverse {COST_ONE_WAY_ADVERSE*10000:.1f}bps",
+        f"**Cost model:** one-way per flip — base {COST_ONE_WAY_BASE * 10000:.1f}bps, "
+        f"adverse {COST_ONE_WAY_ADVERSE * 10000:.1f}bps",
         "**Engine:** Stage-A corrected (costs inside the return series); "
         "locked by unit tests before any result was computed",
         "",
-        "---", "",
-        f"# CONFIRMATION VERDICT: **{rep.verdict}**", "",
+        "---",
+        "",
+        f"# CONFIRMATION VERDICT: **{rep.verdict}**",
+        "",
         "**Failed gates:**",
-        *( [f"- ❌ {g}" for g in rep.failed_gates] or ["- none"] ),
+        *([f"- ❌ {g}" for g in rep.failed_gates] or ["- none"]),
         "",
         "**Passed gates:**",
         *[f"- ✅ {g}" for g in rep.passed_gates],
         "",
-        "---", "",
-        "## FULL WINDOW (corrected)", "",
+        "---",
+        "",
+        "## FULL WINDOW (corrected)",
+        "",
     ]
     fw = rep.full_window or {}
     lines += [
@@ -438,27 +437,34 @@ def write_reports(rep: ConfirmationReport) -> None:
         f"(OOS {fw.get('wf_oos_sharpe', 0):+.2f}) · permutation p "
         f"{fw.get('permutation_p', 1):.3f}",
         "",
-        "## CHRONOLOGICAL HOLDOUT (final 20%)", "",
+        "## CHRONOLOGICAL HOLDOUT (final 20%)",
+        "",
     ]
     ho = rep.holdout or {}
     lines += [
         f"- Net Sharpe: {ho.get('net_sharpe', 0):+.2f} · "
         f"Max DD: {ho.get('max_dd', 0):.1%} · "
-        f"flips {ho.get('n_flips', 0):,}", "",
-        "## PER-INSTRUMENT (net, base costs)", "",
+        f"flips {ho.get('n_flips', 0):,}",
+        "",
+        "## PER-INSTRUMENT (net, base costs)",
+        "",
     ]
     lines += [
         f"- {s}: net {r.get('net_sharpe', 0):+.2f} · DD {r.get('max_dd', 0):.1%}"
         for s, r in sorted(rep.per_instrument.items())
     ]
     lines += [
-        "", "## HONEST LIMITATIONS", "",
+        "",
+        "## HONEST LIMITATIONS",
+        "",
         "- The tick snapshot ends at discovery time; the forward leg of "
         "confirmation is OPEN. Freshly collected ticks must independently "
         "reproduce these results before any status promotion.",
         "- Broker-specific quote flow; conclusions do not generalize to "
-        "institutional order flow.", "",
-        "## DECISION", "",
+        "institutional order flow.",
+        "",
+        "## DECISION",
+        "",
     ]
     if rep.verdict == "CONFIRMED":
         lines.append(
@@ -495,5 +501,6 @@ def write_reports(rep: ConfirmationReport) -> None:
 
 if __name__ == "__main__":
     import sys
+
     rep = run(sys.argv[1] if len(sys.argv) > 1 else DATA_DIR)
     write_reports(rep)

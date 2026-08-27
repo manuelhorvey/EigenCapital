@@ -6,9 +6,7 @@ Every divergence must be classified and recorded. Never silently ignore divergen
 
 from __future__ import annotations
 
-import hashlib
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Any
 
@@ -133,18 +131,18 @@ class ResearchPaperParityEngine:
 
     # Pre-registered tolerances (frozen before campaign)
     DEFAULT_TOLERANCES: Dict[ParityBoundary, float] = {
-        ParityBoundary.FEATURE: 1e-10,       # exact (deterministic)
-        ParityBoundary.SIGNAL: 1e-10,        # exact (deterministic)
-        ParityBoundary.TARGET_WEIGHT: 0.001, # 0.1% weight tolerance
-        ParityBoundary.RISK_APPROVAL: 1e-10, # exact (boolean)
+        ParityBoundary.FEATURE: 1e-10,  # exact (deterministic)
+        ParityBoundary.SIGNAL: 1e-10,  # exact (deterministic)
+        ParityBoundary.TARGET_WEIGHT: 0.001,  # 0.1% weight tolerance
+        ParityBoundary.RISK_APPROVAL: 1e-10,  # exact (boolean)
         ParityBoundary.ORDER_INTENT: 1e-10,  # exact (deterministic)
         ParityBoundary.EXECUTION_PRICE: 0.001,  # 0.1% price tolerance
-        ParityBoundary.COST: 0.0001,         # 1bp cost tolerance
-        ParityBoundary.POSITION: 1e-6,       # near-exact position
-        ParityBoundary.CASH_EQUITY: 0.01,    # 1% equity tolerance
-        ParityBoundary.PNL: 0.01,            # 1% P&L tolerance
-        ParityBoundary.RISK_METRICS: 0.01,   # 1% risk metric tolerance
-        ParityBoundary.KILL_SWITCH: 1e-10,   # exact (boolean)
+        ParityBoundary.COST: 0.0001,  # 1bp cost tolerance
+        ParityBoundary.POSITION: 1e-6,  # near-exact position
+        ParityBoundary.CASH_EQUITY: 0.01,  # 1% equity tolerance
+        ParityBoundary.PNL: 0.01,  # 1% P&L tolerance
+        ParityBoundary.RISK_METRICS: 0.01,  # 1% risk metric tolerance
+        ParityBoundary.KILL_SWITCH: 1e-10,  # exact (boolean)
     }
 
     def __init__(
@@ -309,23 +307,26 @@ class ResearchPaperParityEngine:
         """Compute aggregate parity statistics."""
         total = len(self._results)
         exact = sum(
-            1 for r in self._results
-            if r.divergence_type == DivergenceType.EXACT_MATCH
+            1 for r in self._results if r.divergence_type == DivergenceType.EXACT_MATCH
         )
         expected = sum(
-            1 for r in self._results
+            1
+            for r in self._results
             if r.divergence_type == DivergenceType.EXPECTED_DIFFERENCE
         )
         tolerable = sum(
-            1 for r in self._results
+            1
+            for r in self._results
             if r.divergence_type == DivergenceType.TOLERABLE_DIVERGENCE
         )
         unexplained = sum(
-            1 for r in self._results
+            1
+            for r in self._results
             if r.divergence_type == DivergenceType.UNEXPLAINED_DIVERGENCE
         )
         critical = sum(
-            1 for r in self._results
+            1
+            for r in self._results
             if r.divergence_type == DivergenceType.CRITICAL_DIVERGENCE
         )
 

@@ -36,7 +36,7 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -68,6 +68,7 @@ signal.signal(signal.SIGTERM, _handle_signal)
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
     print(f"  [{ts}] {msg}", flush=True)
@@ -87,12 +88,16 @@ def send_telegram(text: str) -> bool:
 
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = json.dumps({
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": text,
-            "parse_mode": "HTML",
-        }).encode()
-        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        data = json.dumps(
+            {
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": text,
+                "parse_mode": "HTML",
+            }
+        ).encode()
+        req = urllib.request.Request(
+            url, data=data, headers={"Content-Type": "application/json"}
+        )
         resp = urllib.request.urlopen(req, timeout=10)
         return resp.status == 200
     except Exception as e:
@@ -117,6 +122,7 @@ def alert(title: str, body: str, level: str = "INFO") -> None:
 
 
 # ── State Tracking ─────────────────────────────────────────────────
+
 
 def load_last_positions() -> Dict[str, Dict[str, Any]]:
     """Load last known positions from disk."""
@@ -179,15 +185,20 @@ def diff_positions(
         old_p = old[key]
         new_p = new[key]
         # Only alert on structural changes, not P&L noise
-        if (old_p["volume"] != new_p["volume"] or
-            old_p["sl"] != new_p["sl"] or
-            old_p["tp"] != new_p["tp"]):
-            modified.append(f"{new_p['symbol']} vol={new_p['volume']:.2f} sl={new_p['sl']} tp={new_p['tp']}")
+        if (
+            old_p["volume"] != new_p["volume"]
+            or old_p["sl"] != new_p["sl"]
+            or old_p["tp"] != new_p["tp"]
+        ):
+            modified.append(
+                f"{new_p['symbol']} vol={new_p['volume']:.2f} sl={new_p['sl']} tp={new_p['tp']}"
+            )
 
     return added, removed, modified
 
 
 # ── Monitoring Checks ──────────────────────────────────────────────
+
 
 def check_positions(mt5) -> None:
     """Check for position changes and alert."""
@@ -296,7 +307,9 @@ def check_equity(mt5) -> None:
 
     # Save current equity
     with open(last_equity_file, "w") as f:
-        json.dump({"equity": equity, "timestamp": datetime.now(timezone.utc).isoformat()}, f)
+        json.dump(
+            {"equity": equity, "timestamp": datetime.now(timezone.utc).isoformat()}, f
+        )
 
 
 def check_regime() -> None:
@@ -333,7 +346,12 @@ def check_regime() -> None:
         if len(data) < 3:
             return
 
-        returns_df = pd.DataFrame({sym: df.pct_change() for sym, df in data.items()}).dropna(how="all").ffill().fillna(0)
+        returns_df = (
+            pd.DataFrame({sym: df.pct_change() for sym, df in data.items()})
+            .dropna(how="all")
+            .ffill()
+            .fillna(0)
+        )
         avg_vol = returns_df.rolling(20).std().mean(axis=1) * np.sqrt(252)
         risk_median = avg_vol.expanding().median()
         regime_on = bool(avg_vol.iloc[-1] < risk_median.iloc[-1])
@@ -349,12 +367,15 @@ def check_regime() -> None:
 
         # Save current regime
         with open(regime_file, "w") as f:
-            json.dump({
-                "regime_on": regime_on,
-                "vol": float(avg_vol.iloc[-1]),
-                "median": float(risk_median.iloc[-1]),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }, f)
+            json.dump(
+                {
+                    "regime_on": regime_on,
+                    "vol": float(avg_vol.iloc[-1]),
+                    "median": float(risk_median.iloc[-1]),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+                f,
+            )
 
     finally:
         mt5.shutdown()
@@ -363,10 +384,13 @@ def check_regime() -> None:
 def check_loop_health() -> None:
     """Check if the rebalance loop process is alive."""
     import subprocess
+
     try:
         result = subprocess.run(
             ["pgrep", "-f", "r4_rebalance_loop"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         alive = result.returncode == 0
     except Exception:
@@ -388,13 +412,17 @@ def check_loop_health() -> None:
         alert("LOOP RECOVERED", "r4_rebalance_loop process is running again", "INFO")
 
     with open(health_file, "w") as f:
-        json.dump({
-            "alive": alive,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }, f)
+        json.dump(
+            {
+                "alive": alive,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            f,
+        )
 
 
 # ── Status Display ─────────────────────────────────────────────────
+
 
 def show_status(mt5) -> None:
     """Show current monitoring status."""
@@ -415,7 +443,9 @@ def show_status(mt5) -> None:
         print("POSITIONS:")
         for p in pos_list:
             d = "LONG" if p.type == 0 else "SHORT"
-            print(f"  {d:5s} {p.symbol:8s} {p.volume:.2f} lots @ {p.price_open:.5f} pnl={p.profit:+.2f}")
+            print(
+                f"  {d:5s} {p.symbol:8s} {p.volume:.2f} lots @ {p.price_open:.5f} pnl={p.profit:+.2f}"
+            )
         print()
 
     # Regime
@@ -424,17 +454,22 @@ def show_status(mt5) -> None:
         with open(regime_file) as f:
             data = json.load(f)
         regime = "ON ✅" if data.get("regime_on") else "OFF ⛔"
-        print(f"REGIME: {regime} (vol {data.get('vol', 0):.1%} vs median {data.get('median', 0):.1%})")
+        print(
+            f"REGIME: {regime} (vol {data.get('vol', 0):.1%} vs median {data.get('median', 0):.1%})"
+        )
     else:
         print("REGIME: unknown (no check yet)")
     print()
 
     # Loop health
     import subprocess
+
     try:
         result = subprocess.run(
             ["pgrep", "-f", "r4_rebalance_loop"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         alive = result.returncode == 0
     except Exception:
@@ -465,6 +500,7 @@ def show_status(mt5) -> None:
 
 # ── Main Loop ──────────────────────────────────────────────────────
 
+
 def run_check(mt5) -> None:
     """Run all monitoring checks."""
     check_positions(mt5)
@@ -487,7 +523,9 @@ def main() -> None:
     # Telegram setup check
     if "--telegram" in args:
         if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-            print("⚠️  Telegram not configured. Set R4_TELEGRAM_BOT_TOKEN and R4_TELEGRAM_CHAT_ID")
+            print(
+                "⚠️  Telegram not configured. Set R4_TELEGRAM_BOT_TOKEN and R4_TELEGRAM_CHAT_ID"
+            )
             print("   1. Create bot via @BotFather → get BOT_TOKEN")
             print("   2. Send message to bot → get CHAT_ID from /getUpdates")
             print("   3. export R4_TELEGRAM_BOT_TOKEN=...")
@@ -507,7 +545,10 @@ def main() -> None:
 
     print("=" * 50, flush=True)
     print("  R4 MONITOR", flush=True)
-    print(f"  Mode: {'LOOP' if loop_mode else 'ONE-SHOT'} | Interval: {interval}s", flush=True)
+    print(
+        f"  Mode: {'LOOP' if loop_mode else 'ONE-SHOT'} | Interval: {interval}s",
+        flush=True,
+    )
     print(f"  Telegram: {'enabled' if TELEGRAM_BOT_TOKEN else 'disabled'}", flush=True)
     print("=" * 50, flush=True)
 

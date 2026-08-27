@@ -21,6 +21,7 @@ Alert categories:
 - WATCHDOG: Watchdog state changes
 - SYSTEM: System-level events
 """
+
 from __future__ import annotations
 
 import json
@@ -29,12 +30,12 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 
 class AlertSeverity(str, Enum):
     """Alert severity levels."""
-    
+
     CRITICAL = "CRITICAL"
     WARNING = "WARNING"
     INFO = "INFO"
@@ -42,7 +43,7 @@ class AlertSeverity(str, Enum):
 
 class AlertCategory(str, Enum):
     """Alert categories."""
-    
+
     HEALTH = "HEALTH"
     RISK = "RISK"
     RECONCILIATION = "RECONCILIATION"
@@ -55,7 +56,7 @@ class AlertCategory(str, Enum):
 @dataclass(frozen=True)
 class Alert:
     """Structured alert."""
-    
+
     alert_id: str
     timestamp: str
     severity: str
@@ -67,7 +68,7 @@ class Alert:
     correlation_id: Optional[str] = None
     state_transition: Optional[str] = None
     consecutive_count: int = 1
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "alert_id": self.alert_id,
@@ -86,14 +87,14 @@ class Alert:
 
 class StructuredAlertDispatcher:
     """Structured alerting with deduplication and event ledger traceability.
-    
+
     Alerts are:
     - Tied to state transitions
     - Deduplicated by category+event_type
     - Traceable to event ledger
     - Delivered durably
     """
-    
+
     def __init__(
         self,
         alert_path: str = "reports/alerts.jsonl",
@@ -102,7 +103,7 @@ class StructuredAlertDispatcher:
         mirror_stderr: bool = True,
     ) -> None:
         """Initialize alert dispatcher.
-        
+
         Args:
             alert_path: Path for durable alert storage
             dedup_window_seconds: Window for deduplication
@@ -113,15 +114,15 @@ class StructuredAlertDispatcher:
         self._dedup_window = dedup_window_seconds
         self._max_consecutive = max_consecutive_alerts
         self._mirror_stderr = mirror_stderr
-        
+
         # Deduplication tracking
         self._recent_alerts: Dict[str, float] = {}  # key -> last_sent_time
         self._consecutive_counts: Dict[str, int] = {}  # key -> count
-        
+
         # Alert history
         self._history: List[Dict[str, Any]] = []
         self._max_history = 1000
-        
+
         # Statistics
         self._stats = {
             "total_dispatched": 0,
@@ -129,39 +130,42 @@ class StructuredAlertDispatcher:
             "by_severity": {},
             "by_category": {},
         }
-        
+
         # Ensure directory exists
         os.makedirs(os.path.dirname(alert_path) or ".", exist_ok=True)
-    
+
     def _generate_alert_id(self) -> str:
         """Generate unique alert ID."""
         import uuid
+
         return str(uuid.uuid4())[:8]
-    
+
     def _get_dedup_key(self, category: str, event_type: str) -> str:
         """Generate deduplication key."""
         return f"{category}:{event_type}"
-    
+
     def _should_send(self, dedup_key: str) -> bool:
         """Check if alert should be sent (deduplication logic).
-        
+
         Within the dedup window, identical alerts are suppressed
         unless the consecutive count exceeds the max consecutive limit.
         """
         now = time.time()
         last_sent = self._recent_alerts.get(dedup_key, 0)
-        
+
         # Check dedup window
         if now - last_sent < self._dedup_window:
-            self._consecutive_counts[dedup_key] = self._consecutive_counts.get(dedup_key, 0) + 1
-            
+            self._consecutive_counts[dedup_key] = (
+                self._consecutive_counts.get(dedup_key, 0) + 1
+            )
+
             # Still suppress (deduplicate) within the window
             return False
-        
+
         # Reset consecutive count when window expires
         self._consecutive_counts[dedup_key] = 1
         return True
-    
+
     def dispatch(
         self,
         severity: AlertSeverity,
@@ -174,7 +178,7 @@ class StructuredAlertDispatcher:
         state_transition: Optional[str] = None,
     ) -> Alert:
         """Dispatch a structured alert.
-        
+
         Args:
             severity: Alert severity
             category: Alert category
@@ -184,7 +188,7 @@ class StructuredAlertDispatcher:
             event_id: Link to event ledger
             correlation_id: Correlation ID for related events
             state_transition: State change description
-            
+
         Returns:
             Created alert
         """
@@ -202,7 +206,7 @@ class StructuredAlertDispatcher:
                 message="[DEDUPLICATED]",
                 consecutive_count=self._consecutive_counts.get(dedup_key, 0),
             )
-        
+
         # Create alert
         now = datetime.now(timezone.utc).isoformat()
         alert = Alert(
@@ -218,29 +222,33 @@ class StructuredAlertDispatcher:
             state_transition=state_transition,
             consecutive_count=self._consecutive_counts.get(dedup_key, 1),
         )
-        
+
         # Update dedup tracking
         self._recent_alerts[dedup_key] = time.time()
-        
+
         # Deliver alert
         self._deliver(alert)
-        
+
         # Record to history
         self._history.append(alert.to_dict())
         if len(self._history) > self._max_history:
-            self._history = self._history[-self._max_history:]
-        
+            self._history = self._history[-self._max_history :]
+
         # Update stats
         self._stats["total_dispatched"] += 1
-        self._stats["by_severity"][severity.value] = self._stats["by_severity"].get(severity.value, 0) + 1
-        self._stats["by_category"][category.value] = self._stats["by_category"].get(category.value, 0) + 1
-        
+        self._stats["by_severity"][severity.value] = (
+            self._stats["by_severity"].get(severity.value, 0) + 1
+        )
+        self._stats["by_category"][category.value] = (
+            self._stats["by_category"].get(category.value, 0) + 1
+        )
+
         return alert
-    
+
     def _deliver(self, alert: Alert) -> None:
         """Deliver alert to all sinks."""
         line = json.dumps(alert.to_dict(), sort_keys=True, default=str)
-        
+
         # Durable JSONL sink
         try:
             with open(self._alert_path, "a", encoding="utf-8") as f:
@@ -249,24 +257,32 @@ class StructuredAlertDispatcher:
                 os.fsync(f.fileno())
         except OSError:
             pass
-        
+
         # Stderr mirror for critical/warning
-        if self._mirror_stderr and alert.severity in (AlertSeverity.CRITICAL.value, AlertSeverity.WARNING.value):
+        if self._mirror_stderr and alert.severity in (
+            AlertSeverity.CRITICAL.value,
+            AlertSeverity.WARNING.value,
+        ):
             import sys
-            print(f"[{alert.severity}] {alert.category}: {alert.message}", file=sys.stderr)
-    
+
+            print(
+                f"[{alert.severity}] {alert.category}: {alert.message}", file=sys.stderr
+            )
+
     def get_history(self) -> List[Dict[str, Any]]:
         """Get alert history."""
         return list(self._history)
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get alert statistics."""
         return dict(self._stats)
-    
+
     def clear_dedup(self, category: Optional[AlertCategory] = None) -> None:
         """Clear deduplication state."""
         if category:
-            keys_to_clear = [k for k in self._recent_alerts if k.startswith(category.value)]
+            keys_to_clear = [
+                k for k in self._recent_alerts if k.startswith(category.value)
+            ]
             for key in keys_to_clear:
                 del self._recent_alerts[key]
                 self._consecutive_counts.pop(key, None)
@@ -277,6 +293,7 @@ class StructuredAlertDispatcher:
 
 # Convenience functions for common alert patterns
 
+
 def alert_health_change(
     dispatcher: StructuredAlertDispatcher,
     dimension: str,
@@ -286,14 +303,23 @@ def alert_health_change(
     event_id: Optional[str] = None,
 ) -> Alert:
     """Alert on health state change."""
-    severity = AlertSeverity.WARNING if new_state in ("DEGRADED", "BLOCKED") else AlertSeverity.INFO
-    
+    severity = (
+        AlertSeverity.WARNING
+        if new_state in ("DEGRADED", "BLOCKED")
+        else AlertSeverity.INFO
+    )
+
     return dispatcher.dispatch(
         severity=severity,
         category=AlertCategory.HEALTH,
         event_type="HEALTH_STATE_CHANGE",
         message=f"{dimension}: {old_state} → {new_state}",
-        details={"dimension": dimension, "old_state": old_state, "new_state": new_state, "reason": reason},
+        details={
+            "dimension": dimension,
+            "old_state": old_state,
+            "new_state": new_state,
+            "reason": reason,
+        },
         event_id=event_id,
         state_transition=f"{dimension}:{old_state}->{new_state}",
     )
@@ -309,7 +335,7 @@ def alert_risk_threshold(
 ) -> Alert:
     """Alert on risk threshold breach."""
     severity = AlertSeverity.CRITICAL if value >= limit else AlertSeverity.WARNING
-    
+
     return dispatcher.dispatch(
         severity=severity,
         category=AlertCategory.RISK,
@@ -327,8 +353,12 @@ def alert_reconciliation_mismatch(
     event_id: Optional[str] = None,
 ) -> Alert:
     """Alert on reconciliation mismatch."""
-    severity = AlertSeverity.CRITICAL if status in ("BLOCKING", "MISMATCH") else AlertSeverity.WARNING
-    
+    severity = (
+        AlertSeverity.CRITICAL
+        if status in ("BLOCKING", "MISMATCH")
+        else AlertSeverity.WARNING
+    )
+
     return dispatcher.dispatch(
         severity=severity,
         category=AlertCategory.RECONCILIATION,
@@ -380,8 +410,12 @@ def alert_watchdog_state(
     event_id: Optional[str] = None,
 ) -> Alert:
     """Alert on watchdog state change."""
-    severity = AlertSeverity.CRITICAL if new_state in ("CONTAIN", "HALT") else AlertSeverity.WARNING
-    
+    severity = (
+        AlertSeverity.CRITICAL
+        if new_state in ("CONTAIN", "HALT")
+        else AlertSeverity.WARNING
+    )
+
     return dispatcher.dispatch(
         severity=severity,
         category=AlertCategory.WATCHDOG,

@@ -89,31 +89,35 @@ class ProductionReport:
             icon = "✅" if check.passed else "❌"
             lines.append(f"- {icon} **{check.check_name}**: {check.reason}")
 
-        lines.extend([
-            "",
-            "## P&L Attribution",
-            "",
-            f"- R4 P&L: ${self.attribution.get('r4_pnl', 0):.2f}",
-            f"- Pre-existing P&L: ${self.attribution.get('pre_existing_pnl', 0):.2f}",
-            f"- Manual P&L: ${self.attribution.get('manual_pnl', 0):.2f}",
-            f"- Total P&L: ${self.attribution.get('total_pnl', 0):.2f}",
-            "",
-            "## Scaling Metrics",
-            "",
-            f"- Slippage deterioration: {self.scaling_metrics.get('slippage_deterioration', 0):.2f}x",
-            f"- Spread deterioration: {self.scaling_metrics.get('spread_deterioration', 0):.2f}x",
-            f"- Fill rate: {self.scaling_metrics.get('fill_rate_at_current', 0):.1%}",
-            f"- Margin usage: {self.scaling_metrics.get('margin_usage', 0):.1%}",
-            "",
-            "## Summary",
-            "",
-            f"- Passed: {self.passed_checks}/{self.total_checks}",
-            f"- Failed: {self.failed_checks}/{self.total_checks}",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## P&L Attribution",
+                "",
+                f"- R4 P&L: ${self.attribution.get('r4_pnl', 0):.2f}",
+                f"- Pre-existing P&L: ${self.attribution.get('pre_existing_pnl', 0):.2f}",
+                f"- Manual P&L: ${self.attribution.get('manual_pnl', 0):.2f}",
+                f"- Total P&L: ${self.attribution.get('total_pnl', 0):.2f}",
+                "",
+                "## Scaling Metrics",
+                "",
+                f"- Slippage deterioration: {self.scaling_metrics.get('slippage_deterioration', 0):.2f}x",
+                f"- Spread deterioration: {self.scaling_metrics.get('spread_deterioration', 0):.2f}x",
+                f"- Fill rate: {self.scaling_metrics.get('fill_rate_at_current', 0):.1%}",
+                f"- Margin usage: {self.scaling_metrics.get('margin_usage', 0):.1%}",
+                "",
+                "## Summary",
+                "",
+                f"- Passed: {self.passed_checks}/{self.total_checks}",
+                f"- Failed: {self.failed_checks}/{self.total_checks}",
+                "",
+            ]
+        )
 
         if self.verdict == ProductionVerdict.QUALIFIED:
-            lines.append("**PRODUCTION QUALIFIED** — System remains safe at this scale.")
+            lines.append(
+                "**PRODUCTION QUALIFIED** — System remains safe at this scale."
+            )
         elif self.verdict == ProductionVerdict.QUALIFIED_FOR_NEXT_SCALE:
             lines.append("**QUALIFIED FOR NEXT SCALE** — Ready to increase capital.")
         elif self.verdict == ProductionVerdict.BLOCKED:
@@ -142,72 +146,97 @@ class ProductionEvaluator:
 
         # Check 1: No manual trades
         no_manual = attribution.get("manual_trades", 0) == 0
-        checks.append(ProductionCheck(
-            check_name="no_manual_trades",
-            passed=no_manual,
-            reason=f"Manual trades: {attribution.get('manual_trades', 0)}",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="no_manual_trades",
+                passed=no_manual,
+                reason=f"Manual trades: {attribution.get('manual_trades', 0)}",
+            )
+        )
 
         # Check 2: R4 attribution clean
-        r4_attribution = attribution.get("r4_trades", 0) > 0 or attribution.get("r4_open_positions", 0) > 0
-        checks.append(ProductionCheck(
-            check_name="r4_attribution",
-            passed=r4_attribution,
-            reason=f"R4 trades: {attribution.get('r4_trades', 0)}, open: {attribution.get('r4_open_positions', 0)}",
-        ))
+        r4_attribution = (
+            attribution.get("r4_trades", 0) > 0
+            or attribution.get("r4_open_positions", 0) > 0
+        )
+        checks.append(
+            ProductionCheck(
+                check_name="r4_attribution",
+                passed=r4_attribution,
+                reason=f"R4 trades: {attribution.get('r4_trades', 0)}, open: {attribution.get('r4_open_positions', 0)}",
+            )
+        )
 
         # Check 3: Reconciliation
-        checks.append(ProductionCheck(
-            check_name="reconciliation",
-            passed=reconciliation_ok,
-            reason="100% broker/internal agreement" if reconciliation_ok else "Reconciliation mismatch",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="reconciliation",
+                passed=reconciliation_ok,
+                reason="100% broker/internal agreement"
+                if reconciliation_ok
+                else "Reconciliation mismatch",
+            )
+        )
 
         # Check 4: No drift
-        checks.append(ProductionCheck(
-            check_name="fingerprint_frozen",
-            passed=not drift_detected,
-            reason="Fingerprint unchanged" if not drift_detected else "Drift detected",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="fingerprint_frozen",
+                passed=not drift_detected,
+                reason="Fingerprint unchanged"
+                if not drift_detected
+                else "Drift detected",
+            )
+        )
 
         # Check 5: Slippage
         slippage_ok = scaling_metrics.slippage_deterioration <= 2.0
-        checks.append(ProductionCheck(
-            check_name="slippage_scaling",
-            passed=slippage_ok,
-            reason=f"Slippage deterioration: {scaling_metrics.slippage_deterioration:.2f}x",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="slippage_scaling",
+                passed=slippage_ok,
+                reason=f"Slippage deterioration: {scaling_metrics.slippage_deterioration:.2f}x",
+            )
+        )
 
         # Check 6: Spread
         spread_ok = scaling_metrics.spread_deterioration <= 2.0
-        checks.append(ProductionCheck(
-            check_name="spread_scaling",
-            passed=spread_ok,
-            reason=f"Spread deterioration: {scaling_metrics.spread_deterioration:.2f}x",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="spread_scaling",
+                passed=spread_ok,
+                reason=f"Spread deterioration: {scaling_metrics.spread_deterioration:.2f}x",
+            )
+        )
 
         # Check 7: Fill rate
         fill_ok = scaling_metrics.fill_rate_at_current >= 0.90
-        checks.append(ProductionCheck(
-            check_name="fill_rate",
-            passed=fill_ok,
-            reason=f"Fill rate: {scaling_metrics.fill_rate_at_current:.1%}",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="fill_rate",
+                passed=fill_ok,
+                reason=f"Fill rate: {scaling_metrics.fill_rate_at_current:.1%}",
+            )
+        )
 
         # Check 8: Margin
         margin_ok = not scaling_metrics.margin_pressure
-        checks.append(ProductionCheck(
-            check_name="margin_pressure",
-            passed=margin_ok,
-            reason=f"Margin usage: {scaling_metrics.margin_usage:.1%}",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="margin_pressure",
+                passed=margin_ok,
+                reason=f"Margin usage: {scaling_metrics.margin_usage:.1%}",
+            )
+        )
 
         # Check 9: Risk proportional
-        checks.append(ProductionCheck(
-            check_name="risk_proportional",
-            passed=scaling_metrics.risk_proportional,
-            reason=f"Position risk ratio: {scaling_metrics.position_risk_ratio:.2f}",
-        ))
+        checks.append(
+            ProductionCheck(
+                check_name="risk_proportional",
+                passed=scaling_metrics.risk_proportional,
+                reason=f"Position risk ratio: {scaling_metrics.position_risk_ratio:.2f}",
+            )
+        )
 
         # Compute verdict
         passed_count = sum(1 for c in checks if c.passed)
@@ -247,4 +276,3 @@ class ProductionEvaluator:
             scaling_metrics=scaling_metrics.to_dict(),
             report_hash=report_hash,
         )
-

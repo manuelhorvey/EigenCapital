@@ -30,23 +30,38 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     result: dict = {}
 
-    decisions = [r for r in parse_jsonl(LOOP / "decisions.jsonl") if not r.get("_unparseable")]
+    decisions = [
+        r for r in parse_jsonl(LOOP / "decisions.jsonl") if not r.get("_unparseable")
+    ]
     dec_events = Counter(r.get("event", "?") for r in decisions)
-    eq_series = [{"ts": r.get("timestamp"), "equity_before": r.get("equity_before"),
-                  "equity_after": r.get("equity_after"), "filled": r.get("filled"),
-                  "submitted": r.get("submitted")}
-                 for r in decisions if r.get("event") == "executed"]
+    eq_series = [
+        {
+            "ts": r.get("timestamp"),
+            "equity_before": r.get("equity_before"),
+            "equity_after": r.get("equity_after"),
+            "filled": r.get("filled"),
+            "submitted": r.get("submitted"),
+        }
+        for r in decisions
+        if r.get("event") == "executed"
+    ]
     result["decisions"] = {
-        "n_records": len(decisions), "event_counts": dict(dec_events),
+        "n_records": len(decisions),
+        "event_counts": dict(dec_events),
         "first_ts": decisions[0].get("timestamp") if decisions else None,
         "last_ts": decisions[-1].get("timestamp") if decisions else None,
         "executed_equity_series": eq_series,
         "zero_equity_reads": [e for e in eq_series if e["equity_after"] == 0],
     }
 
-    monitor = [r for r in parse_jsonl(LOOP / "monitor.jsonl") if not r.get("_unparseable")]
+    monitor = [
+        r for r in parse_jsonl(LOOP / "monitor.jsonl") if not r.get("_unparseable")
+    ]
     titles = Counter(r.get("title", "?") for r in monitor)
-    uniq = {t: len({r.get("body", "") for r in monitor if r.get("title") == t}) for t in titles}
+    uniq = {
+        t: len({r.get("body", "") for r in monitor if r.get("title") == t})
+        for t in titles
+    }
     eq_changes = []
     for r in monitor:
         if r.get("title") == "EQUITY CHANGE" and "→" in r.get("body", ""):
@@ -59,10 +74,12 @@ def main() -> None:
                 pass
     vals = [c["to"] for c in eq_changes]
     result["monitor"] = {
-        "n_records": len(monitor), "title_counts": dict(titles),
+        "n_records": len(monitor),
+        "title_counts": dict(titles),
         "unique_bodies_per_title": uniq,
-        "amplification_ratio": {t: round(titles[t] / u, 1) if u else None
-                                for t, u in uniq.items()},
+        "amplification_ratio": {
+            t: round(titles[t] / u, 1) if u else None for t, u in uniq.items()
+        },
         "first_ts": monitor[0].get("timestamp") if monitor else None,
         "last_ts": monitor[-1].get("timestamp") if monitor else None,
         "equity_change_series_count": len(eq_changes),
@@ -76,7 +93,9 @@ def main() -> None:
         bot = [p for p in lp.values() if p.get("magic") == 20260825]
         man = [p for p in lp.values() if p.get("magic") != 20260825]
         result["last_positions"] = {
-            "n_total": len(lp), "n_bot": len(bot), "n_manual_magic_0": len(man),
+            "n_total": len(lp),
+            "n_bot": len(bot),
+            "n_manual_magic_0": len(man),
             "manual_symbols": sorted({p["symbol"] for p in man}),
             "bot_unrealized_pnl": round(sum(p.get("profit", 0) for p in bot), 2),
             "manual_unrealized_pnl": round(sum(p.get("profit", 0) for p in man), 2),

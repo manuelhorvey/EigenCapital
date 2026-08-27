@@ -26,14 +26,26 @@ class BrokerBoundaryConfig:
     expected_environment: str = "demo"  # Exness-MT5Trial9
     expected_broker: str = "exness"
     expected_platform: str = "mt5"
-    expected_symbols: Dict[str, str] = field(default_factory=lambda: {
-        "AUDUSD": "forex", "AUDCHF": "forex", "AUDCAD": "forex",
-        "AUDNZD": "forex", "NZDUSD": "forex", "NZDCHF": "forex",
-        "NZDCAD": "forex", "GBPUSD": "forex", "GBPCHF": "forex",
-        "EURUSD": "forex", "EURCHF": "forex", "USDCHF": "forex",
-        "USDCAD": "forex", "CADCHF": "forex", "EURGBP": "forex",
-        "BTCUSD": "crypto",
-    })
+    expected_symbols: Dict[str, str] = field(
+        default_factory=lambda: {
+            "AUDUSD": "forex",
+            "AUDCHF": "forex",
+            "AUDCAD": "forex",
+            "AUDNZD": "forex",
+            "NZDUSD": "forex",
+            "NZDCHF": "forex",
+            "NZDCAD": "forex",
+            "GBPUSD": "forex",
+            "GBPCHF": "forex",
+            "EURUSD": "forex",
+            "EURCHF": "forex",
+            "USDCHF": "forex",
+            "USDCAD": "forex",
+            "CADCHF": "forex",
+            "EURGBP": "forex",
+            "BTCUSD": "crypto",
+        }
+    )
     max_spread: float = 0.0015
     max_slippage: float = 0.0008
     min_volume: float = 0.01
@@ -137,14 +149,18 @@ class BrokerBoundaryValidator:
         if missing:
             detail = f"Missing: {sorted(missing)}"
         if extra:
-            detail += f" Extra: {sorted(extra)}" if detail else f"Extra: {sorted(extra)}"
+            detail += (
+                f" Extra: {sorted(extra)}" if detail else f"Extra: {sorted(extra)}"
+            )
 
         check = BrokerBoundaryCheck(
             check_id="BB-SYM",
             passed=passed,
             description="Symbol mapping correct",
             expected=f"{len(expected_set)} symbols",
-            observed=f"{len(actual_set)} symbols; {detail}" if detail else f"{len(actual_set)} symbols",
+            observed=f"{len(actual_set)} symbols; {detail}"
+            if detail
+            else f"{len(actual_set)} symbols",
         )
         self._checks.append(check)
         return check
@@ -162,9 +178,13 @@ class BrokerBoundaryValidator:
             min_vol = specs.get("volume_min", 0)
             max_vol = specs.get("volume_max", float("inf"))
             if min_vol > self._config.max_volume:
-                issues.append(f"{symbol}: min volume {min_vol} > max allowed {self._config.max_volume}")
+                issues.append(
+                    f"{symbol}: min volume {min_vol} > max allowed {self._config.max_volume}"
+                )
             if max_vol < self._config.min_volume:
-                issues.append(f"{symbol}: max volume {max_vol} < min required {self._config.min_volume}")
+                issues.append(
+                    f"{symbol}: max volume {max_vol} < min required {self._config.min_volume}"
+                )
             # Check digit precision (crypto=2, forex=4-5, indices=0-2)
             digits = specs.get("digits", 0)
             if digits < 2 or digits > 5:
@@ -215,9 +235,13 @@ class BrokerBoundaryValidator:
         """Check that spread and slippage controls are active."""
         issues: List[str] = []
         if current_spread > self._config.max_spread:
-            issues.append(f"Spread {current_spread:.6f} > max {self._config.max_spread:.6f}")
+            issues.append(
+                f"Spread {current_spread:.6f} > max {self._config.max_spread:.6f}"
+            )
         if current_slippage > self._config.max_slippage:
-            issues.append(f"Slippage {current_slippage:.6f} > max {self._config.max_slippage:.6f}")
+            issues.append(
+                f"Slippage {current_slippage:.6f} > max {self._config.max_slippage:.6f}"
+            )
 
         passed = len(issues) == 0
         check = BrokerBoundaryCheck(
@@ -239,11 +263,17 @@ class BrokerBoundaryValidator:
         """Final safety check: no demo/live confusion."""
         issues: List[str] = []
         if account_id != self._config.expected_account_id:
-            issues.append(f"Wrong account: {account_id} != {self._config.expected_account_id}")
+            issues.append(
+                f"Wrong account: {account_id} != {self._config.expected_account_id}"
+            )
         if environment != self._config.expected_environment:
-            issues.append(f"Wrong environment: {environment} != {self._config.expected_environment}")
+            issues.append(
+                f"Wrong environment: {environment} != {self._config.expected_environment}"
+            )
         if broker_name and broker_name.lower() != self._config.expected_broker.lower():
-            issues.append(f"Wrong broker: {broker_name} != {self._config.expected_broker}")
+            issues.append(
+                f"Wrong broker: {broker_name} != {self._config.expected_broker}"
+            )
 
         passed = len(issues) == 0
         check = BrokerBoundaryCheck(

@@ -39,29 +39,62 @@ from mt5linux import MetaTrader5
 # ── R4 Universe ────────────────────────────────────────────────────
 
 R4_SYMBOLS = [
-    "US30", "AUDJPY", "AUDUSD", "AUDCHF", "AUDCAD",
-    "NZDJPY", "GBPJPY", "AUDNZD", "NZDUSD", "NZDCHF",
-    "NZDCAD", "GBPUSD", "GBPCHF", "GBPCAD", "CHFJPY",
-    "EURJPY", "USDJPY", "CADJPY", "XAUUSD", "EURUSD",
-    "EURCHF", "USDCHF", "EURCAD", "USDCAD", "CADCHF",
-    "GBPNZD", "EURGBP", "EURNZD", "GBPAUD", "EURAUD",
+    "US30",
+    "AUDJPY",
+    "AUDUSD",
+    "AUDCHF",
+    "AUDCAD",
+    "NZDJPY",
+    "GBPJPY",
+    "AUDNZD",
+    "NZDUSD",
+    "NZDCHF",
+    "NZDCAD",
+    "GBPUSD",
+    "GBPCHF",
+    "GBPCAD",
+    "CHFJPY",
+    "EURJPY",
+    "USDJPY",
+    "CADJPY",
+    "XAUUSD",
+    "EURUSD",
+    "EURCHF",
+    "USDCHF",
+    "EURCAD",
+    "USDCAD",
+    "CADCHF",
+    "GBPNZD",
+    "EURGBP",
+    "EURNZD",
+    "GBPAUD",
+    "EURAUD",
     "BTCUSD",
 ]
 
 ELIGIBLE_SYMBOLS = [
-    "AUDUSD", "AUDCHF", "AUDCAD", "AUDNZD",
-    "NZDUSD", "NZDCHF", "NZDCAD",
-    "GBPUSD", "GBPCHF",
-    "EURUSD", "EURCHF", "USDCHF",
-    "USDCAD", "CADCHF",
+    "AUDUSD",
+    "AUDCHF",
+    "AUDCAD",
+    "AUDNZD",
+    "NZDUSD",
+    "NZDCHF",
+    "NZDCAD",
+    "GBPUSD",
+    "GBPCHF",
+    "EURUSD",
+    "EURCHF",
+    "USDCHF",
+    "USDCAD",
+    "CADCHF",
     "EURGBP",
     "BTCUSD",
 ]
 
 # ── Frozen R4 Signal ───────────────────────────────────────────────
 
-LOOKBACK = 252   # 12 months
-SKIP = 21        # 1 month skip
+LOOKBACK = 252  # 12 months
+SKIP = 21  # 1 month skip
 VOL_LOOKBACK = 60
 VOL_TARGET = 0.10  # 10% annual vol target
 RISK_LOOKBACK = 20  # regime conditioning
@@ -94,18 +127,24 @@ def fetch_d1_data(mt5, symbols: List[str], bars: int = 300) -> Dict[str, pd.Data
         df = df.set_index("time")
         df = df.rename(columns={"tick_volume": "volume"})
         data[sym] = df[["open", "high", "low", "close", "volume"]].copy()
-        print(f"  ✅ {sym}: {len(df)} bars ({df.index[0].date()} → {df.index[-1].date()})")
+        print(
+            f"  ✅ {sym}: {len(df)} bars ({df.index[0].date()} → {df.index[-1].date()})"
+        )
     return data
 
 
-def compute_r4_signal(data: Dict[str, pd.DataFrame], force_regime: bool = False) -> pd.DataFrame:
+def compute_r4_signal(
+    data: Dict[str, pd.DataFrame], force_regime: bool = False
+) -> pd.DataFrame:
     """Compute frozen R4 signal: 12-1 momentum with risk conditioning."""
 
     # Build returns frame — fill NaN gaps so rolling windows work
-    returns_df = pd.DataFrame({
-        sym: df["close"].pct_change()
-        for sym, df in data.items()
-    }).dropna(how="all").ffill().fillna(0)
+    returns_df = (
+        pd.DataFrame({sym: df["close"].pct_change() for sym, df in data.items()})
+        .dropna(how="all")
+        .ffill()
+        .fillna(0)
+    )
 
     # 12-1 month momentum
     mom_12m = (1 + returns_df).rolling(LOOKBACK).apply(lambda x: x.prod() - 1, raw=True)
@@ -125,7 +164,9 @@ def compute_r4_signal(data: Dict[str, pd.DataFrame], force_regime: bool = False)
     else:
         regime = (avg_vol < risk_median).astype(float)
         regime_pct = regime.iloc[-1]
-        print(f"  Regime: {'ON ✅' if regime_pct else 'OFF ⛔'} (vol={avg_vol.iloc[-1]:.1%} vs median={risk_median.iloc[-1]:.1%})")
+        print(
+            f"  Regime: {'ON ✅' if regime_pct else 'OFF ⛔'} (vol={avg_vol.iloc[-1]:.1%} vs median={risk_median.iloc[-1]:.1%})"
+        )
     rc_weights = base_weights.multiply(regime, axis=0)
 
     # Use RC weights directly: positive = long, zero = flat
@@ -209,7 +250,9 @@ def main() -> None:
     print(f"  ✅ Connected — Account: {account.login}, Equity: ${equity:,.2f}")
 
     if equity > MAX_EQUITY:
-        print(f"  ⚠️  Equity ${equity:,.2f} exceeds MAX ${MAX_EQUITY:,.0f} — capping at envelope")
+        print(
+            f"  ⚠️  Equity ${equity:,.2f} exceeds MAX ${MAX_EQUITY:,.0f} — capping at envelope"
+        )
 
     # ── 2. Fetch D1 Data ───────────────────────────────────────────
     section("2. FETCHING DAILY DATA FROM MT5")
@@ -227,7 +270,7 @@ def main() -> None:
     print(f"  Active positions: {(latest > 0.01).sum()}")
     print()
     print(f"  {'Symbol':<10} {'Weight':>8}")
-    print(f"  {'─'*10} {'─'*8}")
+    print(f"  {'─' * 10} {'─' * 8}")
     for sym in R4_SYMBOLS:
         w = latest.get(sym, 0)
         if w > 0.01:
@@ -247,16 +290,22 @@ def main() -> None:
         prices[sym] = tick.ask  # use ask for buys
         contract_sizes[sym] = info.trade_contract_size
         min_volumes[sym] = info.volume_min
-        print(f"  {sym:<10} Ask: {tick.ask:<14.5f} Contract: {contract_sizes[sym]:>10.0f} MinVol: {min_volumes[sym]}")
+        print(
+            f"  {sym:<10} Ask: {tick.ask:<14.5f} Contract: {contract_sizes[sym]:>10.0f} MinVol: {min_volumes[sym]}"
+        )
 
     # ── 5. Compute Target Lot Sizes ────────────────────────────────
     section("5. TARGET LOT SIZES (within $5K envelope)")
-    target_lots = compute_lot_sizes(latest, prices, contract_sizes, min(equity, MAX_EQUITY), min_volumes)
+    target_lots = compute_lot_sizes(
+        latest, prices, contract_sizes, min(equity, MAX_EQUITY), min_volumes
+    )
 
     # Report untradeable symbols
     untradeable = [s for s in latest.index if latest[s] > 0.01 and s not in target_lots]
     if untradeable:
-        print(f"  ⚠️  Skipped (min lot exceeds $500 position limit): {', '.join(untradeable)}")
+        print(
+            f"  ⚠️  Skipped (min lot exceeds $500 position limit): {', '.join(untradeable)}"
+        )
 
     # ── 6. Compare vs Current Positions ────────────────────────────
     section("6. POSITION COMPARISON (current → target)")
@@ -273,10 +322,12 @@ def main() -> None:
         pos_by_sym.setdefault(p.symbol, []).append(p)
 
     all_syms = sorted(set(list(target_lots.keys()) + list(current_lots.keys())))
-    orders: List[Tuple[str, str, float, Optional[Any]]] = []  # (symbol, side, lots, position-or-None)
+    orders: List[
+        Tuple[str, str, float, Optional[Any]]
+    ] = []  # (symbol, side, lots, position-or-None)
 
     print(f"  {'Symbol':<10} {'Current':>8} {'Target':>8} {'Delta':>8} {'Action':>16}")
-    print(f"  {'─'*10} {'─'*8} {'─'*8} {'─'*8} {'─'*16}")
+    print(f"  {'─' * 10} {'─' * 8} {'─' * 8} {'─' * 8} {'─' * 16}")
 
     for sym in all_syms:
         cur = current_lots.get(sym, 0)
@@ -312,7 +363,9 @@ def main() -> None:
             action = f"CLOSE {-delta:.2f}"
 
         marker = "→" if action != "HOLD" else " "
-        print(f"  {sym:<10} {cur:>8.2f} {tgt:>8.2f} {delta:>+8.2f} {marker:>1} {action}")
+        print(
+            f"  {sym:<10} {cur:>8.2f} {tgt:>8.2f} {delta:>+8.2f} {marker:>1} {action}"
+        )
 
     # ── 7. Submit Orders ───────────────────────────────────────────
     section("7. ORDER SUBMISSION")
@@ -323,22 +376,14 @@ def main() -> None:
         return
 
     # Detect filling mode
-    for mode in [MetaTrader5.ORDER_FILLING_FOK, MetaTrader5.ORDER_FILLING_IOC, MetaTrader5.ORDER_FILLING_RETURN]:
+    for mode in [
+        MetaTrader5.ORDER_FILLING_FOK,
+        MetaTrader5.ORDER_FILLING_IOC,
+        MetaTrader5.ORDER_FILLING_RETURN,
+    ]:
         test_sym = orders[0][0]
         test_tick = mt5.symbol_info_tick(test_sym)
         if test_tick:
-            test_req = {
-                "action": MetaTrader5.TRADE_ACTION_DEAL,
-                "symbol": test_sym,
-                "volume": MIN_LOT,
-                "type": MetaTrader5.ORDER_TYPE_BUY,
-                "price": test_tick.ask,
-                "deviation": 10,
-                "magic": 20260825,
-                "comment": "R4-FillModeTest",
-                "type_time": MetaTrader5.ORDER_TIME_GTC,
-                "type_filling": mode,
-            }
             # Just detect, don't submit test
             break
 
@@ -358,10 +403,18 @@ def main() -> None:
         if pos is not None:
             # Ticket-scoped close (hedging-safe): trade opposite side
             # of the held position, bound to its ticket.
-            mt5_type = MetaTrader5.ORDER_TYPE_SELL if pos.type == 0 else MetaTrader5.ORDER_TYPE_BUY
+            mt5_type = (
+                MetaTrader5.ORDER_TYPE_SELL
+                if pos.type == 0
+                else MetaTrader5.ORDER_TYPE_BUY
+            )
             price = tick.bid if pos.type == 0 else tick.ask
         else:
-            mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+            mt5_type = (
+                MetaTrader5.ORDER_TYPE_BUY
+                if side == "BUY"
+                else MetaTrader5.ORDER_TYPE_SELL
+            )
             price = tick.ask if side == "BUY" else tick.bid
 
         request = {
@@ -389,7 +442,9 @@ def main() -> None:
         submitted += 1
         if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
             filled += 1
-            print(f"  ✅ {side} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}")
+            print(
+                f"  ✅ {side} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}"
+            )
         else:
             failed += 1
             rc = result.retcode if result else "None"
@@ -408,15 +463,17 @@ def main() -> None:
     print(f"  Positions: {len(pos_after)}")
     for p in pos_after:
         side = "BUY" if p.type == 0 else "SELL"
-        print(f"    {p.symbol}: {side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}")
+        print(
+            f"    {p.symbol}: {side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}"
+        )
 
     # ── Summary ────────────────────────────────────────────────────
     print("\n" + "=" * 60)
     if execute_mode:
-        print(f"  R4 EXECUTION COMPLETE")
+        print("  R4 EXECUTION COMPLETE")
         print(f"  Submitted: {submitted} | Filled: {filled} | Failed: {failed}")
     else:
-        print(f"  R4 DRY RUN COMPLETE")
+        print("  R4 DRY RUN COMPLETE")
         print(f"  Orders computed: {len(orders)} (use --execute to submit)")
     print("=" * 60)
 

@@ -9,8 +9,8 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 
 import pandas as pd
@@ -25,17 +25,20 @@ INTRADAY_UNIVERSE = [
     "USDJPYm",  # Asian session behavior
     "AUDUSDm",  # Asia-Pacific exposure
     "XAUUSDm",  # High-volatility non-FX
-    "US500m",   # Major U.S. index
-    "USTECm",   # Higher-beta U.S. index
-    "USOILm",   # Commodity dynamics
+    "US500m",  # Major U.S. index
+    "USTECm",  # Higher-beta U.S. index
+    "USOILm",  # Commodity dynamics
 ]
 
 # Excluded initially
 EXCLUDED_SYMBOLS = [
-    "BTCUSDm", "ETHUSDm",  # Crypto — separate campaign
+    "BTCUSDm",
+    "ETHUSDm",  # Crypto — separate campaign
     "XAGUSDm",  # Redundant with gold initially
-    "US30m",    # Redundant with US500/USTEC initially
-    "NZDUSDm", "USDCADm", "USDCHFm",  # Add after R1
+    "US30m",  # Redundant with US500/USTEC initially
+    "NZDUSDm",
+    "USDCADm",
+    "USDCHFm",  # Add after R1
 ]
 
 TIMEFRAME_M5 = 5  # MT5 timeframe constant for M5
@@ -44,6 +47,7 @@ TIMEFRAME_M5 = 5  # MT5 timeframe constant for M5
 @dataclass
 class IntradayDataManifest:
     """Frozen data snapshot identity for intraday research campaign."""
+
     broker: str
     terminal_id: str
     symbols: List[str]
@@ -101,11 +105,12 @@ class IntradayDataPuller:
 
         try:
             from mt5linux import MetaTrader5
+
             mt5 = MetaTrader5(port=self._port)
             if not mt5.initialize():
                 raise ConnectionError(f"MT5 init failed: {mt5.last_error()}")
 
-            version = mt5.version()
+            mt5.version()
             account_info = mt5.account_info()
             terminal_id = str(account_info.login) if account_info else "unknown"
 
@@ -125,7 +130,11 @@ class IntradayDataPuller:
 
                 df = pd.DataFrame(rates)
                 df["time"] = pd.to_datetime(df["time"], unit="s")
-                df = df.sort_values("time").drop_duplicates(subset=["time"]).reset_index(drop=True)
+                df = (
+                    df.sort_values("time")
+                    .drop_duplicates(subset=["time"])
+                    .reset_index(drop=True)
+                )
 
                 # Standardize columns
                 df = df.rename(columns={"tick_volume": "volume"})
@@ -140,7 +149,9 @@ class IntradayDataPuller:
                 # Save to CSV
                 df.to_csv(f"{data_dir}/{sym}_M5.csv", index=False)
 
-                logger.info(f"  {sym}: {len(df)} bars, {df.time.min()} to {df.time.max()}")
+                logger.info(
+                    f"  {sym}: {len(df)} bars, {df.time.min()} to {df.time.max()}"
+                )
 
             mt5.shutdown()
 
@@ -253,9 +264,7 @@ class IntradayDataPuller:
 
         return data, manifest
 
-    def _check_integrity(
-        self, data: Dict[str, pd.DataFrame]
-    ) -> Tuple[int, int, int]:
+    def _check_integrity(self, data: Dict[str, pd.DataFrame]) -> Tuple[int, int, int]:
         """Check for duplicates, gaps, and OHLC violations.
 
         Returns (missing_bars, duplicate_bars, ohlc_violations).

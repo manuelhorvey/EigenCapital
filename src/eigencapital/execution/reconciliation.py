@@ -22,19 +22,20 @@ Check:
 Any mismatch must produce an explicit reconciliation failure.
 Never silently repair state.
 """
+
 from __future__ import annotations
 
 import warnings
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Any, Tuple
+
 warnings.warn(
     "eigencapital.execution.reconciliation is deprecated. "
     "Use eigencapital.reconciliation.engine instead.",
     DeprecationWarning,
     stacklevel=2,
 )
-
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, List, Any, Tuple
 
 
 class ReconciliationStatus(str, Enum):

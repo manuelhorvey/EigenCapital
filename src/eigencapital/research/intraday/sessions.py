@@ -8,8 +8,7 @@ FX/CFD trading sessions for the Exness broker.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import time, datetime
+from datetime import time
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
@@ -19,6 +18,7 @@ import pandas as pd
 
 class Session(Enum):
     """Trading sessions in UTC."""
+
     ASIAN = "asian"
     LONDON = "london"
     LONDON_OPEN = "london_open"
@@ -89,9 +89,7 @@ def add_session_features(df: pd.DataFrame) -> pd.DataFrame:
     df["hour"] = df["time_utc"].dt.hour
     df["minute"] = df["time_utc"].dt.minute
     df["day_of_week"] = df["time_utc"].dt.dayofweek
-    df["is_session_open"] = df["session"].apply(
-        lambda s: s != Session.OFF_HOURS
-    )
+    df["is_session_open"] = df["session"].apply(lambda s: s != Session.OFF_HOURS)
 
     # Session-specific flags
     df["is_asian"] = (df["session"] == Session.ASIAN).astype(int)

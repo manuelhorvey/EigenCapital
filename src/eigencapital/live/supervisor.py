@@ -13,6 +13,7 @@ Design rules:
 - Persistent state across restarts
 - Fail closed on corruption
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -28,6 +29,7 @@ from typing import Any, Dict, Optional
 @dataclass(frozen=True)
 class SupervisorState:
     """Immutable supervisor state."""
+
     pid: int
     started_at: str
     restart_count: int
@@ -174,6 +176,7 @@ class ProcessSupervisor:
 
     def _setup_signals(self) -> None:
         """Set up signal handlers for graceful shutdown."""
+
         def _handler(sig, frame):
             self._state = SupervisorState(
                 pid=os.getpid(),

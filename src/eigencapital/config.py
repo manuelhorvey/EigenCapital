@@ -46,22 +46,42 @@ class BrokerConfig:
     max_slippage: float = 0.0008
     min_volume: float = 0.01
     max_volume: float = 1.0
-    allowed_symbols: Dict[str, str] = field(default_factory=lambda: {
-        "US30": "indices", "AUDJPY": "forex_excluded",
-        "USOIL": "energy",
-        "AUDUSD": "forex", "AUDCHF": "forex", "AUDCAD": "forex",
-        "NZDJPY": "forex_excluded", "GBPJPY": "forex_excluded",
-        "AUDNZD": "forex", "NZDUSD": "forex", "NZDCHF": "forex",
-        "NZDCAD": "forex", "GBPUSD": "forex", "GBPCHF": "forex",
-        "GBPCAD": "forex", "CHFJPY": "forex_excluded",
-        "EURJPY": "forex_excluded", "USDJPY": "forex_excluded",
-        "CADJPY": "forex_excluded", "XAUUSD": "metals",
-        "EURUSD": "forex", "EURCHF": "forex", "USDCHF": "forex",
-        "EURCAD": "forex", "USDCAD": "forex", "CADCHF": "forex",
-        "GBPNZD": "forex", "EURGBP": "forex",
-        "EURNZD": "forex", "GBPAUD": "forex",
-        "EURAUD": "forex", "BTCUSD": "crypto",
-    })
+    allowed_symbols: Dict[str, str] = field(
+        default_factory=lambda: {
+            "US30": "indices",
+            "AUDJPY": "forex_excluded",
+            "USOIL": "energy",
+            "AUDUSD": "forex",
+            "AUDCHF": "forex",
+            "AUDCAD": "forex",
+            "NZDJPY": "forex_excluded",
+            "GBPJPY": "forex_excluded",
+            "AUDNZD": "forex",
+            "NZDUSD": "forex",
+            "NZDCHF": "forex",
+            "NZDCAD": "forex",
+            "GBPUSD": "forex",
+            "GBPCHF": "forex",
+            "GBPCAD": "forex",
+            "CHFJPY": "forex_excluded",
+            "EURJPY": "forex_excluded",
+            "USDJPY": "forex_excluded",
+            "CADJPY": "forex_excluded",
+            "XAUUSD": "metals",
+            "EURUSD": "forex",
+            "EURCHF": "forex",
+            "USDCHF": "forex",
+            "EURCAD": "forex",
+            "USDCAD": "forex",
+            "CADCHF": "forex",
+            "GBPNZD": "forex",
+            "EURGBP": "forex",
+            "EURNZD": "forex",
+            "GBPAUD": "forex",
+            "EURAUD": "forex",
+            "BTCUSD": "crypto",
+        }
+    )
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> BrokerConfig:
@@ -121,7 +141,9 @@ class StrategyConfig:
 
     name: str = "risk_conditioned_continuation"
     version: str = "R4.0"
-    manifest_fingerprint: str = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+    manifest_fingerprint: str = (
+        "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+    )
     data_terminal_id: str = "436921728"
     vol_target_annual: float = 0.10
     vol_lookback: int = 20
@@ -254,6 +276,7 @@ class LiveRiskConfig:
     def compute_fingerprint(self) -> str:
         """Deterministic fingerprint of the live risk envelope."""
         import hashlib
+
         payload = json.dumps(self.to_dict(), sort_keys=True).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 
@@ -293,6 +316,7 @@ class EigenCapitalConfig:
 
 
 # ── Config Loading ────────────────────────────────────────────────
+
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """Deep merge two dicts, with override taking precedence."""

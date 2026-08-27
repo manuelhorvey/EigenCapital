@@ -10,11 +10,9 @@ Evaluates each hypothesis against actual market data:
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -25,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RealHypothesisResult:
     """Real OOS evidence for a single hypothesis."""
+
     hypothesis_id: str
     family: str
     # Absolute performance
@@ -76,8 +75,12 @@ class RealHypothesisResult:
             "capacity_adequate": self.n_symbols > 50,
             "adv_participation": 0.01,
             "incremental_value": abs(self.correlation_with_spy) < 0.7,
-            "incremental_sharpe_delta": self.net_sharpe * 0.15 if abs(self.correlation_with_spy) < 0.7 else 0.0,
-            "incremental_dd_delta": self.max_drawdown * 0.1 if abs(self.correlation_with_spy) < 0.7 else 0.0,
+            "incremental_sharpe_delta": self.net_sharpe * 0.15
+            if abs(self.correlation_with_spy) < 0.7
+            else 0.0,
+            "incremental_dd_delta": self.max_drawdown * 0.1
+            if abs(self.correlation_with_spy) < 0.7
+            else 0.0,
             "correlation_with_existing": abs(self.correlation_with_spy),
             "downside_correlation": abs(self.correlation_with_spy) * 0.8,
             "crisis_behavior_ok": self.max_drawdown > -0.25,
@@ -92,7 +95,7 @@ class RealHypothesisEvaluator:
 
     # Transaction cost assumptions (annualized)
     COST_PER_TRADE = 0.001  # 10 bps per trade
-    SPREAD_COST = 0.0005    # 5 bps spread
+    SPREAD_COST = 0.0005  # 5 bps spread
 
     def __init__(self, data: Dict[str, pd.DataFrame]) -> None:
         self._data = data
@@ -112,7 +115,9 @@ class RealHypothesisEvaluator:
             return self._data["SPY"]["close"].pct_change().dropna()
         return pd.Series(dtype=float)
 
-    def evaluate_trend(self, lookback: int = 252, skip: int = 21) -> RealHypothesisResult:
+    def evaluate_trend(
+        self, lookback: int = 252, skip: int = 21
+    ) -> RealHypothesisResult:
         """Evaluate TREND-001: 12-1 month time-series momentum."""
         returns = self._compute_returns()
         spy_ret = self._compute_spy_returns()
@@ -125,7 +130,9 @@ class RealHypothesisEvaluator:
         for sym, ret in returns.items():
             if len(ret) < lookback + skip:
                 continue
-            cum_ret = (1 + ret).rolling(lookback).apply(lambda x: x.prod(), raw=True) - 1
+            cum_ret = (1 + ret).rolling(lookback).apply(
+                lambda x: x.prod(), raw=True
+            ) - 1
             skip_ret = (1 + ret).rolling(skip).apply(lambda x: x.prod(), raw=True) - 1
             signal = cum_ret - skip_ret
             signals[sym] = signal
@@ -145,7 +152,9 @@ class RealHypothesisEvaluator:
         returns_df = pd.DataFrame(returns)
         returns_df = returns_df.reindex(signal_df.index)
 
-        portfolio_returns = (weights.shift(1) * returns_df).sum(axis=1) / weights.abs().sum(axis=1).replace(0, np.nan)
+        portfolio_returns = (weights.shift(1) * returns_df).sum(
+            axis=1
+        ) / weights.abs().sum(axis=1).replace(0, np.nan)
         portfolio_returns = portfolio_returns.dropna()
 
         if len(portfolio_returns) < 100:
@@ -172,7 +181,11 @@ class RealHypothesisEvaluator:
 
         # Sortino
         downside_returns = portfolio_returns[portfolio_returns < 0]
-        downside_vol = downside_returns.std() * np.sqrt(252) if len(downside_returns) > 0 else ann_vol
+        downside_vol = (
+            downside_returns.std() * np.sqrt(252)
+            if len(downside_returns) > 0
+            else ann_vol
+        )
         sortino = net_return / downside_vol if downside_vol > 0 else 0
 
         # T-stat
@@ -182,8 +195,16 @@ class RealHypothesisEvaluator:
         mid = len(portfolio_returns) // 2
         first_half = portfolio_returns.iloc[:mid]
         second_half = portfolio_returns.iloc[mid:]
-        wf_sharpe_1 = first_half.mean() / first_half.std() * np.sqrt(252) if first_half.std() > 0 else 0
-        wf_sharpe_2 = second_half.mean() / second_half.std() * np.sqrt(252) if second_half.std() > 0 else 0
+        wf_sharpe_1 = (
+            first_half.mean() / first_half.std() * np.sqrt(252)
+            if first_half.std() > 0
+            else 0
+        )
+        wf_sharpe_2 = (
+            second_half.mean() / second_half.std() * np.sqrt(252)
+            if second_half.std() > 0
+            else 0
+        )
         wf_sharpe = min(wf_sharpe_1, wf_sharpe_2)
 
         # Parameter stability: test multiple lookbacks
@@ -194,34 +215,60 @@ class RealHypothesisEvaluator:
                 if len(ret) < lb + skip:
                     continue
                 cum_ret = (1 + ret).rolling(lb).apply(lambda x: x.prod(), raw=True) - 1
-                skip_ret = (1 + ret).rolling(skip).apply(lambda x: x.prod(), raw=True) - 1
+                skip_ret = (1 + ret).rolling(skip).apply(
+                    lambda x: x.prod(), raw=True
+                ) - 1
                 sigs[sym] = cum_ret - skip_ret
             if sigs:
                 s_df = pd.DataFrame(sigs).dropna(how="all")
                 r = s_df.rank(axis=1, pct=True) - 0.5
-                pr = (r.shift(1) * pd.DataFrame(returns).reindex(s_df.index)).sum(axis=1) / r.abs().sum(axis=1).replace(0, np.nan)
+                pr = (r.shift(1) * pd.DataFrame(returns).reindex(s_df.index)).sum(
+                    axis=1
+                ) / r.abs().sum(axis=1).replace(0, np.nan)
                 pr = pr.dropna()
                 if len(pr) > 50:
-                    sharpes.append(pr.mean() / pr.std() * np.sqrt(252) if pr.std() > 0 else 0)
-        param_stability = 1.0 - (np.std(sharpes) / max(np.mean(np.abs(sharpes)), 0.01)) if sharpes else 0.0
+                    sharpes.append(
+                        pr.mean() / pr.std() * np.sqrt(252) if pr.std() > 0 else 0
+                    )
+        param_stability = (
+            1.0 - (np.std(sharpes) / max(np.mean(np.abs(sharpes)), 0.01))
+            if sharpes
+            else 0.0
+        )
         param_stability = max(0, min(1, param_stability))
 
         # Regime stability: split by VIX-equivalent (use SPY volatility)
         if len(spy_ret) > 0:
             spy_vol = spy_ret.rolling(21).std() * np.sqrt(252)
             median_vol = spy_vol.median()
-            low_vol = portfolio_returns.reindex(spy_vol[spy_vol < median_vol].index).dropna()
-            high_vol = portfolio_returns.reindex(spy_vol[spy_vol >= median_vol].index).dropna()
-            sharpe_low = low_vol.mean() / low_vol.std() * np.sqrt(252) if low_vol.std() > 0 else 0
-            sharpe_high = high_vol.mean() / high_vol.std() * np.sqrt(252) if high_vol.std() > 0 else 0
-            regime_stability = 1.0 - abs(sharpe_low - sharpe_high) / max(abs(sharpe_low) + abs(sharpe_high), 0.01)
+            low_vol = portfolio_returns.reindex(
+                spy_vol[spy_vol < median_vol].index
+            ).dropna()
+            high_vol = portfolio_returns.reindex(
+                spy_vol[spy_vol >= median_vol].index
+            ).dropna()
+            sharpe_low = (
+                low_vol.mean() / low_vol.std() * np.sqrt(252)
+                if low_vol.std() > 0
+                else 0
+            )
+            sharpe_high = (
+                high_vol.mean() / high_vol.std() * np.sqrt(252)
+                if high_vol.std() > 0
+                else 0
+            )
+            regime_stability = 1.0 - abs(sharpe_low - sharpe_high) / max(
+                abs(sharpe_low) + abs(sharpe_high), 0.01
+            )
         else:
             regime_stability = 0.5
 
         # Correlation with SPY
         if len(spy_ret) > 0 and len(portfolio_returns) > 0:
             common_idx = portfolio_returns.index.intersection(spy_ret.index)
-            corr = portfolio_returns.reindex(common_idx).corr(spy_ret.reindex(common_idx))
+            corr = portfolio_returns.reindex(common_idx).corr(
+                spy_ret.reindex(common_idx)
+            )
         else:
             corr = 0.0
 
@@ -252,7 +299,9 @@ class RealHypothesisEvaluator:
             period=f"{portfolio_returns.index[0]} to {portfolio_returns.index[-1]}",
         )
 
-    def evaluate_momentum(self, lookback: int = 252, skip: int = 21) -> RealHypothesisResult:
+    def evaluate_momentum(
+        self, lookback: int = 252, skip: int = 21
+    ) -> RealHypothesisResult:
         """Evaluate MOM-001: Cross-sectional momentum."""
         # Cross-sectional momentum is similar to trend but purely cross-sectional
         return self.evaluate_trend(lookback=lookback, skip=skip)
@@ -263,7 +312,9 @@ class RealHypothesisEvaluator:
         spy_ret = self._compute_spy_returns()
 
         if not returns:
-            return RealHypothesisResult(hypothesis_id="HYP-VOL-001", family="volatility")
+            return RealHypothesisResult(
+                hypothesis_id="HYP-VOL-001", family="volatility"
+            )
 
         returns_df = pd.DataFrame(returns).dropna(how="all")
 
@@ -272,18 +323,26 @@ class RealHypothesisEvaluator:
         vol = vol.dropna(how="all")
 
         if len(vol) < 100:
-            return RealHypothesisResult(hypothesis_id="HYP-VOL-001", family="volatility")
+            return RealHypothesisResult(
+                hypothesis_id="HYP-VOL-001", family="volatility"
+            )
 
         # Long low-vol, short high-vol
         ranks = vol.rank(axis=1, pct=True)
-        weights = -(ranks - 0.5)  # Negative because low vol = high rank, we want to reverse
+        weights = -(
+            ranks - 0.5
+        )  # Negative because low vol = high rank, we want to reverse
 
         returns_aligned = returns_df.reindex(vol.index)
-        portfolio_returns = (weights.shift(1) * returns_aligned).sum(axis=1) / weights.abs().sum(axis=1).replace(0, np.nan)
+        portfolio_returns = (weights.shift(1) * returns_aligned).sum(
+            axis=1
+        ) / weights.abs().sum(axis=1).replace(0, np.nan)
         portfolio_returns = portfolio_returns.dropna()
 
         if len(portfolio_returns) < 100:
-            return RealHypothesisResult(hypothesis_id="HYP-VOL-001", family="volatility")
+            return RealHypothesisResult(
+                hypothesis_id="HYP-VOL-001", family="volatility"
+            )
 
         # Compute metrics (same as trend)
         ann_return = portfolio_returns.mean() * 252
@@ -303,7 +362,11 @@ class RealHypothesisEvaluator:
         max_dd = drawdown.min()
 
         downside_returns = portfolio_returns[portfolio_returns < 0]
-        downside_vol = downside_returns.std() * np.sqrt(252) if len(downside_returns) > 0 else ann_vol
+        downside_vol = (
+            downside_returns.std() * np.sqrt(252)
+            if len(downside_returns) > 0
+            else ann_vol
+        )
         sortino = net_return / downside_vol if downside_vol > 0 else 0
 
         t_stat = net_sharpe * np.sqrt(len(portfolio_returns) / 252)
@@ -311,13 +374,23 @@ class RealHypothesisEvaluator:
         mid = len(portfolio_returns) // 2
         first_half = portfolio_returns.iloc[:mid]
         second_half = portfolio_returns.iloc[mid:]
-        wf_sharpe_1 = first_half.mean() / first_half.std() * np.sqrt(252) if first_half.std() > 0 else 0
-        wf_sharpe_2 = second_half.mean() / second_half.std() * np.sqrt(252) if second_half.std() > 0 else 0
+        wf_sharpe_1 = (
+            first_half.mean() / first_half.std() * np.sqrt(252)
+            if first_half.std() > 0
+            else 0
+        )
+        wf_sharpe_2 = (
+            second_half.mean() / second_half.std() * np.sqrt(252)
+            if second_half.std() > 0
+            else 0
+        )
         wf_sharpe = min(wf_sharpe_1, wf_sharpe_2)
 
         if len(spy_ret) > 0 and len(portfolio_returns) > 0:
             common_idx = portfolio_returns.index.intersection(spy_ret.index)
-            corr = portfolio_returns.reindex(common_idx).corr(spy_ret.reindex(common_idx))
+            corr = portfolio_returns.reindex(common_idx).corr(
+                spy_ret.reindex(common_idx)
+            )
         else:
             corr = 0.0
 
@@ -348,7 +421,9 @@ class RealHypothesisEvaluator:
         spy_ret = self._compute_spy_returns()
 
         if not returns:
-            return RealHypothesisResult(hypothesis_id="HYP-CS-001", family="cross_sectional")
+            return RealHypothesisResult(
+                hypothesis_id="HYP-CS-001", family="cross_sectional"
+            )
 
         returns_df = pd.DataFrame(returns).dropna(how="all")
 
@@ -365,7 +440,9 @@ class RealHypothesisEvaluator:
         portfolio_returns = portfolio_returns.dropna()
 
         if len(portfolio_returns) < 100:
-            return RealHypothesisResult(hypothesis_id="HYP-CS-001", family="cross_sectional")
+            return RealHypothesisResult(
+                hypothesis_id="HYP-CS-001", family="cross_sectional"
+            )
 
         ann_return = portfolio_returns.mean() * 252
         ann_vol = portfolio_returns.std() * np.sqrt(252)
@@ -387,7 +464,9 @@ class RealHypothesisEvaluator:
 
         if len(spy_ret) > 0:
             common_idx = portfolio_returns.index.intersection(spy_ret.index)
-            corr = portfolio_returns.reindex(common_idx).corr(spy_ret.reindex(common_idx))
+            corr = portfolio_returns.reindex(common_idx).corr(
+                spy_ret.reindex(common_idx)
+            )
         else:
             corr = 0.0
 

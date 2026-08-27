@@ -77,24 +77,35 @@ def main():
     print("INTRADAY ALPHA RESEARCH MAP — SUMMARY")
     print("=" * 60)
 
-    from eigencapital.research.intraday.hypotheses import Verdict
-
     verdict_counts = {}
     for r in results:
         v = r.verdict.value
         verdict_counts[v] = verdict_counts.get(v, 0) + 1
 
-    for verdict in ["supported", "incremental", "fragile", "regime_dependent",
-                     "cost_sensitive", "inconclusive", "rejected"]:
+    for verdict in [
+        "supported",
+        "incremental",
+        "fragile",
+        "regime_dependent",
+        "cost_sensitive",
+        "inconclusive",
+        "rejected",
+    ]:
         count = verdict_counts.get(verdict, 0)
         if count > 0:
             bar = "█" * count * 3
             print(f"  {verdict.upper():30s} {count:3d}  {bar}")
 
     total = len(results)
-    survivors = verdict_counts.get("supported", 0) + verdict_counts.get("incremental", 0)
+    survivors = verdict_counts.get("supported", 0) + verdict_counts.get(
+        "incremental", 0
+    )
     print(f"\n  Total hypotheses: {total}")
-    print(f"  Survivors: {survivors} ({survivors/total*100:.1f}%)" if total > 0 else "  No results")
+    print(
+        f"  Survivors: {survivors} ({survivors / total * 100:.1f}%)"
+        if total > 0
+        else "  No results"
+    )
 
     # Failure mode summary
     mode_counts = {}
@@ -110,7 +121,9 @@ def main():
     # Top results
     print("\n  Top Results by Net Sharpe:")
     for r in sorted(results, key=lambda x: -x.net_sharpe)[:5]:
-        print(f"    {r.hypothesis_id:15s} {r.verdict.value:20s} Sharpe={r.net_sharpe:.3f}  DD={r.max_dd_pct:.1f}%")
+        print(
+            f"    {r.hypothesis_id:15s} {r.verdict.value:20s} Sharpe={r.net_sharpe:.3f}  DD={r.max_dd_pct:.1f}%"
+        )
 
     print(f"\n  Campaign: {executor.freeze.campaign_id}")
     print(f"  Data: {manifest.total_bars} bars across {len(manifest.symbols)} symbols")

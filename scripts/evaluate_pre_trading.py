@@ -23,18 +23,19 @@ from eigencapital.production_qual.pre_trading import (
     PreTradingDecision,
     PreTradingValidator,
 )
-from eigencapital.production_qual.prefunding_gate import GateRecord, PrefundingGate
-from eigencapital.risk.policy import RiskPolicy
+from eigencapital.production_qual.prefunding_gate import PrefundingGate
 
 
 # ── Broker State ──────────────────────────────────────────────────
 # This script loads broker state from the live MT5 connection.
 # If MT5 is unavailable, it falls back to the last known state.
 
+
 def _load_broker_state() -> BrokerStateSnapshot:
     """Load broker state from MT5 or fallback to config."""
     try:
         from mt5linux import MetaTrader5
+
         mt5 = MetaTrader5(host="127.0.0.1", port=8001)
         if mt5.initialize():
             acct = mt5.account_info()
@@ -51,7 +52,10 @@ def _load_broker_state() -> BrokerStateSnapshot:
                 free_margin=acct.margin_free,
                 balance=acct.balance,
                 margin_level=acct.margin_level,
-                positions=[{"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume} for p in (positions or [])],
+                positions=[
+                    {"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume}
+                    for p in (positions or [])
+                ],
                 position_count=len(positions or []),
                 available_symbols=symbols[:15],
                 symbol_specs={},
@@ -75,9 +79,21 @@ def _load_broker_state() -> BrokerStateSnapshot:
         positions=[],
         position_count=0,
         available_symbols=[
-            "EURUSDm", "GBPUSDm", "USDJPYm", "AUDUSDm", "USDCADm",
-            "USDCHFm", "NZDUSDm", "XAUUSDm", "XAGUSDm", "US500m",
-            "US30m", "USTECm", "BTCUSDm", "ETHUSDm", "USOILm",
+            "EURUSDm",
+            "GBPUSDm",
+            "USDJPYm",
+            "AUDUSDm",
+            "USDCADm",
+            "USDCHFm",
+            "NZDUSDm",
+            "XAUUSDm",
+            "XAGUSDm",
+            "US500m",
+            "US30m",
+            "USTECm",
+            "BTCUSDm",
+            "ETHUSDm",
+            "USOILm",
         ],
         symbol_specs={},
         current_spread=0.0005,
@@ -100,7 +116,7 @@ def run_pre_trading_validation() -> None:
     # 1. Show broker state
     print("Broker State (from MT5):")
     print(f"  Account:    {BROKER_STATE.account_id}")
-    print(f"  Server:     Exness-MT5Trial9")
+    print("  Server:     Exness-MT5Trial9")
     print(f"  Environment: {BROKER_STATE.environment}")
     print(f"  Equity:     ${BROKER_STATE.equity:,.2f}")
     print(f"  Free Margin: ${BROKER_STATE.free_margin:,.2f}")
@@ -113,7 +129,6 @@ def run_pre_trading_validation() -> None:
     # Re-run to get a fresh gate record
     from eigencapital.production_qual.prefunding_audit import (
         AuditReport,
-        AuditVerdict,
         PrefundingGateAuditor,
     )
 
@@ -134,12 +149,14 @@ def run_pre_trading_validation() -> None:
     for _ in range(42):  # Fill remaining checks
         from eigencapital.production_qual.prefunding_audit import AuditCheck
 
-        auditor._add_check(AuditCheck(
-            check_id=f"TEMP-{len(auditor._checks)}",
-            category="temp",
-            description="Placeholder",
-            passed=True,
-        ))
+        auditor._add_check(
+            AuditCheck(
+                check_id=f"TEMP-{len(auditor._checks)}",
+                category="temp",
+                description="Placeholder",
+                passed=True,
+            )
+        )
 
     verdict = auditor.compute_verdict()
     report = AuditReport(
@@ -219,7 +236,9 @@ def run_pre_trading_validation() -> None:
 
     for step_name, counts in steps.items():
         status = "✅" if counts["failed"] == 0 else "❌"
-        print(f"  {status} {step_name}: {counts['passed']} passed, {counts['failed']} failed")
+        print(
+            f"  {status} {step_name}: {counts['passed']} passed, {counts['failed']} failed"
+        )
     print()
 
     # 6. Capture T=0 snapshot if authorized

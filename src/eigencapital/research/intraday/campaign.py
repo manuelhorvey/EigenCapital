@@ -7,11 +7,8 @@ Produces the Intraday Alpha Research Map from real MT5 broker data.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 
@@ -20,11 +17,9 @@ import pandas as pd
 
 from .hypotheses import (
     HypothesisDefinition,
-    HypothesisFamily,
     HoldingPeriod,
     Verdict,
     ALL_HYPOTHESES,
-    HYPOTHESIS_REGISTRY,
     compute_library_hash,
 )
 from .sessions import (
@@ -49,6 +44,7 @@ HOLDING_BARS = {
 @dataclass
 class CampaignFreezeManifest:
     """Frozen campaign identity — immutable once created."""
+
     campaign_id: str
     data_snapshot_hash: str
     hypothesis_library_hash: str
@@ -74,6 +70,7 @@ class CampaignFreezeManifest:
 @dataclass
 class HypothesisResult:
     """Result of evaluating a single hypothesis."""
+
     hypothesis_id: str
     family: str
     name: str
@@ -117,7 +114,9 @@ class HypothesisResult:
             "degradation_pct": round(self.degradation_pct, 2),
             "failure_modes": self.failure_modes,
             "asset_sharpes": {k: round(v, 4) for k, v in self.asset_sharpes.items()},
-            "session_sharpes": {k: round(v, 4) for k, v in self.session_sharpes.items()},
+            "session_sharpes": {
+                k: round(v, 4) for k, v in self.session_sharpes.items()
+            },
             "reason": self.reason,
         }
 
@@ -126,12 +125,14 @@ class HypothesisResult:
 # Cost Model
 # ============================================================
 
+
 @dataclass
 class IntradayCostModel:
     """Realistic intraday execution cost model."""
-    spread_bps: float = 8.0     # average spread in basis points
+
+    spread_bps: float = 8.0  # average spread in basis points
     commission_bps: float = 0.0  # per side
-    slippage_bps: float = 3.0   # average slippage
+    slippage_bps: float = 3.0  # average slippage
     adverse_spread_bps: float = 15.0
     severe_spread_bps: float = 30.0
 
@@ -157,6 +158,7 @@ class IntradayCostModel:
 # Signal Generators
 # ============================================================
 
+
 def generate_momentum_signal(
     df: pd.DataFrame, lookback: int, threshold: float = 0.0
 ) -> pd.Series:
@@ -176,9 +178,13 @@ def generate_momentum_signal(
     # Smooth: require 2 consecutive same-direction signals
     smoothed = signal.copy()
     for i in range(2, len(signal)):
-        if signal.iloc[i] != 0 and signal.iloc[i] == signal.iloc[i-1]:
+        if signal.iloc[i] != 0 and signal.iloc[i] == signal.iloc[i - 1]:
             smoothed.iloc[i] = signal.iloc[i]
-        elif i >= 2 and signal.iloc[i] != 0 and signal.iloc[i] == signal.iloc[i-1] == signal.iloc[i-2]:
+        elif (
+            i >= 2
+            and signal.iloc[i] != 0
+            and signal.iloc[i] == signal.iloc[i - 1] == signal.iloc[i - 2]
+        ):
             smoothed.iloc[i] = signal.iloc[i]
         else:
             smoothed.iloc[i] = 0
@@ -225,9 +231,7 @@ def generate_vol_expansion_signal(
     return signal
 
 
-def generate_breakout_signal(
-    df: pd.DataFrame, lookback: int = 12
-) -> pd.Series:
+def generate_breakout_signal(df: pd.DataFrame, lookback: int = 12) -> pd.Series:
     """Generate price breakout signal.
 
     Requires close above/below N-bar range AND confirmation above/below.
@@ -263,9 +267,7 @@ def generate_session_signal(
     return signal
 
 
-def generate_vwap_signal(
-    df: pd.DataFrame, z_threshold: float = 2.0
-) -> pd.Series:
+def generate_vwap_signal(df: pd.DataFrame, z_threshold: float = 2.0) -> pd.Series:
     """Generate VWAP deviation reversion signal."""
     if "volume" not in df.columns or df["volume"].sum() == 0:
         return pd.Series(0, index=df.index)
@@ -314,6 +316,7 @@ def generate_cross_asset_signal(
 # ============================================================
 # Strategy Evaluator
 # ============================================================
+
 
 def evaluate_strategy(
     df: pd.DataFrame,
@@ -424,6 +427,7 @@ def _empty_result(hypothesis_id: str) -> Dict[str, Any]:
 # Walk-Forward Validator
 # ============================================================
 
+
 def walk_forward_validate(
     df: pd.DataFrame,
     signal_func,
@@ -473,6 +477,7 @@ def walk_forward_validate(
 # ============================================================
 # Signal Dispatch
 # ============================================================
+
 
 def generate_signal_for_hypothesis(
     df: pd.DataFrame,
@@ -578,7 +583,7 @@ def generate_signal_for_hypothesis(
         # Reverse after breakout fails (signal flips within 3 bars)
         reversed_signal = breakout.copy()
         for i in range(3, len(breakout)):
-            if breakout.iloc[i] != 0 and breakout.iloc[i] == -breakout.iloc[i-1]:
+            if breakout.iloc[i] != 0 and breakout.iloc[i] == -breakout.iloc[i - 1]:
                 reversed_signal.iloc[i] = -breakout.iloc[i]
         return reversed_signal
     else:
@@ -588,6 +593,7 @@ def generate_signal_for_hypothesis(
 # ============================================================
 # Verdict Classifier
 # ============================================================
+
 
 def classify_verdict(
     result: Dict[str, Any],
@@ -636,7 +642,11 @@ def classify_verdict(
 
     # Degradation
     if result["gross_sharpe"] != 0:
-        degradation = abs(result["gross_sharpe"] - result["net_sharpe"]) / abs(result["gross_sharpe"]) * 100
+        degradation = (
+            abs(result["gross_sharpe"] - result["net_sharpe"])
+            / abs(result["gross_sharpe"])
+            * 100
+        )
     else:
         degradation = 100.0
 
@@ -684,13 +694,22 @@ def classify_verdict(
 
     # Default: fragile/inconclusive
     if result["net_sharpe"] > 0:
-        return Verdict.FRAGILE, failure_modes, "; ".join(reasons) if reasons else "Marginal performance"
-    return Verdict.INCONCLUSIVE, failure_modes, "; ".join(reasons) if reasons else "Insufficient evidence"
+        return (
+            Verdict.FRAGILE,
+            failure_modes,
+            "; ".join(reasons) if reasons else "Marginal performance",
+        )
+    return (
+        Verdict.INCONCLUSIVE,
+        failure_modes,
+        "; ".join(reasons) if reasons else "Insufficient evidence",
+    )
 
 
 # ============================================================
 # Campaign Executor
 # ============================================================
+
 
 class IntradayCampaignExecutor:
     """Runs the frozen intraday research campaign."""
@@ -768,13 +787,19 @@ class IntradayCampaignExecutor:
             "gross_sharpe": np.mean([r["gross_sharpe"] for r in all_symbol_results]),
             "net_sharpe": np.mean([r["net_sharpe"] for r in all_symbol_results]),
             "max_dd_pct": np.min([r["max_dd_pct"] for r in all_symbol_results]),
-            "turnover_annual": np.mean([r["turnover_annual"] for r in all_symbol_results]),
+            "turnover_annual": np.mean(
+                [r["turnover_annual"] for r in all_symbol_results]
+            ),
             "total_trades": sum(r["total_trades"] for r in all_symbol_results),
-            "avg_holding_bars": np.mean([r["avg_holding_bars"] for r in all_symbol_results]),
+            "avg_holding_bars": np.mean(
+                [r["avg_holding_bars"] for r in all_symbol_results]
+            ),
             "hit_rate": np.mean([r["hit_rate"] for r in all_symbol_results]),
             "long_sharpe": np.mean([r["long_sharpe"] for r in all_symbol_results]),
             "short_sharpe": np.mean([r["short_sharpe"] for r in all_symbol_results]),
-            "cost_pct_of_gross": np.mean([r["cost_pct_of_gross"] for r in all_symbol_results]),
+            "cost_pct_of_gross": np.mean(
+                [r["cost_pct_of_gross"] for r in all_symbol_results]
+            ),
         }
 
         # Walk-forward on first symbol with enough data
@@ -812,7 +837,11 @@ class IntradayCampaignExecutor:
 
         degradation = 0.0
         if agg["gross_sharpe"] != 0:
-            degradation = abs(agg["gross_sharpe"] - agg["net_sharpe"]) / abs(agg["gross_sharpe"]) * 100
+            degradation = (
+                abs(agg["gross_sharpe"] - agg["net_sharpe"])
+                / abs(agg["gross_sharpe"])
+                * 100
+            )
 
         return HypothesisResult(
             hypothesis_id=hyp.hypothesis_id,
@@ -895,17 +924,34 @@ class IntradayCampaignExecutor:
             "```",
         ]
 
-        for verdict in ["supported", "incremental", "production_candidate",
-                        "fragile", "regime_dependent", "cost_sensitive",
-                        "inconclusive", "rejected"]:
+        for verdict in [
+            "supported",
+            "incremental",
+            "production_candidate",
+            "fragile",
+            "regime_dependent",
+            "cost_sensitive",
+            "inconclusive",
+            "rejected",
+        ]:
             group = by_verdict.get(verdict, [])
             if group:
                 bar = "█" * len(group) * 3
                 lines.append(f"{verdict.upper():30s} {len(group):3d}  {bar}")
 
         total = len(results)
-        surviving = len(by_verdict.get("supported", [])) + len(by_verdict.get("incremental", []))
-        lines.extend(["```", f"**Survival Rate: {surviving/total*100:.1f}%**" if total > 0 else "N/A", ""])
+        surviving = len(by_verdict.get("supported", [])) + len(
+            by_verdict.get("incremental", [])
+        )
+        lines.extend(
+            [
+                "```",
+                f"**Survival Rate: {surviving / total * 100:.1f}%**"
+                if total > 0
+                else "N/A",
+                "",
+            ]
+        )
 
         # Failure mode distribution
         lines.extend(["## Failure Mode Distribution", "", "```"])
@@ -915,12 +961,14 @@ class IntradayCampaignExecutor:
         lines.extend(["```", ""])
 
         # Detailed results table
-        lines.extend([
-            "## Detailed Results",
-            "",
-            "| ID | Family | Verdict | Net Sharpe | OOS Sharpe | Max DD | Turnover | WF Cons | Degrad | Failure Modes |",
-            "|---|---|---|---:|---:|---:|---:|---:|---:|---|",
-        ])
+        lines.extend(
+            [
+                "## Detailed Results",
+                "",
+                "| ID | Family | Verdict | Net Sharpe | OOS Sharpe | Max DD | Turnover | WF Cons | Degrad | Failure Modes |",
+                "|---|---|---|---:|---:|---:|---:|---:|---:|---|",
+            ]
+        )
 
         for r in sorted(results, key=lambda x: -x.net_sharpe):
             fms = ", ".join(r.failure_modes[:3]) if r.failure_modes else "—"
@@ -934,27 +982,33 @@ class IntradayCampaignExecutor:
         lines.append("")
 
         # Survivor details
-        survivors = [r for r in results if r.verdict in (Verdict.SUPPORTED, Verdict.INCREMENTAL)]
+        survivors = [
+            r for r in results if r.verdict in (Verdict.SUPPORTED, Verdict.INCREMENTAL)
+        ]
         if survivors:
             lines.extend(["## Survivors — Detailed Analysis", ""])
             for r in survivors:
-                lines.extend([
-                    f"### {r.hypothesis_id}: {r.name}",
-                    f"- **Verdict:** {r.verdict.value.upper()}",
-                    f"- **Net Sharpe:** {r.net_sharpe:.3f}",
-                    f"- **OOS Sharpe:** {r.oos_sharpe:.3f}",
-                    f"- **Max DD:** {r.max_dd_pct:.1f}%",
-                    f"- **Turnover:** {r.turnover_annual:.1f}x/year",
-                    f"- **Hit Rate:** {r.hit_rate:.1%}",
-                    f"- **WF Consistency:** {r.walk_forward_consistency:.0%}",
-                    f"- **Degradation:** {r.degradation_pct:.0f}%",
-                    "",
-                    "**Per-Asset Sharpe:**",
-                ])
+                lines.extend(
+                    [
+                        f"### {r.hypothesis_id}: {r.name}",
+                        f"- **Verdict:** {r.verdict.value.upper()}",
+                        f"- **Net Sharpe:** {r.net_sharpe:.3f}",
+                        f"- **OOS Sharpe:** {r.oos_sharpe:.3f}",
+                        f"- **Max DD:** {r.max_dd_pct:.1f}%",
+                        f"- **Turnover:** {r.turnover_annual:.1f}x/year",
+                        f"- **Hit Rate:** {r.hit_rate:.1%}",
+                        f"- **WF Consistency:** {r.walk_forward_consistency:.0%}",
+                        f"- **Degradation:** {r.degradation_pct:.0f}%",
+                        "",
+                        "**Per-Asset Sharpe:**",
+                    ]
+                )
                 for sym, sharpe in sorted(r.asset_sharpes.items(), key=lambda x: -x[1]):
                     lines.append(f"  - {sym}: {sharpe:.3f}")
                 lines.extend(["", "**Session Sharpe:**"])
-                for sess, sharpe in sorted(r.session_sharpes.items(), key=lambda x: -x[1]):
+                for sess, sharpe in sorted(
+                    r.session_sharpes.items(), key=lambda x: -x[1]
+                ):
                     lines.append(f"  - {sess}: {sharpe:.3f}")
                 lines.append("")
 
@@ -964,21 +1018,25 @@ class IntradayCampaignExecutor:
             lines.extend(["## Rejected — Loser Analysis", ""])
             for r in rejected:
                 fms = ", ".join(r.failure_modes) if r.failure_modes else "unknown"
-                lines.append(f"- **{r.hypothesis_id}** ({r.name}): {r.reason} [failure modes: {fms}]")
+                lines.append(
+                    f"- **{r.hypothesis_id}** ({r.name}): {r.reason} [failure modes: {fms}]"
+                )
             lines.append("")
 
-        lines.extend([
-            "## Key Findings",
-            "",
-            "1. The intraday research system successfully killed hypotheses with evidence",
-            "2. Cost sensitivity is the dominant killer for mean-reversion strategies",
-            "3. Walk-forward consistency identifies overfitting before production",
-            "4. A small number of survivors is expected and healthy",
-            "5. Every rejection has a forensic explanation",
-            "",
-            "---",
-            f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-            f"Campaign: {self._freeze.campaign_id}*",
-        ])
+        lines.extend(
+            [
+                "## Key Findings",
+                "",
+                "1. The intraday research system successfully killed hypotheses with evidence",
+                "2. Cost sensitivity is the dominant killer for mean-reversion strategies",
+                "3. Walk-forward consistency identifies overfitting before production",
+                "4. A small number of survivors is expected and healthy",
+                "5. Every rejection has a forensic explanation",
+                "",
+                "---",
+                f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
+                f"Campaign: {self._freeze.campaign_id}*",
+            ]
+        )
 
         return "\n".join(lines)

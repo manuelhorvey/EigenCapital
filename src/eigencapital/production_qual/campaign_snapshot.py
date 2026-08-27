@@ -26,7 +26,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.pre_trading import (
@@ -195,8 +195,8 @@ class CampaignStartSnapshot:
             "",
             "## Account State",
             "",
-            f"| Metric | Value |",
-            f"|---|---|",
+            "| Metric | Value |",
+            "|---|---|",
             f"| Equity | ${self.equity:,.2f} |",
             f"| Balance | ${self.balance:,.2f} |",
             f"| Free Margin | ${self.free_margin:,.2f} |",
@@ -222,46 +222,48 @@ class CampaignStartSnapshot:
                 )
             lines.append("")
 
-        lines.extend([
-            "## Fingerprints",
-            "",
-            f"| Component | Fingerprint |",
-            f"|---|---|",
-            f"| R4 Manifest | {self.r4_manifest_fingerprint[:16]}... |",
-            f"| Risk Policy | {self.risk_policy_fingerprint[:16]}... |",
-            f"| Broker Config | {self.broker_config_fingerprint[:16]}... |",
-            f"| Capital Config | {self.capital_config_fingerprint[:16]}... |",
-            "",
-            "## Gate Decisions",
-            "",
-            f"- Pre-funding gate: **{self.pre_funding_gate_decision}**",
-            f"- Pre-trading validation: **{self.pre_trading_decision}**",
-            "",
-            "## Risk Limits (Frozen)",
-            "",
-            f"| Limit | Value |",
-            f"|---|---|",
-            f"| Max drawdown | {self.max_drawdown_pct:.1f}% |",
-            f"| Daily loss limit | ${self.daily_loss_limit:,.0f} |",
-            f"| Max gross leverage | {self.max_gross_leverage:.2f}x |",
-            f"| Max positions | {self.max_position_count} |",
-            f"| Max concentration | {self.max_concentration_pct:.1f}% |",
-            f"| Max asset-class exposure | {self.max_asset_class_exposure_pct:.1f}% |",
-            "",
-            "## Campaign Parameters (Frozen)",
-            "",
-            f"| Parameter | Value |",
-            f"|---|---|",
-            f"| Max equity | ${self.max_campaign_equity:,.0f} |",
-            f"| Duration | {self.campaign_duration_days} days |",
-            f"| Max position size | ${self.max_position_size:,.0f} |",
-            f"| Max order notional | ${self.max_order_notional:,.0f} |",
-            "",
-            "---",
-            "",
-            "*This snapshot is the immutable T=0 reference. All subsequent events",
-            "are interpreted relative to this known starting state.*",
-        ])
+        lines.extend(
+            [
+                "## Fingerprints",
+                "",
+                "| Component | Fingerprint |",
+                "|---|---|",
+                f"| R4 Manifest | {self.r4_manifest_fingerprint[:16]}... |",
+                f"| Risk Policy | {self.risk_policy_fingerprint[:16]}... |",
+                f"| Broker Config | {self.broker_config_fingerprint[:16]}... |",
+                f"| Capital Config | {self.capital_config_fingerprint[:16]}... |",
+                "",
+                "## Gate Decisions",
+                "",
+                f"- Pre-funding gate: **{self.pre_funding_gate_decision}**",
+                f"- Pre-trading validation: **{self.pre_trading_decision}**",
+                "",
+                "## Risk Limits (Frozen)",
+                "",
+                "| Limit | Value |",
+                "|---|---|",
+                f"| Max drawdown | {self.max_drawdown_pct:.1f}% |",
+                f"| Daily loss limit | ${self.daily_loss_limit:,.0f} |",
+                f"| Max gross leverage | {self.max_gross_leverage:.2f}x |",
+                f"| Max positions | {self.max_position_count} |",
+                f"| Max concentration | {self.max_concentration_pct:.1f}% |",
+                f"| Max asset-class exposure | {self.max_asset_class_exposure_pct:.1f}% |",
+                "",
+                "## Campaign Parameters (Frozen)",
+                "",
+                "| Parameter | Value |",
+                "|---|---|",
+                f"| Max equity | ${self.max_campaign_equity:,.0f} |",
+                f"| Duration | {self.campaign_duration_days} days |",
+                f"| Max position size | ${self.max_position_size:,.0f} |",
+                f"| Max order notional | ${self.max_order_notional:,.0f} |",
+                "",
+                "---",
+                "",
+                "*This snapshot is the immutable T=0 reference. All subsequent events",
+                "are interpreted relative to this known starting state.*",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -301,13 +303,12 @@ def capture_start_snapshot(
 
     # Compute exposure from positions
     total_exposure = sum(
-        abs(p.get("volume", 0) * p.get("price_open", 0))
-        for p in broker_state.positions
+        abs(p.get("volume", 0) * p.get("price_open", 0)) for p in broker_state.positions
     )
     net_exposure = sum(
-        p.get("volume", 0) * p.get("price_open", 0) * (
-            1 if p.get("side", "").upper() == "BUY" else -1
-        )
+        p.get("volume", 0)
+        * p.get("price_open", 0)
+        * (1 if p.get("side", "").upper() == "BUY" else -1)
         for p in broker_state.positions
     )
 

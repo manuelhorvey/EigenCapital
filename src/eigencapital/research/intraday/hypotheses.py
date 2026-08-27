@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Any, Optional
 
@@ -52,6 +52,7 @@ class Verdict(Enum):
 @dataclass(frozen=True)
 class HypothesisDefinition:
     """Immutable hypothesis definition — frozen at registration time."""
+
     hypothesis_id: str
     family: HypothesisFamily
     name: str
@@ -568,7 +569,5 @@ def get_hypotheses_by_family(family: HypothesisFamily) -> List[HypothesisDefinit
 
 def compute_library_hash() -> str:
     """Compute deterministic hash of the entire hypothesis library."""
-    data = json.dumps(
-        [h.to_dict() for h in ALL_HYPOTHESES], sort_keys=True
-    )
+    data = json.dumps([h.to_dict() for h in ALL_HYPOTHESES], sort_keys=True)
     return hashlib.sha256(data.encode()).hexdigest()[:16]

@@ -30,10 +30,10 @@ MANIFEST_PATH = "data/mt5/R5_data_manifest.json"
 REPORT_JSON = "reports/r5_swing_breadth.json"
 REPORT_MD = "reports/r5_swing_breadth.md"
 
-COST_ONE_WAY_BASE = 7.5e-4      # 15 bps round-trip equivalent
+COST_ONE_WAY_BASE = 7.5e-4  # 15 bps round-trip equivalent
 COST_ONE_WAY_ADVERSE = 12.5e-4  # 25 bps
 
-PRIOR_EVALUATIONS = 27          # R2(16) + R3(4) + R4(7)
+PRIOR_EVALUATIONS = 27  # R2(16) + R3(4) + R4(7)
 FAMILY_SIZE = 16
 CUMULATIVE_TRIALS = PRIOR_EVALUATIONS + FAMILY_SIZE  # 43
 
@@ -70,7 +70,9 @@ def load_snapshot(data_dir: str = DATA_DIR) -> Dict[str, pd.DataFrame]:
     return data
 
 
-def verify_snapshot(data_dir: str = DATA_DIR, manifest_path: str = MANIFEST_PATH) -> bool:
+def verify_snapshot(
+    data_dir: str = DATA_DIR, manifest_path: str = MANIFEST_PATH
+) -> bool:
     """Recompute combined sha256 against the frozen pre-registration manifest."""
     with open(manifest_path) as f:
         frozen = json.load(f)
@@ -94,7 +96,9 @@ def build_membership(data: Dict[str, pd.DataFrame]):
 
     reg = UniverseMembershipRegistry()
     for sym, df in sorted(data.items()):
-        reg.add(UniverseMembership(sym, "r5_universe", df.index.min().strftime("%Y-%m-%d")))
+        reg.add(
+            UniverseMembership(sym, "r5_universe", df.index.min().strftime("%Y-%m-%d"))
+        )
     return reg
 
 
@@ -169,8 +173,9 @@ def build_trend002(px, vol, members) -> pd.DataFrame:
 def build_trend003(px, vol, members) -> pd.DataFrame:
     high = px.rolling(252, min_periods=126).max()
     dist = px / high
-    sig = pd.DataFrame(np.where(dist > 0.80, 1.0, np.nan),
-                       index=px.index, columns=px.columns)
+    sig = pd.DataFrame(
+        np.where(dist > 0.80, 1.0, np.nan), index=px.index, columns=px.columns
+    )
     return _hold(sig, 21)
 
 
@@ -193,14 +198,24 @@ def build_mr001(px, vol, members) -> pd.DataFrame:
 
 def build_mr002(px, vol, members) -> pd.DataFrame:
     rsi = px.apply(lambda s: _rsi(s))
-    sig = pd.DataFrame(np.where(rsi < 30, 1.0, np.where(rsi > 70, -1.0, np.nan)),
-                       index=px.index, columns=px.columns)
+    sig = pd.DataFrame(
+        np.where(rsi < 30, 1.0, np.where(rsi > 70, -1.0, np.nan)),
+        index=px.index,
+        columns=px.columns,
+    )
     return _hold(sig, 5)
 
 
 ASSET_CLASSES = {
-    "forex": ["EURUSDm", "GBPUSDm", "USDJPYm", "AUDUSDm", "USDCADm",
-              "USDCHFm", "NZDUSDm"],
+    "forex": [
+        "EURUSDm",
+        "GBPUSDm",
+        "USDJPYm",
+        "AUDUSDm",
+        "USDCADm",
+        "USDCHFm",
+        "NZDUSDm",
+    ],
     "metals": ["XAUUSDm", "XAGUSDm"],
     "indices": ["US500m", "US30m", "USTECm"],
     "crypto": ["BTCUSDm", "ETHUSDm"],
@@ -219,8 +234,11 @@ def build_mr003(px, vol, members) -> pd.DataFrame:
             continue
         basket = ret63[cols].mean(axis=1)
         zs = ret63[cols].sub(basket, axis=0).apply(lambda s: _zscore(s, 63))
-        sig = pd.DataFrame(np.where(zs < -2, 1.0, np.where(zs > 2, -1.0, np.nan)),
-                           index=zs.index, columns=zs.columns)
+        sig = pd.DataFrame(
+            np.where(zs < -2, 1.0, np.where(zs > 2, -1.0, np.nan)),
+            index=zs.index,
+            columns=zs.columns,
+        )
         out[cols] = _hold(sig, 10)[cols]
     return out.fillna(0.0)
 
@@ -228,8 +246,11 @@ def build_mr003(px, vol, members) -> pd.DataFrame:
 def build_brk001(px, vol, members) -> pd.DataFrame:
     is_high = px >= px.rolling(252, min_periods=126).max()
     exit_low = px < px.rolling(63, min_periods=32).min()
-    raw = pd.DataFrame(np.where(is_high, 1.0, np.where(exit_low, 0.0, np.nan)),
-                       index=px.index, columns=px.columns)
+    raw = pd.DataFrame(
+        np.where(is_high, 1.0, np.where(exit_low, 0.0, np.nan)),
+        index=px.index,
+        columns=px.columns,
+    )
     return raw.ffill().fillna(0.0)
 
 
@@ -248,8 +269,10 @@ def build_vol001(px, vol, members) -> pd.DataFrame:
 def build_vol002(px, vol, members) -> pd.DataFrame:
     rets = px.pct_change()
     basket = rets.mean(axis=1)
-    beta = rets.rolling(126, min_periods=60).cov(basket) / \
-        basket.rolling(126, min_periods=60).var()
+    beta = (
+        rets.rolling(126, min_periods=60).cov(basket)
+        / basket.rolling(126, min_periods=60).var()
+    )
     return _cs_ls(-beta, 21)
 
 
@@ -259,15 +282,22 @@ def build_vol003(px, vol, members) -> pd.DataFrame:
     lo = volofvol.quantile(0.25, axis=1)
     hi = volofvol.quantile(0.75, axis=1)
     scale = pd.DataFrame(
-        np.where(volofvol.le(lo, axis=0), 1.0,
-                 np.where(volofvol.ge(hi, axis=0), 0.0, np.nan)),
-        index=px.index, columns=px.columns)
+        np.where(
+            volofvol.le(lo, axis=0), 1.0, np.where(volofvol.ge(hi, axis=0), 0.0, np.nan)
+        ),
+        index=px.index,
+        columns=px.columns,
+    )
     return base * scale.ffill().fillna(1.0)
 
 
-PAIRS_FROZEN = [("US500m", "USTECm"), ("XAUUSDm", "XAGUSDm"),
-                ("EURUSDm", "GBPUSDm"), ("USOILm", "US500m"),
-                ("BTCUSDm", "ETHUSDm")]
+PAIRS_FROZEN = [
+    ("US500m", "USTECm"),
+    ("XAUUSDm", "XAGUSDm"),
+    ("EURUSDm", "GBPUSDm"),
+    ("USOILm", "US500m"),
+    ("BTCUSDm", "ETHUSDm"),
+]
 
 
 def _eg_z(a: pd.Series, b: pd.Series) -> float:
@@ -276,8 +306,9 @@ def _eg_z(a: pd.Series, b: pd.Series) -> float:
         return float("nan")
     beta = float(np.polyfit(m.iloc[:, 0], m.iloc[:, 1], 1)[0])
     spread = m.iloc[:, 1] - beta * m.iloc[:, 0]
-    return float((spread.iloc[-1] - spread.mean()) /
-                 (spread.std() if spread.std() else np.nan))
+    return float(
+        (spread.iloc[-1] - spread.mean()) / (spread.std() if spread.std() else np.nan)
+    )
 
 
 def _pair_positions(data, pairs) -> pd.DataFrame:
@@ -293,7 +324,7 @@ def _pair_positions(data, pairs) -> pd.DataFrame:
         pos = pd.Series(0.0, index=cal)
         state = 0.0
         for i in range(126, len(cal)):
-            z = _eg_z(pa.iloc[i - 126:i], pb.iloc[i - 126:i])
+            z = _eg_z(pa.iloc[i - 126 : i], pb.iloc[i - 126 : i])
             if not np.isnan(z):
                 if state == 0.0 and z <= -2.0:
                     state = 1.0
@@ -304,8 +335,7 @@ def _pair_positions(data, pairs) -> pd.DataFrame:
             pos.iloc[i] = state
         frames.append(pos.rename(follower))
     if not frames:
-        return pd.DataFrame(0.0, index=next(iter(data.values())).index,
-                            columns=[])
+        return pd.DataFrame(0.0, index=next(iter(data.values())).index, columns=[])
     return pd.concat(frames, axis=1).fillna(0.0)
 
 
@@ -332,7 +362,7 @@ def build_factor001(px, vol, members) -> pd.DataFrame:
     rets = px.pct_change()
     pos = pd.DataFrame(0.0, index=px.index, columns=px.columns)
     for i in range(252, len(px.index) - 21, 21):
-        win = rets.iloc[i - 252:i].dropna(axis=1, thresh=200).dropna()
+        win = rets.iloc[i - 252 : i].dropna(axis=1, thresh=200).dropna()
         if win.shape[1] < 6:
             continue
         vals = np.linalg.eigh(win.corr().fillna(0.0).values)
@@ -340,10 +370,10 @@ def build_factor001(px, vol, members) -> pd.DataFrame:
         pc1 = pc1 / pc1.abs().sum()
         cols = [c for c in pc1.index if c in pos.columns]
         wts = pc1[cols].values
-        trend_ok = (px[cols].iloc[i - 1] >
-                    px[cols].iloc[i - 252]).reindex(cols).fillna(False)
-        pos.loc[pos.index[i:i + 21], cols] = np.where(
-            trend_ok.values, wts, 0.0)
+        trend_ok = (
+            (px[cols].iloc[i - 1] > px[cols].iloc[i - 252]).reindex(cols).fillna(False)
+        )
+        pos.loc[pos.index[i : i + 21], cols] = np.where(trend_ok.values, wts, 0.0)
     return pos
 
 
@@ -398,15 +428,17 @@ def _permutation_p(px, pos, n_permutations=500, seed=42):
     base = pos.reindex(px.index).fillna(0.0)
 
     def _stat(offset):
-        shifted = pd.DataFrame(np.roll(base.values, offset, axis=0),
-                               index=base.index, columns=base.columns)
+        shifted = pd.DataFrame(
+            np.roll(base.values, offset, axis=0), index=base.index, columns=base.columns
+        )
         gross = (shifted.shift(1) * rets).mean(axis=1, skipna=True)
         turns = shifted.diff().abs().mean(axis=1, skipna=True).fillna(0.0)
         return _sharpe(gross - turns * COST_ONE_WAY_BASE)
 
     observed = _stat(0)
     exceed = sum(
-        1 for _ in range(n_permutations)
+        1
+        for _ in range(n_permutations)
         if _stat(int(rng.integers(63, max(64, len(px) - 63)))) >= observed
     )
     return (exceed + 1) / (n_permutations + 1)
@@ -419,15 +451,24 @@ def evaluate_hypothesis(name, builder, data, px, vol, tvol, members):
         pos = builder(px, vol, members)
     pos = pos.reindex(columns=px.columns).fillna(0.0)
     if pos.abs().sum().sum() == 0:
-        return {"hid": name, "verdict": "REJECTED",
-                "reasons": ["no_signal"], "primary_failure": "no_signal"}
+        return {
+            "hid": name,
+            "verdict": "REJECTED",
+            "reasons": ["no_signal"],
+            "primary_failure": "no_signal",
+        }
 
     net_b = _portfolio_series(px, pos, COST_ONE_WAY_BASE)
     net_a = _portfolio_series(px, pos, COST_ONE_WAY_ADVERSE)
     eq = ((1 + net_b).cumprod() * 100.0).tolist()
 
-    wf = purged_walk_forward(eq, train_bars=WF_TRAIN, test_bars=WF_TEST,
-                             purge_bars=WF_PURGE, embargo_bars=WF_EMBARGO)
+    wf = purged_walk_forward(
+        eq,
+        train_bars=WF_TRAIN,
+        test_bars=WF_TEST,
+        purge_bars=WF_PURGE,
+        embargo_bars=WF_EMBARGO,
+    )
     wf_cons = wf.pct_profitable_windows / 100.0
 
     yearly = net_b.groupby(net_b.index.year).sum()
@@ -439,8 +480,13 @@ def evaluate_hypothesis(name, builder, data, px, vol, tvol, members):
         if pos[sym].abs().sum() <= 20:
             continue
         sub_px = px[[sym]].rename(columns={sym: "close"})
-        r = bt_net(sub_px, pos[sym], hp=1, cost_one_way=COST_ONE_WAY_BASE,
-                   bars_per_trading_day=1)
+        r = bt_net(
+            sub_px,
+            pos[sym],
+            hp=1,
+            cost_one_way=COST_ONE_WAY_BASE,
+            bars_per_trading_day=1,
+        )
         per_sym[sym] = round(r.net_sharpe, 4)
         exposed.append(r.net_sharpe)
     breadth = float(np.mean([s > 0 for s in exposed])) if exposed else 0.0
@@ -462,8 +508,11 @@ def evaluate_hypothesis(name, builder, data, px, vol, tvol, members):
     if p_raw * FAMILY_SIZE > FAMILY_P_MAX:
         reasons.append("family_permutation_insignificant")
 
-    verdict = "SUPPORTED" if not reasons else (
-        "REJECTED" if len(reasons) >= 2 or "no_signal" in reasons else "FRAGILE")
+    verdict = (
+        "SUPPORTED"
+        if not reasons
+        else ("REJECTED" if len(reasons) >= 2 or "no_signal" in reasons else "FRAGILE")
+    )
     p_cum = min(1.0, p_raw * CUMULATIVE_TRIALS)
     if verdict == "SUPPORTED" and p_cum > 0.05:
         verdict = "FRAGILE"
@@ -472,16 +521,21 @@ def evaluate_hypothesis(name, builder, data, px, vol, tvol, members):
     dsr = None
     if verdict == "SUPPORTED":
         d = deflated_sharpe_ratio(
-            observed_sharpe=_sharpe(net_b), n_trials=CUMULATIVE_TRIALS,
-            returns=list(net_b.dropna()), trial_sr_std=0.5,
-            confidence=0.95)
+            observed_sharpe=_sharpe(net_b),
+            n_trials=CUMULATIVE_TRIALS,
+            returns=list(net_b.dropna()),
+            trial_sr_std=0.5,
+            confidence=0.95,
+        )
         dsr = d.to_dict()
         if not d.significant:
             verdict = "FRAGILE"
             reasons.append("dsr_not_significant")
 
     return {
-        "hid": name, "verdict": verdict, "reasons": reasons,
+        "hid": name,
+        "verdict": verdict,
+        "reasons": reasons,
         "primary_failure": reasons[0] if reasons else "",
         "gross_sharpe": round(_sharpe(_portfolio_series(px, pos, 0.0)), 4),
         "net_sharpe": round(_sharpe(net_b), 4),
@@ -507,14 +561,16 @@ def run(data_dir: str = DATA_DIR):
     members = build_membership(data)
     px = member_frame(data, "close")
     vol = px.pct_change().rolling(63).std()
-    tvol = member_frame(data, "tick_volume") if "tick_volume" in \
-        next(iter(data.values())).columns else vol * 0 + 1
+    tvol = (
+        member_frame(data, "tick_volume")
+        if "tick_volume" in next(iter(data.values())).columns
+        else vol * 0 + 1
+    )
 
     results = []
     for name, builder in HYPOTHESES:
         print(f"[R5] {name} ...", flush=True)
-        results.append(evaluate_hypothesis(name, builder, data, px, vol,
-                                           tvol, members))
+        results.append(evaluate_hypothesis(name, builder, data, px, vol, tvol, members))
     print("\n[R5] family:", FAMILY_SIZE, "| cumulative:", CUMULATIVE_TRIALS)
     dist = Counter(r["verdict"] for r in results)
     print("[R5] verdicts:", dict(dist))
@@ -524,22 +580,30 @@ def run(data_dir: str = DATA_DIR):
 def write_reports(results):
     os.makedirs("reports", exist_ok=True)
     with open(REPORT_JSON, "w") as f:
-        json.dump({
-            "campaign": "R5_SWING_BREADTH",
-            "preregistration": "research/campaigns/R5_SWING_BREADTH_PREREGISTRATION.md",
-            "data_manifest_sha256_prefix": "3d10cf9322bda6cd9f5d4966a53e4d8d",
-            "prior_evaluations": PRIOR_EVALUATIONS,
-            "family_size": FAMILY_SIZE,
-            "cumulative_trials": CUMULATIVE_TRIALS,
-            "results": results,
-        }, f, indent=2, sort_keys=True)
+        json.dump(
+            {
+                "campaign": "R5_SWING_BREADTH",
+                "preregistration": "research/campaigns/R5_SWING_BREADTH_PREREGISTRATION.md",
+                "data_manifest_sha256_prefix": "3d10cf9322bda6cd9f5d4966a53e4d8d",
+                "prior_evaluations": PRIOR_EVALUATIONS,
+                "family_size": FAMILY_SIZE,
+                "cumulative_trials": CUMULATIVE_TRIALS,
+                "results": results,
+            },
+            f,
+            indent=2,
+            sort_keys=True,
+        )
 
     lines = [
-        "# CAMPAIGN R5 - SWING BREADTH (pre-registered)", "",
+        "# CAMPAIGN R5 - SWING BREADTH (pre-registered)",
+        "",
         "**Snapshot:** R5_SWING_BREADTH_D1 (38 instruments, frozen)",
         f"**Family:** {FAMILY_SIZE} Bonferroni | **Cumulative:** {CUMULATIVE_TRIALS} trials",
-        "**Costs:** corrected per-flip accounting (7.5 / 12.5 bps one-way)", "",
-        "## VERDICTS", "",
+        "**Costs:** corrected per-flip accounting (7.5 / 12.5 bps one-way)",
+        "",
+        "## VERDICTS",
+        "",
         "| ID | Net | Adv | DD | WF | Years+ | Breadth | p_raw | p_fam | Verdict |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
@@ -549,13 +613,17 @@ def write_reports(results):
             f"{r.get('net_sharpe_adverse', 0):+.2f} | {r.get('max_dd', 0):.1%} | "
             f"{r.get('wf_consistency', 0):.0%} | {r.get('pct_positive_years', 0):.0%} | "
             f"{r.get('instrument_breadth', 0):.0%} | {r.get('p_raw', 1):.3f} | "
-            f"{r.get('p_family', 1):.3f} | **{r['verdict']}** |")
+            f"{r.get('p_family', 1):.3f} | **{r['verdict']}** |"
+        )
     surv = [r["hid"] for r in results if r["verdict"] == "SUPPORTED"]
     lines += ["", f"**Survivors: {len(surv)}/{len(results)}**"]
     if not surv:
-        lines += ["", "**DECISION:** zero survivors under the pre-registered gates. "
-                      "Per R5 decision rule: null evidence recorded; library statuses "
-                      "move to REJECTED; next attempt requires a new pre-registration."]
+        lines += [
+            "",
+            "**DECISION:** zero survivors under the pre-registered gates. "
+            "Per R5 decision rule: null evidence recorded; library statuses "
+            "move to REJECTED; next attempt requires a new pre-registration.",
+        ]
     with open(REPORT_MD, "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"\n[R5] reports written: {REPORT_MD}, {REPORT_JSON}")

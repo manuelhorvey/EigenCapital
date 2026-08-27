@@ -8,21 +8,22 @@ Strictly DOWNSTREAM of enforcement: dispatch failures are swallowed and
 reported via return value only. An alerting outage can never alter a
 safety decision (halt/blocked states remain exactly as decided).
 """
-from __future__ import annotations
 
-import warnings
-warnings.warn(
-    "eigencapital.live.alerts is deprecated. Use eigencapital.live.structured_alerts instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+from __future__ import annotations
 
 import json
 import os
 import sys
 import time
+import warnings
 from dataclasses import dataclass
 from typing import List, Optional
+
+warnings.warn(
+    "eigencapital.live.alerts is deprecated. Use eigencapital.live.structured_alerts instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class Severity:
@@ -40,8 +41,12 @@ class Alert:
     details: Optional[dict] = None
 
     def to_dict(self) -> dict:
-        d = {"severity": self.severity, "event": self.event,
-             "message": self.message, "ts_utc": self.ts_utc}
+        d = {
+            "severity": self.severity,
+            "event": self.event,
+            "message": self.message,
+            "ts_utc": self.ts_utc,
+        }
         if self.details is not None:
             d["details"] = self.details
         return d
@@ -50,8 +55,9 @@ class Alert:
 class AlertDispatcher:
     """Durable JSONL sink + operator-visible stderr mirror."""
 
-    def __init__(self, path: str = "reports/alerts.jsonl",
-                 mirror_stderr: bool = True) -> None:
+    def __init__(
+        self, path: str = "reports/alerts.jsonl", mirror_stderr: bool = True
+    ) -> None:
         self.path = path
         self.mirror_stderr = mirror_stderr
 
@@ -68,7 +74,9 @@ class AlertDispatcher:
         except OSError:
             return False
         if self.mirror_stderr and alert.severity in (
-                Severity.CRITICAL, Severity.WARNING):
+            Severity.CRITICAL,
+            Severity.WARNING,
+        ):
             print(line, file=sys.stderr)
         return True
 
@@ -83,7 +91,14 @@ class AlertDispatcher:
 
 
 def alert_for_stop_reason(reason: str) -> Alert:
-    sev = Severity.CRITICAL if reason not in (
-        "RECONCILIATION_REQUIRED",) else Severity.WARNING
-    return Alert(severity=sev, event="live_runner_stop", message=reason,
-                 ts_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    sev = (
+        Severity.CRITICAL
+        if reason not in ("RECONCILIATION_REQUIRED",)
+        else Severity.WARNING
+    )
+    return Alert(
+        severity=sev,
+        event="live_runner_stop",
+        message=reason,
+        ts_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    )

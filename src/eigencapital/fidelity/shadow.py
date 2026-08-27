@@ -12,23 +12,16 @@ The key comparison:
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 
-import numpy as np
-import pandas as pd
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
-    ParityBoundary,
-    ParitySummary,
 )
-from eigencapital.fidelity.verdict import FidelityEvaluator, FidelityReport
 
 logger = logging.getLogger(__name__)
 
@@ -310,14 +303,32 @@ class ShadowEngine:
     def get_result(self) -> ShadowResult:
         """Compute shadow campaign result."""
         total = len(self._divergences)
-        matches = sum(1 for d in self._divergences if d.classification == DivergenceClass.MATCH)
-        expected = sum(1 for d in self._divergences if d.classification == DivergenceClass.EXPECTED)
-        tolerable = sum(1 for d in self._divergences if d.classification == DivergenceClass.TOLERABLE)
-        unexplained = sum(1 for d in self._divergences if d.classification == DivergenceClass.UNEXPLAINED)
-        critical = sum(1 for d in self._divergences if d.classification == DivergenceClass.CRITICAL)
+        matches = sum(
+            1 for d in self._divergences if d.classification == DivergenceClass.MATCH
+        )
+        expected = sum(
+            1 for d in self._divergences if d.classification == DivergenceClass.EXPECTED
+        )
+        tolerable = sum(
+            1
+            for d in self._divergences
+            if d.classification == DivergenceClass.TOLERABLE
+        )
+        unexplained = sum(
+            1
+            for d in self._divergences
+            if d.classification == DivergenceClass.UNEXPLAINED
+        )
+        critical = sum(
+            1 for d in self._divergences if d.classification == DivergenceClass.CRITICAL
+        )
 
-        orders_submit = sum(1 for o in self._orders if o.status == ShadowOrderStatus.WOULD_SUBMIT)
-        orders_reject = sum(1 for o in self._orders if o.status == ShadowOrderStatus.WOULD_REJECT)
+        orders_submit = sum(
+            1 for o in self._orders if o.status == ShadowOrderStatus.WOULD_SUBMIT
+        )
+        orders_reject = sum(
+            1 for o in self._orders if o.status == ShadowOrderStatus.WOULD_REJECT
+        )
 
         match_rate = matches / total if total > 0 else 1.0
 

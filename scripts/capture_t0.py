@@ -22,9 +22,8 @@ import hashlib
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 sys.path.insert(0, "src")
 
@@ -33,7 +32,6 @@ from mt5linux import MetaTrader5
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.broker_boundary import (
     BrokerBoundaryConfig,
-    BrokerBoundaryValidator,
 )
 from eigencapital.production_qual.capital_boundary import CapitalBoundaryConfig
 from eigencapital.production_qual.pre_trading import (
@@ -41,18 +39,39 @@ from eigencapital.production_qual.pre_trading import (
     PreTradingValidator,
 )
 from eigencapital.risk.policy import RiskPolicy
+
 # Instrument eligibility inlined to avoid module import issues
 ASSET_CLASSES = {
-    "US30": "indices", "AUDJPY": "forex", "AUDUSD": "forex",
-    "AUDCHF": "forex", "AUDCAD": "forex", "NZDJPY": "forex",
-    "GBPJPY": "forex", "AUDNZD": "forex", "NZDUSD": "forex",
-    "NZDCHF": "forex", "NZDCAD": "forex", "GBPUSD": "forex",
-    "GBPCHF": "forex", "GBPCAD": "forex", "CHFJPY": "forex",
-    "EURJPY": "forex", "USDJPY": "forex", "CADJPY": "forex",
-    "XAUUSD": "metals", "EURUSD": "forex", "EURCHF": "forex",
-    "USDCHF": "forex", "EURCAD": "forex", "USDCAD": "forex",
-    "CADCHF": "forex", "GBPNZD": "forex", "EURGBP": "forex",
-    "EURNZD": "forex", "GBPAUD": "forex", "EURAUD": "forex",
+    "US30": "indices",
+    "AUDJPY": "forex",
+    "AUDUSD": "forex",
+    "AUDCHF": "forex",
+    "AUDCAD": "forex",
+    "NZDJPY": "forex",
+    "GBPJPY": "forex",
+    "AUDNZD": "forex",
+    "NZDUSD": "forex",
+    "NZDCHF": "forex",
+    "NZDCAD": "forex",
+    "GBPUSD": "forex",
+    "GBPCHF": "forex",
+    "GBPCAD": "forex",
+    "CHFJPY": "forex",
+    "EURJPY": "forex",
+    "USDJPY": "forex",
+    "CADJPY": "forex",
+    "XAUUSD": "metals",
+    "EURUSD": "forex",
+    "EURCHF": "forex",
+    "USDCHF": "forex",
+    "EURCAD": "forex",
+    "USDCAD": "forex",
+    "CADCHF": "forex",
+    "GBPNZD": "forex",
+    "EURGBP": "forex",
+    "EURNZD": "forex",
+    "GBPAUD": "forex",
+    "EURAUD": "forex",
     "BTCUSD": "crypto",
 }
 
@@ -64,26 +83,88 @@ def check_eligibility_inline(mt5, position_limit: float) -> Dict[str, Any]:
         info = mt5.symbol_info(sym)
         tick = mt5.symbol_info_tick(sym)
         if info is None or tick is None:
-            results.append({"symbol": sym, "asset_class": ASSET_CLASSES.get(sym, "unknown"), "eligible": False, "reason": "not available", "min_volume": 0, "current_ask": 0, "contract_size": 0, "min_notional": 0, "position_limit": position_limit})
+            results.append(
+                {
+                    "symbol": sym,
+                    "asset_class": ASSET_CLASSES.get(sym, "unknown"),
+                    "eligible": False,
+                    "reason": "not available",
+                    "min_volume": 0,
+                    "current_ask": 0,
+                    "contract_size": 0,
+                    "min_notional": 0,
+                    "position_limit": position_limit,
+                }
+            )
             continue
         min_vol = info.volume_min
         ask = tick.ask
         cs = info.trade_contract_size
         min_notional = min_vol * ask * cs
         eligible = min_notional <= position_limit
-        reason = f"min lot {min_vol} \u00d7 {ask:.5f} \u00d7 {cs:,.0f} = ${min_notional:,.2f}" + (f" \u2264 ${position_limit:,.0f}" if eligible else f" > ${position_limit:,.0f}")
-        results.append({"symbol": sym, "asset_class": ASSET_CLASSES.get(sym, "unknown"), "eligible": eligible, "reason": reason, "min_volume": min_vol, "current_ask": ask, "contract_size": cs, "min_notional": round(min_notional, 2), "position_limit": position_limit})
-    return {"position_limit": position_limit, "total_symbols": len(R4_SYMBOLS), "eligible_count": sum(1 for r in results if r["eligible"]), "ineligible_count": sum(1 for r in results if not r["eligible"]), "symbols": results}
+        reason = (
+            f"min lot {min_vol} \u00d7 {ask:.5f} \u00d7 {cs:,.0f} = ${min_notional:,.2f}"
+            + (
+                f" \u2264 ${position_limit:,.0f}"
+                if eligible
+                else f" > ${position_limit:,.0f}"
+            )
+        )
+        results.append(
+            {
+                "symbol": sym,
+                "asset_class": ASSET_CLASSES.get(sym, "unknown"),
+                "eligible": eligible,
+                "reason": reason,
+                "min_volume": min_vol,
+                "current_ask": ask,
+                "contract_size": cs,
+                "min_notional": round(min_notional, 2),
+                "position_limit": position_limit,
+            }
+        )
+    return {
+        "position_limit": position_limit,
+        "total_symbols": len(R4_SYMBOLS),
+        "eligible_count": sum(1 for r in results if r["eligible"]),
+        "ineligible_count": sum(1 for r in results if not r["eligible"]),
+        "symbols": results,
+    }
+
 
 # ── Config ─────────────────────────────────────────────────────────
 
 R4_SYMBOLS = [
-    "US30", "AUDJPY", "AUDUSD", "AUDCHF", "AUDCAD",
-    "NZDJPY", "GBPJPY", "AUDNZD", "NZDUSD", "NZDCHF",
-    "NZDCAD", "GBPUSD", "GBPCHF", "GBPCAD", "CHFJPY",
-    "EURJPY", "USDJPY", "CADJPY", "XAUUSD", "EURUSD",
-    "EURCHF", "USDCHF", "EURCAD", "USDCAD", "CADCHF",
-    "GBPNZD", "EURGBP", "EURNZD", "GBPAUD", "EURAUD",
+    "US30",
+    "AUDJPY",
+    "AUDUSD",
+    "AUDCHF",
+    "AUDCAD",
+    "NZDJPY",
+    "GBPJPY",
+    "AUDNZD",
+    "NZDUSD",
+    "NZDCHF",
+    "NZDCAD",
+    "GBPUSD",
+    "GBPCHF",
+    "GBPCAD",
+    "CHFJPY",
+    "EURJPY",
+    "USDJPY",
+    "CADJPY",
+    "XAUUSD",
+    "EURUSD",
+    "EURCHF",
+    "USDCHF",
+    "EURCAD",
+    "USDCAD",
+    "CADCHF",
+    "GBPNZD",
+    "EURGBP",
+    "EURNZD",
+    "GBPAUD",
+    "EURAUD",
     "BTCUSD",
 ]
 
@@ -161,7 +242,11 @@ def main() -> None:
             "time": p.time,
         }
         position_data.append(pos_dict)
-        check("✅", f"{p.symbol}", f"{side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}")
+        check(
+            "✅",
+            f"{p.symbol}",
+            f"{side} {p.volume} @ {p.price_open:.5f} | P&L: ${p.profit:+.4f}",
+        )
 
     if not pos_list:
         check("✅", "Clean slate", "0 open positions")
@@ -189,17 +274,22 @@ def main() -> None:
 
     # ── 4b. Instrument Eligibility ─────────────────────────────────
     section("4b. INSTRUMENT ELIGIBILITY (broker-derived)")
-    from eigencapital.production_qual.capital_boundary import CapitalBoundaryConfig
     cap_cfg = CapitalBoundaryConfig()
     eligibility = check_eligibility_inline(mt5, cap_cfg.max_position_size)
 
     eligible_syms = [s["symbol"] for s in eligibility["symbols"] if s["eligible"]]
     ineligible_syms = [s["symbol"] for s in eligibility["symbols"] if not s["eligible"]]
 
-    check("✅", f"Eligible: {len(eligible_syms)}/{eligibility['total_symbols']}",
-          ", ".join(eligible_syms))
-    check("❌", f"Ineligible: {len(ineligible_syms)}",
-          ", ".join(ineligible_syms) if ineligible_syms else "none")
+    check(
+        "✅",
+        f"Eligible: {len(eligible_syms)}/{eligibility['total_symbols']}",
+        ", ".join(eligible_syms),
+    )
+    check(
+        "❌",
+        f"Ineligible: {len(ineligible_syms)}",
+        ", ".join(ineligible_syms) if ineligible_syms else "none",
+    )
 
     for s in eligibility["symbols"]:
         icon = "✅" if s["eligible"] else "❌"
@@ -241,7 +331,9 @@ def main() -> None:
         position_count=len(pos_list),
         available_symbols=sorted(symbol_specs.keys()),
         symbol_specs=symbol_specs,
-        current_spread=max(s.get("spread", 0) for s in symbol_specs.values()) if symbol_specs else 0,
+        current_spread=max(s.get("spread", 0) for s in symbol_specs.values())
+        if symbol_specs
+        else 0,
         current_slippage=0.0,
         snapshot_timestamp=datetime.now(timezone.utc).isoformat(),
     )
@@ -262,8 +354,11 @@ def main() -> None:
         icon = "✅" if c.passed else ("❌" if c.severity == "CRITICAL" else "⚠️")
         check(icon, f"[{c.step}] {c.check_id}: {c.description}")
 
-    check("✅" if auth.decision == "TRADING_AUTHORIZED" else "⚠️",
-          f"Gate decision", auth.decision)
+    check(
+        "✅" if auth.decision == "TRADING_AUTHORIZED" else "⚠️",
+        "Gate decision",
+        auth.decision,
+    )
 
     # ── 7. Build & Freeze Snapshot ───────────────────────────────────
     section("7. FREEZING T=0 SNAPSHOT")
@@ -274,7 +369,6 @@ def main() -> None:
         "version": "1.0",
         "campaign_id": campaign_id,
         "snapshot_timestamp": now,
-
         # Account state
         "account_id": str(account.login),
         "account_name": "EigenCapital-R4-Trial",
@@ -283,7 +377,6 @@ def main() -> None:
         "environment": "demo",
         "platform": "mt5",
         "currency": "USD",
-
         # Financial state
         "equity": equity,
         "balance": balance,
@@ -291,17 +384,14 @@ def main() -> None:
         "margin": margin,
         "leverage": leverage,
         "margin_level": margin_level,
-
         # Positions
         "open_positions": position_data,
         "position_count": len(pos_list),
         "total_exposure": total_exposure,
         "net_exposure": net_exposure,
-
         # Pending orders
         "pending_orders": [],
         "pending_order_count": 0,
-
         # Fingerprints (immutable)
         "fingerprints": {
             "r4_manifest": r4_fingerprint,
@@ -311,7 +401,6 @@ def main() -> None:
             "strategy_version": manifest.strategy_version,
             "data_terminal_id": manifest.data_terminal_id,
         },
-
         # Gate records
         "gates": {
             "pre_trading_decision": auth.decision,
@@ -319,7 +408,6 @@ def main() -> None:
             "pre_trading_checks_total": auth.total_checks,
             "pre_trading_hash": auth.authorization_fingerprint,
         },
-
         # Frozen risk limits
         "risk_limits": {
             "max_drawdown_pct": policy.max_drawdown_pct,
@@ -329,7 +417,6 @@ def main() -> None:
             "max_concentration_pct": policy.max_concentration_pct,
             "max_asset_class_exposure_pct": policy.max_asset_class_exposure_pct,
         },
-
         # Frozen campaign parameters
         "campaign_params": {
             "max_equity": capital_config.max_equity,
@@ -340,10 +427,8 @@ def main() -> None:
             "max_daily_loss": capital_config.max_daily_loss,
             "campaign_duration_days": capital_config.campaign_duration_days,
         },
-
         # Symbol specs at T=0
         "symbol_specs": symbol_specs,
-
         # Capital-scale instrument eligibility (broker-derived)
         "instrument_eligibility": {
             "position_limit": cap_cfg.max_position_size,
@@ -353,24 +438,42 @@ def main() -> None:
             "ineligible_count": len(ineligible_syms),
             "details": eligibility["symbols"],
         },
-
         # Research universe vs executable universe
         "universes": {
             "research_universe": R4_SYMBOLS,
             "executable_universe": eligible_syms,
             "excluded_by_scale": ineligible_syms,
         },
-
         # Pre-campaign operational validation trades
         # (executed before T=0 to verify the execution pipeline)
         "pre_campaign_trades": {
             "classification": "operational_validation",
             "description": "Real MT5 orders executed to prove frozen R4 → live MT5 → order → fill → reconciliation pipeline works. Not part of MINIMAL qualification statistics.",
             "trades": [
-                {"symbol": "AUDUSD", "side": "BUY", "volume": 0.01, "context": "pipeline_validation"},
-                {"symbol": "US500", "side": "BUY", "volume": 0.14, "context": "pipeline_validation"},
-                {"symbol": "USDCHF", "side": "BUY", "volume": 0.01, "context": "pipeline_validation"},
-                {"symbol": "USOIL", "side": "BUY", "volume": 0.01, "context": "pipeline_validation"},
+                {
+                    "symbol": "AUDUSD",
+                    "side": "BUY",
+                    "volume": 0.01,
+                    "context": "pipeline_validation",
+                },
+                {
+                    "symbol": "US500",
+                    "side": "BUY",
+                    "volume": 0.14,
+                    "context": "pipeline_validation",
+                },
+                {
+                    "symbol": "USDCHF",
+                    "side": "BUY",
+                    "volume": 0.01,
+                    "context": "pipeline_validation",
+                },
+                {
+                    "symbol": "USOIL",
+                    "side": "BUY",
+                    "volume": 0.01,
+                    "context": "pipeline_validation",
+                },
             ],
             "total_pre_campaign_trades": 4,
         },
@@ -420,10 +523,12 @@ def main() -> None:
     ]
 
     if pos_list:
-        md_lines.extend([
-            "| Ticket | Symbol | Side | Volume | Entry | P&L |",
-            "|---|---|---|---|---|---|",
-        ])
+        md_lines.extend(
+            [
+                "| Ticket | Symbol | Side | Volume | Entry | P&L |",
+                "|---|---|---|---|---|---|",
+            ]
+        )
         for p in position_data:
             md_lines.append(
                 f"| {p['ticket']} | {p['symbol']} | {p['side']} | "
@@ -432,21 +537,23 @@ def main() -> None:
     else:
         md_lines.append("*Clean slate — no open positions.*")
 
-    md_lines.extend([
-        "",
-        f"- Total exposure: ${total_exposure:,.2f}",
-        f"- Net exposure: ${net_exposure:,.2f}",
-        "",
-        "## Instrument Eligibility (Broker-Derived)",
-        "",
-        f"**Position Limit:** ${cap_cfg.max_position_size:,.0f}",
-        f"**Eligible:** {len(eligible_syms)}/{len(R4_SYMBOLS)} | **Ineligible:** {len(ineligible_syms)}/{len(R4_SYMBOLS)}",
-        "",
-        "### Research Universe vs Executable Universe",
-        "",
-        "| Symbol | Asset Class | Min Notional | Status |",
-        "|---|---|---|---|",
-    ])
+    md_lines.extend(
+        [
+            "",
+            f"- Total exposure: ${total_exposure:,.2f}",
+            f"- Net exposure: ${net_exposure:,.2f}",
+            "",
+            "## Instrument Eligibility (Broker-Derived)",
+            "",
+            f"**Position Limit:** ${cap_cfg.max_position_size:,.0f}",
+            f"**Eligible:** {len(eligible_syms)}/{len(R4_SYMBOLS)} | **Ineligible:** {len(ineligible_syms)}/{len(R4_SYMBOLS)}",
+            "",
+            "### Research Universe vs Executable Universe",
+            "",
+            "| Symbol | Asset Class | Min Notional | Status |",
+            "|---|---|---|---|",
+        ]
+    )
 
     for s in eligibility["symbols"]:
         icon = "✅" if s["eligible"] else "❌"
@@ -455,41 +562,43 @@ def main() -> None:
             f"| {s['symbol']} | {s['asset_class']} | ${s['min_notional']:,.2f} | {icon} {status} |"
         )
 
-    md_lines.extend([
-        "",
-        "*Research universe ≠ executable universe at every capital scale.*",
-        "*Exclusions are broker-derived from MT5 contract specifications.*",
-        "",
-        "## Pre-Campaign Operational Validation Trades",
-        "",
-        "*These 4 real orders were executed BEFORE the T=0 snapshot to prove the*",
-        "*execution pipeline works. They are classified as operational validation,*",
-        "*not part of MINIMAL qualification statistics.*",
-        "",
-        "| Symbol | Side | Volume | Context |",
-        "|---|---|---|---|",
-        "| AUDUSD | BUY | 0.01 | pipeline_validation |",
-        "| US500 | BUY | 0.14 | pipeline_validation |",
-        "| USDCHF | BUY | 0.01 | pipeline_validation |",
-        "| USOIL | BUY | 0.01 | pipeline_validation |",
-        "",
-        "## Fingerprints (Immutable)",
-        "",
-        "| Component | Hash |",
-        "|---|---|",
-        f"| R4 Manifest | `{r4_fingerprint[:32]}...` |",
-        f"| Risk Policy | `{policy_fingerprint[:32]}...` |",
-        f"| Broker Config | `{broker_fingerprint[:32]}...` |",
-        f"| Capital Config | `{capital_fingerprint[:32]}...` |",
-        f"| Strategy Version | {manifest.strategy_version} |",
-        f"| Terminal ID | {manifest.data_terminal_id} |",
-        "",
-        "## Pre-Trading Validation",
-        "",
-        f"**Decision:** {auth.decision}",
-        f"**Checks:** {auth.passed_checks}/{auth.total_checks} passed",
-        "",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "*Research universe ≠ executable universe at every capital scale.*",
+            "*Exclusions are broker-derived from MT5 contract specifications.*",
+            "",
+            "## Pre-Campaign Operational Validation Trades",
+            "",
+            "*These 4 real orders were executed BEFORE the T=0 snapshot to prove the*",
+            "*execution pipeline works. They are classified as operational validation,*",
+            "*not part of MINIMAL qualification statistics.*",
+            "",
+            "| Symbol | Side | Volume | Context |",
+            "|---|---|---|---|",
+            "| AUDUSD | BUY | 0.01 | pipeline_validation |",
+            "| US500 | BUY | 0.14 | pipeline_validation |",
+            "| USDCHF | BUY | 0.01 | pipeline_validation |",
+            "| USOIL | BUY | 0.01 | pipeline_validation |",
+            "",
+            "## Fingerprints (Immutable)",
+            "",
+            "| Component | Hash |",
+            "|---|---|",
+            f"| R4 Manifest | `{r4_fingerprint[:32]}...` |",
+            f"| Risk Policy | `{policy_fingerprint[:32]}...` |",
+            f"| Broker Config | `{broker_fingerprint[:32]}...` |",
+            f"| Capital Config | `{capital_fingerprint[:32]}...` |",
+            f"| Strategy Version | {manifest.strategy_version} |",
+            f"| Terminal ID | {manifest.data_terminal_id} |",
+            "",
+            "## Pre-Trading Validation",
+            "",
+            f"**Decision:** {auth.decision}",
+            f"**Checks:** {auth.passed_checks}/{auth.total_checks} passed",
+            "",
+        ]
+    )
 
     for c in auth.checks:
         icon = "✅" if c.passed else ("❌" if c.severity == "CRITICAL" else "⚠️")
@@ -498,33 +607,35 @@ def main() -> None:
             md_lines.append(f"  - Expected: {c.expected}")
             md_lines.append(f"  - Observed: {c.observed}")
 
-    md_lines.extend([
-        "",
-        "## Frozen Risk Limits",
-        "",
-        "| Limit | Value |",
-        "|---|---|",
-        f"| Max drawdown | {policy.max_drawdown_pct:.1f}% |",
-        f"| Daily loss limit | ${policy.daily_loss_limit:,.0f} |",
-        f"| Max gross leverage | {policy.max_gross_leverage:.2f}x |",
-        f"| Max positions | {policy.max_position_count} |",
-        "",
-        "## Frozen Campaign Parameters",
-        "",
-        "| Parameter | Value |",
-        "|---|---|",
-        f"| Max equity | ${capital_config.max_equity:,.0f} |",
-        f"| Max position size | ${capital_config.max_position_size:,.0f} |",
-        f"| Max order notional | ${capital_config.max_order_notional:,.0f} |",
-        f"| Max concurrent | {capital_config.max_concurrent_positions} |",
-        f"| Campaign duration | {capital_config.campaign_duration_days} days |",
-        "",
-        "---",
-        "",
-        "*This snapshot is the immutable T=0 reference.*",
-        "*All subsequent R4 trades are interpreted relative to this state.*",
-        f"*Tamper detection: SHA-256 `{snapshot_hash}`*",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "## Frozen Risk Limits",
+            "",
+            "| Limit | Value |",
+            "|---|---|",
+            f"| Max drawdown | {policy.max_drawdown_pct:.1f}% |",
+            f"| Daily loss limit | ${policy.daily_loss_limit:,.0f} |",
+            f"| Max gross leverage | {policy.max_gross_leverage:.2f}x |",
+            f"| Max positions | {policy.max_position_count} |",
+            "",
+            "## Frozen Campaign Parameters",
+            "",
+            "| Parameter | Value |",
+            "|---|---|",
+            f"| Max equity | ${capital_config.max_equity:,.0f} |",
+            f"| Max position size | ${capital_config.max_position_size:,.0f} |",
+            f"| Max order notional | ${capital_config.max_order_notional:,.0f} |",
+            f"| Max concurrent | {capital_config.max_concurrent_positions} |",
+            f"| Campaign duration | {capital_config.campaign_duration_days} days |",
+            "",
+            "---",
+            "",
+            "*This snapshot is the immutable T=0 reference.*",
+            "*All subsequent R4 trades are interpreted relative to this state.*",
+            f"*Tamper detection: SHA-256 `{snapshot_hash}`*",
+        ]
+    )
 
     md_path = os.path.join(REPORT_DIR, "t0_snapshot.md")
     with open(md_path, "w") as f:

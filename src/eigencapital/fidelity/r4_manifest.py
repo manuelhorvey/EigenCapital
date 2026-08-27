@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 
 @dataclass(frozen=True)
@@ -39,49 +39,51 @@ class R4ConfigManifest:
     data_bar_count: int = 31790
 
     # Universe
-    universe: Dict[str, str] = field(default_factory=lambda: {
-        "EURUSDm": "forex",
-        "GBPUSDm": "forex",
-        "USDJPYm": "forex",
-        "AUDUSDm": "forex",
-        "USDCADm": "forex",
-        "USDCHFm": "forex",
-        "NZDUSDm": "forex",
-        "XAUUSDm": "metals",
-        "XAGUSDm": "metals",
-        "US500m": "indices",
-        "US30m": "indices",
-        "USTECm": "indices",
-        "BTCUSDm": "crypto",
-        "ETHUSDm": "crypto",
-        "USOILm": "energy",
-    })
+    universe: Dict[str, str] = field(
+        default_factory=lambda: {
+            "EURUSDm": "forex",
+            "GBPUSDm": "forex",
+            "USDJPYm": "forex",
+            "AUDUSDm": "forex",
+            "USDCADm": "forex",
+            "USDCHFm": "forex",
+            "NZDUSDm": "forex",
+            "XAUUSDm": "metals",
+            "XAGUSDm": "metals",
+            "US500m": "indices",
+            "US30m": "indices",
+            "USTECm": "indices",
+            "BTCUSDm": "crypto",
+            "ETHUSDm": "crypto",
+            "USOILm": "energy",
+        }
+    )
 
     # Risk parameters (R4 pre-registered)
-    crypto_max_allocation: float = 0.10       # 10% max crypto
-    asset_risk_limit: float = 0.02            # 2% max risk per asset
-    correlation_threshold: float = 0.7        # reduce weight above this
-    drawdown_control_threshold: float = -0.15 # reduce exposure after -15% DD
+    crypto_max_allocation: float = 0.10  # 10% max crypto
+    asset_risk_limit: float = 0.02  # 2% max risk per asset
+    correlation_threshold: float = 0.7  # reduce weight above this
+    drawdown_control_threshold: float = -0.15  # reduce exposure after -15% DD
     drawdown_control_reduction: float = 0.50  # reduce by 50%
-    regime_vol_lookback: int = 20             # days for regime detection
-    regime_high_vol_threshold: float = 0.75   # 75th percentile = high vol
+    regime_vol_lookback: int = 20  # days for regime detection
+    regime_high_vol_threshold: float = 0.75  # 75th percentile = high vol
 
     # Volatility targeting
-    vol_target_annual: float = 0.10           # 10% target vol
-    vol_lookback: int = 20                    # days for vol estimation
+    vol_target_annual: float = 0.10  # 10% target vol
+    vol_lookback: int = 20  # days for vol estimation
 
     # Risk parity
     risk_parity_method: str = "equal_risk_contribution"
-    risk_parity_rebalance: int = 21           # monthly
+    risk_parity_rebalance: int = 21  # monthly
 
     # Signal parameters
-    signal_lookback_short: int = 63           # 3 months
-    signal_lookback_long: int = 252           # 12 months
+    signal_lookback_short: int = 63  # 3 months
+    signal_lookback_long: int = 252  # 12 months
     signal_combination: str = "risk_conditioned"
 
     # Execution assumptions
-    transaction_cost_bps: float = 10.0        # 10 bps per trade
-    slippage_bps: float = 5.0                 # 5 bps slippage
+    transaction_cost_bps: float = 10.0  # 10 bps per trade
+    slippage_bps: float = 5.0  # 5 bps slippage
     rebalance_frequency: str = "weekly"
 
     # Cost model
@@ -90,7 +92,7 @@ class R4ConfigManifest:
 
     # Validation
     walk_forward_folds: int = 5
-    stress_max_dd_threshold: float = -0.25    # -25% max stress DD
+    stress_max_dd_threshold: float = -0.25  # -25% max stress DD
     min_sharpe_threshold: float = 0.5
 
     def compute_identity(self) -> str:

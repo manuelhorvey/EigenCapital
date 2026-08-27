@@ -311,8 +311,7 @@ class HealthGate:
         try:
             report = self._monitor.assess(snapshot, **kwargs)
             state = str(getattr(report, "state", "")).split(".")[-1].lower()
-            if not getattr(report, "is_operational", False) and \
-                    state == "degraded":
+            if not getattr(report, "is_operational", False) and state == "degraded":
                 state = "critical"
             action = self._ACTION_BY_STATE.get(state, HealthGateAction.HALT)
         except Exception as exc:  # noqa: BLE001 - fail closed on ANY error
@@ -332,9 +331,10 @@ class HealthGate:
         prev = ""
         for t in self._transitions:
             expect = hashlib.sha256(
-                (prev + json.dumps(
-                    {k: t[k] for k in ("action", "state")},
-                    sort_keys=True)).encode()
+                (
+                    prev
+                    + json.dumps({k: t[k] for k in ("action", "state")}, sort_keys=True)
+                ).encode()
             ).hexdigest()
             if t["digest"] != expect:
                 return False
@@ -401,8 +401,9 @@ class DisconnectRecovery:
     ) -> str:
         if self._state is not RecoveryState.RECONCILING:
             return f"INVALID:{self._state.value}"
-        if not (positions_match and orders_match and equity_match
-                and fingerprint_match):
+        if not (
+            positions_match and orders_match and equity_match and fingerprint_match
+        ):
             self._mismatch = details or "unspecified_broker_mismatch"
             self._state = RecoveryState.HALTED
             return "HALT_RECONCILE_OR_FLATTEN"
@@ -423,17 +424,35 @@ class DisconnectRecovery:
             return f"INVALID:{self._state.value}"
         if not self._reconciled:
             return "INVALID:reconciliation_not_submitted"
-        checks = [data_fresh, positions_reconciled, no_unexpected_orders,
-                  risk_limits_passing, config_fingerprint_unchanged,
-                  health_state.lower() == "healthy", not kill_switch_active]
+        checks = [
+            data_fresh,
+            positions_reconciled,
+            no_unexpected_orders,
+            risk_limits_passing,
+            config_fingerprint_unchanged,
+            health_state.lower() == "healthy",
+            not kill_switch_active,
+        ]
         if all(checks):
             self._state = RecoveryState.RESUMED
             return "TRADING_RESUMED"
         self._state = RecoveryState.HALTED
-        failed = [n for n, ok in zip(
-            ["data_fresh", "positions_reconciled", "no_unexpected_orders",
-             "risk_limits_passing", "config_fingerprint_unchanged",
-             "health_healthy", "no_kill_switch"], checks) if not ok]
+        failed = [
+            n
+            for n, ok in zip(
+                [
+                    "data_fresh",
+                    "positions_reconciled",
+                    "no_unexpected_orders",
+                    "risk_limits_passing",
+                    "config_fingerprint_unchanged",
+                    "health_healthy",
+                    "no_kill_switch",
+                ],
+                checks,
+            )
+            if not ok
+        ]
         return "HALT:" + ",".join(failed)
 
     def authorize_reset(self) -> str:

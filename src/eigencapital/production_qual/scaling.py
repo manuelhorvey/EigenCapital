@@ -10,20 +10,20 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 
 
 class ScaleLevel(str, Enum):
     """Capital scaling levels."""
 
-    MICRO = "micro"           # $1,000 (Phase 1T)
-    MINIMAL = "minimal"       # $5,000
-    SMALL = "small"           # $25,000
-    MODERATE = "moderate"     # $100,000
-    STANDARD = "standard"     # $500,000
-    FULL = "full"             # $1,000,000+
+    MICRO = "micro"  # $1,000 (Phase 1T)
+    MINIMAL = "minimal"  # $5,000
+    SMALL = "small"  # $25,000
+    MODERATE = "moderate"  # $100,000
+    STANDARD = "standard"  # $500,000
+    FULL = "full"  # $1,000,000+
 
 
 @dataclass(frozen=True)
@@ -158,9 +158,9 @@ class ProductionScaleEvaluator:
     """Evaluates whether scaling remains inside validated envelope."""
 
     MAX_SLIPPAGE_DETERIORATION: float = 2.0  # max 2x slippage
-    MAX_SPREAD_DETERIORATION: float = 2.0    # max 2x spread
-    MIN_FILL_RATE_RETENTION: float = 0.90    # retain 90% of micro fill rate
-    MAX_MARGIN_USAGE: float = 0.50           # max 50% margin usage
+    MAX_SPREAD_DETERIORATION: float = 2.0  # max 2x spread
+    MIN_FILL_RATE_RETENTION: float = 0.90  # retain 90% of micro fill rate
+    MAX_MARGIN_USAGE: float = 0.50  # max 50% margin usage
 
     def evaluate(
         self,
@@ -193,7 +193,8 @@ class ProductionScaleEvaluator:
 
         # Margin check
         checks["margin"] = {
-            "passed": not metrics.margin_pressure and metrics.margin_usage <= self.MAX_MARGIN_USAGE,
+            "passed": not metrics.margin_pressure
+            and metrics.margin_usage <= self.MAX_MARGIN_USAGE,
             "usage": metrics.margin_usage,
             "threshold": self.MAX_MARGIN_USAGE,
         }

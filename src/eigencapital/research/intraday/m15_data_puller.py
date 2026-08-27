@@ -10,7 +10,7 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -37,6 +37,7 @@ TIMEFRAME_M15 = 15  # MT5 timeframe constant for M15
 @dataclass
 class M15DataManifest:
     """Frozen data snapshot identity for Campaign 4 (15M research)."""
+
     broker: str
     terminal_id: str
     symbols: List[str]
@@ -123,6 +124,7 @@ def pull_m15_data(
 
     try:
         from mt5linux import MetaTrader5
+
         mt5 = MetaTrader5(host=host, port=port)
         if not mt5.initialize():
             raise RuntimeError(f"MT5 connection failed on {host}:{port}")
@@ -139,10 +141,14 @@ def pull_m15_data(
                 all_frames: List[pd.DataFrame] = []
 
                 for offset in range(0, MAX_BARS, CHUNK_SIZE):
-                    rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_M15, offset, CHUNK_SIZE)
+                    rates = mt5.copy_rates_from_pos(
+                        symbol, TIMEFRAME_M15, offset, CHUNK_SIZE
+                    )
                     if rates is None or len(rates) == 0:
                         break
-                    all_frames.append(pd.DataFrame(rates.tolist(), columns=rates.dtype.names))
+                    all_frames.append(
+                        pd.DataFrame(rates.tolist(), columns=rates.dtype.names)
+                    )
 
                 if not all_frames:
                     logger.warning(f"No M15 data for {symbol}")
@@ -150,7 +156,11 @@ def pull_m15_data(
 
                 df = pd.concat(all_frames, ignore_index=True)
                 df["time"] = pd.to_datetime(df["time"], unit="s")
-                df = df.drop_duplicates(subset="time").sort_values("time").reset_index(drop=True)
+                df = (
+                    df.drop_duplicates(subset="time")
+                    .sort_values("time")
+                    .reset_index(drop=True)
+                )
 
                 logger.info(
                     f"  {symbol}: {len(df)} M15 bars | "

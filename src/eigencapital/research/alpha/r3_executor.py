@@ -35,8 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 import numpy as np
 import pandas as pd
@@ -55,7 +54,6 @@ R3_FREEZE = {
     "version": "1.0",
     "frozen_before_execution": True,
     "hypothesis": "Risk-normalized continuation contains diversified alpha",
-
     # Alpha signal (frozen from R2)
     "signal": {
         "type": "12_1_momentum",
@@ -63,7 +61,6 @@ R3_FREEZE = {
         "skip": 21,
         "universe": "all_39_symbols",
     },
-
     # Vol targeting (frozen)
     "vol_targeting": {
         "target_vol": 0.10,
@@ -72,14 +69,12 @@ R3_FREEZE = {
         "min_leverage": 0.1,
         "rebalance": "daily",
     },
-
     # Regime conditioning (frozen)
     "regime_conditioning": {
         "method": "cross_asset_risk",
         "risk_lookback": 20,
         "threshold": "expanding_median",
     },
-
     # Asset class constraints (frozen)
     "asset_constraints": {
         "crypto_max_weight": 0.15,
@@ -88,14 +83,12 @@ R3_FREEZE = {
         "metal_max_weight": 0.20,
         "commodity_max_weight": 0.10,
     },
-
     # Transaction costs (frozen)
     "costs": {
         "per_trade_bps": 10,
         "spread_bps": 5,
         "slippage_bps": 3,
     },
-
     # Validation (frozen)
     "validation": {
         "walk_forward_folds": 3,
@@ -103,7 +96,6 @@ R3_FREEZE = {
         "test_bars": 252,
         "significance_level": 0.05,
     },
-
     # Stress testing (frozen)
     "stress": {
         "cost_multiplier": [1, 2, 3],
@@ -116,6 +108,7 @@ R3_FREEZE = {
 # ============================================================
 # Walk-Forward Validation Engine
 # ============================================================
+
 
 class WalkForwardValidator:
     """Walk-forward validation — the 1G equivalent."""
@@ -152,29 +145,49 @@ class WalkForwardValidator:
             test_ret = returns.iloc[test_start:test_end]
 
             # In-sample metrics
-            is_sharpe = train_ret.mean() / train_ret.std() * np.sqrt(252) if train_ret.std() > 0 else 0
+            is_sharpe = (
+                train_ret.mean() / train_ret.std() * np.sqrt(252)
+                if train_ret.std() > 0
+                else 0
+            )
 
             # Out-of-sample metrics
-            oos_sharpe = test_ret.mean() / test_ret.std() * np.sqrt(252) if test_ret.std() > 0 else 0
+            oos_sharpe = (
+                test_ret.mean() / test_ret.std() * np.sqrt(252)
+                if test_ret.std() > 0
+                else 0
+            )
             oos_sharpes.append(oos_sharpe)
             oos_returns.append(test_ret)
 
-            fold_details.append({
-                "fold": i + 1,
-                "train_period": f"{train_ret.index[0].date()} to {train_ret.index[-1].date()}",
-                "test_period": f"{test_ret.index[0].date()} to {test_ret.index[-1].date()}",
-                "is_sharpe": float(is_sharpe),
-                "oos_sharpe": float(oos_sharpe),
-                "oos_return": float(test_ret.mean() * 252),
-                "oos_dd": float(((1 + test_ret).cumprod() / (1 + test_ret).cumprod().expanding().max() - 1).min()),
-            })
+            fold_details.append(
+                {
+                    "fold": i + 1,
+                    "train_period": f"{train_ret.index[0].date()} to {train_ret.index[-1].date()}",
+                    "test_period": f"{test_ret.index[0].date()} to {test_ret.index[-1].date()}",
+                    "is_sharpe": float(is_sharpe),
+                    "oos_sharpe": float(oos_sharpe),
+                    "oos_return": float(test_ret.mean() * 252),
+                    "oos_dd": float(
+                        (
+                            (1 + test_ret).cumprod()
+                            / (1 + test_ret).cumprod().expanding().max()
+                            - 1
+                        ).min()
+                    ),
+                }
+            )
 
         if not oos_sharpes:
             return {"passed": False, "reason": "no_complete_folds", "label": label}
 
         # Combine OOS returns
         combined_oos = pd.concat(oos_returns)
-        overall_oos_sharpe = combined_oos.mean() / combined_oos.std() * np.sqrt(252) if combined_oos.std() > 0 else 0
+        overall_oos_sharpe = (
+            combined_oos.mean() / combined_oos.std() * np.sqrt(252)
+            if combined_oos.std() > 0
+            else 0
+        )
 
         # Degradation check: OOS should be >= 50% of IS
         avg_is = np.mean([f["is_sharpe"] for f in fold_details])
@@ -185,11 +198,7 @@ class WalkForwardValidator:
         positive_folds = sum(1 for s in oos_sharpes if s > 0)
         consistency = positive_folds / len(oos_sharpes)
 
-        passed = (
-            overall_oos_sharpe > 0.3
-            and consistency >= 0.5
-            and degradation < 0.7
-        )
+        passed = overall_oos_sharpe > 0.3 and consistency >= 0.5 and degradation < 0.7
 
         return {
             "passed": passed,
@@ -203,7 +212,13 @@ class WalkForwardValidator:
             "total_folds": len(oos_sharpes),
             "fold_details": fold_details,
             "oos_total_return": float(combined_oos.mean() * 252),
-            "oos_max_dd": float(((1 + combined_oos).cumprod() / (1 + combined_oos).cumprod().expanding().max() - 1).min()),
+            "oos_max_dd": float(
+                (
+                    (1 + combined_oos).cumprod()
+                    / (1 + combined_oos).cumprod().expanding().max()
+                    - 1
+                ).min()
+            ),
         }
 
 
@@ -211,10 +226,13 @@ class WalkForwardValidator:
 # Stress Testing Engine
 # ============================================================
 
+
 class StressTester:
     """Stress testing — the 1H equivalent."""
 
-    def __init__(self, cost_multipliers: List[float] = None, vol_shocks: List[float] = None):
+    def __init__(
+        self, cost_multipliers: List[float] = None, vol_shocks: List[float] = None
+    ):
         self._cost_multipliers = cost_multipliers or [1, 2, 3]
         self._vol_shocks = vol_shocks or [1.5, 2.0]
 
@@ -244,19 +262,31 @@ class StressTester:
         # 2. Volatility shock
         for shock in self._vol_shocks:
             # During vol spikes, drawdowns are amplified
-            stressed_dd = ((1 + returns).cumprod() / (1 + returns).cumprod().expanding().max() - 1).min() * shock
+            stressed_dd = (
+                (1 + returns).cumprod() / (1 + returns).cumprod().expanding().max() - 1
+            ).min() * shock
             scenarios[f"vol_shock_{shock}x"] = {
                 "stressed_max_dd": float(stressed_dd),
                 "shock_multiplier": float(shock),
             }
 
         # 3. Drawdown breach check
-        raw_dd = ((1 + returns).cumprod() / (1 + returns).cumprod().expanding().max() - 1).min()
+        raw_dd = (
+            (1 + returns).cumprod() / (1 + returns).cumprod().expanding().max() - 1
+        ).min()
         dd_breach = raw_dd < -0.25
 
         # 4. Regime-specific performance
-        spy_vol = returns.rolling(20).std() * np.sqrt(252) if len(returns) > 20 else pd.Series(dtype=float)
-        high_vol_mask = spy_vol > spy_vol.median() if len(spy_vol) > 0 else pd.Series(False, index=returns.index)
+        spy_vol = (
+            returns.rolling(20).std() * np.sqrt(252)
+            if len(returns) > 20
+            else pd.Series(dtype=float)
+        )
+        high_vol_mask = (
+            spy_vol > spy_vol.median()
+            if len(spy_vol) > 0
+            else pd.Series(False, index=returns.index)
+        )
         low_vol_mask = ~high_vol_mask
 
         high_vol_ret = returns[high_vol_mask].mean() * 252 if high_vol_mask.any() else 0
@@ -268,10 +298,7 @@ class StressTester:
             "regime_dependency": float(abs(high_vol_ret - low_vol_ret)),
         }
 
-        passed = (
-            not dd_breach
-            and scenarios.get("cost_2x", {}).get("sharpe", 0) > 0
-        )
+        passed = not dd_breach and scenarios.get("cost_2x", {}).get("sharpe", 0) > 0
 
         return {
             "passed": passed,
@@ -286,6 +313,7 @@ class StressTester:
 # R3 Campaign Executor
 # ============================================================
 
+
 class R3CampaignExecutor:
     """Executes the pre-registered R3 campaign."""
 
@@ -295,11 +323,13 @@ class R3CampaignExecutor:
         data, manifest = provider.load_from_csv()
 
         # Compute returns
-        returns_df = pd.DataFrame({
-            sym: df["close"].pct_change()
-            for sym, df in data.items()
-            if "close" in df.columns
-        }).dropna(how="all")
+        returns_df = pd.DataFrame(
+            {
+                sym: df["close"].pct_change()
+                for sym, df in data.items()
+                if "close" in df.columns
+            }
+        ).dropna(how="all")
 
         # ================================================================
         # Signal computation (frozen from R2)
@@ -319,7 +349,9 @@ class R3CampaignExecutor:
         print("A. RAW CONTINUATION (Control Group)")
         print("=" * 70)
 
-        raw_ret = (weights.shift(1) * returns_df).sum(axis=1) / weights.abs().sum(axis=1).replace(0, np.nan)
+        raw_ret = (weights.shift(1) * returns_df).sum(axis=1) / weights.abs().sum(
+            axis=1
+        ).replace(0, np.nan)
         raw_ret = raw_ret.dropna()
         raw_turnover = weights.diff().abs().sum(axis=1).mean() * 252
 
@@ -358,7 +390,9 @@ class R3CampaignExecutor:
         print(f"  Degradation: {vt_wf.get('degradation', 0):.1%}")
         print(f"  Consistency: {vt_wf.get('consistency', 0):.1%}")
 
-        vt_stress = st.stress_test(vt_ret, raw_turnover * 0.5, "vol_targeted_continuation")
+        vt_stress = st.stress_test(
+            vt_ret, raw_turnover * 0.5, "vol_targeted_continuation"
+        )
         print(f"  Stress: {'✅ PASSED' if vt_stress['passed'] else '❌ FAILED'}")
         print(f"  VT Max DD: {vt_stress['raw_max_dd']:.3f}")
 
@@ -375,7 +409,9 @@ class R3CampaignExecutor:
         regime = (avg_vol < risk_median).astype(float)
         rc_weights = weights.multiply(regime, axis=0)
 
-        rc_ret = (rc_weights.shift(1) * returns_df).sum(axis=1) / rc_weights.abs().sum(axis=1).replace(0, np.nan)
+        rc_ret = (rc_weights.shift(1) * returns_df).sum(axis=1) / rc_weights.abs().sum(
+            axis=1
+        ).replace(0, np.nan)
         rc_ret = rc_ret.dropna()
 
         rc_wf = wf.validate(rc_ret, "risk_conditioned_continuation")
@@ -384,7 +420,9 @@ class R3CampaignExecutor:
         print(f"  Degradation: {rc_wf.get('degradation', 0):.1%}")
         print(f"  Consistency: {rc_wf.get('consistency', 0):.1%}")
 
-        rc_stress = st.stress_test(rc_ret, raw_turnover * 0.6, "risk_conditioned_continuation")
+        rc_stress = st.stress_test(
+            rc_ret, raw_turnover * 0.6, "risk_conditioned_continuation"
+        )
         print(f"  Stress: {'✅ PASSED' if rc_stress['passed'] else '❌ FAILED'}")
         print(f"  RC Max DD: {rc_stress['raw_max_dd']:.3f}")
 
@@ -396,16 +434,22 @@ class R3CampaignExecutor:
         print("=" * 70)
 
         combined_weights = rc_weights.multiply(scale, axis=0)
-        combined_ret = (combined_weights.shift(1) * returns_df).sum(axis=1) / combined_weights.abs().sum(axis=1).replace(0, np.nan)
+        combined_ret = (combined_weights.shift(1) * returns_df).sum(
+            axis=1
+        ) / combined_weights.abs().sum(axis=1).replace(0, np.nan)
         combined_ret = combined_ret.dropna()
 
         combined_wf = wf.validate(combined_ret, "combined_portfolio")
-        print(f"  Walk-forward: {'✅ PASSED' if combined_wf['passed'] else '❌ FAILED'}")
+        print(
+            f"  Walk-forward: {'✅ PASSED' if combined_wf['passed'] else '❌ FAILED'}"
+        )
         print(f"  OOS Sharpe: {combined_wf.get('overall_oos_sharpe', 0):.3f}")
         print(f"  Degradation: {combined_wf.get('degradation', 0):.1%}")
         print(f"  Consistency: {combined_wf.get('consistency', 0):.1%}")
 
-        combined_stress = st.stress_test(combined_ret, raw_turnover * 0.3, "combined_portfolio")
+        combined_stress = st.stress_test(
+            combined_ret, raw_turnover * 0.3, "combined_portfolio"
+        )
         print(f"  Stress: {'✅ PASSED' if combined_stress['passed'] else '❌ FAILED'}")
         print(f"  Combined Max DD: {combined_stress['raw_max_dd']:.3f}")
 
@@ -420,7 +464,11 @@ class R3CampaignExecutor:
             "raw": {"wf": raw_wf, "stress": raw_stress, "returns": raw_ret},
             "vol_targeted": {"wf": vt_wf, "stress": vt_stress, "returns": vt_ret},
             "risk_conditioned": {"wf": rc_wf, "stress": rc_stress, "returns": rc_ret},
-            "combined": {"wf": combined_wf, "stress": combined_stress, "returns": combined_ret},
+            "combined": {
+                "wf": combined_wf,
+                "stress": combined_stress,
+                "returns": combined_ret,
+            },
         }
 
         verdicts = {}
@@ -446,8 +494,16 @@ class R3CampaignExecutor:
                 "stress_passed": stress_pass,
             }
 
-            status_icon = "✅" if verdict in ("VALIDATED",) else "⚠️" if verdict in ("CONDITIONAL", "FRAGILE") else "❌"
-            print(f"  {status_icon} {name:25s} → {verdict:15s} (OOS Sharpe: {oos_sharpe:.3f}, DD: {s['stress']['raw_max_dd']:.3f})")
+            status_icon = (
+                "✅"
+                if verdict in ("VALIDATED",)
+                else "⚠️"
+                if verdict in ("CONDITIONAL", "FRAGILE")
+                else "❌"
+            )
+            print(
+                f"  {status_icon} {name:25s} → {verdict:15s} (OOS Sharpe: {oos_sharpe:.3f}, DD: {s['stress']['raw_max_dd']:.3f})"
+            )
 
         # ================================================================
         # SUMMARY
@@ -465,16 +521,22 @@ class R3CampaignExecutor:
         improvement = combined_oos > raw_oos
         dd_reduction = (raw_dd - combined_dd) / raw_dd if raw_dd > 0 else 0
 
-        print(f"\n  Raw → Combined:")
-        print(f"    OOS Sharpe: {raw_oos:.3f} → {combined_oos:.3f} ({'↑' if improvement else '↓'} {abs(combined_oos - raw_oos):.3f})")
-        print(f"    Max DD:     {verdicts['raw']['max_dd']:.3f} → {verdicts['combined']['max_dd']:.3f} ({dd_reduction:.1%} reduction)")
+        print("\n  Raw → Combined:")
+        print(
+            f"    OOS Sharpe: {raw_oos:.3f} → {combined_oos:.3f} ({'↑' if improvement else '↓'} {abs(combined_oos - raw_oos):.3f})"
+        )
+        print(
+            f"    Max DD:     {verdicts['raw']['max_dd']:.3f} → {verdicts['combined']['max_dd']:.3f} ({dd_reduction:.1%} reduction)"
+        )
 
         # Overall evidence gate
-        all_wf_pass = all(v["wf_passed"] for v in verdicts.values())
+        all(v["wf_passed"] for v in verdicts.values())
         combined_validated = verdicts["combined"]["verdict"] == "VALIDATED"
 
         if combined_validated:
-            final_verdict = "SUPPORTED — risk-transformed continuation survives validation"
+            final_verdict = (
+                "SUPPORTED — risk-transformed continuation survives validation"
+            )
         elif verdicts["combined"]["wf_passed"]:
             final_verdict = "CONDITIONAL — OOS positive but stress concerns remain"
         else:
@@ -483,7 +545,9 @@ class R3CampaignExecutor:
         print(f"\n  FINAL: {final_verdict}")
 
         # Freeze hash
-        freeze_hash = hashlib.sha256(json.dumps(R3_FREEZE, sort_keys=True).encode()).hexdigest()[:16]
+        freeze_hash = hashlib.sha256(
+            json.dumps(R3_FREEZE, sort_keys=True).encode()
+        ).hexdigest()[:16]
         print(f"  Freeze: {freeze_hash}")
 
         return {

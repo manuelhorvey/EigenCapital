@@ -97,27 +97,27 @@ def _gate_named(results, name):
     return None
 
 
-# ── 1. Position Count Enforcement (THE CRITICAL BUG) ─────────────
+# ── 1. Position Count Enforcement ──────────────────────────────────
 
 class TestPositionCountEnforcement:
-    """Tests for the invariant that was violated: max_concurrent_positions <= 8."""
+    """Tests for position count enforcement (max_concurrent_positions=19)."""
 
     def test_zero_positions_allows_entries(self, enforcer):
-        """0 positions + 8 target orders → PASS."""
+        """0 positions + 19 target orders → PASS."""
         passed, results = enforcer.check_all(
             broker_positions=[],
             account_equity=5_010.94,
             account_free_margin=5_000.0,
-            target_orders=8,
+            target_orders=19,
         )
         gate = _gate_named(results, "position_count")
         assert gate.result == GateResult.PASS
-        assert "0/8" in gate.message
+        assert "0/19" in gate.message
         assert passed
 
-    def test_eight_positions_blocks_new_entries(self, enforcer):
-        """8 positions + 1 target order → BLOCK (the 9>8 prevention)."""
-        positions = [_make_position(f"SYM{i}") for i in range(8)]
+    def test_nineteen_positions_blocks_new_entries(self, enforcer):
+        """19 positions + 1 target order → BLOCK (would create #20)."""
+        positions = [_make_position(f"SYM{i}") for i in range(19)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -126,12 +126,12 @@ class TestPositionCountEnforcement:
         )
         gate = _gate_named(results, "position_count")
         assert gate.result == GateResult.BLOCK
-        assert "would create position #9" in gate.message.lower()
+        assert "would create position #20" in gate.message.lower()
         assert not passed
 
-    def test_nine_positions_is_critical_breach(self, enforcer):
-        """9 positions already exist → CRITICAL (breach already happened)."""
-        positions = [_make_position(f"SYM{i}") for i in range(9)]
+    def test_twenty_positions_is_critical_breach(self, enforcer):
+        """20 positions already exist → CRITICAL (breach already happened)."""
+        positions = [_make_position(f"SYM{i}") for i in range(20)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -143,9 +143,9 @@ class TestPositionCountEnforcement:
         assert "already breached" in gate.message.lower()
         assert not passed
 
-    def test_seven_positions_allows_one_entry(self, enforcer):
-        """7 positions + 1 target order → PASS."""
-        positions = [_make_position(f"SYM{i}") for i in range(7)]
+    def test_eighteen_positions_allows_one_entry(self, enforcer):
+        """18 positions + 1 target order → PASS."""
+        positions = [_make_position(f"SYM{i}") for i in range(18)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -154,11 +154,11 @@ class TestPositionCountEnforcement:
         )
         gate = _gate_named(results, "position_count")
         assert gate.result == GateResult.PASS
-        assert "7/8" in gate.message
+        assert "18/19" in gate.message
 
-    def test_seven_positions_blocks_two_entries(self, enforcer):
-        """7 positions + 2 target orders → BLOCK (would exceed limit)."""
-        positions = [_make_position(f"SYM{i}") for i in range(7)]
+    def test_eighteen_positions_blocks_two_entries(self, enforcer):
+        """18 positions + 2 target orders → BLOCK (would exceed limit)."""
+        positions = [_make_position(f"SYM{i}") for i in range(18)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -318,6 +318,10 @@ class TestPositionProtection:
         gate = _gate_named(results, "position_protection")
         assert gate.result == GateResult.CRITICAL
         assert "EURUSD" in gate.message
+        # Gate 6 CRITICAL does NOT early-exit (intentional design).
+        # R4 uses signal-based exits, not SL-based exits.
+        # CRITICAL is logged for audit trail but passed reflects all gates.
+        assert not passed  # CRITICAL gate means not all gates PASS
 
 
 # ── 6. Fingerprint Check ──────────────────────────────────────────
@@ -397,7 +401,7 @@ class TestFullPipeline:
 
     def test_block_stops_immediately(self, enforcer):
         """BLOCK on position count → remaining gates not checked."""
-        positions = [_make_position(f"SYM{i}") for i in range(8)]
+        positions = [_make_position(f"SYM{i}") for i in range(19)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -411,8 +415,8 @@ class TestFullPipeline:
 
     def test_multiple_gates_can_fail(self, enforcer):
         """When first gate passes but later gate blocks → BLOCK."""
-        # 8 positions but good equity → position_count blocks
-        positions = [_make_position(f"SYM{i}") for i in range(8)]
+        # 19 positions but good equity → position_count blocks
+        positions = [_make_position(f"SYM{i}") for i in range(19)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -427,14 +431,14 @@ class TestFullPipeline:
         assert pos.result == GateResult.BLOCK
 
 
-# ── 9. Regression: The 9>8 Scenario ──────────────────────────────
+# ── 9. Regression: Position Count Enforcement ──────────────────────
 
 class TestNinePositionRegression:
-    """Exact regression tests for the incident that caused the audit."""
+    """Regression tests for position count enforcement (max_concurrent=19)."""
 
-    def test_nine_broker_positions_critical(self, enforcer):
-        """EXACT SCENARIO: broker reports 9 positions → CRITICAL, not just BLOCK."""
-        positions = [_make_position(f"SYM{i}") for i in range(9)]
+    def test_twenty_broker_positions_critical(self, enforcer):
+        """Broker reports 20 positions → CRITICAL (breach already happened)."""
+        positions = [_make_position(f"SYM{i}") for i in range(20)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -446,9 +450,9 @@ class TestNinePositionRegression:
         assert "already breached" in gate.message.lower()
         assert not passed
 
-    def test_nine_positions_blocks_even_zero_target(self, enforcer):
-        """9 positions + 0 target orders → still CRITICAL (state is invalid)."""
-        positions = [_make_position(f"SYM{i}") for i in range(9)]
+    def test_twenty_positions_blocks_even_zero_target(self, enforcer):
+        """20 positions + 0 target orders → still CRITICAL (state is invalid)."""
+        positions = [_make_position(f"SYM{i}") for i in range(20)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_010.94,
@@ -458,9 +462,9 @@ class TestNinePositionRegression:
         assert not passed
 
     def test_enforce_max_concurrent_in_loop(self, enforcer):
-        """Simulate the loop's concurrency check: 8 positions → 0 slots."""
-        positions = [_make_position(f"SYM{i}") for i in range(8)]
-        max_concurrent = 8
+        """Simulate the loop's concurrency check: 19 positions → 0 slots."""
+        positions = [_make_position(f"SYM{i}") for i in range(19)]
+        max_concurrent = 19
         available_slots = max_concurrent - len(positions)
         assert available_slots == 0
         # No orders should be generated
@@ -484,7 +488,7 @@ class TestAuditTrail:
 
     def test_audit_records_block(self, enforcer):
         """Audit log captures BLOCKED state."""
-        positions = [_make_position(f"SYM{i}") for i in range(8)]
+        positions = [_make_position(f"SYM{i}") for i in range(19)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5_000.0,
@@ -511,8 +515,8 @@ class TestEdgeCases:
         assert passed
 
     def test_exact_boundary_one_over(self, enforcer):
-        """Exactly one over (9 positions) → CRITICAL."""
-        positions = [_make_position(f"SYM{i}") for i in range(9)]
+        """Exactly one over (20 positions) → CRITICAL."""
+        positions = [_make_position(f"SYM{i}") for i in range(20)]
         passed, results = enforcer.check_all(
             broker_positions=positions, account_equity=5_000.0, account_free_margin=4_900.0,
             target_orders=0,

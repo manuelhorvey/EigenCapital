@@ -1,374 +1,296 @@
-# ML4Trading Gap Analysis — Phased Implementation Roadmap
+# ML4Trading Gap Analysis — Phased Research Roadmap
 
-Based on: *Machine Learning for Algorithmic Trading* (Stefan Jansen, 2020)
+Based on: *Machine Learning for Algorithmic Trading* (Stefan Jansen, 3rd Edition, 2020)
 
-## Current State Assessment
+## Core Principle
 
-### What EigenCapital Does Well
+> **Don't build an ML trading system because ML4Trading says ML is powerful.**
+> **Build an ML layer because EigenCapital's evidence proves there is a specific prediction problem that ML can plausibly solve.**
 
-| Area | Status | Evidence |
-|------|--------|----------|
-| Factor-based signal construction | ✅ Strong | R4 momentum with multi-timeframe features |
-| Walk-forward validation | ✅ Strong | Embargo-aware walk-forward with out-of-sample testing |
-| Multiple-testing correction | ✅ Strong | Bonferroni, BH/FDR, deflated Sharpe ratio |
-| Falsification culture | ✅ Strong | R5 (16/16 rejected), M1-1H frozen, tick campaigns frozen |
-| Risk enforcement | ✅ Strong | 7-gate broker-authoritative enforcement |
-| Production infrastructure | ✅ Strong | Reconciliation, health states, event ledger |
-| Backtesting framework | ✅ Moderate | Cost-aware with basic execution modeling |
-| Alternative data hypothesis testing | ✅ Moderate | R5 breadth factor, sentiment hypotheses |
-
-### What EigenCapital Is Missing
-
-| Area | Gap | Impact |
-|------|-----|--------|
-| ML signal generation | No ML models in signal pipeline | High — potential alpha |
-| Portfolio optimization | Weight clipping only | Medium — risk-adjusted returns |
-| Transaction cost modeling | Basic spread/commission | Medium — needed at scale |
-| Covariance-aware sizing | AUD cluster not used in sizing | Medium — tail risk |
-| Bar aggregation | No tick → volume/dollar bars | Low — not needed for daily |
-| NLP/Alternative data pipelines | No NLP, sentiment, satellite | Low — Phase 5 |
-| Execution algorithms | No TWAP/VWAP/IS | Low — not needed at $5K |
+The book is a **research roadmap**, not a checklist of missing production features.
 
 ---
 
-## Phase A: ML Signal Generation (Post-Phase 2)
+## Where EigenCapital Is Now
+
+| Phase | Purpose | Status |
+|-------|---------|--------|
+| **Phase 0** | Research foundation | ✅ Done |
+| **Phase 1** | Production hardening | ✅ Done |
+| **Phase 2** | Prove R4 survives reality | 🟢 **RUNNING** |
+| **Phase 3** | Improve alpha/portfolio using evidence | ⏳ After Phase 2 |
+| **Phase 4** | Scale proven edges | ⏳ After Phase 3 |
+
+**We are squarely in Phase 2.** The best thing EigenCapital can do is sit there and trade frozen R4 under hardened infrastructure while collecting evidence. That's not "doing nothing" — that's the experiment that determines what we should build next.
+
+---
+
+## What EigenCapital Already Does Well
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Factor-based signal construction | ✅ | R4 momentum with multi-timeframe features |
+| Walk-forward validation | ✅ | Embargo-aware with out-of-sample testing |
+| Multiple-testing correction | ✅ | Bonferroni, BH/FDR, deflated Sharpe |
+| Falsification culture | ✅ | R5 (16/16 rejected), M1-1H frozen |
+| Risk enforcement | ✅ | 7-gate broker-authoritative enforcement |
+| Production infrastructure | ✅ | Reconciliation, health states, event ledger |
+| Backtesting framework | ✅ | Cost-aware with basic execution modeling |
+
+---
+
+## Phase 2 — KEEP RUNNING
+
+**Do not touch R4.** Collect live economic evidence.
+
+### Evidence Categories
+
+| Category | What to Measure |
+|----------|----------------|
+| **Entry** | Signal strength, spread, slippage, entry efficiency, initial MAE/MFE |
+| **Hold** | 1d/3d/5d/10d/20d/40d+ returns, MAE/MFE evolution, signal decay, regime changes |
+| **Exit** | Rotation, sign flip, regime exit, catastrophic SL, opportunity cost after exit |
+| **Portfolio** | Correlation, concentration, exposure, drawdown, daily loss, loss clustering |
+| **Execution** | Latency, rejects, partial fills, spread, swap, disconnects, reconciliation |
+
+### Exit Criteria
+
+Phase 2 ends when we can answer:
+- Does R4 make money live?
+- Do entries match research?
+- Does the 20-40 day thesis hold?
+- Are catastrophic SLs rare?
+- Is portfolio risk controlled?
+- Does the system survive failures?
+
+---
+
+## Phase 3 — The Alpha Factory
 
 **Trigger:** Phase 2 evidence confirms R4 has a live edge.
 
-**Objective:** Add a machine-learning signal layer that can be combined with R4's rules-based signal.
+### 3A — Understand R4 Before Replacing R4
 
-### A1. Feature Engineering Pipeline
+This is the most important phase. Before building ML, answer:
 
-```python
-# Target: Generate ML-ready features from existing R4 data
+| Question | Method |
+|----------|--------|
+| Why does Q5 work? | Feature importance analysis on live trades |
+| Why do Q1-Q4 fail? | Compare feature distributions Q5 vs Q1-Q4 |
+| Which features distinguish winners? | SHAP values, permutation importance |
+| Is momentum strength actually the alpha? | Ablation study |
+| Is volatility conditioning responsible? | Conditional analysis by regime |
+| Is cross-asset regime conditioning responsible? | Factor decomposition |
+| Is the edge asymmetric LONG vs SHORT? | Direction-specific analysis |
+| Which assets contribute the edge? | Per-asset attribution |
+| Which regimes destroy it? | Regime-conditional performance |
+| How much return comes from a small number of trades? | Return distribution analysis |
 
-Feature Categories:
-├── Momentum (existing R4 features)
-│   ├── ROC_1, ROC_5, ROC_20, ROC_60
-│   ├── Moving average crossover signals
-│   └── Volatility regime indicators
-├── Cross-sectional
-│   ├── Relative strength vs universe
-│   ├── Sector/factor exposure
-│   └── Correlation regime
-├── Microstructure
-│   ├── Spread dynamics
-│   ├── Volume profile
-│   └── Order flow imbalance (if available)
-├── Macro
-│   ├── VIX regime
-│   ├── Yield curve slope
-│   ├── Dollar index momentum
-│   └── Commodity correlation
-└── Calendar
-    ├── Day of week
-    ├── Month effect
-    ├── Turn-of-month
-    └── Holiday proximity
+**This becomes the R4 Alpha Decomposition Study.**
+
+### 3B — ML as Prediction Layer (Not Replacement)
+
+ML doesn't immediately replace R4. Initially:
+
+> **R4 generates the opportunity set. ML evaluates opportunity quality.**
+
+```text
+R4 momentum
+     ↓
+Candidate opportunities
+     ↓
+Feature engine
+     ↓
+ML quality model
+     ↓
+P(profitable)
+Expected return
+Expected MAE
+Expected MFE
+     ↓
+Portfolio allocator
+     ↓
+Risk engine
+     ↓
+Execution
 ```
 
-**Implementation:**
-- `src/eigencapital/features/ml_features.py` — ML feature computation
-- `src/eigencapital/features/purged_cross_validator.py` — Purged K-fold with embargo
-- `tests/unit/features/test_ml_features.py` — Feature validation tests
+This turns:
+> "R4 says BUY"
 
-### A2. Model Training Pipeline
+Into:
+> "R4 says BUY, but historical conditional evidence says this particular BUY has only 31% probability of producing sufficient return."
 
-```python
-# Target: Train LightGBM/XGBoost models with proper cross-validation
+**Model progression:** Rules → statistical factors → linear models → GBMs → ensembles → only then deep learning if evidence demands it.
 
-Models:
-├── LightGBM (primary)
-│   ├── Binary classification (up/down)
-│   ├── Regression (forward return magnitude)
-│   └── Ranking (cross-sectional sort)
-├── XGBoost (secondary)
-│   └── Same as LightGBM for comparison
-└── Simple ensemble
-    └── Average of LightGBM + XGBoost predictions
+Start with LightGBM/XGBoost (already have XGBoost experience from earlier ML work).
+
+### 3C — Portfolio Construction (Progressive Complexity)
+
+**Don't jump to HRP.** Test progressively:
+
+| Step | Method | Complexity |
+|------|--------|-----------|
+| 1 | Current R4 weighting | Baseline |
+| 2 | Equal weight | Minimal |
+| 3 | Inverse volatility | Low |
+| 4 | Volatility targeting | Low-Medium |
+| 5 | Correlation-aware sizing | Medium |
+| 6 | Risk parity | Medium-High |
+| 7 | HRP | High |
+| 8 | More sophisticated allocator | Very High |
+
+**Key principle:** If inverse-volatility weighting gives 90% of the improvement of HRP with 20% of the complexity, **use inverse volatility.**
+
+### 3D — Transaction Cost Modeling
+
+**Higher priority than originally placed.** At $5K it's not dominant; at $50K+ it becomes critical.
+
+```text
+Signal return
+   ↓
+Spread
+   ↓
+Slippage
+   ↓
+Commission
+   ↓
+Swap/financing
+   ↓
+Market impact
+   ↓
+Implementation shortfall
+   ↓
+Actual alpha
 ```
 
-**Implementation:**
-- `src/eigencapital/models/trainer.py` — Model training with purged CV
-- `src/eigencapital/models/predictor.py` — Inference pipeline
-- `src/eigencapital/models/validator.py` — Model validation metrics
-- `tests/unit/models/test_trainer.py` — Training tests
+Components:
+- Cost model (spread, commission, slippage, impact)
+- Execution algorithms (TWAP, VWAP, IS)
+- Cost-aware sizing
 
-### A3. Signal Combination
+### 3E — Strategy Diversification
 
-```python
-# Target: Combine ML signal with R4 rules-based signal
+**Only after R4 is understood.** Test new strategies for independence, not just Sharpe.
 
-Combination Strategies:
-├── Additive: signal = α * R4 + (1-α) * ML
-├── Regime-conditional: ML in low-vol, R4 in high-vol
-├── Confidence-weighted: ML confidence gates R4
-└── Stacking: meta-learner on top of R4 + ML
-```
+> A mediocre Sharpe strategy with negative correlation to R4 can be more valuable than another high-Sharpe momentum strategy that simply duplicates R4.
 
-**Implementation:**
-- `src/eigencapital/strategies/ensemble.py` — Signal combination logic
-- `src/eigencapital/strategies/ml_strategy.py` — ML-based strategy wrapper
-- Tests for each combination method
+| Category | Strategies |
+|----------|-----------|
+| Cross-sectional | Momentum, mean reversion, relative strength, dispersion |
+| Time-series | Trend following, breakout, volatility breakout, regime-conditioned |
+| Relative-value | Pairs, cointegration, stat arb |
+| ML | Classification, regression, ranking, meta-labeling, conditional sizing |
 
-### A4. Validation & Evidence
+**A new strategy is valuable if its returns are sufficiently independent from R4.**
 
-```
-Validation Requirements:
-├── Purged walk-forward (no leakage)
-├── Multiple-testing correction applied
-├── Parameter stability check
-├── Drawdown requirement met
-├── Live shadow mode (feature-flagged)
-└── Parity tests confirm R4 unchanged
-```
+---
 
-**Shadow Mode:**
-```python
-# During Phase 2, ML signal runs in shadow only
-ML_SIGNAL_ENABLED = False  # Feature flag
-ml_decision = model.predict(features)
-# Record what ML would have done, but don't execute
-log_shadow_decision(ml_decision, actual_r4_decision)
+## Phase 4 — Advanced + Scaling
+
+| Work | Notes |
+|------|-------|
+| Advanced portfolio optimization | HRP, Black-Litterman, robust MVO |
+| Execution optimization | Market impact models, optimal execution |
+| Alternative data/NLP | Sentiment, satellite, flow data |
+| Strategy ensemble | Multi-strategy allocation |
+| Capital scaling | $5K → $10K → $25K → $50K |
+
+---
+
+## What NOT to Build Yet
+
+| Technology | Why Not |
+|-----------|---------|
+| Deep learning (Transformers, LSTMs, TCN, Mamba) | Tools in the workflow, not mandatory architecture |
+| RL / autonomous agents | Premature without proven alpha |
+| Alternative data pipelines | Not needed until strategies require it |
+| Advanced execution algorithms | Not needed at $5K |
+
+**Rule:** Rules → statistical factors → linear models → GBMs → ensembles → only then deep learning if evidence demands it.
+
+---
+
+## Priority Ranking
+
+| # | Work | Phase | Status |
+|---|------|-------|--------|
+| 🔴 1 | Finish R4 live economic qualification | **Now** | Running |
+| 🔴 2 | R4 alpha decomposition study | Phase 3 | Deferred |
+| 🔴 3 | Conditional ML signal-quality model | Phase 3 | Deferred |
+| 🔴 4 | Correlation/vol-aware portfolio sizing | Phase 3 | Deferred |
+| 🟠 5 | Better transaction-cost/impact model | Phase 3 | Deferred |
+| 🟠 6 | Alternative strategy research | Phase 3 | Deferred |
+| 🟠 7 | Strategy ensemble | Phase 3/4 | Deferred |
+| 🟡 8 | Advanced portfolio optimization | Phase 4 | Deferred |
+| 🟡 9 | Execution optimization | Phase 4 | Deferred |
+| 🟢 10 | Alternative data/NLP | Later | Deferred |
+| 🟢 11 | Deep learning | Only if justified | Deferred |
+| 🟢 12 | RL/autonomous research agents | Much later | Deferred |
+
+---
+
+## The Real Architecture (Eventually)
+
+```text
+                    RESEARCH FACTORY
+                           │
+          ┌────────────────┼────────────────┐
+          ↓                ↓                ↓
+       R4 Alpha         ML Alpha         New Alpha
+          │                │                │
+          └────────────────┼────────────────┘
+                           ↓
+                  SIGNAL / ALPHA LAYER
+                           ↓
+                 PORTFOLIO CONSTRUCTION
+                           ↓
+             correlation / vol / exposure
+                           ↓
+                     RISK ENGINE
+                           ↓
+                 TRADING AUTHORIZATION
+                           ↓
+                    EXECUTION ENGINE
+                           ↓
+                       BROKER
+                           ↓
+                 RECONCILIATION
+                           ↓
+                EVIDENCE / MONITORING
+                           │
+                           └──────────────┐
+                                          ↓
+                              RESEARCH FEEDBACK LOOP
 ```
 
 ---
 
-## Phase B: Portfolio Optimization (Post-Phase 2)
+## Estimated Effort (Post Phase 2)
 
-**Trigger:** Phase 2 evidence confirms R4 has a live edge.
+| Phase | Component | Effort |
+|-------|-----------|--------|
+| 3A | R4 alpha decomposition | 2-4 weeks |
+| 3B | ML prediction layer | 4-6 weeks |
+| 3C | Portfolio optimization | 3-4 weeks |
+| 3D | Transaction cost model | 2-3 weeks |
+| 3E | Strategy diversification | 4-8 weeks |
+| 4 | Advanced + scaling | 4-8 weeks |
 
-**Objective:** Replace crude weight clipping with principled portfolio optimization.
-
-### B1. Covariance Estimation
-
-```python
-# Target: Robust covariance estimation for 24-asset universe
-
-Methods:
-├── Sample covariance (baseline)
-├── Shrinkage (Ledoit-Wolf)
-├── Exponential weighting (recent data weighted more)
-├── DCC-GARCH (dynamic conditional correlation)
-└── Factor model covariance (PCA-based)
-```
-
-**Implementation:**
-- `src/eigencapital/portfolio/covariance.py` — Covariance estimators
-- `tests/unit/portfolio/test_covariance.py` — Estimator validation
-
-### B2. Portfolio Optimization
-
-```python
-# Target: Risk-aware position sizing
-
-Methods:
-├── Hierarchical Risk Parity (HRP)
-│   ├── Hierarchical clustering of assets
-│   ├── Recursive bisection
-│   └── Inverse variance allocation
-├── Mean-Variance (Markowitz)
-│   ├── Maximum Sharpe
-│   ├── Minimum variance
-│   └── Risk parity
-├── Black-Litterman
-│   ├── Market equilibrium returns
-│   ├── Investor views (R4 signals)
-│   └── Posterior returns
-└── Risk budgeting
-    ├── Equal risk contribution
-    └── Custom risk budgets
-```
-
-**Implementation:**
-- `src/eigencapital/portfolio/optimizer.py` — Portfolio optimizer
-- `src/eigencapital/portfolio/hrp.py` — HRP implementation
-- `src/eigencapital/portfolio/black_litterman.py` — BL implementation
-- `tests/unit/portfolio/test_optimizer.py` — Optimizer tests
-
-### B3. Integration with R4
-
-```python
-# Target: Use optimizer output as weight constraints
-
-R4 Signal → Weight Clipping → Optimizer → Final Weights
-                ↓                    ↓
-         ±20% per asset    Risk-aware allocation
-```
-
-**Implementation:**
-- Modify `scripts/r4_rebalance_loop.py` to use optimizer
-- Add optimizer as optional step before order generation
-- Feature-flag: `PORTFOLIO_OPTIMIZER_ENABLED = False`
+**Total:** 19-33 weeks of focused research
 
 ---
-
-## Phase C: Transaction Cost Modeling (Post-Phase 2)
-
-**Trigger:** Planning for $25K+ capital scaling.
-
-**Objective:** Model market impact and optimize execution.
-
-### C1. Cost Model
-
-```python
-# Target: Estimate total transaction costs
-
-Cost Components:
-├── Spread cost (observable)
-├── Commission (known)
-├── Slippage (measured)
-├── Market impact (modeled)
-│   ├── Linear impact: impact = a * (order_size / ADV)
-│   ├── Square-root impact: impact = a * sqrt(order_size / ADV)
-│   └── Almgren-Chriss optimal execution
-├── Opportunity cost (estimated)
-└── Financing/swap (measured)
-```
-
-**Implementation:**
-- `src/eigencapital/execution/cost_model.py` — Transaction cost model
-- `src/eigencapital/execution/impact_model.py` — Market impact estimation
-- `tests/unit/execution/test_cost_model.py` — Cost model tests
-
-### C2. Execution Algorithms
-
-```python
-# Target: Optimize order execution
-
-Algorithms:
-├── TWAP (Time-Weighted Average Price)
-│   └── Split order evenly over time window
-├── VWAP (Volume-Weighted Average Price)
-│   └── Match historical volume profile
-├── Implementation Shortfall (IS)
-│   └── Minimize deviation from decision price
-└── Adaptive
-    └── Adjust urgency based on market conditions
-```
-
-**Implementation:**
-- `src/eigencapital/execution/algorithms.py` — Execution algorithms
-- `src/eigencapital/execution/twap.py` — TWAP implementation
-- `src/eigencapital/execution/vwap.py` — VWAP implementation
-
-### C3. Cost-Aware Sizing
-
-```python
-# Target: Include costs in position sizing
-
-current: size = risk_budget / stop_distance
-proposed: size = risk_budget / (stop_distance + expected_cost)
-```
-
----
-
-## Phase D: Covariance-Aware Bet Sizing (Post-Phase 2)
-
-**Trigger:** Phase 2 evidence confirms portfolio-level risk is acceptable.
-
-**Objective:** Use portfolio covariance to adjust position sizes.
-
-### D1. Portfolio Risk Metrics
-
-```python
-# Target: Compute portfolio-level risk metrics
-
-Metrics:
-├── Portfolio VaR (Historical, Parametric, Monte Carlo)
-├── Portfolio CVaR (Expected Shortfall)
-├── Marginal VaR (contribution of each position)
-├── Component VaR
-├── Incremental VaR
-└── Diversification ratio
-```
-
-**Implementation:**
-- `src/eigencapital/portfolio/risk_metrics.py` — Portfolio risk computation
-- `tests/unit/portfolio/test_risk_metrics.py` — Risk metric tests
-
-### D2. Risk-Budget Sizing
-
-```python
-# Target: Size positions based on portfolio risk contribution
-
-Current: equal risk per position (implicit)
-Proposed: equal risk contribution per position
-
-if correlation(cluster_AUD) > 0.7:
-    reduce AUDCAD, AUDUSD, NZDCAD, NZDUSD sizes
-    until portfolio risk contribution is balanced
-```
-
-**Implementation:**
-- `src/eigencapital/portfolio/risk_budget.py` — Risk budget allocation
-- `tests/unit/portfolio/test_risk_budget.py` — Risk budget tests
-
----
-
-## Implementation Order
-
-```
-Phase 2 Evidence Collection (NOW)
-        │
-        ▼
-Phase 2 Verdict
-        │
-   ┌────┴────┐
-   │         │
- PASS      FAIL
-   │         │
-   ▼         ▼
-Phase A    Investigate
-(ML Signal)    │
-   │         └──→ Fix R4 or accept
-   ▼
-Phase B
-(Portfolio Opt)
-   │
-   ▼
-Phase C
-(Cost Model)
-   │
-   ▼
-Phase D
-(Risk-Budget Sizing)
-   │
-   ▼
-Phase 3
-(Capital Scaling)
-```
-
-## Estimated Effort
-
-| Phase | Component | Effort | Dependencies |
-|-------|-----------|--------|--------------|
-| A1 | Feature engineering | 2-3 weeks | None |
-| A2 | Model training | 2-3 weeks | A1 |
-| A3 | Signal combination | 1-2 weeks | A2 |
-| A4 | Shadow validation | 2-4 weeks | A3 |
-| B1 | Covariance estimation | 1-2 weeks | None |
-| B2 | Portfolio optimizer | 2-3 weeks | B1 |
-| B3 | R4 integration | 1-2 weeks | B2 |
-| C1 | Cost model | 1-2 weeks | None |
-| C2 | Execution algorithms | 2-3 weeks | C1 |
-| C3 | Cost-aware sizing | 1 week | C2 |
-| D1 | Portfolio risk metrics | 1-2 weeks | B1 |
-| D2 | Risk-budget sizing | 1-2 weeks | D1, B2 |
-
-**Total estimated:** 16-24 weeks of focused development
 
 ## Critical Constraint
 
 > **All of this is deferred until Phase 2 evidence confirms R4 has a live edge.**
 
-Adding ML models, portfolio optimization, or execution algorithms before proving the base strategy works would be premature optimization. The current priority is:
-
+The current priority is:
 1. Let R4 run frozen
 2. Collect live economic evidence
 3. Prove or disprove the R4 hypothesis
-4. Then build on top of a proven foundation
+4. Then understand why R4 works before trying to improve it
 
 ---
 
-*This roadmap is derived from the ML4Trading book's structure and adapted to EigenCapital's current architecture and Phase 2 governance constraints.*
+*This roadmap is derived from the ML4Trading book's structure, adapted to EigenCapital's current architecture, and prioritized by the principle: understand before you improve.*

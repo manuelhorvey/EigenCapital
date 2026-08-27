@@ -7,19 +7,19 @@ Alpha Research Map with failure mode distribution.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
 from eigencapital.data.mt5_provider import MT5DataProvider
+from eigencapital.research.alpha.campaign import HypothesisVerdict
+from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
+from eigencapital.research.alpha.research_map import ResearchMapGenerator
+from eigencapital.research.alpha.scorecard import ScorecardEvaluator
 from eigencapital.research.alpha.staged_executor import (
     HypothesisComputer,
 )
-from eigencapital.research.alpha.campaign import HypothesisVerdict
-from eigencapital.research.alpha.scorecard import ScorecardEvaluator
-from eigencapital.research.alpha.research_map import ResearchMapGenerator
-from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -152,20 +152,14 @@ class ExtendedHypothesisComputer(HypothesisComputer):
             zscore = zscore.dropna()
             # Trade when z-score is extreme
             signal = -np.sign(zscore)
-            port = (
-                signal.shift(1)
-                * (r1.reindex(zscore.index) - r2.reindex(zscore.index))
-                / 2
-            )
+            port = signal.shift(1) * (r1.reindex(zscore.index) - r2.reindex(zscore.index)) / 2
             all_port_returns.append(port)
 
         if not all_port_returns:
             return {"insufficient_data": True, "n_bars": 0}
 
         combined = pd.concat(all_port_returns, axis=1).mean(axis=1).dropna()
-        return self._metrics_from_returns(
-            combined, "HYP-SA-001", 2.0
-        )  # High turnover for pairs
+        return self._metrics_from_returns(combined, "HYP-SA-001", 2.0)  # High turnover for pairs
 
     def compute_low_vol_enhanced(self) -> Dict[str, Any]:
         """VOL-002: Enhanced low volatility (60-day lookback)."""
@@ -206,17 +200,13 @@ class ExtendedHypothesisComputer(HypothesisComputer):
         """CS-003: Forward earnings yield proxy (12m return reversal as proxy)."""
         return self.compute_value()  # Use value as proxy
 
-    def _compute_rolling_momentum(
-        self, lookback: int, skip: int, label: str
-    ) -> Dict[str, Any]:
+    def _compute_rolling_momentum(self, lookback: int, skip: int, label: str) -> Dict[str, Any]:
         """Generic rolling momentum computation."""
         returns = self._get_returns()
         returns_df = pd.DataFrame(returns)
 
         cum = (1 + returns_df).rolling(lookback).apply(lambda x: x.prod(), raw=True) - 1
-        skip_cum = (1 + returns_df).rolling(skip).apply(
-            lambda x: x.prod(), raw=True
-        ) - 1
+        skip_cum = (1 + returns_df).rolling(skip).apply(lambda x: x.prod(), raw=True) - 1
         signal = cum - skip_cum
         signal = signal.dropna(how="all")
 
@@ -230,13 +220,7 @@ class ExtendedHypothesisComputer(HypothesisComputer):
     def _compute_breakout_signal(self, lookback: int, label: str) -> Dict[str, Any]:
         """Generic breakout signal."""
         returns = self._get_returns()
-        prices = pd.DataFrame(
-            {
-                sym: df["close"]
-                for sym, df in self._data.items()
-                if "close" in df.columns
-            }
-        )
+        prices = pd.DataFrame({sym: df["close"] for sym, df in self._data.items() if "close" in df.columns})
 
         high_n = prices.rolling(lookback).max()
         dist = (prices - high_n) / high_n
@@ -382,12 +366,8 @@ class FullCampaignExecutor:
             ),
         ]
 
-        print(
-            f"Running {len(hypotheses)} hypotheses against {len(data)} MT5 symbols..."
-        )
-        print(
-            f"Data: {manifest.bar_count} bars, {manifest.start_date} to {manifest.end_date}"
-        )
+        print(f"Running {len(hypotheses)} hypotheses against {len(data)} MT5 symbols...")
+        print(f"Data: {manifest.bar_count} bars, {manifest.start_date} to {manifest.end_date}")
         print(f"Freeze: {freeze.compute_manifest_hash()[:16]}")
         print("=" * 70)
 
@@ -514,9 +494,7 @@ class FullCampaignExecutor:
         )
         self._verdicts.append(verdict)
 
-    def _generate_report(
-        self, freeze: CampaignFreezeManifest, timestamp: str
-    ) -> Dict[str, Any]:
+    def _generate_report(self, freeze: CampaignFreezeManifest, timestamp: str) -> Dict[str, Any]:
         """Generate the forensic Alpha Research Map."""
         map_gen = ResearchMapGenerator()
         research_map = map_gen.generate(
@@ -595,12 +573,8 @@ class FullCampaignExecutor:
             results = family_results[family]
             md_lines.append(f"### {family.replace('_', ' ').title()}")
             md_lines.append("")
-            md_lines.append(
-                "| Hypothesis | Status | Sharpe | Max DD | Turnover | Failure Modes |"
-            )
-            md_lines.append(
-                "|------------|--------|--------|--------|----------|---------------|"
-            )
+            md_lines.append("| Hypothesis | Status | Sharpe | Max DD | Turnover | Failure Modes |")
+            md_lines.append("|------------|--------|--------|--------|----------|---------------|")
             for r in results:
                 modes = self._failure_modes.get(r["id"], [])
                 md_lines.append(

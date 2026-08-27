@@ -28,9 +28,9 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class AlertSeverity(str, Enum):
@@ -64,9 +64,9 @@ class Alert:
     event_type: str
     message: str
     details: Dict[str, Any] = field(default_factory=dict)
-    event_id: Optional[str] = None  # Link to event ledger
-    correlation_id: Optional[str] = None
-    state_transition: Optional[str] = None
+    event_id: str | None = None  # Link to event ledger
+    correlation_id: str | None = None
+    state_transition: str | None = None
     consecutive_count: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
@@ -155,9 +155,7 @@ class StructuredAlertDispatcher:
 
         # Check dedup window
         if now - last_sent < self._dedup_window:
-            self._consecutive_counts[dedup_key] = (
-                self._consecutive_counts.get(dedup_key, 0) + 1
-            )
+            self._consecutive_counts[dedup_key] = self._consecutive_counts.get(dedup_key, 0) + 1
 
             # Still suppress (deduplicate) within the window
             return False
@@ -172,10 +170,10 @@ class StructuredAlertDispatcher:
         category: AlertCategory,
         event_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None,
-        event_id: Optional[str] = None,
-        correlation_id: Optional[str] = None,
-        state_transition: Optional[str] = None,
+        details: Dict[str, Any] | None = None,
+        event_id: str | None = None,
+        correlation_id: str | None = None,
+        state_transition: str | None = None,
     ) -> Alert:
         """Dispatch a structured alert.
 
@@ -199,7 +197,7 @@ class StructuredAlertDispatcher:
             # Return a placeholder - alert was deduplicated
             return Alert(
                 alert_id="DEDUP",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 severity=severity.value,
                 category=category.value,
                 event_type=event_type,
@@ -208,7 +206,7 @@ class StructuredAlertDispatcher:
             )
 
         # Create alert
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         alert = Alert(
             alert_id=self._generate_alert_id(),
             timestamp=now,
@@ -236,12 +234,8 @@ class StructuredAlertDispatcher:
 
         # Update stats
         self._stats["total_dispatched"] += 1
-        self._stats["by_severity"][severity.value] = (
-            self._stats["by_severity"].get(severity.value, 0) + 1
-        )
-        self._stats["by_category"][category.value] = (
-            self._stats["by_category"].get(category.value, 0) + 1
-        )
+        self._stats["by_severity"][severity.value] = self._stats["by_severity"].get(severity.value, 0) + 1
+        self._stats["by_category"][category.value] = self._stats["by_category"].get(category.value, 0) + 1
 
         return alert
 
@@ -265,9 +259,7 @@ class StructuredAlertDispatcher:
         ):
             import sys
 
-            print(
-                f"[{alert.severity}] {alert.category}: {alert.message}", file=sys.stderr
-            )
+            print(f"[{alert.severity}] {alert.category}: {alert.message}", file=sys.stderr)
 
     def get_history(self) -> List[Dict[str, Any]]:
         """Get alert history."""
@@ -277,12 +269,10 @@ class StructuredAlertDispatcher:
         """Get alert statistics."""
         return dict(self._stats)
 
-    def clear_dedup(self, category: Optional[AlertCategory] = None) -> None:
+    def clear_dedup(self, category: AlertCategory | None = None) -> None:
         """Clear deduplication state."""
         if category:
-            keys_to_clear = [
-                k for k in self._recent_alerts if k.startswith(category.value)
-            ]
+            keys_to_clear = [k for k in self._recent_alerts if k.startswith(category.value)]
             for key in keys_to_clear:
                 del self._recent_alerts[key]
                 self._consecutive_counts.pop(key, None)
@@ -300,14 +290,10 @@ def alert_health_change(
     old_state: str,
     new_state: str,
     reason: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> Alert:
     """Alert on health state change."""
-    severity = (
-        AlertSeverity.WARNING
-        if new_state in ("DEGRADED", "BLOCKED")
-        else AlertSeverity.INFO
-    )
+    severity = AlertSeverity.WARNING if new_state in ("DEGRADED", "BLOCKED") else AlertSeverity.INFO
 
     return dispatcher.dispatch(
         severity=severity,
@@ -331,7 +317,7 @@ def alert_risk_threshold(
     value: float,
     limit: float,
     message: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> Alert:
     """Alert on risk threshold breach."""
     severity = AlertSeverity.CRITICAL if value >= limit else AlertSeverity.WARNING
@@ -350,14 +336,10 @@ def alert_reconciliation_mismatch(
     dispatcher: StructuredAlertDispatcher,
     status: str,
     mismatches: List[str],
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> Alert:
     """Alert on reconciliation mismatch."""
-    severity = (
-        AlertSeverity.CRITICAL
-        if status in ("BLOCKING", "MISMATCH")
-        else AlertSeverity.WARNING
-    )
+    severity = AlertSeverity.CRITICAL if status in ("BLOCKING", "MISMATCH") else AlertSeverity.WARNING
 
     return dispatcher.dispatch(
         severity=severity,
@@ -373,7 +355,7 @@ def alert_execution_anomaly(
     dispatcher: StructuredAlertDispatcher,
     anomaly_type: str,
     details: Dict[str, Any],
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> Alert:
     """Alert on execution anomaly."""
     return dispatcher.dispatch(
@@ -389,7 +371,7 @@ def alert_execution_anomaly(
 def alert_broker_disconnect(
     dispatcher: StructuredAlertDispatcher,
     reason: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> Alert:
     """Alert on broker disconnect."""
     return dispatcher.dispatch(
@@ -407,14 +389,10 @@ def alert_watchdog_state(
     old_state: str,
     new_state: str,
     reason: str,
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
 ) -> Alert:
     """Alert on watchdog state change."""
-    severity = (
-        AlertSeverity.CRITICAL
-        if new_state in ("CONTAIN", "HALT")
-        else AlertSeverity.WARNING
-    )
+    severity = AlertSeverity.CRITICAL if new_state in ("CONTAIN", "HALT") else AlertSeverity.WARNING
 
     return dispatcher.dispatch(
         severity=severity,

@@ -10,14 +10,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import numpy as np
 
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
 )
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.verdict import FidelityEvaluator, FidelityReport
 
 logger = logging.getLogger(__name__)
@@ -102,9 +102,7 @@ class OperationalState:
         elif event == OperationalEvent.NORMAL:
             self.consecutive_errors = 0
 
-        self.max_consecutive_errors = max(
-            self.max_consecutive_errors, self.consecutive_errors
-        )
+        self.max_consecutive_errors = max(self.max_consecutive_errors, self.consecutive_errors)
 
     @property
     def error_rate(self) -> float:
@@ -347,9 +345,7 @@ class ForwardPaperCampaign:
         # Check abort conditions
         if self._state.consecutive_errors > self.MAX_CONSECUTIVE_ERRORS:
             self._phase = CampaignPhase.ABORTED
-            logger.warning(
-                f"Forward campaign aborted: {self._state.consecutive_errors} consecutive errors"
-            )
+            logger.warning(f"Forward campaign aborted: {self._state.consecutive_errors} consecutive errors")
 
         return bar
 
@@ -394,9 +390,7 @@ class ForwardPaperCampaign:
         for inst, pos in self._internal_positions.items():
             # For now, check that position is reasonable (not negative for long-only, etc.)
             if abs(pos) > 1e6:  # unreasonable position size
-                discrepancies.append(
-                    f"{inst}: position {pos} exceeds reasonable bounds"
-                )
+                discrepancies.append(f"{inst}: position {pos} exceeds reasonable bounds")
 
         matched = len(discrepancies) == 0
         if not matched:
@@ -420,9 +414,9 @@ class ForwardPaperCampaign:
         # Determine status
         if self._phase == CampaignPhase.ABORTED:
             status = "ABORTED"
-        elif state["error_rate"] > 0.05:  # >5% error rate
-            status = "WARNING"
-        elif state["missing_bars"] > 0 or state["stale_data_events"] > 0:
+        elif (
+            state["error_rate"] > 0.05 or state["missing_bars"] > 0 or state["stale_data_events"] > 0
+        ):  # >5% error rate
             status = "WARNING"
         else:
             status = "PASS"

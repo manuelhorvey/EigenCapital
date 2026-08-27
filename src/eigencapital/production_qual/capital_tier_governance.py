@@ -12,10 +12,10 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class TierStatus(str, Enum):
@@ -50,9 +50,7 @@ class CapitalTier:
 
     def __post_init__(self) -> None:
         if not self.created_at:
-            object.__setattr__(
-                self, "created_at", datetime.now(timezone.utc).isoformat()
-            )
+            object.__setattr__(self, "created_at", datetime.now(UTC).isoformat())
 
     def compute_fingerprint(self) -> str:
         data = {
@@ -138,7 +136,7 @@ ALL_TIERS: List[CapitalTier] = [
 ]
 
 
-def get_tier_by_id(tier_id: str) -> Optional[CapitalTier]:
+def get_tier_by_id(tier_id: str) -> CapitalTier | None:
     for t in ALL_TIERS:
         if t.tier_id == tier_id:
             return t
@@ -178,7 +176,7 @@ class PromotionVerdictResult:
     target_tier: str
     verdict: PromotionVerdict
     blocking_reasons: List[str] = field(default_factory=list)
-    evidence: Optional[PromotionEvidence] = None
+    evidence: PromotionEvidence | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -194,17 +192,17 @@ class CapitalTierGovernor:
 
     def __init__(
         self,
-        tiers: Optional[List[CapitalTier]] = None,
-        persistence_dir: Optional[str] = None,
+        tiers: List[CapitalTier] | None = None,
+        persistence_dir: str | None = None,
     ) -> None:
         self._tiers = tiers or ALL_TIERS
         self._persistence_dir = Path(persistence_dir) if persistence_dir else None
-        self._active_tier: Optional[CapitalTier] = None
+        self._active_tier: CapitalTier | None = None
         self._audit_log: List[Dict[str, Any]] = []
         self._max_audit_entries = 100
 
     @property
-    def active_tier(self) -> Optional[CapitalTier]:
+    def active_tier(self) -> CapitalTier | None:
         return self._active_tier
 
     def activate_tier(self, tier_id: str) -> CapitalTier:
@@ -237,11 +235,7 @@ class CapitalTierGovernor:
 
         if self._active_tier is not None:
             current_idx = next(
-                (
-                    i
-                    for i, t in enumerate(self._tiers)
-                    if t.tier_id == self._active_tier.tier_id
-                ),
+                (i for i, t in enumerate(self._tiers) if t.tier_id == self._active_tier.tier_id),
                 -1,
             )
             target_idx = next(
@@ -249,27 +243,19 @@ class CapitalTierGovernor:
                 -1,
             )
             if target_idx > current_idx + 1:
-                reasons.append(
-                    f"Cannot skip from {self._active_tier.tier_id} to {target_tier_id}"
-                )
+                reasons.append(f"Cannot skip from {self._active_tier.tier_id} to {target_tier_id}")
 
         if evidence.stable_days < target.required_stable_days:
-            reasons.append(
-                f"Need {target.required_stable_days} stable days, have {evidence.stable_days}"
-            )
+            reasons.append(f"Need {target.required_stable_days} stable days, have {evidence.stable_days}")
 
         if target.required_zero_critical_incidents and evidence.critical_incidents > 0:
-            reasons.append(
-                f"Require zero critical incidents, have {evidence.critical_incidents}"
-            )
+            reasons.append(f"Require zero critical incidents, have {evidence.critical_incidents}")
 
         if evidence.duplicate_orders > 0:
             reasons.append(f"Duplicate orders detected: {evidence.duplicate_orders}")
 
         if evidence.unauthorized_orders > 0:
-            reasons.append(
-                f"Unauthorized orders detected: {evidence.unauthorized_orders}"
-            )
+            reasons.append(f"Unauthorized orders detected: {evidence.unauthorized_orders}")
 
         if not evidence.broker_stable:
             reasons.append("Broker is not stable")
@@ -283,11 +269,7 @@ class CapitalTierGovernor:
         verdict = (
             PromotionVerdict.APPROVED
             if not reasons
-            else (
-                PromotionVerdict.INSUFFICIENT_EVIDENCE
-                if evidence.stable_days > 0
-                else PromotionVerdict.BLOCKED
-            )
+            else (PromotionVerdict.INSUFFICIENT_EVIDENCE if evidence.stable_days > 0 else PromotionVerdict.BLOCKED)
         )
 
         result = PromotionVerdictResult(
@@ -309,7 +291,7 @@ class CapitalTierGovernor:
     def _audit_event(self, event_type: str, data: Dict[str, Any]) -> None:
         entry = {
             "event": event_type,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **data,
         }
         self._audit_log.append(entry)
@@ -322,9 +304,7 @@ class CapitalTierGovernor:
     def get_status(self) -> Dict[str, Any]:
         return {
             "active_tier": self._active_tier.tier_id if self._active_tier else None,
-            "active_tier_fingerprint": self._active_tier.compute_fingerprint()
-            if self._active_tier
-            else None,
+            "active_tier_fingerprint": self._active_tier.compute_fingerprint() if self._active_tier else None,
             "available_tiers": [t.tier_id for t in self._tiers],
             "audit_entries": len(self._audit_log),
         }

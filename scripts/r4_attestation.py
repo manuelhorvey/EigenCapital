@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict
 
 sys.path.insert(0, "src")
@@ -28,18 +28,18 @@ except ImportError:
 
 from eigencapital.config import load_config
 from eigencapital.live.position_attribution import (
-    classify_all,
-    capacity_account,
-    snapshot_hash,
-    ledger_from_deals,
     R4_MAGIC,
+    capacity_account,
+    classify_all,
+    ledger_from_deals,
+    snapshot_hash,
 )
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
 
 def generate_attestation() -> Dict[str, Any]:
     """Generate a live attestation from broker state."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     mt5 = MetaTrader5(host="127.0.0.1", port=8001)
     if not mt5.initialize():
@@ -181,9 +181,7 @@ def generate_attestation() -> Dict[str, Any]:
     attestation_hash = json.dumps(attestation, sort_keys=True, default=str)
     import hashlib
 
-    attestation["attestation_hash"] = hashlib.sha256(
-        attestation_hash.encode()
-    ).hexdigest()
+    attestation["attestation_hash"] = hashlib.sha256(attestation_hash.encode()).hexdigest()
 
     mt5.shutdown()
     return attestation
@@ -202,25 +200,17 @@ def main():
     print(
         f"Positions: {att['positions']['total']} ({att['positions']['r4_count']} R4, {att['positions']['foreign_count']} foreign)"
     )
-    print(
-        f"Ownership: {'✅ all R4-owned' if att['ownership']['all_r4_owned'] else '⚠️ FOREIGN POSITIONS PRESENT'}"
-    )
-    print(
-        f"Quarantine: {'⚠️ CONTAMINATED' if att['quarantine']['contamination_detected'] else '✅ clean'}"
-    )
+    print(f"Ownership: {'✅ all R4-owned' if att['ownership']['all_r4_owned'] else '⚠️ FOREIGN POSITIONS PRESENT'}")
+    print(f"Quarantine: {'⚠️ CONTAMINATED' if att['quarantine']['contamination_detected'] else '✅ clean'}")
     print(
         f"Deal Attribution: {'✅ valid' if att['deal_attribution']['attestation_valid'] else '⚠️ unattributable deals'}"
     )
-    print(
-        f"Fingerprint: {'✅ verified' if att['fingerprint']['all_verified'] else '❌ MISMATCH'}"
-    )
+    print(f"Fingerprint: {'✅ verified' if att['fingerprint']['all_verified'] else '❌ MISMATCH'}")
 
     if att["positions"]["foreign_count"] > 0:
         print("\n⚠️ FOREIGN POSITIONS DETECTED:")
         for fp in att["quarantine"]["foreign_positions"]:
-            print(
-                f"  🔴 #{fp['ticket']} {fp['symbol']} magic={fp['magic']} — QUARANTINED"
-            )
+            print(f"  🔴 #{fp['ticket']} {fp['symbol']} magic={fp['magic']} — QUARANTINED")
 
     # Position listing
     print("\nPosition Classification:")
@@ -240,7 +230,7 @@ def main():
 
     # Save
     os.makedirs("reports/r4_qualification", exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     path = f"reports/r4_qualification/attestation_{ts}.json"
     with open(path, "w") as f:
         json.dump(att, f, indent=2, default=str)

@@ -21,9 +21,9 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 class LogLevel(str, Enum):
@@ -47,7 +47,7 @@ class StructuredLogger:
     def __init__(
         self,
         module_name: str,
-        log_file: Optional[str] = None,
+        log_file: str | None = None,
         min_level: LogLevel = LogLevel.INFO,
     ) -> None:
         """Initialize structured logger.
@@ -82,9 +82,9 @@ class StructuredLogger:
         self,
         level: LogLevel,
         event: str,
-        data: Optional[Dict[str, Any]] = None,
-        correlation_id: Optional[str] = None,
-        error: Optional[Exception] = None,
+        data: Dict[str, Any] | None = None,
+        correlation_id: str | None = None,
+        error: Exception | None = None,
     ) -> None:
         """Log a structured event.
 
@@ -108,7 +108,7 @@ class StructuredLogger:
 
         # Build log entry
         entry: Dict[str, Any] = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "module": self._module_name,
             "level": level.value,
             "event": event,
@@ -153,13 +153,11 @@ class StructuredLogger:
         """Log warning event."""
         self._log(LogLevel.WARNING, event, data)
 
-    def error(self, event: str, error: Optional[Exception] = None, **data: Any) -> None:
+    def error(self, event: str, error: Exception | None = None, **data: Any) -> None:
         """Log error event."""
         self._log(LogLevel.ERROR, event, data, error=error)
 
-    def critical(
-        self, event: str, error: Optional[Exception] = None, **data: Any
-    ) -> None:
+    def critical(self, event: str, error: Exception | None = None, **data: Any) -> None:
         """Log critical event."""
         self._log(LogLevel.CRITICAL, event, data, error=error)
 

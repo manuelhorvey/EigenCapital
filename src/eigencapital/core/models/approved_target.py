@@ -16,9 +16,9 @@ Flow: PortfolioTarget → RiskDecision → ApprovedTarget → OrderPlan → Orde
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ class ApprovedTarget:
     approved_quantity: float  # What risk engine allows (signed)
     decision: str  # APPROVED, REDUCED, or REJECTED
     approval_reason: str  # Explicit text rationale
-    constraints_binding: Optional[list] = None  # Which limits affected the decision
+    constraints_binding: list | None = None  # Which limits affected the decision
     version: str = "v1"
 
     # Class-level registry
@@ -68,10 +68,7 @@ class ApprovedTarget:
         # Validate decision is one of APPROVED, REDUCED, REJECTED
         valid_decisions = {"APPROVED", "REDUCED", "REJECTED"}
         if self.decision not in valid_decisions:
-            raise ValueError(
-                f"Invalid approved target decision: {self.decision}. "
-                f"Must be one of {valid_decisions}"
-            )
+            raise ValueError(f"Invalid approved target decision: {self.decision}. Must be one of {valid_decisions}")
 
         # Validate target_id is non-empty
         if not self.target_id:
@@ -106,10 +103,7 @@ class ApprovedTarget:
 
         # Registry check for duplicate target_ids
         if self.target_id in self._registry:
-            raise ValueError(
-                f"Duplicate approved_target target_id: {self.target_id}. "
-                "Target IDs must be unique."
-            )
+            raise ValueError(f"Duplicate approved_target target_id: {self.target_id}. Target IDs must be unique.")
         self._registry[self.target_id] = True
 
     def __hash__(self) -> int:

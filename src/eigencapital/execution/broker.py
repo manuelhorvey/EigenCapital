@@ -12,10 +12,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
-from eigencapital.core.models.order import Order
 from eigencapital.core.models.fill import Fill
+from eigencapital.core.models.order import Order
 
 
 class BrokerError(ValueError):
@@ -60,7 +60,7 @@ class PaperBroker:
     spread_ticks: float = 1.0
     slippage_ticks: float = 0.5
     fill_probability: float = 1.0
-    deterministic_seed: Optional[int] = None
+    deterministic_seed: int | None = None
 
     def __post_init__(self) -> None:
         self._orders: Dict[str, Order] = {}
@@ -94,9 +94,7 @@ class PaperBroker:
                 OrderLifecycleState.SUBMITTED,
                 OrderLifecycleState.PARTIALLY_FILLED,
             ):
-                raise BrokerError(
-                    f"Order already active for {order.instrument_id}: {existing.value}"
-                )
+                raise BrokerError(f"Order already active for {order.instrument_id}: {existing.value}")
 
         # Store order
         self._orders[order.instrument_id] = order
@@ -109,7 +107,7 @@ class PaperBroker:
         self,
         order_id: str,
         fill_price: float,
-        fill_quantity: Optional[float] = None,
+        fill_quantity: float | None = None,
     ) -> Fill:
         """Generate a deterministic fill for an order.
 
@@ -225,11 +223,11 @@ class PaperBroker:
         self._rejected_orders.append(order_id)
         return True
 
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """Get order by ID."""
         return self._orders.get(order_id)
 
-    def get_order_state(self, order_id: str) -> Optional[OrderLifecycleState]:
+    def get_order_state(self, order_id: str) -> OrderLifecycleState | None:
         """Get order lifecycle state."""
         return self._order_states.get(order_id)
 
@@ -238,8 +236,7 @@ class PaperBroker:
         return [
             self._orders[oid]
             for oid, state in self._order_states.items()
-            if state
-            in (OrderLifecycleState.SUBMITTED, OrderLifecycleState.PARTIALLY_FILLED)
+            if state in (OrderLifecycleState.SUBMITTED, OrderLifecycleState.PARTIALLY_FILLED)
         ]
 
     def get_positions(self) -> Dict[str, float]:

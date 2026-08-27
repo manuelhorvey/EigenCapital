@@ -21,7 +21,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
 from eigencapital.research.provenance.hashing import compute_provenance_hash
 
@@ -85,7 +85,7 @@ class ExperimentRecord:
     parameters: Dict[str, Any] = field(default_factory=dict)
     cost_model_id: str = "zero"
     cost_model_version: str = "v1"
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
     parent_experiment_id: str = ""
     trial_metadata: Dict[str, Any] = field(default_factory=dict)
     train_start: str = ""
@@ -218,9 +218,7 @@ class ExperimentRegistry:
     def get(self, experiment_id: str) -> ExperimentRecord:
         """Get an experiment by ID."""
         if experiment_id not in self._experiments:
-            raise ExperimentError(
-                f"Experiment not found: {experiment_id}", experiment_id
-            )
+            raise ExperimentError(f"Experiment not found: {experiment_id}", experiment_id)
         return self._experiments[experiment_id]
 
     def freeze_test_parameters(self, experiment_id: str) -> ExperimentRecord:
@@ -232,9 +230,7 @@ class ExperimentRegistry:
         if exp.test_frozen:
             raise ExperimentError("Test parameters already frozen", experiment_id)
         if exp.status != "PRE_REGISTERED":
-            raise ExperimentError(
-                f"Cannot freeze: status is {exp.status}", experiment_id
-            )
+            raise ExperimentError(f"Cannot freeze: status is {exp.status}", experiment_id)
         # Recompute provenance hash after freeze
         exp.test_frozen = True
         exp.provenance_hash = compute_provenance_hash(exp.to_dict())
@@ -244,9 +240,7 @@ class ExperimentRegistry:
         """Transition to RUNNING status."""
         exp = self.get(experiment_id)
         if exp.status != "PRE_REGISTERED":
-            raise ExperimentError(
-                f"Cannot start: status is {exp.status}", experiment_id
-            )
+            raise ExperimentError(f"Cannot start: status is {exp.status}", experiment_id)
         exp.status = "RUNNING"
         return exp
 
@@ -254,14 +248,12 @@ class ExperimentRegistry:
         self,
         experiment_id: str,
         status: str = "COMPLETED",
-        result: Optional[Dict[str, Any]] = None,
+        result: Dict[str, Any] | None = None,
     ) -> ExperimentRecord:
         """Complete an experiment with a final status."""
         exp = self.get(experiment_id)
         if exp.status != "RUNNING":
-            raise ExperimentError(
-                f"Cannot complete: status is {exp.status}", experiment_id
-            )
+            raise ExperimentError(f"Cannot complete: status is {exp.status}", experiment_id)
         valid_final = {"COMPLETED", "CANDIDATE", "REJECTED"}
         if status not in valid_final:
             raise ExperimentError(

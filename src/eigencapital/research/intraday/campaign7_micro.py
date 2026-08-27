@@ -45,7 +45,7 @@ import os
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, replace
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -54,11 +54,13 @@ from eigencapital.research.intraday.campaign4_15m import (
     SESSION_BOUNDS_UTC,
     UNIVERSE,
     CostModel,
-    HypResult,
     Hypothesis,
+    HypResult,
     Verdict,
+    _rmean,
+    _rstd,
+    _safe_div,
 )
-from eigencapital.research.intraday.campaign4_15m import _rmean, _rstd, _safe_div
 from eigencapital.research.intraday.campaign5_30m import classify
 
 # ── Constants ───────────────────────────────────────────────────────────
@@ -293,9 +295,7 @@ def sig_spread_contr_cont(df: pd.DataFrame, **kw) -> pd.Series:
 
 
 def sig_spread_spike_fade(df: pd.DataFrame, **kw) -> pd.Series:
-    spike = (
-        _safe_div(df["spread_max_bps"], df["spread_mean_bps"].replace(0, np.nan)) - 1
-    )
+    spike = _safe_div(df["spread_max_bps"], df["spread_mean_bps"].replace(0, np.nan)) - 1
     return -(spike.fillna(0)) * np.sign(df["mid_ret"])
 
 
@@ -406,7 +406,7 @@ def wf_validate(
     func: Callable,
     hp: int,
     n_folds: int = 4,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> Tuple[float, float]:
     fold_size = len(df) // (n_folds + 1)
     fold_sharpes: List[float] = []
@@ -433,7 +433,7 @@ def permutation_test(
     func: Callable,
     hp: int,
     n_permutations: int = 100,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> float:
     try:
         kw = {"all_data": all_data} if all_data else {}
@@ -445,9 +445,7 @@ def permutation_test(
         return 1.0
     cnt = 0
     for _ in range(n_permutations):
-        shuffled = pd.Series(
-            real_sig.sample(frac=1.0, replace=False).values, index=df.index
-        )
+        shuffled = pd.Series(real_sig.sample(frac=1.0, replace=False).values, index=df.index)
         ps, _, _, _ = bt(df, shuffled, hp, CostModel.BASE)
         if ps >= real_sharpe:
             cnt += 1
@@ -496,10 +494,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
         p = os.path.join(data_dir, f"{s}_M5micro.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(
-                f"  Loaded {s}: {len(data[s])} micro bars "
-                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
-            )
+            print(f"  Loaded {s}: {len(data[s])} micro bars ({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
     if not data:
         print("ERROR: no microstructure bars found — run tick_data_puller first")
         return []
@@ -541,9 +536,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
             ana = float(np.mean(adv_vals))
             mdd = float(min(dd_vals))
 
-            anchor_name = next(
-                (s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0]
-            )
+            anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0])
             anchor = data[anchor_name]
             ll_kw = {"all_data": data} if h.family == "lead_lag" else {}
             wf_cons, wf_oos = wf_validate(anchor, func, hp, **ll_kw)
@@ -670,9 +663,7 @@ def write_reports(results: List[HypResult]) -> None:
     ]:
         hs = groups.get(v, [])
         if hs:
-            lines.append(
-                f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |"
-            )
+            lines.append(f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |")
     lines.extend(["", f"**Survivors: {len(surv)}/{len(results)}**", ""])
 
     top = sorted(results, key=lambda r: r.net_base, reverse=True)[:6]
@@ -698,13 +689,7 @@ def write_reports(results: List[HypResult]) -> None:
 
     lines.extend(["---", "", "## DETAILED RESULTS", ""])
     for r in sorted(results, key=lambda x: x.net_base, reverse=True):
-        icon = (
-            "🟢"
-            if r.verdict == Verdict.SUPPORTED
-            else "🟡"
-            if r.verdict != Verdict.REJECTED
-            else "🔴"
-        )
+        icon = "🟢" if r.verdict == Verdict.SUPPORTED else "🟡" if r.verdict != Verdict.REJECTED else "🔴"
         npos = sum(1 for v in r.sym_sharpes.values() if v > 0)
         lines.extend(
             [

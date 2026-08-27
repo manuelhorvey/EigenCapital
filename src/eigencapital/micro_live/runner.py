@@ -12,14 +12,13 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Dict, List, Optional, Any
-
+from typing import Any, Dict, List
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.micro_live.campaign import (
+    MicroLiveAuthorization,
     MicroLiveCampaign,
     MicroLiveEnvelope,
-    MicroLiveAuthorization,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,9 +164,7 @@ class MT5Connection:
             return {"success": False, "error": "Position not found"}
 
         pos = positions[0]
-        close_type = (
-            MetaTrader5.ORDER_TYPE_SELL if pos.type == 0 else MetaTrader5.ORDER_TYPE_BUY
-        )
+        close_type = MetaTrader5.ORDER_TYPE_SELL if pos.type == 0 else MetaTrader5.ORDER_TYPE_BUY
 
         request = {
             "action": MetaTrader5.TRADE_ACTION_DEAL,
@@ -212,8 +209,8 @@ class MicroLiveRunner:
         self._campaign_id = f"ML-{manifest.compute_identity()[:12]}"
         self._mt5 = MT5Connection()
         self._envelope = MicroLiveEnvelope()
-        self._authorization: Optional[MicroLiveAuthorization] = None
-        self._campaign: Optional[MicroLiveCampaign] = None
+        self._authorization: MicroLiveAuthorization | None = None
+        self._campaign: MicroLiveCampaign | None = None
         self._internal_positions: Dict[str, float] = {}
 
     def authorize(
@@ -236,9 +233,7 @@ class MicroLiveRunner:
             created_timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"),
             expiry_timestamp=time.strftime(
                 "%Y-%m-%dT%H:%M:%S",
-                time.gmtime(
-                    time.time() + self._envelope.max_campaign_duration_hours * 3600
-                ),
+                time.gmtime(time.time() + self._envelope.max_campaign_duration_hours * 3600),
             ),
         )
         return self._authorization
@@ -295,19 +290,13 @@ class MicroLiveRunner:
         broker_positions = self._mt5.get_positions()
         print(f"  Current broker positions: {len(broker_positions)}")
         for pos in broker_positions:
-            print(
-                f"    {pos['symbol']}: {pos['type']} {pos['volume']} @ {pos['price_open']}"
-            )
+            print(f"    {pos['symbol']}: {pos['type']} {pos['volume']} @ {pos['price_open']}")
 
         # 6. Check kill conditions
         print("\n[6/6] Checking kill conditions...")
-        kill_reason = self._campaign.check_kill_conditions(
-            current_equity=account.get("equity", 0)
-        )
+        kill_reason = self._campaign.check_kill_conditions(current_equity=account.get("equity", 0))
         if kill_reason:
-            self._campaign.execute_kill(
-                kill_reason, f"Pre-execution kill: {kill_reason.value}"
-            )
+            self._campaign.execute_kill(kill_reason, f"Pre-execution kill: {kill_reason.value}")
             print(f"  KILLED: {kill_reason.value}")
         else:
             print("  No kill conditions triggered")
@@ -330,7 +319,7 @@ class MicroLiveRunner:
 
         return result
 
-    def get_campaign(self) -> Optional[MicroLiveCampaign]:
+    def get_campaign(self) -> MicroLiveCampaign | None:
         return self._campaign
 
     @property

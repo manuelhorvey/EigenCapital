@@ -11,10 +11,10 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class IntradayDataPuller:
 
     def __init__(
         self,
-        symbols: Optional[List[str]] = None,
+        symbols: List[str] | None = None,
         port: int = 8001,
         max_bars: int = 50000,
     ) -> None:
@@ -130,11 +130,7 @@ class IntradayDataPuller:
 
                 df = pd.DataFrame(rates)
                 df["time"] = pd.to_datetime(df["time"], unit="s")
-                df = (
-                    df.sort_values("time")
-                    .drop_duplicates(subset=["time"])
-                    .reset_index(drop=True)
-                )
+                df = df.sort_values("time").drop_duplicates(subset=["time"]).reset_index(drop=True)
 
                 # Standardize columns
                 df = df.rename(columns={"tick_volume": "volume"})
@@ -149,9 +145,7 @@ class IntradayDataPuller:
                 # Save to CSV
                 df.to_csv(f"{data_dir}/{sym}_M5.csv", index=False)
 
-                logger.info(
-                    f"  {sym}: {len(df)} bars, {df.time.min()} to {df.time.max()}"
-                )
+                logger.info(f"  {sym}: {len(df)} bars, {df.time.min()} to {df.time.max()}")
 
             mt5.shutdown()
 
@@ -180,9 +174,7 @@ class IntradayDataPuller:
             "bars": bars_info,
             "total_bars": total_bars,
         }
-        snapshot_hash = hashlib.sha256(
-            json.dumps(snapshot_data, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        snapshot_hash = hashlib.sha256(json.dumps(snapshot_data, sort_keys=True).encode()).hexdigest()[:16]
 
         manifest = IntradayDataManifest(
             broker="Exness",
@@ -202,9 +194,7 @@ class IntradayDataPuller:
 
         return data, manifest
 
-    def _load_from_csv(
-        self, data_dir: str
-    ) -> Tuple[Dict[str, pd.DataFrame], IntradayDataManifest]:
+    def _load_from_csv(self, data_dir: str) -> Tuple[Dict[str, pd.DataFrame], IntradayDataManifest]:
         """Load from saved CSV files."""
         data: Dict[str, pd.DataFrame] = {}
         bars_info: Dict[str, int] = {}
@@ -242,9 +232,7 @@ class IntradayDataPuller:
             "bars": bars_info,
             "total_bars": total_bars,
         }
-        snapshot_hash = hashlib.sha256(
-            json.dumps(snapshot_data, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        snapshot_hash = hashlib.sha256(json.dumps(snapshot_data, sort_keys=True).encode()).hexdigest()[:16]
 
         manifest = IntradayDataManifest(
             broker="Exness_csv",
@@ -281,12 +269,8 @@ class IntradayDataPuller:
             # OHLC violations: High < Low, or Close outside [Low, High]
             if all(c in df.columns for c in ["open", "high", "low", "close"]):
                 hl_violations = (df["high"] < df["low"]).sum()
-                close_outside = (
-                    (df["close"] < df["low"]) | (df["close"] > df["high"])
-                ).sum()
-                open_outside = (
-                    (df["open"] < df["low"]) | (df["open"] > df["high"])
-                ).sum()
+                close_outside = ((df["close"] < df["low"]) | (df["close"] > df["high"])).sum()
+                open_outside = ((df["open"] < df["low"]) | (df["open"] > df["high"])).sum()
                 total_ohlc += int(hl_violations + close_outside + open_outside)
 
             # Gap detection (expected ~288 bars/day for M5, ~6.5h for FX)

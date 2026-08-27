@@ -26,9 +26,9 @@ Attributes:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 class Urgency(str):
@@ -63,16 +63,14 @@ class OrderPlan:
 
     plan_id: str
     instrument_id: str
-    target_quantity: (
-        float  # SIGNED: authorized exposure (positive=LONG, negative=SHORT)
-    )
+    target_quantity: float  # SIGNED: authorized exposure (positive=LONG, negative=SHORT)
     current_quantity: float  # SIGNED: current position (what we already have)
     quantity_delta: float  # SIGNED: target - current, what the order must achieve
     execution_policy_version: str
     urgency: Urgency  # IMMEDIATE, SESSION, END_OF_DAY
-    allowed_order_types: Optional[list] = None  # e.g. ["MARKET", "LIMIT"]
+    allowed_order_types: list | None = None  # e.g. ["MARKET", "LIMIT"]
     max_slippage: float = 0.0  # Maximum acceptable slippage (price units)
-    expiry: Optional[str] = None  # ISO-8601 UTC when plan expires if unfilled
+    expiry: str | None = None  # ISO-8601 UTC when plan expires if unfilled
     version: str = "v1"
 
     # Class-level registry
@@ -107,9 +105,7 @@ class OrderPlan:
         # Validate urgency is a known value
         valid_urgencies = {Urgency.IMMEDIATE, Urgency.SESSION, Urgency.END_OF_DAY}
         if self.urgency not in valid_urgencies:
-            raise ValueError(
-                f"Invalid urgency: {self.urgency}. Must be one of {valid_urgencies}"
-            )
+            raise ValueError(f"Invalid urgency: {self.urgency}. Must be one of {valid_urgencies}")
 
         # Validate execution_policy_version is non-empty
         if not self.execution_policy_version:
@@ -122,15 +118,11 @@ class OrderPlan:
         # Validate expiry format if set
         if self.expiry is not None:
             if "T" not in self.expiry:
-                raise ValueError(
-                    f"expiry should be ISO-8601 format, got: {self.expiry}"
-                )
+                raise ValueError(f"expiry should be ISO-8601 format, got: {self.expiry}")
 
         # Registry check for duplicate plan_ids
         if self.plan_id in self._registry:
-            raise ValueError(
-                f"Duplicate plan_id: {self.plan_id}. Plan IDs must be unique."
-            )
+            raise ValueError(f"Duplicate plan_id: {self.plan_id}. Plan IDs must be unique.")
         self._registry[self.plan_id] = True
 
     def __hash__(self) -> int:
@@ -167,9 +159,7 @@ class OrderPlan:
             current_quantity=float(d["current_quantity"]),
             quantity_delta=float(d["quantity_delta"]),
             execution_policy_version=str(d["execution_policy_version"]),
-            urgency=Urgency(d["urgency"])
-            if isinstance(d.get("urgency"), str)
-            else d["urgency"],
+            urgency=Urgency(d["urgency"]) if isinstance(d.get("urgency"), str) else d["urgency"],
             allowed_order_types=d.get("allowed_order_types"),
             max_slippage=float(d.get("max_slippage", 0.0)),
             expiry=d.get("expiry"),

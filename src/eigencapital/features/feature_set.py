@@ -17,7 +17,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class FeatureStatus(str, Enum):
@@ -41,7 +41,7 @@ class FeatureEntry:
     feature_id: str
     feature_version: str
     status: FeatureStatus
-    value: Optional[float] = None
+    value: float | None = None
     availability_timestamp: str = ""
     config_hash: str = ""
     provenance_hash: str = ""
@@ -122,13 +122,9 @@ class FeatureSet:
     def __post_init__(self) -> None:
         # Validate timestamps
         if "T" not in self.decision_timestamp:
-            raise ValueError(
-                f"decision_timestamp must be ISO-8601, got: {self.decision_timestamp}"
-            )
+            raise ValueError(f"decision_timestamp must be ISO-8601, got: {self.decision_timestamp}")
         if "T" not in self.timestamp_utc:
-            raise ValueError(
-                f"timestamp_utc must be ISO-8601, got: {self.timestamp_utc}"
-            )
+            raise ValueError(f"timestamp_utc must be ISO-8601, got: {self.timestamp_utc}")
         if self.timestamp_utc > self.decision_timestamp:
             raise ValueError(
                 f"timestamp_utc ({self.timestamp_utc}) must be <= "
@@ -136,7 +132,7 @@ class FeatureSet:
                 f"Features cannot be computed from future bars."
             )
 
-    def get_value(self, feature_id: str) -> Optional[float]:
+    def get_value(self, feature_id: str) -> float | None:
         """Get a feature value by ID.
 
         Returns None if the feature is missing, unavailable, or failed.
@@ -147,34 +143,24 @@ class FeatureSet:
             return None
         return entry.value
 
-    def get_entry(self, feature_id: str) -> Optional[FeatureEntry]:
+    def get_entry(self, feature_id: str) -> FeatureEntry | None:
         """Get a feature entry by ID."""
         return self.entries.get(feature_id)
 
     @property
     def computed_features(self) -> Dict[str, float]:
         """Get all successfully computed feature values."""
-        return {
-            fid: entry.value for fid, entry in self.entries.items() if entry.is_usable
-        }
+        return {fid: entry.value for fid, entry in self.entries.items() if entry.is_usable}
 
     @property
     def unavailable_features(self) -> List[str]:
         """Get list of features that were unavailable (insufficient warm-up)."""
-        return [
-            fid
-            for fid, entry in self.entries.items()
-            if entry.status == FeatureStatus.UNAVAILABLE
-        ]
+        return [fid for fid, entry in self.entries.items() if entry.status == FeatureStatus.UNAVAILABLE]
 
     @property
     def failed_features(self) -> List[str]:
         """Get list of features that failed computation."""
-        return [
-            fid
-            for fid, entry in self.entries.items()
-            if entry.status == FeatureStatus.FAILED
-        ]
+        return [fid for fid, entry in self.entries.items() if entry.status == FeatureStatus.FAILED]
 
     @property
     def feature_count(self) -> int:
@@ -201,9 +187,7 @@ class FeatureSet:
             "instrument_id": self.instrument_id,
             "decision_timestamp": self.decision_timestamp,
             "timestamp_utc": self.timestamp_utc,
-            "entries": {
-                fid: entry.to_dict() for fid, entry in sorted(self.entries.items())
-            },
+            "entries": {fid: entry.to_dict() for fid, entry in sorted(self.entries.items())},
             "dataset_version": self.dataset_version,
             "universe_version": self.universe_version,
             "metadata": dict(sorted(self.metadata.items())),

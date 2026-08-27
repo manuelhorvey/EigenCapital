@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 
 class HypothesisFamily(Enum):
@@ -66,7 +66,7 @@ class HypothesisDefinition:
     exit_logic: str
     falsification_criteria: Dict[str, Any]
     cost_sensitivity: str  # "low", "medium", "high"
-    dependency: Optional[str] = None  # parent hypothesis_id
+    dependency: str | None = None  # parent hypothesis_id
     is_incremental: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
@@ -550,9 +550,7 @@ ALL_HYPOTHESES: List[HypothesisDefinition] = [
     HYPOTHESIS_MR_002,
 ]
 
-HYPOTHESIS_REGISTRY: Dict[str, HypothesisDefinition] = {
-    h.hypothesis_id: h for h in ALL_HYPOTHESES
-}
+HYPOTHESIS_REGISTRY: Dict[str, HypothesisDefinition] = {h.hypothesis_id: h for h in ALL_HYPOTHESES}
 
 
 def get_hypothesis(hypothesis_id: str) -> HypothesisDefinition:

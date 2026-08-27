@@ -23,7 +23,6 @@ from typing import List
 from eigencapital.core.models.bar import Bar
 from eigencapital.core.models.market_snapshot import DataQualityStatus
 
-
 # Thresholds (configurable per-asset-class in production)
 EXTREME_PRICE_JUMP_THRESHOLD = 0.20  # 20%
 VOLUME_SPIKE_MULTIPLIER = 10.0  # 10x typical
@@ -64,10 +63,7 @@ def validate_anomalies(bar: Bar) -> AnomalyCheckResult:
     if bar.open > 0:
         price_change = abs(bar.close - bar.open) / bar.open
         if price_change > EXTREME_PRICE_JUMP_THRESHOLD:
-            messages.append(
-                f"Extreme price jump: {price_change:.1%} "
-                f"(OPEN={bar.open}, CLOSE={bar.close})"
-            )
+            messages.append(f"Extreme price jump: {price_change:.1%} (OPEN={bar.open}, CLOSE={bar.close})")
 
     # Check for zero volume (may indicate halted trading or missing data)
     if bar.volume == 0:

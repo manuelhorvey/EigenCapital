@@ -12,7 +12,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Callable, Dict, List
 
 from eigencapital.features.contracts import FeatureConfig
 from eigencapital.features.errors import (
@@ -36,7 +36,7 @@ class FeatureDefinition:
     feature_id: str
     version: str
     config: FeatureConfig
-    compute_fn: Optional[Callable] = None
+    compute_fn: Callable | None = None
     description: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,7 +72,7 @@ class FeatureRegistry:
         feature_id: str,
         version: str,
         config: FeatureConfig,
-        compute_fn: Optional[Callable] = None,
+        compute_fn: Callable | None = None,
         description: str = "",
     ) -> FeatureDefinition:
         """Register a feature definition.
@@ -92,9 +92,7 @@ class FeatureRegistry:
         """
         if feature_id in self._definitions:
             if version in self._definitions[feature_id]:
-                raise FeatureDuplicateError(
-                    f"Feature {feature_id} version {version} already registered"
-                )
+                raise FeatureDuplicateError(f"Feature {feature_id} version {version} already registered")
 
         definition = FeatureDefinition(
             feature_id=feature_id,
@@ -110,7 +108,7 @@ class FeatureRegistry:
 
         return definition
 
-    def get(self, feature_id: str, version: Optional[str] = None) -> FeatureDefinition:
+    def get(self, feature_id: str, version: str | None = None) -> FeatureDefinition:
         """Get a feature definition.
 
         Args:
@@ -133,9 +131,7 @@ class FeatureRegistry:
             return versions[latest]
 
         if version not in versions:
-            raise FeatureRegistryError(
-                f"Feature '{feature_id}' version '{version}' not found"
-            )
+            raise FeatureRegistryError(f"Feature '{feature_id}' version '{version}' not found")
 
         return versions[version]
 
@@ -155,9 +151,7 @@ class FeatureRegistry:
 
     def has_version(self, feature_id: str, version: str) -> bool:
         """Check if a specific version is registered."""
-        return (
-            feature_id in self._definitions and version in self._definitions[feature_id]
-        )
+        return feature_id in self._definitions and version in self._definitions[feature_id]
 
     def __len__(self) -> int:
         """Total number of feature definitions (all versions)."""

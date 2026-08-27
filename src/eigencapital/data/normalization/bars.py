@@ -24,7 +24,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eigencapital.core.models.bar import Bar
 from eigencapital.data.loaders.base import RawRecord
@@ -34,7 +34,7 @@ from eigencapital.data.normalization.base import BaseNormalizer
 class NormalizationError(ValueError):
     """Raised when a raw record cannot be normalized into a Bar."""
 
-    def __init__(self, message: str, record: Optional[RawRecord] = None) -> None:
+    def __init__(self, message: str, record: RawRecord | None = None) -> None:
         super().__init__(message)
         self.record = record
 
@@ -127,9 +127,7 @@ class BarNormalizer(BaseNormalizer):
             data_version=self.dataset_version,
         )
 
-    def _parse_float(
-        self, data: Dict[str, Any], field_name: str, record: RawRecord
-    ) -> float:
+    def _parse_float(self, data: Dict[str, Any], field_name: str, record: RawRecord) -> float:
         """Parse a float value from raw data."""
         value = data.get(field_name)
         if value is None or value == "":
@@ -151,7 +149,7 @@ class BarNormalizer(BaseNormalizer):
         field_name: str,
         record: RawRecord,
         required: bool = True,
-    ) -> Optional[int]:
+    ) -> int | None:
         """Parse an int value from raw data."""
         value = data.get(field_name)
         if value is None or value == "":
@@ -185,11 +183,7 @@ class BarNormalizer(BaseNormalizer):
         # Normalize space separator to T
         normalized = raw_ts.replace(" ", "T")
         # Ensure Z suffix (assume UTC if no timezone info)
-        if (
-            not normalized.endswith("Z")
-            and "+" not in normalized
-            and normalized.count("-") <= 2
-        ):
+        if not normalized.endswith("Z") and "+" not in normalized and normalized.count("-") <= 2:
             normalized = normalized + "Z"
         return normalized
 

@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class GateResult(str, Enum):
@@ -87,7 +87,7 @@ class RiskEnvelope:
     t0_equity: float = 0.0  # Loaded from config at initialization
 
     @classmethod
-    def from_config(cls) -> "RiskEnvelope":
+    def from_config(cls) -> RiskEnvelope:
         """Create RiskEnvelope from production config."""
         try:
             from eigencapital.config import load_config
@@ -115,9 +115,7 @@ class RiskEnforcer:
     Returns PASS or BLOCK with exact reason.
     """
 
-    def __init__(
-        self, envelope: Optional[RiskEnvelope] = None, *, max_audit_entries: int = 1000
-    ) -> None:
+    def __init__(self, envelope: RiskEnvelope | None = None, *, max_audit_entries: int = 1000) -> None:
         self._envelope = envelope or RiskEnvelope()
         self._t0_equity = self._envelope.t0_equity
         self._peak_equity = self._t0_equity
@@ -142,7 +140,7 @@ class RiskEnforcer:
             target_orders: Number of new orders being considered
             fingerprint_match: Whether config fingerprint matches T=0
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         results: List[RiskGateResult] = []
         import hashlib
 
@@ -158,9 +156,7 @@ class RiskEnforcer:
         ).hexdigest()[:16]
 
         # Gate 1: Broker connectivity (fail-closed)
-        r = self._check_broker_connectivity(
-            account_equity, account_free_margin, now, state_hash
-        )
+        r = self._check_broker_connectivity(account_equity, account_free_margin, now, state_hash)
         results.append(r)
         if r.result != GateResult.PASS:
             return False, results
@@ -271,9 +267,7 @@ class RiskEnforcer:
             timestamp=now,
         )
 
-    def _check_account_drawdown(
-        self, equity: float, now: str, state_hash: str
-    ) -> RiskGateResult:
+    def _check_account_drawdown(self, equity: float, now: str, state_hash: str) -> RiskGateResult:
         """Gate 3: Account drawdown from T=0 equity."""
         if equity > self._peak_equity:
             self._peak_equity = equity
@@ -311,9 +305,7 @@ class RiskEnforcer:
             timestamp=now,
         )
 
-    def _check_daily_loss(
-        self, equity: float, now: str, state_hash: str
-    ) -> RiskGateResult:
+    def _check_daily_loss(self, equity: float, now: str, state_hash: str) -> RiskGateResult:
         """Gate 4: Daily loss from start-of-day equity."""
         daily_loss = self._daily_pnl_start - equity
         if daily_loss < 0:
@@ -343,9 +335,7 @@ class RiskEnforcer:
             timestamp=now,
         )
 
-    def _check_equity_floor(
-        self, equity: float, now: str, state_hash: str
-    ) -> RiskGateResult:
+    def _check_equity_floor(self, equity: float, now: str, state_hash: str) -> RiskGateResult:
         """Gate 5: Absolute equity floor."""
         if equity < self._envelope.min_equity:
             return RiskGateResult(
@@ -367,9 +357,7 @@ class RiskEnforcer:
             timestamp=now,
         )
 
-    def _check_position_protection(
-        self, positions: List[Dict], now: str, state_hash: str
-    ) -> RiskGateResult:
+    def _check_position_protection(self, positions: List[Dict], now: str, state_hash: str) -> RiskGateResult:
         """Gate 6: Check if positions have SL protection."""
         if not self._envelope.require_sl_on_positions:
             return RiskGateResult(
@@ -404,9 +392,7 @@ class RiskEnforcer:
             timestamp=now,
         )
 
-    def _check_fingerprint(
-        self, match: bool, now: str, state_hash: str
-    ) -> RiskGateResult:
+    def _check_fingerprint(self, match: bool, now: str, state_hash: str) -> RiskGateResult:
         """Gate 7: Configuration fingerprint matches T=0."""
         if not match:
             return RiskGateResult(
@@ -434,7 +420,7 @@ class RiskEnforcer:
     def audit(self, results: List[RiskGateResult]) -> None:
         """Record gate results to audit log with bounded retention."""
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "gates": [r.to_dict() for r in results],
             "all_pass": all(r.result == GateResult.PASS for r in results),
             "any_critical": any(r.result == GateResult.CRITICAL for r in results),

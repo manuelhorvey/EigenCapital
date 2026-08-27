@@ -15,7 +15,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
 
 
 class AllocationMethod(str, Enum):

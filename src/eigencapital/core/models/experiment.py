@@ -22,8 +22,8 @@ Invariants:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
 from datetime import date
+from typing import Any, Dict
 
 from eigencapital.core.models.trial_metadata import TrialMetadata
 
@@ -82,17 +82,17 @@ class Experiment:
     strategy_version: str  # strategy code version
     parameters: Dict[str, Any]  # strategy config at experiment start
     cost_model: str  # e.g. "cost_model_v2"
-    random_seed: Optional[int] = None  # for stochastic strategy reproducibility
-    start_date: Optional[date] = None  # experiment start date
-    end_date: Optional[date] = None  # experiment end date
-    train_split: Optional[tuple] = None  # (start_date, end_date) in-sample
-    validation_split: Optional[tuple] = None  # (start_date, end_date) out-of-sample
-    test_split: Optional[tuple] = None  # (start_date, end_date) untouched test
+    random_seed: int | None = None  # for stochastic strategy reproducibility
+    start_date: date | None = None  # experiment start date
+    end_date: date | None = None  # experiment end date
+    train_split: tuple | None = None  # (start_date, end_date) in-sample
+    validation_split: tuple | None = None  # (start_date, end_date) out-of-sample
+    test_split: tuple | None = None  # (start_date, end_date) untouched test
     horizon: str = "swing"  # intraday or swing
     status: str = ExperimentStatus.PRE_REGISTERED  # lifecycle status
-    created_at: Optional[str] = None  # ISO-8601 when experiment was created
-    parent_experiment_id: Optional[str] = None  # lineage: experiment this one extends
-    trial_metadata: Optional[TrialMetadata] = None  # multiple-testing accounting
+    created_at: str | None = None  # ISO-8601 when experiment was created
+    parent_experiment_id: str | None = None  # lineage: experiment this one extends
+    trial_metadata: TrialMetadata | None = None  # multiple-testing accounting
     meta: Dict[str, Any] = field(default_factory=dict)  # free-form notes, tags
 
     # Class-level registry
@@ -125,10 +125,7 @@ class Experiment:
         # Validate horizon is a known value
         valid_horizons = {"intraday", "swing"}
         if self.horizon not in valid_horizons:
-            raise ValueError(
-                f"Invalid experiment horizon: {self.horizon}. "
-                f"Must be one of {valid_horizons}"
-            )
+            raise ValueError(f"Invalid experiment horizon: {self.horizon}. Must be one of {valid_horizons}")
 
         # Validate status is a known value
         valid_statuses = {
@@ -139,49 +136,31 @@ class Experiment:
             ExperimentStatus.CANDIDATE,
         }
         if self.status not in valid_statuses:
-            raise ValueError(
-                f"Invalid experiment status: {self.status}. "
-                f"Must be one of {valid_statuses}"
-            )
+            raise ValueError(f"Invalid experiment status: {self.status}. Must be one of {valid_statuses}")
 
         # Validate train_split format if set
         if self.train_split is not None:
             if not isinstance(self.train_split, tuple) or len(self.train_split) != 2:
-                raise ValueError(
-                    f"train_split must be (start_date, end_date) tuple, got {self.train_split}"
-                )
+                raise ValueError(f"train_split must be (start_date, end_date) tuple, got {self.train_split}")
             train_start, train_end = self.train_split
             if train_start > train_end:
-                raise ValueError(
-                    f"train_split start ({train_start}) must be <= end ({train_end})"
-                )
+                raise ValueError(f"train_split start ({train_start}) must be <= end ({train_end})")
 
         # Validate validation_split format if set
         if self.validation_split is not None:
-            if (
-                not isinstance(self.validation_split, tuple)
-                or len(self.validation_split) != 2
-            ):
-                raise ValueError(
-                    f"validation_split must be (start_date, end_date) tuple, got {self.validation_split}"
-                )
+            if not isinstance(self.validation_split, tuple) or len(self.validation_split) != 2:
+                raise ValueError(f"validation_split must be (start_date, end_date) tuple, got {self.validation_split}")
             val_start, val_end = self.validation_split
             if val_start > val_end:
-                raise ValueError(
-                    f"validation_split start ({val_start}) must be <= end ({val_end})"
-                )
+                raise ValueError(f"validation_split start ({val_start}) must be <= end ({val_end})")
 
         # Validate test_split format if set
         if self.test_split is not None:
             if not isinstance(self.test_split, tuple) or len(self.test_split) != 2:
-                raise ValueError(
-                    f"test_split must be (start_date, end_date) tuple, got {self.test_split}"
-                )
+                raise ValueError(f"test_split must be (start_date, end_date) tuple, got {self.test_split}")
             test_start, test_end = self.test_split
             if test_start > test_end:
-                raise ValueError(
-                    f"test_split start ({test_start}) must be <= end ({test_end})"
-                )
+                raise ValueError(f"test_split start ({test_start}) must be <= end ({test_end})")
 
         # CRITICAL INVARIANT: Once test_split is defined, parameters and strategy code are frozen.
         # No post-hoc parameter tweaking on the test period.
@@ -197,11 +176,7 @@ class Experiment:
 
         # INVARIANT: Splits must be non-overlapping (test must be after train/val)
         # Check overlaps if all three splits are defined
-        if (
-            self.train_split is not None
-            and self.validation_split is not None
-            and self.test_split is not None
-        ):
+        if self.train_split is not None and self.validation_split is not None and self.test_split is not None:
             train_start, train_end = self.train_split
             val_start, val_end = self.validation_split
             test_start, test_end = self.test_split
@@ -231,9 +206,7 @@ class Experiment:
 
         # Validate created_at format if set
         if self.created_at is not None and "T" not in self.created_at:
-            raise ValueError(
-                f"created_at should be ISO-8601 format, got: {self.created_at}"
-            )
+            raise ValueError(f"created_at should be ISO-8601 format, got: {self.created_at}")
 
         # Validate meta is a dict
         if not isinstance(self.meta, dict):
@@ -244,16 +217,13 @@ class Experiment:
             raise ValueError("parent_experiment_id must be non-empty if set")
 
         # Validate trial_metadata type
-        if self.trial_metadata is not None and not isinstance(
-            self.trial_metadata, TrialMetadata
-        ):
+        if self.trial_metadata is not None and not isinstance(self.trial_metadata, TrialMetadata):
             raise ValueError("trial_metadata must be a TrialMetadata instance or None")
 
         # Registry check for duplicate experiment_ids
         if self.experiment_id in self._registry:
             raise ValueError(
-                f"Duplicate experiment_id: {self.experiment_id}. "
-                "Experiment IDs must be unique (ledger requirement)."
+                f"Duplicate experiment_id: {self.experiment_id}. Experiment IDs must be unique (ledger requirement)."
             )
         self._registry[self.experiment_id] = True
 
@@ -279,17 +249,13 @@ class Experiment:
             "start_date": str(self.start_date) if self.start_date else None,
             "end_date": str(self.end_date) if self.end_date else None,
             "train_split": list(self.train_split) if self.train_split else None,
-            "validation_split": list(self.validation_split)
-            if self.validation_split
-            else None,
+            "validation_split": list(self.validation_split) if self.validation_split else None,
             "test_split": list(self.test_split) if self.test_split else None,
             "horizon": self.horizon,
             "status": self.status,
             "created_at": self.created_at,
             "parent_experiment_id": self.parent_experiment_id,
-            "trial_metadata": (
-                self.trial_metadata.to_dict() if self.trial_metadata else None
-            ),
+            "trial_metadata": (self.trial_metadata.to_dict() if self.trial_metadata else None),
             "meta": dict(self.meta),
         }
 
@@ -306,31 +272,17 @@ class Experiment:
             strategy_version=str(d["strategy_version"]),
             parameters=d.get("parameters", {}),
             cost_model=str(d["cost_model"]),
-            random_seed=int(d["random_seed"])
-            if d.get("random_seed") is not None
-            else None,
-            start_date=(
-                date_type.fromisoformat(d["start_date"])
-                if d.get("start_date")
-                else None
-            ),
-            end_date=(
-                date_type.fromisoformat(d["end_date"]) if d.get("end_date") else None
-            ),
+            random_seed=int(d["random_seed"]) if d.get("random_seed") is not None else None,
+            start_date=(date_type.fromisoformat(d["start_date"]) if d.get("start_date") else None),
+            end_date=(date_type.fromisoformat(d["end_date"]) if d.get("end_date") else None),
             train_split=tuple(d["train_split"]) if d.get("train_split") else None,
-            validation_split=tuple(d["validation_split"])
-            if d.get("validation_split")
-            else None,
+            validation_split=tuple(d["validation_split"]) if d.get("validation_split") else None,
             test_split=tuple(d["test_split"]) if d.get("test_split") else None,
             horizon=str(d.get("horizon", "swing")),
             status=str(d.get("status", ExperimentStatus.PRE_REGISTERED)),
             created_at=d.get("created_at"),
             parent_experiment_id=d.get("parent_experiment_id"),
-            trial_metadata=(
-                TrialMetadata.from_dict(d["trial_metadata"])
-                if d.get("trial_metadata")
-                else None
-            ),
+            trial_metadata=(TrialMetadata.from_dict(d["trial_metadata"]) if d.get("trial_metadata") else None),
             meta=d.get("meta", {}),
         )
 
@@ -360,7 +312,7 @@ class Experiment:
         return self.status == ExperimentStatus.CANDIDATE
 
     @property
-    def full_split_triple(self) -> Optional[tuple]:
+    def full_split_triple(self) -> tuple | None:
         """Return (train, validation, test) splits if all defined, else None."""
         if self.train_split and self.validation_split and self.test_split:
             return (self.train_split, self.validation_split, self.test_split)
@@ -372,7 +324,7 @@ class Experiment:
         return self.trial_metadata is not None
 
     @property
-    def trial_family_size(self) -> Optional[int]:
+    def trial_family_size(self) -> int | None:
         """Known size of the trial family (None while the search is open)."""
         return self.trial_metadata.trials_in_family if self.trial_metadata else None
 

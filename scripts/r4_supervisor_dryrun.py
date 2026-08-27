@@ -24,8 +24,8 @@ import json
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict, List
 
 sys.path.insert(0, "src")
 
@@ -37,18 +37,17 @@ except ImportError:
     MetaTrader5 = None
 
 from eigencapital.config import load_config
-from eigencapital.live.position_attribution import (
-    classify_all,
-    capacity_account,
-    snapshot_hash,
-    R4_MAGIC,
-)
 from eigencapital.live.catastrophic_protection import (
     plan_protection,
 )
-from eigencapital.live.watchdog import Watchdog, ProbeResult
+from eigencapital.live.position_attribution import (
+    R4_MAGIC,
+    capacity_account,
+    classify_all,
+    snapshot_hash,
+)
+from eigencapital.live.watchdog import ProbeResult, Watchdog
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-
 
 # ── Gate result types ─────────────────────────────────────────────
 
@@ -172,7 +171,7 @@ class SupervisorReport:
 # ── Compute ATR for SL planning ───────────────────────────────────
 
 
-def compute_atr_pct(mt5, symbol: str, period: int = 14) -> Optional[float]:
+def compute_atr_pct(mt5, symbol: str, period: int = 14) -> float | None:
     """Compute ATR% from daily data."""
     try:
         rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, period + 10)
@@ -195,7 +194,7 @@ def compute_atr_pct(mt5, symbol: str, period: int = 14) -> Optional[float]:
 
 def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     """Run the full supervisor dry-run against live MT5."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     gates: List[GateCheck] = []
     intended_actions: List[Dict[str, Any]] = []
 
@@ -207,9 +206,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
             name="broker_connectivity",
             passed=connected,
             severity="critical",
-            detail="MT5 connection established"
-            if connected
-            else "CANNOT CONNECT TO MT5",
+            detail="MT5 connection established" if connected else "CANNOT CONNECT TO MT5",
         )
     )
     if not connected:
@@ -238,9 +235,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     account = mt5.account_info()
     balance = float(account.balance) if account else 0
     equity = float(account.equity) if account else 0
-    free_margin = float(
-        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
-    )
+    free_margin = float(getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0)
     account_id = int(account.login) if account else 0
 
     # ── 3. Position inventory ─────────────────────────────────────
@@ -272,9 +267,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     # More precise: unclassified = magic not in known set
     from eigencapital.live.position_attribution import PositionClass
 
-    unclassified_count = sum(
-        1 for c in classified if c.pclass == PositionClass.FOREIGN_MAGIC_UNKNOWN
-    )
+    unclassified_count = sum(1 for c in classified if c.pclass == PositionClass.FOREIGN_MAGIC_UNKNOWN)
 
     positions_with_sl = sum(1 for p in positions if p.sl > 0)
     positions_without_sl = sum(1 for p in positions if p.sl <= 0)
@@ -283,9 +276,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
         GateCheck(
             name="position_count",
             passed=r4_count <= config.capital.max_concurrent_positions,
-            severity="critical"
-            if r4_count > config.capital.max_concurrent_positions
-            else "info",
+            severity="critical" if r4_count > config.capital.max_concurrent_positions else "info",
             detail=f"{r4_count}/{config.capital.max_concurrent_positions} R4 positions",
             evidence={
                 "r4_count": r4_count,
@@ -299,9 +290,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
             name="foreign_positions",
             passed=foreign_count == 0,
             severity="critical" if foreign_count > 0 else "info",
-            detail=f"{foreign_count} foreign position(s) present"
-            if foreign_count
-            else "No foreign positions",
+            detail=f"{foreign_count} foreign position(s) present" if foreign_count else "No foreign positions",
             evidence={
                 "foreign_count": foreign_count,
                 "foreign": capacity.foreign_positions,
@@ -331,13 +320,9 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
             severity="critical" if no_sl_r4 else "warn",
             detail=f"{len(with_sl_r4)}/{r4_count} R4 positions have SL",
             evidence={
-                "positions_with_sl": [
-                    {"ticket": p.ticket, "symbol": p.symbol, "sl": p.sl}
-                    for p in with_sl_r4
-                ],
+                "positions_with_sl": [{"ticket": p.ticket, "symbol": p.symbol, "sl": p.sl} for p in with_sl_r4],
                 "positions_without_sl": [
-                    {"ticket": p.ticket, "symbol": p.symbol, "entry": p.price_open}
-                    for p in no_sl_r4
+                    {"ticket": p.ticket, "symbol": p.symbol, "entry": p.price_open} for p in no_sl_r4
                 ],
             },
         )
@@ -383,11 +368,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
         fp_result = verifier.verify_all()
         fp_ok = fp_result.all_verified
         failed_checks = [c for c in fp_result.checks if c.status != "verified"]
-        detail = (
-            "All fingerprints verified"
-            if fp_ok
-            else f"{len(failed_checks)} fingerprint(s) mismatched"
-        )
+        detail = "All fingerprints verified" if fp_ok else f"{len(failed_checks)} fingerprint(s) mismatched"
         evidence = {"checks": [c.to_dict() for c in fp_result.checks]}
     except Exception as e:
         fp_ok = False
@@ -405,11 +386,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     )
 
     # ── 6. Equity/drawdown check ──────────────────────────────────
-    (
-        (config.capital.max_equity - equity) / config.capital.max_equity
-        if config.capital.max_equity > 0
-        else 0
-    )
+    ((config.capital.max_equity - equity) / config.capital.max_equity if config.capital.max_equity > 0 else 0)
     equity_ok = equity >= config.live_risk.min_equity
     gates.append(
         GateCheck(
@@ -563,15 +540,11 @@ def main():
     report = run_supervisor_dryrun(verbose=verbose)
 
     # Print gates
-    print(
-        f"\nAccount: {report.account_id} | Balance: ${report.balance:,.2f} | Equity: ${report.equity:,.2f}"
-    )
+    print(f"\nAccount: {report.account_id} | Balance: ${report.balance:,.2f} | Equity: ${report.equity:,.2f}")
     print(
         f"Positions: {report.positions_total} total ({report.r4_positions} R4, {report.foreign_positions} foreign, {report.unclassified_positions} unclassified)"
     )
-    print(
-        f"SL Coverage: {report.positions_with_sl}/{report.positions_total} positions protected"
-    )
+    print(f"SL Coverage: {report.positions_with_sl}/{report.positions_total} positions protected")
     print(f"Fingerprint: {'✅ verified' if report.fingerprint_ok else '❌ MISMATCH'}")
     print(f"Watchdog: {report.watchdog_state}")
     print(f"Contamination: {'⚠️ YES' if report.contamination else '✅ NO'}")
@@ -584,9 +557,7 @@ def main():
     if report.intended_actions:
         print(f"\nIntended Actions ({len(report.intended_actions)}):")
         for a in report.intended_actions:
-            print(
-                f"  → {a['kind']} {a.get('symbol', '?')} #{a.get('ticket', '?')} — {a.get('reason', '')}"
-            )
+            print(f"  → {a['kind']} {a.get('symbol', '?')} #{a.get('ticket', '?')} — {a.get('reason', '')}")
 
     print(f"\n{'=' * 70}")
     print(f"  VERDICT: {report.verdict}")
@@ -595,7 +566,7 @@ def main():
 
     # Save report
     os.makedirs("reports/r4_qualification", exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
     json_path = f"reports/r4_qualification/supervisor_dryrun_{ts}.json"
     with open(json_path, "w") as f:

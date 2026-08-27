@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class QualificationVerdict(str, Enum):
@@ -276,9 +276,7 @@ class QualificationResult:
         )
 
         # Determine verdict
-        critical_failures = [
-            c for c in checks if not c.passed and c.severity == "CRITICAL"
-        ]
+        critical_failures = [c for c in checks if not c.passed and c.severity == "CRITICAL"]
         high_failures = [c for c in checks if not c.passed and c.severity == "HIGH"]
         all_passed = all(c.passed for c in checks)
 

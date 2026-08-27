@@ -21,7 +21,6 @@ from eigencapital.config import load_config, LiveRiskConfig
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
-    VerificationStatus,
     FingerprintVerificationResult,
 )
 from eigencapital.risk.policy import RiskPolicy

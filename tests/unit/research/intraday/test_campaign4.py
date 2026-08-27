@@ -17,7 +17,6 @@ import hashlib
 import json
 import os
 import tempfile
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -36,7 +35,6 @@ from eigencapital.research.intraday.campaign4_15m import (
     permutation_test,
     regime_analysis,
     report,
-    run,
     wf_validate,
 )
 

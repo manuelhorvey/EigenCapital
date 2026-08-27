@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Any, Dict
 
 
 class KillSwitchStatus(str, Enum):
@@ -146,7 +146,7 @@ class MarketDataSafety:
         self._last_check[instrument_id] = check
         return check
 
-    def get_last_check(self, instrument_id: str) -> Optional[DataSafetyCheck]:
+    def get_last_check(self, instrument_id: str) -> DataSafetyCheck | None:
         return self._last_check.get(instrument_id)
 
     def all_instruments_safe(self) -> bool:

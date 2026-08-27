@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class ReadinessVerdict(str, Enum):
@@ -338,9 +338,7 @@ class ReadinessResult:
             failures.append("Configuration drift detected")
 
         # Determine verdict
-        critical_failures = [
-            c for c in checks if not c.passed and c.severity == "CRITICAL"
-        ]
+        critical_failures = [c for c in checks if not c.passed and c.severity == "CRITICAL"]
         high_failures = [c for c in checks if not c.passed and c.severity == "HIGH"]
         all_passed = all(c.passed for c in checks)
 

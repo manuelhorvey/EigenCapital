@@ -14,7 +14,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -98,11 +98,7 @@ def cost_stress_test(
 
     for i, mult in enumerate(cost_multipliers):
         sharpe = sharpe_at_costs[i] if i < len(sharpe_at_costs) else 0.0
-        total_ret = (
-            total_returns_at_costs[i]
-            if total_returns_at_costs and i < len(total_returns_at_costs)
-            else 0.0
-        )
+        total_ret = total_returns_at_costs[i] if total_returns_at_costs and i < len(total_returns_at_costs) else 0.0
 
         is_profitable = sharpe > 0
         if is_profitable:
@@ -132,12 +128,8 @@ def cost_stress_test(
         if levels and levels[-1].sharpe > 0:
             breakeven = float("inf")
 
-    survives_1_5 = any(
-        level.multiplier == 1.5 and level.is_profitable for level in levels
-    )
-    survives_2 = any(
-        level.multiplier == 2.0 and level.is_profitable for level in levels
-    )
+    survives_1_5 = any(level.multiplier == 1.5 and level.is_profitable for level in levels)
+    survives_2 = any(level.multiplier == 2.0 and level.is_profitable for level in levels)
 
     return CostStressResult(
         levels=levels,

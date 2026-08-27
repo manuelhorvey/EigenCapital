@@ -70,9 +70,7 @@ def load_snapshot(data_dir: str = DATA_DIR) -> Dict[str, pd.DataFrame]:
     return data
 
 
-def verify_snapshot(
-    data_dir: str = DATA_DIR, manifest_path: str = MANIFEST_PATH
-) -> bool:
+def verify_snapshot(data_dir: str = DATA_DIR, manifest_path: str = MANIFEST_PATH) -> bool:
     """Recompute combined sha256 against the frozen pre-registration manifest."""
     with open(manifest_path) as f:
         frozen = json.load(f)
@@ -96,9 +94,7 @@ def build_membership(data: Dict[str, pd.DataFrame]):
 
     reg = UniverseMembershipRegistry()
     for sym, df in sorted(data.items()):
-        reg.add(
-            UniverseMembership(sym, "r5_universe", df.index.min().strftime("%Y-%m-%d"))
-        )
+        reg.add(UniverseMembership(sym, "r5_universe", df.index.min().strftime("%Y-%m-%d")))
     return reg
 
 
@@ -173,9 +169,7 @@ def build_trend002(px, vol, members) -> pd.DataFrame:
 def build_trend003(px, vol, members) -> pd.DataFrame:
     high = px.rolling(252, min_periods=126).max()
     dist = px / high
-    sig = pd.DataFrame(
-        np.where(dist > 0.80, 1.0, np.nan), index=px.index, columns=px.columns
-    )
+    sig = pd.DataFrame(np.where(dist > 0.80, 1.0, np.nan), index=px.index, columns=px.columns)
     return _hold(sig, 21)
 
 
@@ -269,10 +263,7 @@ def build_vol001(px, vol, members) -> pd.DataFrame:
 def build_vol002(px, vol, members) -> pd.DataFrame:
     rets = px.pct_change()
     basket = rets.mean(axis=1)
-    beta = (
-        rets.rolling(126, min_periods=60).cov(basket)
-        / basket.rolling(126, min_periods=60).var()
-    )
+    beta = rets.rolling(126, min_periods=60).cov(basket) / basket.rolling(126, min_periods=60).var()
     return _cs_ls(-beta, 21)
 
 
@@ -282,9 +273,7 @@ def build_vol003(px, vol, members) -> pd.DataFrame:
     lo = volofvol.quantile(0.25, axis=1)
     hi = volofvol.quantile(0.75, axis=1)
     scale = pd.DataFrame(
-        np.where(
-            volofvol.le(lo, axis=0), 1.0, np.where(volofvol.ge(hi, axis=0), 0.0, np.nan)
-        ),
+        np.where(volofvol.le(lo, axis=0), 1.0, np.where(volofvol.ge(hi, axis=0), 0.0, np.nan)),
         index=px.index,
         columns=px.columns,
     )
@@ -306,9 +295,7 @@ def _eg_z(a: pd.Series, b: pd.Series) -> float:
         return float("nan")
     beta = float(np.polyfit(m.iloc[:, 0], m.iloc[:, 1], 1)[0])
     spread = m.iloc[:, 1] - beta * m.iloc[:, 0]
-    return float(
-        (spread.iloc[-1] - spread.mean()) / (spread.std() if spread.std() else np.nan)
-    )
+    return float((spread.iloc[-1] - spread.mean()) / (spread.std() if spread.std() else np.nan))
 
 
 def _pair_positions(data, pairs) -> pd.DataFrame:
@@ -370,9 +357,7 @@ def build_factor001(px, vol, members) -> pd.DataFrame:
         pc1 = pc1 / pc1.abs().sum()
         cols = [c for c in pc1.index if c in pos.columns]
         wts = pc1[cols].values
-        trend_ok = (
-            (px[cols].iloc[i - 1] > px[cols].iloc[i - 252]).reindex(cols).fillna(False)
-        )
+        trend_ok = (px[cols].iloc[i - 1] > px[cols].iloc[i - 252]).reindex(cols).fillna(False)
         pos.loc[pos.index[i : i + 21], cols] = np.where(trend_ok.values, wts, 0.0)
     return pos
 
@@ -428,19 +413,13 @@ def _permutation_p(px, pos, n_permutations=500, seed=42):
     base = pos.reindex(px.index).fillna(0.0)
 
     def _stat(offset):
-        shifted = pd.DataFrame(
-            np.roll(base.values, offset, axis=0), index=base.index, columns=base.columns
-        )
+        shifted = pd.DataFrame(np.roll(base.values, offset, axis=0), index=base.index, columns=base.columns)
         gross = (shifted.shift(1) * rets).mean(axis=1, skipna=True)
         turns = shifted.diff().abs().mean(axis=1, skipna=True).fillna(0.0)
         return _sharpe(gross - turns * COST_ONE_WAY_BASE)
 
     observed = _stat(0)
-    exceed = sum(
-        1
-        for _ in range(n_permutations)
-        if _stat(int(rng.integers(63, max(64, len(px) - 63)))) >= observed
-    )
+    exceed = sum(1 for _ in range(n_permutations) if _stat(int(rng.integers(63, max(64, len(px) - 63)))) >= observed)
     return (exceed + 1) / (n_permutations + 1)
 
 
@@ -508,11 +487,7 @@ def evaluate_hypothesis(name, builder, data, px, vol, tvol, members):
     if p_raw * FAMILY_SIZE > FAMILY_P_MAX:
         reasons.append("family_permutation_insignificant")
 
-    verdict = (
-        "SUPPORTED"
-        if not reasons
-        else ("REJECTED" if len(reasons) >= 2 or "no_signal" in reasons else "FRAGILE")
-    )
+    verdict = "SUPPORTED" if not reasons else ("REJECTED" if len(reasons) >= 2 or "no_signal" in reasons else "FRAGILE")
     p_cum = min(1.0, p_raw * CUMULATIVE_TRIALS)
     if verdict == "SUPPORTED" and p_cum > 0.05:
         verdict = "FRAGILE"
@@ -561,11 +536,7 @@ def run(data_dir: str = DATA_DIR):
     members = build_membership(data)
     px = member_frame(data, "close")
     vol = px.pct_change().rolling(63).std()
-    tvol = (
-        member_frame(data, "tick_volume")
-        if "tick_volume" in next(iter(data.values())).columns
-        else vol * 0 + 1
-    )
+    tvol = member_frame(data, "tick_volume") if "tick_volume" in next(iter(data.values())).columns else vol * 0 + 1
 
     results = []
     for name, builder in HYPOTHESES:

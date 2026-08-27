@@ -10,14 +10,14 @@ All features use only bars available at the decision timestamp.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_true_range(bar: Bar, prev_close: Optional[float] = None) -> float:
+def compute_true_range(bar: Bar, prev_close: float | None = None) -> float:
     """Compute true range for a single bar.
 
     True Range = max(high-low, |high-prev_close|, |low-prev_close|)
@@ -39,7 +39,7 @@ def compute_true_range(bar: Bar, prev_close: Optional[float] = None) -> float:
     )
 
 
-def compute_atr(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_atr(bars: List[Bar], lookback: int) -> float | None:
     """Compute Average True Range.
 
     ATR is a measure of volatility that accounts for gaps.
@@ -69,7 +69,7 @@ def compute_atr(bars: List[Bar], lookback: int) -> Optional[float]:
     return sum(true_ranges) / len(true_ranges)
 
 
-def compute_high_low_range(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_high_low_range(bars: List[Bar], lookback: int) -> float | None:
     """Compute absolute high-low range over lookback period.
 
     Args:
@@ -89,7 +89,7 @@ def compute_high_low_range(bars: List[Bar], lookback: int) -> Optional[float]:
     return max(highs) - min(lows)
 
 
-def compute_normalized_range(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_normalized_range(bars: List[Bar], lookback: int) -> float | None:
     """Compute normalized high-low range (range / close).
 
     Normalized range is useful for comparing volatility across
@@ -121,9 +121,9 @@ def make_atr_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
+    feature_id: str | None = None,
     normalization: str = Normalization.NONE,
-) -> Optional[Feature]:
+) -> Feature | None:
     """Create a Feature from ATR computation."""
     value = compute_atr(bars, lookback)
     if value is None:

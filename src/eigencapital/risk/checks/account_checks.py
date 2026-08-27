@@ -223,10 +223,7 @@ def check_max_concentration(state: AccountState, policy: RiskPolicy) -> RiskChec
     if pct > policy.max_concentration_pct:
         status, msg = (
             "FAIL",
-            (
-                f"{worst_sym} concentration {pct:.1f}% exceeds "
-                f"{policy.max_concentration_pct}% cap"
-            ),
+            (f"{worst_sym} concentration {pct:.1f}% exceeds {policy.max_concentration_pct}% cap"),
         )
     elif pct > policy.warn_concentration_pct:
         status, msg = "WARN", f"{worst_sym} concentration {pct:.1f}% elevated"
@@ -242,9 +239,7 @@ def check_max_concentration(state: AccountState, policy: RiskPolicy) -> RiskChec
     )
 
 
-def check_asset_class_exposure(
-    state: AccountState, policy: RiskPolicy
-) -> RiskCheckResult:
+def check_asset_class_exposure(state: AccountState, policy: RiskPolicy) -> RiskCheckResult:
     """FAIL if any asset class exceeds max_asset_class_exposure_pct."""
     if not getattr(state, "asset_class_exposures", None):
         return RiskCheckResult(
@@ -263,10 +258,7 @@ def check_asset_class_exposure(
     if pct > policy.max_asset_class_exposure_pct:
         status, msg = (
             "FAIL",
-            (
-                f"{worst_cls} exposure {pct:.1f}% exceeds "
-                f"{policy.max_asset_class_exposure_pct}% cap"
-            ),
+            (f"{worst_cls} exposure {pct:.1f}% exceeds {policy.max_asset_class_exposure_pct}% cap"),
         )
     elif pct > policy.warn_asset_class_exposure_pct:
         status, msg = "WARN", f"{worst_cls} exposure {pct:.1f}% elevated"
@@ -282,9 +274,7 @@ def check_asset_class_exposure(
     )
 
 
-def run_all_account_checks(
-    state: AccountState, policy: RiskPolicy
-) -> List[RiskCheckResult]:
+def run_all_account_checks(state: AccountState, policy: RiskPolicy) -> List[RiskCheckResult]:
     """Run all account-level risk checks."""
     return [
         check_kill_switch(state, policy),

@@ -11,7 +11,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -145,9 +145,7 @@ class AccountingEngine:
             self.position.average_entry_price = fill_price
         elif (new_qty > 0 and old_qty > 0) or (new_qty < 0 and old_qty < 0):
             # Adding to existing position (same direction)
-            total_cost = (
-                self.position.average_entry_price * abs(old_qty) + fill_price * quantity
-            )
+            total_cost = self.position.average_entry_price * abs(old_qty) + fill_price * quantity
             self.position.average_entry_price = total_cost / abs(new_qty)
             self.position.quantity = new_qty
         else:
@@ -166,11 +164,7 @@ class AccountingEngine:
         """Compute unrealized P&L at current market price."""
         if self.position.is_flat:
             return 0.0
-        return (
-            (current_price - self.position.average_entry_price)
-            * self.position.quantity
-            * self.contract_multiplier
-        )
+        return (current_price - self.position.average_entry_price) * self.position.quantity * self.contract_multiplier
 
     def compute_equity(self, current_price: float) -> float:
         """Compute total equity: cash + unrealized P&L."""

@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from eigencapital.micro_live.campaign import (
     MicroLiveCampaign,
@@ -86,13 +86,9 @@ class QualificationReport:
         )
 
         if self.verdict == MicroLiveVerdict.QUALIFIED:
-            lines.append(
-                "**MICRO-LIVE QUALIFIED** — Live execution remains inside validated envelope."
-            )
+            lines.append("**MICRO-LIVE QUALIFIED** — Live execution remains inside validated envelope.")
         elif self.verdict == MicroLiveVerdict.QUALIFIED_WITH_RESTRICTIONS:
-            lines.append(
-                "**QUALIFIED WITH RESTRICTIONS** — Safe, but specific constraints remain mandatory."
-            )
+            lines.append("**QUALIFIED WITH RESTRICTIONS** — Safe, but specific constraints remain mandatory.")
         elif self.verdict == MicroLiveVerdict.BLOCKED:
             lines.append("**BLOCKED** — Critical safety/execution failure detected.")
         else:
@@ -190,10 +186,7 @@ class MicroLiveEvaluator:
         )
 
         # Check 7: Sufficient evidence
-        sufficient = (
-            state.orders_submitted >= self.MIN_CAMPAIGN_DURATION_BARS
-            or state.orders_filled > 0
-        )
+        sufficient = state.orders_submitted >= self.MIN_CAMPAIGN_DURATION_BARS or state.orders_filled > 0
         checks.append(
             QualificationCheck(
                 check_name="sufficient_evidence",

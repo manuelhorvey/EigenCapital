@@ -15,7 +15,7 @@ import json
 import platform
 import sys
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
 from eigencapital.research.provenance.hashing import compute_provenance_hash
 
@@ -60,7 +60,7 @@ class ResearchManifest:
     cost_model_id: str = "zero"
     cost_model_version: str = "v1"
     periods: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
     environment: Dict[str, str] = field(default_factory=dict)
     provenance_hash: str = ""
 
@@ -82,9 +82,7 @@ class ResearchManifest:
                 "periods": self.periods,
                 "random_seed": self.random_seed,
             }
-            object.__setattr__(
-                self, "provenance_hash", compute_provenance_hash(hash_input)
-            )
+            object.__setattr__(self, "provenance_hash", compute_provenance_hash(hash_input))
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""

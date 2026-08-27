@@ -14,7 +14,7 @@ are silently discarded.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
 
@@ -39,9 +39,7 @@ class ExecutionLedger:
             ValueError: If execution_id already exists
         """
         if record.execution_id in self._records:
-            raise ValueError(
-                f"Duplicate execution_id: {record.execution_id}. Ledger is append-only."
-            )
+            raise ValueError(f"Duplicate execution_id: {record.execution_id}. Ledger is append-only.")
         self._records[record.execution_id] = record
         self._insertion_order.append(record.execution_id)
 

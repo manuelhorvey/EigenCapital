@@ -15,7 +15,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
 
@@ -57,14 +57,14 @@ class BacktestClock:
         return len(self.bars)
 
     @property
-    def current_bar(self) -> Optional[Bar]:
+    def current_bar(self) -> Bar | None:
         """The bar at the current time index."""
         if 0 <= self.current_index < len(self.bars):
             return self.bars[self.current_index]
         return None
 
     @property
-    def current_timestamp(self) -> Optional[str]:
+    def current_timestamp(self) -> str | None:
         """Current time as ISO-8601 UTC string."""
         bar = self.current_bar
         return bar.timestamp_utc if bar else None
@@ -74,7 +74,7 @@ class BacktestClock:
         """Check if we've processed all bars."""
         return self.current_index >= len(self.bars)
 
-    def available_bars(self, up_to_index: Optional[int] = None) -> List[Bar]:
+    def available_bars(self, up_to_index: int | None = None) -> List[Bar]:
         """Return bars available at the current time index.
 
         This is the key method that enforces the information boundary.

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import pandas as pd
 
@@ -31,7 +31,7 @@ MAX_BARS = 200000  # ~6 months of M1 data
 
 
 def pull_m1_data(
-    symbols: Optional[List[str]] = None,
+    symbols: List[str] | None = None,
     host: str = "127.0.0.1",
     port: int = 8001,
     output_dir: str = "data/intraday_m1",
@@ -61,14 +61,10 @@ def pull_m1_data(
             all_frames: List[pd.DataFrame] = []
 
             for offset in range(0, MAX_BARS, CHUNK_SIZE):
-                rates = mt5.copy_rates_from_pos(
-                    symbol, mt5.TIMEFRAME_M1, offset, CHUNK_SIZE
-                )
+                rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, offset, CHUNK_SIZE)
                 if rates is None or len(rates) == 0:
                     break
-                all_frames.append(
-                    pd.DataFrame(rates.tolist(), columns=rates.dtype.names)
-                )
+                all_frames.append(pd.DataFrame(rates.tolist(), columns=rates.dtype.names))
 
             if not all_frames:
                 logger.warning(f"No M1 data for {symbol}")
@@ -76,16 +72,9 @@ def pull_m1_data(
 
             df = pd.concat(all_frames, ignore_index=True)
             df["time"] = pd.to_datetime(df["time"], unit="s")
-            df = (
-                df.drop_duplicates(subset="time")
-                .sort_values("time")
-                .reset_index(drop=True)
-            )
+            df = df.drop_duplicates(subset="time").sort_values("time").reset_index(drop=True)
 
-            logger.info(
-                f"  {symbol}: {len(df)} M1 bars | "
-                f"{df['time'].iloc[0]} → {df['time'].iloc[-1]}"
-            )
+            logger.info(f"  {symbol}: {len(df)} M1 bars | {df['time'].iloc[0]} → {df['time'].iloc[-1]}")
 
             # Save to CSV
             csv_path = os.path.join(output_dir, f"{symbol}_M1.csv")

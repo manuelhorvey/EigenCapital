@@ -14,21 +14,21 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
-from eigencapital.analytics.validation.walk_forward import WalkForwardResult
 from eigencapital.analytics.validation.bootstrap import (
     BootstrapResult,
     PermutationResult,
 )
-from eigencapital.analytics.validation.sensitivity import SensitivityResult
 from eigencapital.analytics.validation.cost_stress import CostStressResult
-from eigencapital.analytics.validation.regime import RegimeResult
-from eigencapital.analytics.validation.universe import UniversePerturbationResult
-from eigencapital.analytics.validation.temporal import TemporalStabilityResult
+from eigencapital.analytics.validation.deflated_sharpe import DeflatedSharpeResult
 from eigencapital.analytics.validation.multiple_testing import MultipleTestingResult
 from eigencapital.analytics.validation.pbo import PBOResult
-from eigencapital.analytics.validation.deflated_sharpe import DeflatedSharpeResult
+from eigencapital.analytics.validation.regime import RegimeResult
+from eigencapital.analytics.validation.sensitivity import SensitivityResult
+from eigencapital.analytics.validation.temporal import TemporalStabilityResult
+from eigencapital.analytics.validation.universe import UniversePerturbationResult
+from eigencapital.analytics.validation.walk_forward import WalkForwardResult
 
 
 class EvidenceVerdict(str):
@@ -94,17 +94,17 @@ class EvidenceGate:
 
     def evaluate(
         self,
-        walk_forward: Optional[WalkForwardResult] = None,
-        bootstrap: Optional[BootstrapResult] = None,
-        permutation: Optional[PermutationResult] = None,
-        sensitivity: Optional[SensitivityResult] = None,
-        cost_stress: Optional[CostStressResult] = None,
-        regime: Optional[RegimeResult] = None,
-        universe: Optional[UniversePerturbationResult] = None,
-        temporal: Optional[TemporalStabilityResult] = None,
-        multiple_testing: Optional[MultipleTestingResult] = None,
-        pbo: Optional[PBOResult] = None,
-        deflated_sharpe: Optional[DeflatedSharpeResult] = None,
+        walk_forward: WalkForwardResult | None = None,
+        bootstrap: BootstrapResult | None = None,
+        permutation: PermutationResult | None = None,
+        sensitivity: SensitivityResult | None = None,
+        cost_stress: CostStressResult | None = None,
+        regime: RegimeResult | None = None,
+        universe: UniversePerturbationResult | None = None,
+        temporal: TemporalStabilityResult | None = None,
+        multiple_testing: MultipleTestingResult | None = None,
+        pbo: PBOResult | None = None,
+        deflated_sharpe: DeflatedSharpeResult | None = None,
     ) -> Dict[str, Any]:
         """Evaluate all validation results with falsification-first semantics.
 
@@ -136,9 +136,7 @@ class EvidenceGate:
                 )
             )
 
-            passed_win = (
-                walk_forward.pct_profitable_windows >= self.min_pct_profitable_windows
-            )
+            passed_win = walk_forward.pct_profitable_windows >= self.min_pct_profitable_windows
             checks.append(
                 EvidenceCheck(
                     check_id="wf_profitable_windows",
@@ -171,9 +169,7 @@ class EvidenceGate:
                 )
             )
 
-            passed_pct = (
-                bootstrap.pct_positive_sharpe >= self.min_pct_positive_bootstrap
-            )
+            passed_pct = bootstrap.pct_positive_sharpe >= self.min_pct_positive_bootstrap
             checks.append(
                 EvidenceCheck(
                     check_id="bootstrap_pct_positive",
@@ -299,9 +295,7 @@ class EvidenceGate:
                 )
             )
 
-            passed_conc = (
-                universe.concentration.herfindahl_index <= self.max_concentration_hhi
-            )
+            passed_conc = universe.concentration.herfindahl_index <= self.max_concentration_hhi
             checks.append(
                 EvidenceCheck(
                     check_id="universe_concentration",
@@ -416,21 +410,13 @@ class EvidenceGate:
                 )
 
         # ── Determine verdict ───────────────────────────────────────
-        critical_failures = [
-            c
-            for c in checks
-            if c.severity == "CRITICAL" and not c.passed and not c.missing
-        ]
+        critical_failures = [c for c in checks if c.severity == "CRITICAL" and not c.passed and not c.missing]
         critical_missing = [c for c in checks if c.severity == "CRITICAL" and c.missing]
-        high_failures = [
-            c for c in checks if c.severity == "HIGH" and not c.passed and not c.missing
-        ]
+        high_failures = [c for c in checks if c.severity == "HIGH" and not c.passed and not c.missing]
         high_missing = [c for c in checks if c.severity == "HIGH" and c.missing]
 
         # ALL critical checks missing → REJECTED (no evidence at all)
-        all_critical_missing = all(
-            c.missing for c in checks if c.severity == "CRITICAL"
-        )
+        all_critical_missing = all(c.missing for c in checks if c.severity == "CRITICAL")
 
         if critical_failures or all_critical_missing:
             verdict = EvidenceVerdict.REJECTED
@@ -444,11 +430,7 @@ class EvidenceGate:
                 or (bootstrap and bootstrap.pct_positive_sharpe > 90)
                 or (walk_forward and walk_forward.mean_oos_sharpe > 1.0)
             )
-            verdict = (
-                EvidenceVerdict.VALIDATED
-                if strong_evidence
-                else EvidenceVerdict.CANDIDATE
-            )
+            verdict = EvidenceVerdict.VALIDATED if strong_evidence else EvidenceVerdict.CANDIDATE
 
         return {
             "verdict": verdict,

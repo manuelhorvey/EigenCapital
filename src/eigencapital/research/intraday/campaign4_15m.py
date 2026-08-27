@@ -30,7 +30,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -149,9 +149,7 @@ class HypResult:
             "permutation_p": round(self.permutation_p, 4),
             "primary_failure": self.primary_failure,
             "sym_sharpes": {k: round(v, 4) for k, v in self.sym_sharpes.items()},
-            "session_sharpes": {
-                k: round(v, 4) for k, v in self.session_sharpes.items()
-            },
+            "session_sharpes": {k: round(v, 4) for k, v in self.session_sharpes.items()},
             "year_sharpes": {k: round(v, 4) for k, v in self.year_sharpes.items()},
         }
 
@@ -831,7 +829,7 @@ def wf_validate(
     func: Callable,
     hp: int,
     n_folds: int = 5,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> Tuple[float, float, List[float]]:
     """Walk-forward validation: generate signal on full data, evaluate OOS per fold.
 
@@ -880,7 +878,7 @@ def permutation_test(
     func: Callable,
     hp: int,
     n_permutations: int = 200,
-    all_data: Optional[Dict[str, pd.DataFrame]] = None,
+    all_data: Dict[str, pd.DataFrame] | None = None,
 ) -> float:
     """Permutation test: shuffle signal and measure how often real Sharpe exceeds random.
 
@@ -938,9 +936,7 @@ def regime_analysis(
             if len(grp) < 30 or grp.std() == 0:
                 continue
             bars_per_year = TRADING_DAYS_PER_YEAR * BARS_PER_TRADING_DAY / hp
-            year_sharpes[str(yr)] = float(
-                grp.mean() / grp.std() * np.sqrt(bars_per_year)
-            )
+            year_sharpes[str(yr)] = float(grp.mean() / grp.std() * np.sqrt(bars_per_year))
 
     # Session decomposition
     session_sharpes: Dict[str, float] = {}
@@ -952,9 +948,7 @@ def regime_analysis(
             if len(sess_ret) < 30 or sess_ret.std() == 0:
                 continue
             bars_per_year = TRADING_DAYS_PER_YEAR * BARS_PER_TRADING_DAY / hp
-            session_sharpes[sess_name] = float(
-                sess_ret.mean() / sess_ret.std() * np.sqrt(bars_per_year)
-            )
+            session_sharpes[sess_name] = float(sess_ret.mean() / sess_ret.std() * np.sqrt(bars_per_year))
 
     return year_sharpes, session_sharpes
 
@@ -1052,10 +1046,7 @@ def run(data_dir: str = "data/intraday_m15") -> List[HypResult]:
         p = os.path.join(data_dir, f"{s}_M15.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(
-                f"  Loaded {s}: {len(data[s])} bars "
-                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
-            )
+            print(f"  Loaded {s}: {len(data[s])} bars ({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
 
     if not data:
         print("ERROR: No 15M data found")
@@ -1130,9 +1121,7 @@ def run(data_dir: str = "data/intraday_m15") -> List[HypResult]:
             # Walk-forward on EURUSD (most liquid)
             eurusd = data.get("EURUSDm", list(data.values())[0])
             if is_cross_asset:
-                wf_cons, wf_oos, wf_folds = wf_validate(
-                    eurusd, func, hp, n_folds=5, all_data=data
-                )
+                wf_cons, wf_oos, wf_folds = wf_validate(eurusd, func, hp, n_folds=5, all_data=data)
             else:
                 wf_cons, wf_oos, wf_folds = wf_validate(eurusd, func, hp, n_folds=5)
 
@@ -1169,9 +1158,7 @@ def run(data_dir: str = "data/intraday_m15") -> List[HypResult]:
             # Permutation test (reduced iterations for speed)
             try:
                 if is_cross_asset:
-                    perm_p = permutation_test(
-                        eurusd, func, hp, n_permutations=100, all_data=data
-                    )
+                    perm_p = permutation_test(eurusd, func, hp, n_permutations=100, all_data=data)
                 else:
                     perm_p = permutation_test(eurusd, func, hp, n_permutations=100)
                 r.permutation_p = perm_p
@@ -1237,8 +1224,7 @@ def report(
             f"**Generated:** {now}",
             f"**Hypotheses:** {len(results)}",
             "**Holding Horizons:** 15m, 30m, 1h, 2h, 4h",
-            f"**Cost Scenarios:** base ({CostModel.BASE * 10000:.0f}bps), "
-            f"adverse ({CostModel.ADVERSE * 10000:.0f}bps)",
+            f"**Cost Scenarios:** base ({CostModel.BASE * 10000:.0f}bps), adverse ({CostModel.ADVERSE * 10000:.0f}bps)",
             "",
             "---",
             "",
@@ -1288,10 +1274,7 @@ def report(
     lines.extend(
         [
             "",
-            f"**Survivors: {len(surv)}/{len(results)} "
-            f"({len(surv) / len(results) * 100:.1f}%)**"
-            if results
-            else "",
+            f"**Survivors: {len(surv)}/{len(results)} ({len(surv) / len(results) * 100:.1f}%)**" if results else "",
             "",
         ]
     )
@@ -1312,9 +1295,7 @@ def report(
         pf = r.primary_failure or "unknown"
         fail_counts[pf] += 1
     for fm, cnt in sorted(fail_counts.items(), key=lambda x: -x[1]):
-        lines.append(
-            f"| {fm} | {cnt} | {cnt / len(results) * 100:.0f}% |" if results else ""
-        )
+        lines.append(f"| {fm} | {cnt} | {cnt / len(results) * 100:.0f}% |" if results else "")
     lines.append("")
 
     # ── Family breakdown ────────────────────────────────────────────────
@@ -1333,9 +1314,7 @@ def report(
         fam_groups[r.family].append(r)
     for fam, hs in sorted(fam_groups.items()):
         rej = sum(1 for h in hs if h.verdict == Verdict.REJECTED)
-        fra = sum(
-            1 for h in hs if h.verdict not in (Verdict.REJECTED, Verdict.SUPPORTED)
-        )
+        fra = sum(1 for h in hs if h.verdict not in (Verdict.REJECTED, Verdict.SUPPORTED))
         sup = sum(1 for h in hs if h.verdict == Verdict.SUPPORTED)
         lines.append(f"| {fam} | {len(hs)} | {rej} | {fra} | {sup} |")
     lines.append("")
@@ -1363,18 +1342,11 @@ def report(
     # ── Detailed results ────────────────────────────────────────────────
     lines.extend(["---", "", "## DETAILED RESULTS", ""])
     for r in results:
-        icon = (
-            "🟢"
-            if r.verdict == Verdict.SUPPORTED
-            else "🟡"
-            if r.verdict not in (Verdict.REJECTED,)
-            else "🔴"
-        )
+        icon = "🟢" if r.verdict == Verdict.SUPPORTED else "🟡" if r.verdict not in (Verdict.REJECTED,) else "🔴"
         lines.extend(
             [
                 f"### {icon} {r.hid} — {r.description}",
-                f"**Family:** {r.family} | **HP:** {r.hp} bars ({r.hp * 15}m) "
-                f"| **Verdict:** {r.verdict.value}",
+                f"**Family:** {r.family} | **HP:** {r.hp} bars ({r.hp * 15}m) | **Verdict:** {r.verdict.value}",
                 "",
                 "| Metric | Value |",
                 "|---|---|",
@@ -1439,8 +1411,7 @@ def report(
     if len(surv) == 0:
         lines.extend(
             [
-                "**No robust intraday alpha found at any tested timeframe "
-                "(M1, M5, 15M).**",
+                "**No robust intraday alpha found at any tested timeframe (M1, M5, 15M).**",
                 "",
                 "This is a **successful research outcome** — the system correctly "
                 "identified that conventional intraday information does not contain "
@@ -1471,9 +1442,7 @@ def report(
     )
     if surv:
         bonf_alpha = 0.05 / len(results)
-        lines.append(
-            f"- **Bonferroni-corrected alpha (0.05/{len(results)}):** {bonf_alpha:.4f}"
-        )
+        lines.append(f"- **Bonferroni-corrected alpha (0.05/{len(results)}):** {bonf_alpha:.4f}")
         sig_surv = [s for s in surv if s.permutation_p < bonf_alpha]
         lines.append(f"- **Survivors passing Bonferroni:** {len(sig_surv)}")
     lines.append("")

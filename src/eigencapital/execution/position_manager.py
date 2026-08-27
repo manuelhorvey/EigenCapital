@@ -11,7 +11,7 @@ Never introduces a separate authoritative "position_side".
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 from eigencapital.core.models.fill import Fill
 
@@ -73,9 +73,7 @@ class PositionManager:
     def __init__(self) -> None:
         self._positions: Dict[str, PositionRecord] = {}
 
-    def update_from_fill(
-        self, fill: Fill, current_price: Optional[float] = None
-    ) -> PositionRecord:
+    def update_from_fill(self, fill: Fill, current_price: float | None = None) -> PositionRecord:
         """Update position from a fill.
 
         Args:
@@ -110,9 +108,7 @@ class PositionManager:
                 else:
                     realized = closed_qty * (pos.average_entry_price - fill.fill_price)
                 pos.realized_pnl += realized
-            elif (old_quantity > 0 and new_quantity < 0) or (
-                old_quantity < 0 and new_quantity > 0
-            ):
+            elif (old_quantity > 0 and new_quantity < 0) or (old_quantity < 0 and new_quantity > 0):
                 # Crossing through zero
                 closed_qty = abs(old_quantity)
                 if old_quantity > 0:
@@ -134,10 +130,7 @@ class PositionManager:
 
         # Update average entry price for increasing positions
         if abs(new_quantity) > abs(old_quantity) and old_quantity != 0:
-            total_cost = (
-                pos.average_entry_price * abs(old_quantity)
-                + fill.fill_price * fill.quantity
-            )
+            total_cost = pos.average_entry_price * abs(old_quantity) + fill.fill_price * fill.quantity
             pos.average_entry_price = total_cost / abs(new_quantity)
         elif old_quantity == 0:
             pos.average_entry_price = fill.fill_price
@@ -148,19 +141,15 @@ class PositionManager:
         # Update unrealized P&L
         if current_price is not None and not pos.is_flat:
             if pos.is_long:
-                pos.unrealized_pnl = pos.quantity * (
-                    current_price - pos.average_entry_price
-                )
+                pos.unrealized_pnl = pos.quantity * (current_price - pos.average_entry_price)
             else:
-                pos.unrealized_pnl = pos.quantity * (
-                    pos.average_entry_price - current_price
-                )
+                pos.unrealized_pnl = pos.quantity * (pos.average_entry_price - current_price)
         else:
             pos.unrealized_pnl = 0.0
 
         return pos
 
-    def get_position(self, instrument_id: str) -> Optional[PositionRecord]:
+    def get_position(self, instrument_id: str) -> PositionRecord | None:
         """Get position for an instrument."""
         return self._positions.get(instrument_id)
 

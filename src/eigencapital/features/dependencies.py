@@ -18,8 +18,8 @@ This module:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Any
 from enum import Enum
+from typing import Any, Dict, List, Set
 
 
 class DependencyType(str, Enum):
@@ -131,15 +131,11 @@ class FeatureDAG:
 
         if len(result) != len(all_needed):
             missing = all_needed - set(result)
-            raise ValueError(
-                f"Circular dependency detected. Unresolved features: {missing}"
-            )
+            raise ValueError(f"Circular dependency detected. Unresolved features: {missing}")
 
         return result
 
-    def _collect_transitive(
-        self, feature_id: str, collected: Set[str], visited: Set[str]
-    ) -> None:
+    def _collect_transitive(self, feature_id: str, collected: Set[str], visited: Set[str]) -> None:
         """Collect all transitive dependencies."""
         if feature_id in visited:
             return
@@ -167,9 +163,7 @@ class FeatureDAG:
 
         return errors
 
-    def _check_cycle(
-        self, node: str, visited: Set[str], recursion_stack: Set[str]
-    ) -> None:
+    def _check_cycle(self, node: str, visited: Set[str], recursion_stack: Set[str]) -> None:
         """DFS cycle detection."""
         if node in recursion_stack:
             raise ValueError(f"Circular dependency involving {node}")

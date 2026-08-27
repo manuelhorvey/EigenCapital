@@ -18,7 +18,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class CampaignPhase(str, Enum):
@@ -95,9 +95,7 @@ class HypothesisStatus(str, Enum):
     INCREMENTAL = "incremental"  # Adds value to existing portfolio
     REDUNDANT = "redundant"  # Works individually but adds no portfolio value
     FRAGILE = "fragile"  # Statistical edge fails robustness/cost/regime
-    CAPACITY_LIMITED = (
-        "capacity_limited"  # Edge exists but deployable capacity inadequate
-    )
+    CAPACITY_LIMITED = "capacity_limited"  # Edge exists but deployable capacity inadequate
 
 
 @dataclass(frozen=True)
@@ -202,9 +200,7 @@ class HypothesisVerdict:
 
     hypothesis_id: str
     family: str
-    status: (
-        str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
-    )
+    status: str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
     total_trials: int
     selected_trial_id: str = ""
     best_sharpe: float = 0.0
@@ -284,9 +280,7 @@ class ResearchCampaignRunner:
     def create_campaign(self, campaign: ResearchCampaign) -> ResearchCampaign:
         """Create a new research campaign."""
         self._campaigns[campaign.campaign_id] = campaign
-        self._record_event(
-            "CAMPAIGN_CREATED", campaign.campaign_id, campaign.current_phase
-        )
+        self._record_event("CAMPAIGN_CREATED", campaign.campaign_id, campaign.current_phase)
         return campaign
 
     def transition_phase(
@@ -347,9 +341,7 @@ class ResearchCampaignRunner:
         )
         self._hypotheses[hypothesis.hypothesis_id] = registered
         self._trials[hypothesis.hypothesis_id] = []
-        self._record_event(
-            "HYPOTHESIS_REGISTERED", hypothesis.hypothesis_id, registered.family
-        )
+        self._record_event("HYPOTHESIS_REGISTERED", hypothesis.hypothesis_id, registered.family)
         return registered
 
     def record_trial(self, trial: HypothesisTrial) -> None:
@@ -399,16 +391,16 @@ class ResearchCampaignRunner:
         """Verify that a registered hypothesis cannot be modified."""
         return hypothesis_id in self._hypotheses
 
-    def get_hypothesis(self, hypothesis_id: str) -> Optional[HypothesisIdentity]:
+    def get_hypothesis(self, hypothesis_id: str) -> HypothesisIdentity | None:
         return self._hypotheses.get(hypothesis_id)
 
     def get_trials(self, hypothesis_id: str) -> List[HypothesisTrial]:
         return list(self._trials.get(hypothesis_id, []))
 
-    def get_verdict(self, hypothesis_id: str) -> Optional[HypothesisVerdict]:
+    def get_verdict(self, hypothesis_id: str) -> HypothesisVerdict | None:
         return self._verdicts.get(hypothesis_id)
 
-    def get_campaign(self, campaign_id: str) -> Optional[ResearchCampaign]:
+    def get_campaign(self, campaign_id: str) -> ResearchCampaign | None:
         return self._campaigns.get(campaign_id)
 
     def get_all_verdicts(self) -> List[HypothesisVerdict]:
@@ -418,11 +410,7 @@ class ResearchCampaignRunner:
         return [v for v in self._verdicts.values() if v.family == family]
 
     def get_rejected_count(self) -> int:
-        return sum(
-            1
-            for v in self._verdicts.values()
-            if v.status == HypothesisStatus.REJECTED.value
-        )
+        return sum(1 for v in self._verdicts.values() if v.status == HypothesisStatus.REJECTED.value)
 
     def get_supported_count(self) -> int:
         return sum(
@@ -436,9 +424,7 @@ class ResearchCampaignRunner:
             )
         )
 
-    def _record_event(
-        self, event_type: str, entity_id: str, status: str, reason: str = ""
-    ) -> None:
+    def _record_event(self, event_type: str, entity_id: str, status: str, reason: str = "") -> None:
         self._events.append(
             {
                 "event_type": event_type,

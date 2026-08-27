@@ -11,11 +11,11 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
-from eigencapital.research.alpha.campaign import HypothesisVerdict, HypothesisStatus
-from eigencapital.research.alpha.scorecard import AlphaAdmissionScorecard
+from eigencapital.research.alpha.campaign import HypothesisStatus, HypothesisVerdict
 from eigencapital.research.alpha.incremental import IncrementalTestResult
+from eigencapital.research.alpha.scorecard import AlphaAdmissionScorecard
 
 
 @dataclass(frozen=True)
@@ -215,16 +215,8 @@ class ResearchMapGenerator:
                     HypothesisStatus.REDUNDANT.value,
                 )
             )
-            inconclusive = sum(
-                1
-                for v in family_verdicts
-                if v.status == HypothesisStatus.INCONCLUSIVE.value
-            )
-            supported = sum(
-                1
-                for v in family_verdicts
-                if v.status == HypothesisStatus.SUPPORTED.value
-            )
+            inconclusive = sum(1 for v in family_verdicts if v.status == HypothesisStatus.INCONCLUSIVE.value)
+            supported = sum(1 for v in family_verdicts if v.status == HypothesisStatus.SUPPORTED.value)
             portfolio_useful = sum(
                 1
                 for v in family_verdicts
@@ -236,9 +228,7 @@ class ResearchMapGenerator:
                 )
             )
             production_candidate = sum(
-                1
-                for v in family_verdicts
-                if v.status == HypothesisStatus.PRODUCTION_CANDIDATE.value
+                1 for v in family_verdicts if v.status == HypothesisStatus.PRODUCTION_CANDIDATE.value
             )
 
             sharpes = [v.net_sharpe for v in family_verdicts if v.net_sharpe > 0]
@@ -246,18 +236,12 @@ class ResearchMapGenerator:
             avg_sharpe = sum(sharpes) / len(sharpes) if sharpes else 0.0
 
             incr_in_family = [
-                r
-                for r in incremental_results
-                if any(v.hypothesis_id == r.hypothesis_id for v in family_verdicts)
+                r for r in incremental_results if any(v.hypothesis_id == r.hypothesis_id for v in family_verdicts)
             ]
             best_incr = max((r.sharpe_delta for r in incr_in_family), default=0.0)
 
             total_in_family = max(executed, 1)
-            survival = (
-                (supported + portfolio_useful + production_candidate) / total_in_family
-                if executed > 0
-                else 0.0
-            )
+            survival = (supported + portfolio_useful + production_candidate) / total_in_family if executed > 0 else 0.0
 
             family_summaries.append(
                 FamilySummary(
@@ -289,9 +273,7 @@ class ResearchMapGenerator:
                 HypothesisStatus.REDUNDANT.value,
             )
         )
-        total_supported = sum(
-            1 for v in verdicts if v.status == HypothesisStatus.SUPPORTED.value
-        )
+        total_supported = sum(1 for v in verdicts if v.status == HypothesisStatus.SUPPORTED.value)
         total_pu = sum(
             1
             for v in verdicts
@@ -302,11 +284,7 @@ class ResearchMapGenerator:
                 HypothesisStatus.CONDITIONAL.value,
             )
         )
-        total_pc = sum(
-            1
-            for v in verdicts
-            if v.status == HypothesisStatus.PRODUCTION_CANDIDATE.value
-        )
+        total_pc = sum(1 for v in verdicts if v.status == HypothesisStatus.PRODUCTION_CANDIDATE.value)
 
         survival_rate = (total_supported + total_pu + total_pc) / max(total, 1)
 

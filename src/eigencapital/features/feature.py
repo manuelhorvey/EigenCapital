@@ -30,9 +30,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, ClassVar
 import math
+from dataclasses import dataclass, field
+from typing import Any, ClassVar, Dict, List
 
 from eigencapital.features.contracts import FeatureFamily, Normalization
 from eigencapital.features.errors import (
@@ -96,21 +96,16 @@ class Feature:
 
         # Validate timestamp is ISO-8601
         if "T" not in self.timestamp_utc:
-            raise ValueError(
-                f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}"
-            )
+            raise ValueError(f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}")
 
         # Validate value is finite
         if math.isnan(self.value) or math.isinf(self.value):
-            raise FeatureValidationError(
-                f"Feature value must be finite, got {self.value}"
-            )
+            raise FeatureValidationError(f"Feature value must be finite, got {self.value}")
 
         # Validate feature_family
         if not FeatureFamily.is_valid(self.feature_family):
             raise ValueError(
-                f"Invalid feature_family: {self.feature_family}. "
-                f"Must be one of {sorted(FeatureFamily.ALL_FAMILIES)}"
+                f"Invalid feature_family: {self.feature_family}. Must be one of {sorted(FeatureFamily.ALL_FAMILIES)}"
             )
 
         # Validate lookback
@@ -120,23 +115,15 @@ class Feature:
         # Validate normalization
         if not Normalization.is_valid(self.normalization):
             raise ValueError(
-                f"Invalid normalization: {self.normalization}. "
-                f"Must be one of {sorted(Normalization.ALL_METHODS)}"
+                f"Invalid normalization: {self.normalization}. Must be one of {sorted(Normalization.ALL_METHODS)}"
             )
 
         # Validate availability_timestamp is ISO-8601
         if self.availability_timestamp and "T" not in self.availability_timestamp:
-            raise ValueError(
-                f"availability_timestamp should be ISO-8601 format, "
-                f"got: {self.availability_timestamp}"
-            )
+            raise ValueError(f"availability_timestamp should be ISO-8601 format, got: {self.availability_timestamp}")
 
         # INVARIANT: availability_timestamp <= timestamp_utc
-        if (
-            self.availability_timestamp
-            and self.timestamp_utc
-            and self.availability_timestamp > self.timestamp_utc
-        ):
+        if self.availability_timestamp and self.timestamp_utc and self.availability_timestamp > self.timestamp_utc:
             raise FeatureAvailabilityError(
                 f"availability_timestamp ({self.availability_timestamp}) "
                 f"> timestamp_utc ({self.timestamp_utc}). "
@@ -145,9 +132,7 @@ class Feature:
 
         # Registry check for duplicate feature_id
         if self.feature_id in self._registry:
-            raise ValueError(
-                f"Duplicate feature_id: {self.feature_id}. Feature IDs must be unique."
-            )
+            raise ValueError(f"Duplicate feature_id: {self.feature_id}. Feature IDs must be unique.")
         self._registry[self.feature_id] = True
 
     def __hash__(self) -> int:

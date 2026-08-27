@@ -62,7 +62,7 @@ class CSVLoader(BaseLoader):
             raise FileNotFoundError(f"CSV file not found: {path}")
 
         records: List[RawRecord] = []
-        with open(path, "r", encoding=self.encoding) as f:
+        with open(path, encoding=self.encoding) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 # Apply column mapping

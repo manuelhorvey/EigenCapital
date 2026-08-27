@@ -5,14 +5,14 @@ Uses the same M5 data from Campaign 1 but tests fundamentally different
 information sources: volume, spread, range patterns, and session mechanics.
 """
 
-import sys
-import os
 import logging
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from eigencapital.research.intraday.data_puller import IntradayDataPuller
 from eigencapital.research.intraday.campaign2 import MicroCampaignExecutor
+from eigencapital.research.intraday.data_puller import IntradayDataPuller
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -74,15 +74,9 @@ def main():
             print(f"  {verdict.upper():30s} {count:3d}  {bar}")
 
     total = len(results)
-    survivors = verdict_counts.get("supported", 0) + verdict_counts.get(
-        "incremental", 0
-    )
+    survivors = verdict_counts.get("supported", 0) + verdict_counts.get("incremental", 0)
     print(f"\n  Total hypotheses: {total}")
-    print(
-        f"  Survivors: {survivors} ({survivors / total * 100:.1f}%)"
-        if total
-        else "  No results"
-    )
+    print(f"  Survivors: {survivors} ({survivors / total * 100:.1f}%)" if total else "  No results")
 
     # By signal source
     print("\n  By Signal Source:")

@@ -27,7 +27,7 @@ import platform
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class OrderSide(str, Enum):
@@ -168,22 +168,22 @@ class TradingProvider(ABC):
         pass
 
     @abstractmethod
-    def account_info(self) -> Optional[AccountInfo]:
+    def account_info(self) -> AccountInfo | None:
         """Get account information."""
         pass
 
     @abstractmethod
-    def positions_get(self, ticket: Optional[int] = None) -> List[PositionInfo]:
+    def positions_get(self, ticket: int | None = None) -> List[PositionInfo]:
         """Get open positions. Optionally filter by ticket."""
         pass
 
     @abstractmethod
-    def symbol_info(self, symbol: str) -> Optional[SymbolInfo]:
+    def symbol_info(self, symbol: str) -> SymbolInfo | None:
         """Get symbol information."""
         pass
 
     @abstractmethod
-    def symbol_info_tick(self, symbol: str) -> Optional[TickInfo]:
+    def symbol_info_tick(self, symbol: str) -> TickInfo | None:
         """Get current tick for a symbol."""
         pass
 
@@ -195,7 +195,7 @@ class TradingProvider(ABC):
     @abstractmethod
     def copy_rates_from_pos(
         self, symbol: str, timeframe: int, start_pos: int, count: int
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]] | None:
         """Copy rates from position. Timeframe constants provided by implementation."""
         pass
 
@@ -250,7 +250,7 @@ class LinuxMT5Provider(TradingProvider):
     def is_connected(self) -> bool:
         return self._connected
 
-    def account_info(self) -> Optional[AccountInfo]:
+    def account_info(self) -> AccountInfo | None:
         if not self._connected or self._mt5 is None:
             return None
         info = self._mt5.account_info()
@@ -269,14 +269,10 @@ class LinuxMT5Provider(TradingProvider):
             name=getattr(info, "name", ""),
         )
 
-    def positions_get(self, ticket: Optional[int] = None) -> List[PositionInfo]:
+    def positions_get(self, ticket: int | None = None) -> List[PositionInfo]:
         if not self._connected or self._mt5 is None:
             return []
-        positions = (
-            self._mt5.positions_get(ticket=ticket)
-            if ticket
-            else self._mt5.positions_get()
-        )
+        positions = self._mt5.positions_get(ticket=ticket) if ticket else self._mt5.positions_get()
         if positions is None:
             return []
         return [
@@ -298,7 +294,7 @@ class LinuxMT5Provider(TradingProvider):
             for p in positions
         ]
 
-    def symbol_info(self, symbol: str) -> Optional[SymbolInfo]:
+    def symbol_info(self, symbol: str) -> SymbolInfo | None:
         if not self._connected or self._mt5 is None:
             return None
         info = self._mt5.symbol_info(symbol)
@@ -317,7 +313,7 @@ class LinuxMT5Provider(TradingProvider):
             volume_step=info.volume_step,
         )
 
-    def symbol_info_tick(self, symbol: str) -> Optional[TickInfo]:
+    def symbol_info_tick(self, symbol: str) -> TickInfo | None:
         if not self._connected or self._mt5 is None:
             return None
         tick = self._mt5.symbol_info_tick(symbol)
@@ -338,7 +334,7 @@ class LinuxMT5Provider(TradingProvider):
 
     def copy_rates_from_pos(
         self, symbol: str, timeframe: int, start_pos: int, count: int
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]] | None:
         if not self._connected or self._mt5 is None:
             return None
         rates = self._mt5.copy_rates_from_pos(symbol, timeframe, start_pos, count)
@@ -372,9 +368,7 @@ class LinuxMT5Provider(TradingProvider):
             "magic": request.magic,
             "comment": request.comment,
             "type_time": MetaTrader5.ORDER_TIME_GTC,
-            "type_filling": filling_map.get(
-                request.filling_mode, MetaTrader5.ORDER_FILLING_FOK
-            ),
+            "type_filling": filling_map.get(request.filling_mode, MetaTrader5.ORDER_FILLING_FOK),
         }
         if request.sl > 0:
             mt5_request["sl"] = request.sl
@@ -446,7 +440,7 @@ class WindowsMT5Provider(TradingProvider):
     def is_connected(self) -> bool:
         return self._connected
 
-    def account_info(self) -> Optional[AccountInfo]:
+    def account_info(self) -> AccountInfo | None:
         if not self._connected or self._mt5 is None:
             return None
         info = self._mt5.account_info()
@@ -465,14 +459,10 @@ class WindowsMT5Provider(TradingProvider):
             name=getattr(info, "name", ""),
         )
 
-    def positions_get(self, ticket: Optional[int] = None) -> List[PositionInfo]:
+    def positions_get(self, ticket: int | None = None) -> List[PositionInfo]:
         if not self._connected or self._mt5 is None:
             return []
-        positions = (
-            self._mt5.positions_get(ticket=ticket)
-            if ticket
-            else self._mt5.positions_get()
-        )
+        positions = self._mt5.positions_get(ticket=ticket) if ticket else self._mt5.positions_get()
         if positions is None:
             return []
         return [
@@ -494,7 +484,7 @@ class WindowsMT5Provider(TradingProvider):
             for p in positions
         ]
 
-    def symbol_info(self, symbol: str) -> Optional[SymbolInfo]:
+    def symbol_info(self, symbol: str) -> SymbolInfo | None:
         if not self._connected or self._mt5 is None:
             return None
         info = self._mt5.symbol_info(symbol)
@@ -513,7 +503,7 @@ class WindowsMT5Provider(TradingProvider):
             volume_step=info.volume_step,
         )
 
-    def symbol_info_tick(self, symbol: str) -> Optional[TickInfo]:
+    def symbol_info_tick(self, symbol: str) -> TickInfo | None:
         if not self._connected or self._mt5 is None:
             return None
         tick = self._mt5.symbol_info_tick(symbol)
@@ -534,7 +524,7 @@ class WindowsMT5Provider(TradingProvider):
 
     def copy_rates_from_pos(
         self, symbol: str, timeframe: int, start_pos: int, count: int
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]] | None:
         if not self._connected or self._mt5 is None:
             return None
         rates = self._mt5.copy_rates_from_pos(symbol, timeframe, start_pos, count)
@@ -568,9 +558,7 @@ class WindowsMT5Provider(TradingProvider):
             "magic": request.magic,
             "comment": request.comment,
             "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": filling_map.get(
-                request.filling_mode, mt5.ORDER_FILLING_FOK
-            ),
+            "type_filling": filling_map.get(request.filling_mode, mt5.ORDER_FILLING_FOK),
         }
         if request.sl > 0:
             mt5_request["sl"] = request.sl
@@ -647,6 +635,5 @@ def create_trading_provider() -> TradingProvider:
         pass
 
     raise RuntimeError(
-        f"No MT5 provider available for platform '{system}'. "
-        "Install mt5linux (Linux) or MetaTrader5 (Windows)."
+        f"No MT5 provider available for platform '{system}'. Install mt5linux (Linux) or MetaTrader5 (Windows)."
     )

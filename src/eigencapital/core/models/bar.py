@@ -13,10 +13,10 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
-import math
 import hashlib
+import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -53,8 +53,8 @@ class Bar:
     low: float
     close: float
     volume: int
-    vwap: Optional[float] = None
-    source: Optional[str] = None
+    vwap: float | None = None
+    source: str | None = None
     bar_interval: str = "1m"  # Default: 1-minute
     data_version: str = "v1"
 
@@ -64,8 +64,7 @@ class Bar:
         # INVARIANT: timestamp_utc == bar_end_utc
         if self.timestamp_utc != self.bar_end_utc:
             raise ValueError(
-                f"Bar invariant violated: timestamp_utc ({self.timestamp_utc}) "
-                f"!= bar_end_utc ({self.bar_end_utc})"
+                f"Bar invariant violated: timestamp_utc ({self.timestamp_utc}) != bar_end_utc ({self.bar_end_utc})"
             )
 
         # INVARIANT: bar_start_utc < bar_end_utc (chronological order)
@@ -81,22 +80,18 @@ class Bar:
             if not isinstance(price, (int, float)):
                 raise ValueError(f"{price_name} must be numeric, got {type(price)}")
             if math.isnan(price) or math.isinf(price):
-                raise ValueError(
-                    f"{price_name} must be finite (no NaN/infinity), got {price}"
-                )
+                raise ValueError(f"{price_name} must be finite (no NaN/infinity), got {price}")
             if price <= 0:
                 raise ValueError(f"{price_name} must be > 0, got {price}")
 
         # Validate price hierarchy: high >= max(open, close), low <= min(open, close)
         if self.high < max(self.open, self.close):
             raise ValueError(
-                f"Bar invariant violated: high ({self.high}) < max(open, close) "
-                f"= {max(self.open, self.close)}"
+                f"Bar invariant violated: high ({self.high}) < max(open, close) = {max(self.open, self.close)}"
             )
         if self.low > min(self.open, self.close):
             raise ValueError(
-                f"Bar invariant violated: low ({self.low}) > min(open, close) "
-                f"= {min(self.open, self.close)}"
+                f"Bar invariant violated: low ({self.low}) > min(open, close) = {min(self.open, self.close)}"
             )
 
         # Validate volume >= 0
@@ -220,10 +215,7 @@ class BarInterval:
 
     def __post_init__(self) -> None:
         if self.value not in self.VALID_INTERVALS:
-            raise ValueError(
-                f"Invalid bar_interval: {self.value}. "
-                f"Must be one of {self.VALID_INTERVALS}"
-            )
+            raise ValueError(f"Invalid bar_interval: {self.value}. Must be one of {self.VALID_INTERVALS}")
 
 
 Bar._registry = {}

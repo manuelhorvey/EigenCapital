@@ -13,11 +13,11 @@ Critical invariant: The runner never modifies hypotheses or results.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable
+from typing import Any, Callable, Dict, List
 
-from eigencapital.research.execution.engine import ExecutionEngine, ExecutionConfig
-from eigencapital.research.execution.record import ExecutionRecord
+from eigencapital.research.execution.engine import ExecutionConfig, ExecutionEngine
 from eigencapital.research.execution.ledger import ExecutionLedger
+from eigencapital.research.execution.record import ExecutionRecord
 from eigencapital.research.hypotheses.hypothesis import Hypothesis
 
 
@@ -100,7 +100,7 @@ class CampaignRunner:
         hypotheses: Dict[str, Hypothesis],
         compute_features_fn: Callable,
         run_backtest_fn: Callable,
-        validate_fn: Optional[Callable] = None,
+        validate_fn: Callable | None = None,
         cost_model: Any = None,
     ) -> CampaignResult:
         """Execute a complete campaign.
@@ -186,9 +186,7 @@ class CampaignRunner:
 
         for record in executions:
             verdict = record.evidence_gate_verdict or record.status.value
-            comparison["by_verdict"][verdict] = (
-                comparison["by_verdict"].get(verdict, 0) + 1
-            )
+            comparison["by_verdict"][verdict] = comparison["by_verdict"].get(verdict, 0) + 1
             comparison["results"].append(
                 {
                     "execution_id": record.execution_id,
@@ -207,7 +205,7 @@ class CampaignRunner:
         original_executions: List[ExecutionRecord],
         compute_features_fn: Callable,
         run_backtest_fn: Callable,
-        validate_fn: Optional[Callable],
+        validate_fn: Callable | None,
         cost_model: Any,
     ) -> Dict[str, Any]:
         """Test reproducibility by re-executing the first hypothesis."""
@@ -242,9 +240,7 @@ class CampaignRunner:
 
         # Compare results (not provenance — experiment IDs differ)
         result_match = original.result == repro_record.result
-        verdict_match = (
-            original.evidence_gate_verdict == repro_record.evidence_gate_verdict
-        )
+        verdict_match = original.evidence_gate_verdict == repro_record.evidence_gate_verdict
         match = result_match and verdict_match
 
         return {

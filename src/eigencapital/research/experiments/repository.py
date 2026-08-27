@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import List
 
-from eigencapital.research.experiments.registry import ExperimentRecord, ExperimentError
+from eigencapital.research.experiments.registry import ExperimentError, ExperimentRecord
 
 
 class ExperimentRepository:
@@ -49,10 +49,8 @@ class ExperimentRepository:
         """
         path = self._experiment_path(experiment_id)
         if not path.exists():
-            raise ExperimentError(
-                f"Experiment not found on disk: {experiment_id}", experiment_id
-            )
-        with open(path, "r", encoding="utf-8") as f:
+            raise ExperimentError(f"Experiment not found on disk: {experiment_id}", experiment_id)
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return ExperimentRecord.from_dict(data)
 

@@ -7,7 +7,7 @@ import json
 import platform
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -51,9 +51,7 @@ def main() -> None:
     ]:
         for p in sorted(REPO.glob(pattern)):
             data_files[str(p.relative_to(REPO))] = sha256_file(p)
-    combined = hashlib.sha256(
-        "\n".join(f"{k}:{v}" for k, v in sorted(data_files.items())).encode()
-    ).hexdigest()
+    combined = hashlib.sha256("\n".join(f"{k}:{v}" for k, v in sorted(data_files.items())).encode()).hexdigest()
 
     env = {
         "python": sys.version.split()[0],
@@ -65,7 +63,7 @@ def main() -> None:
     }
 
     prov = {
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "frozen_r4_identity_expected": FROZEN_IDENTITY,
         "frozen_r4_identity_computed": identity,
         "identity_matches_frozen": identity == FROZEN_IDENTITY,

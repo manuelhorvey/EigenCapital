@@ -7,7 +7,7 @@ expected behavior. It does not modify risk limits or strategy parameters.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Any, Optional
+from typing import Any, Callable, Dict, List
 
 from eigencapital.stress.result import StressTestResult
 
@@ -97,7 +97,7 @@ class StressTestEngine:
     def execute(
         self,
         baseline: SystemState,
-        scenario_id: Optional[str] = None,
+        scenario_id: str | None = None,
     ) -> List[StressTestResult]:
         """Execute all registered scenarios (or a specific one).
 
@@ -170,9 +170,7 @@ class StressTestEngine:
 
         return results
 
-    def _check_invariants(
-        self, baseline: SystemState, stressed: SystemState
-    ) -> List[str]:
+    def _check_invariants(self, baseline: SystemState, stressed: SystemState) -> List[str]:
         """Check fundamental invariants between baseline and stressed state."""
         violations = []
 

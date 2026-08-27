@@ -14,9 +14,9 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 from .risk_check_result import RiskCheckResult
 
@@ -73,16 +73,11 @@ class RiskDecision:
         # Validate decision is one of APPROVED, REJECTED, REDUCED
         valid_decisions = {"APPROVED", "REJECTED", "REDUCED"}
         if self.decision not in valid_decisions:
-            raise ValueError(
-                f"Invalid risk decision: {self.decision}. "
-                f"Must be one of {valid_decisions}"
-            )
+            raise ValueError(f"Invalid risk decision: {self.decision}. Must be one of {valid_decisions}")
 
         # Validate timestamp is ISO-8601 UTC
         if "T" not in self.timestamp_utc:
-            raise ValueError(
-                f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}"
-            )
+            raise ValueError(f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}")
 
         # Validate instrument_id is non-empty
         if not self.instrument_id:
@@ -126,10 +121,7 @@ class RiskDecision:
 
         # Registry check for duplicate decision_ids
         if self.decision_id in self._registry:
-            raise ValueError(
-                f"Duplicate decision_id: {self.decision_id}. "
-                f"Decision IDs must be unique."
-            )
+            raise ValueError(f"Duplicate decision_id: {self.decision_id}. Decision IDs must be unique.")
         self._registry[self.decision_id] = True
 
     def __hash__(self) -> int:
@@ -166,10 +158,7 @@ class RiskDecision:
         """Deserialize from dict (deterministic, keys sorted)."""
         from .risk_check_result import RiskCheckResult
 
-        risk_checks_list = [
-            RiskCheckResult.from_dict(check_dict)
-            for check_dict in d.get("risk_checks", [])
-        ]
+        risk_checks_list = [RiskCheckResult.from_dict(check_dict) for check_dict in d.get("risk_checks", [])]
 
         return RiskDecision(
             decision_id=d["decision_id"],
@@ -206,7 +195,7 @@ class RiskDecision:
         """VaR as diagnostic (never use as hard trigger)."""
         return self.var
 
-    def check_status(self, check_id: str) -> Optional[RiskCheckResult]:
+    def check_status(self, check_id: str) -> RiskCheckResult | None:
         """Find a specific risk check by ID.
 
         Useful for examining which specific check passed/failed/warned.

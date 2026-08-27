@@ -23,12 +23,11 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 sys.path.insert(0, "src")
 
 from mt5linux import MetaTrader5
-
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -44,7 +43,7 @@ def check(icon: str, label: str, detail: str = "") -> None:
     print(f"  {icon} {label}{suffix}")
 
 
-def tick_price(mt5, symbol: str) -> Optional[Dict[str, float]]:
+def tick_price(mt5, symbol: str) -> Dict[str, float] | None:
     """Get current bid/ask safely."""
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
@@ -377,19 +376,17 @@ def main() -> None:
         passed_checks += 1
         check("✅", "Terminal ID match", f"{manifest.data_terminal_id} == {acct_id}")
     else:
-        critical_failures.append(
-            f"Terminal ID mismatch: {manifest.data_terminal_id} != {acct_id}"
-        )
+        critical_failures.append(f"Terminal ID mismatch: {manifest.data_terminal_id} != {acct_id}")
         check("❌", "Terminal ID match", f"{manifest.data_terminal_id} != {acct_id}")
 
     # ── 9. Pre-Trading 5-Step Gate ─────────────────────────────────
     section("9. PRE-TRADING 5-STEP GATE")
-    from eigencapital.production_qual.pre_trading import (
-        PreTradingValidator,
-        BrokerStateSnapshot,
-    )
     from eigencapital.production_qual.broker_boundary import (
         BrokerBoundaryConfig,
+    )
+    from eigencapital.production_qual.pre_trading import (
+        BrokerStateSnapshot,
+        PreTradingValidator,
     )
 
     # Build broker state from real MT5 data
@@ -455,18 +452,12 @@ def main() -> None:
 
     for check_item in auth.checks:
         step_icon = step_icons.get(check_item.step, "  ")
-        icon = (
-            "✅"
-            if check_item.passed
-            else ("❌" if check_item.severity == "CRITICAL" else "⚠️")
-        )
+        icon = "✅" if check_item.passed else ("❌" if check_item.severity == "CRITICAL" else "⚠️")
         total_checks += 1
         if check_item.passed:
             passed_checks += 1
         elif check_item.severity == "CRITICAL":
-            critical_failures.append(
-                f"[{check_item.step}] {check_item.check_id}: {check_item.description}"
-            )
+            critical_failures.append(f"[{check_item.step}] {check_item.check_id}: {check_item.description}")
 
         detail = ""
         if not check_item.passed:

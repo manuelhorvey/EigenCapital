@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
 from eigencapital.data.loaders.base import RawRecord
 
@@ -31,7 +31,7 @@ from eigencapital.data.loaders.base import RawRecord
 class InformationBarError(ValueError):
     """Raised when ticks cannot be aggregated into information bars."""
 
-    def __init__(self, message: str, tick_index: Optional[int] = None) -> None:
+    def __init__(self, message: str, tick_index: int | None = None) -> None:
         suffix = f" (tick index {tick_index})" if tick_index is not None else ""
         super().__init__(f"{message}{suffix}")
         self.tick_index = tick_index
@@ -71,9 +71,7 @@ class TradeTick:
         price = record.data.get("price")
         volume = record.data.get("volume", record.data.get("size"))
         if price is None or volume is None:
-            raise InformationBarError(
-                f"Tick record missing price/volume fields: {sorted(record.data)}"
-            )
+            raise InformationBarError(f"Tick record missing price/volume fields: {sorted(record.data)}")
         try:
             return cls(
                 timestamp_utc=record.timestamp,
@@ -81,9 +79,7 @@ class TradeTick:
                 volume=int(float(volume)),
             )
         except (TypeError, ValueError) as e:
-            raise InformationBarError(
-                f"Cannot parse tick from raw record: price={price!r}, volume={volume!r}"
-            ) from e
+            raise InformationBarError(f"Cannot parse tick from raw record: price={price!r}, volume={volume!r}") from e
 
 
 @dataclass(frozen=True)
@@ -118,9 +114,7 @@ class InformationBar:
         import math
 
         if self.bar_type not in ("volume", "notional"):
-            raise InformationBarError(
-                f"bar_type must be 'volume' or 'notional', got '{self.bar_type}'"
-            )
+            raise InformationBarError(f"bar_type must be 'volume' or 'notional', got '{self.bar_type}'")
         for name in ("open", "high", "low", "close", "vwap"):
             value = getattr(self, name)
             if (
@@ -136,15 +130,11 @@ class InformationBar:
         if self.low > min(self.open, self.close):
             raise InformationBarError(f"low ({self.low}) > min(open, close)")
         if not (self.low - 1e-9 <= self.vwap <= self.high + 1e-9):
-            raise InformationBarError(
-                f"vwap ({self.vwap}) outside [low, high] = [{self.low}, {self.high}]"
-            )
+            raise InformationBarError(f"vwap ({self.vwap}) outside [low, high] = [{self.low}, {self.high}]")
         if self.volume < 0:
             raise InformationBarError(f"volume must be >= 0, got {self.volume}")
         if self.trade_count < 1:
-            raise InformationBarError(
-                f"trade_count must be >= 1, got {self.trade_count}"
-            )
+            raise InformationBarError(f"trade_count must be >= 1, got {self.trade_count}")
         if self.timestamp_close_utc < self.timestamp_open_utc:
             raise InformationBarError(
                 f"timestamp_close_utc ({self.timestamp_close_utc}) precedes "
@@ -231,8 +221,7 @@ class BaseInformationBarAggregator(ABC):
                 prev = _iso_key(current_ticks[-1].timestamp_utc)
                 if _iso_key(tick.timestamp_utc) < prev:
                     raise InformationBarError(
-                        f"Out-of-order tick: {tick.timestamp_utc} precedes "
-                        f"{current_ticks[-1].timestamp_utc}",
+                        f"Out-of-order tick: {tick.timestamp_utc} precedes {current_ticks[-1].timestamp_utc}",
                         tick_index=index,
                     )
             current_ticks.append(tick)
@@ -252,9 +241,7 @@ class BaseInformationBarAggregator(ABC):
         ticks = [TradeTick.from_raw_record(r) for r in records]
         return self.aggregate(ticks)
 
-    def _emit(
-        self, ticks: List[TradeTick], accumulated: float, complete: bool
-    ) -> InformationBar:
+    def _emit(self, ticks: List[TradeTick], accumulated: float, complete: bool) -> InformationBar:
         prices = [t.price for t in ticks]
         volume = sum(t.volume for t in ticks)
         notional = sum(t.price * t.volume for t in ticks)

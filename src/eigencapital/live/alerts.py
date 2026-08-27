@@ -17,7 +17,7 @@ import sys
 import time
 import warnings
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 warnings.warn(
     "eigencapital.live.alerts is deprecated. Use eigencapital.live.structured_alerts instead.",
@@ -38,7 +38,7 @@ class Alert:
     event: str
     message: str
     ts_utc: str = ""
-    details: Optional[dict] = None
+    details: dict | None = None
 
     def to_dict(self) -> dict:
         d = {
@@ -55,9 +55,7 @@ class Alert:
 class AlertDispatcher:
     """Durable JSONL sink + operator-visible stderr mirror."""
 
-    def __init__(
-        self, path: str = "reports/alerts.jsonl", mirror_stderr: bool = True
-    ) -> None:
+    def __init__(self, path: str = "reports/alerts.jsonl", mirror_stderr: bool = True) -> None:
         self.path = path
         self.mirror_stderr = mirror_stderr
 
@@ -91,11 +89,7 @@ class AlertDispatcher:
 
 
 def alert_for_stop_reason(reason: str) -> Alert:
-    sev = (
-        Severity.CRITICAL
-        if reason not in ("RECONCILIATION_REQUIRED",)
-        else Severity.WARNING
-    )
+    sev = Severity.CRITICAL if reason not in ("RECONCILIATION_REQUIRED",) else Severity.WARNING
     return Alert(
         severity=sev,
         event="live_runner_stop",

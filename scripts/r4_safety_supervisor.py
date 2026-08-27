@@ -182,11 +182,7 @@ def run_tick(
     live: bool,
     build_id: str,
 ) -> dict[str, Any]:
-    acct = (
-        broker.account()
-        if hasattr(broker, "account")
-        else {"equity": 0, "free_margin": 0}
-    )
+    acct = broker.account() if hasattr(broker, "account") else {"equity": 0, "free_margin": 0}
     positions = broker.positions()
     ev_hash = snapshot_hash(positions, acct.get("equity"), acct.get("free_margin"))
     classified = classify_all(positions)
@@ -205,11 +201,7 @@ def run_tick(
         raw = next((q for q in positions if q.get("ticket") == p.ticket), {})
         return float(raw.get("price_open", 0) or 0)
 
-    sl_by_ticket = {
-        p["ticket"]: float(p.get("sl", 0) or 0)
-        for p in positions
-        if p.get("ticket") is not None
-    }
+    sl_by_ticket = {p["ticket"]: float(p.get("sl", 0) or 0) for p in positions if p.get("ticket") is not None}
     symbols = sorted({p.symbol for p in classified})
     atr_map = _atr14_pct_by_symbol(symbols)
     plan = plan_protection(classified, atr_map, sl_by_ticket, entry_lookup)
@@ -219,15 +211,10 @@ def run_tick(
         if hasattr(broker, "set_sl"):
             for a in plan:
                 ok = broker.set_sl(int(a.ticket), float(a.detail["sl"]))  # type: ignore[arg-type]
-                actions_taken.append(
-                    {"action": a.kind.value, "ticket": a.ticket, "ok": ok, **a.detail}
-                )
+                actions_taken.append({"action": a.kind.value, "ticket": a.ticket, "ok": ok, **a.detail})
                 time.sleep(0.05)
     else:
-        actions_taken = [
-            {"action": a.kind.value, "ticket": a.ticket, "dry_run": True, **a.detail}
-            for a in plan
-        ]
+        actions_taken = [{"action": a.kind.value, "ticket": a.ticket, "dry_run": True, **a.detail} for a in plan]
 
     record = {
         "build_id": build_id,
@@ -318,14 +305,10 @@ def main() -> None:
         failed = [c for c in identity.checks if not c.ok]
         print("BUILD PIN FAILED — refusing to operate:")
         for c in failed:
-            print(
-                f"  {c.component}: expected={c.expected[:24]} observed={c.observed[:24]}"
-            )
+            print(f"  {c.component}: expected={c.expected[:24]} observed={c.observed[:24]}")
         sys.exit(2)
 
-    audit = DurableAudit(
-        AUDIT_DIR / "safety_audit.jsonl", AUDIT_DIR / "safety_audit.mirror.jsonl"
-    )
+    audit = DurableAudit(AUDIT_DIR / "safety_audit.jsonl", AUDIT_DIR / "safety_audit.mirror.jsonl")
     audit.append(
         "startup",
         {

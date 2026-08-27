@@ -120,9 +120,7 @@ class ProvenanceError(EigenCapitalError):
 # Convenience functions for common invariant violation patterns
 
 
-def check_invariant(
-    condition: bool, message: str, model: str = "", field: str = ""
-) -> None:
+def check_invariant(condition: bool, message: str, model: str = "", field: str = "") -> None:
     """Raise InvariantViolation if condition is False.
 
     Quick inline invariant checking pattern:
@@ -141,17 +139,13 @@ def check_not_none(value: any, message: str, model: str = "", field: str = "") -
 def check_positive(value: float, model: str = "", field: str = "") -> None:
     """Raise InvariantViolation if value is not positive (> 0)."""
     if not (isinstance(value, (int, float)) and value > 0):
-        raise InvariantViolation(
-            f"Value must be positive (> 0), got {value}", model, field
-        )
+        raise InvariantViolation(f"Value must be positive (> 0), got {value}", model, field)
 
 
 def check_non_negative(value: float, model: str = "", field: str = "") -> None:
     """Raise InvariantViolation if value is negative."""
     if isinstance(value, (int, float)) and value < 0:
-        raise InvariantViolation(
-            f"Value must be non-negative, got {value}", model, field
-        )
+        raise InvariantViolation(f"Value must be non-negative, got {value}", model, field)
 
 
 def check_finite(value: float, model: str = "", field: str = "") -> None:
@@ -159,6 +153,4 @@ def check_finite(value: float, model: str = "", field: str = "") -> None:
     import math
 
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
-        raise InvariantViolation(
-            f"Value must be finite (no NaN/infinity), got {value}", model, field
-        )
+        raise InvariantViolation(f"Value must be finite (no NaN/infinity), got {value}", model, field)

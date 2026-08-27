@@ -13,14 +13,14 @@ All features use only bars available at the decision timestamp.
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_realized_volatility(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_realized_volatility(bars: List[Bar], lookback: int) -> float | None:
     """Compute annualized realized volatility from close-to-close returns.
 
     Args:
@@ -49,7 +49,7 @@ def compute_realized_volatility(bars: List[Bar], lookback: int) -> Optional[floa
     return daily_vol * math.sqrt(252)
 
 
-def compute_parkinson_volatility(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_parkinson_volatility(bars: List[Bar], lookback: int) -> float | None:
     """Compute Parkinson volatility from high-low range.
 
     Parkinson (1980) estimator uses the high-low range, which is
@@ -85,7 +85,7 @@ def compute_parkinson_volatility(bars: List[Bar], lookback: int) -> Optional[flo
     return daily_vol * math.sqrt(252)
 
 
-def compute_garman_klass_volatility(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_garman_klass_volatility(bars: List[Bar], lookback: int) -> float | None:
     """Compute Garman-Klass volatility from OHLC data.
 
     Garman-Klass (1980) uses open, high, low, close for a more
@@ -124,9 +124,7 @@ def compute_garman_klass_volatility(bars: List[Bar], lookback: int) -> Optional[
     return daily_vol * math.sqrt(252)
 
 
-def compute_volatility_ratio(
-    bars: List[Bar], short_lookback: int, long_lookback: int
-) -> Optional[float]:
+def compute_volatility_ratio(bars: List[Bar], short_lookback: int, long_lookback: int) -> float | None:
     """Compute ratio of short-term to long-term volatility.
 
     Useful for detecting volatility expansion/contraction.
@@ -155,9 +153,9 @@ def make_volatility_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
+    feature_id: str | None = None,
     normalization: str = Normalization.NONE,
-) -> Optional[Feature]:
+) -> Feature | None:
     """Create a Feature from realized volatility computation."""
     value = compute_realized_volatility(bars, lookback)
     if value is None:

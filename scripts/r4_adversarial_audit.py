@@ -32,31 +32,30 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import List
 
 sys.path.insert(0, "src")
 
 from eigencapital.config import load_config
-from eigencapital.live.position_attribution import (
-    classify_all,
-    capacity_account,
-    snapshot_hash,
-    R4_MAGIC,
-)
 from eigencapital.live.catastrophic_protection import (
-    plan_protection,
+    ActionKind,
+    FlattenOutcome,
     disaster_stop_price,
     flatten_with_retry,
-    FlattenOutcome,
-    ActionKind,
+    plan_protection,
 )
-from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
+from eigencapital.live.position_attribution import (
+    R4_MAGIC,
+    capacity_account,
+    classify_all,
+    snapshot_hash,
+)
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
+from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
 )
-
 
 # ── Audit result types ────────────────────────────────────────────
 
@@ -189,9 +188,7 @@ def test_idempotent_sl():
     entry = 1.166
     boundary = disaster_stop_price("SHORT", entry, 0.003, mult=2.0)
     # Set current SL already at or inside boundary
-    current_sl = {
-        11: boundary - 0.0001
-    }  # tighter than boundary for SHORT (lower = better for shorts)
+    current_sl = {11: boundary - 0.0001}  # tighter than boundary for SHORT (lower = better for shorts)
 
     actions = plan_protection(
         classified,
@@ -232,9 +229,7 @@ def test_watchdog_state_machine():
         evidence_hash="abc",
     )
     d = wd.evaluate(probe_healthy)
-    results.append(
-        ("4a_healthy_is_normal", d.state == WatchState.NORMAL and d.authorize_trading)
-    )
+    results.append(("4a_healthy_is_normal", d.state == WatchState.NORMAL and d.authorize_trading))
 
     # 4b: Dead process → DEGRADED
     probe_dead = ProbeResult(
@@ -324,9 +319,7 @@ def test_flatten_retry():
     call_count = [0]
 
     def list_positions():
-        return [
-            {"ticket": t, "volume": 0.01} for t in remaining if t not in closed_tickets
-        ]
+        return [{"ticket": t, "volume": 0.01} for t in remaining if t not in closed_tickets]
 
     def close_position(ticket):
         call_count[0] += 1
@@ -480,9 +473,7 @@ def test_fingerprint_fail_closed():
 
     # If all verified (which they should be with unchanged config), the system allows trading
     # The test is that verify_all() returns a structured result with all checks
-    has_checks = (
-        len(result.checks) >= 4
-    )  # manifest, risk, live_risk, strategy, optionally config
+    has_checks = len(result.checks) >= 4  # manifest, risk, live_risk, strategy, optionally config
     has_timestamp = bool(result.timestamp)
     structured = hasattr(result, "all_verified") and hasattr(result, "checks")
 
@@ -541,9 +532,7 @@ def test_full_pipeline():
 
     # Step 4: Protection plan for R4 positions without SL
     no_sl = [c for c in classified if c.pclass.value == "R4_BOT"]
-    actions = plan_protection(
-        no_sl, {f"SYM{i}": 0.004 for i in range(1, 20)}, {}, lambda cp: 1.0
-    )
+    actions = plan_protection(no_sl, {f"SYM{i}": 0.004 for i in range(1, 20)}, {}, lambda cp: 1.0)
 
     passed = (
         r4_count == 19
@@ -557,8 +546,7 @@ def test_full_pipeline():
         "full_pipeline",
         AuditResult.PASS if passed else AuditResult.FAIL,
         "PASS",
-        f"r4={r4_count}, foreign={foreign_count}, quarantine={quarantine_blocks}, "
-        f"protection_actions={len(actions)}",
+        f"r4={r4_count}, foreign={foreign_count}, quarantine={quarantine_blocks}, protection_actions={len(actions)}",
     )
 
 
@@ -628,9 +616,9 @@ def main():
 
     # Save
     os.makedirs("reports/r4_qualification", exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "total": total,
         "passed": passed,
         "failed": failed,

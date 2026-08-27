@@ -18,14 +18,14 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.risk_check_result import RiskCheckResult
-from eigencapital.risk.policy import RiskPolicy
 from eigencapital.risk.checks.account_checks import (
     AccountState,
     run_all_account_checks,
 )
+from eigencapital.risk.policy import RiskPolicy
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class EigenRiskEngine:
         - APPROVED (with warnings in checks)
     """
 
-    def __init__(self, policy: Optional[RiskPolicy] = None) -> None:
+    def __init__(self, policy: RiskPolicy | None = None) -> None:
         self.policy = policy or RiskPolicy()
 
     def evaluate(

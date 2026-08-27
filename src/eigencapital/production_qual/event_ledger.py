@@ -36,10 +36,10 @@ import threading
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class EventType(str, Enum):
@@ -126,19 +126,19 @@ class Event:
     campaign_id: str
 
     # Trade context (optional)
-    symbol: Optional[str] = None
-    position_ticket: Optional[int] = None
-    order_ticket: Optional[str] = None
+    symbol: str | None = None
+    position_ticket: int | None = None
+    order_ticket: str | None = None
 
     # Correlation
-    correlation_id: Optional[str] = None
-    parent_event_id: Optional[str] = None
+    correlation_id: str | None = None
+    parent_event_id: str | None = None
 
     # Broker reference
-    broker_reference: Optional[str] = None
+    broker_reference: str | None = None
 
     # State transition
-    state_transition: Optional[str] = None
+    state_transition: str | None = None
 
     # Payload
     payload: Dict[str, Any] = field(default_factory=dict)
@@ -151,7 +151,7 @@ class Event:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Event":
+    def from_dict(cls, d: Dict[str, Any]) -> Event:
         """Create from dictionary."""
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
@@ -195,9 +195,7 @@ class EventLedger:
         self._batch_count = 0
 
         # Index for correlation lookups
-        self._correlation_index: Dict[
-            str, List[str]
-        ] = {}  # correlation_id -> [event_id]
+        self._correlation_index: Dict[str, List[str]] = {}  # correlation_id -> [event_id]
         self._position_index: Dict[int, List[str]] = {}  # position_ticket -> [event_id]
         self._symbol_index: Dict[str, List[str]] = {}  # symbol -> [event_id]
 
@@ -261,14 +259,14 @@ class EventLedger:
         account_id: str,
         tier: str,
         campaign_id: str,
-        symbol: Optional[str] = None,
-        position_ticket: Optional[int] = None,
-        order_ticket: Optional[str] = None,
-        correlation_id: Optional[str] = None,
-        parent_event_id: Optional[str] = None,
-        broker_reference: Optional[str] = None,
-        state_transition: Optional[str] = None,
-        payload: Optional[Dict[str, Any]] = None,
+        symbol: str | None = None,
+        position_ticket: int | None = None,
+        order_ticket: str | None = None,
+        correlation_id: str | None = None,
+        parent_event_id: str | None = None,
+        broker_reference: str | None = None,
+        state_transition: str | None = None,
+        payload: Dict[str, Any] | None = None,
         strategy_version: str = "R4.0",
     ) -> Event:
         """Append an event to the ledger.
@@ -296,9 +294,7 @@ class EventLedger:
         """
         # Input validation
         if not isinstance(event_type, EventType):
-            raise ValueError(
-                f"event_type must be an EventType, got {type(event_type).__name__}"
-            )
+            raise ValueError(f"event_type must be an EventType, got {type(event_type).__name__}")
         if not account_id or not isinstance(account_id, str):
             raise ValueError("account_id must be a non-empty string")
         if not tier or not isinstance(tier, str):
@@ -306,12 +302,10 @@ class EventLedger:
         if not campaign_id or not isinstance(campaign_id, str):
             raise ValueError("campaign_id must be a non-empty string")
         # Validate symbol contains only allowed characters (alphanumeric, underscore, dot)
-        if symbol is not None and (
-            not isinstance(symbol, str) or not symbol.isidentifier()
-        ):
+        if symbol is not None and (not isinstance(symbol, str) or not symbol.isidentifier()):
             raise ValueError(f"symbol must be a valid identifier, got {symbol!r}")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Generate event
         event = Event(
@@ -347,13 +341,9 @@ class EventLedger:
 
             # Update indexes
             if event.correlation_id:
-                self._correlation_index.setdefault(event.correlation_id, []).append(
-                    event.event_id
-                )
+                self._correlation_index.setdefault(event.correlation_id, []).append(event.event_id)
             if event.position_ticket:
-                self._position_index.setdefault(event.position_ticket, []).append(
-                    event.event_id
-                )
+                self._position_index.setdefault(event.position_ticket, []).append(event.event_id)
             if event.symbol:
                 self._symbol_index.setdefault(event.symbol, []).append(event.event_id)
 
@@ -394,14 +384,14 @@ class EventLedger:
             events_to_write = self._events[:]
             batch_file = (
                 self._base_path
-                / f"events_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{self._total_batches:06d}.jsonl"
+                / f"events_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{self._total_batches:06d}.jsonl"
             )
             self._events = []
             self._batch_count += 1
             self._total_batches += 1
 
         # Write events with retry logic (outside lock)
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for attempt in range(max_retries):
             try:
                 with open(batch_file, "w", encoding="utf-8") as f:
@@ -409,7 +399,7 @@ class EventLedger:
                         f.write(json.dumps(event.to_dict(), default=str) + "\n")
                 # Write succeeded
                 break
-            except (OSError, IOError) as e:
+            except OSError as e:
                 last_error = e
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (2**attempt))
@@ -502,7 +492,7 @@ def signal_computed(
     direction: float,
     weight: float,
     regime: str,
-    correlation_id: Optional[str] = None,
+    correlation_id: str | None = None,
 ) -> Event:
     """Record signal computation event."""
     return ledger.append(
@@ -530,8 +520,8 @@ def order_submitted(
     side: str,
     quantity: float,
     order_ticket: str,
-    correlation_id: Optional[str] = None,
-    parent_event_id: Optional[str] = None,
+    correlation_id: str | None = None,
+    parent_event_id: str | None = None,
 ) -> Event:
     """Record order submission event."""
     return ledger.append(
@@ -563,8 +553,8 @@ def fill(
     spread: float,
     slippage: float,
     order_ticket: str,
-    correlation_id: Optional[str] = None,
-    parent_event_id: Optional[str] = None,
+    correlation_id: str | None = None,
+    parent_event_id: str | None = None,
 ) -> Event:
     """Record fill event."""
     return ledger.append(
@@ -596,8 +586,8 @@ def position_opened(
     position_ticket: int,
     entry_price: float,
     notional: float,
-    correlation_id: Optional[str] = None,
-    parent_event_id: Optional[str] = None,
+    correlation_id: str | None = None,
+    parent_event_id: str | None = None,
 ) -> Event:
     """Record position opened event."""
     return ledger.append(
@@ -627,7 +617,7 @@ def risk_observation(
     daily_loss: float,
     position_count: int,
     gross_exposure: float,
-    correlation_id: Optional[str] = None,
+    correlation_id: str | None = None,
 ) -> Event:
     """Record risk observation event."""
     return ledger.append(
@@ -654,7 +644,7 @@ def reconciliation(
     campaign_id: str,
     status: str,
     mismatches: List[str],
-    correlation_id: Optional[str] = None,
+    correlation_id: str | None = None,
 ) -> Event:
     """Record reconciliation event."""
     return ledger.append(
@@ -680,7 +670,7 @@ def health_change(
     old_state: str,
     new_state: str,
     reason: str,
-    correlation_id: Optional[str] = None,
+    correlation_id: str | None = None,
 ) -> Event:
     """Record health state change event."""
     return ledger.append(

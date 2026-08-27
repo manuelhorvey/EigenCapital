@@ -14,7 +14,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -442,9 +442,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
         if "is_new_york" in df.columns:
             vol_surge = vol > vol_avg * 2
             # First 30 min of NY
-            ny_bars = df.groupby(
-                (df["session_name"] != df["session_name"].shift()).cumsum()
-            ).cumcount()
+            ny_bars = df.groupby((df["session_name"] != df["session_name"].shift()).cumsum()).cumcount()
             in_ny_early = df["is_new_york"].astype(bool) & (ny_bars < 6)
             signal[in_ny_early & vol_surge & (direction > 0)] = 1
             signal[in_ny_early & vol_surge & (direction < 0)] = -1
@@ -648,9 +646,7 @@ def classify_micro_verdict(
 
     if result["net_sharpe"] < criteria.get("min_sharpe", 0.3):
         fms.append("statistical_weakness")
-        reasons.append(
-            f"Net Sharpe {result['net_sharpe']:.3f} < {criteria.get('min_sharpe', 0.3)}"
-        )
+        reasons.append(f"Net Sharpe {result['net_sharpe']:.3f} < {criteria.get('min_sharpe', 0.3)}")
 
     if result["cost_pct"] > 50:
         fms.append("cost_sensitivity")
@@ -698,9 +694,9 @@ class MicroCampaignExecutor:
         self._manifest = manifest
 
         from .sessions import (
-            add_session_features,
-            add_realized_volatility_features,
             add_price_structure_features,
+            add_realized_volatility_features,
+            add_session_features,
         )
 
         self._prepared: Dict[str, pd.DataFrame] = {}
@@ -863,15 +859,11 @@ class MicroCampaignExecutor:
                 lines.append(f"{verdict.upper():30s} {len(group):3d}  {bar}")
 
         total = len(results)
-        survivors = len(by_verdict.get("supported", [])) + len(
-            by_verdict.get("incremental", [])
-        )
+        survivors = len(by_verdict.get("supported", [])) + len(by_verdict.get("incremental", []))
         lines.extend(
             [
                 "```",
-                f"**Survival Rate: {survivors / total * 100:.1f}%**"
-                if total
-                else "N/A",
+                f"**Survival Rate: {survivors / total * 100:.1f}%**" if total else "N/A",
                 "",
             ]
         )
@@ -904,9 +896,7 @@ class MicroCampaignExecutor:
         lines.append("")
 
         # Survivors
-        survivors_list = [
-            r for r in results if r["verdict"] in ("supported", "incremental")
-        ]
+        survivors_list = [r for r in results if r["verdict"] in ("supported", "incremental")]
         if survivors_list:
             lines.extend(["## Survivors — Detailed Analysis", ""])
             for r in survivors_list:
@@ -923,14 +913,10 @@ class MicroCampaignExecutor:
                         "**Per-Asset Sharpe:**",
                     ]
                 )
-                for sym, sharpe in sorted(
-                    r["asset_sharpes"].items(), key=lambda x: -x[1]
-                ):
+                for sym, sharpe in sorted(r["asset_sharpes"].items(), key=lambda x: -x[1]):
                     lines.append(f"  - {sym}: {sharpe:.3f}")
                 lines.extend(["", "**Session Sharpe:**"])
-                for sess, sharpe in sorted(
-                    r["session_sharpes"].items(), key=lambda x: -x[1]
-                ):
+                for sess, sharpe in sorted(r["session_sharpes"].items(), key=lambda x: -x[1]):
                     lines.append(f"  - {sess}: {sharpe:.3f}")
                 lines.append("")
 
@@ -940,9 +926,7 @@ class MicroCampaignExecutor:
             lines.extend(["## Rejected — Loser Analysis", ""])
             for r in rejected:
                 fms = ", ".join(r["failure_modes"]) if r["failure_modes"] else "unknown"
-                lines.append(
-                    f"- **{r['hypothesis_id']}** ({r['name']}): {r['reason']} [{fms}]"
-                )
+                lines.append(f"- **{r['hypothesis_id']}** ({r['name']}): {r['reason']} [{fms}]")
             lines.append("")
 
         lines.extend(

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -129,7 +129,7 @@ def _percentile(sorted_data: List[float], p: float) -> float:
 
 def compute_metrics(
     equity_curve: List[float],
-    trades: Optional[List[float]] = None,
+    trades: List[float] | None = None,
     risk_free_rate: float = 0.0,
     annualization_factor: int = 252,
 ) -> PerformanceMetrics:
@@ -163,9 +163,7 @@ def compute_metrics(
     # ── Return metrics ──────────────────────────────────────────────
     total_return = (equity_curve[-1] / equity_curve[0]) - 1.0
     years = n / annualization_factor
-    cagr = (
-        (equity_curve[-1] / equity_curve[0]) ** (1 / years) - 1.0 if years > 0 else 0.0
-    )
+    cagr = (equity_curve[-1] / equity_curve[0]) ** (1 / years) - 1.0 if years > 0 else 0.0
 
     mean_ret = sum(returns) / n
     variance = sum((r - mean_ret) ** 2 for r in returns) / (n - 1) if n > 1 else 0.0
@@ -207,11 +205,7 @@ def compute_metrics(
 
     # Sharpe ratio
     if std > 1e-15:
-        sharpe = (
-            (mean_ret - risk_free_rate / annualization_factor)
-            / std
-            * math.sqrt(annualization_factor)
-        )
+        sharpe = (mean_ret - risk_free_rate / annualization_factor) / std * math.sqrt(annualization_factor)
     else:
         sharpe = (
             math.copysign(100.0, mean_ret - risk_free_rate / annualization_factor)
@@ -221,9 +215,7 @@ def compute_metrics(
 
     # Sortino ratio
     if downside_dev > 1e-15:
-        sortino = (annualized_ret - risk_free_rate) / (
-            downside_dev * math.sqrt(annualization_factor)
-        )
+        sortino = (annualized_ret - risk_free_rate) / (downside_dev * math.sqrt(annualization_factor))
     else:
         sortino = 0.0
 

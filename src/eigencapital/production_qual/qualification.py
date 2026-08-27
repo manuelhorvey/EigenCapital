@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from eigencapital.production_qual.campaign_boundary import CampaignBoundary
 from eigencapital.production_qual.scaling import ScaleLevel, ScalingMetrics
@@ -115,9 +115,7 @@ class ProductionReport:
         )
 
         if self.verdict == ProductionVerdict.QUALIFIED:
-            lines.append(
-                "**PRODUCTION QUALIFIED** — System remains safe at this scale."
-            )
+            lines.append("**PRODUCTION QUALIFIED** — System remains safe at this scale.")
         elif self.verdict == ProductionVerdict.QUALIFIED_FOR_NEXT_SCALE:
             lines.append("**QUALIFIED FOR NEXT SCALE** — Ready to increase capital.")
         elif self.verdict == ProductionVerdict.BLOCKED:
@@ -155,10 +153,7 @@ class ProductionEvaluator:
         )
 
         # Check 2: R4 attribution clean
-        r4_attribution = (
-            attribution.get("r4_trades", 0) > 0
-            or attribution.get("r4_open_positions", 0) > 0
-        )
+        r4_attribution = attribution.get("r4_trades", 0) > 0 or attribution.get("r4_open_positions", 0) > 0
         checks.append(
             ProductionCheck(
                 check_name="r4_attribution",
@@ -172,9 +167,7 @@ class ProductionEvaluator:
             ProductionCheck(
                 check_name="reconciliation",
                 passed=reconciliation_ok,
-                reason="100% broker/internal agreement"
-                if reconciliation_ok
-                else "Reconciliation mismatch",
+                reason="100% broker/internal agreement" if reconciliation_ok else "Reconciliation mismatch",
             )
         )
 
@@ -183,9 +176,7 @@ class ProductionEvaluator:
             ProductionCheck(
                 check_name="fingerprint_frozen",
                 passed=not drift_detected,
-                reason="Fingerprint unchanged"
-                if not drift_detected
-                else "Drift detected",
+                reason="Fingerprint unchanged" if not drift_detected else "Drift detected",
             )
         )
 

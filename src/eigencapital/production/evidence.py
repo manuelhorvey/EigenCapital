@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class OrderEvidence:
     instrument_id: str
     side: str
     intended_price: float
-    fill_price: Optional[float]
+    fill_price: float | None
     spread_at_decision: float
     spread_at_execution: float
     expected_slippage: float
@@ -240,7 +240,5 @@ class ExecutionEvidenceCollector:
             latency_distribution=latency_dist,
             total_realized_slippage=sum(slippages),
             total_latency=sum(latencies),
-            average_fill_price_deviation=sum(price_devs) / len(price_devs)
-            if price_devs
-            else 0.0,
+            average_fill_price_deviation=sum(price_devs) / len(price_devs) if price_devs else 0.0,
         )

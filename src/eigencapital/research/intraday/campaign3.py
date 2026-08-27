@@ -83,9 +83,7 @@ class Campaign3CostModel:
     SPREAD_BPS: float = 8.0  # 8 bps average spread
     SLIPPAGE_BPS: float = 3.0  # 3 bps slippage
     COMMISSION_BPS: float = 2.0  # 2 bps commission
-    COST_PER_TRADE_BPS: float = (
-        SPREAD_BPS + SLIPPAGE_BPS + COMMISSION_BPS
-    )  # 13 bps total
+    COST_PER_TRADE_BPS: float = SPREAD_BPS + SLIPPAGE_BPS + COMMISSION_BPS  # 13 bps total
 
     # Stress multipliers
     STRESS_MULTIPLIERS = {
@@ -207,12 +205,8 @@ def run_simple_backtest(
             "gross_to_net_degradation": 1.0,
         }
 
-    gross_sharpe = float(
-        gross_ret.mean() / gross_ret.std() * np.sqrt(252 * 24 * 60 / holding_period)
-    )
-    net_sharpe = float(
-        net_ret.mean() / net_ret.std() * np.sqrt(252 * 24 * 60 / holding_period)
-    )
+    gross_sharpe = float(gross_ret.mean() / gross_ret.std() * np.sqrt(252 * 24 * 60 / holding_period))
+    net_sharpe = float(net_ret.mean() / net_ret.std() * np.sqrt(252 * 24 * 60 / holding_period))
 
     # Drawdown
     cum = (1 + gross_ret).cumprod()
@@ -320,11 +314,7 @@ def classify_verdict(result: Campaign3Result) -> Tuple[HypothesisVerdict, List[s
     if len(reasons) == 0 and result.net_sharpe > 0.3 and result.wf_consistency >= 0.75:
         return HypothesisVerdict.SUPPORTED, reasons
 
-    if (
-        result.net_sharpe > 0
-        and result.wf_consistency >= 0.50
-        and result.gross_to_net_degradation < 0.50
-    ):
+    if result.net_sharpe > 0 and result.wf_consistency >= 0.50 and result.gross_to_net_degradation < 0.50:
         if result.max_drawdown > -0.20:
             return HypothesisVerdict.FRAGILE, reasons
         return HypothesisVerdict.COST_SENSITIVE, reasons
@@ -407,9 +397,7 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
             worst_dd = min(all_dds)
 
             # Walk-forward on most liquid symbol (EURUSD)
-            wf = run_walk_forward(
-                all_data["EURUSDm"], hyp.signal_func, hp, hyp.hypothesis_id
-            )
+            wf = run_walk_forward(all_data["EURUSDm"], hyp.signal_func, hp, hyp.hypothesis_id)
 
             cr = Campaign3Result(
                 hypothesis_id=hyp.hypothesis_id,
@@ -425,9 +413,7 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
                 turnover=all_trades / len(all_data),
                 num_trades=all_trades,
                 cost_total=all_costs,
-                gross_to_net_degradation=1 - (avg_net / avg_gross)
-                if abs(avg_gross) > 0.001
-                else 1.0,
+                gross_to_net_degradation=1 - (avg_net / avg_gross) if abs(avg_gross) > 0.001 else 1.0,
                 wf_consistency=wf["wf_consistency"],
                 wf_oos_sharpe=wf["wf_oos_sharpe"],
             )
@@ -533,9 +519,7 @@ def produce_research_map(
         ]
     )
     lines.append(
-        f"\n**Survival Rate: {survival}/{len(results)} ({survival / len(results) * 100:.1f}%)**"
-        if results
-        else ""
+        f"\n**Survival Rate: {survival}/{len(results)} ({survival / len(results) * 100:.1f}%)**" if results else ""
     )
 
     # Detailed results
@@ -594,35 +578,21 @@ def produce_research_map(
     )
 
     if survival == 0:
-        lines.append(
-            "**No robust M1 intraday alpha found** in this universe and sample."
-        )
+        lines.append("**No robust M1 intraday alpha found** in this universe and sample.")
         lines.append("")
-        lines.append(
-            "Combined with Campaigns 1-2 (M5 → 44/44 rejected), the total M5+M1 research:"
-        )
+        lines.append("Combined with Campaigns 1-2 (M5 → 44/44 rejected), the total M5+M1 research:")
         lines.append("")
         lines.append("- **Campaign 1:** M5 price-based → 24/24 rejected")
         lines.append("- **Campaign 2:** M5 microstructure → 20/20 rejected")
-        lines.append(
-            f"- **Campaign 3:** M1 order-flow/liquidity → {len(results)}/{len(results)} rejected or fragile"
-        )
+        lines.append(f"- **Campaign 3:** M1 order-flow/liquidity → {len(results)}/{len(results)} rejected or fragile")
         lines.append("")
-        lines.append(
-            "**Total: 44+ M5 hypotheses rejected, M1 hypotheses rejected/fragile.**"
-        )
+        lines.append("**Total: 44+ M5 hypotheses rejected, M1 hypotheses rejected/fragile.**")
         lines.append("")
-        lines.append(
-            "This is a **successful research outcome** — the system correctly identified"
-        )
-        lines.append(
-            "that conventional intraday information at these resolutions does not contain"
-        )
+        lines.append("This is a **successful research outcome** — the system correctly identified")
+        lines.append("that conventional intraday information at these resolutions does not contain")
         lines.append("robust exploitable alpha in this universe.")
     else:
-        lines.append(
-            f"**{survival} hypothesis(es) survived** — candidates for deeper investigation."
-        )
+        lines.append(f"**{survival} hypothesis(es) survived** — candidates for deeper investigation.")
 
     lines.extend(
         [

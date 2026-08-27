@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import time
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -101,9 +101,7 @@ def add_session_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_off_hours"] = (df["session"] == Session.OFF_HOURS).astype(int)
 
     # Bars into session (0-indexed within each session block)
-    df["bars_into_session"] = df.groupby(
-        (df["session"] != df["session"].shift()).cumsum()
-    ).cumcount()
+    df["bars_into_session"] = df.groupby((df["session"] != df["session"].shift()).cumsum()).cumcount()
 
     # Drop temp column
     df = df.drop(columns=["time_utc"], errors="ignore")
@@ -113,7 +111,7 @@ def add_session_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_realized_volatility_features(
     df: pd.DataFrame,
-    windows: Optional[List[int]] = None,
+    windows: List[int] | None = None,
 ) -> pd.DataFrame:
     """Add realized volatility features at multiple horizons.
 
@@ -152,12 +150,8 @@ def add_price_structure_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Cumulative features within session
     if "session_name" in df.columns:
-        df["session_high"] = df.groupby(
-            (df["session_name"] != df["session_name"].shift()).cumsum()
-        )["high"].cummax()
-        df["session_low"] = df.groupby(
-            (df["session_name"] != df["session_name"].shift()).cumsum()
-        )["low"].cummin()
+        df["session_high"] = df.groupby((df["session_name"] != df["session_name"].shift()).cumsum())["high"].cummax()
+        df["session_low"] = df.groupby((df["session_name"] != df["session_name"].shift()).cumsum())["low"].cummin()
         df["range_position"] = (df["close"] - df["session_low"]) / (
             (df["session_high"] - df["session_low"]).replace(0, np.nan)
         )

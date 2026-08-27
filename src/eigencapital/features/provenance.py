@@ -21,7 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from eigencapital.features.feature_set import FeatureSet
 from eigencapital.features.pipeline import FeatureRequest, PipelineConfig

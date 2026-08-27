@@ -19,9 +19,9 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -72,24 +72,24 @@ class DailyLossTracker:
         self._max_daily_loss = max_daily_loss
         self._persistence_dir = Path(persistence_dir)
         self._tz_offset = timedelta(hours=timezone_offset_hours)
-        self._baseline: Optional[DailyBaseline] = None
+        self._baseline: DailyBaseline | None = None
         self._current_equity: float = 0.0
         self._baseline_file = self._persistence_dir / "daily_baseline.json"
 
     def _today_str(self) -> str:
         """Get today's date string in the configured timezone."""
-        now = datetime.now(timezone.utc) + self._tz_offset
+        now = datetime.now(UTC) + self._tz_offset
         return now.strftime("%Y-%m-%d")
 
     def _now_utc(self) -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
-    def _load_baseline(self) -> Optional[DailyBaseline]:
+    def _load_baseline(self) -> DailyBaseline | None:
         """Load baseline from disk."""
         if not self._baseline_file.exists():
             return None
         try:
-            with open(self._baseline_file, "r") as f:
+            with open(self._baseline_file) as f:
                 data = json.load(f)
             baseline = DailyBaseline(
                 date_str=data["date_str"],

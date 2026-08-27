@@ -16,7 +16,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class ExecutionMode(str, Enum):
@@ -47,7 +47,7 @@ class BrokerOrder:
     side: str  # "BUY" or "SELL"
     quantity: float
     order_type: str  # "MARKET", "LIMIT"
-    limit_price: Optional[float] = None
+    limit_price: float | None = None
     timestamp_utc: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -108,7 +108,7 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+    def get_order(self, order_id: str) -> Dict[str, Any] | None:
         """Get order status."""
         pass
 
@@ -151,7 +151,7 @@ class ShadowBrokerAdapter(BrokerAdapter):
             return True
         return False
 
-    def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+    def get_order(self, order_id: str) -> Dict[str, Any] | None:
         order = self._orders.get(order_id)
         return order.to_dict() if order else None
 

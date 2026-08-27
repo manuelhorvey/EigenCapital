@@ -3,23 +3,23 @@
 Frozen R4 configuration + research→paper parity + fidelity verdict.
 """
 
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
-from eigencapital.fidelity.parity import (
-    ResearchPaperParityEngine,
-    ParityCheckResult,
-    ParityBoundary,
-)
-from eigencapital.fidelity.replay import DeterministicReplayCampaign
 from eigencapital.fidelity.forward import ForwardPaperCampaign
-from eigencapital.fidelity.verdict import FidelityVerdict, FidelityGate
+from eigencapital.fidelity.parity import (
+    ParityBoundary,
+    ParityCheckResult,
+    ResearchPaperParityEngine,
+)
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+from eigencapital.fidelity.replay import DeterministicReplayCampaign
+from eigencapital.fidelity.verdict import FidelityGate, FidelityVerdict
 
 __all__ = [
+    "DeterministicReplayCampaign",
+    "FidelityGate",
+    "FidelityVerdict",
+    "ForwardPaperCampaign",
+    "ParityBoundary",
+    "ParityCheckResult",
     "R4ConfigManifest",
     "ResearchPaperParityEngine",
-    "ParityCheckResult",
-    "ParityBoundary",
-    "DeterministicReplayCampaign",
-    "ForwardPaperCampaign",
-    "FidelityVerdict",
-    "FidelityGate",
 ]

@@ -12,14 +12,14 @@ All features use only bars available at the decision timestamp.
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_simple_return(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_simple_return(bars: List[Bar], lookback: int) -> float | None:
     """Compute simple return over lookback period.
 
     Args:
@@ -41,7 +41,7 @@ def compute_simple_return(bars: List[Bar], lookback: int) -> Optional[float]:
     return (end_price / start_price) - 1.0
 
 
-def compute_log_return(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_log_return(bars: List[Bar], lookback: int) -> float | None:
     """Compute log return over lookback period.
 
     Log returns are additive across time, which makes them
@@ -66,7 +66,7 @@ def compute_log_return(bars: List[Bar], lookback: int) -> Optional[float]:
     return math.log(end_price / start_price)
 
 
-def compute_cumulative_return(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_cumulative_return(bars: List[Bar], lookback: int) -> float | None:
     """Compute cumulative return over lookback period.
 
     Identical to simple_return but named for clarity in feature context.
@@ -81,9 +81,7 @@ def compute_cumulative_return(bars: List[Bar], lookback: int) -> Optional[float]
     return compute_simple_return(bars, lookback)
 
 
-def compute_return_ratio(
-    bars: List[Bar], short_lookback: int, long_lookback: int
-) -> Optional[float]:
+def compute_return_ratio(bars: List[Bar], short_lookback: int, long_lookback: int) -> float | None:
     """Compute ratio of short-horizon to long-horizon return.
 
     Useful for detecting momentum acceleration/deceleration.
@@ -112,9 +110,9 @@ def make_return_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
+    feature_id: str | None = None,
     normalization: str = Normalization.NONE,
-) -> Optional[Feature]:
+) -> Feature | None:
     """Create a Feature from simple return computation.
 
     Args:
@@ -155,9 +153,9 @@ def make_log_return_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
+    feature_id: str | None = None,
     normalization: str = Normalization.NONE,
-) -> Optional[Feature]:
+) -> Feature | None:
     """Create a Feature from log return computation."""
     value = compute_log_return(bars, lookback)
     if value is None:

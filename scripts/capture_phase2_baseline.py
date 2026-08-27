@@ -16,15 +16,15 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from eigencapital.config import load_config
-from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 from eigencapital.risk.policy import RiskPolicy
 
 
@@ -101,7 +101,7 @@ def count_tests() -> dict:
 
 def capture_baseline() -> dict:
     """Capture the complete Phase 2 baseline."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Load config
     config = load_config("production")
@@ -116,11 +116,7 @@ def capture_baseline() -> dict:
     build_id = hashlib.sha256(git_head.encode()).hexdigest()[:16]
 
     # Capture universe
-    universe = (
-        list(config.broker.allowed_symbols.keys())
-        if hasattr(config.broker, "allowed_symbols")
-        else []
-    )
+    universe = list(config.broker.allowed_symbols.keys()) if hasattr(config.broker, "allowed_symbols") else []
 
     # Capture risk limits
     risk_limits = {
@@ -249,9 +245,7 @@ def capture_baseline() -> dict:
     return baseline
 
 
-def save_baseline(
-    baseline: dict, output_path: str = "reports/phase2_baseline.json"
-) -> None:
+def save_baseline(baseline: dict, output_path: str = "reports/phase2_baseline.json") -> None:
     """Save baseline to file."""
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -287,9 +281,7 @@ def verify_baseline(baseline: dict) -> None:
         print(f"    {status} {rule}: {value}")
 
     print("\n✅ Baseline captured successfully")
-    print(
-        "   All subsequent infrastructure changes must demonstrate R4 behavioral parity."
-    )
+    print("   All subsequent infrastructure changes must demonstrate R4 behavioral parity.")
 
 
 def main():

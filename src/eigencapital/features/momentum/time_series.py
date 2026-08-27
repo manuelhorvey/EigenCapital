@@ -12,14 +12,14 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_roc(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_roc(bars: List[Bar], lookback: int) -> float | None:
     """Compute Rate of Change (ROC).
 
     ROC = (current_price / price_n_bars_ago) - 1
@@ -43,9 +43,7 @@ def compute_roc(bars: List[Bar], lookback: int) -> Optional[float]:
     return (current / past) - 1.0
 
 
-def compute_ma_crossover(
-    bars: List[Bar], short_window: int, long_window: int
-) -> Optional[float]:
+def compute_ma_crossover(bars: List[Bar], short_window: int, long_window: int) -> float | None:
     """Compute moving average crossover signal.
 
     Returns:
@@ -84,9 +82,7 @@ def compute_ma_crossover(
     return max(-1.0, min(1.0, spread * 10))  # Scale factor
 
 
-def compute_dual_momentum(
-    bars: List[Bar], absolute_lookback: int, relative_lookback: int
-) -> Optional[float]:
+def compute_dual_momentum(bars: List[Bar], absolute_lookback: int, relative_lookback: int) -> float | None:
     """Compute dual momentum (absolute + relative).
 
     Dual momentum combines:
@@ -123,9 +119,7 @@ def compute_dual_momentum(
         return 0.0
 
 
-def compute_momentum_zscore(
-    bars: List[Bar], lookback: int, vol_lookback: int
-) -> Optional[float]:
+def compute_momentum_zscore(bars: List[Bar], lookback: int, vol_lookback: int) -> float | None:
     """Compute momentum z-score (return / volatility).
 
     This normalizes momentum by recent volatility, producing
@@ -169,8 +163,8 @@ def make_roc_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from ROC computation."""
     value = compute_roc(bars, lookback)
     if value is None:
@@ -200,8 +194,8 @@ def make_ma_crossover_feature(
     short_window: int,
     long_window: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from MA crossover computation."""
     value = compute_ma_crossover(bars, short_window, long_window)
     if value is None:

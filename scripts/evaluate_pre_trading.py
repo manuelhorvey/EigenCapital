@@ -16,15 +16,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.broker_boundary import BrokerBoundaryConfig
-from eigencapital.production_qual.capital_boundary import CapitalBoundaryConfig
 from eigencapital.production_qual.campaign_snapshot import capture_start_snapshot
+from eigencapital.production_qual.capital_boundary import CapitalBoundaryConfig
 from eigencapital.production_qual.pre_trading import (
     BrokerStateSnapshot,
     PreTradingDecision,
     PreTradingValidator,
 )
 from eigencapital.production_qual.prefunding_gate import PrefundingGate
-
 
 # ── Broker State ──────────────────────────────────────────────────
 # This script loads broker state from the live MT5 connection.
@@ -52,10 +51,7 @@ def _load_broker_state() -> BrokerStateSnapshot:
                 free_margin=acct.margin_free,
                 balance=acct.balance,
                 margin_level=acct.margin_level,
-                positions=[
-                    {"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume}
-                    for p in (positions or [])
-                ],
+                positions=[{"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume} for p in (positions or [])],
                 position_count=len(positions or []),
                 available_symbols=symbols[:15],
                 symbol_specs={},
@@ -236,9 +232,7 @@ def run_pre_trading_validation() -> None:
 
     for step_name, counts in steps.items():
         status = "✅" if counts["failed"] == 0 else "❌"
-        print(
-            f"  {status} {step_name}: {counts['passed']} passed, {counts['failed']} failed"
-        )
+        print(f"  {status} {step_name}: {counts['passed']} passed, {counts['failed']} failed")
     print()
 
     # 6. Capture T=0 snapshot if authorized

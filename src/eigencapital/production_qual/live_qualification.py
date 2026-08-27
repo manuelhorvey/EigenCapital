@@ -25,9 +25,9 @@ Design principles:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class TradePhase(str, Enum):
@@ -115,26 +115,26 @@ class ExecutionFidelity:
 class EntryQuality:
     """Phase 2B: Entry quality metrics."""
 
-    forward_return_1h: Optional[float] = None
-    forward_return_1d: Optional[float] = None
-    forward_return_3d: Optional[float] = None
-    forward_return_5d: Optional[float] = None
-    forward_return_10d: Optional[float] = None
-    forward_return_20d: Optional[float] = None
+    forward_return_1h: float | None = None
+    forward_return_1d: float | None = None
+    forward_return_3d: float | None = None
+    forward_return_5d: float | None = None
+    forward_return_10d: float | None = None
+    forward_return_20d: float | None = None
 
     mae: float = 0.0  # Maximum adverse excursion
     mfe: float = 0.0  # Maximum favorable excursion
 
-    time_to_first_profit_seconds: Optional[float] = None
-    time_to_first_minus_0_25r: Optional[float] = None
-    time_to_first_minus_0_5r: Optional[float] = None
-    time_to_first_minus_1r: Optional[float] = None
+    time_to_first_profit_seconds: float | None = None
+    time_to_first_minus_0_25r: float | None = None
+    time_to_first_minus_0_5r: float | None = None
+    time_to_first_minus_1r: float | None = None
 
-    eventual_winner: Optional[bool] = None  # Did trade eventually win?
+    eventual_winner: bool | None = None  # Did trade eventually win?
 
-    signal_strength_percentile: Optional[float] = None  # 0-100
-    regime_at_entry: Optional[str] = None
-    volatility_state_at_entry: Optional[str] = None
+    signal_strength_percentile: float | None = None  # 0-100
+    regime_at_entry: str | None = None
+    volatility_state_at_entry: str | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -208,7 +208,7 @@ class DownsideMetrics:
 
     # Catastrophic protection effectiveness
     catastrophic_protection_active: bool = False
-    tail_risk_reduction: Optional[float] = None  # Estimated tail risk reduction
+    tail_risk_reduction: float | None = None  # Estimated tail risk reduction
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -243,8 +243,8 @@ class PortfolioRiskSnapshot:
     index_exposure: float
 
     # Risk metrics
-    portfolio_var_95: Optional[float] = None
-    portfolio_cvar_95: Optional[float] = None
+    portfolio_var_95: float | None = None
+    portfolio_cvar_95: float | None = None
 
     # Correlation
     max_correlation: float = 0.0
@@ -292,8 +292,8 @@ class OperationalEvent:
     event_type: str  # "restart", "disconnect", "reconnect", "stale_price", etc.
     timestamp: str
     detection_time_ms: float  # Time to detect
-    containment_time_ms: Optional[float] = None  # Time to contain
-    recovery_time_ms: Optional[float] = None  # Time to recover
+    containment_time_ms: float | None = None  # Time to contain
+    recovery_time_ms: float | None = None  # Time to recover
 
     success: bool = True
     details: Dict[str, Any] = field(default_factory=dict)
@@ -324,18 +324,18 @@ class QualificationTrade:
     side: str  # "BUY" or "SELL"
 
     # Defaults
-    exit_timestamp: Optional[str] = None
+    exit_timestamp: str | None = None
     volume: float = 0.0
 
     # Phase metrics
-    execution: Optional[ExecutionFidelity] = None
-    entry_quality: Optional[EntryQuality] = None
-    holding_period: Optional[HoldingPeriodMetrics] = None
-    downside: Optional[DownsideMetrics] = None
+    execution: ExecutionFidelity | None = None
+    entry_quality: EntryQuality | None = None
+    holding_period: HoldingPeriodMetrics | None = None
+    downside: DownsideMetrics | None = None
 
     # Exit
-    exit_price: Optional[float] = None
-    exit_reason: Optional[str] = None
+    exit_price: float | None = None
+    exit_reason: str | None = None
     realized_pnl: float = 0.0
 
     # Net economics (after all costs)
@@ -371,12 +371,8 @@ class QualificationTrade:
             "side": self.side,
             "volume": self.volume,
             "execution": self.execution.to_dict() if self.execution else None,
-            "entry_quality": self.entry_quality.to_dict()
-            if self.entry_quality
-            else None,
-            "holding_period": self.holding_period.to_dict()
-            if self.holding_period
-            else None,
+            "entry_quality": self.entry_quality.to_dict() if self.entry_quality else None,
+            "holding_period": self.holding_period.to_dict() if self.holding_period else None,
             "downside": self.downside.to_dict() if self.downside else None,
             "exit_price": self.exit_price,
             "exit_reason": self.exit_reason,
@@ -457,9 +453,7 @@ class R4LiveQualificationDataset:
         # Sample size tracking (for portfolio strategy)
         self._n_positions = 0  # Total position entries
         self._n_completed_trades = 0  # Total completed trade lifecycles
-        self._n_independent_episodes = (
-            0  # Independent portfolio episodes (not individual trades)
-        )
+        self._n_independent_episodes = 0  # Independent portfolio episodes (not individual trades)
         self._episode_symbols: Dict[int, set] = {}  # episode_id -> set of symbols
 
     def _generate_trade_id(self) -> str:
@@ -472,7 +466,7 @@ class R4LiveQualificationDataset:
         side: str,
         volume: float,
         execution: ExecutionFidelity,
-        correlation_id: Optional[str] = None,
+        correlation_id: str | None = None,
     ) -> QualificationTrade:
         """Record trade entry.
 
@@ -486,7 +480,7 @@ class R4LiveQualificationDataset:
         Returns:
             Created trade record
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         trade = QualificationTrade(
             trade_id=self._generate_trade_id(),
@@ -598,9 +592,9 @@ class R4LiveQualificationDataset:
         exit_price: float,
         exit_reason: str,
         realized_pnl: float,
-        net_pnl: Optional[float] = None,
-        total_costs: Optional[float] = None,
-    ) -> Optional[QualificationTrade]:
+        net_pnl: float | None = None,
+        total_costs: float | None = None,
+    ) -> QualificationTrade | None:
         """Record trade exit.
 
         Args:
@@ -618,7 +612,7 @@ class R4LiveQualificationDataset:
         if not trade:
             return None
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Compute holding period
         from datetime import datetime as dt
@@ -695,7 +689,7 @@ class R4LiveQualificationDataset:
         """Record operational event."""
         self._operational_events.append(event)
 
-    def get_trade(self, trade_id: str) -> Optional[QualificationTrade]:
+    def get_trade(self, trade_id: str) -> QualificationTrade | None:
         """Get trade by ID."""
         return self._trades.get(trade_id)
 
@@ -755,10 +749,7 @@ class R4LiveQualificationDataset:
 
         # Execution costs
         avg_slippage = (
-            (
-                sum(t.execution.slippage for t in closed if t.execution)
-                / sum(1 for t in closed if t.execution)
-            )
+            (sum(t.execution.slippage for t in closed if t.execution) / sum(1 for t in closed if t.execution))
             if any(t.execution for t in closed)
             else 0
         )
@@ -791,15 +782,9 @@ class R4LiveQualificationDataset:
         closed_trades = self.get_closed_trades()
 
         if closed_trades:
-            avg_completeness = sum(t.completeness_score() for t in closed_trades) / len(
-                closed_trades
-            )
-            fully_reconstructable = sum(
-                1 for t in closed_trades if t.completeness_score() >= 0.9
-            )
-            completeness_pct = (
-                fully_reconstructable / len(closed_trades) if closed_trades else 0
-            )
+            avg_completeness = sum(t.completeness_score() for t in closed_trades) / len(closed_trades)
+            fully_reconstructable = sum(1 for t in closed_trades if t.completeness_score() >= 0.9)
+            completeness_pct = fully_reconstructable / len(closed_trades) if closed_trades else 0
         else:
             avg_completeness = 0.0
             fully_reconstructable = 0
@@ -826,26 +811,16 @@ class R4LiveQualificationDataset:
                 "latest_drawdown_pct": latest.drawdown_pct,
                 "latest_margin_utilization": latest.margin_utilization,
                 "latest_position_count": latest.position_count,
-                "max_drawdown_observed": max(
-                    s.drawdown_pct for s in self._risk_snapshots
-                ),
+                "max_drawdown_observed": max(s.drawdown_pct for s in self._risk_snapshots),
             }
 
         # Operational summary
         op_summary = {
             "total_events": len(self._operational_events),
-            "successful_recoveries": sum(
-                1 for e in self._operational_events if e.success
-            ),
-            "failed_recoveries": sum(
-                1 for e in self._operational_events if not e.success
-            ),
+            "successful_recoveries": sum(1 for e in self._operational_events if e.success),
+            "failed_recoveries": sum(1 for e in self._operational_events if not e.success),
             "avg_recovery_time_ms": (
-                sum(
-                    e.recovery_time_ms
-                    for e in self._operational_events
-                    if e.recovery_time_ms
-                )
+                sum(e.recovery_time_ms for e in self._operational_events if e.recovery_time_ms)
                 / sum(1 for e in self._operational_events if e.recovery_time_ms)
             )
             if any(e.recovery_time_ms for e in self._operational_events)
@@ -853,13 +828,11 @@ class R4LiveQualificationDataset:
         }
 
         # Phase 2 gates (A, B, C)
-        gates = self._compute_phase2_gates(
-            economics, risk_summary, op_summary, completeness_pct, sample_sizes
-        )
+        gates = self._compute_phase2_gates(economics, risk_summary, op_summary, completeness_pct, sample_sizes)
 
         return {
             "campaign_id": self._campaign_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "economics": economics,
             "evidence_completeness": {
                 "avg_completeness_score": avg_completeness,
@@ -884,21 +857,13 @@ class R4LiveQualificationDataset:
         classifications: Dict[str, int] = {}
         for trade in all_trades:
             for field_name, classification in trade.evidence_classifications.items():
-                classifications[classification] = (
-                    classifications.get(classification, 0) + 1
-                )
+                classifications[classification] = classifications.get(classification, 0) + 1
 
         return {
             "total_classifications": sum(classifications.values()),
             "by_type": classifications,
-            "has_model_based": classifications.get(
-                EvidenceClassification.MODEL_BASED.value, 0
-            )
-            > 0,
-            "has_not_yet_identifiable": classifications.get(
-                EvidenceClassification.NOT_YET_IDENTIFIABLE.value, 0
-            )
-            > 0,
+            "has_model_based": classifications.get(EvidenceClassification.MODEL_BASED.value, 0) > 0,
+            "has_not_yet_identifiable": classifications.get(EvidenceClassification.NOT_YET_IDENTIFIABLE.value, 0) > 0,
         }
 
     def _compute_phase2_gates(
@@ -907,7 +872,7 @@ class R4LiveQualificationDataset:
         risk_summary: Dict[str, Any],
         op_summary: Dict[str, Any],
         completeness_pct: float = 0.0,
-        sample_sizes: Optional[Dict[str, Any]] = None,
+        sample_sizes: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Compute Phase 2 qualification gates (A, B, C).
 
@@ -919,8 +884,7 @@ class R4LiveQualificationDataset:
 
         # Gate A: Operational qualification
         gates["A_operational"] = {
-            "zero_uncontrolled_exposure": risk_summary.get("max_drawdown_observed", 0)
-            < 0.10,
+            "zero_uncontrolled_exposure": risk_summary.get("max_drawdown_observed", 0) < 0.10,
             "zero_critical_incidents": op_summary.get("failed_recoveries", 0) == 0,
             "reconciliation_healthy": True,  # Checked by reconciliation engine
             "no_unauthorized_trades": True,  # Checked by campaign boundary
@@ -945,18 +909,13 @@ class R4LiveQualificationDataset:
         n_episodes = (sample_sizes or {}).get("n_independent_episodes", 0)
 
         # Distinguish INSUFFICIENT_EVIDENCE from NEGATIVE_EVIDENCE
-        has_enough_evidence = (
-            total_trades >= 50 and n_episodes >= 3
-        )  # More stringent than before
+        has_enough_evidence = total_trades >= 50 and n_episodes >= 3  # More stringent than before
 
         if not has_enough_evidence:
             # INSUFFICIENT EVIDENCE — don't declare failure prematurely
             economic_verdict = EconomicVerdict.INCONCLUSIVE.value
             evidence_status = "INSUFFICIENT_EVIDENCE"
-        elif (
-            economics.get("expectancy_per_trade", 0) > 0
-            and economics.get("profit_factor", 0) > 1.0
-        ):
+        elif economics.get("expectancy_per_trade", 0) > 0 and economics.get("profit_factor", 0) > 1.0:
             economic_verdict = EconomicVerdict.CONFIRMED.value
             evidence_status = "POSITIVE_EVIDENCE"
         else:

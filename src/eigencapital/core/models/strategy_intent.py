@@ -26,7 +26,7 @@ Critical constraints:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Any, Dict
 
 
 class Horizon(str):
@@ -58,23 +58,17 @@ class StrategyIntent:
     direction: int  # 1=LONG, -1=SHORT, 0=FLAT
     target_risk: float  # portfolio-relative risk >= 0
     horizon: Horizon  # intraday or swing
-    confidence: Optional[float] = None  # 0.0-1.0, strategy-internal
-    signal_metadata: Dict[str, Any] = field(
-        default_factory=dict
-    )  # free-form regime flags, etc.
-    expiry: Optional[str] = None  # ISO-8601 UTC when this intent expires
-    strategy_config_hash: str = (
-        ""  # SHA256(strategy parameters + strategy configuration)
-    )
+    confidence: float | None = None  # 0.0-1.0, strategy-internal
+    signal_metadata: Dict[str, Any] = field(default_factory=dict)  # free-form regime flags, etc.
+    expiry: str | None = None  # ISO-8601 UTC when this intent expires
+    strategy_config_hash: str = ""  # SHA256(strategy parameters + strategy configuration)
     strategy_artifact_hash: str = ""  # SHA256(strategy implementation / code)
-    decision_snapshot_id: Optional[str] = None  # back to DecisionSnapshot
+    decision_snapshot_id: str | None = None  # back to DecisionSnapshot
 
     def __post_init__(self) -> None:
         # Validate direction: must be 1, -1, or 0
         if self.direction not in (1, -1, 0):
-            raise ValueError(
-                f"Invalid direction: {self.direction}. Must be 1 (LONG), -1 (SHORT), or 0 (FLAT)."
-            )
+            raise ValueError(f"Invalid direction: {self.direction}. Must be 1 (LONG), -1 (SHORT), or 0 (FLAT).")
 
         # Validate target_risk >= 0
         if self.target_risk < 0:
@@ -85,29 +79,21 @@ class StrategyIntent:
 
         # Validate timestamp is ISO-8601 UTC format
         if "T" not in self.timestamp_utc:
-            raise ValueError(
-                f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}"
-            )
+            raise ValueError(f"timestamp_utc should be ISO-8601 format, got: {self.timestamp_utc}")
 
         # Validate strategy_config_hash is present (non-empty)
         if not self.strategy_config_hash:
-            raise ValueError(
-                "strategy_config_hash must be non-empty (strategy parameters + config)"
-            )
+            raise ValueError("strategy_config_hash must be non-empty (strategy parameters + config)")
 
         # Validate strategy_artifact_hash is present (non-empty)
         if not self.strategy_artifact_hash:
-            raise ValueError(
-                "strategy_artifact_hash must be non-empty (strategy implementation hash)"
-            )
+            raise ValueError("strategy_artifact_hash must be non-empty (strategy implementation hash)")
 
         # Validate expiry if set: must be ISO-8601 and in future logic is caller's responsibility,
         # but we at least check format
         if self.expiry is not None:
             if "T" not in self.expiry:
-                raise ValueError(
-                    f"expiry should be ISO-8601 format, got: {self.expiry}"
-                )
+                raise ValueError(f"expiry should be ISO-8601 format, got: {self.expiry}")
 
         # Strategy ID must be non-empty
         if not self.strategy_id:
@@ -184,17 +170,11 @@ class StrategyIntent:
             timestamp_utc=str(d["timestamp_utc"]),
             direction=int(d["direction"]),
             target_risk=float(d["target_risk"]),
-            horizon=Horizon(d["horizon"])
-            if isinstance(d.get("horizon"), str)
-            else d["horizon"],
-            confidence=float(d["confidence"])
-            if d.get("confidence") is not None
-            else None,
+            horizon=Horizon(d["horizon"]) if isinstance(d.get("horizon"), str) else d["horizon"],
+            confidence=float(d["confidence"]) if d.get("confidence") is not None else None,
             signal_metadata=d.get("signal_metadata", {}),
             expiry=d.get("expiry"),
-            strategy_config_hash=str(
-                d.get("strategy_config_hash", d.get("config_hash", ""))
-            ),
+            strategy_config_hash=str(d.get("strategy_config_hash", d.get("config_hash", ""))),
             strategy_artifact_hash=str(d.get("strategy_artifact_hash", "")),
             decision_snapshot_id=d.get("decision_snapshot_id"),
         )

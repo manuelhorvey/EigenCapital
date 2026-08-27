@@ -111,7 +111,6 @@ class TestEngine:
 # ── Confirmation logic is fail-closed ───────────────────────────────────
 
 def _mk_result(**over):
-    from eigencapital.research.intraday.campaign4_15m import Verdict
     base = dict(
         variant="b=07,k=2", boundary=7, lookback=2, hp=2,
         gross_sharpe=0.6, net_base=0.5, net_adverse=0.35, max_dd=-0.08,

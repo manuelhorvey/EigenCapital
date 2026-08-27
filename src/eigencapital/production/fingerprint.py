@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -90,13 +90,11 @@ class FingerprintRegistry:
         """Register a production fingerprint."""
         self._fingerprints[fingerprint_id] = fingerprint
 
-    def get(self, fingerprint_id: str) -> Optional[ProductionFingerprint]:
+    def get(self, fingerprint_id: str) -> ProductionFingerprint | None:
         """Get a registered fingerprint."""
         return self._fingerprints.get(fingerprint_id)
 
-    def check_drift(
-        self, fingerprint_id: str, current: ProductionFingerprint
-    ) -> Dict[str, Any]:
+    def check_drift(self, fingerprint_id: str, current: ProductionFingerprint) -> Dict[str, Any]:
         """Check if current config drifts from registered fingerprint.
 
         Returns:

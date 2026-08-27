@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
 
 class TradeOrigin(str, Enum):
@@ -41,8 +41,8 @@ class TradeRecord:
     volume: float
     entry_price: float
     entry_timestamp: str
-    exit_price: Optional[float] = None
-    exit_timestamp: Optional[str] = None
+    exit_price: float | None = None
+    exit_timestamp: str | None = None
     origin: TradeOrigin = TradeOrigin.UNKNOWN
     status: TradeStatus = TradeStatus.OPEN
     pnl: float = 0.0
@@ -50,7 +50,7 @@ class TradeRecord:
     swap: float = 0.0
     slippage_entry: float = 0.0
     slippage_exit: float = 0.0
-    broker_ticket: Optional[int] = None
+    broker_ticket: int | None = None
 
     def close(self, exit_price: float, exit_timestamp: str) -> None:
         """Close the trade."""
@@ -198,8 +198,7 @@ class CampaignBoundary:
                 if r4_trade:
                     if abs(r4_trade.volume - pos.get("volume", 0)) > 1e-6:
                         discrepancies.append(
-                            f"{pos.get('symbol')}: volume mismatch "
-                            f"(R4={r4_trade.volume}, broker={pos.get('volume')})"
+                            f"{pos.get('symbol')}: volume mismatch (R4={r4_trade.volume}, broker={pos.get('volume')})"
                         )
 
         return {

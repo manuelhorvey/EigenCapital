@@ -15,15 +15,15 @@ Strategy CANNOT bypass Portfolio or EigenRisk.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from eigencapital.core.models.strategy_intent import StrategyIntent
-from eigencapital.core.models.portfolio_target import PortfolioTarget
 from eigencapital.core.models.approved_target import ApprovedTarget
 from eigencapital.core.models.order_plan import OrderPlan, Urgency
+from eigencapital.core.models.portfolio_target import PortfolioTarget
 from eigencapital.core.models.position import Position
-from eigencapital.risk.engine import EigenRiskEngine, RiskDecision
+from eigencapital.core.models.strategy_intent import StrategyIntent
 from eigencapital.risk.checks.account_checks import AccountState
+from eigencapital.risk.engine import EigenRiskEngine, RiskDecision
 
 
 @dataclass
@@ -49,12 +49,8 @@ class PortfolioState:
 
     def update_account_state(self) -> None:
         """Recompute account state from current positions."""
-        total_notional = sum(
-            abs(p.quantity * p.average_entry_price) for p in self.positions.values()
-        )
-        equity = self.current_cash + sum(
-            p.unrealized_pnl for p in self.positions.values()
-        )
+        total_notional = sum(abs(p.quantity * p.average_entry_price) for p in self.positions.values())
+        equity = self.current_cash + sum(p.unrealized_pnl for p in self.positions.values())
 
         self.account_state = AccountState(
             equity=equity,
@@ -118,7 +114,7 @@ class Portfolio:
 
     def __init__(
         self,
-        risk_engine: Optional[EigenRiskEngine] = None,
+        risk_engine: EigenRiskEngine | None = None,
         execution_policy_version: str = "v1",
         urgency: Urgency = Urgency.SESSION,
     ) -> None:
@@ -132,7 +128,7 @@ class Portfolio:
         intents: List[StrategyIntent],
         strategy_config_hash: str = "default_config_hash",
         strategy_artifact_hash: str = "default_artifact_hash",
-        price_map: Optional[Dict[str, float]] = None,
+        price_map: Dict[str, float] | None = None,
     ) -> PortfolioDecision:
         """Process a batch of strategy intents through the full pipeline.
 
@@ -175,8 +171,7 @@ class Portfolio:
                 target_quantity=target_quantity,
                 target_market_value=target_market_value,
                 target_risk=intent.target_risk,
-                justification=f"Signal: direction={intent.direction_enum}, "
-                f"strategy={intent.strategy_id}",
+                justification=f"Signal: direction={intent.direction_enum}, strategy={intent.strategy_id}",
                 strategy_config_hash=strategy_config_hash,
                 strategy_artifact_hash=strategy_artifact_hash,
             )
@@ -265,9 +260,7 @@ class Portfolio:
                 if old_qty == 0:
                     new_avg = fill_price
                 else:
-                    new_avg = (
-                        old_qty * pos.average_entry_price + signed_qty * fill_price
-                    ) / new_qty
+                    new_avg = (old_qty * pos.average_entry_price + signed_qty * fill_price) / new_qty
             else:
                 new_avg = 0.0
 

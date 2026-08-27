@@ -13,12 +13,10 @@ Tests 50K simulated trading cycles measuring:
 
 import os
 import sys
-import resource
 import threading
 import time
 import tracemalloc
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 

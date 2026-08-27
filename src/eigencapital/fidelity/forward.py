@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
 )
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
 
 class ForwardStatus(str, Enum):
@@ -175,32 +175,24 @@ class ForwardPaperCampaign:
         # Detect missing bar
         if tick_data.get("is_missing", False):
             event = OperationalEvent.MISSING_BAR
-            self._operational_events["missing_bar"] = (
-                self._operational_events.get("missing_bar", 0) + 1
-            )
+            self._operational_events["missing_bar"] = self._operational_events.get("missing_bar", 0) + 1
 
         # Detect stale data
         if tick_data.get("is_stale", False):
             event = OperationalEvent.STALE_DATA
-            self._operational_events["stale_data"] = (
-                self._operational_events.get("stale_data", 0) + 1
-            )
+            self._operational_events["stale_data"] = self._operational_events.get("stale_data", 0) + 1
 
         # Detect spread widening
         spread = tick_data.get("spread", 0.0)
         avg_spread = tick_data.get("avg_spread", spread)
         if avg_spread > 0 and spread > avg_spread * self.MAX_SPREAD_RATIO:
             event = OperationalEvent.SPREAD_WIDENING
-            self._operational_events["spread_widening"] = (
-                self._operational_events.get("spread_widening", 0) + 1
-            )
+            self._operational_events["spread_widening"] = self._operational_events.get("spread_widening", 0) + 1
 
         # Detect session boundary
         if tick_data.get("is_session_boundary", False):
             event = OperationalEvent.SESSION_BOUNDARY
-            self._operational_events["session_boundary"] = (
-                self._operational_events.get("session_boundary", 0) + 1
-            )
+            self._operational_events["session_boundary"] = self._operational_events.get("session_boundary", 0) + 1
 
         # Detect instrument unavailable
         if tick_data.get("is_unavailable", False):

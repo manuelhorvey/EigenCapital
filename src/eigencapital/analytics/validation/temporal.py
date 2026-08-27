@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -149,9 +149,7 @@ def temporal_stability(
 
         sharpe = _compute_sharpe(window_returns)
         mean_r = sum(window_returns) / len(window_returns)
-        var_r = sum((r - mean_r) ** 2 for r in window_returns) / (
-            len(window_returns) - 1
-        )
+        var_r = sum((r - mean_r) ** 2 for r in window_returns) / (len(window_returns) - 1)
         vol = math.sqrt(var_r) * math.sqrt(252)
         max_dd = _compute_max_drawdown(window_returns)
         win_rate = sum(1 for r in window_returns if r > 0) / len(window_returns) * 100

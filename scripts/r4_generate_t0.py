@@ -17,7 +17,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict
 
 sys.path.insert(0, "src")
@@ -30,17 +30,17 @@ except ImportError:
 
 from eigencapital.config import load_config
 from eigencapital.live.position_attribution import (
-    classify_all,
     capacity_account,
+    classify_all,
     snapshot_hash,
 )
+from eigencapital.live.watchdog import ProbeResult, Watchdog
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-from eigencapital.live.watchdog import Watchdog, ProbeResult
 
 
 def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
     """Capture the immutable T=0 snapshot."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if not campaign_id:
         campaign_id = f"R4-5K-{now.strftime('%Y%m%d')}"
@@ -54,9 +54,7 @@ def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
     account = mt5.account_info()
     balance = float(account.balance)
     equity = float(account.equity)
-    free_margin = float(
-        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
-    )
+    free_margin = float(getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0)
     margin = float(getattr(account, "margin", 0) or 0)
     margin_level = float(getattr(account, "margin_level", 0) or 0)
     leverage = int(getattr(account, "leverage", 0) or 0)
@@ -209,9 +207,7 @@ def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
     }
 
     # Compute immutable hash
-    t0_hash = hashlib.sha256(
-        json.dumps(t0, sort_keys=True, default=str).encode()
-    ).hexdigest()
+    t0_hash = hashlib.sha256(json.dumps(t0, sort_keys=True, default=str).encode()).hexdigest()
     t0["snapshot_hash"] = t0_hash
 
     mt5.shutdown()
@@ -239,9 +235,7 @@ def main():
     print(
         f"Positions: {t0['positions']['total']} ({t0['positions']['r4_count']} R4, {t0['positions']['foreign_count']} foreign)"
     )
-    print(
-        f"Fingerprints: {'✅ all verified' if t0['fingerprints']['all_verified'] else '❌ MISMATCH'}"
-    )
+    print(f"Fingerprints: {'✅ all verified' if t0['fingerprints']['all_verified'] else '❌ MISMATCH'}")
     print(f"Watchdog: {t0['watchdog']['initial_state']}")
     print(f"Contamination: {'⚠️ YES' if t0['positions']['contamination'] else '✅ NO'}")
     print(f"Snapshot Hash: {t0['snapshot_hash'][:32]}...")

@@ -11,12 +11,12 @@ All features are computed from available bars only (no look-ahead).
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
 
 
-def compute_cumulative_return(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_cumulative_return(bars: List[Bar], lookback: int) -> float | None:
     """Compute cumulative return over lookback period.
 
     Args:
@@ -39,7 +39,7 @@ def compute_cumulative_return(bars: List[Bar], lookback: int) -> Optional[float]
     return (end_price / start_price) - 1.0
 
 
-def compute_realized_volatility(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_realized_volatility(bars: List[Bar], lookback: int) -> float | None:
     """Compute annualized realized volatility.
 
     Args:
@@ -76,7 +76,7 @@ def compute_trend_signal(
     bars: List[Bar],
     lookback: int,
     vol_lookback: int,
-) -> Optional[float]:
+) -> float | None:
     """Compute trend signal as Z-score of momentum.
 
     Signal = cumulative_return / realized_volatility

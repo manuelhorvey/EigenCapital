@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class RiskObservationLevel(str, Enum):
@@ -43,7 +43,7 @@ class RiskObservation:
     dimension: str
     level: str
     value: float
-    limit: Optional[float]
+    limit: float | None
     message: str
     timestamp: str
     details: Dict[str, Any] = field(default_factory=dict)
@@ -133,7 +133,7 @@ class RiskObserver:
         free_margin: float,
         positions: List[Dict[str, Any]],
         daily_pnl: float,
-        last_update_time: Optional[float] = None,
+        last_update_time: float | None = None,
     ) -> RiskState:
         """Perform comprehensive risk observation.
 
@@ -148,7 +148,7 @@ class RiskObserver:
         Returns:
             Complete risk state snapshot
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         observations: Dict[str, RiskObservation] = {}
 
         # Update peak equity
@@ -196,16 +196,11 @@ class RiskObserver:
         observations["loss_velocity"] = loss_velocity_obs
 
         # Compute overall state
-        critical_dims = [
-            k
-            for k, v in observations.items()
-            if v.level == RiskObservationLevel.CRITICAL.value
-        ]
+        critical_dims = [k for k, v in observations.items() if v.level == RiskObservationLevel.CRITICAL.value]
         warning_dims = [
             k
             for k, v in observations.items()
-            if v.level
-            in (RiskObservationLevel.WARNING.value, RiskObservationLevel.ELEVATED.value)
+            if v.level in (RiskObservationLevel.WARNING.value, RiskObservationLevel.ELEVATED.value)
         ]
 
         any_critical = len(critical_dims) > 0
@@ -244,7 +239,7 @@ class RiskObserver:
                 value=0.0,
                 limit=self._max_drawdown_pct,
                 message="No peak equity recorded",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
         drawdown = self._peak_equity - equity
@@ -269,7 +264,7 @@ class RiskObserver:
             value=drawdown_pct,
             limit=self._max_drawdown_pct,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             details={
                 "peak_equity": self._peak_equity,
                 "current_equity": equity,
@@ -300,13 +295,11 @@ class RiskObserver:
             value=daily_loss,
             limit=self._max_daily_loss,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             details={"daily_pnl": daily_pnl},
         )
 
-    def _observe_position_count(
-        self, positions: List[Dict[str, Any]]
-    ) -> RiskObservation:
+    def _observe_position_count(self, positions: List[Dict[str, Any]]) -> RiskObservation:
         """Observe position count."""
         count = len(positions)
         limit = 19  # From config
@@ -327,7 +320,7 @@ class RiskObserver:
             value=count,
             limit=limit,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     def _observe_gross_exposure(
@@ -355,7 +348,7 @@ class RiskObserver:
             value=exposure_pct,
             limit=2.0,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             details={"gross_exposure": gross_exposure},
         )
 
@@ -372,7 +365,7 @@ class RiskObserver:
                 value=0.0,
                 limit=self._max_concentration_pct,
                 message="No positions",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
         # Find max concentration
@@ -390,9 +383,7 @@ class RiskObserver:
             message = f"Max concentration {max_concentration:.1%} in {max_symbol} exceeds limit"
         elif max_concentration >= self._max_concentration_pct * 0.8:
             level = RiskObservationLevel.ELEVATED.value
-            message = (
-                f"Max concentration {max_concentration:.1%} in {max_symbol} elevated"
-            )
+            message = f"Max concentration {max_concentration:.1%} in {max_symbol} elevated"
         else:
             level = RiskObservationLevel.NORMAL.value
             message = f"Max concentration {max_concentration:.1%} in {max_symbol} within limits"
@@ -403,7 +394,7 @@ class RiskObserver:
             value=max_concentration,
             limit=self._max_concentration_pct,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             details={"max_symbol": max_symbol},
         )
 
@@ -420,7 +411,7 @@ class RiskObserver:
                 value=1.0,
                 limit=self._max_margin_utilization,
                 message="Equity <= 0",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
         used_margin = equity - free_margin
@@ -442,13 +433,11 @@ class RiskObserver:
             value=utilization,
             limit=self._max_margin_utilization,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             details={"used_margin": used_margin},
         )
 
-    def _observe_sl_protection(
-        self, positions: List[Dict[str, Any]]
-    ) -> RiskObservation:
+    def _observe_sl_protection(self, positions: List[Dict[str, Any]]) -> RiskObservation:
         """Observe SL protection status."""
         unprotected = [p for p in positions if p.get("sl", 0) == 0]
 
@@ -466,14 +455,14 @@ class RiskObserver:
             value=len(unprotected),
             limit=0,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             details={
                 "unprotected_count": len(unprotected),
                 "symbols": [p.get("symbol") for p in unprotected],
             },
         )
 
-    def _observe_stale_data(self, last_update_time: Optional[float]) -> RiskObservation:
+    def _observe_stale_data(self, last_update_time: float | None) -> RiskObservation:
         """Observe stale data."""
         if last_update_time is None:
             return RiskObservation(
@@ -482,7 +471,7 @@ class RiskObserver:
                 value=0.0,
                 limit=self._stale_threshold,
                 message="No last update time available",
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
             )
 
         staleness = time.time() - last_update_time
@@ -503,7 +492,7 @@ class RiskObserver:
             value=staleness,
             limit=self._stale_threshold,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     def _observe_equity_floor(self, equity: float) -> RiskObservation:
@@ -526,7 +515,7 @@ class RiskObserver:
             value=equity,
             limit=min_equity,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     def _observe_loss_velocity(
@@ -557,7 +546,7 @@ class RiskObserver:
             value=velocity,
             limit=0.05,
             message=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     def get_history(self) -> List[Dict[str, Any]]:

@@ -11,7 +11,6 @@ from eigencapital.micro_live.campaign import (
 )
 from eigencapital.micro_live.qualification import (
     MicroLiveEvaluator,
-    QualificationReport,
 )
 
 

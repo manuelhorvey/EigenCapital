@@ -83,9 +83,7 @@ def signal_vwap_deviation(df: pd.DataFrame, lookback: int = 60) -> pd.Series:
     return (df["close"] - vwap) / vwap.replace(0, np.nan)
 
 
-def signal_spread_shock(
-    df: pd.DataFrame, lookback: int = 60, shock_pct: float = 1.5
-) -> pd.Series:
+def signal_spread_shock(df: pd.DataFrame, lookback: int = 60, shock_pct: float = 1.5) -> pd.Series:
     """Liquidity proxy: spread relative to its rolling median."""
     med = df["spread"].rolling(lookback).median()
     return df["spread"] / med.replace(0, np.nan)
@@ -132,9 +130,7 @@ def signal_volatility_regime(df: pd.DataFrame, lookback: int = 60) -> pd.Series:
     return rv / rv_avg.replace(0, np.nan)
 
 
-def signal_session_open_momentum(
-    df: pd.DataFrame, session_start_idx: int = 0, lookback: int = 30
-) -> pd.Series:
+def signal_session_open_momentum(df: pd.DataFrame, session_start_idx: int = 0, lookback: int = 30) -> pd.Series:
     """Momentum in first N bars of session."""
     ret = df["close"].pct_change(1)
     return ret.rolling(lookback).sum()

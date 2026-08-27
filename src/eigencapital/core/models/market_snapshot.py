@@ -11,9 +11,9 @@ Invariants:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
 class DataQualityStatus:
@@ -44,18 +44,18 @@ class MarketSnapshot:
 
     instrument_id: str
     timestamp_utc: str  # ISO-8601 UTC string
-    mid_price: Optional[float] = None
-    bid_price: Optional[float] = None
-    ask_price: Optional[float] = None
-    bid_size: Optional[float] = None
-    ask_size: Optional[float] = None
-    last: Optional[float] = None
-    volume: Optional[int] = None
-    trade_count: Optional[int] = None
-    vwap: Optional[float] = None
+    mid_price: float | None = None
+    bid_price: float | None = None
+    ask_price: float | None = None
+    bid_size: float | None = None
+    ask_size: float | None = None
+    last: float | None = None
+    volume: int | None = None
+    trade_count: int | None = None
+    vwap: float | None = None
     session: str = "OPEN"  # OPEN, CLOSED, AUCTION
     data_quality: str = DataQualityStatus.VALID
-    source: Optional[str] = None
+    source: str | None = None
 
     # Class-level registry
 
@@ -112,16 +112,13 @@ class MarketSnapshot:
         # Validate session is known
         valid_sessions = {"OPEN", "CLOSED", "AUCTION"}
         if self.session not in valid_sessions:
-            raise ValueError(
-                f"Invalid session: {self.session}. Must be one of {valid_sessions}"
-            )
+            raise ValueError(f"Invalid session: {self.session}. Must be one of {valid_sessions}")
 
         # Registry check for duplicate snapshots
         key = (self.instrument_id, self.timestamp_utc)
         if key in self._registry:
             raise ValueError(
-                f"Duplicate MarketSnapshot: instrument={self.instrument_id}, "
-                f"timestamp={self.timestamp_utc}"
+                f"Duplicate MarketSnapshot: instrument={self.instrument_id}, timestamp={self.timestamp_utc}"
             )
         self._registry[key] = key
 
@@ -169,9 +166,7 @@ class MarketSnapshot:
             ask_size=float(d["ask_size"]) if d.get("ask_size") is not None else None,
             last=float(d["last"]) if d.get("last") is not None else None,
             volume=int(d["volume"]) if d.get("volume") is not None else None,
-            trade_count=int(d["trade_count"])
-            if d.get("trade_count") is not None
-            else None,
+            trade_count=int(d["trade_count"]) if d.get("trade_count") is not None else None,
             vwap=float(d["vwap"]) if d.get("vwap") is not None else None,
             session=str(d.get("session", "OPEN")),
             data_quality=str(d.get("data_quality", DataQualityStatus.VALID)),
@@ -179,14 +174,14 @@ class MarketSnapshot:
         )
 
     @property
-    def mid_from_bid_ask(self) -> Optional[float]:
+    def mid_from_bid_ask(self) -> float | None:
         """Compute mid_price from bid_price and ask_price if both available."""
         if self.bid_price is not None and self.ask_price is not None:
             return (self.bid_price + self.ask_price) / 2.0
         return None
 
     @property
-    def spread(self) -> Optional[float]:
+    def spread(self) -> float | None:
         """Bid-ask spread if both prices available."""
         if self.bid_price is not None and self.ask_price is not None:
             return self.ask_price - self.bid_price

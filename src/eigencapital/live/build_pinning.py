@@ -14,9 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 EXPECTED_GIT_HEAD = "412d29e"
-EXPECTED_MANIFEST_IDENTITY = (
-    "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
-)
+EXPECTED_MANIFEST_IDENTITY = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
 PINNED_LOOP_SCRIPT = "scripts/r4_rebalance_loop.py"
 
 
@@ -60,11 +58,7 @@ def compute_git_head(repo: Path) -> str:
             text=True,
             timeout=10,
         )
-        return (
-            out.stdout.strip()
-            if out.returncode == 0
-            else f"UNAVAILABLE({out.returncode})"
-        )
+        return out.stdout.strip() if out.returncode == 0 else f"UNAVAILABLE({out.returncode})"
     except (OSError, subprocess.TimeoutExpired) as exc:
         return f"UNAVAILABLE({type(exc).__name__})"
 
@@ -103,9 +97,7 @@ def compute_build_identity(repo: Path, config_fingerprint: str) -> BuildIdentity
             loop_path.exists(),
         ),
     ]
-    build_material = "|".join(
-        [head[:12], manifest_identity[:16], config_fingerprint[:16], loop_sha]
-    )
+    build_material = "|".join([head[:12], manifest_identity[:16], config_fingerprint[:16], loop_sha])
     build_id = hashlib.sha256(build_material.encode()).hexdigest()[:32]
     return BuildIdentity(
         git_head=head,
@@ -123,9 +115,7 @@ def verify_pinned_build(
     """Fail-closed verification against pinned expectations."""
     identity = compute_build_identity(repo, config_fingerprint)
     if not identity.git_head.startswith(expected_head):
-        extra = PinCheck(
-            "pinned_head", expected_head, identity.git_head[: len(expected_head)], False
-        )
+        extra = PinCheck("pinned_head", expected_head, identity.git_head[: len(expected_head)], False)
         checks = list(identity.checks) + [extra]
         identity = BuildIdentity(
             identity.git_head,

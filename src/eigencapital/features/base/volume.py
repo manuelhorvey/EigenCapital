@@ -12,14 +12,14 @@ All features use only bars available at the decision timestamp.
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_volume_ma(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_volume_ma(bars: List[Bar], lookback: int) -> float | None:
     """Compute volume moving average.
 
     Args:
@@ -38,7 +38,7 @@ def compute_volume_ma(bars: List[Bar], lookback: int) -> Optional[float]:
     return sum(volumes) / len(volumes)
 
 
-def compute_volume_ratio(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_volume_ratio(bars: List[Bar], lookback: int) -> float | None:
     """Compute volume ratio (current volume / MA volume).
 
     Volume ratio > 1 indicates above-average volume.
@@ -63,7 +63,7 @@ def compute_volume_ratio(bars: List[Bar], lookback: int) -> Optional[float]:
     return current_volume / ma_volume
 
 
-def compute_volume_zscore(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_volume_zscore(bars: List[Bar], lookback: int) -> float | None:
     """Compute volume z-score.
 
     Z-score > 2 indicates unusually high volume.
@@ -96,7 +96,7 @@ def compute_volume_zscore(bars: List[Bar], lookback: int) -> Optional[float]:
     return (current - mean) / std
 
 
-def compute_obv_direction(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_obv_direction(bars: List[Bar], lookback: int) -> float | None:
     """Compute On-Balance Volume direction over lookback period.
 
     Returns +1 if OBV is trending up, -1 if trending down, 0 if flat.
@@ -132,9 +132,9 @@ def make_volume_ratio_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
+    feature_id: str | None = None,
     normalization: str = Normalization.NONE,
-) -> Optional[Feature]:
+) -> Feature | None:
     """Create a Feature from volume ratio computation."""
     value = compute_volume_ratio(bars, lookback)
     if value is None:

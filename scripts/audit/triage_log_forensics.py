@@ -30,9 +30,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     result: dict = {}
 
-    decisions = [
-        r for r in parse_jsonl(LOOP / "decisions.jsonl") if not r.get("_unparseable")
-    ]
+    decisions = [r for r in parse_jsonl(LOOP / "decisions.jsonl") if not r.get("_unparseable")]
     dec_events = Counter(r.get("event", "?") for r in decisions)
     eq_series = [
         {
@@ -54,14 +52,9 @@ def main() -> None:
         "zero_equity_reads": [e for e in eq_series if e["equity_after"] == 0],
     }
 
-    monitor = [
-        r for r in parse_jsonl(LOOP / "monitor.jsonl") if not r.get("_unparseable")
-    ]
+    monitor = [r for r in parse_jsonl(LOOP / "monitor.jsonl") if not r.get("_unparseable")]
     titles = Counter(r.get("title", "?") for r in monitor)
-    uniq = {
-        t: len({r.get("body", "") for r in monitor if r.get("title") == t})
-        for t in titles
-    }
+    uniq = {t: len({r.get("body", "") for r in monitor if r.get("title") == t}) for t in titles}
     eq_changes = []
     for r in monitor:
         if r.get("title") == "EQUITY CHANGE" and "→" in r.get("body", ""):
@@ -77,9 +70,7 @@ def main() -> None:
         "n_records": len(monitor),
         "title_counts": dict(titles),
         "unique_bodies_per_title": uniq,
-        "amplification_ratio": {
-            t: round(titles[t] / u, 1) if u else None for t, u in uniq.items()
-        },
+        "amplification_ratio": {t: round(titles[t] / u, 1) if u else None for t, u in uniq.items()},
         "first_ts": monitor[0].get("timestamp") if monitor else None,
         "last_ts": monitor[-1].get("timestamp") if monitor else None,
         "equity_change_series_count": len(eq_changes),

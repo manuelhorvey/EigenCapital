@@ -20,7 +20,7 @@ Invariants:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class TrialMetadata:
     trial_index: int
     hypothesis_family: str
     selection_method: str
-    trials_in_family: Optional[int] = None
+    trials_in_family: int | None = None
     parameter_search_space: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -58,9 +58,7 @@ class TrialMetadata:
             raise ValueError("trial_group_id must be non-empty")
 
         if not isinstance(self.trial_index, int) or self.trial_index < 1:
-            raise ValueError(
-                f"trial_index must be an int >= 1, got {self.trial_index!r}"
-            )
+            raise ValueError(f"trial_index must be an int >= 1, got {self.trial_index!r}")
 
         if not self.hypothesis_family:
             raise ValueError("hypothesis_family must be non-empty")
@@ -69,13 +67,9 @@ class TrialMetadata:
             raise ValueError("selection_method must be non-empty")
 
         if self.trials_in_family is not None:
-            if (
-                not isinstance(self.trials_in_family, int)
-                or self.trials_in_family < self.trial_index
-            ):
+            if not isinstance(self.trials_in_family, int) or self.trials_in_family < self.trial_index:
                 raise ValueError(
-                    f"trials_in_family ({self.trials_in_family!r}) must be an "
-                    f"int >= trial_index ({self.trial_index})"
+                    f"trials_in_family ({self.trials_in_family!r}) must be an int >= trial_index ({self.trial_index})"
                 )
 
         if not isinstance(self.parameter_search_space, dict):
@@ -100,11 +94,7 @@ class TrialMetadata:
             trial_index=int(d["trial_index"]),
             hypothesis_family=str(d["hypothesis_family"]),
             selection_method=str(d["selection_method"]),
-            trials_in_family=(
-                int(d["trials_in_family"])
-                if d.get("trials_in_family") is not None
-                else None
-            ),
+            trials_in_family=(int(d["trials_in_family"]) if d.get("trials_in_family") is not None else None),
             parameter_search_space=d.get("parameter_search_space", {}),
         )
 
@@ -120,9 +110,7 @@ class TrialMetadata:
 
     def summary(self) -> str:
         """Human-readable one-liner."""
-        size = (
-            str(self.trials_in_family) if self.trials_in_family is not None else "open"
-        )
+        size = str(self.trials_in_family) if self.trials_in_family is not None else "open"
         return (
             f"{self.trial_group_id} [{self.hypothesis_family}] "
             f"trial {self.trial_index}/{size} "

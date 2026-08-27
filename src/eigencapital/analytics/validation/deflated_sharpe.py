@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from statistics import NormalDist
-from typing import Dict, Any, Optional, Sequence
+from typing import Any, Dict, Sequence
 
 EULER_GAMMA = 0.5772156649015329
 
@@ -161,9 +161,9 @@ def expected_maximum_sharpe(trial_sharpes: Sequence[float]) -> float:
 
 
 def _resolve_trial_sr_std(
-    trial_sr_std: Optional[float],
-    trial_sharpes: Optional[Sequence[float]],
-) -> Optional[float]:
+    trial_sr_std: float | None,
+    trial_sharpes: Sequence[float] | None,
+) -> float | None:
     """Resolve cross-trial Sharpe dispersion from explicit inputs."""
     if trial_sr_std is not None:
         if trial_sr_std < 0:
@@ -181,11 +181,11 @@ def deflated_sharpe_ratio(
     observed_sharpe: float,
     n_trials: int,
     n_periods: int,
-    returns: Optional[Sequence[float]] = None,
-    trial_sharpes: Optional[Sequence[float]] = None,
-    trial_sr_std: Optional[float] = None,
-    skewness: Optional[float] = None,
-    kurtosis: Optional[float] = None,
+    returns: Sequence[float] | None = None,
+    trial_sharpes: Sequence[float] | None = None,
+    trial_sr_std: float | None = None,
+    skewness: float | None = None,
+    kurtosis: float | None = None,
     confidence: float = 0.95,
 ) -> DeflatedSharpeResult:
     """Compute the Deflated Sharpe Ratio.
@@ -224,10 +224,7 @@ def deflated_sharpe_ratio(
                 observed_sharpe=observed_sharpe,
                 n_trials=n_trials,
                 confidence=confidence,
-                message=(
-                    "INSUFFICIENT_OBSERVATIONS: skew/kurtosis estimation "
-                    "requires at least 4 returns."
-                ),
+                message=("INSUFFICIENT_OBSERVATIONS: skew/kurtosis estimation requires at least 4 returns."),
             )
         resolved_periods = len(returns)
         resolved_skew = sample_skewness(returns)
@@ -235,8 +232,7 @@ def deflated_sharpe_ratio(
 
     if resolved_periods < 2 or resolved_skew is None or resolved_kurt is None:
         raise ValueError(
-            "Provide either `returns` or all of n_periods, skewness, "
-            "kurtosis — assuming normality is not permitted."
+            "Provide either `returns` or all of n_periods, skewness, kurtosis — assuming normality is not permitted."
         )
 
     sr_std = _resolve_trial_sr_std(trial_sr_std, trial_sharpes)
@@ -266,11 +262,7 @@ def deflated_sharpe_ratio(
     else:
         sr0 = 0.0
 
-    moment_term = (
-        1.0
-        - resolved_skew * observed_sharpe
-        + ((resolved_kurt - 1.0) / 4.0) * observed_sharpe**2
-    )
+    moment_term = 1.0 - resolved_skew * observed_sharpe + ((resolved_kurt - 1.0) / 4.0) * observed_sharpe**2
     if moment_term <= 1e-12:
         return DeflatedSharpeResult(
             observed_sharpe=observed_sharpe,
@@ -287,9 +279,7 @@ def deflated_sharpe_ratio(
             ),
         )
 
-    psr_statistic = (
-        (observed_sharpe - sr0) * math.sqrt(resolved_periods - 1)
-    ) / math.sqrt(moment_term)
+    psr_statistic = ((observed_sharpe - sr0) * math.sqrt(resolved_periods - 1)) / math.sqrt(moment_term)
     dsr = NormalDist().cdf(psr_statistic)
 
     sufficient = n_trials >= 2
@@ -310,7 +300,6 @@ def deflated_sharpe_ratio(
         message=(
             f"DSR = {dsr:.4f} vs confidence {confidence:.2f} "
             f"(SR0 = {sr0:.4f}, observed = {observed_sharpe:.4f}, "
-            f"N = {n_trials})."
-            + ("" if significant else " Not significant after deflation.")
+            f"N = {n_trials})." + ("" if significant else " Not significant after deflation.")
         ),
     )

@@ -19,8 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
-
+from typing import Any, Dict, List
 
 # Scorecard evaluation dimensions — using plain strings for clarity
 STATISTICAL_EVIDENCE = "statistical_evidence"
@@ -67,9 +66,7 @@ class AlphaAdmissionScorecard:
     dimension_scores: tuple  # tuple of DimensionScore
     overall_score: float  # weighted average
     admitted: bool
-    verdict: (
-        str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
-    )
+    verdict: str  # REJECTED, INCONCLUSIVE, SUPPORTED, PORTFOLIO_USEFUL, PRODUCTION_CANDIDATE
     restrictions: tuple = ()
     notes: str = ""
     evaluation_timestamp: str = ""
@@ -109,7 +106,7 @@ class ScorecardEvaluator:
         BREADTH: 0.02,
     }
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None) -> None:
+    def __init__(self, weights: Dict[str, float] | None = None) -> None:
         self._weights = weights or self.DEFAULT_WEIGHTS
         self._scorecards: List[AlphaAdmissionScorecard] = []
 
@@ -170,33 +167,20 @@ class ScorecardEvaluator:
         dimension_scores.append(breadth_score)
 
         # Compute weighted overall score
-        overall = sum(
-            ds.score * self._weights.get(ds.dimension, 0.0) for ds in dimension_scores
-        )
+        overall = sum(ds.score * self._weights.get(ds.dimension, 0.0) for ds in dimension_scores)
 
         # Determine verdict
         passed_dims = [ds for ds in dimension_scores if ds.passed]
         # Only statistical evidence failure is unconditionally REJECTED
         # ROBUSTNESS/COST failures with good stats → FRAGILE
-        stats_failed = any(
-            ds.dimension == STATISTICAL_EVIDENCE and not ds.passed
-            for ds in dimension_scores
-        )
-        robustness_failed = any(
-            ds.dimension == ROBUSTNESS and not ds.passed for ds in dimension_scores
-        )
-        cost_failed = any(
-            ds.dimension == COST_SURVIVAL and not ds.passed for ds in dimension_scores
-        )
+        stats_failed = any(ds.dimension == STATISTICAL_EVIDENCE and not ds.passed for ds in dimension_scores)
+        robustness_failed = any(ds.dimension == ROBUSTNESS and not ds.passed for ds in dimension_scores)
+        cost_failed = any(ds.dimension == COST_SURVIVAL and not ds.passed for ds in dimension_scores)
 
         restrictions = []
-        if not any(
-            ds.dimension == COST_SURVIVAL and ds.passed for ds in dimension_scores
-        ):
+        if not any(ds.dimension == COST_SURVIVAL and ds.passed for ds in dimension_scores):
             restrictions.append("Cost survival not demonstrated")
-        if not any(
-            ds.dimension == INCREMENTAL_VALUE and ds.passed for ds in dimension_scores
-        ):
+        if not any(ds.dimension == INCREMENTAL_VALUE and ds.passed for ds in dimension_scores):
             restrictions.append("Incremental portfolio value not demonstrated")
 
         # Check correlation for redundancy detection
@@ -311,10 +295,7 @@ class ScorecardEvaluator:
         regime_stable = metrics.get("regime_stability", False)
         universe_perturbation = metrics.get("universe_perturbation_passed", False)
 
-        score = (
-            sum([walk_forward, parameter_stable, regime_stable, universe_perturbation])
-            / 4.0
-        )
+        score = sum([walk_forward, parameter_stable, regime_stable, universe_perturbation]) / 4.0
         passed = walk_forward and parameter_stable
         return DimensionScore(
             dimension=ROBUSTNESS,
@@ -438,5 +419,5 @@ class ScorecardEvaluator:
     def get_scorecards(self) -> List[AlphaAdmissionScorecard]:
         return list(self._scorecards)
 
-    def get_latest(self) -> Optional[AlphaAdmissionScorecard]:
+    def get_latest(self) -> AlphaAdmissionScorecard | None:
         return self._scorecards[-1] if self._scorecards else None

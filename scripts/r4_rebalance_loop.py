@@ -32,8 +32,9 @@ import os
 import signal
 import sys
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 sys.path.insert(0, "src")
 
@@ -46,18 +47,18 @@ except ImportError:
     MetaTrader5 = None  # Allow import on non-Linux for testing
 
 from eigencapital.config import load_config
-from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
-from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState, trail_age_seconds
-from eigencapital.live.position_attribution import classify_all, snapshot_hash, R4_MAGIC
+from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
+from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState, trail_age_seconds
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
 )
 from eigencapital.reconciliation.engine import (
-    ReconciliationEngine,
     BrokerState,
     InternalState,
+    ReconciliationEngine,
 )
 
 # ── Load Configuration (Single Source of Truth) ───────────────────
@@ -68,11 +69,7 @@ _config = load_config(os.environ.get("EIGENCAPITAL_ENV", "production"))
 R4_SYMBOLS = list(_config.broker.allowed_symbols.keys())
 
 # Eligible symbols — those classified as tradeable (not excluded)
-ELIGIBLE_SYMBOLS = [
-    sym
-    for sym, cls in _config.broker.allowed_symbols.items()
-    if not cls.endswith("_excluded")
-]
+ELIGIBLE_SYMBOLS = [sym for sym, cls in _config.broker.allowed_symbols.items() if not cls.endswith("_excluded")]
 
 # Asset classes — derived from broker config
 ASSET_CLASSES = {
@@ -152,13 +149,13 @@ if hasattr(signal, "SIGTERM"):
 
 
 def log(msg: str) -> None:
-    ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    ts = datetime.now(UTC).strftime("%H:%M:%S")
     print(f"  [{ts}] {msg}", flush=True)
 
 
 def audit(record: Dict[str, Any]) -> None:
     os.makedirs(AUDIT_DIR, exist_ok=True)
-    record["timestamp"] = datetime.now(timezone.utc).isoformat()
+    record["timestamp"] = datetime.now(UTC).isoformat()
     with open(AUDIT_FILE, "a") as f:
         f.write(json.dumps(record, default=str) + "\n")
 
@@ -171,7 +168,7 @@ def _persist_state() -> None:
         "peak_equity": _risk_enforcer._peak_equity,
         "daily_start": _risk_enforcer._daily_pnl_start,
         "daily_loss": _daily_loss_tracker.to_dict(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     os.makedirs(AUDIT_DIR, exist_ok=True)
     tmp = _STATE_FILE + ".tmp"
@@ -185,7 +182,7 @@ def _persist_state() -> None:
         pass
 
 
-def _load_state() -> Optional[Dict[str, Any]]:
+def _load_state() -> Dict[str, Any] | None:
     """Load persisted state from disk."""
     if not os.path.exists(_STATE_FILE):
         return None
@@ -199,9 +196,7 @@ def _load_state() -> Optional[Dict[str, Any]]:
 # ── Signal Computation ─────────────────────────────────────────────
 
 
-def fetch_d1_data(
-    mt5, symbols: List[str], bars: Optional[int] = None
-) -> Dict[str, pd.DataFrame]:
+def fetch_d1_data(mt5, symbols: List[str], bars: int | None = None) -> Dict[str, pd.DataFrame]:
     if bars is None:
         bars = _config.data.fetch_bars
     data: Dict[str, pd.DataFrame] = {}
@@ -218,9 +213,7 @@ def fetch_d1_data(
     return data
 
 
-def compute_r4_signal(
-    data: Dict[str, pd.DataFrame], force_regime: bool = False
-) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def compute_r4_signal(data: Dict[str, pd.DataFrame], force_regime: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """Frozen R4 signal — matches the research script exactly.
 
     Signal = (12-1 month momentum) → cross-sectional ranks → centered weights
@@ -228,10 +221,7 @@ def compute_r4_signal(
     → BTCUSD [-0.10, +0.10] clip
     """
     returns_df = (
-        pd.DataFrame({sym: df["close"].pct_change() for sym, df in data.items()})
-        .dropna(how="all")
-        .ffill()
-        .fillna(0)
+        pd.DataFrame({sym: df["close"].pct_change() for sym, df in data.items()}).dropna(how="all").ffill().fillna(0)
     )
 
     # 1. Momentum signal: 12-1 month
@@ -297,8 +287,8 @@ def generate_orders(
     contract_sizes: Dict[str, float],
     min_volumes: Dict[str, float],
     equity: float,
-    pos_details: Optional[Dict[str, List[Any]]] = None,
-) -> List[Tuple[str, str, float, str, Optional[int]]]:
+    pos_details: Dict[str, List[Any]] | None = None,
+) -> List[Tuple[str, str, float, str, int | None]]:
     """Portfolio rebalance: strongest longs + strongest shorts.
 
     Strategy:
@@ -438,7 +428,7 @@ def detect_filling_mode(mt5) -> int:
 
 def execute_orders(
     mt5,
-    orders: List[Tuple[str, str, float, str, Optional[int]]],
+    orders: List[Tuple[str, str, float, str, int | None]],
     filling_mode: int,
     max_retries: int = 2,
     retry_delay: float = 0.5,
@@ -467,26 +457,14 @@ def execute_orders(
             positions = mt5.positions_get(ticket=ticket)
             if positions and len(positions) > 0:
                 pos_type = positions[0].type  # 0=BUY, 1=SELL
-                mt5_type = (
-                    MetaTrader5.ORDER_TYPE_SELL
-                    if pos_type == 0
-                    else MetaTrader5.ORDER_TYPE_BUY
-                )
+                mt5_type = MetaTrader5.ORDER_TYPE_SELL if pos_type == 0 else MetaTrader5.ORDER_TYPE_BUY
                 price = tick.bid if pos_type == 0 else tick.ask
             else:
                 # Fallback: treat as new order
-                mt5_type = (
-                    MetaTrader5.ORDER_TYPE_BUY
-                    if side == "BUY"
-                    else MetaTrader5.ORDER_TYPE_SELL
-                )
+                mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
                 price = tick.ask if side == "BUY" else tick.bid
         else:
-            mt5_type = (
-                MetaTrader5.ORDER_TYPE_BUY
-                if side == "BUY"
-                else MetaTrader5.ORDER_TYPE_SELL
-            )
+            mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
             price = tick.ask if side == "BUY" else tick.bid
 
         request = {
@@ -513,9 +491,7 @@ def execute_orders(
             elif attempt < max_retries:
                 # Transient failure — retry with exponential backoff
                 delay = retry_delay * (2**attempt)
-                log(
-                    f"  ⚠️ {side} {lots:.2f} {sym} — retry {attempt + 1}/{max_retries} in {delay:.1f}s"
-                )
+                log(f"  ⚠️ {side} {lots:.2f} {sym} — retry {attempt + 1}/{max_retries} in {delay:.1f}s")
                 time.sleep(delay)
 
         results["submitted"] += 1
@@ -532,9 +508,7 @@ def execute_orders(
                 }
             )
             verb = "CLOSE" if ticket is not None else side
-            log(
-                f"  ✅ {verb} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}"
-            )
+            log(f"  ✅ {verb} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}")
         else:
             results["failed"] += 1
             rc = result.retcode if result else "None"
@@ -585,9 +559,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     # 0. Watchdog probe — detect stale/blind/contain conditions
     positions_for_hash = list(mt5.positions_get() or [])
-    free_margin = (
-        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
-    )
+    free_margin = getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
     broker_hash = snapshot_hash(
         [{"ticket": p.ticket, "symbol": p.symbol} for p in positions_for_hash],
         equity,
@@ -596,7 +568,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     # Compute actual trail age from audit file
     audit_file = Path(AUDIT_FILE)
     actual_trail_age = trail_age_seconds(audit_file)
-    
+
     wd_probe = ProbeResult(
         process_alive=True,
         trail_age_seconds=actual_trail_age if actual_trail_age is not None else 0.0,
@@ -624,9 +596,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     fp_result = _fingerprint_verifier.verify_all()
     if not fp_result.all_verified:
         failed = [c for c in fp_result.checks if c.status != "verified"]
-        log(
-            f"🔴 FINGERPRINT VERIFICATION FAILED — {len(failed)} component(s) mismatched"
-        )
+        log(f"🔴 FINGERPRINT VERIFICATION FAILED — {len(failed)} component(s) mismatched")
         for fc in failed:
             log(f"   → {fc.component}: {fc.message}")
         audit(
@@ -644,9 +614,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     # 0b. Daily loss check (correct tracker, not broken RiskEnforcer daily loss)
     _daily_loss_tracker.update(equity=equity)
     if _daily_loss_tracker.is_daily_loss_breached:
-        log(
-            f"🔴 DAILY LOSS BREACHED: ${_daily_loss_tracker.daily_loss:,.2f} > ${_lr.max_daily_loss:,.2f}"
-        )
+        log(f"🔴 DAILY LOSS BREACHED: ${_daily_loss_tracker.daily_loss:,.2f} > ${_lr.max_daily_loss:,.2f}")
         audit({"event": "daily_loss_breached", **_daily_loss_tracker.to_dict()})
         return {
             "status": "BLOCKED",
@@ -710,15 +678,11 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     capacity = capacity_account(classified, MAX_CONCURRENT)
     if capacity.contaminated:
-        log(
-            f"⚠️ QUARANTINE: {len(capacity.foreign_positions)} foreign position(s) — new entries blocked"
-        )
+        log(f"⚠️ QUARANTINE: {len(capacity.foreign_positions)} foreign position(s) — new entries blocked")
         audit({"event": "quarantine", "foreign": capacity.foreign_positions})
         # Allow self-rotation but block new entries
     if capacity.r4_open_count > capacity.max_concurrent:
-        log(
-            f"⚠️ R4 OVERFLOW: {capacity.r4_open_count}/{capacity.max_concurrent} — forcing rotation"
-        )
+        log(f"⚠️ R4 OVERFLOW: {capacity.r4_open_count}/{capacity.max_concurrent} — forcing rotation")
 
     # 5a. Reconciliation — verify broker ↔ internal state consistency
     broker_state = BrokerState(
@@ -739,11 +703,9 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         ],
         account_equity=equity,
         account_balance=getattr(account, "balance", equity),
-        account_free_margin=getattr(account, "margin_free", 0)
-        or getattr(account, "free_margin", 0)
-        or 0,
+        account_free_margin=getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0,
         orders=[],
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
     internal_state = InternalState(
         positions={
@@ -757,23 +719,15 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             for p in pos_list
         },
         pending_orders=[],
-        last_signal={
-            "weights": target_weights.to_dict()
-            if hasattr(target_weights, "to_dict")
-            else {}
-        },
-        target_weights=target_weights.to_dict()
-        if hasattr(target_weights, "to_dict")
-        else {},
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        last_signal={"weights": target_weights.to_dict() if hasattr(target_weights, "to_dict") else {}},
+        target_weights=target_weights.to_dict() if hasattr(target_weights, "to_dict") else {},
+        timestamp=datetime.now(UTC).isoformat(),
     )
     recon_result = _reconciliation_engine.reconcile(broker_state, internal_state)
 
     # Log reconciliation results
     if recon_result.status != "RECONCILED":
-        log(
-            f"⚠️ Reconciliation: {recon_result.status} — {len(recon_result.mismatches)} mismatch(es)"
-        )
+        log(f"⚠️ Reconciliation: {recon_result.status} — {len(recon_result.mismatches)} mismatch(es)")
         for mm in recon_result.mismatches:
             log(f"   → {mm}")
         audit(
@@ -812,9 +766,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             }
         )
 
-    free_margin = (
-        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
-    )
+    free_margin = getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
     all_pass, gate_results = _risk_enforcer.check_all(
         broker_positions=broker_positions,
         account_equity=equity,
@@ -827,13 +779,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     # Log gate results
     for gr in gate_results:
-        status = (
-            "✅"
-            if gr.result == GateResult.PASS
-            else "⚠️"
-            if gr.result == GateResult.BLOCK
-            else "🔴"
-        )
+        status = "✅" if gr.result == GateResult.PASS else "⚠️" if gr.result == GateResult.BLOCK else "🔴"
         log(f"  {status} {gr.gate_name}: {gr.message}")
 
     # Check for CRITICAL conditions (breach already exists)
@@ -917,9 +863,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     # After closes, we have free slots for opens
     available_after_close = MAX_CONCURRENT - len(pos_list) + len(closes)
     if len(opens) > available_after_close:
-        log(
-            f"⚠️  {len(opens)} opens after {len(closes)} closes — truncating to {available_after_close}"
-        )
+        log(f"⚠️  {len(opens)} opens after {len(closes)} closes — truncating to {available_after_close}")
         opens = opens[:available_after_close]
         orders = closes + opens
 
@@ -927,9 +871,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     if not orders:
         # Check if we're at limit with no rotation needed
         if len(pos_list) >= MAX_CONCURRENT:
-            log(
-                f"📊 At {len(pos_list)}/{MAX_CONCURRENT} — portfolio aligned, no rotation needed"
-            )
+            log(f"📊 At {len(pos_list)}/{MAX_CONCURRENT} — portfolio aligned, no rotation needed")
             audit({"event": "aligned", "positions": len(pos_list), "diag": diag})
             return {"status": "ALIGNED", "diag": diag}
 
@@ -1008,9 +950,7 @@ def emergency_flatten(mt5) -> Dict[str, Any]:
             continue
 
         # Close in opposite direction
-        close_type = (
-            MetaTrader5.ORDER_TYPE_SELL if p.type == 0 else MetaTrader5.ORDER_TYPE_BUY
-        )
+        close_type = MetaTrader5.ORDER_TYPE_SELL if p.type == 0 else MetaTrader5.ORDER_TYPE_BUY
         close_price = tick.bid if p.type == 0 else tick.ask
 
         request = {
@@ -1060,8 +1000,7 @@ def main() -> None:
         flush=True,
     )
     print(
-        f"  Regime: {'FORCED ON' if force_regime else 'gated'} | "
-        f"Exec: {'DRY RUN' if dry_run else 'LIVE'}",
+        f"  Regime: {'FORCED ON' if force_regime else 'gated'} | Exec: {'DRY RUN' if dry_run else 'LIVE'}",
         flush=True,
     )
     print(
@@ -1098,9 +1037,7 @@ def main() -> None:
     if saved_state:
         saved_recovery = saved_state.get("recovery_state", "connected")
         saved_attempts = saved_state.get("recovery_attempts", 0)
-        log(
-            f"Loaded persisted state: recovery={saved_recovery}, attempts={saved_attempts}"
-        )
+        log(f"Loaded persisted state: recovery={saved_recovery}, attempts={saved_attempts}")
         # Restore peak equity if persisted
         saved_peak = saved_state.get("peak_equity")
         if saved_peak and saved_peak > _risk_enforcer._peak_equity:
@@ -1135,9 +1072,7 @@ def main() -> None:
     # T=0 validation — verify frozen campaign boundary exists and matches
     import glob as _glob
 
-    t0_files = sorted(
-        _glob.glob("reports/r4_qualification/T0_*.json"), key=os.path.getmtime
-    )
+    t0_files = sorted(_glob.glob("reports/r4_qualification/T0_*.json"), key=os.path.getmtime)
     if t0_files:
         try:
             with open(t0_files[-1]) as f:
@@ -1180,8 +1115,10 @@ def main() -> None:
 
     # Position count assertion
     from eigencapital.live.position_attribution import (
-        classify_all as _classify,
         capacity_account as _capacity,
+    )
+    from eigencapital.live.position_attribution import (
+        classify_all as _classify,
     )
 
     pos_assertion = list(mt5.positions_get() or [])

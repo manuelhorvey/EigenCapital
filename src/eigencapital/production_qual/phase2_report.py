@@ -17,12 +17,12 @@ The report is generated on-demand and can be run:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict, List
 
 from eigencapital.production_qual.live_qualification import (
-    R4LiveQualificationDataset,
     QualificationTrade,
+    R4LiveQualificationDataset,
 )
 
 
@@ -305,11 +305,7 @@ class Phase2Report:
         )
         for gate_name, gate_data in self.gates.items():
             if isinstance(gate_data, dict):
-                status = (
-                    "✅"
-                    if all(v is True for v in gate_data.values() if v is not None)
-                    else "❌"
-                )
+                status = "✅" if all(v is True for v in gate_data.values() if v is not None) else "❌"
                 lines.append(f"### {status} {gate_name}")
                 for check, passed in gate_data.items():
                     icon = "✅" if passed is True else "❌" if passed is False else "⏳"
@@ -343,7 +339,7 @@ class Phase2ReportGenerator:
 
     def generate(self) -> Phase2Report:
         """Generate complete Phase 2 report."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         all_trades = self._dataset.get_all_trades()
         closed_trades = self._dataset.get_closed_trades()
@@ -375,12 +371,8 @@ class Phase2ReportGenerator:
 
         # Evidence completeness
         if closed_trades:
-            avg_completeness = sum(t.completeness_score() for t in closed_trades) / len(
-                closed_trades
-            )
-            fully_reconstructable = sum(
-                1 for t in closed_trades if t.completeness_score() >= 0.9
-            )
+            avg_completeness = sum(t.completeness_score() for t in closed_trades) / len(closed_trades)
+            fully_reconstructable = sum(1 for t in closed_trades if t.completeness_score() >= 0.9)
             completeness_pct = fully_reconstructable / len(closed_trades)
         else:
             avg_completeness = 0.0
@@ -425,20 +417,10 @@ class Phase2ReportGenerator:
         )
 
         # Determine evidence classification
-        has_observed = any(
-            any(v == "OBSERVED" for v in t.evidence_classifications.values())
-            for t in closed_trades
-        )
-        has_model = any(
-            any(v == "MODEL_BASED" for v in t.evidence_classifications.values())
-            for t in closed_trades
-        )
+        has_observed = any(any(v == "OBSERVED" for v in t.evidence_classifications.values()) for t in closed_trades)
+        has_model = any(any(v == "MODEL_BASED" for v in t.evidence_classifications.values()) for t in closed_trades)
         evidence_classification = (
-            "OBSERVED"
-            if has_observed and not has_model
-            else "MIXED"
-            if has_observed and has_model
-            else "DERIVED"
+            "OBSERVED" if has_observed and not has_model else "MIXED" if has_observed and has_model else "DERIVED"
         )
 
         # Compute gates
@@ -480,9 +462,7 @@ class Phase2ReportGenerator:
             gates=gates,
         )
 
-    def _compute_entry_summary(
-        self, trades: List[QualificationTrade]
-    ) -> Dict[str, Any]:
+    def _compute_entry_summary(self, trades: List[QualificationTrade]) -> Dict[str, Any]:
         """Compute entry quality summary."""
         if not trades:
             return {"no_data": True}
@@ -491,8 +471,7 @@ class Phase2ReportGenerator:
         strengths = [
             t.entry_quality.signal_strength_percentile
             for t in trades
-            if t.entry_quality
-            and t.entry_quality.signal_strength_percentile is not None
+            if t.entry_quality and t.entry_quality.signal_strength_percentile is not None
         ]
 
         # Regime distribution
@@ -504,15 +483,11 @@ class Phase2ReportGenerator:
 
         return {
             "total_entries": len(trades),
-            "avg_signal_strength": sum(strengths) / len(strengths)
-            if strengths
-            else None,
+            "avg_signal_strength": sum(strengths) / len(strengths) if strengths else None,
             "regime_distribution": regimes,
         }
 
-    def _compute_execution_summary(
-        self, trades: List[QualificationTrade]
-    ) -> Dict[str, Any]:
+    def _compute_execution_summary(self, trades: List[QualificationTrade]) -> Dict[str, Any]:
         """Compute execution fidelity summary."""
         if not trades:
             return {"no_data": True}
@@ -536,9 +511,7 @@ class Phase2ReportGenerator:
             "rejection_rate": f"{rejections / len(executions):.1%}",
         }
 
-    def _compute_holding_summary(
-        self, trades: List[QualificationTrade]
-    ) -> Dict[str, Any]:
+    def _compute_holding_summary(self, trades: List[QualificationTrade]) -> Dict[str, Any]:
         """Compute holding period distribution summary."""
         if not trades:
             return {"no_data": True, "distribution": {}}
@@ -557,31 +530,20 @@ class Phase2ReportGenerator:
             "distribution": distribution,
         }
 
-    def _compute_excursion_summary(
-        self, trades: List[QualificationTrade]
-    ) -> Dict[str, Any]:
+    def _compute_excursion_summary(self, trades: List[QualificationTrade]) -> Dict[str, Any]:
         """Compute MAE/MFE summary."""
         if not trades:
             return {"no_data": True}
 
         # Get entry quality with MAE/MFE
-        mae_values = [
-            t.entry_quality.mae
-            for t in trades
-            if t.entry_quality and t.entry_quality.mae != 0
-        ]
-        mfe_values = [
-            t.entry_quality.mfe
-            for t in trades
-            if t.entry_quality and t.entry_quality.mfe != 0
-        ]
+        mae_values = [t.entry_quality.mae for t in trades if t.entry_quality and t.entry_quality.mae != 0]
+        mfe_values = [t.entry_quality.mfe for t in trades if t.entry_quality and t.entry_quality.mfe != 0]
 
         return {
             "avg_mae": sum(mae_values) / len(mae_values) if mae_values else None,
             "avg_mfe": sum(mfe_values) / len(mfe_values) if mfe_values else None,
             "mae_mfe_ratio": (
-                abs(sum(mae_values) / len(mae_values))
-                / (sum(mfe_values) / len(mfe_values))
+                abs(sum(mae_values) / len(mae_values)) / (sum(mfe_values) / len(mfe_values))
                 if mae_values and mfe_values and sum(mfe_values) / len(mfe_values) > 0
                 else None
             ),
@@ -694,10 +656,7 @@ class Phase2ReportGenerator:
         # R4 Economic Edge
         if total_trades < 50 or n_episodes < 3:
             r4_economic_edge = "INCONCLUSIVE"
-        elif (
-            economics.get("expectancy_per_trade", 0) > 0
-            and economics.get("profit_factor", 0) > 1.0
-        ):
+        elif economics.get("expectancy_per_trade", 0) > 0 and economics.get("profit_factor", 0) > 1.0:
             r4_economic_edge = "CONFIRMED"
         else:
             r4_economic_edge = "REJECTED"
@@ -718,9 +677,7 @@ class Phase2ReportGenerator:
             holding_range = "INSUFFICIENT_DATA"
         else:
             # Find which bucket has the most P&L
-            best_bucket = max(
-                holding_buckets.items(), key=lambda x: x[1].get("total_pnl", 0)
-            )
+            best_bucket = max(holding_buckets.items(), key=lambda x: x[1].get("total_pnl", 0))
             holding_range = f"{best_bucket[0]} (most P&L)"
 
         # Exit Economics
@@ -779,11 +736,7 @@ class Phase2ReportGenerator:
             capacity = "$5K justified (current tier)"
 
         # Next Capital Tier
-        if (
-            r4_economic_edge == "CONFIRMED"
-            and downside == "ADEQUATE"
-            and tail_risk in ("ACCEPTABLE", "MONITORING")
-        ):
+        if r4_economic_edge == "CONFIRMED" and downside == "ADEQUATE" and tail_risk in ("ACCEPTABLE", "MONITORING"):
             next_tier = "$10K (after evidence gate)"
         elif r4_economic_edge == "INCONCLUSIVE":
             next_tier = "NONE (insufficient evidence)"
@@ -817,10 +770,7 @@ class Phase2ReportGenerator:
         gates["minimum_evidence"] = {
             "sufficient_trades": economics.get("total_trades", 0) >= 20,
             "sufficient_time": days_in_campaign >= 14,  # At least 2 weeks
-            "zero_critical_incidents": operational_summary.get(
-                "successful_recoveries", 0
-            )
-            >= 0,
+            "zero_critical_incidents": operational_summary.get("successful_recoveries", 0) >= 0,
         }
 
         # Economic gate
@@ -833,11 +783,7 @@ class Phase2ReportGenerator:
         # Risk gate
         max_dd_str = risk_summary.get("max_drawdown", "0%")
         try:
-            max_dd_val = (
-                float(max_dd_str.strip("%"))
-                if max_dd_str and max_dd_str != "N/A"
-                else 0.0
-            )
+            max_dd_val = float(max_dd_str.strip("%")) if max_dd_str and max_dd_str != "N/A" else 0.0
         except (ValueError, AttributeError):
             max_dd_val = 0.0
         gates["risk"] = {
@@ -846,10 +792,7 @@ class Phase2ReportGenerator:
         }
 
         # Overall
-        all_pass = all(
-            all(v is True for v in gate.values() if v is not None)
-            for gate in gates.values()
-        )
+        all_pass = all(all(v is True for v in gate.values() if v is not None) for gate in gates.values())
 
         gates["overall"] = {
             "all_gates_pass": all_pass,

@@ -10,14 +10,14 @@ These are feature PRIMITIVES — they output numeric values, not trading signals
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
 from eigencapital.features.contracts import FeatureFamily, Normalization
+from eigencapital.features.feature import Feature
 
 
-def compute_distance_from_sma(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_distance_from_sma(bars: List[Bar], lookback: int) -> float | None:
     """Compute distance from Simple Moving Average (as percentage).
 
     Positive = above SMA, negative = below SMA.
@@ -42,9 +42,7 @@ def compute_distance_from_sma(bars: List[Bar], lookback: int) -> Optional[float]
     return (current - sma) / sma
 
 
-def compute_distance_from_ema(
-    bars: List[Bar], lookback: int, span: Optional[int] = None
-) -> Optional[float]:
+def compute_distance_from_ema(bars: List[Bar], lookback: int, span: int | None = None) -> float | None:
     """Compute distance from Exponential Moving Average (as percentage).
 
     EMA gives more weight to recent prices.
@@ -75,7 +73,7 @@ def compute_distance_from_ema(
     return (current - ema) / ema
 
 
-def compute_vwap_deviation(bars: List[Bar], lookback: int) -> Optional[float]:
+def compute_vwap_deviation(bars: List[Bar], lookback: int) -> float | None:
     """Compute deviation from VWAP (Volume-Weighted Average Price).
 
     Positive = above VWAP, negative = below VWAP.
@@ -114,8 +112,8 @@ def make_distance_from_sma_feature(
     bars: List[Bar],
     lookback: int,
     instrument_id: str,
-    feature_id: Optional[str] = None,
-) -> Optional[Feature]:
+    feature_id: str | None = None,
+) -> Feature | None:
     """Create a Feature from distance-from-SMA computation."""
     value = compute_distance_from_sma(bars, lookback)
     if value is None:

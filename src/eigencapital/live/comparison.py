@@ -18,7 +18,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 class DivergenceCategory(str, Enum):
@@ -140,9 +140,7 @@ class DivergenceAnalyzer:
                     severity=DivergenceSeverity.WARNING.value,
                     expected=json.dumps(source_features, sort_keys=True),
                     observed=json.dumps(target_features, sort_keys=True),
-                    magnitude=self._calculate_magnitude(
-                        source_features, target_features
-                    ),
+                    magnitude=self._calculate_magnitude(source_features, target_features),
                     source_mode=source_mode,
                     target_mode=target_mode,
                 )
@@ -190,12 +188,8 @@ class DivergenceAnalyzer:
             else:
                 matches += 1
 
-        critical_count = sum(
-            1 for d in divergences if d.severity == DivergenceSeverity.CRITICAL.value
-        )
-        warning_count = sum(
-            1 for d in divergences if d.severity == DivergenceSeverity.WARNING.value
-        )
+        critical_count = sum(1 for d in divergences if d.severity == DivergenceSeverity.CRITICAL.value)
+        warning_count = sum(1 for d in divergences if d.severity == DivergenceSeverity.WARNING.value)
 
         result = ComparisonResult(
             comparison_id=comparison_id,
@@ -244,11 +238,7 @@ class DivergenceAnalyzer:
                 divergences.append(div)
             elif abs(actual - intended) / max(abs(intended), 1e-10) > 0.01:
                 magnitude = abs(actual - intended) / max(abs(intended), 1e-10)
-                severity = (
-                    DivergenceSeverity.WARNING.value
-                    if magnitude < 0.05
-                    else DivergenceSeverity.CRITICAL.value
-                )
+                severity = DivergenceSeverity.WARNING.value if magnitude < 0.05 else DivergenceSeverity.CRITICAL.value
                 div = DivergenceRecord(
                     divergence_id=f"{comparison_id}-price-{instrument_id}",
                     timestamp=timestamp,
@@ -265,12 +255,8 @@ class DivergenceAnalyzer:
             else:
                 matches += 1
 
-        critical_count = sum(
-            1 for d in divergences if d.severity == DivergenceSeverity.CRITICAL.value
-        )
-        warning_count = sum(
-            1 for d in divergences if d.severity == DivergenceSeverity.WARNING.value
-        )
+        critical_count = sum(1 for d in divergences if d.severity == DivergenceSeverity.CRITICAL.value)
+        warning_count = sum(1 for d in divergences if d.severity == DivergenceSeverity.WARNING.value)
 
         result = ComparisonResult(
             comparison_id=comparison_id,
@@ -297,9 +283,7 @@ class DivergenceAnalyzer:
             return 1.0
         diff_count = 0
         for key in source:
-            if key not in target:
-                diff_count += 1
-            elif source[key] != target[key]:
+            if key not in target or source[key] != target[key]:
                 diff_count += 1
         return diff_count / max(len(source), 1)
 
@@ -307,11 +291,7 @@ class DivergenceAnalyzer:
         return list(self._divergences)
 
     def get_critical_divergences(self) -> List[DivergenceRecord]:
-        return [
-            d
-            for d in self._divergences
-            if d.severity == DivergenceSeverity.CRITICAL.value
-        ]
+        return [d for d in self._divergences if d.severity == DivergenceSeverity.CRITICAL.value]
 
     def get_comparisons(self) -> List[ComparisonResult]:
         return list(self._comparisons)

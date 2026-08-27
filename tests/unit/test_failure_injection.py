@@ -99,11 +99,11 @@ class TestRiskGateBypass:
     """Prove risk gate bypass is blocked."""
 
     def test_nine_positions_blocks(self, envelope):
-        """9 positions → CRITICAL (the original 9>8 incident)."""
+        """20 positions → CRITICAL (breaches the 19-position limit)."""
         enforcer = RiskEnforcer(envelope)
         positions = [{"symbol": f"SYM{i}", "volume": 0.01, "type": 0,
                        "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
-                      for i in range(9)]
+                      for i in range(20)]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5010.94,

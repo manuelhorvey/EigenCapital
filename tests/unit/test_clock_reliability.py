@@ -54,8 +54,8 @@ class TestUTCUsage:
         from eigencapital.live import risk_enforcement
 
         source = inspect.getsource(risk_enforcement)
-        assert "datetime.now(timezone.utc)" in source, (
-            "Risk enforcement must use datetime.now(timezone.utc)"
+        assert "datetime.now(UTC)" in source or "datetime.now(timezone.utc)" in source, (
+            "Risk enforcement must use datetime.now(UTC) or datetime.now(timezone.utc)"
         )
 
     def test_persisted_baseline_timestamp_is_utc(self, tmp_path):

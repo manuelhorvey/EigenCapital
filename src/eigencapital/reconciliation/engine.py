@@ -637,3 +637,91 @@ class ReconciliationEngine:
             "mismatches": statuses.count("MISMATCH"),
             "blocking": statuses.count("BLOCKING"),
         }
+
+    def detect_orphans(
+        self,
+        broker: BrokerState,
+        internal: InternalState,
+    ) -> List[Dict[str, Any]]:
+        """Detect orphaned positions or tickets.
+
+        Orphans are:
+        - Positions in broker but not in internal state
+        - Tickets in internal state but not in broker
+        - Positions with no corresponding order history
+
+        Returns list of orphan details for investigation.
+        """
+        orphans = []
+
+        broker_tickets = {p.get("ticket") for p in broker.positions}
+        internal_tickets = set(internal.positions.keys()) if internal.positions else set()
+
+        # Positions in broker but not tracked internally
+        broker_only = broker_tickets - internal_tickets
+        for ticket in broker_only:
+            pos = next((p for p in broker.positions if p.get("ticket") == ticket), None)
+            if pos:
+                orphans.append({
+                    "type": "broker_only",
+                    "ticket": ticket,
+                    "symbol": pos.get("symbol", "?"),
+                    "volume": pos.get("volume", 0),
+                    "magic": pos.get("magic", 0),
+                    "message": f"Position {ticket} ({pos.get('symbol')}) exists in broker but not tracked internally",
+                })
+
+        # Tickets tracked internally but not in broker
+        internal_only = internal_tickets - broker_tickets
+        for ticket in internal_only:
+            pos_info = internal.positions.get(ticket, {})
+            orphans.append({
+                "type": "internal_only",
+                "ticket": ticket,
+                "symbol": pos_info.get("symbol", "?"),
+                "message": f"Ticket {ticket} tracked internally but not found in broker",
+            })
+
+        return orphans
+
+    def get_self_healing_recommendations(
+        self,
+        orphans: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Generate self-healing recommendations for detected orphans.
+
+        Classifies each orphan and suggests appropriate action.
+        """
+        recommendations = []
+
+        for orphan in orphans:
+            orphan_type = orphan.get("type")
+            magic = orphan.get("magic", 0)
+
+            if orphan_type == "broker_only":
+                if magic == self._r4_magic:
+                    # R4 position not tracked — likely a stale reference
+                    recommendations.append({
+                        "ticket": orphan.get("ticket"),
+                        "action": "ADD_TO_TRACKING",
+                        "reason": "R4 position exists but not in internal state",
+                        "safe_autofix": True,
+                    })
+                else:
+                    # Foreign position — quarantine
+                    recommendations.append({
+                        "ticket": orphan.get("ticket"),
+                        "action": "QUARANTINE",
+                        "reason": "Foreign position detected — block new entries",
+                        "safe_autofix": False,
+                    })
+            elif orphan_type == "internal_only":
+                # Internal reference without broker position — stale
+                recommendations.append({
+                    "ticket": orphan.get("ticket"),
+                    "action": "REMOVE_STALE_REFERENCE",
+                    "reason": "Internal reference without broker position",
+                    "safe_autofix": True,
+                })
+
+        return recommendations

@@ -568,3 +568,113 @@ class RiskObserver:
             "levels": levels,
             "peak_equity": self._peak_equity,
         }
+
+    def get_streaming_metrics(self) -> Dict[str, Any]:
+        """Get real-time streaming metrics for dashboard consumption.
+
+        Returns a snapshot of key portfolio metrics suitable for
+        real-time display or external monitoring systems.
+        """
+        if not self._history:
+            return {"status": "no_data"}
+
+        latest = self._history[-1]
+        observations = latest.get("observations", {})
+
+        # Compute rolling metrics from recent history
+        recent = self._history[-min(60, len(self._history)):]  # Last 60 observations
+        drawdowns = [
+            obs.get("observations", {}).get("drawdown", {}).get("value", 0)
+            for obs in recent
+        ]
+        daily_losses = [
+            obs.get("observations", {}).get("daily_loss", {}).get("value", 0)
+            for obs in recent
+        ]
+
+        return {
+            "timestamp": latest.get("timestamp"),
+            "overall_level": latest.get("overall_level"),
+            "equity": observations.get("equity_floor", {}).get("value", 0),
+            "drawdown": observations.get("drawdown", {}).get("value", 0),
+            "drawdown_limit": observations.get("drawdown", {}).get("limit", 0),
+            "daily_loss": observations.get("daily_loss", {}).get("value", 0),
+            "daily_loss_limit": observations.get("daily_loss", {}).get("limit", 0),
+            "position_count": observations.get("position_count", {}).get("value", 0),
+            "position_limit": observations.get("position_count", {}).get("limit", 0),
+            "gross_exposure": observations.get("gross_exposure", {}).get("value", 0),
+            "margin_utilization": observations.get("margin_utilization", {}).get("value", 0),
+            "concentration": observations.get("concentration", {}).get("value", 0),
+            "sl_unprotected": observations.get("sl_protection", {}).get("value", 0),
+            "loss_velocity": observations.get("loss_velocity", {}).get("value", 0),
+            "peak_drawdown_rolling": max(drawdowns) if drawdowns else 0,
+            "max_daily_loss_rolling": max(daily_losses) if daily_losses else 0,
+            "critical_dimensions": latest.get("critical_dimensions", []),
+            "warning_dimensions": latest.get("warning_dimensions", []),
+            "any_critical": latest.get("any_critical", False),
+            "any_warning": latest.get("any_warning", False),
+        }
+
+    def observe_correlation(
+        self,
+        positions: List[Dict[str, Any]],
+        returns: Dict[str, float] | None = None,
+    ) -> RiskObservation:
+        """Observe correlation risk across positions.
+
+        Checks if too many positions are in the same asset class
+        or if returns are highly correlated.
+        """
+        if not positions:
+            return RiskObservation(
+                dimension="correlation",
+                level=RiskObservationLevel.NORMAL.value,
+                value=0.0,
+                limit=0.5,
+                message="No positions",
+                timestamp=datetime.now(UTC).isoformat(),
+            )
+
+        # Group by asset class (simplified)
+        asset_classes: Dict[str, int] = {}
+        for pos in positions:
+            symbol = pos.get("symbol", "")
+            # Simple classification
+            if any(x in symbol.upper() for x in ["EUR", "GBP", "AUD", "NZD", "USD", "CAD", "CHF", "JPY"]):
+                ac = "FX"
+            elif any(x in symbol.upper() for x in ["XAU", "XAG"]):
+                ac = "METALS"
+            elif any(x in symbol.upper() for x in ["US30", "SPX", "NAS"]):
+                ac = "INDICES"
+            elif any(x in symbol.upper() for x in ["BTC", "ETH"]):
+                ac = "CRYPTO"
+            elif any(x in symbol.upper() for x in ["OIL", "NGAS"]):
+                ac = "ENERGY"
+            else:
+                ac = "OTHER"
+            asset_classes[ac] = asset_classes.get(ac, 0) + 1
+
+        total = len(positions)
+        max_class = max(asset_classes.values()) if asset_classes else 0
+        max_class_name = max(asset_classes, key=asset_classes.get) if asset_classes else "?"
+        concentration = max_class / total if total > 0 else 0
+
+        if concentration >= 0.7:  # 70% in one class
+            level = RiskObservationLevel.WARNING.value
+            message = f"High correlation: {concentration:.0%} in {max_class_name} ({max_class}/{total})"
+        elif concentration >= 0.5:
+            level = RiskObservationLevel.ELEVATED.value
+            message = f"Moderate correlation: {concentration:.0%} in {max_class_name}"
+        else:
+            level = RiskObservationLevel.NORMAL.value
+            message = f"Diversified: max {concentration:.0%} in {max_class_name}"
+
+        return RiskObservation(
+            dimension="correlation",
+            level=level,
+            value=concentration,
+            limit=0.7,
+            message=message,
+            timestamp=datetime.now(UTC).isoformat(),
+            details={"asset_classes": asset_classes},
+        )

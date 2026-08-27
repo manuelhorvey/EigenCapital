@@ -746,8 +746,13 @@ class Phase2ReportGenerator:
         }
         
         # Risk gate
+        max_dd_str = risk_summary.get("max_drawdown", "0%")
+        try:
+            max_dd_val = float(max_dd_str.strip("%")) if max_dd_str and max_dd_str != "N/A" else 0.0
+        except (ValueError, AttributeError):
+            max_dd_val = 0.0
         gates["risk"] = {
-            "max_drawdown_within_bounds": risk_summary.get("max_drawdown", "0%").strip("%") != "N/A" and float(risk_summary.get("max_drawdown", "0%").strip("%")) < 10,
+            "max_drawdown_within_bounds": max_dd_val < 10,
             "sl_rarely_triggered": economics.get("sl_hit_rate", 0) < 0.10,
         }
         

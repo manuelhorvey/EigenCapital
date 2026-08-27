@@ -1,0 +1,55 @@
+{
+  "audit_date": "2026-08-27",
+  "git_head": "b84f880aea179cc8f3e3268ea9dbc0e5dec4cc4a",
+  "overall_status": "SYNC + CLEANUP",
+  "scores": {
+    "config_vs_code": 85,
+    "config_vs_tests": 95,
+    "config_vs_docs": 90,
+    "config_vs_runtime": 80,
+    "config_vs_risk": 95,
+    "environment_consistency": 90,
+    "fingerprinting": 95,
+    "reproducibility": 95,
+    "architecture": 90
+  },
+  "overall_score": 90,
+  "findings": {
+    "total": 6,
+    "critical": 0,
+    "high": 0,
+    "medium": 3,
+    "low": 3
+  },
+  "strengths": [
+    "Well-structured TOML configuration system",
+    "Clear environment separation",
+    "Fingerprint verification at startup",
+    "LiveRiskConfig clearly documented as authoritative",
+    "Python defaults match production values",
+    "Cross-field invariants validated"
+  ],
+  "weaknesses": [
+    "Watchdog thresholds hardcoded in rebalance loop",
+    "Reconciliation threshold hardcoded",
+    "Data fetch bar count hardcoded",
+    "Loop interval hardcoded"
+  ],
+  "recommendation": "SYNC + CLEANUP",
+  "rationale": "Configuration architecture is sound. Main issues are hardcoded values in r4_rebalance_loop.py that should be read from config. This is a cleanup, not a refactor.",
+  "implementation_plan": {
+    "p0": [
+      "Add [watchdog] section to config.toml",
+      "Read watchdog thresholds from config in r4_rebalance_loop.py"
+    ],
+    "p1": [
+      "Add stale_threshold_seconds to [health] section",
+      "Add fetch_bars to [strategy] section",
+      "Add loop_interval to [execution] section"
+    ],
+    "p2": [
+      "Add config validation schema",
+      "Add config documentation generation"
+    ]
+  }
+}

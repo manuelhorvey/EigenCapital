@@ -1,0 +1,76 @@
+{
+  "audit_date": "2026-08-27",
+  "total_sources": 8,
+  "sources": [
+    {
+      "file": "configs/production/config.toml",
+      "purpose": "Production configuration",
+      "environment": "production",
+      "authority": "authoritative",
+      "consumers": ["r4_rebalance_loop.py", "all modules"],
+      "status": "active"
+    },
+    {
+      "file": "configs/development/config.toml",
+      "purpose": "Development configuration",
+      "environment": "development",
+      "authority": "override",
+      "consumers": ["development scripts"],
+      "status": "active"
+    },
+    {
+      "file": "configs/paper/config.toml",
+      "purpose": "Paper trading configuration",
+      "environment": "paper",
+      "authority": "override",
+      "consumers": ["paper trading"],
+      "status": "active"
+    },
+    {
+      "file": "configs/research/config.toml",
+      "purpose": "Research configuration",
+      "environment": "research",
+      "authority": "override",
+      "consumers": ["backtesting"],
+      "status": "active"
+    },
+    {
+      "file": "src/eigencapital/config.py",
+      "purpose": "Python defaults and config loader",
+      "environment": "all",
+      "authority": "fallback",
+      "consumers": ["all modules"],
+      "status": "active"
+    },
+    {
+      "file": "src/eigencapital/strategies/trend/config.py",
+      "purpose": "Strategy-specific configuration",
+      "environment": "all",
+      "authority": "strategy",
+      "consumers": ["strategy modules"],
+      "status": "active"
+    },
+    {
+      "file": ".env.example",
+      "purpose": "Environment variable template",
+      "environment": "all",
+      "authority": "override",
+      "consumers": ["dotenv"],
+      "status": "template"
+    },
+    {
+      "file": "pyproject.toml",
+      "purpose": "Project metadata and build configuration",
+      "environment": "all",
+      "authority": "build",
+      "consumers": ["pytest", "build"],
+      "status": "active"
+    }
+  ],
+  "precedence_order": [
+    "1. Environment variables (highest priority)",
+    "2. Environment-specific TOML (configs/{env}/config.toml)",
+    "3. Base TOML (configs/base.toml)",
+    "4. Python dataclass defaults (lowest priority)"
+  ]
+}

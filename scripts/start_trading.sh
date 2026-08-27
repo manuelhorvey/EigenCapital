@@ -77,6 +77,9 @@ log() {
 ensure_dirs() {
     mkdir -p reports/r4_loop reports/r4_qualification/evidence
     mkdir -p "$SERVER_DIR" 2>/dev/null || true
+    if [[ ! -f "$SERVER_DIR/server.py" ]]; then
+        python3 -c "import os; from mt5linux.__main__ import __generate_server_classic; os.makedirs('$SERVER_DIR', exist_ok=True); __generate_server_classic('$SERVER_DIR/server.py')" 2>/dev/null || true
+    fi
 }
 
 # Check if a port is listening (cross-platform)
@@ -239,14 +242,13 @@ start_bridge() {
     # Start the bridge server
     export DISPLAY="$DISPLAY_NUM"
     export WINEPREFIX
-    cd "$SERVER_DIR"
 
     if [[ "$PLATFORM" == "linux" ]]; then
-        setsid wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
-            </dev/null >"$BRIDGE_LOG" 2>&1 &
+        (cd "$SERVER_DIR" && setsid wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
+            </dev/null >"$BRIDGE_LOG" 2>&1 &)
     elif [[ "$PLATFORM" == "macos" ]]; then
-        nohup wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
-            </dev/null >"$BRIDGE_LOG" 2>&1 &
+        (cd "$SERVER_DIR" && nohup wine "$WINE_PYTHON" server.py --host "$BRIDGE_HOST" -p "$BRIDGE_PORT" \
+            </dev/null >"$BRIDGE_LOG" 2>&1 &)
     fi
 
     # Wait for port to come up (max 30s)

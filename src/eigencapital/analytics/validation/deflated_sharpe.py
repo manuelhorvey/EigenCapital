@@ -102,7 +102,10 @@ def sample_skewness(returns: Sequence[float]) -> float:
     mean = sum(returns) / n
     m2 = sum((r - mean) ** 2 for r in returns) / n
     m3 = sum((r - mean) ** 3 for r in returns) / n
-    if m2 <= 0:
+    # Guard: if variance is negligible (constant or near-constant series),
+    # floating-point error in mean can make all residuals equal, giving
+    # m3/m2^1.5 == ±1.0 instead of 0. Use a relative threshold.
+    if m2 <= 0 or m2 < 1e-20:
         return 0.0
     return m3 / (m2**1.5)
 
@@ -122,7 +125,10 @@ def sample_kurtosis(returns: Sequence[float]) -> float:
     mean = sum(returns) / n
     m2 = sum((r - mean) ** 2 for r in returns) / n
     m4 = sum((r - mean) ** 4 for r in returns) / n
-    if m2 <= 0:
+    # Guard: if variance is negligible (constant or near-constant series),
+    # return normal kurtosis (3.0). Use a relative threshold to avoid
+    # floating-point blow-up on near-constant data.
+    if m2 <= 0 or m2 < 1e-20:
         return 3.0
     return m4 / (m2**2)
 

@@ -37,23 +37,17 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eigencapital.production_qual.evidence_maturity import (
-    EvidenceLevel,
     EvidenceMaturityTracker,
     EvidenceState,
 )
 from eigencapital.production_qual.live_qualification import (
-    DownsideMetrics,
-    EntryQuality,
     ExecutionFidelity,
-    ExitReason,
-    HoldingPeriodMetrics,
     OperationalEvent,
     PortfolioRiskSnapshot,
     QualificationTrade,
@@ -121,7 +115,7 @@ class EvidenceOrchestrator:
         account_balance: float,
         free_margin: float,
         force: bool = False,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """Capture a position snapshot for evidence collection.
 
         Called after each rebalance cycle. Respects snapshot interval
@@ -162,15 +156,11 @@ class EvidenceOrchestrator:
                 self._record_closure_from_snapshot(old_pos, account_equity)
 
         # Build portfolio risk snapshot
-        risk_snapshot = self._build_risk_snapshot(
-            positions, account_equity, account_balance, free_margin
-        )
+        risk_snapshot = self._build_risk_snapshot(positions, account_equity, account_balance, free_margin)
         self._dataset.record_risk_snapshot(risk_snapshot)
 
         # Update position tracking
-        self._last_positions = {
-            p.get("ticket"): p for p in positions if p.get("ticket")
-        }
+        self._last_positions = {p.get("ticket"): p for p in positions if p.get("ticket")}
 
         # Save snapshot
         snapshot = {
@@ -197,7 +187,7 @@ class EvidenceOrchestrator:
         realized_pnl: float,
         commission: float = 0.0,
         swap: float = 0.0,
-    ) -> Optional[QualificationTrade]:
+    ) -> QualificationTrade | None:
         """Record a trade closure with full lifecycle data.
 
         Args:
@@ -265,10 +255,10 @@ class EvidenceOrchestrator:
         self,
         event_type: str,
         detection_time_ms: float,
-        containment_time_ms: Optional[float] = None,
-        recovery_time_ms: Optional[float] = None,
+        containment_time_ms: float | None = None,
+        recovery_time_ms: float | None = None,
         success: bool = True,
-        details: Optional[Dict[str, Any]] = None,
+        details: Dict[str, Any] | None = None,
     ) -> None:
         """Record an operational event (disconnect, restart, etc.).
 
@@ -336,7 +326,7 @@ class EvidenceOrchestrator:
 
         return state
 
-    def generate_report(self, force: bool = False) -> Optional[Phase2Report]:
+    def generate_report(self, force: bool = False) -> Phase2Report | None:
         """Generate Phase 2 qualification report.
 
         Args:
@@ -406,7 +396,6 @@ class EvidenceOrchestrator:
         ticket = position.get("ticket")
         symbol = position.get("symbol", "")
         magic = position.get("magic", 0)
-        comment = position.get("comment", "")
 
         # Only track R4 positions
         if magic != 20260825:
@@ -452,12 +441,9 @@ class EvidenceOrchestrator:
         if trade:
             self._store_ticket_mapping(ticket, trade.trade_id)
 
-    def _record_closure_from_snapshot(
-        self, old_position: Dict[str, Any], current_equity: float
-    ) -> None:
+    def _record_closure_from_snapshot(self, old_position: Dict[str, Any], current_equity: float) -> None:
         """Record a closure detected from position snapshot difference."""
         ticket = old_position.get("ticket")
-        symbol = old_position.get("symbol", "")
         entry_price = old_position.get("price_open", 0)
 
         # Find the trade
@@ -468,7 +454,6 @@ class EvidenceOrchestrator:
         # Estimate exit price from entry and current P&L
         # This is approximate — real closure tracking needs deal history
         profit = old_position.get("profit", 0)
-        volume = old_position.get("volume", 0)
 
         # For now, mark as closed with estimated data
         # The real closure should be recorded via record_trade_closure()
@@ -538,7 +523,7 @@ class EvidenceOrchestrator:
             position_count=len(positions),
         )
 
-    def _find_trade_by_ticket(self, ticket: int) -> Optional[str]:
+    def _find_trade_by_ticket(self, ticket: int) -> str | None:
         """Find trade ID by position ticket."""
         # Search in dataset trades
         for trade in self._dataset.get_all_trades():
@@ -586,7 +571,7 @@ class EvidenceOrchestrator:
 
 # ── Convenience function for live loop integration ────────────────
 
-_orchestrator: Optional[EvidenceOrchestrator] = None
+_orchestrator: EvidenceOrchestrator | None = None
 
 
 def get_orchestrator(
@@ -614,7 +599,7 @@ def capture_evidence_snapshot(
     balance: float,
     free_margin: float,
     campaign_id: str = "R4-5K-20260827",
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any] | None:
     """Capture an evidence snapshot (convenience function).
 
     Called from the live rebalance loop after each cycle.
@@ -635,7 +620,7 @@ def record_closure(
     exit_reason: str,
     realized_pnl: float,
     campaign_id: str = "R4-5K-20260827",
-) -> Optional[QualificationTrade]:
+) -> QualificationTrade | None:
     """Record a trade closure (convenience function).
 
     Called when a position is closed.
@@ -653,7 +638,7 @@ def record_closure(
 def record_operational_event(
     event_type: str,
     detection_time_ms: float,
-    recovery_time_ms: Optional[float] = None,
+    recovery_time_ms: float | None = None,
     success: bool = True,
     campaign_id: str = "R4-5K-20260827",
 ) -> None:

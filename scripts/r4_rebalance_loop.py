@@ -48,16 +48,15 @@ except ImportError:
 
 from eigencapital.config import load_config
 from eigencapital.live.daily_loss import DailyLossTracker
-from eigencapital.production_qual.evidence_orchestrator import (
-    EvidenceOrchestrator,
-    capture_evidence_snapshot,
-    record_closure,
-    record_operational_event,
-)
 from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
 from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState, trail_age_seconds
+from eigencapital.production_qual.evidence_orchestrator import (
+    EvidenceOrchestrator,
+    capture_evidence_snapshot,
+    record_operational_event,
+)
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
 )
@@ -555,12 +554,13 @@ def _restart_bridge_if_needed() -> bool:
     Returns True if bridge is reachable after the check.
     Cross-platform: works on Linux, macOS, and Windows (Git Bash).
     """
-    import subprocess
     import platform
+    import subprocess
 
     # Quick check: is bridge already alive?
     try:
         import rpyc
+
         conn = rpyc.classic.connect("127.0.0.1", 8001)
         conn.close()
         return True
@@ -577,10 +577,7 @@ def _restart_bridge_if_needed() -> bool:
         if system in ("linux", "darwin"):
             subprocess.run(["pkill", "-f", "server.py.*8001"], capture_output=True, timeout=5)
         elif system == "windows":
-            subprocess.run(
-                ["taskkill", "/F", "/IM", "python.exe", "/T"],
-                capture_output=True, timeout=5
-            )
+            subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/T"], capture_output=True, timeout=5)
     except Exception:
         pass
     time.sleep(2)
@@ -599,13 +596,12 @@ def _restart_bridge_if_needed() -> bool:
         # Ensure Xvfb for headless display (Linux only)
         if system == "linux":
             try:
-                result = subprocess.run(
-                    ["pgrep", "-f", "Xvfb"], capture_output=True, timeout=5
-                )
+                result = subprocess.run(["pgrep", "-f", "Xvfb"], capture_output=True, timeout=5)
                 if result.returncode != 0:
                     subprocess.Popen(
                         ["Xvfb", ":1", "-screen", "0", "1024x768x24"],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
                     )
                     time.sleep(1)
             except Exception:
@@ -615,9 +611,9 @@ def _restart_bridge_if_needed() -> bool:
         try:
             if system == "linux":
                 subprocess.Popen(
-                    ["setsid", "wine", wine_python, "server.py",
-                     "--host", "127.0.0.1", "-p", "8001"],
-                    cwd=server_dir, env=env,
+                    ["setsid", "wine", wine_python, "server.py", "--host", "127.0.0.1", "-p", "8001"],
+                    cwd=server_dir,
+                    env=env,
                     stdout=open(bridge_log, "w"),
                     stderr=subprocess.STDOUT,
                     stdin=subprocess.DEVNULL,
@@ -625,9 +621,9 @@ def _restart_bridge_if_needed() -> bool:
                 )
             else:  # macOS
                 subprocess.Popen(
-                    ["wine", wine_python, "server.py",
-                     "--host", "127.0.0.1", "-p", "8001"],
-                    cwd=server_dir, env=env,
+                    ["wine", wine_python, "server.py", "--host", "127.0.0.1", "-p", "8001"],
+                    cwd=server_dir,
+                    env=env,
                     stdout=open(bridge_log, "w"),
                     stderr=subprocess.STDOUT,
                     stdin=subprocess.DEVNULL,
@@ -641,6 +637,7 @@ def _restart_bridge_if_needed() -> bool:
         # Try to import MetaTrader5 directly
         try:
             import MetaTrader5 as mt5_native
+
             mt5_native.initialize()
             log("  ✅ MT5 initialized natively on Windows")
             return True
@@ -656,6 +653,7 @@ def _restart_bridge_if_needed() -> bool:
         time.sleep(2)
         try:
             import rpyc as _rpyc
+
             conn = _rpyc.classic.connect("127.0.0.1", 8001)
             conn.close()
             log("  ✅ Bridge restarted and accepting connections")
@@ -1445,7 +1443,7 @@ def main() -> None:
         # ── Reconnection handling ─────────────────────────────────────
         if _disconnect_recovery.state == RecoveryState.DISCONNECTED:
             recovery_msg = _disconnect_recovery.on_reconnect()
-            reconnect_time_ms = (time.time() - disconnect_start) * 1000 if 'disconnect_start' in dir() else 0.0
+            reconnect_time_ms = (time.time() - disconnect_start) * 1000 if "disconnect_start" in dir() else 0.0
             log(f"🟢 MT5 RECONNECTED — {recovery_msg}")
             audit(
                 {

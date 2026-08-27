@@ -1307,12 +1307,23 @@ def main() -> None:
                 # Equity check
                 eq_ok = account.equity > 0 if account else False
 
+                # Order check: R4 uses market orders only; any pending orders
+                # after reconnect are unexpected and indicate possible orphans.
+                try:
+                    pending = mt5.orders_get()
+                    pending_list = list(pending) if pending else []
+                    orders_ok = len(pending_list) == 0
+                except Exception:
+                    # If orders_get fails, treat as unknown — fail-closed
+                    pending_list = []
+                    orders_ok = False
+
                 # Risk check
                 risk_ok = True  # Would need full risk check here
 
                 reconcile_msg = _disconnect_recovery.submit_reconciliation(
                     positions_match=pos_ok,
-                    orders_match=True,  # No order tracking yet
+                    orders_match=orders_ok,
                     equity_match=eq_ok,
                     fingerprint_match=fp_ok,
                     details=f"pos={len(pos_list)}, eq={account.equity if account else 0:.2f}",

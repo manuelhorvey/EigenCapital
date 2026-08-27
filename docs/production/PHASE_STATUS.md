@@ -1,14 +1,40 @@
 # EigenCapital Phase Status
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
 ## Official Status
 
 | Phase | Status | Description |
 |---|---|---|
+| Phase 0 | ✅ COMPLETE | Research/Strategy Foundation |
 | Phase 1 | 🟢 COMPLETE | Production Hardening & Safety Qualification |
 | Phase 2 | 🟡 ACTIVE | Live Economic Validation & Capacity Discovery |
 | Phase 3 | 🔒 LOCKED | Capital Scaling (requires Phase 2 evidence gates) |
+| Phase 4 | ⏳ FUTURE | Production Scale / Capacity |
+| Phase 5 | ⏳ FUTURE | Continuous Research & Governance |
+
+## Infrastructure Track: COMPLETE ✅
+
+**Completed:** 2026-08-27
+
+The following infrastructure has been validated and is now COMPLETE:
+
+| Component | Status | Validation |
+|---|---|---|
+| Event/evidence ledger | ✅ Complete | Immutability, correlation chains |
+| Reconciliation engine | ✅ Complete | 11 hostile-condition tests |
+| Health-state model | ✅ Complete | 8 transition tests |
+| Risk observation | ✅ Complete | 5K observation test |
+| Structured alerting | ✅ Complete | Flood deduplication test |
+| Failure instrumentation | ✅ Complete | Comprehensive tracking |
+| Phase 2 qualification dataset | ✅ Complete | Per-trade evidence |
+| Phase 2 report generator | ✅ Complete | Structured verdict |
+| Evidence maturity framework | ✅ Complete | E0-E6 levels |
+| Parity tests | ✅ Complete | 22/22 passing |
+| Adversarial validation | ✅ Complete | 40 hostile-condition tests |
+| Long-duration tests | ✅ Complete | Memory, performance |
+
+**The next valuable commit is a qualification report from another week/month of untouched live data, not another feature.**
 
 ## Phase 1: Production Hardening & Safety Qualification ✅
 
@@ -270,3 +296,4 @@ Every live trade is evidence. Create a separate **R4 Live Qualification Dataset*
 | `LIVE_TRADING.md` | Operational procedures |
 | `CAPITAL_SCALING.md` | Tier definitions and criteria |
 | `CAPITAL_SEMANTICS.md` | Capital concept definitions |
+| `PHASE2_INFRASTRUCTURE_PLAN.md` | Phase-2-safe infrastructure implementation plan |

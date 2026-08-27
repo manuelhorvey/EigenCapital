@@ -60,7 +60,7 @@ Research → Validation → Frozen Strategy → Signal → Portfolio → Risk �
 
 ```bash
 # Clone repository
-git clone <repo> && cd EigenCapital
+git clone https://github.com/manuelhorvey/EigenCapital.git && cd EigenCapital
 
 # Install package in development mode
 pip install -e ".[research]"

@@ -36,7 +36,7 @@ class TestConfigLoading:
         """live_risk section must load from TOML."""
         config = load_config("production")
         lr = config.live_risk
-        assert lr.max_concurrent_positions == 8
+        assert lr.max_concurrent_positions == 19
         assert lr.max_position_notional == 2500.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
@@ -97,7 +97,7 @@ class TestConfigVsScriptConsistency:
         """RiskEnvelope values must match live_risk config."""
         config = load_config("production")
         lr = config.live_risk
-        assert lr.max_concurrent_positions == 8
+        assert lr.max_concurrent_positions == 19
         assert lr.max_position_notional == 2500.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
@@ -108,7 +108,7 @@ class TestConfigVsScriptConsistency:
         config = load_config("production")
         assert config.capital.max_equity == 5100.0
         assert config.capital.max_position_size == 5000.0
-        assert config.capital.max_concurrent_positions == 8
+        assert config.capital.max_concurrent_positions == 19
 
     def test_no_discrepancy_between_live_risk_and_capital(self):
         """live_risk.max_concurrent_positions must equal capital.max_concurrent_positions."""

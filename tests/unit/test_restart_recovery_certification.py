@@ -84,7 +84,7 @@ class TestRestartRecovery:
         """Risk enforcer limits must be consistent across 500 instantiations."""
         for _ in range(CYCLES):
             enforcer = RiskEnforcer(envelope)
-            assert enforcer._envelope.max_concurrent_positions == 8
+            assert enforcer._envelope.max_concurrent_positions == 19
             assert enforcer._envelope.max_daily_loss == 250.0
             assert enforcer._envelope.min_equity == 4000.0
 
@@ -165,7 +165,7 @@ class TestRestartRecovery:
             enforcer2 = RiskEnforcer(envelope)
             verifier2 = FingerprintVerifier(config=config)
             assert verifier2.frozen_manifest_fingerprint == "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
-            assert enforcer2._envelope.max_concurrent_positions == 8
+            assert enforcer2._envelope.max_concurrent_positions == 19
 
 
 class TestNoDuplicateOrders:

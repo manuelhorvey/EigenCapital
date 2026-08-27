@@ -1,0 +1,103 @@
+{
+  "audit_date": "2026-08-27",
+  "total_items": 10,
+  "by_severity": {
+    "CRITICAL": 1,
+    "HIGH": 1,
+    "MEDIUM": 5,
+    "LOW": 3
+  },
+  "by_category": {
+    "Correctness": 3,
+    "Architecture": 1,
+    "Duplication": 2,
+    "Reliability": 2,
+    "Maintainability": 1,
+    "Execution": 1
+  },
+  "items": [
+    {
+      "id": "F-001",
+      "description": "Import error in research/__init__.py",
+      "category": "Correctness",
+      "severity": "CRITICAL",
+      "effort_minutes": 1,
+      "production_blocking": true
+    },
+    {
+      "id": "F-002",
+      "description": "ReconciliationEngine not in main loop",
+      "category": "Correctness",
+      "severity": "HIGH",
+      "effort_minutes": 240,
+      "production_blocking": true
+    },
+    {
+      "id": "F-003",
+      "description": "Hardcoded min_equity in risk_observation.py",
+      "category": "Correctness",
+      "severity": "MEDIUM",
+      "effort_minutes": 15,
+      "production_blocking": false
+    },
+    {
+      "id": "F-004",
+      "description": "18 duplicate module names",
+      "category": "Architecture",
+      "severity": "MEDIUM",
+      "effort_minutes": 2880,
+      "production_blocking": false
+    },
+    {
+      "id": "F-005",
+      "description": "Two alert systems",
+      "category": "Duplication",
+      "severity": "MEDIUM",
+      "effort_minutes": 480,
+      "production_blocking": false
+    },
+    {
+      "id": "F-006",
+      "description": "Two reconciliation engines",
+      "category": "Duplication",
+      "severity": "MEDIUM",
+      "effort_minutes": 30,
+      "production_blocking": false
+    },
+    {
+      "id": "F-007",
+      "description": "Supervisor state not atomic",
+      "category": "Reliability",
+      "severity": "LOW",
+      "effort_minutes": 30,
+      "production_blocking": false
+    },
+    {
+      "id": "F-008",
+      "description": "Research campaign files >500 lines",
+      "category": "Maintainability",
+      "severity": "LOW",
+      "effort_minutes": 3840,
+      "production_blocking": false
+    },
+    {
+      "id": "F-009",
+      "description": "No retry logic on order submission",
+      "category": "Execution",
+      "severity": "LOW",
+      "effort_minutes": 240,
+      "production_blocking": false
+    },
+    {
+      "id": "F-010",
+      "description": "Supervisor PID has no liveness check",
+      "category": "Reliability",
+      "severity": "LOW",
+      "effort_minutes": 30,
+      "production_blocking": false
+    }
+  ],
+  "total_effort_minutes": 7746,
+  "total_effort_hours": 129.1,
+  "total_effort_days": 16.1
+}

@@ -8,6 +8,12 @@ Strictly DOWNSTREAM of enforcement: dispatch failures are swallowed and
 reported via return value only. An alerting outage can never alter a
 safety decision (halt/blocked states remain exactly as decided).
 """
+import warnings
+warnings.warn(
+    "eigencapital.live.alerts is deprecated. Use eigencapital.live.structured_alerts instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 from __future__ import annotations
 
 import json

@@ -97,6 +97,7 @@ class RiskObserver:
         max_concentration_pct: float = 0.30,
         max_margin_utilization: float = 0.80,
         stale_threshold_seconds: float = 300.0,
+        min_equity: float = 4000.0,
     ) -> None:
         """Initialize risk observer.
         
@@ -106,12 +107,14 @@ class RiskObserver:
             max_concentration_pct: Maximum concentration in single instrument
             max_margin_utilization: Maximum margin utilization
             stale_threshold_seconds: Threshold for stale data detection
+            min_equity: Minimum equity floor ($)
         """
         self._max_daily_loss = max_daily_loss
         self._max_drawdown_pct = max_drawdown_pct
         self._max_concentration_pct = max_concentration_pct
         self._max_margin_utilization = max_margin_utilization
         self._stale_threshold = stale_threshold_seconds
+        self._min_equity = min_equity
         
         # State tracking
         self._peak_equity = 0.0
@@ -482,7 +485,7 @@ class RiskObserver:
     
     def _observe_equity_floor(self, equity: float) -> RiskObservation:
         """Observe equity floor."""
-        min_equity = 4000.0  # From config
+        min_equity = self._min_equity
         
         if equity < min_equity:
             level = RiskObservationLevel.CRITICAL.value

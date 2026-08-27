@@ -55,6 +55,11 @@ from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
     VerificationStatus,
 )
+from eigencapital.reconciliation.engine import (
+    ReconciliationEngine,
+    BrokerState,
+    InternalState,
+)
 
 # ── Load Configuration (Single Source of Truth) ───────────────────
 
@@ -121,6 +126,10 @@ _watchdog = Watchdog(
     stale_after_seconds=300,
     blind_after_seconds=900,
     contain_after_seconds=3600,
+)
+_reconciliation_engine = ReconciliationEngine(
+    r4_magic=R4_MAGIC,
+    stale_threshold_seconds=86400,  # 24 hours
 )
 
 # State persisted across restarts
@@ -410,13 +419,18 @@ def detect_filling_mode(mt5) -> int:
 
 
 def execute_orders(
-    mt5, orders: List[Tuple[str, str, float, str, Optional[int]]], filling_mode: int
+    mt5, orders: List[Tuple[str, str, float, str, Optional[int]]], filling_mode: int,
+    max_retries: int = 2, retry_delay: float = 0.5,
 ) -> Dict[str, Any]:
     """Submit orders and return results.
 
     Each order is (symbol, side, lots, reason, ticket_or_None).
     When ticket is provided (close), the order is bound to that position
     so it works correctly on hedging accounts.
+    
+    Args:
+        max_retries: Maximum retry attempts per order on transient failure
+        retry_delay: Initial delay between retries (doubles each retry)
     """
     results = {"submitted": 0, "filled": 0, "failed": 0, "fills": []}
 
@@ -457,7 +471,18 @@ def execute_orders(
         if ticket is not None:
             request["position"] = ticket
 
-        result = mt5.order_send(request)
+        # Retry logic for transient failures
+        result = None
+        for attempt in range(max_retries + 1):
+            result = mt5.order_send(request)
+            if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
+                break  # Success
+            elif attempt < max_retries:
+                # Transient failure — retry with exponential backoff
+                delay = retry_delay * (2 ** attempt)
+                log(f"  ⚠️ {side} {lots:.2f} {sym} — retry {attempt+1}/{max_retries} in {delay:.1f}s")
+                time.sleep(delay)
+        
         results["submitted"] += 1
 
         if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
@@ -595,6 +620,47 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         # Allow self-rotation but block new entries
     if capacity.r4_open_count > capacity.max_concurrent:
         log(f"⚠️ R4 OVERFLOW: {capacity.r4_open_count}/{capacity.max_concurrent} — forcing rotation")
+
+    # 5a. Reconciliation — verify broker ↔ internal state consistency
+    broker_state = BrokerState(
+        positions=[{
+            "ticket": p.ticket, "symbol": p.symbol, "volume": p.volume,
+            "type": p.type, "magic": p.magic, "comment": p.comment,
+            "profit": p.profit, "price_open": p.price_open,
+            "sl": p.sl, "tp": p.tp,
+        } for p in pos_list],
+        account_equity=equity,
+        account_balance=getattr(account, 'balance', equity),
+        account_free_margin=getattr(account, 'margin_free', 0) or getattr(account, 'free_margin', 0) or 0,
+        orders=[],
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
+    internal_state = InternalState(
+        positions={p.ticket: {"symbol": p.symbol, "volume": p.volume} for p in pos_list},
+        pending_orders=[],
+        last_signal={"weights": target_weights.to_dict() if hasattr(target_weights, 'to_dict') else {}},
+        target_weights=target_weights.to_dict() if hasattr(target_weights, 'to_dict') else {},
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
+    recon_result = _reconciliation_engine.reconcile(broker_state, internal_state)
+    
+    # Log reconciliation results
+    if recon_result.status != "RECONCILED":
+        log(f"⚠️ Reconciliation: {recon_result.status} — {len(recon_result.mismatches)} mismatch(es)")
+        for mm in recon_result.mismatches:
+            log(f"   → {mm}")
+        audit({
+            "event": "reconciliation",
+            "status": recon_result.status,
+            "mismatches": recon_result.mismatches,
+            "action": recon_result.action_required,
+        })
+        # HALT on dangerous discrepancies
+        if recon_result.action_required == "HALT":
+            log("🔴 RECONCILIATION HALT — stopping trading")
+            return {"status": "HALTED", "reason": "reconciliation_halt", "mismatches": recon_result.mismatches}
+    else:
+        log(f"✅ Reconciliation: RECONCILED")
 
     # 5b. Risk enforcement gates (before generating orders)
     broker_positions = []

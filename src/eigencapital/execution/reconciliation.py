@@ -1,5 +1,8 @@
 """Reconciliation Engine — verifies internal state matches broker state.
 
+DEPRECATED: Use eigencapital.reconciliation.engine instead.
+This module is paper-only and retained for backward compatibility.
+
 Reconciliation must compare:
     Expected State
         vs
@@ -19,7 +22,13 @@ Check:
 Any mismatch must produce an explicit reconciliation failure.
 Never silently repair state.
 """
-
+import warnings
+warnings.warn(
+    "eigencapital.execution.reconciliation is deprecated. "
+    "Use eigencapital.reconciliation.engine instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -115,9 +115,6 @@ risk_lookback = 20               # days for regime conditioning
 transaction_cost_bps = 10.0      # 10 bps per trade
 slippage_bps = 5.0               # 5 bps slippage
 
-# Execution
-max_orders_per_cycle = 8         # max orders per rebalance cycle
-
 [live_risk]
 # Live trading risk envelope — qualification-specific limits
 # These are STRICTER than the general [risk] section
@@ -145,7 +142,24 @@ max_chase_attempts = 2           # Max chase attempts for partial fills
 max_age_seconds = 60.0           # Max age for unfilled orders
 max_cumulative_slippage_bps = 15.0 # Max cumulative slippage
 max_order_frequency = 10         # Max orders per hour
+max_orders_per_cycle = 8         # Max orders per rebalance cycle
+loop_interval_seconds = 3600     # Default loop interval (1 hour)
 
 [alerts]
 # Alert delivery
 enabled = true
+
+[watchdog]
+# Watchdog thresholds for blind-window detection and containment
+# These control escalation from NORMAL → DEGRADED → BLIND → CONTAIN
+stale_after_seconds = 300.0      # 5 minutes: process/data stale
+blind_after_seconds = 900.0      # 15 minutes: system blind
+contain_after_seconds = 3600.0   # 60 minutes: contain and flatten
+
+[reconciliation]
+# Reconciliation thresholds
+stale_threshold_seconds = 86400.0  # 24 hours: position staleness
+
+[data]
+# Data fetching parameters
+fetch_bars = 300                   # Daily bars to fetch for signal computation

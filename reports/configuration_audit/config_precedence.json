@@ -1,0 +1,63 @@
+{
+  "audit_date": "2026-08-27",
+  "precedence_order": [
+    {
+      "level": 1,
+      "source": "Environment variables",
+      "prefix": "EIGENCAPITAL_*",
+      "priority": "highest",
+      "description": "Environment variables override all other sources"
+    },
+    {
+      "level": 2,
+      "source": "Environment-specific TOML",
+      "path": "configs/{environment}/config.toml",
+      "priority": "high",
+      "description": "Environment-specific overrides (production, development, etc.)"
+    },
+    {
+      "level": 3,
+      "source": "Base TOML",
+      "path": "configs/base.toml",
+      "priority": "medium",
+      "description": "Shared defaults across environments"
+    },
+    {
+      "level": 4,
+      "source": "Python dataclass defaults",
+      "path": "src/eigencapital/config.py",
+      "priority": "lowest",
+      "description": "Fallback values hardcoded in Python dataclasses"
+    }
+  ],
+  "authority_hierarchy": {
+    "risk_parameters": {
+      "authoritative": "live_risk section in config.toml",
+      "secondary": "LiveRiskConfig Python defaults",
+      "note": "live_risk is STRICTER than general risk section"
+    },
+    "strategy_parameters": {
+      "authoritative": "strategy section in config.toml",
+      "secondary": "StrategyConfig Python defaults",
+      "note": "R4 strategy parameters are FROZEN"
+    },
+    "execution_parameters": {
+      "authoritative": "execution section in config.toml",
+      "secondary": "ExecutionConfig Python defaults"
+    }
+  },
+  "findings": [
+    {
+      "issue": "Watchdog thresholds not in config",
+      "severity": "MEDIUM",
+      "current_source": "Hardcoded in r4_rebalance_loop.py",
+      "recommended_source": "config.toml [watchdog] section"
+    },
+    {
+      "issue": "Reconciliation threshold not in config",
+      "severity": "LOW",
+      "current_source": "Hardcoded in r4_rebalance_loop.py",
+      "recommended_source": "config.toml [health] section"
+    }
+  ]
+}

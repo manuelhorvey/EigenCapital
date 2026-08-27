@@ -64,3 +64,14 @@ max_order_frequency = 100
 
 [alerts]
 enabled = false  # No alerts in research mode
+
+[watchdog]
+stale_after_seconds = 3600.0
+blind_after_seconds = 7200.0
+contain_after_seconds = 14400.0
+
+[reconciliation]
+stale_threshold_seconds = 86400.0
+
+[data]
+fetch_bars = 500

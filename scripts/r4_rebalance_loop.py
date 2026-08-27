@@ -123,13 +123,13 @@ _disconnect_recovery = DisconnectRecovery(
     max_recovery_attempts=_config.health.max_recovery_attempts,
 )
 _watchdog = Watchdog(
-    stale_after_seconds=300,
-    blind_after_seconds=900,
-    contain_after_seconds=3600,
+    stale_after_seconds=_config.watchdog.stale_after_seconds,
+    blind_after_seconds=_config.watchdog.blind_after_seconds,
+    contain_after_seconds=_config.watchdog.contain_after_seconds,
 )
 _reconciliation_engine = ReconciliationEngine(
     r4_magic=R4_MAGIC,
-    stale_threshold_seconds=86400,  # 24 hours
+    stale_threshold_seconds=_config.reconciliation.stale_threshold_seconds,
 )
 
 # State persisted across restarts
@@ -197,7 +197,9 @@ def _load_state() -> Optional[Dict[str, Any]]:
 
 # ── Signal Computation ─────────────────────────────────────────────
 
-def fetch_d1_data(mt5, symbols: List[str], bars: int = 300) -> Dict[str, pd.DataFrame]:
+def fetch_d1_data(mt5, symbols: List[str], bars: Optional[int] = None) -> Dict[str, pd.DataFrame]:
+    if bars is None:
+        bars = _config.data.fetch_bars
     data: Dict[str, pd.DataFrame] = {}
     for sym in symbols:
         mt5.symbol_select(sym, True)
@@ -873,7 +875,7 @@ def main() -> None:
     dry_run = "--dry-run" in args
     flatten_only = "--flatten" in args
 
-    interval = 3600  # default 1 hour
+    interval = _config.execution.loop_interval_seconds
     for i, a in enumerate(args):
         if a == "--interval" and i + 1 < len(args):
             interval = int(args[i + 1])

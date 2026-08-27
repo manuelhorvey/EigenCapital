@@ -64,3 +64,14 @@ max_order_frequency = 30
 
 [alerts]
 enabled = true
+
+[watchdog]
+stale_after_seconds = 600.0
+blind_after_seconds = 1800.0
+contain_after_seconds = 7200.0
+
+[reconciliation]
+stale_threshold_seconds = 86400.0
+
+[data]
+fetch_bars = 300

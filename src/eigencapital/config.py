@@ -164,6 +164,7 @@ class ExecutionConfig:
     max_cumulative_slippage_bps: float = 15.0
     max_order_frequency: int = 10  # per hour
     max_orders_per_cycle: int = 8  # max orders per rebalance cycle
+    loop_interval_seconds: int = 3600  # default loop interval (1 hour)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> ExecutionConfig:
@@ -182,6 +183,44 @@ class AlertConfig:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> AlertConfig:
+        fields = {f.name for f in cls.__dataclass_fields__.values()}
+        return cls(**{k: v for k, v in d.items() if k in fields})
+
+
+@dataclass(frozen=True)
+class WatchdogConfig:
+    """Watchdog thresholds for blind-window detection."""
+
+    stale_after_seconds: float = 300.0
+    blind_after_seconds: float = 900.0
+    contain_after_seconds: float = 3600.0
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "WatchdogConfig":
+        fields = {f.name for f in cls.__dataclass_fields__.values()}
+        return cls(**{k: v for k, v in d.items() if k in fields})
+
+
+@dataclass(frozen=True)
+class ReconciliationConfig:
+    """Reconciliation thresholds."""
+
+    stale_threshold_seconds: float = 86400.0
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "ReconciliationConfig":
+        fields = {f.name for f in cls.__dataclass_fields__.values()}
+        return cls(**{k: v for k, v in d.items() if k in fields})
+
+
+@dataclass(frozen=True)
+class DataConfig:
+    """Data fetching parameters."""
+
+    fetch_bars: int = 300
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "DataConfig":
         fields = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in fields})
 
@@ -232,6 +271,9 @@ class EigenCapitalConfig:
     health: HealthConfig = field(default_factory=HealthConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     alerts: AlertConfig = field(default_factory=AlertConfig)
+    watchdog: WatchdogConfig = field(default_factory=WatchdogConfig)
+    reconciliation: ReconciliationConfig = field(default_factory=ReconciliationConfig)
+    data: DataConfig = field(default_factory=DataConfig)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -244,6 +286,9 @@ class EigenCapitalConfig:
             "health": self.health.__dict__,
             "execution": self.execution.__dict__,
             "alerts": self.alerts.__dict__,
+            "watchdog": self.watchdog.__dict__,
+            "reconciliation": self.reconciliation.__dict__,
+            "data": self.data.__dict__,
         }
 
 
@@ -297,6 +342,9 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
     health = HealthConfig.from_dict(merged.get("health", {}))
     execution = ExecutionConfig.from_dict(merged.get("execution", {}))
     alerts = AlertConfig.from_dict(merged.get("alerts", {}))
+    watchdog = WatchdogConfig.from_dict(merged.get("watchdog", {}))
+    reconciliation = ReconciliationConfig.from_dict(merged.get("reconciliation", {}))
+    data_config = DataConfig.from_dict(merged.get("data", {}))
 
     return EigenCapitalConfig(
         environment=environment,
@@ -308,6 +356,9 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
         health=health,
         execution=execution,
         alerts=alerts,
+        watchdog=watchdog,
+        reconciliation=reconciliation,
+        data=data_config,
     )
 
 
